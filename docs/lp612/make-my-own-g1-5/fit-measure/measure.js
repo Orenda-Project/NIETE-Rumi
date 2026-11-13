@@ -48,6 +48,8 @@ const answersFor = (i, subject) => {
 
 let spent = 0;
 const before = MODE === 'after' ? JSON.parse(fs.readFileSync(path.join(__dirname, 'results-before.json'), 'utf8')) : null;
+// APPEND=1 (before only): keep the days already in results-before.json and run the rest of the draw.
+const had = MODE === 'before' && process.env.APPEND === '1' ? JSON.parse(fs.readFileSync(path.join(__dirname, 'results-before.json'), 'utf8')).days : [];
 
 /** The live client, recording each call's reply and cost; in "after", round 1 is the recorded reply. */
 function recorder(rec, replayFirst) {
@@ -118,17 +120,19 @@ function summary(days) {
 }
 
 (async () => {
-  const ids = before ? before.days.map((d) => d.lessonId) : candidates();
+  const all = before ? before.days.map((d) => d.lessonId) : candidates();
+  const ids = all.filter((id) => !had.some((d) => d.lessonId === id));
   const days = [];
   let next = 0;
   async function worker() {
-    while (next < ids.length && days.length < WANT && spent < CAP) {
+    while (next < ids.length && days.length + had.length < WANT && spent < CAP) {
       const i = next++;
-      const r = await one(ids[i], i).catch((e) => ({ lessonId: ids[i], ok: false, error: e.message, calls: [], refusals: [] }));
+      const r = await one(ids[i], all.indexOf(ids[i])).catch((e) => ({ lessonId: ids[i], ok: false, error: e.message, calls: [], refusals: [] }));
       if (r) days.push(r);
     }
   }
   await Promise.all(Array.from({ length: CONC }, worker));
+  days.unshift(...had);
   const s = summary(days);
   fs.writeFileSync(path.join(__dirname, `results-${OUT}.json`), JSON.stringify({ mode: OUT, at: new Date().toISOString(), summary: s, days }, null, 1));
   console.log(JSON.stringify(s, null, 1));

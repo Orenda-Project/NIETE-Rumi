@@ -1,0 +1,2358 @@
+{
+ "mode": "after",
+ "at": "2026-11-13T10:36:40.514Z",
+ "summary": {
+  "days": 60,
+  "refusedAfterRound1": 18,
+  "refusedAfterRound2": 11,
+  "refusalRateRound1": 0.3,
+  "failRate": 0.183,
+  "modelCalls": 78,
+  "costUSD": 2.99,
+  "costPerDay": 0.05,
+  "daysWithSoftFixes": 16,
+  "daysWithWarnings": 0,
+  "fixKinds": {
+   "trimmed hook.steps N→N": 10,
+   "trimmed wrap.homework N→N": 2,
+   "minutes set to fill the N-minute period": 5,
+   "trimmed weDo.steps N→N": 1,
+   "trimmed hook.conversation N→N": 1
+  },
+  "reasons": {
+   "r1: You Do has pair or group work : in You Do each child works alone; keep": 12,
+   "r2: You Do has pair or group work : in You Do each child works alone; keep": 9,
+   "r1: a teacher check on each child : in a big class check the whole class a": 1,
+   "r1: uses a board she does not have : use the book page instead": 1,
+   "r1: the reply was not a JSON plan": 2,
+   "r2: the reply was not a JSON plan": 1,
+   "r1: uses slates : the children work in the book": 2,
+   "r2: uses slates : the children work in the book": 1,
+   "r1: goal (the learning outcome) changed": 1
+  },
+  "errors": []
+ },
+ "days": [
+  {
+   "lessonId": "grade_1_english_ch1_seg2",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041278
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 75
+  },
+  {
+   "lessonId": "grade_1_english_ch10_seg8",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.032458
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3",
+      "trimmed wrap.homework 2→1"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3",
+    "trimmed wrap.homework 2→1"
+   ],
+   "warnings": [],
+   "ms": 2
+  },
+  {
+   "lessonId": "grade_1_english_ch4_seg7",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029452
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_english_ch10_seg4",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.025614
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_urdu_ch3_seg1",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.045174
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 2
+  },
+  {
+   "lessonId": "grade_1_urdu_ch11_seg1",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03938
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_maths_ch1_seg11",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.051184
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 2
+  },
+  {
+   "lessonId": "grade_1_maths_ch6_seg7",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029234
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_maths_ch2_seg8",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.044612
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_english_ch3_seg1",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "mixed",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029128
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_english_ch1_seg7",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "behind",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.039442
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_english_ch1_seg2",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.048174
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_english_ch7_seg3",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "ahead",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02495
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_urdu_ch11_seg4",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03025
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_maths_ch6_seg9",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041564
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_1_maths_ch6_seg9\",\"grade\":1,\"subject\":\"maths\",\"language\":\"en\",\"topic\":\"Word-Problem Consolidation: Skill Sharpener + Copy Work\",\"chapterTitle\":\"Ch.6 · Divide and Discover\",\"minutes\":40,\"sloDescriptions\":[\"A word problem means DIVIDING when you already have ONE total amount and are splitting it into equal shares or equal-size groups; it means MULTIPLYING when you are given SEVERAL equal groups and must find their total — the clue is always in the words, not in which page of the book it sits on.\"],\"source\":\"v9_html\",\"adapterV\":2},\n\"goal\":\"A word problem means DIVIDING when you already have ONE total amount and are splitting it into equal shares or equal-size groups; it means MULTIPLYING when you are given SEVERAL equal groups and must find their total — the clue is always in the words, not in which page of the book it sits on.\",\n\"sloFull\":\"A word problem means DIVIDING when you already have ONE total amount and are splitting it into equal shares or equal-size groups; it means MULTIPLYING when you are given SEVERAL equal groups and must find their total — the clue is always in the words, not in which page of the book it sits on.\",\n\"sloCode\":\"M-01-DV-04\",\n\"hook\":{\"minutes\":4,\n\"warmUp\":{\"teacherAsks\":\"p.168 Q2: Bunty puts pakoray on 5 plates, 9 on each plate. Do we add 5 and 9, or multiply them? Why?\",\"expectedAnswer\":\"Multiply: 5 × 9 = 45, because there are several equal groups (plates).\"},\n\"conversation\":[{\"teacherAsks\":\"p.168 Q1: 14 cookies packed in groups of 2 — is this sharing/grouping, or multiplying?\"},{\"teacherAsks\":\"p.169 Q3: 20 sandwiches shared among 5 people — sharing or multiplying? How many each?\"}],\n\"steps\":[{\"n\":1,\"action\":\"Ask: how can we tell divide from multiply just from the words, before doing any working?\"},{\"n\":2,\"action\":\"Children answer with thumbs up for 'multiply', thumbs down for 'divide' as teacher reads out the two warm-up questions again quickly.\"}],\n\"sayLocal\":\"Socho: hum total ko baant rahe hain, ya barabar groups jorr rahe hain?\",\n\"materials\":[\"textbook pages 168-170\",\"notebooks\"]},\n\"iDo\":{\"minutes\":8,\n\"steps\":[\n{\"n\":1,\"action\":\"Teacher opens book to p.168 Q2 and reads the pakoray problem aloud: 5 plates, 9 pakoray each.\"},\n{\"n\":2,\"say\":\"We have several EQUAL groups — 5 plates, 9 in each — so this is multiplying, not dividing.\"},\n{\"n\":3,\"say\":\"5 × 9 = 45. There are 45 pakoray in total.\"},\n{\"n\":4,\"action\":\"Teacher then reads p.169 Q3 (20 sandwiches shared among 5 people), reasons aloud: one total (20) being split equally means dividing, 20 ÷ 5 = 4 sandwiches each, and checks against the picture in the book.\"}\n],\n\"cfu\":\"Ask: whole class, thumbs up if Q2 was multiplying, thumbs down if dividing — then same for Q3. Children have understood when they choose the correct thumb before any sum is written.\",\n\"teacherSaysLocal\":\"Yeh dekho — plates barabar hain, is liye multiply karein ge.\"},\n\"weDo\":{\"minutes\":12,\n\"strategy\":\"Group children by level using rows. Row/level groups work the Skill Sharpener and Copy Work problems (pp.168-170) at their own pace, choral-checking as a class after each group reports.\",\n\"steps\":[\n{\"n\":1,\"action\":\"Behind-level row: work p.168 Q1 (14 cookies in groups of 2) using fingers or bottle caps to deal out groups of 2, then say the division sentence together.\"},\n{\"n\":2,\"action\":\"On-level row: work p.169 Q4 (4 boxes of 12 bangles) — decide multiply, write 4 × 12 = 48, check with the book's picture.\"},\n{\"n\":3,\"action\":\"Ahead row: work p.170 Copy Work Q1 (40 chapatis in 5 baskets of 8) and Q3 (5 packs of naan, 6 each) — decide divide or multiply for each, and explain why out loud to their row.\"},\n{\"n\":4,\"action\":\"Whole class: each row's spokesperson says their answer and whether it was sharing/grouping or multiplying; rest of class gives thumbs up if they agree.\"}\n],\n\"cfu\":\"Ask each row's spokesperson in turn, and class gives choral thumbs up/down agreement — look for a reason, not just an answer.\",\n\"promptLocal\":\"Row ek, do, teen — apna sawal mil kar hal karo, phir bताओ: baant rahe ho ya guna?\"},\n\"youDo\":{\"minutes\":12,\n\"steps\":[\n{\"n\":1,\"action\":\"Each child works alone in the book: decide SHARE or MULTIPLY first, then write the number sentence, for the four problems listed below.\"},\n{\"n\":2,\"action\":\"Check any printed picture on the page to confirm the answer, after writing the sentence.\"}\n],\n\"problems\":[\n{\"n\":1,\"prompt\":\"Q1 (p.168): 14 cookies packed in groups of 2 — how many packs?\",\"answer\":\"14 ÷ 2 = 7 packs.\"},\n{\"n\":2,\"prompt\":\"Q3 (p.169): 20 sandwiches shared equally among 5 people — how many each?\",\"answer\":\"20 ÷ 5 = 4 each.\"},\n{\"n\":3,\"prompt\":\"Q2 Copy Work (p.170): jalebis shared equally among 6 people, 6 each — how many jalebis bought in total?\",\"answer\":\"6 × 6 = 36 jalebis.\"},\n{\"n\":4,\"prompt\":\"Ahead stretch — Q4 (p.169): 4 boxes of bangles, 12 in each box — how many bangles in total, and is this the same type of problem as Q3, or different? Explain.\",\"answer\":\"4 × 12 = 48 bangles; different from Q3 because here we build up equal groups instead of splitting one total.\"}\n],\n\"cfu\":\"Ask two children: pick one problem you solved — which words told you to divide or multiply?\",\n\"ahead\":{\"prompt\":\"Fast finishers also try p.170 Copy Work Q3 (5 packs of naan, 6 each) alone, deciding divide or multiply before writing the sentence.\"}},\n\"wrap\":{\"minutes\":4,\n\"exitOptions\":[\n{\"prompt\":\"Thumbs up/down: 12 laddus shared equally among 4 cousins — how many each, and is it sharing or multiplying?\",\"answer\":\"12 ÷ 4 = 3 laddus each; it is sharing, because we start with one total and split it.\"},\n{\"prompt\":\"Thumbs up/down: 6 boxes of 4 gulab jamun each — sharing or multiplying, and what is the total?\",\"answer\":\"Multiplying; 6 × 4 = 24 gulab jamun.\"}\n],\n\"homework\":[\"Finish any unfinished problems from pages 168-170 in your copy.\",\"At home, find one example of sharing something equally (like roti or sweets) and tell a family member whether it was sharing or multiplying, and why.\"],\n\"sayLocal\":\"Ghar mein ek cheez barabar baanto, aur batao: yeh sharing hai ya multiplying?\"}}\n```",
+     "cost": 0.046902,
+     "tokens": {
+      "in": 10526,
+      "out": 2585
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"Q1 (p.168): 14 cookies packed in groups of 2 — how many pack\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"Q1 (p.168): 14 cookies packed in groups of 2 — how many pack\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 18230
+  },
+  {
+   "lessonId": "grade_1_urdu_ch4_seg5",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.047678
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_1_urdu_ch4_seg5\",\"grade\":1,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"تفہیم — کہانی کو سمجھنا اور زبانی و تحریری جواب دینا\",\"chapterTitle\":\"باب ۴ · میری گُدگُد کہاں ہے؟\",\"minutes\":40,\"sloDescriptions\":[\"جن کے بارے میں کہانی ہوتی ہے اُنہیں کردار کہتے ہیں، اور کہانی سمجھنے کے لیے ہم پہلے متن میں سے جواب ڈھونڈتے ہیں (لفظی) اور پھر خود سوچ کر متبادل امکانات نکالتے ہیں (تخمینی)۔\"],\"source\":\"v9_html\",\"adapterV2\":2},\"goal\":\"جن کے بارے میں کہانی ہوتی ہے اُنہیں کردار کہتے ہیں، اور کہانی سمجھنے کے لیے ہم پہلے متن میں سے جواب ڈھونڈتے ہیں (لفظی) اور پھر خود سوچ کر متبادل امکانات نکالتے ہیں (تخمینی)۔\",\"sloFull\":\"جن کے بارے میں کہانی ہوتی ہے اُنہیں کردار کہتے ہیں، اور کہانی سمجھنے کے لیے ہم پہلے متن میں سے جواب ڈھونڈتے ہیں (لفظی) اور پھر خود سوچ کر متبادل امکانات نکالتے ہیں (تخمینی)۔\",\"sloCode\":\"U-04-CO-02\",\n\"hook\":{\"minutes\":4,\n\"warmUp\":{\"teacherAsks\":\"بَنٹی کی گڑیا کا نام کیا ہے؟\",\"expectedAnswer\":\"← گُدگُد۔\"},\n\"conversation\":[{\"teacherAsks\":\"کتاب صفحہ ۳۳ کھولیں۔ آخری حصہ دیکھیں: 'ببلو درخت کے پیچھے چُھپ گیا، بنٹی نے ڈھونڈ لیا۔' کہانی کے دو کردار کون ہیں؟\"}],\n\"cfu\":\"پوری کلاس انگوٹھا اوپر کرے اگر جواب 'بنٹی اور ببلو' درست لگے۔\",\n\"materials\":[\"کتاب صفحہ ۳۳\"]},\n\n\"iDo\":{\"minutes\":8,\n\"steps\":[\n{\"n\":1,\"say\":\"میں کتاب صفحہ ۳۳ کا سوال پڑھتا ہوں: 'بنٹی اور ببلو کہاں بیٹھے ہیں؟'\"},\n{\"n\":2,\"say\":\"میں کہانی کی لائن پر انگلی رکھتا ہوں: 'درخت کے پیچھے چُپ کر کے بیٹھ گیا۔'\"},\n{\"n\":3,\"say\":\"کتاب نے سیدھا نہیں بتایا، اس لیے میں سراغ سے سوچتا ہوں: دونوں درخت کے پاس بیٹھے ہوں گے۔\"},\n{\"n\":4,\"say\":\"یہ جواب سوچ کر نکالا، سیدھا لفظی نہیں — یہی فرق ہم آگے استعمال کریں گے۔\"}],\n\"cfu\":\"پوچھیں: یہ جواب کتاب میں سیدھا لکھا تھا یا سراغ سے سوچا؟ کلاس زبانی جواب دے۔\",\n\"materials\":[\"کتاب صفحہ ۳۳\"]},\n\n\"weDo\":{\"minutes\":12,\n\"strategy\":\"کہانی و گفتگو: استاد صفحہ ۳۳ کے سوالات ب اور ج بلند آواز سے پڑھے، پوری کلاس سے زبانی خیالات لے، پھر دو تین بچوں سے پوری کلاس کے سامنے دوبارہ سنوائے۔\",\n\"steps\":[\n{\"n\":1,\"say\":\"سوال ب: اگر گُدگُد نہ چُھپائی ہوتی تو کہانی میں کیا اور ہو سکتا تھا؟ سوچیں اور ہاتھ اٹھائیں۔\"},\n{\"n\":2,\"say\":\"دو تین بچوں سے زبانی جواب سنیں، ہر بار پوچھیں: اس خیال کی وجہ کہانی کی کون سی لائن ہے؟\"},\n{\"n\":3,\"say\":\"سوال ج: گڑیا واپس کرنے کے علاوہ اور کیا ہو سکتا تھا؟ پوری کلاس سے دو نئے خیالات لیں۔\"}],\n\"cfu\":\"پوری کلاس انگلیوں پر بتائے: کتنے مختلف خیالات آج سنے (ایک، دو یا تین انگلیاں اٹھائیں)۔\",\n\"materials\":[\"کتاب صفحہ ۳۳\"]},\n\n\"youDo\":{\"minutes\":12,\n\"steps\":[\n{\"n\":1,\"action\":\"ہر طالب علم کتاب صفحہ ۳۴ کے سوالات الف اور ب اکیلا اپنی کاپی/کتاب میں لکھے۔\"},\n{\"n\":2,\"action\":\"جو جلدی ختم کر لیں وہ اضافی سوال (اسٹریچ) بھی اکیلے لکھیں۔\"},\n{\"n\":3,\"action\":\"استاد کلاس میں گھوم کر خاموشی سے دیکھے، زبانی مدد صرف اشارے سے دے۔\"}],\n\"problems\":[\n{\"n\":1,\"prompt\":\"الف۔ بنٹی کیوں اُداس تھی؟ جواب: بنٹی اِس لیے اُداس تھی کیوں کہ اس کی ___۔\",\"answer\":\"بنٹی اِس لیے اُداس تھی کیوں کہ اس کی گڑیا گُدگُد گم ہو گئی تھی۔\"},\n{\"n\":2,\"prompt\":\"ب۔ گُدگُد کون ہے؟ جواب: گُدگُد ایک ___۔\",\"answer\":\"گُدگُد ایک گڑیا ہے، بنٹی کی پیاری گڑیا کا نام۔\"},\n{\"n\":3,\"prompt\":\"ج۔ اگر گُدگُد نہ چُھپائی ہوتی تو کیا ہوتا؟ اپنے الفاظ میں ایک جملہ لکھیں۔\",\"answer\":\"مثلاً: بنٹی اُداس نہ ہوتی اور خوش رہتی۔\"}],\n\"cfu\":\"کتاب اٹھا کر دکھائیں: جس نے سوال الف مکمل کر لیا وہ کتاب اوپر اٹھائے۔\",\n\"behind\":{\"prompt\":\"استاد متن کی لائن انگلی سے دکھا کر بلند آواز پڑھے، طالب علم صرف خالی جگہ کے لیے ایک لفظ ('گڑیا گُدگُد') زبانی بتائے، پھر خود لکھے۔\"},\n\"ahead\":{\"prompt\":\"تیز طلبہ سوال ج کا جواب ایک کے بجائے دو جملوں میں اکیلے لکھیں اور بتائیں اگر بنٹی شرارت کرتی تو کہانی کیسے بدلتی۔\"}},\n\n\"wrap\":{\"minutes\":4,\n\"exitOptions\":[{\"prompt\":\"نیا منظر زبانی سنائیں: 'زینب نے احمد کی گیند چُھپا دی۔' احمد کو کیسا لگا؟ ایک جملہ زبانی بتائیں، پھر پوری کلاس انگوٹھا اوپر یا نیچے کرے کہ جواب صحیح بنا یا نہیں۔\",\"answer\":\"← مثلاً: احمد اُداس ہوا، بعد میں گیند مل گئی۔\"}],\n\"homework\":[\"گھر جا کر صفحہ ۳۳ کے خانے میں اُداس چہرے کی تصویر بنائیں اور گھر والوں سے پوچھیں: آپ کو کیا چیز اُداس کرتی ہے؟\"]}}\n```",
+     "cost": 0.053638,
+     "tokens": {
+      "in": 12384,
+      "out": 2887
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"مثلاً: بنٹی اُداس نہ ہوتی، یا دونوں مل کر کھیلتے رہتے۔\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"کتاب اٹھا کر دکھائیں: جس نے سوال الف مکمل کر لیا وہ کتاب اوپ\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 21625
+  },
+  {
+   "lessonId": "grade_2_math_ch13_seg2",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.032612
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_urdu_ch9_seg3",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.061928
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_1_urdu_ch9_seg3\",\"grade\":1,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"متن کا سفر — کہانی 'جوجو کا کھانا' کی بلند خوانی\",\"chapterTitle\":\"باب ۹ · کھانے میں کیا ہے؟\",\"minutes\":40,\"sloDescriptions\":[\"روانی سے بلند خوانی کے تین اصول: (۱) اَعراب کے مطابق صاف بولیں (اَمّی، مَٹر، کَڑوے)، (۲) نقطے (۔) پر ٹھہریں اور سوالیہ نشان (؟) پر آواز اوپر لے جائیں، (۳) ایک ہی متن کو تین بار پڑھیں — ہر بار روانی بڑھتی ہے۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"روانی سے بلند خوانی کے تین اصول: (۱) اَعراب کے مطابق صاف بولیں (اَمّی، مَٹر، کَڑوے)، (۲) نقطے (۔) پر ٹھہریں اور سوالیہ نشان (؟) پر آواز اوپر لے جائیں، (۳) ایک ہی متن کو تین بار پڑھیں — ہر بار روانی بڑھتی ہے۔\",\"sloFull\":\"روانی سے بلند خوانی کے تین اصول: (۱) اَعراب کے مطابق صاف بولیں (اَمّی، مَٹر، کَڑوے)، (۲) نقطے (۔) پر ٹھہریں اور سوالیہ نشان (؟) پر آواز اوپر لے جائیں، (۳) ایک ہی متن کو تین بار پڑھیں — ہر بار روانی بڑھتی ہے۔\",\"sloCode\":\"U-09-RD-02\",\n\n\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"کتاب صفحہ ۷۸ کی تصویر کی طرف اشارہ کریں: ٹھیلے پر کیا کیا دیکھ رہے ہیں؟\",\"expectedAnswer\":\"← گاجر، مولی، ٹماٹر، دھنیا وغیرہ\"},\"conversation\":[{\"teacherAsks\":\"آج ہم جوجو نام کے لڑکے کی کہانی پڑھیں گے جو اسکول سے گھر لوٹ رہا ہے اور سوچ رہا ہے کہ امی نے کیا پکایا ہو گا۔ کہانی کے آخر میں وہ خوشی سے شور مچاتا ہے — کیوں، یہ آج معلوم کریں گے۔\"}],\"steps\":[{\"n\":1,\"action\":\"پوری کلاس سے پوچھیں: ہاتھ اٹھا کر بتائیں، سوالیہ نشان (؟) پر ہماری آواز اوپر جاتی ہے یا نیچے؟ انگوٹھا اوپر = اوپر، انگوٹھا نیچے = نیچے۔\"}]},\n\n\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"استاد کتاب صفحہ ۷۸ کھول کر، انگلی جملوں پر رکھتے ہوئے پہلے دو جملے نمونے کے طور پر پڑھے: «جوجو اِسکول سے لَوٹ رہا ہے۔ وہ سوچ رہا ہے کہ اَمّی نے گول گول روٹی پکائی ہو گی۔» — نقطے پر رُک کر آواز نیچے لائے۔\"},{\"n\":2,\"action\":\"پھر سوالیہ جملہ پڑھے: «اَمّی نے سَبزی بھلا کون سی پکائی ہو گی؟» — آخر میں آواز اوپر لے جائے تاکہ فرق واضح ہو۔\"},{\"n\":3,\"action\":\"ایک لفظ کو ارکان میں توڑ کر دکھائے: 'گاجر' = گا + جر؛ بتائے کہ یہی لال گاجر تصویر میں بھی نظر آتی ہے۔\"},{\"n\":4,\"action\":\"پوری کلاس سے پوچھے: یہ جملہ بتاؤ یا سوال؟ — سب مل کر انگوٹھے سے اشارہ کریں۔\"}],\"cfu\":\"پوری کلاس انگوٹھے سے اشارہ کرے: سوالیہ جملے پر آواز اوپر جاتی ہے (انگوٹھا اوپر) یا نیچے (انگوٹھا نیچے)۔\"},\n\n\"weDo\":{\"minutes\":12,\"strategy\":\"صفوں کو تین سطح کے گروہ کے طور پر استعمال کریں: صف ۱ (آواز گروہ)، صف ۲ (لفظ گروہ)، صف ۳ (جملہ گروہ)۔ ہر گروہ کو کتاب صفحہ ۷۸ کا اپنا حصہ دیا جائے، باری باری کورس میں پڑھوایا جائے۔\",\"steps\":[{\"n\":1,\"action\":\"صف ۱ (آواز گروہ): استاد ایک ایک لفظ بولے — 'مُولی'، 'ٹھیلا'، 'گوبھی' — یہ گروہ پورے لفظ کو دہرائے اور اس کے ارکان بتائے (مُو+لی وغیرہ)۔\"},{\"n\":2,\"action\":\"صف ۲ (لفظ گروہ): یہ گروہ کتاب صفحہ ۷۸ کا تیسرا و چوتھا جملہ مل کر، انگلی رکھ کر، آہستہ پڑھے؛ استاد نقطے اور سوالیہ نشان پر ہاتھ سے اشارہ دے۔\"},{\"n\":3,\"action\":\"صف ۳ (جملہ گروہ): یہ گروہ پورا پانچواں جملہ پڑھے اور زبانی بتائے کہ ٹھیلے پر کون کون سے رنگ کی سبزیاں تھیں (سفید، لال، ہرا، سرخ)۔\"}]},\n\n\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"ہر بچہ اکیلے کتاب صفحہ ۷۹ کھولے اور اپنی کاپی میں سوالوں کے جواب لکھے، اپنی سطح کے مطابق کام کرے۔\"},{\"n\":2,\"action\":\"جو بچہ اپنا کام مکمل کر لے وہ خاموشی سے اضافی سوال اکیلے حل کرے۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"صفحہ ۷۹، گہرائی تک پہنچنا ١۔ ب — جوجو کو آخر میں کیا مِلا؟\",\"answer\":\"گاجَر کا حَلوہ۔ متن: «جوجو نے سوچا، اَمّی نے گاجَر کا حَلوہ بنایا ہو گا۔»\"},{\"n\":2,\"prompt\":\"صفحہ ۷۹، گہرائی تک پہنچنا ١۔ ج — کریلا کیسا ہوتا ہے؟\",\"answer\":\"کریلا کَڑوا ہوتا ہے۔ متن: «آخر کَریلا اِتنا کَڑوا کیوں ہوتا ہے؟»\"}],\"behind\":{\"prompt\":\"بچے کو صرف دو چھوٹے جملے دیے جائیں (جملہ ۱ اور ۴ — کُل ۱۲ الفاظ)۔ بچہ اکیلا انگلی رکھ کر آہستہ پڑھے، مشکل لفظ ارکان میں توڑ کر پڑھے: ٹھ+ی+ل+ا = ٹھیلا۔ پھر کاپی میں صرف سوال ۲۔ ج کا جواب لکھے۔\"},\"ahead\":{\"prompt\":\"بچہ اکیلا اضافی سوال بھی کرے: صفحہ ۷۹ کا سوال ۲ (سبزیوں کی تصاویر کو ناموں سے ملائیں) اور 'حَلوہ' و 'کَریلا' الفاظ کو ارکان میں توڑ کر کاپی پر لکھے۔\"}},\n\n\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"پوری کلاس سے پوچھیں: کتاب بند کریں، صرف انگلی سے اشارہ دیں — جوجو کو آخر میں کیا ملا؟ (سب مل کر زبانی جواب دیں: 'حَلوہ')۔\",\"answer\":\"← گاجَر کا حَلوہ؛ درست جواب پر پوری کلاس تھمبز اپ دکھائے۔\"}],\"homework\":[\"گھر میں کسی بڑے کو کتاب صفحہ ۷۸ کا پہلا جملہ ایک بار بلند آواز سے پڑھ کر سنائیں۔\"]}}\n```",
+     "cost": 0.068934,
+     "tokens": {
+      "in": 18477,
+      "out": 3198
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"جو بچے تیار ہوں وہ اضافی سوال بھی مکمل کریں۔\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"جو بچہ اپنا کام مکمل کر لے وہ خاموشی سے اضافی سوال اکیلے حل \"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 24049
+  },
+  {
+   "lessonId": "grade_2_math_ch3_seg5",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.031606
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_urdu_ch5_seg6",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041528
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_2_urdu_ch5_seg6\",\"grade\":2,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"تخلیقی لکھائی — جملے اور 'محلے کی میٹنگ' پروجیکٹ\",\"chapterTitle\":\"باب ۵ · گُفت گُو - اہم میٹنگ\",\"minutes\":40,\"sloDescriptions\":[\"ایک اَچّھا جُملہ کِسی نے، کیا کِیا اَور کِس چیز کے ساتھ کِیا — تِینوں بَتاتا ہے۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"ایک اَچّھا جُملہ کِسی نے، کیا کِیا اَور کِس چیز کے ساتھ کِیا — تِینوں بَتاتا ہے۔\",\"sloFull\":\"ایک اَچّھا جُملہ کِسی نے، کیا کِیا اَور کِس چیز کے ساتھ کِیا — تِینوں بَتاتا ہے۔\",\"sloCode\":\"U-02-OC-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۳۷ پر پہلا جملہ دیکھیں: 'میں نے ایک بڑا پیڑ دیکھا۔' کیا یہ جملہ آپ کو بتاتا ہے کہ کس نے دیکھا؟\",\"expectedAnswer\":\"جی ہاں، 'میں نے' نے دیکھا۔\"},\"conversation\":[{\"teacherAsks\":\"ٹیچر پوچھیں: 'اس جملے میں کیا دیکھا گیا؟' بچے انگلی سے کتاب کے لفظ 'پیڑ' پر اشارہ کریں۔\"},{\"teacherAsks\":\"ٹیچر پوچھیں: 'اگر ہم اپنے محلے میں میٹنگ بلائیں تو سب سے پہلے کیا کریں گے؟' بچے ہاتھ اٹھا کر جواب دیں۔\"}],\"keyWords\":[{\"term\":\"آداب\",\"def\":\"کِسی کام کو کَرنے کے صَحیح طَریقے، جَیسے میٹِنگ میں باری باری بولنا۔\"},{\"term\":\"دَعوَت نامہ\",\"def\":\"ایک تَحریری پَیغام جِس میں وَقت اَور جَگہ لِکھی ہوتی ہے۔\"}],\"materials\":[\"درسی کتاب صفحہ ۳۷\",\"طلباء کی کاپیاں\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"ٹیچر کتاب کے صفحہ ۳۷ پر پہلا جملہ انگلی سے دکھائے: 'میں نے ایک بڑا پیڑ دیکھا۔'\"},{\"n\":2,\"say\":\"میں سوچتی ہوں: کس نے؟ میں نے۔ کیا کیا؟ دیکھا۔ کس چیز کو؟ پیڑ کو۔ تینوں باتیں ہیں، اس لیے یہ اچھا جملہ ہے۔\"},{\"n\":3,\"action\":\"ٹیچر کتاب میں دوسرا جملہ دکھائے: 'وہ کھا رہا ہے۔' پوچھیں: کیا اس میں بتایا گیا کہ کس چیز کو کھا رہا ہے؟ بچے انگوٹھا نیچے کریں کیونکہ کچھ کمی ہے۔\"},{\"n\":4,\"say\":\"اگر ہم 'آم' شامل کریں تو جملہ مکمل ہوگا: 'وہ آم کھا رہا ہے۔' اب تینوں باتیں پوری ہیں۔\"}],\"cfu\":\"پوچھیں: “اچھے جملے میں کتنی باتیں ہونی چاہییں؟” جماعت ساتھ کہے: “تین — کس نے، کیا کیا، کس چیز کو۔”\"},\"weDo\":{\"minutes\":12,\"strategy\":\"سب مل کر آواز سے — ٹیچر صف کے درمیان چل کر سنے، جو بچہ رک جائے اسے جملے کے تین حصوں کی طرف اشارہ کر کے مدد دے۔\",\"steps\":[{\"n\":1,\"action\":\"جماعت مل کر کتاب کا تیسرا جملہ آواز سے پڑھے: 'ہم جا رہے ہیں۔'\"},{\"n\":2,\"say\":\"ٹیچر پوچھیں: “اس میں کس نے؟ کیا کیا؟ لیکن کس جگہ جا رہے ہیں، یہ نہیں بتایا۔ ہم کیا جوڑیں؟” جماعت ساتھ مل کر جواب دے، مثلاً 'اسکول'۔\"},{\"n\":3,\"action\":\"ٹیچر مکمل جملہ بلند آواز سے دہرائے: 'ہم اسکول جا رہے ہیں۔' جماعت ساتھ دہرائے۔\"},{\"n\":4,\"action\":\"ٹیچر کتاب کا چوتھا جملہ دکھائے: 'اُس نے مجھے ___ دیا۔' جماعت دو دو کے جوڑوں میں بیٹھ کر ایک دوسرے کو زبانی جملہ مکمل کر کے سنائے، پھر جماعت ساتھ مل کر بہترین جواب چنے، مثلاً 'قلم'۔\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"ہر بچہ اکیلے کاپی میں صفحہ ۳۷ کے جملے ۲ اور ۳ کی خالی جگہ پُر کرے۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"۲۔ وہ ________ کھا رَہا ہے۔\",\"answer\":\"'وہ آم کھا رَہا ہے۔' — بچے کوئی بھی کھانے کی چیز کا نام لِکھ سَکتے ہیں۔\"},{\"n\":2,\"prompt\":\"۳۔ ہَم ________ جا رَہے ہیں۔\",\"answer\":\"'ہَم اسکول جا رَہے ہیں۔' — بچے کوئی بھی جَگہ کا نام لِکھ سَکتے ہیں۔\"}],\"cfu\":\"پوچھیں: “آپ کے جملے میں کس نے، کیا کیا اور کس چیز کے ساتھ کیا — یہ تینوں ہیں؟” بچے انگوٹھا اوپر یا نیچے دکھائیں۔\",\"behind\":{\"prompt\":\"جو بچہ اٹکے، ٹیچر زبانی طور پر جملہ پہلے بولے (مثلاً 'وہ آم کھا رہا ہے') اور بچہ صرف اسی جملے کو دیکھ کر کاپی میں لکھے۔\"},\"ahead\":{\"prompt\":\"تیز بچے اکیلے جملہ ۴ بھی مکمل کریں: 'اُس نے مجھے ___ دیا۔' اور خود کوئی نئی چیز کا نام سوچ کر لکھیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"جملہ مکمل کریں: 'اُس نے مُجھے ایک ___________ دِیا۔' لکھنے کے بعد انگوٹھا اوپر یا نیچے کر کے بتائیں: کیا جملہ مکمل ہے؟\",\"answer\":\"'اُس نے مُجھے ایک قلم دِیا۔' — جملہ مکمل ہو، خالی جگہ میں کسی چیز کا نام آئے۔\"},{\"prompt\":\"جماعت سے پوچھیں: “اچھے جملے میں کتنی باتیں ہونی چاہییں؟” سب ساتھ مل کر جواب دیں۔\",\"answer\":\"تین — کس نے، کیا کیا، کس چیز کو۔\"}],\"homework\":[\"گَھر میں اَپنے خاندان کے کِسی ایک فَرد سے پُوچھیں کہ وہ میٹِنگ میں کِس چیز پَر بات کَرنا پَسَند کَریں گے، پھر اُس کے بارے میں دو جُملے لِکھیں۔\",\"کاپی میں لِکھ کَر لائیں (دیکھیں صفحہ ۳۷ کی مِثالیں)۔\"]}}\n```",
+     "cost": 0.048132,
+     "tokens": {
+      "in": 9036,
+      "out": 3006
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"تیز بچے جملہ ۴ بھی مکمل کریں: 'اُس نے مجھے ___ دیا۔' اور خود\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"تیز بچے اکیلے جملہ ۴ بھی مکمل کریں: 'اُس نے مجھے ___ دیا۔' ا\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 22911
+  },
+  {
+   "lessonId": "grade_3_english_ch10_seg5",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.034712
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_3_english_ch9_seg5",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.023314
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_math_ch1_seg7",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.043732
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_english_ch4_seg8",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03459
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_english_ch3_seg8",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.025106
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_math_ch14_seg3",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.027004
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_2_math_ch14_seg3\",\"grade\":2,\"subject\":\"math\",\"language\":\"en\",\"topic\":\"2-D and 3-D Shape Patterns\",\"chapterTitle\":\"Ch.14 · Pattern Parade: The Rhythm of Numbers\",\"minutes\":40,\"sloDescriptions\":[\"To continue a shape pattern, find the complete part that repeats, say it in order, and start that same order again.\"],\"source\":\"v9_html\",\"adapterV2\":2},\"goal\":\"To continue a shape pattern, find the complete part that repeats, say it in order, and start that same order again.\",\"sloFull\":\"To continue a shape pattern, find the complete part that repeats, say it in order, and start that same order again.\",\"sloCode\":\"M-02-PA-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"Say: 'Dekho aur batao' — Open p.275 and look at the food tray. A samosa is the shape of a ...?\",\"expectedAnswer\":\"Triangle.\"},\"conversation\":[{\"teacherAsks\":\"Look at the food tray on p.275: samosa, tomato, cake. Everyone, together: what shape comes after the circle?\"}],\"keyWords\":[{\"term\":\"2-D shape\",\"def\":\"Flat shape, like the triangle, circle, square on p.275.\"},{\"term\":\"3-D shape\",\"def\":\"Solid shape, like the cone, sphere, cube on p.276.\"}],\"board\":{\"content\":\"Pattern: triangle, circle, square, triangle, circle, square\"},\"materials\":[\"textbook pp.275-276\",\"pencils\",\"student notebooks\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"Hold up the book open at p.275. Point to the food tray: samosa, tomato, cake, samosa, tomato, cake.\",\"say\":\"The book says this is a repeating pattern of triangle, circle, square.\"},{\"n\":2,\"action\":\"Turn to p.276. Point to the cone, sphere, cube row.\",\"say\":\"The samosa becomes a cone, the gulab jamun becomes a sphere, the barfi becomes a cube — now it is solid, 3-D.\"},{\"n\":3,\"say\":\"The repeating part is cone, sphere, cube. After cube, we start again: cone, sphere.\"},{\"n\":4,\"say\":\"A square is flat on paper; a cube you could hold in your hand. Say it with me once, together: 'flat is 2-D, solid is 3-D.'\"}],\"cfu\":\"CFU (whole class, thumbs): Point to the cube on p.276 and ask: is this flat or solid? Thumbs up for solid, thumbs down for flat.\",\"misconception\":{\"fix\":\"If pupils call the cube a square, say: 'Can you pick it up? Then it is solid, a cube.'\"}},\"weDo\":{\"minutes\":12,\"strategy\":\"Whole-class game tied to the page, then whole-class choral completion of the pattern rows. Check with one signal for all: raised books or thumbs, never child by child.\",\"steps\":[{\"n\":1,\"action\":\"Play Pattern Clap: say 'jump, clap, stomp' and have the whole class repeat the actions together twice, seated at their desks.\"},{\"n\":2,\"action\":\"Point to p.275 food tray. Whole class says the pattern aloud together: triangle, circle, square, triangle, circle, square.\"},{\"n\":3,\"action\":\"Point to p.276 Practice Q1a (square pattern row). Ask the whole class: what comes next? Children call out together, then open notebooks and draw the next 2 shapes.\"}],\"cfu\":\"Whole-class check: on the count of three, everyone holds up their notebook at the same time so you can scan the room for the next 2 shapes of Q1a.\"},\"youDo\":{\"minutes\":12,\"problems\":[{\"n\":1,\"prompt\":\"Textbook p.276 Practice Question 1b: cylinder, sphere, cube, cylinder, sphere, cube. In your notebook, draw the next 2 shapes alone.\",\"answer\":\"Cylinder, then sphere.\"},{\"n\":2,\"prompt\":\"Textbook p.275 Adventure Begins Q3: draw the next two 2D shapes in the food tray pattern alone in your notebook.\",\"answer\":\"Triangle, then circle.\"}],\"behind\":{\"prompt\":\"Say the part that repeats aloud first, point to it twice in the book, then draw only the first next shape alone.\"},\"ahead\":{\"prompt\":\"Make a new pattern with the same 3-D shapes in a different order: sphere, cube, cylinder, sphere, cube, cylinder. Draw the next two shapes alone.\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"Say: 'Yeh karke dikhao' — New item on the board: cone, cylinder, cone, cylinder. Draw the next 2 shapes and say the part that repeats. Whole class check: everyone shows thumbs up or down together.\",\"answer\":\"Cone, then cylinder. The part that repeats is cone, cylinder.\"}],\"reteach\":\"2-D shapes are flat; 3-D shapes are solid. Find the part that repeats and start it again.\",\"homework\":[\"At home, line up 6 things in a repeating pattern, such as ball, box, ball, box, ball, box. Draw it in your notebook and write the shape name under each one.\"]}}\n```",
+     "cost": 0.030848,
+     "tokens": {
+      "in": 6429,
+      "out": 1799
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "a teacher check on each child (\"Whole-class game tied to the page, then choral completion of\"): in a big class check the whole class at once (choral, fingers, books up)"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 13608
+  },
+  {
+   "lessonId": "grade_2_urdu_ch8_seg2",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.040302
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_2_urdu_ch8_seg2\",\"grade\":2,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"بلند خوانی — نظم 'کالے بادل آئیں گے' (صوفی تبسم)\",\"chapterTitle\":\"باب ۸ · کالے بادل\",\"minutes\":40,\"sloDescriptions\":[\"نظم پڑھتے وقت ہم آواز الفاظ اور تفہیمی جوابات دونوں نظم کی اپنی سطروں سے، اندازے سے نہیں، تلاش کرتے ہیں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"نظم پڑھتے وقت ہم آواز الفاظ اور تفہیمی جوابات دونوں نظم کی اپنی سطروں سے، اندازے سے نہیں، تلاش کرتے ہیں۔\",\"sloFull\":\"نظم پڑھتے وقت ہم آواز الفاظ اور تفہیمی جوابات دونوں نظم کی اپنی سطروں سے، اندازے سے نہیں، تلاش کرتے ہیں۔\",\"sloCode\":\"U-02-CO-03\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۵۶ پر تصویر کی طرف اشارہ کریں: کالے بادل اور بارش کی تصویر دیکھو۔\",\"expectedAnswer\":\"\"},\"conversation\":[{\"teacherAsks\":\"سوال: مینڈک کی آواز کو اردو میں کیا کہتے ہیں؟ اپنا اندازہ سوچو۔\"}],\"steps\":[{\"n\":1,\"action\":\"صفحہ ۵۶ کھولیں اور تصویر کی طرف اشارہ کریں۔\"},{\"n\":2,\"action\":\"سوال پوچھیں: مینڈک کی آواز کو اردو میں کیا کہتے ہیں؟\"},{\"n\":3,\"action\":\"چند بچوں سے زبانی اندازہ سنیں، پھر بتائیں کہ آج نظم میں جواب ملے گا۔\"}]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"استاد صفحہ ۵۶ کا پہلا بند خود بلند آواز سے پڑھتی ہیں۔\",\"say\":\"«کالے بادل آئیں گے، آ کر مینہ برسائیں گے، مینہ میں لوگ نہائیں گے، کالے بادل آئیں گے۔»\"},{\"n\":2,\"action\":\"استاد بند دوبارہ پڑھ کر ہم آواز الفاظ کی طرف اشارہ کرتی ہیں۔\",\"say\":\"«سنو: آئیں گے، برسائیں گے، نہائیں گے — تینوں کا آخری حصہ 'ائیں گے' ایک جیسا ہے، اس لیے یہ ہم آواز الفاظ ہیں۔»\"},{\"n\":3,\"action\":\"استاد مینہ اور ساز کی آواز کا موازنہ سمجھاتی ہیں۔\",\"say\":\"«مینہ برسے اور ساز بجے، دونوں کی آواز 'ٹپ ٹپ ٹپ ٹپ' جیسی ہے، شاعر نے دونوں آوازوں کو ملایا ہے۔»\"},{\"n\":4,\"action\":\"چیک: جماعت سے پوچھیں، ہم آواز الفاظ کیسے پہچانے جاتے ہیں، انگلیاں اٹھا کر جواب لیں۔\"}],\"cfu\":\"جماعت سے انگلیاں اٹھوا کر پوچھیں: ہم آواز الفاظ کا آخری حصہ کیسا ہوتا ہے؟\"},\"weDo\":{\"minutes\":12,\"strategy\":\"پوری جماعت مل کر پڑھے اور بولے، استاد کتاب کی تصویر اور سطروں کی طرف اشارہ کرتی رہیں۔\",\"steps\":[{\"n\":1,\"action\":\"جماعت مل کر صفحہ ۵۶-۵۷ کا دوسرا اور تیسرا بند بلند آواز سے ایک بار پڑھتی ہے۔\",\"say\":\"«سب مل کر پڑھو: مینہ برسے گا ٹپ ٹپ ٹپ ٹپ، ساز بجے گا ٹپ ٹپ ٹپ ٹپ، ہم ناچیں گے گائیں گے، کالے بادل آئیں گے۔»\"},{\"n\":2,\"action\":\"استاد بلبل، کوئل اور مینڈک کی سطریں پڑھ کر سناتی ہیں، جماعت دہراتی ہے۔\",\"say\":\"«بلبل گانا گائے گی، کوئل راگ سنائے گی، مینڈک بھی ٹرائیں گے، کالے بادل آئیں گے۔»\"},{\"n\":3,\"action\":\"جماعت مل کر زبانی بتاتی ہے کہ بند ۲ اور ۳ میں کون سے الفاظ ہم آواز ہیں، اور پوری نظم کی باقی ہم آواز جوڑیاں بھی زبانی ڈھونڈتی ہے؛ استاد تصدیق کرتی ہیں۔\",\"say\":\"«بتاؤ: گائے گی اور سنائے گی، اور ٹرائیں گے اور آئیں گے — یہ ہم آواز جوڑیاں ہیں۔ اور کوئی جوڑی ملی؟»\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"ہر بچہ اکیلے اپنی کتاب میں صفحہ ۵۷ کی سرگرمی ۱ کے سوالات پڑھے۔\"},{\"n\":2,\"action\":\"ہر بچہ اپنی کاپی میں جوابات لکھے۔\"},{\"n\":3,\"action\":\"جو جلدی ختم کرے وہ لفظ 'مینہ' اور 'ٹرانا' کا معنی بھی اپنی کاپی میں لکھے۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"تیسرے بند میں ہم آواز الفاظ کون سے ہیں؟\",\"answer\":\"گائے گی/سنائے گی اور ٹرائیں گے/آئیں گے — دو ہم آواز جوڑیاں۔\"},{\"n\":2,\"prompt\":\"بلبل نظم کے مطابق کیا کرے گی؟\",\"answer\":\"بلبل گانا گائے گی۔\"},{\"n\":3,\"prompt\":\"لفظ 'مینہ' کا معنی اپنے الفاظ میں لکھیں۔\",\"answer\":\"نمونہ جواب: مینہ آسمان سے گرنے والا بارش کا پانی ہے۔\"}],\"ahead\":{\"prompt\":\"جو طالب علم آسانی سے سرگرمی مکمل کر لے، وہ لفظ 'مینہ' اور 'ٹرانا' کا معنی بھی اکیلے اپنی کاپی میں لکھے۔\"},\"behind\":{\"prompt\":\"جو طالب علم مشکل محسوس کرے، وہ صرف پہلے بند کے ہم آواز الفاظ تلاش کرے۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"نظم میں 'ٹپ ٹپ' کا لفظ بارش اور ساز دونوں کے لیے کیوں استعمال ہوا؟ اپنی کاپی میں ایک جملہ لکھیں۔\",\"answer\":\"شاعر بارش کی آواز اور ساز کی آواز کو ایک جیسا سمجھتا ہے، اس لیے دونوں کو ایک ہی لفظ سے ظاہر کیا۔\"}],\"homework\":[\"گھر میں کسی ایک جانور کی آواز کا نام اردو میں معلوم کریں اور اپنی کاپی میں لکھیں۔\"]}}\n```",
+     "cost": 0.046792,
+     "tokens": {
+      "in": 9276,
+      "out": 2824
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"جو جلدی ختم کرے وہ پوری نظم کی ہم آواز جوڑیاں اپنی کاپی میں \"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"گائے گی/سنائے گی اور ٹرائیں گے/آئیں گے — دو ہم آواز جوڑیاں۔\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 20723
+  },
+  {
+   "lessonId": "grade_2_urdu_ch5_seg1",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.037574
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_2_urdu_ch5_seg1\",\"grade\":2,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"نئے الفاظ اور ارکان جوڑنا\",\"chapterTitle\":\"باب ۵ · گفتگو - اہم میٹنگ\",\"minutes\":40,\"sloDescriptions\":[\"جَب دو یا زیادہ ٹُکڑے آپس میں جُڑتے ہَیں، تو وہ ایک نَیا مُکَمَّل لَفظ بَناتے ہَیں — بِلکُل جَیسے 'ہ' اَور 'م' مِل کَر 'ہم' بَنتا ہے۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"جَب دو یا زیادہ ٹُکڑے آپس میں جُڑتے ہَیں، تو وہ ایک نَیا مُکَمَّل لَفظ بَناتے ہَیں — بِلکُل جَیسے 'ہ' اَور 'م' مِل کَر 'ہم' بَنتا ہے۔\",\"sloFull\":\"جَب دو یا زیادہ ٹُکڑے آپس میں جُڑتے ہَیں، تو وہ ایک نَیا مُکَمَّل لَفظ بَناتے ہَیں — بِلکُل جَیسے 'ہ' اَور 'م' مِل کَر 'ہم' بَنتا ہے۔\",\"sloCode\":\"U-02-VO-01\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۲۸ کھولیں اور تصویر کی طرف دیکھیں — یہ لوگ کیا کر رہے ہیں؟\",\"expectedAnswer\":\"← میٹنگ کر رہے ہیں، بات چیت کر رہے ہیں۔\"},\"steps\":[{\"n\":1,\"action\":\"صفحہ ۲۸ کھولیں۔ تصویر کی طرف اشارہ کریں اور پوچھیں: یہ لوگ کیا کر رہے ہیں؟\"},{\"n\":2,\"action\":\"سب سے پوچھیں: کیا آپ کبھی کسی میٹنگ میں شریک ہوئے؟ ہاتھ اٹھا کر بتائیں۔\"},{\"n\":3,\"action\":\"کہیں: آج ہم سیکھیں گے کہ چھوٹے ٹکڑے جڑ کر پورا لفظ کیسے بنتے ہیں، جیسے 'ہ' اور 'م' مل کر 'ہم' بنتا ہے۔\"}],\"keyWords\":[{\"term\":\"اَہَم\",\"def\":\"کوئی ایسی چیز جو بہت ضروری ہو۔\"},{\"term\":\"گُفْتَگو\",\"def\":\"دو یا زیادہ لوگوں کا آپس میں بولنا اور سننا۔\"},{\"term\":\"میٹْنگ\",\"def\":\"کچھ لوگوں کا کسی موضوع پر بات کرنے کے لیے مل بیٹھنا۔\"}],\"materials\":[\"درسی کتاب صفحہ ۲۸-۲۹\",\"طلباء کی کاپیاں\",\"پنسل\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"say\":\"گَف... ت... گو۔ (رک کر) دوبارہ سنیں: گَف... ت... گو۔\"},{\"n\":2,\"say\":\"اب پورا لفظ سب مل کر بولیں!\"},{\"n\":3,\"action\":\"صفحہ ۲۹ پر 'اہ' اور 'م' کی مثال کی طرف اشارہ کریں: دو ٹکڑے مل کر 'اہم' بنتا ہے۔\"},{\"n\":4,\"action\":\"اسی صفحہ پر 'آ' اور 'داب' کی مثال دکھائیں: دونوں مل کر 'آداب' بنتا ہے — یہی آج کی سرگرمی کا طریقہ ہے۔\"}],\"cfu\":\"سب سے پوچھیں: \\\"'آدَاب' کیسے بنا؟\\\" — جواب: 'آ' اور 'داب' مل کر۔\"},\"weDo\":{\"minutes\":12,\"strategy\":\"کھیل: ٹکڑے جوڑو — ٹیچر زبانی دو ٹکڑے بولے، پوری جماعت فوراً جوڑ کر پورا لفظ اونچی آواز میں بولے۔\",\"steps\":[{\"n\":1,\"say\":\"سنیں: 'بر' اور 'یانی' — دونوں ٹکڑے جوڑ کر کیا بنتا ہے؟ سب مل کر بولیں!\"},{\"n\":2,\"say\":\"اب سنیں: 'دھ' اور 'یان' — جوڑ کر بولیں! اب 'می' اور 'ٹنگ' — جوڑ کر بولیں!\"}],\"cfu\":\"ہاتھ سے اشارہ: اگر ٹکڑے صحیح جڑ کر پورا لفظ بنے تو انگوٹھا اوپر، ورنہ نیچے۔\"},\"youDo\":{\"minutes\":12,\"problems\":[{\"n\":1,\"prompt\":\"صفحہ ۲۹، سَرگَرمی ۱ میں سے اپنی کتاب میں خود دو سوال مکمل کریں: ب۔ پَن + کی = ______ اور م۔ می + ٹنگ = ______\",\"answer\":\"ب۔ پَنکی۔ م۔ میٹنگ۔\"}],\"cfu\":\"کتابیں اوپر اٹھا کر دکھائیں — جواب لکھا ہے یا نہیں۔\",\"behind\":{\"prompt\":\"صرف ایک قطار (م۔ می + ٹنگ) خود مکمل کریں؛ ٹکڑے خود دہرا کر بولیں، پھر لکھیں۔\"},\"ahead\":{\"prompt\":\"سَرگَرمی ۱ کے دو سوال خود مکمل کرنے کے بعد، آج سیکھے گئے کسی ایک لفظ (جیسے 'دِھیان' یا 'گفتگو') سے خود ایک نیا جملہ کاپی میں لکھیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"سب مل کر: 'دو' اور 'ران' ٹکڑے جوڑ کر کیا بنتا ہے؟ کتاب میں لکھیں۔\",\"answer\":\"← دَوران۔\"}],\"homework\":[\"گھر پر کسی بڑے سے پوچھیں: کیا کوئی میٹنگ یاد ہے؟ ایک جملے میں کاپی پر لکھیں۔\"]}}\n```",
+     "cost": 0.042592,
+     "tokens": {
+      "in": 9436,
+      "out": 2372
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"صفحہ ۲۹، سَرگَرمی ۱ میں سے دو سوال خود کتاب میں مکمل کریں: ب\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"صفحہ ۲۹، سَرگَرمی ۱ میں سے اپنی کتاب میں خود دو سوال مکمل کر\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 17745
+  },
+  {
+   "lessonId": "grade_3_urdu_ch9_seg3",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "behind",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.034022
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_3_urdu_ch9_seg3\",\"grade\":3,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"کہانی کی تفہیم، نتائج اور دہرائی\",\"chapterTitle\":\"باب ۹ · کینجھر جھیل کی لوک کہانی\",\"minutes\":40,\"sloDescriptions\":[\"نتیجہ کہانی میں سیدھا لکھا نہیں ہوتا، بلکہ ہم کہانی میں دیے گئے اشاروں اور معلومات پر غور کرکے خود نکالتے ہیں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\n\"goal\":\"نتیجہ کہانی میں سیدھا لکھا نہیں ہوتا، بلکہ ہم کہانی میں دیے گئے اشاروں اور معلومات پر غور کرکے خود نکالتے ہیں۔\",\n\"sloFull\":\"نتیجہ کہانی میں سیدھا لکھا نہیں ہوتا، بلکہ ہم کہانی میں دیے گئے اشاروں اور معلومات پر غور کرکے خود نکالتے ہیں۔\",\n\"sloCode\":\"U-03-CO-08\",\n\"hook\":{\"minutes\":4,\"conversation\":[{\"teacherAsks\":\"کتاب کے صفحہ ۸۷ کی طرف اشارہ کرتے ہوئے پوچھیں: 'کہانی میں یہ نہیں لکھا کہ جام تماچی کیسے حکمران تھے — کیا ہم خود اندازہ لگا سکتے ہیں؟'\"}],\"keyWords\":[{\"term\":\"نتیجہ\",\"def\":\"خود سوچ کر نکالی گئی بات۔\"},{\"term\":\"اخذ کرنا\",\"def\":\"اشارے سے نئی سمجھ حاصل کرنا۔\"}]},\n\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"say\":\"کتاب کے صفحہ ۸۷ کی سطر دکھائیں: 'جام تماچی نے نوری سے شادی کی اور اسے تمام رانیوں سے بڑھ کر رتبہ دیا۔'\"},{\"n\":2,\"say\":\"یہ سیدھی بات ہے، متن میں لکھی ہوئی ہے۔\"},{\"n\":3,\"say\":\"نوری عام مچھیرے کی بیٹی تھی، پھر بھی اسے سب سے بڑھ کر عزت ملی — اس سے کیا سمجھ آتی ہے؟\"},{\"n\":4,\"say\":\"نتیجہ: 'جام تماچی محبت اور اچھے کردار کو رتبے سے زیادہ اہم سمجھتے تھے۔'\"}],\"cfu\":\"پوری جماعت سے پوچھیں: انگوٹھا اوپر اگر سمجھ آ گیا، نیچے اگر نہیں۔\"},\n\"weDo\":{\"minutes\":12,\"strategy\":\"معلمہ کہانی کا ایک ٹکڑا سنائیں، پھر بچے جوڑیوں میں بیٹھ کر مل کر سوچیں اور پوری جماعت کے سامنے بولیں۔\",\"steps\":[{\"n\":1,\"say\":\"معلمہ صفحہ ۸۷ سے ایک جملہ پڑھ کر سنائیں، بچے غور سے سنیں۔\"},{\"n\":2,\"say\":\"بچے اپنے ساتھ بیٹھے ساتھی سے مل کر سوچیں: 'اس سے کیا نتیجہ نکلتا ہے؟'\"},{\"n\":3,\"say\":\"دو تین جوڑیاں اپنا نتیجہ پوری جماعت کو بلند آواز سے سنائیں، باقی سنیں۔\"}]},\n\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"ہر بچہ اکیلے، خاموشی سے، کاپی/کتاب میں صفحہ ۸۷-۸۸ کی خالی جگہیں پُر کرے۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"جملہ مکمل کریں: الف۔ جھیل کینجھر کراچی سے ___\",\"answer\":\"ایک سو بائیس کلومیٹر کی مسافت پر ضلع ٹھٹھہ، سندھ میں واقع ہے۔\"},{\"n\":2,\"prompt\":\"صحیح/غلط: ب۔ نوری کی داستان سندھ کے عوام دوست حکمرانوں کی روایت نہیں بتاتی۔\",\"answer\":\"غلط۔\"},{\"n\":3,\"prompt\":\"خالی جگہ پُر کریں: د۔ ___ کی داستان سندھ کی تہذیب کا اہم حصہ ہے۔\",\"answer\":\"نوری جام تماچی۔\"}],\"behind\":{\"prompt\":\"کمزور بچوں کو فریم دیں: 'متن میں: ___۔ نتیجہ: ___۔' ہر بچہ خود، اکیلے، خالی جگہ پر ایک لفظ لکھے۔\"},\"ahead\":{\"prompt\":\"تیز بچے اضافی طور پر اکیلے اپنا ایک نتیجہ کسی اور کردار کے بارے میں لکھیں۔\"}},\n\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"متن میں لکھا ہے: 'چچا جان نے اپنا کیمرا نکالا اور پرندوں کی تصویریں بنانے لگے۔' اس سے چچا جان کے بارے میں کیا نتیجہ نکلتا ہے؟\",\"answer\":\"درست جواب وہ ہوگا جو متن سے معقول نتیجہ نکالے، محض جملے کا اعادہ نہ ہو۔\"}],\"homework\":[\"گھر جا کر صفحہ ۸۸ کا سوال ۳(ج) مکمل کریں۔\"]}}\n```",
+     "cost": 0.038414,
+     "tokens": {
+      "in": 8687,
+      "out": 2104
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"جملے مکمل کریں: الف۔ جھیل کینجھر کراچی سے ___\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"جملہ مکمل کریں: الف۔ جھیل کینجھر کراچی سے ___\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 16073
+  },
+  {
+   "lessonId": "grade_3_math_ch6_seg7",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.032216
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_math_ch3_seg1",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028624
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_3_math_ch15_seg2",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028426
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2",
+      "trimmed weDo.steps 4→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2",
+    "trimmed weDo.steps 4→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_english_ch10_seg8",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02828
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_urdu_ch5_seg4",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03985
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_3_urdu_ch5_seg4\",\"grade\":3,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"مصوتوں کا کھیل — چھوٹی و بڑی آوازیں\",\"chapterTitle\":\"باب ۵ · جنگل میں بہار آئی\",\"minutes\":40,\"sloDescriptions\":[\"چھوٹی آوازیں (زبر، زیر، پیش) حرف کے اوپر یا نیچے لگنے والے نشان ہیں، جبکہ بڑی آوازیں (ا، و، ی، ے) خود مستقل حروف ہیں — ایک نشان کو حرف سے بدلنے پر پورا لفظ اور اس کا معنی بدل جاتا ہے۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"چھوٹی آوازیں (زبر، زیر، پیش) حرف کے اوپر یا نیچے لگنے والے نشان ہیں، جبکہ بڑی آوازیں (ا، و، ی، ے) خود مستقل حروف ہیں — ایک نشان کو حرف سے بدلنے پر پورا لفظ اور اس کا معنی بدل جاتا ہے۔\",\"sloFull\":\"چھوٹی آوازیں (زبر، زیر، پیش) حرف کے اوپر یا نیچے لگنے والے نشان ہیں، جبکہ بڑی آوازیں (ا، و، ی، ے) خود مستقل حروف ہیں — ایک نشان کو حرف سے بدلنے پر پورا لفظ اور اس کا معنی بدل جاتا ہے۔\",\"sloCode\":\"U-03-PH-07\",\n\n\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۴۰ کا عنوان دیکھیں: 'جنگل میں بہار آئی'۔ جنگل میں کون سے جانور ہو سکتے ہیں؟\",\"expectedAnswer\":\"← بھالو، ہرن، چڑیا وغیرہ۔\"},\"conversation\":[{\"teacherAsks\":\"کتابیں بند رکھیں۔ میں دو لفظ بولوں گی: “بَل” اور “بال”۔ ساری جماعت مل کر بتائے، کون سی آواز لمبی تھی؟ چھوٹی آواز کے لیے مٹھی بند، بڑی آواز کے لیے ہاتھ کھلا اٹھائیں۔\"}],\"keyWords\":[{\"term\":\"زَبَر، زِیر، پیش\",\"def\":\"حرف کے ساتھ لگنے والے چھوٹے نشان، جیسے 'بَل' میں ب پر زبر۔\"},{\"term\":\"بڑی آوازیں\",\"def\":\"ا، و، ی، ے — خود مستقل حروف، جیسے 'بال' میں ا۔\"}],\"materials\":[\"اردو کی درسی کتاب برائے جماعت سوم، صفحہ ۴۰-۴۱\",\"طلباء کی کاپیاں\"]},\n\n\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"کتابیں بند رہیں۔ استانی بولے: “بَل” اور “بال”، جماعت ہاتھ کے اشارے سے فرق دکھائے۔\"},{\"n\":2,\"say\":\"اب کتاب صفحہ ۴۰ کھولیں۔ 'بَل' کے لفظ کو دیکھیں: زبر ہے، یہ چھوٹی آواز ہے۔\"},{\"n\":3,\"action\":\"صفحہ پر چھپے لفظ 'بال' کی طرف اشارہ کریں: زبر کی جگہ 'ا' آ گیا، لفظ اور معنی دونوں بدل گئے۔\"},{\"n\":4,\"say\":\"اسی طرح 'کَر' (حکم کام کرنے کا) سے زبر ہٹا کر 'ا' ڈالیں تو 'کار' بنتا ہے، مطلب بدل جاتا ہے۔ یہی کھیل پورے صفحہ ۴۰-۴۱ میں کھیلنا ہے۔\"}],\"cfu\":\"جماعت مل کر انگلیوں سے بتائے: ایک انگلی اگر چھوٹی آواز کا جواب، دو انگلیاں اگر بڑی آواز کا جواب — استانی 'بَل' اور 'بال' دوبارہ بولے۔\"},\n\n\"weDo\":{\"minutes\":12,\"strategy\":\"قطاروں کو تین سطحوں میں بانٹیں: پہلی قطار (آواز گروہ) صرف نشان پہچانے، درمیانی قطاریں (لفظ گروہ) جوڑے بنائیں، آخری قطاریں (جملہ گروہ) معنی کا فرق بولیں۔\",\"steps\":[{\"n\":1,\"action\":\"آواز گروہ: استانی صفحہ ۴۰ کا لفظ 'بِن' بولے، یہ گروہ صرف بتائے زیر ہے یا زبر، ہاتھ کے اشارے سے۔\"},{\"n\":2,\"action\":\"لفظ گروہ: یہ بچے مل کر کاپی میں 'بِن' سے 'بین' بنائیں، ایک بچہ بلند آواز سے جواب بولے، باقی کاپی میں لکھیں۔\"},{\"n\":3,\"action\":\"جملہ گروہ: یہ بچے 'بین' اور 'بِن' کے معنی کا فرق جملے میں بولیں، مثلاً 'وہ بین بجاتا ہے'۔\"}]},\n\n\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"ہر بچہ اکیلے اپنی کاپی میں کام کرے، کوئی ساتھی یا گروہ نہ بنے۔ سب سے پہلے صفحہ ۴۰ کا سوال ۱ کا جوڑا 'ب' (بَگ) مل کر دیکھ چکے؛ اب ہر بچہ خود اپنا جواب لکھے۔\"},{\"n\":2,\"action\":\"جو بچہ پہلا سوال ختم کر لے وہ خاموشی سے دوسرا سوال شروع کرے، کسی سے بات نہ کرے۔ استانی گھوم کر رہنمائی کرے۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"صفحہ ۴۰، ب: بَگ = ___\",\"answer\":\"بَگ = باگ (لگام)\"},{\"n\":2,\"prompt\":\"صفحہ ۴۱، ج: سار = ___\",\"answer\":\"سار = سر\"}],\"behind\":{\"prompt\":\"صرف ایک جوڑا (بَل/بال) کاپی میں نقل کریں اور رنگ سے نشان پر دائرہ لگائیں۔\"},\"ahead\":{\"prompt\":\"حل شدہ جوڑے 'کَر/کار' کو اپنے جملے میں خود لکھیں۔\"}},\n\n\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"'دَل' کی بڑی آواز والی شکل سب مل کر کاپی میں لکھیں، پھر انگلیوں سے بتائیں: ٹھیک ہو تو انگوٹھا اوپر۔\",\"answer\":\"← دَل = دال۔ انگوٹھا اوپر صحیح جواب کی علامت۔\"}],\"homework\":[\"کتاب کے صفحہ ۴۰-۴۱ سے دو ایسے جوڑے چنیں جو آج کلاس میں نہیں کیے، نوٹ بک میں مکمل اعراب سمیت لکھیں اور ہر جوڑے کا ایک مختصر جملہ بنائیں۔\"]}}\n```",
+     "cost": 0.046064,
+     "tokens": {
+      "in": 9287,
+      "out": 2749
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"ہر بچہ اکیلے کاپی میں لکھے۔ آواز و لفظ گروہ کے بچے صفحہ ۴۰ ک\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"ہر بچہ اکیلے اپنی کاپی میں کام کرے، کوئی ساتھی یا گروہ نہ بن\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 20667
+  },
+  {
+   "lessonId": "grade_3_math_ch2_seg4",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.056218
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_urdu_ch15_seg4",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "ahead",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.040714
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_3_urdu_ch15_seg4\",\"grade\":3,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"رموزِ اوقاف — قوسین، استفہامیہ وغیرہ\",\"chapterTitle\":\"باب ۱۵ · بچوں کے لیے اقبال رحمت اللہ علیہ کا پیغام\",\"minutes\":40,\"sloDescriptions\":[\"میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\",\"sloFull\":\"میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\",\"sloCode\":\"U-03-GR-15\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۱۵۱ کھولیں۔ 'تمھارا نام کیا ہے؟' کے آخر میں کون سا نشان ہے؟\",\"expectedAnswer\":\"← سوالیہ نشان ؟۔\"},\"conversation\":[{\"teacherAsks\":\"سب مل کر بتائیں: یہ نشان کیوں لگا؟ متوقع: کیونکہ یہ سوال ہے۔ آج کا ہدف: میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\"}],\"keyWords\":[{\"term\":\"رموزِ اوقاف\",\"def\":\"وہ نشان جو جملے کے وقفے سمجھنے میں مدد دیتے ہیں\"},{\"term\":\"قوسین ( )\",\"def\":\"وضاحتی بات کے گرد\"}],\"materials\":[\"اردو کی درسی کتاب صفحہ ۱۵۰-۱۵۲\",\"طلباء کی کاپیاں\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"کتاب کے صفحہ ۱۵۱ پر مثالوں کی طرف اشارہ کریں: بات ختم تو ختمہ ۔، سوال تو ؟۔\"},{\"n\":2,\"action\":\"اسی صفحہ کی مثال (الف) دکھائیں: 'تعلیم آباد والے' ہٹا کر پڑھیں؛ جملہ پھر بھی پورا ہے، اس لیے یہ وضاحت ہے اور اس کے گرد ( ) آتے ہیں۔\"},{\"n\":3,\"say\":\"عام غلطی کی نشان دہی کریں: 'کیا' سے شروع جملے کے آخر میں ۔ لگانا غلط ہے، سوال کے آخر میں ؟ آتا ہے۔\"},{\"n\":4,\"say\":\"فوری جانچ: 'تمہارا نام کیا ہے' کے آخر میں کیا نشان آئے گا؟ سب ہوا میں انگلی سے لکھیں۔ متوقع: ؟۔\"}],\"cfu\":\"سب مل کر بتائیں: سوال کے آخر میں کون سا نشان؟ متوقع: ؟۔\",\"misconception\":{\"slip\":\"کیا تم میرے گھر آ رہے ہو۔\",\"fix\":\"یہ بات بتا رہا ہے یا پوچھ رہا ہے؟ تو آخر میں ؟ لگے گا۔\"}},\"weDo\":{\"minutes\":12,\"strategy\":\"نشان کی حرکت کا کھیل: استاد جملہ بولیں، بچے ہاتھ کی حرکت سے نشان بتائیں۔\",\"steps\":[{\"n\":1,\"action\":\"کہیں: 'میں جملہ بولوں گی۔ اگر بات ختم ہو تو مٹھی بند کریں، سوال ہو تو انگلی اوپر اٹھائیں۔' صفحہ ۱۵۱ کے سوال ۲ کے چاروں جملے باری باری بولیں اور پوری جماعت سے مل کر حرکت کروائیں۔\"},{\"n\":2,\"action\":\"صفحہ ۱۵۱ کا سوال ۱ (الف) کتاب میں سب سے مل کر پڑھیں: 'جوجو اور پنکی (تعلیم آباد والے)...' پوچھیں: اضافی بات کون سی ہے؟ سب مل کر جواب دیں، متوقع: تعلیم آباد والے۔ اگر کوئی غلط بولے تو کہیں: اسے ہٹا کر پڑھو، جملہ پورا بنتا ہے؟\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کہیں: 'اب ہر بچہ اکیلا کاپی میں کام کرے: سوال ۱ (ب، ج) اور سوال ۲ (ج، د)، صفحہ ۱۵۱۔ تالی پر قلم رکھ دیں۔'\"},{\"n\":2,\"action\":\"جو بچے تیز ہیں وہ صفحہ ۱۵۲ کا اقتباس 'مجھے کل سے بخار تھا...' کاپی میں لکھ کر درست نشان لگائیں۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"سوال ۱ (ب): کہانیوں کی کتاب جو تحفہ تھی کل رات سے نہیں مل رہی۔ (قوسین لگائیں)\",\"answer\":\"کہانیوں کی کتاب (جو تحفہ تھی) کل رات سے نہیں مل رہی۔\"},{\"n\":2,\"prompt\":\"سوال ۲ (ج): میں نے کتابیں قلم اور کاپی خریدی\",\"answer\":\"میں نے کتابیں، قلم اور کاپی خریدی۔\"}],\"behind\":{\"prompt\":\"استاد پوچھے: بات بتائی یا پوچھی؟ پھر بچہ خود نشان لگائے۔\"},\"ahead\":{\"prompt\":\"صفحہ ۱۵۲ کا اقتباس کاپی میں لکھ کر درست نشان لگائیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"کتاب کا صفحہ ۱۵۱ کھلا رکھیں، سوال ۲ (ب) کی طرف اشارہ کریں: 'کیا تم میرے گھر آ رہے ہو' سب مل کر بلند آواز سے پڑھیں۔ پوچھیں: آخر میں کون سا نشان آئے گا اور کیوں؟ سب انگوٹھے سے بتائیں: ٹھیک سمجھ آیا تو اوپر، نہیں تو نیچے۔\",\"answer\":\"← سوالیہ نشان ؟، کیونکہ یہ سوال ہے۔\"}],\"reteach\":\"بات ختم ہو تو ۔، سوال ہو تو ؟، وقفہ یا فہرست ہو تو ،، اضافی وضاحت ہو تو ( )۔\",\"homework\":[\"کاپی میں اپنے دو جملے لکھیں: ایک سوال اور ایک تین چیزوں کی فہرست والا؛ ہر جملے میں درست رموزِ اوقاف لگائیں۔\"]}}\n```",
+     "cost": 0.046216,
+     "tokens": {
+      "in": 10003,
+      "out": 2621
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "uses a board she does not have (\"ایک جملہ بورڈ کی بجائے کتاب کے صفحہ ۱۵۱ سے دیکھ کر سب مل کر \"): use the book page instead"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 19660
+  },
+  {
+   "lessonId": "grade_4_english_ch5_seg3",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028494
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_3_urdu_ch14_seg1",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "mixed",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041378
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_3_urdu_ch14_seg1\",\"grade\":3,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"نئے الفاظ، جملہ سازی اور ارکان سازی\",\"chapterTitle\":\"باب ۱۴ · لطائف\",\"minutes\":40,\"sloDescriptions\":[\"میں نئے لفظ کا معنی بتا کر اس سے اپنا جملہ بنا سکتا/سکتی ہوں۔\"],\"source\":\"v9_html\",\"adapterV2\":2},\"goal\":\"میں نئے لفظ کا معنی بتا کر اس سے اپنا جملہ بنا سکتا/سکتی ہوں۔\",\"sloFull\":\"میں نئے لفظ کا معنی بتا کر اس سے اپنا جملہ بنا سکتا/سکتی ہوں۔\",\"sloCode\":\"U-03-VO-12\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۱۳۶ پر لکھا ہے: 'ہر لفظ اپنے اندر کئی کہانیاں چھپائے بیٹھا ہے۔' بتائیں: کسی نے کوئی چیز کہاں چھپائی ہوتی ہے؟\",\"expectedAnswer\":\"← الماری میں، جیب میں، وغیرہ۔ (اس سے 'پوشیدَہ' کا تعارف)۔\"},\"conversation\":[{\"teacherAsks\":\"کتاب کھولیں صفحہ ۱۳۶۔ 'عُقاب' کے لفظ کی طرف اشارہ کریں: یہ کیسا پرندہ ہے، اونچا اڑنے والا یا نیچے رہنے والا؟\"}],\"keyWords\":[{\"term\":\"پوشیدَہ\",\"def\":\"چھپا ہوا\"},{\"term\":\"دانِش\",\"def\":\"عقل، سمجھ\"},{\"term\":\"عُقاب\",\"def\":\"اونچا اڑنے والا پرندہ\"},{\"term\":\"چالاک\",\"def\":\"ہوشیار\"},{\"term\":\"گَرَج دار\",\"def\":\"اونچی (آواز)\"},{\"term\":\"شیخی خور\",\"def\":\"اِترانے والا\"},{\"term\":\"لومَڑ\",\"def\":\"لومڑی کا نر\"}],\"materials\":[\"اردو کی درسی کتاب صفحہ ۱۳۶\",\"طلباء کی کاپیاں\",\"پنسل\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"say\":\"سنیں، ابھی بولنا نہیں۔ کتاب صفحہ ۱۳۶ پر لفظ 'پوشیدَہ' کی طرف اشارہ کریں: پوشیدَہ یعنی چھپا ہوا۔ جملہ: 'امی نے چابی الماری میں پوشیدَہ رکھ دی۔'\"},{\"n\":2,\"say\":\"دانِش یعنی سمجھ: 'احمد نے اپنی دانِش سے سوال حل کر لیا۔' پہلے کون، پھر کیا کیا، پھر نیا لفظ، اسی ترتیب پر غور کریں۔\"},{\"n\":3,\"action\":\"کتاب میں سرگرمی ۱ کی قطار الف پر انگلی رکھیں: گ، رج، دار، ہر حصے پر تالی بجائیں؛ پھر ملا کر بولیں: گَرَج دار۔\"},{\"n\":4,\"say\":\"اگر کوئی بچہ کہے 'پوشیدَہ یعنی بڑا'، تو کہیں: کتاب دیکھیں؛ پنسل ہاتھ میں چھپائیں: اب پنسل پوشیدَہ ہے، یعنی چھپی ہوئی۔\"}],\"cfu\":\"فوری جانچ، سب مل کر انگوٹھے سے: 'پوشیدَہ کا مطلب چھپا ہوا ہے؟' اوپر انگوٹھا = ہاں۔\"},\"weDo\":{\"minutes\":12,\"strategy\":\"کامیابی کا معیار: جملے میں نیا لفظ اپنے معنی کے مطابق آئے اور جملہ مکمل ہو۔\",\"steps\":[{\"n\":1,\"say\":\"کنٹرولڈ پریکٹس: میں جملہ شروع کروں گی، آپ سب مل کر پورا کریں۔ ہاتھ اٹھاؤں تو بولیں، نیچے کروں تو چپ۔\"},{\"n\":2,\"action\":\"'عُقاب آسمان پر بہت ...' (اونچا اڑتا ہے)۔ 'بلال سب سے پہلے چھپ جاتا ہے، بلال بہت ...' (چالاک ہے)۔ 'ماسٹر صاحب کی آواز ...' (گَرَج دار ہے)۔\"},{\"n\":3,\"say\":\"اگر کوئی کہے 'عُقاب ایک مچھلی ہے'، تو کہیں: کتاب دیکھیں، عُقاب اونچا اڑنے والا پرندہ ہے۔\"},{\"n\":4,\"action\":\"کتاب میں سرگرمی ۱ کی قطار ب اور ج سب مل کر، تالی کے ساتھ ارکان جوڑیں: پی + سا = پیسا؛ سَ + ڑَک = سَڑک۔\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کہیے: 'اب ہر بچہ اکیلا اپنی کاپی میں لکھے۔ دس منٹ؛ ختم ہو تو تالی پر پنسل رکھ دیں۔'\"},{\"n\":2,\"say\":\"پیچھے رہ جانے والے بچوں کے لیے آسان کام: صرف ایک ادھورا جملہ اپنی کاپی میں مکمل کریں: '___ نے چابی الماری میں پوشیدَہ رکھ دی۔'\"},{\"n\":3,\"say\":\"آگے بڑھنے والے بچوں کے لیے اضافی کام: ایک ہی جملے میں دو نئے الفاظ لکھ کر دکھائیں۔\"},{\"n\":4,\"say\":\"مہارت کا معیار: چار میں سے تین کام درست ہوں تو کام مکمل سمجھیں۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"سرگرمی ۱، قطار د: ___ + ___ = کھانا\",\"answer\":\"کھا + نا = کھانا\"},{\"n\":2,\"prompt\":\"سرگرمی ۱، قطار ہ: ___ + ___ = عَوَرت\",\"answer\":\"عَو + رَت = عَوَرت\"},{\"n\":3,\"prompt\":\"لفظ 'شیخی خور' سے اپنا جملہ لکھیں۔\",\"answer\":\"نمونہ: شیخی خور لڑکا ہر وقت اپنی بڑائی کرتا ہے۔\"},{\"n\":4,\"prompt\":\"لفظ 'لومَڑ' سے اپنا جملہ لکھیں۔\",\"answer\":\"نمونہ: جنگل میں ایک لومَڑ مرغی کے پیچھے بھاگا۔\"}],\"behind\":{\"prompt\":\"ادھورا جملہ اکیلے مکمل کریں: '___ نے چابی الماری میں پوشیدَہ رکھ دی۔'\"},\"ahead\":{\"prompt\":\"ایک جملے میں دو نئے الفاظ لائیں، اکیلے لکھیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"سب مل کر کامیابی کا اصول بلند آواز سے پڑھیں: 'جملہ مکمل ہو اور نیا لفظ اپنے معنی کے مطابق آئے۔' پھر انگوٹھے سے بتائیں: آج کا کام آسان لگا یا مشکل؟\",\"answer\":\"← انگوٹھا اوپر = آسان، نیچے = مشکل، استاد مشکل والوں کی رہنمائی دوبارہ کریں۔\"},{\"prompt\":\"سب مل کر بولیں: ___ + ___ = لومَڑ۔\",\"answer\":\"← لو + مَڑ = لومَڑ۔\"}],\"reteach\":\"نیا لفظ اس کے معنی کے مطابق جملے میں لگائیں۔\",\"homework\":[\"صفحہ ۱۳۶ کی جملہ سازی کی مشق: ساتوں نئے الفاظ سے ایک ایک جملہ کاپی میں لکھیں۔\",\"سرگرمی ۱ کی باقی قطاریں ارکان کے ساتھ صاف لکھ کر لائیں۔\"]}}\n```",
+     "cost": 0.047922,
+     "tokens": {
+      "in": 8586,
+      "out": 3075
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"پیچھے رہ جانے والے بچوں کے لیے: پہلے پنسل چھپا کر دکھائیں، پ\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "You Do has pair or group work (\"پیچھے رہ جانے والے بچوں کے لیے آسان کام: صرف ایک ادھورا جملہ\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 23783
+  },
+  {
+   "lessonId": "grade_4_urdu_ch18_seg1",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03938
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_english_ch7_seg3",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029584
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_4_english_ch7_seg3\",\"grade\":4,\"subject\":\"english\",\"language\":\"en\",\"topic\":\"Diving deeper: Questions to Ponder + Personal Insight\",\"chapterTitle\":\"Ch.7 · Pinky and Jojo's Cool-Down Adventure\",\"minutes\":40,\"sloDescriptions\":[\"Answering in your own words means never copying the book's exact sentence; a joining word like 'and', 'then', 'because' or 'so' turns two ideas into one clear thought.\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"Answering in your own words means never copying the book's exact sentence; a joining word like 'and', 'then', 'because' or 'so' turns two ideas into one clear thought.\",\"sloFull\":\"Answering in your own words means never copying the book's exact sentence; a joining word like 'and', 'then', 'because' or 'so' turns two ideas into one clear thought.\",\"sloCode\":\"E-04-RD-04\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"Open to p.81. Name one calming technique Pinky and Jojo used in the story.\",\"expectedAnswer\":\"Any one of: deep breathing (the balloon), counting to ten, or saying an 'I feel' statement.\"},\"steps\":[{\"n\":1,\"action\":\"Say: \\\"Sab log page 81 kholo. Dekho teeno characters ko - balloon, heart, aur COOL DOWN sign.\\\"\"},{\"n\":2,\"action\":\"Ask the warm-up question whole-class; take choral shout-out answers.\"},{\"n\":3,\"action\":\"Say: \\\"Aaj hum apne khud ke alfaaz mein jawab denge, book ki line copy nahi karenge - aur do baaton ko and, then, because ya so se jodenge.\\\"\"}]},\"materials\":[\"textbook pp.81-82\",\"notebook\",\"pencil\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"Read Pinky's Question 1 aloud from p.81. Model answering it in ONE full sentence in your own words, not copying the book's wording.\"},{\"n\":2,\"say\":\"Story mein likha hai Jojo ne akela goal karne ki koshish ki - mein apne alfaaz mein kahoon ga: 'Jojo forgot to pass the ball to his teammates and tried to score alone, which made Pinky feel left out.'\"},{\"n\":3,\"action\":\"Read Question 2 aloud. Model joining Grandma's three suggestions with transitional words: 'Grandma said we should breathe deeply like a balloon, then count slowly to ten, and use I-feel statements instead of blaming.'\"},{\"n\":4,\"say\":\"Yeh 'then' aur 'and' transitional words hain - teen alag baatein ek sentence mein jod dete hain.\"}],\"cfu\":\"Ask whole class: \\\"Thumbs up if my Jojo sentence used NEW words, not the book's exact words.\\\"\"},\"weDo\":{\"minutes\":12,\"strategy\":\"Group children by level using rows: back rows (behind) get sentence starters; middle rows (on track) answer Question 3 directly; front/stronger rows (ahead) add a second transitional word. Each row answers in notebooks; teacher circulates row by row for a quick choral check.\",\"steps\":[{\"n\":1,\"action\":\"Say: \\\"Apni row ke hisab se kaam karo. Main har row ke paas aaonga.\\\"\"},{\"n\":2,\"action\":\"Behind rows: fill the starter 'The balloon exercise helped because ___, and then ___.' On-track rows: write Question 3's full answer joining two ideas with a transitional word. Ahead rows: write the same answer using two different transitional words (e.g. first, finally).\"},{\"n\":3,\"action\":\"Whole-class choral check: teacher reads one row's model answer aloud; class says together \\\"apne alfaaz\\\" (own words) or \\\"book ke alfaaz\\\" (copied) as thumbs up/down.\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"Say: \\\"Akele, apni copy mein likho - koi partner nahi.\\\"\"},{\"n\":2,\"action\":\"Behind: answer Question 4 using the starter 'Pinky told Jojo I feel ___ when ___.' On-track and ahead: answer Questions 4 and 5 in full own-words sentences, then write 3-4 keywords from p.82's Personal Insight that resonate with them.\"}],\"problems\":[{\"n\":1,\"prompt\":\"What phrase did Pinky use to tell Jojo how she felt without blaming him? Answer in your own words.\",\"answer\":\"Pinky used an 'I feel' statement, such as 'I feel left out when I don't get the ball,' instead of blaming Jojo.\"},{\"n\":2,\"prompt\":\"Personal Insight: write 3-4 keywords from the story that resonate with you about managing anger.\",\"answer\":\"Any 3-4 genuine keywords the child selects (e.g. calm, breathe, sorry, balloon, count) with their own reason - no fixed answer.\"}],\"cfu\":\"Ask: \\\"Fingers up 1, 2, 3, or 4 - how many keywords did you write?\\\"\"},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"Thumbs up if confident, thumbs down if unsure. In ONE sentence, write a real moment when YOU felt upset, and how you felt, joined with a transitional word.\",\"answer\":\"Correct if the sentence joins what happened and how they felt with a real transitional word, and is not copied from the story.\"}],\"homework\":[\"Reread pp.79-80 at home. Write ONE new sentence about your favourite moment in the story, joined with a transitional word.\"]}}\n```",
+     "cost": 0.03361,
+     "tokens": {
+      "in": 7095,
+      "out": 1942
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "the reply was not a JSON plan"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "the reply was not a JSON plan"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 13788
+  },
+  {
+   "lessonId": "grade_4_math_ch8_seg5",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "behind",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.027516
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_math_ch7_seg5",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "on_track",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.030622
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_math_ch6_seg8",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03281
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_urdu_ch14_seg1",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.038528
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_english_ch5_seg1",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.025862
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_english_ch9_seg4",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029578
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_english_ch3_seg7",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028322
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_urdu_ch11_seg6",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.04328
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_4_urdu_ch11_seg6\",\"grade\":4,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"تخلیقی لکھائی — 'جنگل کی حفاظت' کہانی و پروجیکٹ\",\"chapterTitle\":\"باب ۱۱ · بھائی چارہ\",\"minutes\":40,\"sloDescriptions\":[\"کہانی سن کر تین سوال (کون؟ کیا کیا؟ کب؟) سے اہم نکات بتائے جاتے ہیں؛ عددی ترتیب (تیسرا دن، پانچویں دن) سے واقعات کی ترتیب واضح ہوتی ہے۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"کہانی سن کر تین سوال (کون؟ کیا کیا؟ کب؟) سے اہم نکات بتائے جاتے ہیں؛ عددی ترتیب (تیسرا دن، پانچویں دن) سے واقعات کی ترتیب واضح ہوتی ہے۔\",\"sloFull\":\"کہانی سن کر تین سوال (کون؟ کیا کیا؟ کب؟) سے اہم نکات بتائے جاتے ہیں؛ عددی ترتیب (تیسرا دن، پانچویں دن) سے واقعات کی ترتیب واضح ہوتی ہے۔\",\"sloCode\":\"U-04-OC-15\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۱۰۷ کھولیں۔ 'پندرہ' کی عددی ترتیب کیا ہے؟\",\"expectedAnswer\":\"← پندرہواں۔\"},\"conversation\":[{\"teacherAsks\":\"صفحہ ۱۰۷ پر 'آج تیسرا دن تھا کہ لومڑی میٹنگ سے غیر حاضر تھی' پڑھیں۔ کون غیر حاضر تھا؟ کون سا دن تھا؟ کہیں: آج ہم اپنی کہانی کے نکات — کون، کیا، کب — بتائیں گے۔\"}],\"keyWords\":[{\"term\":\"نکات\",\"def\":\"اہم باتیں\"},{\"term\":\"تحفظ\",\"def\":\"حفاظت\"}],\"materials\":[\"درسی کتاب صفحہ ۱۰۷ اور ۱۰۸\",\"طلباء کی کاپیاں\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"say\":\"آج کی صلاحیت: میں کہانی سن کر کون، کیا کیا، کب بتا سکتا/سکتی ہوں۔ پہلے میں دکھاتی/ا ہوں، آپ سنیں۔\"},{\"n\":2,\"action\":\"صفحہ ۱۰۷ کا جملہ پڑھیں: 'آج تیسرا دن تھا کہ لومڑی میٹنگ سے غیر حاضر تھی۔ کل چوتھا دن ہوگا۔ پانچویں دن بادشاہ کے سامنے منصوبہ رکھنا تھا۔'\"},{\"n\":3,\"action\":\"تین سوال سے نکات نکالیں: کون؟ — لومڑی۔ کیا ہوا؟ — غیر حاضر تھی۔ کب؟ — تیسرے دن۔\"},{\"n\":4,\"action\":\"اپنی کہانی کا ایک نمونہ جملہ بولیں: 'پہلے دن ہرن نے دوستوں کو جمع کیا۔' پوچھیں: کون، کیا، کب؟\"}],\"cfu\":\"فوری جانچ: 'کل چوتھا دن ہوگا' — کب ہوگا؟ متوقع جواب: چوتھا دن۔ غلط ہو تو جملہ دوبارہ پڑھ کر دن کا لفظ دکھائیں۔\"},\"weDo\":{\"minutes\":12,\"strategy\":\"غلط جواب پر کہیں: 'تین سوال دوبارہ پوچھیں: کون؟ کیا کیا؟ کب؟'\",\"steps\":[{\"n\":1,\"say\":\"یہ نگرانی میں مشق ہے: ہم مل کر کہانی کے نکات بولیں گے۔ آج کی صلاحیت: نکات بتانا۔\"},{\"n\":2,\"action\":\"صفحہ ۱۰۷ کی ہدایت بلند آواز سے ساتھ پڑھیں: 'جنگل کی حفاظت پر کہانی، جانور مرکزی کردار۔'\"},{\"n\":3,\"action\":\"جماعت کے ساتھ باری باری کہانی بنائیں: استاد کہے 'پہلے دن ہرن نے دوستوں کو جمع کیا'، جماعت مل کر بولے 'دوسرے دن کوّے نے پرندوں کو خبر دی۔' پھر 'تیسرے دن کچھوے نے پودے لگائے' اور 'چوتھے دن سب نے مل کر منصوبہ بنایا' تک بڑھائیں۔\"},{\"n\":4,\"action\":\"انگوٹھے سے جانچیں: کیا جملے میں کون، کیا، کب تینوں تھے؟ اوپر = ہاں، نیچے = نہیں۔ نہیں والے جملے دوبارہ مل کر بنائیں۔\"}]},\"youDo\":{\"minutes\":12,\"problems\":[{\"n\":1,\"prompt\":\"صفحہ ۱۰۷: 'پانچویں دن بادشاہ کے سامنے منصوبہ رکھنا تھا۔' کیا رکھنا تھا، اور کب؟\",\"answer\":\"جنگل کے تحفظ کا منصوبہ؛ پانچویں دن۔\"},{\"n\":2,\"prompt\":\"'جنگل کی حفاظت' پر اپنی کہانی کے تین جملے کاپی میں لکھیں، جن میں کوئی جنگل کا جانور مرکزی کردار ہو اور کم از کم دو دن کے نمبر ہوں۔\",\"answer\":\"نمونہ: 'پہلے دن ہرن نے دوستوں کو جمع کیا۔ دوسرے دن کوّے نے خبر دی۔ تیسرے دن کچھوے نے پودے لگائے۔'\"},{\"n\":3,\"prompt\":\"اپنے پہلے جملے کے لیے لکھیں: کون، کیا کیا، کب؟\",\"answer\":\"مثال: کون — ہرن؛ کیا کیا — دوستوں کو جمع کیا؛ کب — پہلے دن۔\"}],\"behind\":{\"prompt\":\"تین سوال (کون؟ کیا کیا؟ کب؟) دیکھتے ہوئے پہلے زبانی ایک جملہ سوچیں، پھر وہی جملہ اکیلے کاپی میں لکھیں۔\"},\"ahead\":{\"prompt\":\"اپنی کہانی میں چوتھے دن کا ایک اضافی جملہ اکیلے لکھیں، جس میں دن کا نمبر اور جانور دونوں ہوں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"کامیابی کا جملہ بلند آواز پڑھیں: 'میں کہانی سن کر کون، کیا کیا، کب بتا سکتا/سکتی ہوں۔' انگوٹھے سے اندازہ بتائیں۔\",\"answer\":\"اوپر = ٹھیک کر لوں گا/گی، سیدھا = شاید، نیچے = مشکل ہوگی۔\"},{\"prompt\":\"نیا جملہ سنیں: 'بیسویں دن ہاتھی نے ندی کے کنارے پودے لگائے۔' زبانی بتائیں: کون؟ کیا کیا؟ کب؟\",\"answer\":\"← کون — ہاتھی؛ کیا کیا — پودے لگائے؛ کب — بیسویں دن۔\"}],\"reteach\":\"کہانی کے نکات: کون، کیا کیا، کب۔\",\"homework\":[\"آج کے تین جملے صاف لکھائی میں دوبارہ لکھیں اور ایک اور جملہ شامل کریں۔\",\"کسی بڑے سے پوچھیں جنگل کیوں ضروری ہے اور ایک جملہ لکھیں۔\"]}}\n```",
+     "cost": 0.050118,
+     "tokens": {
+      "in": 10304,
+      "out": 2951
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"اپنی کہانی میں چوتھا اور پانچواں دن بھی شامل کر کے پانچ جملے\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 21951
+  },
+  {
+   "lessonId": "grade_4_english_ch2_seg7",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.047466
+    },
+    {
+     "content": "```json\n{\"iDo\":{\"cfu\":\"Ayesha says, \\\"My mother is a doctor, so I must change doctor.\\\" What would you tell Ayesha, and why?\",\"steps\":[{\"n\":1,\"say\":\"Actor names a male performer; actress is the matching word for a female performer. I listen to what the noun itself tells me, not the picture.\",\"action\":\"Read the p.20 pair actor → actress aloud; the noun itself tells male or female, never the picture.\",\"sayLocal\":\"Actor male performer ka word hai; actress uska female counterpart. Noun khud batata hai, tasveer se nahin.\"},{\"n\":2,\"say\":\"Teacher and doctor can name a man or a woman. The job word does not change for either.\",\"action\":\"Contrast with teacher and doctor: these fit a man or a woman, so the word stays the same.\",\"sayLocal\":\"Teacher aur doctor dono ke liye hain. Word nahin badalta.\"},{\"n\":3,\"say\":\"I check: does this noun already fit a man and a woman? If yes, it stays the same; if no, I find its pair.\",\"action\":\"Model one more pair from the page, waiter → waitress, using the same either-check question.\",\"sayLocal\":\"Sочо: kya yeh word dono ke liye theek hai? Agar haan, wahi rahega; agar nahin, pair dhoondo.\"},{\"n\":4,\"say\":\"Say it together: either words stay; pair words change.\",\"action\":\"Whole class says chorally: 'either stays, pair changes' once, looking at the words on the page.\",\"sayLocal\":\"Sath bolo: 'either rahega, pair badlega'.\"}],\"worked\":{\"work\":[\"waiter = the male word for a food server\",\"a matching female word exists\",\"change the ending: waitress\"],\"answer\":\"waiter → waitress; read the pair aloud.\",\"diagram\":\"\",\"problem\":\"Write the counterpart: waiter\"},\"keyFact\":\"Some nouns have a male–female pair; job words like teacher, doctor and cook fit either gender.\",\"minutes\":6,\"ifStruggle\":\"Say the two sentences aloud: 'He is a doctor. She is a doctor.' Ask the child to notice the word stays doctor.\",\"teacherSays\":\"Read the noun, decide male, female or either — change it only when a matching counterpart exists.\",\"cfuPassSignal\":\"Doctor stays doctor — it can name either a woman or a man.\",\"misconception\":{\"fix\":\"Ask the either-test first: can this word already name a woman AND a man? If yes, it stays.\",\"why\":\"Actor→actress makes -ess feel like a rule for all jobs.\",\"slip\":\"Children glue -ess onto every job word — 'cookess', 'doctress'.\"},\"teacherSaysLocal\":\"Noun parho, socho: male, female ya either — word sirf tab badlo jab uska counterpart maujood ho.\"},\"cost\":0,\"goal\":\"Write the male or female counterpart of a noun — or explain why it stays the same.\",\"hook\":{\"board\":{\"content\":\"MALE ⟷ FEMALE ⟷ EITHER\\nSome job words fit everyone: they stay the same\",\"instruction\":\"Point to the words on the book page since there is no separate board drawing needed; read them aloud.\"},\"story\":\"An actor at the school biryani celebration is a woman — Zainab says she needs a word that fits her. Bilal's uncle AND aunt are both cooks. Why do some nouns change and some stay the same?\",\"warmUp\":{\"recallOf\":\"Word parts from earlier this chapter: re-, mis-, -less\",\"teacherAsks\":\"Whole class: which mark shows a part comes BEFORE a word, and which shows it comes AFTER? Answer together, fingers up.\",\"expectedAnswer\":\"The dash after re- and mis- (prefixes); the dash before -less (suffix).\"},\"objects\":[],\"keyWords\":[{\"def\":\"A noun that can show whether a person or animal is male or female, or can stay the same for either.\",\"term\":\"gender noun\",\"urdu\":\"صِنفی اِسم\",\"syllables\":\"gen-der noun\"},{\"def\":\"The matching word on the other side of a gender pair.\",\"term\":\"counterpart\",\"urdu\":\"مُقابِل صِنفی لفظ\",\"syllables\":\"coun-ter-part\"},{\"def\":\"A word used for a male person or animal.\",\"term\":\"masculine\",\"urdu\":\"مُذکّر\",\"syllables\":\"mas-cu-line\"},{\"def\":\"A word used for a female person or animal.\",\"term\":\"feminine\",\"urdu\":\"مُؤنّث\",\"syllables\":\"fem-i-nine\"}],\"conversation\":[{\"listenFor\":\"Actress — the word changes to show a female performer.\",\"teacherAsks\":\"Zainab needs a word for a woman actor — what could it be?\"},{\"listenFor\":\"No — cook names the job and fits a man or a woman.\",\"teacherAsks\":\"Bilal's uncle is a cook and his aunt is a cook too. Does the word need to change?\"}]},\"meta\":{\"day\":7,\"grade\":4,\"topic\":\"Recognise and use the common grammatical\",\"total\":11,\"isUrdu\":true,\"minutes\":30,\"subject\":\"english\",\"comingUp\":[{\"day\":8,\"pages\":\"\",\"topic\":\"Complete a simple paragraph\"},{\"day\":9,\"pages\":\"22-23\",\"topic\":\"Complete a simple paragraph (p.22-23)\"},{\"day\":10,\"pages\":\"14-23\",\"topic\":\"Chapter assessment (worksheet)\"},{\"day\":11,\"pages\":\"14-23\",\"topic\":\"Chapter revision day\"}],\"cpaPhase\":\"\",\"lessonId\":\"grade_4_english_ch2_seg7\",\"materials\":[\"chalk\",\"board\",\"textbook p.20\",\"notebook\",\"pencil\"],\"skillType\":\"vocabulary_grammar\",\"sourceFile\":\"/Users/haroonyasin/Documents/Projects/April 2026/Rumi 10 April 2026/06_Logs & Misc/Reports/Active/Simulation Week - July 2026/ICT/Curriculum Ingestion (Taleemabad K-5)/03_enrichment/grade_4_english/grade_4_english_ch2_seg7.json\",\"urduMedium\":false,\"designNotes\":\"Write the gender counterpart of nouns (waiter/waitress, lion/lioness...). Class 31-50, most ahead: single activity per phase, choral/whole-class checks only, stretch task in You Do.\",\"durationMin\":30,\"chapterTitle\":\"Textbook p.20\",\"journeySoFar\":[{\"day\":1,\"pages\":\"14\",\"topic\":\"Use pre-reading strategies to predict the type\"},{\"day\":2,\"pages\":\"14-16\",\"topic\":\"Use effective strategies\"},{\"day\":3,\"pages\":\"17\",\"topic\":\"Listen and understand longer conversations\"},{\"day\":4,\"pages\":\"18\",\"topic\":\"Show awareness of one or more listeners\"},{\"day\":5,\"pages\":\"18\",\"topic\":\"Identify and explain the meanings\"},{\"day\":6,\"pages\":\"19\",\"topic\":\"Recognise and use different types of nouns i\"}],\"pagesPrinted\":[20],\"teacherGender\":\"man\",\"sloDescriptions\":[\"Recognise and use the common grammatical gender nouns.\"]},\"weDo\":{\"cfu\":\"If a child writes 'lioness → lioness', what step did they miss, and what counterpart should they write?\",\"action\":\"Read p.20 Activity 3 item 5 (lioness) as a class story-talk: talk through its meaning, then retell the rule for cook.\",\"minutes\":9,\"partner\":null,\"modelled\":{\"work\":[\"-ess tells us lioness is female\",\"we need the male animal word\",\"the matching counterpart is lion\"],\"answer\":\"Lioness → Lion.\",\"diagram\":\"\",\"problem\":\"p.20 Activity 3 Q5: counterpart of Lioness\"},\"strategy\":\"Teacher reads lioness aloud and asks the class to retell what -ess tells us (female); class says together the counterpart is lion. Then contrast: ask class to retell why cook stays the same. Whole class says both pairs aloud chorally to close.\"},\"wrap\":{\"homework\":[\"p.20 — write teacher and cook in one sentence each, showing they fit anyone\"],\"keyFacts\":[\"Read the noun first: male, female, or either — the noun tells you, not the picture.\",\"Change a noun only when a real counterpart exists: actor–actress, lion–lioness.\",\"Job words like teacher, doctor and cook stay the same for everyone.\"],\"reflection\":\"Who still glues -ess onto every job noun — which pairs will open tomorrow's reteach?\",\"exitOptions\":[{\"form\":\"mcq\",\"answer\":\"A — king — queen\",\"prompt\":\"Which is a correct male–female pair?\",\"choices\":[\"king — queen\",\"cook — cookess\",\"doctor — doctress\",\"teacher — teacheress\"],\"correct\":\"A\",\"diagram\":\"\",\"howToRun\":\"Children show fingers 1-4 for A-D on her signal; ask one child why B fails.\",\"promptLocal\":\"Kaun sa male–female pair theek hai?\"}],\"revisionPanels\":null},\"bloom\":\"apply\",\"youDo\":{\"ahead\":{\"coach\":\"Push for WHY each fix works, using the pair actor/actress.\",\"answer\":\"'The actress thanked the actor.' — actress = female, actor = male.\",\"prompt\":\"Correct this line alone: 'The female actor thanked the male actress.' Explain both fixes in one sentence.\"},\"action\":\"Alone in the book: write counterparts for Cook, Author and Princess (Activity 3), choosing 'stays the same' where it fits.\",\"behind\":{\"coach\":\"Point to each noun on the page before writing; ask male, female or either.\",\"answer\":\"actor — male (pair actress); teacher — either, stays the same.\",\"prompt\":\"Point to actor, then teacher on the page; say male, female or either for each, then write one.\",\"diagram\":\"\"},\"minutes\":9,\"problems\":[{\"n\":1,\"ref\":\"p.20 Activity 3 Q3\",\"answer\":\"Cook → Cook — it names the job and fits either gender.\",\"prompt\":\"Write the gender counterpart of Cook — or explain why it stays the same.\",\"source\":\"p.20 Activity 3 Q3\",\"diagram\":\"\"},{\"n\":2,\"ref\":\"p.20 Activity 3 Q4\",\"answer\":\"Author → Authoress (traditional pair; today author fits any gender).\",\"prompt\":\"Write the gender counterpart of Author, the paired form this activity expects.\",\"source\":\"p.20 Activity 3 Q4\",\"diagram\":\"\"},{\"n\":3,\"ref\":\"p.20 Activity 3 Q6\",\"answer\":\"Princess → Prince — princess names a female royal.\",\"prompt\":\"Write the gender counterpart of Princess.\",\"source\":\"p.20 Activity 3 Q6\",\"diagram\":\"\"}]},\"sloCode\":\"E-04-GR-02\",\"sloFull\":\"By the end of the lesson, students will recognise and use the common grammatical gender nouns.\",\"navLocal\":null,\"totalMinutes\":30,\"warmUpPeerMove\":\"Whole class answers chorally to the two mark questions.\",\"exitSelfPredict\":\"Draw ☺ if you think you will get it right, ☹ if unsure — then answer.\",\"exitSuccessCriteria\":\"You have it if you picked king–queen and can say why cook stays the same.\"}\n```",
+     "cost": 0.05669,
+     "tokens": {
+      "in": 9580,
+      "out": 3753
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "the reply was not a JSON plan"
+     ]
+    }
+   ],
+   "fit": [
+    {
+     "round": 2,
+     "fixes": [
+      "minutes set to fill the 30-minute period",
+      "trimmed hook.conversation 2→1"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [
+    "minutes set to fill the 30-minute period",
+    "trimmed hook.conversation 2→1"
+   ],
+   "warnings": [],
+   "ms": 25489
+  },
+  {
+   "lessonId": "grade_5_english_ch1_seg7",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03915
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_math_ch8_seg3",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02885
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_urdu_ch10_seg1",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.04095
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_urdu_ch14_seg3",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03651
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_urdu_ch9_seg4",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.045162
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_4_urdu_ch9_seg4\",\"grade\":4,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"تفہیم — کثیر انتخابی سوالات (صفحہ ۷۸-۷۹)\",\"chapterTitle\":\"باب ۹ · قدیم تہذیبیں\",\"minutes\":40,\"sloDescriptions\":[\"کسی بھی متن کو پڑھتے وقت دو طرح کے سوال بنتے ہیں: 'لفظی' سوال جن کا جواب متن میں سیدھا لکھا ہوتا ہے، اور 'اندازہ/قیاس' کے سوال جن کے لیے ہمیں خود اپنی سوچ استعمال کرنی پڑتی ہے۔\"],\"source\":\"v9_html\",\"adapterV\":2},\n\"goal\":\"کسی بھی متن کو پڑھتے وقت دو طرح کے سوال بنتے ہیں: 'لفظی' سوال جن کا جواب متن میں سیدھا لکھا ہوتا ہے، اور 'اندازہ/قیاس' کے سوال جن کے لیے ہمیں خود اپنی سوچ استعمال کرنی پڑتی ہے۔\",\n\"sloFull\":\"کسی بھی متن کو پڑھتے وقت دو طرح کے سوال بنتے ہیں: 'لفظی' سوال جن کا جواب متن میں سیدھا لکھا ہوتا ہے، اور 'اندازہ/قیاس' کے سوال جن کے لیے ہمیں خود اپنی سوچ استعمال کرنی پڑتی ہے۔\",\n\"sloCode\":\"U-04-CO-07\",\n\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۷۸ کھولیں۔ 'موہنجودڑو کی تہذیب کتنی پرانی ہے؟' — یہ جواب متن میں سیدھا لکھا ہے یا خود سوچنا پڑے گا؟\",\"expectedAnswer\":\"← متن میں لکھا ہے: 'کم از کم چار ہزار سال پرانی ہے' (صفحہ ۷۸)۔\"},\"conversation\":[{\"teacherAsks\":\"آج ہم دیکھیں گے کہ کچھ سوالوں کا جواب سیدھا کتاب میں ملتا ہے، اور کچھ کے لیے خود اندازہ لگانا پڑتا ہے — اسے 'قیاس' کہتے ہیں۔\"}],\"keyWords\":[{\"term\":\"قیاس\",\"def\":\"جب متن میں جواب سیدھا نہیں لکھا ہوتا اور ہمیں خود اپنی سوچ سے اندازہ لگانا پڑتا ہے، اسے قیاس کہتے ہیں۔\"}],\"materials\":[\"درسی کتاب (اردو، جماعت ۴، سبق ۹، صفحہ ۷۸-۸۰)\",\"طلباء کی کاپیاں\"]},\n\n\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"استاد صفحہ ۷۸ کا پہلا پیراگراف بلند آواز سے پڑھے، پھر سوال 'الف' کو تھنک-الاؤڈ سے حل کرے۔\",\"say\":\"میں پہلے سوال پڑھتا ہوں: 'موہنجودڑو کی تہذیب کتنی پرانی ہے؟' چاروں آپشن دیکھتا ہوں۔\"},{\"n\":2,\"say\":\"یہ 'لفظی' سوال ہے، اس لیے جواب متن میں ضرور ہوگا — میں پیراگراف دوبارہ پڑھتا ہوں۔\"},{\"n\":3,\"say\":\"'ماہرین کے مطابق یہ تہذیب کم از کم چار ہزار سال پرانی ہے۔' مل گیا — جواب ۴۰۰۰ سال۔\"},{\"n\":4,\"say\":\"میں نے اندازہ نہیں لگایا، متن میں سے ثبوت نکالا — یہی فرق ہے لفظی اور قیاس میں۔\"}],\"cfu\":\"استاد پوچھے: یہ جواب کہاں سے نکلا؟ طلبہ انگلی سے صفحہ کی لکیر کی طرف اشارہ کریں؛ جو اشارہ نہ کر سکے اسے دوبارہ سمجھائیں۔\"},\n\n\"weDo\":{\"minutes\":12,\"strategy\":\"کہانی اور گفتگو: استاد صفحہ ۷۸-۷۹ کا متن بلند آواز سے پڑھے اور ہر سوال پر کلاس سے زبانی گفتگو کرے، بچے بولیں پہلے پھر لکھنے کی طرف جائیں۔\",\"steps\":[{\"n\":1,\"action\":\"استاد سوال 'ب' سے 'ح' تک ہر سوال باری باری پڑھے، متعلقہ پیراگراف کی طرف اشارہ کرے، اور پوری کلاس سے زبانی جواب مانگے۔\"},{\"n\":2,\"say\":\"سوال سنیں: مہر گڑھ کا تعلق کس صوبے سے ہے؟ جو جواب بلوچستان سمجھتا ہے، ہاتھ اٹھائے۔\"},{\"n\":3,\"say\":\"اب دیکھیں سوال 'ط' — کن جانوروں کی کھالیں ملیں؟ یہ متن میں سیدھا نہیں لکھا، اس لیے یہ قیاس کا سوال ہے، گھبرائیں نہیں۔\"}],\"cfu\":\"ہر سوال کے بعد کلاس انگوٹھا اوپر/نیچے دکھائے کہ جواب متن میں ملا یا قیاس لگانا پڑا۔\"},\n\n\"youDo\":{\"minutes\":12,\"problems\":[{\"n\":1,\"prompt\":\"الف۔ موہنجودڑو کی تہذیب کتنی پرانی ہے؟ (۲۰۰۰ سال / ۴۰۰۰ سال / ۳۰۰۰ سال / ۵۰۰۰ سال) — کتاب میں دائرہ لگائیں۔\",\"answer\":\"۴۰۰۰ سال (صفحہ ۷۸)۔\"},{\"n\":2,\"prompt\":\"ب۔ مہر گڑھ کا تعلق کس صوبے سے ہے؟ (سندھ / بلوچستان / پنجاب / خیبر پختون خوا) — کتاب میں دائرہ لگائیں۔\",\"answer\":\"بلوچستان۔\"},{\"n\":3,\"prompt\":\"ہ۔ موہنجودڑو میں کس چیز کی دریافت نہیں ہوئی؟ (ہاتھی دانت / اونی اور سوتی کپڑے / مٹی کے برتن / کاغذ یا تختی) — کتاب میں دائرہ لگائیں۔\",\"answer\":\"کاغذ یا تختی (صفحہ ۷۸)۔\"}],\"behind\":{\"prompt\":\"کمزور طالب علم کے لیے صرف سوال الف اور ہ کریں؛ پہلے متن میں متعلقہ جملہ انگلی سے دکھائیں، بلند آواز سے پڑھوائیں، پھر کتاب میں دائرہ لگوائیں۔\"},\"ahead\":{\"prompt\":\"تیز طلبہ سوال 'ط' پر اپنا قیاسی جواب کاپی میں لکھیں اور ایک جملے میں وجہ بھی لکھیں کہ ایسا کیوں سوچا۔\"}},\n\n\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"کاپی میں ایک جملہ لکھیں: آج کے سوالوں میں سے کون سا سوال 'لفظی' تھا اور کون سا 'قیاس' کا؟\",\"answer\":\"← طالب علم ایک مثال لفظی (جیسے الف) اور ایک قیاس (جیسے ط) کی دے سکے۔\"}],\"homework\":[\"آج کے صفحہ ۷۸-۷۹ کے سوالات میں سے جو مکمل نہ ہوسکا، آج ہی کاپی میں مکمل کریں۔\"]}}\n```",
+     "cost": 0.051774,
+     "tokens": {
+      "in": 11187,
+      "out": 2940
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "uses slates (\"ہ۔ موہنجودڑو میں کس چیز کی دریافت نہیں ہوئی؟ (ہاتھی دانت / ا\"): the children work in the book"
+     ]
+    },
+    {
+     "round": 2,
+     "reasons": [
+      "uses slates (\"ہ۔ موہنجودڑو میں کس چیز کی دریافت نہیں ہوئی؟ (ہاتھی دانت / ا\"): the children work in the book"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": false,
+   "rounds": null,
+   "fixes": [],
+   "warnings": [],
+   "ms": 21450
+  },
+  {
+   "lessonId": "grade_5_math_ch5_seg4",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.030972
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_math_ch2_seg10",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.054646
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_math_ch4_seg6",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02758
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed wrap.homework 2→1"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed wrap.homework 2→1"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_math_ch11_seg12",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028536
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_5_math_ch11_seg12\",\"grade\":5,\"subject\":\"math\",\"language\":\"en\",\"topic\":\"Connect & Create: Geometric Collage\",\"chapterTitle\":\"Ch.11 · Geometric Galaxy: Shapes and Spaces\",\"minutes\":40,\"sloDescriptions\":[\"I can find the area of a triangle with half base times height, and of a parallelogram with base times height.\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"I can find the area of a triangle with half base times height, and of a parallelogram with base times height.\",\"sloFull\":\"I can find the area of a triangle with half base times height, and of a parallelogram with base times height.\",\"sloCode\":\"M-05-GE-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"Say together: the area formula of a triangle, and of a parallelogram.\",\"expectedAnswer\":\"Triangle: half times base times height. Parallelogram: base times height.\"},\"conversation\":[{\"teacherAsks\":\"Open textbook p.252. Look at the house and the sailboat. Which shapes do you see — triangles, rectangles, parallelograms? Show me with your fingers (3 fingers = triangle, 4 = rectangle).\"}],\"steps\":[{\"n\":1,\"action\":\"Open book to p.252. Point to the roof and the sail in the picture.\"},{\"n\":2,\"action\":\"Ask: is a triangle's area the same as a rectangle's, or half? Thumbs up for half, thumbs down for same.\"}],\"keyWords\":[{\"term\":\"triangle\",\"def\":\"Area = 1/2 x base x height.\"},{\"term\":\"parallelogram\",\"def\":\"Area = base x height.\"},{\"term\":\"collage\",\"def\":\"A picture made from pieces of recycled paper and card.\"}],\"materials\":[\"textbook p.252\",\"chalk\",\"board\",\"copies\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"On the board draw a rectangle 8 cm by 5 cm, then a line corner to corner showing the triangle is half of it.\"},{\"n\":2,\"say\":\"Page 252 shows a house with a triangular roof but no numbers, so we pick base 8 cm, height 5 cm. Rectangle area = 8 x 5 = 40 cm2.\"},{\"n\":3,\"say\":\"Triangle = 1/2 x 8 x 5 = 20 cm2. A parallelogram has no half: base x height only.\"},{\"n\":4,\"say\":\"Check yourself: is my shape a triangle? Then I halve. Is it a parallelogram? No halving.\"}],\"cfu\":\"CFU: Triangle base 6 cm, height 4 cm. Why do we halve for a triangle but not a parallelogram? Expected: a triangle is half its rectangle. Area = 1/2 x 6 x 4 = 12 cm2.\",\"misconception\":{\"slip\":\"Writing base x height for a triangle with no half.\",\"fix\":\"Ask: does it fill the whole rectangle or half? Triangle halves, parallelogram does not.\"}},\"weDo\":{\"minutes\":12,\"strategy\":\"Group by level, by row. Each row gets its own task, worked in the copy, checked by choral answer and show-of-copy.\",\"steps\":[{\"n\":1,\"action\":\"Row 1 (needs support): triangle base 8 cm, height 4 cm — write rectangle area first (8x4) in the copy, then halve together as a class.\"},{\"n\":2,\"action\":\"Row 2 (on level): sailboat sail on p.252, base 10 cm height 6 cm — write A = 1/2 x 10 x 6 in the copy, solve together.\"},{\"n\":3,\"action\":\"Row 3 (ahead): window pane as parallelogram, base 7 cm height 3 cm — write A = 7 x 3 in the copy, then also find a triangle with the same base and height and compare the two areas.\"},{\"n\":4,\"say\":\"Whole class CFU together: triangle base 12 cm height 5 cm — what is the area, and is it 60? Show thumbs down for 60, up for 30.\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"Every child works alone in the copy.\"},{\"n\":2,\"action\":\"If stuck, child checks: is it a triangle? Then halve.\"}],\"problems\":[{\"n\":1,\"prompt\":\"Zainab makes a triangular flag for her collage border: base 10 cm, height 4 cm. Find its area.\",\"answer\":\"1/2 x 10 x 4 = 20 cm2.\"},{\"n\":2,\"prompt\":\"Usman cuts a parallelogram piece: base 9 cm, height 5 cm. Find its area.\",\"answer\":\"9 x 5 = 45 cm2.\"},{\"n\":3,\"prompt\":\"Triangle base 12 cm, height 8 cm. Find its area.\",\"answer\":\"1/2 x 12 x 8 = 48 cm2.\"},{\"n\":4,\"prompt\":\"Stretch: Look at the roof gable picture on p.252. If base is 6 cm and height 3 cm, find the triangle's area, then find the area of a parallelogram with the same base and height. Explain why the two answers differ.\",\"answer\":\"Triangle: 1/2 x 6 x 3 = 9 cm2. Parallelogram: 6 x 3 = 18 cm2. Triangle is half because it only fills half its rectangle.\"}]},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"Thumbs up, sideways or down: 'I can pick the right formula and give area with its unit.' Then solve: (1) Triangle base 12 cm, height 8 cm. (2) Parallelogram base 6 cm, height 4 cm.\",\"answer\":\"(1) 48 cm2. (2) 24 cm2.\"}],\"reteach\":\"Triangle: area = 1/2 x base x height. Parallelogram: area = base x height, no half.\",\"homework\":[\"Find one object at home shaped like a triangle or parallelogram (roof, window, folded box). Measure base and height in cm and find its area.\",\"Draw and label one triangle and one parallelogram with their areas, for your collage page.\"]}}\n```",
+     "cost": 0.032776,
+     "tokens": {
+      "in": 6093,
+      "out": 2059
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "uses slates (\"Group by level, by row. Each row gets its own task on slates\"): the children work in the book"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 14721
+  },
+  {
+   "lessonId": "grade_5_urdu_ch4_seg3",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.038908
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_5_urdu_ch4_seg3\",\"grade\":5,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"گہرائی تک پہنچنا (۱) — خالی جگہ، غلط/درست، انتخابِ جواب\",\"chapterTitle\":\"باب ۴ · مادرِ ملت محترمہ فاطمہ جناح کی داستان\",\"minutes\":40,\"sloDescriptions\":[\"محترمہ فاطمہ جناح کو ان کی قوم کے لیے خدمات کے اعتراف میں 'مادرِ ملت' کا لقب ان کی زندگی ہی میں دیا گیا تھا، اور آج بھی وہ اسی نام سے جانی جاتی ہیں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"محترمہ فاطمہ جناح کو ان کی قوم کے لیے خدمات کے اعتراف میں 'مادرِ ملت' کا لقب ان کی زندگی ہی میں دیا گیا تھا، اور آج بھی وہ اسی نام سے جانی جاتی ہیں۔\",\"sloFull\":\"محترمہ فاطمہ جناح کو ان کی قوم کے لیے خدمات کے اعتراف میں 'مادرِ ملت' کا لقب ان کی زندگی ہی میں دیا گیا تھا، اور آج بھی وہ اسی نام سے جانی جاتی ہیں۔\",\"sloCode\":\"U-05-CO-01\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۳۲ کھولیں۔ ایک سوال: فاطمہ جناح کو 'مادرِ ملت' کیوں کہا جاتا ہے؟\",\"expectedAnswer\":\"← جماعت فوراً سوچ کر انگوٹھا اوپر کرے اگر جواب معلوم ہو، ورنہ نیچے\"},\"conversation\":[{\"teacherAsks\":\"چونکہ زیادہ تر بچے پہلے ہی یہ سبق پڑھ چکے ہیں، آج ہم ہر جواب کا ثبوت عبارت کی سطر سے ڈھونڈنا سیکھیں گے — صرف یاد سے نہیں۔\"}],\"keyWords\":[{\"term\":\"لقب\",\"def\":\"وہ خاص نام جو کسی کو اس کی بڑی خدمت کے اعتراف میں دیا جائے؛ جیسے فاطمہ جناح کو 'مادرِ ملت' کا لقب ملا۔\"}],\"materials\":[\"درسی کتاب اردو پنجم، صفحہ ۳۲ اور ۳۳\",\"طلباء کی کاپیاں\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"استاد سوال کتاب سے پڑھے: “الف۔ محترمہ فاطمہ جناح کا پیدائشی نام ________ تھا۔”\"},{\"n\":2,\"say\":\"سوچتے ہوئے بولے: یہ لفظ عبارت میں تلاش کرنا ہے — صفحہ ۳۲ کی پہلی سطروں میں۔\"},{\"n\":3,\"action\":\"صفحہ پر انگلی رکھ کر متعلقہ سطر پڑھے اور جواب نکالے: فاطمہ علی جناح۔\"},{\"n\":4,\"say\":\"ہر خالی جگہ کا جواب عبارت ہی میں چھپا ہے؛ پہلے سطر پڑھیں، پھر لفظ بھریں۔\"}],\"cfu\":\"استاد پوچھے: 'جواب کہاں سے ملا؟' جماعت ایک آواز میں بتائے: 'عبارت کی سطر سے۔'\"},\"weDo\":{\"minutes\":12,\"strategy\":\"کہانی اور گفتگو: استاد عبارت کا ٹکڑا پڑھے، جماعت دوبارہ اپنے الفاظ میں بتائے، پھر خالی جگہ یا درست/غلط کا فیصلہ کرے۔\",\"steps\":[{\"n\":1,\"action\":\"استاد صفحہ ۳۲-۳۳ سے عبارت کا ایک حصہ بلند آواز سے پڑھے؛ جماعت توجہ سے سنے۔\"},{\"n\":2,\"action\":\"ایک طالب علم اپنے الفاظ میں دوبارہ سنائے کہ کیا کہا گیا؛ جماعت درست ہونے پر انگوٹھا اوپر کرے۔\"},{\"n\":3,\"action\":\"جماعت مل کر خالی جگہ (الف تا ج) اور دو درست/غلط جملے زبانی حل کرے؛ ہر بار ثبوت کی سطر دکھائی جائے۔\"}]},\"youDo\":{\"minutes\":12,\"problems\":[{\"n\":1,\"prompt\":\"خالی جگہوں کو پُر کریں — د۔ محترمہ فاطمہ جناح نے اپنی زندگی ________ کی خدمت کے لیے وقف کر دیا تھا۔\",\"answer\":\"اپنے بھائی (صفحہ ۳۲)\"},{\"n\":2,\"prompt\":\"درست/غلط: محترمہ فاطمہ جناح نے مینا بازاروں کے ذریعے مالی اعانت جمع کی۔\",\"answer\":\"درست (صفحہ ۳۱)\"},{\"n\":3,\"prompt\":\"درست جواب چنیں: محترمہ فاطمہ جناح کو کس لقب سے جانا جاتا ہے؟ (قائدِ اعظم کی بہن/خاتونِ پاکستان/مادرِ ملت/اردو کی سفیر)\",\"answer\":\"مادرِ ملت (صفحہ ۳۲)\"}],\"ahead\":{\"prompt\":\"جلدی ختم کرنے والا ہر بچہ اکیلے صفحہ ۳۳ سے ایک اور خالی جگہ اور ایک اور درست/غلط جملہ حل کرے اور اپنی کاپی میں جواب کے آگے صفحہ نمبر لکھے۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"اپنی کاپی میں دو جملوں میں لکھیں: فاطمہ جناح کو 'مادرِ ملت' کیوں کہا جاتا ہے؟\",\"answer\":\"← کم از کم ایک درست حقیقت، مثلاً: بھائی کی خدمت، خاتونِ پاکستان اسکول، یا اردو کی وکالت۔\"}],\"homework\":[\"گھر میں کسی کو بتائیں کہ فاطمہ جناح کو 'مادرِ ملت' کیوں کہا جاتا ہے۔\"]}}\n```",
+     "cost": 0.044034,
+     "tokens": {
+      "in": 10017,
+      "out": 2400
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "You Do has pair or group work (\"جلد ختم کرنے والے طلبہ صفحہ ۳۳ سے باقی خالی جگہیں اور درست/غ\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 18384
+  },
+  {
+   "lessonId": "grade_5_urdu_ch15_seg3",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.033726
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_5_urdu_ch13_watan_naghme\",\"grade\":5,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"گہرائی تک پہنچنا اور تحریری سوالات\",\"chapterTitle\":\"سبق ۱۳ · وطن کے نغمے\",\"minutes\":40,\"sloDescriptions\":[\"صفحہ ۱۳۳ کے پاز باکس اور تحریری سوالات کے جواب پورے جملے اور متن یا شعر کے ثبوت کے ساتھ لکھیں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"صفحہ ۱۳۳ کے پاز باکس اور تحریری سوالات کے جواب پورے جملے اور متن یا شعر کے ثبوت کے ساتھ لکھیں۔\",\"sloFull\":\"صفحہ ۱۳۳ کے پاز باکس اور تحریری سوالات کے جواب پورے جملے اور متن یا شعر کے ثبوت کے ساتھ لکھیں۔\",\"sloCode\":\"U-05-CO-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"دادا جان کیا سن رہے تھے؟ کتاب کا صفحہ ۱۳۳ دیکھ کر بتائیں۔\",\"expectedAnswer\":\"پاکستان کا ملی نغمہ، جو نورجہاں نے گایا تھا۔\"},\"conversation\":[{\"teacherAsks\":\"کہیں: 'آج ہم صفحہ ۱۳۳ کے تین سوالوں کے جواب پورے جملے میں، ثبوت کے ساتھ لکھنا سیکھیں گے۔'\"}]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"کتاب کا صفحہ ۱۳۳ کھلوائیں۔ متن کی پہلی سطریں خود پڑھ کر سنائیں: 'دادا جان بڑے انہماک سے کچھ سن رہے تھے۔'\"},{\"n\":2,\"say\":\"سوال ۱: 'دادا جان کس چیز میں دلچسپی لے رہے تھے؟' کہیں: 'سوال کے الفاظ سے جواب شروع کرو: دادا جان ملی نغمہ سننے میں دلچسپی لے رہے تھے۔'\"},{\"n\":3,\"action\":\"ثبوت دکھائیں: متن کی پہلی سطر میں لکھا ہے 'میں پاکستان کا ملی نغمہ سن رہا ہوں'۔ یہی ثبوت ہے۔\"},{\"n\":4,\"say\":\"سب مل کر بولیں: 'سوال کے الفاظ + جواب + ثبوت' — یہی پورا جواب ہے۔\"}],\"cfu\":\"فوری جانچ: 'جواب میں کیا تین چیزیں چاہییں؟' انگوٹھا اوپر اگر یاد ہو۔ متوقع جواب: سوال کے الفاظ، جواب، ثبوت۔\"},\"weDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کھیل: 'ثبوت ڈھونڈو' — استاد سوال ۲ بلند آواز سے پڑھیں: 'دادا جان نے بصیرت کو کیا بتایا؟' بچے کتاب میں متن کی سطریں انگلی سے تلاش کریں اور جیسے ہی ثبوت والی سطر ملے فوراً انگلی اوپر اٹھائیں۔\"},{\"n\":2,\"say\":\"جو پہلے انگلی اٹھائے وہ کھڑے ہو کر جملہ بولے، باقی سب کورس میں دہرائیں۔ متوقع جواب: ستمبر کی جنگ میں پاکستانی شاعروں نے وطن اور فوج سے محبت کا اظہار کیا، جو قومی شعری سرمایہ ہے۔\"}],\"strategy\":\"فوری جانچ: 'ثبوت کس سطر میں ملا؟' اگر غلط سطر بتائیں تو کہیں: 'دوبارہ متن کی اگلی سطریں دیکھو۔'\"},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کہیں: 'اب ہر بچہ اکیلا کاپی میں سوال ۳ کا جواب لکھے: سوال کے الفاظ سے شروع، پھر جواب، پھر ثبوت۔' اشارہ: 'قلم رکھ دیں' جب وقت ختم ہو۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"سوال ۳: اشعار میں وطن کی محبت کو کیسے بیان کیا گیا ہے؟ پورے جملے میں ثبوت کے ساتھ لکھیں۔\",\"answer\":\"اشعار میں وطن کی محبت کو خوشبو اور پیار کی جگنی سے بیان کیا گیا ہے۔ ثبوت: 'تیری خوشبو کو چھلکائیں گے، ترے پیار کی جگنی گائیں گے۔'\"}],\"behind\":{\"prompt\":\"کتاب میں اشعار کی آخری دو سطریں دیکھیں اور ان میں سے صرف وہ ایک لفظ کاپی میں لکھیں جو خوشبو یا پیار کے بارے میں بتاتا ہے، پھر اسی لفظ سے مکمل جملہ خود بنا کر لکھیں۔\"},\"ahead\":{\"prompt\":\"بتائیں کہ ضمیر جعفری نے وطن کو 'دھرتی شیر جوانوں کی' کیوں کہا؛ ایک پورا جملہ لکھیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"انگوٹھے سے اندازہ: اوپر = جواب کے تین قدم یاد ہیں، نیچے = مشکل۔ ایک بچے سے پورا جواب زبانی سنیں۔\",\"answer\":\"سوال کے الفاظ سے شروع، پورا جواب، پھر متن یا شعر سے ثبوت۔\"}],\"homework\":[\"صفحہ ۱۳۳ کا سوال ۱ کا جواب گھر والوں کو پڑھ کر سنائیں اور ان سے پوچھیں کہ انھیں کون سا وطنی نغمہ پسند ہے۔\"]}}\n```",
+     "cost": 0.039278,
+     "tokens": {
+      "in": 8154,
+      "out": 2297
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "goal (the learning outcome) changed",
+      "You Do has pair or group work (\"جملے کا آغاز دیں: 'اشعار میں وطن کی محبت ___ سے ظاہر ہوتی ہے\"): in You Do each child works alone; keep pairs and groups in We Do"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 18503
+  }
+ ]
+}
