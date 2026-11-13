@@ -216,7 +216,8 @@ const STRINGS = {
     send_preview_coming:
       'Sawa — {name} ({phone}). Naandaa ripoti yake sasa; nitakuonyesha KWANZA kabla ya kutuma. Dakika 1–2. ⏳',
     send_confirm_body:
-      '📨 Kwa: {name} ({phone})\n\nHii hapo juu ndiyo ripoti kamili atakayopokea — ripoti rasmi ya MEWAKA pamoja na kumbukumbu za debrief yenu. Je, huyu ndiye mwalimu sahihi? Bonyeza *Tuma sasa* kutuma, au *Mtu mwingine* kuchagua mwalimu mwingine.',
+      '📨 Kwa: \u2068{name}\u2069 (\u2066{phone}\u2069){school_line}\n\nHii hapo juu ndiyo ripoti kamili atakayopokea — ripoti rasmi ya MEWAKA pamoja na kumbukumbu za debrief yenu. Je, huyu ndiye mwalimu sahihi? Bonyeza *Tuma sasa* kutuma, au *Mtu mwingine* kuchagua mwalimu mwingine.',
+    send_confirm_school: '\n🏫 Shule: \u2068{school}\u2069',
     btn_send_now: 'Tuma sasa',
     btn_send_cancel: 'Ghairi',
     btn_send_other: 'Mtu mwingine',
@@ -566,7 +567,8 @@ const STRINGS = {
     send_ask_details: 'استاد کا نام اور فون نمبر لکھیں — ایک ہی پیغام میں۔\n\nمثال: *مس ثانیہ، 0301 2345678*',
     send_details_reask: 'سمجھ نہیں آیا۔ نام اور نمبر ایک پیغام میں لکھیں۔ مثال: *مس ثانیہ، 0301 2345678*',
     send_preview_coming: 'ٹھیک ہے — {name} ({phone})۔ رپورٹ تیار کر رہی ہوں؛ بھیجنے سے پہلے آپ کو دکھاؤں گی۔ 1-2 منٹ۔ ⏳',
-    send_confirm_body: '📨 وصول کنندہ: {name} ({phone})\n\nاوپر بالکل وہی رپورٹ ہے جو انہیں ملے گی — سرکاری رپورٹ مع آپ کی ڈی بریف کے نکات۔ کیا یہ درست استاد ہیں؟ بھیجنے کے لیے *ابھی بھیجیں* دبائیں، یا کوئی دوسرا استاد چننے کے لیے *کسی اور کو بھیجیں*۔',
+    send_confirm_body: '📨 وصول کنندہ: \u2068{name}\u2069 (\u2066{phone}\u2069){school_line}\n\nاوپر بالکل وہی رپورٹ ہے جو انہیں ملے گی — سرکاری رپورٹ مع آپ کی ڈی بریف کے نکات۔ کیا یہ درست استاد ہیں؟ بھیجنے کے لیے *ابھی بھیجیں* دبائیں، یا کوئی دوسرا استاد چننے کے لیے *کسی اور کو بھیجیں*۔',
+    send_confirm_school: '\n🏫 اسکول: \u2068{school}\u2069',
     btn_send_now: 'ابھی بھیجیں',
     btn_send_cancel: 'منسوخ',
     btn_send_other: 'کسی اور کو بھیجیں',
@@ -962,7 +964,8 @@ const STRINGS = {
     send_preview_coming:
       "Got it — {name} ({phone}). I'm preparing the report now; you'll see it FIRST before anything is sent. 1–2 minutes. ⏳",
     send_confirm_body:
-      '📨 To: {name} ({phone})\n\nAbove is the exact report they will receive — the official FICO report plus your debrief notes. Is this the right teacher? Tap *Send now* to send it, or *Someone else* to pick a different teacher.',
+      '📨 To: \u2068{name}\u2069 (\u2066{phone}\u2069){school_line}\n\nAbove is the exact report they will receive — the official FICO report plus your debrief notes. Is this the right teacher? Tap *Send now* to send it, or *Someone else* to pick a different teacher.',
+    send_confirm_school: '\n🏫 School: \u2068{school}\u2069',
     btn_send_now: 'Send now',
     btn_send_cancel: 'Cancel',
     btn_send_other: 'Someone else',
