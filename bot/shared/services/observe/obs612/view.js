@@ -28,6 +28,28 @@ const O = require('../../coaching/frameworks/obs612');
 const LABEL = O.LABEL;
 // The line under every FDE result (operator's wording). A constant, so the WhatsApp cap audit never reads it as a footer.
 const FDE_FOOTNOTE = "Scored by your coach on FDE's tool (Annexure G, 2026-27). Not a FICO score.";
+// The same line for an Urdu report (DRAFT for native review): an English line inside an RTL page loses its spacing.
+const FDE_FOOTNOTE_UR = 'آپ کے کوچ نے ایف ڈی ای کے ٹول (Annexure G، \u2066۲۰۲۶-۲۷\u2069) پر نمبر دیے۔ یہ FICO اسکور نہیں۔';
+
+/**
+ * A coach's hand-typed note, made safe to show (bd-ra8xu.51, Rifat 13 Nov: "repeated broken characters"). A run of more
+ * than LONG_RUN characters with no space is not a word (a held-down key): joined, Urdu script draws it as one long
+ * chain, and Nastaliq as a slanting cascade that leaves its box. In such a run every letter is kept apart (a zero-width
+ * non-joiner between each two) and a zero-width space every RUN_CHUNK letters lets the line wrap. Real words are
+ * untouched (none is that long); nothing is removed.
+ */
+const LONG_RUN = 24;
+const RUN_CHUNK = 8;
+function readableNote(s) {
+  if (s == null) return s;
+  return String(s).replace(/\S+/gu, (run) => {
+    const cps = Array.from(run);
+    if (cps.length <= LONG_RUN) return run;
+    const out = [];
+    for (let i = 0; i < cps.length; i += RUN_CHUNK) out.push(cps.slice(i, i + RUN_CHUNK).join('\u200C'));
+    return out.join('\u200C\u200B');
+  });
+}
 
 const str = (v) => (v === undefined || v === null ? '' : String(v)).trim();
 const round1 = (n) => Math.round(n * 10) / 10;
@@ -239,4 +261,4 @@ function portalSummary(analysis) {
   return out;
 }
 
-module.exports = { LABEL, FDE_FOOTNOTE, obs612Of, isObs612Analysis, obs612View, shortResult, portalSummary, num, pctOf };
+module.exports = { LABEL, FDE_FOOTNOTE, FDE_FOOTNOTE_UR, readableNote, obs612Of, isObs612Analysis, obs612View, shortResult, portalSummary, num, pctOf };
