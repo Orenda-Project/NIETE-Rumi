@@ -1,0 +1,2 @@
+{"ts":"2026-11-13T15:39:13Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"c8cad199dff9","branch":"bd-37q6ye-34014","user":""}
+{"ts":"2026-11-13T15:39:17Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-37q6ye: E-NODRIVER:registration","sha":"c8cad199dff9","branch":"bd-37q6ye-34014","user":""}
