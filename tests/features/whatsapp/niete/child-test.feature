@@ -1141,3 +1141,57 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the school picker lists the SIM practice school first, then the coach's schools by name
     And the coach app's Learning assessment lists the SIM school first, marked practice, above today's visit
     And with the switch absent both lists are in today's order: today's visit first, then by name
+
+  # Round 20: a child silent through a section moves on to the next subject (sa_r20_silence_stop = N), and the coach can end a
+  # section in RDF auto too (sa_r20_auto_end_section). @no-mock-driver: the rule runs on the child's page, not the WhatsApp bot.
+  # Covered by dashboard/tests/sa-r20-auto-stop.service.test.js (the real runner and engine) and AssessEngineSlot.r20.test.tsx.
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT180
+  Scenario Outline: RDF auto, silent letter or word parts in a row end the subject
+    Given sa_r20_silence_stop is <n>, sa_silence_repeat and sa_incomplete_move_on are on, and a child is taking RDF auto with a working microphone
+    When the Urdu letter and word parts run in the pattern "<pattern>" (each silent part after its one reminder and repeat)
+    Then <outcome>
+    Examples:
+      | n | pattern                    | outcome                                                                                                                 |
+      | 2 | silent, silent             | the rest of Urdu is skipped (skipped_incomplete), English starts, and one incomplete_move_on event says reason silence, in a row 2 |
+      | 2 | silent, voice, silent      | every Urdu part runs and no incomplete_move_on event is kept                                                              |
+      | 1 | silent                     | the rest of Urdu is skipped after that one part, with in a row 1                                                          |
+      | 2 | voice heard, then time up  | the part is finished and the subject goes on (time-up stays finished)                                                     |
+
+  @e2e @wip @draft @negative @no-mock-driver @config-gated @P1 @CT184
+  Scenario: The silence stop never fires without evidence, in RDF manual, or with the switch off
+    Given a child is taking RDF auto
+    When the phone's ear could not listen, or the test is coach-led (RDF manual), or sa_r20_silence_stop has no row
+    Then no part is counted as silent and every part runs as today
+
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT181
+  Scenario: The coach ends a section in RDF auto
+    Given sa_end_section and sa_r20_auto_end_section are on and a child is taking RDF auto
+    When the coach taps "End this section" and confirms
+    Then the part on show ends as end_section, the rest of its subject is skipped (skipped_end_section), and the test goes on at the next subject
+    And one end_section event is kept with by coach
+    And with sa_r20_auto_end_section off, RDF auto shows no End this section button, as today
+
+  # Round 20, the child's level per subject (app_settings sa_r20_level, absent = OFF): bot/shared/services/child-test/sa/level.js
+  # (placeholder level words and cut-offs awaiting reviewer approval), app/level-switch.js, app/sa-api.service.js saResults /
+  # saSessions; portal/src/portal/pages/LeaderAssessResults.tsx and LeaderAssessDashboard.tsx.
+  @e2e @wip @draft @config-gated @P1 @CT182 @no-mock-driver
+  # No mock driver: the results read the database. Asserted in bot/tests/child-test/sa-r20-level.test.js and
+  # portal/src/portal/pages/LeaderAssessResults.test.tsx.
+  Scenario: A session's Results show, per subject, where the child reached, the level, and why the subject stopped
+    Given sa_r20_level is on and a child finished an RDF auto battery
+    When the coach opens that session's Results
+    Then above the task cards each subject (Urdu, English, Maths) reads "Reached: <the last part the child did>" and "Level: <level>"
+    And a spoken part not scored yet reads "Waiting for scores", or the level so far with "more scores to come"
+    And a subject a silence stop ended reads "Stopped: no answer", and one the coach ended reads "Stopped by the coach"
+    And in Urdu the same lines are in Urdu script
+    And with sa_r20_level off the Results are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT183 @no-mock-driver
+  # No mock driver: as @CT182. Asserted in bot/tests/child-test/sa-r20-level.test.js and
+  # portal/src/portal/pages/LeaderAssessDashboard.test.tsx.
+  Scenario: The results dashboard's sub-region and school table gains a Level column per subject
+    Given sa_r20_level is on and the live results dashboard is on
+    When the user opens the results dashboard
+    Then the sub-region table has an "Urdu level", "English level" and "Maths level" column with each row's typical level
+    And a row of fewer than 5 children shows "–" in those columns
+    And with sa_r20_level off the table has no level columns
