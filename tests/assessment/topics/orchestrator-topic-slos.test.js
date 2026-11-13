@@ -61,3 +61,15 @@ test('a chapter job passes no slos key', async () => {
   await Orchestrator.buildPaper({ ...JOB, chapterNumber: 4 });
   expect(mockGenerateExam.mock.calls[0][0]).not.toHaveProperty('slos');
 });
+
+// bd-pw1ccr.38: a topic paper that skips a ticked skill is asked once more; a chapter paper never is.
+test('a topic paper missing a skill is re-asked once, naming it', async () => {
+  await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: ['t1'], slos: SLOS } });
+  expect(mockGenerateExam).toHaveBeenCalledTimes(2);
+  expect(mockGenerateExam.mock.calls[1][0].slos[0].description).toMatch(/at least one question/);
+});
+
+test('a chapter paper is written once', async () => {
+  await Orchestrator.buildPaper({ ...JOB, chapterNumber: 9, pageRanges: null });
+  expect(mockGenerateExam).toHaveBeenCalledTimes(1);
+});
