@@ -238,11 +238,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given an observation with completed observer review and debrief
     When I tap "Send report" and the report preview arrives
     Then the confirm message right above the buttons names the recipient teacher and her number
+    And when the account on that number has a school on file, the next line names the school
     And "Send now" sends it, "Someone else" takes me back to the teacher pick, and "Cancel" sends nothing
     # bd-zpyf0 (HITL row 190): fillConfirmBody in observe-send.service.js fills
     # send_confirm_body {name} ({phone}) from teacher_delivery; a nameless row shows
     # the number alone. Button ids observe_send_confirm_/other_/cancel_ unchanged.
     # Proven in bot/tests/observe/bd-zpyf0-confirm-names-recipient.test.js.
+    # bd-r2uzg1.14 (ICT plan #13): {school_line} = send_confirm_school, filled from
+    # users.school_name looked up by teacher_phone (observe-people schoolOfPhone);
+    # none on file or a failed lookup leaves the line out. Name, number and school are
+    # bidi-isolated for the Urdu RTL line. Proven in
+    # bot/tests/observe/bd-r2uzg1-14-confirm-names-school.test.js.
 
   @e2e @wip @content-driven @P2 @config-gated
   Scenario: The FICO report to the teacher carries no score and no accusatory verdicts
