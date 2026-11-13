@@ -13,10 +13,10 @@ test('grades 1-5: 2I and 1D are not assessable, the rest unchanged', () => {
   expect(items['2I']).toBe(1);
 });
 
-test('grades 6-12 are scored as before', () => {
+test('grades 6-12 keep 2I as rated; 1D is null in both bands since bd-snkn32.46 (no book text is given)', () => {
   const items = { '1D': 2, '2I': 1, '7B': 3 };
-  expect(applyBand(items, 'g612')).toEqual(items);
-  expect(applyBand(items)).toEqual(items);
+  expect(applyBand(items, 'g612')).toEqual({ ...items, '1D': null });
+  expect(applyBand(items)).toEqual({ ...items, '1D': null });
 });
 
 test('a G1-5 plan the model rated 1 on 2I no longer fails for a picture the script cannot carry', () => {
