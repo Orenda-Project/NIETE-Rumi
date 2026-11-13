@@ -22,6 +22,7 @@ test('the own-plan list asks only for ready, library-eligible rows and drops the
   const q = {
     select: (c) => { calls.select = c; return q; },
     eq: (k, v) => { (calls.eq = calls.eq || []).push([k, v]); return q; },
+    or: () => q,
     order: () => q,
     limit: (n) => { calls.limit = n; return Promise.resolve({ data: rows, error: null }); },
   };
@@ -35,7 +36,7 @@ test('the own-plan list asks only for ready, library-eligible rows and drops the
 });
 
 test('a read error is an empty list, never a throw', async () => {
-  const q = { select: () => q, eq: () => q, order: () => q, limit: async () => ({ data: null, error: { message: 'x' } }) };
+  const q = { select: () => q, eq: () => q, or: () => q, order: () => q, limit: async () => ({ data: null, error: { message: 'x' } }) };
   const log = jest.fn();
   const lib = createOwnLibrary({ from: () => q, log });
   await expect(lib.listLibraryOwnPlans()).resolves.toEqual([]);

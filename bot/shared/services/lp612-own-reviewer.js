@@ -14,7 +14,7 @@
  *
  * Dependencies are injected (createOwnReviewer) so it is testable without Supabase, R2 or a model.
  */
-const { gateV2, parseReview, reviewMessages, applyBand } = require('./lp612-own-review');
+const { gateV2, parseReview, reviewMessages, applyBand, mustFor } = require('./lp612-own-review');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const REVIEW_JOB = 'lp.ownReview';
@@ -50,8 +50,9 @@ function createOwnReviewer(deps) {
       const band = row.lesson_id ? 'k5' : 'g612';
       const messages = reviewMessages({ plan, lang: row.lang, band });
       const items = await score(messages, band);
-      let g = gateV2(items);
-      if (g.rescore) g = gateV2(items, await score(messages, band));
+      const must = mustFor({ plan }); // bd-snkn32.46: Science also needs 9B >= 3, as production gate v2
+      let g = gateV2(items, null, must);
+      if (g.rescore) g = gateV2(items, await score(messages, band), must);
       const fields = {
         review_score: Math.round(g.pct * 10) / 10,
         review_pass: g.pass,

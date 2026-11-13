@@ -1,9 +1,12 @@
 /**
- * bd-snkn32.42 — every word of "Made by a teacher": the chapter page's shelf of approved teacher plans, and the staff
- * page that checks a plan before it is listed.
+ * bd-snkn32.42 — every word of "Made by a teacher": the chapter page's shelf of teacher plans that met the lesson-plan
+ * standard, and the staff page where a person can still reject one.
  *
  * NEW VOCABULARY, PENDING THE OPERATOR: "Made by a teacher" and the check page's words are not in the ontology yet.
- * The Urdu is MACHINE-DRAFTED from the ontology's existing words (لیسن پلان, سبق, دن, منظور) and awaits a human review.
+ * bd-snkn32.46 reviewed the Urdu with the language-protocol skill and the vocabulary guard: ٹیچر (never استاد/اساتذہ),
+ * grade ranges «1 تا 5» (a hyphen range after an Urdu word paints reversed), gender-neutral imperatives, no literal
+ * «جانچیں» as a plural noun. Since bd-snkn32.46 the AI reviewer's pass lists a plan (lp_own_library_rule = 'ai'), so the
+ * hint no longer says "checked by our team".
  * Registered through lessons/copy.ts COPY_ENTRIES (the registry globs only teacher/<feature>/copy.ts).
  */
 
@@ -11,14 +14,14 @@ import { bilingual, type Bilingual, type Words } from '../../i18n';
 import type { CopyEntry } from '../../copyRegistry';
 
 export const SHELF_COPY = {
-  /* the chapter page: plans other teachers made, approved by a person (never who made them) */
+  /* the chapter page: plans other teachers made that met the standard (never who made them) */
   shelfTitle: 'Made by a teacher',
-  shelfHint: 'Plans other teachers made for these lessons, checked by our team.',
+  shelfHint: 'Plans other teachers made for these lessons that meet our lesson-plan standard.',
   lessonN: (n: number) => `Lesson ${n}`,
   dayN: (n: number) => `Day ${n}`,
   langs: { en: 'English', ur: 'Urdu' },
   bands: { k5: 'Grades 1–5', g612: 'Grades 6–12' },
-  /* the staff check before a plan is listed */
+  /* the staff check: a person can still reject a listed plan */
   reviewTitle: 'Teacher plans to check',
   reviewEmpty: 'Nothing to check now.',
   score: (n: number) => `Score ${n}`,
@@ -36,22 +39,22 @@ export const SHELF_COPY = {
 };
 
 const SHELF_COPY_UR: Words<typeof SHELF_COPY> = {
-  shelfTitle: 'ایک ٹیچر کا بنایا ہوا',
-  shelfHint: 'دوسرے اساتذہ کے بنائے ہوئے لیسن پلان، جنہیں ہماری ٹیم نے جانچا ہے۔',
+  shelfTitle: 'ٹیچر کا بنایا ہوا',
+  shelfHint: 'دوسرے ٹیچرز کے بنائے ہوئے لیسن پلان، جو ہمارے لیسن پلان کے معیار پر پورے اترتے ہیں۔',
   lessonN: (n: number) => `سبق ${n}`,
   dayN: (n: number) => `دن ${n}`,
   langs: { en: 'انگریزی', ur: 'اردو' },
-  bands: { k5: 'جماعت 1–5', g612: 'جماعت 6–12' },
-  reviewTitle: 'جانچنے کے لیے اساتذہ کے لیسن پلان',
-  reviewEmpty: 'ابھی جانچنے کے لیے کچھ نہیں۔',
+  bands: { k5: 'جماعت 1 تا 5', g612: 'جماعت 6 تا 12' },
+  reviewTitle: 'ٹیچرز کے لیسن پلان جن کی جانچ باقی ہے',
+  reviewEmpty: 'ابھی جانچ کے لیے کوئی لیسن پلان نہیں۔',
   score: (n: number) => `اسکور ${n}`,
-  below: 'معیار سے کم جانچیں',
-  noneBelow: 'ہر جانچ معیار کے مطابق ہے',
-  notAssessed: 'اس جماعت میں نہیں جانچا گیا',
+  below: 'جو نکات معیار سے کم رہے',
+  noneBelow: 'تمام نکات معیار کے مطابق ہیں',
+  notAssessed: 'اس جماعت کے لیے نہیں جانچا جاتا',
   openPdf: 'پی ڈی ایف کھولیں',
   approve: 'منظور کریں',
   reject: 'مسترد کریں',
-  reason: 'کیوں مسترد کیا؟',
+  reason: 'مسترد کرنے کی وجہ',
   sendReject: 'یہ لیسن پلان مسترد کریں',
   approved: 'منظور',
   rejected: 'مسترد',
