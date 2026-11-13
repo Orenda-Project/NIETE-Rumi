@@ -133,6 +133,30 @@ function _supabaseDb() {
       return !error;
     },
 
+    /**
+     * Give a NAMELESS account the name the coach typed, and only a nameless
+     * one. The blank guard is in the write itself — the row must still hold
+     * the blank value the plan read — so a name that arrived since the plan is
+     * never overwritten. Never throws: a fill that fails must not undo the
+     * move the coach asked for. Returns whether the row was written.
+     */
+    async fillBlankName({ userId, name, seen }) {
+      try {
+        if (String(seen == null ? '' : seen).trim()) return false;   // not blank: nothing to fill
+        let q = supabase.from('users').update({ name }).eq('id', userId);
+        q = seen == null ? q.is('name', null) : q.eq('name', seen);
+        const { data, error } = await q.select('id');
+        if (error) throw new Error(error.message);
+        return Array.isArray(data) && data.length === 1;
+      } catch (e) {
+        const { logToFile } = require('../../utils/logger');
+        let tk = null;
+        try { tk = require('../quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+        logToFile('⚠️ observe: blank name not filled on add', { tk, error: e.message }, 'warn');
+        return false;
+      }
+    },
+
     async createTeacher({ phone, name, schoolId, role, organization }) {
       const row = { phone_number: phone, name: name, role: role || 'teacher', school_id: schoolId };
       if (organization) row.organization = organization;
@@ -223,7 +247,7 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
 
   // A teacher with no school at all takes the same path: she is being placed.
   const from = await db.schoolOf(u.school_id);
-  return {
+  const plan = {
     outcome: 'move',
     phone,
     person,
@@ -232,6 +256,34 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
     toSchoolName: target.school_name,
     target,
   };
+  return { ...plan, needsName: needsName(plan) };
+}
+
+/**
+ * Whether the add must ask for a name before the confirm: the number is on
+ * record, the add would place that account at the coach's school, and the
+ * account has NO name (null, '' or spaces — production carries all three).
+ *
+ * Without this the confirm printed "Name: " blank and the teacher landed in the
+ * school nameless; nameless teachers break reports, certificates and debrief
+ * lists downstream. Only a 'move' asks: 'already_here' writes nothing, and a
+ * nameless teacher already at the school is named through Edit -> Name.
+ */
+function needsName(plan = {}) {
+  if (plan.outcome !== 'move') return false;
+  const person = plan.person || {};
+  return !String(person.name == null ? '' : person.name).trim();
+}
+
+const BLANK_NAME_INTRO = {
+  en: 'We found an account for {phone}, but it has no name yet.\n\nWhat is their full name?',
+  ur: '{phone} پر ایک اکاؤنٹ موجود ہے، لیکن اس میں ابھی کوئی نام درج نہیں۔\n\nان کا پورا نام کیا ہے؟',
+};
+
+/** The name screen's sentence for a found account with no name (TEACHER_NAME `intro`). */
+function blankNameIntro(lang, plan = {}) {
+  const l = clampLanguage(lang);
+  return (BLANK_NAME_INTRO[l] || BLANK_NAME_INTRO.en).replace('{phone}', String(plan.phone || ''));
 }
 
 // ── the copy ───────────────────────────────────────────────────────────
@@ -475,13 +527,33 @@ async function commitAdd({ actorLeaderUserId, schoolExtId, rawPhone, name }, dep
   // Only once she is at the school, and never instead of it: a fill that fails
   // costs a blank the backfill script picks up, not the move the coach asked for.
   if (placed && organization) await db.fillOrganization({ userId: plan.person.userId, organization });
-  await db.writeAudit([_auditRow({
+
+  // A NAMELESS account takes the name the coach typed on the name screen —
+  // only a nameless one (the guard is in the write), and only once she is at
+  // the school. No name supplied (the portal's move) writes nothing here.
+  const typed = String(name == null ? '' : name).trim();
+  const named = Boolean(placed && plan.needsName && typed)
+    && await db.fillBlankName({ userId: plan.person.userId, name: typed, seen: plan.person.name });
+  const nameNow = named ? typed : plan.person.name;
+
+  const rows = [_auditRow({
     action: 'move', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
-    teacher_ext_id: plan.phone, teacher_phone_e164: plan.phone, teacher_name: plan.person.name,
+    teacher_ext_id: plan.phone, teacher_phone_e164: plan.phone, teacher_name: nameNow,
     from_school_ext_id: plan.fromSchoolExtId, to_school_ext_id: schoolExtId,
     detail: { via: 'observe_flow', wasRole: plan.person.role },
-  })]);
-  return { ...plan, wrote: true };
+  })];
+  // The same row the Edit -> Name path writes (account id, phone, the name
+  // before, detail.to), marked as coming from the add.
+  if (named) {
+    rows.push(_auditRow({
+      action: 'edit_name', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
+      teacher_ext_id: plan.person.userId, teacher_phone_e164: plan.phone,
+      teacher_name: plan.person.name || null,
+      detail: { via: 'observe_flow', to: typed, on: 'add' },
+    }));
+  }
+  await db.writeAudit(rows);
+  return { ...plan, person: { ...plan.person, name: nameNow }, nameFilled: named, wrote: true };
 }
 
 /**
@@ -624,7 +696,10 @@ function foundAccountScreen(lang, plan = {}, schoolExtId = '') {
   const t = FOUND[l] || FOUND.en;
   const person = plan.person || {};
   const isNew = plan.outcome === 'new';
-  const name = String(person.name || plan.name || '').trim();
+  // The record's name when it has one; else the name typed on the name screen.
+  // Trimmed BEFORE choosing: a record holding only spaces is blank, not a name.
+  const name = String(person.name == null ? '' : person.name).trim()
+    || String(plan.name == null ? '' : plan.name).trim();
   const role = person.isPrincipal ? ` (${l === 'ur' ? 'پرنسپل' : 'Principal'})` : '';
   const at = String(plan.fromSchoolName || '').trim() || t.no_school;
 
@@ -659,6 +734,8 @@ module.exports = {
   rosterTeacherNextTarget,
   normaliseTeacherPhone,
   planAdd,
+  needsName,
+  blankNameIntro,
   commitAdd,
   commitRemovals,
   REMOVE_BATCH_MAX,
