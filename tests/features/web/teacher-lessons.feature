@@ -347,11 +347,19 @@ Feature: Teacher lesson plans
     When she picks a different lesson
     Then "No, just these pages" is chosen again, so a choice made for one lesson never rides on another
 
-  # bd-snkn32.42 — "Made by a teacher": a teacher's own plan is listed for others only when the AI reviewer passed it
-  # AND a person approved it. Behind app_settings `portal_lp_own_shelf` (the shelf) and `portal_lp_own_reviewers` (a
+  # bd-snkn32.42 — "Made by a teacher": a teacher's own plan is listed for others when the AI reviewer passed it
+  # (bd-snkn32.46: app_settings `lp_own_library_rule`, default 'ai'; a person can still Reject, which takes it off;
+  # 'ai_and_person' brings back the approval step). Behind app_settings `portal_lp_own_shelf` (the shelf) and `portal_lp_own_reviewers` (a
   # list of user ids who may approve). Hand-written like the blocks above (@draft: the demo stack cannot set either key).
   # Proof: portal/src/portal/teacher/lessons/shelf/*.test.tsx, tests/lp612/own-approval.test.js,
-  # tests/portal/lp612-shelf-route.test.js. Carry this block over on a regenerate.
+  # tests/portal/lp612-shelf-route.test.js, tests/lp612/own-library-rule.test.js. Carry this block over on a regenerate.
+
+  @SHF04 @draft @config-gated
+  Scenario: An AI-passed plan is listed with no person's approval
+    Given portal_lp_own_shelf is on for demo teacher 03000000939 and lp_own_library_rule is unset
+    And a teacher's own plan on a chapter's lesson passed the AI reviewer and nobody has approved or rejected it
+    When she opens that chapter's lesson plans
+    Then "Made by a teacher" lists the plan by its lesson, never by who made it
 
   @SHF01 @draft @config-gated
   Scenario: A reviewer approves an AI-passed plan, and it appears under "Made by a teacher"
