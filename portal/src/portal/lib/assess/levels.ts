@@ -2,13 +2,13 @@ import type { SaLevel, SaResults } from '../../types/childTestSa';
 
 /**
  * Round 20 (server switch sa_r20_level): the level ladders in order, and a group's typical level for the dashboard.
- * The words and the server's cut-offs (bot sa/level.js) are placeholders awaiting reviewer approval.
+ * The words (copy.ts) and the server's cut-offs (bot sa/level.js) are the ones sent for review.
  */
 export const SUBJECTS = ['ur', 'en', 'ma'] as const;
 export type Subject = (typeof SUBJECTS)[number];
 
 const READING: SaLevel[] = ['beginner', 'letters', 'words', 'story', 'comprehension'];
-const MATHS: SaLevel[] = ['beginner', 'numbers', 'comparing', 'add_sub', 'multiply'];
+const MATHS: SaLevel[] = ['beginner', 'numbers', 'comparing', 'add', 'sub_mul'];
 export const ladderOf = (subject: Subject): SaLevel[] => (subject === 'ma' ? MATHS : READING);
 
 /** Whether any of these results carries the level lines (the server's switch is ON). */
