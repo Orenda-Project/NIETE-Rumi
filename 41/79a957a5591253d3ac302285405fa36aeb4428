@@ -2,3 +2,4 @@
 {"ts":"2026-11-13T15:42:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.1.1","sha":"4179a957a559","branch":"bd-pw1ccr.39-staging","user":""}
 {"ts":"2026-11-13T16:16:28Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"4179a957a559","branch":"bd-pw1ccr.39-staging","user":""}
 {"ts":"2026-11-13T16:16:29Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-pw1ccr.39-staging: E-DUPID:child-test;E-NODRIVER:registration","sha":"4179a957a559","branch":"bd-pw1ccr.39-staging","user":""}
+{"ts":"2026-11-13T16:16:32Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.1.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"4179a957a559","branch":"bd-pw1ccr.39-staging","user":""}
