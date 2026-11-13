@@ -221,7 +221,7 @@ function v5PersonalInfoData(user, chosenLanguage) {
 /**
  * Handle data_exchange for registration screens
  */
-async function handleRegistrationDataExchange(userId, screen, screenData, flowToken) {
+async function handleRegistrationDataExchange(userId, screen, screenData, flowToken, { signatureOk = false } = {}) {
   logToFile('📝 Registration flow data_exchange', {
     userId,
     screen,
@@ -254,8 +254,12 @@ async function handleRegistrationDataExchange(userId, screen, screenData, flowTo
     return await handleSchoolPickSubmit(userId, screenData || {}, flowToken);
   }
 
+  if (screen === 'IS_THIS_YOU') {
+    return await handleIsThisYouSubmit(userId, screenData || {}, flowToken);
+  }
+
   if (screen === 'TEACHING') {
-    return await handleTeachingSubmit(userId, screenData || {}, flowToken);
+    return await handleTeachingSubmit(userId, screenData || {}, flowToken, { signatureOk });
   }
 
   logToFile('⚠️ Unknown screen in registration flow', { screen });
@@ -584,7 +588,7 @@ async function handleRegistrationBack(userId, screen, flowToken) {
   // v5 screens step back to the screen before them, with that screen's declared data.
   // (The v5 Flow sets no refresh_on_back, so the client normally goes back on its own; this is
   // the answer if a BACK ever reaches the endpoint.)
-  if (screen === 'ROLE_SCHOOL' || screen === 'SCHOOL_PICK' || screen === 'TEACHING') {
+  if (screen === 'ROLE_SCHOOL' || screen === 'SCHOOL_PICK' || screen === 'IS_THIS_YOU' || screen === 'TEACHING') {
     const stored = await getRegData(flowToken);
     const user = await readUser(userId);
     const language = await screenLanguage(stored, user);
@@ -612,6 +616,9 @@ async function handleRegistrationBack(userId, screen, flowToken) {
 
 const SCHOOL_RESULTS = 10;
 const NONE = 'none';
+const FORM_REV = '6';                          // v6 sends it from SCHOOL_PICK, IS_THIS_YOU and TEACHING
+const ITU_ANSWERS = ['yes', 'no', 'not_sure'];
+const IsThisYou = () => require('../services/identity/is-this-you');   // lazy: importing stays side-effect free
 
 const GRADE_IDS = GRADES_DROPDOWN.map((g) => g.id);
 const SUBJECT_IDS = SUBJECTS_DROPDOWN.map((s) => s.id);
@@ -667,7 +674,7 @@ function schoolOption(s) {
  * The words a v5 screen shows, in her language. Exported so the caps test can measure every string
  * the endpoint can serve, in both languages, without standing up a Flow.
  */
-function screenCopy(screen, language, { query = '', name = '', count = 0 } = {}) {
+function screenCopy(screen, language, { query = '', name = '', count = 0, school = '', last2 = null } = {}) {
   const lang = clampLanguage(language);
   if (screen === 'ROLE_SCHOOL') {
     return {
@@ -697,6 +704,22 @@ function screenCopy(screen, language, { query = '', name = '', count = 0 } = {})
       t_finish: ux('regFormFinish', lang),
       grades: gradeOptions(lang),
       subjects: subjectOptions(lang),
+    };
+  }
+  if (screen === 'IS_THIS_YOU') {
+    // Only her own typed first name, the school she picked and at most two digits of the other number (D4).
+    const params = { name: cut(name, 30), school: cut(school, 30) };
+    const digits = /^\d{2}$/.test(String(last2 || ''));
+    return {
+      t_heading: ux('regFormItuHeading', lang),
+      t_body: digits ? ux('regFormItuBody', lang, { ...params, last2 }) : ux('regFormItuBodyNoDigits', lang, params),
+      t_answer_label: ux('regFormItuLabel', lang),
+      answers: [
+        { id: 'yes', title: ux('regFormItuYes', lang) },
+        { id: 'no', title: ux('regFormItuNo', lang) },
+        { id: 'not_sure', title: ux('regFormItuNotSure', lang) },
+      ],
+      t_next: ux('regFormNext', lang),
     };
   }
   if (screen === 'SUCCESS') {
@@ -831,9 +854,10 @@ async function handleSchoolPickSubmit(userId, screenData, flowToken) {
 
   const picked = String(screenData.school_id || '').trim();
   let schoolId = null;
+  let school = null;
   if (picked && picked !== NONE) {
     // Never trust the id the phone sends: it must be a real, non-test school.
-    const school = await findPickableSchool(picked);
+    school = await findPickableSchool(picked);
     if (school) {
       schoolId = school.id;
       // The school's sector is what every school-scoped read expects in users.region (bd-z8p96),
@@ -847,8 +871,26 @@ async function handleSchoolPickSubmit(userId, screenData, flowToken) {
       logToFile('⚠️ registration: picked school is not pickable — nothing stored', { userId, picked: picked.slice(0, 40) }, 'warn');
     }
   }
-  await storeRegData(flowToken, { ...stored, school_id: schoolId || (picked === NONE ? null : stored.school_id || null) });
+  const nextState = { ...stored, school_id: schoolId || (picked === NONE ? null : stored.school_id || null), itu: null };
+  await storeRegData(flowToken, nextState);
 
+  // "Is this you?": only a v6 form has the screen, and only a real school can have a match.
+  if (screenData.form_rev === FORM_REV && school) {
+    const fullName = stored.full_name || (user && user.name) || '';
+    const offer = await IsThisYou().offer({ userId, schoolId: school.id, fullName });   // never throws
+    if (offer.ask) {
+      await storeRegData(flowToken, { ...nextState, itu: { candidateId: offer.candidate.id, schoolId: school.id, state: offer.state, answer: null } });
+      return {
+        screen: 'IS_THIS_YOU',
+        data: screenCopy('IS_THIS_YOU', language, { name: firstName(fullName), school: schoolOption(school).title, last2: offer.candidate.last2 }),
+      };
+    }
+  }
+  return teachingResponse(user, language);
+}
+
+/** TEACHING, pre-filled from HER OWN row only, never from a matched account (D4). */
+function teachingResponse(user, language) {
   const { grades, subjects, ...copy } = screenCopy('TEACHING', language);
   const initGrades = idsFrom(user && user.grades_taught, GRADE_IDS);
   const initSubjects = idsFrom(user && user.subjects_taught, SUBJECT_IDS);
@@ -864,20 +906,60 @@ async function handleSchoolPickSubmit(userId, screenData, flowToken) {
   };
 }
 
-async function handleTeachingSubmit(userId, screenData, flowToken) {
+/** IS_THIS_YOU: store the answer; nothing is written to any account until Finish. */
+async function handleIsThisYouSubmit(userId, screenData, flowToken) {
   const stored = await getRegData(flowToken);
   const user = await readUser(userId);
   const language = await screenLanguage(stored, user);
+  const answer = ITU_ANSWERS.includes(screenData.is_this_you) ? screenData.is_this_you : 'no';
+  if (stored.itu) {
+    await storeRegData(flowToken, { ...stored, itu: { ...stored.itu, answer } });
+    IsThisYou().recordAnswer(userId, stored.itu, answer);
+  }
+  return teachingResponse(user, language);
+}
+
+/** After a claim: what she told the earlier screens, onto the account she claimed. Same guards as those screens. */
+async function carryAnswers(ownerId, owner, stored) {
+  const school = stored.school_id ? await findPickableSchool(stored.school_id) : null;
+  await persistToUser(ownerId, {
+    name: stored.full_name || undefined,
+    region: school ? school.region || undefined : undefined,              // the school's sector, as SCHOOL_PICK writes it
+    role: owner && stored.role ? roleToWrite(stored.role, owner.role) || undefined : undefined,   // never over an admin-set role
+    organization: owner && !owner.organization && school
+      ? await organizationForPickedSchool(ownerId, owner, {}, school) : undefined,
+  });
+  if (stored.language) {
+    try {
+      await require('../utils/language-cache').setUserLanguage(ownerId, clampLanguage(stored.language), true);
+    } catch (e) {
+      logToFile('⚠️ registration: language carry threw', { error: e.message }, 'warn');
+    }
+  }
+}
+
+async function handleTeachingSubmit(userId, screenData, flowToken, { signatureOk = false } = {}) {
+  const startedAt = Date.now();
+  const stored = await getRegData(flowToken);
+  const v6 = screenData.form_rev === FORM_REV;
+  // "Is this you?": a Yes may move her number onto the matched account; the rest of the sign-up then writes there.
+  const settled = v6 ? await IsThisYou().settle({ userId, stored, signatureOk, startedAt })
+    : { ownerId: userId, identity: 'none', why: null };
+  const ownerId = settled.ownerId || userId;
+  const user = await readUser(ownerId);
+  const language = await screenLanguage(stored, user);
+  // A repeated Finish (already_done) finds the claim made: the first one carried her answers.
+  if (settled.identity === 'claimed' && settled.why !== 'already_done') await carryAnswers(ownerId, user, stored);
 
   const grades = idsFrom(screenData.grade, GRADE_IDS);
   const subjects = idsFrom(screenData.subjects, SUBJECT_IDS);
-  await persistToUser(userId, {
+  await persistToUser(ownerId, {
     grades_taught: grades.length ? grades : undefined,
     subjects_taught: subjects.length ? subjects : undefined,
   });
 
   // This screen ENDS the flow: the account is complete here, whatever the terminal payload does.
-  await markRegistrationComplete(userId);
+  await markRegistrationComplete(ownerId);
   await deleteRegData(flowToken);
 
   const fullName = stored.full_name || (user && user.name) || '';
@@ -898,6 +980,7 @@ async function handleTeachingSubmit(userId, screenData, flowToken) {
           full_name: String(fullName || ''),
           language: String(language || ''),
           school_linked: schoolLinked ? 'yes' : 'no',
+          ...(v6 ? { identity: String(settled.identity || 'none') } : {}),   // v5.1 does not declare it
         },
       },
     },
