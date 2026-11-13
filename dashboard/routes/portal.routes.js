@@ -7925,7 +7925,7 @@ router.post('/coaching-upload/presign', requirePortalAuth, requireSelfObservatio
 function libraryPlanPick(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out = {};
-  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang']) {
+  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang', 'ownId']) {
     if (raw[k] !== undefined) out[k] = raw[k];
   }
   return out;
