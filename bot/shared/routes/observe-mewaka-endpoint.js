@@ -44,6 +44,15 @@ const nextScreen = (screenId, session) => {
   return i >= 0 && i < screens.length - 1 ? screens[i + 1] : 'SUCCESS';
 };
 
+// The v6 coach form, one indicator per screen (13 Nov): DOMAIN_B, then an intro and one screen per indicator for
+// each section (ObserveV6.SCREENS). The old 5-screen Flow's DOMAIN_C/D/F are still accepted for a form opened
+// before the republish (ObserveV6.LEGACY_SCREENS); each goes on to its own old next screen.
+const isV6Visit = (session) => !!ObserveV6.visitFramework(session);
+const v6Knows = (screenId) => ObserveV6.SCREENS.includes(screenId) || ObserveV6.LEGACY_SCREENS.includes(screenId);
+const knowsScreen = (screenId, session) => (isV6Visit(session) ? v6Knows(screenId) : packScreens(session).screens.includes(screenId));
+const isLast = (screenId, session) => (isV6Visit(session) ? ObserveV6.isLastScreen(screenId) : screenId === packScreens(session).last);
+const nextFor = (screenId, session) => (isV6Visit(session) ? ObserveV6.nextScreenOf(screenId) : nextScreen(screenId, session));
+
 /**
  * Statuses past which an observation is closed. A stale Flow submit must not
  * reopen one. Kept beside the two guards that read it so they cannot drift.
@@ -234,48 +243,59 @@ async function handleObserveMewakaRequest(decrypted) {
       ? { ...d, scored_with: require('../services/coaching/rubric-label').rubricLabelText({ session }) }
       : d);
 
+    // A screen's data: the v6 coach form's intro and indicator screens in the coach's language (13 Nov); every other
+    // screen (Section B, an old v6 DOMAIN_C/D/F, every V3/MEWAKA/HOTS screen) exactly as before.
+    let v6Lang = null;
+    const coachLang = async () => {
+      if (v6Lang) return v6Lang;
+      try {
+        const { languageFor } = require('../services/observe/observe-language');
+        v6Lang = await languageFor('coach', session);
+      } catch (_) { v6Lang = 'en'; /* English if the language cannot be read */ }
+      return v6Lang;
+    };
+    const serve = async (scr, extra = {}) => {
+      if (isV6Visit(session)) {
+        const d = ObserveV6.screenData(session.analysis_data, scr, { lang: await coachLang(), ...extra });
+        if (d) return { screen: scr, data: d };
+      }
+      return {
+        screen: scr,
+        data: fill(scr, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(scr, session), await coachLanguageIfNeeded(session))),
+      };
+    };
+
     if (action === 'INIT') {
       // bd-59: the first domain comes from the PACK — 'introduction' is a
       // mewaka key and crashed every HOTS open (the bd-52 refactor converted
       // BACK/data_exchange to domainKeyForScreen but missed this branch).
-      const first = packScreens(session).screens[0];
-      return {
-        screen: first,
-        data: fill(first, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first, session), await coachLanguageIfNeeded(session))),
-      };
+      return serve(packScreens(session).screens[0]);
     }
 
     if (action === 'BACK') {
       // FEAT-102: fall back to the pack's FIRST screen, not the mewaka 'DOMAIN_A'
       // hardcode (FICO starts at DOMAIN_B).
-      const target = packScreens(session).screens.includes(screen) ? screen : packScreens(session).screens[0];
-      return {
-        screen: target,
-        data: fill(target, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target, session), await coachLanguageIfNeeded(session))),
-      };
+      return serve(knowsScreen(screen, session) ? screen : packScreens(session).screens[0]);
     }
 
     if (action === 'data_exchange') {
       const currentScreen = data._screen;
-      if (!packScreens(session).screens.includes(currentScreen)) return errorResponse('Unknown screen');
+      if (!knowsScreen(currentScreen, session)) return errorResponse('Unknown screen');
       const merged = await bufferEdits(sessionId, data);
 
-      // bd-ra8xu.38 — a v6 C/D/F screen is refused until every room level has a level and a reason (≥ 20
-      // characters), D2's counts add up, and any change to a level Rumi set says why. The same screen comes
-      // back with the reasons listed at the top and the coach's own answers kept.
-      if (ObserveV6.visitFramework(session) && currentScreen !== 'DOMAIN_B') {
+      // bd-ra8xu.38 — a v6 screen is refused until its room level has a level and a reason (≥ 20 characters) and
+      // any change to a level Rumi set says why. The same screen comes back with the reasons listed at the top and
+      // the coach's own answers kept. (An intro screen posts nothing and always goes on.)
+      if (isV6Visit(session) && currentScreen !== 'DOMAIN_B') {
         const errors = ObserveV6.validateScreen(currentScreen, data, session.analysis_data);
         if (Object.keys(errors).length) {
-          let lang = 'en';
-          try {
-            const { languageFor } = require('../services/observe/observe-language');
-            lang = await languageFor('coach', session);
-          } catch (_) { /* English if the language cannot be read */ }
+          const lang = await coachLang();
           const S = ObserveV6.messages(lang);
           const shown = ObserveV6.validateScreen(currentScreen, data, session.analysis_data, S);
           logToFile('observe-form: v6 screen refused — reason or level missing', {
             sessionId, screen: currentScreen, fields: Object.keys(shown),
           });
+          if (ObserveV6.screenInfo(currentScreen).kind === 'ind') return serve(currentScreen, { edits: merged, errors: shown });
           return {
             screen: currentScreen,
             data: fill(currentScreen, ObserveV6.buildScreenPrefill(session.analysis_data, currentScreen.slice(-1), { edits: merged, errors: shown, S })),
@@ -283,7 +303,7 @@ async function handleObserveMewakaRequest(decrypted) {
         }
       }
 
-      if (currentScreen === packScreens(session).last) {
+      if (isLast(currentScreen, session)) {
         const applied = await ObserveDraft.applyObserverEdits(sessionId, merged);
         if (applied && applied.refused) {
           // Went terminal between the load above and the write. Do not reach
@@ -308,11 +328,7 @@ async function handleObserveMewakaRequest(decrypted) {
         };
       }
 
-      const next = nextScreen(currentScreen, session);
-      return {
-        screen: next,
-        data: fill(next, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next, session), await coachLanguageIfNeeded(session))),
-      };
+      return serve(nextFor(currentScreen, session));
     }
 
     return errorResponse('Unsupported action');

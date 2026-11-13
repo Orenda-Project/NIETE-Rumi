@@ -85,14 +85,16 @@ describe('v6 visit', () => {
     expect(res.version).toBeUndefined();
   });
 
-  test('B → C serves Rumi\'s DC levels and the combined evidence, no combined pre-selection', async () => {
+  test('B → the Section C intro (13 Nov: one indicator per screen); the old DOMAIN_C still serves Rumi\'s levels', async () => {
     const res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { _screen: 'DOMAIN_B' } });
-    expect(res.screen).toBe('DOMAIN_C');
-    expect(res.data.s_C1).toBe('2');
-    expect(res.data.s_C3).toBeUndefined();
-    expect(res.data.cb_C3).toContain('05:10  "Ali, what do you think?"');
-    expect(res.data.cb_C3).toContain('Coach adds:');
-    expect(res.data.err_v).toBe(false);
+    expect(res.screen).toBe('INTRO_C');
+    const old = await handleObserveMewakaRequest({ action: 'BACK', flow_token: TOKEN, screen: 'DOMAIN_C' });
+    expect(old.screen).toBe('DOMAIN_C');
+    expect(old.data.s_C1).toBe('2');
+    expect(old.data.s_C3).toBeUndefined();
+    expect(old.data.cb_C3).toContain('05:10  "Ali, what do you think?"');
+    expect(old.data.cb_C3).toContain('Coach adds:');
+    expect(old.data.err_v).toBe(false);
   });
 
   test('a short reason keeps the coach on the same screen with the reason listed, answers kept', async () => {

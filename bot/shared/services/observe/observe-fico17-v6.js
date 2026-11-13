@@ -95,15 +95,27 @@ function isV6Analysis(analysis) { return !!analysis && analysis.framework === V6
 
 // ── Options and Rumi's levels ───────────────────────────────────────────────
 
-/** The level options a code offers on the v6 review Flow. */
-function optionsFor(code) {
-  if (v6.isCombined(code)) return v6.levelOptions(code);
-  const opts = v6.levelOptions(code, { couldntTell: true });
-  const ie = opts.pop(); // "Couldn't tell" stays last
-  return [...opts, DC_NA_OPTION, ie];
+/**
+ * The level options a coach is offered for one indicator, on every coach path (/observe, /observe2, portal), operator
+ * 13 Nov: 1-4 only, each the level's name with the rubric sheet's text under it (v6.coachLevelOptions), in the coach's
+ * language. No N/A and no Couldn't tell. `keep`: a value an OLD review saved ('NA' / 'IE'), added back at the end so
+ * that review still shows its choice; nothing new offers it.
+ */
+function optionsFor(code, { keep = null, lang = 'en' } = {}) {
+  const out = v6.coachLevelOptions(code, lang);
+  if (keep === 'NA') {
+    const na = (v6.isCombined(code) && v6.NA_OPTIONS[code]) || DC_NA_OPTION;
+    out.push({ id: 'NA', title: na.title, description: v6.clip(na.description, 300) });
+  } else if (keep === 'IE') {
+    out.push({ id: 'IE', title: "Couldn't tell", description: v6.clip(`Use when ${v6.indicator(code).couldnt_tell}`, 300) });
+  }
+  return out;
 }
 
-const optionIds = (code) => optionsFor(code).map((o) => o.id);
+const COACH_IDS = ['1', '2', '3', '4'];
+// What the old 5-screen Flow (and an old portal review) could send: 1-4, N/A, Couldn't tell. Accepted, never offered.
+const LEGACY_IDS = ['1', '2', '3', '4', 'NA', 'IE'];
+const optionIds = () => COACH_IDS;
 
 function v6Row(analysis, code) {
   const dom = ((analysis || {}).domains || {})[v6.DOMAIN_OF[code]];
@@ -121,10 +133,16 @@ function rumiLevel(analysis, code) {
   return null;
 }
 
-/** The option a DC radio is pre-filled with: Rumi's level, or "Couldn't tell" when Rumi has none. */
-function prefillLevel(analysis, code) {
+/** Rumi's level when it is a number 1-4; null for none, N/A or Couldn't tell (the coach then sets it). */
+function rumiNumeric(analysis, code) {
   const r = rumiLevel(analysis, code);
-  return r === null ? 'IE' : String(r);
+  return typeof r === 'number' ? r : null;
+}
+
+/** The option a DC radio is pre-filled with: Rumi's 1-4, or blank when Rumi has none (or N/A / Couldn't tell). */
+function prefillLevel(analysis, code) {
+  const r = rumiNumeric(analysis, code);
+  return r === null ? '' : String(r);
 }
 
 function clipWords(s, n) {
@@ -179,6 +197,160 @@ function combinedBody(analysis, code) {
 const letterOf = (screenId) => String(screenId || '').slice(-1);
 const codesOn = (letter) => ((v6.SECTIONS[letter] || {}).codes || []).slice();
 
+// ── The coach form, one indicator per screen (operator 13 Nov) ───────────────
+// DOMAIN_B (lesson-plan fidelity, unchanged) → INTRO_C (no input) → IND_C_ONE … IND_C_EIGHT → INTRO_D → IND_D_ONE …
+// → INTRO_F → … IND_F_FOUR (Submit) → SUCCESS: 21 form screens + SUCCESS = 22. Screen ids are letters and underscores
+// only (Meta). Every word on an intro or indicator screen is screen data in the coach's language, so one Flow serves
+// English and Urdu. The old 5-screen Flow's DOMAIN_C/D/F stay accepted (LEGACY_SCREENS) for a form opened before the
+// republish.
+const NUMBER_WORDS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN'];
+const screenOf = (code) => {
+  const letter = String(code || '')[0];
+  const i = codesOn(letter).indexOf(code);
+  return i < 0 ? null : `IND_${letter}_${NUMBER_WORDS[i]}`;
+};
+const SCREENS = ['DOMAIN_B', ...LETTERS.flatMap((l) => [`INTRO_${l}`, ...codesOn(l).map(screenOf)])];
+const LEGACY_SCREENS = ['DOMAIN_B', ...LETTERS.map((l) => `DOMAIN_${l}`)];
+
+/** What a v6 screen id is: { kind: 'b' | 'intro' | 'ind' | 'legacy' | null, letter?, code? }. */
+function screenInfo(screenId) {
+  const id = String(screenId || '');
+  if (id === 'DOMAIN_B') return { kind: 'b' };
+  let m = /^INTRO_([CDF])$/.exec(id);
+  if (m) return { kind: 'intro', letter: m[1] };
+  m = /^IND_([CDF])_([A-Z]+)$/.exec(id);
+  if (m) {
+    const code = codesOn(m[1])[NUMBER_WORDS.indexOf(m[2])];
+    return code ? { kind: 'ind', letter: m[1], code } : { kind: null };
+  }
+  m = /^DOMAIN_([CDF])$/.exec(id);
+  if (m) return { kind: 'legacy', letter: m[1] };
+  return { kind: null };
+}
+
+/** The indicators a screen posts: one on an indicator screen, a section's on DOMAIN_C/D/F, none otherwise. */
+function codesFor(screenId) {
+  const info = screenInfo(screenId);
+  if (info.kind === 'ind') return [info.code];
+  if (info.kind === 'legacy') return codesOn(info.letter);
+  return [];
+}
+
+/** The screen after this one: the new path, or the old Flow's own next for its DOMAIN_C/D/F; 'SUCCESS' at the end. */
+function nextScreenOf(screenId) {
+  const info = screenInfo(screenId);
+  const list = info.kind === 'legacy' ? LEGACY_SCREENS : SCREENS;
+  const i = list.indexOf(screenId);
+  return i >= 0 && i < list.length - 1 ? list[i + 1] : 'SUCCESS';
+}
+
+const isLastScreen = (screenId) => nextScreenOf(screenId) === 'SUCCESS';
+
+// Urdu prose takes Urdu digits; a code or letter inside it is isolated so the RTL line cannot reorder it.
+const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const num = (n, lang) => (v6.langOf(lang) === 'ur' ? String(n).replace(/[0-9]/g, (d) => URDU_DIGITS[Number(d)]) : String(n));
+const iso = (atom, lang) => (v6.langOf(lang) === 'ur' ? `⁦${atom}⁩` : String(atom));
+const fill = (tpl, vars) => String(tpl || '').replace(/\{(\w+)\}/g, (_, k) => (vars[k] === undefined ? '' : String(vars[k])));
+
+function formStrings(lang) {
+  try {
+    const { observeStrings } = require('./observe-strings');
+    return observeStrings(v6.langOf(lang));
+  } catch (_) {
+    return {};
+  }
+}
+
+/** What the recording showed for a combined indicator, in the coach's language (D2: the student turns). */
+function recordingText(analysis, code, lang, T) {
+  const ce = ((analysis || {}).combined_evidence || {})[code] || {};
+  if (code === 'D2') {
+    const a = ce.student_turns_first_half;
+    const b = ce.student_turns_second_half;
+    return Number.isFinite(a) && Number.isFinite(b) ? fill(T.v6f_d2_turns, { a: num(a, lang), b: num(b, lang) }) : T.v6f_rec_nothing;
+  }
+  if (ce.result === 'IE') return T.v6f_rec_ie;
+  if (ce.result === 'NA') return T.v6f_rec_na;
+  const items = (Array.isArray(ce.items) ? ce.items : []).filter((i) => i && i.quote).slice(0, EVIDENCE_ITEMS);
+  if (!items.length) return T.v6f_rec_nothing;
+  return items.map((i) => `${i.time || '--:--'}  "${clipWords(i.quote, QUOTE_CAP)}"`).join('\n');
+}
+
+/**
+ * ${data.*} for an intro or indicator screen of the 22-screen form, in the coach's language. `edits` (what the coach
+ * has submitted so far) and `errors` are passed when a refused screen is served again, so her answers are kept and
+ * the reasons listed. Returns null for a screen this does not build (DOMAIN_B, an old DOMAIN_C/D/F).
+ */
+function screenData(analysis, screenId, { lang = 'en', edits = null, errors = null } = {}) {
+  const info = screenInfo(screenId);
+  const T = formStrings(lang);
+  const e = edits || {};
+  if (info.kind === 'intro') {
+    const codes = codesOn(info.letter);
+    const room = codes.filter((c) => v6.isCombined(c));
+    const L = iso(info.letter, lang);
+    const note = [];
+    if (codes.length > room.length) note.push(fill(T.v6f_intro_rumi, { k: num(codes.length - room.length, lang) }));
+    if (room.length) note.push(fill(T.v6f_intro_room, { m: num(room.length, lang) }));
+    return {
+      heading: `${fill(T.v6f_section, { l: L })} · ${v6.sectionName(info.letter, lang)}`,
+      count_line: fill(T.v6f_intro_count, { n: num(codes.length, lang) }),
+      list: codes.map((c) => `${iso(c, lang)}  ${v6.indicatorText(c, lang).name}${v6.isCombined(c) ? `  ${T.v6f_room_tag}` : ''}`).join('\n'),
+      note: note.join(' '),
+      next_label: fill(T.v6f_start, { l: L }),
+    };
+  }
+  if (info.kind !== 'ind') return null;
+  const { code, letter } = info;
+  const codes = codesOn(letter);
+  const text = v6.indicatorText(code, lang);
+  const list = errors ? Object.values(errors) : [];
+  const S = messages(lang);
+  const submitted = e[`r_${code}`] !== undefined && e[`r_${code}`] !== null ? String(e[`r_${code}`]) : '';
+  const data = {
+    progress: fill(T.v6f_progress, { l: iso(letter, lang), i: num(codes.indexOf(code) + 1, lang), n: num(codes.length, lang) }),
+    heading: `${iso(code, lang)} · ${text.name}`,
+    definition: text.definition,
+    err_v: list.length > 0,
+    err_note: list.length ? [S.v6_fix_heading, ...list.map((m) => `• ${m}`)].join('\n') : '',
+    opts: optionsFor(code, { lang }),
+    next_label: isLastScreen(screenId) ? T.v6f_submit : T.v6f_next,
+  };
+  const init = {};
+  if (v6.isCombined(code)) {
+    Object.assign(data, {
+      lbl_level: T.v6f_level_room,
+      from_rec: T.v6f_from_recording,
+      evidence: recordingText(analysis, code, lang, T),
+      coach_adds: `${T.v6f_coach_adds} ${text.coach_adds || ''}`.trim(),
+      lbl_why: T.v6f_why,
+      help_why: T.v6f_why_help,
+    });
+    if (COACH_IDS.includes(submitted)) init[`r_${code}`] = submitted;
+    init[`why_${code}`] = typeof e[`why_${code}`] === 'string' ? e[`why_${code}`] : '';
+  } else {
+    const rumi = rumiNumeric(analysis, code);
+    const row = v6Row(analysis, code) || {};
+    Object.assign(data, {
+      lbl_level: T.v6f_level,
+      rumi_note: rumi === null ? T.v6f_rumi_none : fill(T.v6f_rumi_chose, { level: v6.levelName(rumi, lang) }),
+      lbl_ev: T.v6f_evidence,
+      help_ev: T.v6f_evidence_help,
+      lbl_imp: T.v6f_improve,
+      help_imp: T.v6f_improve_help,
+      lbl_chg: T.v6f_change,
+      help_chg: T.v6f_change_help,
+    });
+    const level = COACH_IDS.includes(submitted) ? submitted : prefillLevel(analysis, code);
+    if (level) init[`r_${code}`] = level;
+    init[`ev_${code}`] = typeof e[`ev_${code}`] === 'string' ? e[`ev_${code}`] : rumiEvidenceText(analysis, code);
+    init[`imp_${code}`] = typeof e[`imp_${code}`] === 'string' ? e[`imp_${code}`] : clipWords(row.improvement || '', PREFILL_TEXT_CAP);
+    init[`chg_${code}`] = typeof e[`chg_${code}`] === 'string' ? e[`chg_${code}`] : '';
+  }
+  data.init = init;
+  return data;
+}
+
 /**
  * ${data.*} for one v6 C/D/F screen. `edits` (the coach's submitted values) and `errors` are passed when the same
  * screen is served again after a refused submit, so what the coach typed is kept and the reasons are listed.
@@ -192,7 +364,7 @@ function buildScreenPrefill(analysis, letter, { edits = null, errors = null, S =
       data[`w_${code}`] = typeof e[`why_${code}`] === 'string' ? e[`why_${code}`] : '';
     } else {
       const submitted = e[`r_${code}`];
-      data[`s_${code}`] = submitted && optionIds(code).includes(String(submitted)) ? String(submitted) : prefillLevel(analysis, code);
+      data[`s_${code}`] = submitted && LEGACY_IDS.includes(String(submitted)) ? String(submitted) : prefillLevel(analysis, code);
       data[`e_${code}`] = typeof e[`ev_${code}`] === 'string' ? e[`ev_${code}`] : rumiEvidenceText(analysis, code);
       const row = v6Row(analysis, code) || {};
       data[`i_${code}`] = typeof e[`imp_${code}`] === 'string' ? e[`imp_${code}`] : clipWords(row.improvement || '', PREFILL_TEXT_CAP);
@@ -219,35 +391,44 @@ function d2Expected(children, quietLater) {
 }
 
 /**
- * The reasons a v6 screen submit is refused, as { field: message }; {} when it may go on.
- * Combined: a level and a reason ≥ 20 characters (D2: valid counts; a level off the counts needs a number in the
- * reason). DC: changing a level Rumi set needs the screen's "Why you changed" (≥ 20 characters).
+ * The reasons a v6 screen submit is refused, as { field: message }; {} when it may go on. `screenId` is one indicator's
+ * screen (IND_C_ONE …), or a whole section (DOMAIN_C: the old 5-screen Flow, and the portal, which sends every level).
+ * Combined: a level and a reason ≥ 20 characters. DC: changing a level Rumi set (a number 1-4) needs a reason ≥ 20
+ * characters, in chg_<code> on an indicator screen or chg_<letter> on a section. A level where Rumi had none (or N/A
+ * or Couldn't tell) needs no change reason. D2's two counts are checked only when a form still sends them (the old Flow).
  */
 function validateScreen(screenId, data = {}, analysis = {}, S = MSG_EN) {
-  const letter = letterOf(screenId);
+  const info = screenInfo(screenId);
+  const codes = codesFor(screenId);
+  const perCode = info.kind === 'ind';
+  const allowed = perCode ? COACH_IDS : LEGACY_IDS;
   const errors = {};
-  let changed = false;
-  for (const code of codesOn(letter)) {
+  let sectionChanged = false;
+  for (const code of codes) {
     const level = data[`r_${code}`] === undefined || data[`r_${code}`] === null ? '' : String(data[`r_${code}`]);
+    const name = v6.indicator(code).name;
     if (v6.isCombined(code)) {
-      if (!optionIds(code).includes(level)) errors[`r_${code}`] = `${v6.indicator(code).name}: ${S.v6_choose_level}`;
+      if (!allowed.includes(level)) errors[`r_${code}`] = `${name}: ${S.v6_choose_level}`;
       const why = data[`why_${code}`];
-      if (!v6.isJustified(why)) errors[`why_${code}`] = `${v6.indicator(code).name}: ${S.v6_write_why}`;
-      if (code === 'D2') {
+      if (!v6.isJustified(why)) errors[`why_${code}`] = `${name}: ${S.v6_write_why}`;
+      if (code === 'D2' && data.d2_children !== undefined) {
         const n = wholeNumber(data.d2_children);
         const q = wholeNumber(data.d2_quiet_later);
         if (n === null || q === null || q > n) {
-          errors.d2_children = `${v6.indicator('D2').name}: ${S.v6_check_numbers}`;
+          errors.d2_children = `${name}: ${S.v6_check_numbers}`;
         } else if (/^[1-4]$/.test(level) && Number(level) !== d2Expected(n, q) && !/\d/.test(String(why || ''))) {
-          errors.why_D2 = `${v6.indicator('D2').name}: ${S.v6_d2_mismatch}`;
+          errors.why_D2 = `${name}: ${S.v6_d2_mismatch}`;
         }
       }
     } else {
-      const rumi = rumiLevel(analysis, code);
-      if (rumi !== null && level !== '' && level !== String(rumi)) changed = true;
+      if (perCode && !allowed.includes(level)) errors[`r_${code}`] = `${name}: ${S.v6_choose_level}`;
+      const rumi = rumiNumeric(analysis, code);
+      const changed = rumi !== null && level !== '' && level !== String(rumi);
+      if (changed && perCode && !v6.isJustified(data[`chg_${code}`])) errors[`chg_${code}`] = S.v6_change_why;
+      if (changed && !perCode) sectionChanged = true;
     }
   }
-  if (changed && !v6.isJustified(data[`chg_${letter}`])) errors[`chg_${letter}`] = S.v6_change_why;
+  if (sectionChanged && !v6.isJustified(data[`chg_${info.letter}`])) errors[`chg_${info.letter}`] = S.v6_change_why;
   return errors;
 }
 
@@ -280,10 +461,12 @@ function buildReview(analysis = {}, edits = {}) {
       const level = submitted === null ? rumi : submitted;
       const byCoach = level !== rumi && level !== null;
       const lv = ((analysis || {}).levels || {})[code] || {};
+      // One indicator per screen (13 Nov): the reason is the indicator's own; a section's (old Flow, portal) otherwise.
+      const reason = trimOrNull(edits[`chg_${code}`]) || trimOrNull(edits[`chg_${letter}`]);
       levels[code] = {
         level,
         set_by: byCoach ? 'coach' : 'rumi',
-        because: byCoach ? trimOrNull(edits[`chg_${letter}`]) : (trimOrNull(lv.because) || null),
+        because: byCoach ? reason : (trimOrNull(lv.because) || null),
         rumi_level: rumi,
         rubric: V6,
         prompt_version: dcVersion,
@@ -293,7 +476,7 @@ function buildReview(analysis = {}, edits = {}) {
   const n = wholeNumber(edits.d2_children);
   const q = wholeNumber(edits.d2_quiet_later);
   const changeReasons = {};
-  LETTERS.forEach((l) => { const t = trimOrNull(edits[`chg_${l}`]); if (t) changeReasons[l] = t; });
+  [...LETTERS, ...v6.DC_CODES].forEach((k) => { const t = trimOrNull(edits[`chg_${k}`]); if (t) changeReasons[k] = t; });
   return {
     rubric: V6,
     prompt_version: dcVersion,
@@ -384,8 +567,9 @@ function messages(lang) {
 
 module.exports = {
   READY_ENV, isReady,
-  V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS,
+  V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
-  optionsFor, rumiLevel, prefillLevel, combinedBody, buildScreenPrefill, validateScreen, d2Expected,
+  optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,
+  screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
 };
