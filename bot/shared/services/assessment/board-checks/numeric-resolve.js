@@ -92,8 +92,32 @@ function finalAnswers(text) {
   while ((m = re.exec(last))) { const n = T.parseNumber(m[1].replace(/\s+/g, '')); if (n !== null && Number.isFinite(n)) out.push(n); }
   const tail = lastNumber(last);
   if (tail !== null) out.push(tail);
+  return out.concat(exactAnswers(last));
+}
+
+/**
+ * bd-qyi45h.10: answers on the final line written exactly, in pi or surds ("5π inches", "121π/360 radians",
+ * "Height = 12 + 4√3 m"), read through evaluate(). Each comma part, after its last "=", units dropped.
+ */
+function exactAnswers(last) {
+  const out = [];
+  String(last).split(/,|;/).forEach((part) => {
+    if (!/[π√]/.test(part)) return;
+    const expr = part.slice(part.lastIndexOf('=') + 1)
+      .replace(/(\d|\))\s*(?=[π√(])/g, '$1*')
+      .replace(/π/g, ' pi ')
+      .replace(/√\s*(\d+(?:\.\d+)?)/g, 'sqrt($1)')
+      .replace(/√/g, 'sqrt')
+      .replace(/\b(?!pi\b|sqrt\b)[A-Za-z]+\b/g, '')
+      .replace(/[×x]/g, '*');
+    const v = evaluate(expr);
+    if (v !== null) out.push(v);
+  });
   return out;
 }
+
+/** A degrees-minutes-seconds answer ("60° 7' 30\"") is not one number the calc can be compared with. */
+const isDms = (text) => /\d\s*°\s*\d+(?:\.\d+)?\s*['′]/.test(String(text == null ? '' : text));
 
 function keyText(item) {
   if (!Array.isArray(item.options)) return String(item.answer == null ? '' : item.answer);
@@ -111,6 +135,7 @@ function run(examJson) {
     const v = evaluate(item.calc.expr);
     if (v === null) { push('UNRESOLVED', `calc.expr "${String(item.calc.expr).slice(0, 40)}" is not plain arithmetic`, false); return; }
     const text = keyText(item);
+    if (isDms(text)) { push('UNRESOLVED', 'the key is in degrees, minutes and seconds', false); return; }
     const k = text == null ? null : lastNumber(text);
     if (k === null) { push('UNRESOLVED', 'the key has no single readable number', false); return; }
     const sig = Number.isInteger(item.calc.sig) ? item.calc.sig : LIMITS.defaultSig;
