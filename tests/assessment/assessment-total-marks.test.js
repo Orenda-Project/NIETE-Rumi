@@ -199,10 +199,11 @@ describe('generateExam honours the budget', () => {
 
   test('an over-budget paper comes back within budget, and says what it dropped', async () => {
     mockCreate.mockResolvedValue(reply({
-      unseen: { objective: { MCQs: [q(1, 5), q(2, 5), q(3, 5), q(4, 5)] } },
+      // Long questions: 5 marks is already standard (bd-ipoxhx.7 would turn a 5-mark MCQ into 1).
+      unseen: { subjective: { 'Long Question': [q(1, 5), q(2, 5), q(3, 5), q(4, 5)] } },
     }));
     const out = await Gen.generateExam({
-      ...BASE, questionCount: 4, questionTypes: [T('MCQs', 4)], totalMarks: 10,
+      ...BASE, questionCount: 4, questionTypes: [T('Long Question', 4, 'subjective')], totalMarks: 10,
     });
     expect(out.marksRemoved).toBe(2);
     expect(out.questionCount).toBe(2);
