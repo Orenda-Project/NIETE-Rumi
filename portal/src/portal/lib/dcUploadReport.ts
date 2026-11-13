@@ -9,14 +9,20 @@ import { browserEnv, getApiBaseUrl } from '@/lib/runtime';
  * funnel uses, so it also works from the Android app's https://localhost origin).
  */
 export type SendFailure = {
-  /** bd-bmc9a0.1: 'read' — reading a picked file into memory, before anything is sent. */
-  stage: 'read' | 'presign' | 'upload' | 'start';
+  /**
+   * bd-bmc9a0.1: 'read' — reading a picked file into memory, before anything is sent. bd-r2uzg1.9: 'pick' — reading a
+   * photo the moment she picks it (nothing is being sent yet; the photo is refused on the spot).
+   */
+  stage: 'pick' | 'read' | 'presign' | 'upload' | 'start';
   kind: 'audio' | 'lesson_plan' | 'photo' | null;
   item: number;
   items: number;
   status: number | null;
-  /** bd-bmc9a0.1: 'unreadable' — the phone could not read the file she picked. */
-  reason: 'http' | 'network' | 'abort' | 'unknown' | 'unreadable';
+  /**
+   * bd-bmc9a0.1: 'unreadable' — the phone could not read the file she picked. bd-r2uzg1.9: 'not_image' — a file she
+   * picked as a photo is not a JPEG or PNG inside (`magic` says what it is).
+   */
+  reason: 'http' | 'network' | 'abort' | 'unknown' | 'unreadable' | 'not_image';
   sizeBytes: number;
   /** The MIME type without parameters ("audio/webm;codecs=opus" → "audio/webm"), so the server can keep it. */
   type: string;
@@ -30,6 +36,13 @@ export type SendFailure = {
   sentBytes: number;
   online: boolean;
   sentAs: 'copy' | 'slice' | 'blob' | 'none';
+  /**
+   * bd-r2uzg1.9 — the browser's own name for a failed read (NotReadableError, NotFoundError, SecurityError …): what
+   * tells a lost permission from a file that changed after she picked it. Absent when there was no read error.
+   */
+  errName?: string | null;
+  /** bd-r2uzg1.9 — what a picked "photo" is from its first bytes (jpeg, png, webp, heic, video, pdf, zip, gif, other). */
+  magic?: string;
 };
 
 export function reportSendFailure(f: SendFailure): void {
