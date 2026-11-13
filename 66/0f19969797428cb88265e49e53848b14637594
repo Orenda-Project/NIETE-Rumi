@@ -1,0 +1,2 @@
+{"ts":"2026-11-13T05:02:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"660f19969797","branch":"bd-qyi45h.10-main","user":""}
+{"ts":"2026-11-13T05:02:21Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-qyi45h.10-main: training spec: NOT UPDATED e2e: missing","sha":"660f19969797","branch":"bd-qyi45h.10-main","user":""}
