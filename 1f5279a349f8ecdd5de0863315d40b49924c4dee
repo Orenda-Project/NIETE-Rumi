@@ -1,1 +1,2 @@
 {"ts":"2026-11-13T06:08:21Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-nmc2w7-48879: E-DUPID:child-test;E-NODRIVER:registration","sha":"1f5279a349f8","branch":"bd-nmc2w7-48879","user":"Mah Noor"}
+{"ts":"2026-11-13T06:54:43Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"1f5279a349f8","branch":"bd-nmc2w7-48879","user":"Mah Noor"}
