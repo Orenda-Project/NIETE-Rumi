@@ -148,6 +148,7 @@
         var manual = mode === 'proctored' && opts.manual === true;
         // Round 13 (battery.ui.r13_whole_stop): the Whole battery's own move-on rule, 'all' (a time-up is not finished) or
         // 'early' (a time-up is finished); only a proctored Whole-battery run (the page's whole), never coach-led.
+        var silenceStop = [1, 2, 3].indexOf(w3.r20_silence_stop) >= 0 && mode === 'proctored' && !manual ? w3.r20_silence_stop : null;
         var wholeStop = mode === 'proctored' && !manual && opts.whole === true && (w3.r13_whole_stop === 'all' || w3.r13_whole_stop === 'early') ? w3.r13_whole_stop : null;
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
           dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
@@ -161,6 +162,10 @@
           // Round 13b (battery.ui.r13_oral_rule): N spoken questions in a row left unanswered end the subject (the runner
           // keeps it to wherever the move-on rule runs); absent, one is enough, as before.
           oral_in_a_row: typeof w3.r13_oral_rule === 'number' && w3.r13_oral_rule >= 2 ? w3.r13_oral_rule : null,
+          // Round 20 (battery.ui.r20_silence_stop): N silent letter/word parts in a row end the subject (RDF auto)
+          silence_in_a_row: silenceStop,
+          // Round 20 (battery.ui.r20_auto_end_section): the coach's End this section in RDF auto too
+          auto_end_section: w3.r20_auto_end_section === true,
           silence_repeat: silenceRepeat });
         var vo = { lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
           // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)
@@ -230,15 +235,19 @@
               cancelVoice = rec.onVoice(function () { runner.voice(); });
               if (runner.voiceWatch) runner.voiceWatch(rec.ear);
             }
-            if (t.mode === 'record' && !item && rec.onSilence && !runner.holdsCell()) {
+            // round 20 (r20_silence_stop): the watch runs on a letter/word part held for Next too (no mercy star there)
+            var held = runner.holdsCell();
+            if (t.mode === 'record' && !item && rec.onSilence && (!held || silenceStop)) {
               cancelSilence = rec.onSilence({ after_s: t.mercy_after_s || 12, total_s: t.silence_stop_s || 20 }, function (s) {
                 if (s.kind === 'mercy') {
+                  if (held) return;
                   runner.mercyOffered();
                   if (view && view.mercy) view.mercy();
                 } else if (s.kind === 'ear_unavailable') {
                   runner.earUnavailable();
                 } else if (s.kind === 'early_stop_silence') {
-                  runner.silence(s.silence_s);
+                  // a held part where a voice was heard goes on, its recording open
+                  if (runner.silence(s.silence_s) === false && held) return;
                   recStop(t, null);
                   if (view && view.render) view.render();
                 }
@@ -335,10 +344,10 @@
         // writes and the sync go, then sa:done {reason:'coach_end'}, once. Only this session, only the page's origin.
         var win = deps.win || root;
         var coachEnded = false;
-        // Round 7b (sa_end_section, RDF manual): the coach page's End this section ({type:'sa:end_section', s}); the
+        // Round 7b (sa_end_section, RDF manual; round 20's r20_auto_end_section, RDF auto too): the coach page's End this section ({type:'sa:end_section', s}); the
         // runner ends the task on show and skips the rest of its section, the test goes on. Only this session, this origin.
         var onSection = function (e, d) {
-          if (coachEnded || !manual || w3.end_section !== true || d.s !== sessionId) return;
+          if (coachEnded || (!manual && w3.r20_auto_end_section !== true) || w3.end_section !== true || d.s !== sessionId) return;
           if (!win.location || e.origin !== win.location.origin) return;
           if (runner.endSection() && view && view.render) view.render();
         };

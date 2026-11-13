@@ -65,6 +65,16 @@
  *                            ear listening and no voice heard ends in the reminder instead of a result (one silence_repeat
  *                            event { by: 'app', attempt: 1 }); silenceRepeatDone() runs the part again from its start. Once
  *                            per part (gates.silence_repeated, kept across a reload); a second silence ends as before.
+ *   (round 20)               opts.silence_in_a_row = N (1 to 3) with opts.incomplete (the engine, battery.ui.r20_silence_stop):
+ *                            an Urdu or English letter/word part held for Next (holdsCell) is silent when its recording ran
+ *                            with the ear listening and no voice was heard on any cell (its result says silent: true; the
+ *                            silence repeat comes first, as above). N silent parts in a row of one subject end it: the rest is
+ *                            skipped (skipped_incomplete), incomplete_move_on { reason: 'silence', reached, of, in_a_row: N }.
+ *                            Any other part ends the run (gates.silent_run, kept across a reload). silence() (the 20 s watch)
+ *                            ends such a part only while no voice has been heard on it. A part where a voice was heard is
+ *                            never touched, so a time-up stays finished.
+ *   (round 20)               opts.auto_end_section with opts.end_section (battery.ui.r20_auto_end_section): End this section
+ *                            in RDF auto too.
  *
  * Round 8 (the reviewer's 28 Oct list), each behind its own switch, OFF = the runner as before:
  *   skipped_no_voice         battery.ui.r8_reading_position (or opts.reading_position), RDF auto with no last-word step:
@@ -304,7 +314,7 @@
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
     // Round 7b: End this section (RDF manual), the move-on when a part is not finished and the silence repeat (RDF auto).
-    var endSectionOn = !!opts.end_section && manual;
+    var endSectionOn = !!opts.end_section && (manual || !!opts.auto_end_section);
     var incompleteOn = !!opts.incomplete && !manual;
     var silenceRepeatOn = !!opts.silence_repeat && !manual;
     var skipTo = null; // the last task a skip passed over: next() goes on after it
@@ -326,6 +336,8 @@
     var timeupGoesOn = incompleteOn && !timeupCounts && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
     // Round 13b (opts.oral_in_a_row): how many spoken questions in a row left unanswered end the subject (null: one, as before)
     var oralRun = incompleteOn && typeof opts.oral_in_a_row === 'number' && opts.oral_in_a_row >= 2 ? opts.oral_in_a_row : null;
+    // Round 20 (opts.silence_in_a_row): how many silent letter/word parts in a row end the subject (null: OFF)
+    var silenceRun = incompleteOn && [1, 2, 3].indexOf(opts.silence_in_a_row) >= 0 ? opts.silence_in_a_row : null;
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -510,6 +522,7 @@
         // EGRA's per-minute rate: correct × 60 / seconds used (a child who finished early is not penalised).
         r.per_minute = used > 0 ? Math.round((st.correct * 60000 / used) * 10) / 10 : 0;
       }
+      if (silenceRun) countSilence(t, r);
       var gap = incompleteOn ? notFinished(t, r, st) : null;
       results = results.filter(function (x) { return x.task_id !== t.id; }).concat([r]);
       ev('stop', { task_id: t.id, value: reason });
@@ -559,6 +572,12 @@
       var of = t.mode === 'record' ? (s.cells ? cellsOf(t).length : t.items.length) : (s.items || []).length;
       if (!of) return null;
       if (why === STOP.FIRST_LINE || why === STOP.CONSECUTIVE) return { reason: 'stop_rule', reached: r.attempted, of: of };
+      // round 20 (silence_in_a_row): a silent letter/word part ends its subject only as the Nth in a row
+      if (silenceRun && holdsCell(t) && (r.silent || why === STOP.SILENCE)) {
+        var run = gates.silent_run;
+        if (!r.silent || !run || run.n < silenceRun) return null;
+        return { reason: 'silence', reached: (s.cells || []).filter(function (c) { return c.how === 'tap' || c.how === 'auto'; }).length, of: of, in_a_row: run.n };
+      }
       if (t.mode === 'record' && why === STOP.SILENCE) return { reason: 'silence', reached: null, of: of };
       if (why !== STOP.COMPLETE && why !== STOP.TIME_UP) return null;
       // round 13b (oral_in_a_row): N spoken questions in a row ran out, whatever ended the part
@@ -588,6 +607,16 @@
       var at = r.last_word_index;
       if (at != null && at >= of - 1) return null;
       return { reason: why === STOP.TIME_UP ? 'time_up' : 'last_word_early', reached: at == null ? 0 : at + 1, of: of };
+    }
+    /**
+     * Round 20 (silence_in_a_row): a letter/word part held for Next, recorded with the ear listening and no voice heard,
+     * is silent (r.silent); the run of silent parts in its subject goes on (gates.silent_run), any other part ends it.
+     */
+    function countSilence(t, r) {
+      if (holdsCell(t) && st.recorded && !st.heard && voiceEvidence()) r.silent = true;
+      var run = gates.silent_run;
+      var sec = sectionOf(t);
+      gates.silent_run = r.silent ? { section: sec, n: (run && run.section === sec ? run.n : 0) + 1 } : null;
     }
     /** A spoken part that ran its recording with the ear listening and heard no voice, not yet repeated. */
     function silenceDue(t, reason) {
@@ -760,11 +789,16 @@
         st.ear = 'unavailable';
         ev('ear_unavailable', { task_id: st.task_id });
       },
-      /** No voice for the whole window (20 s): the passage ends as early_stop_silence, no last word asked. */
+      /**
+       * No voice for the whole window (20 s): the passage ends as early_stop_silence, no last word asked. Round 20
+       * (silence_in_a_row): a letter/word part held for Next too, only while no voice has been heard on it. → true when it ended.
+       */
       silence: function (seconds) {
-        if (st.phase !== 'running' || task().mode !== 'record' || holdsCell(task())) return;
+        if (st.phase !== 'running' || task().mode !== 'record') return false;
+        if (holdsCell(task()) && (!silenceRun || st.heard || st.ear === 'unavailable')) return false;
         st.silence_s = typeof seconds === 'number' ? seconds : null;
         finish(STOP.SILENCE);
+        return true;
       },
       /** The instruction was played (again). */
       instructionPlayed: function () {

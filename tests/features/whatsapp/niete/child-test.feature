@@ -1142,3 +1142,32 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the school picker lists the SIM practice school first, then the coach's schools by name
     And the coach app's Learning assessment lists the SIM school first, marked practice, above today's visit
     And with the switch absent both lists are in today's order: today's visit first, then by name
+
+  # Round 20: a child silent through a section moves on to the next subject (sa_r20_silence_stop = N), and the coach can end a
+  # section in RDF auto too (sa_r20_auto_end_section). @no-mock-driver: the rule runs on the child's page, not the WhatsApp bot.
+  # Covered by dashboard/tests/sa-r20-auto-stop.service.test.js (the real runner and engine) and AssessEngineSlot.r20.test.tsx.
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT180
+  Scenario Outline: RDF auto, silent letter or word parts in a row end the subject
+    Given sa_r20_silence_stop is <n>, sa_silence_repeat and sa_incomplete_move_on are on, and a child is taking RDF auto with a working microphone
+    When the Urdu letter and word parts run in the pattern "<pattern>" (each silent part after its one reminder and repeat)
+    Then <outcome>
+    Examples:
+      | n | pattern                    | outcome                                                                                                                 |
+      | 2 | silent, silent             | the rest of Urdu is skipped (skipped_incomplete), English starts, and one incomplete_move_on event says reason silence, in a row 2 |
+      | 2 | silent, voice, silent      | every Urdu part runs and no incomplete_move_on event is kept                                                              |
+      | 1 | silent                     | the rest of Urdu is skipped after that one part, with in a row 1                                                          |
+      | 2 | voice heard, then time up  | the part is finished and the subject goes on (time-up stays finished)                                                     |
+
+  @e2e @wip @draft @negative @no-mock-driver @config-gated @P1 @CT180
+  Scenario: The silence stop never fires without evidence, in RDF manual, or with the switch off
+    Given a child is taking RDF auto
+    When the phone's ear could not listen, or the test is coach-led (RDF manual), or sa_r20_silence_stop has no row
+    Then no part is counted as silent and every part runs as today
+
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT181
+  Scenario: The coach ends a section in RDF auto
+    Given sa_end_section and sa_r20_auto_end_section are on and a child is taking RDF auto
+    When the coach taps "End this section" and confirms
+    Then the part on show ends as end_section, the rest of its subject is skipped (skipped_end_section), and the test goes on at the next subject
+    And one end_section event is kept with by coach
+    And with sa_r20_auto_end_section off, RDF auto shows no End this section button, as today
