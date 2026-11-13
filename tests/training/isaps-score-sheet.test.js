@@ -40,7 +40,7 @@ describe('buildIsapsScoreSheet', () => {
 
   test('modules in order, each with its units and best quiz percentage', () => {
     expect(sheet.modules.map(m => m.title)).toEqual(['Module 1 - Philosophical Foundations', 'Module 2 - Affective Development']);
-    expect(sheet.modules[0].units).toEqual([
+    expect(sheet.modules[0].units).toMatchObject([
       { id: 101, title: 'Unit 101', best_pct: 100 },
       { id: 102, title: 'Unit 102', best_pct: 0 },
     ]);
@@ -55,6 +55,38 @@ describe('buildIsapsScoreSheet', () => {
 
   test('a module exam never sat is null', () => {
     expect(sheet.modules[1].exam).toBeNull();
+  });
+});
+
+/**
+ * Ten I-SAPS units have no quick-check questions (I-SAPS did not provide them;
+ * e.g. Units 302/303, 2206/2207). WhatsApp and the portal already complete such
+ * a unit once it is watched (a progress row, bd-2390), but the sheet only knew
+ * quiz attempts, so a watched unit read "Not taken" for ever. Each unit now
+ * says whether it HAS a check and whether she has DONE it; no score is made up.
+ */
+describe('a unit with no quick check', () => {
+  const sheet = buildIsapsScoreSheet({
+    courses, units, exams,
+    unitAttempts: [{ training_module_id: 101, score: 2, total_questions: 2 }],
+    checkedUnitIds: [101, 201],     // 102 has no servable question
+    doneUnitIds: [101, 102],        // she watched 102; 201 not yet
+  });
+
+  test('a watched unit with no check is done, with no score', () => {
+    expect(sheet.modules[0].units).toEqual([
+      { id: 101, title: 'Unit 101', best_pct: 100, has_check: true, done: true },
+      { id: 102, title: 'Unit 102', best_pct: null, has_check: false, done: true },
+    ]);
+  });
+
+  test('a unit with a check she has not taken still reads as not taken', () => {
+    expect(sheet.modules[1].units).toEqual([{ id: 201, title: 'Unit 201', best_pct: null, has_check: true, done: false }]);
+  });
+
+  test('a caller that does not say which units have a check keeps the old reading', () => {
+    const old = buildIsapsScoreSheet({ courses, units, exams });
+    expect(old.modules[0].units.every(u => u.has_check === true && u.done === false)).toBe(true);
   });
 });
 

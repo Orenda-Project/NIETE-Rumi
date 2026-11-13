@@ -547,6 +547,8 @@ export const TRAINING_COPY = {
   download: 'Download',
   myScores: 'My scores',
   notTaken: 'Not taken',
+  /** My scores: a part with no quick check, not watched yet (once watched it reads Done). */
+  noQuickCheck: 'No quick check',
   written: (earned?: number | null, max?: number | null) => `Written ${earned ?? '—'}/${max ?? 0}`,
   choice: (earned?: number | null, possible?: number | null) => `MCQ ${earned ?? 0}/${possible ?? 0}`,
   /** A part (bd-5rz1v.25.2): "Part 4/7", the handout, the quick check. */
