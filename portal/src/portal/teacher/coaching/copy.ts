@@ -125,6 +125,11 @@ export const COACHING_V2_COPY = {
   planNotSent: 'Lesson plan not sent',
   photoNotSent: (n: number) => `Photo ${n} not sent`,
   fileWontOpen: 'File will not open',
+  /* bd-r2uzg1.9 — ICT IAB row 29: a photo the phone will not open, refused when she picks it; at Submit, change it or
+     send without it, so one photo never holds the lesson back. */
+  photoWontOpen: 'Photo will not open',
+  changePhoto: 'Change photo',
+  sendWithoutPhoto: 'Send without it',
   savedOnPhone: 'Saved on phone',
   planNotUsed: 'Lesson plan not used',
   changePlan: 'Change lesson plan',
@@ -314,6 +319,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   planNotSent: 'لیسن پلان نہیں بھیجا گیا',
   photoNotSent: (n: number) => `تصویر ${n} نہیں بھیجی گئی`,
   fileWontOpen: 'فائل نہیں کھل رہی',
+  photoWontOpen: 'تصویر نہیں کھل رہی',
+  changePhoto: 'تصویر تبدیل کریں',
+  sendWithoutPhoto: 'اس کے بغیر بھیجیں',
   savedOnPhone: 'فون میں محفوظ',
   planNotUsed: 'لیسن پلان استعمال نہیں',
   changePlan: 'لیسن پلان تبدیل کریں',
