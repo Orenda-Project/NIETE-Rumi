@@ -112,8 +112,9 @@ function schoolMatches(s: SaSchool, q: string) {
   return [s.name, s.emis, s.region].some((v) => plain(v || '').includes(want));
 }
 
+/** Today's visit first; sa_r19_practice_first (the server marks `practice`): the practice school above it. */
 function todaysFirst(schools: SaSchool[]) {
-  return [...schools].sort((a, b) => Number(b.visitToday) - Number(a.visitToday));
+  return [...schools].sort((a, b) => (Number(!!b.practice) - Number(!!a.practice)) || (Number(b.visitToday) - Number(a.visitToday)));
 }
 
 export default function LeaderAssess() {
