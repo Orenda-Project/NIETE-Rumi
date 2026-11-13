@@ -1,1 +1,2 @@
 {"ts":"2026-11-12T09:33:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.0.0","sha":"2fda96d25cba","branch":"bd-snkn32.25-57783","user":""}
+{"ts":"2026-11-13T07:12:42Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.1.1","sha":"2fda96d25cba","branch":"bd-snkn32.25-57783","user":""}
