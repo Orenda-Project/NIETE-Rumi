@@ -147,6 +147,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
   attachDomainWhys(score.groups, narrative && narrative.domain_whys);
   attachSubjectNote(score.groups, analysis, lang);
+  // bd-r2uzg1.12: a recording the grader read as a different lesson keeps Section B's why and adds one soft line.
+  require('./lesson-mismatch-note').attachLessonMismatchNote(score.groups, analysis, session, lang);
 
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
   // Non-fatal: the helper skips any broken photo and returns [] on failure.
