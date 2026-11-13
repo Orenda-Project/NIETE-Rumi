@@ -102,9 +102,9 @@ describe('checkK5Rewrite — the gate before it is rendered', () => {
     expect(checkK5Rewrite(script('ur'), notReady, { lang: 'ur' }).join(' ')).toMatch(/not ready/);
   });
 
-  it('much longer than her day plan is refused (she reads it on a phone before class)', () => {
+  it('bd-snkn32.40: much longer than her day plan is a warning (lp-own-fit), not a refusal', () => {
     const long = script(); long.youDo.action = 'x'.repeat(5000);
-    expect(checkK5Rewrite(script(), long, { lang: 'en' }).join(' ')).toMatch(/long/);
+    expect(checkK5Rewrite(script(), long, { lang: 'en' })).toEqual([]);
   });
 });
 
