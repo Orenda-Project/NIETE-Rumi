@@ -51,6 +51,9 @@
     };
   }
 
+  /** Round 13 (sa_r13_whole_stop): the run is the Whole battery (block full, or none). */
+  function wholeOf(block) { return block == null || block === 'full'; }
+
   /** RDF manual is coach-led only when the server's switch (sa_rdf_manual) put ui.rdf_manual on the battery. */
   function manualOf(battery, block) { return block === 'rdf_manual' && !!(battery && battery.ui && battery.ui.rdf_manual === true); }
 
@@ -391,7 +394,7 @@
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
         child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
-        manual: manualOf(full, p.block), opening: opening ? Promise.race([opening, offline]) : null,
+        manual: manualOf(full, p.block), whole: wholeOf(p.block), opening: opening ? Promise.race([opening, offline]) : null,
       }).then(function (engine) {
         root.__sae = engine;
         if (p.mode === 'proctored') {
@@ -424,5 +427,5 @@
     });
   }
 
-  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
+  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
 }));

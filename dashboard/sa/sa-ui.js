@@ -513,6 +513,10 @@
     // Round 10 timing 1 (r10_practice_next): the screen after a practice takes Next at once, no fixed wait on top of
     // Jugnu's words; a double tap still moves one screen (the Go tap inside DOUBLE_TAP_MS of the ending tap is ignored)
     var r10Next = r7.r10_practice_next === true;
+    // Round 12 (r12_intro_once): a Ready line marked once (the Whole battery's "Jugnu will not say if an answer is right
+    // until the end") is said on the first Ready screen of the run that carries it, not again; its begin line still is
+    var r12IntroOnce = r7.r12_intro_once === true;
+    var introSaid = false;
     var practiceEndAt = null; // when the tap that ended the practice came (Date.now())
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
@@ -2710,7 +2714,11 @@
           return null;
         });
         if (t.mode === 'record') gateOn(k0, said); // the spoken practice's Next (a tap practice has none)
-      } else if (v.phase === 'ready') gateOn(keyOf(v), sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]));
+      } else if (v.phase === 'ready') {
+        var intro = s.test_intro && !(r12IntroOnce && s.test_intro.once === true && introSaid) ? s.test_intro : null;
+        if (intro && intro.once === true && !manual) introSaid = true;
+        gateOn(keyOf(v), sayChain(manual ? [] : [intro ? [intro] : null, s.begin ? [s.begin] : null]));
+      }
       else if (v.phase === 'running' && v.item) {
         if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
