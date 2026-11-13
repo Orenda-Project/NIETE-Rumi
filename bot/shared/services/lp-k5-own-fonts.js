@@ -23,17 +23,24 @@ function base64s() {
   return cache;
 }
 
-const face = (family, b64, weight) => (b64
-  ? `@font-face{font-family:"${family}";src:url(data:font/ttf;base64,${b64}) format("truetype");font-weight:${weight};font-display:block}`
+const face = (family, b64, weight, range = '') => (b64
+  ? `@font-face{font-family:"${family}";src:url(data:font/ttf;base64,${b64}) format("truetype");font-weight:${weight};font-display:block${range ? `;unicode-range:${range}` : ''}}`
   : '');
 
-/** The @font-face rules for this page's language, plus the body font that uses them. */
+// Arabic script (Urdu letters, presentation forms) plus the joiners and bidi marks Urdu text carries.
+const ARABIC = 'U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F';
+
+/**
+ * The @font-face rules for this page's language, plus the body font that uses them. An Urdu book gets the full
+ * Nastaliq faces. Every other page still carries Urdu glosses for new words (bd-snkn32.37), so it embeds Nastaliq
+ * for Arabic script only and the body falls back to it — Lexend has no Urdu glyphs and the server has no system fonts.
+ */
 function fontCss(lang) {
   const b = base64s();
   const latin = face('Lexend', b.lexend, 400) + face('Lexend', b.lexendBold, 700)
-    + ':root{--body:"Lexend",system-ui,sans-serif}';
-  if (lang !== 'ur') return latin;
-  return latin + face('Noto Nastaliq Urdu', b.nastaliq, 400) + face('Noto Nastaliq Urdu', b.nastaliqBold, 700);
+    + ':root{--body:"Lexend","Noto Nastaliq Urdu",system-ui,sans-serif}';
+  const range = lang === 'ur' ? '' : ARABIC;
+  return latin + face('Noto Nastaliq Urdu', b.nastaliq, 400, range) + face('Noto Nastaliq Urdu', b.nastaliqBold, 700, range);
 }
 
 module.exports = { fontCss, FILES };
