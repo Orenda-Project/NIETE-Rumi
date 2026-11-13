@@ -67,7 +67,7 @@ describe('buildCoachSummary — English & Urdu tool', () => {
     const { buildCoachSummary } = load();
     const text = buildCoachSummary(F.enur(), { lang: 'en', teacherName: 'Ayesha Khan' });
     expect(text).toMatch(/^✅ Saved\. Ayesha Khan · Grade 7 · English/);
-    expect(text).toContain('English & Urdu tool: 109 / 148 · 73.6% · Proficient');
+    expect(text).toContain('English & Urdu tool: 109 / 148 · 79.5 / 108 · Proficient');
     expect(text).toMatch(/Strongest: D\. Interest & Motivation \(8\/8\)/);
     expect(text).toMatch(/Lowest: C\. Reading Skills \(4\/8\)/);
     expect(text).toContain('For the talk with the teacher');

@@ -147,6 +147,7 @@ function transformObs612ToReportData(session, teacherName, analysis) {
       totalScore: v.enur.total,
       maxScore: v.enur.max,
       percentage: v.enur.pct,
+      score108: v.enur.score_108,
       band: v.enur.band,
       noTotal: false,
       goals: enurGoals(o, v),

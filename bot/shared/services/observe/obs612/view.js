@@ -13,7 +13,7 @@
  *   {
  *     rubricId, tool ('enur'|'msci'|'gen'), sheet, label ('FDE v1'), toolName (short), toolTitle (FDE's title),
  *     grade, subject, subjectLabel,
- *     enur: { total, max, pct, band, sections: [{key, title, section, score, max, pct}] }
+ *     enur: { total, max, pct, score_108, band, rating, sections: [{key, title, section, score, max, pct}] }
  *     gen:  { yes, of, sections: [{key, title, yes, of, noItems: [text]}] }
  *     msci: { indicators: [{key, n, stage, short, text, level, levelText, observation}], students: {level, short, text},
  *             counts: {0: n, 1: n, 2: n, 3: n}, answered }
@@ -67,9 +67,13 @@ function enurView(o, r) {
   const sections = (r.sections || []).map((s) => ({
     key: s.key, title: s.title, section: s.section, score: s.score, max: s.max, pct: pctOf(s.score, s.max),
   }));
+  // Section 7 (operator 13 Nov): the band is read on FDE's 108-point scale (total × 108 ÷ the sheet's total). Read again
+  // here, so a visit saved before the rule changed shows the same band as a new one.
+  const score108 = Number.isFinite(r.score_108) ? r.score_108 : O.scoreOn108(r.total, r.max);
+  const band = O.bandFor(score108);
   return {
     data: {
-      total: r.total, max: r.max, pct: r.pct, band: r.band ? r.band.label : null, sections,
+      total: r.total, max: r.max, pct: r.pct, score_108: score108, band: band ? band.label : null, rating: band ? band.rating : null, sections,
     },
     ...extremes(sections, (s) => s.pct),
     feedback: Object.fromEntries(O.TOOLS.enur.feedback.map((f) => [f.key, str((o.feedback || {})[f.key])]).filter(([, v]) => v)),
@@ -209,7 +213,7 @@ function portalSummary(analysis) {
     feedback: [],
   };
   if (v.tool === 'enur') {
-    out.headline = `${v.enur.total} / ${v.enur.max} · ${num(v.enur.pct)}%${v.enur.band ? ` · ${v.enur.band}` : ''}`;
+    out.headline = `${v.enur.total} / ${v.enur.max} · ${num(v.enur.score_108)} / 108${v.enur.band ? ` · ${v.enur.band}` : ''}`;
     out.rows = v.enur.sections.map((s) => ({ name: s.title, value: `${s.score}/${s.max}`, pct: s.pct }));
     out.feedback = O.TOOLS.enur.feedback.filter((f) => v.feedback[f.key]).map((f) => ({ label: f.label, text: v.feedback[f.key] }));
   } else if (v.tool === 'gen') {
