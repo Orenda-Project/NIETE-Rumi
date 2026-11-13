@@ -81,10 +81,12 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
   // — so a heavy generator recognises her own plan. formatLpRow enforces code-point caps (Urdu-safe).
   const { formatLpRow } = require('./lp-selection-format');
   // Only the 8 most recent fit alongside the 2 option rows (bd-zrlcp).
+  // Her own "Make my own" plans ride the same list as lp_own_ rows (bd-snkn32.45).
+  const { formatOwnRow } = require('./lp-own-plans');
   const lpRows = recentLPs.slice(0, MAX_LP_ROWS).map((lp) => {
-    const f = formatLpRow(lp);
+    const f = lp.own ? formatOwnRow(lp, language) : formatLpRow(lp);
     return {
-      id: `lp_select_${lp.id}_${coachingSessionId}`,
+      id: lp.own ? `lp_own_${lp.ownId}_${coachingSessionId}` : `lp_select_${lp.id}_${coachingSessionId}`,
       title: f.title,
       description: f.description,
     };

@@ -86,14 +86,8 @@ async function _resumeGate(s, from, user, S) {
   try {
     const { buildLPSelectionList } = require('../coaching/lp-coaching/lp-selection-list.service');
     const { sendLpPrompt } = require('../coaching/lp-coaching/send-lp-prompt');
-    let recents = [];
-    try {
-      const { isFidelityEnabled } = require('../coaching/fidelity/fidelity-orchestrator');
-      if (isFidelityEnabled() && s.user_id) {
-        const { getRecentFidelityLps } = require('../coaching/lp-coaching/recent-fidelity-lps.service');
-        recents = await getRecentFidelityLps(s.user_id);
-      }
-    } catch (_) { /* Yes/No fallback */ }
+    // Her downloads + her own ready plans (bd-snkn32.45), the same source as the gate's list.
+    const recents = await require('../coaching/lp-coaching/lp-step.service')._recentLpsFor(s.user_id);
     const { data: userRow } = await supabase
       .from('users').select('preferred_language, region').eq('id', user.id).maybeSingle();
     const lpPrompt = buildLPSelectionList(s.id, recents, userRow?.preferred_language || 'en', userRow?.region);

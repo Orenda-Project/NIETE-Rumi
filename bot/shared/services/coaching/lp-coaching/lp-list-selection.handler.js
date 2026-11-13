@@ -7,6 +7,7 @@
  *   lp_select_{assetId}_{sessionId}  — link a recent corpus LP (fidelity ref)
  *   lp_upload_{sessionId}            — teacher will send her own document
  *   lp_none_{sessionId}              — continue without an LP
+ *   lp_own_{ownId}_{sessionId}       — the teacher's own "Make my own" plan (lp-own-selection.handler, bd-snkn32.45)
  *
  * The linker (handleLPSelection) does the DB linking; this handler owns the
  * CONTINUATION the buttons path got from handleLessonPlanResponse and the list
@@ -26,7 +27,7 @@ const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.se
 const { resolveUx } = require('../../../config/ux-strings');
 const { isTerminalStatus } = require('../session-terminal');
 
-const LP_ID_RE = /^lp_(select|upload|none)_/;
+const LP_ID_RE = /^lp_(select|upload|none|own)_/;
 const CONFIRM_ID_RE = /^lpconfirm_(yes|no)_/;
 
 // sessionId is always the LAST underscore-separated UUID; asset ids can contain
@@ -122,6 +123,9 @@ async function handleLpListSelection(listId, from, deps = {}) {
     logToFile('[lp-list] tap after the observation was cancelled — not linking', { sessionId, status });
     await sendMessage(from, resolveUx('coachingSessionCancelled', { language: lang }));
     return true;
+  }
+  if (listId.startsWith('lp_own_')) {
+    return require('./lp-own-selection.handler').handleOwnTap({ listId, sessionId, from, lang, status }, deps);
   }
   if (listId.startsWith('lp_select_')) {
     if (REVIEW_SUBMITTED_STATUSES.includes(status)) {
@@ -236,7 +240,9 @@ async function handleLpConfirmTap(buttonId, from, deps = {}) {
 
   if (m[1] === 'yes') {
     const assetAndSession = buttonId.slice('lpconfirm_yes_'.length);
-    return handleLpListSelection(`lp_select_${assetAndSession}`, from, { ...deps, confirmed: true });
+    // lpconfirm_yes_own_{ownId}_{sid} is her own plan (bd-snkn32.45) → lp_own_{ownId}_{sid}
+    const rowId = assetAndSession.startsWith('own_') ? `lp_${assetAndSession}` : `lp_select_${assetAndSession}`;
+    return handleLpListSelection(rowId, from, { ...deps, confirmed: true });
   }
 
   const sendMessage = deps.sendMessage
