@@ -5,6 +5,7 @@
  * the gate still refuses is null: her row fails ("Couldn't make it"), never a PDF of a plan that broke the rules.
  */
 const { k5Messages, parseK5Reply, checkK5Rewrite } = require('./lp-k5-own');
+const { periodOf } = require('./lp-own-period');
 
 const JOB = 'lp.k5own';
 const ROUNDS = 2;
@@ -23,7 +24,11 @@ async function rewriteK5({ script, answers, edit, lang, grade, subject, dayPages
     });
     const content = (res && res.choices && res.choices[0] && res.choices[0].message.content) || '';
     const next = parseK5Reply(content);
-    const reasons = next ? checkK5Rewrite(script, next, { lang, resources: !edit && answers ? answers.resources : undefined }) : ['the reply was not a JSON plan'];
+    // bd-snkn32.30 — a make is held to her class size and the day's own period; a change keeps the old gate.
+    const make = !edit && answers;
+    const reasons = next ? checkK5Rewrite(script, next, make
+      ? { lang, resources: answers.resources, size: answers.size, period: periodOf(script) }
+      : { lang }) : ['the reply was not a JSON plan'];
     if (!reasons.length) return { script: next, model: useModel, rounds: round };
     log('LP K-5 own: rewrite refused', { round, reasons });
     messages.push({ role: 'assistant', content }, { role: 'user', content: `Refused: ${reasons.join('; ')}. Send the whole plan again, fixed.` });

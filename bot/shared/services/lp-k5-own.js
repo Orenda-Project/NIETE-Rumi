@@ -20,6 +20,8 @@
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
 const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
+// bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
+const P = require('./lp-own-period');
 
 let jsonrepair = null;
 try { ({ jsonrepair } = require('jsonrepair')); } catch (_) { /* strict parse only */ }
@@ -27,8 +29,10 @@ try { ({ jsonrepair } = require('jsonrepair')); } catch (_) { /* strict parse on
 const SECTIONS = ['hook', 'iDo', 'weDo', 'youDo', 'wrap'];
 /** The placeholder some stored Urdu parts carry; a rewrite must drop the part instead (the reviewer's rule). */
 const NOT_READY_UR = 'یہ حصہ ابھی تیار نہیں ہوا';
-/** Longer than this × her day plan is refused: she reads it on a phone before class. */
+/** A change ("Change this plan") longer than this × her day plan is refused: she reads it on a phone before class. */
 const MAX_GROWTH = 1.3;
+/** bd-snkn32.30 — a make may not carry more words than her day plan: "text can be less", never more. */
+const MAKE_GROWTH = 1;
 
 /** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
 const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
@@ -46,7 +50,7 @@ function system(lang) {
   return [
     'You rewrite ONE primary-school (grades 1-5) teaching day for ONE teacher\'s own class in Pakistan.',
     'You get the day\'s plan as JSON. Reply with the rewritten plan as JSON only, in the same JSON shape: the same top-level keys and the same field names, so the same printer can print it.',
-    'Never change: the learning outcome (`goal`, `sloFull`, `sloCode`), `meta` (the day, the topic, the pages), or the section order hook → iDo → weDo → youDo → wrap. Keep each section\'s minutes adding up to the same total.',
+    'Never change: the learning outcome (`goal`, `sloFull`, `sloCode`), `meta` (the day, the topic, the pages), or the section order hook → iDo → weDo → youDo → wrap. Give all five sections a `minutes` number; together they fill exactly the day\'s period (`meta.minutes`), never more.',
     'Every section keeps a quick check for understanding. Keep it no longer than the plan you were given: one action line, then short steps of one sentence each.',
     'Always keep all five parts, hook, iDo, weDo, youDo and wrap, each with real teaching in it: change how each part is taught, never drop or empty a part. Inside a part, a field with nothing to say may be left out; never write a placeholder such as "not ready".',
     GRR_LINE, // in the make and the change alike (k5EditMessages uses this system)
@@ -66,7 +70,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   const lines = [
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}. Grade ${grade}.`,
     // bd-snkn32.27 — only what she has: no slates (ICT works in the book), the board only when she has one.
-    `Class size: with a big class use choral answers and fingers for the checks, and pairs in We Do${a.resources.includes('board') ? '; no activity needs every child to come to the board' : ''}.`,
+    // bd-snkn32.30 — the load is set by her class size: fewer activities for a bigger class, whole-class checks.
+    `${P.loadLine(a.size)}${a.resources.includes('board') ? ' No activity needs every child to come to the board.' : ''}`,
     `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
     MATERIALS_LINE,
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
@@ -78,6 +83,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   if (ways.includes('tarl') && isLanguage(subject) && isEarly(grade)) {
     lines.push('Group the children by level: sound, letter, word and sentence groups.');
   }
+  const period = P.periodOf(script);
+  if (period) lines.push(P.timingLine(period)); // the day's own period, never an assumed one
   if (a.pages) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
   const book = bookLine(bookText); // the page text, so the plan teaches from the real page
   if (book) lines.push(book);
@@ -123,7 +130,7 @@ function missingGrr(script) {
 }
 
 /** Reasons to refuse the rewrite; [] passes. */
-function checkK5Rewrite(orig, next, { lang, resources } = {}) {
+function checkK5Rewrite(orig, next, { lang, resources, size, period } = {}) {
   if (!next || typeof next !== 'object') return ['no plan'];
   const reasons = missingGrr(next).map((k) => `section ${k} is missing or empty`);
   const steps = next.iDo && next.iDo.steps;
@@ -148,9 +155,19 @@ function checkK5Rewrite(orig, next, { lang, resources } = {}) {
     const english = said.filter((s) => !urduEnough(s));
     if (said.length && english.length > said.length * 0.2) reasons.push('not in Urdu: an Urdu book\'s plan must be Urdu');
   }
-  const size = (o) => JSON.stringify(o).length;
-  if (size(next) > size(orig) * MAX_GROWTH) reasons.push('too long for a phone: longer than her day plan');
+  // bd-snkn32.30 — a make (size given) must fit one period and her class: clocked parts, the load, whole-class checks.
+  reasons.push(...P.timingProblems(next, period));
+  if (P.LOAD[size]) {
+    reasons.push(...P.overLoad(next, size));
+    const one = size !== 'up30' && P.perChildChecks(next)[0];
+    if (one) reasons.push(`a teacher check on each child ("${one.slice(0, 60)}"): in a big class check the whole class at once (choral, fingers, books up)`);
+    const slate = P.slates(next)[0];
+    if (slate) reasons.push(`uses slates ("${slate.slice(0, 60)}"): the children work in the book`);
+  }
+  // A make is measured in the words she reads (a `minutes` number is not text); a change keeps the JSON rule.
+  const len = P.LOAD[size] ? (o) => strings(o).join('').length : (o) => JSON.stringify(o).length;
+  if (len(next) > len(orig) * (P.LOAD[size] ? MAKE_GROWTH : MAX_GROWTH)) reasons.push('too long for a phone: longer than her day plan');
   return reasons;
 }
 
-module.exports = { system, k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH };
+module.exports = { system, k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH, MAKE_GROWTH };

@@ -32,7 +32,8 @@ const GRR_LINE = 'Keep I do, We do and You do, in that order; a way changes how 
 const ROTE_LINE = 'Never turn any part into rote drill: no repeat-after-me lists, copying or memorising word for word. '
   + 'Choral sound and word practice (phonics) is allowed and is not rote.';
 /** bd-snkn32.28 — You Do is independent practice: testers saw group work in You Do, so it read the same as We Do. */
-const YOU_DO_LINE = 'You Do is each child working alone in the book, so the teacher can check each child: no pair, group or '
+// bd-snkn32.30 — no promise of a per-child check: a class of 70 cannot have one; the check is whole-class.
+const YOU_DO_LINE = 'You Do is each child working alone in the book, and the class is checked together at the end: no pair, group or '
   + 'partner work in You Do. Pairs, groups and games belong in We Do. A two-level You Do gives each level its own task, still done alone.';
 
 const PURPOSES = {
