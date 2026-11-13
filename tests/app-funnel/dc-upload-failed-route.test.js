@@ -74,3 +74,18 @@ test('the read stage, the unreadable reason, sentBytes, online and sentAs are ke
   await post(srv, { ...good, sentBytes: 'lots', online: 'yes', sentAs: '<script>' });
   expect(rows()[2].d).toEqual(expect.objectContaining({ sentBytes: 0, online: null, sentAs: 'unknown' }));
 });
+
+// bd-r2uzg1.9 — ICT IAB row 29 (queue #116): 331 "File will not open" photos in the app were ordinary JPEGs; what was
+// missing is the browser's own name for the failed read (a lost permission vs a file changed after the pick). A photo
+// is now read the moment she picks it ('pick' stage), and one that is not a JPEG or PNG inside says what it is.
+test('the pick stage, the not_image reason, the error name and what the file is are kept; anything else is dropped', async () => {
+  const srv = await app();
+  await post(srv, { ...good, stage: 'pick', reason: 'unreadable', errName: 'NotReadableError' });
+  expect(rows()[0].d).toEqual(expect.objectContaining({ stage: 'pick', reason: 'unreadable', errName: 'NotReadableError', magic: null }));
+  await post(srv, { ...good, stage: 'pick', reason: 'not_image', magic: 'video' });
+  expect(rows()[1].d).toEqual(expect.objectContaining({ stage: 'pick', reason: 'not_image', magic: 'video', errName: null }));
+  await post(srv, { ...good, errName: 'Wajiha<script>', magic: 'IMG_2026.jpg' });
+  expect(rows()[2].d).toEqual(expect.objectContaining({ errName: 'unknown', magic: 'unknown' }));
+  await post(srv, good);
+  expect(rows()[3].d).toEqual(expect.objectContaining({ errName: null, magic: null }));
+});

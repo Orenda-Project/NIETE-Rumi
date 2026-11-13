@@ -115,9 +115,10 @@ describe("Back goes to the last screen", () => {
     fireEvent.click(screen.getByRole("button", { name: "go to coaching" }));
     await start();
     await attach();
-    const img = new File(["x"], "board.jpg", { type: "image/jpeg" });
+    // bd-r2uzg1.9: real JPEG bytes (a photo is read when she picks it), and the grid shows it once read.
+    const img = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])], "board.jpg", { type: "image/jpeg" });
     fireEvent.change(screen.getByTestId("dc-photos-input"), { target: { files: [img] } });
-    expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(1);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(1));
 
     fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${C.selectPlan}$`) }));
     const sheet = await screen.findByRole("dialog");

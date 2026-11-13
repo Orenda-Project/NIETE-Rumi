@@ -157,3 +157,69 @@ describe("a failed Submit on the one screen (bd-bmc9a0.1)", () => {
     expect(screen.queryByText(C.noInternet)).toBeNull();
   });
 });
+
+/**
+ * bd-r2uzg1.9 — ICT IAB row 29 (queue #116): "Photo 2 not sent · File will not open" left her nothing to tap; she
+ * pressed Submit up to 94 times on the same photo. One photo never holds the lesson back: Change photo swaps it,
+ * Send without it sends the rest (what already arrived is not sent again).
+ */
+describe("a photo that will not open at Submit (bd-r2uzg1.9)", () => {
+  const JPEG = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 7, 7];
+  const jpg = (name: string, bytes = JPEG) => new File([new Uint8Array(bytes)], name, { type: "image/jpeg" });
+  const names = (call: number) => ((sendLesson.mock.calls[call][0] as { photos: File[] }).photos).map((f) => f.name);
+
+  async function submittedWithPhotos() {
+    at(COACHING_NEW);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }));
+    const tray = screen.getByRole("dialog", { name: C.gradeAndSubject });
+    fireEvent.click(await within(tray).findByRole("radio", { name: /^Grade 4/ }));
+    fireEvent.click(await within(tray).findByRole("button", { name: /Grade 4 · General Science/ }));
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.change(await screen.findByTestId("dc-photos-input"), { target: { files: [jpg("p1.jpg"), jpg("p2.jpg"), jpg("p3.jpg")] } });
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(3));
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    const card = await screen.findByRole("alert");
+    expect(within(card).getByText(C.photoNotSent(2))).toBeTruthy();
+    return card;
+  }
+
+  it("it says so and offers Change photo and Send without it, not Try again", async () => {
+    sendLesson.mockRejectedValueOnce(failed({ part: { kind: "photo", photo: 2 }, offline: false, unreadable: true }));
+    const card = await submittedWithPhotos();
+    expect(within(card).getByText(C.fileWontOpen)).toBeTruthy();
+    expect(within(card).getByRole("button", { name: C.changePhoto })).toBeTruthy();
+    expect(within(card).getByRole("button", { name: C.sendWithoutPhoto })).toBeTruthy();
+    expect(within(card).queryByRole("button", { name: C.tryAgain })).toBeNull();
+  });
+
+  it("Send without it sends the other photos at once, with the same record of what already arrived", async () => {
+    sendLesson.mockRejectedValueOnce(failed({ part: { kind: "photo", photo: 2 }, offline: false, unreadable: true }));
+    const card = await submittedWithPhotos();
+    fireEvent.click(within(card).getByRole("button", { name: C.sendWithoutPhoto }));
+    await waitFor(() => expect(sendLesson).toHaveBeenCalledTimes(2));
+    expect(names(0)).toEqual(["p1.jpg", "p2.jpg", "p3.jpg"]);
+    expect(names(1)).toEqual(["p1.jpg", "p3.jpg"]);
+    expect((sendLesson.mock.calls[1][0] as { uploaded?: unknown }).uploaded).toBe((sendLesson.mock.calls[0][0] as { uploaded?: unknown }).uploaded);
+  });
+
+  it("Change photo swaps photo 2 for the one she picks; Submit then sends it in its place", async () => {
+    sendLesson.mockRejectedValueOnce(failed({ part: { kind: "photo", photo: 2 }, offline: false, unreadable: true }));
+    const card = await submittedWithPhotos();
+    fireEvent.click(within(card).getByRole("button", { name: C.changePhoto }));
+    fireEvent.change(screen.getByTestId("dc-photo-change-input"), { target: { files: [jpg("new.jpg")] } });
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: C.submit }));
+    await waitFor(() => expect(sendLesson).toHaveBeenCalledTimes(2));
+    expect(names(1)).toEqual(["p1.jpg", "new.jpg", "p3.jpg"]);
+  });
+
+  it("Change photo with a file that is not a photo inside: the card stays and says Not a photo", async () => {
+    sendLesson.mockRejectedValueOnce(failed({ part: { kind: "photo", photo: 2 }, offline: false, unreadable: true }));
+    const card = await submittedWithPhotos();
+    fireEvent.click(within(card).getByRole("button", { name: C.changePhoto }));
+    fireEvent.change(screen.getByTestId("dc-photo-change-input"), { target: { files: [jpg("clip.jpg", [0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32])] } });
+    expect(await within(card).findByText(C.notAPhoto)).toBeTruthy();
+    expect(sendLesson).toHaveBeenCalledTimes(1);
+  });
+});

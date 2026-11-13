@@ -217,6 +217,10 @@ function createAppFunnelRouter({ limiter } = {}) {
         sentBytes: clampInt(body.sentBytes, 2 * 1024 * 1024 * 1024),
         online: typeof body.online === 'boolean' ? body.online : null,
         sentAs: pick(body.sentAs, DC_UPLOAD_SENT_AS),
+        // bd-r2uzg1.9 — ICT IAB row 29: the browser's own name for a failed read of a picked file, and what a picked
+        // "photo" is from its first bytes. Absent stays null; anything not on the lists is 'unknown'.
+        errName: body.errName == null ? null : pick(body.errName, DC_UPLOAD_ERR_NAMES),
+        magic: body.magic == null ? null : pick(body.magic, DC_UPLOAD_MAGIC),
       });
       return res.status(204).end();
     },
@@ -414,10 +418,15 @@ function micPhone(req) {
 }
 
 // bd-bmc9a0.1: 'read' + 'unreadable' — a picked file the phone could not read, before any upload.
-const DC_UPLOAD_STAGES = ['read', 'presign', 'upload', 'start'];
+const DC_UPLOAD_STAGES = ['pick', 'read', 'presign', 'upload', 'start'];
 const DC_UPLOAD_KINDS = ['audio', 'lesson_plan', 'photo'];
-const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown', 'unreadable'];
+const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown', 'unreadable', 'not_image'];
 const DC_UPLOAD_SENT_AS = ['copy', 'slice', 'blob', 'none'];
+// bd-r2uzg1.9 — DOMException names a failed File read can carry (portal lib/pickedRead.ts errNameOf).
+const DC_UPLOAD_ERR_NAMES = ['NotReadableError', 'NotFoundError', 'SecurityError', 'AbortError', 'InvalidStateError',
+  'EncodingError', 'NotAllowedError', 'TypeError', 'Error'];
+// bd-r2uzg1.9 — what a picked file is from its first bytes (portal lib/pickedRead.ts sniff).
+const DC_UPLOAD_MAGIC = ['jpeg', 'png', 'webp', 'heic', 'gif', 'video', 'pdf', 'zip', 'other'];
 
 // ─── the key actions ────────────────────────────────────────────────────────────────────────────────────────
 //
