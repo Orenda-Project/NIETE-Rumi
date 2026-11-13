@@ -259,6 +259,7 @@ const HERO = {
     yesOf: (yes, of) => `Yes on ${yes} of ${of}`,
     planGoal: (from, to) => `From Level ${from} to Level ${to}.`,
     grade: (g) => `Grade ${g}`,
+    footnote: FDE_FOOTNOTE,
   },
   ur: {
     affirm: (band) => (band ? `آپ کا سبق، کوچ نے ایف ڈی ای کے ٹول پر جانچا: ${band}` : 'آپ کا سبق، کوچ نے ایف ڈی ای کے ٹول پر جانچا'),
@@ -268,6 +269,7 @@ const HERO = {
     yesOf: (yes, of) => `${urDigitsOf(of)} میں سے ${urDigitsOf(yes)} ہاں`,
     planGoal: (from, to) => `درجہ ${urDigitsOf(from)} سے درجہ ${urDigitsOf(to)} تک۔`,
     grade: (g) => `جماعت ${urDigitsOf(g)}`,
+    footnote: FDE_FOOTNOTE_UR,
   },
 };
 function urDigitsOf(n) { return String(n).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d))); }
@@ -313,7 +315,7 @@ function buildObs612HeroVm(session, analysis, opts = {}) {
     trend: [],
     classroomPhotos: [],
     photoB64: '',
-    partialNote: lang === 'ur' ? FDE_FOOTNOTE_UR : FDE_FOOTNOTE,
+    partialNote: H.footnote,
     breakLongWords: true,
   };
   if (!v) return vm;
