@@ -51,8 +51,9 @@ describe('questionId — addressing a question inside the tree', () => {
     expect(ids).toEqual([
       'seen.objective.MCQs.0',
       'seen.objective.MCQs.1',
-      'seen.subjective.Long Question.Essay Writing.0',
+      // bd-ipoxhx.3: one order across both halves, so objective (any half) prints before subjective.
       'unseen.objective.True / False.0',
+      'seen.subjective.Long Question.Essay Writing.0',
     ]);
   });
 
@@ -62,7 +63,7 @@ describe('questionId — addressing a question inside the tree', () => {
   });
 
   test('carries the marks, so the running total can be shown as she ticks', () => {
-    expect(indexQuestions(EXAM).map((q) => q.marks)).toEqual([1, 1, 2, 1]);
+    expect(indexQuestions(EXAM).map((q) => q.marks)).toEqual([1, 1, 1, 2]);
   });
 
   test('a sub-questioned item reports the sum of its parts, not zero', () => {
