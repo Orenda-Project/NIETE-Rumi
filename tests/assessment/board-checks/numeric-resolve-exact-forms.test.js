@@ -45,3 +45,24 @@ describe('a power-of-ten key is a number, not a unit power', () => {
     expect(hard(run(num('(16-4)/3', '4 m/s^2', 1, 'm/s^2')))).toEqual([]);
   });
 });
+
+describe('exact forms written in letters or LaTeX, and stated alternatives', () => {
+  // bd-qyi45h.10: e2c9d814 out4 dry run (13 Nov) — right keys read as 6, 40, 5, 0 and 72
+  test('"11pi/6 radians", "40/sqrt(pi) cm", "5 pi inches" are read through pi and sqrt', () => {
+    expect(hard(run(num('330 * pi / 180', '11pi/6 radians', 3, 'radians')))).toEqual([]);
+    expect(hard(run(num('sqrt(200*2/(pi/4))', '40/sqrt(pi) cm', 3, 'cm')))).toEqual([]);
+    expect(hard(run(num('30 * pi / 6', '5 pi inches', 3, 'inches')))).toEqual([]);
+  });
+  test('"22.92 m (or 72/π m)" in LaTeX states both answers', () => {
+    const key = 'The radius of the circle is $22.92 \\text{ m}$ (or $\\frac{72}{\\pi} \\text{ m}$).';
+    expect(hard(run(num('6 / (15 * 3.14159 / 180)', key, 4, 'm')))).toEqual([]);
+  });
+  test('a wrong letter-written exact form is still hard', () => {
+    expect(hard(run(num('30 * pi / 6', '6 pi inches', 3, 'inches')))).toEqual(['NUMERIC_MISMATCH']);
+    expect(hard(run(num('6 / (15 * 3.14159 / 180)', 'The radius is $25 \\text{ m}$ (or $\\frac{80}{\\pi} \\text{ m}$).', 4, 'm')))).toEqual(['NUMERIC_MISMATCH']);
+  });
+  test('degrees written ^o or ^\\circ in a DMS key are soft UNRESOLVED', () => {
+    expect(rules(run(num('255 + 0.45*60', '255^o 27\' 0"', 5)))).toEqual(['UNRESOLVED']);
+    expect(rules(run(num('255 + 0.45*60', '$255^\\circ 27\' 0"$', 5)))).toEqual(['UNRESOLVED']);
+  });
+});
