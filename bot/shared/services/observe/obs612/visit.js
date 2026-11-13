@@ -107,7 +107,7 @@ async function askClass(user, to, { kind, ref, teacherName = null }) {
       flowToken: require('./lesson-flow').lessonToken(user.id, kind, ref),
     });
     if (sent) return sent;
-    logToFile('❌ obs612: the class Flow did not send — chat lists instead', { userId: user.id, kind, ref }, 'error');
+    logToFile('❌ obs612: the class Flow did not send — chat lists instead', { kind, ref }, 'error');
   }
   const rows = [
     { id: `o612:g:${kind}:${ref}:p`, title: cap(s.grade_primary, 24), description: cap(s.grade_primary_desc, 72) },

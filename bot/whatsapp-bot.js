@@ -1958,13 +1958,13 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       } else if (flowType === 'obs612_lesson') {
         // bd-ra8xu.50: "Plan my visit" named the lesson's class (and subject). The completion carries the same tap id
         // the chat lists send, so the list handler does the rest (the visit's nonce / form checks included).
-        logToFile('📝 Detected Plan my visit lesson completion', { from, tap: responseJson.tap || null });
+        logToFile('📝 Detected Plan my visit lesson completion', { tap: responseJson.tap || null });
         try {
           const Obs612 = require('./shared/services/observe/obs612/visit');
           const claimed = user && responseJson.tap ? await Obs612.handleTap(user, from, String(responseJson.tap)) : false;
-          if (!claimed) logToFile('⚠️ Plan my visit lesson completion not handled', { from, hasUser: !!user, tap: responseJson.tap || null }, 'warn');
+          if (!claimed) logToFile('⚠️ Plan my visit lesson completion not handled', { hasUser: !!user, tap: responseJson.tap || null }, 'warn');
         } catch (lessonErr) {
-          logToFile('❌ Plan my visit lesson completion failed', { from, error: lessonErr.message }, 'error');
+          logToFile('❌ Plan my visit lesson completion failed', { error: lessonErr.message }, 'error');
         }
       } else if (flowType === 'obs612') {
         // bd-pni007: FDE's grade 6-12 form closed. The endpoint saved every screen and, on Submit, sent the coach's
