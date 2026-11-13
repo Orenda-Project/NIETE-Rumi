@@ -24,6 +24,8 @@ export const OWN_COPY = {
   dayN: (n: number) => `Day ${n}`,
   /* grades 1–5 book pages (bd-snkn32.17): the day's own, ready to change */
   pagesHint: 'Change them if you will teach other pages.',
+  // bd-snkn32.33 — the list read as the only pages she could use
+  pickHint: 'Pick the closest one. You can choose your own pages after.',
   pageFrom: 'From page',
   pageTo: 'To page',
   addNextDay: (r: string) => `Add the next day's pages (p.${r})`,
@@ -149,6 +151,7 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   dayLabel: 'دن',
   dayN: (n: number) => `دن ${n}`,
   pagesHint: 'اگر آپ دوسرے صفحات پڑھائیں گی تو بدل دیں۔',
+  pickHint: 'سب سے قریب والا چنیں۔ اس کے بعد آپ اپنے صفحات خود چن سکتی ہیں۔',
   pageFrom: 'صفحہ سے',
   pageTo: 'صفحہ تک',
   addNextDay: (r: string) => `اگلے دن کے صفحات بھی (ص ${r})`,
@@ -269,7 +272,7 @@ export const OWN_COPY_ENTRY: CopyEntry = {
     'changeThisPlan', 'changeTitle', 'whichPart', 'whatToChange', 'changeHint', 'changeMyPlan', 'usedBoth', 'refusals',
     // the unified flow: questions, hints, guardrail lines and the book's states are sentences; a resource
     // or way named for a subject classroom, and a label carrying its method in brackets, run past four words.
-    'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'levelHints',
+    'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'pickHint', 'levelHints',
     'purposeBoardFde', 'foci', 'whichLesson', 'pagesOneHint', 'badPages612', 'addNextLesson', 'bothHow', 'fromYourBook',
     'pageMissing', 'bookNotLoaded', 'picturesPending', 'changeSection', 'lessonPlanFive', 'sizeSecondary',
     'myPlans', 'changesLeft'],
