@@ -170,6 +170,13 @@ describe('fromReply (the board format -> the tree)', () => {
     expect(T.isGroup(p)).toBe(true);
     expect(T.liveCounts(t).get('A.Q2')).toBe(3);
   });
+  test('in a stimulus slot a loose question (no stimulus) is not taken: it would crowd real groups out of the trim', () => {
+    // bd-qyi45h.14: G11 Physics rewrite (13 Nov trace) came back as 16 loose items; trimExcess kept 5 of them over a group
+    const t = T.fromReply({ 'A.Q2': [{ question: 'loose', tag }, { stimulus: 'passage', items: [{ question: 'x', tag }, { question: 'y', tag }] }] }, S);
+    expect(t.unseen.objective.scenario).toHaveLength(1);
+    expect(T.isGroup(t.unseen.objective.scenario[0])).toBe(true);
+    expect(T.liveCounts(t).get('A.Q2')).toBe(2);
+  });
   test('outside a stimulus slot, written sub-parts under a stimulus stay parts', () => {
     const t = T.fromReply({ 'B.Q3': [{ stimulus: 'table', parts: [{ question: 'z', tag }] }] }, S);
     expect(t.unseen.subjective.srq[0]).toEqual({ slot: 'B.Q3', stimulus: { text: 'table' }, parts: [{ question: 'z', tag }] });

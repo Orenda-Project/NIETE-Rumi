@@ -174,7 +174,9 @@ function fromReply(reply, slots) {
     const list = reply[s.slot];
     if (!Array.isArray(list)) return;
     const cat = (unseen[s.category] = unseen[s.category] || {});
-    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q, s), slot: s.slot })));
+    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q, s), slot: s.slot }))
+          // bd-qyi45h.14: a loose question is not a passage; in a stimulus slot it would crowd real groups out of the trim
+          .filter((q) => !s.stimulus || isGroup(q)));
   });
   return { unseen };
 }
