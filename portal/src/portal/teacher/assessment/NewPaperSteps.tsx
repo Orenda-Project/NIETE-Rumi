@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlignLeft, BookOpen, LayoutList, Plus, X } from 'lucide-react';
+import { AlignLeft, BookOpen, LayoutList, Plus, Printer, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
@@ -661,6 +661,9 @@ function PlainCheck() {
       {/* Answer lines moved here from the old Marks and lines step: the one choice it had left. */}
       <SwitchRow on={p.answerLines} onFlip={() => set({ answerLines: !p.answerLines })}
         icon={<AlignLeft className="h-6 w-6" aria-hidden="true" />} name={C.answerLines} />
+      {/* bd-ipoxhx.5 — a tighter A4 page, for schools short of paper. Off unless she turns it on. */}
+      <SwitchRow on={!!p.compact} onFlip={() => set({ compact: !p.compact })}
+        icon={<Printer className="h-6 w-6" aria-hidden="true" />} name={C.savePaper} />
     </StepFrame>
   );
 }
