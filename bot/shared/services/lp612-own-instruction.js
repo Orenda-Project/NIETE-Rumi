@@ -10,7 +10,7 @@
  */
 
 const {
-  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
+  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
   purposesOfGrade, purposeLine,
 } = require('./lp612-own-ways');
 const { pagesLine612 } = require('./lp612-own-pages');
@@ -41,6 +41,12 @@ const RESOURCES_612 = {
   audio: 'a phone (video or audio)',
 };
 
+/**
+ * bd-snkn32.27 — the plan being rewritten was written for a class with more (a board, a chart, a plant to show).
+ * Without this line the model kept those uses; a teacher who chose the textbook only got the board and plants.
+ */
+const MATERIALS_LINE = 'The plan you are given may use things she does not have (a board, charts, plants, real objects, a phone). Replace every such use with the book page or what the children already have (their fingers, their voices, their copies). Never ask her to bring, draw or show anything not on her list.';
+
 const LEVELS = {
   behind: 'most children are BEHIND these pages',
   on_track: 'most children are ON TRACK with these pages',
@@ -50,7 +56,7 @@ const LEVELS = {
 
 const WAYS = {
   tarl: 'Teach at the right level: group the children by level, not grade; each group gets its own task, with choral checks. In a large room each row is a level group.',
-  cpa: 'Things, pictures, numbers: objects first, then pictures, then numbers. Children handle real objects, then see a board drawing, then do the book\'s sums.',
+  cpa: 'Things, pictures, numbers: objects first, then pictures, then numbers. Children handle real objects, then look at a picture, then do the book\'s sums.',
   phonics: 'Sounds first: sound, blend, read, using the book\'s own words.',
   games: 'Games and movement: short games tied to the page\'s learning outcome (for example a floor number line, a word hunt, clap and count).',
   story: 'Story and talk: read-aloud, picture talk and retelling. Children speak before they write.',
@@ -151,10 +157,12 @@ function buildOwnInstruction(answers, ctx) {
     'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout and length.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
     `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
+    MATERIALS_LINE,
     way.length > 1 ? `Teaching ways (combine them): ${way.join(' ')}` : `Teaching way: ${way[0]}`,
     'Every part still names the book page it uses. Every part has a quick check for understanding.',
     'Activities may go beyond the book but stay rooted in the page.',
     GRR_LINE,
+    YOU_DO_LINE,
     ROTE_LINE,
   ];
   if (secondary) lines.push(...secondaryLines(a, ctx || {}));
@@ -165,4 +173,4 @@ function buildOwnInstruction(answers, ctx) {
   return lines.join('\n');
 }
 
-module.exports = { parseOwnAnswers, buildOwnInstruction, NOTE_MAX, SIZES, RESOURCES, RESOURCES_612, LEVELS, WAYS };
+module.exports = { parseOwnAnswers, buildOwnInstruction, NOTE_MAX, SIZES, RESOURCES, RESOURCES_612, LEVELS, WAYS, MATERIALS_LINE };

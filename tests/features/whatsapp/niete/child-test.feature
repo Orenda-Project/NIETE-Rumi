@@ -1000,6 +1000,24 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the coach's End test or End this section is never this rule
     And with sa_incomplete_move_on off, or in RDF manual, the runner moves on as before
 
+  # Round 13b: one unanswered spoken question no longer ends the subject; N in a row do (sa_r13_oral_rule = N).
+  # @no-mock-driver: the rule runs on the child's page (a browser, not the WhatsApp bot the mock lane drives).
+  # Covered by dashboard/tests/sa-r13-oral-rule.service.test.js (the real engine, runner and UI on jsdom).
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT173
+  Scenario Outline: A spoken part ends the subject only after N unanswered questions in a row
+    Given sa_r13_oral_rule is 2 and a child is taking the Whole battery or RDF auto
+    When on "<part>" the questions run out with nobody pressing "I've answered" in the pattern "<pattern>"
+    Then <outcome>
+    And the stored answers still read "spoken"
+    Examples:
+      | part                | pattern                                      | outcome                                                                                       |
+      | Urdu listening      | one unanswered, then answered                | the part finishes and the next Urdu part starts; no incomplete_move_on event                  |
+      | Urdu listening      | two unanswered in a row                      | the part ends there and English starts; one incomplete_move_on event with in_a_row 2          |
+      | Urdu listening      | unanswered, answered, unanswered             | the part finishes and the next Urdu part starts                                               |
+      | Urdu listening      | the last two unanswered                      | the part finishes and the rest of Urdu is skipped                                             |
+      | the story questions | two unanswered in a row after the story ran out of time | the rest of Urdu is skipped and English starts                                     |
+      | a one-question part | its only question unanswered                 | the part finishes and the subject goes on                                                     |
+
 
 
   # ── Round 8 · offline ──
@@ -1083,3 +1101,33 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With sa_r10_bigger_audio and sa_r10_practice_gap off, every clip plays on a new element as today
     Given sa_r10_bigger_audio and sa_r10_practice_gap are off
     Then the served battery has neither r10_bigger_audio nor r10_practice_gap
+
+  # Children per visit (app_settings sa_per_visit, absent = 5): bot/shared/services/child-test/app/per-visit-switch.js,
+  # draw/index.js todaysList; the visit bar in portal/src/portal/pages/LeaderAssess.tsx.
+  @e2e @wip @draft @config-gated @P1 @CT175 @no-mock-driver
+  # No mock driver: the draw runs against the database. Asserted in tests/child-test/L3/draw-per-visit.test.js,
+  # bot/tests/child-test/sa-per-visit.test.js and portal/src/portal/pages/LeaderAssess.perVisit.test.tsx.
+  Scenario: With sa_per_visit at 3, a new visit lists 3 children and 2 alternates
+    Given sa_per_visit is 3
+    When I open today's list at a school in the coach app
+    Then the list has 3 children to test and 2 alternates, and the visit bar reads "Children done 0/3"
+    When I mark a child absent
+    Then the first alternate moves onto the list and the alternates are topped up to 2
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT176 @no-mock-driver
+  # No mock driver: as @CT175.
+  Scenario: A list drawn before sa_per_visit changes keeps its size, and without the switch nothing changes
+    Given a visit's list was drawn with 5 children
+    When sa_per_visit is set to 3 and I open that visit's list again
+    Then the same 5 children and alternates are listed
+    And with sa_per_visit absent a new visit lists 5 children and 2 alternates, as today
+
+  # The visit clock follows the list (portal/src/portal/lib/assess/visitStore.ts visitLimitMs, AssessVisitBar limitMs).
+  @e2e @wip @draft @config-gated @P1 @CT177 @no-mock-driver
+  # No mock driver: as @CT175. Asserted in portal/src/portal/components/assess/AssessVisitBar.test.tsx and
+  # portal/src/portal/pages/LeaderAssess.perVisit.test.tsx.
+  Scenario: The visit clock is 20 minutes a child on a list drawn at 3, and 45 minutes on any other list
+    Given sa_per_visit is 3
+    When I open today's list at a school in the coach app
+    Then the visit bar reads "Time 00:00 / 60:00" and turns red only after 60 minutes
+    And a list drawn at 5, or before the switch, reads "/ 45:00" as today

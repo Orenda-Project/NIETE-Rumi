@@ -572,7 +572,7 @@ async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
-    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
+    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
     curriculum = undefined,
@@ -645,6 +645,8 @@ async function buildPaper(job, user = {}) {
     const versioned = await isAssessmentVersionsEnabled();
     if (isTopic) generated.examJson._topics = topics;
     if (oral) generated.examJson._oral = oral;
+    // "Save paper" rides on the paper itself, so every edit and re-render prints it the same way.
+    if (compact) generated.examJson._print = { compact: true };
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
       ...(versioned ? {} : { original_exam_json: generated.examJson }),

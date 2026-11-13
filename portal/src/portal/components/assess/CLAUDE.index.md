@@ -16,7 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AssessPreflight.ios.test.tsx` | (unmapped) |
 | `AssessPreflight.test.tsx` | Pins AssessPreflight: with sa_mic_required Ready waits for a working mic or explicit continue; off = today's card |
 | `AssessPreflight.tsx` | Pre-flight card once per visit: airplane mode, headphone beep and microphone level/playback check |
-| `AssessVisitBar.tsx` | Sticky visit bar: children done of five, 45-minute timer, and per-child sync state (phone/sending/sent) |
+| `AssessVisitBar.tsx` | Sticky visit bar: children done of the list, the visit timer (45 min, or list size × 20 min under sa_per_visit), and per-child sync state (phone/sending/sent) |
 | `assessSw.test.ts` | Round 8: tests the assess-sw.js service worker (network-first online, kept page/files/reads offline) |
 | `offlineCopy.ts` | English and Urdu copy for the round-8 offline-prep pieces (OFFLINE_COPY), digits kept 0-9 |
 | `offlineReady.test.ts` | Round 8: pageUrls lists the page, reads, prepared lists and engine offline helper that Get ready must keep |
@@ -31,12 +31,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `AssessPreflight.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:8:6a71005c`
 - `AssessVisitBar.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:9:8d73f10f`
 - `offlineCopy.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:12:0ac30815` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:6:3ffb4701`
-- `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:9:28426d80`
+- `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:10:28426d80`
 
 ## Tests (all, generated)
 - `AssessEngineSlot.tsx` ← `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.test.tsx`
 - `AssessPreflight.tsx` ← `portal/src/portal/components/assess/AssessPreflight.ios.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.test.tsx`
-- `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
+- `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r11report.test.tsx` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
 
 ## Related (all, generated)
 - docs: `portal/src/portal/components/CLAUDE.md`?

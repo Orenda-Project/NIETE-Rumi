@@ -116,6 +116,7 @@ function withDefaults(deps = {}) {
     enabled: () => (userId, self) => availableFor(userId, self),
     practice: () => (userId, self) => practiceFor(userId, self),
     defer: () => (fn) => setImmediate(fn),
+    perVisit: () => undefined, // sa_per_visit: a test's number, else the setting (per-visit-switch)
     // CONTRACT §17: score under the same DB claim as the WhatsApp path and the restart sweep.
     scoreClaimed: () => (session, block, { force = false } = {}) => require('../conversation/recovery').runScoring(
       { sessionId: session.id, grade: session.grade, form: session.form, session }, block, { force }),
@@ -246,11 +247,14 @@ const todaysList = guarded('todays_list', async ({ userId, visitId }, d) => {
   const school = await d.draw.resolveVisitSchool({ coachUserId: userId, visitId });
   if (!school || !school.ok) return { status: 'invalid', reason: (school && school.reason) || 'no_school' };
 
+  const perVisit = require('./per-visit-switch');
+  const n = await perVisit.count({ perVisit: d.perVisit, supabase: d.supabase });
   const list = await d.draw.todaysList({
     coachUserId: userId,
     schoolId: school.schoolId,
     visitId,
     observedGrade: gradeOf(visit.answers && visit.answers.lp_ref && visit.answers.lp_ref.grade),
+    ...(n !== perVisit.DEFAULT ? { perVisit: n } : {}),
   });
   if (!list || !list.ok) {
     if (list && list.reason) return { status: 'invalid', reason: list.reason };

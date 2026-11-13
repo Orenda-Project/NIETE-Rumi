@@ -1137,6 +1137,7 @@ async function handleAssessmentFlowCompletion(responseJson, from, user, opts = {
         userId: user?.id,
         outputFormat: responseJson?.output_format,
         answerLines: responseJson?.answer_lines,
+        savePaper: responseJson?.save_paper,
       });
     } catch (err) {
       logToFile('[assessment] submit from completion threw', { error: err?.message });
