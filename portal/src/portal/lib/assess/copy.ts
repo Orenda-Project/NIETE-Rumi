@@ -90,6 +90,8 @@ const en = {
   blockMoved: (name: string) => `Another child already has that part. This child gets: ${name}. Tap Start.`,
   rdfNeedsMic: "RDF needs a working microphone. Go back and check the microphone first.",
   rdfFive: "RDF for five children is about 1 hour 40 minutes on one phone.",
+  // sa_per_visit: a list drawn at another size than 5 (about 20 minutes a child)
+  rdfFew: (n: number) => `RDF for ${["one child", "two children", "three children", "four children"][n - 1]} is about ${["20 minutes", "40 minutes", "1 hour", "1 hour 20 minutes"][n - 1]} on one phone.`,
   savedNext: "Saved. Next child.",
   stopped: (name: string) => `${name}'s test stopped before the end. Tap Continue to open it again.`,
   voiceNotReady: (name: string) => `Jugnu's voice was not ready for ${name}. Tap Continue to try again, or go on to the next child.`,
@@ -282,6 +284,7 @@ const ur: Copy = {
   blockMoved: (name: string) => `یہ حصہ کسی اور بچے کے پاس ہے۔ اس بچے کو یہ ملے گا: ${name}۔ «شروع» دبائیں۔`,
   rdfNeedsMic: "آر ڈی ایف کے لیے مائیک کا چلنا ضروری ہے۔ واپس جا کر پہلے مائیک چیک کریں۔",
   rdfFive: "پانچ بچوں کا آر ڈی ایف ایک فون پر تقریباً ⁦۱⁩ گھنٹہ ⁦۴۰⁩ منٹ لیتا ہے۔",
+  rdfFew: (n: number) => `${["ایک بچے", "دو بچوں", "تین بچوں", "چار بچوں"][n - 1]} کا آر ڈی ایف ایک فون پر تقریباً ${["⁦۲۰⁩ منٹ", "⁦۴۰⁩ منٹ", "⁦۱⁩ گھنٹہ", "⁦۱⁩ گھنٹہ ⁦۲۰⁩ منٹ"][n - 1]} لیتا ہے۔`,
   savedNext: "محفوظ ہو گیا۔ اب اگلا بچہ۔",
   stopped: (name: string) => `⁨${name}⁩ کا ٹیسٹ مکمل ہونے سے پہلے رک گیا۔ دوبارہ کھولنے کے لیے «جاری رکھیں» دبائیں۔`,
   voiceNotReady: (name: string) => `⁨${name}⁩ کے لیے جگنو کی آواز تیار نہیں تھی۔ دوبارہ کوشش کے لیے «جاری رکھیں» دبائیں، یا اگلے بچے پر جائیں۔`,
