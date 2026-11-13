@@ -286,8 +286,8 @@ ${list}
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
-// bd-ipoxhx.7 (AG row 21) — the marks teachers expect; standardMarks() also enforces them after generation.
-const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark each (a matching question 1 mark per pair); '
+// bd-ipoxhx.7 (AG row 21) + .8 (AG row 27) — the marks teachers expect; standardMarks() also enforces them after generation.
+const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark per answer it asks for (an MCQ 1; an MSQ 1 per correct option; a fill-in 1 per blank; a matching question 1 per pair; at most 5); '
   + 'short / brief answers 2-3 marks; long questions and written work 5-10 marks';
 
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
