@@ -210,6 +210,24 @@ chk "W18m the 4 shards cover every scenario once, in order, evenly" "$cover" "co
 chk "W18n --only then --shard: the slice is of the picked ids" \
     "$(cd "$ROOT" && node -e "const {pick}=require('./.claude/qa/web/web-runner.cjs');const a=['A','B','C','D','E'].map(id=>({id}));console.log(pick(a,['B','C','D'],'2/2').map(s=>s.id).join())" 2>&1)" "C,D"
 
+# W19 — a run-wide set-up belongs to the RUN, not to one scenario (bd-a7upa5): a shard is its own database, so a
+# schema patch applied inside the first scenario that needs it never reaches a shard without that scenario. The
+# challenge runs' provenance columns were patched in WQ1xx only; shards 3 and 4 then served /c/ and /ch/ as 503
+# (WQ207, WQ223, WQ227). A feature exports before(ctx); the runner calls it once, before any scenario.
+chk "W19 the runner calls a feature's before(ctx) once, before the scenarios" \
+    "$(cd "$ROOT" && node -e "
+const { runBefore } = require('./.claude/qa/web/web-runner.cjs');
+const seen = []; const mod = { before: async (ctx) => { seen.push(ctx.tag); } };
+runBefore(mod, { tag: 'run' }).then(() => runBefore({}, { tag: 'none' })).then(() => console.log(seen.join(',')));
+" 2>&1)" "run"
+chk "W19b web-quiz-child-page's before(ctx) adds the challenge runs' provenance columns" \
+    "$(cd "$ROOT" && node -e "
+const mod = require('./.claude/qa/web/features/web-quiz-child-page.cjs');
+const sqls = []; const ctx = { sql: async (t) => { sqls.push(t); return ''; } };
+Promise.resolve(typeof mod.before === 'function' && mod.before(ctx)).then(() =>
+  console.log(sqls.some((t) => /ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS/.test(t)) ? 'patched' : 'not patched'));
+" 2>&1)" "patched"
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 

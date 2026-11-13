@@ -37,6 +37,12 @@ function pick(scenarios, only, shard) {
   return chosen.slice(Math.floor((k - 1) * chosen.length / n), Math.floor(k * chosen.length / n));
 }
 
+// A feature's run-wide set-up (module export `before(ctx)`): once per run, before any scenario — a schema patch or a
+// seed every scenario may rely on. It must not live inside one scenario: a shard without that scenario never gets it.
+async function runBefore(mod, ctx) {
+  if (mod && typeof mod.before === 'function') await mod.before(ctx);
+}
+
 async function main() {
   const env = process.env;
   const feature = env.WEB_FEATURE;
@@ -79,6 +85,7 @@ async function main() {
   process.on('uncaughtException', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   process.on('unhandledRejection', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   // --headed (e2e-web.sh) → a visible window, each action slowed by WEB_SLOWMO ms so a person can follow it.
+  await runBefore(mod, ctx);
   const browser = await loadChromium().launch({ headless: env.WEB_HEADED !== '1', slowMo: Number(env.WEB_SLOWMO || 0) });
   try {
     for (const s of picked) {
@@ -126,5 +133,5 @@ async function main() {
   process.exit(results.every((r) => r.status !== 'FAIL') ? 0 : 1);
 }
 
-module.exports = { pick };
+module.exports = { pick, runBefore };
 if (require.main === module) main().catch((e) => { console.error('web-runner: ' + ((e && e.stack) || e)); process.exit(2); });
