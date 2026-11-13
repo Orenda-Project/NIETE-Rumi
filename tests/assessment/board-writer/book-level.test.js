@@ -20,6 +20,20 @@ describe('book-level', () => {
     expect(BL.isBook({ question: 'A train travels 240 km in 4 h. What is its average speed?' }, BOOK)).toBe(false);
     expect(BL.isBook({ question: 'Why is a parked car at rest while the Earth turns?' }, BOOK)).toBe(false);
   });
+  // bd-qyi45h.10: prod G9/G10 Maths board papers came out 50-93% K (target 20-30%) because an exponent 2 and the
+  // 0 of "= 0" sit in nearly every worked example, so a new quadratic counted as a book repeat.
+  const MATHS = 'Quadratic equations. Example 2.4 Solve 2x^2 + 3x - 8 = 0 by the quadratic formula. '
+    + 'Solution: a = 2, b = 3, c = -8, so x = (-3 ± √73) / 4. '
+    + 'Example 2.5 A garden is 5 m longer than it is wide and its area is 84 m². Find its width. Solution: x(x + 5) = 84.';
+  test('a new quadratic sharing only an exponent 2 and the 0 of "= 0" with a worked example is not K', () => {
+    expect(BL.isBook({ question: 'Find the value of k if 2x^2 + kx + 8 = 0 has equal roots.' }, MATHS)).toBe(false);
+    expect(BL.isBook({ question: 'Prove that the roots of x² + 2x + 8 = 0 are complex.' }, MATHS)).toBe(false);
+  });
+  test('a worked example copied with its numbers (any order, x^2 or x²) is still K', () => {
+    expect(BL.isBook({ question: 'Solve 2x² + 3x - 8 = 0 by the quadratic formula.' }, MATHS)).toBe(true);
+    expect(BL.isBook({ question: 'Solve 2x^2 + 3x - 8 = 0.' }, MATHS)).toBe(true);
+    expect(BL.isBook({ question: 'The area of a garden is 84 m² and it is 5 m longer than it is wide. Find its width.' }, MATHS)).toBe(true);
+  });
   test('relevel sets tag.blooms K on book items (OR branches and groups too), returns the count, leaves others', () => {
     const t = tree(
       { question: 'A bus travels 150 km in 3 h. Its average speed is:', tag: tag('A') },
