@@ -969,6 +969,8 @@ export type AssessmentSpec = {
   /** Ignored: every paper is made with its answer key. Kept so older callers still type-check. */
   includeAnswerKey?: boolean;
   answerLines?: boolean;
+  /** bd-ipoxhx.5 — Save paper: a tighter A4 page. */
+  compact?: boolean;
   outputFormat?: 'pdf' | 'docx';
   /** A board-pattern request (absent on every other paper). */
   pattern?: string;

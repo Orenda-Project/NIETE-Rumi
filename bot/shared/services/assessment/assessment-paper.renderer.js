@@ -430,7 +430,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   .answer-space { margin: 5px 0 0 ${rtl ? '0' : '18px'}; }
   .answer-line { border-bottom: 1px solid #aaa; height: ${lineMm}mm; }
   .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }${Chrome.css(examJson)}
-</style>${compact ? compactCss({ rtl }) : ''}</head>
+</style>${compact || examJson?._print?.compact === true ? compactCss({ rtl }) : ''}</head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
