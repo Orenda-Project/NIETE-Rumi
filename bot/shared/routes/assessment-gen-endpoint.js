@@ -1689,6 +1689,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     Object.assign(state, {
       outputFormat: String(data.output_format || 'pdf'),
       answerLines: data.answer_lines !== false && data.answer_lines !== 'false',
+      compact: data.save_paper === true || data.save_paper === 'true',
     });
 
     try {
@@ -1779,7 +1780,7 @@ async function rebuildFromCompletion({ flowToken, userId, user = null, onStart =
 
 // `answerKey` is no longer read: every paper gets a key and she is not asked. A
 // stale client that still posts one is ignored rather than obeyed.
-async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines }) {
+async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines, savePaper }) {
   const state = await readSession(flowToken);
 
   // A session that has expired or was never written cannot be completed into a
@@ -1799,6 +1800,7 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerLin
     userId: state.userId || userId,
     outputFormat: await resolveFormat(outputFormat),
     answerLines: answerLines !== false && answerLines !== 'false',
+    compact: savePaper === true || savePaper === 'true',
   });
 
   try {
@@ -2089,6 +2091,7 @@ async function submit(state) {
     // Always: the answer key stopped being her choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: state.answerLines !== false,
+    compact: state.compact === true,
     outputFormat: state.outputFormat || 'pdf',
   });
 }
