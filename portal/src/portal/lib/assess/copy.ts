@@ -186,6 +186,12 @@ const en = {
       early_stop_silence: "Stopped: silence",
       assets_unavailable: "Could not load",
       skipped_dev: "Skipped (sandbox Jump)",
+      // End this section: the part on show ends as end_section and reads as coach_end; the parts after it in that
+      // section end as skipped_end_section and read as skipped_level2.
+      end_section: "Ended by the coach",
+      skipped_end_section: "Skipped",
+      // the story's questions when the child read nothing aloud: skipped, as skipped_no_first_line
+      skipped_no_voice: "Skipped",
     },
     recording: "Recording",
     scoredLater: "Recording kept, scored later",
@@ -395,6 +401,12 @@ const ur: Copy = {
       early_stop_silence: "رک گیا: خاموشی",
       assets_unavailable: "لوڈ نہیں ہوا",
       skipped_dev: "چھوڑ دیا گیا (سینڈ باکس جمپ)",
+      // End this section: the part on show ends as end_section and reads as coach_end; the parts after it in that
+      // section end as skipped_end_section and read as skipped_level2.
+      end_section: "کوچ نے ختم کیا",
+      skipped_end_section: "چھوڑ دیا گیا",
+      // the story's questions when the child read nothing aloud: skipped, as skipped_no_first_line
+      skipped_no_voice: "چھوڑ دیا گیا",
     },
     recording: "ریکارڈنگ",
     scoredLater: "ریکارڈنگ محفوظ ہے، نمبر بعد میں لگیں گے",

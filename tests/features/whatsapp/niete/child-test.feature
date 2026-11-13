@@ -964,6 +964,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the coach taps "End this section" and confirms
     Then the part on show ends as end_section, the rest of its section is skipped (skipped_end_section), and the test goes on at the next section (Urdu, then English, then maths)
     And one end_section event is kept
+    And that session's Results say, under "How it ended", "Ended by the coach" for the part ended and "Skipped" for the parts after it, never the code
 
   @e2e @wip @draft @config-gated @P1 @CT103
   Scenario: RDF auto, no voice heard on a read-aloud part: a reminder and one repeat
@@ -1169,6 +1170,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the coach taps "End this section" and confirms
     Then the part on show ends as end_section, the rest of its subject is skipped (skipped_end_section), and the test goes on at the next subject
     And one end_section event is kept with by coach
+    And that session's Results say, under "How it ended", "Ended by the coach" for the part ended and "Skipped" for the parts after it, never the code
     And with sa_r20_auto_end_section off, RDF auto shows no End this section button, as today
 
   # Round 20, the child's level per subject (app_settings sa_r20_level, absent = OFF): bot/shared/services/child-test/sa/level.js
