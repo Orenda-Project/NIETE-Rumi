@@ -173,9 +173,10 @@ describe('open: the visit\'s own FDE form', () => {
     ]);
     expect(en.sections[0].parts.find((p) => p.name === 'ctx_6')).toMatchObject({ role: 'context', text: 'Lesson Topic', required: true });
     const ur = await draftOf('sess-ur');
-    expect(ur.sections.map((s) => s.id)).toContain('ENUR_TWO_UR');
-    expect(ur.sections.map((s) => s.id)).not.toContain('ENUR_TWO_EN');
-    const score = ur.sections[ur.sections.length - 1].parts.find((p) => p.type === 'score');
+    expect(ur.sections.map((s) => s.id)).toContain('ENUR_TWO_D');
+    expect(ur.sections.map((s) => s.id)).not.toContain('ENUR_TWO_C');
+    // 13 Nov: Section 7 has its own read-only part, just before Section 8.
+    const score = ur.sections.find((s) => s.id === 'ENUR_SEVEN').parts.find((p) => p.type === 'score');
     expect(score).toMatchObject({ total: 0, max: 156, pct: 0 });
   });
 

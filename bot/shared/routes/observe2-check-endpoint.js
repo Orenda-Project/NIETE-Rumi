@@ -492,9 +492,13 @@ function formCountsInit(form) {
 
 // The screen after COMBINED_TWO: the pre-filled copy when the form has both counts and the Flow has that screen
 // (v6_check 3+, posted from HEARD_EXPLAIN); else COMBINED_THREE with blank boxes, as a '2' Flow knows it.
+// The v6 coach's own copy of the check (v6_check 4, 13 Nov): 1-4 by level name only, no D2 count boxes.
+const COACH_CHECK_NO = 4;
+const isCoach2 = (form) => Number(((form && form.evidence_review) || {}).v6_check || 0) >= COACH_CHECK_NO;
+
 function renderThird(form) {
   const v6Check = Number(((form && form.evidence_review) || {}).v6_check || 0);
-  const counts = v6Check >= 3 ? formCountsInit(form) : null;
+  const counts = v6Check >= 3 && !isCoach2(form) ? formCountsInit(form) : null;
   return counts ? renderCombined(COMBINED_COUNTS.id, form, { counts }) : renderCombined(COMBINED_COUNTS.of, form);
 }
 
@@ -522,15 +526,16 @@ function d2Expected(children, quietLater) {
   return quietLater >= 2 ? 4 : 3;
 }
 
-function validateCombined(screenId, screenData, S) {
+function validateCombined(screenId, screenData, S, { coach2 = false } = {}) {
   const errors = {};
   for (const code of COMBINED_CODES_OF[screenId]) {
     const level = V6.normLevel(screenData[`cmb_${code}_level`]);
-    const allowed = V6.levelOptions(code).map((o) => o.id);
+    const allowed = (coach2 ? V6.coachLevelOptions(code) : V6.levelOptions(code)).map((o) => o.id);
     if (level == null || !allowed.includes(String(level))) errors[`cmb_${code}_level`] = S.v6_choose_level;
     if (!V6.isJustified(screenData[`cmb_${code}_why`])) errors[`cmb_${code}_why`] = S.v6_write_why;
   }
-  if (COMBINED_CODES_OF[screenId].includes('D2')) {
+  // The coach's own copy has no count boxes for D2: its level and reason are enough.
+  if (COMBINED_CODES_OF[screenId].includes('D2') && !coach2) {
     const children = wholeNumber(screenData.d2_children);
     const quiet = wholeNumber(screenData.d2_quiet_later);
     if (children == null || quiet == null || quiet > children) {
@@ -560,7 +565,7 @@ function combinedRecord(form, code, screenData, added) {
 
 async function onCombined(form, step, screenData) {
   const S = observe2Strings('en');
-  const errors = validateCombined(step, screenData, S);
+  const errors = validateCombined(step, screenData, S, { coach2: isCoach2(form) });
   if (Object.keys(errors).length) {
     // Back to the pre-filled screen with the coach's own numbers, not the form's.
     const typed = { d2_children: wholeNumber(screenData.d2_children), d2_quiet_later: wholeNumber(screenData.d2_quiet_later) };
@@ -575,7 +580,7 @@ async function onCombined(form, step, screenData) {
     patch[`cmb_${code}_why`] = String(screenData[`cmb_${code}_why`] || '').trim();
     patch[`v6_${code}`] = combinedRecord(form, code, screenData, added);
   }
-  if (COMBINED_CODES_OF[step].includes('D2')) {
+  if (COMBINED_CODES_OF[step].includes('D2') && !isCoach2(form)) {
     patch.d2_counts = { children: wholeNumber(screenData.d2_children), quiet_later: wholeNumber(screenData.d2_quiet_later) };
   }
   const saved = await Store.saveReview(form, patch);
@@ -583,15 +588,19 @@ async function onCombined(form, step, screenData) {
   const next = COMBINED_IDS.indexOf(combinedBase(step)) + 1;
   if (COMBINED_IDS[next] === COMBINED_COUNTS.of) return renderThird(current);
   if (next < COMBINED_IDS.length) return renderCombined(COMBINED_IDS[next], current);
-  return gradedPlan(current) ? renderFidelity(current) : renderAdded6('ADDED_DC_ONE', addedLevels(current, current.evidence_review || {}));
+  return gradedPlan(current) ? renderFidelity(current) : renderAdded6('ADDED_DC_ONE', addedLevels(current, current.evidence_review || {}), { coach2: isCoach2(current) });
 }
 
-function renderAdded6(screenId, added, { errors = {}, chosen = null } = {}) {
+// On the coach's own copy (coach2) Rumi's N/A or Couldn't tell is not a choice: nothing is pre-selected and the coach
+// chooses 1-4, with no reason needed for it.
+const noLevel = (v) => v === 'NA' || v === 'IE';
+function renderAdded6(screenId, added, { errors = {}, chosen = null, coach2 = false } = {}) {
   const data = { error_messages: errors };
   for (const code of ADDED6_OF[screenId].codes) {
     const r = (added || {})[code] || {};
     data[`${code}_because`] = r.because || '';
-    data[`${code}_level`] = chosen && chosen[code] !== undefined ? chosen[code] : levelText(r.level);
+    const pre = levelText(r.level);
+    data[`${code}_level`] = chosen && chosen[code] !== undefined ? chosen[code] : (coach2 && noLevel(pre) ? '' : pre);
   }
   return { screen: screenId, data };
 }
@@ -621,12 +630,15 @@ async function onAdded6(form, step, screenData) {
   const S = observe2Strings('en');
   const { codes, why, kind, min } = ADDED6_OF[step];
   const review = form.evidence_review || {};
-  const prefilled = review.added || {};
+  const coach2 = isCoach2(form);
+  const prefilled = coach2
+    ? Object.fromEntries(Object.entries(review.added || {}).map(([c, v]) => [c, noLevel(String(v)) ? '' : v]))
+    : (review.added || {});
   const chosen = Object.fromEntries(codes.map((c) => [c, String(screenData[`${c}_final`] == null ? '' : screenData[`${c}_final`])]));
   const changed = codes.filter((c) => (prefilled[c] || '') !== '' && chosen[c] !== String(prefilled[c]));
   const reason = String(screenData[why] || '').trim();
   const errors = overrideErrors(form, step, screenData, changed, S);
-  if (Object.keys(errors).length) return renderAdded6(step, addedLevels(form, review), { errors, chosen });
+  if (Object.keys(errors).length) return renderAdded6(step, addedLevels(form, review), { errors, chosen, coach2 });
   const listed = listsReasons(form);
   const at = new Date().toISOString();
   const patch = pickFields(screenData, [...codes.map((c) => `${c}_final`), kind, min]);
@@ -656,7 +668,7 @@ async function onAdded6(form, step, screenData) {
   }
   const saved = await Store.saveReview(form, patch);
   const current = saved.ok ? saved.form : form;
-  if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', addedLevels(current, current.evidence_review || {}));
+  if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', addedLevels(current, current.evidence_review || {}), { coach2 });
   return renderPriority(current, screenData);
 }
 

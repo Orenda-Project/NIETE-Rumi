@@ -163,7 +163,10 @@ describe('generateHeroReport on an FDE visit (the real generator, the page captu
     common(r);
     expect(r.text).toContain('73.6%');
     expect(r.text).toContain('Proficient');
-    expect(r.text).toContain('109 of 148 · FDE: score × 100 ÷ 148');
+    expect(r.text).toContain("109 of 148 · 79.5 of 108 on FDE's scale (score × 108 ÷ 148)");
+    expect(r.text).toContain('Section 2: Teacher Practices');
+    expect(r.text).not.toContain('Section 2: A.');
+    expect(r.text).toContain('D. Writing Skills');
     expect(r.text).toMatch(/D\. Interest & Motivation 8\/8/);
     expect(r.text).toMatch(/C\. Reading Skills 4\/8/);
     expect((r.html.match(/class="pbar"/g) || []).length).toBe(15);
