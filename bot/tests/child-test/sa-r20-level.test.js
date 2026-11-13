@@ -6,7 +6,8 @@
  * Per subject (Urdu ur., English en., Maths ma.): where the child reached (the last part of that subject the child
  * actually did, not skipped), the level (the highest rung whose cut-off is met, walking up in order and stopping at
  * the first unmet; pending while a spoken part is not scored yet), and why the subject stopped (no answer / the coach).
- * The level words and cut-offs are placeholders awaiting reviewer approval (sa/level.js).
+ * The level words and cut-offs are the ones sent for review (sa/level.js): story floor 20 words; maths Add, then
+ * Subtract and multiply, each half right.
  * OFF: saResults and saSessions answer exactly as before.
  */
 
@@ -56,11 +57,37 @@ const opts = { itemsOf: (id) => ITEMS[id] ?? null };
 const subjectOf = (out, s) => out.find((x) => x.subject === s);
 
 describe('sa/level.js (pure)', () => {
-  test('the vocabulary: reading Beginner → Letters → Words → Story → Understands; maths Beginner → Numbers → Comparing → Add & subtract → Multiply', () => {
+  test('the vocabulary: reading Beginner → Letters → Words → Story → Understands; maths Beginner → Numbers → Compare numbers → Add → Subtract and multiply', () => {
     expect(level.LADDERS.reading.map((r) => r.level)).toEqual(['letters', 'words', 'story', 'comprehension']);
-    expect(level.LADDERS.maths.map((r) => r.level)).toEqual(['numbers', 'comparing', 'add_sub', 'multiply']);
+    expect(level.LADDERS.maths.map((r) => r.level)).toEqual(['numbers', 'comparing', 'add', 'sub_mul']);
     expect(level.BEGINNER).toBe('beginner');
-    expect(level.STORY_FLOOR_WORDS).toBe(10);
+    expect(level.STORY_FLOOR_WORDS).toBe(20);
+  });
+
+  test('the cut-offs as reviewed: every rung, its parts, its rule and its share', () => {
+    const table = (ladder) => ladder.map(({ level: l, parts, rule, share, min }) => [l, parts, rule, rule === 'floor' ? min : share]);
+    expect(table(level.LADDERS.reading)).toEqual([
+      ['letters', ['letter_names5', 'letter_sounds5'], 'any', 0.8],
+      ['words', ['words4'], 'pooled', 0.75],
+      ['story', ['story_w3'], 'floor', 20],
+      ['comprehension', ['story_comp_w3'], 'pooled', 0.5],
+    ]);
+    expect(table(level.LADDERS.maths)).toEqual([
+      ['numbers', ['number_id8'], 'pooled', 0.75],
+      ['comparing', ['discrimination2', 'missing4'], 'pooled', 0.75],
+      ['add', ['add2i'], 'pooled', 0.5],
+      ['sub_mul', ['sub2i', 'mul2i'], 'pooled', 0.5],
+    ]);
+  });
+
+  test('story: 19 correct words is under the floor (Words), 20 reaches Story', () => {
+    const upTo = (words) => [
+      spoken('en.letter_names5', grid(5, 5)), spoken('en.words4', grid(4, 4)),
+      spoken('en.story_w3', { correct: words, attempted: words + 2, per_minute: words, seconds_used: 60 }),
+      spoken('en.story_comp_w3', questions(1, 6)),
+    ];
+    expect(subjectOf(level.levelsOf(upTo(19), [], opts), 'en').level).toBe('words');
+    expect(subjectOf(level.levelsOf(upTo(20), [], opts), 'en').level).toBe('story');
   });
 
   test('Urdu: letters met (4/5), words met (3/4), story under the floor → Words; reached is the last part done', () => {
@@ -92,16 +119,24 @@ describe('sa/level.js (pure)', () => {
     expect(subjectOf(level.levelsOf(early, [], opts), 'en')).toMatchObject({ level: null, pending: true, reached: { taskId: 'en.letter_sounds5' } });
   });
 
-  test('maths: numbers 6/8, comparing + missing 5/6 pooled, add + sub 2/4 → Comparing', () => {
+  test('maths: numbers 6/8, comparing + missing 5/6 pooled, add 1/2, subtract + multiply 2/4 pooled → Subtract and multiply', () => {
     const rows = [
       spoken('ma.number_id8', { correct: 6, of: 8 }),
       tap('ma.discrimination2', 2, 2),
       tap('ma.missing4', 3, 4),
       spoken('ma.add2i', { correct: 1, of: 2 }),
-      spoken('ma.sub2i', { correct: 1, of: 2 }),
+      spoken('ma.sub2i', { correct: 0, of: 2 }),
       spoken('ma.mul2i', { correct: 2, of: 2 }),
     ];
-    expect(subjectOf(level.levelsOf(rows, [], opts), 'ma')).toMatchObject({ level: 'comparing', pending: false, reached: { taskId: 'ma.mul2i' } });
+    expect(subjectOf(level.levelsOf(rows, [], opts), 'ma')).toMatchObject({ level: 'sub_mul', pending: false, reached: { taskId: 'ma.mul2i' } });
+  });
+
+  test('maths: add half right but subtract + multiply 1/4 pooled → Add; add 0/2 stops at Compare numbers whatever comes after', () => {
+    const base = [spoken('ma.number_id8', { correct: 8, of: 8 }), tap('ma.discrimination2', 2, 2), tap('ma.missing4', 4, 4)];
+    const add = [...base, spoken('ma.add2i', { correct: 1, of: 2 }), spoken('ma.sub2i', { correct: 1, of: 2 }), spoken('ma.mul2i', { correct: 0, of: 2 })];
+    expect(subjectOf(level.levelsOf(add, [], opts), 'ma')).toMatchObject({ level: 'add', pending: false });
+    const noAdd = [...base, spoken('ma.add2i', { correct: 0, of: 2 }), spoken('ma.sub2i', { correct: 2, of: 2 }), spoken('ma.mul2i', { correct: 2, of: 2 })];
+    expect(subjectOf(level.levelsOf(noAdd, [], opts), 'ma')).toMatchObject({ level: 'comparing', pending: false });
   });
 
   test('skipped parts are not "reached"; a skipped rung is unmet', () => {

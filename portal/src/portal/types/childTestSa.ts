@@ -136,8 +136,8 @@ export type SaTaskResult = {
   secondVoice?: boolean;
 };
 
-/** Round 20 level vocabulary (placeholders awaiting reviewer approval): reading and maths ladders, plus Beginner. */
-export type SaLevel = "beginner" | "letters" | "words" | "story" | "comprehension" | "numbers" | "comparing" | "add_sub" | "multiply";
+/** Round 20 level vocabulary (as sent for review): reading and maths ladders, plus Beginner. */
+export type SaLevel = "beginner" | "letters" | "words" | "story" | "comprehension" | "numbers" | "comparing" | "add" | "sub_mul";
 
 /**
  * Round 20 (server switch sa_r20_level): one subject's line. `reached` is the last part the child did (not skipped);

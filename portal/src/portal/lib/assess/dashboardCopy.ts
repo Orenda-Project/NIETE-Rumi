@@ -45,7 +45,7 @@ const en = {
   colOrf: 'WPM',
   colZero: 'Zero',
   colMaths: 'Maths',
-  // round 20: the row's typical level per subject (level words: copy.ts results.level, placeholders)
+  // round 20: the row's typical level per subject (level words: copy.ts results.level)
   colLevel: { ur: 'Urdu level', en: 'English level', ma: 'Maths level' } as Record<'ur' | 'en' | 'ma', string>,
   readingTasks: (l: string) => `${l} reading, task by task`,
   mathsTasks: 'Maths, task by task',
