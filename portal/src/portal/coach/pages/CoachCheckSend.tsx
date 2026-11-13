@@ -86,7 +86,7 @@ function SheetRow({ icon, label, onClick }: { icon: ReactNode; label: string; on
 // bd-snkn32.41 — a plan she made herself says so, and names its chapter.
 const planSub = (p: ObserveRecentPlan, C: ObserveCopy) => {
   const own = isOwnPlan(p);
-  return [own ? C.madeByHer : null, p.grade != null ? C.grade(Number(p.grade)) : null, p.subject,
+  return [own ? C.madeByTeacher : null, p.grade != null ? C.grade(Number(p.grade)) : null, p.subject,
     own && p.chapterNumber != null ? C.chapterN(p.chapterNumber) : null].filter(Boolean).join(" · ");
 };
 
