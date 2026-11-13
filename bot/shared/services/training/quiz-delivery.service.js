@@ -90,6 +90,7 @@ const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const MAX_OPTIONS = 10;         // WhatsApp interactive list row cap
 const OPTION_DESC_MAX = 72;     // WhatsApp row description length cap
 const { COOLDOWN_HOURS, cooldownUntilFor, retryLine } = require('./retry-cooldown.rules');
+const { levelLabel } = require('./level-label.rules');
 
 // ─── Multi-answer delivery surface ─────────────────────────────────────────
 //
@@ -721,7 +722,7 @@ async function startGrandQuiz(userId, levelOrder, phoneNumber) {
   const needed = Math.ceil((passPct / 100) * totalQuestions);
   await WhatsAppService.sendMessage(
     phoneNumber,
-    `🎓 *Level ${level.order_index + 1} · ${level.name} — Grand Quiz*\n\n` +
+    `🎓 *${levelLabel(level, level.name)} — Grand Quiz*\n\n` +
     `${totalQuestions} questions · You need *${passPct}% to pass* (${needed} of ${totalQuestions}).\n` +
     `If you fail, there's a ${COOLDOWN_HOURS}-hour cooldown before your next attempt.\n\n` +
     `Answer each question by tapping an option below.`

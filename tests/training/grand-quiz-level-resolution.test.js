@@ -200,3 +200,17 @@ describe('bd-2393 — the pass bar shown to the teacher', () => {
     expect(said).toMatch(/80%/);
   });
 });
+
+// bd-r2uzg1.10 — the exam intro numbers the level the way its certificate
+// does (CPD-LEVEL-2 SKILLED PRACTITIONER) and the training Flow does (bd-2235),
+// not order_index + 1.
+describe('bd-r2uzg1.10 — the exam intro names the level by its certificate number', () => {
+  test('Skilled Practitioner (order_index 2) is announced as Level 2', async () => {
+    seed();
+    await QuizDelivery.startGrandQuiz(UID, 3, PHONE);
+
+    const said = whatsappSend.mock.calls.map(c => String(c[1])).join('\n');
+    expect(said).toContain('Level 2 · Skilled Practitioner — Grand Quiz');
+    expect(said).not.toMatch(/Level 3 · Skilled Practitioner/);
+  });
+});
