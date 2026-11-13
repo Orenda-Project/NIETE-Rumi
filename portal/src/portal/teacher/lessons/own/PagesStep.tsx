@@ -30,7 +30,12 @@ export function PagesStep({ C, plans, seg, next, start, ext, onPick, onClear, on
   useEffect(() => { if (seg) top.current?.scrollIntoView?.({ block: 'start' }); }, [seg]);
 
   if (!seg) {
-    return <RadioList label={k5 ? C.day : C.whichLesson} items={plans.map((l) => ({ key: l.id, label: name(l), subtitle: l.pages ?? undefined }))} value={null} onPick={onPick} />;
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-[13px] text-[#6b7280]" data-testid="own-pick-hint">{C.pickHint}</p>
+        <RadioList label={k5 ? C.day : C.whichLesson} items={plans.map((l) => ({ key: l.id, label: name(l), subtitle: l.pages ?? undefined }))} value={null} onPick={onPick} />
+      </div>
+    );
   }
   const valid = (f: string, t: string) => !!checkBand(k5, f, t, lesson, nextPages);
   const typed = (f: string, t: string) => { const p = checkBand(k5, f, t, lesson, nextPages); setRange(p); onPages(p); };
