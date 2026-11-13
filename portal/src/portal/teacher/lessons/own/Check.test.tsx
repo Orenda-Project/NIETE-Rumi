@@ -26,7 +26,7 @@ describe('Check', () => {
     expect(t).toContain('Textbook, Lab things or models');
     expect(t.split('Exam practice (FDE)')).toHaveLength(3);
     expect(t).not.toContain('Exam-paper');
-    expect(t).toContain('Where is your class on these pages?');
+    expect(t).toContain('What level is your class at?');
     expect(t).toContain(OWN_COPY.grrLine);
   });
   it('Grade 4: Children, no purpose row, the day label', () => {
