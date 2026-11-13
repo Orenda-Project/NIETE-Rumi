@@ -279,6 +279,8 @@ function sloBlock(slos) {
 • This paper covers only these skills:
 ${list}
 • Every question must test one of these skills and carry \`"slo": "<code>"\` with that skill's code. Do not write a question about the chapter's story or about anything that is not one of these skills
+• Ask at least one question on every skill above, spreading the questions across all of them; a skill the book shows with pictures is asked in words, or ask the child to draw or match on the answer sheet
+• Never copy a worked example from the pages: use new numbers, names and objects for the same skill
 • The counts in this message override any counts in the instructions`;
 }
 
