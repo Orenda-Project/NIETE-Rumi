@@ -33,6 +33,8 @@ const r2 = require('../../shared/storage/r2');
 const SourceStore = require('../../shared/services/quiz/lp-asset-source.store');
 const uploader = require('../../scripts/upload-lp-v8-to-r2');
 
+// Shaped like a real PDF: the uploader refuses empty / non-PDF buffers (bd-c2iiq3).
+const PDF_BYTES = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(2000, 0x20)]);
 const LESSON = 'grade_1_english_ch1_seg1';           // present in bot/data/lp_catalog.json
 const STAMP = 'v8';
 const SCRIPT = {
@@ -69,7 +71,7 @@ function renderTree({ withScript = true, badScript = false, lessonId = LESSON } 
   const outDir = path.join(root, 'out', 'v8');
   fs.mkdirSync(outDir, { recursive: true });
   const pdfPath = path.join(outDir, `${lessonId}.pdf`);
-  fs.writeFileSync(pdfPath, Buffer.from('%PDF-1.5 not a real pdf, gs will decline it\n'));
+  fs.writeFileSync(pdfPath, Buffer.from('%PDF-1.5 not a real pdf, gs will decline it\n'.padEnd(2048, ' ')));
   if (withScript) {
     fs.mkdirSync(path.join(outDir, lessonId), { recursive: true });
     fs.writeFileSync(
@@ -118,7 +120,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem(),
       plan: { action: 'first', upload: true, supersede: [], r2_key: `lp-cache/v8/${LESSON}/abc123def456.pdf` },
       hash: 'abc123def456',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: true,
@@ -149,7 +151,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem(),
       plan: { action: 'reinstate', upload: false, reinstate: 'asset-old', supersede: ['asset-current'], r2_key: 'k' },
       hash: 'old99hash99',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: true,
@@ -167,7 +169,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem(),
       plan: { action: 'first', upload: true, supersede: [], r2_key: 'k' },
       hash: 'abc123def456',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: true,
@@ -186,7 +188,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem(),
       plan: { action: 'first', upload: true, supersede: [], r2_key: 'k' },
       hash: 'abc123def456',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: true,
@@ -204,7 +206,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem({ asset_kind: 'answer_key', pdf_path: `out/v8/${LESSON}.answer_key.pdf` }),
       plan: { action: 'first', upload: true, supersede: [], r2_key: 'k' },
       hash: 'key777hash77',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: true,
@@ -220,7 +222,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem(),
       plan: { action: 'first', upload: true, supersede: [], r2_key: 'k' },
       hash: 'abc123def456',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: false,
@@ -239,7 +241,7 @@ describe('persistAssetRow — the asset row and its quiz source are written toge
       item: baseItem(),
       plan: { action: 'first', upload: true, supersede: [], r2_key: 'k' },
       hash: 'abc123def456',
-      buffer: Buffer.from('pdf-bytes'),
+      buffer: PDF_BYTES,
       sourceBytes: 42,
       pdfPath: t.pdfPath,
       commit: true,
