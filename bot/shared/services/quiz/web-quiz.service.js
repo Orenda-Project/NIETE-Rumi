@@ -1914,7 +1914,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...vs,
     // The signed ids of the pictures this child can share (web-quiz-art.js).
-    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classArt ? Art.artId('l', s.id) : null,
+    // A teacher's own run (user_id set) has no card: web-quiz-art refuses it, so its id could never draw (bd-ehz254.14).
+    art: { card: s.user_id ? null : Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classArt ? Art.artId('l', s.id) : null,
       // The class picture (nobody named) the shared table link /q/<CODE>/class previews as: getQuiz's art.class.
       table: classArt ? Art.artId('l', classCode) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
