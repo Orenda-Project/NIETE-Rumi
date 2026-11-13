@@ -63,7 +63,9 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 13 (the Whole battery's move-on rule): one row, its value read by two readers (MATCH)
   'r13WholeStopAll', 'r13WholeStopEarly',
   // round 13b (spoken questions: N unanswered in a row end the subject): one row, its value read by four readers (MATCH)
-  'r13OralRule2', 'r13OralRule3', 'r13OralRule4', 'r13OralRule5'];
+  'r13OralRule2', 'r13OralRule3', 'r13OralRule4', 'r13OralRule5',
+  // round 20 (silent letter/word parts: N in a row end the subject): one row, three readers (MATCH); End this section in RDF auto
+  'r20SilenceStop1', 'r20SilenceStop2', 'r20SilenceStop3', 'r20AutoEndSection'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {

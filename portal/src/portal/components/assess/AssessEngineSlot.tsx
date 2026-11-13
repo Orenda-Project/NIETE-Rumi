@@ -38,6 +38,8 @@ type Props = {
   endTestRestart?: boolean;
   /** sa_end_section (round 7b): RDF manual shows End this section (sa:end_section to the engine; the test goes on). */
   endSection?: boolean;
+  /** sa_r20_auto_end_section (round 20): with endSection, End this section in RDF auto too. */
+  autoEndSection?: boolean;
 };
 
 export function playUrl(s: string, grade: number, lang: Lang, block: Block, firstName: string): string {
@@ -98,7 +100,7 @@ export function HoldButton({ label, hint, onDone, compact = false, disabled = fa
   );
 }
 
-export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false, voiceGateV2 = false, endTestRestart = false, endSection = false }: Props) {
+export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false, voiceGateV2 = false, endTestRestart = false, endSection = false, autoEndSection = false }: Props) {
   const copy = COPY[lang];
   const frame = useRef<HTMLIFrameElement>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -135,7 +137,7 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
 
   // Round 7b: the coach's question before End test (sa_end_test_restart) or End this section (sa_end_section, RDF manual)
   const [ask, setAsk] = useState<'end' | 'section' | null>(null);
-  const sectionButton = endSection && block === 'rdf_manual';
+  const sectionButton = endSection && (block === 'rdf_manual' || (autoEndSection && block === 'rdf_auto'));
   const endSectionNow = () => {
     setAsk(null);
     try {

@@ -57,6 +57,8 @@ export type SaSwitches = {
   endTestRestart?: boolean;
   /** sa_end_section: coach-led (RDF manual) End this section skips to the next section */
   endSection?: boolean;
+  /** sa_r20_auto_end_section: End this section in RDF auto too (with endSection) */
+  r20AutoEndSection?: boolean;
   /** sa_dash_filters: the dashboard's mode / date / coach filters and every skip and stop by type and coach */
   dashFilters?: boolean;
   /** sa_cwpm: every words-per-minute number is labelled CWPM (correct words per minute), with its formula */
