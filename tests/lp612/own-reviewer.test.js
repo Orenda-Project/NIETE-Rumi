@@ -101,3 +101,21 @@ test('a model failure, an unreadable reply or a missing plan leaves the score nu
     expect(deps.log).toHaveBeenCalled();
   }
 });
+
+test('bd-snkn32.42: a grades 1-5 row is reviewed as G1-5: 2I and 1D stored null, the prompt names the script parts', async () => {
+  const k5 = { ...READY, segment_id: null, lesson_id: 'G3_eng_ch2_d1', r2_key: 'lp612/own-k5/en/g3/h.pdf' };
+  const { reviewer, patches, create } = harness({
+    selectRow: jest.fn(async () => k5),
+    create: jest.fn(async () => reply(4, { '2I': 1, '1D': 2 })),
+  });
+  await reviewer.review('own-1');
+  expect(create.mock.calls[0][0].messages[0].content).toMatch(/iDo/);
+  expect(patches[0].review_items).toMatchObject({ '2I': null, '1D': null });
+  expect(patches[0]).toMatchObject({ review_pass: true, review_score: 100 });
+});
+
+test('bd-snkn32.42: a 6-12 row keeps 2I and 1D as rated', async () => {
+  const { reviewer, patches } = harness({ create: jest.fn(async () => reply(4, { '1D': 2 })) });
+  await reviewer.review('own-1');
+  expect(patches[0].review_items['1D']).toBe(2);
+});
