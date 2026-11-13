@@ -6,7 +6,7 @@ import { childTestSa } from '../services/api';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
 import { isWordsTask } from '../lib/assess/cwpm';
 import { useUrFit } from '../lib/assess/urFit';
-import type { SaResults, SaTaskResult } from '../types/childTestSa';
+import type { SaResults, SaSubjectLevel, SaTaskResult } from '../types/childTestSa';
 
 /**
  * One Learning assessment session's results (/portal/leader/assess/results/:sessionId), read only.
@@ -148,6 +148,23 @@ export default function LeaderAssessResults() {
     );
   };
 
+  // round 20 (server switch sa_r20_level): per subject how far the child reached, the level and why it stopped; only when
+  // the answer carries `levels`
+  const lv = r.level;
+  const levelLine = (l: SaSubjectLevel) => {
+    const reached = l.reached ? (l.reached.title?.[lang] || l.reached.taskId) : lv.nothing;
+    const word = l.level ? lv.words[l.level] || l.level : null;
+    const level = !word ? lv.waiting : l.pending ? `${word} (${lv.more})` : word;
+    return (
+      <li key={l.subject} data-testid={`result-level-${l.subject}`} className="py-2">
+        <p className="font-semibold text-slate-900">{lv.subjects[l.subject] || l.subject}</p>
+        <p className="text-sm text-slate-800">{lv.reached}: <bdi>{reached}</bdi></p>
+        <p className="text-sm text-slate-800">{lv.level}: {level}</p>
+        {l.stop && lv.stops[l.stop] ? <p className="text-sm text-amber-800">{lv.stops[l.stop]}</p> : null}
+      </li>
+    );
+  };
+
   let content: JSX.Element;
   if (load.kind === 'loading') content = <p className="text-slate-600">{copy.loading}</p>;
   else if (load.kind === 'off') content = <p className="text-slate-700">{r.notAvailable}</p>;
@@ -177,6 +194,12 @@ export default function LeaderAssessResults() {
           {whenIn(lang, s.endedAt) && <Row label={r.ended} value={whenIn(lang, s.endedAt) as string} />}
           {s.lang && <Row label={r.language} value={r.langs[s.lang]} />}
         </dl>
+        {Array.isArray(load.data.levels) && load.data.levels.length > 0 && (
+          <section data-testid="results-levels" aria-label={lv.title} className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <h2 className="mb-1 font-semibold text-emerald-900">{lv.title}</h2>
+            <ul className="divide-y divide-emerald-100">{load.data.levels.map(levelLine)}</ul>
+          </section>
+        )}
         {voices > 0 && <p data-testid="results-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{r.secondVoiceNote(numIn(lang, voices), voices === 1)}</p>}
         <div className="rounded-2xl border border-sky-200 bg-sky-50">
           <button type="button" aria-expanded={howOpen} onClick={() => setHowOpen((o) => !o)}
