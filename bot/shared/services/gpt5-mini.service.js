@@ -2027,6 +2027,13 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     const rubric = analysisData.scores && analysisData.scores.rubric;
     if (rubric !== undefined) enhancedAnalysis.scores = { ...(enhancedAnalysis.scores || {}), rubric };
   }
+  // bd-ra8xu.52: a self-recording reported on FICO17 v6 (fico_dc_rubric 'v6') keeps its v6 record exactly as the first
+  // pass wrote it: the OECD-shaped enhance pass sees it and may echo or rewrite any of it. V3 analyses never have these.
+  if (analysisData && analysisData.framework === 'fico17_v6') {
+    for (const key of ['levels', 'combined_evidence', 'rubric', 'prompt_version', 'transcript_quality', 'v3_fico', 'dc', 'shadow']) {
+      if (analysisData[key] !== undefined) enhancedAnalysis[key] = analysisData[key];
+    }
+  }
   return enhancedAnalysis;
 };
 
