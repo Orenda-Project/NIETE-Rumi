@@ -5619,6 +5619,16 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   review_model      TEXT,
   reviewed_at       TIMESTAMPTZ,
   library_eligible  BOOLEAN NOT NULL DEFAULT false,
+  -- V1.10.1: a person's check before listing (bd-snkn32.42); listed only when eligible AND approved
+  library_decision  TEXT CONSTRAINT niete_lp612_own_plans_library_decision_values
+                      CHECK (library_decision IS NULL OR library_decision IN ('approved', 'rejected')),
+  library_decided_by UUID REFERENCES users(id),
+  library_decided_at TIMESTAMPTZ,
+  library_reject_reason TEXT,
+  CONSTRAINT niete_lp612_own_plans_library_decision_who CHECK (
+    (library_decision IS NULL) = (library_decided_at IS NULL) AND (library_decision IS NULL) = (library_decided_by IS NULL)
+  ),
+  CONSTRAINT niete_lp612_own_plans_library_reason CHECK (library_reject_reason IS NULL OR library_decision = 'rejected'),
   CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1),
   CONSTRAINT niete_lp612_own_plans_edit_round CHECK (
     (parent_own_id IS NULL AND edit_round IS NULL AND edit_request IS NULL)
@@ -5637,6 +5647,12 @@ CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_library
   ON niete_lp612_own_plans (reviewed_at DESC) WHERE library_eligible;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_lp612_own_plans_round
   ON niete_lp612_own_plans (parent_own_id, edit_round) WHERE status <> 'failed';
+
+CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_shelf
+  ON niete_lp612_own_plans (segment_id, lesson_id) WHERE library_decision = 'approved';
+
+CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_review_queue
+  ON niete_lp612_own_plans (reviewed_at) WHERE library_eligible AND library_decision IS NULL;
 
 ALTER TABLE niete_lp612_own_plans ENABLE ROW LEVEL SECURITY;
 

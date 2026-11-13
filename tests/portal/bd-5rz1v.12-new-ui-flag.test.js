@@ -179,8 +179,9 @@ describe('GET /config — features.newUi', () => {
     expect(Object.keys(payload.features).sort()).toEqual([
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
       'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm',
+      'helpVideos',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
-      'lpMakeOwn',
+      'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
       'newUi',
       // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
       'principalApp', 'roleSwitch', 'schoolCard', 'selfObservation', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',

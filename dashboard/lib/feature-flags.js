@@ -208,20 +208,28 @@ const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
 const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 
 /**
- * bd-ik5e8j.4 — app_settings key for the teacher app's help videos (queue #85): the "?" on a feature's page, its tray,
- * and More → How to use. Read only with portal_teacher_v2 on. Same shape and rule as the keys above: true = everyone,
- * a list of users.id = a pilot, "teachers" = every teacher, absent / anything else / a failed read = off. Off, every
- * page is today's and GET /api/portal/help is 404.
- */
-const PORTAL_HELP_VIDEOS_KEY = 'portal_help_videos';
-
-/**
  * bd-snkn32 — app_settings key for "Make my own" lesson plan in the teacher app (Lesson Plans, grades 6-12): her class
  * answers rewrite the chapter's plan into a fork that is hers. Read only with portal_teacher_v2 on. Same shape and rule
  * as the keys above: true = everyone, a list of users.id = a pilot, "teachers" = every teacher, absent = off. Off, the
  * chapter page is today's and POST /api/portal/lp612/own is 404.
  */
 const PORTAL_LP_MAKE_OWN_KEY = 'portal_lp_make_own';
+
+/**
+ * bd-snkn32.42 — "Made by a teacher": the shelf of approved own plans on the chapter page, read like
+ * portal_lp_make_own (true / "teachers" / a list of users.id; with portal_teacher_v2 on). And the staff who approve a
+ * plan before it is listed: LIST-ONLY (read with isUserListedInFlag, like portal_role_switch), anything else nobody.
+ */
+const PORTAL_LP_OWN_SHELF_KEY = 'portal_lp_own_shelf';
+const PORTAL_LP_OWN_REVIEWERS_KEY = 'portal_lp_own_reviewers';
+
+/**
+ * bd-ik5e8j.4 — app_settings key for the teacher app's help videos (queue #85): the "?" on a feature's page, its tray,
+ * and More → How to use. Read only with portal_teacher_v2 on. Same shape and rule as the keys above: true = everyone,
+ * a list of users.id = a pilot, "teachers" = every teacher, absent / anything else / a failed read = off. Off, every
+ * page is today's and GET /api/portal/help is 404.
+ */
+const PORTAL_HELP_VIDEOS_KEY = 'portal_help_videos';
 
 /**
  * bd-33wxxi.1 — the PRINCIPAL app, per user: app_settings key that puts a principal (users.role principal) on the
@@ -575,6 +583,7 @@ module.exports = {
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
   readUserMapFlag,
   isAnalyticsOnlyUser,
+  isUserListedInFlag,
   PORTAL_ROLE_SWITCH_KEY,
   ROLE_SWITCH_ROLES,
   isRoleSwitchUser,
@@ -594,8 +603,10 @@ module.exports = {
   PORTAL_COACH_FULL_APP_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
-  PORTAL_HELP_VIDEOS_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
+  PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_REVIEWERS_KEY,
+  PORTAL_HELP_VIDEOS_KEY,
   PORTAL_PRINCIPAL_APP_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,

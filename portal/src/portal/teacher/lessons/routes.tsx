@@ -2,6 +2,7 @@ import type { TeacherRoute } from '../routes';
 import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_OWN, LESSONS_VIEWER } from './paths';
 import { lazyPage as page } from '@/lib/lazyPage';
 import { LESSONS_CHANGE } from './own/change';
+import { LESSONS_CHECK } from './shelf/flag';
 
 // bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
 const ChaptersPage = page(() => import('./ChaptersPage').then((m) => ({ default: m.ChaptersPage })));
@@ -14,6 +15,7 @@ const PreparingPage = page(() => import('./PreparingPage').then((m) => ({ defaul
 const ViewerPage = page(() => import('./ViewerPage').then((m) => ({ default: m.ViewerPage })));
 const OwnPage = page(() => import('./own/OwnPage').then((m) => ({ default: m.OwnPage })));
 const ChangePage = page(() => import('./own/ChangePage').then((m) => ({ default: m.ChangePage })));
+const ReviewPage = page(() => import('./shelf/ReviewPage').then((m) => ({ default: m.ReviewPage })));
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main
@@ -37,6 +39,8 @@ const routes: TeacherRoute[] = [
   { path: LESSONS_OWN, element: <OwnPage /> },
   // bd-snkn32.15 — Change this plan: hers too.
   { path: LESSONS_CHANGE, element: <ChangePage /> },
+  // bd-snkn32.42 — the staff check before a teacher's plan is listed (only for portal_lp_own_reviewers; 404 for the rest).
+  { path: LESSONS_CHECK, element: <ReviewPage />, leaders: true },
 ];
 
 export default routes;

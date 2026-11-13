@@ -42,6 +42,25 @@ const CHECKS = [
 ].map(([id, name]) => ({ id, name }));
 const IDS = new Set(CHECKS.map((c) => c.id));
 
+/**
+ * bd-snkn32.42 — the 6-12 universal criteria fitted to a grades 1-5 own plan (a slide script: hook / iDo / weDo /
+ * youDo / wrap). Two checks cannot be shown by that script and are null (left out of the score), never scored low:
+ * 2I visual aids (the script carries no picture) and 1D textbook alignment (no book text is given to the reviewer).
+ */
+const NOT_ASSESSABLE_K5 = ['1D', '2I'];
+const K5_GUIDE = '\n\nTHIS IS A GRADES 1-5 PLAN, a slide script. Read its parts as the rubric parts: hook = 0B Hook '
+  + '(warmUp is the 2L warm-up recall); iDo = 0C Explanation (the teacher models); weDo and youDo = 0D Practice (guided, '
+  + `then independent); wrap = 0E Conclusion (exit options, reteach, homework). Rate ${NOT_ASSESSABLE_K5.join(' and ')} `
+  + 'null: this script carries no pictures and no book text is given.';
+
+/** Pure: a G1-5 plan's ratings with the checks its script cannot show set to null; 6-12 unchanged. */
+function applyBand(items, band) {
+  if (band !== 'k5' || !items) return items;
+  const out = { ...items };
+  for (const id of NOT_ASSESSABLE_K5) out[id] = null;
+  return out;
+}
+
 /** Points over 4 per rated check, as a %; a null (not assessable) is left out of both. */
 function judgePct(items) {
   const rated = Object.values(items || {}).filter((r) => Number.isInteger(r));
@@ -82,12 +101,13 @@ function parseReview(content) {
   return Object.keys(out).length ? out : null;
 }
 
-function reviewMessages({ plan, lang = 'en' }) {
+function reviewMessages({ plan, lang = 'en', band = 'g612' }) {
   const list = CHECKS.map((c) => `${c.id} ${c.name}`).join('\n');
   const system = 'You review one classroom lesson plan written for a teacher in Pakistan. Rate each check below on '
     + '1-4: 1 missing, 2 partly there, 3 meets the standard, 4 exemplary. Use null only when the plan itself '
     + 'cannot show the check. Judge only what is written in the plan. Be strict: a 4 must be earned.\n\n'
-    + `CHECKS:\n${list}\n\nReply with JSON only: {"checks":[{"id":"0A","rating":3}, ...]} with every check id once.`;
+    + `CHECKS:\n${list}\n\nReply with JSON only: {"checks":[{"id":"0A","rating":3}, ...]} with every check id once.`
+    + (band === 'k5' ? K5_GUIDE : '');
   const body = typeof plan === 'string' ? plan : JSON.stringify(plan);
   return [
     { role: 'system', content: system },
@@ -95,4 +115,6 @@ function reviewMessages({ plan, lang = 'en' }) {
   ];
 }
 
-module.exports = { gateV2, judgePct, parseReview, reviewMessages, CHECKS, KEY_CHECKS, BAR, BAND };
+module.exports = {
+  gateV2, judgePct, parseReview, reviewMessages, applyBand, NOT_ASSESSABLE_K5, CHECKS, KEY_CHECKS, BAR, BAND,
+};
