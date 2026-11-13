@@ -152,10 +152,13 @@ function stamp(tree, slots, stampSlo) {
 }
 
 /** A stimulus node as eg.format.secondary writes it ({stimulus: "<text>", items|parts}) in the tree's shape. */
-function groupOf(q) {
+function groupOf(q, slot) {
   if (typeof q.stimulus !== 'string') return q;
   const { stimulus, items, ...rest } = q;
-  return { ...rest, stimulus: Array.isArray(items) ? { text: stimulus, items } : { text: stimulus } };
+  if (Array.isArray(items)) return { ...rest, stimulus: { text: stimulus, items } };
+  // bd-qyi45h.14: in a stimulus slot the group's questions are its members, however the reply names them
+  if (slot && slot.stimulus && Array.isArray(rest.parts)) { const { parts, ...r } = rest; return { ...r, stimulus: { text: stimulus, items: parts } }; }
+  return { ...rest, stimulus: { text: stimulus } };
 }
 
 /**
@@ -171,7 +174,9 @@ function fromReply(reply, slots) {
     const list = reply[s.slot];
     if (!Array.isArray(list)) return;
     const cat = (unseen[s.category] = unseen[s.category] || {});
-    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q), slot: s.slot })));
+    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q, s), slot: s.slot }))
+          // bd-qyi45h.14: a loose question is not a passage; in a stimulus slot it would crowd real groups out of the trim
+          .filter((q) => !s.stimulus || isGroup(q)));
   });
   return { unseen };
 }
