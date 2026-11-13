@@ -268,7 +268,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false, endTestRestart: false, endSection: false, dashFilters: false, cwpm: false, r8OfflineFirst: false, r8OfflinePrep: false, r8FastStart: false, iosMic: false, rdfMicCheck: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false, endTestRestart: false, endSection: false, dashFilters: false, cwpm: false, r8OfflineFirst: false, r8OfflinePrep: false, r8FastStart: false, iosMic: false, rdfMicCheck: false, r20AutoEndSection: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });
