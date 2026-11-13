@@ -79,6 +79,22 @@ function lastNumber(text) {
   return T.parseNumber(all[all.length - 1].replace(/\s+/g, ''));
 }
 
+/**
+ * bd-qyi45h.10: every answer the key states on its final line — the last number plus each number right after an
+ * "=" ("Solution: x = -3, y = 2", "Length = 24 feet, Width = 10 feet"). Earlier lines are working, not answers.
+ */
+function finalAnswers(text) {
+  const lines = String(text == null ? '' : text).split('\n').map((l) => l.trim()).filter(Boolean);
+  const last = (lines[lines.length - 1] || '').replace(/\^\s*[-+]?\d+(?:\.\d+)?/g, '');
+  const out = [];
+  const re = /=\s*(-?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?)/g;
+  let m;
+  while ((m = re.exec(last))) { const n = T.parseNumber(m[1].replace(/\s+/g, '')); if (n !== null && Number.isFinite(n)) out.push(n); }
+  const tail = lastNumber(last);
+  if (tail !== null) out.push(tail);
+  return out;
+}
+
 function keyText(item) {
   if (!Array.isArray(item.options)) return String(item.answer == null ? '' : item.answer);
   const k = T.keyIndex(item);
@@ -98,7 +114,8 @@ function run(examJson) {
     const k = text == null ? null : lastNumber(text);
     if (k === null) { push('UNRESOLVED', 'the key has no single readable number', false); return; }
     const sig = Number.isInteger(item.calc.sig) ? item.calc.sig : LIMITS.defaultSig;
-    if (roundSig(v, sig) !== roundSig(k, sig)) push('NUMERIC_MISMATCH', `calc gives ${roundSig(v, sig)}, the key says ${roundSig(k, sig)}`, true);
+    const stated = [k, ...finalAnswers(text)];
+    if (!stated.some((n) => roundSig(v, sig) === roundSig(n, sig))) push('NUMERIC_MISMATCH', `calc gives ${roundSig(v, sig)}, the key says ${roundSig(k, sig)}`, true);
     const unit = String(item.calc.unit || '').trim();
     if (unit && !T.fold(text).includes(T.fold(unit))) push('UNIT_MISSING', `the key does not carry the unit "${unit}"`, false);
   });
