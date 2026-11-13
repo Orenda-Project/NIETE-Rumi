@@ -117,6 +117,14 @@
  *                           nobody pressing "I've answered" / Next. No row, 1 or anything else: OFF (today: one is enough).
  *                           The engine applies it wherever the move-on rule runs (sa-core.js opts.oral_in_a_row).
  *
+ *   Round 20 (the Urdu reviewer, 13 Nov: a child silent through a section moves on to the next subject), ONE app_settings
+ *   row holding an integer N, read by three readers (r20SilenceStop1..3, MATCH), so N is a data change:
+ *   sa_r20_silence_stop     N (1 to 3, a number or its string): battery.ui.r20_silence_stop = N. RDF auto: N silent Urdu or
+ *                           English letter/word parts in a row (each after its one reminder and repeat) end the subject
+ *                           (sa-core.js opts.silence_in_a_row). No row, 0 or anything else: OFF.
+ *   sa_r20_auto_end_section battery.ui.r20_auto_end_section = true: the coach's End this section (sa_end_section) works in
+ *                           RDF auto too.
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -155,6 +163,9 @@ const SWITCHES = {
   r13WholeStopAll: 'sa_r13_whole_stop', r13WholeStopEarly: 'sa_r13_whole_stop',
   // round 13b: one row, four readers (MATCH); the value is N
   r13OralRule2: 'sa_r13_oral_rule', r13OralRule3: 'sa_r13_oral_rule', r13OralRule4: 'sa_r13_oral_rule', r13OralRule5: 'sa_r13_oral_rule',
+  // round 20: one row, three readers (MATCH); the value is N. And the coach's End this section in RDF auto
+  r20SilenceStop1: 'sa_r20_silence_stop', r20SilenceStop2: 'sa_r20_silence_stop', r20SilenceStop3: 'sa_r20_silence_stop',
+  r20AutoEndSection: 'sa_r20_auto_end_section',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
 const R13_ALL = (v) => v === true || v === 'all';
@@ -162,8 +173,11 @@ const R13_EARLY = (v) => v === 'early';
 /** sa_r13_oral_rule's value → ON for exactly N (a whole number 2..5, or its string). */
 const ORAL_N = [2, 3, 4, 5];
 const oralIs = (n) => (v) => v === n || v === String(n);
+/** sa_r20_silence_stop's value → ON for exactly N (a whole number 1..3, or its string). */
+const SILENCE_N = [1, 2, 3];
 const MATCH = { r13WholeStopAll: R13_ALL, r13WholeStopEarly: R13_EARLY,
-  ...Object.fromEntries(ORAL_N.map((n) => [`r13OralRule${n}`, oralIs(n)])) };
+  ...Object.fromEntries(ORAL_N.map((n) => [`r13OralRule${n}`, oralIs(n)])),
+  ...Object.fromEntries(SILENCE_N.map((n) => [`r20SilenceStop${n}`, oralIs(n)])) };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
@@ -179,7 +193,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r9QuestionTime: 'r9_question_time', r9CompText: 'r9_comp_text', r9ScrollCue: 'r9_scroll_cue',
   r9SkipInstructions: 'r9_skip_instructions',
   r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit',
-  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once' };
+  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once',
+  r20AutoEndSection: 'r20_auto_end_section' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');
@@ -244,12 +259,15 @@ function applySwitches(input, on = {}) {
   // round 13b: how many spoken questions in a row left unanswered end the subject (the smallest N read ON)
   const oralN = ORAL_N.find((n) => on[`r13OralRule${n}`] === true) || null;
   if (oralN) ui.push('r13OralRule');
+  // round 20: how many silent letter/word parts in a row end the subject (the smallest N read ON)
+  const silenceN = SILENCE_N.find((n) => on[`r20SilenceStop${n}`] === true) || null;
+  if (silenceN) ui.push('r20SilenceStop');
   // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
   if (!ui.length) return applyR7a({ ...battery, tasks }, on);
   // round 7b, sa_silence_repeat: Jugnu's reminder line in the battery's own language
   const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
   const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
-  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => (k === 'r13WholeStop' ? ['r13_whole_stop', r13] : k === 'r13OralRule' ? ['r13_oral_rule', oralN] : [UI[k], true]))) } }, on);
+  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => (k === 'r13WholeStop' ? ['r13_whole_stop', r13] : k === 'r13OralRule' ? ['r13_oral_rule', oralN] : k === 'r20SilenceStop' ? ['r20_silence_stop', silenceN] : [UI[k], true]))) } }, on);
 }
 
 module.exports = { SWITCHES, MATCH, R13_ALL, R13_EARLY, applySwitches };

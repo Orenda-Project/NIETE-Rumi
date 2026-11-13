@@ -47,7 +47,9 @@
 // subject when a part is not finished).
 // sa-24: round 13b: sa-engine.js and sa-core.js (r13_oral_rule: a spoken part ends its subject only after N questions in a
 // row ran out unanswered).
-var VERSION = 'sa-24';
+// sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
+// auto; r20_auto_end_section: the coach's End this section in RDF auto too).
+var VERSION = 'sa-25';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

@@ -34,6 +34,8 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           // round 7b: the coach's End test as a tap + Restart test; RDF manual's End this section
           endTestRestart: s.endTestRestart === true,
           endSection: s.endSection === true,
+          // round 20: End this section in RDF auto too
+          r20AutoEndSection: s.r20AutoEndSection === true,
           // round 8: the microphone check on an iPhone
           iosMic: s.iosMic === true,
           // round 12: the RDF rows' microphone note opens the check again
