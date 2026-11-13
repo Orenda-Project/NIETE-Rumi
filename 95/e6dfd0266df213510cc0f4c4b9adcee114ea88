@@ -2,3 +2,4 @@
 {"ts":"2026-11-13T16:08:59Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"95e6dfd0266d","branch":"bd-ehz254.14-86014","user":""}
 {"ts":"2026-11-13T16:09:00Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"95e6dfd0266d","branch":"bd-ehz254.14-86014","user":""}
 {"ts":"2026-11-13T16:11:09Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (only a teacher's own web-quiz preview run stops getting a share-card id that never drew; nothing in training or on WhatsApp changes; covered by jest)","sha":"95e6dfd0266d","branch":"bd-ehz254.14-86014","user":""}
+{"ts":"2026-11-13T16:11:09Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"322dd4ff-4577-47fb-ba9b-7bcf00dd938a","sha":"95e6dfd0266d","branch":"bd-ehz254.14-86014","user":""}
