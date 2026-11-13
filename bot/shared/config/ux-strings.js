@@ -104,6 +104,17 @@ const UX_STRINGS = {
     en: 'Subject not confirmed — the language/subject-specific row was not scored.',
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
+
+  // bd-r2uzg1.12 (ICT sheet DC row 142, plan #10): follows Section B's why-line when the grader read the recording
+  // as a different lesson from the chosen plan (lesson-mismatch-note.js). Soft on purpose — the operator, 13 Nov:
+  // "I dont know how reliably we can tell if the lesson was mismatched." English is the operator's wording. Urdu:
+  // gender-neutral (نے past tense, subjunctive پڑھائیں, respectful کریں), no digits or Latin, so the RTL why-line has
+  // nothing to reorder; DRAFT for a native speaker's check. Never the word "app". A report line, not a WhatsApp field.
+  reportLpMismatchSoft: {
+    en: 'Perhaps the lesson plan you chose was for a different lesson? Next time, pick the plan for the lesson you are teaching.',
+    ur: 'شاید آپ نے جو لیسن پلان منتخب کیا تھا وہ کسی اور سبق کا تھا؟ اگلی بار اسی سبق کا لیسن پلان منتخب کریں جو آپ پڑھائیں۔',
+  },
+
   // ─── a grade her region has no books for (bd-97daxo.4, operator 6 Nov 2026) ───────────────────────
   // Gilgit-Baltistan names Grade 1-10 books only (ICT's books for 6-10, bd-qchgya), so a GB teacher who
   // picks Grade 11-12 (or a grade with no book on her list) is told so, instead of being handed the wrong
