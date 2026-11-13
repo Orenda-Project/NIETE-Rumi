@@ -31,6 +31,9 @@ const SENIOR = [...MIDDLE, 'past_paper'];
 const GRR_LINE = 'Keep I do, We do and You do, in that order; a way changes how a phase is taught, never removes it.';
 const ROTE_LINE = 'Never turn any part into rote drill: no repeat-after-me lists, copying or memorising word for word. '
   + 'Choral sound and word practice (phonics) is allowed and is not rote.';
+/** bd-snkn32.28 — You Do is independent practice: testers saw group work in You Do, so it read the same as We Do. */
+const YOU_DO_LINE = 'You Do is each child working alone in the book, so the teacher can check each child: no pair, group or '
+  + 'partner work in You Do. Pairs, groups and games belong in We Do. A two-level You Do gives each level its own task, still done alone.';
 
 const PURPOSES = {
   new: 'Lesson purpose: teach these pages for the first time. Build the ideas from what children already know.',
@@ -102,5 +105,5 @@ function purposeLine(purpose, grade) {
 
 module.exports = {
   purposesOfGrade, purposeLine, PURPOSE_FDE,
-  SECONDARY_WAYS, PURPOSES, GRR_LINE, ROTE_LINE, BOOK_MAX, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
+  SECONDARY_WAYS, PURPOSES, GRR_LINE, ROTE_LINE, YOU_DO_LINE, BOOK_MAX, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
 };

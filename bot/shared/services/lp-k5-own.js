@@ -18,7 +18,7 @@
  * text in it, is refused — the parent before the rewrite (the worker), the rewrite before it is printed (this gate).
  */
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
-const { GRR_LINE, ROTE_LINE, bookLine } = require('./lp612-own-ways');
+const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
 
 let jsonrepair = null;
@@ -32,6 +32,9 @@ const MAX_GROWTH = 1.3;
 
 /** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
 const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
+
+/** bd-snkn32.28 — pair or group work, in either language; "Group 1:" level labels (TaRL) are not group work. */
+const TOGETHER = /\b(?:in|into) (?:pairs|groups)\b|\bgroup work\b|\bpair work\b|\bwork together\b|\b(?:with|and) (?:a |your |their )?(?:partner|neighbou?r)s?\b|جوڑی|گروپ میں|گروہ میں|مل کر|ساتھی کے ساتھ/i;
 
 const isLanguage = (subject) => /^(urdu|english)\b/i.test(String(subject || '').trim());
 const isEarly = (grade) => Number(grade) >= 1 && Number(grade) <= 3;
@@ -63,13 +66,14 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   const lines = [
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}. Grade ${grade}.`,
     // bd-snkn32.27 — only what she has: no slates (ICT works in the book), the board only when she has one.
-    `Class size: with a big class use choral answers and fingers for the checks, and pairs${a.resources.includes('board') ? '; no activity needs every child to come to the board' : ''}.`,
+    `Class size: with a big class use choral answers and fingers for the checks, and pairs in We Do${a.resources.includes('board') ? '; no activity needs every child to come to the board' : ''}.`,
     `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
     MATERIALS_LINE,
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
     ways.length > 1
-      ? `Teaching ways, combined in We Do and You Do: ${ways.map((k) => WAYS[k]).join(' ')}`
-      : `Teaching way, for We Do and You Do: ${WAYS[a.way]}`,
+      ? `Teaching ways, combined in We Do: ${ways.map((k) => WAYS[k]).join(' ')}`
+      : `Teaching way, for We Do: ${WAYS[a.way]}`,
+    YOU_DO_LINE,
   ];
   if (ways.includes('tarl') && isLanguage(subject) && isEarly(grade)) {
     lines.push('Group the children by level: sound, letter, word and sentence groups.');
@@ -134,6 +138,10 @@ function checkK5Rewrite(orig, next, { lang, resources } = {}) {
   if (Array.isArray(resources) && !resources.includes('board')) {
     const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find((s) => BOARD.test(s));
     if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): use the book page instead`);
+  }
+  if (Array.isArray(resources)) {
+    const shared = strings(next.youDo || {}).find((s) => TOGETHER.test(s));
+    if (shared) reasons.push(`You Do has pair or group work ("${shared.slice(0, 60)}"): in You Do each child works alone; keep pairs and groups in We Do`);
   }
   if (lang === 'ur') {
     const said = SECTIONS.flatMap((k) => strings(next[k] || {})).filter((s) => s.trim().length > 12);

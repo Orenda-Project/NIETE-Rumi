@@ -10,7 +10,7 @@
  */
 
 const {
-  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
+  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
   purposesOfGrade, purposeLine,
 } = require('./lp612-own-ways');
 const { pagesLine612 } = require('./lp612-own-pages');
@@ -162,6 +162,7 @@ function buildOwnInstruction(answers, ctx) {
     'Every part still names the book page it uses. Every part has a quick check for understanding.',
     'Activities may go beyond the book but stay rooted in the page.',
     GRR_LINE,
+    YOU_DO_LINE,
     ROTE_LINE,
   ];
   if (secondary) lines.push(...secondaryLines(a, ctx || {}));
