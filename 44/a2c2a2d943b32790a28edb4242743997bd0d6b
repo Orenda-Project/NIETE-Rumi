@@ -3,3 +3,4 @@
 {"ts":"2026-11-13T06:49:50Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"44a2c2a2d943","branch":"bd-qyi45h.11-main","user":""}
 {"ts":"2026-11-13T06:49:52Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-qyi45h.11-main: E-DUPID:child-test","sha":"44a2c2a2d943","branch":"bd-qyi45h.11-main","user":""}
 {"ts":"2026-11-13T06:49:54Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.1.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"44a2c2a2d943","branch":"bd-qyi45h.11-main","user":""}
+{"ts":"2026-11-13T06:50:11Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"44a2c2a2d943","branch":"bd-qyi45h.11-main","user":""}
