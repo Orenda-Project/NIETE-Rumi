@@ -1531,6 +1531,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the coach chooses a ".doc" file, an image type other than JPG or PNG, or a file over 25 MB
     Then the screen shows "Not a plan file" or "File too large" with what is accepted, and nothing is attached
 
+  # bd-snkn32.41 — the teacher's own Make my own plans in "Their recent plans" on Check and send.
+  # Unit: tests/observe/bd-snkn32.41-coach-own-plans.test.js; portal CoachCheckSend.ownPlans.test.tsx.
+  @e2e @config-gated @P1
+  Scenario: A coach sends the observation with a plan the teacher made herself
+    Given a coach in the portal_coach_v2 pilot is on Check and send for a teacher who made a plan with Make my own
+    When the coach opens "Their recent plans"
+    Then the teacher's ready plan is listed beside her downloads as "Made by her" with its grade, subject and chapter
+    And a plan of hers that failed or is still being written, or another teacher's plan, is not listed
+    When the coach picks it and sends the observation
+    Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the lesson-plan part is scored from it
+
   # bd-fmf24g.66 — the plan the coach attached is read by a job that runs at the same time as the analysis.
   # Unit: tests/coaching/bd-fmf24g.66-late-plan-recompute.test.js (analysis-processor _recomputeIfPlanLanded).
   @e2e @config-gated @P1

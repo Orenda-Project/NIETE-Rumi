@@ -231,7 +231,7 @@ export const portal = {
    */
   startCoachingUpload: async (args: {
     key: string; lessonPlanKey?: string; photoKeys: string[];
-    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' } | { ownId: string };
     /** bd-fmf24g.9: the class she picked in the teacher app (grade 1–12 and her subject). */
     teacherClass?: { grade: number; subject: string; subjectKey?: string };
     /** bd-v0toag.31: what the live screen saw while she recorded; the bot validates it. */
@@ -668,6 +668,18 @@ export type RecentLessonPlan = {
   pagesLabel: string | null;
   downloadedAt: string | null;
 };
+/** bd-snkn32.41 — a plan the observed teacher made herself (Make my own), listed beside her downloads. */
+export type OwnRecentPlan = {
+  own: true;
+  ownId: string;
+  lessonId: string | null;
+  topic: string | null;
+  grade: string | number | null;
+  subject: string | null;
+  chapterNumber: string | number | null;
+  madeAt: string | null;
+};
+export type ObserveRecentPlan = RecentLessonPlan | OwnRecentPlan;
 export type LibraryLane = 'k5' | 'g612';
 export type LibraryGrade = { grade: number; lane: LibraryLane };
 export type LibraryOption = { key: string; label: string };
@@ -1201,7 +1213,7 @@ export const leader = {
   /** Start the observation of one teacher in her patch. A refusal rejects with err.response. */
   startObservation: async (args: {
     teacherExtId: string; schoolExtId?: string | null; key: string; lessonPlanKey?: string; photoKeys: string[];
-    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' } | { ownId: string };
     /** bd-ra8xu.40 — the class she named (asked only while FDE's tools are on for her). */
     lesson?: ObserveLesson;
   }): Promise<{ coachingSessionId: string }> => {
@@ -1215,8 +1227,8 @@ export const leader = {
     return response.data;
   },
 
-  /** HER recent plans — the teacher being observed. */
-  getObserveRecentPlans: async (teacherExtId: string, schoolExtId?: string | null): Promise<{ plans: RecentLessonPlan[] }> => {
+  /** HER recent plans — the teacher being observed: downloads and (bd-snkn32.41) the plans she made herself. */
+  getObserveRecentPlans: async (teacherExtId: string, schoolExtId?: string | null): Promise<{ plans: ObserveRecentPlan[] }> => {
     const response = await api.get('/leader/observe/recent-plans', {
       params: schoolExtId ? { teacherExtId, schoolExtId } : { teacherExtId },
     });
