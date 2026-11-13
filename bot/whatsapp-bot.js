@@ -2137,7 +2137,7 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         if (user?.id && await handleMediaTargetTap(listId, from, user)) return;
       }
 
-      if (/^lp_(select|upload|none)_/.test(listId)) {
+      if (/^lp_(select|upload|none|own)_/.test(listId)) {
         const { handleLpListSelection } = require('./shared/services/coaching/lp-coaching/lp-list-selection.handler');
         // R165: pass WHO tapped so lp_upload_ can record the media target.
         if (await handleLpListSelection(listId, from, { userId: user?.id })) return;

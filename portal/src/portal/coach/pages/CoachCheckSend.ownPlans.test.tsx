@@ -21,10 +21,11 @@ import CoachSending from "./CoachSending";
 import { setDraft, clearDraft } from "../observeDraft";
 import { resetSender } from "../observe/sender";
 import { noticeTracker } from "../../teacher/notices/tracker";
+import { OBSERVE_COPY, OBSERVE_COPY_UR } from "../observe/copy";
 
 /**
  * bd-snkn32.41 — "Their recent plans" on Check and send lists the plans the teacher MADE with Make my own beside the
- * ones she downloaded, each marked "Made by her"; picking one sends { ownId } and the bot puts her PDF in as the plan.
+ * ones she downloaded, each marked "Made by the teacher" (bd-snkn32.45: never assumes the teacher's gender); picking one sends { ownId } and the bot puts her PDF in as the plan.
  */
 const C = coach as any;
 const L = leader as any;
@@ -71,12 +72,12 @@ beforeEach(async () => {
 afterEach(() => { cleanup(); });
 
 describe("Check and send — her own Make my own plans (bd-snkn32.41)", () => {
-  it("lists her own plan, marked Made by her with grade, subject and chapter", async () => {
+  it("lists her own plan, marked Made by the teacher with grade, subject and chapter", async () => {
     renderCheck();
     fireEvent.click(await screen.findByRole("button", { name: /Their recent plans/ }));
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Describing words")).toBeTruthy();
-    expect(within(dialog).getByText("Made by her · Grade 3 · english · Ch 4")).toBeTruthy();
+    expect(within(dialog).getByText("Made by the teacher · Grade 3 · english · Ch 4")).toBeTruthy();
     expect(within(dialog).getByText("Fractions")).toBeTruthy();
   });
 
@@ -88,5 +89,14 @@ describe("Check and send — her own Make my own plans (bd-snkn32.41)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
     expect(send.mock.calls[0][0].plan).toEqual({ kind: "library", pick: { ownId: OWN_ID } });
+  });
+});
+
+describe("the own-plan label never assumes gender (bd-snkn32.45)", () => {
+  it("reads Made by the teacher / ٹیچر کا بنایا ہوا", () => {
+    expect(OBSERVE_COPY.madeByTeacher).toBe("Made by the teacher");
+    expect(OBSERVE_COPY_UR.madeByTeacher).toBe("ٹیچر کا بنایا ہوا");
+    expect(JSON.stringify(OBSERVE_COPY)).not.toMatch(/Made by her/);
+    expect(JSON.stringify(OBSERVE_COPY_UR)).not.toContain("انہوں نے خود بنایا");
   });
 });
