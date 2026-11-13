@@ -304,6 +304,17 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // bd-ra8xu.50 — "Plan my visit": the lesson's class → grade → subject, sent instead of the two chat lists to a
+    // coach with obs612_coach on (the shared visit Flow is untouched). Regenerate the JSON with
+    // bot/scripts/generate-obs612-flow-json.js (it writes both FDE Flows).
+    name: 'Obs 6-12 Lesson Class',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/obs612-lesson-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/obs612-lesson',
+    envVar: 'OBS612_LESSON_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Child test — the coach confirms or corrects the AI's marks for one child, one
     // pre-filled screen per block (Urdu, English, maths). Sandbox only for now: register it with
     // bot/scripts/setup/register-child-test-check-flow.js, which refuses any other account.

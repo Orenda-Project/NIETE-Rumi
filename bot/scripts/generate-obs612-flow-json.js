@@ -20,24 +20,32 @@
 const fs = require('fs');
 const path = require('path');
 const { buildFlow } = require('../shared/services/observe/obs612/flow');
+const LessonFlow = require('../shared/services/observe/obs612/lesson-flow');
 
 const OUT = path.join(__dirname, '..', 'docs', 'flows', 'obs612-flow.json');
+// bd-ra8xu.50: "Plan my visit" class → grade → subject, its own Flow (endpoint /api/flows/obs612-lesson).
+const LESSON_OUT = path.join(__dirname, '..', 'docs', 'flows', 'obs612-lesson-flow.json');
 
 function render() {
   return `${JSON.stringify(buildFlow(), null, 2)}\n`;
+}
+function renderLesson() {
+  return `${JSON.stringify(LessonFlow.buildFlow(), null, 2)}\n`;
 }
 
 if (require.main === module) {
   const out = render();
   if (process.argv.includes('--check')) {
     const now = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
-    if (now !== out) {
-      console.error('obs612-flow.json is stale: run node bot/scripts/generate-obs612-flow-json.js');
+    const lessonNow = fs.existsSync(LESSON_OUT) ? fs.readFileSync(LESSON_OUT, 'utf8') : '';
+    if (now !== out || lessonNow !== renderLesson()) {
+      console.error('obs612-flow.json or obs612-lesson-flow.json is stale: run node bot/scripts/generate-obs612-flow-json.js');
       process.exit(1);
     }
-    console.log('obs612-flow.json is current');
+    console.log('obs612-flow.json and obs612-lesson-flow.json are current');
   } else {
     fs.writeFileSync(OUT, out);
+    fs.writeFileSync(LESSON_OUT, renderLesson());
     const flow = JSON.parse(out);
     const count = (node) => (Array.isArray(node) ? node.reduce((n, c) => n + count(c), 0)
       : node && typeof node === 'object' ? (node.type ? 1 : 0) + ['children', 'then', 'else'].reduce((n, k) => n + count(node[k]), 0) : 0);
@@ -45,4 +53,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { render, OUT };
+module.exports = { render, renderLesson, OUT, LESSON_OUT };
