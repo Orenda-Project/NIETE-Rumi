@@ -36,6 +36,16 @@ const subjectFor = (subject, ur) => (ur && !/[\u0600-\u06FF]/.test(String(subjec
 const URDU_CSS = '[dir=rtl] .hd h1{line-height:1.9}.n,.t,bdi{unicode-bidi:isolate}[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
   + '[dir=rtl] .say::before{content:"کہیں: "}[dir=rtl] .sec{border-inline-start-width:7px}';
 
+/**
+ * bd-snkn32.36 — this page's own rhythm, after the card's CSS so it wins. The card styles its numbered steps but leaves
+ * a plain paragraph on the browser's 1em margin (15px in print) while the steps sit 5px apart, so a section read as
+ * loose blocks with tight lists inside ("cluttered", testers 10-12 Nov). One small even gap for every block, and each
+ * section title on its own ruled line.
+ */
+const RHYTHM_CSS = '.sec>.sh{padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid color-mix(in srgb,var(--c) 30%,#fff)}'
+  + '.sec p{margin:8px 0 0}.sec .mv p{margin:0}.sec .box h3+p{margin-top:0}.sec .steps{margin-top:8px}'
+  + '@media print{.sec p{margin:5px 0 0}.sec .mv p{margin:0}.sec .box h3+p{margin-top:0}.sec .steps{margin-top:5px}}';
+
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const has = (v) => (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && String(v).trim() !== '');
 const g = (o, ...path) => path.reduce((x, k) => (x && typeof x === 'object' ? x[k] : undefined), o);
@@ -138,7 +148,7 @@ function renderK5Own(script, { lang = 'en', grade, subject, way, pages = null, f
   ].join('\n');
   return `<!doctype html><html lang="${ur ? 'ur' : 'en'}"${ur ? ' dir="rtl"' : ''}><head><meta charset="utf-8">`
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + `<style>${CSS}${fontCss}${ur ? URDU_CSS : ''}</style></head><body><div class="page">${head}\n${body}</div></body></html>`;
+    + `<style>${CSS}${RHYTHM_CSS}${fontCss}${ur ? URDU_CSS : ''}</style></head><body><div class="page">${head}\n${body}</div></body></html>`;
 }
 
 module.exports = { renderK5Own, WORDS, WAY_NAMES };
