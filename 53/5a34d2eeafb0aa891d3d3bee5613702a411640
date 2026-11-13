@@ -1,3 +1,4 @@
 {"ts":"2026-11-13T15:46:05Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"535a34d2eeaf","branch":"bd-37q6ye-34014","user":""}
 {"ts":"2026-11-13T15:46:07Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"535a34d2eeaf","branch":"bd-37q6ye-34014","user":""}
 {"ts":"2026-11-13T15:46:19Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (this commit IS the spec sync for training; no code changed)","sha":"535a34d2eeaf","branch":"bd-37q6ye-34014","user":""}
+{"ts":"2026-11-13T15:47:12Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"852384f0-6d9a-47bd-96f9-518129a272af","sha":"535a34d2eeaf","branch":"bd-37q6ye-34014","user":""}
