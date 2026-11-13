@@ -14,6 +14,11 @@ export const OWN_COPY = {
   /* the chapter page's card (bd-oitowp: first on the page, no heading; "Lesson plan" says what she makes) */
   makeMyOwn: 'Make my own',
   lessonPlanFive: 'Lesson plan · about 1 minute',
+  /* bd-snkn32.39 — the Lesson Plans main page's two choices (StartChoice), each explained in one line */
+  chooseOne: 'Select one',
+  readyMade: 'Ready-made lesson plans',
+  readyMadeHint: 'Open a plan already written for your chapter',
+  makeOwnHint: 'Make a plan for your own class, in about 1 minute',
   /* the steps */
   title: 'Make my own',
   ok: 'OK',
@@ -144,6 +149,10 @@ export const OWN_COPY = {
 const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   makeMyOwn: 'اپنا بنائیں',
   lessonPlanFive: 'لیسن پلان · تقریباً 1 منٹ',
+  chooseOne: 'ایک چنیں',
+  readyMade: 'تیار لیسن پلان',
+  readyMadeHint: 'اپنے باب کا پہلے سے لکھا ہوا لیسن پلان کھولیں',
+  makeOwnHint: 'اپنی کلاس کے لیے لیسن پلان بنائیں، تقریباً 1 منٹ میں',
   title: 'اپنا بنائیں',
   ok: 'ٹھیک ہے',
   pages: 'کتاب کے صفحات',
@@ -275,5 +284,7 @@ export const OWN_COPY_ENTRY: CopyEntry = {
     'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'pickHint', 'levelHints',
     'purposeBoardFde', 'foci', 'whichLesson', 'pagesOneHint', 'badPages612', 'addNextLesson', 'bothHow', 'fromYourBook',
     'pageMissing', 'bookNotLoaded', 'picturesPending', 'changeSection', 'lessonPlanFive', 'sizeSecondary',
-    'myPlans', 'changesLeft'],
+    'myPlans', 'changesLeft',
+    // bd-snkn32.39 — each first-screen choice is explained in one plain line.
+    'readyMadeHint', 'makeOwnHint'],
 };
