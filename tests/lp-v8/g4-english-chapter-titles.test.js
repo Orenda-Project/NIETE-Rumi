@@ -15,6 +15,9 @@ const catalog = JSON.parse(fs.readFileSync(
   path.join(__dirname, '..', '..', 'bot', 'data', 'lp_catalog.json'), 'utf8'));
 const book = (key) => catalog.books.find((b) => b.book_key === key);
 
+// Hand-set where clip() would cut through the honorific (Amena, 13 Nov 2026).
+const SHORT_OVERRIDE = { 6: "Allama Iqbal's Visit" };
+
 const G4_TITLES = {
   1: "Pinky's Dental Dilemma",
   2: 'From Farm to Feast',
@@ -37,7 +40,8 @@ describe('Grade 4 English chapter titles (bd-a3o891)', () => {
   test.each(Object.entries(G4_TITLES))('chapter %s is "%s"', (num, title) => {
     const ch = g4.chapters.find((c) => String(c.number) === num);
     expect(ch.title).toBe(title);
-    expect(ch.title_short).toBe(B.clip(title, B.TITLE_CAP));
+    expect(ch.title_short).toBe(SHORT_OVERRIDE[num] || B.clip(title, B.TITLE_CAP));
+    expect(ch.title_short.length).toBeLessThanOrEqual(B.TITLE_CAP);
   });
 
   test('no Grade 4 English chapter borrows a Grade 2 English title', () => {
