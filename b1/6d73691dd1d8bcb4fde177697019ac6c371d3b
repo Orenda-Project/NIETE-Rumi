@@ -1,0 +1,2 @@
+{"ts":"2026-11-13T06:50:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"b16d73691dd1","branch":"bd-a3o891-staging","user":""}
+{"ts":"2026-11-13T06:51:09Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-a3o891-staging: E-DUPID:child-test;E-NODRIVER:registration","sha":"b16d73691dd1","branch":"bd-a3o891-staging","user":""}
