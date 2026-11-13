@@ -21,7 +21,7 @@ const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { languageFor, clampToMarket } = require('./observe-language');
 const { metaErrorCodeOf, RE_ENGAGEMENT_ERROR_CODE } = require('../../config/meta-messaging-window');
-const { teacherOf, coachOf, isBound } = require('./observe-people');
+const { teacherOf, coachOf, isBound, schoolOfPhone } = require('./observe-people');
 const { logToFile } = require('../../utils/logger');
 
 const BTN = {
@@ -196,14 +196,42 @@ function buildSendChoiceButtons(sessionId, S) {
   };
 }
 
-function buildSendConfirmButtons(sessionId, S) {
+/**
+ * The confirm names who the report is going to (bd-zpyf0, HITL row 190): the
+ * "Got it — {name}" line sits above the report image by the time the coach
+ * decides, so the name has to be restated right above the Send button. A
+ * nameless roster row shows the number alone.
+ *
+ * bd-r2uzg1.14: the recipient's school goes on its own line under the name
+ * when the number's account has one (a coach visiting several schools meets the
+ * same names twice); none on file → no line. The templates isolate each value
+ * (FSI name/school, LRI number) so a Latin name and "(+92…)" keep their order
+ * inside the Urdu RTL line.
+ */
+function fillConfirmBody(S, recipient = {}) {
+  const name = String(recipient.name || '').trim();
+  const school = String(recipient.school || '').trim();
+  let body = String(S.send_confirm_body);
+  // Nameless: "{name} ({phone})" with its isolates collapses to the number alone.
+  if (!name) body = body.replace(/⁨?\{name\}⁩? \((⁦?\{phone\}⁩?)\)/, '$1');
+  const schoolLine = school && S.send_confirm_school
+    ? String(S.send_confirm_school).replace('{school}', school)
+    : '';
+  return body
+    .replace('{name}', name)
+    .replace('{phone}', recipient.phone ? `+${recipient.phone}` : '')
+    .replace('{school_line}', schoolLine)
+    .replace(/[ \t]{2,}/g, ' ');
+}
+
+function buildSendConfirmButtons(sessionId, S, recipient = {}) {
   // Send, someone else, or cancel. A bound session now resolves its own
   // recipient, so the middle button is the escape hatch for the 9% of sends
   // that legitimately go elsewhere — a deliberate act instead of the default
   // every coach had to walk through. WhatsApp allows three buttons; every
   // title is inside the 20-code-point cap.
   return {
-    body: S.send_confirm_body,
+    body: fillConfirmBody(S, recipient),
     buttons: [
       { id: `${BTN.confirm}${sessionId}`, title: String(S.btn_send_now).slice(0, 20) },
       { id: `${BTN.other}${sessionId}`, title: String(S.btn_send_other).slice(0, 20) },
@@ -1200,8 +1228,11 @@ async function processTeacherReport(sessionId, payload = {}) {
     // The FO sees EXACTLY what the teacher would receive (D33)…
     await _sendPackage(foPhone, png, teacherCaption, companionText);
     // …then decides.
-    const asked = await sendInteractiveChecked('buttons', foPhone, buildSendConfirmButtons(sessionId, S),
-      { what: 'send buttons', sessionId });
+    const asked = await sendInteractiveChecked('buttons', foPhone, buildSendConfirmButtons(sessionId, S, {
+      name: delivery.teacher_name,
+      phone: delivery.teacher_phone,
+      school: await schoolOfPhone(delivery.teacher_phone),
+    }), { what: 'send buttons', sessionId });
     // No buttons: say so, and the way back (the /observe list re-runs the preview with its buttons).
     if (!asked) await WhatsAppService.sendMessage(foPhone, S.send_confirm_unavailable);
     logToFile('🔎 observe send: preview delivered to FO', { sessionId, buttons: asked });
