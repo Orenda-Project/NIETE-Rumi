@@ -290,11 +290,10 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName, 
     return buildV6Prompt(a, { transcript, language, teacherName, target: requestedTarget });
   }
   // bd-5lrgh (ICT sheet DC row 142): the grader judged the recording to be a different
-  // lesson from the selected plan and Section B is 0. The why-writer used to be handed
-  // the plan's first three moves as "missed", and explained the 0 with a lesson she never
-  // taught. On a mismatch the plan's content never enters this prompt: code writes the
-  // Section B line, the model only describes what the recording shows, and a scorer focus
-  // inside Section B is not used as her horizon.
+  // lesson from the selected plan and Section B is 0. A scorer focus inside Section B is
+  // then not used as her horizon. bd-r2uzg1.12 (operator, 13 Nov: "I dont know how reliably
+  // we can tell if the lesson was mismatched"): Section B is explained with the plan's moves
+  // exactly as on production, and the report adds one soft line after it in code.
   const { isLessonMismatch } = require('./score-adapters/fico-adapter');
   const lessonMismatch = isLessonMismatch(a);
   const target = lessonMismatch && requestedTarget && requestedTarget.domain === 'lesson_plan_fidelity'
@@ -336,9 +335,6 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName, 
         // the model is told not to.
         if (d.assessed === false) {
           return `- ${k} (${FICO_DOMAIN_LABELS[k]}): NOT ASSESSED — this section was not measured for this lesson, so it is not part of the score. Do NOT diagnose it, do NOT name anything missing from it, and omit it from "domain_whys" entirely.`;
-        }
-        if (k === 'lesson_plan_fidelity' && lessonMismatch) {
-          return `- ${k} (${FICO_DOMAIN_LABELS[k]}): LESSON MISMATCH — ${d.domain_score}/${d.domain_max} because the recording is a different lesson from the selected lesson plan. The report already states this in a fixed line. Do NOT diagnose it, do NOT name, list or evaluate anything from the lesson plan, and omit it from "domain_whys" entirely.`;
         }
         // Section B may be DERIVED from the measured LP-fidelity engine (P4.1/D27):
         // ground its "why" in the actual missed moves, not the legacy proxy indicators.
@@ -400,8 +396,7 @@ Return STRICT JSON:
  "score_framing":"one warm sentence framing overall ${pct}% as a stage in a journey, not a verdict."${isFico ? `,
  "domain_whys":{ ${Object.keys(FICO_DOMAIN_LABELS).map((k) => `"${k}":"..."`).join(', ')} }` : ''}
 }
-moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.${lessonMismatch ? `
-The selected lesson plan was for a different lesson: nowhere in this report — strengths, horizon, moments or any line — mention, list or judge the lesson plan's content.` : ''}
+moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.
 ${isFico ? `
 domain_whys: ONE sentence per domain, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (bd-43497, the locked reference):
   EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
@@ -414,8 +409,9 @@ DOMAIN SCORES (diagnose each):
 ${domainScoresBlock}` : ''}
 
 ${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${lessonMismatch
-  // bd-5lrgh: analysis.topic is the selected plan's topic — on a mismatch, not this lesson's.
-  ? 'take it from the TRANSCRIPT — the selected lesson plan was for a different lesson.'
+  // bd-5lrgh: analysis.topic is the selected plan's topic, which on a mismatch may not be this
+  // lesson's. The prompt does not assert the mismatch (bd-r2uzg1.12), as on the v6 prompt.
+  ? 'take it from the TRANSCRIPT.'
   : (a.topic || '')}
 ${fw} summary: ${(a.executive_summary_sw || a.executive_summary || '').slice(0, 700)}
 Strengths: ${(a.strengths || []).map((s) => s.title_sw || s.title || s).filter(Boolean).join('; ')}

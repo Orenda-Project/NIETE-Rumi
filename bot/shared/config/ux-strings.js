@@ -434,14 +434,6 @@ const UX_STRINGS = {
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
 
-  // bd-5lrgh (ICT sheet DC row 142): the Section B why-line when the grader judged the
-  // recording to be a different lesson from the selected plan and scored it 0. English is
-  // the field team's own wording. The Urdu carries no digits or Latin so the RTL why-line
-  // has nothing to reorder ("صفر" rather than "0%").
-  reportLpMismatch: {
-    en: 'The classroom recording does not match the selected lesson plan. Therefore, LP Fidelity is 0%.',
-    ur: 'کلاس روم کی ریکارڈنگ منتخب کردہ لیسن پلان سے مطابقت نہیں رکھتی، اس لیے لیسن پلان پر عمل کا اسکور صفر ہے۔',
-  },
   // A FICO section the analysis came back without, even after one retry: not assessed, never 0.
   reportSectionNotAnalysed: {
     en: 'This part of the lesson could not be analysed this time, so it is not counted in the score.',

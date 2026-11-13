@@ -56,9 +56,9 @@ function attachDomainWhys(groups, domainWhys) {
     // A not-assessed section already carries a why line written in code. The model
     // must not be able to replace it: it is under a prompt that requires it to name
     // one concrete missing element, and for a section that was never measured any
-    // sentence it produces is invented. The same holds for a lesson-mismatch Section B
-    // (bd-5lrgh): its line is the catalogue sentence and nothing else.
-    if (g.notAssessed || g.lessonMismatch) continue;
+    // sentence it produces is invented. (A lesson-mismatch Section B takes the model's
+    // line like any other row since bd-r2uzg1.12; the soft line follows it.)
+    if (g.notAssessed) continue;
     const why = domainWhys[g.domainKey || g.key];
     if (why) g.why = why;
   }

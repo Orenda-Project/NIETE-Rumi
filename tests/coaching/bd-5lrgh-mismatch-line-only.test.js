@@ -32,11 +32,13 @@ function mismatchAnalysis() {
   };
 }
 
-describe('the model is not asked to explain the mismatched section', () => {
-  test.each(['en', 'ur'])('%s: no taught-sentence field or instruction in the prompt', (language) => {
+// bd-r2uzg1.12 (13 Nov): the fixed mismatch line is retired; Section B is explained by the model as on production
+// and a soft catalogue line follows it. The taught-sentence stays out.
+describe('the model is not asked for a taught-sentence', () => {
+  test.each(['en', 'ur'])('%s: no taught-sentence field or mismatch instruction in the prompt', (language) => {
     const p = buildPrompt(mismatchAnalysis(), { transcript: '[00:05] x', language, teacherName: 'T' });
     expect(p).not.toContain('lesson_mismatch_taught');
-    expect(p).toMatch(/LESSON MISMATCH/);
+    expect(p).not.toMatch(/LESSON MISMATCH/);
   });
 });
 

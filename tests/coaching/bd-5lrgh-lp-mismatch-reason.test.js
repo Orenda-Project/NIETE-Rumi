@@ -15,12 +15,16 @@
  * and the "next horizon" never lands on that 0.
  * A flagged session whose Section B is still above 0 is left exactly as it was — a
  * line saying "0%" beside a non-zero bar would be a second contradiction.
+ *
+ * bd-r2uzg1.12 (13 Nov) retired the code-written line. The operator: "I dont know how reliably we can tell
+ * if the lesson was mismatched. How about if we add both?" Section B is again explained by the model with
+ * the plan's moves, as on production, and one soft catalogue line follows it
+ * (tests/coaching/bd-r2uzg1.12-mismatch-soft-line.test.js). What stays from bd-5lrgh: the horizon never
+ * lands on that 0, the header never falls back to the plan's topic, and no taught-sentence travels on.
  */
 const { buildFicoGroups, isLessonMismatch } = require('../../bot/shared/services/coaching/report-v2/score-adapters/fico-adapter');
 const { attachDomainWhys } = require('../../bot/shared/services/coaching/report-v2/hero-report.service');
 const { buildPrompt } = require('../../bot/shared/services/coaching/report-v2/narrative.service');
-const { buildHeroReportHtml } = require('../../bot/shared/services/coaching/report-v2/hero-report.template');
-const { UX_STRINGS, resolveUx } = require('../../bot/shared/config/ux-strings');
 
 const PLAN_MOVE = 'Teacher explains countable and uncountable nouns with real classroom objects';
 
@@ -52,21 +56,6 @@ function analysis({ note = 'lesson_mismatch', bScore = 0, pct = 0, focus = null 
 
 const sectionB = (groups) => groups.find((g) => g.domainKey === 'lesson_plan_fidelity');
 
-describe('the catalogue line', () => {
-  test('exists in both offered languages, English exactly as the field team worded it', () => {
-    expect(UX_STRINGS.reportLpMismatch).toBeDefined();
-    expect(UX_STRINGS.reportLpMismatch.en)
-      .toBe('The classroom recording does not match the selected lesson plan. Therefore, LP Fidelity is 0%.');
-    expect(/[؀-ۿ]/.test(UX_STRINGS.reportLpMismatch.ur)).toBe(true);
-  });
-
-  test('the Urdu variant has nothing for the bidi algorithm to reorder', () => {
-    const ur = UX_STRINGS.reportLpMismatch.ur;
-    expect(ur).not.toMatch(/[A-Za-z]/);
-    expect(ur).not.toMatch(/[0-9٠-٩۰-۹%]/);
-  });
-});
-
 describe('isLessonMismatch — only a flagged mismatch that scored 0', () => {
   test('flag + Section B 0 → true', () => {
     expect(isLessonMismatch(analysis())).toBe(true);
@@ -87,11 +76,11 @@ describe('isLessonMismatch — only a flagged mismatch that scored 0', () => {
   });
 });
 
-describe('buildFicoGroups — the Section B row carries the line', () => {
-  test.each(['en', 'ur'])('%s: mismatch row gets the catalogue why and keeps its 0/40 bar', (lang) => {
+describe('buildFicoGroups — the Section B row is flagged for the horizon, with no code-written line', () => {
+  test.each(['en', 'ur'])('%s: mismatch row keeps its 0/40 bar and carries no why of its own', (lang) => {
     const b = sectionB(buildFicoGroups(analysis(), lang));
     expect(b.lessonMismatch).toBe(true);
-    expect(b.why).toBe(resolveUx('reportLpMismatch', { language: lang }));
+    expect(b.why).toBeUndefined();
     expect(b.score).toBe(0);
     expect(b.max).toBe(40);
   });
@@ -105,32 +94,24 @@ describe('buildFicoGroups — the Section B row carries the line', () => {
   });
 });
 
-describe('attachDomainWhys — the model cannot overwrite the mismatch line', () => {
-  test.each(['en', 'ur'])('%s: the line is the catalogue sentence only — no model text is added to it', (lang) => {
+describe('attachDomainWhys — a mismatch Section B takes the model\'s why, as on production', () => {
+  test.each(['en', 'ur'])('%s: the model\'s line attaches; other rows as before', (lang) => {
     const groups = buildFicoGroups(analysis(), lang);
-    attachDomainWhys(groups, { lesson_plan_fidelity: `not full marks because ${PLAN_MOVE}`, student_engagement: 'D why' },
-      { lessonMismatchTaught: 'The recording shows a reading lesson on sentence order and syllables.' });
-    const b = sectionB(groups);
-    expect(b.why).toBe(resolveUx('reportLpMismatch', { language: lang }));
-    expect(b.why).not.toContain('countable');
-    expect(groups.find((g) => g.domainKey === 'student_engagement').why).toBe('D why');
-  });
-
-  test('a normal session still takes the model\'s Section B why', () => {
-    const groups = buildFicoGroups(analysis({ note: null }), 'en');
-    attachDomainWhys(groups, { lesson_plan_fidelity: 'B why' });
+    attachDomainWhys(groups, { lesson_plan_fidelity: 'B why', student_engagement: 'D why' });
     expect(sectionB(groups).why).toBe('B why');
+    expect(groups.find((g) => g.domainKey === 'student_engagement').why).toBe('D why');
   });
 });
 
-describe('buildPrompt — the plan never reaches the why-writer on a mismatch', () => {
+describe('buildPrompt on a mismatch', () => {
   const opts = { transcript: '[00:05] read the sentences', language: 'en', teacherName: 'Annie' };
 
-  test('no plan move text, a mismatch instruction, and no extra field to fill for that line', () => {
+  test('Section B is explained with the plan\'s moves as on production; no mismatch instruction, no extra field', () => {
     const p = buildPrompt(analysis(), opts);
-    expect(p).not.toContain(PLAN_MOVE);
-    expect(p).not.toContain('Moves missed or partial');
-    expect(p).toMatch(/LESSON MISMATCH/);
+    expect(p).toContain('Moves missed or partial');
+    expect(p).toContain(PLAN_MOVE);
+    expect(p).not.toMatch(/LESSON MISMATCH/);
+    expect(p).not.toMatch(/was for a different lesson/);
     expect(p).not.toContain('lesson_mismatch_taught');
   });
 
@@ -177,24 +158,5 @@ describe('heroTopic — the header never names the plan\'s lesson on a mismatch'
   });
   test('a normal session keeps today\'s fallback to analysis.topic', () => {
     expect(heroTopic(null, withTopic({ note: null }))).toBe('Countable and Uncountable Nouns');
-  });
-});
-
-describe('the line as it renders', () => {
-  const vm = (lang, groups) => ({
-    language: lang, brand: 'niete', teacherName: 'Annie', topic: 'x', date: '2026-09-30',
-    score: { overall: 52, marks: 66, max: 140 },
-    groups, narrative: { affirmation: 'x', moments: [] }, trend: [],
-  });
-
-  test.each(['en', 'ur'])('%s: it paints inside the Section B why line', (lang) => {
-    const fragment = lang === 'en'
-      ? 'does not match the selected lesson plan'
-      : UX_STRINGS.reportLpMismatch.ur.split(' ').slice(0, 3).join(' ');
-    const groups = buildFicoGroups(analysis(), lang);
-    attachDomainWhys(groups, {});
-    const html = buildHeroReportHtml(vm(lang, groups));
-    expect(html).toContain('class="sc-why"');
-    expect(html).toContain(fragment);
   });
 });
