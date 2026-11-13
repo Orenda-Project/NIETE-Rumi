@@ -16,24 +16,25 @@
  *           incomplete_move_on with reason 'silence', a part ended by early_stop_silence, or a part marked silent),
  *           else null. The coach's end wins when both happened.
  *
- * PLACEHOLDERS: the level words and every cut-off below are drafts (ASER-style) awaiting the reviewers' approval.
+ * The level words and every cut-off below are the ones sent to the content owner for review (a first cut from the
+ * real RDF auto tests, to adjust as more data comes in; the same for every grade).
  * Shares are of the part's items (so a changed item count keeps the meaning); the story floor is a count of words.
  */
 
 const SUBJECTS = ['ur', 'en', 'ma'];
 const BEGINNER = 'beginner';
 
-// PLACEHOLDER: the story rung's floor, correct words read in the minute, awaiting the content owner's number per grade.
-const STORY_FLOOR_WORDS = 10;
+// The story rung's floor: correct words read in the minute.
+const STORY_FLOOR_WORDS = 20;
 
-// PLACEHOLDER cut-offs (shares of the part's items), awaiting reviewer approval.
+// Cut-offs, as shares of the part's items.
 const LETTERS_SHARE = 0.8; // 4 of 5 letters (names or sounds)
 const WORDS_SHARE = 0.75; // 3 of 4 words
 const COMPREHENSION_SHARE = 0.5; // half the story questions
 const NUMBERS_SHARE = 0.75; // 6 of 8 numbers
 const COMPARING_SHARE = 0.75; // which is bigger + missing number, together
-const ADD_SUB_SHARE = 0.75; // addition + subtraction, together
-const MULTIPLY_SHARE = 0.5; // half the multiplication questions
+const ADD_SHARE = 0.5; // half the addition sums
+const SUB_MUL_SHARE = 0.5; // half the subtraction and multiplication sums, together
 
 /**
  * The rungs, in order. `parts` are task-id suffixes; `rule` is how the parts decide:
@@ -52,8 +53,8 @@ const LADDERS = {
   maths: [
     { level: 'numbers', parts: ['number_id8'], rule: 'pooled', share: NUMBERS_SHARE },
     { level: 'comparing', parts: ['discrimination2', 'missing4'], rule: 'pooled', share: COMPARING_SHARE },
-    { level: 'add_sub', parts: ['add2i', 'sub2i'], rule: 'pooled', share: ADD_SUB_SHARE },
-    { level: 'multiply', parts: ['mul2i'], rule: 'pooled', share: MULTIPLY_SHARE },
+    { level: 'add', parts: ['add2i'], rule: 'pooled', share: ADD_SHARE },
+    { level: 'sub_mul', parts: ['sub2i', 'mul2i'], rule: 'pooled', share: SUB_MUL_SHARE },
   ],
 };
 
