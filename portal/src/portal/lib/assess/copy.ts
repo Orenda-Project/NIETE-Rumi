@@ -186,6 +186,12 @@ const en = {
       early_stop_silence: "Stopped: silence",
       assets_unavailable: "Could not load",
       skipped_dev: "Skipped (sandbox Jump)",
+      // End this section: the part on show ends as end_section and reads as coach_end; the parts after it in that
+      // section end as skipped_end_section and read as skipped_level2.
+      end_section: "Ended by the coach",
+      skipped_end_section: "Skipped",
+      // the story's questions when the child read nothing aloud: skipped, as skipped_no_first_line
+      skipped_no_voice: "Skipped",
     },
     recording: "Recording",
     scoredLater: "Recording kept, scored later",
@@ -206,6 +212,21 @@ const en = {
     how5: "These are not EGRA's letters or words per minute (clpm, cwpm), which come from listening to the child read aloud.",
     how6: "Spoken tasks are recorded and kept on the server. Their scores come later, from the recording.",
     how7: "A task stops early when the first line is mostly wrong, after several wrong answers in a row, or after 20 seconds of silence.",
+    // Round 20: the child's level per subject. The level words (and the server's cut-offs, sa/level.js) as sent for review.
+    level: {
+      title: "Level in each subject",
+      subjects: { ur: "Urdu", en: "English", ma: "Maths" },
+      reached: "Reached",
+      level: "Level",
+      waiting: "Waiting for scores",
+      more: "more to come",
+      nothing: "Nothing done",
+      stops: { no_answer: "Stopped: no answer", coach: "Stopped by the coach" },
+      words: {
+        beginner: "Beginner", letters: "Letters", words: "Words", story: "Story", comprehension: "Understands the story",
+        numbers: "Numbers", comparing: "Compare numbers", add: "Add", sub_mul: "Subtract and multiply",
+      },
+    },
   },
 };
 
@@ -379,6 +400,12 @@ const ur: Copy = {
       early_stop_silence: "رک گیا: خاموشی",
       assets_unavailable: "لوڈ نہیں ہوا",
       skipped_dev: "چھوڑ دیا گیا (سینڈ باکس جمپ)",
+      // End this section: the part on show ends as end_section and reads as coach_end; the parts after it in that
+      // section end as skipped_end_section and read as skipped_level2.
+      end_section: "کوچ نے ختم کیا",
+      skipped_end_section: "چھوڑ دیا گیا",
+      // the story's questions when the child read nothing aloud: skipped, as skipped_no_first_line
+      skipped_no_voice: "چھوڑ دیا گیا",
     },
     recording: "ریکارڈنگ",
     scoredLater: "ریکارڈنگ محفوظ ہے، نمبر بعد میں لگیں گے",
@@ -399,6 +426,21 @@ const ur: Copy = {
     how5: "یہ ⁨EGRA⁩ کے فی منٹ حروف یا الفاظ (⁨clpm, cwpm⁩) نہیں، جن کے نمبر بچے کو بلند آواز سے پڑھتے ہوئے سن کر لگتے ہیں۔",
     how6: "بول کر دیے گئے جوابات ریکارڈ ہو کر محفوظ رہتے ہیں۔ ان کے نمبر بعد میں ریکارڈنگ سے لگتے ہیں۔",
     how7: "سوال جلد رک جاتا ہے اگر پہلی لائن زیادہ تر غلط ہو، کئی جواب لگاتار غلط ہوں، یا ⁦۲۰⁩ سیکنڈ خاموشی رہے۔",
+    // Round 20: the level words as sent for review (same keys as the English).
+    level: {
+      title: "ہر مضمون میں سطح",
+      subjects: { ur: "اردو", en: "انگریزی", ma: "ریاضی" },
+      reached: "آخری حصہ",
+      level: "سطح",
+      waiting: "نمبروں کا انتظار ہے",
+      more: "مزید نمبر آنے ہیں",
+      nothing: "کوئی حصہ نہیں کیا گیا",
+      stops: { no_answer: "رک گیا: کوئی جواب نہیں", coach: "کوچ نے ختم کیا" },
+      words: {
+        beginner: "ابتدائی", letters: "حروف", words: "الفاظ", story: "کہانی", comprehension: "کہانی کی سمجھ",
+        numbers: "نمبر پہچاننا", comparing: "نمبروں کا موازنہ", add: "جمع", sub_mul: "تفریق اور ضرب",
+      },
+    },
   },
 };
 

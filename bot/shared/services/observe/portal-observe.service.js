@@ -38,6 +38,7 @@
 const crypto = require('crypto');
 const PortalCoaching = require('../coaching/portal-coaching.service');
 const { stepOfRow } = require('./portal-observe-step');
+const OwnPlans = require('./observe-own-plans');
 
 const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_PHOTOS } = PortalCoaching;
 
@@ -72,6 +73,8 @@ function withDefaults(deps = {}) {
     resolveOwner: () => require('./observe-capture.service').resolveBoundTeacherUserId,
     schedule: () => require('./observe-schedule.service'),
     library: () => require('../coaching/portal-lesson-plan-library.service'),
+    // bd-snkn32.41 — her own Make my own plans (listed for the coach; a pick resolves to her PDF).
+    ownPlans: () => OwnPlans,
     draft: () => require('./observe-draft.service'),
     pack: () => require('./observe-framework').getObservePack,
     languageFor: () => require('./observe-language').languageFor,
@@ -315,9 +318,10 @@ async function startPortalObservation({
   if (lessonPlanKey && !isOwnPortalKey(userId, lessonPlanKey, 'lesson_plan')) return { status: 'invalid', reason: 'not_your_upload' };
   if (photos.length > MAX_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
   if (photos.some((k) => !isOwnPortalKey(userId, k, 'photo'))) return { status: 'invalid', reason: 'not_your_upload' };
-  const { pick, bad } = libraryPick(picked);
+  const own = OwnPlans.ownPick(picked); // bd-snkn32.41: { ownId } — a plan she made herself
+  const { pick, bad } = own ? { pick: null, bad: !!own.bad } : libraryPick(picked);
   if (bad) return { status: 'invalid', reason: 'bad_lesson_plan' };
-  if (pick && lessonPlanKey) return { status: 'invalid', reason: 'two_lesson_plans' };
+  if ((pick || own) && lessonPlanKey) return { status: 'invalid', reason: 'two_lesson_plans' };
 
   const d = withDefaults(deps);
   const coach = await loadCoach(d, userId);
@@ -362,6 +366,10 @@ async function startPortalObservation({
   } else if (pick) {
     libraryAsset = await d.library.resolveAsset({ userId: ownerUserId, ...pick });
     if (!libraryAsset) return { status: 'invalid', reason: 'plan_not_found' };
+  } else if (own) {
+    // bd-snkn32.41: her own plan's PDF goes in as the plan FILE (an uploaded plan's path): the worker reads it for B.
+    libraryPdfKey = await d.ownPlans.resolveKey({ userId: ownerUserId, ownId: own.ownId });
+    if (!libraryPdfKey) return { status: 'invalid', reason: 'plan_not_found' };
   }
 
   // bd-ra8xu.40: the visit's rubric, decided ONCE here as observe-capture decides it on WhatsApp.
@@ -462,7 +470,14 @@ async function teacherRecentPlans({ userId, teacherExtId, schoolExtId = null }, 
   const teacher = await resolveTeacherSafely(d, userId, teacherExtId, schoolExtId);
   if (!teacher) return { status: 'invalid', reason: 'not_your_teacher' };
   if (!teacher.user_id) return { status: 'ok', plans: [] };
-  return PortalCoaching.recentLessonPlans({ userId: teacher.user_id }, { library: d.library });
+  const res = await PortalCoaching.recentLessonPlans({ userId: teacher.user_id }, { library: d.library });
+  if (res.status !== 'ok') return res;
+  // bd-snkn32.41: and the plans she made herself (a failure here leaves her downloads, never an error).
+  let own = [];
+  try { own = await d.ownPlans.list(teacher.user_id); } catch (err) {
+    d.log('⚠️ portal observe: her own plans did not load (downloads only)', { error: err && err.message }, 'warn');
+  }
+  return { ...res, plans: OwnPlans.mergeRecent(res.plans, own) };
 }
 
 // ── what the portal shows ──────────────────────────────────────────────────
@@ -620,7 +635,7 @@ async function getDraft({ userId, coachingSessionId }, deps) {
       minReason: require('../coaching/frameworks/fico17-v6').JUSTIFICATION_MIN,
       scale: [],
       fidelityScale: d.draft.FIDELITY_VERDICT_OPTIONS || [],
-      sections: [...(b ? [b.section] : []), ...v6Sections(row.analysis_data || {})],
+      sections: [...(b ? [b.section] : []), ...v6Sections(row.analysis_data || {}, lang)],
       saved: row.status === 'observer_review_complete',
       editable,
     };
@@ -712,7 +727,13 @@ function savedV6Edits(analysis) {
     if (row.rumi_evidence !== undefined && typeof row.evidence === 'string') e[`ev_${code}`] = row.evidence;
     if (typeof row.improvement_sw === 'string') e[`imp_${code}`] = row.improvement_sw;
   }
-  for (const l of ['C', 'D', 'F']) e[`chg_${l}`] = (review.change_reasons || {})[l] || '';
+  // 13 Nov: the WhatsApp form asks why per indicator (change_reasons.C1 …); the portal asks once per part, so a part
+  // with no reason of its own starts from those, one line each, and saving it again keeps them.
+  const reasons = review.change_reasons || {};
+  for (const l of ['C', 'D', 'F']) {
+    e[`chg_${l}`] = reasons[l]
+      || v6.DC_CODES.filter((c) => c[0] === l && reasons[c]).map((c) => `${c}: ${reasons[c]}`).join('\n');
+  }
   const counts = review.d2_counts || null;
   e.d2_children = counts ? String(counts.children) : '';
   e.d2_quiet_later = counts ? String(counts.quiet_later) : '';
@@ -720,38 +741,36 @@ function savedV6Edits(analysis) {
 }
 
 /**
- * The v6 review's C/D/F sections, from the very prefill the v6 Flow serves (observe-fico17-v6.buildScreenPrefill):
- *   one of Rumi's 11 (kind 'dc')    Rumi's level pre-filled (and kept as `rumi`, ringed on the page), Rumi's evidence
- *                                   and "to improve" editable, 1-4 + N/A + Couldn't tell;
+ * The v6 review's C/D/F sections, from the very prefill the v6 Flow serves (observe-fico17-v6.buildScreenPrefill),
+ * with the coach's choices of 13 Nov (the WhatsApp form's): each level its number, its name and the rubric sheet's text
+ * (in the coach's language), and no N/A, no Couldn't tell, no D2 counts. An old review that saved N/A or Couldn't tell
+ * keeps that one choice on its list, so it still shows.
+ *   one of Rumi's 11 (kind 'dc')    Rumi's 1-4 pre-filled (and kept as `rumi`, ringed on the page; none when Rumi had
+ *                                   N/A or Couldn't tell), Rumi's evidence and "to improve" editable;
  *   one of the six (kind 'combined') blank until the coach sets it from the room, the definition and Rumi's evidence
- *                                   above it (read only), a reason; D2 also its two counts;
+ *                                   above it (read only), a reason;
  *   the section's change reason     required when one of Rumi's levels on it is changed.
  */
-function v6Sections(analysis) {
+function v6Sections(analysis, lang = 'en') {
   const O = require('./observe-fico17-v6');
   const v6 = require('../coaching/frameworks/fico17-v6');
   const edits = savedV6Edits(analysis);
-  const opts = (code) => O.optionsFor(code).map((o) => ({ id: o.id, title: o.title, description: o.description || '' }));
   return Object.values(v6.SECTIONS).map((sec) => {
     const p = O.buildScreenPrefill(analysis, sec.key, { edits });
     return {
       key: sec.domain,
       letter: sec.key,
-      title: sec.name,
+      title: v6.sectionName(sec.key, lang),
       kind: 'v6',
       indicators: sec.codes.map((code) => {
-        const base = { id: code, field: code, name: v6.indicator(code).name, options: opts(code) };
+        const saved = (edits && edits[`r_${code}`]) || '';
+        const keep = saved === 'NA' || saved === 'IE' ? saved : null;
+        const options = O.optionsFor(code, { keep, lang }).map((o) => ({ id: o.id, title: o.title, description: o.description || '' }));
+        const base = { id: code, field: code, name: v6.indicatorText(code, lang).name, options };
         if (v6.isCombined(code)) {
-          return {
-            ...base,
-            kind: 'combined',
-            body: p[`cb_${code}`] || '',
-            rating: (edits && edits[`r_${code}`]) || '',
-            why: p[`w_${code}`] || '',
-            ...(code === 'D2' ? { d2: { children: (edits && edits.d2_children) || '', quietLater: (edits && edits.d2_quiet_later) || '' } } : {}),
-          };
+          return { ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '' };
         }
-        const rumi = O.rumiLevel(analysis, code);
+        const rumi = O.rumiNumeric(analysis, code);
         return {
           ...base,
           kind: 'dc',

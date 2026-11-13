@@ -24,6 +24,7 @@ const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
 const { seenCategoryLine, keepSeenCategories } = require('./seen-categories');
+const PaperDiagram = require('./paper-diagram');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 const { standardMarks } = require('./standard-marks');
 
@@ -263,8 +264,9 @@ function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [
  * the child looks for a figure that is not there. Named only when one of them
  * is asked for, so every other prompt stays exactly as it was.
  */
-const DRAWN_BY_THE_CHILD = new Set(['Mind Map', 'Flow Chart', 'Graphs & Geometric Problems']);
-const DRAW_IT_LINE = '• For Mind Map / Flow Chart / Graphs & Geometric Problems: give the topic or the '
+// bd-ipoxhx.10: Mind Map and Flow Chart are now DRAWN on the paper (paper-diagram.js); only graphs stay drawn by the child.
+const DRAWN_BY_THE_CHILD = new Set(['Graphs & Geometric Problems']);
+const DRAW_IT_LINE = '• For Graphs & Geometric Problems: give the topic or the '
   + 'data as text; the child draws it on the answer sheet; never refer to boxes, branches, arrows or a '
   + 'figure printed on the paper.';
 
@@ -279,6 +281,8 @@ function sloBlock(slos) {
 • This paper covers only these skills:
 ${list}
 • Every question must test one of these skills and carry \`"slo": "<code>"\` with that skill's code. Do not write a question about the chapter's story or about anything that is not one of these skills
+• Ask at least one question on every skill above, spreading the questions across all of them; a skill the book shows with pictures is asked in words, or ask the child to draw or match on the answer sheet
+• Never copy a worked example from the pages: use new numbers, names and objects for the same skill
 • The counts in this message override any counts in the instructions`;
 }
 
@@ -286,8 +290,8 @@ ${list}
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
-// bd-ipoxhx.7 (AG row 21) — the marks teachers expect; standardMarks() also enforces them after generation.
-const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark each (a matching question 1 mark per pair); '
+// bd-ipoxhx.7 (AG row 21) + .8 (AG row 27) — the marks teachers expect; standardMarks() also enforces them after generation.
+const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark per answer it asks for (an MCQ 1; an MSQ 1 per correct option; a fill-in 1 per blank; a matching question 1 per pair; at most 5); '
   + 'short / brief answers 2-3 marks; long questions and written work 5-10 marks';
 
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
@@ -316,6 +320,7 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   // prompt we have ever sent, including for the papers nobody budgeted.
   const budget = Number(totalMarks) > 0 ? Number(totalMarks) : null;
   const drawIt = plan.questionTypes.some((q) => DRAWN_BY_THE_CHILD.has(q.id));
+  const drawnLine = PaperDiagram.promptLine(plan.questionTypes.map((q) => q.id));
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -335,7 +340,8 @@ ${items.map((i) => `• ${i}`).join('\n')}
 • For SEEN questions: Extract questions exactly as they appear in the textbook
 • For UNSEEN questions: Create new questions based on concepts from the textbook
 • The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out${drawIt ? `
-${DRAW_IT_LINE}` : ''}
+${DRAW_IT_LINE}` : ''}${drawnLine ? `
+${drawnLine}` : ''}
 ${askStandard ? STANDARD_MARKS_LINE : '• Include proper marks allocation for each question'}
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt

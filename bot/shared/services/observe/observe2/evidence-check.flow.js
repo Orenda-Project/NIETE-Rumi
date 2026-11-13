@@ -84,6 +84,14 @@ const ADDED_SCREENS = [
 // changes need only the written reason, as that Flow asks.
 // '3' (FICO6 r2) brought COMBINED_THREE_COUNTS: a '2' Flow gets COMBINED_THREE with blank count boxes.
 const V6_CHECK = '3';
+// '4' (13 Nov, operator): the coach's own copy of the check, for FICO17 v6 visits only (observe2-evidence-check-v6.json,
+// OBSERVE2_CHECK_V6_FLOW_ID): every level the coach chooses is the level's name with the rubric's text under it
+// (V6.coachLevelOptions), no N/A and no Couldn't tell, and D2 has no count boxes (so no COMBINED_THREE_COUNTS). The
+// shared check Flow above is built and served exactly as before.
+const COACH_CHECK = '4';
+// Set only while buildEvidenceCheckFlow({ coach2: true }) runs.
+let COACH2 = false;
+const coachOptions = (code) => V6.coachLevelOptions(code, 'en');
 // "Add one Rumi missed" (spec §9.2, RULINGS R7): two slots, each a type, the minute and the words.
 const MISSED_SLOTS = 2;
 const MISSED_WORDS_MAX = 280;
@@ -160,7 +168,7 @@ function heardScreen({ id, title, moment }) {
       visible: `\${data.${k}_v}`, required: false, 'data-source': YES_NO,
     });
   }
-  return screenWith(id, title, kids, 'Next', data, null, id === 'HEARD_EXPLAIN' ? { v6c: V6_CHECK } : null);
+  return screenWith(id, title, kids, 'Next', data, null, id === 'HEARD_EXPLAIN' ? { v6c: COACH2 ? COACH_CHECK : V6_CHECK } : null);
 }
 
 function fidelityScreen() {
@@ -242,7 +250,7 @@ function combinedBlock(code, data, init) {
   const ind = V6.indicator(code);
   data[`${code}_ev`] = { type: 'string', __example__: `${ind.definition}\n\nThe recording showed nothing for this.\n\nCoach adds: ${ind.coach_adds}` };
   const kids = [{ type: 'TextSubheading', text: ind.name }, { type: 'TextBody', text: `\${data.${code}_ev}` }];
-  if (code === 'D2') {
+  if (code === 'D2' && !COACH2) {
     // Pre-filled on COMBINED_THREE_COUNTS only (Form init-values, from numeric data); blank on COMBINED_THREE.
     // What the coach typed on the live form is also in the TextBody above (the endpoint's D2_ev).
     if (init) {
@@ -257,7 +265,7 @@ function combinedBlock(code, data, init) {
     );
   }
   kids.push(
-    { type: 'RadioButtonsGroup', name: `cmb_${code}_level`, label: 'Level', required: true, 'data-source': V6.levelOptions(code) },
+    { type: 'RadioButtonsGroup', name: `cmb_${code}_level`, label: 'Level', required: true, 'data-source': COACH2 ? coachOptions(code) : V6.levelOptions(code) },
     { type: 'TextArea', name: `cmb_${code}_why`, label: 'Why this level', required: true, 'max-length': 600, 'helper-text': "What you saw, and how it fits the DC's evidence" },
   );
   return kids;
@@ -284,7 +292,7 @@ function added6Screen({ id, title, codes, why, kind, min }) {
     kids.push(
       { type: 'TextSubheading', text: V6.indicator(code).name },
       { type: 'TextCaption', text: `\${data.${code}_because}` },
-      { type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true, 'data-source': [...V6.levelOptions(code), ...V6_EXTRA] },
+      { type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true, 'data-source': COACH2 ? coachOptions(code) : [...V6.levelOptions(code), ...V6_EXTRA] },
     );
     init[`${code}_final`] = `\${data.${code}_level}`;
   }
@@ -327,7 +335,17 @@ function priorityScreen() {
   }, { cv: CHECK_VERSION });
 }
 
-function buildEvidenceCheckFlow() {
+/** The check Flow. `coach2`: the v6 coach's own copy (COACH_CHECK above); without it, the shared Flow as before. */
+function buildEvidenceCheckFlow({ coach2 = false } = {}) {
+  COACH2 = Boolean(coach2);
+  try {
+    return buildCheck();
+  } finally {
+    COACH2 = false;
+  }
+}
+
+function buildCheck() {
   const done = {
     id: 'DONE',
     title: 'Done',
@@ -365,15 +383,15 @@ function buildEvidenceCheckFlow() {
   const counted = COMBINED_SCREENS.find((c) => c.id === COMBINED_COUNTS.of);
   const v6 = [
     ...COMBINED_SCREENS.map((c) => combinedScreen(c)), ...ADDED6_SCREENS.map(added6Screen), missedScreen(),
-    combinedScreen({ ...counted, id: COMBINED_COUNTS.id }, { counts: true }),
+    ...(COACH2 ? [] : [combinedScreen({ ...counted, id: COMBINED_COUNTS.id }, { counts: true })]),
   ];
   screens.push(...v6);
   routing.HEARD_EXPLAIN = [...routing.HEARD_EXPLAIN, 'COMBINED_ONE', 'MISSED'];
   routing.MISSED = ['COMBINED_ONE'];
   routing.COMBINED_ONE = ['COMBINED_TWO'];
-  routing.COMBINED_TWO = ['COMBINED_THREE', COMBINED_COUNTS.id];
+  routing.COMBINED_TWO = COACH2 ? ['COMBINED_THREE'] : ['COMBINED_THREE', COMBINED_COUNTS.id];
   routing.COMBINED_THREE = ['FIDELITY', 'ADDED_DC_ONE'];
-  routing[COMBINED_COUNTS.id] = [...routing.COMBINED_THREE];
+  if (!COACH2) routing[COMBINED_COUNTS.id] = [...routing.COMBINED_THREE];
   routing.FIDELITY = [...routing.FIDELITY, 'ADDED_DC_ONE'];
   routing.ADDED_DC_ONE = ['ADDED_DC_TWO'];
   routing.ADDED_DC_TWO = ['PRIORITY'];
@@ -382,5 +400,5 @@ function buildEvidenceCheckFlow() {
 
 module.exports = {
   buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION,
-  V6_CHECK, COMBINED_SCREENS, COMBINED_COUNTS, D2_COUNT_INIT, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
+  V6_CHECK, COACH_CHECK, COMBINED_SCREENS, COMBINED_COUNTS, D2_COUNT_INIT, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
 };

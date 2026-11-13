@@ -15,7 +15,7 @@ const express = require('express');
 const supabase = require('../config/supabase');
 const pool = require('../config/database');
 const { isFlagEnabledForUser } = require('../lib/feature-flags');
-const { heldTopicNudge } = require('../services/held-topic-nudge.service');
+const { heldTopicNudge, skipHeldTopicNudge } = require('../services/held-topic-nudge.service');
 const { requirePortalAuth } = require('../lib/portal-auth');
 
 const router = express.Router();
@@ -23,7 +23,6 @@ const dbQuery = (sql, params) => pool.query(sql, params);
 
 const CARD_KEY = 'topic_nudge_portal_card_enabled';
 const NUDGE_KEY = 'topic_end_nudge_enabled';
-const KIND = 'topic_end_nudge';
 
 async function requireCardOn(req, res, next) {
   const userId = req.session.portalUserId;
@@ -53,9 +52,8 @@ router.post('/me/topic-paper/opened', requirePortalAuth, requireCardOn, async (r
     return res.status(400).json({ success: false, code: 'BAD_TOPIC' });
   }
   try {
-    // Required here, not at load: the bot store opens its own Supabase client.
-    const store = require('../../bot/shared/services/nudges/teacher-nudges.store');
-    const skipped = await store.skipPendingForTopic({ userId: req.session.portalUserId, kind: KIND, topicId, reason: 'card_used' });
+    // bd-pw1ccr.39: the portal's own client. The bot store can't load here (the portal build skips bot packages).
+    const skipped = await skipHeldTopicNudge(supabase, req.session.portalUserId, topicId);
     return res.json({ success: true, skipped });
   } catch (error) {
     console.error('❌ Portal me/topic-paper/opened failed', { error: error && error.message });

@@ -52,4 +52,16 @@ describe('buildUserPrompt', () => {
     expect(p.startsWith(head)).toBe(true);
     expect(p.endsWith(notes)).toBe(true);
   });
+
+  // bd-pw1ccr.38: Ramisha's sheet — papers skipped skills on the pages and copied the book's worked examples.
+  test('with slos every listed skill gets at least one question, picture skills asked in words', () => {
+    const p = buildUserPrompt({ ...ARGS, slos: SLOS });
+    expect(p).toMatch(/at least one question on every skill above/i);
+    expect(p).toMatch(/in words, or ask the child to draw/i);
+  });
+
+  test('with slos no question copies a worked example from the pages', () => {
+    const p = buildUserPrompt({ ...ARGS, slos: SLOS });
+    expect(p).toMatch(/never copy a worked example/i);
+  });
 });

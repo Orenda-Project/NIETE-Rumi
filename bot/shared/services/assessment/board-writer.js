@@ -269,13 +269,13 @@ async function writeBoardPaper(args, d) {
     }
     if (failing(ex, checks)) SN.finalSoften(checks, GF.memberIds(ex)); // ship with note: a held flag or D22 nothing replaced is a paper-level note
     if (failing(ex, checks)) {
-      const orig = clone(whole);
-      tries.push({ name: 'originals', ex: orig, checks: SN.finalSoften(MR.applyFlags(finish(orig), flags, orig), GF.memberIds(orig)) });
-      const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
-      outcome(tries, best);
-      const short = T.shortfallOf(best.ex, allSlots);
-      if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(short.concat(best.checks.shortfall), best.ex, LL.hardDetail(best.checks.record));
-      const over = LT.overCap(best.checks, allSlots); if (over) throw shortError(best.checks.shortfall, best.ex, JSON.stringify(over), LT.CAP_CODE); ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
+      const orig = clone(whole); tries.push({ name: 'originals', ex: orig, checks: SN.finalSoften(MR.applyFlags(finish(orig), flags, orig), GF.memberIds(orig)) });
+      const best = SN.pickLast(tries, { grade, slots: allSlots, shortOf: (x) => T.shortfallOf(x, allSlots), groupsOf: GF.memberIds }); // bd-qyi45h.13
+      outcome(tries, best); const short = T.shortfallOf(best.ex, allSlots);
+      if (!best.checks.shortfall.length && !short.length) ({ ex, checks } = best); else { // a softened earlier try may be clean
+        if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(short.concat(best.checks.shortfall), best.ex, LL.hardDetail(best.checks.record));
+        const over = LT.overCap(best.checks, allSlots); if (over) throw shortError(best.checks.shortfall, best.ex, JSON.stringify(over), LT.CAP_CODE); ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
+      }
     } else outcome(tries, tries[0]);
   }
   // 4. The scheme, per the variant's style; then the record.

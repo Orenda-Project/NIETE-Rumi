@@ -263,11 +263,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given an observation with completed observer review and debrief
     When I tap "Send report" and the report preview arrives
     Then the confirm message right above the buttons names the recipient teacher and her number
+    And when the account on that number has a school on file, the next line names the school
     And "Send now" sends it, "Someone else" takes me back to the teacher pick, and "Cancel" sends nothing
     # bd-zpyf0 (HITL row 190): fillConfirmBody in observe-send.service.js fills
     # send_confirm_body {name} ({phone}) from teacher_delivery; a nameless row shows
     # the number alone. Button ids observe_send_confirm_/other_/cancel_ unchanged.
     # Proven in bot/tests/observe/bd-zpyf0-confirm-names-recipient.test.js.
+    # bd-r2uzg1.14 (ICT plan #13): {school_line} = send_confirm_school, filled from
+    # users.school_name looked up by teacher_phone (observe-people schoolOfPhone);
+    # none on file or a failed lookup leaves the line out. Name, number and school are
+    # bidi-isolated for the Urdu RTL line. Proven in
+    # bot/tests/observe/bd-r2uzg1-14-confirm-names-school.test.js.
 
   @e2e @wip @content-driven @P2 @config-gated @OBS12
   Scenario: The FICO report to the teacher carries no score and no accusatory verdicts
@@ -1530,6 +1536,27 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a coach in the portal_coach_v2 pilot is on Check and send
     When the coach chooses a ".doc" file, an image type other than JPG or PNG, or a file over 25 MB
     Then the screen shows "Not a plan file" or "File too large" with what is accepted, and nothing is attached
+
+  # bd-snkn32.41 — the teacher's own Make my own plans in "Their recent plans" on Check and send.
+  # Unit: tests/observe/bd-snkn32.41-coach-own-plans.test.js; portal CoachCheckSend.ownPlans.test.tsx.
+  @e2e @config-gated @P1
+  Scenario: A coach sends the observation with a plan the teacher made herself
+    Given a coach in the portal_coach_v2 pilot is on Check and send for a teacher who made a plan with Make my own
+    When the coach opens "Their recent plans"
+    Then the teacher's ready plan is listed beside her downloads as "Made by the teacher" (Urdu "ٹیچر کا بنایا ہوا") with its grade, subject and chapter
+    And a plan of hers that failed or is still being written, or another teacher's plan, is not listed
+    When the coach picks it and sends the observation
+    Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the lesson-plan part is scored from it
+
+  # bd-snkn32.45 — the same own plans on the WhatsApp /observe lesson-plan list.
+  # Unit: tests/coaching/bd-snkn32.45-whatsapp-own-plans.test.js (lp-own-plans, lp-own-selection.handler).
+  @e2e @P1
+  Scenario: A coach on WhatsApp picks the plan the teacher made with Make my own
+    Given a coach observing on WhatsApp reaches the lesson-plan list for a teacher who made a plan with Make my own
+    Then her ready plan is a row marked "Made by the teacher" (Urdu "ٹیچر کا بنایا ہوا") with its grade, subject and chapter, newest first among at most 8 plans
+    And a plan of hers that failed or is still being written, or another teacher's plan, is not listed
+    When the coach taps it and answers "Yes" to "Do you want to proceed?"
+    Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the analysis starts
 
   # bd-fmf24g.66 — the plan the coach attached is read by a job that runs at the same time as the analysis.
   # Unit: tests/coaching/bd-fmf24g.66-late-plan-recompute.test.js (analysis-processor _recomputeIfPlanLanded).

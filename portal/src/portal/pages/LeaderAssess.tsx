@@ -112,8 +112,9 @@ function schoolMatches(s: SaSchool, q: string) {
   return [s.name, s.emis, s.region].some((v) => plain(v || '').includes(want));
 }
 
+/** Today's visit first; sa_r19_practice_first (the server marks `practice`): the practice school above it. */
 function todaysFirst(schools: SaSchool[]) {
-  return [...schools].sort((a, b) => Number(b.visitToday) - Number(a.visitToday));
+  return [...schools].sort((a, b) => (Number(!!b.practice) - Number(!!a.practice)) || (Number(b.visitToday) - Number(a.visitToday)));
 }
 
 export default function LeaderAssess() {
@@ -1052,7 +1053,8 @@ export default function LeaderAssess() {
     content = (
       <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang}
         grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} voiceGateV2={switches.voiceGateV2}
-        endTestRestart={switches.endTestRestart === true} endSection={switches.endSection === true} />
+        endTestRestart={switches.endTestRestart === true} endSection={switches.endSection === true}
+        autoEndSection={switches.r20AutoEndSection === true} />
     );
   } else {
     // this phone's outcomes, plus the server's for children this phone has no record of (a reload mid-visit)

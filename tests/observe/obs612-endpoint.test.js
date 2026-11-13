@@ -69,7 +69,7 @@ const ex = (formId, screenId, data, coach) => Endpoint.handleObs612DataExchange(
 async function walkForm(formId, choose) {
   let res = await Endpoint.handleObs612Init(token(formId));
   const seen = [res];
-  for (let guard = 0; res.screen !== 'DONE' && guard < 12; guard += 1) {
+  for (let guard = 0; res.screen !== 'DONE' && guard < 30; guard += 1) {
     res = await ex(formId, res.screen, answersFor(res.screen, choose));
     seen.push(res);
   }
@@ -136,10 +136,15 @@ describe('INIT opens the visit\'s own tool', () => {
     expect(ur.data.init_ctx_5).toBe('Urdu');
   });
 
-  test.each([['form-en', 'ENUR_TWO_EN'], ['form-ur', 'ENUR_TWO_UR']])('%s: the sheet picks Section 2\'s screen (%s)', async (formId, next) => {
-    const res = await ex(formId, 'ENUR_CONTEXT', answersFor('ENUR_CONTEXT'));
-    expect(res.screen).toBe(next);
-  });
+  // 13 Nov: Section 2 opens with its no-input screen, listing the parts this lesson's language walks (C or D).
+  test.each([['form-en', 'C. Language Instruction Quality: For English language only'], ['form-ur', 'D. Language Instruction Quality: For Urdu Language only']])(
+    '%s: Section 2 opens with its intro, listing its own parts', async (formId, part) => {
+      const res = await ex(formId, 'ENUR_CONTEXT', answersFor('ENUR_CONTEXT'));
+      expect(res.screen).toBe('ENUR_INTRO_TWO');
+      expect(res.data.parts_line.split('\n')).toContain(part);
+      expect(res.data.parts_line).not.toContain(formId === 'form-en' ? 'For Urdu' : 'For English');
+    },
+  );
 
   test('a reopened form comes back pre-filled from the saved draft', async () => {
     formRow('form-gen').answers = { obs612: { env_1: 'no', env_2: 'yes', comment_env: 'Board was clean' } };
@@ -327,17 +332,29 @@ describe('Submit', () => {
     expect(mockSendCoachSummary).toHaveBeenCalledWith(expect.objectContaining({ coachUserId: 'coach-1', sessionId: 'sess-1' }));
   });
 
-  test.each([['form-en', 'ENUR_TWO_EN', 37, 148], ['form-ur', 'ENUR_TWO_UR', 39, 156]])(
-    '%s: the score so far is shown before Section 8; the record carries FDE\'s total',
+  // 13 Nov: one part per screen, an intro per section with parts, Section 7 computed and shown read-only before 8.
+  test.each([['form-en', 'C', 37, 148], ['form-ur', 'D', 39, 156]])(
+    '%s: one part per screen; Section 7 shows the total, FDE\'s 108-point score and band; the record carries them',
     async (formId, two, items, max) => {
       const seen = await walkForm(formId);
-      expect(seen.map((r) => r.screen)).toEqual(['ENUR_CONTEXT', two, 'ENUR_TWO_MORE', 'ENUR_THREE', 'ENUR_FOUR', 'ENUR_FIVE_SIX', 'ENUR_FEEDBACK', 'DONE']);
+      expect(seen.map((r) => r.screen)).toEqual([
+        'ENUR_CONTEXT', 'ENUR_INTRO_TWO', 'ENUR_TWO_B', `ENUR_TWO_${two}`, 'ENUR_TWO_E', 'ENUR_TWO_F', 'ENUR_TWO_G',
+        'ENUR_INTRO_THREE', 'ENUR_THREE_A', 'ENUR_THREE_B', 'ENUR_THREE_C', 'ENUR_THREE_D',
+        'ENUR_INTRO_FOUR', 'ENUR_FOUR_A', 'ENUR_FOUR_B', 'ENUR_FOUR_C', 'ENUR_FOUR_D',
+        'ENUR_FIVE', 'ENUR_SIX', 'ENUR_SEVEN', 'ENUR_FEEDBACK', 'DONE',
+      ]);
       const total = items * 3;
       const pct = Math.round((total * 1000) / max) / 10;
-      const fb = seen.find((r) => r.screen === 'ENUR_FEEDBACK');
-      expect(fb.data.score_line.split('\n')[0]).toBe(`Score so far: ${total} / ${max} (${pct}%)`);
+      const on108 = Math.round((total * 1080) / max) / 10;
+      const seven = seen.find((r) => r.screen === 'ENUR_SEVEN');
+      const lines = seven.data.seven_lines.split('\n');
+      expect(lines[0]).toBe(`Total: ${total} of ${max} (${pct}%)`);
+      expect(lines[1]).toBe(`On FDE's 108-point scale: ${on108}`);
+      expect(lines[2]).toMatch(/^Rating: (Excellent|Proficient|Developing|Needs Improvement) \([1-4]\)$/);
+      expect(lines).toContain('D. Writing Skills: 6 of 8');
+      expect(seven.data.seven_lines).not.toMatch(/Section 2: A\./);
       const made = sessions().find((s) => !['sess-1', 'sess-2'].includes(s.id));
-      expect(made.analysis_data.obs612.result).toMatchObject({ total, max, pct, sheet: formId === 'form-ur' ? 'ur' : 'en' });
+      expect(made.analysis_data.obs612.result).toMatchObject({ total, max, pct, score_108: on108, sheet: formId === 'form-ur' ? 'ur' : 'en' });
       expect(Object.keys(made.analysis_data.obs612.feedback).sort()).toEqual(['areas', 'recommendations', 'strengths', 'timeline']);
       expect(made.analysis_data.obs612.context).toMatchObject({ ctx_6: 'Words for ctx_6', ctx_8: '32' });
     },
@@ -352,7 +369,8 @@ describe('Submit', () => {
     expect(res.screen).toBe('GEN_WORK');
     expect(res.data.err_v).toBe(true);
     expect(res.data.err_note).toContain('LESSON DELIVERY');
-    expect(res.data.err_note).toContain('Item 3');
+    expect(res.data.err_note).toContain('"Explained concept with clarity"');
+    expect(res.data.err_note).not.toContain('Item');
     expect(formRow('form-gen').sealed_at).toBeNull();
     expect(sessions()).toHaveLength(2);
     await flush();

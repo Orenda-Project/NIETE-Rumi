@@ -36,6 +36,7 @@ const {
   moduleSourceQuizId, buildModuleExamSlot,
   levelExamSlotHidden,
 } = require('../services/training/isaps-module-exam.rules');
+const LevelLabels = require('../services/training/level-label.rules');
 const supabase = require('../config/supabase');
 const {
   applyBandSelection,
@@ -1983,20 +1984,12 @@ function courseBadgeName(c) {
 // ─── Certificates (bd-2665 / sheet row R7) ────────────────────────────────
 
 /**
- * The label a teacher reads on a certificate row.
- *
- * Falls back to the certificate code when the level name snapshot is missing —
- * legacy imports do not all carry one, and "Level undefined · undefined" is
- * worse than a bare code the teacher can at least match against their records.
+ * The label a teacher reads on a certificate row: the number its PDF prints
+ * (level-label.rules.js). Falls back to the certificate code when the level
+ * name snapshot is missing — legacy imports do not all carry one.
  */
 function certificateOptionTitle(cert) {
-  if (!cert) return '';
-  const name = cert.level_name_snapshot;
-  if (!name) return cert.certificate_code || '';
-  const order = cert.training_levels && typeof cert.training_levels.order_index === 'number'
-    ? cert.training_levels.order_index
-    : null;
-  return order === null ? name : `Level ${order + 1} · ${name}`;
+  return LevelLabels.certificateTitle(cert);
 }
 
 /** Issue date + the code, on ONE line — Flow row descriptions do not wrap. */
@@ -2024,7 +2017,7 @@ function certificateOptionDescription(cert) {
 async function loadCertificates(userId) {
   const { data } = await supabase
     .from('training_certificates')
-    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, pdf_r2_key, training_levels(order_index)')
+    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, pdf_r2_key, ' + LevelLabels.CERTIFICATE_LEVEL_EMBED)
     .eq('user_id', userId)
     .order('level_id', { ascending: true });
   return data || [];

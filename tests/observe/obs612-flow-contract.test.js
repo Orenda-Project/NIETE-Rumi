@@ -119,12 +119,48 @@ describe('routing', () => {
     });
   });
 
-  test('the English & Urdu sheet picks its own Section 2 screen', () => {
-    expect(F.pathFor('enur', 'en')).toContain('ENUR_TWO_EN');
-    expect(F.pathFor('enur', 'en')).not.toContain('ENUR_TWO_UR');
-    expect(F.pathFor('enur', 'ur')).toContain('ENUR_TWO_UR');
-    expect(F.pathFor('enur', 'ur')).not.toContain('ENUR_TWO_EN');
-    expect(flow.routing_model.ENUR_CONTEXT.filter((s) => s !== 'DONE').sort()).toEqual(['ENUR_TWO_EN', 'ENUR_TWO_UR']);
+  // Operator 13 Nov: one part per screen; the lesson's language picks Section 2's C (English) or D (Urdu).
+  test('the English & Urdu sheet picks its own Section 2 part (C English, D Urdu), after B', () => {
+    expect(F.pathFor('enur', 'en')).toContain('ENUR_TWO_C');
+    expect(F.pathFor('enur', 'en')).not.toContain('ENUR_TWO_D');
+    expect(F.pathFor('enur', 'ur')).toContain('ENUR_TWO_D');
+    expect(F.pathFor('enur', 'ur')).not.toContain('ENUR_TWO_C');
+    expect(flow.routing_model.ENUR_TWO_B.filter((s) => s !== 'DONE').sort()).toEqual(['ENUR_TWO_C', 'ENUR_TWO_D']);
+    expect(flow.routing_model.ENUR_CONTEXT.filter((s) => s !== 'DONE')).toEqual(['ENUR_INTRO_TWO']);
+  });
+
+  test('one part per screen; a no-input intro opens Sections 2, 3 and 4; Section 7 is read-only before 8', () => {
+    const path = F.pathFor('enur', 'en');
+    expect(path).toHaveLength(21);
+    for (const id of ['ENUR_INTRO_TWO', 'ENUR_INTRO_THREE', 'ENUR_INTRO_FOUR', 'ENUR_SEVEN']) {
+      expect(inputsOf(screens[id])).toEqual([]);
+    }
+    expect(path.slice(-2)).toEqual(['ENUR_SEVEN', 'ENUR_FEEDBACK']);
+    for (const id of path.filter((x) => /^ENUR_(TWO|THREE|FOUR)_[A-Z]$/.test(x))) {
+      const sec = O.TOOLS.enur.sections.filter((x) => inputsOf(screens[id]).some((c) => x.items.some((i) => i.key === c.name)));
+      expect(sec).toHaveLength(1);
+    }
+  });
+
+  test('no "Item N" anywhere; an item is labelled with FDE\'s own number, its text under it word for word', () => {
+    expect(JSON.stringify(flow)).not.toMatch(/Item \d/);
+    for (const id of FORM_SCREENS) {
+      for (const c of inputsOf(screens[id]).filter((x) => x.type === 'RadioButtonsGroup' && /^(s\d|env|delivery|management|command|assessment|work)/.test(x.name))) {
+        expect(c.label).toMatch(/^\d+$/);
+        expect(c.description).toBeTruthy();
+      }
+    }
+  });
+
+  test('FDE\'s "Section 2: A. Teacher Practices" is shown as "Section 2: Teacher Practices", a small line above each part', () => {
+    expect(JSON.stringify(flow)).not.toContain('Section 2: A.');
+    const kids = components(screens.ENUR_TWO_E);
+    expect(kids.find((c) => c.type === 'TextCaption' && c.text === 'Section 2: Teacher Practices')).toBeTruthy();
+    expect(kids.find((c) => c.type === 'TextHeading').text).toBe('E. Teaching Strategies Score');
+  });
+
+  test('Section 4 D is "Writing Skills" (operator correction, 13 Nov)', () => {
+    expect(components(screens.ENUR_FOUR_D).find((c) => c.type === 'TextHeading').text).toBe('D. Writing Skills');
   });
 });
 
@@ -219,7 +255,7 @@ describe('every required item is asked once, as a required answer, in FDE\'s wor
   });
 
   test('English & Urdu: each item shows FDE\'s text, scored 1-4 with FDE\'s scale words', () => {
-    const all = [...F.pathFor('enur', 'en'), 'ENUR_TWO_UR'].flatMap((id) => inputsOf(screens[id]));
+    const all = [...F.pathFor('enur', 'en'), 'ENUR_TWO_D'].flatMap((id) => inputsOf(screens[id]));
     for (const s of O.TOOLS.enur.sections) {
       for (const item of s.items) {
         const c = all.find((x) => x.name === item.key);
@@ -242,7 +278,7 @@ describe('every required item is asked once, as a required answer, in FDE\'s wor
       const c = fb.find((x) => x.name === `fb_${f.key}`);
       expect([c.label, c['helper-text']]).toContain(f.label);
     }
-    expect(JSON.stringify(screens.ENUR_FEEDBACK.layout)).toContain('${data.score_line}');
+    expect(JSON.stringify(screens.ENUR_SEVEN.layout)).toContain('${data.seven_lines}');
   });
 });
 

@@ -45,6 +45,8 @@ const en = {
   colOrf: 'WPM',
   colZero: 'Zero',
   colMaths: 'Maths',
+  // round 20: the row's typical level per subject (level words: copy.ts results.level)
+  colLevel: { ur: 'Urdu level', en: 'English level', ma: 'Maths level' } as Record<'ur' | 'en' | 'ma', string>,
   readingTasks: (l: string) => `${l} reading, task by task`,
   mathsTasks: 'Maths, task by task',
   mean: 'Mean',
@@ -169,6 +171,7 @@ const ur: DashCopy = {
   colOrf: 'فی منٹ',
   colZero: 'صفر',
   colMaths: 'ریاضی',
+  colLevel: { ur: 'اردو کی سطح', en: 'انگریزی کی سطح', ma: 'ریاضی کی سطح' },
   readingTasks: (l: string) => `${l} پڑھائی، ہر حصہ الگ`,
   mathsTasks: 'ریاضی، ہر حصہ الگ',
   mean: 'اوسط',

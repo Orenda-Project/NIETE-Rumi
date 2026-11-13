@@ -13,6 +13,7 @@ vi.mock("../services/api", () => ({ childTestSa: { getResults: vi.fn() } }));
 import { childTestSa } from "../services/api";
 import LeaderAssessResults from "./LeaderAssessResults";
 import { resultsPath } from "../lib/assess/results";
+import { COPY } from "../lib/assess/copy";
 
 const api = childTestSa as any;
 const SID = "cccccccc-0000-4000-8000-000000000003";
@@ -258,6 +259,32 @@ describe("LeaderAssessResults", () => {
     expect(within(dev).getByText("چھوڑ دیا گیا (سینڈ باکس جمپ)")).toBeTruthy();
   });
 
+  // End this section: the part on show ends as end_section, the parts after it in that section as skipped_end_section.
+  const END_SECTION_TASKS = [
+    { taskId: "en.letter_names5", mode: "record", attempted: 3, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "end_section", recording: "scored_later", score: null },
+    { taskId: "en.words4", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "skipped_end_section", recording: "none", score: null },
+  ];
+
+  it("End this section reads as words, never its code: the part ended by the coach, the parts after it skipped (EN + UR)", async () => {
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: END_SECTION_TASKS });
+    const en = renderAt();
+    const ended = await screen.findByTestId("result-task-en.letter_names5");
+    expect(within(ended).getByText("Ended by the coach")).toBeTruthy();
+    const after = screen.getByTestId("result-task-en.words4");
+    expect(within(after).getByText("Skipped")).toBeTruthy();
+    expect(within(after).queryByText("Attempted")).toBeNull();
+    for (const card of [ended, after]) expect(card.textContent).not.toMatch(/end_section/);
+    en.unmount();
+
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt();
+    const endedUr = await screen.findByTestId("result-task-en.letter_names5");
+    expect(within(endedUr).getByText(COPY.ur.results.stops.coach_end)).toBeTruthy();
+    const afterUr = screen.getByTestId("result-task-en.words4");
+    expect(within(afterUr).getByText(COPY.ur.results.stops.skipped_level2)).toBeTruthy();
+    for (const card of [endedUr, afterUr]) expect(card.textContent).not.toMatch(/end_section/);
+  });
+
   it("Urdu: a scored task's numbers are labelled in Urdu, never the scorer's keys (0 raw keys on the page)", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     const title = { ur: "کہانی", en: "Story" };
@@ -295,5 +322,60 @@ describe("LeaderAssessResults", () => {
     renderAt();
     const tap = await screen.findByTestId("result-task-ur.letters");
     expect(within(tap).getByText("How it ended").className).toContain("shrink-0");
+  });
+});
+
+// Round 20 (sa_r20_level on the server): one line per subject on top — how far the child reached, the level (the words
+// sent for review) and why the subject stopped. Only when the answer carries `levels`; without it the page is as before.
+describe("LeaderAssessResults: the child's level per subject (round 20)", () => {
+  const LEVELS = [
+    { subject: "ur", reached: { taskId: "ur.words4", title: { en: "Familiar words", ur: "جانے پہچانے الفاظ" } }, level: "letters", pending: false, stop: "no_answer" },
+    { subject: "en", reached: { taskId: "en.letter_sounds5", title: null }, level: null, pending: true, stop: null },
+    { subject: "ma", reached: { taskId: "ma.mul2i", title: { en: "Multiplication", ur: "ضرب" } }, level: "sub_mul", pending: true, stop: "coach" },
+  ];
+
+  it("no levels in the answer: no level lines at all", async () => {
+    renderAt();
+    await screen.findByTestId("result-task-ur.letters");
+    expect(screen.queryByTestId("results-levels")).toBeNull();
+    expect(screen.queryByText(/Reached/)).toBeNull();
+  });
+
+  it("English: Reached, Level and the stop per subject; pending says scores are still coming", async () => {
+    api.getResults.mockResolvedValue({ ...RESULTS, levels: LEVELS });
+    renderAt();
+    const ur = await screen.findByTestId("result-level-ur");
+    expect(ur).toHaveTextContent("Urdu");
+    expect(ur).toHaveTextContent("Reached: Familiar words");
+    expect(ur).toHaveTextContent("Level: Letters");
+    expect(ur).toHaveTextContent("Stopped: no answer");
+    const en = screen.getByTestId("result-level-en");
+    expect(en).toHaveTextContent("Reached: en.letter_sounds5");
+    expect(en).toHaveTextContent("Level: Waiting for scores");
+    expect(en.textContent).not.toMatch(/Stopped/);
+    const ma = screen.getByTestId("result-level-ma");
+    expect(ma).toHaveTextContent("Level: Subtract and multiply (more to come)");
+    expect(ma).toHaveTextContent("Stopped by the coach");
+    // the lines sit above the task cards
+    const levels = screen.getByTestId("results-levels");
+    expect(levels.compareDocumentPosition(screen.getByTestId("result-task-ur.letters")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Urdu: the same lines in Nastaliq script", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue({ ...RESULTS, levels: LEVELS });
+    renderAt();
+    const ur = await screen.findByTestId("result-level-ur");
+    expect(ur).toHaveTextContent("اردو");
+    expect(ur).toHaveTextContent("جانے پہچانے الفاظ");
+    expect(ur).toHaveTextContent("حروف");
+    expect(ur).toHaveTextContent("رک گیا: کوئی جواب نہیں");
+    expect(ur).toHaveTextContent("آخری حصہ: جانے پہچانے الفاظ");
+    const ma = screen.getByTestId("result-level-ma");
+    expect(ma).toHaveTextContent("سطح: تفریق اور ضرب (مزید نمبر آنے ہیں)");
+    expect(ma).toHaveTextContent("کوچ نے ختم کیا");
+    expect(ma.textContent).not.toMatch(/یہ مضمون/);
+    // no Roman Urdu: a subject line whose part has an Urdu title carries no Latin letter
+    expect(ur.textContent).not.toMatch(/[A-Za-z]/);
   });
 });

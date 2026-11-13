@@ -7,7 +7,10 @@
  * figure, so the child is left looking for one. One bullet now tells the model to give the topic
  * or the data as text and let the child draw on the answer sheet.
  *
- * It is added ONLY when one of the three is asked for. Every other prompt stays byte-identical,
+ * bd-ipoxhx.10: Mind Map and Flow Chart are now DRAWN on the paper (paper-diagram.js), so the
+ * draw-it line covers Graphs & Geometric Problems alone; those two get a "diagram" line instead.
+ *
+ * It is added ONLY when one of them is asked for. Every other prompt stays byte-identical,
  * which the user-prompt goldens (golden.test.js) hold for unseen, seen, both and a marks budget.
  */
 
@@ -19,8 +22,9 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 
-const DRAW_IT = '• For Mind Map / Flow Chart / Graphs & Geometric Problems: give the topic or the data as text; '
+const DRAW_IT = '• For Graphs & Geometric Problems: give the topic or the data as text; '
   + 'the child draws it on the answer sheet; never refer to boxes, branches, arrows or a figure printed on the paper.';
+const DIAGRAM = '"diagram"';
 const NO_PICTURE = '• The paper carries no pictures.';
 
 const BASE = {
@@ -34,8 +38,6 @@ beforeEach(() => mockCreate.mockReset());
 
 describe('buildUserPrompt', () => {
   test.each([
-    ['science', 'Mind Map'],
-    ['science', 'Flow Chart'],
     ['maths', 'Graphs & Geometric Problems'],
   ])('%s with %s carries the draw-it line once, right after the no-picture line', (subject, id) => {
     const prompt = Gen.buildUserPrompt({ ...BASE, subject, questionTypes: types('MCQs', id) });
@@ -45,9 +47,16 @@ describe('buildUserPrompt', () => {
     expect(lines[at + 1]).toBe(DRAW_IT);
   });
 
-  test('two of the three asked together still carry it once', () => {
-    const prompt = Gen.buildUserPrompt({ ...BASE, questionTypes: types('MCQs', 'Mind Map', 'Flow Chart') });
+  test.each(['Mind Map', 'Flow Chart'])('%s asks for a drawn diagram, not the draw-it line', (id) => {
+    const prompt = Gen.buildUserPrompt({ ...BASE, questionTypes: types('MCQs', id) });
+    expect(prompt).not.toContain('draws it on the answer sheet');
+    expect(prompt).toContain(DIAGRAM);
+  });
+
+  test('graphs with a mind map: one draw-it line and one diagram line', () => {
+    const prompt = Gen.buildUserPrompt({ ...BASE, subject: 'maths', questionTypes: types('MCQs', 'Graphs & Geometric Problems', 'Mind Map') });
     expect(count(prompt, DRAW_IT)).toBe(1);
+    expect(prompt).toContain('• For Mind Map: add');
   });
 
   test('a paper that asks for none of them does not carry it', () => {
@@ -61,20 +70,20 @@ describe('buildUserPrompt', () => {
   });
 
   test('a mix (both) that asks for one in its unseen half carries it', () => {
-    const prompt = Gen.buildUserPrompt({ ...BASE, contentSource: 'both', seenCount: 2, questionTypes: types('MCQs', 'Flow Chart') });
+    const prompt = Gen.buildUserPrompt({ ...BASE, subject: 'maths', contentSource: 'both', seenCount: 2, questionTypes: types('MCQs', 'Graphs & Geometric Problems') });
     expect(count(prompt, DRAW_IT)).toBe(1);
   });
 });
 
 describe('generateExam', () => {
-  test('sends the draw-it line to the model when Mind Map is asked for', async () => {
+  test('sends the diagram line to the model when Mind Map is asked for', async () => {
     mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify({ unseen: { subjective: { 'Mind Map': [{ question: 'Make a mind map of the sources of energy.', marks: 4 }] } } }) }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
     });
     await Gen.generateExam({ ...BASE, questionTypes: types('MCQs', 'Mind Map') });
     const userMessage = mockCreate.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
-    expect(userMessage).toContain(DRAW_IT);
+    expect(userMessage).toContain('• For Mind Map: add');
   });
 
   test('does not send it when none of the three is asked for', async () => {

@@ -45,31 +45,87 @@
       "DONE"
     ],
     "ENUR_CONTEXT": [
-      "ENUR_TWO_EN",
-      "ENUR_TWO_UR",
+      "ENUR_INTRO_TWO",
       "DONE"
     ],
-    "ENUR_TWO_EN": [
-      "ENUR_TWO_MORE",
+    "ENUR_INTRO_TWO": [
+      "ENUR_TWO_B",
       "DONE"
     ],
-    "ENUR_TWO_UR": [
-      "ENUR_TWO_MORE",
+    "ENUR_TWO_B": [
+      "ENUR_TWO_C",
+      "ENUR_TWO_D",
       "DONE"
     ],
-    "ENUR_TWO_MORE": [
-      "ENUR_THREE",
+    "ENUR_TWO_C": [
+      "ENUR_TWO_E",
       "DONE"
     ],
-    "ENUR_THREE": [
-      "ENUR_FOUR",
+    "ENUR_TWO_D": [
+      "ENUR_TWO_E",
       "DONE"
     ],
-    "ENUR_FOUR": [
-      "ENUR_FIVE_SIX",
+    "ENUR_TWO_E": [
+      "ENUR_TWO_F",
       "DONE"
     ],
-    "ENUR_FIVE_SIX": [
+    "ENUR_TWO_F": [
+      "ENUR_TWO_G",
+      "DONE"
+    ],
+    "ENUR_TWO_G": [
+      "ENUR_INTRO_THREE",
+      "DONE"
+    ],
+    "ENUR_INTRO_THREE": [
+      "ENUR_THREE_A",
+      "DONE"
+    ],
+    "ENUR_THREE_A": [
+      "ENUR_THREE_B",
+      "DONE"
+    ],
+    "ENUR_THREE_B": [
+      "ENUR_THREE_C",
+      "DONE"
+    ],
+    "ENUR_THREE_C": [
+      "ENUR_THREE_D",
+      "DONE"
+    ],
+    "ENUR_THREE_D": [
+      "ENUR_INTRO_FOUR",
+      "DONE"
+    ],
+    "ENUR_INTRO_FOUR": [
+      "ENUR_FOUR_A",
+      "DONE"
+    ],
+    "ENUR_FOUR_A": [
+      "ENUR_FOUR_B",
+      "DONE"
+    ],
+    "ENUR_FOUR_B": [
+      "ENUR_FOUR_C",
+      "DONE"
+    ],
+    "ENUR_FOUR_C": [
+      "ENUR_FOUR_D",
+      "DONE"
+    ],
+    "ENUR_FOUR_D": [
+      "ENUR_FIVE",
+      "DONE"
+    ],
+    "ENUR_FIVE": [
+      "ENUR_SIX",
+      "DONE"
+    ],
+    "ENUR_SIX": [
+      "ENUR_SEVEN",
+      "DONE"
+    ],
+    "ENUR_SEVEN": [
       "ENUR_FEEDBACK",
       "DONE"
     ],
@@ -164,7 +220,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "env_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Well lit and airy classroom",
                 "required": true,
                 "data-source": [
@@ -181,7 +237,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "env_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Student strength is appropriate for classroom size",
                 "required": true,
                 "data-source": [
@@ -198,7 +254,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "env_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Appropriate seating arrangements",
                 "required": true,
                 "data-source": [
@@ -215,7 +271,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "env_4",
-                "label": "Item 4",
+                "label": "4",
                 "description": "Soft boards are installed, and displays are appropriate",
                 "required": true,
                 "data-source": [
@@ -232,7 +288,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "env_5",
-                "label": "Item 5",
+                "label": "5",
                 "description": "Class displays are aligned with concepts",
                 "required": true,
                 "data-source": [
@@ -249,7 +305,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "env_6",
-                "label": "Item 6",
+                "label": "6",
                 "description": "Appropriate board size",
                 "required": true,
                 "data-source": [
@@ -394,7 +450,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Lesson is matched with SOW",
                 "required": true,
                 "data-source": [
@@ -411,7 +467,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Introduced topic properly",
                 "required": true,
                 "data-source": [
@@ -428,7 +484,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Explained concept with clarity",
                 "required": true,
                 "data-source": [
@@ -445,7 +501,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_4",
-                "label": "Item 4",
+                "label": "4",
                 "description": "Relates new ideas to the concept",
                 "required": true,
                 "data-source": [
@@ -462,7 +518,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_5",
-                "label": "Item 5",
+                "label": "5",
                 "description": "Asked open-ended questions",
                 "required": true,
                 "data-source": [
@@ -479,7 +535,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_6",
-                "label": "Item 6",
+                "label": "6",
                 "description": "Effective use of teaching aids /resources",
                 "required": true,
                 "data-source": [
@@ -496,7 +552,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_7",
-                "label": "Item 7",
+                "label": "7",
                 "description": "organized pair and group activities",
                 "required": true,
                 "data-source": [
@@ -513,7 +569,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_8",
-                "label": "Item 8",
+                "label": "8",
                 "description": "Fluency of language and voice clarity",
                 "required": true,
                 "data-source": [
@@ -530,7 +586,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_9",
-                "label": "Item 9",
+                "label": "9",
                 "description": "English used as medium of instruction",
                 "required": true,
                 "data-source": [
@@ -547,7 +603,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "delivery_10",
-                "label": "Item 10",
+                "label": "10",
                 "description": "Instructions were clear",
                 "required": true,
                 "data-source": [
@@ -691,7 +747,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Pleasant personality and exudes confidence",
                 "required": true,
                 "data-source": [
@@ -708,7 +764,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Involves children in learning activities",
                 "required": true,
                 "data-source": [
@@ -725,7 +781,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Provides equal opportunities to all students",
                 "required": true,
                 "data-source": [
@@ -742,7 +798,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_4",
-                "label": "Item 4",
+                "label": "4",
                 "description": "Reflects positive behavior",
                 "required": true,
                 "data-source": [
@@ -759,7 +815,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_5",
-                "label": "Item 5",
+                "label": "5",
                 "description": "Follow classroom rules and routines",
                 "required": true,
                 "data-source": [
@@ -776,7 +832,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_6",
-                "label": "Item 6",
+                "label": "6",
                 "description": "Manages the time well",
                 "required": true,
                 "data-source": [
@@ -793,7 +849,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_7",
-                "label": "Item 7",
+                "label": "7",
                 "description": "Maintains eye contact",
                 "required": true,
                 "data-source": [
@@ -810,7 +866,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_8",
-                "label": "Item 8",
+                "label": "8",
                 "description": "Smooth transition of activities",
                 "required": true,
                 "data-source": [
@@ -827,7 +883,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "management_9",
-                "label": "Item 9",
+                "label": "9",
                 "description": "Appropriate movement in the class",
                 "required": true,
                 "data-source": [
@@ -955,7 +1011,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "command_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Has good knowledge of the subject",
                 "required": true,
                 "data-source": [
@@ -972,7 +1028,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "command_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Links topic with prior knowledge",
                 "required": true,
                 "data-source": [
@@ -989,7 +1045,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "command_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Explains concept correctly",
                 "required": true,
                 "data-source": [
@@ -1006,7 +1062,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "command_4",
-                "label": "Item 4",
+                "label": "4",
                 "description": "Gives relevant examples",
                 "required": true,
                 "data-source": [
@@ -1023,7 +1079,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "command_5",
-                "label": "Item 5",
+                "label": "5",
                 "description": "Achieves SMART objectives",
                 "required": true,
                 "data-source": [
@@ -1040,7 +1096,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "command_6",
-                "label": "Item 6",
+                "label": "6",
                 "description": "Uses variety of activities",
                 "required": true,
                 "data-source": [
@@ -1145,7 +1201,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "assessment_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Students are assessed during and end of lesson.",
                 "required": true,
                 "data-source": [
@@ -1162,7 +1218,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "assessment_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "A variety of assessment strategies are used.",
                 "required": true,
                 "data-source": [
@@ -1268,7 +1324,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "work_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Notebooks",
                 "required": true,
                 "data-source": [
@@ -1285,7 +1341,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "work_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Students' diaries",
                 "required": true,
                 "data-source": [
@@ -2444,7 +2500,7 @@
     },
     {
       "id": "ENUR_CONTEXT",
-      "title": "Part 1 of 7",
+      "title": "Part 1 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -2609,8 +2665,74 @@
       }
     },
     {
-      "id": "ENUR_TWO_EN",
-      "title": "Part 2 of 7",
+      "id": "ENUR_INTRO_TWO",
+      "title": "Part 2 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "parts_line": {
+          "type": "string",
+          "__example__": "B. Lesson Planning & Objectives\nC. Language Instruction Quality: For English language only\nD. Language Instruction Quality: For Urdu Language only\nE. Teaching Strategies Score\nF. Classroom Management Score\nG. Use of Teaching Aids Score"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_intro_two_form",
+            "init-values": {},
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.parts_line}"
+              },
+              {
+                "type": "Footer",
+                "label": "Start Section 2",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_INTRO_TWO"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_TWO_B",
+      "title": "Part 3 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -2639,14 +2761,6 @@
         "init_s2b_3": {
           "type": "string",
           "__example__": "1"
-        },
-        "init_s2c_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2c_2": {
-          "type": "string",
-          "__example__": "1"
         }
       },
       "layout": {
@@ -2654,13 +2768,11 @@
         "children": [
           {
             "type": "Form",
-            "name": "enur_two_en_form",
+            "name": "enur_two_b_form",
             "init-values": {
               "s2b_1": "${data.init_s2b_1}",
               "s2b_2": "${data.init_s2b_2}",
-              "s2b_3": "${data.init_s2b_3}",
-              "s2c_1": "${data.init_s2c_1}",
-              "s2c_2": "${data.init_s2c_2}"
+              "s2b_3": "${data.init_s2b_3}"
             },
             "error-messages": "${data.error_messages}",
             "children": [
@@ -2669,8 +2781,12 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
                 "type": "TextHeading",
-                "text": "Section 2: A. Teacher Practices"
+                "text": "B. Lesson Planning & Objectives"
               },
               {
                 "type": "TextBody",
@@ -2678,13 +2794,9 @@
                 "visible": "${data.err_v}"
               },
               {
-                "type": "TextSubheading",
-                "text": "B. Lesson Planning & Objectives"
-              },
-              {
                 "type": "RadioButtonsGroup",
                 "name": "s2b_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Clear lesson objectives communicated",
                 "required": true,
                 "data-source": [
@@ -2709,7 +2821,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2b_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Objectives appropriate for age and level",
                 "required": true,
                 "data-source": [
@@ -2734,7 +2846,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2b_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Lesson aligned with SOW",
                 "required": true,
                 "data-source": [
@@ -2757,13 +2869,85 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_TWO_B",
+                    "s2b_1": "${form.s2b_1}",
+                    "s2b_2": "${form.s2b_2}",
+                    "s2b_3": "${form.s2b_3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_TWO_C",
+      "title": "Part 4 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s2c_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s2c_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_two_c_form",
+            "init-values": {
+              "s2c_1": "${data.init_s2c_1}",
+              "s2c_2": "${data.init_s2c_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
+                "type": "TextHeading",
                 "text": "C. Language Instruction Quality: For English language only"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2c_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Correct grammar, pronunciation, fluency",
                 "required": true,
                 "data-source": [
@@ -2788,7 +2972,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2c_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Use of target language in classroom",
                 "required": true,
                 "data-source": [
@@ -2816,10 +3000,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ENUR_TWO_EN",
-                    "s2b_1": "${form.s2b_1}",
-                    "s2b_2": "${form.s2b_2}",
-                    "s2b_3": "${form.s2b_3}",
+                    "screen": "ENUR_TWO_C",
                     "s2c_1": "${form.s2c_1}",
                     "s2c_2": "${form.s2c_2}"
                   }
@@ -2831,8 +3012,8 @@
       }
     },
     {
-      "id": "ENUR_TWO_UR",
-      "title": "Part 2 of 7",
+      "id": "ENUR_TWO_D",
+      "title": "Part 4 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -2849,18 +3030,6 @@
         "error_messages": {
           "type": "object",
           "__example__": {}
-        },
-        "init_s2b_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2b_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2b_3": {
-          "type": "string",
-          "__example__": "1"
         },
         "init_s2d_1": {
           "type": "string",
@@ -2884,11 +3053,8 @@
         "children": [
           {
             "type": "Form",
-            "name": "enur_two_ur_form",
+            "name": "enur_two_d_form",
             "init-values": {
-              "s2b_1": "${data.init_s2b_1}",
-              "s2b_2": "${data.init_s2b_2}",
-              "s2b_3": "${data.init_s2b_3}",
               "s2d_1": "${data.init_s2d_1}",
               "s2d_2": "${data.init_s2d_2}",
               "s2d_3": "${data.init_s2d_3}",
@@ -2901,8 +3067,12 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
                 "type": "TextHeading",
-                "text": "Section 2: A. Teacher Practices"
+                "text": "D. Language Instruction Quality: For Urdu Language only"
               },
               {
                 "type": "TextBody",
@@ -2910,92 +3080,9 @@
                 "visible": "${data.err_v}"
               },
               {
-                "type": "TextSubheading",
-                "text": "B. Lesson Planning & Objectives"
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "s2b_1",
-                "label": "Item 1",
-                "description": "Clear lesson objectives communicated",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "1",
-                    "title": "1 · Needs Improvement"
-                  },
-                  {
-                    "id": "2",
-                    "title": "2 · Developing"
-                  },
-                  {
-                    "id": "3",
-                    "title": "3 · Proficient"
-                  },
-                  {
-                    "id": "4",
-                    "title": "4 · Excellent"
-                  }
-                ]
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "s2b_2",
-                "label": "Item 2",
-                "description": "Objectives appropriate for age and level",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "1",
-                    "title": "1 · Needs Improvement"
-                  },
-                  {
-                    "id": "2",
-                    "title": "2 · Developing"
-                  },
-                  {
-                    "id": "3",
-                    "title": "3 · Proficient"
-                  },
-                  {
-                    "id": "4",
-                    "title": "4 · Excellent"
-                  }
-                ]
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "s2b_3",
-                "label": "Item 3",
-                "description": "Lesson aligned with SOW",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "1",
-                    "title": "1 · Needs Improvement"
-                  },
-                  {
-                    "id": "2",
-                    "title": "2 · Developing"
-                  },
-                  {
-                    "id": "3",
-                    "title": "3 · Proficient"
-                  },
-                  {
-                    "id": "4",
-                    "title": "4 · Excellent"
-                  }
-                ]
-              },
-              {
-                "type": "TextSubheading",
-                "text": "D. Language Instruction Quality: For Urdu Language only"
-              },
-              {
                 "type": "RadioButtonsGroup",
                 "name": "s2d_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Correct تلفظ (pronunciation), روانی (fluency), قواعد (grammar)",
                 "required": true,
                 "data-source": [
@@ -3020,7 +3107,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2d_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Effective use of Urdu for explanation",
                 "required": true,
                 "data-source": [
@@ -3045,7 +3132,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2d_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Balanced use of both languages (if bilingual)",
                 "required": true,
                 "data-source": [
@@ -3070,7 +3157,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2d_4",
-                "label": "Item 4",
+                "label": "4",
                 "description": "Vocabulary development strategies (Word associations -linking known and new words, Teaching prefixes, suffixes, and root words, Word families (e.g., act, action, active), Collocations (e.g., \"make a decision\", Word forms (noun, verb, adjective), Sentence patterns and structures, etc. )",
                 "required": true,
                 "data-source": [
@@ -3098,10 +3185,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ENUR_TWO_UR",
-                    "s2b_1": "${form.s2b_1}",
-                    "s2b_2": "${form.s2b_2}",
-                    "s2b_3": "${form.s2b_3}",
+                    "screen": "ENUR_TWO_D",
                     "s2d_1": "${form.s2d_1}",
                     "s2d_2": "${form.s2d_2}",
                     "s2d_3": "${form.s2d_3}",
@@ -3115,8 +3199,8 @@
       }
     },
     {
-      "id": "ENUR_TWO_MORE",
-      "title": "Part 3 of 7",
+      "id": "ENUR_TWO_E",
+      "title": "Part 5 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -3145,30 +3229,6 @@
         "init_s2e_3": {
           "type": "string",
           "__example__": "1"
-        },
-        "init_s2f_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2f_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2f_3": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2g_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2g_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s2g_3": {
-          "type": "string",
-          "__example__": "1"
         }
       },
       "layout": {
@@ -3176,17 +3236,11 @@
         "children": [
           {
             "type": "Form",
-            "name": "enur_two_more_form",
+            "name": "enur_two_e_form",
             "init-values": {
               "s2e_1": "${data.init_s2e_1}",
               "s2e_2": "${data.init_s2e_2}",
-              "s2e_3": "${data.init_s2e_3}",
-              "s2f_1": "${data.init_s2f_1}",
-              "s2f_2": "${data.init_s2f_2}",
-              "s2f_3": "${data.init_s2f_3}",
-              "s2g_1": "${data.init_s2g_1}",
-              "s2g_2": "${data.init_s2g_2}",
-              "s2g_3": "${data.init_s2g_3}"
+              "s2e_3": "${data.init_s2e_3}"
             },
             "error-messages": "${data.error_messages}",
             "children": [
@@ -3195,8 +3249,12 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
                 "type": "TextHeading",
-                "text": "Section 2: A. Teacher Practices"
+                "text": "E. Teaching Strategies Score"
               },
               {
                 "type": "TextBody",
@@ -3204,13 +3262,9 @@
                 "visible": "${data.err_v}"
               },
               {
-                "type": "TextSubheading",
-                "text": "E. Teaching Strategies Score"
-              },
-              {
                 "type": "RadioButtonsGroup",
                 "name": "s2e_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Variety of Strategies (discussion, reading, writing, speaking, mixed strategies, brain storming, etc.)",
                 "required": true,
                 "data-source": [
@@ -3235,7 +3289,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2e_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Use of examples and real-life connections",
                 "required": true,
                 "data-source": [
@@ -3260,7 +3314,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2e_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Use of Differential approach for mixed ability learners (Contextual learning, Active use (speaking + writing), Repetition & recycling, Visual support, Bilingual connections (for Urdu learners)",
                 "required": true,
                 "data-source": [
@@ -3283,13 +3337,90 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_TWO_E",
+                    "s2e_1": "${form.s2e_1}",
+                    "s2e_2": "${form.s2e_2}",
+                    "s2e_3": "${form.s2e_3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_TWO_F",
+      "title": "Part 6 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s2f_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s2f_2": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s2f_3": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_two_f_form",
+            "init-values": {
+              "s2f_1": "${data.init_s2f_1}",
+              "s2f_2": "${data.init_s2f_2}",
+              "s2f_3": "${data.init_s2f_3}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
+                "type": "TextHeading",
                 "text": "F. Classroom Management Score"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2f_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Maintains discipline respectfully",
                 "required": true,
                 "data-source": [
@@ -3314,7 +3445,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2f_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Smooth transitions between activities",
                 "required": true,
                 "data-source": [
@@ -3339,7 +3470,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2f_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Maximizes learning time",
                 "required": true,
                 "data-source": [
@@ -3362,13 +3493,90 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_TWO_F",
+                    "s2f_1": "${form.s2f_1}",
+                    "s2f_2": "${form.s2f_2}",
+                    "s2f_3": "${form.s2f_3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_TWO_G",
+      "title": "Part 7 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s2g_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s2g_2": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s2g_3": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_two_g_form",
+            "init-values": {
+              "s2g_1": "${data.init_s2g_1}",
+              "s2g_2": "${data.init_s2g_2}",
+              "s2g_3": "${data.init_s2g_3}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 2: Teacher Practices"
+              },
+              {
+                "type": "TextHeading",
                 "text": "G. Use of Teaching Aids Score"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2g_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Use of board, charts, multimedia, realia, etc.",
                 "required": true,
                 "data-source": [
@@ -3393,7 +3601,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2g_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Use of IT gadgets and online resources",
                 "required": true,
                 "data-source": [
@@ -3418,7 +3626,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s2g_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Effective and engaging use of resources",
                 "required": true,
                 "data-source": [
@@ -3446,13 +3654,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ENUR_TWO_MORE",
-                    "s2e_1": "${form.s2e_1}",
-                    "s2e_2": "${form.s2e_2}",
-                    "s2e_3": "${form.s2e_3}",
-                    "s2f_1": "${form.s2f_1}",
-                    "s2f_2": "${form.s2f_2}",
-                    "s2f_3": "${form.s2f_3}",
+                    "screen": "ENUR_TWO_G",
                     "s2g_1": "${form.s2g_1}",
                     "s2g_2": "${form.s2g_2}",
                     "s2g_3": "${form.s2g_3}"
@@ -3465,8 +3667,74 @@
       }
     },
     {
-      "id": "ENUR_THREE",
-      "title": "Part 4 of 7",
+      "id": "ENUR_INTRO_THREE",
+      "title": "Part 8 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "parts_line": {
+          "type": "string",
+          "__example__": "A. Participation\nB. Language Use\nC. Collaboration\nD. Interest & Motivation"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_intro_three_form",
+            "init-values": {},
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "Section 3: Student Engagement"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.parts_line}"
+              },
+              {
+                "type": "Footer",
+                "label": "Start Section 3",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_INTRO_THREE"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_THREE_A",
+      "title": "Part 9 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -3491,30 +3759,6 @@
         "init_s3a_2": {
           "type": "string",
           "__example__": "1"
-        },
-        "init_s3b_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s3b_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s3c_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s3c_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s3d_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s3d_2": {
-          "type": "string",
-          "__example__": "1"
         }
       },
       "layout": {
@@ -3522,16 +3766,10 @@
         "children": [
           {
             "type": "Form",
-            "name": "enur_three_form",
+            "name": "enur_three_a_form",
             "init-values": {
               "s3a_1": "${data.init_s3a_1}",
-              "s3a_2": "${data.init_s3a_2}",
-              "s3b_1": "${data.init_s3b_1}",
-              "s3b_2": "${data.init_s3b_2}",
-              "s3c_1": "${data.init_s3c_1}",
-              "s3c_2": "${data.init_s3c_2}",
-              "s3d_1": "${data.init_s3d_1}",
-              "s3d_2": "${data.init_s3d_2}"
+              "s3a_2": "${data.init_s3a_2}"
             },
             "error-messages": "${data.error_messages}",
             "children": [
@@ -3540,8 +3778,12 @@
                 "text": "${data.rubric_label}"
               },
               {
-                "type": "TextHeading",
+                "type": "TextCaption",
                 "text": "Section 3: Student Engagement"
+              },
+              {
+                "type": "TextHeading",
+                "text": "A. Participation"
               },
               {
                 "type": "TextBody",
@@ -3549,13 +3791,9 @@
                 "visible": "${data.err_v}"
               },
               {
-                "type": "TextSubheading",
-                "text": "A. Participation"
-              },
-              {
                 "type": "RadioButtonsGroup",
                 "name": "s3a_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Students actively respond to questions",
                 "required": true,
                 "data-source": [
@@ -3580,7 +3818,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3a_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Equal participation (boys/girls, different abilities)",
                 "required": true,
                 "data-source": [
@@ -3603,13 +3841,84 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_THREE_A",
+                    "s3a_1": "${form.s3a_1}",
+                    "s3a_2": "${form.s3a_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_THREE_B",
+      "title": "Part 10 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s3b_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s3b_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_three_b_form",
+            "init-values": {
+              "s3b_1": "${data.init_s3b_1}",
+              "s3b_2": "${data.init_s3b_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 3: Student Engagement"
+              },
+              {
+                "type": "TextHeading",
                 "text": "B. Language Use"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3b_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Students use English/Urdu appropriately (relevant to language being taught)",
                 "required": true,
                 "data-source": [
@@ -3634,7 +3943,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3b_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Confidence in speaking",
                 "required": true,
                 "data-source": [
@@ -3657,13 +3966,84 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_THREE_B",
+                    "s3b_1": "${form.s3b_1}",
+                    "s3b_2": "${form.s3b_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_THREE_C",
+      "title": "Part 11 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s3c_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s3c_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_three_c_form",
+            "init-values": {
+              "s3c_1": "${data.init_s3c_1}",
+              "s3c_2": "${data.init_s3c_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 3: Student Engagement"
+              },
+              {
+                "type": "TextHeading",
                 "text": "C. Collaboration"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3c_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Group/pair work effectiveness",
                 "required": true,
                 "data-source": [
@@ -3688,7 +4068,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3c_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Peer interaction through activities",
                 "required": true,
                 "data-source": [
@@ -3711,13 +4091,84 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_THREE_C",
+                    "s3c_1": "${form.s3c_1}",
+                    "s3c_2": "${form.s3c_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_THREE_D",
+      "title": "Part 12 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s3d_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s3d_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_three_d_form",
+            "init-values": {
+              "s3d_1": "${data.init_s3d_1}",
+              "s3d_2": "${data.init_s3d_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 3: Student Engagement"
+              },
+              {
+                "type": "TextHeading",
                 "text": "D. Interest & Motivation"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3d_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Students show curiosity",
                 "required": true,
                 "data-source": [
@@ -3742,7 +4193,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s3d_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "On-task behavior",
                 "required": true,
                 "data-source": [
@@ -3770,13 +4221,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ENUR_THREE",
-                    "s3a_1": "${form.s3a_1}",
-                    "s3a_2": "${form.s3a_2}",
-                    "s3b_1": "${form.s3b_1}",
-                    "s3b_2": "${form.s3b_2}",
-                    "s3c_1": "${form.s3c_1}",
-                    "s3c_2": "${form.s3c_2}",
+                    "screen": "ENUR_THREE_D",
                     "s3d_1": "${form.s3d_1}",
                     "s3d_2": "${form.s3d_2}"
                   }
@@ -3788,8 +4233,74 @@
       }
     },
     {
-      "id": "ENUR_FOUR",
-      "title": "Part 5 of 7",
+      "id": "ENUR_INTRO_FOUR",
+      "title": "Part 13 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "parts_line": {
+          "type": "string",
+          "__example__": "A. Listening Skills\nB. Speaking Skills\nC. Reading Skills\nD. Writing Skills"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_intro_four_form",
+            "init-values": {},
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "Section 4: Language Skills Development"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.parts_line}"
+              },
+              {
+                "type": "Footer",
+                "label": "Start Section 4",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_INTRO_FOUR"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_FOUR_A",
+      "title": "Part 14 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -3814,30 +4325,6 @@
         "init_s4a_2": {
           "type": "string",
           "__example__": "1"
-        },
-        "init_s4b_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s4b_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s4c_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s4c_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s4d_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s4d_2": {
-          "type": "string",
-          "__example__": "1"
         }
       },
       "layout": {
@@ -3845,16 +4332,10 @@
         "children": [
           {
             "type": "Form",
-            "name": "enur_four_form",
+            "name": "enur_four_a_form",
             "init-values": {
               "s4a_1": "${data.init_s4a_1}",
-              "s4a_2": "${data.init_s4a_2}",
-              "s4b_1": "${data.init_s4b_1}",
-              "s4b_2": "${data.init_s4b_2}",
-              "s4c_1": "${data.init_s4c_1}",
-              "s4c_2": "${data.init_s4c_2}",
-              "s4d_1": "${data.init_s4d_1}",
-              "s4d_2": "${data.init_s4d_2}"
+              "s4a_2": "${data.init_s4a_2}"
             },
             "error-messages": "${data.error_messages}",
             "children": [
@@ -3863,8 +4344,12 @@
                 "text": "${data.rubric_label}"
               },
               {
-                "type": "TextHeading",
+                "type": "TextCaption",
                 "text": "Section 4: Language Skills Development"
+              },
+              {
+                "type": "TextHeading",
+                "text": "A. Listening Skills"
               },
               {
                 "type": "TextBody",
@@ -3872,13 +4357,9 @@
                 "visible": "${data.err_v}"
               },
               {
-                "type": "TextSubheading",
-                "text": "A. Listening Skills"
-              },
-              {
                 "type": "RadioButtonsGroup",
                 "name": "s4a_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Students understand instructions",
                 "required": true,
                 "data-source": [
@@ -3903,7 +4384,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4a_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Respond appropriately",
                 "required": true,
                 "data-source": [
@@ -3926,13 +4407,84 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_FOUR_A",
+                    "s4a_1": "${form.s4a_1}",
+                    "s4a_2": "${form.s4a_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_FOUR_B",
+      "title": "Part 15 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s4b_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s4b_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_four_b_form",
+            "init-values": {
+              "s4b_1": "${data.init_s4b_1}",
+              "s4b_2": "${data.init_s4b_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 4: Language Skills Development"
+              },
+              {
+                "type": "TextHeading",
                 "text": "B. Speaking Skills"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4b_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Students understand instructions",
                 "required": true,
                 "data-source": [
@@ -3957,7 +4509,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4b_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Respond appropriately",
                 "required": true,
                 "data-source": [
@@ -3980,13 +4532,84 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_FOUR_B",
+                    "s4b_1": "${form.s4b_1}",
+                    "s4b_2": "${form.s4b_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_FOUR_C",
+      "title": "Part 16 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s4c_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s4c_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_four_c_form",
+            "init-values": {
+              "s4c_1": "${data.init_s4c_1}",
+              "s4c_2": "${data.init_s4c_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 4: Language Skills Development"
+              },
+              {
+                "type": "TextHeading",
                 "text": "C. Reading Skills"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4c_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Fluency and comprehension",
                 "required": true,
                 "data-source": [
@@ -4011,7 +4634,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4c_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Ability to interpret text",
                 "required": true,
                 "data-source": [
@@ -4034,13 +4657,84 @@
                 ]
               },
               {
-                "type": "TextSubheading",
-                "text": "D. Reading Skills"
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_FOUR_C",
+                    "s4c_1": "${form.s4c_1}",
+                    "s4c_2": "${form.s4c_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_FOUR_D",
+      "title": "Part 17 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s4d_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s4d_2": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_four_d_form",
+            "init-values": {
+              "s4d_1": "${data.init_s4d_1}",
+              "s4d_2": "${data.init_s4d_2}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Section 4: Language Skills Development"
+              },
+              {
+                "type": "TextHeading",
+                "text": "D. Writing Skills"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4d_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Grammar and structure",
                 "required": true,
                 "data-source": [
@@ -4065,7 +4759,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s4d_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Creativity and coherence",
                 "required": true,
                 "data-source": [
@@ -4093,13 +4787,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ENUR_FOUR",
-                    "s4a_1": "${form.s4a_1}",
-                    "s4a_2": "${form.s4a_2}",
-                    "s4b_1": "${form.s4b_1}",
-                    "s4b_2": "${form.s4b_2}",
-                    "s4c_1": "${form.s4c_1}",
-                    "s4c_2": "${form.s4c_2}",
+                    "screen": "ENUR_FOUR_D",
                     "s4d_1": "${form.s4d_1}",
                     "s4d_2": "${form.s4d_2}"
                   }
@@ -4111,8 +4799,8 @@
       }
     },
     {
-      "id": "ENUR_FIVE_SIX",
-      "title": "Part 6 of 7",
+      "id": "ENUR_FIVE",
+      "title": "Part 18 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -4145,18 +4833,6 @@
         "init_s5_4": {
           "type": "string",
           "__example__": "1"
-        },
-        "init_s6_1": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s6_2": {
-          "type": "string",
-          "__example__": "1"
-        },
-        "init_s6_3": {
-          "type": "string",
-          "__example__": "1"
         }
       },
       "layout": {
@@ -4164,15 +4840,12 @@
         "children": [
           {
             "type": "Form",
-            "name": "enur_five_six_form",
+            "name": "enur_five_form",
             "init-values": {
               "s5_1": "${data.init_s5_1}",
               "s5_2": "${data.init_s5_2}",
               "s5_3": "${data.init_s5_3}",
-              "s5_4": "${data.init_s5_4}",
-              "s6_1": "${data.init_s6_1}",
-              "s6_2": "${data.init_s6_2}",
-              "s6_3": "${data.init_s6_3}"
+              "s5_4": "${data.init_s5_4}"
             },
             "error-messages": "${data.error_messages}",
             "children": [
@@ -4192,7 +4865,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s5_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Teacher checks understanding during lesson",
                 "required": true,
                 "data-source": [
@@ -4217,7 +4890,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s5_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Provides constructive feedback",
                 "required": true,
                 "data-source": [
@@ -4242,7 +4915,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s5_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Encourages self/peer assessment",
                 "required": true,
                 "data-source": [
@@ -4267,7 +4940,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s5_4",
-                "label": "Item 4",
+                "label": "4",
                 "description": "Uses questioning effectively (open-ended, critical thinking)",
                 "required": true,
                 "data-source": [
@@ -4290,13 +4963,87 @@
                 ]
               },
               {
-                "type": "TextSubheading",
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_FIVE",
+                    "s5_1": "${form.s5_1}",
+                    "s5_2": "${form.s5_2}",
+                    "s5_3": "${form.s5_3}",
+                    "s5_4": "${form.s5_4}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_SIX",
+      "title": "Part 19 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "init_s6_1": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s6_2": {
+          "type": "string",
+          "__example__": "1"
+        },
+        "init_s6_3": {
+          "type": "string",
+          "__example__": "1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_six_form",
+            "init-values": {
+              "s6_1": "${data.init_s6_1}",
+              "s6_2": "${data.init_s6_2}",
+              "s6_3": "${data.init_s6_3}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
                 "text": "Section 6: Inclusivity & Differentiation"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
               },
               {
                 "type": "RadioButtonsGroup",
                 "name": "s6_1",
-                "label": "Item 1",
+                "label": "1",
                 "description": "Supports weak learners",
                 "required": true,
                 "data-source": [
@@ -4321,7 +5068,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s6_2",
-                "label": "Item 2",
+                "label": "2",
                 "description": "Challenges high achievers",
                 "required": true,
                 "data-source": [
@@ -4346,7 +5093,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "s6_3",
-                "label": "Item 3",
+                "label": "3",
                 "description": "Inclusive language and behavior",
                 "required": true,
                 "data-source": [
@@ -4374,11 +5121,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ENUR_FIVE_SIX",
-                    "s5_1": "${form.s5_1}",
-                    "s5_2": "${form.s5_2}",
-                    "s5_3": "${form.s5_3}",
-                    "s5_4": "${form.s5_4}",
+                    "screen": "ENUR_SIX",
                     "s6_1": "${form.s6_1}",
                     "s6_2": "${form.s6_2}",
                     "s6_3": "${form.s6_3}"
@@ -4391,8 +5134,8 @@
       }
     },
     {
-      "id": "ENUR_FEEDBACK",
-      "title": "Part 7 of 7",
+      "id": "ENUR_SEVEN",
+      "title": "Part 20 of 21",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -4410,9 +5153,75 @@
           "type": "object",
           "__example__": {}
         },
-        "score_line": {
+        "seven_lines": {
           "type": "string",
-          "__example__": "Score so far: 111 / 148 (75%)\nRating: Proficient"
+          "__example__": "Total: 85 of 156\nOn FDE's 108-point scale: 58.8\nRating: Developing (3)\n\nSection 2: Teacher Practices\nB. Lesson Planning & Objectives: 6 of 12"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "enur_seven_form",
+            "init-values": {},
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "Section 7: Overall Evaluation"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.seven_lines}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "FDE's bands: 90–108 Excellent · 70–89 Proficient · 50–69 Developing · Below 50 Needs Improvement"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENUR_SEVEN"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENUR_FEEDBACK",
+      "title": "Part 21 of 21",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
         },
         "init_fb_strengths": {
           "type": "string",
@@ -4457,10 +5266,6 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.score_line}"
               },
               {
                 "type": "TextArea",

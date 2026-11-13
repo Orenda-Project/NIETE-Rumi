@@ -216,6 +216,14 @@ const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 const PORTAL_LP_MAKE_OWN_KEY = 'portal_lp_make_own';
 
 /**
+ * bd-snkn32.42 — "Made by a teacher": the shelf of approved own plans on the chapter page, read like
+ * portal_lp_make_own (true / "teachers" / a list of users.id; with portal_teacher_v2 on). And the staff who approve a
+ * plan before it is listed: LIST-ONLY (read with isUserListedInFlag, like portal_role_switch), anything else nobody.
+ */
+const PORTAL_LP_OWN_SHELF_KEY = 'portal_lp_own_shelf';
+const PORTAL_LP_OWN_REVIEWERS_KEY = 'portal_lp_own_reviewers';
+
+/**
  * bd-ik5e8j.4 — app_settings key for the teacher app's help videos (queue #85): the "?" on a feature's page, its tray,
  * and More → How to use. Read only with portal_teacher_v2 on. Same shape and rule as the keys above: true = everyone,
  * a list of users.id = a pilot, "teachers" = every teacher, absent / anything else / a failed read = off. Off, every
@@ -588,6 +596,7 @@ module.exports = {
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
   readUserMapFlag,
   isAnalyticsOnlyUser,
+  isUserListedInFlag,
   PORTAL_ROLE_SWITCH_KEY,
   ROLE_SWITCH_ROLES,
   isRoleSwitchUser,
@@ -608,6 +617,8 @@ module.exports = {
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
+  PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_REVIEWERS_KEY,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_PRINCIPAL_APP_KEY,
   COACH_DISAGREEMENT_CARD_KEY,

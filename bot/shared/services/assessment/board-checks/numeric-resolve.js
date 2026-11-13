@@ -79,6 +79,75 @@ function lastNumber(text) {
   return T.parseNumber(all[all.length - 1].replace(/\s+/g, ''));
 }
 
+/**
+ * bd-qyi45h.10: every answer the key states on its final line — the last number plus each number right after an
+ * "=" ("Solution: x = -3, y = 2", "Length = 24 feet, Width = 10 feet"). Earlier lines are working, not answers.
+ */
+function finalAnswers(text) {
+  const lines = String(text == null ? '' : text).split('\n').map((l) => l.trim()).filter(Boolean);
+  const raw = lines[lines.length - 1] || '';
+  const last = raw.replace(/\^\s*[-+]?\d+(?:\.\d+)?/g, '');
+  // bd-qyi45h.14: a power of ten ("10^22", "1.5 × 10^-3") is the answer number, not a unit power
+  const out = [...raw.matchAll(/(?:(\d+(?:\.\d+)?)\s*[×x*]\s*)?\b10\s*\^\s*([-+]?\d+)/g)].map((m) => (m[1] ? parseFloat(m[1]) : 1) * 10 ** Number(m[2]));
+  const re = /=\s*(-?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?)/g;
+  let m;
+  while ((m = re.exec(last))) { const n = T.parseNumber(m[1].replace(/\s+/g, '')); if (n !== null && Number.isFinite(n)) out.push(n); }
+  // an alternative the key states ("22.92 m (or 72/π m)") is an answer too
+  last.split(/\(\s*or\b/i).forEach((seg) => {
+    const tail = lastNumber(seg);
+    if (tail !== null) out.push(tail);
+    out.push(...exactAnswers(seg));
+  });
+  return out;
+}
+
+/**
+ * bd-qyi45h.10: answers on the final line written exactly, in pi or surds ("5π inches", "121π/360 radians",
+ * "Height = 12 + 4√3 m"), read through evaluate(). Each comma part, after its last "=", units dropped.
+ */
+function exactAnswers(last) {
+  const out = [];
+  String(last).split(/,|;/).forEach((part) => {
+    // pi and sqrt written in letters ("11pi/6", "40/sqrt(pi)") read as the symbols
+    const sym = part.replace(/sqrt/gi, '√').replace(/(?<![A-Za-z])pi(?![A-Za-z])/gi, 'π');
+    if (!/[π√]/.test(sym)) return;
+    const expr = balance(sym.slice(sym.lastIndexOf('=') + 1)
+      .replace(/(\d|\))\s*(?=[π√(])/g, '$1*')
+      .replace(/π/g, ' pi ')
+      .replace(/√\s*(\d+(?:\.\d+)?)/g, 'sqrt($1)')
+      .replace(/√/g, 'sqrt')
+      .replace(/\b(?!pi\b|sqrt\b)[A-Za-z]+\b/g, '')
+      .replace(/[×x]/g, '*')
+      .replace(/[^0-9.+\-*/^()a-z\s]/g, '')
+      .replace(/[.\s]+$/, ''));
+    const v = evaluate(expr);
+    if (v !== null) out.push(v);
+  });
+  return out;
+}
+
+/** Drops a ")" that closes nothing (an option label "A)", the end of "(or …)"). */
+function balance(expr) {
+  let depth = 0;
+  return [...expr].filter((c) => { if (c === '(') depth += 1; else if (c === ')') { if (!depth) return false; depth -= 1; } return true; }).join('');
+}
+
+/** bd-qyi45h.10: a key in LaTeX ("$\\frac{72}{\\pi} \\text{ m}$", "15^\\circ") or with "^o" degrees, as plain text. */
+function plain(text) {
+  if (text == null) return null;
+  return String(text)
+    .replace(/\\text\s*\{([^}]*)\}/g, '$1')
+    .replace(/\\frac\s*\{([^}]*)\}\s*\{([^}]*)\}/g, '($1)/($2)')
+    .replace(/\\sqrt\s*\{([^}]*)\}/g, '√($1)')
+    .replace(/\\pi\b/g, 'π')
+    .replace(/\^\s*\{?\s*(?:\\circ|o)\s*\}?/g, '°')
+    .replace(/\\(?:times|cdot)\b/g, '×')
+    .replace(/\$/g, '');
+}
+
+/** A degrees-minutes-seconds answer ("60° 7' 30\"") is not one number the calc can be compared with. */
+const isDms = (text) => /\d\s*°\s*\d+(?:\.\d+)?\s*['′]/.test(String(text == null ? '' : text));
+
 function keyText(item) {
   if (!Array.isArray(item.options)) return String(item.answer == null ? '' : item.answer);
   const k = T.keyIndex(item);
@@ -94,11 +163,13 @@ function run(examJson) {
     if (!item.calc) { push('UNRESOLVED', 'numerical item has no calc to check its key against', false); return; }
     const v = evaluate(item.calc.expr);
     if (v === null) { push('UNRESOLVED', `calc.expr "${String(item.calc.expr).slice(0, 40)}" is not plain arithmetic`, false); return; }
-    const text = keyText(item);
+    const text = plain(keyText(item));
+    if (isDms(text)) { push('UNRESOLVED', 'the key is in degrees, minutes and seconds', false); return; }
     const k = text == null ? null : lastNumber(text);
     if (k === null) { push('UNRESOLVED', 'the key has no single readable number', false); return; }
     const sig = Number.isInteger(item.calc.sig) ? item.calc.sig : LIMITS.defaultSig;
-    if (roundSig(v, sig) !== roundSig(k, sig)) push('NUMERIC_MISMATCH', `calc gives ${roundSig(v, sig)}, the key says ${roundSig(k, sig)}`, true);
+    const stated = [k, ...finalAnswers(text)];
+    if (!stated.some((n) => roundSig(v, sig) === roundSig(n, sig))) push('NUMERIC_MISMATCH', `calc gives ${roundSig(v, sig)}, the key says ${roundSig(k, sig)}`, true);
     const unit = String(item.calc.unit || '').trim();
     if (unit && !T.fold(text).includes(T.fold(unit))) push('UNIT_MISSING', `the key does not carry the unit "${unit}"`, false);
   });

@@ -20,10 +20,10 @@
  */
 
 import { portal, type LiveMovesRecord } from "../services/api";
-import { readBytes } from "./audioHash";
 import { failureOf, reportSendFailure, type SendFailure } from "./dcUploadReport";
+import { isHeld, readPicked, READ_RETRY_MS, Unreadable } from "./pickedRead";
 
-export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" };
+export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" } | { ownId: string };
 
 export type PlanChoice =
   | { kind: "library"; pick: LibraryPick }
@@ -78,6 +78,8 @@ type Args = {
   uploaded?: WeakMap<Blob, string>;
   /** bd-bmc9a0.2 (ICT IAB row 31): "Save recording" — the same send, marked saved to come back to. */
   saveForLater?: boolean;
+  /** bd-r2uzg1.9: the waits before each extra try of a picked file's failed read (READ_RETRY_MS; tests pass zeros). */
+  readWaits?: number[];
 };
 
 type Item = { blob: Blob; filename: string; kind: "audio" | "lesson_plan" | "photo"; photo: number };
@@ -96,18 +98,20 @@ function isPicked(blob: Blob): boolean {
   return typeof File !== "undefined" && blob instanceof File;
 }
 
-class Unreadable extends Error {}
-
-/** What is PUT for one file: never a picked File itself (see the header). A Blob the page made is sent as it is. */
-async function bodyOf(blob: Blob): Promise<Body> {
-  if (!isPicked(blob)) return { body: blob, sentAs: "blob" };
+/**
+ * What is PUT for one file: never a picked File itself (see the header). A Blob the page made, or (bd-r2uzg1.9) a photo
+ * the page read into memory when she picked it, is sent as it is.
+ */
+async function bodyOf(blob: Blob, waits: number[]): Promise<Body> {
+  if (!isPicked(blob) || isHeld(blob)) return { body: blob, sentAs: "blob" };
   if (blob.size <= COPY_MAX_BYTES) {
     try {
-      return { body: new Blob([await readBytes(blob)], { type: blob.type }), sentAs: "copy" };
+      // bd-r2uzg1.9: a failed read is tried again before it counts (readPicked); after every try it is Unreadable.
+      return { body: new Blob([await readPicked(blob, waits)], { type: blob.type }), sentAs: "copy" };
     } catch (err) {
       // Out of memory for the copy is not her file's fault: the slice below still sends it. Anything else is a file
       // this phone cannot read.
-      if (!(err instanceof RangeError)) throw new Unreadable(String((err as Error)?.message || err));
+      if (!(err instanceof RangeError)) throw err instanceof Unreadable ? err : new Unreadable(null, String((err as Error)?.message || err));
     }
   }
   return { body: blob.slice(0, blob.size, blob.type), sentAs: "slice" };
@@ -128,7 +132,7 @@ function bareType(type: string): string {
 }
 
 export async function sendLesson(
-  { audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater }: Args,
+  { audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater, readWaits = READ_RETRY_MS }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
   /** bd-1d6g8o: where a failure is reported (the logs); never changes the outcome. */
@@ -168,7 +172,7 @@ export async function sendLesson(
       }
       stage = "read";
       // eslint-disable-next-line no-await-in-loop
-      const out = await bodyOf(it.blob);
+      const out = await bodyOf(it.blob, readWaits);
       sentAs = out.sentAs;
       stage = "presign";
       // eslint-disable-next-line no-await-in-loop
@@ -189,7 +193,7 @@ export async function sendLesson(
     const part = it ? { kind: it.kind, photo: it.photo } : null;
     tell({
       stage, kind: it ? it.kind : null, item: at,
-      ...(unreadable ? { status: null, reason: "unreadable" as const } : failureOf(err)),
+      ...(unreadable ? { status: null, reason: "unreadable" as const, errName: err.errName } : failureOf(err)),
       sizeBytes: it ? it.blob.size : 0, type: it ? bareType(it.blob.type) : "", sentBytes, sentAs,
     });
     const status = httpStatus(err);

@@ -41,7 +41,7 @@ describe('generateExam writes standard marks', () => {
 
   test('the prompt states the standard marks', () => {
     const prompt = Gen.buildUserPrompt({ ...BASE, questionCount: 2, questionTypes: [T('MCQs', 2)] });
-    expect(String(prompt)).toMatch(/1 mark each/);
+    expect(String(prompt)).toMatch(/1 mark per answer it asks for/);
     expect(String(prompt)).toMatch(/2.3 marks/);
     expect(String(prompt)).toMatch(/5.10 marks/);
   });

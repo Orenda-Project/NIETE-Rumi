@@ -140,10 +140,13 @@ function scoreLine(ctx, draft) {
   return `Score so far: ${r.total} / ${r.max} (${r.pct}%)${r.band ? `\nRating: ${r.band.label}` : ''}`;
 }
 
-async function bodyValue(key, ctx, draft) {
+async function bodyValue(key, ctx, draft, screenId) {
   if (key === 'ctx_lines') return contextLines(ctx);
   if (key === 'levels_line') return levelsLine(draft);
   if (key === 'score_line') return scoreLine(ctx, draft);
+  // 13 Nov: an English & Urdu section's opening screen lists its parts; Section 7 is computed from the answers.
+  if (key === 'parts_line') return F.introPartTitles(screenId, ctx.sheet).join('\n');
+  if (key === 'seven_lines') return F.sevenLines(O.score(ctx.form.rubric_version, ctx.sheet, draft));
   return '';
 }
 
@@ -151,7 +154,7 @@ async function bodyValue(key, ctx, draft) {
 async function screenData(screenId, ctx, draft, { errors = {}, note = '' } = {}) {
   const data = { rubric_label: O.LABEL, err_v: Boolean(note), err_note: note, error_messages: errors };
   for (const f of F.fieldsOf(screenId)) if (f.prefill) data[F.initKey(f.name)] = prefill(f, ctx, draft);
-  for (const key of F.bodiesOf(screenId)) data[key] = await bodyValue(key, ctx, draft);
+  for (const key of F.bodiesOf(screenId)) data[key] = await bodyValue(key, ctx, draft, screenId);
   return data;
 }
 
@@ -169,7 +172,8 @@ function validate(screenId, draft) {
   return Object.fromEntries(Object.entries(Model.checkScreen(screenId, draft)).map(([k, code]) => [k, MSG[code]]));
 }
 
-// Where a missing answer is: "LESSON DELIVERY, Item 3 (Part 2 of 6)".
+// Where a missing answer is: 'LESSON DELIVERY, "Teacher checks prior knowledge" (Part 2 of 6)'.
+const clipItem = (t) => { const c = [...String(t)]; return c.length <= 48 ? c.join('') : `${c.slice(0, 47).join('').trimEnd()}…`; };
 function whereIs(ctx, key) {
   for (const id of F.pathFor(ctx.tool, ctx.sheet)) {
     const s = F.screenById(id);
@@ -177,7 +181,11 @@ function whereIs(ctx, key) {
     let sub = null;
     for (const p of s.parts) {
       if (p.heading) { heading = p.heading; sub = null; } else if (p.sub) sub = p.sub;
-      else if (p.field && p.field.name === key) return `${[heading, sub, p.field.label].filter(Boolean).join(', ')} (${s.title})`;
+      else if (p.field && p.field.name === key) {
+        // An item is named by FDE's words for it (its label is only FDE's number), cut short.
+        const what = p.field.answer && p.field.description ? `"${clipItem(p.field.description)}"` : p.field.label;
+        return `${[heading, sub, what].filter(Boolean).join(', ')} (${s.title})`;
+      }
     }
   }
   return key;

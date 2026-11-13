@@ -108,6 +108,8 @@ Feature: NIETE (ICT) Teacher Training
     Given a teacher in a NIETE programme has just passed a level's exam in the teacher app
     When I send "/certificates"
     Then the bot lists that level under "NIETE Certifications" as "Level <n> · <level name>" with a certificate code
+    # bd-r2uzg1.10: <n> is the number the certificate PDF prints (NIETE ladder 0-3, Skilled Practitioner = Level 2),
+    # not order_index + 1; a partner programme (Beaconhouse, Oxbridge, I-SAPS) is listed by its name alone.
     # ADDED 2026-10-29 (bd-jtgjt8.1): the app's level-exam submit asks the bot's certify-level guard
     # (maybeIssueQuizScoreCertificate), which refused every chain vendor, so no NIETE L0-L3 exam passed in the
     # app was certified (158 passes by 125 teachers; none since 12 Oct). Unit test:

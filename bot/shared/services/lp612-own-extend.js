@@ -89,12 +89,13 @@ function joinSegments(first, next, shape) {
 const range = (s) => (s.printed_page_start === s.printed_page_end
   ? `page ${s.printed_page_start}` : `pages ${s.printed_page_start}-${s.printed_page_end}`);
 
-/** Added to her instruction. Overrides the "same pages and length" line of the ordinary rewrite. */
+/** Added to her instruction. Overrides the "same pages", "no longer" and one-period lines of the ordinary rewrite. */
 function buildExtendInstruction({ first, next, nextDoc, shape }) {
   if (!SHAPES[shape]) throw new Error('buildExtendInstruction needs a shape from parseExtend');
   const minutes = first.period_minutes || PERIOD_MINUTES;
   return [
-    'ADD THE NEXT LESSON\'S PAGES (this replaces "same pages, same length" above):',
+    // bd-snkn32.30 — the base asks for the same pages, no longer than the given lesson, in one period: two lessons override that.
+    'ADD THE NEXT LESSON\'S PAGES (this replaces "the same pages" and "no longer than the lesson you were given" above; the timing below sets `period_minutes`):',
     `This plan now covers TWO lessons of the same chapter: this lesson (${range(first)}, "${first.subtopic_title}") `
       + `and the next lesson (${range(next)}, "${next.subtopic_title}").`,
     `Timing: ${SHAPES[shape](minutes)}`,
