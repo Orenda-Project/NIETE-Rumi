@@ -34,10 +34,10 @@ describe('the request says You Do is each child alone', () => {
       .toContain(YOU_DO_LINE);
   });
 
-  it('the line keeps groups and pairs in We Do and names checking each child', () => {
+  it('the line keeps groups and pairs in We Do and a whole-class check (bd-snkn32.30)', () => {
     expect(YOU_DO_LINE).toMatch(/alone/);
     expect(YOU_DO_LINE).toMatch(/We Do/);
-    expect(YOU_DO_LINE).toMatch(/check each child/);
+    expect(YOU_DO_LINE).toMatch(/class is checked together/);
   });
 });
 
