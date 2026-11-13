@@ -1,0 +1,2 @@
+{"ts":"2026-11-13T10:29:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe,portal-login,coach-portal,leader-portal,portal-smoke spec_sync=true","sha":"4e496a2e1eb8","branch":"bd-snkn32.41-64857","user":""}
+{"ts":"2026-11-13T10:29:04Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: observe,portal-login,coach-portal,leader-portal,portal-smoke owe their Gherkin","sha":"4e496a2e1eb8","branch":"bd-snkn32.41-64857","user":""}
