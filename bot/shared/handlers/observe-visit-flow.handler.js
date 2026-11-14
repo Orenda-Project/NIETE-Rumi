@@ -1358,8 +1358,10 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       };
     }
 
-    // READS ONLY. The number is all we asked for; the name screen only appears
-    // when we genuinely do not know this person.
+    // READS ONLY. The number is all we asked for; the name screen appears only
+    // when we do not know this person's name — a new number, or an account on
+    // record with no name (T.needsName). It used to be the new number alone,
+    // so a nameless account was confirmed as "Name: " and placed nameless.
     if (step === 'teacher_add_lookup') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
@@ -1382,10 +1384,23 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         };
       }
 
+      if (T.needsName(plan)) {
+        return {
+          screen: 'TEACHER_NAME',
+          data: {
+            school_ext_id: schoolExtId,
+            phone: String(plan.phone || ''),
+            intro: T.blankNameIntro(_flowLang, plan),
+          },
+        };
+      }
+
       return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
     }
 
-    // The name screen's Continue — the person is new, so go straight to confirm.
+    // The name screen's Continue — a new person, or a nameless account on
+    // record: either way the typed name goes to the confirm, which carries it
+    // to teacher_add_commit.
     if (step === 'teacher_add_named') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
@@ -1395,7 +1410,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
       }).catch(() => ({ outcome: 'failed' }));
       if (plan.outcome !== 'new') {
-        // Someone registered between the two taps — fall back to the found path.
+        // A nameless account on record: confirm with the name she just typed.
+        // commitAdd writes it only if the record is still blank.
+        if (T.needsName(plan)) {
+          return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, { ...plan, name }, schoolExtId) };
+        }
+        // Someone registered, or named the account, between the two taps — the
+        // record wins: fall back to the found path.
         return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
       }
       return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, { ...plan, name }, schoolExtId) };
