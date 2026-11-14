@@ -774,6 +774,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -866,6 +870,7 @@
             "type": "Form",
             "name": "form_C1",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -962,6 +967,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -1054,6 +1063,7 @@
             "type": "Form",
             "name": "form_C2",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -1150,6 +1160,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -1231,6 +1245,7 @@
             "type": "Form",
             "name": "form_C3",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -1316,6 +1331,10 @@
         "err_note": {
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
         },
         "opts": {
           "type": "array",
@@ -1409,6 +1428,7 @@
             "type": "Form",
             "name": "form_C4",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -1505,6 +1525,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -1586,6 +1610,7 @@
             "type": "Form",
             "name": "form_C5",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -1671,6 +1696,10 @@
         "err_note": {
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
         },
         "opts": {
           "type": "array",
@@ -1764,6 +1793,7 @@
             "type": "Form",
             "name": "form_C6",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -1860,6 +1890,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -1941,6 +1975,7 @@
             "type": "Form",
             "name": "form_C7",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -2026,6 +2061,10 @@
         "err_note": {
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
         },
         "opts": {
           "type": "array",
@@ -2119,6 +2158,7 @@
             "type": "Form",
             "name": "form_C8",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -2272,6 +2312,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -2364,6 +2408,7 @@
             "type": "Form",
             "name": "form_D1",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -2460,6 +2505,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -2541,6 +2590,7 @@
             "type": "Form",
             "name": "form_D2",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -2627,6 +2677,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -2708,6 +2762,7 @@
             "type": "Form",
             "name": "form_D3",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -2794,6 +2849,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -2875,6 +2934,7 @@
             "type": "Form",
             "name": "form_D4",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -2960,6 +3020,10 @@
         "err_note": {
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
         },
         "opts": {
           "type": "array",
@@ -3053,6 +3117,7 @@
             "type": "Form",
             "name": "form_D5",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -3206,6 +3271,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -3298,6 +3367,7 @@
             "type": "Form",
             "name": "form_F1",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -3394,6 +3464,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -3486,6 +3560,7 @@
             "type": "Form",
             "name": "form_F2",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -3582,6 +3657,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -3674,6 +3753,7 @@
             "type": "Form",
             "name": "form_F3",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",
@@ -3770,6 +3850,10 @@
           "type": "string",
           "__example__": "Please fix these before you go on:\n• Choose a level."
         },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
         "opts": {
           "type": "array",
           "items": {
@@ -3862,6 +3946,7 @@
             "type": "Form",
             "name": "form_F4",
             "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
             "children": [
               {
                 "type": "TextCaption",

@@ -323,6 +323,8 @@ function v6IndicatorScreen(code) {
     definition: V6_STR(meta.definition),
     err_v: { type: 'boolean', __example__: false },
     err_note: V6_STR('Please fix these before you go on:\n• Choose a level.'),
+    // bd-ra8xu.58: each refusal under its own field (Rifat 14 Nov: the top line was off screen at the button).
+    error_messages: { type: 'object', __example__: {} },
     opts: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' } } }, __example__: v6.coachLevelOptions(code, 'en') },
     lbl_level: V6_STR(combined ? 'Level · you choose' : 'Level'),
     next_label: V6_STR('Next'),
@@ -377,7 +379,7 @@ function v6IndicatorScreen(code) {
     data,
     layout: {
       type: 'SingleColumnLayout',
-      children: [{ type: 'Form', name: `form_${code}`, 'init-values': '${data.init}', children: kids }],
+      children: [{ type: 'Form', name: `form_${code}`, 'init-values': '${data.init}', 'error-messages': '${data.error_messages}', children: kids }],
     },
   };
 }
