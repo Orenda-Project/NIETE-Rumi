@@ -9,9 +9,9 @@
  * nothing (Axiom: inLibrary false), and the file went to OCR, which degenerated into a run of zeros: "not a lesson
  * plan", has_lesson_plan false, lp_fidelity lp_absent. 30 production visits since 1 Nov carried such an id.
  *
- * Contract: on a visit stamped FICO17 v6 (the coach switch), `BASE.Cnn.Snnn` is the library lesson
- * `base_chN_segN` and is linked directly: no parse, no vision. Every other visit reads the Subject exactly as
- * before (widening that is the operator's call). Ids already in the library's form are unchanged everywhere.
+ * Contract: `BASE.Cnn.Snnn` is the library lesson `base_chN_segN` and is linked directly: no parse, no vision.
+ * First on FICO17 v6 visits only; since bd-ra8xu.56 (operator 14 Nov 14:55, decision 363: "make this live for
+ * everyone") on every visit. Ids already in the library's form are unchanged everywhere.
  */
 
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
@@ -108,13 +108,22 @@ describe('bd-ra8xu.53 · a v9 lesson id links our own lesson on a FICO17 v6 visi
     expect(linked().payload.lesson_plan_structured._fidelity_ref.lesson_id).toBe('gb_g5_science_ch10_seg8');
   });
 
-  it('a visit without the switch reads the Subject exactly as before (nothing widened)', async () => {
+  it('bd-ra8xu.56: a V3 visit and an unstamped one link it the same way (decision 363, every coach)', async () => {
     for (const framework of ['fico', null]) {
-      const { Worker } = load({ subject: HER_SUBJECT, framework });
+      const { Worker, parse } = load({ subject: HER_SUBJECT, framework });
       await run(Worker);
-      expect(assetQueries[0]).toMatchObject({ lesson_id: 'gb_g4_urdu' });
-      expect(visionCalls).toEqual(['pdf']);
+      expect(assetQueries[0]).toMatchObject({ lesson_id: 'gb_g4_urdu_ch2_seg3' });
+      expect(parse).not.toHaveBeenCalled();
+      expect(visionCalls).toEqual([]);
+      expect(linked().payload.lesson_plan_structured._fidelity_ref.lesson_id).toBe('gb_g4_urdu_ch2_seg3');
     }
+  });
+
+  it('bd-ra8xu.56: a v9 id the library does not hold (an ICT grade 6-12 book) still reads the file, as before', async () => {
+    const { Worker } = load({ subject: 'lesson_id=GRADE_6_GENERAL_SCIENCE.C03.S002; book_stem=grade_6_general_science; pp.31', framework: 'fico' });
+    await run(Worker);
+    expect(assetQueries[0]).toMatchObject({ lesson_id: 'grade_6_general_science_ch3_seg2' });
+    expect(visionCalls).toEqual(['pdf']);
   });
 
   it('an id already in the library form links as before, switch or not', async () => {
