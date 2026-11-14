@@ -14,11 +14,16 @@ function memberIds(examJson) {
 
 /** Of the review-flagged or key-leaking (N18, bd-qyi45h.6) ids still in `checks`, those inside a stimulus group of
  * `examJson`: dropIds takes a leaking child's whole group and the restore never refills one, so only a re-ask clears it.
- * Plus every D18 item (the key stands out; bd-qyi45h.4), in a group or not: nothing after rewrite 1 re-asks it otherwise. */
+ * Plus every D18 item (the key stands out; bd-qyi45h.4) and every D17 item (asks the same as another; bd-qyi45h.14),
+ * in a group or not: nothing after rewrite 1 re-asks them otherwise, and neither ships as a last-try note.
+ * Plus every D13 item (an MCQ shape fault, e.g. a key run settleKeys cannot move because the options are numbers;
+ * bd-qyi45h.16); a D13 row keyed by a group or section id (KEY_SHARE) names no item, so it is left out. */
+const CUE = new Set(['D18', 'D17', 'D13']);
 function stuck(checks, examJson) {
   const members = memberIds(examJson);
+  const items = new Set(leaves(examJson).map((l) => l.item && l.item.id).filter((id) => id != null));
   const leaking = (r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'N18');
-  const cue = (r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'D18');
+  const cue = (r) => Object.keys(r.why || {}).filter((id) => CUE.has(r.why[id]) && (r.why[id] !== 'D13' || items.has(id)));
   return new Set(checks.shortfall.flatMap((r) => [...[...Object.keys(r.review || {}), ...leaking(r)].filter((id) => members.has(id)), ...cue(r)]));
 }
 
