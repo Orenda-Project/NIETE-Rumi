@@ -32,6 +32,18 @@ function subscribe(onChange: () => void) {
 }
 const isUrdu = () => String(i18n.language || '').toLowerCase().startsWith('ur');
 
+/** The attributes of an element whose text is Urdu content (or, `false`, English content) whatever the app's language. */
+export type UrduAttrs = { dir: 'rtl'; lang: 'ur'; 'data-urdu': '' } | { dir: 'ltr' };
+
+/**
+ * bd-r2uzg1.13 — for content that has its own language, not the app's: an Urdu exam paper and its questions. Urdu
+ * (`true`) reads right to left AND is drawn in Nastaliq even when the app is in English (`data-urdu`: index.css gives it
+ * the Urdu stack and line height 2; lang="ur" alone gets the phone's Naskh). `false`: left to right, nothing else.
+ */
+export function urduAttrs(urdu: boolean): UrduAttrs {
+  return urdu ? { dir: 'rtl', lang: 'ur', 'data-urdu': '' } : { dir: 'ltr' };
+}
+
 /** The attributes an element that draws a data string takes: `dir="ltr"` and the `data-latin` marker, or nothing. */
 export type LatinAttrs = { dir?: 'ltr'; 'data-latin'?: '' };
 
