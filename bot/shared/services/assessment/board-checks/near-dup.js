@@ -69,6 +69,17 @@ function writtenDups(examJson, out) {
   });
 }
 
+/** bd-qyi45h.15: would D17 pair items a and b? Two MCQs as in run (both keys found), two written items on stem
+ * overlap alone; an MCQ and a written item never. Pure. */
+function twins(a, b) {
+  const mcq = (q) => Array.isArray(q.options);
+  if (mcq(a) !== mcq(b) || typeof a.question !== 'string' || typeof b.question !== 'string') return false;
+  if (!mcq(a)) return overlap(words(a.question, STOP), words(b.question, STOP), LIMITS.minWrittenWords);
+  const x = shape({ item: a });
+  const y = shape({ item: b });
+  return !!(x && y && sameQuestion(x, y));
+}
+
 function run(examJson) {
   const out = [];
   const seen = new Map(); // sectionId -> shapes so far
@@ -86,4 +97,4 @@ function run(examJson) {
   return { ok: out.length === 0, issues: out };
 }
 
-module.exports = { id: ID, name: 'near-dup', hard: true, modes: ['board'], LIMITS, run };
+module.exports = { id: ID, name: 'near-dup', hard: true, modes: ['board'], LIMITS, run, twins };
