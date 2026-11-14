@@ -64,6 +64,9 @@ ALTER TABLE release_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schema_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE website_visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE migration_test ENABLE ROW LEVEL SECURITY;
+-- V1.8.9: lesson-plan send ledgers (niete_lp_downloads holds a phone column). No policy: only the service role reads them.
+ALTER TABLE niete_lp_downloads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE niete_lp612_deliveries ENABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- Service role policies
