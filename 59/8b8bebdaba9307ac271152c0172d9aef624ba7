@@ -1,1 +1,2 @@
 {"ts":"2026-11-14T12:13:56Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"598b8bebdaba","branch":"bd-qf2n2x-to-main","user":""}
+{"ts":"2026-11-14T12:13:57Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-qf2n2x-to-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"598b8bebdaba","branch":"bd-qf2n2x-to-main","user":""}
