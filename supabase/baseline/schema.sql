@@ -7362,6 +7362,14 @@ ALTER TABLE ONLY public.niete_lp612_deliveries
 
 
 --
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: niete_lp612_renders niete_lp612_renders_cache_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
