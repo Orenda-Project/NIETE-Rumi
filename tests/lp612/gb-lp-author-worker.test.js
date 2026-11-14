@@ -112,12 +112,12 @@ describe('a GB miss is written at runtime on ICT\'s author and renderer, into GB
     expect(tables()).toEqual(expect.arrayContaining(['niete_gb_lp_renders', 'niete_lp612_segments']));
   });
 
-  test('a picture that fails to arrive never holds the lesson back', async () => {
+  test('never pulls crops from the book: GB pictures are only the drawn set (bd-rj6w0n.14.16.15)', async () => {
     happyReads();
     mockAuthorLessonPlan.mockResolvedValue({ lpDoc: { figs: [{ page: 3 }] }, model: 'm', rounds: 1 });
-    mockStageFigures.mockRejectedValue(new Error('crop missing'));
     const out = await Worker.process(JOB);
     expect(out.status).toBe('ready');
+    expect(mockStageFigures).not.toHaveBeenCalled();
     expect(mockDeliverRender).toHaveBeenCalled();
   });
 
