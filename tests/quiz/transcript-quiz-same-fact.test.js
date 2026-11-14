@@ -206,7 +206,7 @@ describe('the fixtures', () => {
 });
 
 describe('the solver is asked, once, in the call it already makes', () => {
-  const items = () => science().map((q, i) => KV.itemFor(q, i, QID));
+  const items = () => science().map((q, i) => KV.itemFor(q, i));
   test('the full solve with the lesson asks for "same_fact"; the solve without the lesson and a re-solve do not', () => {
     expect(KV.buildVerifyPrompt({ items: items(), language: 'en', digest: SCI, lessonSummary: SCI_SUMMARY, askSameFact: true })).toMatch(ASKS_SAME_FACT);
     expect(KV.buildVerifyPrompt({ items: items(), language: 'en', withLesson: false })).not.toMatch(ASKS_SAME_FACT);
