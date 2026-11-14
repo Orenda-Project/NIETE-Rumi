@@ -1,0 +1,2 @@
+{"ts":"2026-11-14T09:07:17Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,teacher-lessons,portal-smoke spec_sync=true","sha":"5516f60ac7ce","branch":"bd-snkn32.49-main","user":""}
+{"ts":"2026-11-14T09:07:18Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,lesson-plan,teacher-lessons,portal-smoke owe their Gherkin","sha":"5516f60ac7ce","branch":"bd-snkn32.49-main","user":""}
