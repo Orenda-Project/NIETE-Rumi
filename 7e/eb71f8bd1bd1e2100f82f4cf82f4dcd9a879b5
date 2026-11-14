@@ -1,1 +1,2 @@
 {"ts":"2026-11-14T05:48:02Z","hook":"post-commit","event":"switch-off","switch":"QA_HOOKS_OFF","detail":"","sha":"7eeb71f8bd1b","branch":"bd-snkn32.49-33982","user":""}
+{"ts":"2026-11-14T05:48:38Z","hook":"pre-push","event":"switch-off","switch":"QA_HOOKS_OFF","detail":"origin","sha":"7eeb71f8bd1b","branch":"bd-snkn32.49-33982","user":""}
