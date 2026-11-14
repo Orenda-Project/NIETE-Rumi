@@ -164,6 +164,15 @@ describe('tapping an own-plan row', () => {
     expect(log.buttons).toEqual([]);
   });
 
+  test('with no deferral service, "Yes" sends the linked line now and queues the analysis', async () => {
+    const { handleLpConfirmTap } = load();
+    const { d, log } = deps();
+    delete d.deferLpOutcome;
+    expect(await handleLpConfirmTap(`lpconfirm_yes_own_${OWN_ID}_${SID}`, FROM, d)).toBe(true);
+    expect(log.sent).toHaveLength(1);
+    expect(log.queued).toEqual([{ sid: SID, payload: expect.objectContaining({ from: FROM, lpUploaded: true }) }]);
+  });
+
   test('a plan that no longer resolves attaches nothing and re-sends the list', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps({ attached: false });
