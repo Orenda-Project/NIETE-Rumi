@@ -41,6 +41,9 @@
  * (teacherViewerOpensBetween). All shape rows the same way; mergeByLesson joins them to the
  * WhatsApp deliveries, one entry per lesson.
  *
+ * And the ✓ tick on the two lesson lists (viewerOpenedLessonIds): the lesson ids alone, no version —
+ * a tick means "you have this lesson", in any version, exactly as a WhatsApp delivery ticks it.
+ *
  * Grades 6-12 are not here: the 15:00 offer has never covered them (its WhatsApp side reads
  * niete_lp_downloads only).
  *
@@ -256,6 +259,33 @@ async function viewerOpenById(userId, openId) {
   return row || null;
 }
 
+/** Most app opens read per tick render; at it, the oldest opens' ticks are left out (logged). */
+const TICK_OPENS_CAP = 1000;
+
+/**
+ * The K-5 lesson ids she opened in the app, by any route — the ✓ tick on the WhatsApp Flow's lesson
+ * list and on the app's. Ids only: no asset, no version (a tick is any version). One read per render
+ * on idx_lp_opens_user_recent,
+ * newest first, at most `limit` rows. Throws on a read error.
+ *
+ * @returns {Promise<Set<string>>}
+ */
+async function viewerOpenedLessonIds(userId, limit = TICK_OPENS_CAP) {
+  if (!userId) return new Set();
+  const { data, error } = await supabase.from(OPENS)
+    .select('plan_ref')
+    .eq('user_id', userId)
+    .eq('plan_kind', 'k5')
+    .order('opened_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`lp app opens: opened lesson ids: ${error.message || error}`);
+  const rows = data || [];
+  if (rows.length >= limit) {
+    logToFile('⚠️ lp app opens: tick read reached its cap — older opens are not ticked', { userId, limit }, 'warn');
+  }
+  return new Set(rows.map((r) => r.plan_ref));
+}
+
 async function readOpens(fromIso, toIso) {
   // pagedRows swallows an error into [] — a read that must not be mistaken for "no opens" is probed
   // first, so a missing table or a failing database is told apart from an empty window.
@@ -276,5 +306,5 @@ async function readOpens(fromIso, toIso) {
 
 module.exports = {
   viewerOpensAsDownloads, viewerOpensForTeacher, teacherViewerOpens, teacherViewerOpensBetween,
-  viewerOpenById, mergeByLesson, servedAsset,
+  viewerOpenById, viewerOpenedLessonIds, mergeByLesson, servedAsset,
 };
