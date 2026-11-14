@@ -1,0 +1,2 @@
+{"ts":"2026-11-14T09:05:36Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"19b40635caff","branch":"bd-snkn32.49-main","user":""}
+{"ts":"2026-11-14T09:05:37Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe owe their Gherkin","sha":"19b40635caff","branch":"bd-snkn32.49-main","user":""}
