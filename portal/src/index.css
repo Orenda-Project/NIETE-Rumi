@@ -171,6 +171,36 @@ All colors MUST be HSL.
     word-spacing: normal;
   }
 
+  /* bd-r2uzg1.13 — Urdu CONTENT is Nastaliq in every app language (operator 13 Nov: "never naskh, always nastaliq").
+     The html[lang="ur"] rules reach Urdu mode only: with the app in English, an Urdu exam paper's own lang="ur" got no
+     font and the phone drew it in its default Arabic face (Naskh). An element whose text is Urdu whatever the app's
+     language (the paper, its questions in the editor; src/lib/textDir.ts urduAttrs) carries data-urdu: the Urdu stack,
+     spacing and line height 2 of Urdu mode, and the same clip room for a clamped box. :not(svg) lifts the line height
+     above a `leading-*` utility; the clip room stays below a utility the component wrote itself, as in Urdu mode.
+     Guarded by src/lib/urduPaper.test.tsx. */
+  [data-urdu],
+  [data-urdu] * {
+    font-family: var(--font-urdu) !important;
+    letter-spacing: 0 !important;
+    word-spacing: 0.15em;
+  }
+
+  [data-urdu] [data-latin] {
+    font-family: var(--font-latin) !important;
+    word-spacing: normal;
+  }
+
+  [data-urdu]:not(svg),
+  [data-urdu] *:not(svg):not(svg *) {
+    line-height: 2;
+  }
+
+  :where([data-urdu]):is(.truncate, [class*="line-clamp-"]),
+  :where([data-urdu]) :is(.truncate, [class*="line-clamp-"]) {
+    padding-block: 0.3em;
+    margin-block: -0.3em;
+  }
+
   html[dir="rtl"] [data-latin] {
     width: fit-content;
     max-width: 100%;
