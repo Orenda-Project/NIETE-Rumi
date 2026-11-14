@@ -1,2 +1,3 @@
 {"ts":"2026-11-13T16:05:16Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"5cc8858f2bf4","branch":"bd-37q6ye-34014","user":""}
 {"ts":"2026-11-13T16:05:18Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-37q6ye: E-NODRIVER:registration","sha":"5cc8858f2bf4","branch":"bd-37q6ye-34014","user":""}
+{"ts":"2026-11-14T05:19:12Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"5cc8858f2bf4","branch":"bd-37q6ye-34014","user":""}
