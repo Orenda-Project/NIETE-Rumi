@@ -1,6 +1,6 @@
 ---
 name: data-standards
-description: Audit a schema, migration, or PR diff against Taleemabad's 27 Data Standards (D1-D27, tiered NON-NEGOTIABLE/ESSENTIAL/ADVANCED/SPECIALIZED, across Lesson Plans, Digital Coach, Teacher Training, Exam Generator, User Mgmt, Data & Analytics). Use when reviewing a schema change, writing a migration, designing a new table, or asked "does this meet our data standards" / "is this PII-safe" / "what does D6 require" / "give me a compliance audit report". A full audit produces a structured report — fixed verdicts, severity, stable issue IDs, per-table findings, a remediation plan — per reference/audit-report-format.md. Also generates the D21 weekly compliance scorecard as a house-style chart. A PreToolUse hook warns on schema writes that look like they skip a NON-NEGOTIABLE standard.
+description: Audit a schema, migration, or PR diff against Taleemabad's 27 Data Standards (D1-D27, tiered NON-NEGOTIABLE/ESSENTIAL/ADVANCED/SPECIALIZED, across Lesson Plans, Digital Coach, Teacher Training, Exam Generator, User Mgmt, Data & Analytics). Use when reviewing a schema change, writing a migration, designing a new table, or asked "does this meet our data standards" / "is this PII-safe" / "what does D6 require" / "give me a compliance audit report". A full audit produces a structured report — fixed verdicts, severity, stable issue IDs, per-table findings, a remediation plan — per reference/audit-report-format.md. Also generates the D21 weekly compliance scorecard as a house-style chart. Two PreToolUse hooks BLOCK on a confirmed NON-NEGOTIABLE violation — one at commit/push/PR time, one live on the Edit/Write that introduces it.
 ---
 
 # Data Standards
@@ -237,6 +237,56 @@ the block/allow decision — same guarantee `notify.py` already gives its other 
 here too. Verified end-to-end against a real Slack channel (see [CHANGELOG.md](CHANGELOG.md)) and with
 a deliberately-broken channel override to confirm the exit code never moves either way.
 
+**Governance-event reporting is automatic too** (added 2026-10-06, same zero-per-repo-setup
+pattern as Slack). On PASS, FAIL, and BYPASSED alike — not just blocks/bypasses — the gate fires a
+`scripts/notify.py governance` call against `TALEEMABAD_GOVERNANCE_ENDPOINT`. PASS is reported too,
+deliberately: reporting only blocks/bypasses would make a mostly-compliant repo's pass-rate stats
+look identical to one that fails constantly. `VALIDATE_EXIT -eq 3` (nothing schema-relevant to
+check at all) reports nothing — that's a different fact from "checked and it was clean." Same
+background-and-discard pattern as Slack: a missing endpoint, a missing key, or a failed POST has
+**zero effect** on the block/allow decision. The bypass path sends just `"BYPASSED"` as the result
+and the real reason in the separate `--bypass-reason` field — not `"BYPASSED: <reason>"` crammed
+into `result`, which silently fails the receiving service's 64-character cap on that field with no
+visible error anywhere in this hook's own output (caught live during this feature's own testing;
+see the CHANGELOG entry for the full story).
+
+## The live-edit gate hook
+
+`hooks/live-schema-edit-gate.py` is a second `PreToolUse` hook (also declared in
+[hooks.json](hooks.json)) that fires on `Edit` and `Write` — checking a schema/migration file's
+**prospective** content (what it would contain immediately after this specific tool call, not what's
+already on disk) the instant a NON-NEGOTIABLE violation is introduced, rather than waiting until
+someone tries to commit. For a `Write`, that's `tool_input.content` directly; for an `Edit`, the hook
+reads the file's current on-disk text and applies `old_string` → `new_string` itself, since an `Edit`
+call never carries the whole file. It calls
+[scripts/detect_schema_changes.py](scripts/detect_schema_changes.py) first to skip anything that
+isn't schema-relevant, then `validate_schema.py`'s own `validate_text()` — the exact same shared
+validator the commit-time gate and CI use, so nothing here can disagree with them about what counts
+as a violation.
+
+**This is deliberately as strict as the commit-time gate, not a softer warn-only layer**: it blocks
+the very Edit/Write call that would introduce a confirmed finding, even mid-build — writing a
+complete `CREATE TABLE ... );` with a `SERIAL` primary key is refused the instant that statement is
+written, not just when someone later tries to commit it. This only works safely because
+`validate_schema.py`'s table-block matcher requires a CLOSED, terminated statement (a closing paren
+then a semicolon) — an in-progress, unclosed `CREATE TABLE` being built up across several `Edit`
+calls never matches at all, so normal incremental typing is never mid-statement blocked. What gets
+refused is a statement that already looks finished but is missing something mandatory.
+
+Same bypass mechanism as the commit-time gate, on purpose — no second, weaker escape hatch for live
+edits: `export TALEEMABAD_DATA_STANDARDS_BYPASS="<a real reason>"`, validated by
+[scripts/bypass_audit.py](scripts/bypass_audit.py) exactly as above, recorded to the same
+`.data-standards-bypass-log.jsonl` (against the repo's current HEAD — there is no new commit yet at
+edit time). Same Slack notification path too (`scripts/notify.py slack`), same fire-and-forget,
+zero-effect-on-the-decision contract.
+
+The commit-time gate (`schema-change-gate.sh`) stays in place as the backstop for anything this live
+hook misses — a human editing the same repo outside Claude Code entirely, for instance. Neither hook
+replaces the other; they check the same thing at two different moments. See
+[evals/evals.json](evals/evals.json) cases C48-C53 for the verified behavior (block on a violating
+write, pass on a compliant one, correct handling of `Edit`'s prospective content, ignoring
+non-schema-relevant files, failing safe on malformed input, and the shared bypass mechanism).
+
 **What actually gets sent**: repo, branch, commit, actor, and result — five fields, always. `repo` is
 resolved via `git rev-parse --show-toplevel`'s basename (the actual repo root's directory name, not
 just the current working directory's — correct even if the hook fires from a subdirectory). `actor`
@@ -263,7 +313,11 @@ exact same validator, for the cases Claude can't reach:
 - **`reference/ci-workflow-template.yml`** — a copy-in GitHub Actions workflow using `--mode diff`
   against the PR's true base..head. This is the **authoritative** gate — local hooks can be
   bypassed with `--no-verify` or deleted; CI, once configured as a required branch-protection
-  status check, cannot.
+  status check, cannot. **Also notifies Slack** (added 2026-08-27) on a confirmed violation
+  (exit 1), mirroring the Claude gate's own `validation_failure` event — needs `SLACK_BOT_TOKEN`
+  and `TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL` as CI-side repository secrets, since a CI runner
+  doesn't check out this pack's gitignored `.env`; the template's own header explains exactly
+  what happens if either secret is missing (nothing breaks, it just doesn't send).
 
 All three layers (Claude gate, local Git hooks, CI) call the identical
 `scripts/validate_schema.py` — none of them has its own copy of the rules, so they can never
@@ -287,6 +341,17 @@ All four are local machine state (a fingerprint cache, the last audit's report, 
 trail, and unsent governance events) — safe to delete at any time, and never something a team
 should commit.
 
+## This skill's content also preloads at session start (added 2026-09-30)
+
+The gate hooks above already enforce automatically on `Edit`/`Write`/`git commit` — nothing new
+there. Separately, `hooks/data-gates-preload.py` (a pack-level `SessionStart` hook, declared in
+[../../hooks/hooks.json](../../hooks/hooks.json)) injects this entire `SKILL.md` file, verbatim,
+into every session's context, unconditionally — so the standards apply proactively in plain
+conversation ("design a table for X") even before any tool call would have tripped a gate. This
+runs regardless of whether the current repo has any schema at all — a deliberate choice, not a
+missing scope check. See `CLAUDE.md`'s "Data gates preload" section in the pack root for the full
+rationale and the real, ongoing token cost this adds to every session.
+
 ## Reference files
 
 | File | Contents |
@@ -298,12 +363,13 @@ should commit.
 | [reference/detection-guidance.md](reference/detection-guidance.md) | What counts as a schema-relevant file (SQL/migrations/Supabase/ORM), what's always excluded, how to distinguish schema DDL from a data dump, and how a repo overrides the defaults via `.data-standards.json`. |
 | [reference/enforcement-policy.md](reference/enforcement-policy.md) | What can block a commit/push/merge (deterministic, structural findings only) vs. what stays advisory (inference, external-registry-dependent, live-data-only) — the contract every enforcement layer follows. |
 | [scripts/detect_schema_changes.py](scripts/detect_schema_changes.py) | The shared change detector — classifies a git diff/staged-change/file-list into relevant/excluded/ambiguous per detection-guidance.md, used by every enforcement layer so none of them can disagree about what's schema-relevant. |
-| [scripts/validate_schema.py](scripts/validate_schema.py) | The shared validator — structural (not just keyword) checks against real `CREATE TABLE` blocks, four documented exit codes (0 pass / 1 blocking violation / 2 validator error / 3 no schema change), `--mode full\|diff\|staged\|validate-report`. This is what `hooks/schema-change-gate.sh`, the local Git hooks, and the CI template all call. |
+| [scripts/validate_schema.py](scripts/validate_schema.py) | The shared validator — structural (not just keyword) checks against real `CREATE TABLE` blocks, four documented exit codes (0 pass / 1 blocking violation / 2 validator error / 3 no schema change), `--mode full\|diff\|staged\|validate-report`. This is what `hooks/schema-change-gate.sh`, the local Git hooks, and the CI template all call. Blocking checks cover D1, D3, D4/D6, D5, D8 and D12; warn-only checks cover D8 (duplicate versions), D9, D14, D15, D16 and D17 — which is which, and why, is `enforcement:` in `reference/standards.yaml`. Only problems a change adds can block; ones already in the file are listed as `existing`. Tests: `tests/`. |
 | [scripts/install_repo_hooks.py](scripts/install_repo_hooks.py) | Explicit, opt-in installer for local `pre-commit`/`pre-push` Git hooks in a target repository — same validator as the Claude gate, so a terminal `git commit` outside Claude Code gets the same check. Idempotent, never overwrites an existing hook it doesn't own, `--uninstall` to remove. **Not run automatically by anything in this pack** — a team runs it themselves in their own repo when they want local enforcement. |
 | [reference/ci-workflow-template.yml](reference/ci-workflow-template.yml) | A copy-in GitHub Actions workflow — runs the same shared validator in `--mode diff` against a PR's base..head, uploads the report as an artifact, posts/updates one PR comment, fails the job on a confirmed violation. Only becomes an actual merge gate once a repo admin marks it as a required branch-protection status check — the template says so explicitly. |
 | [scripts/baseline_audit.py](scripts/baseline_audit.py) | SessionStart-shaped baseline audit — fingerprints a repo (commit SHA + schema-file hashes + standards/validator version) and only re-runs the full audit when the fingerprint changed, via a local, gitignored cache. Classifies findings as new/existing/resolved against the prior cached run. Opt-in per repo (not wired into this pack's own SessionStart hook) — see the script's own docstring for wiring instructions. |
 | [scripts/bypass_audit.py](scripts/bypass_audit.py) | Controlled bypass auditing — validates a bypass reason isn't empty or a generic placeholder (`--check`), and records an auditable JSONL entry (actor, real commit SHA, bypassed standards, reason) when a bypass is used (`--record`). **Wired into `hooks/schema-change-gate.sh`'s actual bypass check** (2026-08-19) — the gate now calls this script before honoring `TALEEMABAD_DATA_STANDARDS_BYPASS`; a rejected reason leaves the gate blocking, an accepted one is recorded before the commit is let through. Verified end-to-end against real scratch git repos. |
-| [scripts/notify.py](scripts/notify.py) | Slack notification (reuses `storytime`'s `slack_send.py` — one authoritative Slack client, not two) + a versioned, idempotent data-governance ingestion event with bounded retry/backoff and a local fallback file when no endpoint is configured. Sanitizes local paths and credential-shaped strings before anything is sent. **Slack delivery verified end-to-end** (2026-08-18) — a real bot posted a real message to a real channel and returned a real Slack `ts`; see the CHANGELOG entry for the exact check sequence (`auth.test` → `conversations.info` membership check → live send). **The data-governance endpoint has no destination to point at yet, by design, not by oversight** — checked whether the org's `taleemabad-data` MCP could serve as one; it's query/reporting-only with no ingestion tool, and MCP tools aren't reachable from a Git hook or CI job regardless. `TALEEMABAD_GOVERNANCE_ENDPOINT` stays unset until a real HTTPS endpoint exists somewhere; until then the local-file fallback (`.data-standards-governance-events.jsonl`) is the shipped, intended behavior, not a stub. |
+| [hooks/live-schema-edit-gate.py](hooks/live-schema-edit-gate.py) | The live `PreToolUse` hook on `Edit`/`Write` — checks a schema file's PROSPECTIVE content (after the tool call, not what's on disk yet) and blocks the tool call itself on a confirmed NON-NEGOTIABLE violation, same shared validator and same bypass mechanism as `schema-change-gate.sh`, just at edit time instead of commit time. See "The live-edit gate hook" above. |
+| [scripts/notify.py](scripts/notify.py) | Slack notification (reuses `storytime`'s `slack_send.py` — one authoritative Slack client, not two) + a versioned, idempotent data-governance ingestion event with bounded retry/backoff and a local fallback file when no endpoint is configured. Sanitizes local paths and credential-shaped strings before anything is sent. **Both paths verified end-to-end against real deployed services.** Slack: a real bot posted a real message to a real channel and returned a real Slack `ts` (2026-08-18). Governance: `TALEEMABAD_GOVERNANCE_ENDPOINT` now points at a real, reachable service — `data-gate-telemetry` — and `hooks/schema-change-gate.sh` calls it on every PASS/FAIL/BYPASSED outcome (added 2026-10-06; see that file's own header comment and the CHANGELOG for the full story, including the `repo_root()` regression this work caught and fixed along the way). The local-file fallback (`.data-standards-governance-events.jsonl`) stays in place for anyone who hasn't configured `TALEEMABAD_GOVERNANCE_ENDPOINT` — events are never silently discarded either way. |
 
 ## Related skills
 
