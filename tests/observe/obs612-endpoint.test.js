@@ -115,7 +115,7 @@ describe('INIT opens the visit\'s own tool', () => {
 
   test.each([
     ['form-gen', 'GEN_ENV'],
-    ['form-msci', 'MSCI_BEFORE'],
+    ['form-msci', 'MSCI_OVERVIEW'],
     ['form-en', 'ENUR_CONTEXT'],
     ['form-ur', 'ENUR_CONTEXT'],
   ])('%s opens on %s, labelled FDE v1, with exactly the data the screen declares', async (formId, screenId) => {
@@ -313,7 +313,7 @@ describe('Submit', () => {
     const choose = (n) => (n === 'i5' ? '0' : undefined);
     const seen = await walkForm('form-msci', choose);
     planScreen = seen.find((r) => r.screen === 'MSCI_PLAN');
-    expect(seen.map((r) => r.screen)).toEqual(['MSCI_BEFORE', 'MSCI_DURING_ONE', 'MSCI_DURING_TWO', 'MSCI_AFTER', 'MSCI_PLAN', 'DONE']);
+    expect(seen.map((r) => r.screen)).toEqual(['MSCI_OVERVIEW', 'MSCI_BEFORE', 'MSCI_DURING_ONE', 'MSCI_DURING_TWO', 'MSCI_AFTER', 'MSCI_PLAN', 'DONE']);
     expect(planScreen.data.init_dp_area).toBe('i5');
     expect(planScreen.data.levels_line).toContain('5. Student-centric, activities: Level 0');
 

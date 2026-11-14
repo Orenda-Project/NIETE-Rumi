@@ -25,6 +25,10 @@
     "GEN_WORK": [
       "DONE"
     ],
+    "MSCI_OVERVIEW": [
+      "MSCI_BEFORE",
+      "DONE"
+    ],
     "MSCI_BEFORE": [
       "MSCI_DURING_ONE",
       "DONE"
@@ -1394,8 +1398,70 @@
       }
     },
     {
+      "id": "MSCI_OVERVIEW",
+      "title": "Part 1 of 6",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FDE v1"
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Answer every item on this screen, then tap Next."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "msci_overview_form",
+            "init-values": {},
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "Observation Tool for Maths and Science Teachers (Grade VI- Grade VII)"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "FDE's tool for Maths and Science (Annexure G, pp.13-14), in 5 parts:\n\nPart 2 · Before the lesson\n1. Written work checked\n\nPart 3 · During the lesson\n2. Opening based on SLOs\n3. Command on the content\n4. Communication and delivery\n5. Student-centric, activities\n\nPart 4 · During the lesson\n6. Supporting material\n7. Links to daily life\n8. Student assessment/questions\n9. Wrapping up the lesson\n\nPart 5 · After the lesson\n10. Thinking outside the box\n11. Management, differentiation\n\nPart 6 · Student Assessment (5 students) and the development plan: Development area, Current level, Teacher goal, Action plan for the teacher\n\nEach indicator is scored Level 0 to Level 3, in FDE's words."
+              },
+              {
+                "type": "Footer",
+                "label": "Start",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "MSCI_OVERVIEW"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "MSCI_BEFORE",
-      "title": "Part 1 of 5",
+      "title": "Part 2 of 6",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -1439,6 +1505,10 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "To change an earlier part, tap ← at the top. Your answers stay."
+              },
+              {
                 "type": "TextHeading",
                 "text": "Before the lesson"
               },
@@ -1448,31 +1518,38 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextSubheading",
+                "text": "1. Written work checked"
+              },
+              {
+                "type": "TextBody",
+                "text": "Assigning and checking written work including formative assessments (e.g. quizzes, monthly/ end of unit tests)"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Student notebooks show evidence of written work of the past 5 lessons assigned and checked by the teacher\nLevel 2: Along with level 1, regular written feedback has been provided by the teacher. Fellow students/ mentors have been assigned to check assignments as well\nLevel 3: Along with achieving level 2, formative (classroom) assessments have application-based questions that go beyond the simple copy/paste of the textbook"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i1",
                 "label": "Written work checked",
-                "description": "Assigning and checking written work including formative assessments (e.g. quizzes, monthly/ end of unit tests)",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Student notebooks show evidence of written work of the past 5 lessons assigned and checked by the teacher"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Along with level 1, regular written feedback has been provided by the teacher. Fellow students/ mentors have been assigned to check assignments as well"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Along with achieving level 2, formative (classroom) assessments have application-based questions that go beyond the simple copy/paste of the textbook"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1502,7 +1579,7 @@
     },
     {
       "id": "MSCI_DURING_ONE",
-      "title": "Part 2 of 5",
+      "title": "Part 3 of 6",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -1576,6 +1653,10 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "To change an earlier part, tap ← at the top. Your answers stay."
+              },
+              {
                 "type": "TextHeading",
                 "text": "During the lesson"
               },
@@ -1585,31 +1666,38 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextSubheading",
+                "text": "2. Opening based on SLOs"
+              },
+              {
+                "type": "TextBody",
+                "text": "A meticulous introduction/ opening provided based on specific Student Learning Outcomes (SLOs)"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Teacher begins with the current SLO and links it broadly to the topic.\nLevel 2: Teacher meets level 1 and links the SLOs to activities/tasks in class, and previous lessons or other subjects\nLevel 3: Along with level 2, introduction is provided to the topic with an exciting hook which could include either a short story, interactive activity, a fun fact or a thought-provoking question to the students"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i2",
                 "label": "Opening based on SLOs",
-                "description": "A meticulous introduction/ opening provided based on specific Student Learning Outcomes (SLOs)",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Teacher begins with the current SLO and links it broadly to the topic."
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Teacher meets level 1 and links the SLOs to activities/tasks in class, and previous lessons or other subjects"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Along with level 2, introduction is provided to the topic with an exciting hook which could include either a short story, interactive activity, a fun fact or a thought-provoking question to the students"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1621,31 +1709,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "3. Command on the content"
+              },
+              {
+                "type": "TextBody",
+                "text": "Effective teachers' command on the content/subject"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: The teacher can provide a lecture on the topic, however, she/he is unable to answer complicated questions from the students\nLevel 2: The teacher meets level 1 and can answer questions from students, however, he/she is unable to rephrase content depending on the needs of the students\nLevel 3: Teacher meets level 2, and is able to rephrase her/his content depending on the needs/ questions of the students. She/he can also discuss content that is not available in the textbooks"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i3",
                 "label": "Command on the content",
-                "description": "Effective teachers' command on the content/subject",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "The teacher can provide a lecture on the topic, however, she/he is unable to answer complicated questions from the students"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "The teacher meets level 1 and can answer questions from students, however, he/she is unable to rephrase content depending on the needs of the students"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Teacher meets level 2, and is able to rephrase her/his content depending on the needs/ questions of the students. She/he can also discuss content that is not available in the textbooks"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1657,31 +1752,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "4. Communication and delivery"
+              },
+              {
+                "type": "TextBody",
+                "text": "Strong communication skills and delivery"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Audible and coherent speech is delivered\nLevel 2: Along with level 1, the teacher has a friendly and positive body language, and engages all students through movement in class\nLevel 3: Along with level 2, the teacher uses engaging methods of delivery such as appropriate humour or short fun activities to grab the attention of the students"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i4",
                 "label": "Communication and delivery",
-                "description": "Strong communication skills and delivery",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Audible and coherent speech is delivered"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Along with level 1, the teacher has a friendly and positive body language, and engages all students through movement in class"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Along with level 2, the teacher uses engaging methods of delivery such as appropriate humour or short fun activities to grab the attention of the students"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1693,31 +1795,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "5. Student-centric, activities"
+              },
+              {
+                "type": "TextBody",
+                "text": "Lesson is student-centric and activity-based"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Lesson has one activity performed by the teacher and majority of the lesson is lecture-based.\nLevel 2: Lesson includes one activity performed by students and activity is instructive and relevant to SLOs.\nLevel 3: Lesson includes several different types of activities performed by students and activities are instructive and relevant to SLOs. These activities are a combination of group, pair or solo activities."
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i5",
                 "label": "Student-centric, activities",
-                "description": "Lesson is student-centric and activity-based",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Lesson has one activity performed by the teacher and majority of the lesson is lecture-based."
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Lesson includes one activity performed by students and activity is instructive and relevant to SLOs."
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Lesson includes several different types of activities performed by students and activities are instructive and relevant to SLOs. These activities are a combination of group, pair or solo activities."
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1753,7 +1862,7 @@
     },
     {
       "id": "MSCI_DURING_TWO",
-      "title": "Part 3 of 5",
+      "title": "Part 4 of 6",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -1827,6 +1936,10 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "To change an earlier part, tap ← at the top. Your answers stay."
+              },
+              {
                 "type": "TextHeading",
                 "text": "During the lesson"
               },
@@ -1836,31 +1949,38 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextSubheading",
+                "text": "6. Supporting material"
+              },
+              {
+                "type": "TextBody",
+                "text": "Use of supporting material (Visual or digital aids)"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Teacher effectively uses the black/ white board\nLevel 2: Teacher uses a visual aid which is instructive and relevant to SLOs\nLevel 3: Teacher uses several visual/digital aids of more than one type which are instructive and relevant to SLOs"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i6",
                 "label": "Supporting material",
-                "description": "Use of supporting material (Visual or digital aids)",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Teacher effectively uses the black/ white board"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Teacher uses a visual aid which is instructive and relevant to SLOs"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Teacher uses several visual/digital aids of more than one type which are instructive and relevant to SLOs"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1872,31 +1992,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "7. Links to daily life"
+              },
+              {
+                "type": "TextBody",
+                "text": "Connections to practical examples or knowledge content from the students' daily lives"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Teacher gives 1 example of real-life application of SLO. The example is coherent with the students' prior knowledge and has a local context.\nLevel 2: Teacher gives 2 or more examples of real life application of SLO. Common misconceptions are dispelled.\nLevel 3: Teacher meets level 2 and asks students for examples of real life application scenarios"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i7",
                 "label": "Links to daily life",
-                "description": "Connections to practical examples or knowledge content from the students' daily lives",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Teacher gives 1 example of real-life application of SLO. The example is coherent with the students' prior knowledge and has a local context."
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Teacher gives 2 or more examples of real life application of SLO. Common misconceptions are dispelled."
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Teacher meets level 2 and asks students for examples of real life application scenarios"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1908,31 +2035,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "8. Student assessment/questions"
+              },
+              {
+                "type": "TextBody",
+                "text": "Student assessment/ questions (oral/ written) are asked"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet Level 1\nLevel 1: Teacher sets relevant questions to test understanding of only a few students.\nLevel 2: Teacher sets relevant questions and identifies correct and incorrect answers of most students.\nLevel 3: Teacher sets relevant questions before, during and after the lesson. She/he offers solutions for incorrect answers and positive praise for correct answers from all the students"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i8",
                 "label": "Student assessment/questions",
-                "description": "Student assessment/ questions (oral/ written) are asked",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet Level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Teacher sets relevant questions to test understanding of only a few students."
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Teacher sets relevant questions and identifies correct and incorrect answers of most students."
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Teacher sets relevant questions before, during and after the lesson. She/he offers solutions for incorrect answers and positive praise for correct answers from all the students"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -1944,31 +2078,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "9. Wrapping up the lesson"
+              },
+              {
+                "type": "TextBody",
+                "text": "Wrapping up/concluding the lesson"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Teacher reiterates a broad topic covered during class and summarizes the SLOs\nLevel 2: Teacher meets level 1, and explains the connection to upcoming topics. Homework is assigned from the textbook and written on the board\nLevel 3: Teacher meets level 2, and assigns complementarily unofficial homework that is an inquiry-based activity outside of class"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i9",
                 "label": "Wrapping up the lesson",
-                "description": "Wrapping up/concluding the lesson",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Teacher reiterates a broad topic covered during class and summarizes the SLOs"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Teacher meets level 1, and explains the connection to upcoming topics. Homework is assigned from the textbook and written on the board"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Teacher meets level 2, and assigns complementarily unofficial homework that is an inquiry-based activity outside of class"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -2004,7 +2145,7 @@
     },
     {
       "id": "MSCI_AFTER",
-      "title": "Part 4 of 5",
+      "title": "Part 5 of 6",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -2058,6 +2199,10 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "To change an earlier part, tap ← at the top. Your answers stay."
+              },
+              {
                 "type": "TextHeading",
                 "text": "After the lesson"
               },
@@ -2067,31 +2212,38 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextSubheading",
+                "text": "10. Thinking outside the box"
+              },
+              {
+                "type": "TextBody",
+                "text": "Thinking outside the box"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: An example/ activity was shared or provided that was not present in the textbook\nLevel 2: The teacher plans an activity or shares material not found in a typical classroom (e.g science kit)\nLevel 3: The teacher thinks beyond conventional, orthodox teaching methods to engage students with the lesson"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i10",
                 "label": "Thinking outside the box",
-                "description": "Thinking outside the box",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "An example/ activity was shared or provided that was not present in the textbook"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "The teacher plans an activity or shares material not found in a typical classroom (e.g science kit)"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "The teacher thinks beyond conventional, orthodox teaching methods to engage students with the lesson"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -2103,31 +2255,38 @@
                 "max-length": 600
               },
               {
+                "type": "TextSubheading",
+                "text": "11. Management, differentiation"
+              },
+              {
+                "type": "TextBody",
+                "text": "Classroom management and differentiated learning"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Does not meet level 1\nLevel 1: Teacher manages time well and maintains smooth transition of activities.\nLevel 2: Teacher meets level 1 and maintains a non-hostile learning environment. Teacher interacts with majority of the students in class, creating a dialogue\nLevel 3: Teacher modifies lessons to meet each student's individual interests, strengths, and needs (e.g those that lag behind the rest of the class)."
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "i11",
                 "label": "Management, differentiation",
-                "description": "Classroom management and differentiated learning",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Does not meet level 1"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Teacher manages time well and maintains smooth transition of activities."
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Teacher meets level 1 and maintains a non-hostile learning environment. Teacher interacts with majority of the students in class, creating a dialogue"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Teacher modifies lessons to meet each student's individual interests, strengths, and needs (e.g those that lag behind the rest of the class)."
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -2159,7 +2318,7 @@
     },
     {
       "id": "MSCI_PLAN",
-      "title": "Part 5 of 5",
+      "title": "Part 6 of 6",
       "data": {
         "rubric_label": {
           "type": "string",
@@ -2237,6 +2396,10 @@
                 "text": "${data.rubric_label}"
               },
               {
+                "type": "TextCaption",
+                "text": "To change an earlier part, tap ← at the top. Your answers stay."
+              },
+              {
                 "type": "TextHeading",
                 "text": "Student Assessment"
               },
@@ -2246,31 +2409,34 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "Select 5 students randomly and ask questions"
+              },
+              {
+                "type": "TextBody",
+                "text": "Level 0: Out of 5 students assessed, 1 or less student showed good understanding of the lesson taught\nLevel 1: Out of 5 students assessed, 2 students showed good understanding of the lesson taught\nLevel 2: Out of 5 students assessed, 3-4 students showed good understanding of the lesson taught\nLevel 3: Out of 5 students assessed, all showed good understanding of the lesson taught"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "students",
                 "label": "5 students checked",
-                "description": "Select 5 students randomly and ask questions",
                 "required": true,
                 "data-source": [
                   {
                     "id": "0",
-                    "title": "Level 0",
-                    "description": "Out of 5 students assessed, 1 or less student showed good understanding of the lesson taught"
+                    "title": "Level 0"
                   },
                   {
                     "id": "1",
-                    "title": "Level 1",
-                    "description": "Out of 5 students assessed, 2 students showed good understanding of the lesson taught"
+                    "title": "Level 1"
                   },
                   {
                     "id": "2",
-                    "title": "Level 2",
-                    "description": "Out of 5 students assessed, 3-4 students showed good understanding of the lesson taught"
+                    "title": "Level 2"
                   },
                   {
                     "id": "3",
-                    "title": "Level 3",
-                    "description": "Out of 5 students assessed, all showed good understanding of the lesson taught"
+                    "title": "Level 3"
                   }
                 ]
               },
@@ -2284,6 +2450,10 @@
               {
                 "type": "TextSubheading",
                 "text": "Development plan"
+              },
+              {
+                "type": "TextCaption",
+                "text": "FDE's table at the end of this tool (Annexure G, p.14): Development area · Current level · Teacher goal · Action plan for the teacher."
               },
               {
                 "type": "TextBody",
