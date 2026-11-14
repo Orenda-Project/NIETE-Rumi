@@ -144,7 +144,7 @@ describe('rewriteNote review faults (round 9b)', () => {
 
 describe('checkFaults (round 10)', () => {
   test('a D18 drop tells the rewrite the key stood out; other checks add nothing', () => {
-    expect(SP.checkFaults([{ question: 'Old?', check: 'D18' }, { question: 'Other?', check: 'D17' }]))
+    expect(SP.checkFaults([{ question: 'Old?', check: 'D18' }, { question: 'Other?', check: 'D13' }]))
       .toEqual(['"Old?": the key stood out (longest option, or always/never); write all four options the same length and detail, the key no longer than the longest distractor']);
   });
 });
