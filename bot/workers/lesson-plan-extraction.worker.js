@@ -61,7 +61,7 @@ class LessonPlanExtractionWorker {
 
       const { data: sessionRecord, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('user_id, lesson_plan_url, lesson_plan_r2_key, lesson_plan_format, framework')
+        .select('user_id, lesson_plan_url, lesson_plan_r2_key, lesson_plan_format')
         .eq('id', coachingSessionId)
         .single();
 
@@ -106,10 +106,7 @@ class LessonPlanExtractionWorker {
       // bd-0wws3e — our own LP: link the library lesson it names and stop. Fidelity
       // then scores it exactly as if the coach had picked it from the list.
       const corpusRef = !isPaste && String(detectedType).toLowerCase() === 'pdf'
-        ? await this.corpusRefFromPdf(fileBuffer, coachingSessionId, {
-          // bd-ra8xu.53 — a v9 PDF's dotted id is read on a FICO17 v6 visit (the coach switch) only.
-          v9Ids: sessionRecord?.framework === 'fico17_v6',
-        })
+        ? await this.corpusRefFromPdf(fileBuffer, coachingSessionId)
         : null;
       if (corpusRef) {
         const corpusPayload = {
@@ -363,16 +360,17 @@ class LessonPlanExtractionWorker {
    * lesson is in niete_lp_assets, return the corpus ref the list-pick path writes, so
    * fidelity scores it from the library: no parse, no vision. Null otherwise. Never throws.
    */
-  static async corpusRefFromPdf(buffer, coachingSessionId, { v9Ids = false } = {}) {
+  static async corpusRefFromPdf(buffer, coachingSessionId) {
     try {
       const { info } = await pdf(buffer, { max: 1 });
       const subject = String((info && info.Subject) || '');
       const m = subject.match(/lesson_id=([A-Za-z0-9_]+)/);
       if (!m) return null;
       // bd-ra8xu.53 — the v9 renderer (vendor/lp-v9/render_lp.js) writes the lesson's dotted id,
-      // GB_G4_URDU.C02.S003, which the library holds as gb_g4_urdu_ch2_seg3. Read only on a visit with
-      // the coach switch (FICO17 v6); everywhere else the Subject is read exactly as before.
-      const v9 = v9Ids ? LessonPlanExtractionWorker.libraryIdFromV9(subject) : null;
+      // GB_G4_URDU.C02.S003, which the library holds as gb_g4_urdu_ch2_seg3. Read on every visit since
+      // bd-ra8xu.56 (operator 14 Nov, decision 363); first it was FICO17 v6 visits only. A dotted id the
+      // library does not hold (the ICT grade 6-12 books) finds nothing and the file is read, as before.
+      const v9 = LessonPlanExtractionWorker.libraryIdFromV9(subject);
       const lessonId = v9 || m[1].toLowerCase();
       const { data, error } = await supabase
         .from('niete_lp_assets')
