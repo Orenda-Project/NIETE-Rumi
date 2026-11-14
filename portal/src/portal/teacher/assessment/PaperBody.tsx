@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { urduAttrs } from '@/lib/textDir';
 import type { PaperQuestion, PaperSection, PaperView } from '../../services/api';
 import { useCopy } from '../i18n';
 import { ASSESSMENT } from './copy';
@@ -7,7 +8,8 @@ import { ASSESSMENT } from './copy';
  * bd-fmf24g.31 — the paper itself on the paper page (Blueprint AssessPaper): its sections in order, numbered
  * questions with their marks, MCQ options, match columns, word lists and passages with lettered parts, in
  * big readable type. The paper's content is DATA: it renders as it was written, in the paper's own direction
- * (an Urdu paper reads right to left, whatever language her app is in); only the few words around it (marks,
+ * (an Urdu paper reads right to left, and in Nastaliq, whatever language her app is in: bd-r2uzg1.13); only the few
+ * words around it (marks,
  * Column A) are the app's. Never shows an answer: the view carries none (the answer key is its own file).
  */
 
@@ -94,7 +96,7 @@ function Section({ s }: { s: PaperSection }) {
 export function PaperBody({ view }: { view: PaperView }) {
   const C = useCopy(ASSESSMENT);
   return (
-    <article aria-label={C.thePaper} dir={view.paper.rtl ? 'rtl' : 'ltr'} lang={view.paper.rtl ? 'ur' : 'en'} data-testid="paper-body"
+    <article aria-label={C.thePaper} lang="en" {...urduAttrs(!!view.paper.rtl)} data-testid="paper-body"
       className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white py-1">
       {view.sections.map((s, i) => <Section key={i} s={s} />)}
     </article>
