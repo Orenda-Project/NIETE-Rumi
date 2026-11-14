@@ -1,0 +1,2 @@
+{"ts":"2026-11-14T09:07:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching,teacher-lessons spec_sync=true","sha":"8d5632ba45d3","branch":"bd-snkn32.49-main","user":""}
+{"ts":"2026-11-14T09:07:57Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching,teacher-lessons owe their Gherkin","sha":"8d5632ba45d3","branch":"bd-snkn32.49-main","user":""}
