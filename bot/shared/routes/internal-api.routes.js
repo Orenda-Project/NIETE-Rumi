@@ -2287,6 +2287,8 @@ router.use(require('./internal-assessment-view.routes'));
 router.use(require('./internal-attendance.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a portal screen (template only, the real result).
 router.use(require('./internal-share.routes'));
+router.use(require('./internal-lp612-own.routes')); // bd-snkn32 Make my own — its own file; see its header.
+router.use(require('./internal-lp612-shelf.routes')); // bd-snkn32.42 shelf + human check — see its header.
 router.use(require('./internal-fln-send.routes')); // FLN Send to teacher (PR-E) — its own file; see its header.
 
 // ─── coaching ───────────────────────────────────────────────────────────────
@@ -2540,6 +2542,8 @@ router.post('/lp612/status', requireInternalKey, lp612Route('status', async (Bro
       // bd-5rz1v.15 — the document's language: with segmentId, the plan the portal records an
       // open against (a render id is not stable across template versions).
       lang: row.lang || null,
+      // bd-snkn32.15 — an own plan: how many of her two changes are left, and its band (grades 1–5 or 6–12).
+      ...require('../services/lp-own-edit-guard').statusFields(row),
     });
   }
 

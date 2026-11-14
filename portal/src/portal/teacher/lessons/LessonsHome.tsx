@@ -1,21 +1,19 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { loadRecentLessonPlans } from '../../lib/recentLessonPlans';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
-import { FEATURE_HUE } from '../icons';
 import { teacherPath } from '../routes';
 import { HistoryList, HistoryRow } from '../ui';
-import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
+import { LIST_CARD } from '../ui/styles';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
-import { LESSONS_ALL, LESSONS_NEW } from './paths';
+import { LESSONS_ALL } from './paths';
 import { recentGroups } from './recent';
 import { useLessonsLeader } from './audience';
 import { FlnBand } from '../../fln/FlnBand';
 import { RegionCard } from './RegionCard';
+import { RecentOwnPlans } from './own/RecentOwnPlans';
+import { StartChoice } from './StartChoice';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
@@ -46,22 +44,8 @@ export function LessonsHomePage() {
 
   return (
     <TeacherPage feature="lessons" crumb={leader ? undefined : C.home} title={C.title} backTo={leader ? undefined : teacherPath('home')} help="lessons">
-      <Link to={LESSONS_NEW} className={cn('flex min-h-[112px] items-center gap-4 p-4', CARD, FOCUS)}>
-        <span
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
-          style={{ background: FEATURE_HUE.lessons.bg, color: FEATURE_HUE.lessons.fg }}
-        >
-          <Plus className="h-[30px] w-[30px]" aria-hidden="true" />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
-          <b className="text-[20px] font-semibold leading-tight">{C.newLessonPlan}</b>
-          <span className="inline-flex h-[26px] shrink-0 items-center whitespace-nowrap rounded-full bg-[#e5e7eb] px-2.5 text-[12px] font-semibold text-[#374151]">
-            {C.allGrades}
-          </span>
-        </span>
-        <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
-      </Link>
-
+      {/* bd-snkn32.39 — ready-made or Make my own, two separate choices (today's single card when own is off). */}
+      <StartChoice />
       {leader ? <FlnBand /> : null}
 
       {/* bd-rj6w0n.14.2: asks once, only when nothing names her region (dark unless LP_GB_K5_ENABLED). */}
@@ -80,6 +64,9 @@ export function LessonsHomePage() {
           </section>
         </>
       )}
+
+      {/* bd-snkn32.5 — her own Make my own plans, so they open from the portal too, not only from WhatsApp. */}
+      {leader ? null : <RecentOwnPlans />}
 
       {leader ? null : (
         <div className="mt-3.5">

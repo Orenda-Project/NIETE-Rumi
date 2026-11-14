@@ -4690,6 +4690,40 @@ CREATE TABLE public.niete_lp612_deliveries (
 
 
 --
+-- Name: niete_lp612_own_plans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.niete_lp612_own_plans (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    segment_id text,
+    lang text DEFAULT 'en'::text NOT NULL,
+    template_version text NOT NULL,
+    answers jsonb NOT NULL,
+    edit_hash text,
+    status text DEFAULT 'authoring'::text NOT NULL,
+    r2_key text,
+    model_used text,
+    error_code text,
+    error_detail text,
+    correlation_id text,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    lesson_id text,
+    parent_own_id uuid,
+    edit_round smallint,
+    edit_request jsonb,
+    CONSTRAINT niete_lp612_own_plans_edit_round CHECK ((((parent_own_id IS NULL) AND (edit_round IS NULL) AND (edit_request IS NULL)) OR ((parent_own_id IS NOT NULL) AND (edit_round = ANY (ARRAY[1, 2])) AND (edit_request IS NOT NULL)))),
+    CONSTRAINT niete_lp612_own_plans_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
+    CONSTRAINT niete_lp612_own_plans_one_parent CHECK ((num_nonnulls(segment_id, lesson_id) = 1)),
+    CONSTRAINT niete_lp612_own_plans_r2_key_check CHECK (((r2_key IS NULL) OR (r2_key ~~ 'lp612/%'::text))),
+    CONSTRAINT niete_lp612_own_plans_status_check CHECK ((status = ANY (ARRAY['authoring'::text, 'ready'::text, 'failed'::text])))
+);
+
+
+--
 -- Name: niete_lp612_renders; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -9342,6 +9376,27 @@ CREATE INDEX idx_lp612_deliveries_user_recent ON public.niete_lp612_deliveries U
 
 
 --
+-- Name: idx_lp612_own_plans_inflight; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp612_own_plans_inflight ON public.niete_lp612_own_plans USING btree (status, started_at) WHERE (status = 'authoring'::text);
+
+
+--
+-- Name: idx_lp612_own_plans_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp612_own_plans_user ON public.niete_lp612_own_plans USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: uq_lp612_own_plans_round; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_lp612_own_plans_round ON public.niete_lp612_own_plans USING btree (parent_own_id, edit_round) WHERE (status <> 'failed'::text);
+
+
+--
 -- Name: idx_lp612_renders_inflight; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12107,6 +12162,30 @@ ALTER TABLE ONLY public.niete_lp612_deliveries
 
 ALTER TABLE ONLY public.niete_lp612_deliveries
     ADD CONSTRAINT niete_lp612_deliveries_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_parent_own_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_parent_own_id_fkey FOREIGN KEY (parent_own_id) REFERENCES public.niete_lp612_own_plans(id);
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_segment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_segment_id_fkey FOREIGN KEY (segment_id) REFERENCES public.niete_lp612_segments(segment_id);
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --

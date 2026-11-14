@@ -108,6 +108,10 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_LP_MAKE_OWN_KEY,
+  PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_REVIEWERS_KEY,
+  isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_DECODE_KEY,
@@ -7964,7 +7968,7 @@ router.post('/coaching-upload/presign', requirePortalAuth, requireSelfObservatio
 function libraryPlanPick(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out = {};
-  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang']) {
+  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang', 'ownId']) {
     if (raw[k] !== undefined) out[k] = raw[k];
   }
   return out;
@@ -9260,6 +9264,9 @@ router.get('/config', async (req, res) => {
       coachReportsAppRaw,
       principalApp,
       helpVideosRaw,
+      lpMakeOwnRaw,
+      lpOwnShelfRaw,
+      lpOwnReviewer,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9304,6 +9311,11 @@ router.get('/config', async (req, res) => {
       isPrincipalAppUser(supabase, userId),
       // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_HELP_VIDEOS_KEY, userId),
+      // bd-snkn32 — Make my own lesson plan, per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
+      // bd-snkn32.42 — the "Made by a teacher" shelf (rides with the teacher app v2) and its reviewers (list-only).
+      isFlagEnabledForUser(supabase, PORTAL_LP_OWN_SHELF_KEY, userId),
+      isUserListedInFlag(supabase, PORTAL_LP_OWN_REVIEWERS_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9333,6 +9345,9 @@ router.get('/config', async (req, res) => {
         roleSwitch,
         principalApp,
         helpVideos: teacherV2 && helpVideosRaw,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
+        lpOwnShelf: teacherV2 && lpOwnShelfRaw,
+        lpOwnReviewer,
       },
     });
   } catch (error) {
@@ -9363,6 +9378,9 @@ router.get('/config', async (req, res) => {
         roleSwitch: false,
         principalApp: false,
         helpVideos: false,
+        lpMakeOwn: false,
+        lpOwnShelf: false,
+        lpOwnReviewer: false,
       },
       roleSwitchRoles: [],
     });

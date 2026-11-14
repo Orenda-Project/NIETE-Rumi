@@ -201,6 +201,20 @@ describe("open — one call, whichever grade", () => {
   });
 });
 
+describe("status — a ready own plan says how many changes are left (bd-snkn32.15)", () => {
+  it("carries changesLeft and its band; any other plan carries nothing", async () => {
+    const lp = createLessonPlansApi();
+    routes["/lp612/status/O1"] = () => ({ success: true, state: "ready", changesLeft: 1, ownBand: "k5" });
+    expect(await lp.status("O1")).toEqual({ state: "ready", source: { lane: "g612", renderId: "O1" }, own: { changesLeft: 1, band: "k5" } });
+    routes["/lp612/status/O1"] = () => ({ success: true, state: "ready", changesLeft: 0, ownBand: "g612" });
+    expect(await lp.status("O1")).toEqual({ state: "ready", source: { lane: "g612", renderId: "O1" }, own: { changesLeft: 0, band: "g612" } });
+    routes["/lp612/status/O1"] = () => ({ success: true, state: "ready", changesLeft: "2", ownBand: "k5" });
+    expect((await lp.status("O1")) as object).not.toHaveProperty("own");
+    routes["/lp612/status/O1"] = () => ({ success: true, state: "ready", changesLeft: 1, ownBand: "x" });
+    expect((await lp.status("O1")) as object).not.toHaveProperty("own");
+  });
+});
+
 describe("status — the poll while a plan is written", () => {
   it("ready, still preparing, or failed; never marked as an open", async () => {
     const lp = createLessonPlansApi();

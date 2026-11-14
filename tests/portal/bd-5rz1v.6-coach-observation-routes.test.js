@@ -101,6 +101,9 @@ const ROUTES = [
     { userId: 'coach-1', filename: 'a.webm', sizeBytes: 10, kind: 'audio' }],
   ['post', '/leader/observe/start', {}, { teacherExtId: 't1', schoolExtId: 's1', key: 'k', photoKeys: [], lessonPlan: { assetId: 'a', userId: 'x' } }, 'startObservation',
     { userId: 'coach-1', teacherExtId: 't1', schoolExtId: 's1', key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: { assetId: 'a' }, lesson: undefined }],
+  // bd-snkn32.41: her own Make my own plan rides as { ownId } (and nothing else).
+  ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], lessonPlan: { ownId: 'o1', userId: 'x' } }, 'startObservation',
+    { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: { ownId: 'o1' }, lesson: undefined }],
   // bd-ra8xu.40: the class the coach named (asked only while FDE's switch is on for her) rides with the start.
   ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], lesson: { grade: 7, subject: 'maths', junk: 1 } }, 'startObservation',
     { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: undefined, lesson: { grade: 7, subject: 'maths' } }],

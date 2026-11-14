@@ -174,3 +174,10 @@ describe('identity comes from the session', () => {
     expect(block).not.toMatch(/user_?[Ii]d:\s*req\.(body|query)/);
   });
 });
+
+// bd-snkn32.15 — the ready answer of the 6-12 poll carries an own plan's changes left (statusFields), nothing else.
+test('the status poll passes an own plan\'s changes left through', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
+  const block = src.slice(src.indexOf("'/lp612/status'"), src.indexOf("'/lp612/mine'"));
+  expect(block).toMatch(/\.\.\.require\('\.\.\/services\/lp-own-edit-guard'\)\.statusFields\(row\)/);
+});
