@@ -84,8 +84,8 @@ describe('routing', () => {
 
   test('four entry screens: each tool\'s first screen and NOTICE (INIT may only open a screen with no route in)', () => {
     const entry = [...declared].filter((id) => !incoming.has(id)).sort();
-    expect(entry).toEqual(['ENUR_CONTEXT', 'GEN_ENV', 'MSCI_BEFORE', 'NOTICE']);
-    expect(['gen', 'msci', 'enur'].map((t) => F.firstScreenOf(t))).toEqual(['GEN_ENV', 'MSCI_BEFORE', 'ENUR_CONTEXT']);
+    expect(entry).toEqual(['ENUR_CONTEXT', 'GEN_ENV', 'MSCI_OVERVIEW', 'NOTICE']);
+    expect(['gen', 'msci', 'enur'].map((t) => F.firstScreenOf(t))).toEqual(['GEN_ENV', 'MSCI_OVERVIEW', 'ENUR_CONTEXT']);
   });
 
   test('forward only: no cycle, no self-route, at most 10 routes out of a screen', () => {
@@ -231,17 +231,22 @@ describe('every required item is asked once, as a required answer, in FDE\'s wor
     }
   });
 
+  // bd-ra8xu.53 — FDE's words stand in full above each group (a radio group cut them short on the phone); the group
+  // carries Level 0-3 only. The words, in full: bd-ra8xu.53-msci-form.test.js.
   test('Maths & Science: each indicator shows FDE\'s text, levels 0-3 each with FDE\'s level text', () => {
     const all = F.pathFor('msci', null).flatMap((id) => inputsOf(screens[id]));
+    const words = F.pathFor('msci', null).flatMap((id) => screens[id].layout.children[0].children)
+      .filter((c) => c.type === 'TextBody').map((c) => c.text).join('\n');
     for (const ind of O.TOOLS.msci.indicators) {
       const c = all.find((x) => x.name === ind.key);
-      expect(c.description).toBe(ind.text);
-      expect(c['data-source']).toEqual(ind.levels.map((t, i) => ({ id: String(i), title: `Level ${i}`, description: t })));
+      expect(words).toContain(ind.text);
+      ind.levels.forEach((t, i) => expect(words).toContain(`Level ${i}: ${t}`));
+      expect(c['data-source']).toEqual(ind.levels.map((t, i) => ({ id: String(i), title: `Level ${i}` })));
       expect(all.find((x) => x.name === `obs_${ind.key}`)).toMatchObject({ type: 'TextArea', required: false });
     }
     const st = all.find((x) => x.name === 'students');
-    expect(st.description).toBe(O.TOOLS.msci.student_check.instruction);
-    expect(st['data-source'].map((o) => o.description)).toEqual(O.TOOLS.msci.student_check.levels);
+    expect(words).toContain(O.TOOLS.msci.student_check.instruction);
+    expect(st['data-source'].map((o) => o.title)).toEqual(['Level 0', 'Level 1', 'Level 2', 'Level 3']);
   });
 
   test('Maths & Science: a development plan row, with an optional second', () => {
