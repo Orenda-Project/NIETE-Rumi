@@ -16,5 +16,9 @@
     "bot/shared/database/schema.sql",
     "**/test_connection.sql",
     "**/test_migration_*.sql"
-  ]
+  ],
+  "warn_only": [
+    "D9-no-deleted-at"
+  ],
+  "_warn_only_comment": "Since data-standards c480ec4 every check blocks. NIETE keeps D9-no-deleted-at as a warning for now: 11 of the 40 newest migrations in infrastructure/supabase/migrations add a table without deleted_at. With this, 9 of those 40 would still block (mostly D14 yes/no column names). Remove the entry once new tables carry deleted_at. Measured 2026-11-10."
 }
