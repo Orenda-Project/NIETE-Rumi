@@ -283,6 +283,32 @@ function recordingText(analysis, code, lang, T) {
 }
 
 /**
+ * bd-ra8xu.58 — Section B's prefill (fr_k verdict, fe_k note) with the coach's own fid_r_k / fid_e_k laid over it, so
+ * a reopened v6 form keeps what she set. Only keys the screen already carries are touched. Pure.
+ */
+function withSectionBAnswers(data, edits) {
+  if (!data || !edits) return data;
+  const out = { ...data };
+  for (const [k, v] of Object.entries(edits)) {
+    const m = /^fid_([re])_(\w+)$/.exec(k);
+    if (!m || typeof v !== 'string') continue;
+    const key = `f${m[1]}_${m[2]}`;
+    if (Object.prototype.hasOwnProperty.call(out, key)) out[key] = v;
+  }
+  return out;
+}
+
+/**
+ * bd-ra8xu.58 — a refusal as the Form shows it under each field: { field: message }. The list at the top names the
+ * indicator ("D2 · How many children spoke: Write why …"); under the field the indicator is plain, so the name goes.
+ */
+function fieldMessages(errors) {
+  const out = {};
+  for (const [field, msg] of Object.entries(errors || {})) out[field] = String(msg).replace(/^[^:\n]*:\s+/, '');
+  return out;
+}
+
+/**
  * ${data.*} for an intro or indicator screen of the 22-screen form, in the coach's language. `edits` (what the coach
  * has submitted so far) and `errors` are passed when a refused screen is served again, so her answers are kept and
  * the reasons listed. Returns null for a screen this does not build (DOMAIN_B, an old DOMAIN_C/D/F).
@@ -319,6 +345,8 @@ function screenData(analysis, screenId, { lang = 'en', edits = null, errors = nu
     definition: text.definition,
     err_v: list.length > 0,
     err_note: list.length ? [S.v6_fix_heading, ...list.map((m) => `• ${m}`)].join('\n') : '',
+    // bd-ra8xu.58: the same refusals under their own fields (the Form's error-messages); {} when nothing is refused.
+    error_messages: fieldMessages(errors),
     opts: optionsFor(code, { lang }),
     next_label: isLastScreen(screenId) ? T.v6f_submit : T.v6f_next,
   };
@@ -578,4 +606,5 @@ module.exports = {
   optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
+  fieldMessages, withSectionBAnswers,
 };
