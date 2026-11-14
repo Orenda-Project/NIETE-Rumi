@@ -118,6 +118,17 @@ async function isLiveSchool(d, schoolId) {
   return found.some((s) => s && s.id === schoolId && s.is_active !== false && s.is_probable_test !== true);
 }
 
+/**
+ * The practice (is_probable_test) schools among `ids`. The few practice schools are read by their flag and matched
+ * here, never asked for by id: an any-school user's list holds every live school (~460 ids), and one `.in()` that long
+ * is too big for the HTTP client (supabase-js answers "TypeError: fetch failed").
+ */
+async function practiceAmong(d, ids) {
+  const want = new Set(ids);
+  const practice = await rows(d.supabase.from('schools').select('id, is_probable_test').eq('is_probable_test', true));
+  return new Set(practice.filter((s) => s && s.is_probable_test === true && want.has(s.id)).map((s) => s.id));
+}
+
 const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async ({ userId }, d) => {
   const any = await anySchool.enabledFor(userId, deps);
   const linked = await linkedSchools(d, userId);
@@ -133,12 +144,9 @@ const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async (
   const ids = [...new Set([...visitOf.keys(), ...linked.keys(), ...(live || []).map((s) => s.id)])].filter((id) => allowedSchool(d, id));
   const named = live || (ids.length ? await rows(d.supabase.from('schools').select('id, name, emis, region').in('id', ids)) : []);
   const schoolOf = new Map(named.map((s) => [s.id, s]));
-  // sa_r19_practice_first: the practice (is_probable_test) schools, looked up by id (an any-school user's `named` is the
+  // sa_r19_practice_first: the practice (is_probable_test) schools in the list (an any-school user's `named` is the
   // live list, which has none of them)
-  const practiceIds = (await practiceFirst.enabled(deps)) && ids.length
-    ? new Set((await rows(d.supabase.from('schools').select('id, is_probable_test').in('id', ids).eq('is_probable_test', true)))
-      .filter((s) => s && s.is_probable_test === true).map((s) => s.id))
-    : null;
+  const practiceIds = (await practiceFirst.enabled(deps)) && ids.length ? await practiceAmong(d, ids) : null;
   const schools = ids.map((id) => {
     const v = visitOf.get(id);
     const s = schoolOf.get(id);
@@ -980,9 +988,7 @@ function saSessions(args = {}, deps = {}) {
     // child_test_practice_only or sa_r8_hide_practice ON: each row says whether its school is a practice (test) school,
     // so views can leave them out (round 8: the dashboard does by default, practiceFilter tells it to)
     const practiceFilter = await hidePractice.enabled(deps);
-    const practiceIds = (practiceFilter || (await practiceOnly.enabled(deps)))
-      ? new Set((await rows(d.supabase.from('schools').select('id').in('id', schoolIds).eq('is_probable_test', true))).map((x) => x.id))
-      : null;
+    const practiceIds = (practiceFilter || (await practiceOnly.enabled(deps))) ? await practiceAmong(d, schoolIds) : null;
     const rowsOf = new Map();
     for (const r of blocks.blocks || []) {
       if (!rowsOf.has(r.session_id)) rowsOf.set(r.session_id, []);
