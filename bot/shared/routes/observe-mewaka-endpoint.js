@@ -205,6 +205,17 @@ async function loadSessionFromToken(flowToken, tap) {
   return { session, sessionId, userId };
 }
 
+/** bd-ra8xu.58 — the coach's buffered answers so far ({} when none or unreadable). Never throws. */
+async function bufferedEdits(sessionId) {
+  try {
+    const raw = await redisService.get(editsKey(sessionId));
+    if (!raw) return {};
+    return typeof raw === 'object' ? raw : JSON.parse(raw);
+  } catch (_) {
+    return {};
+  }
+}
+
 async function bufferEdits(sessionId, screenData) {
   const edits = {};
   Object.entries(screenData || {}).forEach(([k, v]) => {
@@ -254,10 +265,17 @@ async function handleObserveMewakaRequest(decrypted) {
       } catch (_) { v6Lang = 'en'; /* English if the language cannot be read */ }
       return v6Lang;
     };
+    // bd-ra8xu.58: a v6 screen is always served with every answer the coach has given (the next screen, a refused
+    // one, BACK, a reopened form). Before, only a refused screen got them, so Back then Next served a screen she had
+    // filled with Rumi's draft and her reason was gone (Rifat, 14 Nov 19:33, D2).
+    const answers = async (extra) => (extra.edits !== undefined ? extra.edits : bufferedEdits(sessionId));
     const serve = async (scr, extra = {}) => {
       if (isV6Visit(session)) {
-        const d = ObserveV6.screenData(session.analysis_data, scr, { lang: await coachLang(), ...extra });
+        const edits = await answers(extra);
+        const d = ObserveV6.screenData(session.analysis_data, scr, { lang: await coachLang(), ...extra, edits });
         if (d) return { screen: scr, data: d };
+        const data = fill(scr, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(scr, session), await coachLanguageIfNeeded(session)));
+        return { screen: scr, data: ObserveV6.withSectionBAnswers(data, edits) };
       }
       return {
         screen: scr,
@@ -328,7 +346,7 @@ async function handleObserveMewakaRequest(decrypted) {
         };
       }
 
-      return serve(nextFor(currentScreen, session, data));
+      return serve(nextFor(currentScreen, session, data), { edits: merged });
     }
 
     return errorResponse('Unsupported action');
