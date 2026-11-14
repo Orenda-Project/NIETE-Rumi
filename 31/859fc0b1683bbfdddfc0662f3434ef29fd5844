@@ -1,1 +1,2 @@
 {"ts":"2026-11-13T08:45:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"31859fc0b168","branch":"bd-snkn32.30-55206","user":""}
+{"ts":"2026-11-14T05:19:38Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"31859fc0b168","branch":"bd-snkn32.30-55206","user":""}
