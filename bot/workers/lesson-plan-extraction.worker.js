@@ -61,7 +61,7 @@ class LessonPlanExtractionWorker {
 
       const { data: sessionRecord, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('user_id, lesson_plan_url, lesson_plan_r2_key, lesson_plan_format')
+        .select('user_id, lesson_plan_url, lesson_plan_r2_key, lesson_plan_format, framework')
         .eq('id', coachingSessionId)
         .single();
 
@@ -106,7 +106,10 @@ class LessonPlanExtractionWorker {
       // bd-0wws3e — our own LP: link the library lesson it names and stop. Fidelity
       // then scores it exactly as if the coach had picked it from the list.
       const corpusRef = !isPaste && String(detectedType).toLowerCase() === 'pdf'
-        ? await this.corpusRefFromPdf(fileBuffer, coachingSessionId)
+        ? await this.corpusRefFromPdf(fileBuffer, coachingSessionId, {
+          // bd-ra8xu.53 — a v9 PDF's dotted id is read on a FICO17 v6 visit (the coach switch) only.
+          v9Ids: sessionRecord?.framework === 'fico17_v6',
+        })
         : null;
       if (corpusRef) {
         const corpusPayload = {
@@ -332,6 +335,15 @@ class LessonPlanExtractionWorker {
     }
   }
 
+  /**
+   * bd-ra8xu.53 — `lesson_id=GB_G4_URDU.C02.S003` (a v9 PDF's Subject) → `gb_g4_urdu_ch2_seg3`, the library's id;
+   * null when the Subject carries no dotted id. Checked against the library's own v9 PDFs (5 of 5).
+   */
+  static libraryIdFromV9(subject) {
+    const m = String(subject || '').match(/lesson_id=([A-Za-z0-9_]+)\.C(\d+)\.S(\d+)(?![\w.])/);
+    return m ? `${m[1].toLowerCase()}_ch${Number(m[2])}_seg${Number(m[3])}` : null;
+  }
+
   /** bd-0wws3e — the worker's one coaching_sessions writer: strips NUL bytes and logs a failed save. */
   static async saveSession(coachingSessionId, payload, step) {
     const { error } = await supabase
@@ -351,12 +363,17 @@ class LessonPlanExtractionWorker {
    * lesson is in niete_lp_assets, return the corpus ref the list-pick path writes, so
    * fidelity scores it from the library: no parse, no vision. Null otherwise. Never throws.
    */
-  static async corpusRefFromPdf(buffer, coachingSessionId) {
+  static async corpusRefFromPdf(buffer, coachingSessionId, { v9Ids = false } = {}) {
     try {
       const { info } = await pdf(buffer, { max: 1 });
-      const m = String((info && info.Subject) || '').match(/lesson_id=([A-Za-z0-9_]+)/);
+      const subject = String((info && info.Subject) || '');
+      const m = subject.match(/lesson_id=([A-Za-z0-9_]+)/);
       if (!m) return null;
-      const lessonId = m[1].toLowerCase();
+      // bd-ra8xu.53 — the v9 renderer (vendor/lp-v9/render_lp.js) writes the lesson's dotted id,
+      // GB_G4_URDU.C02.S003, which the library holds as gb_g4_urdu_ch2_seg3. Read only on a visit with
+      // the coach switch (FICO17 v6); everywhere else the Subject is read exactly as before.
+      const v9 = v9Ids ? LessonPlanExtractionWorker.libraryIdFromV9(subject) : null;
+      const lessonId = v9 || m[1].toLowerCase();
       const { data, error } = await supabase
         .from('niete_lp_assets')
         .select('id, lesson_id, version_stamp, content_hash')

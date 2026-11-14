@@ -143,11 +143,12 @@ describe('open: the visit\'s own FDE form', () => {
         if (spec.options) expect(f.options.map((o) => o.id)).toEqual(spec.options.map((o) => o.id));
       });
     }
-    const i1 = out.sections[0].parts.find((p) => p.name === 'i1');
+    const before = out.sections.find((s) => s.id === 'MSCI_BEFORE'); // sections[0] is the overview (bd-ra8xu.53)
+    const i1 = before.parts.find((p) => p.name === 'i1');
     expect(i1).toMatchObject({ role: 'item', kind: 'level', n: 1, short: 'Written work checked' });
     expect(i1.text).toMatch(/^Assigning and checking written work/);
     expect(i1.options[0]).toMatchObject({ id: '0', title: 'Level 0', description: 'Does not meet level 1' });
-    expect(out.sections[0].parts.find((p) => p.name === 'obs_i1')).toMatchObject({ role: 'observation', input: 'textarea', required: false });
+    expect(before.parts.find((p) => p.name === 'obs_i1')).toMatchObject({ role: 'observation', input: 'textarea', required: false });
   });
 
   test('General form: Yes/No items numbered as FDE numbers them; the last part asks the required feedback line', async () => {
