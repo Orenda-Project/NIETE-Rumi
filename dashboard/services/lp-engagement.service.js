@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * LP Engagement for the analytics-only accounts — schools analytics v8 (FDE feedback, 2026-10-19): ACTIVE /
  * NON-ACTIVE teachers, on the RDF's numbers. Its own endpoint, GET /api/portal/analytics/lp-engagement, so the
