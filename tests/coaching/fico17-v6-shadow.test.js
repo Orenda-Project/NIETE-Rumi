@@ -152,10 +152,15 @@ describe('DC rubric switch on the self-recording pipeline', () => {
     expect(meta.photo).toBeUndefined();
   });
 
-  test("'v6' behaves as shadow for now: the teacher's report stays V3 until the operator's go", async () => {
+  test("'v6': an ok read moves the report to v6 (bd-ra8xu.52), the read still stored, V3 kept under v3_fico", async () => {
+    const off = JSON.parse(JSON.stringify(await runWith('v3')));
     const on = await runWith('v6');
-    expect(on.framework).toBe('fico');
     expect(on.shadow.fico17_v6.status).toBe('ok');
+    expect(on.shadow.fico17_v6.mode).toBe('v6');
+    // operator 14 Nov ~01:10 ("Yes", Qurat's DC report on v6): the report's analysis is v6; fico17-v6-dc-report-on-v6.test.js
+    expect(on.framework).toBe('fico17_v6');
+    expect(on.scores.rubric).toBe('fico17_v6');
+    expect(JSON.parse(JSON.stringify(on.v3_fico.scores))).toEqual(off.scores);
   });
 
   test('a v6 failure leaves V3 intact and records the failure, never a default level', async () => {
