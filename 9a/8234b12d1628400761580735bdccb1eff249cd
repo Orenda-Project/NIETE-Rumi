@@ -2,3 +2,4 @@
 {"ts":"2026-11-14T09:28:28Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"9a8234b12d16","branch":"bd-qyi45h.14-16-staging","user":""}
 {"ts":"2026-11-14T12:12:49Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9a8234b12d16","branch":"bd-qyi45h.14-16-staging","user":""}
 {"ts":"2026-11-14T12:12:51Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-qyi45h.14-16-staging: E-DUPID:child-test;E-NODRIVER:registration","sha":"9a8234b12d16","branch":"bd-qyi45h.14-16-staging","user":""}
+{"ts":"2026-11-14T12:12:53Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.1.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"9a8234b12d16","branch":"bd-qyi45h.14-16-staging","user":""}
