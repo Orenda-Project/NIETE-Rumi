@@ -2,3 +2,4 @@
 {"ts":"2026-11-13T07:23:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"e9c3689de33c","branch":"bd-ehz254.12-99660","user":""}
 {"ts":"2026-11-13T07:23:13Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,coaching,language,status,observe,attendance,portal-smoke owe their Gherkin","sha":"e9c3689de33c","branch":"bd-ehz254.12-99660","user":""}
 {"ts":"2026-11-13T07:25:22Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"81afa432-5ae6-49b3-835f-d75b84cc3739","sha":"e9c3689de33c","branch":"bd-ehz254.12-99660","user":""}
+{"ts":"2026-11-14T05:19:16Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"e9c3689de33c","branch":"bd-ehz254.12-99660","user":""}
