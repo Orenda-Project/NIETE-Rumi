@@ -396,3 +396,20 @@ describe('Submit', () => {
     expect(logToFile).toHaveBeenCalledWith(expect.stringContaining('summary'), expect.objectContaining({ error: 'whatsapp down' }), 'error');
   });
 });
+
+// bd-ra8xu.58 — the two bugs Rifat hit on the FICO17 v6 form (14 Nov), checked on FDE's form: a refusal is under its
+// own field (above: error_messages), and Back then Next brings a screen back with what she answered on it.
+describe('bd-ra8xu.58: Back then Next keeps every answer on the FDE form', () => {
+  test('Maths & Science: answer Part 3, go back to Part 2, Next: Part 3 comes back with her answers', async () => {
+    await ex('form-msci', 'MSCI_OVERVIEW', { screen: 'MSCI_OVERVIEW' });
+    await ex('form-msci', 'MSCI_BEFORE', answersFor('MSCI_BEFORE', (n) => (n === 'i1' ? '2' : undefined)));
+    const toTwo = await ex('form-msci', 'MSCI_DURING_ONE', answersFor('MSCI_DURING_ONE', (n) => (n === 'i3' ? '3' : n === 'obs_i3' ? 'Answered every question.' : undefined)));
+    expect(toTwo.screen).toBe('MSCI_DURING_TWO');
+    // the header arrow takes her back to Part 2 (the phone keeps it); Next posts Part 2 again
+    const again = await ex('form-msci', 'MSCI_BEFORE', answersFor('MSCI_BEFORE', (n) => (n === 'i1' ? '2' : undefined)));
+    expect(again.screen).toBe('MSCI_DURING_ONE');
+    expect(again.data.init_i3).toBe('3');
+    expect(again.data.init_obs_i3).toBe('Answered every question.');
+    expect(again.data.error_messages).toEqual({});
+  });
+});
