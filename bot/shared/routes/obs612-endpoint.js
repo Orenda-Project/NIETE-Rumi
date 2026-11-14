@@ -7,7 +7,7 @@
  * Token: <coachUserId>:obs612:<formId>. Every request re-reads the form (observation_field_forms) and refuses it
  * when it is not this coach's, not an obs612 rubric, or already sealed.
  *
- *   INIT            the visit's tool, first screen (GEN_ENV, MSCI_BEFORE or ENUR_CONTEXT), pre-filled from the saved
+ *   INIT            the visit's tool, first screen (GEN_ENV, MSCI_OVERVIEW or ENUR_CONTEXT), pre-filled from the saved
  *                   draft; a refused form gets NOTICE ("Already submitted", or why it is not available).
  *   <form screen>   1. the screen's values are merged into answers.obs612 and saved (only while unsealed), BEFORE
  *                      anything is checked, so nothing typed is lost;
@@ -245,7 +245,7 @@ async function handleObs612Init(flowToken) {
   // The entry screens, named here: INIT may only answer with a screen that has no route in.
   const draft = Store.draftOf(ctx.form);
   if (ctx.tool === 'gen') return { screen: 'GEN_ENV', data: await screenData('GEN_ENV', ctx, draft) };
-  if (ctx.tool === 'msci') return { screen: 'MSCI_BEFORE', data: await screenData('MSCI_BEFORE', ctx, draft) };
+  if (ctx.tool === 'msci') return { screen: 'MSCI_OVERVIEW', data: await screenData('MSCI_OVERVIEW', ctx, draft) };
   return { screen: 'ENUR_CONTEXT', data: await screenData('ENUR_CONTEXT', ctx, draft) };
 }
 

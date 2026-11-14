@@ -445,6 +445,8 @@ class AnalysisProcessorService {
             audioDurationSeconds: session.audio_duration_seconds,
             photoEvidence: (metadata.photo && metadata.photo.evidence) || [],
             meta: fidelityMeta,
+            // bd-ra8xu.53 — a linked lesson with no move list reads "could not be measured" on a FICO17 v6 visit only.
+            distinguishUnscorable: frameworkKey === 'fico17_v6',
           })
         : Promise.resolve(null);
 

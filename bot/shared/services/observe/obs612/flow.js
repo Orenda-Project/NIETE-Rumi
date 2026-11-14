@@ -9,9 +9,12 @@
  *   General form       GEN_ENV → GEN_DELIVERY → GEN_MANAGEMENT → GEN_COMMAND → GEN_ASSESSMENT → GEN_WORK
  *                      one screen per FDE section: Yes/No per item, an optional comment box; the last adds the
  *                      required feedback line.
- *   Maths & Science    MSCI_BEFORE → MSCI_DURING_ONE → MSCI_DURING_TWO → MSCI_AFTER → MSCI_PLAN
- *                      each indicator Level 0-3 (FDE's level text under each level) with an optional Observations
- *                      box; then the 5-student check and the development plan (one row, an optional second).
+ *   Maths & Science    MSCI_OVERVIEW → MSCI_BEFORE → MSCI_DURING_ONE → MSCI_DURING_TWO → MSCI_AFTER → MSCI_PLAN
+ *                      (one tool for Maths and for Science.) bd-ra8xu.53, Rifat 13 Nov: an overview of the parts opens
+ *                      the form; each indicator's FDE text and each level's FDE text stand in full ABOVE its radios
+ *                      (inside the radio group WhatsApp cut them short), the radios read Level 0-3; an optional
+ *                      Observations box; then the 5-student check and FDE's development-plan table (Annexure G p.14:
+ *                      one row, an optional second). Every screen after the overview says how to go back.
  *   English & Urdu     ENUR_CONTEXT → ENUR_INTRO_TWO → ENUR_TWO_B → ENUR_TWO_C | ENUR_TWO_D → ENUR_TWO_E → … _G →
  *                      ENUR_INTRO_THREE → ENUR_THREE_A … _D → ENUR_INTRO_FOUR → ENUR_FOUR_A … _D → ENUR_FIVE → ENUR_SIX →
  *                      ENUR_SEVEN → ENUR_FEEDBACK
@@ -74,7 +77,8 @@ const textinput = (name, label, required, helper) => ({ name, input: 'textinput'
 const dropdown = (name, label, required, options) => ({ name, input: 'dropdown', label, required, options, prefill: true });
 const number = (name, label) => ({ name, input: 'number', label, required: false, prefill: false });
 
-// A screen is a list of parts, in order: { heading }, { sub }, { body: dataKey, example }, or { field }.
+// A screen is a list of parts, in order: { caption }, { heading }, { sub }, { text } (fixed words), { body: dataKey,
+// example } (words the endpoint fills), or { field }.
 
 // ── General form ──────────────────────────────────────────────────────────────
 
@@ -104,24 +108,52 @@ const MSCI_SPLIT = [
   { id: 'MSCI_AFTER', keys: ['i10', 'i11'] },
 ];
 const indicator = (key) => O.TOOLS.msci.indicators.find((i) => i.key === key);
-const MSCI_COUNT = MSCI_SPLIT.length + 1;
+const MSCI_COUNT = MSCI_SPLIT.length + 2; // the overview, the four indicator parts, the student check and plan
 const DP_COLUMNS = O.TOOLS.msci.development_plan.columns; // Development area, Current level, Teacher goal, Action plan for the teacher
+// bd-ra8xu.53 — FDE's words in full above the radios (a radio group cuts long text). The field keeps FDE's words
+// (the portal and every other reader use them); `textAbove` tells the Flow to leave them out of the radio group.
+const levelBlock = (levels) => levels.map((l, n) => `${LEVEL_LABELS[n]}: ${l}`).join('\n');
+// Meta routes forward only: going back is the header arrow (whatsapp-flows; refused at publish otherwise).
+const BACK_HINT = 'To change an earlier part, tap ← at the top. Your answers stay.';
+const DP_SOURCE = `FDE's table at the end of this tool (Annexure G, p.14): ${DP_COLUMNS.join(' · ')}.`;
+function msciOverview() {
+  const lines = [`FDE's tool for Maths and Science (${O.TOOLS.msci.fde_ref}), in ${MSCI_COUNT - 1} parts:`];
+  MSCI_SPLIT.forEach((sp, i) => {
+    lines.push('', `Part ${i + 2} · ${indicator(sp.keys[0]).stage}`);
+    for (const k of sp.keys) lines.push(`${indicator(k).n}. ${O.SHORT.msci[k]}`);
+  });
+  lines.push('', `Part ${MSCI_COUNT} · ${O.TOOLS.msci.student_check.title} (5 students) and the development plan: ${DP_COLUMNS.join(', ')}`);
+  lines.push('', 'Each indicator is scored Level 0 to Level 3, in FDE\'s words.');
+  return lines.join('\n');
+}
+const msciIndicatorParts = (k) => {
+  const ind = indicator(k);
+  return [
+    { sub: `${ind.n}. ${O.SHORT.msci[k]}` },
+    { text: ind.text },
+    { text: levelBlock(ind.levels) },
+    { field: { ...item(k, 'level', O.SHORT.msci[k], ind.text, levelOptions(ind.levels)), textAbove: true } },
+    { field: textarea(`obs_${k}`, 'Observations', false) },
+  ];
+};
 
 const MSCI_SCREENS = [
+  {
+    id: 'MSCI_OVERVIEW',
+    tool: 'msci',
+    title: `Part 1 of ${MSCI_COUNT}`,
+    footer: 'Start',
+    parts: [{ heading: O.TOOLS.msci.title }, { text: msciOverview() }],
+  },
   ...MSCI_SPLIT.map((s, i) => ({
     id: s.id,
     tool: 'msci',
-    title: `Part ${i + 1} of ${MSCI_COUNT}`,
+    title: `Part ${i + 2} of ${MSCI_COUNT}`,
     footer: 'Next',
     parts: [
+      { caption: BACK_HINT },
       { heading: indicator(s.keys[0]).stage },
-      ...s.keys.flatMap((k) => {
-        const ind = indicator(k);
-        return [
-          { field: item(k, 'level', O.SHORT.msci[k], ind.text, levelOptions(ind.levels)) },
-          { field: textarea(`obs_${k}`, 'Observations', false) },
-        ];
-      }),
+      ...s.keys.flatMap(msciIndicatorParts),
     ],
   })),
   {
@@ -130,13 +162,20 @@ const MSCI_SCREENS = [
     title: `Part ${MSCI_COUNT} of ${MSCI_COUNT}`,
     footer: 'Submit',
     parts: [
+      { caption: BACK_HINT },
       { heading: O.TOOLS.msci.student_check.title },
+      { text: O.TOOLS.msci.student_check.instruction },
+      { text: levelBlock(O.TOOLS.msci.student_check.levels) },
       {
-        field: item(O.TOOLS.msci.student_check.key, 'level', O.SHORT.msci.students, O.TOOLS.msci.student_check.instruction,
-          levelOptions(O.TOOLS.msci.student_check.levels)),
+        field: {
+          ...item(O.TOOLS.msci.student_check.key, 'level', O.SHORT.msci.students, O.TOOLS.msci.student_check.instruction,
+            levelOptions(O.TOOLS.msci.student_check.levels)),
+          textAbove: true,
+        },
       },
       { field: textarea('comment_students', 'Observations', false) },
       { sub: 'Development plan' },
+      { caption: DP_SOURCE },
       { body: 'levels_line', example: `${DP_COLUMNS[1]}, as you scored each indicator:\n1. ${O.SHORT.msci.i1}: Level 2\n3. ${O.SHORT.msci.i3}: Level 1` },
       { field: dropdown('dp_area', DP_COLUMNS[0], true, AREAS) },
       { field: dropdown('dp_goal', DP_COLUMNS[2], true, GOALS) },
@@ -325,6 +364,10 @@ const CAPTION = { type: 'TextCaption', text: '${data.rubric_label}' };
 
 function component(f) {
   if (f.input === 'radio') {
+    if (f.textAbove) { // bd-ra8xu.53 — FDE's words stand above the group; the group carries the levels only
+      const options = f.options.map((o) => ({ id: o.id, title: o.title }));
+      return { type: 'RadioButtonsGroup', name: f.name, label: f.label, required: f.required, 'data-source': options };
+    }
     return { type: 'RadioButtonsGroup', name: f.name, label: f.label, description: f.description, required: f.required, 'data-source': f.options };
   }
   if (f.input === 'dropdown') return { type: 'Dropdown', name: f.name, label: f.label, required: f.required, 'data-source': f.options };
@@ -361,6 +404,7 @@ function formScreenJson(s) {
     if (p.heading) { children.push({ type: 'TextHeading', text: p.heading }); showErr(); continue; }
     showErr();
     if (p.sub) children.push({ type: 'TextSubheading', text: p.sub });
+    else if (p.text) children.push({ type: 'TextBody', text: p.text });
     else if (p.body) { children.push({ type: 'TextBody', text: `\${data.${p.body}}` }); data[p.body] = str(p.example); }
     else if (p.field) {
       const f = p.field;
