@@ -9,5 +9,153 @@
   "grade_1_english_ch5_seg4",
   "grade_1_english_ch5_seg8",
   "grade_1_urdu_ch6_seg6",
-  "grade_1_english_ch8_seg7"
+  "grade_1_english_ch8_seg7",
+  {
+    "id": "grade_3_english_ch12_seg5",
+    "parts": [
+      {
+        "topic": "Grammar: Pinky's Preposition Parade (position words)",
+        "pages": [
+          140
+        ]
+      },
+      {
+        "topic": "Grammar: Possession Celebration (possessive nouns with 's)",
+        "pages": [
+          140,
+          141,
+          142
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_3_math_ch12_seg3",
+    "parts": [
+      {
+        "topic": "Reading the Calendar",
+        "pages": [
+          202
+        ]
+      },
+      {
+        "topic": "Time Word Problems",
+        "pages": [
+          202,
+          203,
+          204,
+          205
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_4_english_ch12_seg3",
+    "parts": [
+      {
+        "topic": "Retelling Pinky's Journey",
+        "pages": [
+          141,
+          142,
+          143
+        ]
+      },
+      {
+        "topic": "Painting with Words: Descriptive Language in Pinky's Story",
+        "pages": [
+          141,
+          142
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_4_english_ch12_seg5",
+    "parts": [
+      {
+        "topic": "Grammar: Adverb Match Up (how, when, where, how often)",
+        "pages": [
+          145,
+          146
+        ]
+      },
+      {
+        "topic": "Grammar: Mastering the Future Tense (will, shall, be going to)",
+        "pages": [
+          146
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_4_english_ch12_seg6",
+    "parts": [
+      {
+        "topic": "Grammar: Direct Speech",
+        "pages": [
+          147
+        ]
+      },
+      {
+        "topic": "Storytelling in Reverse",
+        "pages": [
+          147
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_4_english_ch12_seg7",
+    "parts": [
+      {
+        "topic": "Write & Create: A Formal Letter",
+        "pages": [
+          148,
+          149
+        ]
+      },
+      {
+        "topic": "Cursive Handwriting: Loop, Link and Dictation",
+        "pages": [
+          148
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_5_english_ch12_seg3",
+    "parts": [
+      {
+        "topic": "Diving Deeper: Summarise the Story",
+        "pages": [
+          155
+        ]
+      },
+      {
+        "topic": "Diving Deeper: Textual Detective",
+        "pages": [
+          155,
+          156
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grade_5_english_ch13_seg5",
+    "parts": [
+      {
+        "topic": "Grammar Playground: Connector Choices (choice and cause-and-effect connectors)",
+        "pages": [
+          170
+        ]
+      },
+      {
+        "topic": "Grammar Playground: Verbs in Action (regular and irregular verbs)",
+        "pages": [
+          171,
+          172
+        ]
+      }
+    ]
+  }
 ]
