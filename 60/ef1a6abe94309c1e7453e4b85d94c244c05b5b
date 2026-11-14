@@ -1,0 +1,2 @@
+{"ts":"2026-11-14T09:07:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"60ef1a6abe94","branch":"bd-snkn32.49-main","user":""}
+{"ts":"2026-11-14T09:07:06Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan owe their Gherkin","sha":"60ef1a6abe94","branch":"bd-snkn32.49-main","user":""}
