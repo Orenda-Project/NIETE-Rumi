@@ -7,7 +7,7 @@
 const { createChangeService } = require('../../bot/shared/services/lp612-own-change');
 const { OWN_JOB_TYPE } = require('../../bot/shared/services/lp612-own.service');
 
-const ANSWERS = { size: '51_70', resources: ['textbook'], level: 'mixed', way: 'tarl', note: '' };
+const ANSWERS = { size: '51_70', resources: ['textbook'], level: 'mixed', way: 'practical', note: '' };
 const ROOT = {
   id: 'root', user_id: 'u1', segment_id: 'grade_8_science.c02.p010-013', lesson_id: null, lang: 'en',
   template_version: 'v9.1', answers: ANSWERS, status: 'ready', parent_own_id: null, edit_round: null, edit_request: null,

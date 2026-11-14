@@ -29,7 +29,7 @@ async function handleOwnTap({ listId, sessionId, from, lang, status }, deps = {}
   const resendList = deps.resendList
     || ((sid, to, l) => require('./lp-step.service').resendLpList({ sessionId: sid, from: to, lang: l }));
   const deferLpOutcome = deps.deferLpOutcome
-    || require('./lp-outcome-ack.service').deferOrSendLpOutcome;
+    || (async ({ from: to, text }) => { await sendMessage(to, text); return {}; });
   const { getCoachingMessage } = deps.messages || require('../../../config/coaching-messages');
 
   const ownId = listId.slice('lp_own_'.length, -(sessionId.length + 1));
