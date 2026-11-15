@@ -74,8 +74,13 @@ every other visit opens is unchanged.
 
 ## Switches (all off by default)
 
-- `app_settings.fico_coach_rubric`: coach visits on v6, per region / `ict` / `gb` / `user:<id>`. Only visits to a
+- `app_settings.fico_coach_rubric`: coach visits on v6, per region / `ict` / `gb` / `user:<id>` / role. Only visits to a
   teacher of grades 1-5 (`users.teacher_level` PRIMARY only) reach v6. Grades 6-12 stay on the current rubric.
+  A role key names everyone with that `users.role`: `role:principal` (a principal observing one of their teachers gets
+  the coach's rubric), `role:coach`; scope one with `@`: `role:principal@ict`, `role:principal@sihala`. Order:
+  `user:<id>`, role (region scope, organization scope, bare), region, organization, `*`. The same keys work on
+  `obs612_coach` and every switch built on `coaching/fico-rubric-switch.js`. A principal's OWN lesson is not a visit:
+  it stays on the DC and `fico_dc_rubric`.
 - `OBSERVE_FICO17_V6_READY`: additionally required for `/observe`.
 - `app_settings.fico_dc_rubric`: the DC on self-recordings (`shadow` stores a v6 score beside V3 and never sends it).
 
