@@ -99,6 +99,7 @@ const ObserveState = require('../services/observe/observe-state.service');
 const { observeStrings, observeLang } = require('../services/observe/observe-strings');
 const { buildBriefViewModel } = require('../services/observe/observe-brief-card');
 const { getObserveArm } = require('../services/observe/observe-gate');
+const { canSelfCoach, canObserve } = require('../config/role-features');
 const { logToFile } = require('../utils/logger');
 
 // bd-2443: read per-call — the flag flips alongside the Flow republish and
@@ -369,6 +370,46 @@ const _admin = () => require('../services/observe/observe-school-admin.service')
 const _debriefService = () => require('../services/observe/observe-debrief.service');
 const _scheduleStore = () => require('../services/observe/observe-schedule.service');
 
+/**
+ * bd-9bppaz — the leader, when they may BOTH have their own lesson coached and observe others (a principal:
+ * config/role-features.js). Null for anyone else and on a failed read: the Digital Coach is never offered on a guess.
+ * `user` is the users row when the caller holds one; the Flow endpoint does not, so the profile is read.
+ */
+async function _selfCoachingLeader(userId, user) {
+  try {
+    const me = (user && typeof user.role === 'string') ? user : await LeaderSource.leaderProfile(userId);
+    return me && canSelfCoach(me) && canObserve(me) ? me : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * bd-9bppaz — "My own lesson" on the /observe menu. Operator, 15 Nov: "When they select themselves it is a DC flow, and
+ * when they choose their teachers it is an HITL flow." The teacher picker never lists the leader (leader-source.js), so
+ * this row is how a principal chooses themselves here; the binding list already offers it for a recording sent first.
+ */
+async function _selfLessonRow(userId, user) {
+  const me = await _selfCoachingLeader(userId, user);
+  if (!me) return null;
+  const S = observeStrings(observeLang(me));
+  return {
+    id: 'self_dc',
+    'main-content': { title: clip(S.bind_row_self_dc, 30), metadata: clip(S.bind_row_self_dc_desc, 80) },
+    'on-click-action': { name: 'data_exchange', payload: { step: 'self_dc' } },
+  };
+}
+
+/**
+ * bd-9bppaz — "My own lesson" tapped: close the Flow as 'self_dc'; the chat side (flow-response.handler) opens the
+ * Classroom Coaching door. No teacher is bound and no observation is armed. Anyone who may not self-coach gets the menu.
+ */
+async function selfLessonStep(userId, user) {
+  if (!(await _selfCoachingLeader(userId, user))) return menuScreen(userId, { user });
+  const params = { observe_visit_action: 'self_dc', visit_next: 'done' };
+  return { screen: 'SUCCESS', data: _success('', '', { action: 'self_dc', params }) };
+}
+
 async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
@@ -452,13 +493,17 @@ async function menuScreen(userId, opts = {}) {
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
   ];
+  // bd-9bppaz: a principal's own lesson, after the observe rows and before the roster admin. It needs no school.
+  const self = await _selfLessonRow(userId, opts.user);
   if (!schoolCount) {
     // Nothing to debrief, schedule or observe until she has a school. Show the
     // one action that gets her unstuck, and say why the rest is missing.
     const only = items.filter((i) => i.id === 'manage');   // teacher admin needs a school first
     only[0]['main-content'].metadata = 'Start here — add your first school';
+    if (self) only.push(self);
     return { screen: 'MENU', data: { items: only } };
   }
+  if (self) items.splice(items.findIndex((i) => i.id === 'manage'), 0, self);
   return { screen: 'MENU', data: { items } };
 }
 
@@ -861,6 +906,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   if (action === 'data_exchange') {
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
+    if (step === 'self_dc') return selfLessonStep(userId, user);
     if (step === 'debriefs') return debriefsScreen(userId, screenData && screenData.offset);
     if (step === 'work_form') return workFormScreen(userId, screenData && screenData.offset);
     if (step === 'work_send') return workSendScreen(userId, screenData && screenData.offset);

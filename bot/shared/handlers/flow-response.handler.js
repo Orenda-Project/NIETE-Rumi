@@ -788,6 +788,28 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       return true;
     }
 
+    if (visitAction === 'self_dc') {
+      // bd-9bppaz — "My own lesson" in the /observe menu: a principal chose THEMSELVES, which is the Digital Coach,
+      // never an observation (operator, 15 Nov). Must return before the fall-through below, which binds a teacher and
+      // asks for the observation recording. The Classroom Coaching door is the one every coaching entry uses; it sends
+      // the record-your-lesson instruction and arms the declared intent the audio router honours for a leader's own
+      // recording (observe-audio-router hasDeclaredDcIntent). Anyone who may not self-coach gets nothing opened.
+      const { canSelfCoach, canObserve } = require('../config/role-features');
+      if (!user || !canSelfCoach(user) || !canObserve(user)) {
+        logToFile('observe-visit: self_dc from a user who may not self-coach — ignored', { userId, role: user && user.role }, 'warn');
+        return true;
+      }
+      const ObserveState = require('../services/observe/observe-state.service');
+      // Clear any armed capture state, so their own recording is never taken as an observation of someone else.
+      try { await ObserveState.clearState(userId); } catch (_) { /* best effort */ }
+      const MenuService = require('../services/menu.service');
+      const { getOrCreateSession } = require('../database/bot-helpers');
+      let chatSessionId = null;
+      try { chatSessionId = await getOrCreateSession(userId); } catch (_) { /* the door tolerates null */ }
+      await MenuService._handleClassroomCoachingChoice(userId, chatSessionId, phoneNumber, observeLang(user));
+      return true;
+    }
+
     if (visitAction === 'debrief') {
       const ObserveDebrief = require('../services/observe/observe-debrief.service');
       await ObserveDebrief.startDebrief(responseJson.session_id, phoneNumber, user);
