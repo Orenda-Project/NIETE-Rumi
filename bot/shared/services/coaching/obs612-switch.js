@@ -10,6 +10,8 @@
  *   "on"                              every coach
  *   {"user:<uuid>": "on"}             one account only (the operator's test account)
  *   {"ict": "on"}                     every NIETE (ICT) coach
+ *   {"role:principal": "on"}          every principal (bd-9bppaz; "role:principal@ict" for ICT's only). A role key is
+ *                                     read after "user:<id>" and before the region; see fico-rubric-switch.js
  *
  * ON for a coach: each visit asks the lesson's class (and, for grades 6-12, its subject). A grade 6-12 lesson is
  * observed on FDE's tool for that class and subject; a grade 1-5 lesson stays on FICO, decided by the FICO coach
@@ -41,7 +43,8 @@ const cache = cachedSwitch({
 
 /**
  * Is FDE's grade 6-12 tool on for this coach? Never throws: false on any failure.
- * @param {{userId?: string, region?: string|null, organization?: string}} who  region omitted → read from users
+ * @param {{userId?: string, role?: string, region?: string|null, organization?: string}} who  region omitted → read
+ *   from users; role omitted → read from users only when the map holds a role key
  */
 async function isOn(who = {}, now = Date.now()) {
   try {

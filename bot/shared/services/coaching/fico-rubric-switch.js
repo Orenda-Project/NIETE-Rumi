@@ -11,9 +11,17 @@
  *   {"*": "current", "sihala": "v6"}            region keys are users.region lowercased ("sihala", "gilgit-baltistan")
  *   {"ict": "v6", "gb": "current"}              "ict" = every region FDE owns (organization 'niete'), "gb" = Moawin's
  *   {"user:<users.id uuid>": "v6"}              one account only (the operator's test accounts), whatever its region
+ *   {"role:principal": "v6"}                    everyone with that users.role (bd-9bppaz), so a new account joins on
+ *                                               its own; "role:coach" the same for coaches
+ *   {"role:principal@ict": "v6"}                that role in one organization ("ict", "gb") or one region ("sihala")
  *
- * Lookup order: "user:<id>", the user's region, then its organization ('niete'/'ict', 'moawin'/'gb'), then "*",
- * then OFF.
+ * Lookup order: "user:<id>"; the role keys, scoped to the user's region, then to its organization, then the bare
+ * role; the user's region; its organization ('niete'/'ict', 'moawin'/'gb'); "*"; then OFF. Who you are beats where
+ * you are: {"role:principal": "v6", "sihala": "current"} puts a Sihala principal on v6.
+ * The role is users.role, trimmed and lowercased. A caller that holds the users row passes it (`role`); otherwise it is
+ * read, and only when the map holds a role key that the user's own key does not already override. The role cannot be
+ * read while the map holds a role key: OFF, never "*" (we cannot tell whether a role key decides). A user with no role
+ * is not a failure: the role keys simply do not apply.
  * An unknown value, no row, or a failed read is OFF ('current' / 'v3'). Read like ab_v10_enabled: fail closed,
  * 30 s cache (settings/switch-cache).
  *
@@ -36,6 +44,10 @@ const COACH_OFF = 'current';
 const DC_OFF = 'v3';
 
 const ORG_ALIASES = { niete: ['niete', 'ict'], moawin: ['moawin', 'gb'] };
+const ORG_KEYS = ['niete', 'ict', 'moawin', 'gb'];
+const ROLE_PREFIX = 'role:';
+// roleOfUser's answer when the users read failed (as opposed to a user with no role).
+const ROLE_UNKNOWN = Symbol('role unknown');
 
 function parse(v) {
   if (typeof v !== 'string') return v;
@@ -66,12 +78,15 @@ const cache = cachedSwitch({
   log: (err) => logToFile('fico rubric switch: settings lookup failed — treating as off', { error: err.message }, 'error'),
 });
 
-/** Pure: the value a map gives a region (and its organization, when known), else off. */
-function resolve(map, { userId, region, organization } = {}, allowed, off) {
-  const tries = [userId ? `user:${norm(String(userId))}` : '', norm(region)];
+/** Pure: the value a map gives a user (by id, role, region and its organization, when known), else off. */
+function resolve(map, { userId, role, region, organization } = {}, allowed, off) {
+  const reg = norm(region);
   const org = norm(organization);
-  if (org) tries.push(...(ORG_ALIASES[org] || [org]));
-  tries.push('*');
+  const orgKeys = org ? (ORG_ALIASES[org] || [org]) : [];
+  const r = typeof role === 'string' ? norm(role) : '';
+  const tries = [userId ? `user:${norm(String(userId))}` : ''];
+  if (r) tries.push(...[reg, ...orgKeys].filter(Boolean).map((s) => `${ROLE_PREFIX}${r}@${s}`), `${ROLE_PREFIX}${r}`);
+  tries.push(reg, ...orgKeys, '*');
   for (const k of tries) {
     if (!k) continue;
     const v = map[k];
@@ -90,22 +105,38 @@ async function organizationFor(region) {
   }
 }
 
-function needsOrg(map, region, userId) {
+/** Does the organization decide anything here? (Only then is the region registry read.) */
+function needsOrg(map, region, userId, role) {
   const keys = Object.keys(map);
   if (!keys.length) return false;
   if (userId && map[`user:${norm(String(userId))}`] !== undefined) return false;
-  if (map[norm(region)] !== undefined) return false;
-  return keys.some((k) => ['niete', 'ict', 'moawin', 'gb'].includes(k));
+  const reg = norm(region);
+  const r = typeof role === 'string' ? norm(role) : '';
+  if (r) {
+    if (reg && map[`${ROLE_PREFIX}${r}@${reg}`] !== undefined) return false;
+    if (ORG_KEYS.some((o) => map[`${ROLE_PREFIX}${r}@${o}`] !== undefined)) return true;
+    if (map[`${ROLE_PREFIX}${r}`] !== undefined) return false;
+  }
+  if (map[reg] !== undefined) return false;
+  return keys.some((k) => ORG_KEYS.includes(k));
 }
+
+const hasRoleKeys = (map) => Object.keys(map).some((k) => k.startsWith(ROLE_PREFIX));
 
 async function pickFor(map, who, allowed, off) {
   const w = who || {};
-  const organization = w.organization || (needsOrg(map, w.region, w.userId) ? await organizationFor(w.region) : null);
-  return resolve(map, { userId: w.userId, region: w.region, organization }, allowed, off);
+  const own = Boolean(w.userId) && map[`user:${norm(String(w.userId))}`] !== undefined;
+  // bd-9bppaz: the role, when a role key could decide and the caller did not say it. A failed read is OFF.
+  let role = w.role;
+  if (role === undefined && !own && hasRoleKeys(map)) role = await roleOfUser(w.userId);
+  if (role === ROLE_UNKNOWN) return off;
+  const organization = w.organization || (needsOrg(map, w.region, w.userId, role) ? await organizationFor(w.region) : null);
+  return resolve(map, { userId: w.userId, role, region: w.region, organization }, allowed, off);
 }
 
 /**
- * @param {{userId?: string, region?: string, organization?: string}} who  the user (users.id) and region (users.region)
+ * @param {{userId?: string, role?: string, region?: string, organization?: string}} who  the user (users.id), role
+ *   (users.role; read when a role key needs it and it is omitted) and region (users.region)
  * @returns {Promise<'current'|'v6'>}  never throws; OFF on any failure
  */
 async function coachRubric(who = {}, now = Date.now()) {
@@ -151,9 +182,24 @@ async function regionOfUser(userId) {
   }
 }
 
+/**
+ * bd-9bppaz — the users.role of a user id, for a map that holds a role key. Null when there is no id or no role; a
+ * failed read is ROLE_UNKNOWN, which pickFor resolves to OFF.
+ */
+async function roleOfUser(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    if (error) return ROLE_UNKNOWN;
+    return (data && typeof data.role === 'string' && data.role) || null;
+  } catch (_) {
+    return ROLE_UNKNOWN;
+  }
+}
+
 function _resetCache() { cache.reset(); }
 
 module.exports = {
   COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
-  asMap, resolve, pickFor, coachRubric, dcRubric, isAnySet, regionOfUser, _resetCache,
+  asMap, resolve, pickFor, coachRubric, dcRubric, isAnySet, regionOfUser, roleOfUser, _resetCache,
 };
