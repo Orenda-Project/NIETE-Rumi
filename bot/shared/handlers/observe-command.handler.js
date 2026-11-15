@@ -141,7 +141,7 @@ async function maybeLaunchVisitFlow(user, from) {
     // assignment check stays as the fallback for anyone whose role was never
     // set, so nobody who works today loses access.
     const isCoach = user && user.role === 'coach';
-    // bd-u4etvq: a principal goes straight in too. Their own school (users.school_id) is one of their schools now,
+    // A principal goes straight in too. Their own school (users.school_id) is one of their schools now,
     // and without one the menu still offers "add a school" and their own lesson: 477 of 522 prod principals held no
     // leader_schools row on 15 Nov and were sent the redirect instead of the picker.
     const isPrincipal = user && observesOwnSchoolAtOnce(user);

@@ -31,15 +31,18 @@ process.env.OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || 'obse
 const fs = require('fs');
 const path = require('path');
 
+// Phone-shaped fixtures are built at runtime from parts: the repo is public (tests/setup/phone-shaped-fixtures).
+const mockPh = (rest) => `92${rest}`;
+
 const mockUsers = {
   'principal-own': { id: 'principal-own', role: 'principal', preferred_language: 'ur', school_id: 'sOwn',
-    phone_number: '923000000001', preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
+    phone_number: mockPh('3000000001'), preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
   'principal-held': { id: 'principal-held', role: 'principal', preferred_language: 'en', school_id: 'sOwn2',
-    phone_number: '923000000002', preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
+    phone_number: mockPh('3000000002'), preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
   'principal-none': { id: 'principal-none', role: 'principal', preferred_language: 'ur', school_id: null,
-    phone_number: '923000000003', preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
+    phone_number: mockPh('3000000003'), preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
   'coach-1': { id: 'coach-1', role: 'coach', preferred_language: 'en', school_id: 'sCoachHome',
-    phone_number: '923000000004', preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
+    phone_number: mockPh('3000000004'), preferences: { observe_onboarded: true, observe_onboarding_arm: 'functional' } },
 };
 let mockCurrentUser = 'principal-own';
 const mockHoldings = { 'principal-own': [], 'principal-held': [{ school_ext_id: 'niete:502', school_name: 'Held' }],
@@ -93,7 +96,7 @@ jest.mock('../../shared/services/observe/assignment/leader-source', () => ({
   resolveTeacher: jest.fn(async (uid, ext) => ({
     teacher_ext_id: ext, teacher_name: 'Own Teacher One', phone_e164: ext, user_id: 'tO1', preferred_language: 'ur' })),
   listSchools: jest.fn(async () => [{ school_ext_id: 'niete:501', school_name: 'IMSG Own School', teacherCount: 2, dueCount: 2 }]),
-  listTeachers: jest.fn(async () => [{ teacher_ext_id: '923110000001', teacher_name: 'Own Teacher One', school_ext_id: 'niete:501' }]),
+  listTeachers: jest.fn(async () => [{ teacher_ext_id: mockPh('3110000001'), teacher_name: 'Own Teacher One', school_ext_id: 'niete:501' }]),
   buildBrief: jest.fn(async () => ({ teacher: { teacher_name: 'Own Teacher One', school_name: 'IMSG Own School', preferred_language: 'ur' }, moves: [], trend: [], noData: true })),
   leaderLang: jest.fn(async () => 'ur'),
   leaderProfile: jest.fn(async (id) => {
@@ -195,18 +198,18 @@ describe('the /observe menu', () => {
 
 describe('picking a teacher', () => {
   const pick = (uid, extra = {}) => handler.handle(uid, 'data_exchange', 'SELECT_TEACHER',
-    { step: 'teacher', picked: '923110000001', school_ext_id: 'niete:501', ...extra }, uid);
+    { step: 'teacher', picked: mockPh('3110000001'), school_ext_id: 'niete:501', ...extra }, uid);
 
   test('a principal goes straight to the Start screen (BRIEF), no date picker', async () => {
     const res = await pick(as('principal-own'), { at_once: '1' });
     expect(res.screen).toBe('BRIEF');
-    expect(res.data).toMatchObject({ teacher_ext_id: '923110000001', school_ext_id: 'niete:501' });
+    expect(res.data).toMatchObject({ teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501' });
   });
 
   test('a principal searching by name: the same', async () => {
     as('principal-own');
     const res = await handler.handle('principal-own', 'data_exchange', 'TEACHER_RESULTS',
-      { step: 'teacher', picked: '923110000001', school_ext_id: '', at_once: '1' }, 'principal-own');
+      { step: 'teacher', picked: mockPh('3110000001'), school_ext_id: '', at_once: '1' }, 'principal-own');
     expect(res.screen).toBe('BRIEF');
     expect(res.data.school_ext_id).toBe('niete:501');
   });
@@ -229,24 +232,24 @@ describe('picking a teacher', () => {
 
   test('Start observation binds the teacher and arms the recording, as a coach\'s Run does', async () => {
     const res = await handler.handle(as('principal-own'), 'complete', 'BRIEF',
-      { step: 'start', teacher_ext_id: '923110000001', school_ext_id: 'niete:501' }, 'principal-own');
+      { step: 'start', teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501' }, 'principal-own');
     expect(res).toMatchObject({ action: 'bound' });
     expect(ObserveState.__state.current).toMatchObject({ state: 'awaiting_audio', origin: 'observe' });
-    expect(ObserveState.__state.current.boundTeacher).toMatchObject({ teacher_ext_id: '923110000001', school_ext_id: 'niete:501' });
+    expect(ObserveState.__state.current.boundTeacher).toMatchObject({ teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501' });
   });
 });
 
 describe('a principal never books a visit', () => {
   test('"Pick date & time" on an old Flow starts the observation instead (BRIEF)', async () => {
     const res = await handler.handle(as('principal-own'), 'data_exchange', 'BRIEF_SCHEDULE',
-      { step: 'to_picker', teacher_ext_id: '923110000001', school_ext_id: 'niete:501', school_week: '1' }, 'principal-own');
+      { step: 'to_picker', teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501', school_week: '1' }, 'principal-own');
     expect(res.screen).toBe('BRIEF');
-    expect(res.data.teacher_ext_id).toBe('923110000001');
+    expect(res.data.teacher_ext_id).toBe(mockPh('3110000001'));
   });
 
   test('a coach still gets the date picker', async () => {
     const res = await handler.handle(as('coach-1'), 'data_exchange', 'BRIEF_SCHEDULE',
-      { step: 'to_picker', teacher_ext_id: '923110000001', school_ext_id: 'niete:501', school_week: '1' }, 'coach-1');
+      { step: 'to_picker', teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501', school_week: '1' }, 'coach-1');
     expect(res.screen).toBe('SCHEDULE_PICKER');
   });
 });
