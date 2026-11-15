@@ -366,7 +366,7 @@ const _debriefService = () => require('../services/observe/observe-debrief.servi
 const _scheduleStore = () => require('../services/observe/observe-schedule.service');
 
 /**
- * bd-u4etvq — the leader's users row (role, language, school_id): `user` when the caller holds one with a role, else
+ * The leader's users row (role, language, school_id): `user` when the caller holds one with a role, else
  * read (the Flow endpoint holds none). Null on a failed read.
  */
 async function _leaderMe(userId, user) {
@@ -378,7 +378,7 @@ async function _leaderMe(userId, user) {
 }
 
 /**
- * bd-u4etvq — does this leader observe at once (a principal: config/role-features observesOwnSchoolAtOnce)? Operator,
+ * Does this leader observe at once (a principal: config/role-features observesOwnSchoolAtOnce)? Operator,
  * 15 Nov: "principals never schedule; they observe whenever they want. Coaches unchanged." False for anyone else and on
  * a failed read, which keeps today's booking path: a coach is never sent past the date picker on a guess.
  */
@@ -429,7 +429,7 @@ async function selfLessonStep(userId, user) {
 async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
-  // bd-u4etvq: who is asking, read once for the whole menu. A principal observes at once, in their own school.
+  // Who is asking, read once for the whole menu. A principal observes at once, in their own school.
   const me = await _leaderMe(userId, opts.user);
   const atOnce = observesOwnSchoolAtOnce(me);
   // bd-0cxz6: how many schools she actually has. Zero is a real state now that
@@ -444,7 +444,7 @@ async function menuScreen(userId, opts = {}) {
       schoolCount = holdings;
     } catch (_) { schoolCount = 1; }   // unknown -> behave as today
   }
-  // bd-u4etvq: a principal's own school (users.school_id) is one of theirs; the picker lists it (leader-source).
+  // A principal's own school (users.school_id) is one of theirs; the picker lists it (leader-source).
   if (atOnce && !schoolCount && me && me.school_id) schoolCount = 1;
   let nForm = 0; let nDebrief = 0; let nSend = 0;
   try {
@@ -515,7 +515,7 @@ async function menuScreen(userId, opts = {}) {
     },
   ];
   if (atOnce) {
-    // bd-u4etvq: a principal observes at once, so the row says so, and an empty "My schedule" is not offered (visits
+    // A principal observes at once, so the row says so, and an empty "My schedule" is not offered (visits
     // a principal booked before this change stay reachable there). Manage teachers lists leader_schools holdings
     // only, so a principal whose one school is their own would open an empty list: it is left out for them.
     items = items
@@ -526,7 +526,7 @@ async function menuScreen(userId, opts = {}) {
         : i));
   }
   // bd-9bppaz: a principal's own lesson, after the observe rows and before the roster admin. It needs no school.
-  // The profile is read once, above: a failed read (me null) shows no row and is never retried here (bd-9bppaz).
+  // The profile is read once, above: a failed read (me null) shows no row and is never retried here.
   const self = me ? await _selfLessonRow(userId, me) : null;
   if (!schoolCount) {
     // Nothing to debrief, schedule or observe until she has a school. Show the
@@ -1960,7 +1960,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     }
 
     if (step === 'to_picker') {
-      // bd-u4etvq: a principal never books a visit. "Pick date & time" on a Flow published before this change starts
+      // A principal never books a visit. "Pick date & time" on a Flow published before this change starts
       // the observation instead (BRIEF_SCHEDULE may route to BRIEF in every published version).
       if (await _observesAtOnce(userId, user)) {
         return briefScreen(userId, { teacher_ext_id: screenData && screenData.teacher_ext_id,
@@ -1984,7 +1984,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         // teacher herself rather than sending the brief an empty school.
         let schoolExtId = screenData.school_ext_id;
         if (!schoolExtId) schoolExtId = await schoolOfTeacher(userId, screenData.picked);
-        // bd-u4etvq: a principal goes straight to "Start observation" (BRIEF), no date picker. Only when the Flow
+        // A principal goes straight to "Start observation" (BRIEF), no date picker. Only when the Flow
         // says it can route there (at_once, sent by the teacher pickers of the Flow published with this change): an
         // older Flow keeps the brief it can route to, whose "Record the lesson now" link also starts at once.
         const atOnce = String(screenData.at_once || '') === '1' && await _observesAtOnce(userId, user);

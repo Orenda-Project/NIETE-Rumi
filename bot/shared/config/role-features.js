@@ -70,7 +70,7 @@ function canObserve(user) {
 }
 
 /**
- * bd-u4etvq — does this leader observe in THEIR OWN school, at once, with no booked visit?
+ * Does this leader observe in THEIR OWN school, at once, with no booked visit?
  *
  * A principal: operator, 15 Nov, "for the principal, there is no need to schedule anything. You will just directly go
  * and observe a teacher, unlike a coach who has to schedule it first", and "a principal linked to a school
