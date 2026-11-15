@@ -21,7 +21,7 @@
 
 const supabase = require('../../../config/supabase');
 const { orderTeachers, classify } = require('./prioritise');
-const { listPatchViaSupabase, toLeaderSourceRow } = require('../patch-resolver.service');
+const { listPatchViaSupabase, toLeaderSourceRow, leaderHoldings } = require('../patch-resolver.service');
 const { loadTrendData } = require('../../coaching/coaching-trend.service');
 const { buildMoves, openingTips, KNOWN_AREAS } = require('../observe-support-moves');
 const { logToFile } = require('../../../utils/logger');
@@ -61,6 +61,21 @@ async function _schools(leaderUserId) {
     .eq('leader_user_id', leaderUserId);
   if (error) { logToFile('leader-source: _schools error', { error: error.message }); return []; }
   return data || [];
+}
+
+/**
+ * bd-u4etvq — the schools the visit picker offers: her leader_schools holdings and, for a principal, their own school
+ * (users.school_id), from the same rule the patch reads (patch-resolver leaderHoldings), so a school in this list
+ * always lists its teachers when tapped. `_schools` above stays holdings-only: the School card door opens coach app
+ * pages from it. [] on a failed read, never throws.
+ */
+async function _pickerSchools(leaderUserId) {
+  try {
+    return await leaderHoldings(supabase, leaderUserId);
+  } catch (error) {
+    logToFile('leader-source: _pickerSchools error', { error: error.message });
+    return [];
+  }
 }
 
 /**
@@ -254,7 +269,7 @@ function firstGrade(gradesTaught) {
 async function listSchools(leaderUserId, opts = {}) {
   const today = opts.today || new Date().toISOString().slice(0, 10);
   const [schools, teachers] = await Promise.all([
-    _schools(leaderUserId),
+    _pickerSchools(leaderUserId),
     _teachers(leaderUserId),
   ]);
   const users = await _usersByPhone(teachers.map((t) => t.teacher_phone_e164));
@@ -336,7 +351,7 @@ async function buildBrief(leaderUserId, teacherExtId, schoolExtId) {
   try {
     const [teachers, schools] = await Promise.all([
       _teachers(leaderUserId, schoolExtId),
-      _schools(leaderUserId),
+      _pickerSchools(leaderUserId),
     ]);
     const t = teachers.find((x) => String(x.teacher_ext_id) === String(teacherExtId)) || null;
     const school = schools.find((s) => String(s.school_ext_id) === String(schoolExtId)) || null;
@@ -438,9 +453,10 @@ async function leaderProfile(leaderUserId) {
   if (!leaderUserId) return null;
   try {
     const { data, error } = await supabase
-      .from('users').select('role, preferred_language').eq('id', leaderUserId).maybeSingle();
+      .from('users').select('role, preferred_language, school_id').eq('id', leaderUserId).maybeSingle();
     if (error || !data) return null;
-    return { role: data.role || null, preferred_language: data.preferred_language || null };
+    // school_id (bd-u4etvq): the /observe menu counts a principal's own school as one of theirs.
+    return { role: data.role || null, preferred_language: data.preferred_language || null, school_id: data.school_id || null };
   } catch (err) {
     logToFile('leader-source: leaderProfile error', { leaderUserId, error: err.message });
     return null;

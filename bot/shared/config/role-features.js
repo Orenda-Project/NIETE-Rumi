@@ -70,6 +70,20 @@ function canObserve(user) {
 }
 
 /**
+ * bd-u4etvq — does this leader observe in THEIR OWN school, at once, with no booked visit?
+ *
+ * A principal: operator, 15 Nov, "for the principal, there is no need to schedule anything. You will just directly go
+ * and observe a teacher, unlike a coach who has to schedule it first", and "a principal linked to a school
+ * (users.school_id or any leader_schools row) sees ALL teachers of that school". Everyone else who observes (a coach,
+ * or anyone whose role was never set but who holds schools) books a visit first and sees only their leader_schools
+ * holdings, exactly as before. Pure, like the rest of this module.
+ */
+function observesOwnSchoolAtOnce(user) {
+  const raw = user && user.role;
+  return typeof raw === 'string' && raw.trim().toLowerCase() === 'principal';
+}
+
+/**
  * The main-menu rows: one layout per role shape, ordered by MEASURED demand.
  *
  * The menu used to offer five rows out of the deployment's fourteen live
@@ -214,6 +228,7 @@ module.exports = {
   featuresFor,
   canSelfCoach,
   canObserve,
+  observesOwnSchoolAtOnce,
   layoutFor,
   featureMenuRows,
   NOT_A_FEATURE_ROWS,
