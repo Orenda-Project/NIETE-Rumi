@@ -310,13 +310,56 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
     .map((u) => shapePatchRow({ ...u, user_id: u.id, school_name: school.name, emis: school.emis })));
 }
 
+/**
+ * bd-u4etvq — a principal's own school (users.school_id) as one more holding, or null.
+ *
+ * Operator, 15 Nov: "a principal linked to a school (users.school_id or any leader_schools row) sees ALL teachers of
+ * that school". On prod that day 477 of 522 principals held no leader_schools row (287 of them with a users.school_id
+ * that has teachers), so their /observe picker was empty. Only a principal (config/role-features
+ * observesOwnSchoolAtOnce): a coach's own users.school_id is never added. Null when they already hold that school,
+ * when it has no schools row, and on any failed read: never a guess.
+ *
+ * Keyed the way a holding of that school would be: 'niete:' + EMIS, else the school's name (bd-97daxo.29), so the
+ * patch rows (toLeaderSourceRow) and the school list agree on the key.
+ */
+async function ownSchoolHolding(supabase, leaderUserId, held = []) {
+  if (!leaderUserId) return null;
+  try {
+    const { observesOwnSchoolAtOnce } = require('../../config/role-features');
+    const { data: me, error } = await supabase.from('users').select('role, school_id').eq('id', leaderUserId).maybeSingle();
+    if (error || !me || !me.school_id || !observesOwnSchoolAtOnce(me)) return null;
+    if ((held || []).some((h) => h && h.school_id === me.school_id)) return null;
+    const { data: school, error: sErr } = await supabase.from('schools').select('id, name, emis').eq('id', me.school_id).maybeSingle();
+    if (sErr || !school) return null;
+    const emis = school.emis == null || String(school.emis).trim() === '' ? null : String(school.emis).trim();
+    const key = emis ? `niete:${emis}` : (_norm(school.name) || null);
+    if (!key || (held || []).some((h) => h && h.school_ext_id === key)) return null;
+    return { school_ext_id: key, school_id: school.id, school_name: school.name || null, emis, own: true };
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * bd-u4etvq — the schools a leader observes in: their leader_schools holdings, then (a principal only) their own
+ * school. One rule for the picker's school list (leader-source) and its people (listPatchViaSupabase below), so the
+ * two cannot disagree. Rows: { school_ext_id, school_id, school_name, emis, own? }. A failed holdings read is [].
+ */
+async function leaderHoldings(supabase, leaderUserId) {
+  const { data, error } = await supabase
+    .from('leader_schools').select('school_ext_id, school_id, school_name, emis').eq('leader_user_id', leaderUserId);
+  const held = error ? [] : (data || []);
+  const own = await ownSchoolHolding(supabase, leaderUserId, held);
+  return own ? [...held, own] : held;
+}
+
 async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) {
   // bd-33wxxi.4 — a principal on the principal app: her own school, whatever she holds (one school, so no filter).
   const ownSchool = await principalAppSchoolId(supabase, leaderUserId);
   if (ownSchool) return ownSchoolPatch(supabase, leaderUserId, ownSchool);
 
-  const { data: mine } = await supabase
-    .from('leader_schools').select('school_ext_id, school_id').eq('leader_user_id', leaderUserId);
+  // bd-u4etvq: holdings, plus a principal's own school.
+  const mine = await leaderHoldings(supabase, leaderUserId);
 
   // bd-5n1a2: '' must mean "no filter". A schedule row carrying school_ext_id=''
   // once turned into a zero-row roster and silently unbound a picked teacher.
@@ -392,6 +435,7 @@ function toLeaderSourceRow(p = {}) {
 module.exports = {
   PATCH_ROLES,
   listPatchViaSupabase,
+  leaderHoldings,
   principalAppSchoolId,
   toLeaderSourceRow,
   PATCH_SQL,
