@@ -209,11 +209,26 @@ describe('listPatchViaSupabase · the bot side of the same derivation', () => {
     }
   });
 
-  it('a coach with no schools gets nothing, without querying users', async () => {
-    const spy = {};
-    const out = await listPatchViaSupabase(fakeSupabase(TABLES(), spy), 'nobody');
+  it('a coach with no schools gets nothing, without querying the roster', async () => {
+    // bd-u4etvq: their OWN users row may be read, by id, to learn whether they are a principal with a school of their
+    // own (a principal's users.school_id counts as one of their schools). No roster query: nothing filters users by
+    // school.
+    const usersReads = [];
+    const base = fakeSupabase(TABLES());
+    const db = {
+      from(name) {
+        const q = base.from(name);
+        if (name !== 'users') return q;
+        const { eq, in: inn } = q;
+        q.eq = (c, v) => { usersReads.push(['eq', c]); return eq(c, v); };
+        q.in = (c, v) => { usersReads.push(['in', c]); return inn(c, v); };
+        return q;
+      },
+    };
+    const out = await listPatchViaSupabase(db, 'nobody');
     expect(out).toEqual([]);
-    expect(spy.users).toBeUndefined();
+    expect(usersReads.filter(([, c]) => c === 'school_id')).toEqual([]);
+    expect(usersReads.every(([op, c]) => op === 'eq' && c === 'id')).toBe(true);
   });
 });
 
