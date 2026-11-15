@@ -448,6 +448,24 @@ async function leaderLang(leaderUserId) {
 }
 
 /**
+ * bd-9bppaz — the leader's own role and language, for the /observe menu's "My own lesson" row (a principal may have
+ * their own lesson coached, a coach may not: config/role-features.js). Null on a failed read or no row, which the
+ * menu reads as "no row": the Digital Coach is never offered on a guess.
+ */
+async function leaderProfile(leaderUserId) {
+  if (!leaderUserId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('users').select('role, preferred_language').eq('id', leaderUserId).maybeSingle();
+    if (error || !data) return null;
+    return { role: data.role || null, preferred_language: data.preferred_language || null };
+  } catch (err) {
+    logToFile('leader-source: leaderProfile error', { leaderUserId, error: err.message });
+    return null;
+  }
+}
+
+/**
  * Minimal teacher resolution for the "Start observation" bind step — the Rumi
  * user_id (may be null), phone (E.164) and name. Returns null if not found.
  */
@@ -483,6 +501,7 @@ module.exports = {
   listTeachers,
   buildBrief,
   leaderLang,
+  leaderProfile,
   resolveTeacher,
   // her leader_schools rows ([] on a failed read); the School card door (schools/school-card-door.js) reads it.
   _schools,
