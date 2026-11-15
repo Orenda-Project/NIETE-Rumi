@@ -53,7 +53,11 @@ function isObs612Form(form) {
 async function asksClass(user) {
   if (!user || !user.id) return false;
   try {
-    return await require('../../coaching/obs612-switch').isOn({ userId: user.id, region: user.region });
+    return await require('../../coaching/obs612-switch').isOn({
+      userId: user.id,
+      region: user.region,
+      role: user.role, // bd-9bppaz: "role:principal" needs no read (undefined: read only when a role key needs it)
+    });
   } catch (_) {
     return false;
   }
