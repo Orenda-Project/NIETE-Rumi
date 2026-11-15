@@ -12,6 +12,9 @@
  *   - a failed or missing read adds nothing and never throws
  */
 
+// Phone-shaped fixtures are built at runtime from parts: the repo is public (tests/setup/phone-shaped-fixtures).
+const mockPh = (rest) => `92${rest}`;
+
 const mockRows = { leader_schools: [], schools: [], users: [], coaching_sessions: [], app_settings: [] };
 const mockFail = { users: false };
 
@@ -79,22 +82,22 @@ beforeEach(() => {
   ];
   mockRows.users = [
     // the observers
-    { id: P_OWN, phone_number: '923000000001', name: 'Head Own', role: 'principal', school_id: 'sOwn', preferred_language: 'ur' },
-    { id: P_BOTH, phone_number: '923000000002', name: 'Head Both', role: 'principal', school_id: 'sBothOwn', preferred_language: 'ur' },
-    { id: P_HELD_OWN, phone_number: '923000000003', name: 'Head Held', role: 'principal', school_id: 'sHeldOwn', preferred_language: 'en' },
-    { id: P_NONE, phone_number: '923000000004', name: 'Head None', role: 'principal', school_id: null, preferred_language: 'ur' },
-    { id: COACH, phone_number: '923000000005', name: 'Coach One', role: 'coach', school_id: 'sCoachHome', preferred_language: 'en' },
+    { id: P_OWN, phone_number: mockPh('3000000001'), name: 'Head Own', role: 'principal', school_id: 'sOwn', preferred_language: 'ur' },
+    { id: P_BOTH, phone_number: mockPh('3000000002'), name: 'Head Both', role: 'principal', school_id: 'sBothOwn', preferred_language: 'ur' },
+    { id: P_HELD_OWN, phone_number: mockPh('3000000003'), name: 'Head Held', role: 'principal', school_id: 'sHeldOwn', preferred_language: 'en' },
+    { id: P_NONE, phone_number: mockPh('3000000004'), name: 'Head None', role: 'principal', school_id: null, preferred_language: 'ur' },
+    { id: COACH, phone_number: mockPh('3000000005'), name: 'Coach One', role: 'coach', school_id: 'sCoachHome', preferred_language: 'en' },
     // the own school's teachers
-    { id: 'tO1', phone_number: '923110000001', name: 'Own Teacher One', role: 'teacher', school_id: 'sOwn', teacher_level: ['PRIMARY'] },
-    { id: 'tO2', phone_number: '923110000002', name: 'Own Teacher Two', role: 'teacher', school_id: 'sOwn', teacher_level: ['MIDDLE'] },
+    { id: 'tO1', phone_number: mockPh('3110000001'), name: 'Own Teacher One', role: 'teacher', school_id: 'sOwn', teacher_level: ['PRIMARY'] },
+    { id: 'tO2', phone_number: mockPh('3110000002'), name: 'Own Teacher Two', role: 'teacher', school_id: 'sOwn', teacher_level: ['MIDDLE'] },
     { id: 'tOgone', phone_number: 'merged:tO1', name: 'Own Teacher One', role: 'teacher', school_id: 'sOwn', deleted_at: '2026-11-01' },
-    { id: 'tB1', phone_number: '923440000001', name: 'Both Own Teacher', role: 'teacher', school_id: 'sBothOwn' },
-    { id: 'tHO1', phone_number: '923550000001', name: 'Held Own Teacher A', role: 'teacher', school_id: 'sHeldOwn' },
-    { id: 'tHO2', phone_number: '923550000002', name: 'Held Own Teacher B', role: 'teacher', school_id: 'sHeldOwn' },
+    { id: 'tB1', phone_number: mockPh('3440000001'), name: 'Both Own Teacher', role: 'teacher', school_id: 'sBothOwn' },
+    { id: 'tHO1', phone_number: mockPh('3550000001'), name: 'Held Own Teacher A', role: 'teacher', school_id: 'sHeldOwn' },
+    { id: 'tHO2', phone_number: mockPh('3550000002'), name: 'Held Own Teacher B', role: 'teacher', school_id: 'sHeldOwn' },
     // the held school's teacher
-    { id: 'tH1', phone_number: '923220000001', name: 'Held Teacher', role: 'teacher', school_id: 'sHeld', teacher_level: ['PRIMARY'] },
+    { id: 'tH1', phone_number: mockPh('3220000001'), name: 'Held Teacher', role: 'teacher', school_id: 'sHeld', teacher_level: ['PRIMARY'] },
     // the coach's home school (must never reach the coach's picker)
-    { id: 'tC1', phone_number: '923330000001', name: 'Coach Home Teacher', role: 'teacher', school_id: 'sCoachHome' },
+    { id: 'tC1', phone_number: mockPh('3330000001'), name: 'Coach Home Teacher', role: 'teacher', school_id: 'sCoachHome' },
   ];
   mockRows.coaching_sessions = [];
   mockRows.app_settings = [];
@@ -113,20 +116,20 @@ describe('a principal with a users.school_id and no leader_schools row', () => {
 
   test('tapping their school lists ALL its live teachers, and not the principal', async () => {
     const teachers = await LeaderSource.listTeachers(P_OWN, 'niete:501', TODAY);
-    expect(phones(teachers)).toEqual(['923110000001', '923110000002']);
+    expect(phones(teachers)).toEqual([mockPh('3110000001'), mockPh('3110000002')]);
   });
 
   test('the whole roster (search, binding list) is the same people', async () => {
-    expect(phones(await LeaderSource.listTeachers(P_OWN, null, TODAY))).toEqual(['923110000001', '923110000002']);
+    expect(phones(await LeaderSource.listTeachers(P_OWN, null, TODAY))).toEqual([mockPh('3110000001'), mockPh('3110000002')]);
   });
 
   test('a picked teacher resolves for the Start step, with the school filter', async () => {
-    const t = await LeaderSource.resolveTeacher(P_OWN, '923110000002', 'niete:501');
-    expect(t).toMatchObject({ teacher_ext_id: '923110000002', user_id: 'tO2' });
+    const t = await LeaderSource.resolveTeacher(P_OWN, mockPh('3110000002'), 'niete:501');
+    expect(t).toMatchObject({ teacher_ext_id: mockPh('3110000002'), user_id: 'tO2' });
   });
 
   test('the brief names their school', async () => {
-    const brief = await LeaderSource.buildBrief(P_OWN, '923110000001', 'niete:501');
+    const brief = await LeaderSource.buildBrief(P_OWN, mockPh('3110000001'), 'niete:501');
     expect(brief.teacher.school_name).toBe('IMSG Own School');
   });
 });
@@ -139,8 +142,8 @@ describe('a principal with leader_schools rows keeps them, and gains their own s
   });
 
   test('the roster spans both schools', async () => {
-    expect(phones(await LeaderSource.listTeachers(P_BOTH, null, TODAY))).toEqual(['923220000001', '923440000001']);
-    expect(phones(await LeaderSource.listTeachers(P_BOTH, 'niete:504', TODAY))).toEqual(['923440000001']);
+    expect(phones(await LeaderSource.listTeachers(P_BOTH, null, TODAY))).toEqual([mockPh('3220000001'), mockPh('3440000001')]);
+    expect(phones(await LeaderSource.listTeachers(P_BOTH, 'niete:504', TODAY))).toEqual([mockPh('3440000001')]);
   });
 
   test('holding their own school as well never lists it twice', async () => {
@@ -150,9 +153,9 @@ describe('a principal with leader_schools rows keeps them, and gains their own s
   });
 
   test('another principal of the same school is listed, labelled, as in a held school', async () => {
-    mockRows.users.push({ id: 'pCo', phone_number: '923110000009', name: 'Co Head', role: 'principal', school_id: 'sOwn' });
+    mockRows.users.push({ id: 'pCo', phone_number: mockPh('3110000009'), name: 'Co Head', role: 'principal', school_id: 'sOwn' });
     const teachers = await LeaderSource.listTeachers(P_OWN, 'niete:501', TODAY);
-    expect(phones(teachers)).toEqual(['923110000001', '923110000002', '923110000009']);
+    expect(phones(teachers)).toEqual([mockPh('3110000001'), mockPh('3110000002'), mockPh('3110000009')]);
     const patch = await listPatchViaSupabase(require('../../shared/config/supabase'), P_OWN);
     expect(patch.find((p) => p.userId === 'pCo')).toMatchObject({ isPrincipal: true, roleLabel: 'Principal' });
   });
@@ -161,7 +164,7 @@ describe('a principal with leader_schools rows keeps them, and gains their own s
 describe('everyone else is unchanged', () => {
   test('a coach never gets their own users.school_id added: holdings only', async () => {
     expect(keys(await LeaderSource.listSchools(COACH, TODAY))).toEqual(['niete:502']);
-    expect(phones(await LeaderSource.listTeachers(COACH, null, TODAY))).toEqual(['923220000001']);
+    expect(phones(await LeaderSource.listTeachers(COACH, null, TODAY))).toEqual([mockPh('3220000001')]);
     const patch = await listPatchViaSupabase(require('../../shared/config/supabase'), COACH);
     expect(patch.map((p) => p.userId)).not.toContain('tC1');
   });
@@ -185,7 +188,7 @@ describe('everyone else is unchanged', () => {
 describe('a principal on the portal principal app keeps that path', () => {
   test('portal_principal_app naming them: their own school, teachers only, as before', async () => {
     mockRows.app_settings = [{ key: 'portal_principal_app', value: JSON.stringify([P_OWN]) }];
-    mockRows.users.push({ id: 'pCo', phone_number: '923110000009', name: 'Co Head', role: 'principal', school_id: 'sOwn' });
+    mockRows.users.push({ id: 'pCo', phone_number: mockPh('3110000009'), name: 'Co Head', role: 'principal', school_id: 'sOwn' });
     const patch = await listPatchViaSupabase(require('../../shared/config/supabase'), P_OWN);
     expect(patch.map((p) => p.userId).sort()).toEqual(['tO1', 'tO2']);
   });

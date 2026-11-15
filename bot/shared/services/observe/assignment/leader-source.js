@@ -65,7 +65,7 @@ async function _schools(leaderUserId) {
 }
 
 /**
- * bd-u4etvq — the schools the visit picker offers: her leader_schools holdings and, for a principal, their own school
+ * The schools the visit picker offers: her leader_schools holdings and, for a principal, their own school
  * (users.school_id), from the same rule the patch reads (patch-resolver leaderHoldings), so a school in this list
  * always lists its teachers when tapped. `_schools` above stays holdings-only: the School card door opens coach app
  * pages from it. [] on a failed read, never throws.
@@ -473,7 +473,7 @@ async function leaderProfile(leaderUserId) {
     const { data, error } = await supabase
       .from('users').select('role, preferred_language, school_id').eq('id', leaderUserId).maybeSingle();
     if (error || !data) return null;
-    // school_id (bd-u4etvq): the /observe menu counts a principal's own school as one of theirs.
+    // school_id: the /observe menu counts a principal's own school as one of theirs.
     return { role: data.role || null, preferred_language: data.preferred_language || null, school_id: data.school_id || null };
   } catch (err) {
     logToFile('leader-source: leaderProfile error', { leaderUserId, error: err.message });

@@ -311,7 +311,7 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
 }
 
 /**
- * bd-u4etvq — a principal's own school (users.school_id) as one more holding, or null.
+ * A principal's own school (users.school_id) as one more holding, or null.
  *
  * Operator, 15 Nov: "a principal linked to a school (users.school_id or any leader_schools row) sees ALL teachers of
  * that school". On prod that day 477 of 522 principals held no leader_schools row (287 of them with a users.school_id
@@ -319,7 +319,7 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
  * observesOwnSchoolAtOnce): a coach's own users.school_id is never added. Null when they already hold that school,
  * when it has no schools row, and on any failed read: never a guess.
  *
- * Keyed the way a holding of that school would be: 'niete:' + EMIS, else the school's name (bd-97daxo.29), so the
+ * Keyed the way a holding of that school would be: 'niete:' + EMIS, else the school's name, so the
  * patch rows (toLeaderSourceRow) and the school list agree on the key.
  */
 async function ownSchoolHolding(supabase, leaderUserId, held = []) {
@@ -341,7 +341,7 @@ async function ownSchoolHolding(supabase, leaderUserId, held = []) {
 }
 
 /**
- * bd-u4etvq — the schools a leader observes in: their leader_schools holdings, then (a principal only) their own
+ * The schools a leader observes in: their leader_schools holdings, then (a principal only) their own
  * school. One rule for the picker's school list (leader-source) and its people (listPatchViaSupabase below), so the
  * two cannot disagree. Rows: { school_ext_id, school_id, school_name, emis, own? }. A failed holdings read is [].
  */
@@ -358,7 +358,7 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
   const ownSchool = await principalAppSchoolId(supabase, leaderUserId);
   if (ownSchool) return ownSchoolPatch(supabase, leaderUserId, ownSchool);
 
-  // bd-u4etvq: holdings, plus a principal's own school.
+  // Holdings, plus a principal's own school.
   const mine = await leaderHoldings(supabase, leaderUserId);
 
   // bd-5n1a2: '' must mean "no filter". A schedule row carrying school_ext_id=''
