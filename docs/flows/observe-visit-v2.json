@@ -25,7 +25,8 @@
     ],
     "SELECT_TEACHER": [
       "BRIEF_SCHEDULE",
-      "SEARCH_TEACHER"
+      "SEARCH_TEACHER",
+      "BRIEF"
     ],
     "BRIEF_SCHEDULE": [
       "SCHEDULE_PICKER",
@@ -58,7 +59,8 @@
       "SELECT_TEACHER"
     ],
     "TEACHER_RESULTS": [
-      "BRIEF_SCHEDULE"
+      "BRIEF_SCHEDULE",
+      "BRIEF"
     ],
     "MANAGE_SCHOOLS": [
       "ACTION_DONE"
@@ -725,7 +727,8 @@
                   "payload": {
                     "step": "teacher",
                     "school_ext_id": "${data.school_ext_id}",
-                    "picked": "${form.pick_select_teacher}"
+                    "picked": "${form.pick_select_teacher}",
+                    "at_once": "1"
                   }
                 }
               }
@@ -1496,7 +1499,8 @@
                   "payload": {
                     "step": "teacher",
                     "picked": "${form.pick}",
-                    "school_ext_id": "${data.school_ext_id}"
+                    "school_ext_id": "${data.school_ext_id}",
+                    "at_once": "1"
                   }
                 }
               }
