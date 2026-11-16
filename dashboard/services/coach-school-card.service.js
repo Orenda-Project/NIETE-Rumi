@@ -159,9 +159,9 @@ const SQL = Object.freeze({
             OFFSET 0) x`,
 
   opens: `/* sc:opens */
-    SELECT o.id, o.user_id, o.opened_at AS at, o.plan_ref
+    SELECT o.id, o.user_id, o.opened_at AS at, o.plan_ref, o.plan_kind
       FROM niete_lp_opens o
-     WHERE o.user_id = ANY($1::uuid[]) AND o.plan_kind = 'k5' AND o.source = 'viewer'
+     WHERE o.user_id = ANY($1::uuid[]) AND o.plan_kind IN ('k5', 'g612') AND o.source = 'viewer'
        AND o.opened_at >= $2::timestamptz AND o.opened_at < $3::timestamptz`,
 
   // DC and coach observations: ids, dates and flags only (analysis_data is read per session, memoised, below).
@@ -297,10 +297,13 @@ const SQL = Object.freeze({
  *   - a day that has a WhatsApp plan takes nothing from the app (the RDF's `have` rule).
  * The same plan on another day counts again, as the RDF counts an app plan again on another day.
  * App opens count with source 'viewer' only (governed lp-query-rules §8; the RDF takes every k5 open).
- * Grade 6-12 lessons are not lesson-plan rows in the RDF's lp_use, so they are not counted here.
+ * A Grade 6-12 viewer open (plan_kind 'g612') counts the same way as a K-5 one: a Middle or High teacher who reads
+ * her plan in the app is a teacher who used NIETE. The RDF's lp_use does not take 'g612' opens (it is the Primary
+ * rule; rdf_niete612 is the 6-12 one, and lp-engagement.service.js counts them for Mid/High), so this is one
+ * deliberate difference from lp_use: without it a GB school whose teachers teach Grades 6-12 reads 0 of N.
  *
  * @param {Array<{id, user_id, at, surface, lesson_id, grade, subject, topic}>} rows lesson_plans in the window
- * @param {Array<{id, user_id, at, plan_ref}>} opens niete_lp_opens k5 viewer opens in the window
+ * @param {Array<{id, user_id, at, plan_ref, plan_kind}>} opens niete_lp_opens k5 and g612 viewer opens in the window
  * @returns {Array<{id, userId, day, at, ref, grade, subject, title}>} one entry per plan counted
  */
 function lessonPlansOf(rows = [], opens = []) {
@@ -331,8 +334,9 @@ function lessonPlansOf(rows = [], opens = []) {
   for (const o of [...opens].sort(byAt)) {
     const day = P.pkDayOf(o.at);
     if (!day || !o.user_id || have.has(`${o.user_id}|${day}`)) continue;
-    // A K-5 plan key — ICT's grade_<n>_…, GB's gb_g<n>_… or GB's v10 segment id (bd-97daxo.16, lesson-ref).
-    const p = parseLessonRef(String(o.plan_ref || ''), { kind: 'k5' });
+    // A K-5 plan key — ICT's grade_<n>_…, GB's gb_g<n>_… or GB's v10 segment id (bd-97daxo.16, lesson-ref) — or, for a
+    // 'g612' open, the Grade 6-12 segment id. A row with no kind is a K-5 one, as before.
+    const p = parseLessonRef(String(o.plan_ref || ''), { kind: o.plan_kind === 'g612' ? 'g612' : 'k5' });
     add(`app|${o.user_id}|${day}|${o.plan_ref}`, {
       id: `open:${o.id}`, userId: o.user_id, day, at: o.at, ref: o.plan_ref,
       grade: p ? String(p.grade) : null, subject: p ? p.subject : null, title: null,
