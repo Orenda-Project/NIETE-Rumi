@@ -26,7 +26,8 @@
 #
 # THE LOCAL LANE IS THE DEFAULT (bd-z3ze4.2): the bot runs on a clean per-run local database (local-db.sh)
 # instead of the shared sandbox Supabase; the keys file's SUPABASE_URL/SERVICE_ROLE_KEY are replaced by the
-# run's own. E2E_LOCAL_DB=0 opts out: the bot runs on the sandbox database and staging's R2, as before.
+# run's own. E2E_LOCAL_DB=0 opts out: the bot runs on the sandbox database and the sandbox bucket (rumi-sandbox,
+# from keys/niete-sandbox.env via sandbox-env.sh; bd-53dnra), never staging's R2.
 # It also gets a per-run FILE store (local-r2.js, bd-z3ze4.1) instead of the staging R2 bucket: every upload
 # lands in <run_dir>/r2; a file the run did not write is read through from staging, read-only. The staging
 # R2 keys go to local-r2.js only; the bot gets dummy local ones.
@@ -134,6 +135,10 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     keys=""
   fi
   if local_db_on && [ ! -f "$lane_cfg" ]; then log "missing $lane_cfg (the local lane's committed settings)"; exit 14; fi
+  # The sandbox lane's settings: the keys file with the SANDBOX bucket's R2 lines in place of staging's (bd-53dnra) —
+  # composed here, before anything starts, so a missing or wrong sandbox bucket stops the run (exit 14).
+  local sbx_env=""
+  if ! local_db_on; then sbx_env=$(bash "$HERE/sandbox-env.sh" "$keys" "$KEYS_DIR/niete-sandbox.env") || exit 14; fi
   local mock_port="${MOCK_PORT:-4010}" bot_port="${E2E_BOT_PORT:-3100}" phone_id="${E2E_PHONE_NUMBER_ID:-e2e-local}"
   local redis_port="${E2E_REDIS_PORT:-6390}" worker_port="${E2E_WORKER_HEALTH_PORT:-3201}"
   command -v redis-server >/dev/null 2>&1 || { log "redis-server not found — the queue worker needs it (brew install redis)"; exit 16; }
@@ -170,7 +175,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
       # Authentication header"; nothing was recorded (bd-xeup1d).
       if [ "$keys_name" = niete-record.env ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"; else cat "$lane_cfg"; fi
       echo; echo "$db_lines"
-    else cat "$keys"; fi
+    else printf '%s\n' "$sbx_env"; fi
     echo
     echo "# --- set by local-stack.sh for run $(basename "$run_dir") ---"
     echo "PORT=$bot_port"

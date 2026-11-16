@@ -58,7 +58,9 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 ## The local lane — the default (bd-z3ze4)
 
 Every mock-lane run uses its own throwaway database and file store; nothing is shared with the sandbox or with
-another run. `E2E_LOCAL_DB=0` opts a run out to the shared sandbox database and staging's R2, as before.
+another run. `E2E_LOCAL_DB=0` opts a run out to the shared sandbox database and the sandbox bucket (`rumi-sandbox`,
+the `R2_*` lines of `keys/niete-sandbox.env`, composed by `sandbox-env.sh`; bd-53dnra). It refuses to start (exit 14)
+without them or with another bucket: staging's R2 is production's bucket (bd-g9p6e), and sandbox files are not in it.
 
 **A run needs no Railway, sandbox or staging access** (bd-z3ze4.5): no keys file, no `railway` call, no staging read.
 The bot's settings (Flow ids, `PORTAL_URL`, placeholders, bucket name) come from the committed
