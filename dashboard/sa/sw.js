@@ -79,7 +79,9 @@ var CORE = 'sa-core-' + VERSION;
 // v19: the two English letter sounds the content owner picked (x "ks", j "juh"), re-made under their keys.
 // v20: the 24 Urdu recordings the content owner marked wrong (letter names, check words, made-up words, five lines),
 // re-made under their keys from a line fix each (UR_LINE_SAID), with the lines' word timings re-made.
-var SESSION = 'sa-session-v20';
+// v21: the letter name «تے» and the made-up word «جھیٹ» in the content owner's own recordings (no voice said them right),
+// trimmed and levelled like the other v4 clips, under their keys.
+var SESSION = 'sa-session-v21';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
