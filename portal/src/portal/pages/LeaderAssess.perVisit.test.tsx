@@ -67,13 +67,14 @@ describe("LeaderAssess: children per visit", () => {
 // resume/repick sitting stays 90 minutes whatever the list.
 const MIN = 60 * 1000;
 const ago = (m: number) => new Date(Date.now() - m * MIN).toISOString();
-const timeText = () => screen.getByTestId("assess-visit-bar").querySelector("div > span:last-child") as HTMLElement;
+const timeText = () => screen.getByTestId("assess-visit-clock");
+const timeLabel = () => screen.getByTestId("assess-visit-time-label");
 
 describe("LeaderAssess: the visit clock follows the list size", () => {
   it("a list of three: / 60:00, not red at 50:00", async () => {
     const first = { ...child(1), sessionStartedAt: ago(50) };
     await open({ ...BASE, perVisit: 3, children: [first, child(2), child(3)], alternates: [child(4), child(5)] });
-    expect(timeText()).toHaveTextContent(/^Time 50:0\d \/ 60:00$/);
+    expect(timeText()).toHaveTextContent(/^50:0\d \/ 60:00$/);
     expect(timeText().className).not.toContain("text-red-700");
   });
 
@@ -90,6 +91,22 @@ describe("LeaderAssess: the visit clock follows the list size", () => {
     expect(timeText()).toHaveTextContent("۶۰:۰۰");
   });
 
+  it("a list of three: the label says the clock is the whole visit's, for its three children", async () => {
+    await open({ ...BASE, perVisit: 3, children: [1, 2, 3].map(child), alternates: [child(4), child(5)] });
+    expect(timeLabel()).toHaveTextContent("Time for the whole visit (3 children)");
+  });
+
+  it("Urdu, a list of three: the label in Urdu with ۳", async () => {
+    setLang("ur");
+    await open({ ...BASE, perVisit: 3, children: [1, 2, 3].map(child), alternates: [child(4), child(5)] });
+    expect(timeLabel()).toHaveTextContent("پورے دورے کا وقت (⁦۳⁩ بچوں کے لیے)");
+  });
+
+  it("a list with no size: the label counts the 5 the 45:00 is for", async () => {
+    await open({ ...BASE, children: [1, 2, 3, 4, 5].map(child), alternates: [] });
+    expect(timeLabel()).toHaveTextContent("Time for the whole visit (5 children)");
+  });
+
   it("a list with no size (drawn at 5, or before the switch): / 45:00, red at 50:00, as today", async () => {
     const first = { ...child(1), sessionStartedAt: ago(50) };
     await open({ ...BASE, children: [first, ...[2, 3, 4, 5].map(child)], alternates: [] });
@@ -102,6 +119,6 @@ describe("LeaderAssess: the visit clock follows the list size", () => {
     const first = { ...child(1), sessionStartedAt: ago(80) };
     const second = { ...child(2), sessionStartedAt: ago(100) };
     await open({ ...BASE, perVisit: 3, children: [second, first, child(3)], alternates: [child(4), child(5)] }, "Bilal Testwala");
-    expect(timeText()).toHaveTextContent(/^Time 80:0\d \/ 60:00$/);
+    expect(timeText()).toHaveTextContent(/^80:0\d \/ 60:00$/);
   });
 });
