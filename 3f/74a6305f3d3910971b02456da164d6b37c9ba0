@@ -1,3 +1,4 @@
 {"ts":"2026-11-16T13:37:49Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching,observe spec_sync=true","sha":"3f74a6305f3d","branch":"bd-4alcjx-35812","user":""}
 {"ts":"2026-11-16T13:38:12Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=coaching,observe spec_sync=true","sha":"3f74a6305f3d","branch":"bd-4alcjx-35812","user":""}
 {"ts":"2026-11-16T14:12:08Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (own-plan rows are specified in observe.feature, updated and committed in 3f74a63)","sha":"3f74a6305f3d","branch":"bd-4alcjx-35812","user":""}
+{"ts":"2026-11-16T14:12:08Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"068b4f65-361e-4bfa-a4a7-78fa379bea3d","sha":"3f74a6305f3d","branch":"bd-4alcjx-35812","user":""}
