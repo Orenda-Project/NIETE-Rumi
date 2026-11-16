@@ -62,6 +62,14 @@
  *                                     caveats the score. A flag, never a change of mark; the scoring prompts are not
  *                                     touched. A check that fails is "not checked", never a failed row.
  *
+ * A stricter voice check (app_settings sa_r26_voice_strict, OFF by default; read by the sweep): the model alone raised
+ * the flag on clips where speech-to-text heard no word, and reported an adult in noise-only clips about half the time.
+ * ON, the check also gives the other person's words, and the flag stands only when speech-to-text heard words in the
+ * same clip and those words are among them (corroborated()). No word heard, no words given, or words the transcript
+ * does not hold: the flag is cleared. A transcript that could not be made leaves the model's answer as it was. The
+ * gate and the check share one speech-to-text call per clip. The quoted words are never kept (they can hold a name);
+ * the call record says why the flag stood or went (voice_check). Still a flag, never a change of mark.
+ *
  * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
  * once, from Begin to its end, so an answer given early or late is never cut. Its row has one audio_r2_key, and the
  * result says rec_section: true with rec_marks [{ item_id, ask_ms, answer_ms, end_ms }] (ms from the recording's start).
@@ -84,6 +92,8 @@ const { logToFile, logError } = require('../../../utils/logger');
 const stopRulesSwitch = require('../app/stop-rules-switch');
 const coachLastWord = require('../app/coach-last-word-switch');
 const variantWaitSwitch = require('../app/variant-wait-switch');
+const voiceStrictSwitch = require('../app/voice-strict-switch');
+const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
 const PARKED = 'final:sa_score_later';
@@ -362,7 +372,9 @@ function defaultDeps() {
       try {
         const r = await require('../scoring/stt').transcribe(file, lang === 'en' ? 'en' : 'ur', clip.durationSec, { signal });
         const words = r.words || [];
-        return { words: words.length, text: words.map((w) => w.raw).join(' '), model: r.model, cost: r.cost, seconds: r.seconds };
+        // said: the whole transcript, always in Urdu script (a Devanagari reply is written in Urdu by the STT wrapper);
+        // the stricter voice check looks for the other person's words in it
+        return { words: words.length, text: words.map((w) => w.raw).join(' '), said: r.text || '', model: r.model, cost: r.cost, seconds: r.seconds };
       } finally { media.cleanup(file); }
     },
     // one recording per section: download once, cut each item's stretch
@@ -695,20 +707,66 @@ Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none",
 // checks ended before any JSON (no_json). The cap leaves room for that; the reply itself stays small.
 const VOICE_MAX_TOKENS = 2000;
 
-/** CHILD_TEST_SA_SECOND_VOICE: is another person heard in this clip? { key, heard: true | false | null (not checked) }. */
-async function voiceOf(deps, calls, clip, key) {
+// sa_r26_voice_strict: the same question, and the other person's words as heard, so the transcript can back them up
+const VOICE_STRICT_SCHEMA = {
+  name: 'sa_second_voice',
+  schema: {
+    ...VOICE_SCHEMA.schema,
+    required: [...VOICE_SCHEMA.schema.required, 'words'],
+    properties: { ...VOICE_SCHEMA.schema.properties, words: { type: 'string' } },
+  },
+};
+const VOICE_STRICT_PROMPT = `${VOICE_PROMPT.slice(0, VOICE_PROMPT.indexOf('\nReturn ONLY JSON:'))}
+If another person is heard, also give THAT person's words exactly as heard, in the script they were spoken in (Urdu in Urdu script, English in English letters). Only words you can actually make out; not the tested child's answers, not the phone's own voice. "" if you cannot make out any.
+Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none", "confidence": <0-1>, "words": "<the other person's words, or \\"\\">"}`;
+
+// share of the quote's character pairs that must be in what speech-to-text heard in the same clip. Set on a replay of
+// 48 hand-checked real recordings: a quote of words the child alone said, or of words nobody said, reached at most
+// 0.32; real adult prompting mostly 0.6-1.0. 0.4 kept no false alarm and the most real adults (0.5 lost one more).
+const QUOTE_MIN = 0.4;
+
+/**
+ * sa_r26_voice_strict: do the other person's words, as the model gave them, stand in what speech-to-text heard in the
+ * same clip? { ok: true | false | null (cannot tell: no transcript), why }. Both sides in Urdu script (a Devanagari
+ * quote or transcript is written in Urdu first), letters only, as the echo check compares.
+ */
+function corroborated(quote, stt) {
+  if (!stt || !Number.isInteger(stt.words)) return { ok: null, why: 'stt_unavailable' };
+  if (stt.words === 0) return { ok: false, why: 'no_words' };
+  const q = ensureNoDevanagari(String(quote || ''));
+  const heard = ensureNoDevanagari(String(stt.said || stt.text || ''));
+  if (bare(q).length < 2) return { ok: false, why: 'not_corroborated' };
+  return within(q, heard) >= QUOTE_MIN ? { ok: true, why: 'words_heard' } : { ok: false, why: 'not_corroborated' };
+}
+
+/**
+ * CHILD_TEST_SA_SECOND_VOICE: is another person heard in this clip? { key, heard: true | false | null (not checked) }.
+ * strict (sa_r26_voice_strict): a "yes" stands only when corroborated() says so; `speech` gives the clip's transcript
+ * (the one the speech gate made, when it made one). The quote itself is never kept.
+ */
+async function voiceOf(deps, calls, clip, key, { strict = false, speech = null } = {}) {
   const dur = Number(clip && clip.durationSec);
   if (Number.isFinite(dur) && dur < minSpeechS()) return { key, heard: false };
   const model = deps.model();
+  let r;
   try {
-    const r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: VOICE_PROMPT, schema: VOICE_SCHEMA, audio: { data: clip.base64, format: 'mp3', key }, job: 'child_test.sa_second_voice', maxTokens: VOICE_MAX_TOKENS, signal }));
-    const heard = r.json && typeof r.json.second_voice === 'boolean' ? r.json.second_voice : null;
-    calls.push({ job: 'child_test.sa_second_voice', model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, second_voice: heard, who: (r.json && r.json.who) || null, ...(r.detail ? { detail: r.detail } : {}) });
-    return { key, heard };
+    r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: strict ? VOICE_STRICT_PROMPT : VOICE_PROMPT, schema: strict ? VOICE_STRICT_SCHEMA : VOICE_SCHEMA, audio: { data: clip.base64, format: 'mp3', key }, job: 'child_test.sa_second_voice', maxTokens: VOICE_MAX_TOKENS, signal }));
   } catch (e) {
     calls.push({ job: 'child_test.sa_second_voice', model, cost: null, seconds: 0, error: (e && e.reason) || 'model_failed' });
     return { key, heard: null };
   }
+  const said = r.json && typeof r.json.second_voice === 'boolean' ? r.json.second_voice : null;
+  const rec = { job: 'child_test.sa_second_voice', model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, second_voice: said, who: (r.json && r.json.who) || null, ...(r.detail ? { detail: r.detail } : {}) };
+  calls.push(rec);
+  if (!strict || said !== true) return { key, heard: said };
+  let stt = null;
+  try { stt = speech ? await speech() : null; } catch (_) { stt = null; }
+  const c = corroborated(r.json.words, stt);
+  rec.model_second_voice = true;
+  rec.voice_check = c.why;
+  if (stt && Number.isInteger(stt.words)) rec.stt_words = stt.words;
+  if (c.ok === false) rec.second_voice = false;
+  return { key, heard: rec.second_voice };
 }
 
 let LETTERS_SCHEMA_CACHE = null;
@@ -788,15 +846,26 @@ async function scoreRow(row, session, deps = {}) {
   const started = Date.now();
   // the second-voice check runs beside the scoring, one per clip the scorer fetched
   const voices = voiceOn() ? [] : null;
+  // sa_r26_voice_strict: a "yes" needs the other person's words in the clip's transcript. The speech gate and the
+  // check share one speech-to-text call per clip (the gate's, when it ran; else the check makes its own).
+  const strict = Boolean(voices) && d.voiceStrict === true;
+  if (strict && d.speechOf) {
+    const heard = new WeakMap();
+    const stt = d.speechOf;
+    d.speechOf = (clip, lang, signal) => { if (!heard.has(clip)) heard.set(clip, stt(clip, lang, signal)); return heard.get(clip); };
+  }
+  const voiceOpts = (clip) => (strict
+    ? { strict: true, speech: d.speechOf ? () => bounded('stt', limitOf(d, 'stt'), (signal) => d.speechOf(clip, task.lang, signal)) : null }
+    : {});
   if (voices) {
     const fetch = d.clipOf;
-    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(voiceOf(d, calls, clip, key)); return clip; };
+    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(voiceOf(d, calls, clip, key, voiceOpts(clip))); return clip; };
     // a section recording is cut per item for the marks; the voice check hears it whole, once
     const cut = d.sliceOf;
     if (cut) {
       d.sliceOf = async (key, windows, signal) => {
         const clips = await cut(key, windows, signal);
-        voices.push(fetch(key, signal).then((clip) => voiceOf(d, calls, clip, key), () => ({ key, heard: null })));
+        voices.push(fetch(key, signal).then((clip) => voiceOf(d, calls, clip, key, voiceOpts(clip)), () => ({ key, heard: null })));
         return clips;
       };
     }
@@ -1047,6 +1116,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'switch';
   const stopRules = await stopRulesSwitch.enabled(deps);
   const variantWait = await variantWaitSwitch.enabled(deps);
+  const voiceStrict = await voiceStrictSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1083,7 +1153,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, lastWordFromRecording: session.lastWordFromRecording === true });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, lastWordFromRecording: session.lastWordFromRecording === true });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1119,5 +1189,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps },
 };
