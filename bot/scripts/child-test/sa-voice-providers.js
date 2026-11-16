@@ -101,6 +101,16 @@ function withLetterNames(text, lang) {
   return String(text).replace(UR_NAMES, (m, pre, name) => `${pre}${UR_NAME_SAID[name]}`);
 }
 
+// An Urdu WORD the voice says with the wrong vowel is given its vowel mark (Urdu writes no short vowels): «جھنڈا» (flag,
+// "jhanda") came out as "jhunda", the vowel of «جھنڈ» (a flock). Whole words only, every role (items carry no tashdeed);
+// the screen and the clip key keep the word as written. «کسان» and «ہل» (a plough) came out as "kasai" and "hel"/"hil".
+const UR_WORD_SAID = Object.freeze({ 'جھنڈا': 'جَھنڈا', 'کسان': 'کِسان', 'ہل': 'ہَل' });
+const UR_WORDS = new RegExp(`(^|[\\s«"'(])(${Object.keys(UR_WORD_SAID).join('|')})(?=$|[\\s،۔؟!»"')])`, 'g');
+function withWordVowels(text, lang) {
+  if (lang !== 'ur') return text;
+  return String(text).replace(UR_WORDS, (m, pre, word) => `${pre}${UR_WORD_SAID[word]}`);
+}
+
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
 // phonics grammar): a held sound is stretched (Urdu «لَ» "lllll", «نَ» "nnnnn"), a stop stays short ("tuh"), and each
 // sound gets its own [slowly]. The screen keeps its text; only what the voice is given changes.
@@ -109,8 +119,15 @@ const UR_SOUND = Object.freeze({ 'لَ': 'lllll', 'نَ': 'nnnnn', 'ل': 'lllll'
 const SND = Object.keys(EN_SOUND).join('|');
 const EN_SOUNDS = new RegExp(`\\b(?:(${SND}), (ih|ah|aw), (${SND})|(${SND}))\\b`, 'g');
 const slow = (t) => `[slowly] ${t}`;
+// A sound said ON ITS OWN that the voice got wrong when given bare (it hummed «hhh», said «rrr» as "uh", «kuh» as "koo"):
+// the line that is just the sound is given the spelling it says right. Inside a narration line the sound is unchanged.
+// ks and juh: the takes the content owner picked from the listening list (16 Nov), kept as recorded.
+const EN_SOUND_ALONE = Object.freeze({ hhh: slow('hhhh'), rrr: slow('rrrrr'), yuh: slow('yuh'), kwuh: slow('kwuh'), kuh: slow('kuh'),
+  ks: slow('ks'), juh: slow('juh') });
 function withSounds(text, lang) {
   if (lang === 'en') {
+    const t = String(text).trim();
+    if (EN_SOUND_ALONE[t]) return EN_SOUND_ALONE[t];
     return String(text).replace(EN_SOUNDS, (m, a, v, b, one) => (one ? slow(EN_SOUND[one])
       : `${slow(EN_SOUND[a])}, ${slow(v)}, ${slow(EN_SOUND[b])}`));
   }
@@ -183,4 +200,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withLetterNames, withSounds, isPraise, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withLetterNames, withWordVowels, withSounds, isPraise, withTag, requestFor, synthesize };
