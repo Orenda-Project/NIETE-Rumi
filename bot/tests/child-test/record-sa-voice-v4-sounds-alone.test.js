@@ -46,3 +46,10 @@ test('v4: the five sounds alone are sent to the voice with their spoken spelling
   for (const t of ['[slowly] hhhh', '[slowly] rrrrr', '[slowly] yuh', '[slowly] kwuh', '[slowly] kuh']) expect(said).toContain(t);
   expect(said.filter((t) => ['hhh', 'rrr', 'yuh', 'kwuh', 'kuh'].includes(t))).toEqual([]);
 });
+
+// The content owner's pick (listening list, 16 Nov): x and j said alone, each with its own [slowly], the take they chose.
+test('withSounds: ks and juh alone get [slowly] (the picked takes)', () => {
+  expect(P.withSounds('ks', 'en')).toBe('[slowly] ks');
+  expect(P.withSounds('juh', 'en')).toBe('[slowly] juh');
+  expect(P.withSounds('mmm, ih, ss', 'en')).toBe(P.withSounds('mmm, ih, ss', 'en'));
+});
