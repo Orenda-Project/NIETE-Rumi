@@ -383,6 +383,68 @@ describe('the reads', () => {
     expect([...mh.population]).toEqual([['p2', 'B.K'], ['h1', 'B.K']]);
   });
 
+  // Another organization's view (Gilgit-Baltistan) has no RDF lists of its own, and most GB teachers came over from
+  // old Rumi with no teacher_level (94 of 102 on prod, 16 Nov). By level alone its LP tab counted 10 of 102. Its rule:
+  // the teacher's own level; else the grades she gave at registration (grades 1-5 Primary, 6-12 Mid / High, the
+  // training band derivation's reading); else Primary, as the RDF's Gilgit-Baltistan lines count every GB teacher.
+  describe("bandRule 'derived' (a view with no RDF lists of its own: another organization's)", () => {
+    const GB = 'Gilgit-Baltistan';
+    const NO = { fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: {}, missing: { schools: true, teachers: true, coaches: true } };
+    const gbQuery = (calls) => async (sql, params) => {
+      calls.push({ sql, params });
+      if (/FROM schools/.test(sql)) {
+        return { rows: [
+          school('g1', '901', { region: GB, is_active: true, is_probable_test: false }),
+          school('g9', null, { region: GB, is_active: true, is_probable_test: true }),
+        ] };
+      }
+      if (/teacher_level/.test(sql)) {
+        return { rows: [
+          { id: 'lvl', school_id: 'g1', bands: ['MIDDLE'], grades_taught: '["grade_1"]' }, // her level wins
+          { id: 'g15', school_id: 'g1', bands: null, grades_taught: '["grade_2", "grade_3"]' },
+          { id: 'g6', school_id: 'g1', bands: null, grades_taught: '["grade_6"]' },
+          { id: 'both', school_id: 'g1', bands: null, grades_taught: '["early_years", "grade_8"]' },
+          { id: 'none', school_id: 'g1', bands: null, grades_taught: null },
+          { id: 'junk', school_id: 'g1', bands: [], grades_taught: 'not json [' },
+          { id: 'test-school', school_id: 'g9', bands: null, grades_taught: null }, // not a counted school
+        ] };
+      }
+      return { rows: [] };
+    };
+
+    it('reads the registration grades with the roster', async () => {
+      const calls = [];
+      await loadLpEngagementRows(gbQuery(calls), {}, 'primary', { lists: NO, regions: [GB], bandRule: 'derived' });
+      const roster = calls.find((c) => /teacher_level/.test(c.sql));
+      expect(roster.sql).toMatch(/u\.grades_taught/);
+    });
+
+    it('Primary: her level, else grades 1-5 (early years too), else no signal at all', async () => {
+      const rows = await loadLpEngagementRows(gbQuery([]), {}, 'primary', { lists: NO, regions: [GB], bandRule: 'derived' });
+      expect([...rows.population.keys()].sort()).toEqual(['both', 'g15', 'junk', 'none']);
+      expect(new Set(rows.population.values())).toEqual(new Set([GB]));
+    });
+
+    it('Mid / High: her level, else grades 6-12; a teacher with no signal is not Mid / High', async () => {
+      const rows = await loadLpEngagementRows(gbQuery([]), {}, 'midhigh', { lists: NO, regions: [GB], bandRule: 'derived' });
+      expect([...rows.population.keys()].sort()).toEqual(['both', 'g6', 'lvl']);
+    });
+
+    it("the default rule is unchanged: level only (FDE's view on a tier without lists)", async () => {
+      const rows = await loadLpEngagementRows(gbQuery([]), {}, 'primary', { lists: NO, regions: [GB] });
+      expect([...rows.population.keys()]).toEqual([]);
+      const mh = await loadLpEngagementRows(gbQuery([]), {}, 'midhigh', { lists: NO, regions: [GB] });
+      expect([...mh.population.keys()]).toEqual(['lvl']);
+    });
+
+    it("FDE's RDF lists, when loaded, stay the population whatever the rule", async () => {
+      const calls = [];
+      const rows = await loadLpEngagementRows(gbQuery(calls), {}, 'primary', { lists: LISTS, bandRule: 'derived' });
+      expect(rows.population).toBe(LISTS.primary);
+      expect(calls.some((c) => /teacher_level/.test(c.sql))).toBe(false);
+    });
+  });
+
   it('no window: no bounds, only the population', async () => {
     const q = fakeQuery();
     await loadLpEngagementRows(q, { from: null, to: null }, 'primary', { lists: LISTS });

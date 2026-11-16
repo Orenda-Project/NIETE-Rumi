@@ -28,7 +28,7 @@ vi.mock("../hooks/useAuth", () => ({
 }));
 vi.mock("../services/api", async (orig) => ({
   ...(await orig<typeof import("../services/api")>()),
-  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching, getLpEngagement: h.getLpEngagement },
+  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching, getLpEngagement: h.getLpEngagement, getScope: async () => ({ success: true, organization: "niete", regions: ["B.K", "Sihala", "Urban-I", "Nilore", "Urban-II", "Tarnol"] }) },
 }));
 
 import SchoolsAnalytics from "./SchoolsAnalytics";
