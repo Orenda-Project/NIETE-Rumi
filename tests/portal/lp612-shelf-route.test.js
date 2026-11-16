@@ -12,6 +12,7 @@ const express = require('express');
 
 const ENV = { ...process.env };
 let flags;
+let gb; // bd-2zopnc: isGbTeacher answer (true, false, or an Error to throw)
 let listed;
 let botCalls;
 let botAnswer;
@@ -25,7 +26,11 @@ beforeEach(() => {
   botCalls = [];
   botAnswer = { status: 200, data: { success: true, plans: [] } };
   relayed = [];
+  gb = false;
   jest.doMock('../../dashboard/config/supabase', () => ({}));
+  jest.doMock('../../bot/shared/services/lp-own-gb', () => ({
+    isGbTeacher: async () => { if (gb instanceof Error) throw gb; return gb; },
+  }));
   jest.doMock('../../dashboard/lib/portal-auth', () => ({
     requirePortalAuth: (req, res, next) => (req.session && req.session.portalUserId ? next() : res.status(401).json({})),
   }));
@@ -92,6 +97,16 @@ describe('the shelf', () => {
     expect((await call('GET', '/api/portal/lp612/shelf?keys=L1')).status).toBe(404);
     flags.portal_lp_own_shelf = true;
     flags.portal_teacher_v2 = false;
+    expect((await call('GET', '/api/portal/lp612/shelf?keys=L1')).status).toBe(404);
+    expect(botCalls).toHaveLength(0);
+  });
+
+  // bd-2zopnc — Amena, 16 Nov: not live for GB. A GB teacher, or a region read that fails, is 404.
+  test('dark for a GB teacher, and when the region read fails', async () => {
+    gb = true;
+    await start();
+    expect((await call('GET', '/api/portal/lp612/shelf?keys=L1')).status).toBe(404);
+    gb = new Error('boom');
     expect((await call('GET', '/api/portal/lp612/shelf?keys=L1')).status).toBe(404);
     expect(botCalls).toHaveLength(0);
   });
