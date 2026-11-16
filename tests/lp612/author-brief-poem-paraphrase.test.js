@@ -4,7 +4,7 @@
  * names ("use paraphrasing skills to paraphrase a poem", 9_english / 12_english), and the brief's
  * own teacher quote says a poem lesson should be built around summaries, central idea and figures
  * of speech, yet no brief told the author to paraphrase the poem. Checked by hand: the only
- * "paraphras" hits in the four briefs were none.
+ * "paraphras" hit in each of the four briefs was the Quranic-text warning, nothing about poems.
  *
  * Same harness as author-brief-gender-neutral.test.js: drive the REAL authorLessonPlan(), mock only
  * the LLM boundary, and assert the system prompt for the standard brief and each flash sibling
