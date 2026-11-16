@@ -1316,6 +1316,21 @@ teaching flow, not in Reference); upstream has no such function. This entry adds
   back in Reference 72 of the 109 over-by-one lessons fit both caps (queue #57, fault 1).
 - Test: `tests/lp612/over-cap-flow-groups.test.js`.
 
+### 3.38 `brief_author_v3.md` + all three flash briefs — rule 12: a poem lesson teaches a paraphrase (2026-11-16, bd-zrdvmi.6)
+
+ICT feedback sheet, Lesson Plan row 728: the G9 English plan for the poem "Travel" had no paraphrase
+("No paraphrasing there"). The SLO map names the skill ("use paraphrasing skills to paraphrase a
+poem", 9_english / 12_english) and §3's teacher quote already says a poem lesson should be built
+around exam skills, but no brief told the author to paraphrase the poem. Rule 12 under "what teachers
+rejected" now does: stanza by stanza (or two lines at a time), the poet's words then plain words, and
+pupils paraphrase one stanza themselves, in class. `tests/lp612/author-brief-poem-paraphrase.test.js`
+drives the real `authorLessonPlan()` and asserts the rule reaches the system prompt for the standard
+brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.28: written into this vendored copy, not upstream first. `VENDOR
+DIVERGENCE` comments mark all four sites. Offer the same rule upstream at the next re-sync and
+regenerate the flash briefs there with `build_flash_brief.py`.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
