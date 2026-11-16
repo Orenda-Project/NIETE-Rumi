@@ -137,6 +137,20 @@ describe("a failed send is reported (bd-1d6g8o)", () => {
     expect(report.mock.calls[0][0]).toEqual(expect.objectContaining({ stage: "upload", kind: "audio", item: 1, status: 403, reason: "http" }));
   });
 
+  // bd-w0zbbe (production 16 Nov): a principal the observe API does not admit got 404 on every upload slot, and the
+  // page said "The internet stopped" though nothing was wrong with her connection. A 403/404 from our own API means
+  // this account cannot do this here: refused, "not_available" — never a network failure to retry.
+  it.each([403, 404])("our API answers %i to the upload slot: refused, not_available — not the internet", async (code) => {
+    a.presignCoachingUpload.mockRejectedValueOnce(Object.assign(new Error("x"), { response: { status: code } }));
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never)).rejects.toEqual(new SendError("refused", undefined, "not_available"));
+    expect(a.startCoachingUpload).not.toHaveBeenCalled();
+  });
+
+  it("our API answers 404 to the start: refused, not_available", async () => {
+    a.startCoachingUpload.mockRejectedValueOnce({ response: { status: 404, data: { success: false, error: "Not found" } } });
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never)).rejects.toEqual(new SendError("refused", undefined, "not_available"));
+  });
+
   it("the server refuses the upload slot (500): stage presign", async () => {
     a.presignCoachingUpload.mockRejectedValueOnce(Object.assign(new Error("x"), { response: { status: 500 } }));
     const report = vi.fn();

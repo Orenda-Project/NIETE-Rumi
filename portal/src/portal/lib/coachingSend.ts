@@ -117,6 +117,9 @@ async function bodyOf(blob: Blob, waits: number[]): Promise<Body> {
   return { body: blob.slice(0, blob.size, blob.type), sentAs: "slice" };
 }
 
+/** bd-w0zbbe — SendError("refused").message when our API answers 403/404: this account cannot send here. */
+export const NOT_AVAILABLE = "not_available";
+
 function httpStatus(err: unknown): number | null {
   const s = (err as { response?: { status?: number } })?.response?.status;
   return typeof s === "number" ? s : null;
@@ -198,6 +201,9 @@ export async function sendLesson(
     });
     const status = httpStatus(err);
     if (status === 400) throw new SendError("refused", undefined, String(body(err).reason || "refused"));
+    // bd-w0zbbe: our API's 403/404 means this account cannot send here (production 16 Nov: a principal the observe API
+    // does not admit read "The internet stopped" on every try). Not the internet; nothing to retry.
+    if (status === 403 || status === 404) throw new SendError("refused", undefined, NOT_AVAILABLE);
     throw new SendError("network", undefined, undefined, { part, offline: isOffline(), unreadable });
   }
 
@@ -225,6 +231,7 @@ export async function sendLesson(
     if (status === 400 && (b.reason === "plan_not_ready" || b.reason === "plan_not_found")) {
       throw new SendError(b.reason);
     }
+    if (status === 403 || status === 404) throw new SendError("refused", undefined, NOT_AVAILABLE);
     if (status != null && status >= 400 && status < 500) throw new SendError("refused", undefined, String(b.reason || ""));
     throw new SendError("network", undefined, undefined, { part: null, offline: isOffline(), unreadable: false });
   }
