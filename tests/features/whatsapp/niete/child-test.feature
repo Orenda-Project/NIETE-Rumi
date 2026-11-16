@@ -1130,8 +1130,10 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: The visit clock is 20 minutes a child on a list drawn at 3, and 45 minutes on any other list
     Given sa_per_visit is 3
     When I open today's list at a school in the coach app
-    Then the visit bar reads "Time 00:00 / 60:00" and turns red only after 60 minutes
-    And a list drawn at 5, or before the switch, reads "/ 45:00" as today
+    Then the visit bar shows "Time for the whole visit (3 children)" over a large "00:00 / 60:00"
+    And the clock turns red only after 60 minutes
+    And a list drawn at 5, or before the switch, reads "Time for the whole visit (5 children)" over "/ 45:00" as today
+    And in Urdu the label reads «پورے دورے کا وقت (۳ بچوں کے لیے)» over «۰۰:۰۰ / ۶۰:۰۰»
 
   # Round 19: the practice school first (app_settings sa_r19_practice_first, default OFF). Asserted in
   # bot/tests/child-test/sa-practice-first.test.js (listSchools and conversation/context.js coachSchools).
