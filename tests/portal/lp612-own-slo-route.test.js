@@ -12,6 +12,7 @@ beforeEach(() => {
   jest.resetModules();
   flags = { portal_teacher_v2: true, portal_lp_make_own: true };
   jest.doMock('../../dashboard/config/supabase', () => ({}));
+  jest.doMock('../../bot/shared/services/lp-own-gb', () => ({ isGbTeacher: async () => false })); // bd-2zopnc: not a GB teacher
   jest.doMock('../../dashboard/lib/portal-auth', () => ({
     requirePortalAuth: (req, res, next) => (req.session && req.session.portalUserId ? next() : res.status(401).json({})),
   }));

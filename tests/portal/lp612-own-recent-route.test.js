@@ -18,6 +18,7 @@ beforeEach(() => {
   botCalls = [];
   botAnswer = { status: 200, data: { success: true, plans: [{ ownId: 'o2', rootId: 'o1', lesson: 's1', band: 'g612', status: 'ready', changesLeft: 1, round: 1, createdAt: 't', grade: 9, subject: 'Physics', chapter: 'c02', title: 'Speed', extra: 'x' }] } };
   jest.doMock('../../dashboard/config/supabase', () => ({}));
+  jest.doMock('../../bot/shared/services/lp-own-gb', () => ({ isGbTeacher: async () => false })); // bd-2zopnc: not a GB teacher
   jest.doMock('../../dashboard/lib/portal-auth', () => ({
     requirePortalAuth: (req, res, next) => (req.session && req.session.portalUserId ? next() : res.status(401).json({})),
   }));

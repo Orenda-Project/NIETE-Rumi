@@ -19,6 +19,7 @@ beforeEach(() => {
   botCalls = [];
   botAnswer = { status: 200, data: { success: true, loaded: true, pages: [{ page: 42, text: 'Force' }], missing: [43] } };
   jest.doMock('../../dashboard/config/supabase', () => ({}));
+  jest.doMock('../../bot/shared/services/lp-own-gb', () => ({ isGbTeacher: async () => false })); // bd-2zopnc: not a GB teacher
   jest.doMock('../../dashboard/lib/portal-auth', () => ({
     requirePortalAuth: (req, res, next) => (req.session && req.session.portalUserId ? next() : res.status(401).json({})),
   }));
