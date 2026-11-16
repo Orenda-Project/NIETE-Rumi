@@ -3,8 +3,9 @@
  * create-analytics-user — make (or reuse) an analytics-only portal account: someone who
  * signs in to the portal and sees the schools analytics page and nothing else.
  *
- *   node scripts/create-analytics-user.js --env prod --name fde-islamabad --display "FDE Islamabad"
- *   node scripts/create-analytics-user.js --env sandbox --phone 03001234567 --display "Analytics Test"
+ *   node scripts/create-analytics-user.js --env prod --name fde-islamabad --display "FDE Islamabad" --organization niete
+ *   node scripts/create-analytics-user.js --env staging --name moawin-ho --display "Moawin HO" --organization moawin
+ *   node scripts/create-analytics-user.js --env sandbox --phone 03001234567 --display "Analytics Test" --organization niete
  *   … --commit                                                         # actually write
  *   … --env-file <path>                                                # credentials elsewhere
  *   … --name fde-islamabad --reset-password [--commit]                 # a new setup link (see below)
@@ -26,6 +27,12 @@
  *      with no school is REUSED, not duplicated (its name is filled in only if it has none).
  *   2. Appends that users.id to app_settings.portal_analytics_only (creating the row if it
  *      is absent). Every id already there stays.
+ *   2a. --organization <org> (REQUIRED on the command line for a new account): whose regions it sees. 'niete' (FDE's six
+ *      sectors) is the default the portal applies to an account with no mapping, so nothing more is written. Any
+ *      other organization (e.g. 'moawin', Gilgit-Baltistan) is written to app_settings.portal_analytics_organizations
+ *      ({"<users.id>": "<org>"}) BEFORE the account goes on the list: an account on the list without its mapping
+ *      would see FDE's data. The organization must own an active region in region_features; an account already
+ *      mapped to another organization is never moved; a mapping value that is not an object of names is refused.
  *   3. Mints a setup link with PortalInviteService.generatePortalToken — the no-message
  *      path, so nothing is sent on WhatsApp — and prints <PORTAL_URL>/portal/setup/<token>.
  *
@@ -58,6 +65,12 @@ const { normaliseAccountName, storedPhoneFor } = require('../dashboard/lib/analy
 const ANALYTICS_FLAG_KEY = 'portal_analytics_only';
 const ANALYTICS_FLAG_DESCRIPTION =
   'Accounts that see ONLY the portal schools analytics page. JSON array of users.id; any other value means nobody.';
+
+const ORGANIZATIONS_KEY = 'portal_analytics_organizations';
+const ORGANIZATIONS_DESCRIPTION =
+  'Whose regions each analytics account sees: {"<users.id>": "<region_features.organization>"}; absent = niete (FDE).';
+/** The organization an account with no mapping sees (dashboard/lib/analytics-viewer DEFAULT_ANALYTICS_ORGANIZATION). */
+const DEFAULT_ORGANIZATION = 'niete';
 
 /** Columns the account is written with beyond phone, name, role and school. */
 const ANALYTICS_ACCOUNT_DEFAULTS = Object.freeze({
@@ -120,6 +133,49 @@ function appendUserId(value, id) {
   return { ids: [...v, id], changed: true };
 }
 
+/** --organization as the portal reads a mapping: trimmed, lower-cased. '' when absent. */
+const normaliseOrganization = (raw) => (typeof raw === 'string' ? raw.trim().toLowerCase() : '');
+
+/**
+ * The organizations map with `id` mapped to `organization`. Absent → a new map. An object of names (or its JSON
+ * string) → that map plus id. Anything else throws: it is not ours to rewrite. An id already mapped to ANOTHER
+ * organization throws too — moving an account between organizations changes whose data it sees, which is a decision,
+ * not a side effect of making an account.
+ * @returns {{map: object, changed: boolean}}
+ */
+function mapOrganization(value, id, organization) {
+  let v = value;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch (_) { v = null; }
+  }
+  if (value === undefined || value === null) v = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v) || !Object.values(v).every((x) => typeof x === 'string')) {
+    throw new Error(`REFUSED: app_settings.${ORGANIZATIONS_KEY} is not an object of organization names (${JSON.stringify(value)}). ` +
+      'Fix it by hand; this script will not overwrite it.');
+  }
+  const now = normaliseOrganization(v[id]);
+  if (now && now !== organization) {
+    throw new Error(`REFUSED: this account is already mapped to '${now}' in ${ORGANIZATIONS_KEY}; it is not moved to '${organization}'`);
+  }
+  if (now === organization) return { map: v, changed: false };
+  if (organization === DEFAULT_ORGANIZATION) return { map: v, changed: false };
+  return { map: { ...v, [id]: organization }, changed: true };
+}
+
+/** The organization must own at least one active region (region_features) — else the account would see nothing. */
+async function assertKnownOrganization(supabase, organization) {
+  if (!organization) throw new Error('REFUSED: --organization is empty');
+  const { data, error } = await supabase
+    .from('region_features')
+    .select('organization')
+    .eq('organization', organization)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`region_features read failed: ${error.message}`);
+  if (!data) throw new Error(`REFUSED: no active region in region_features belongs to '${organization}' (typo?)`);
+}
+
 const WORKING_ROLES = new Set(['teacher', 'principal', 'coach']);
 
 /**
@@ -164,11 +220,13 @@ function resolveIdentity({ phone, account }) {
 /**
  * The whole flow, with its dependencies passed in.
  * @param {{supabase: object, invite: {generatePortalToken: Function}, phone?: string, account?: string,
- *          name?: string, resetPassword?: boolean, commit: boolean, portalUrl: string, log?: Function}} args
- *   `account` is the sign-in name (--name); `name` is the label the portal greets it by (users.name, --display).
+ *          name?: string, organization?: string, resetPassword?: boolean, commit: boolean, portalUrl: string,
+ *          log?: Function}} args
+ *   `account` is the sign-in name (--name); `name` is the label the portal greets it by (users.name, --display);
+ *   `organization` whose regions it sees (--organization; absent here = no mapping touched, the CLI requires it).
  */
 async function run({
-  supabase, invite, phone, account, name, resetPassword = false, commit, portalUrl, log = console.log,
+  supabase, invite, phone, account, name, organization: rawOrganization, resetPassword = false, commit, portalUrl, log = console.log,
 }) {
   const { stored, signInAs } = resolveIdentity({ phone, account });
   if (resetPassword) {
@@ -201,9 +259,25 @@ async function run({
   // Validate the flag BEFORE any write, so a refusal leaves nothing half-done.
   appendUserId(current, existing ? existing.id : '__pending__');
 
+  // And the organization: known to the registry, and a mapping row this script may add to.
+  const organization = rawOrganization === undefined || rawOrganization === null ? null : normaliseOrganization(rawOrganization);
+  let orgRow;
+  if (organization !== null) {
+    await assertKnownOrganization(supabase, organization);
+    const { data: mapRow, error: mapErr } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', ORGANIZATIONS_KEY)
+      .maybeSingle();
+    if (mapErr) throw new Error(`app_settings read failed: ${mapErr.message}`);
+    orgRow = mapRow ? mapRow.value : undefined;
+    mapOrganization(orgRow, existing ? existing.id : '__pending__', organization);
+    log(`  organization: ${organization}${organization === DEFAULT_ORGANIZATION ? ' (the default: no mapping row needed)' : ''}`);
+  }
+
   if (!commit) {
     log('  DRY RUN — nothing written, no link minted. Re-run with --commit.');
-    return { plan, committed: false, userId: existing ? existing.id : null, setupUrl: null, signInAs };
+    return { plan, committed: false, userId: existing ? existing.id : null, setupUrl: null, signInAs, organization };
   }
 
   let userId = existing && existing.id;
@@ -232,6 +306,23 @@ async function run({
     }
   }
 
+  // The mapping goes in BEFORE the list: an account on the list without it would see FDE's data.
+  if (organization !== null) {
+    const { map, changed: mapChanged } = mapOrganization(orgRow, userId, organization);
+    if (mapChanged) {
+      const { error: mapUpErr } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: ORGANIZATIONS_KEY,
+          value: map,
+          description: ORGANIZATIONS_DESCRIPTION,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'key' });
+      if (mapUpErr) throw new Error(`app_settings write failed: ${mapUpErr.message}`);
+      log(`  ${ORGANIZATIONS_KEY}: ${userId} → ${organization}`);
+    }
+  }
+
   const { ids, changed } = appendUserId(current, userId);
   if (changed) {
     const { error: upErr } = await supabase
@@ -249,7 +340,7 @@ async function run({
   }
 
   const setupUrl = await mintSetupUrl(invite, userId, portalUrl);
-  return { plan, committed: true, userId, setupUrl, signInAs };
+  return { plan, committed: true, userId, setupUrl, signInAs, organization };
 }
 
 async function mintSetupUrl(invite, userId, portalUrl) {
@@ -322,9 +413,22 @@ function parseArgs(argv) {
     phone,
     account: phone ? null : nameArg,
     name: phone ? (display || nameArg) : display,
+    organization: val('organization'),
     commit: flag('commit'),
     resetPassword: flag('reset-password'),
   };
+}
+
+/**
+ * What the command line must say before anything is read: a new account names its organization. Forgetting it made
+ * a Moawin account that showed FDE's data; --reset-password touches an existing account and needs none.
+ */
+function checkArgs(args) {
+  if (!args.resetPassword && !normaliseOrganization(args.organization)) {
+    throw new Error('REFUSED: --organization <org> is required for a new account: niete (FDE, the six ICT sectors) or ' +
+      'the organization that owns its regions in region_features (moawin = Gilgit-Baltistan)');
+  }
+  return args;
 }
 
 module.exports = {
@@ -335,6 +439,8 @@ module.exports = {
   planAccount,
   resolveIdentity,
   parseArgs,
+  checkArgs,
+  mapOrganization,
   run,
 };
 
@@ -344,7 +450,7 @@ module.exports = {
 function main() {
   const die = (msg) => { console.error(`\n  ${msg}\n`); process.exit(2); };
   let args;
-  try { args = parseArgs(process.argv.slice(2)); } catch (e) { die(e.message); }
+  try { args = checkArgs(parseArgs(process.argv.slice(2))); } catch (e) { die(e.message); }
 
   const envName = args.env;
   if (!envName || !ENVS[envName]) {
@@ -372,12 +478,13 @@ function main() {
   const { commit } = args;
   console.log(`\n  env=${envName} ref=${ref} commit=${commit}${args.resetPassword ? ' reset-password' : ''}`);
   run({
-    supabase, invite, phone: args.phone, account: args.account, name: args.name,
+    supabase, invite, phone: args.phone, account: args.account, name: args.name, organization: args.organization,
     resetPassword: args.resetPassword, commit, portalUrl: portalUrl(),
   }).then((out) => {
     if (out.committed) {
       console.log(`\n  user id:   ${out.userId}`);
       console.log(`  signs in as: ${out.signInAs}`);
+      if (out.organization) console.log(`  sees:      ${out.organization}'s regions`);
       console.log(`  setup URL: ${out.setupUrl}   (single use, expires in 7 days)\n`);
     }
   }).catch((e) => { console.error(`\n  ${e.message}\n`); process.exit(1); });
