@@ -1,2 +1,3 @@
 {"ts":"2026-11-16T13:36:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching spec_sync=true","sha":"87b3e36c05e4","branch":"bd-4alcjx-35812","user":""}
 {"ts":"2026-11-16T13:36:18Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching owe their Gherkin","sha":"87b3e36c05e4","branch":"bd-4alcjx-35812","user":""}
+{"ts":"2026-11-16T13:36:22Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-4alcjx-35812: coaching spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"87b3e36c05e4","branch":"bd-4alcjx-35812","user":""}
