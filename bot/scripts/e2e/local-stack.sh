@@ -313,7 +313,7 @@ import json, sys, datetime, os
 p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
            "flow_public_key_file": pubkey_file, "flows_dir": flows_dir, "flows": "emulated",
-           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"), "db": os.environ.get("STACK_DB", "sandbox"), "files": "local" if os.environ.get("STACK_DB") == "local" else "r2:staging",
+           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"), "db": os.environ.get("STACK_DB", "sandbox"), "files": "local" if os.environ.get("STACK_DB") == "local" else "r2:sandbox",
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY
   log "up: bot $full on :$bot_port ← mock :$mock_port · worker :$worker_port · redis :$redis_port (worktree $src)"
