@@ -71,7 +71,9 @@ var CORE = 'sa-core-' + VERSION;
 // a little slower), their word timings scaled to match.
 // v16: round 12: the Urdu letter name «ثے» (said "se") re-voiced under its three keys (the letter alone and its two
 // practice answers), which the voice had read as a "t"/"th" sound; the two answers' word timings re-made.
-var SESSION = 'sa-session-v16';
+// v17: the field review of 16 Nov: «جھنڈا» re-voiced under its key with its vowel («جَھنڈا», it was said "jhunda"), five
+// English letter sounds said alone (h, r, y, k, qu) and six lines re-made under their keys; no word timings change.
+var SESSION = 'sa-session-v17';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
