@@ -106,3 +106,25 @@ describe("LeaderObserveRecord from coach v2", () => {
     await waitFor(() => expect(screen.queryByText("Ayesha Bibi")).toBeNull());
   });
 });
+
+/**
+ * bd-w0zbbe (production 16 Nov) — a principal the observe API does not admit reached this page because coachV2 (true for
+ * everyone) opened it; every upload then 404'd as "The internet stopped". The server now says per user whether the
+ * observe page is hers (observeOnPortal, the same rule as the API gate); when it says no, the page says so and points
+ * to /observe on WhatsApp. An older server without the field keeps today's rule.
+ */
+describe("LeaderObserveRecord — who may use it is the server's word (observeOnPortal)", () => {
+  it("observeOnPortal false (a principal off the principal app): not available, use /observe on WhatsApp", async () => {
+    P.getConfig.mockResolvedValue({ features: { coachObservation: false, coachV2: true, observeOnPortal: false } });
+    renderPage("/portal/leader/observe/new");
+    expect(await screen.findByText(/isn.t available on your account yet\. You can still use \/observe on WhatsApp/)).toBeInTheDocument();
+    expect(screen.queryByText("Ayesha Bibi")).toBeNull();
+  });
+
+  it("observeOnPortal true: the page as before", async () => {
+    P.getConfig.mockResolvedValue({ features: { coachObservation: false, coachV2: false, observeOnPortal: true } });
+    renderPage("/portal/leader/observe/new");
+    expect((await screen.findAllByText("Ayesha Bibi")).length).toBeGreaterThan(0);
+  });
+});
+

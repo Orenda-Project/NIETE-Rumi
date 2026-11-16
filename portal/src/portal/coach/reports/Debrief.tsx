@@ -14,6 +14,7 @@ import type { FinishedRecording } from "../../lib/lessonRecorder";
 import { canRecordHere } from "../../lib/recordingSupport";
 import { deleteRecording } from "../../lib/recordingStore";
 import { useCopy } from "../../teacher/i18n";
+import { NOTICES } from "../../teacher/notices/copy";
 import { PageChip } from "../../teacher/TeacherPage";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { RecordUploadPair } from "../../teacher/ui";
@@ -94,6 +95,7 @@ export const GUIDE_RETRY_MS = [15_000, 30_000] as const;
 
 export default function Debrief() {
   const C = useCopy(REPORTS);
+  const N = useCopy(NOTICES);
   const { id = "" } = useParams();
   const routes = useObserveRoutes();
   const navigate = useNavigate();
@@ -184,7 +186,15 @@ export default function Debrief() {
 
       {stage === "guide" && view && (
         <>
-          {guideState === "loading" && <Note>{C.writingGuide}</Note>}
+          {/* bd-w0zbbe: a coach who saw only "Writing your guide" left after 4 s and thought the notes never came. How
+              long it takes, and that she can leave (the guide is kept on the observation and shows when she is back). */}
+          {guideState === "loading" && (
+            <div data-testid="guide-writing" className={cn(LIST_CARD, "flex flex-col gap-1 px-4 py-4 text-center")}>
+              <p className="text-[16px] font-semibold text-[#6b7280]">{C.writingGuide}</p>
+              <p className="text-[15px] text-[#6b7280]">{C.guideWait}</p>
+              <p className="text-[15px] text-[#6b7280]" dir="auto">{N.leave}</p>
+            </div>
+          )}
           {guideState === "failed" && <Note tone="amber">{C.guideFailed}</Note>}
           {guideState === "not_ready" && <Note tone="amber">{C.saveFormFirst}</Note>}
           {guideState === "ready" && guide && <GuideBlock guide={guide} />}
@@ -200,7 +210,8 @@ export default function Debrief() {
             </div>
           )}
 
-          {hers && guideState !== "not_ready" && (
+          {/* bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide. */}
+          {hers && (guideState === "ready" || guideState === "failed") && (
             <>
               <RecordUploadPair onRecord={() => setStage(canRecord ? "recording" : "micBlocked")} onUpload={() => input.current?.click()} />
               <input ref={input} data-testid="talk-input" type="file" accept={`${acceptFor("audio")},audio/*`} className="hidden"

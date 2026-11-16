@@ -110,6 +110,31 @@ describe("Debrief — a slow guide is asked for again, not given up on", () => {
   });
 });
 
+/**
+ * bd-w0zbbe (queue #147, production 16 Nov, visit df9d3f17) — the coach saw "Writing your guide" beside Start recording
+ * and Upload recording, left after 4 s, and read it as "the debrief notes never came" (the guide came 17 s later and was
+ * kept). While the guide is being written the page now says how long it takes and that she can leave (the portal's line
+ * for every waiting screen), and offers no recording until the guide is there.
+ */
+describe("Debrief — while the guide is being written", () => {
+  it("says under a minute and that she can leave, and offers no recording yet", async () => {
+    let answer: (v: unknown) => void = () => {};
+    L.getTalkGuide.mockReturnValue(new Promise((r) => { answer = r; }));
+    renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Writing your guide")).toBeInTheDocument();
+    expect(screen.getByText(/Under a minute/)).toBeInTheDocument();
+    expect(screen.getByText("You can leave. We'll tell you here.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start recording" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Upload recording" })).toBeNull();
+
+    await act(async () => { answer({ guide: GUIDE }); });
+    expect(await screen.findByTestId("talk-guide")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start recording" })).toBeInTheDocument();
+    expect(screen.queryByText(/Under a minute/)).toBeNull();
+  });
+});
+
 describe("Debrief", () => {
   it("titled Debrief with Step 3 of 4, ~10 min and After class", async () => {
     renderPage();

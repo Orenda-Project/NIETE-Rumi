@@ -9234,6 +9234,17 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
   }
 });
 
+/** bd-w0zbbe — the signed-in user's role for /config; null signed out or on a failed read (then a coach's answers). */
+async function configRoleOf(userId) {
+  if (!userId) return null;
+  try {
+    const { data } = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    return (data && data.role) || null;
+  } catch {
+    return null;
+  }
+}
+
 router.get('/config', async (req, res) => {
   try {
     const userId = req.session && req.session.portalUserId;
@@ -9262,6 +9273,7 @@ router.get('/config', async (req, res) => {
       lpMakeOwnRaw,
       lpOwnShelfRaw,
       lpOwnReviewer,
+      configRole,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9306,7 +9318,15 @@ router.get('/config', async (req, res) => {
       // bd-snkn32.42 — the "Made by a teacher" shelf (rides with the teacher app v2) and its reviewers (list-only).
       isFlagEnabledForUser(supabase, PORTAL_LP_OWN_SHELF_KEY, userId),
       isUserListedInFlag(supabase, PORTAL_LP_OWN_REVIEWERS_KEY, userId),
+      // bd-w0zbbe — her role, so the observe page follows the observe API's own gate (requireCoachObservation).
+      configRoleOf(userId),
     ]);
+    // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
+    // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
+    // upload 404'd as "The internet stopped". The operator: principals observe on WhatsApp unless the principal app
+    // names them. observeOnPortal = the gate's answer; a principal off the app also loses the Observations button.
+    const principal = isPrincipalRole(configRole);
+    const observeOnPortal = principal ? principalApp === true : (coachObservation === true || coachV2 === true);
     // bd-2zopnc — Make my own and the shelf are not live for GB; read only when one is on, and a failed read is off.
     const lpOwnNotGb = teacherV2 && (lpMakeOwnRaw || lpOwnShelfRaw)
       ? !(await isGbTeacher(supabase, userId).catch(() => true))
@@ -9321,7 +9341,8 @@ router.get('/config', async (req, res) => {
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
         childTest,
-        coachObservation,
+        coachObservation: principal ? (coachObservation === true && principalApp === true) : coachObservation,
+        observeOnPortal,
         newUi,
         coachV2,
         teacherV2,
@@ -9353,6 +9374,7 @@ router.get('/config', async (req, res) => {
         selfObservation: false,
         childTest: false,
         coachObservation: false,
+        observeOnPortal: false,
         newUi: false,
         coachV2: false,
         teacherV2: false,
