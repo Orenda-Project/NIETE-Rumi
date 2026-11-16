@@ -11,6 +11,7 @@ import TeacherPage from '../TeacherPage';
 import { LESSONS_NEW, lessonsUrl, readAt, type LessonsAt } from './paths';
 import { Steps } from './Steps';
 import { DC_PICK } from '../coaching/libraryPick';
+import { OWN_PICK, OWN_START, ownUrl } from './own/state';
 
 /**
  * bd-fmf24g.3 — the subject's chapters (v28 canvas LessonsChapters): one row each, "Chap" over its
@@ -19,6 +20,8 @@ import { DC_PICK } from '../coaching/libraryPick';
  * bd-fgj73x — step 2 of 3 of a new lesson plan: Back is step 1, Grade and subject.
  * bd-fgj73x.5 — `pick=dc` (Digital Coaching's From the library, for the class she picked): "Choose a lesson plan" for
  * that grade and subject, no steps, and Back is the step back to her DC screen.
+ * bd-snkn32.25 — `pick=own` (the main page's Make my own card): a chapter goes straight into the Make my own steps,
+ * no steps here, and Back is grade and subject in own mode.
  */
 
 export function ChaptersPage() {
@@ -35,15 +38,16 @@ function Chapters({ at }: { at: LessonsAt }) {
   const list = dataOf(chapters) ?? [];
   const navigate = useNavigate();
   const picking = at.pick === DC_PICK;
+  const own = at.pick === OWN_PICK;
 
   return (
     <TeacherPage
       feature="lessons"
       crumb={picking ? C.crumb(C.grade(at.grade), name || null) : C.grade(at.grade)}
       title={picking ? C.choosePlan : name}
-      {...(picking ? { onBack: () => navigate(-1) } : { backTo: LESSONS_NEW })}
+      {...(picking ? { onBack: () => navigate(-1) } : { backTo: own ? OWN_START : LESSONS_NEW })}
     >
-      {picking ? null : <Steps n={2} />}
+      {picking || own ? null : <Steps n={2} />}
       <LoadState status={chapters.status} empty={!list.length} onRetry={retry} />
       {list.length ? (
         <div className={LIST_CARD}>
@@ -56,7 +60,7 @@ function Chapters({ at }: { at: LessonsAt }) {
               number={c.number ?? i + 1}
               label={c.title}
               subtitle={C.crumb(c.pages, C.lessonsCount(c.lessons))}
-              to={lessonsUrl('lessons', { ...at, chapter: c.key })}
+              to={own ? ownUrl({ grade: at.grade, subject: at.subject, chapter: c.key }) : lessonsUrl('lessons', { ...at, chapter: c.key })}
             />
           ))}
         </div>

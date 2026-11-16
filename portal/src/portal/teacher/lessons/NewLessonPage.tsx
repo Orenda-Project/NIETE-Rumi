@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
@@ -11,6 +11,8 @@ import TeacherPage from '../TeacherPage';
 import { LESSONS_HOME, lessonsUrl } from './paths';
 import { Steps } from './Steps';
 import { FlnBand } from '../../fln/FlnBand';
+import { OWN } from './own/copy';
+import { OWN_PICK } from './own/state';
 
 /**
  * bd-fgj73x — step 1 of 3 of a new lesson plan, Grade and subject (Assessment's Class step, the same kit picker).
@@ -28,6 +30,9 @@ const NO_SUBJECTS: SubjectsByGrade = {};
 
 export function NewLessonPage() {
   const C = useCopy(LESSONS);
+  const O = useCopy(OWN);
+  // bd-snkn32.25 — from the main page's Make my own card: same picker, every pick carries pick=own on to the chapters.
+  const own = new URLSearchParams(useLocation().search).get('pick') === OWN_PICK ? OWN_PICK : undefined;
   const navigate = useNavigate();
   const { toast } = useToast();
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
@@ -48,7 +53,7 @@ export function NewLessonPage() {
   // Hers: straight to its chapters, with the catalogue's own key and the one subject key.
   const toChapters = (_v: GradeSubjectPair, pick: ClassPick) => {
     const c = pick.combo as (GradeSubject & { featureKey: string }) | null;
-    return pick.mine && c && c.grade != null ? lessonsUrl('chapters', { grade: c.grade, subject: c.featureKey, key: c.subjectKey }) : undefined;
+    return pick.mine && c && c.grade != null ? lessonsUrl('chapters', { grade: c.grade, subject: c.featureKey, key: c.subjectKey, pick: own }) : undefined;
   };
 
   // Any other pair: the catalogue's key for it, then its chapters.
@@ -62,7 +67,7 @@ export function NewLessonPage() {
       const want = norm(v.subject);
       const s = subjects.find((x) => x.name === v.subject)
         ?? (want ? subjects.find((x) => norm(x.name) === want || norm(x.key) === want) : undefined);
-      if (s) navigate(lessonsUrl('chapters', { grade: v.grade, subject: s.key }));
+      if (s) navigate(lessonsUrl('chapters', { grade: v.grade, subject: s.key, pick: own }));
       else toast({ title: C.notAvailable });
     } catch {
       toast({ title: C.couldNotOpen, variant: 'destructive' });
@@ -72,8 +77,8 @@ export function NewLessonPage() {
   };
 
   return (
-    <TeacherPage crumb={C.newLessonPlan} title={C.gradeAndSubject} backTo={LESSONS_HOME} testId="lessons-new">
-      <Steps n={1} />
+    <TeacherPage crumb={own ? O.makeMyOwn : C.newLessonPlan} title={C.gradeAndSubject} backTo={LESSONS_HOME} testId="lessons-new">
+      {own ? null : <Steps n={1} />}
       <ClassPicker
         label={C.selectGradeSubject}
         feature="lessons"

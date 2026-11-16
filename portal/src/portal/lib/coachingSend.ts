@@ -23,7 +23,7 @@ import { portal, type LiveMovesRecord } from "../services/api";
 import { failureOf, reportSendFailure, type SendFailure } from "./dcUploadReport";
 import { isHeld, readPicked, READ_RETRY_MS, Unreadable } from "./pickedRead";
 
-export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" };
+export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" } | { ownId: string };
 
 export type PlanChoice =
   | { kind: "library"; pick: LibraryPick }

@@ -69,6 +69,8 @@ const {
 } = require('../config/lp612-flags');
 const Lp612Curriculum = require('../services/lp612-curriculum.service');
 const Lp612GbShelf = require('../services/lp612-gb-shelf.service');
+const Lp612OwnOffer = require('../services/lp612-own-offer'); // bd-iceyyu — Make my own, a hand-off to the portal
+const teacherRef = (id) => { try { return id ? require('../services/quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 const FlowTelemetry = require('./pakistan-lp-telemetry');
 
@@ -268,9 +270,11 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   // off must be refused, not served.
   if (step === 'lp612_subject')      return lp612Guard(async () => selectLp612Subject(d, await books()));
   if (step === 'lp612_chapter_page') return lp612Guard(async () => selectLp612ChapterPage(d, await books()));
-  if (step === 'lp612_chapter')      return lp612Guard(async () => selectLp612Chapter(d, await books()));
+  if (step === 'lp612_chapter')      return lp612Guard(async () => selectLp612Chapter(d, await books(), flowToken));
   if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
   if (step === 'lp612_segment_page') return lp612Guard(async () => selectLp612SegmentPage(d, await books()));
+  // A 1-5 row is the K-5 lane's, so the 6-12 switch does not close it; isOfferedTo is its own switch.
+  if (step === Lp612OwnOffer.STEP)   return isV8Grade(d.grade) ? selectLp612Own(flowToken, d) : lp612Guard(() => selectLp612Own(flowToken, d));
   if (step === 'lp612_serve')        return lp612Guard(() => serveLp612Segment(flowToken, d));
   // bd-rj6w0n.14.5 — a Coming Soon GB book can be seen but never opened.
   if (step === Lp612GbShelf.SOON_STEP) {
@@ -603,15 +607,24 @@ const userIdFrom = (flowToken) => String(flowToken || '').split(':')[0];
  * Build a SELECT_LESSON (or SELECT_LESSON_MORE) screen for one chapter.
  * The ✓/○ tick is per-teacher, so this needs the flow token.
  */
-async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId, bookKeys) {
+async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId, bookKeys, carriedLead = false) {
   const userId = userIdFrom(flowToken);
   const [available, downloaded] = await Promise.all([
     V8Delivery.availableLessonIds(),
     V8Delivery.downloadedLessonIds(userId),
   ]);
-  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, ...v8Shelf(bookKeys));
+  // Make my own goes first on page 1 when it is on for her; page 2 learns of it from the More row's lead.
+  const offered = page === 1 && Boolean(userId) && await Lp612OwnOffer.isOfferedTo(userId);
+  const lead = offered || (page > 1 && carriedLead);
+  const shelfArgs = lead ? [Array.isArray(bookKeys) ? bookKeys : undefined, 1] : v8Shelf(bookKeys);
+  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, ...shelfArgs);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
+  }
+  if (offered) {
+    const rtl = Boolean((V8Catalog.bookFor(grade, subject, ...v8Shelf(bookKeys)) || {}).rtl);
+    items.unshift(Lp612OwnOffer.ownRow({ grade, subject, chapterKey: String(chapter), rtl }));
+    logToFile('LP 1-5: Make my own row shown', { tk: teacherRef(userId), grade, subject, chapter: String(chapter) });
   }
   const ch = V8Catalog.chapterFor(grade, subject, chapter, ...v8Shelf(bookKeys));
   // A review chapter (GB's 'R1' "Review 1") is named by its title; every other header reads as it always has.
@@ -635,7 +648,7 @@ async function selectLessonPage(flowToken, d, bookKeys) {
   if (!isV8Grade(grade) || !d.subject || d.chapter === undefined) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
   }
-  return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE', bookKeys);
+  return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE', bookKeys, d.lead === '1');
 }
 
 /**
@@ -945,7 +958,7 @@ async function selectLp612ChapterPage(d, curriculum) {
   return lp612ChapterScreen(d, parseInt(d.page, 10) || 2, 'SELECT_CHAPTER_MORE', curriculum);
 }
 
-async function lp612SegmentScreen(d, page, screenId, curriculum) {
+async function lp612SegmentScreen(d, page, screenId, curriculum, flowToken = null) {
   const grade = parseInt(d.grade, 10);
   if (!Number.isFinite(grade) || !d.subject || !d.chapter_key) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
@@ -954,8 +967,17 @@ async function lp612SegmentScreen(d, page, screenId, curriculum) {
   // (grade, subject) and number their chapters from c01, so without it this lists
   // both books' lessons under one chapter (bd-oak77.5). Absent on rows rendered
   // before that shipped, which is why buildSegmentItems treats it as optional.
-  const { items, total } = await Lp612Catalog.buildSegmentItems(
-    grade, d.subject, d.chapter_key, page, d.book_stem || null, ...lp612Args(curriculum));
+  // bd-iceyyu — Make my own goes first on page 1 for a flag-on teacher; the catalogue keeps a row free for it, and a
+  // later page knows from its More row (`lead`). Flag off: the catalogue is asked exactly as before.
+  const offered = page === 1 && Boolean(flowToken) && await Lp612OwnOffer.isOfferedTo(userIdFrom(flowToken));
+  const lead = offered || (page > 1 && d.lead === '1') ? 1 : 0;
+  const args = lead ? [{ ...(lp612Args(curriculum)[0] || {}), lead }] : lp612Args(curriculum);
+  const { items, total, rtl } = await Lp612Catalog.buildSegmentItems(
+    grade, d.subject, d.chapter_key, page, d.book_stem || null, ...args);
+  if (offered && items.length) {
+    items.unshift(Lp612OwnOffer.ownRow({ grade, subject: d.subject, chapterKey: String(d.chapter_key), rtl: Boolean(rtl) }));
+    logToFile('LP 6-12: Make my own row shown', { tk: teacherRef(userIdFrom(flowToken)), grade, subject: d.subject, chapterKey: d.chapter_key });
+  }
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
@@ -972,8 +994,29 @@ async function lp612SegmentScreen(d, page, screenId, curriculum) {
   };
 }
 
-async function selectLp612Chapter(d, curriculum) {
-  return lp612SegmentScreen(d, 1, 'SELECT_LESSON', curriculum);
+async function selectLp612Chapter(d, curriculum, flowToken = null) {
+  return lp612SegmentScreen(d, 1, 'SELECT_LESSON', curriculum, flowToken);
+}
+
+/**
+ * bd-iceyyu — "Make my own" was tapped. ONE message (a button into the portal's Make my own on this chapter, signed
+ * in), and the Flow closes saying the button is in the chat. Re-checked here: a row in scrollback outlives the flag.
+ */
+async function selectLp612Own(flowToken, d) {
+  const grade = parseInt(d.grade, 10);
+  const unavailable = (language) => ({ data: { error: { message: resolveUx('lpOwnUnavailable', { language }) } } });
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !d.subject || !d.chapter_key) return unavailable();
+  const userId = userIdFrom(flowToken);
+  if (!(await Lp612OwnOffer.isOfferedTo(userId))) return unavailable();
+  const who = await getPhoneForUser(userId);
+  if (!who || !who.phone_number) return unavailable();
+  const language = who.preferred_language;
+  logToFile(`LP ${grade <= 5 ? '1-5' : '6-12'}: Make my own row tapped`, { tk: teacherRef(userId), grade, subject: d.subject, chapterKey: d.chapter_key });
+  const sent = await Lp612OwnOffer.sendOwnLink({
+    userId, phone: who.phone_number, language, grade, subject: d.subject, chapterKey: String(d.chapter_key),
+  });
+  if (!sent) return unavailable(language);
+  return { screen: 'SUCCESS', data: { message: resolveUx('lpOwnFlowAck', { language }) } };
 }
 
 /** "More lessons →" — a second screen, because Meta rejects a self-route. */

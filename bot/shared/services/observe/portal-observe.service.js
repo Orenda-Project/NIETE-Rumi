@@ -38,6 +38,7 @@
 const crypto = require('crypto');
 const PortalCoaching = require('../coaching/portal-coaching.service');
 const { stepOfRow } = require('./portal-observe-step');
+const OwnPlans = require('./observe-own-plans');
 
 const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_PHOTOS } = PortalCoaching;
 
@@ -72,6 +73,8 @@ function withDefaults(deps = {}) {
     resolveOwner: () => require('./observe-capture.service').resolveBoundTeacherUserId,
     schedule: () => require('./observe-schedule.service'),
     library: () => require('../coaching/portal-lesson-plan-library.service'),
+    // bd-snkn32.41 — her own Make my own plans (listed for the coach; a pick resolves to her PDF).
+    ownPlans: () => OwnPlans,
     draft: () => require('./observe-draft.service'),
     pack: () => require('./observe-framework').getObservePack,
     languageFor: () => require('./observe-language').languageFor,
@@ -315,9 +318,10 @@ async function startPortalObservation({
   if (lessonPlanKey && !isOwnPortalKey(userId, lessonPlanKey, 'lesson_plan')) return { status: 'invalid', reason: 'not_your_upload' };
   if (photos.length > MAX_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
   if (photos.some((k) => !isOwnPortalKey(userId, k, 'photo'))) return { status: 'invalid', reason: 'not_your_upload' };
-  const { pick, bad } = libraryPick(picked);
+  const own = OwnPlans.ownPick(picked); // bd-snkn32.41: { ownId } — a plan she made herself
+  const { pick, bad } = own ? { pick: null, bad: !!own.bad } : libraryPick(picked);
   if (bad) return { status: 'invalid', reason: 'bad_lesson_plan' };
-  if (pick && lessonPlanKey) return { status: 'invalid', reason: 'two_lesson_plans' };
+  if ((pick || own) && lessonPlanKey) return { status: 'invalid', reason: 'two_lesson_plans' };
 
   const d = withDefaults(deps);
   const coach = await loadCoach(d, userId);
@@ -362,6 +366,10 @@ async function startPortalObservation({
   } else if (pick) {
     libraryAsset = await d.library.resolveAsset({ userId: ownerUserId, ...pick });
     if (!libraryAsset) return { status: 'invalid', reason: 'plan_not_found' };
+  } else if (own) {
+    // bd-snkn32.41: her own plan's PDF goes in as the plan FILE (an uploaded plan's path): the worker reads it for B.
+    libraryPdfKey = await d.ownPlans.resolveKey({ userId: ownerUserId, ownId: own.ownId });
+    if (!libraryPdfKey) return { status: 'invalid', reason: 'plan_not_found' };
   }
 
   // bd-ra8xu.40: the visit's rubric, decided ONCE here as observe-capture decides it on WhatsApp.
@@ -462,7 +470,14 @@ async function teacherRecentPlans({ userId, teacherExtId, schoolExtId = null }, 
   const teacher = await resolveTeacherSafely(d, userId, teacherExtId, schoolExtId);
   if (!teacher) return { status: 'invalid', reason: 'not_your_teacher' };
   if (!teacher.user_id) return { status: 'ok', plans: [] };
-  return PortalCoaching.recentLessonPlans({ userId: teacher.user_id }, { library: d.library });
+  const res = await PortalCoaching.recentLessonPlans({ userId: teacher.user_id }, { library: d.library });
+  if (res.status !== 'ok') return res;
+  // bd-snkn32.41: and the plans she made herself (a failure here leaves her downloads, never an error).
+  let own = [];
+  try { own = await d.ownPlans.list(teacher.user_id); } catch (err) {
+    d.log('⚠️ portal observe: her own plans did not load (downloads only)', { error: err && err.message }, 'warn');
+  }
+  return { ...res, plans: OwnPlans.mergeRecent(res.plans, own) };
 }
 
 // ── what the portal shows ──────────────────────────────────────────────────

@@ -1,0 +1,2069 @@
+{
+ "mode": "after-44",
+ "at": "2026-11-13T11:39:25.423Z",
+ "summary": {
+  "days": 60,
+  "refusedAfterRound1": 4,
+  "refusedAfterRound2": 0,
+  "refusalRateRound1": 0.067,
+  "failRate": 0,
+  "modelCalls": 64,
+  "costUSD": 2.32,
+  "costPerDay": 0.039,
+  "daysWithSoftFixes": 17,
+  "daysWithWarnings": 0,
+  "fixKinds": {
+   "trimmed hook.steps N→N": 11,
+   "trimmed wrap.homework N→N": 2,
+   "minutes set to fill the N-minute period": 5,
+   "trimmed weDo.steps N→N": 1
+  },
+  "reasons": {
+   "r1: a teacher check on each child : in a big class check the whole class a": 1,
+   "r1: uses a board she does not have : use the book page instead": 1,
+   "r1: uses slates : the children work in the book": 1,
+   "r1: goal (the learning outcome) changed": 1
+  },
+  "errors": []
+ },
+ "days": [
+  {
+   "lessonId": "grade_1_english_ch1_seg2",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041278
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 71
+  },
+  {
+   "lessonId": "grade_1_english_ch4_seg7",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029452
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_english_ch10_seg4",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.025614
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_english_ch10_seg8",
+   "grade": 1,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.032458
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3",
+      "trimmed wrap.homework 2→1"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3",
+    "trimmed wrap.homework 2→1"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_urdu_ch3_seg1",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.045174
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_urdu_ch9_seg3",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.061928
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_urdu_ch11_seg1",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03938
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_urdu_ch4_seg5",
+   "grade": 1,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.047678
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_maths_ch6_seg9",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041564
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_1_maths_ch1_seg11",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.051184
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_maths_ch2_seg8",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.044612
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_english_ch1_seg7",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "behind",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.039442
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_1_maths_ch6_seg7",
+   "grade": 1,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029234
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_english_ch1_seg2",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.048174
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_english_ch3_seg1",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "mixed",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029128
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_english_ch7_seg3",
+   "grade": 2,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "ahead",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02495
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_urdu_ch5_seg6",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041528
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_urdu_ch11_seg4",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03025
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_urdu_ch8_seg2",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.040302
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_math_ch13_seg2",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.032612
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_2_urdu_ch5_seg1",
+   "grade": 2,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.037574
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_math_ch3_seg5",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.031606
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_english_ch10_seg5",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.034712
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_math_ch1_seg7",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.043732
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_english_ch9_seg5",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.023314
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_3_english_ch4_seg8",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03459
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 4→3"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 4→3"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_english_ch3_seg8",
+   "grade": 3,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.025106
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_3_urdu_ch9_seg3",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "behind",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.034022
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_urdu_ch14_seg1",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "mixed",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.041378
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_urdu_ch5_seg4",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03985
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_math_ch6_seg7",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.032216
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_math_ch3_seg1",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028624
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_math_ch15_seg2",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028426
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2",
+      "trimmed weDo.steps 4→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2",
+    "trimmed weDo.steps 4→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_english_ch10_seg8",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02828
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_math_ch2_seg4",
+   "grade": 3,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.056218
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_english_ch2_seg7",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.047466
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_english_ch5_seg3",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028494
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_english_ch7_seg3",
+   "grade": 4,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029584
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_urdu_ch11_seg6",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.04328
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_urdu_ch18_seg1",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03938
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_urdu_ch9_seg4",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.045162
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_math_ch8_seg5",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "behind",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.027516
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_math_ch7_seg5",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "on_track",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.030622
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_math_ch6_seg8",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03281
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_4_urdu_ch14_seg1",
+   "grade": 4,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.038528
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_english_ch5_seg1",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook"
+    ],
+    "level": "on_track",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.025862
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_2_math_ch14_seg3",
+   "grade": 2,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.027004
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_2_math_ch14_seg3\",\"grade\":2,\"subject\":\"math\",\"language\":\"en\",\"topic\":\"2-D and 3-D Shape Patterns\",\"chapterTitle\":\"Ch.14 · Pattern Parade: The Rhythm of Numbers\",\"minutes\":40,\"sloDescriptions\":[\"To continue a shape pattern, find the complete part that repeats, say it in order, and start that same order again.\"],\"source\":\"v9_html\",\"adapterV2\":2},\"goal\":\"To continue a shape pattern, find the complete part that repeats, say it in order, and start that same order again.\",\"sloFull\":\"To continue a shape pattern, find the complete part that repeats, say it in order, and start that same order again.\",\"sloCode\":\"M-02-PA-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"Say: 'Dekho aur batao' — Open p.275 and look at the food tray. A samosa is the shape of a ...?\",\"expectedAnswer\":\"Triangle.\"},\"conversation\":[{\"teacherAsks\":\"Look at the food tray on p.275: samosa, tomato, cake. Everyone, together: what shape comes after the circle?\"}],\"keyWords\":[{\"term\":\"2-D shape\",\"def\":\"Flat shape, like the triangle, circle, square on p.275.\"},{\"term\":\"3-D shape\",\"def\":\"Solid shape, like the cone, sphere, cube on p.276.\"}],\"board\":{\"content\":\"Pattern: triangle, circle, square, triangle, circle, square\"},\"materials\":[\"textbook pp.275-276\",\"pencils\",\"student notebooks\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"Hold up the book open at p.275. Point to the food tray: samosa, tomato, cake, samosa, tomato, cake.\",\"say\":\"The book says this is a repeating pattern of triangle, circle, square.\"},{\"n\":2,\"action\":\"Turn to p.276. Point to the cone, sphere, cube row.\",\"say\":\"The samosa becomes a cone, the gulab jamun becomes a sphere, the barfi becomes a cube — now it is solid, 3-D.\"},{\"n\":3,\"say\":\"The repeating part is cone, sphere, cube. After cube, we start again: cone, sphere.\"},{\"n\":4,\"say\":\"A square is flat on paper; a cube you could hold in your hand. Say it with me once, together: 'flat is 2-D, solid is 3-D.'\"}],\"cfu\":\"CFU (whole class, thumbs): Point to the cube on p.276 and ask: is this flat or solid? Thumbs up for solid, thumbs down for flat.\",\"misconception\":{\"fix\":\"If pupils call the cube a square, say: 'Can you pick it up? Then it is solid, a cube.'\"}},\"weDo\":{\"minutes\":12,\"strategy\":\"Whole-class game tied to the page, checked together with claps, calling out, and raised books — never one child at a time.\",\"steps\":[{\"n\":1,\"action\":\"Play Pattern Clap: say 'jump, clap, stomp' and have the whole class repeat the actions together twice, seated at their desks.\"},{\"n\":2,\"action\":\"Point to p.275 food tray. Whole class calls out the pattern together: triangle, circle, square, triangle, circle, square.\"},{\"n\":3,\"action\":\"Point to p.276 Practice Q1a (square pattern row). Whole class calls out what comes next, then everyone draws the next 2 shapes in their notebook.\"}],\"cfu\":\"Whole-class check: say 'Books up!' — all pupils raise their notebooks open at Q1a at the same time so you can scan for the next 2 shapes drawn.\"},\"youDo\":{\"minutes\":12,\"problems\":[{\"n\":1,\"prompt\":\"Textbook p.276 Practice Question 1b: cylinder, sphere, cube, cylinder, sphere, cube. In your notebook, draw the next 2 shapes alone.\",\"answer\":\"Cylinder, then sphere.\"},{\"n\":2,\"prompt\":\"Textbook p.275 Adventure Begins Q3: draw the next two 2D shapes in the food tray pattern alone in your notebook.\",\"answer\":\"Triangle, then circle.\"}],\"behind\":{\"prompt\":\"Say the part that repeats aloud first, point to it twice in the book, then draw only the first next shape alone.\"},\"ahead\":{\"prompt\":\"Make a new pattern with the same 3-D shapes in a different order: sphere, cube, cylinder, sphere, cube, cylinder. Draw the next two shapes alone.\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"Say: 'Yeh karke dikhao' — New item on the board: cone, cylinder, cone, cylinder. Draw the next 2 shapes and say the part that repeats. Whole class check: thumbs up or down together.\",\"answer\":\"Cone, then cylinder. The part that repeats is cone, cylinder.\"}],\"reteach\":\"2-D shapes are flat; 3-D shapes are solid. Find the part that repeats and start it again.\",\"homework\":[\"At home, line up 6 things in a repeating pattern, such as ball, box, ball, box, ball, box. Draw it in your notebook and write the shape name under each one.\"]}}\n```",
+     "cost": 0.030628,
+     "tokens": {
+      "in": 6429,
+      "out": 1777
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "a teacher check on each child (\"Whole-class game tied to the page, then choral completion of\"): in a big class check the whole class at once (choral, fingers, books up)"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 13894
+  },
+  {
+   "lessonId": "grade_5_english_ch9_seg4",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook"
+    ],
+    "level": "behind",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.029578
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_english_ch1_seg7",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "mixed",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03915
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_english_ch3_seg7",
+   "grade": 5,
+   "subject": "english",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028322
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_4_math_ch8_seg3",
+   "grade": 4,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02885
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed hook.steps 3→2"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed hook.steps 3→2"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_urdu_ch10_seg1",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "on_track",
+    "way": "phonics",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.04095
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_urdu_ch14_seg3",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "mixed",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.03651
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_urdu_ch4_seg3",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "ahead",
+    "way": "story",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.038908
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_math_ch5_seg4",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "51_70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.030972
+    }
+   ],
+   "refusals": [],
+   "fit": [],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_5_math_ch2_seg10",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 30,
+   "answers": {
+    "size": "31_50",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "mixed",
+    "way": "cpa",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.054646
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "minutes set to fill the 30-minute period"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "minutes set to fill the 30-minute period"
+   ],
+   "warnings": [],
+   "ms": 1
+  },
+  {
+   "lessonId": "grade_5_math_ch4_seg6",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "on_track",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.02758
+    }
+   ],
+   "refusals": [],
+   "fit": [
+    {
+     "round": 1,
+     "fixes": [
+      "trimmed wrap.homework 2→1"
+     ],
+     "warnings": []
+    }
+   ],
+   "ok": true,
+   "rounds": 1,
+   "fixes": [
+    "trimmed wrap.homework 2→1"
+   ],
+   "warnings": [],
+   "ms": 0
+  },
+  {
+   "lessonId": "grade_3_urdu_ch15_seg4",
+   "grade": 3,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "charts"
+    ],
+    "level": "ahead",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.040714
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_3_urdu_ch15_seg4\",\"grade\":3,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"رموزِ اوقاف — قوسین، استفہامیہ وغیرہ\",\"chapterTitle\":\"باب ۱۵ · بچوں کے لیے اقبال رحمت اللہ علیہ کا پیغام\",\"minutes\":40,\"sloDescriptions\":[\"میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\",\"sloFull\":\"میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\",\"sloCode\":\"U-03-GR-15\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"صفحہ ۱۵۱ کھولیں۔ 'تمھارا نام کیا ہے؟' کے آخر میں کون سا نشان ہے؟\",\"expectedAnswer\":\"← سوالیہ نشان ؟۔\"},\"conversation\":[{\"teacherAsks\":\"سب مل کر بتائیں: یہ نشان کیوں لگا؟ متوقع: کیونکہ یہ سوال ہے۔ آج کا ہدف: میں جملے میں ۔ ، ؟ اور ( ) درست جگہ لگا سکتا/سکتی ہوں۔\"}],\"keyWords\":[{\"term\":\"رموزِ اوقاف\",\"def\":\"وہ نشان جو جملے کے وقفے سمجھنے میں مدد دیتے ہیں\"},{\"term\":\"قوسین ( )\",\"def\":\"وضاحتی بات کے گرد\"}],\"materials\":[\"اردو کی درسی کتاب صفحہ ۱۵۰-۱۵۲\",\"طلباء کی کاپیاں\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"کتاب کے صفحہ ۱۵۱ پر مثالوں کی طرف اشارہ کریں: بات ختم تو ختمہ ۔، سوال تو ؟۔\"},{\"n\":2,\"action\":\"اسی صفحہ کی مثال (الف) دکھائیں: 'تعلیم آباد والے' ہٹا کر پڑھیں؛ جملہ پھر بھی پورا ہے، اس لیے یہ وضاحت ہے اور اس کے گرد ( ) آتے ہیں۔\"},{\"n\":3,\"say\":\"عام غلطی کی نشان دہی کریں: 'کیا' سے شروع جملے کے آخر میں ۔ لگانا غلط ہے، سوال کے آخر میں ؟ آتا ہے۔\"},{\"n\":4,\"say\":\"فوری جانچ: 'تمہارا نام کیا ہے' کے آخر میں کیا نشان آئے گا؟ سب ہوا میں انگلی سے لکھیں۔ متوقع: ؟۔\"}],\"cfu\":\"سب مل کر بتائیں: سوال کے آخر میں کون سا نشان؟ متوقع: ؟۔\",\"misconception\":{\"slip\":\"کیا تم میرے گھر آ رہے ہو۔\",\"fix\":\"یہ بات بتا رہا ہے یا پوچھ رہا ہے؟ تو آخر میں ؟ لگے گا۔\"}},\"weDo\":{\"minutes\":12,\"strategy\":\"نشان کی حرکت کا کھیل: استاد جملہ بولیں، بچے ہاتھ کی حرکت سے نشان بتائیں۔\",\"steps\":[{\"n\":1,\"action\":\"کہیں: 'میں جملہ بولوں گی۔ اگر بات ختم ہو تو مٹھی بند کریں، سوال ہو تو انگلی اوپر اٹھائیں۔' صفحہ ۱۵۱ کے سوال ۲ کے چاروں جملے باری باری بولیں اور پوری جماعت سے مل کر حرکت کروائیں۔\"},{\"n\":2,\"action\":\"صفحہ ۱۵۱ کا سوال ۱ (الف) کتاب میں سب سے مل کر پڑھیں: 'جوجو اور پنکی (تعلیم آباد والے)...' پوچھیں: اضافی بات کون سی ہے؟ سب مل کر جواب دیں، متوقع: تعلیم آباد والے۔ اگر کوئی غلط بولے تو کہیں: اسے ہٹا کر پڑھو، جملہ پورا بنتا ہے؟\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کہیں: 'اب ہر بچہ اکیلا کاپی میں کام کرے: سوال ۱ (ب، ج) اور سوال ۲ (ج، د)، صفحہ ۱۵۱۔ تالی پر قلم رکھ دیں۔'\"},{\"n\":2,\"action\":\"جو بچے تیز ہیں وہ صفحہ ۱۵۲ کا اقتباس 'مجھے کل سے بخار تھا...' کاپی میں لکھ کر درست نشان لگائیں۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"سوال ۱ (ب): کہانیوں کی کتاب جو تحفہ تھی کل رات سے نہیں مل رہی۔ (قوسین لگائیں)\",\"answer\":\"کہانیوں کی کتاب (جو تحفہ تھی) کل رات سے نہیں مل رہی۔\"},{\"n\":2,\"prompt\":\"سوال ۲ (ج): میں نے کتابیں قلم اور کاپی خریدی\",\"answer\":\"میں نے کتابیں، قلم اور کاپی خریدی۔\"}],\"behind\":{\"prompt\":\"استاد پوچھے: بات بتائی یا پوچھی؟ پھر بچہ خود نشان لگائے۔\"},\"ahead\":{\"prompt\":\"صفحہ ۱۵۲ کا اقتباس کاپی میں لکھ کر درست نشان لگائیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"کتاب کے صفحہ ۱۵۱ میں سوال ۲ (ب) کی طرف اشارہ کریں: 'کیا تم میرے گھر آ رہے ہو' سب مل کر بلند آواز سے پڑھیں۔ پوچھیں: آخر میں کون سا نشان آئے گا اور کیوں؟ سب انگوٹھے سے بتائیں: ٹھیک سمجھ آیا تو اوپر، نہیں تو نیچے۔\",\"answer\":\"← سوالیہ نشان ؟، کیونکہ یہ سوال ہے۔\"}],\"reteach\":\"بات ختم ہو تو ۔، سوال ہو تو ؟، وقفہ یا فہرست ہو تو ،، اضافی وضاحت ہو تو ( )۔\",\"homework\":[\"کاپی میں اپنے دو جملے لکھیں: ایک سوال اور ایک تین چیزوں کی فہرست والا؛ ہر جملے میں درست رموزِ اوقاف لگائیں۔\"]}}\n```",
+     "cost": 0.046136,
+     "tokens": {
+      "in": 10003,
+      "out": 2613
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "uses a board she does not have (\"ایک جملہ بورڈ کی بجائے کتاب کے صفحہ ۱۵۱ سے دیکھ کر سب مل کر \"): use the book page instead"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 19732
+  },
+  {
+   "lessonId": "grade_5_math_ch11_seg12",
+   "grade": 5,
+   "subject": "math",
+   "lang": "en",
+   "period": 40,
+   "answers": {
+    "size": "up30",
+    "resources": [
+     "textbook",
+     "board",
+     "objects"
+    ],
+    "level": "ahead",
+    "way": "tarl",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.028536
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_5_math_ch11_seg12\",\"grade\":5,\"subject\":\"math\",\"language\":\"en\",\"topic\":\"Connect & Create: Geometric Collage\",\"chapterTitle\":\"Ch.11 · Geometric Galaxy: Shapes and Spaces\",\"minutes\":40,\"sloDescriptions\":[\"I can find the area of a triangle with half base times height, and of a parallelogram with base times height.\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"I can find the area of a triangle with half base times height, and of a parallelogram with base times height.\",\"sloFull\":\"I can find the area of a triangle with half base times height, and of a parallelogram with base times height.\",\"sloCode\":\"M-05-GE-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"Say together: the area formula of a triangle, and of a parallelogram.\",\"expectedAnswer\":\"Triangle: half times base times height. Parallelogram: base times height.\"},\"conversation\":[{\"teacherAsks\":\"Open textbook p.252. Look at the house and the sailboat. Which shapes do you see — triangles, rectangles, parallelograms? Show me with your fingers (3 fingers = triangle, 4 = rectangle).\"}],\"steps\":[{\"n\":1,\"action\":\"Open book to p.252. Point to the roof and the sail in the picture.\"},{\"n\":2,\"action\":\"Ask: is a triangle's area the same as a rectangle's, or half? Thumbs up for half, thumbs down for same.\"}],\"keyWords\":[{\"term\":\"triangle\",\"def\":\"Area = 1/2 x base x height.\"},{\"term\":\"parallelogram\",\"def\":\"Area = base x height.\"},{\"term\":\"collage\",\"def\":\"A picture made from pieces of recycled paper and card.\"}],\"materials\":[\"textbook p.252\",\"chalk\",\"board\",\"copies\"]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"action\":\"On the board draw a rectangle 8 cm by 5 cm, then a line corner to corner showing the triangle is half of it.\"},{\"n\":2,\"say\":\"Page 252 shows a house with a triangular roof but no numbers, so we pick base 8 cm, height 5 cm. Rectangle area = 8 x 5 = 40 cm2.\"},{\"n\":3,\"say\":\"Triangle = 1/2 x 8 x 5 = 20 cm2. A parallelogram has no half: base x height only.\"},{\"n\":4,\"say\":\"Check yourself: is my shape a triangle? Then I halve. Is it a parallelogram? No halving.\"}],\"cfu\":\"CFU: Triangle base 6 cm, height 4 cm. Why do we halve for a triangle but not a parallelogram? Expected: a triangle is half its rectangle. Area = 1/2 x 6 x 4 = 12 cm2.\",\"misconception\":{\"slip\":\"Writing base x height for a triangle with no half.\",\"fix\":\"Ask: does it fill the whole rectangle or half? Triangle halves, parallelogram does not.\"}},\"weDo\":{\"minutes\":12,\"strategy\":\"Group by level, by row. Each row gets its own task written in their copy, checked by choral answer and show-of-copy.\",\"steps\":[{\"n\":1,\"action\":\"Row 1 (needs support): in the copy, draw the rectangle for a triangle with base 8 cm, height 4 cm. Find rectangle area (8x4) together, then halve together.\"},{\"n\":2,\"action\":\"Row 2 (on level): sailboat sail on p.252, base 10 cm height 6 cm — write A = 1/2 x 10 x 6 in the copy, solve together.\"},{\"n\":3,\"action\":\"Row 3 (ahead): window pane as parallelogram, base 7 cm height 3 cm — write A = 7 x 3 in the copy, then also find a triangle with the same base and height and compare the two areas.\"},{\"n\":4,\"say\":\"Whole class CFU together: triangle base 12 cm height 5 cm — what is the area, and is it 60? Show thumbs down for 60, up for 30.\"}]},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"Every child works alone in the copy.\"},{\"n\":2,\"action\":\"If stuck, child checks: is it a triangle? Then halve.\"}],\"problems\":[{\"n\":1,\"prompt\":\"Zainab makes a triangular flag for her collage border: base 10 cm, height 4 cm. Find its area.\",\"answer\":\"1/2 x 10 x 4 = 20 cm2.\"},{\"n\":2,\"prompt\":\"Usman cuts a parallelogram piece: base 9 cm, height 5 cm. Find its area.\",\"answer\":\"9 x 5 = 45 cm2.\"},{\"n\":3,\"prompt\":\"Triangle base 12 cm, height 8 cm. Find its area.\",\"answer\":\"1/2 x 12 x 8 = 48 cm2.\"},{\"n\":4,\"prompt\":\"Stretch: Look at the roof gable picture on p.252. If base is 6 cm and height 3 cm, find the triangle's area, then find the area of a parallelogram with the same base and height. Explain why the two answers differ.\",\"answer\":\"Triangle: 1/2 x 6 x 3 = 9 cm2. Parallelogram: 6 x 3 = 18 cm2. Triangle is half because it only fills half its rectangle.\"}]},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"Thumbs up, sideways or down: 'I can pick the right formula and give area with its unit.' Then solve: (1) Triangle base 12 cm, height 8 cm. (2) Parallelogram base 6 cm, height 4 cm.\",\"answer\":\"(1) 48 cm2. (2) 24 cm2.\"}],\"reteach\":\"Triangle: area = 1/2 x base x height. Parallelogram: area = base x height, no half.\",\"homework\":[\"Find one object at home shaped like a triangle or parallelogram (roof, window, folded box). Measure base and height in cm and find its area.\",\"Draw and label one triangle and one parallelogram with their areas, for your collage page.\"]}}\n```",
+     "cost": 0.032846,
+     "tokens": {
+      "in": 6093,
+      "out": 2066
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "uses slates (\"Group by level, by row. Each row gets its own task on slates\"): the children work in the book"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 14754
+  },
+  {
+   "lessonId": "grade_5_urdu_ch15_seg3",
+   "grade": 5,
+   "subject": "urdu",
+   "lang": "ur",
+   "period": 40,
+   "answers": {
+    "size": "over70",
+    "resources": [
+     "textbook",
+     "board"
+    ],
+    "level": "behind",
+    "way": "games",
+    "note": ""
+   },
+   "calls": [
+    {
+     "replayed": true,
+     "cost": 0.033726
+    },
+    {
+     "content": "```json\n{\"meta\":{\"lessonId\":\"grade_5_urdu_ch15_seg3\",\"grade\":5,\"subject\":\"urdu\",\"language\":\"ur\",\"topic\":\"گہرائی تک پہنچنا اور تحریری سوالات\",\"chapterTitle\":\"باب ۱۵ · علامہ اقبال رحمتہ اللہ علیہ اور ملتِ اسلامیہ (پڑھنے کا سبق)\",\"minutes\":40,\"sloDescriptions\":[\"صفحہ ۱۳۳ کے پاز باکس اور تحریری سوالات کے جواب پورے جملے اور متن یا شعر کے ثبوت کے ساتھ لکھیں۔\"],\"source\":\"v9_html\",\"adapterV\":2},\"goal\":\"صفحہ ۱۳۳ کے پاز باکس اور تحریری سوالات کے جواب پورے جملے اور متن یا شعر کے ثبوت کے ساتھ لکھیں۔\",\"sloFull\":\"صفحہ ۱۳۳ کے پاز باکس اور تحریری سوالات کے جواب پورے جملے اور متن یا شعر کے ثبوت کے ساتھ لکھیں۔\",\"sloCode\":\"U-05-CO-02\",\"hook\":{\"minutes\":4,\"warmUp\":{\"teacherAsks\":\"کتاب کا صفحہ ۱۳۲ اور ۱۳۳ کھولیں۔ پچھلے سبق کا ایک شعر: 'افراد کے ہاتھوں میں ہے اقوام کی تقدیر' — اس کا مطلب کیا ہے؟\",\"expectedAnswer\":\"قوم کی قسمت افراد (لوگوں) کے ہاتھ میں ہوتی ہے۔\"},\"conversation\":[{\"teacherAsks\":\"کہیں: 'صفحہ ۱۳۳ کی پہلی سطر دیکھیں: مسلمانوں میں بقا وحدت اسلامی میں مضمر ہے۔ بقا یعنی قائم رہنا، مضمر یعنی چھپا ہوا۔ مسلمانوں کا قائم رہنا کس چیز میں چھپا ہے؟' دو تین ہاتھ اٹھانے والوں سے سنیں (جواب: وحدت، یعنی ایک ہونا)۔ کہیں: 'آج ہم اسی پر جواب لکھیں گے۔'\"}]},\"iDo\":{\"minutes\":8,\"steps\":[{\"n\":1,\"say\":\"آج کی صلاحیت: میں سوال کا جواب پورے جملے میں، ثبوت کے ساتھ لکھ سکتا/سکتی ہوں۔ میں سوچ کر بولتی/بولتا ہوں، آپ سنیں۔\"},{\"n\":2,\"action\":\"پاز باکس پڑھیں: 'علامہ اقبال رحمت اللہ علیہ ملتِ اسلامی کی کون سی بات کو ناپسند کرتے ہیں؟' ثبوت دکھائیں: صفحہ ۱۳۲، شعر ۴ (سید، مرزا، افغان = نسل پرستی) اور شعر ۵ (فرقہ بندی)۔\"},{\"n\":3,\"action\":\"سوال کے الفاظ سے شروع کر کے پورا جواب بنائیں: 'علامہ اقبال ملتِ اسلامی میں نسل پرستی اور فرقہ بندی کو ناپسند کرتے ہیں؛ ثبوت: شعر ۵۔' عام غلطی: صرف 'نسل پرستی' لکھنا؛ یہ لفظ ہے، جواب نہیں۔\"},{\"n\":4,\"say\":\"سب مل کر بولیں: ثبوت کون سا شعر ہے؟\"}],\"cfu\":\"فوری جانچ: 'فرقہ بندی کا مطلب؟' متوقع جواب: مسلمانوں کا فرقوں میں بٹنا۔ اگر بچے کہیں 'ذات' تو کہیں: 'ذات نسل ہے؛ شعر ۵ میں دو الگ باتیں ہیں۔'\"},\"weDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کھیل: 'ثبوت ڈھونڈو' — استاد سوال ۱ بلند آواز سے پڑھیں: 'خاص پیغام کس کے لیے ہے؟' بچے صفحہ ۱۳۲ کے اشعار میں انگلی سے ثبوت تلاش کریں، ملتے ہی انگلی اوپر اٹھائیں۔\"},{\"n\":2,\"say\":\"جو پہلے انگلی اٹھائے وہ جملہ بولے، باقی کورس میں دہرائیں۔ متوقع جواب: پیغام پوری ملتِ اسلامیہ کے لیے ہے، نہ کہ صرف ایک ملک کے لیے؛ ثبوت: 'نیل کے ساحل سے لے کر تابہ خاکِ کاشغر۔' اگر بچے کہیں 'پاکستان کے لیے' تو پوچھیں: 'کیا نیل سے کاشغر تک ایک ملک ہے؟'\"}],\"strategy\":\"فوری جانچ: 'ثبوت کس شعر میں ملا؟' غلط بتائیں تو کہیں: 'دوبارہ اشعار دیکھو۔'\"},\"youDo\":{\"minutes\":12,\"steps\":[{\"n\":1,\"action\":\"کہیں: 'ہر بچہ اکیلا سوال ۲ اور ۳ کاپی میں لکھے: سوال کے الفاظ، ثبوت، پورا جملہ۔' اشارہ: 'قلم رکھ دیں' جب وقت ختم ہو۔\"}],\"problems\":[{\"n\":1,\"prompt\":\"سوال ۲: آپ ملتِ اسلامیہ کو کس بات کا درس دیتے ہیں؟ ایک شعر بھی ثبوت کے طور پر لکھیں۔\",\"answer\":\"ملتِ اسلامیہ کو نسل پرستی اور فرقہ بندی چھوڑ کر متحد رہنے کا درس دیا جاتا ہے۔ ثبوت: 'بقا وحدت اسلامی میں مضمر ہے' (صفحہ ۱۳۳)۔\"},{\"n\":2,\"prompt\":\"سوال ۳: ان اشعار میں وطن کی محبت کو کیسے بیان کیا گیا ہے؟ پورے جملے میں ثبوت کے ساتھ لکھیں۔\",\"answer\":\"اشعار میں وطن کی محبت کو خوشبو اور پیار کی جگنی سے بیان کیا گیا ہے۔ ثبوت: 'تیری خوشبو کو چھلکائیں گے، ترے پیار کی جگنی گائیں گے۔'\"}],\"behind\":{\"prompt\":\"جملے کا آغاز دیں: 'ملتِ اسلامیہ کی بقا اس وقت ممکن ہے جب ___۔' پہلے زبانی مکمل کروائیں، پھر لکھوائیں۔\"},\"ahead\":{\"prompt\":\"سوال ۲ کے لیے کتاب کا دوسرا شعر بھی ثبوت کے طور پر لکھیں۔\"}},\"wrap\":{\"minutes\":4,\"exitOptions\":[{\"prompt\":\"کامیابی کے اصول بلند آواز سے پڑھیں: 'سوال کے الفاظ، ثبوت، پورا جملہ۔' انگوٹھے سے اندازہ: اوپر = کر لوں گا/گی، سیدھا = شاید، نیچے = مشکل۔\",\"answer\":\"ایک بچہ زبانی سوال ۲ کا پورا جواب سنائے۔\"}],\"homework\":[\"تحریری سوال ۳ کا اپنا جواب گھر والوں کو پڑھ کر سنائیں اور ان سے پوچھیں کہ اتحاد کیوں ضروری ہے، ان کا جواب ایک پورے جملے میں کاپی میں لکھیں۔\"]}}\n```",
+     "cost": 0.044942,
+     "tokens": {
+      "in": 8071,
+      "out": 2880
+     },
+     "model": "anthropic/claude-sonnet-5"
+    }
+   ],
+   "refusals": [
+    {
+     "round": 1,
+     "reasons": [
+      "goal (the learning outcome) changed"
+     ]
+    }
+   ],
+   "fit": [],
+   "ok": true,
+   "rounds": 2,
+   "fixes": [],
+   "warnings": [],
+   "ms": 23231
+  }
+ ]
+}

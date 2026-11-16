@@ -290,7 +290,7 @@ function buildChapterItems(grade, subjectKey, available, bookKeys, page = 1) {
  *
  * @returns {{items: Array, hasMore: boolean, total: number}}
  */
-function buildLessonItems(grade, subjectKey, chapterNumber, available, downloaded, page = 1, bookKeys = undefined) {
+function buildLessonItems(grade, subjectKey, chapterNumber, available, downloaded, page = 1, bookKeys = undefined, lead = 0) {
   const chapter = chapterFor(grade, subjectKey, chapterNumber, bookKeys);
   if (!chapter) return { items: [], hasMore: false, total: 0 };
 
@@ -301,7 +301,9 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
   const pageNum = Math.max(1, Number(page) || 1);
   // Page 1 shows PAGE_SIZE-1 when it needs a More row; every later page shows a
   // full PAGE_SIZE (it is reached via the link, not via another link).
-  const firstPageCount = total > PAGE_SIZE ? PAGE_SIZE - 1 : PAGE_SIZE;
+  // `lead` rows on page 1 belong to the caller (Make my own goes first), so page 1 holds that many fewer.
+  const room = PAGE_SIZE - (lead ? 1 : 0);
+  const firstPageCount = total > room ? room - 1 : room;
   const start = pageNum === 1 ? 0 : firstPageCount + (pageNum - 2) * PAGE_SIZE;
   const slice = lessons.slice(start, start + (pageNum === 1 ? firstPageCount : PAGE_SIZE));
   const remaining = total - (start + slice.length);
@@ -347,6 +349,7 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
           grade: String(grade),
           subject: String(subjectKey),
           chapter: String(chapterNumber),
+          ...(lead ? { lead: '1' } : {}),
         },
       },
     });

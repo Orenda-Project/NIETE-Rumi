@@ -89,7 +89,7 @@ describe('lp-asset-source.store — resolveSlideScript', () => {
     const out = await Store.resolveSlideScript(
       { lessonId: LESSON, versionStamp: STAMP, contentHash: HASH_A }, { client: s.client },
     );
-    expect(out).toEqual({ slideScript: SCRIPT_A, verified: 'upload', assetId: `asset-${HASH_A}` });
+    expect(out).toEqual({ slideScript: SCRIPT_A, verified: 'upload', assetId: `asset-${HASH_A}`, sourceUrl: null });
     expect(s.tables).toEqual(['niete_lp_asset_sources']);
   });
 
