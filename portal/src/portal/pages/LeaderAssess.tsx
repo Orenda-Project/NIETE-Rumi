@@ -698,7 +698,7 @@ export default function LeaderAssess() {
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
   ];
   const bar = (
-    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(list?.perVisit ?? LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={startedAt} limitMs={visitLimitMs(list?.perVisit, RDF_MINUTES)} sync={sync} />
+    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(list?.perVisit ?? LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} kids={list?.perVisit ?? LIST_SIZE} startedAt={startedAt} limitMs={visitLimitMs(list?.perVisit, RDF_MINUTES)} sync={sync} />
   );
 
   const canGoBack = step.kind !== 'schools' && step.kind !== 'engine';
