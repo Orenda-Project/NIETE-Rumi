@@ -825,6 +825,7 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false }, d
   const summary = await d.draft.applyObserverEdits(coachingSessionId, clean);
   if (summary && summary.refused) return { status: 'not_ready', reason: 'terminal' };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'draft');
+  writeNotesAfterSave(d, userId, coachingSessionId);
   return { status: 'ok', summary };
 }
 
@@ -832,20 +833,66 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false }, d
 
 const TALK_STATUS = 'observer_review_complete';
 
+/**
+ * bd-w0zbbe — the guide's model call takes 20-30 s. On production (16 Nov) a coach opened Debrief, saw "Writing your
+ * guide", left after 4 s and took it that the debrief notes never came. So a saved review starts writing them at once
+ * (writeNotesAfterSave), and an ask that arrives while they are being written shares that one call (writeNotes).
+ * Per process: two bot replicas could each write once; the later write wins, which is what a re-open did before.
+ */
+const notesBeingWritten = new Map();
+
+function writeNotes(d, userId, coachingSessionId, row) {
+  const running = notesBeingWritten.get(coachingSessionId);
+  if (running) return running;
+  const job = (async () => {
+    const coach = await loadCoach(d, userId);
+    const { observeLang } = require('./observe-strings');
+    const guide = await d.debrief.buildDebriefGuide(row, observeLang(coach || {}));
+    await d.debrief.mergeObserverDebrief(coachingSessionId, { guide_snapshot: guide });
+    return guide;
+  })();
+  notesBeingWritten.set(coachingSessionId, job);
+  const done = () => { if (notesBeingWritten.get(coachingSessionId) === job) notesBeingWritten.delete(coachingSessionId); };
+  job.then(done, done);
+  return job;
+}
+
+/** Whether the talk has begun (recorded, being coached or coached): the notes it was held with stay as they are. */
+function talkBegun(row) {
+  const od = debriefOf(row);
+  return (row.debrief_status && row.debrief_status !== 'pending') || !!(od.audio_r2_key || od.audio_id);
+}
+
+/**
+ * After a review is saved, write its debrief notes in the background: the save answers at once. A later save before
+ * the talk writes them again from the newer review. Never fatal — on a failure Debrief writes them when opened.
+ */
+function writeNotesAfterSave(d, userId, coachingSessionId) {
+  (async () => {
+    const row = await loadMine(d, userId, coachingSessionId);
+    if (!row || row.status !== TALK_STATUS || talkBegun(row)) return;
+    await writeNotes(d, userId, coachingSessionId, row);
+  })().catch((err) => {
+    d.log('❌ portal observe: debrief notes could not be written after the save', { coachingSessionId, error: err && err.message }, 'error');
+  });
+}
+
 /** The guide startDebrief would send — built once, kept on the row. */
 async function talkGuide({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   if (row.status !== TALK_STATUS && row.status !== 'completed') return notReady('draft_not_saved');
+  // Being written right now (the save started it): wait for that one rather than write a second.
+  const running = notesBeingWritten.get(coachingSessionId);
+  if (running) {
+    try { return { status: 'ok', guide: await running }; } catch { /* write them here, as before */ }
+  }
   const od = debriefOf(row);
   if (od.guide_snapshot) return { status: 'ok', guide: od.guide_snapshot };
   if (row.debrief_status === 'done') return { status: 'ok', guide: null };
 
-  const coach = await loadCoach(d, userId);
-  const { observeLang } = require('./observe-strings');
-  const guide = await d.debrief.buildDebriefGuide(row, observeLang(coach || {}));
-  await d.debrief.mergeObserverDebrief(coachingSessionId, { guide_snapshot: guide });
+  const guide = await writeNotes(d, userId, coachingSessionId, row);
   return { status: 'ok', guide };
 }
 

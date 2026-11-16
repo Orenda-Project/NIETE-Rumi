@@ -163,6 +163,8 @@ export const REPORTS_EN = {
   cueNameIt: "Teacher names it",
   cueRehearse: "Wait 3–5 seconds",
   writingGuide: "Writing your guide",
+  // bd-w0zbbe: how long the guide takes, shown while it is being written (measured 20-32 s).
+  guideWait: "About 30 seconds",
   guideFailed: "Guide did not load",
   saveFormFirst: "Save the form first",
   startRecording: "Start recording",
@@ -364,6 +366,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   cueNameIt: "استاد کو بتانے دیں",
   cueRehearse: "تین سے پانچ سیکنڈ",
   writingGuide: "گائیڈ بن رہی ہے",
+  guideWait: "تقریباً 30 سیکنڈ",
   guideFailed: "گائیڈ لوڈ نہیں ہوئی",
   saveFormFirst: "پہلے فارم محفوظ کریں",
   startRecording: "ریکارڈنگ شروع کریں",
