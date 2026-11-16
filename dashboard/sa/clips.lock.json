@@ -1,5 +1,5 @@
 {
- "session": "sa-session-v18",
+ "session": "sa-session-v19",
  "about": "dashboard/scripts/sa-clips-lock.js",
  "files": {
   "dashboard/sa/img/vocab/ur.vocabulary.01.webp": "eb46bb7ce7d5aabcd61bc6e2ed7736984ea700d9",
@@ -3297,7 +3297,7 @@
   "dashboard/sa/v4/en/8feaef09d25c.mp3": "d852a5a9b69688e2ae5a87e029d96de9adf34ddf",
   "dashboard/sa/v4/en/8ffbd6a92cf8.json": "64d63bf4aa025bde8a3b4c46d6059a87232b7487",
   "dashboard/sa/v4/en/8ffbd6a92cf8.mp3": "c05c8ebda8222877daece4645f540cc0d4f659f7",
-  "dashboard/sa/v4/en/902fc6e315f9.mp3": "5c1137d3435284b52580f62b796dff4bd99bfb82",
+  "dashboard/sa/v4/en/902fc6e315f9.mp3": "e60153dfb64f719ccefe96d3f25c8ba6ef7039e2",
   "dashboard/sa/v4/en/90472804f8d0.mp3": "6a3644ce9281f4c3a3de8f3825354b9cb5db51dc",
   "dashboard/sa/v4/en/90d23fdca65f.json": "cc071e8e45deeb5afcc39dd1b048f6f24026d12a",
   "dashboard/sa/v4/en/90d23fdca65f.mp3": "c103892e8fcefa00910a6a195574988f8acb12f6",
@@ -3587,7 +3587,7 @@
   "dashboard/sa/v4/en/e04bacd87c47.json": "6e73d4512b9bb22d467dc159fc8248158e2942ea",
   "dashboard/sa/v4/en/e04bacd87c47.mp3": "9fbdbbcb952060e356e710353cf9d8398fa5f04d",
   "dashboard/sa/v4/en/e0ae8f9530f8.mp3": "7296fa5456d5f4e6e867ac8b1dd9331476056bb4",
-  "dashboard/sa/v4/en/e0bb45195c58.mp3": "1e88d8a56a5755555813cefc74b9d14e9fff49a0",
+  "dashboard/sa/v4/en/e0bb45195c58.mp3": "16c2a08978c5f1e31c11be3860d03d915c717861",
   "dashboard/sa/v4/en/e0f30c026e46.mp3": "7f56a6bb8977eaf77c9ebd3c26c22eef1eea13a7",
   "dashboard/sa/v4/en/e107af5ff9f4.mp3": "dd84ecf1fb56439ed09fd33de45180348a26301f",
   "dashboard/sa/v4/en/e15ca1669dd1.mp3": "950d94a3442aaaea7d578852f88d70913c2c9807",

@@ -121,7 +121,9 @@ const EN_SOUNDS = new RegExp(`\\b(?:(${SND}), (ih|ah|aw), (${SND})|(${SND}))\\b`
 const slow = (t) => `[slowly] ${t}`;
 // A sound said ON ITS OWN that the voice got wrong when given bare (it hummed «hhh», said «rrr» as "uh", «kuh» as "koo"):
 // the line that is just the sound is given the spelling it says right. Inside a narration line the sound is unchanged.
-const EN_SOUND_ALONE = Object.freeze({ hhh: slow('hhhh'), rrr: slow('rrrrr'), yuh: slow('yuh'), kwuh: slow('kwuh'), kuh: slow('kuh') });
+// ks and juh: the takes the content owner picked from the listening list (16 Nov), kept as recorded.
+const EN_SOUND_ALONE = Object.freeze({ hhh: slow('hhhh'), rrr: slow('rrrrr'), yuh: slow('yuh'), kwuh: slow('kwuh'), kuh: slow('kuh'),
+  ks: slow('ks'), juh: slow('juh') });
 function withSounds(text, lang) {
   if (lang === 'en') {
     const t = String(text).trim();

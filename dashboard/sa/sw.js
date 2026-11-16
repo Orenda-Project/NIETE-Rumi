@@ -76,7 +76,8 @@ var CORE = 'sa-core-' + VERSION;
 // v18: the review's second listen: the nine English dictation lines (word, sentence, word) re-voiced so the word and the
 // sentence are said clearly, the plough picture «کِسان … ہَل», and the five letter sounds from v17 given the English set's
 // voice processing (pitch and pace) like every other English clip; no word timings change.
-var SESSION = 'sa-session-v18';
+// v19: the two English letter sounds the content owner picked (x "ks", j "juh"), re-made under their keys.
+var SESSION = 'sa-session-v19';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
