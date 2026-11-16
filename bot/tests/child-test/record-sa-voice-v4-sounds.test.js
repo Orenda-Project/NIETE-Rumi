@@ -56,7 +56,8 @@ test('v4 Chutki: every sound line is sent with its sounds, each once; --sounds r
     await record(['--set', 'v4', '--lang', lang], dir);
     const { sent, res } = await record(['--set', 'v4', '--lang', lang, '--sounds'], dir);
     expect(res.recorded).toBe(rows.length);
-    expect(sent.every((j) => j.text.includes('[slowly]'))).toBe(true);
+    // every sound is said slowly, except the two takes the content owner picked without it (i "ihh.", f "fffff.", 16 Nov)
+    expect(sent.filter((j) => !j.text.includes('[slowly]')).map((j) => j.text).sort()).toEqual(lang === 'en' ? ['fffff.', 'ihh.'] : []);
     for (const r of rows) expect(fs.existsSync(path.join(dir, r.key.replace('sa/v1/', 'sa/v4/')))).toBe(true);
   }
   const { sent } = await record(['--set', 'v4', '--lang', 'ur', '--sounds']);
