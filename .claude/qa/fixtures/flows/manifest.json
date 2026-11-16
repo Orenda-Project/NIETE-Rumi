@@ -544,6 +544,39 @@
       "repoCopy": "differs"
     },
     {
+      "envVar": "REGISTRATION_FLOW_ID",
+      "flowId": "e2e-registration-v6",
+      "name": "Registration v6 (repo copy, not fetched)",
+      "status": "DRAFT",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 6,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "99ecc1e18c34081ef2eccc6744112df4f03f4e7e5e26b5929960649dd338afab",
+      "fetchedAt": null,
+      "repoCopy": "same",
+      "file": "REGISTRATION_FLOW_ID.v6.json",
+      "note": "docs/flows/registration-flow-v6.json minus its _ keys. Not published on the staging id this lane uses; registration.cjs R24-R28 open the card on it explicitly (bd-apnnh2.6.8). A flow-inventory fetch rewrites this manifest: keep this entry."
+    },
+    {
       "envVar": "REMARK_FLOW_ID",
       "flowId": "1025558763438362",
       "name": "supervisor_remark_v1",
