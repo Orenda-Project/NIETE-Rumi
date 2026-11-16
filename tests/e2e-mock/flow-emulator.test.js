@@ -143,6 +143,29 @@ describe('flow-emulator: navigate Flow', () => {
     expect(done).toEqual([{ flowId: 't1', flowToken: 'u:tt:1', name: 'flow_t1', response_json: { training_action: 'open_module', module_id: '12' } }]);
   });
 
+  // Registration v5.1/v6 (whatsapp-flows rules 11 + 14): the endpoint's SUCCESS reply carries
+  // extension_message_response and the Flow's own SUCCESS screen DECLARES it, so WhatsApp closes the Flow at once and
+  // sends the params as the nfm_reply. Entering SUCCESS and taking the Done footer's payload instead dropped
+  // full_name, language and identity: the welcome came in the wrong language with no "Is this you?" line
+  // (bd-apnnh2.6.8). A SUCCESS that does not declare it (teacher training, above) is still entered.
+  test('a SUCCESS reply with extension params closes at once when the SUCCESS screen declares them', async () => {
+    const REG = { version: '7.0', routing_model: { TEACHING: ['SUCCESS'], SUCCESS: [] }, screens: [
+      { id: 'TEACHING', title: 'Reg', data: {}, layout: { type: 'SingleColumnLayout', children: [ { type: 'Form', name: 'f', children: [
+        { type: 'Footer', label: 'Finish', 'on-click-action': { name: 'data_exchange', payload: { form_rev: '6' } } } ] } ] } },
+      { id: 'SUCCESS', title: 'Done', terminal: true, data: { t_done: { type: 'string', __example__: 'Done' },
+        extension_message_response: { type: 'object', properties: { params: { type: 'object', properties: { identity: { type: 'string' } } } } } },
+      layout: { type: 'SingleColumnLayout', children: [
+        { type: 'Footer', label: '${data.t_done}', 'on-click-action': { name: 'complete', payload: { registration_action: 'complete' } } } ] } } ] };
+    const done = [];
+    const params = { registration_action: 'complete', flow_token: 'u:registration:1', language: 'en', identity: 'claimed' };
+    const transport = { exchange: async () => ({ screen: 'SUCCESS', data: { t_done: 'Done', extension_message_response: { params } } }) };
+    const em = createEmulator(REG, { flowId: 'r6', flowToken: 'u:registration:1', action: 'navigate', screen: 'TEACHING', transport, endpointUrl: 'http://bot/api/flows/registration', onComplete: (r) => done.push(r) });
+    await em.open();
+    expect(await em.click('Finish')).toMatchObject({ ok: true });
+    expect(em.isOpen()).toBe(false);
+    expect(done).toEqual([{ flowId: 'r6', flowToken: 'u:registration:1', name: 'flow_r6', response_json: params }]);
+  });
+
   // The child-test check Flow (bd-s1oo0.6) lists the words Rumi heard wrong as a pre-ticked
   // ChipsSelector: untick = the child read it right. Meta's ChipsSelector is a multi-select with a
   // data-source and init-values, the same contract as CheckboxGroup; the emulator must model it or
