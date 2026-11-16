@@ -65,9 +65,12 @@
  * A stricter voice check (app_settings sa_r26_voice_strict, OFF by default; read by the sweep): the model alone raised
  * the flag on clips where speech-to-text heard no word, and reported an adult in noise-only clips about half the time.
  * ON, the check also gives the other person's words, and the flag stands only when speech-to-text heard words in the
- * same clip and those words are among them (corroborated()). No word heard, no words given, or words the transcript
- * does not hold: the flag is cleared. A transcript that could not be made leaves the model's answer as it was. The
- * gate and the check share one speech-to-text call per clip. The quoted words are never kept (they can hold a name);
+ * same clip and those words are among them (corroborated(); the switch's value is true, or the share of the quote
+ * that must be heard, 0.2-0.9). When the first transcript cannot back the quote (no word heard, or not the quote), a
+ * plain second transcript (both language hints, no classroom context) gets one chance: the usual call heard no word
+ * at all on some real recordings that hold an adult clearly. No word heard in either, no words given, or words
+ * neither transcript holds: the flag is cleared. Transcripts that could not be made leave the model's answer as it
+ * was. The gate and the check share one speech-to-text call per clip. The quoted words are never kept (they can hold a name);
  * the call record says why the flag stood or went (voice_check). Still a flag, never a change of mark.
  *
  * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
@@ -372,9 +375,18 @@ function defaultDeps() {
       try {
         const r = await require('../scoring/stt').transcribe(file, lang === 'en' ? 'en' : 'ur', clip.durationSec, { signal });
         const words = r.words || [];
-        // said: the whole transcript, always in Urdu script (a Devanagari reply is written in Urdu by the STT wrapper);
-        // the stricter voice check looks for the other person's words in it
+        // said: the wrapper's speaker-labelled text, always in Urdu script; text: every word heard (it can be longer:
+        // the labelled text can drop words). The stricter voice check looks for the other person's words in both.
         return { words: words.length, text: words.map((w) => w.raw).join(' '), said: r.text || '', model: r.model, cost: r.cost, seconds: r.seconds };
+      } finally { media.cleanup(file); }
+    },
+    // sa_r26_voice_strict's second pass: both language hints, no classroom context (scoring/stt transcribePlain)
+    speechPlainOf: async (clip, signal) => {
+      const fs = require('fs');
+      const file = media.tmpFile('mp3');
+      fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
+      try {
+        return await require('../scoring/stt').transcribePlain(file, clip.durationSec, { signal });
       } finally { media.cleanup(file); }
     },
     // one recording per section: download once, cut each item's stretch
@@ -720,9 +732,11 @@ const VOICE_STRICT_PROMPT = `${VOICE_PROMPT.slice(0, VOICE_PROMPT.indexOf('\nRet
 If another person is heard, also give THAT person's words exactly as heard, in the script they were spoken in (Urdu in Urdu script, English in English letters). Only words you can actually make out; not the tested child's answers, not the phone's own voice. "" if you cannot make out any.
 Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none", "confidence": <0-1>, "words": "<the other person's words, or \\"\\">"}`;
 
-// share of the quote's character pairs that must be in what speech-to-text heard in the same clip. Set on a replay of
-// 48 hand-checked real recordings: a quote of words the child alone said, or of words nobody said, reached at most
-// 0.32; real adult prompting mostly 0.6-1.0. 0.4 kept no false alarm and the most real adults (0.5 lost one more).
+// the default share of the quote's character pairs that must be in what speech-to-text heard in the same clip (the
+// switch can set another, 0.2-0.9). Set on replays of 48 hand-checked real recordings: a quote of words the child alone
+// said, or of words nobody said, reached at most 0.32 (two replays); real adult prompting mostly 0.6-1.0. With the plain
+// second pass, 0.4 kept no false alarm and 14-16 of 16 real adults; 0.35 kept 15-16 with no false alarm but only 0.03
+// above the highest; 0.3 kept all 16 and let one false alarm back.
 const QUOTE_MIN = 0.4;
 
 /**
@@ -730,21 +744,37 @@ const QUOTE_MIN = 0.4;
  * same clip? { ok: true | false | null (cannot tell: no transcript), why }. Both sides in Urdu script (a Devanagari
  * quote or transcript is written in Urdu first), letters only, as the echo check compares.
  */
-function corroborated(quote, stt) {
+function corroborated(quote, stt, min = QUOTE_MIN) {
   if (!stt || !Number.isInteger(stt.words)) return { ok: null, why: 'stt_unavailable' };
   if (stt.words === 0) return { ok: false, why: 'no_words' };
   const q = ensureNoDevanagari(String(quote || ''));
-  const heard = ensureNoDevanagari(String(stt.said || stt.text || ''));
   if (bare(q).length < 2) return { ok: false, why: 'not_corroborated' };
-  return within(q, heard) >= QUOTE_MIN ? { ok: true, why: 'words_heard' } : { ok: false, why: 'not_corroborated' };
+  // the labelled text and the plain word list: the labelled text can drop words, the word list can be Devanagari
+  const heard = [stt.said, stt.text].filter((t) => typeof t === 'string' && t).map((t) => ensureNoDevanagari(t));
+  return heard.some((h) => within(q, h) >= min) ? { ok: true, why: 'words_heard' } : { ok: false, why: 'not_corroborated' };
+}
+
+/**
+ * The first transcript could not back the quote: a second, plain transcript (both language hints, no classroom
+ * context) gets one chance. It can only keep a flag the model raised, never raise one; a failed second pass leaves the
+ * first verdict as it was.
+ */
+function withSecondPass(quote, first, second, min = QUOTE_MIN) {
+  if (!second || !Number.isInteger(second.words)) return first;
+  const c2 = corroborated(quote, second, min);
+  if (c2.ok === true) return { ok: true, why: 'words_heard_second' };
+  if (first.ok === null) return c2;                       // the first pass failed: the second one decides
+  if (first.why === 'no_words' && c2.why === 'not_corroborated') return c2;   // words now, just not the quote
+  return first;
 }
 
 /**
  * CHILD_TEST_SA_SECOND_VOICE: is another person heard in this clip? { key, heard: true | false | null (not checked) }.
  * strict (sa_r26_voice_strict): a "yes" stands only when corroborated() says so; `speech` gives the clip's transcript
- * (the one the speech gate made, when it made one). The quote itself is never kept.
+ * (the one the speech gate made, when it made one), `speechPlain` the plain second pass, asked only when the first
+ * transcript cannot back a quote. The quote itself is never kept.
  */
-async function voiceOf(deps, calls, clip, key, { strict = false, speech = null } = {}) {
+async function voiceOf(deps, calls, clip, key, { strict = false, speech = null, speechPlain = null, min = QUOTE_MIN } = {}) {
   const dur = Number(clip && clip.durationSec);
   if (Number.isFinite(dur) && dur < minSpeechS()) return { key, heard: false };
   const model = deps.model();
@@ -761,10 +791,16 @@ async function voiceOf(deps, calls, clip, key, { strict = false, speech = null }
   if (!strict || said !== true) return { key, heard: said };
   let stt = null;
   try { stt = speech ? await speech() : null; } catch (_) { stt = null; }
-  const c = corroborated(r.json.words, stt);
+  let c = corroborated(r.json.words, stt, min);
+  if (stt && Number.isInteger(stt.words)) rec.stt_words = stt.words;
+  if (c.ok !== true && speechPlain && bare(ensureNoDevanagari(String(r.json.words || ''))).length >= 2) {
+    let plain = null;
+    try { plain = await speechPlain(); } catch (_) { plain = null; }
+    rec.stt2_words = plain && Number.isInteger(plain.words) ? plain.words : null;
+    c = withSecondPass(r.json.words, c, plain, min);
+  }
   rec.model_second_voice = true;
   rec.voice_check = c.why;
-  if (stt && Number.isInteger(stt.words)) rec.stt_words = stt.words;
   if (c.ok === false) rec.second_voice = false;
   return { key, heard: rec.second_voice };
 }
@@ -848,14 +884,21 @@ async function scoreRow(row, session, deps = {}) {
   const voices = voiceOn() ? [] : null;
   // sa_r26_voice_strict: a "yes" needs the other person's words in the clip's transcript. The speech gate and the
   // check share one speech-to-text call per clip (the gate's, when it ran; else the check makes its own).
-  const strict = Boolean(voices) && d.voiceStrict === true;
+  // the switch's value: true (the default bar) or a number from 0.2 to 0.9 (that bar)
+  const strictValue = voiceStrictSwitch.valueOf(d.voiceStrict);
+  const strict = Boolean(voices) && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
     const stt = d.speechOf;
     d.speechOf = (clip, lang, signal) => { if (!heard.has(clip)) heard.set(clip, stt(clip, lang, signal)); return heard.get(clip); };
   }
   const voiceOpts = (clip) => (strict
-    ? { strict: true, speech: d.speechOf ? () => bounded('stt', limitOf(d, 'stt'), (signal) => d.speechOf(clip, task.lang, signal)) : null }
+    ? {
+      strict: true,
+      min: typeof strictValue === 'number' ? strictValue : QUOTE_MIN,
+      speech: d.speechOf ? () => bounded('stt', limitOf(d, 'stt'), (signal) => d.speechOf(clip, task.lang, signal)) : null,
+      speechPlain: d.speechPlainOf ? () => bounded('stt', limitOf(d, 'stt'), (signal) => d.speechPlainOf(clip, signal)) : null,
+    }
     : {});
   if (voices) {
     const fetch = d.clipOf;

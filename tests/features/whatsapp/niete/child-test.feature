@@ -1220,3 +1220,21 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the adult's words are among the words heard in that recording
     Then the coach's Results for that task say another voice was heard
     And the child's marks are the same as without the check
+
+  @e2e @wip @draft @config-gated @P1 @CT187 @no-mock-driver
+  # No mock driver: as @CT185. Asserted in bot/tests/child-test/sa-score-voice-strict.test.js and sa-stt-plain.test.js.
+  Scenario: With sa_r26_voice_strict on, an adult the first listen missed is still flagged after a second listen
+    Given sa_r26_voice_strict is on and the another-voice check is on
+    And an adult speaks to the child during a recorded part
+    When the first listen of the recording heard no word, or not the adult's words
+    And a second listen with both Urdu and English expected hears the adult's words
+    Then the coach's Results for that task say another voice was heard
+    And when neither listen hears the adult's words, the Results do not say another voice was heard
+
+  @e2e @wip @draft @config-gated @P2 @CT188 @no-mock-driver
+  # No mock driver: as @CT185. Asserted in bot/tests/child-test/sa-score-voice-strict.test.js.
+  Scenario: sa_r26_voice_strict set to a number sets how much of the adult's words must be heard
+    Given sa_r26_voice_strict is set to a number from 0.2 to 0.9
+    When the check says another person spoke and part of their words were heard
+    Then the flag stands when at least that share of their words was heard, and is cleared otherwise
+    And a value of true uses the default share, and any other value turns the stricter check off

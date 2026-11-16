@@ -38,16 +38,26 @@ const ADULT = 'اونچا بولنا ہے شاباش';
 function standIns(per = {}) {
   const jobs = [];
   const stt = [];
+  const plain = [];
   return {
     jobs,
     stt,
+    plain,
     clipOf: async (key) => ({ base64: 'AAAA', durationSec: 6, key }),
     speechOf: async (clip) => {
       const p = per[qOf(clip.key)] || {};
       stt.push(qOf(clip.key));
       if (p.stt === 'fail') throw new Error('stt down');
       const s = p.stt || { words: 3, said: 'بانو کی بلی' };
-      return { words: s.words, text: s.said, said: s.said, model: 'soniox:test', cost: 0, seconds: 1 };
+      return { words: s.words, text: s.text != null ? s.text : s.said, said: s.said, model: 'soniox:test', cost: 0, seconds: 1 };
+    },
+    // the plain second pass (both language hints, no classroom context)
+    speechPlainOf: async (clip) => {
+      const p = per[qOf(clip.key)] || {};
+      plain.push(qOf(clip.key));
+      if (p.plain === 'fail') throw new Error('plain stt down');
+      const s = p.plain || { words: 0, text: '' };
+      return { words: s.words, text: s.text, model: 'soniox:plain', cost: 0, seconds: 1 };
     },
     model: () => 'google/gemini-test',
     chatJSON: async ({ prompt, schema, job, audio }) => {
@@ -114,8 +124,8 @@ describe('sa_r26_voice_strict: the another-voice flag needs the other person\'s 
     expect(voiceCalls(got).find((c) => c.model_second_voice === true)).toMatchObject({ voice_check: 'not_corroborated' });
   });
 
-  test('ON: speech-to-text failed: the model\'s answer stands (we cannot check it), and the row still scores', async () => {
-    const s = standIns({ q2: { stt: 'fail', voice: { second_voice: true, words: ADULT } } });
+  test('ON: speech-to-text failed, both passes: the model\'s answer stands (we cannot check it), and the row still scores', async () => {
+    const s = standIns({ q2: { stt: 'fail', plain: 'fail', voice: { second_voice: true, words: ADULT } } });
     const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
     expect(got.ok).toBe(true);
     expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_clips: 1 });
@@ -160,6 +170,78 @@ describe('sa_r26_voice_strict: the another-voice flag needs the other person\'s 
   });
 });
 
+describe('sa_r26_voice_strict: a second chance for a real adult the first transcript missed', () => {
+  const before = { ...process.env };
+  beforeEach(() => {
+    process.env.CHILD_TEST_SA_SCORER = 'on'; process.env.CHILD_TEST_R2_ENV = 'sandbox';
+    process.env.CHILD_TEST_SA_SECOND_VOICE = 'on'; process.env.CHILD_TEST_SA_SPEECH_GATE = 'on';
+  });
+  afterEach(() => { process.env = { ...before }; });
+  const flagged = (got) => voiceCalls(got).find((c) => c.model_second_voice === true);
+
+  test('the whole transcript counts, not only the speaker-labelled text (which can drop words)', async () => {
+    const s = standIns({ q2: { stt: { words: 8, said: '[00:08] Teacher (UR): بچے۔', text: 'بچے نہیں آپ پانی کر لیجیے پانی کتاب گھر' }, voice: { second_voice: true, words: 'نہیں آپ پانی کر لیجیے' } } });
+    const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_clips: 1 });
+    expect(flagged(got)).toMatchObject({ second_voice: true, voice_check: 'words_heard' });
+    expect(s.plain).toEqual([]);   // no second pass needed
+  });
+
+  test('no word in the first transcript, the plain second pass hears the adult: the flag stands', async () => {
+    const s = standIns({ q2: { stt: { words: 0, said: '' }, plain: { words: 7, text: 'آپ کو زیادہ دکھ تو نہیں لگ رہا' }, voice: { second_voice: true, words: 'آپ کو زیادہ تو نہیں' } } });
+    const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_clips: 1 });
+    expect(flagged(got)).toMatchObject({ second_voice: true, voice_check: 'words_heard_second' });
+    expect(s.plain).toEqual(['q2']);
+  });
+
+  test('the first transcript does not hold the words, the second pass does: the flag stands', async () => {
+    const s = standIns({ q1: { stt: { words: 3, said: 'بانو کی بلی' }, plain: { words: 9, text: 'بانو کی بلی بتاؤ نا صرف ایک بات ٹاسک کیپ نہ کریں' }, voice: { second_voice: true, words: 'بتاؤ نا صرف ایک بات' } } });
+    const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(flagged(got)).toMatchObject({ second_voice: true, voice_check: 'words_heard_second' });
+  });
+
+  test('neither pass hears a word (noise, silence): cleared, after one second pass', async () => {
+    const s = standIns({ q3: { stt: { words: 0, said: '' }, plain: { words: 0, text: '' }, voice: { second_voice: true, words: 'آپ آگے کریں' } } });
+    const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(got.marks.detail).toMatchObject({ second_voice: false });
+    expect(flagged(got)).toMatchObject({ second_voice: false, voice_check: 'no_words' });
+    expect(s.plain).toEqual(['q3']);
+  });
+
+  test('words in neither transcript (the model invented an adult): cleared', async () => {
+    const s = standIns({ q1: { stt: { words: 3, said: 'بانو کی بلی' }, plain: { words: 3, text: 'بانو کی بلی' }, voice: { second_voice: true, words: 'آپ آگے کریں جلدی کرو' } } });
+    const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(flagged(got)).toMatchObject({ second_voice: false, voice_check: 'not_corroborated' });
+  });
+
+  test('the switch as a number sets the bar: a part-heard quote stands at 0.3 and is cleared at the default', async () => {
+    const per = { q2: { stt: { words: 1, said: 'abcd' }, plain: { words: 1, text: 'abcd' }, voice: { second_voice: true, words: 'abcdefghij' } } };
+    const low = await score.scoreRow(row(), session(), { ...standIns(per), voiceStrict: 0.3 });
+    expect(low.marks.detail).toMatchObject({ second_voice: true });
+    // the strict check ran (a number is ON), it did not just leave the model's answer
+    expect(voiceCalls(low).find((c) => c.model_second_voice === true)).toMatchObject({ voice_check: 'words_heard' });
+    const dflt = await score.scoreRow(row(), session(), { ...standIns(per), voiceStrict: true });
+    expect(dflt.marks.detail).toMatchObject({ second_voice: false });
+  });
+
+  test('the second pass fails: the first pass decides (here: cleared)', async () => {
+    const s = standIns({ q2: { stt: { words: 0, said: '' }, plain: 'fail', voice: { second_voice: true, words: 'آپ کو زیادہ' } } });
+    const got = await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(got.ok).toBe(true);
+    expect(flagged(got)).toMatchObject({ second_voice: false, voice_check: 'no_words' });
+  });
+
+  test('no second pass when the model heard nobody else, or when the switch is off', async () => {
+    const s = standIns({ q2: { stt: { words: 0, said: '' }, voice: { second_voice: false } } });
+    await score.scoreRow(row(), session(), { ...s, voiceStrict: true });
+    expect(s.plain).toEqual([]);
+    const off = standIns({ q2: { stt: { words: 0, said: '' }, voice: { second_voice: true } } });
+    await score.scoreRow(row(), session(), off);
+    expect(off.plain).toEqual([]);
+  });
+});
+
 describe('corroboration rule', () => {
   const { corroborated } = score.__internals;
   test('the quote must be found in what speech-to-text heard (character pairs, harakat and punctuation ignored)', () => {
@@ -169,6 +251,11 @@ describe('corroboration rule', () => {
     expect(corroborated('اونچا بولنا', { words: 0, said: '' })).toEqual({ ok: false, why: 'no_words' });
     expect(corroborated('', { words: 3, said: 'بانو کی بلی' })).toEqual({ ok: false, why: 'not_corroborated' });
     expect(corroborated('اونچا', null)).toEqual({ ok: null, why: 'stt_unavailable' });
+  });
+  test('the bar can be set: 3 of the quote\'s 9 character pairs heard passes at 0.3, not at the default 0.4', () => {
+    const heard = { words: 1, said: 'abcd' };
+    expect(corroborated('abcdefghij', heard)).toEqual({ ok: false, why: 'not_corroborated' });
+    expect(corroborated('abcdefghij', heard, 0.3)).toEqual({ ok: true, why: 'words_heard' });
   });
   test('a quote the model wrote in Devanagari is compared in Urdu script', () => {
     expect(corroborated('झंडा', { words: 2, said: 'جھنڈا لہرا' }).why).not.toBe('stt_unavailable');
@@ -183,6 +270,12 @@ describe('the switch (app_settings sa_r26_voice_strict)', () => {
     expect(await strictSwitch.on(2e12, client([{ key: 'sa_r26_voice_strict', value: 'true' }]))).toBe(false);
     expect(await strictSwitch.on(3e12, client([]))).toBe(false);
     expect(await strictSwitch.on(4e12, client(null, { message: 'down' }))).toBe(false);
+  });
+  test('a number between 0.2 and 0.9 is ON with that share as the bar; anything else is off', async () => {
+    expect(await strictSwitch.on(5e12, client([{ key: 'sa_r26_voice_strict', value: 0.35 }]))).toBe(0.35);
+    expect(await strictSwitch.on(6e12, client([{ key: 'sa_r26_voice_strict', value: 1.5 }]))).toBe(false);
+    expect(await strictSwitch.on(7e12, client([{ key: 'sa_r26_voice_strict', value: 0.1 }]))).toBe(false);
+    expect(await strictSwitch.on(8e12, client([{ key: 'sa_r26_voice_strict', value: '0.35' }]))).toBe(false);
   });
   test('a test\'s voiceStrict wins over the setting', async () => {
     expect(await strictSwitch.enabled({ voiceStrict: true })).toBe(true);
