@@ -779,3 +779,57 @@ describe('lessonQuestion — whether the portal asks the class (bd-ra8xu.40)', (
     expect(await Svc.lessonQuestion({ userId: COACH }, deps({ supabase: fakeSupabase({ users: () => coachRow({ role: 'teacher' }) }), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } }))).toEqual({ status: 'ok', ask: false });
   });
 });
+
+// Principals have the coach HITL rubric (FICO17 v6 / FDE) on WhatsApp only (operator, 15 Nov: "Principals can only
+// ahve it on th Whatsapp bot"). A portal visit a principal starts stays on today's rubric even when the coach switches
+// carry role:principal: no v6 stamp, no FDE form, no class question. Coaches are unchanged (the tests above).
+describe('a principal on the portal: today\'s rubric, whatever the coach switches say', () => {
+  const start = (args, d) => Svc.startPortalObservation({ userId: COACH, teacherExtId: ayesha.teacher_ext_id, schoolExtId: 'sch-1', key: KEY, ...args }, d);
+  const principalSupabase = (role = 'principal') => fakeSupabase({ users: () => coachRow({ role, region: 'sihala' }), coaching_sessions: () => null });
+  const sessionInsert = (d) => d.supabase.writes.inserts.find((w) => w.table === 'coaching_sessions').row;
+  const switchesOn = () => ({ fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') });
+
+  test('no v6 stamp, the switches are not even asked', async () => {
+    const d = deps({ supabase: principalSupabase(), rubric: switchesOn() });
+    expect(await start({}, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+    expect(sessionInsert(d)).not.toHaveProperty('framework_selection_reason');
+    expect(d.rubric.decideV6).not.toHaveBeenCalled();
+    expect(d.rubric.fdeOn).not.toHaveBeenCalled();
+  });
+
+  test('a grade 7 Maths lesson sent anyway: no FDE form, no FDE stamp', async () => {
+    const d = deps({ supabase: principalSupabase(), rubric: switchesOn() });
+    expect(await start({ lesson: { grade: 7, subject: 'maths' } }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+    expect(d.supabase.writes.updates.filter((u) => u.table === 'coaching_sessions' && u.patch.framework)).toEqual([]);
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+  });
+
+  test('a grades 1-5 lesson named: still no v6 stamp', async () => {
+    const d = deps({ supabase: principalSupabase(), rubric: switchesOn() });
+    await start({ lesson: { primary: true } }, d);
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+  });
+
+  test('the same switches for a coach still stamp v6 (contrast)', async () => {
+    const d = deps({ supabase: principalSupabase('coach'), rubric: switchesOn() });
+    await start({}, d);
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6', framework_selection_reason: 'coach_rubric_switch' });
+  });
+
+  test('Check and send asks a principal no class question', async () => {
+    const d = deps({ supabase: fakeSupabase({ users: () => coachRow({ role: 'principal', region: 'sihala' }) }), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
+    expect(await Svc.lessonQuestion({ userId: COACH }, d)).toEqual({ status: 'ok', ask: false });
+    expect(d.rubric.fdeOn).not.toHaveBeenCalled();
+  });
+});
+
+describe('role-features isPrincipalRole', () => {
+  const { isPrincipalRole, observesOwnSchoolAtOnce } = require('../../bot/shared/config/role-features');
+  test.each([['principal', true], [' Principal ', true], ['coach', false], ['teacher', false], ['', false], [null, false], [undefined, false], [7, false]])(
+    '%j -> %j', (role, want) => {
+      expect(isPrincipalRole(role)).toBe(want);
+      expect(observesOwnSchoolAtOnce({ role })).toBe(want);
+    });
+});

@@ -79,8 +79,12 @@ function canObserve(user) {
  * holdings, exactly as before. Pure, like the rest of this module.
  */
 function observesOwnSchoolAtOnce(user) {
-  const raw = user && user.role;
-  return typeof raw === 'string' && raw.trim().toLowerCase() === 'principal';
+  return isPrincipalRole(user && user.role);
+}
+
+/** Is this users.role value a principal? Case and spaces ignored; anything that is not a string is not. Pure. */
+function isPrincipalRole(role) {
+  return typeof role === 'string' && role.trim().toLowerCase() === 'principal';
 }
 
 /**
@@ -229,6 +233,7 @@ module.exports = {
   canSelfCoach,
   canObserve,
   observesOwnSchoolAtOnce,
+  isPrincipalRole,
   layoutFor,
   featureMenuRows,
   NOT_A_FEATURE_ROWS,
