@@ -44,7 +44,12 @@ describe("assess copy", () => {
   it("numbers in Urdu copy are Urdu digits (the bar, the list, the summary); English keeps ASCII", () => {
     expect(COPY.ur.grade(5)).toBe("جماعت ۵");
     expect(COPY.ur.childrenDone(0, 5)).toBe("مکمل بچے ⁦۰/۵⁩");
-    expect(COPY.ur.timeUsed("02:13", "45:00")).toBe("وقت ⁦۰۲:۱۳ / ۴۵:۰۰⁩");
+    expect(COPY.ur.visitClock("02:13", "45:00")).toBe("⁦۰۲:۱۳ / ۴۵:۰۰⁩");
+    expect(COPY.ur.visitTime(3)).toBe("پورے دورے کا وقت (⁦۳⁩ بچوں کے لیے)");
+    expect(COPY.ur.visitTime(1)).toBe("پورے دورے کا وقت (ایک بچے کے لیے)");
+    expect(COPY.en.visitClock("02:13", "45:00")).toBe("02:13 / 45:00");
+    expect(COPY.en.visitTime(3)).toBe("Time for the whole visit (3 children)");
+    expect(COPY.en.visitTime(1)).toBe("Time for the whole visit (1 child)");
     expect(COPY.ur.totalTime("02:13")).toBe("کل وقت ⁦۰۲:۱۳⁩");
     expect(COPY.ur.notSentYet(3)).toBe("بھیجنا باقی: ۳");
     expect(COPY.ur.holdHint).toContain("۳");
