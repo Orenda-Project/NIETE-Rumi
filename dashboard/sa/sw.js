@@ -73,7 +73,10 @@ var CORE = 'sa-core-' + VERSION;
 // practice answers), which the voice had read as a "t"/"th" sound; the two answers' word timings re-made.
 // v17: the field review of 16 Nov: «جھنڈا» re-voiced under its key with its vowel («جَھنڈا», it was said "jhunda"), five
 // English letter sounds said alone (h, r, y, k, qu) and six lines re-made under their keys; no word timings change.
-var SESSION = 'sa-session-v17';
+// v18: the review's second listen: the nine English dictation lines (word, sentence, word) re-voiced so the word and the
+// sentence are said clearly, the plough picture «کِسان … ہَل», and the five letter sounds from v17 given the English set's
+// voice processing (pitch and pace) like every other English clip; no word timings change.
+var SESSION = 'sa-session-v18';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
