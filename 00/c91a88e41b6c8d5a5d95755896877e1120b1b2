@@ -1,2 +1,3 @@
 {"ts":"2026-11-16T05:25:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"00c91a88e41b","branch":"bd-bgav0u-06722","user":""}
 {"ts":"2026-11-16T05:25:44Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"00c91a88e41b","branch":"bd-bgav0u-06722","user":""}
+{"ts":"2026-11-16T07:05:49Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (log-only: web_quiz_audio.settings_failed now carries status and code; the cap still fails open, so nothing a teacher or child sees changes; covered by the unit test)","sha":"00c91a88e41b","branch":"bd-bgav0u-06722","user":""}
