@@ -62,6 +62,8 @@ async function isOfferedTo(userId, { now = Date.now() } = {}) {
       || (Array.isArray(v) && v.includes(userId));
     if (!on && isTeachersValue(v)) on = await isTeacher(userId);
     if (!on) return false;
+    // bd-2zopnc — not live for GB (Amena, 16 Nov). A failed region read throws into the catch: off.
+    if (await require('./lp-own-gb').isGbTeacher(supabase, userId)) return false;
     return Boolean(await require('./app-redirect.service').isOnTeacherApp(userId));
   } catch (err) {
     logToFile('⚠️ Make my own: switch read failed — off', { tk: teacherRef(userId), error: err && err.message }, 'warn');
