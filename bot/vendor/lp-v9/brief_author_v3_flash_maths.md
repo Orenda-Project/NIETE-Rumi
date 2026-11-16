@@ -953,6 +953,13 @@ that repeats any of them is rejected.
     scattered"* · *"instructions do not build any context — the very first instruction is 'Do not
     summarise either sentence'."* Each activity block holds its own complete, ordered instructions,
     and the first one says what the pupils are about to do.
+<!-- VENDOR DIVERGENCE (bd-zrdvmi.6, 2026-11-16; SYNC.md §3.38): rule 12 below is a LOCAL-ONLY edit,
+  not a straight re-vendor — it was not fixed upstream first. -->
+12. **A poem lesson teaches a paraphrase of the poem, in class.** *"No paraphrasing there"* came
+    back on a G9 English poem plan. Paraphrase is an exam skill the SLOs name. Before the devices
+    and the central idea, give the poem stanza by stanza (or two lines at a time for a short poem):
+    the poet's words, then the same idea in plain everyday words, and have pupils say or write one
+    stanza's paraphrase themselves. Never print a paraphrase only as homework or only in the key.
 
 Teachers also told us, positively, what they want: the closed heading system; the teaching flow first, then the reference block =
 resources; **examples not explanations of how to explain**; exam-format practice ("for English,
