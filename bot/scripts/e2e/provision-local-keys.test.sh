@@ -27,7 +27,8 @@ mkdir -p "$TMP/bin"; cat > "$TMP/bin/railway" <<'RW'
 env=staging; while [ $# -gt 0 ]; do case "$1" in --environment) env="$2"; shift 2;; *) shift;; esac; done
 case "$env" in
   sandbox) printf '%s\n' "SUPABASE_URL=https://${FAKE_SANDBOX_REF:-__SBX__}.supabase.co" "SUPABASE_SERVICE_ROLE_KEY=SBX-FROM-RAILWAY" \
-             "OPENROUTER_API_KEY=sk-or-SANDBOXVENDOR" "WHATSAPP_TOKEN=EAAB-SBXWA" "PAKISTAN_LP_FLOW_ID=000";;
+             "OPENROUTER_API_KEY=sk-or-SANDBOXVENDOR" "WHATSAPP_TOKEN=EAAB-SBXWA" "PAKISTAN_LP_FLOW_ID=000" \
+             "R2_ACCESS_KEY_ID=sbx-rk" "R2_SECRET_ACCESS_KEY=SBX-R2SECRET" "R2_BUCKET_NAME=rumi-sandbox" "R2_ENDPOINT=https://sbx.r2.dev";;
   *) printf '%s\n' \
     "PAKISTAN_LP_FLOW_ID=1565529551677911" "TEACHER_TRAINING_FLOW_ID=1271813674911683" "STATUS_FLOW_ID=111" \
     "PORTAL_URL=https://portal.example.test" \
@@ -55,6 +56,12 @@ say "Flow ids still come from STAGING, not the sandbox env" "$(sed -nE 's/^PAKIS
 [ -f "$K1/niete-sandbox.env" ] && ok "niete-sandbox.env ALSO written so the DB tooling works without a manual step" || bad "niete-sandbox.env not written"
 say "…0600" "$(stat -f '%Lp' "$K1/niete-sandbox.env" 2>/dev/null || stat -c '%a' "$K1/niete-sandbox.env")" "600"
 has "stdout never shows the key" "$out" "SBX-FROM-RAILWAY" no
+say "niete-sandbox.env carries the SANDBOX bucket (bd-53dnra)" "$(sed -nE 's/^R2_BUCKET_NAME=(.*)$/\1/p' "$K1/niete-sandbox.env")" "rumi-sandbox"
+say "…and its secret" "$(sed -nE 's/^R2_SECRET_ACCESS_KEY=(.*)$/\1/p' "$K1/niete-sandbox.env")" "SBX-R2SECRET"
+has "…no staging R2 value in it" "$(cat "$K1/niete-sandbox.env")" "RSECRET-XYZ" no
+has "…no sandbox vendor key in it" "$(cat "$K1/niete-sandbox.env")" "SANDBOXVENDOR" no
+say "niete-local.env keeps staging's R2 (the local lane's read-through)" "$(sed -nE 's/^R2_BUCKET_NAME=(.*)$/\1/p' "$K1/niete-local.env")" "b"
+has "stdout never shows the sandbox R2 secret" "$out" "SBX-R2SECRET" no
 out=$(FAKE_SANDBOX_REF="$PROD_REF" bash "$S" --keys-dir "$TMP/k1b" 2>&1); rc=$?
 say "a Railway sandbox env that answers with the PROD ref → exit 3, refused" "$rc" "3"
 [ -e "$TMP/k1b/niete-local.env" ] || [ -e "$TMP/k1b/niete-sandbox.env" ] && bad "wrote something for a prod ref" || ok "nothing written for a prod ref"
@@ -106,6 +113,9 @@ has "WABA_ID is a placeholder" "$(v WABA_ID)" "placeholder" yes
 has "PHONE_NUMBER_ID is NOT written (local-stack.sh appends the per-run one)" "$(cat "$F")" "PHONE_NUMBER_ID" no
 has "file records its provenance" "$(cat "$F")" "provision-local-keys.sh" yes
 say "file is private (0600)" "$(stat -f '%Lp' "$F" 2>/dev/null || stat -c '%a' "$F")" "600"
+say "a hand-made niete-sandbox.env is topped up with the sandbox bucket" "$(sed -nE 's/^R2_BUCKET_NAME=(.*)$/\1/p' "$K3/niete-sandbox.env")" "rumi-sandbox"
+say "…its DB lines untouched" "$(sed -nE 's/^SUPABASE_SERVICE_ROLE_KEY=(.*)$/\1/p' "$K3/niete-sandbox.env")" "SBX-SRK-SECRET"
+say "…still 0600" "$(stat -f '%Lp' "$K3/niete-sandbox.env" 2>/dev/null || stat -c '%a' "$K3/niete-sandbox.env")" "600"
 has "stdout lists the names written" "$out" "PAKISTAN_LP_FLOW_ID" yes
 has "stdout never shows a value" "$out" "1565529551677911" no
 has "stdout never shows the service key" "$out" "SBX-SRK-SECRET" no
@@ -117,14 +127,17 @@ has "…says --force" "$out" "--force" yes
 say "file untouched" "$(v R2_SECRET_ACCESS_KEY)" "RSECRET-XYZ"
 out=$(bash "$S" --keys-dir "$K3" --force 2>&1); rc=$?
 say "--force rewrites → exit 0" "$rc" "0"
+say "…the sandbox R2 lines are not added twice" "$(grep -c '^R2_BUCKET_NAME=' "$K3/niete-sandbox.env")" "1"
 
 echo "provision — --from-kv (a teammate's dump, no railway login)"
-K4="$TMP/k4"; mkdir -p "$K4"; cp "$K3/niete-sandbox.env" "$K4/"
+K4="$TMP/k4"; mkdir -p "$K4"; grep "^SUPABASE_" "$K3/niete-sandbox.env" > "$K4/niete-sandbox.env"
 railway variables > "$TMP/dump.kv"
 out=$(FAKE_RAILWAY_FAIL=1 bash "$S" --keys-dir "$K4" --from-kv "$TMP/dump.kv" 2>&1); rc=$?
 say "exit 0 without calling railway" "$rc" "0"
 say "Flow id from the dump" "$(sed -nE 's/^TEACHER_TRAINING_FLOW_ID=(.*)$/\1/p' "$K4/niete-local.env")" "1271813674911683"
 has "vendor keys in the dump still left behind" "$(cat "$K4/niete-local.env")" "SONIOX" no
+say "railway down: the hand-made niete-sandbox.env is left as it was (no R2 lines)" "$(grep -c '^R2_' "$K4/niete-sandbox.env")" "0"
+has "…and the note says the sandbox lane will refuse" "$out" "sandbox lane" yes
 
 echo "provision — the result satisfies the lane's own resolver"
 . "$ROOT/.claude/qa/engine/hooks/lib/mock-lane.sh"
