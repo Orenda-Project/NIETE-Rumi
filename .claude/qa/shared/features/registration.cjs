@@ -1,4 +1,6 @@
-// NOT @mock-lane yet — this driver is mock-CAPABLE (api.fresh, no browser DOM) and run-suite has an un-register seed, but the bot caches the teacher's registration at stack startup and the stack is shared across features, so R01/R03/R06 see the cached 'registered' state. Re-add the @mock-lane marker once the bot's user cache is invalidated on the unregister (or registration gets its own stack).
+// @mock-lane — R24–R29 ("Is this you?") only: each is a NEW number the lane makes (registration-itu.cjs). R01–R23 stay
+// chrome-lane: the bot caches the shared driver's registration at stack start and the stack is shared across features,
+// so R01/R03/R06 would see the cached 'registered' state. On the mock lane they record DEFERRED with that reason.
 /* registration.feature — @e2e scenarios across the v5 Flow's five screens (bd-x7aprz.2) and the front door (R14–R19), one process.
  * Precondition: the driver must be UNREGISTERED (no name, registration flags clear — the bot's
  * isRegistered() gate) so /register opens the Flow. users.name is the only name column.
@@ -10,7 +12,7 @@ const SEARCH_EMIS = '215';
 const SEARCH_HIT = /G-7\/3-2/;
 const SEARCH_TITLE = 'IMSG G-7/3-2';
 
-exports.run = async ({ api, rec, sleep, want = () => true }) => {
+async function runChromeLane({ api, rec, sleep, want }) {
   const t = () => Date.now();
   let s, r;
   await api.resetFlow();          // a Flow remembers its screen across opens
@@ -288,4 +290,25 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { reopened: canReopen, flowOpened: o10.ok, dbName: fnLine.trim(), stillUnregistered: stillUnreg }, t() - s);
   }
   if (seedSchool) { try { api.db('purge-school'); } catch (_) {} }
+
+}
+
+// The ids runChromeLane records; on the mock lane each is DEFERRED (see line 1).
+const CHROME_LANE_IDS = ['R01', 'R02', 'R03', 'R05', 'R06', 'R07', 'R08', 'R09', 'R10', 'R11', 'R12', 'R13',
+  'R14', 'R15', 'R16', 'R17', 'R18', 'R19', 'R20', 'R21', 'R22'];
+
+exports.run = async ({ api, rec, sleep, want = () => true }) => {
+  const mock = api.caps && api.caps.method === 'mock';
+  if (!mock) await runChromeLane({ api, rec, sleep, want });
+  else for (const id of CHROME_LANE_IDS) if (want(id)) rec(id, 'chrome lane only', 'DEFERRED', { reason: 'the bot caches the shared driver\'s registration at stack start (line 1)' }, 0);
+
+  rec('R23', 'A lesson-plan first message gets the catalogue alone; the registration Flow comes on a later turn', 'DEFERRED',
+      { reason: 'not driven yet: needs a never-offered number and the lesson-plan catalogue turn; covered by tests/registration/front-door-invite.test.js' }, 0);
+  const STUB = { reason: 'scaffolded stub — not driven yet (bd-apnnh2.6.8)' };
+  rec('R24', 'A first-time registrant next to an unused account in her name is asked "Is this you?"', 'BLOCKED', STUB, 0);
+  rec('R25', 'Yes on an unused account links my number to it', 'BLOCKED', STUB, 0);
+  rec('R26', 'An answer that cannot be acted on safely asks for a check and moves nothing', 'BLOCKED', STUB, 0);
+  rec('R27', 'No keeps both accounts', 'BLOCKED', STUB, 0);
+  rec('R28', 'An account used in the last 30 days is never offered', 'BLOCKED', STUB, 0);
+  rec('R29', 'A session opened on the previous form finishes without the question', 'BLOCKED', STUB, 0);
 };
