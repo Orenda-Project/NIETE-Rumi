@@ -36,6 +36,7 @@ const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate,
 const {
   LP_V8, isPlanQuiz, lpRemakeableQuiz, failureReasonOf, digestFailureReason, failureCopyKey, heldForReview,
 } = require('./quiz-sources');
+const { digestFailureDetail } = require('./digest-failure-detail');
 const { HELD_REASON } = require('./lp-religious-hold');
 
 const OFFER_YES = 'tq_yes_';
@@ -220,7 +221,7 @@ async function processOffer(coachingSessionId, payload = {}) {
     // teacher was never offered this quiz, so nothing is sent to them; /quiz can
     // still make it from the same session.
     const reason = digestFailureReason(err);
-    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message }, 'error');
+    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message, ...digestFailureDetail(err) }, 'error');
     await markSkipped(quizId, reason, { error: err.message });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, step: 'digest' });
     return { skipped: reason, quizId };
