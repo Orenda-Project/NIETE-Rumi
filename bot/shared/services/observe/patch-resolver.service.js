@@ -28,6 +28,8 @@
 
 /** Only these two roles are ever in a patch. Not coaches, not unregistered. */
 const { teacherLevelOf, primaryBandOf } = require('../../utils/teacher-level');
+// EMIS, else the holding key: the one rule every observation_schedules writer keys a school by.
+const { schoolKeyOf } = require('./school-key');
 
 const PATCH_ROLES = new Set(['teacher', 'principal']);
 
@@ -426,7 +428,7 @@ function toLeaderSourceRow(p = {}) {
     // bd-97daxo.29: the portal's rule (bd-97daxo.22, leader-patch): COALESCE('niete:' || emis, the coach's holding
     // key). 'niete:' + a null EMIS left an EMIS-less school's teachers under null, so the /observe school list said
     // "0 teachers" for GB Hoto and Deosai while tapping the school listed them.
-    school_ext_id: p.emis ? `niete:${p.emis}` : (p.schoolExtId || null),
+    school_ext_id: schoolKeyOf(p),
     level: p.band ? String(p.band).toUpperCase() : null,
     is_principal: !!p.isPrincipal,
   };
@@ -437,6 +439,7 @@ module.exports = {
   listPatchViaSupabase,
   leaderHoldings,
   principalAppSchoolId,
+  schoolKeyOf,
   toLeaderSourceRow,
   PATCH_SQL,
   bandOf,

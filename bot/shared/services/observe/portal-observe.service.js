@@ -39,6 +39,7 @@ const crypto = require('crypto');
 const PortalCoaching = require('../coaching/portal-coaching.service');
 const { stepOfRow } = require('./portal-observe-step');
 const OwnPlans = require('./observe-own-plans');
+const { isPrincipalRole } = require('../../config/role-features');
 
 const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_PHOTOS } = PortalCoaching;
 
@@ -219,6 +220,10 @@ function lessonOfArg(lesson) {
  * @returns {Promise<{v6Stamp: string|null, fdeLesson: object|null}>}
  */
 async function decideStamp(d, coach, teacherUserId, lesson) {
+  // Principals have the coach HITL rubric (FICO17 v6, FDE 6-8) on the WhatsApp bot only (operator decision, 15 Nov;
+  // the portal path is untested for them). A portal visit a principal starts stays on today's rubric even when the
+  // coach switches carry role:principal. Coaches are unchanged.
+  if (isPrincipalRole(coach && coach.role)) return { v6Stamp: null, fdeLesson: null };
   let fdeOn = false;
   try { fdeOn = !!(await d.rubric.fdeOn(coach)); } catch (_) { fdeOn = false; }
   const named = fdeOn && lesson ? lesson : null;
@@ -281,6 +286,8 @@ async function lessonQuestion({ userId }, deps) {
   const d = withDefaults(deps);
   const coach = await loadCoach(d, userId);
   if (!coach || !LEADER_ROLES.includes(coach.role)) return { status: 'ok', ask: false };
+  // A principal's portal visit is never FDE (decideStamp above), so the class is not asked.
+  if (isPrincipalRole(coach.role)) return { status: 'ok', ask: false };
   let ask = false;
   try { ask = !!(await d.rubric.fdeOn(coach)); } catch (_) { ask = false; }
   if (!ask) return { status: 'ok', ask: false };
