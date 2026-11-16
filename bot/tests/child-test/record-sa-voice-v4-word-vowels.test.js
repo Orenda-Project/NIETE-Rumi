@@ -40,3 +40,17 @@ test('v4: the flag picture is sent to the voice with «جَھنڈا», and no li
   expect(said).toContain('بچہ جَھنڈا لہرا رہا ہے');
   expect(said.filter((t) => /(^|[^َ])جھنڈا/.test(t) && !t.includes('جَھنڈا'))).toEqual([]);
 });
+
+// The field review's second listen: «کسان کھیت میں ہل چلا رہا ہے» came out as "kasai … hel" and then "… hil" ("hil" is the
+// wrong vowel for a plough). The voice is given «کِسان» and «ہَل»; «ہل» stays whole-word only, so «ہلکا» and «ہلا» do not change.
+test('withWordVowels: «کسان» → «کِسان» and «ہل» → «ہَل», whole words only', () => {
+  expect(P.withWordVowels('کسان کھیت میں ہل چلا رہا ہے', 'ur')).toBe('کِسان کھیت میں ہَل چلا رہا ہے');
+  expect(P.withWordVowels('ہلکا', 'ur')).toBe('ہلکا');
+  expect(P.withWordVowels('ہلا دیں', 'ur')).toBe('ہلا دیں');
+  expect(P.withWordVowels('کسانوں', 'ur')).toBe('کسانوں');
+});
+
+test('v4: the plough picture is sent to the voice as «کِسان کھیت میں ہَل چلا رہا ہے»', async () => {
+  const sent = await record(['--set', 'v4', '--lang', 'ur']);
+  expect(sent.map((j) => j.text)).toContain('کِسان کھیت میں ہَل چلا رہا ہے');
+});
