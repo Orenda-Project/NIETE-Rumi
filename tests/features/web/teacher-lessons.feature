@@ -270,6 +270,16 @@ Feature: Teacher lesson plans
     Then the Make my own steps open
     And with portal_lp_make_own false, or for a coach, the screen shows the single "New lesson plan" card as before
 
+  # bd-2zopnc — operator, 16 Nov: Make my own and the "Made by a teacher" shelf are not live for GB. Pinned by
+  # tests/portal/lp612-own-route.test.js, lp612-shelf-route.test.js, lp612-own-shelf-config-flag.test.js.
+  @OWN03 @draft @config-gated @negative
+  Scenario: A GB teacher gets neither Make my own nor the shelf, even with both switches on for teachers
+    Given portal_teacher_v2 is on and portal_lp_make_own and portal_lp_own_shelf are "teachers"
+    And a GB teacher is signed in
+    When she opens /portal/teacher/lessons
+    Then the screen shows the single "New lesson plan" card as before, with no "Make my own" and no shelf
+    And a direct call to Make my own or the shelf answers 404
+
   # bd-snkn32.13 — "Make my own" for grades 6–12: what the lesson is for, the band's teaching ways, and (Grade 9–12, a
   # lesson whose FBISE SLOs mix Summative and Formative) which outcomes come first. Written by hand like the blocks
   # above; the web driver has no code for them yet (@draft): the demo stack carries no 6–12 catalogue to walk.
