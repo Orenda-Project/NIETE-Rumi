@@ -1,0 +1,2 @@
+{"ts":"2026-11-16T13:37:16Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe spec_sync=true","sha":"932d3bb90e54","branch":"bd-4alcjx-35812","user":""}
+{"ts":"2026-11-16T13:37:23Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-4alcjx-35812: coaching spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"932d3bb90e54","branch":"bd-4alcjx-35812","user":""}
