@@ -111,6 +111,40 @@ function withWordVowels(text, lang) {
   return String(text).replace(UR_WORDS, (m, pre, word) => `${pre}${UR_WORD_SAID[word]}`);
 }
 
+// Urdu lines the content owner marked wrong on the listening list (16 Nov), each with the voice input that fixed it: vowel
+// marks, a full stop so a single word is said alone, a pause that keeps a made-up word made up, and, where eleven_v3 kept
+// saying it wrong, the multilingual model in the same voice. Exact screen text; the screen keeps its text, the clip its key.
+const UR_LINE_SAID = Object.freeze({
+  "دال": Object.freeze({ say: "دال۔", model: "eleven_multilingual_v2" }),
+  "ضواد": Object.freeze({ say: "ضُواد۔" }),
+  "عین": Object.freeze({ say: "عَین۔" }),
+  "آم": Object.freeze({ say: "آم۔", model: "eleven_multilingual_v2" }),
+  "بلی": Object.freeze({ say: "بِلّی۔" }),
+  "گیند": Object.freeze({ say: "گیند۔" }),
+  "انار": Object.freeze({ say: "اَنار۔", model: "eleven_multilingual_v2" }),
+  "آچ": Object.freeze({ say: "آچ۔", model: "eleven_multilingual_v2" }),
+  "بالھی": Object.freeze({ say: "بال ہی۔", model: "eleven_multilingual_v2" }),
+  "باچی": Object.freeze({ say: "باچی۔", model: "eleven_multilingual_v2" }),
+  "برشا": Object.freeze({ say: "بر، شا۔" }),
+  "جوپ": Object.freeze({ say: "جوپ ۔" }),
+  "جھاف": Object.freeze({ say: "جھاف۔", model: "eleven_multilingual_v2" }),
+  "جیس": Object.freeze({ say: "جیس۔" }),
+  "خانگ": Object.freeze({ say: "خانگ۔" }),
+  "خیم": Object.freeze({ say: "خیم۔", model: "eleven_multilingual_v2" }),
+  "دبک": Object.freeze({ say: "دَبَک۔", model: "eleven_multilingual_v2" }),
+  "زاچی": Object.freeze({ say: "زاچی۔", model: "eleven_multilingual_v2" }),
+  "یہ حرف ثے ہے۔": Object.freeze({ say: "یہ حرف «سے» ہے۔" }),
+  "کلاس صاف ہونے کے بعد استاد خوش کیوں ہوئے؟": Object.freeze({ say: "کِلاس صاف ہونے کے بعد استاد خوش کیوں ہوئے؟" }),
+  "شاباش! لفظ \"انار\" کی ابتدائی آواز ا ہے۔": Object.freeze({ say: "[excited] شاباش! لفظ اَنار کی ابتدائی آواز [slowly] اَ ہے۔" }),
+  "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام بولیں، جیسے: \"بے\"۔ کوئی حرف نہ آتا ہو تو \"آگے\" کو دبائیں۔": Object.freeze({ say: "[cheerfully] ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام بولیں، جیسے: \"بے\"۔ کوئی حرف نہ آتا ہو تو \"آگے\" کو دبائیں۔" }),
+  "زویا کے پاس ۳ مالٹے ہیں۔ سارہ کے پاس ۲ مالٹے ہیں۔ سارہ کو کتنے اور مالٹے چاہییں تاکہ اس کے پاس زویا جتنے مالٹے ہو جائیں؟": Object.freeze({ say: "زویا کے پاس، three، مالٹے ہیں۔ سارہ کے پاس، two، مالٹے ہیں۔ سارہ کو کتنے اور مالٹے چاہییں تاکہ اس کے پاس زویا جتنے مالٹے ہو جائیں؟" }),
+  "اب تفریق کا ہر سوال حل کرنے کی آپ کی باری ہے۔": Object.freeze({ say: "[cheerfully] اب تَفریق کا ہر سوال حل کرنے کی آپ کی باری ہے۔" }),
+});
+function lineSaid(text, lang) {
+  if (lang !== 'ur') return null;
+  return UR_LINE_SAID[String(text).trim()] || null;
+}
+
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
 // phonics grammar): a held sound is stretched (Urdu «لَ» "lllll", «نَ» "nnnnn"), a stop stays short ("tuh"), and each
 // sound gets its own [slowly]. The screen keeps its text; only what the voice is given changes.
@@ -123,7 +157,9 @@ const slow = (t) => `[slowly] ${t}`;
 // the line that is just the sound is given the spelling it says right. Inside a narration line the sound is unchanged.
 // ks and juh: the takes the content owner picked from the listening list (16 Nov), kept as recorded.
 const EN_SOUND_ALONE = Object.freeze({ hhh: slow('hhhh'), rrr: slow('rrrrr'), yuh: slow('yuh'), kwuh: slow('kwuh'), kuh: slow('kuh'),
-  ks: slow('ks'), juh: slow('juh') });
+  ks: slow('ks'), juh: slow('juh'),
+  // l, i, f: the content owner's picks (16 Nov 17:28Z); i and f were chosen in takes made without [slowly]
+  lll: slow('lllll'), ih: 'ihh.', fff: 'fffff.' });
 function withSounds(text, lang) {
   if (lang === 'en') {
     const t = String(text).trim();
@@ -159,7 +195,7 @@ function keyOf(provider, env) {
 }
 
 /** The request for one line: { url, headers, body }. Pure, so a test can read what each provider is sent. */
-function requestFor({ provider, voice, speed, lang, text }, key) {
+function requestFor({ provider, voice, speed, lang, text, model }, key) {
   if (provider === 'soniox') {
     return { url: 'https://tts-rt.soniox.com/tts', headers: { Authorization: `Bearer ${key}`, 'User-Agent': 'voice-gateway/1.0' },
       body: { model: SETTINGS.soniox.model, text, language: lang, voice, audio_format: 'mp3', sample_rate: 44100, bitrate: 128000,
@@ -169,7 +205,7 @@ function requestFor({ provider, voice, speed, lang, text }, key) {
     const s = SETTINGS.elevenlabs;
     return { url: `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`,
       headers: { 'xi-api-key': key },
-      body: { text, model_id: s.model, voice_settings: { stability: s.stability, similarity_boost: s.similarity_boost, style: 0,
+      body: { text, model_id: model || s.model, voice_settings: { stability: s.stability, similarity_boost: s.similarity_boost, style: 0,
         use_speaker_boost: true, ...(speed && speed !== 1 ? { speed } : {}) } } };
   }
   if (provider === 'uplift') {
@@ -200,4 +236,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withLetterNames, withWordVowels, withSounds, isPraise, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withLetterNames, withWordVowels, lineSaid, withSounds, isPraise, withTag, requestFor, synthesize };
