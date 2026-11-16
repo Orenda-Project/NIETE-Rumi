@@ -1,0 +1,3 @@
+{"ts":"2026-11-16T13:43:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"dbe4a945cf31","branch":"bd-snkn32.47-sb","user":""}
+{"ts":"2026-11-16T13:44:00Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"dbe4a945cf31","branch":"bd-snkn32.47-sb","user":""}
+{"ts":"2026-11-16T13:44:08Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"4046d348-b611-48b4-a17a-31ba0ee2ed41","sha":"dbe4a945cf31","branch":"bd-snkn32.47-sb","user":""}
