@@ -788,6 +788,14 @@ export interface AnalyticsBasis {
   asOf: { schools: string | null; teachers: string | null; coaches: string | null };
 }
 
+/** GET /api/portal/analytics/scope: whose view this is — the viewer's organization and the regions it owns. */
+export interface AnalyticsScope {
+  success: boolean;
+  /** region_features.organization: 'niete' (FDE's six ICT sectors), 'moawin' (Gilgit-Baltistan), … */
+  organization: string;
+  regions: string[];
+}
+
 export interface SchoolsAnalyticsResponse {
   success: boolean;
   /** The window the numbers cover, both days inclusive; null = open at that end. */

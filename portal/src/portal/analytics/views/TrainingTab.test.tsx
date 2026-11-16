@@ -30,7 +30,7 @@ vi.mock("../../hooks/useAuth", () => ({
 }));
 vi.mock("../../services/api", async (orig) => ({
   ...(await orig<typeof import("../../services/api")>()),
-  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching },
+  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching, getScope: async () => ({ success: true, organization: "niete", regions: ["B.K", "Sihala", "Urban-I", "Nilore", "Urban-II", "Tarnol"] }) },
   trainingLevelsAnalytics: { get: h.getTrainingLevels },
 }));
 

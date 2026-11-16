@@ -75,10 +75,22 @@ describe('planAccount', () => {
 });
 
 // ── run(): the whole flow against an in-memory supabase ─────────────────────────
-function fakeSupabase({ users = [], flagValue } = {}) {
+/** region_features as on every tier since V1.8.8: FDE's six sectors under 'niete', Gilgit-Baltistan under 'moawin'. */
+const REGISTRY = [
+  { region: 'niete', organization: null, is_active: true },
+  { region: 'b.k', organization: 'niete', is_active: true },
+  { region: 'tarnol', organization: 'niete', is_active: true },
+  { region: 'gilgit-baltistan', organization: 'moawin', is_active: true },
+  { region: 'old-pilot', organization: 'retired', is_active: false },
+];
+function fakeSupabase({ users = [], flagValue, orgMap, registry = REGISTRY } = {}) {
   const db = {
     users: users.map((u) => ({ ...u })),
-    app_settings: flagValue === undefined ? [] : [{ key: 'portal_analytics_only', value: flagValue }],
+    app_settings: [
+      ...(flagValue === undefined ? [] : [{ key: 'portal_analytics_only', value: flagValue }]),
+      ...(orgMap === undefined ? [] : [{ key: 'portal_analytics_organizations', value: orgMap }]),
+    ],
+    region_features: registry.map((r) => ({ ...r })),
   };
   const writes = [];
   let seq = 0;
@@ -87,6 +99,7 @@ function fakeSupabase({ users = [], flagValue } = {}) {
     const chain = {
       select: () => chain,
       eq: (c, v) => { filters[c] = v; return chain; },
+      limit: () => chain,
       maybeSingle: async () => ({ data: db[table].find((r) => Object.entries(filters).every(([c, v]) => r[c] === v)) || null, error: null }),
       insert: (row) => {
         const created = { id: `new-${++seq}`, ...row };
@@ -352,5 +365,97 @@ describe('run() --reset-password — a fresh setup link for an analytics account
     await expect(run({ ...base, account: null, phone: '03001234567', supabase: sb.client, invite: invite(), commit: true }))
       .rejects.toThrow(/REFUSED/);
     expect(sb.writes).toEqual([]);
+  });
+});
+
+// Shoaib (GB POC, 15 Nov): "Each account needs both portal_analytics_only and the moawin mapping, or it shows ICT's
+// data." The mapping was a second write by hand. --organization makes it part of making the account: the mapping is
+// written FIRST (an account is never on the list without it), an organization the region registry does not know is
+// refused, and an account already mapped elsewhere is never moved. The CLI asks for it on every new account.
+describe('--organization: whose regions the account sees, written with the account', () => {
+  const ORG_KEY = 'portal_analytics_organizations';
+  const base = { account: 'moawin-ho-test', name: 'Moawin HO (test)', portalUrl: 'https://portal.example', log: quiet };
+  const mapRow = (sb) => (sb.db.app_settings.find((r) => r.key === ORG_KEY) || {}).value;
+  const listRow = (sb) => (sb.db.app_settings.find((r) => r.key === 'portal_analytics_only') || {}).value;
+
+  it('commit: maps the new account to moawin BEFORE it goes on the list, keeping every other mapping', async () => {
+    const sb = fakeSupabase({ flagValue: ['fde-1', 'gb-1'], orgMap: { 'gb-1': 'moawin' } });
+    const out = await run({ ...base, organization: 'moawin', supabase: sb.client, invite: invite(), commit: true });
+    expect(mapRow(sb)).toEqual({ 'gb-1': 'moawin', [out.userId]: 'moawin' });
+    expect(listRow(sb)).toEqual(['fde-1', 'gb-1', out.userId]);
+    const keys = sb.writes.filter((w) => w.table === 'app_settings').map((w) => w.row.key);
+    expect(keys).toEqual([ORG_KEY, 'portal_analytics_only']);
+    expect(out.organization).toBe('moawin');
+  });
+
+  it('creates the mapping row when there is none; a JSON-string map is read as the map', async () => {
+    const none = fakeSupabase({ flagValue: [] });
+    const a = await run({ ...base, organization: 'moawin', supabase: none.client, invite: invite(), commit: true });
+    expect(mapRow(none)).toEqual({ [a.userId]: 'moawin' });
+    const str = fakeSupabase({ flagValue: [], orgMap: JSON.stringify({ 'gb-1': 'moawin' }) });
+    const b = await run({ ...base, organization: 'moawin', supabase: str.client, invite: invite(), commit: true });
+    expect(mapRow(str)).toEqual({ 'gb-1': 'moawin', [b.userId]: 'moawin' });
+  });
+
+  it('spelling is forgiven (" Moawin "), an organization the registry does not know is not', async () => {
+    const ok = fakeSupabase({ flagValue: [] });
+    const out = await run({ ...base, organization: ' Moawin ', supabase: ok.client, invite: invite(), commit: true });
+    expect(mapRow(ok)[out.userId]).toBe('moawin');
+    for (const org of ['mowain', 'retired', 'gb', '']) {
+      const sb = fakeSupabase({ flagValue: [] });
+      // eslint-disable-next-line no-await-in-loop
+      await expect(run({ ...base, organization: org, supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+      expect(sb.writes).toEqual([]);
+    }
+  });
+
+  it('dry run: checks the organization and the map, writes nothing, mints nothing', async () => {
+    const sb = fakeSupabase({ flagValue: [], orgMap: {} });
+    const inv = invite();
+    const out = await run({ ...base, organization: 'moawin', supabase: sb.client, invite: inv, commit: false });
+    expect(out.committed).toBe(false);
+    expect(sb.writes).toEqual([]);
+    expect(inv.generatePortalToken).not.toHaveBeenCalled();
+    const bad = fakeSupabase({ flagValue: [] });
+    await expect(run({ ...base, organization: 'mowain', supabase: bad.client, invite: invite(), commit: false })).rejects.toThrow(/REFUSED/);
+  });
+
+  it('a mapping value that is not an object of names is refused before any write', async () => {
+    for (const orgMap of [['x'], true, 'moawin', '{bad json', { a: 7 }]) {
+      const sb = fakeSupabase({ flagValue: [], orgMap });
+      // eslint-disable-next-line no-await-in-loop
+      await expect(run({ ...base, organization: 'moawin', supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+      expect(sb.writes).toEqual([]);
+    }
+  });
+
+  it('an account already mapped to another organization is never moved', async () => {
+    const existing = { id: 'acct-1', phone_number: 'analytics:moawin-ho-test', role: 'unregistered', school_id: null, name: 'X' };
+    const sb = fakeSupabase({ users: [existing], flagValue: ['acct-1'], orgMap: { 'acct-1': 'moawin' } });
+    await expect(run({ ...base, organization: 'niete', supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+  });
+
+  it("niete (FDE's) is the default: no mapping row is written, the list is as before", async () => {
+    const sb = fakeSupabase({ flagValue: ['fde-1'], orgMap: { 'gb-1': 'moawin' } });
+    const out = await run({ ...base, account: 'fde-ho-test', organization: 'niete', supabase: sb.client, invite: invite(), commit: true });
+    expect(mapRow(sb)).toEqual({ 'gb-1': 'moawin' });
+    expect(listRow(sb)).toEqual(['fde-1', out.userId]);
+  });
+
+  it('a re-run with the same organization changes nothing in either row', async () => {
+    const existing = { id: 'acct-1', phone_number: 'analytics:moawin-ho-test', role: 'unregistered', school_id: null, name: 'X' };
+    const sb = fakeSupabase({ users: [existing], flagValue: ['acct-1'], orgMap: { 'acct-1': 'moawin' } });
+    await run({ ...base, organization: 'moawin', supabase: sb.client, invite: invite(), commit: true });
+    expect(sb.writes.filter((w) => w.table === 'app_settings')).toEqual([]);
+  });
+
+  it('the command line: --organization is read, and a new account without it is refused (a reset needs none)', () => {
+    const { parseArgs, checkArgs } = require('../../scripts/create-analytics-user');
+    const args = parseArgs(['--env', 'staging', '--name', 'moawin-ho-test', '--display', 'Moawin HO (test)', '--organization', 'moawin']);
+    expect(args.organization).toBe('moawin');
+    expect(() => checkArgs(args)).not.toThrow();
+    expect(() => checkArgs(parseArgs(['--env', 'staging', '--name', 'moawin-ho-test', '--display', 'X']))).toThrow(/REFUSED.*--organization/);
+    expect(() => checkArgs(parseArgs(['--env', 'staging', '--name', 'moawin-ho-test', '--reset-password']))).not.toThrow();
   });
 });

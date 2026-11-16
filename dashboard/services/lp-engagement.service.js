@@ -52,7 +52,14 @@
  *
  * WHOSE REGIONS (bd-97daxo.3): "the six sectors" is the default; opts.regions — the regions the viewer's
  * organization owns, from the region registry — replaces it in both halves (the v7 population, the sector cards and
- * matrices), so a teacher counts only in the viewer's regions (schools-analytics.service's rule).
+ * matrices), so a teacher counts only in the viewer's regions (schools-analytics.service's rule). *
+ * WHOSE BANDS (opts.bandRule). 'level' (the default, FDE's view): the v7 roster's band is users.teacher_level, as the
+ * RDF's own test reads it. 'derived' (another organization's view, which has no RDF lists of its own): her
+ * teacher_level when it names a band; else the grades she gave at registration (users.grades_taught: grades 1-5 and
+ * early years Primary, 6-8 Middle, 9-12 and higher secondary High, the training band derivation's reading); else, with
+ * neither, Primary, as the RDF's Gilgit-Baltistan lines count every GB teacher as a primary teacher. Most GB
+ * teachers came over from old Rumi with no teacher_level (94 of 102 on prod, 16 Nov), so by level alone the GB tab
+ * counted 10 of them. The rule never touches the RDF lists: when they are loaded they are the population.
  */
 
 const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER } = require('./schools-analytics.service');
@@ -152,17 +159,62 @@ function levelList(raw) {
 const inBand = (levels, band) => levelList(levels)
   .some((l) => typeof l === 'string' && BAND_RULES[band].levels.includes(l.trim().toUpperCase()));
 
+const BAND_WORDS = new Set(['PRIMARY', 'MIDDLE', 'HIGH']);
+
+/** One registration grade token ("grade_6", "early_years", "higher_secondary", "6", a band word) → its band, or null. */
+function bandOfGradeToken(token) {
+  const t = String(token === null || token === undefined ? '' : token).trim().toLowerCase();
+  if (!t) return null;
+  if (BAND_WORDS.has(t.toUpperCase())) return t.toUpperCase();
+  const digits = t.replace(/[^0-9]/g, '');
+  if (digits) {
+    const n = parseInt(digits, 10);
+    if (!(n >= 1 && n <= 12)) return null;
+    if (n <= 5) return 'PRIMARY';
+    return n <= 8 ? 'MIDDLE' : 'HIGH';
+  }
+  if (t.startsWith('early')) return 'PRIMARY';
+  if (t.includes('secondary')) return 'HIGH';
+  return null;
+}
+
+/** users.grades_taught (a JSON array or a comma list, as registration and the imports wrote it) → its bands. */
+function bandsOfGrades(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  let tokens;
+  if (raw.trim().startsWith('[')) {
+    try { tokens = JSON.parse(raw); } catch (_) { return []; }
+    if (!Array.isArray(tokens)) return [];
+  } else {
+    tokens = raw.split(',');
+  }
+  return [...new Set(tokens.map(bandOfGradeToken).filter(Boolean))];
+}
+
 /**
- * The v7 population, for when the RDF teacher lists are not loaded: roster teachers of the band at a counted
- * school (v7's school rule), each in her school's sector.
+ * A roster teacher's bands under the view's rule (WHOSE BANDS above): her level; for 'derived', else her
+ * registration grades, else Primary.
+ * @param {{bands?: unknown, grades_taught?: unknown}} t
+ * @param {'level'|'derived'} rule
+ */
+function rosterBands(t, rule = 'level') {
+  const own = levelList(t && t.bands).map((l) => String(l).trim().toUpperCase()).filter((l) => BAND_WORDS.has(l));
+  if (rule !== 'derived' || own.length) return own;
+  const graded = bandsOfGrades(t && t.grades_taught);
+  return graded.length ? graded : ['PRIMARY'];
+}
+
+/**
+ * The v7 population, for when the RDF teacher lists are not loaded: roster teachers of the band (by the view's
+ * bandRule, WHOSE BANDS above) at a counted school (v7's school rule), each in her school's sector.
  * @returns {Map<string, string>}
  */
-function v7Population(roster, schools, band, regions = REGION_BUCKETS) {
+function v7Population(roster, schools, band, regions = REGION_BUCKETS, bandRule = 'level') {
   const sectorOf = new Map();
   for (const s of schools || []) if (s && v7School(s, regions)) sectorOf.set(s.id, bucketOf(s.region, regions));
   const out = new Map();
   for (const t of roster || []) {
-    if (t && inBand(t.bands, band) && sectorOf.has(t.school_id)) out.set(t.id, sectorOf.get(t.school_id));
+    if (t && inBand(rosterBands(t, bandRule), band) && sectorOf.has(t.school_id)) out.set(t.id, sectorOf.get(t.school_id));
   }
   return out;
 }
@@ -304,7 +356,7 @@ const SCHOOLS_SQL = `
 
 /** Today's roster with its levels — read only when the RDF teacher lists are not loaded. */
 const ROSTER_SQL = `
-  SELECT u.id, u.school_id, u.teacher_level::text[] AS bands
+  SELECT u.id, u.school_id, u.teacher_level::text[] AS bands, u.grades_taught
     FROM users u
    WHERE ${ROSTER_TEACHER}`;
 
@@ -392,10 +444,10 @@ function lpActivitySql(bounds, band, ids) {
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range from analyticsRange (validated)
  * @param {'primary'|'midhigh'} band
- * @param {{lists?: object, regions?: readonly string[]}} [opts] regions: the viewer's (the v7 population's); FDE's
- *   six when omitted
+ * @param {{lists?: object, regions?: readonly string[], bandRule?: 'level'|'derived'}} [opts] regions: the viewer's
+ *   (the v7 population's); FDE's six when omitted. bandRule: how the v7 roster is banded (WHOSE BANDS above).
  */
-async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {}, regions = REGION_BUCKETS } = {}) {
+async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {}, regions = REGION_BUCKETS, bandRule = 'level' } = {}) {
   const b = BANDS.includes(band) ? band : 'primary';
   lists = lists || {};
   const rdf = !(lists.missing && lists.missing.teachers) && lists[BAND_RULES[b].list] ? lists[BAND_RULES[b].list] : null;
@@ -421,7 +473,7 @@ async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists
   const [schoolRes, rosterRes] = await Promise.all([query(SCHOOLS_SQL, []), query(ROSTER_SQL, [])]);
   const schools = schoolRes.rows || [];
   const roster = rosterRes.rows || [];
-  const population = v7Population(roster, schools, b, regions);
+  const population = v7Population(roster, schools, b, regions, bandRule);
   const lp = lpActivitySql(bounds, b, [...population.keys()]);
   const lpRes = await query(lp.sql, lp.params);
   return {
@@ -441,4 +493,5 @@ module.exports = {
   activePct,
   summarizeLpEngagement,
   loadLpEngagementRows,
+  rosterBands,
 };
