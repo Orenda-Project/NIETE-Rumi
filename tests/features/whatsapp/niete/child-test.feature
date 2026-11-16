@@ -1201,3 +1201,23 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the sub-region table has an "Urdu level", "English level" and "Maths level" column with each row's typical level
     And a row of fewer than 5 children shows "–" in those columns
     And with sa_r20_level off the table has no level columns
+
+  @e2e @wip @draft @config-gated @P1 @CT185 @no-mock-driver
+  # No mock driver: the check runs in the scoring sweep against a model and speech-to-text, not in the chat.
+  # Asserted in bot/tests/child-test/sa-score-voice-strict.test.js.
+  Scenario: With sa_r26_voice_strict on, "Another voice heard" is not shown when nobody else's words are in the recording
+    Given sa_r26_voice_strict is on and the another-voice check is on
+    And the check says another person spoke in a child's recording
+    When no word was heard in that recording, or the other person's words are not among the words heard
+    Then the coach's Results for that task do not say another voice was heard
+    And the child's marks are the same as without the check
+    And with sa_r26_voice_strict off the Results are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT186 @no-mock-driver
+  # No mock driver: as @CT185. Asserted in bot/tests/child-test/sa-score-voice-strict.test.js.
+  Scenario: With sa_r26_voice_strict on, an adult heard prompting the child is still flagged
+    Given sa_r26_voice_strict is on and the another-voice check is on
+    And an adult speaks to the child during a recorded part, for example "speak louder" or "go ahead"
+    When the adult's words are among the words heard in that recording
+    Then the coach's Results for that task say another voice was heard
+    And the child's marks are the same as without the check
