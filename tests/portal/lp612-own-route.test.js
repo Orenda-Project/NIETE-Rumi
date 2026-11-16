@@ -9,6 +9,7 @@ const express = require('express');
 
 const ENV = { ...process.env };
 let flags;
+let gb; // bd-2zopnc: isGbTeacher answer (true, false, or an Error to throw)
 let botCalls;
 let botAnswer;
 
@@ -18,7 +19,11 @@ beforeEach(() => {
   flags = { portal_teacher_v2: true, portal_lp_make_own: true };
   botCalls = [];
   botAnswer = { status: 202, data: { success: true, state: 'authoring', renderId: 'own-1' } };
+  gb = false;
   jest.doMock('../../dashboard/config/supabase', () => ({}));
+  jest.doMock('../../bot/shared/services/lp-own-gb', () => ({
+    isGbTeacher: async () => { if (gb instanceof Error) throw gb; return gb; },
+  }));
   jest.doMock('../../dashboard/lib/portal-auth', () => ({
     requirePortalAuth: (req, res, next) => (req.session && req.session.portalUserId ? next() : res.status(401).json({})),
   }));
@@ -72,6 +77,21 @@ test('flag off: 404 and the bot is never asked', async () => {
 
 test('teacher app off: 404 too', async () => {
   flags.portal_teacher_v2 = false;
+  await start();
+  expect((await post(BODY)).status).toBe(404);
+  expect(botCalls).toEqual([]);
+});
+
+// bd-2zopnc — Amena, 16 Nov: not live for GB. A GB teacher, or a region read that fails, is 404; the bot never asked.
+test('a GB teacher: 404 even with both switches on', async () => {
+  gb = true;
+  await start();
+  expect((await post(BODY)).status).toBe(404);
+  expect(botCalls).toEqual([]);
+});
+
+test('the region read failing: 404 (fail closed)', async () => {
+  gb = new Error('boom');
   await start();
   expect((await post(BODY)).status).toBe(404);
   expect(botCalls).toEqual([]);

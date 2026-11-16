@@ -1227,6 +1227,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
     And a "Make my own" row left in my scrollback from before is refused and sends nothing
 
+  # bd-2zopnc — operator, 16 Nov: Make my own is not live for GB. "teachers" checks the role only, so the region is
+  # checked too (users.source / users.region / school region); a failed region read is off. Unit: bd-iceyyu-own-offer.test.js.
+  @e2e @config-gated @negative @flow @P1
+  Scenario: A GB teacher never sees Make my own, even with the switch on for teachers
+    Given "portal_lp_make_own" is "teachers" and I am a GB teacher on the teacher app
+    When I open the lesson-plan Flow and pick a Grade 6-12 chapter
+    Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
+    And an ICT teacher with the same switch still sees "Make my own" first
+
   @e2e @config-gated @P1
   Scenario: A Make my own plan for a class of more than 70 fits one period with less to do
     Given "portal_lp_make_own" is on for me and my Grades 1-5 day plan states its period in minutes
