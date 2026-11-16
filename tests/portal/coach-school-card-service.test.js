@@ -94,7 +94,7 @@ function baseTables() {
       { id: 'o1', user_id: 'u1', opened_at: pk('2026-10-27 08:01'), plan_kind: 'k5', source: 'viewer', plan_ref: 'grade_3_math_ch1_seg3' },
       { id: 'o2', user_id: 'u1', opened_at: '2026-10-27T18:59:59.000Z', plan_kind: 'k5', source: 'viewer', plan_ref: 'grade_2_urdu_ch5_seg2' },
       { id: 'o3', user_id: 'u1', opened_at: pk('2026-10-27 12:00'), plan_kind: 'k5', source: 'external', plan_ref: 'grade_3_math_ch7_seg1' },
-      { id: 'o4', user_id: 'u1', opened_at: pk('2026-10-27 12:00'), plan_kind: 'g612', source: 'viewer', plan_ref: 'grade_8_geo.c04' },
+      { id: 'o4', user_id: 'u1', opened_at: pk('2026-10-27 12:00'), plan_kind: 'g612', source: 'external', plan_ref: 'grade_8_geo.c04' },
     ],
     sessions: [
       // DC
@@ -264,7 +264,7 @@ function fakeDb(t) {
       }
       case 'opens': {
         const [ids, lo, hi] = params;
-        return { rows: t.opens.filter((o) => ids.includes(o.user_id) && o.plan_kind === 'k5' && o.source === 'viewer' && inWin(o.opened_at, lo, hi)).map((o) => ({ ...o, at: o.opened_at })) };
+        return { rows: t.opens.filter((o) => ids.includes(o.user_id) && ['k5', 'g612'].includes(o.plan_kind) && o.source === 'viewer' && inWin(o.opened_at, lo, hi)).map((o) => ({ ...o, at: o.opened_at })) };
       }
       case 'sessions': {
         const [ids, lo, hi] = params;
@@ -456,6 +456,40 @@ describe('lesson plans: the RDF lp_use, a same-day repeat of one plan counted on
     const byDay = plans.reduce((m, p) => ({ ...m, [p.day]: (m[p.day] || 0) + 1 }), {});
     expect(byDay).toEqual({ '2026-10-26': 3, '2026-10-27': 2 });
     expect(plans.find((p) => p.day === '2026-10-27' && p.ref === 'Z').id).toBe('e');
+  });
+
+  // A teacher who reads her plan in the app is a teacher who used NIETE, in any grade: a Grade 6-12 viewer open
+  // ('g612') counts like a K-5 one, with its grade read from the plan key.
+  const GRADE_OPENS = [];
+  for (let g = 1; g <= 5; g += 1) {
+    GRADE_OPENS.push([g, 'k5', `grade_${g}_math_ch1_seg1`, 'ICT K-5 catalogue id']);
+    GRADE_OPENS.push([g, 'k5', `gb_g${g}_english_ch1_seg1`, 'GB K-5 catalogue id']);
+  }
+  for (let g = 6; g <= 10; g += 1) {
+    GRADE_OPENS.push([g, 'g612', `grade_${g}_mathematics.c05.p071-073`, 'ICT 6-12 segment id']);
+    GRADE_OPENS.push([g, 'g612', `nbf_snc_grade_${g}_maths.c04.s002`, 'curriculum 6-12 segment id']);
+  }
+  test.each(GRADE_OPENS)('Grade %i: a %s viewer open of %s (%s) counts once, in its own grade', (grade, kind, ref) => {
+    const plans = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: ref, plan_kind: kind }]);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ userId: 'u', day: '2026-10-27', ref, grade: String(grade) });
+  });
+
+  test('an open with no plan_kind is read as K-5, as before; a 6-12 key under k5 is not a plan', () => {
+    const k5 = Card.lessonPlansOf([], [{ id: 'a', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_3_math_ch1_seg1' }]);
+    expect(k5).toHaveLength(1);
+    expect(k5[0].grade).toBe('3');
+    const wrongLane = Card.lessonPlansOf([], [{ id: 'b', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_8_mathematics.c05.p071-073', plan_kind: 'k5' }]);
+    expect(wrongLane[0].grade).toBeNull();
+  });
+
+  test('a 6-12 open and a K-5 open on one day are two plans; the same 6-12 plan opened twice that day is one', () => {
+    const plans = Card.lessonPlansOf([], [
+      { id: '1', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_8_mathematics.c05.p071-073', plan_kind: 'g612' },
+      { id: '2', user_id: 'u', at: pk('2026-10-27 09:30'), plan_ref: 'grade_8_mathematics.c05.p071-073', plan_kind: 'g612' },
+      { id: '3', user_id: 'u', at: pk('2026-10-27 10:00'), plan_ref: 'grade_3_math_ch1_seg1', plan_kind: 'k5' },
+    ]);
+    expect(plans.map((p) => p.grade).sort()).toEqual(['3', '8']);
   });
 
   test('the school card counts 6: five for her (2 Mon, 2 Tue, 1 Wed), one typed plan for another; test accounts out', async () => {
