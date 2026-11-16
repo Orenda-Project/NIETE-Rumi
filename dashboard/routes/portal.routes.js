@@ -78,6 +78,7 @@ const { CAPSTONE_MARKING_DEADLINE_MS } = require('../middleware/timeout');
 // issueCertificate, already required from this file. Anything in it that needs a
 // DB read or the vendor's bar stays behind the internal API.
 const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
+const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
 // bd-arghnv.3 — a question with a blank stem is never served or counted as a quiz. The bot's own rule
@@ -9326,6 +9327,10 @@ router.get('/config', async (req, res) => {
     // names them. observeOnPortal = the gate's answer; a principal off the app also loses the Observations button.
     const principal = isPrincipalRole(configRole);
     const observeOnPortal = principal ? principalApp === true : (coachObservation === true || coachV2 === true);
+    // bd-2zopnc — Make my own and the shelf are not live for GB; read only when one is on, and a failed read is off.
+    const lpOwnNotGb = teacherV2 && (lpMakeOwnRaw || lpOwnShelfRaw)
+      ? !(await isGbTeacher(supabase, userId).catch(() => true))
+      : false;
     return res.json({
       success: true,
       // bd-tacnwy — the profile types the switch offers; empty unless features.roleSwitch.
@@ -9352,8 +9357,8 @@ router.get('/config', async (req, res) => {
         roleSwitch,
         principalApp,
         helpVideos: teacherV2 && helpVideosRaw,
-        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
-        lpOwnShelf: teacherV2 && lpOwnShelfRaw,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw && lpOwnNotGb,
+        lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
         lpOwnReviewer,
       },
     });
