@@ -470,6 +470,7 @@ export const portal = {
           childTest: false,
           childTestSa: false,
           coachObservation: false,
+          observeOnPortal: false,
           newUi: false,
           assessmentEditing: false,
           coachV2: false,
@@ -704,6 +705,8 @@ export type PortalConfig = {
     childTestSa?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
+    /** bd-w0zbbe — the portal's observe page is hers: the observe API's own gate (a principal only on the principal app). */
+    observeOnPortal?: boolean;
     /** Coach reports in the app — her debrief report as a page and its Home card (coach_reports_app; fail-closed). */
     coachReportsApp?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */

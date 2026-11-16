@@ -182,6 +182,8 @@ describe('GET /config — features.newUi', () => {
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
       'newUi',
+      // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
+      'observeOnPortal',
       // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
       'principalApp', 'roleSwitch', 'schoolCard', 'selfObservation', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
     ]);

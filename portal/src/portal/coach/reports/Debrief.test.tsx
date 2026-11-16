@@ -117,13 +117,13 @@ describe("Debrief — a slow guide is asked for again, not given up on", () => {
  * for every waiting screen), and offers no recording until the guide is there.
  */
 describe("Debrief — while the guide is being written", () => {
-  it("says about 30 seconds and that she can leave, and offers no recording yet", async () => {
+  it("says under a minute and that she can leave, and offers no recording yet", async () => {
     let answer: (v: unknown) => void = () => {};
     L.getTalkGuide.mockReturnValue(new Promise((r) => { answer = r; }));
     renderPage();
     await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Writing your guide")).toBeInTheDocument();
-    expect(screen.getByText(/About 30 seconds/)).toBeInTheDocument();
+    expect(screen.getByText(/Under a minute/)).toBeInTheDocument();
     expect(screen.getByText("You can leave. We'll tell you here.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start recording" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Upload recording" })).toBeNull();
@@ -131,7 +131,7 @@ describe("Debrief — while the guide is being written", () => {
     await act(async () => { answer({ guide: GUIDE }); });
     expect(await screen.findByTestId("talk-guide")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start recording" })).toBeInTheDocument();
-    expect(screen.queryByText(/About 30 seconds/)).toBeNull();
+    expect(screen.queryByText(/Under a minute/)).toBeNull();
   });
 });
 
