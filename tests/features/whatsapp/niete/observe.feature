@@ -1549,11 +1549,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the lesson-plan part is scored from it
 
   # bd-snkn32.45 — the same own plans on the WhatsApp /observe lesson-plan list.
+  # bd-4alcjx: each own row ends with when she made it, by the Pakistan day ("today 8:05 am", "yesterday 9:00 pm",
+  # "12 Nov, 2:40 pm"), so two plans for one lesson differ. Unit: tests/coaching/bd-4alcjx-own-plan-time.test.js.
   # Unit: tests/coaching/bd-snkn32.45-whatsapp-own-plans.test.js (lp-own-plans, lp-own-selection.handler).
   @e2e @P1
   Scenario: A coach on WhatsApp picks the plan the teacher made with Make my own
     Given a coach observing on WhatsApp reaches the lesson-plan list for a teacher who made a plan with Make my own
     Then her ready plan is a row marked "Made by the teacher" (Urdu "ٹیچر کا بنایا ہوا") with its grade, subject and chapter, newest first among at most 8 plans
+    And the row ends with the Pakistan day and time she made it, so two of her plans for the same lesson read differently
     And a plan of hers that failed or is still being written, or another teacher's plan, is not listed
     When the coach taps it and answers "Yes" to "Do you want to proceed?"
     Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the analysis starts

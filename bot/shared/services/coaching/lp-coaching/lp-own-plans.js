@@ -12,7 +12,7 @@
  * The label never guesses the teacher's gender (a teacher can be a man or a woman).
  */
 const OwnPlans = require('../../observe/observe-own-plans');
-const { truncateCp, relTime } = require('./lp-selection-format');
+const { truncateCp } = require('./lp-selection-format');
 
 const MAX_LP_ROWS = 8; // the list's plan rows (lp-selection-list: 10 WhatsApp rows minus 2 option rows)
 const TITLE_MAX = 24;
@@ -38,18 +38,44 @@ function toListLp(p) {
 
 const cap1 = (s) => { const t = String(s || '').trim(); return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; };
 
-/** Pure: an own list entry → its WhatsApp row text. Code-point caps, Urdu-safe. */
+// bd-4alcjx: YYYY-MM-DD + h:mm am/pm of a moment, in a time zone.
+function zoned(d, tz) {
+  const parts = {};
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true,
+  }).formatToParts(d).forEach((p) => { parts[p.type] = p.value; });
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute} ${String(parts.dayPeriod).toLowerCase()}` };
+}
+
+/**
+ * Pure (bd-4alcjx): when she made the plan, by the region's calendar day — "today 8:05 am", "yesterday 9:00 pm",
+ * else "12 Nov, 2:40 pm". Two plans for one lesson are told apart by it.
+ */
+function ownWhen(created, now = new Date(), tz = process.env.REGION_TIME_ZONE || 'Asia/Karachi') {
+  if (!created) return '';
+  const d = new Date(created);
+  if (isNaN(d)) return '';
+  const made = zoned(d, tz);
+  const today = zoned(now, tz).day;
+  const yesterday = zoned(new Date(new Date(`${today}T12:00:00Z`).getTime() - 86400000), 'UTC').day;
+  if (made.day >= today) return `today ${made.time}`;
+  if (made.day === yesterday) return `yesterday ${made.time}`;
+  return `${d.toLocaleDateString('en-GB', { timeZone: tz, day: 'numeric', month: 'short' })}, ${made.time}`;
+}
+
+/** Pure: an own list entry → its WhatsApp row text. Code-point caps, Urdu-safe; over the cap the time is kept. */
 function formatOwnRow(lp, lang = 'en', opts = {}) {
   const gradeBit = lp.grade != null ? `Grade ${lp.grade}${lp.subject ? ` ${cap1(lp.subject)}` : ''}` : cap1(lp.subject);
-  const parts = [
+  const head = [
     ownLabel(lang),
     gradeBit,
     lp.chapter_number != null ? `Ch${lp.chapter_number}` : '',
-    relTime(lp.created_at, opts.now || new Date()),
-  ].filter(Boolean);
+  ].filter(Boolean).join(' · ');
+  const when = ownWhen(lp.created_at, opts.now || new Date(), opts.tz);
+  const tail = when ? ` · ${when}` : '';
   return {
     title: truncateCp(lp.topic || 'Lesson plan', TITLE_MAX),
-    description: truncateCp(parts.join(' · '), DESC_MAX),
+    description: truncateCp(head, DESC_MAX - [...tail].length) + tail,
   };
 }
 
@@ -124,5 +150,5 @@ async function describeOwn(sessionId, ownId, lang, deps = {}) {
 }
 
 module.exports = {
-  LABEL, ownLabel, toListLp, formatOwnRow, mergeWithOwn, recentWithOwn, attachOwnPlan, describeOwn,
+  LABEL, ownLabel, toListLp, ownWhen, formatOwnRow, mergeWithOwn, recentWithOwn, attachOwnPlan, describeOwn,
 };
