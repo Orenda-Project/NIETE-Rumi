@@ -37,6 +37,20 @@ const { EDIT_GROWTH: MAX_GROWTH, MAKE_GROWTH } = require('./lp-own-fit');
 
 /** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
 const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
+/**
+ * bd-snkn32.47 — "use the book instead of the board" (بورڈ کی بجائے) is the right thing to say, not a board use.
+ * These negated mentions are stripped before BOARD is tested, so a real use on the same line still refuses.
+ */
+const EN_B = '(?:a |the )?(?:black|white|chalk)?board\\b';
+const UR_B = '(?:بورڈ|تختہ سیاہ)';
+const NO_BOARD = new RegExp([
+  `${UR_B}\\s*(?:کی|کے)\\s*(?:بجائے|بجاے|جگہ)`,
+  `بغیر\\s*${UR_B}`,
+  `${UR_B}\\s*(?:کا\\s*)?استعمال\\s*نہ`,
+  `\\binstead of ${EN_B}`,
+  `\\b(?:no|without|don'?t use|do not use) ${EN_B}`,
+].join('|'), 'gi');
+const usesBoard = (s) => BOARD.test(s.replace(NO_BOARD, ' '));
 
 const isLanguage = (subject) => /^(urdu|english)\b/i.test(String(subject || '').trim());
 const isEarly = (grade) => Number(grade) >= 1 && Number(grade) <= 3;
@@ -164,7 +178,7 @@ function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
   const all = strings(next);
   if (all.some((s) => s.includes(NOT_READY_UR))) reasons.push('a part says it is not ready');
   if (Array.isArray(resources) && !resources.includes('board')) {
-    const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find((s) => BOARD.test(s));
+    const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find(usesBoard);
     if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): use the book page instead`);
   }
   if (Array.isArray(resources)) {
