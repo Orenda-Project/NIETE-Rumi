@@ -53,3 +53,10 @@ test('withSounds: ks and juh alone get [slowly] (the picked takes)', () => {
   expect(P.withSounds('juh', 'en')).toBe('[slowly] juh');
   expect(P.withSounds('mmm, ih, ss', 'en')).toBe(P.withSounds('mmm, ih, ss', 'en'));
 });
+
+// The content owner's picks for l, i and f (listening list, 16 Nov 17:28Z): the take each chose, said alone.
+test('withSounds: lll, ih and fff alone get the picked spelling', () => {
+  expect(P.withSounds('lll', 'en')).toBe('[slowly] lllll');
+  expect(P.withSounds('ih', 'en')).toBe('ihh.');
+  expect(P.withSounds('fff', 'en')).toBe('fffff.');
+});
