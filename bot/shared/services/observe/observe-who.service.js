@@ -155,6 +155,7 @@ async function _withSchools(leaderUserId, teachers) {
     // Derived patch: the school comes from users.school_id, which is the same
     // answer the picker used to choose these people.
     const { listPatchViaSupabase } = require('./patch-resolver.service');
+    const { schoolKeyOf } = require('./school-key');
     const people = await listPatchViaSupabase(supabase, leaderUserId);
     if (!people.length) return teachers;
     const byPhone = new Map(people.filter((p) => p.phone).map((p) => [p.phone, p]));
@@ -168,7 +169,8 @@ async function _withSchools(leaderUserId, teachers) {
         // at insert time would be a second lookup that can disagree with this
         // one.
         userId: (p && p.userId) || t.userId || null,
-        school_ext_id: p && p.emis ? `niete:${p.emis}` : null,
+        // EMIS, else the holding key: a school with no EMIS still has one (the record's column is NOT NULL).
+        school_ext_id: schoolKeyOf(p),
         school_name: (p && p.schoolName) || null,
       };
     });
@@ -374,6 +376,7 @@ function readsAsName(text) {
 async function _rosterForMatching(leaderUserId) {
   const supabase = require('../../config/supabase');
   const { listPatchViaSupabase } = require('./patch-resolver.service');
+  const { schoolKeyOf } = require('./school-key');
   const people = await listPatchViaSupabase(supabase, leaderUserId);
   return (people || [])
     .filter((p) => p && String(p.userId || '') !== String(leaderUserId))
@@ -383,7 +386,7 @@ async function _rosterForMatching(leaderUserId) {
       name: p.name || null,
       phone_e164: p.phone || null,
       user_id: p.userId || null,
-      school_ext_id: p.emis ? `niete:${p.emis}` : null,
+      school_ext_id: schoolKeyOf(p),
       school_name: p.schoolName || null,
     }));
 }
