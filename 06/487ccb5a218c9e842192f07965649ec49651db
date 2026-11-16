@@ -1,0 +1,2 @@
+{"ts":"2026-11-16T13:43:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe spec_sync=true","sha":"06487ccb5a21","branch":"bd-i3618q-35942","user":""}
+{"ts":"2026-11-16T13:43:40Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: observe owe their Gherkin","sha":"06487ccb5a21","branch":"bd-i3618q-35942","user":""}
