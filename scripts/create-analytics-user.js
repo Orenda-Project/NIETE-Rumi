@@ -140,10 +140,11 @@ const normaliseOrganization = (raw) => (typeof raw === 'string' ? raw.trim().toL
  * The organizations map with `id` mapped to `organization`. Absent → a new map. An object of names (or its JSON
  * string) → that map plus id. Anything else throws: it is not ours to rewrite. An id already mapped to ANOTHER
  * organization throws too — moving an account between organizations changes whose data it sees, which is a decision,
- * not a side effect of making an account.
+ * not a side effect of making an account. An account ALREADY on portal_analytics_only with no mapping is FDE's
+ * ('niete', the portal's default), so it counts as mapped to niete (`listed`).
  * @returns {{map: object, changed: boolean}}
  */
-function mapOrganization(value, id, organization) {
+function mapOrganization(value, id, organization, { listed = false } = {}) {
   let v = value;
   if (typeof v === 'string') {
     try { v = JSON.parse(v); } catch (_) { v = null; }
@@ -153,7 +154,7 @@ function mapOrganization(value, id, organization) {
     throw new Error(`REFUSED: app_settings.${ORGANIZATIONS_KEY} is not an object of organization names (${JSON.stringify(value)}). ` +
       'Fix it by hand; this script will not overwrite it.');
   }
-  const now = normaliseOrganization(v[id]);
+  const now = normaliseOrganization(v[id]) || (listed ? DEFAULT_ORGANIZATION : '');
   if (now && now !== organization) {
     throw new Error(`REFUSED: this account is already mapped to '${now}' in ${ORGANIZATIONS_KEY}; it is not moved to '${organization}'`);
   }
@@ -271,7 +272,8 @@ async function run({
       .maybeSingle();
     if (mapErr) throw new Error(`app_settings read failed: ${mapErr.message}`);
     orgRow = mapRow ? mapRow.value : undefined;
-    mapOrganization(orgRow, existing ? existing.id : '__pending__', organization);
+    const listed = Boolean(existing) && !appendUserId(current, existing.id).changed;
+    mapOrganization(orgRow, existing ? existing.id : '__pending__', organization, { listed });
     log(`  organization: ${organization}${organization === DEFAULT_ORGANIZATION ? ' (the default: no mapping row needed)' : ''}`);
   }
 
@@ -308,7 +310,8 @@ async function run({
 
   // The mapping goes in BEFORE the list: an account on the list without it would see FDE's data.
   if (organization !== null) {
-    const { map, changed: mapChanged } = mapOrganization(orgRow, userId, organization);
+    const listed = Boolean(existing) && !appendUserId(current, userId).changed;
+    const { map, changed: mapChanged } = mapOrganization(orgRow, userId, organization, { listed });
     if (mapChanged) {
       const { error: mapUpErr } = await supabase
         .from('app_settings')
