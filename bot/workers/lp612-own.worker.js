@@ -35,6 +35,7 @@ const { bookRange } = require('../shared/services/lp612-own-pages'); // item 14
 const { buildEditInstruction } = require('../shared/services/lp-own-edit-instruction');
 const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edit-guard');
 const Extend = require('../shared/services/lp612-own-extend');
+const { finishOwnDoc } = require('../shared/services/lp612-own-close');
 
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
 const PARENT_WAIT_MS = 12 * 60 * 1000;
@@ -177,7 +178,7 @@ function createOwnWorker(deps) {
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
       const own = row.parent_own_id ? buildEditInstruction(row.edit_request) // bd-snkn32.15: her one change
-        : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id, // 
+        : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id, subject: segment.subject,
           bookText: await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
       const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
       const { instruction } = joined;
@@ -186,7 +187,8 @@ function createOwnWorker(deps) {
       const lost = require('../shared/services/lp612-own-grr').droppedGrr(parent, out.lpDoc); // GRR stays
       if (lost.length) throw stop('GRR_DROPPED', `the rewrite dropped ${lost.join(', ')}`);
 
-      const pdf = await renderPdf(out.lpDoc, row, correlationId);
+      const lpDoc = finishOwnDoc(out.lpDoc, segment, (m, x) => d.log(m, { ownId, ...x, correlationId })); // bd-snkn32.48
+      const pdf = await renderPdf(lpDoc, row, correlationId);
 
       const K = keys();
       const hash = K.editHash({ instruction, doc: parent });
@@ -194,7 +196,7 @@ function createOwnWorker(deps) {
       const pdfKey = K.assertKeyInPrefix(K.editKeyFor(at));
       await d.upload(pdf, pdfKey, 'application/pdf');
       try {
-        await d.upload(Buffer.from(JSON.stringify(out.lpDoc, null, 1), 'utf8'), K.assertKeyInPrefix(K.editKeyFor({ ...at, ext: 'lp.json' })), 'application/json');
+        await d.upload(Buffer.from(JSON.stringify(lpDoc, null, 1), 'utf8'), K.assertKeyInPrefix(K.editKeyFor({ ...at, ext: 'lp.json' })), 'application/json');
       } catch (err) {
         // The PDF is the product; the document beside it is for us (the author worker's rule).
         d.log('LP 6-12 own: could not store the document', { ownId, error: err.message, correlationId });
