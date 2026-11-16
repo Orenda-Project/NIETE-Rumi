@@ -436,6 +436,17 @@ describe('--organization: whose regions the account sees, written with the accou
     expect(sb.writes).toEqual([]);
   });
 
+  it("an account already on the list with no mapping is FDE's (niete): it is never moved to another organization", async () => {
+    const fde = { id: 'acct-fde', phone_number: 'analytics:moawin-ho-test', role: 'unregistered', school_id: null, name: 'FDE Islamabad' };
+    const sb = fakeSupabase({ users: [fde], flagValue: ['acct-fde'], orgMap: { 'gb-1': 'moawin' } });
+    await expect(run({ ...base, organization: 'moawin', supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED.*niete/);
+    expect(sb.writes).toEqual([]);
+    // the same account, asked for what it already is, is fine
+    const again = fakeSupabase({ users: [fde], flagValue: ['acct-fde'] });
+    await run({ ...base, organization: 'niete', supabase: again.client, invite: invite(), commit: true });
+    expect(again.writes.filter((w) => w.table === 'app_settings')).toEqual([]);
+  });
+
   it("niete (FDE's) is the default: no mapping row is written, the list is as before", async () => {
     const sb = fakeSupabase({ flagValue: ['fde-1'], orgMap: { 'gb-1': 'moawin' } });
     const out = await run({ ...base, account: 'fde-ho-test', organization: 'niete', supabase: sb.client, invite: invite(), commit: true });
