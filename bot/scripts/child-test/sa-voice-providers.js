@@ -103,8 +103,8 @@ function withLetterNames(text, lang) {
 
 // An Urdu WORD the voice says with the wrong vowel is given its vowel mark (Urdu writes no short vowels): «جھنڈا» (flag,
 // "jhanda") came out as "jhunda", the vowel of «جھنڈ» (a flock). Whole words only, every role (items carry no tashdeed);
-// the screen and the clip key keep the word as written.
-const UR_WORD_SAID = Object.freeze({ 'جھنڈا': 'جَھنڈا' });
+// the screen and the clip key keep the word as written. «کسان» and «ہل» (a plough) came out as "kasai" and "hel"/"hil".
+const UR_WORD_SAID = Object.freeze({ 'جھنڈا': 'جَھنڈا', 'کسان': 'کِسان', 'ہل': 'ہَل' });
 const UR_WORDS = new RegExp(`(^|[\\s«"'(])(${Object.keys(UR_WORD_SAID).join('|')})(?=$|[\\s،۔؟!»"')])`, 'g');
 function withWordVowels(text, lang) {
   if (lang !== 'ur') return text;
