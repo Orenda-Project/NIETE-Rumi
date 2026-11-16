@@ -134,7 +134,7 @@ function makeItu({ api, sleep }) {
     const orig = globalThis.fetch;
     globalThis.fetch = signedFetch(secret, orig);   // the emulator's transport keeps the fetch it is built with
     let op;
-    try { op = await t.u.openFlow('Get started', { from: v6 ? cardOn(t.card, V6_FLOW_ID) : t.card }); } finally { globalThis.fetch = orig; }
+    try { op = await t.u.openFlow('Get started|شروع کریں', { from: v6 ? cardOn(t.card, V6_FLOW_ID) : t.card }); } finally { globalThis.fetch = orig; }
     if (!op.ok) return { ok: false, err: 'Flow did not open: ' + op.err };
     await t.u.flowType(t.name);
     await t.u.flowClick('English', { exact: true, settleMs: 300 });
