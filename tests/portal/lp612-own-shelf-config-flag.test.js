@@ -120,3 +120,42 @@ describe('GET /config — features.lpOwnShelf and lpOwnReviewer', () => {
     expect((await getConfig({ sessionThrows: true })).payload.features).toMatchObject({ lpOwnShelf: false, lpOwnReviewer: false });
   });
 });
+
+// bd-2zopnc — Amena, 16 Nov: Make my own and the shelf are not live for GB. /config hides both for a GB teacher,
+// and for anyone whose region read fails (fail closed); ICT teachers keep both.
+describe('GET /config — not live for GB', () => {
+  let gb;
+  beforeEach(() => {
+    jest.resetModules();
+    settings = { portal_teacher_v2: true, portal_lp_make_own: true, portal_lp_own_shelf: true };
+    gb = false;
+    jest.doMock('../../dashboard/config/supabase', () => ({ from: (t) => makeChain(t), rpc: jest.fn() }));
+    jest.doMock('../../bot/shared/services/lp-own-gb', () => ({
+      isGbTeacher: async () => { if (gb instanceof Error) throw gb; return gb; },
+    }));
+    jest.doMock('../../dashboard/services/portal-coaching.client', () => ({}));
+    jest.doMock('../../dashboard/services/r2.service', () => ({
+      generatePresignedUrl: jest.fn(), generatePresignedUrls: jest.fn(), isValidR2Url: jest.fn(),
+    }));
+    jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
+    jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, n) => n()), { virtual: true });
+    jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
+  });
+  afterEach(() => jest.resetModules());
+
+  test('an ICT teacher: both on', async () => {
+    expect((await getConfig()).payload.features).toMatchObject({ lpMakeOwn: true, lpOwnShelf: true });
+  });
+
+  test('a GB teacher: both off', async () => {
+    gb = true;
+    expect((await getConfig()).payload.features).toMatchObject({ lpMakeOwn: false, lpOwnShelf: false });
+  });
+
+  test('the region read failing: both off, the rest of /config still served', async () => {
+    gb = new Error('boom');
+    const r = await getConfig();
+    expect(r.statusCode).toBe(200);
+    expect(r.payload.features).toMatchObject({ lpMakeOwn: false, lpOwnShelf: false, teacherV2: true });
+  });
+});

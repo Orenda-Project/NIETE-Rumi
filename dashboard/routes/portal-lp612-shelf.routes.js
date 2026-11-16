@@ -19,6 +19,7 @@ const supabase = require('../config/supabase');
 const {
   PORTAL_TEACHER_V2_KEY, PORTAL_LP_OWN_SHELF_KEY, PORTAL_LP_OWN_REVIEWERS_KEY, isFlagEnabledForUser, isUserListedInFlag,
 } = require('../lib/feature-flags');
+const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc — not live for GB
 const { teacherAppOnFor } = require('../lib/teacher-app');
 const { requirePortalAuth } = require('../lib/portal-auth');
 const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
@@ -44,7 +45,8 @@ async function requireShelf(req, res, next) {
   let on = false;
   try {
     on = (await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId))
-      && (await isFlagEnabledForUser(supabase, PORTAL_LP_OWN_SHELF_KEY, userId));
+      && (await isFlagEnabledForUser(supabase, PORTAL_LP_OWN_SHELF_KEY, userId))
+      && !(await isGbTeacher(supabase, userId));
   } catch (_) { on = false; }
   return on ? next() : notFound(res);
 }

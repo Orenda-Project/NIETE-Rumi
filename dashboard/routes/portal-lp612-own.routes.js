@@ -21,6 +21,7 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { PORTAL_TEACHER_V2_KEY, PORTAL_LP_MAKE_OWN_KEY, isFlagEnabledForUser } = require('../lib/feature-flags');
+const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc — not live for GB
 const { teacherAppOnFor } = require('../lib/teacher-app');
 const { requirePortalAuth } = require('../lib/portal-auth');
 
@@ -53,7 +54,8 @@ async function requireMakeOwn(req, res, next) {
   let on = false;
   try {
     on = (await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId))
-      && (await isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId));
+      && (await isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId))
+      && !(await isGbTeacher(supabase, userId));
   } catch (_) { on = false; }
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();

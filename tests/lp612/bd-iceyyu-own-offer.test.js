@@ -39,6 +39,9 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 }));
 const mockOnApp = jest.fn(async () => true);
 jest.mock('../../bot/shared/services/app-redirect.service', () => ({ isOnTeacherApp: (...a) => mockOnApp(...a) }));
+// bd-2zopnc — not live for GB; the region read is its own module (lp-own-gb.js, tested there).
+const mockGb = jest.fn(async () => false);
+jest.mock('../../bot/shared/services/lp-own-gb', () => ({ isGbTeacher: (...a) => mockGb(...a) }));
 
 const USER = '2598108b-0000-4000-8000-000000000001';
 const ENV = { ...process.env };
@@ -53,6 +56,7 @@ beforeEach(() => {
   mockFail = false;
   mockRole = 'teacher';
   mockOnApp.mockClear().mockResolvedValue(true);
+  mockGb.mockReset().mockResolvedValue(false);
   Offer = require('../../bot/shared/services/lp612-own-offer');
   WA = require('../../bot/shared/services/whatsapp.service');
   WA.sendCtaUrl.mockClear().mockResolvedValue(true);
@@ -106,6 +110,25 @@ describe('who is offered it (the portal rule, fail closed)', () => {
     expect(await Offer.isOfferedTo(USER, { now: 1 })).toBe(true);
     mockRole = 'coach';
     expect(await Offer.isOfferedTo(USER, { now: 2 })).toBe(false);
+  });
+
+  // bd-2zopnc — Amena, 16 Nov: Make my own is not live for GB. A GB teacher is off; a failed region read is off.
+  test('a GB teacher: off, even with "teachers" and the teacher app on', async () => {
+    mockSettings.set('portal_lp_make_own', 'teachers');
+    mockGb.mockResolvedValue(true);
+    expect(await Offer.isOfferedTo(USER, { now: 1 })).toBe(false);
+    expect(mockGb).toHaveBeenCalledWith(expect.anything(), USER);
+  });
+
+  test('the region read failing: off, never a throw', async () => {
+    mockSettings.set('portal_lp_make_own', true);
+    mockGb.mockRejectedValue(new Error('boom'));
+    expect(await Offer.isOfferedTo(USER, { now: 1 })).toBe(false);
+  });
+
+  test('switch off: the region is never read', async () => {
+    expect(await Offer.isOfferedTo(USER, { now: 1 })).toBe(false);
+    expect(mockGb).not.toHaveBeenCalled();
   });
 
   test('no user: off, nothing read', async () => {
