@@ -997,10 +997,17 @@ function observerWords(w: AnalyticsWords, where: string): AnalyticsWords {
     { term: 'Digital Coach scores (B, C, D)', text: 'The Digital Coach tab keeps FICO V3: its Section B, C and D scores, out of 100 and shown as a percentage, over its scored observations. Digital Coach observes teachers only.' },
     ...(keep('Avg FICO') ? [keep('Avg FICO')!] : []),
   ];
+  // Its totals item names the scores this view shows: Avg FICO and FICO17 v6 (no Avg HITL here).
+  const totals = (i: { term: string; text: string }) => (i.term === 'Regions and totals'
+    ? { ...i, text: 'Counts are added up across schools. Avg FICO and the FICO17 v6 score are worked out over all the scored observations together, so a large school weighs more than a small one.' }
+    : i);
   return {
     ...w,
     observerView: true,
-    how: { ...w.how, groups: w.how.groups.map((g) => (g.title === 'Observations' ? { ...g, items } : g)) },
+    how: {
+      ...w.how,
+      groups: w.how.groups.map((g) => (g.title === 'Observations' ? { ...g, items } : { ...g, items: g.items.map(totals) })),
+    },
   };
 }
 
