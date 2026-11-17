@@ -51,6 +51,8 @@ export function specOf(taskId: string): TaskSpec | undefined {
 /** A task's right answers: the scorer's count for a spoken task, the phone's for tap / keypad; null when unscored. */
 export function correctOf(t: SaTaskResult | undefined): number | null {
   if (!t) return null;
+  // round 28: a tapped task the child heard too few items of is unrated: no score, never a low one
+  if (t.unrated === true) return null;
   const scored = t.score && typeof t.score.correct === 'number' ? t.score.correct : null;
   if (scored !== null) return scored;
   return typeof t.correct === 'number' ? t.correct : null;
@@ -69,11 +71,16 @@ function taskIn(s: DashStudent, taskId: string): SaTaskResult | undefined {
   return s.results.tasks.find((t) => t.taskId === taskId);
 }
 
-/** The share of a comprehension task's questions answered right (its own `of`, else the spec's). */
+/**
+ * The share of a comprehension task's questions answered right: its own `of`, else (round 28's tapped MCQ only) the
+ * questions the gate allowed (`asked`), else the spec's. An unrated task has no share (correctOf is null).
+ */
 export function comprehensionShare(t: SaTaskResult | undefined, spec: TaskSpec): number | null {
   const c = correctOf(t);
   if (c === null) return null;
-  const of = t?.score && typeof t.score.of === 'number' && t.score.of > 0 ? t.score.of : spec.max;
+  let of = spec.max;
+  if (t?.score && typeof t.score.of === 'number' && t.score.of > 0) of = t.score.of;
+  else if (t?.mode === 'tap' && Array.isArray(t.asked) && t.asked.length > 0) of = t.asked.length;
   return c / of;
 }
 
@@ -149,9 +156,19 @@ function median(xs: number[]): number | null {
 export function headline(students: DashStudent[]): Headline {
   const per = (lang: ReadLang) => {
     const passage = TASKS.find((t) => t.domain === lang && t.kind === 'passage') as TaskSpec;
-    const comp = TASKS.find((t) => t.domain === lang && t.kind === 'comprehension') as TaskSpec;
+    // every comprehension task of the language (today's spoken one and round 28's tapped MCQ). A session has at most
+    // one, so per student the share is that of whichever it has. The headline's "reading with comprehension" is ONE
+    // share and so pools the two forms; the task-by-task cards keep them as two rows, never merged (SPEC F).
+    const comps = TASKS.filter((t) => t.domain === lang && t.kind === 'comprehension');
+    const compShare = (s: DashStudent): number | null => {
+      for (const spec of comps) {
+        const share = comprehensionShare(taskIn(s, spec.taskId), spec);
+        if (share !== null) return share;
+      }
+      return null;
+    };
     const wcpm = students.map((s) => wcpmOf(taskIn(s, passage.taskId))).filter((v): v is number => v !== null);
-    const shares = students.map((s) => comprehensionShare(taskIn(s, comp.taskId), comp)).filter((v): v is number => v !== null);
+    const shares = students.map(compShare).filter((v): v is number => v !== null);
     return {
       rwc: shares.length ? shares.filter((x) => x >= COMPREHENSION_BENCHMARK).length / shares.length : null,
       median: median(wcpm),
