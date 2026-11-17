@@ -101,9 +101,14 @@ function partOf(r, itemsOf) {
   const phone = mode === 'tap' || mode === 'keypad' || mode === 'keyboard';
   const items = itemsOf ? num(itemsOf(r.block)) : null;
   if (phone) {
+    // round 28: a picker / picked-from-four part with too few items presented is not rated (it never decides a rung)
+    if (res.unrated === true) return { state: 'pending' };
     const correct = num(m && (m.tap_correct ?? m.keypad_correct)) ?? num(res.correct);
     const attempted = num(m && (m.tap_attempted ?? m.keypad_attempted)) ?? num(res.attempted);
     if (correct === null) return { state: 'unmet' };
+    // round 28: a part that says what it presented is read as correct of presented
+    const presented = Array.isArray(res.presented) ? res.presented.length : num(res.presented);
+    if (presented !== null && presented > 0) return { state: 'scored', correct, of: presented };
     return { state: 'scored', correct, of: Math.max(items || 0, attempted || 0) || null };
   }
   const scored = m && r.ai_status === 'scored' && num(m.correct) !== null;
