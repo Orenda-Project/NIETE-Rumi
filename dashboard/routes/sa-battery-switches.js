@@ -9,6 +9,8 @@
  *   sa_passage_rotation     A02: the coach forms' passage, its questions and the listening story carry variants[]
  *                           (fielded, sourced texts); ON keeps them for the page to pick one per child, OFF drops
  *                           them, so every child reads the form's own (Set A) texts.
+ *   (round 28)              the r28 tasks and the timed tasks' ext_items are always stripped (withoutR28) until their
+ *                           switches are read.
  *   sa_rdf_w3_forms         W3: the coach forms' RDF auto / RDF manual lists (rdf_auto, rdf_manual, rdf_variants,
  *                           rdf_w3_absent), their own tasks (w3: true) and the two lines they add. OFF drops all of it,
  *                           so the battery is the one built without the W3 items.
@@ -231,9 +233,25 @@ function withoutW3(battery) {
   return out;
 }
 
+/**
+ * Round 28: the built battery carries the r28 tasks (r28: 'letter_pick' | 'mcq', listed in r28_tasks) and the timed
+ * tasks' ext_items / base_n / ext_stop (item-bank.sa-r28.v1.json). Their switches (sa_r28_letter_pick, sa_r28_mcq, sa_r28_ceiling)
+ * are not read yet, so every battery is served without them: byte for byte the battery built before round 28.
+ */
+function withoutR28(battery) {
+  if (!battery.r28_tasks && !battery.tasks.some((t) => t.r28 || t.ext_items)) return battery;
+  const { r28_tasks: _r, ...out } = battery;
+  out.tasks = battery.tasks.filter((t) => !t.r28).map((t) => {
+    if (!t.ext_items) return t;
+    const { ext_items: _e, base_n: _b, ext_stop: _s, ...rest } = t;
+    return rest;
+  });
+  return out;
+}
+
 function applySwitches(input, on = {}) {
   if (!input || !Array.isArray(input.tasks)) return input;
-  const w3 = on.rdfW3Forms ? input : withoutW3(input);
+  const w3 = on.rdfW3Forms ? withoutR28(input) : withoutW3(withoutR28(input));
   // round 8, sa_r8_counts: the RDF forms' counts (only W3 tasks carry them, so nothing changes without sa_rdf_w3_forms)
   const battery = on.r8Counts === true ? withCounts(w3) : w3;
   const fluencyOff = (t) => (on.r10FluencyNoPractice === true ? withoutFluencyPractice(t) : t);
