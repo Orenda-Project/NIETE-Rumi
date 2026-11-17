@@ -67,11 +67,14 @@ describe('sa/level.js (pure)', () => {
   test('the cut-offs as reviewed: every rung, its parts, its rule and its share', () => {
     const table = (ladder) => ladder.map(({ level: l, parts, rule, share, min }) => [l, parts, rule, rule === 'floor' ? min : share]);
     expect(table(level.LADDERS.reading)).toEqual([
-      ['letters', ['letter_names5', 'letter_sounds5'], 'any', 0.8],
+      ['letters', ['letter_names5', 'letter_sounds5', 'letter_pick10'], 'any', 0.8],
       ['words', ['words4'], 'pooled', 0.75],
       ['story', ['story_w3'], 'floor', 20],
-      ['comprehension', ['story_comp_w3'], 'pooled', 0.5],
+      ['comprehension', ['story_comp_w3', 'story_mcq_w3'], 'pooled', 0.5],
     ]);
+    // round 28: the new parts carry their own share (the picker 8 of 10, the questions picked from four 4 of 6)
+    expect(level.LADDERS.reading[0].shares).toEqual({ letter_pick10: 0.8 });
+    expect(level.LADDERS.reading[3].shares).toEqual({ story_mcq_w3: 0.67 });
     expect(table(level.LADDERS.maths)).toEqual([
       ['numbers', ['number_id8'], 'pooled', 0.75],
       ['comparing', ['discrimination2', 'missing4'], 'pooled', 0.75],
