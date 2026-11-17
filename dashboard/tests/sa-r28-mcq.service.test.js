@@ -96,10 +96,10 @@ describe('sa_r28_mcq core: the answer window opens at promptDone()', () => {
     c.add(9900); expect(r.tick()).toBeNull();
     c.add(200); expect(r.tick()).toBe('replay');
     c.add(5000); r.tick();
-    expect(r.view().offer_next).toBe(false); // RDF auto: Next at 30 s (lead 170131Z item 4)
+    expect(r.view().offer_next).toBe(false); // RDF auto: Next at 30 s (SPEC A.4)
     c.add(14900); expect(r.view().offer_next).toBe(true);
   });
-  test('Next per mode, r9_question_time ON: 15 s coach-led, 30 s RDF auto (lead 170131Z item 4; never doubled)', () => {
+  test('Next per mode, r9_question_time ON: 15 s coach-led, 30 s RDF auto (SPEC A.4; never doubled)', () => {
     const ui = { r9_question_time: true };
     const coach = (() => {
       const c = clock();

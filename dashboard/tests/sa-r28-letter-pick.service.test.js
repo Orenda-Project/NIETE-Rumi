@@ -318,7 +318,7 @@ describe('core: Next per mode and the clocks from the end of the last play (lead
   });
 });
 
-describe('sa.css: the replay pill sits at least 32 px below the bottom card row (lead 170131Z item 5)', () => {
+describe('sa.css: the replay pill sits at least 32 px below the bottom card row (SPEC A.3)', () => {
   test('every .sae-pick-replay rule that sets a margin puts ≥ 32 px above the pill', () => {
     const css = require('fs').readFileSync(path.join(__dirname, '..', 'sa', 'sa.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const rules = [];
@@ -669,7 +669,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(r.results()[0]).toMatchObject({ stop_reason: 'complete', attempted: 0, presented: 0, unrated: true });
   });
   // ---------- round 28, A3: a tap before the sound; Next per mode; the clocks; the coach line; the fold ----------
-  describe('A3 (lead 165028Z item 1, 170131Z items 2, 4, 5)', () => {
+  describe('the pre-sound tap, the replay clock, the coach line and the fold (SPEC A.3–A.6)', () => {
     let fake = null;
     let spy = null;
     const realNow = Date.now.bind(Date);
