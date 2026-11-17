@@ -21,6 +21,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const RECENT_MS = 30 * 60 * 1000;
 // the read band's lines (web-quiz-read-feedback.js STAR_AT): accuracy 0.9 → 3 stars, 0.7 → 2
@@ -207,7 +208,7 @@ const READS = new Set(['read', 'story', 'book']);
 function words(x, kind, lang, nb) {
   const c = clean(x);
   if (!c) return {};
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   const L = LINES[l];
   const out = c.s == null ? {} : { stars: c.s, stars_text: L.stars(c.s, num(c.s, l)) };
   if (c.o) out.score = L.score(num(c.r, l), num(c.o, l));

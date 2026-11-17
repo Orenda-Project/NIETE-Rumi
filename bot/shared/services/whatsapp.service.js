@@ -281,13 +281,13 @@ class WhatsAppService {
       });
       const data = await response.json();
       if (!response.ok) {
-        logToFile('❌ Error sending WhatsApp message to a user id', { responseData: data });
+        logToFile('❌ Error sending WhatsApp message to a user id', { responseData: data }, 'error');
         return false;
       }
       logToFile('✅ WhatsApp message sent to a user id', { messageId: data?.messages?.[0]?.id });
       return true;
     } catch (error) {
-      logToFile('❌ Exception sending WhatsApp message to a user id', { error: error.message });
+      logToFile('❌ Exception sending WhatsApp message to a user id', { error: error.message }, 'error');
       return false;
     }
   }

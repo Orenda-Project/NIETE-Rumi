@@ -35,6 +35,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { flagOn } = require('./flags');
 const { teacherLanguageFor } = require('../quiz/transcript-quiz-language');
+const { clampLanguage } = require('../../config/ux-strings');
 const { signTeacherHome } = require('../first-touch/teacher-home.token');
 
 const SETTING = 'lp_quiz_offer_window_template';
@@ -68,13 +69,13 @@ async function templateName(now = Date.now()) {
 
 /** The teacher's language as the code the template is approved under: 'en' or 'ur'. */
 function templateLanguage(lang) {
-  return lang === 'ur' ? 'ur' : 'en';
+  return clampLanguage(lang);
 }
 
 /** The button's {{1}}: a teacher-home token for this teacher, in their language. Null without a signing secret. */
 function reminderLink({ user } = {}) {
   if (!user || !user.id) return null;
-  const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(teacherLanguageFor({ preferredLanguage: user.preferred_language }));
   return signTeacherHome({ uid: String(user.id), lang, via: 'reminder' });
 }
 

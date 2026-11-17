@@ -11,6 +11,7 @@
  * The row's words never name a test (the child's screen carries no test words).
  */
 const Flag = require('../sa-game/flag');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const NAME = Object.freeze({ en: "Jugnu's big flight", ur: 'جگنو کی بڑی اڑان' });
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,1000}\.[A-Za-z0-9_-]{16,64}$/;
@@ -21,7 +22,7 @@ function addRow(out, who, { token, kid, lang } = {}) {
     if (!out || !Array.isArray(out.games) || out.err || !who || !who.studentId) return out;
     if (!TOKEN_RX.test(String(token || '')) || !CHIP_RX.test(String(kid || ''))) return out;
     if (!Flag.now()) return out;
-    const l = lang === 'ur' ? 'ur' : 'en';
+    const l = clampLanguage(lang);
     const href = `/sa-game/${token}?kid=${kid}&lang=${l}`;
     return { ...out, games: [...out.games, { kind: 'bigtest', href, name: NAME[l] }] };
   } catch (_) {
