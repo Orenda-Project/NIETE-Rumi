@@ -266,6 +266,73 @@ const EN = {
     ] as ReadonlyArray<{ title: string; items: ReadonlyArray<{ term: string; text: string }> }>,
   },
 
+  /**
+   * bd-97daxo.33 — the observers view: who observed whom, FICO17 v6 as the main score. Only a non-FDE view
+   * shows it (regionalWords sets observerView); FDE's view never renders a word of it.
+   */
+  observerView: false as boolean,
+  observers: {
+    summary: 'Observation summary',
+    tiles: { observations: 'Total observations', people: 'People observed', areasActive: 'Areas active' },
+    everyVisit: 'every finished visit',
+    ofTeachers: (x: string, n: string) => `${x} of ${n} teachers`,
+    ofPrincipals: (x: string, n: string) => `${x} of ${n} principals`,
+    ofAreas: (n: string) => `of ${n} ${n === '1' ? 'area' : 'areas'}`,
+    who: 'Who observed',
+    kinds: { principal: 'Principals', fmo: 'FMOs', other: 'Other observers' },
+    roles: { principal: 'primary observers', fmo: 'secondary observers', other: '' },
+    unit: 'observations',
+    by: (n: string) => `by ${n} ${n === '1' ? 'observer' : 'observers'}`,
+    toTeachers: '→ teachers',
+    toPrincipals: '→ principals',
+    waiting: (n: string) => `${n} waiting for review`,
+    share: (label: string, n: string, pct: string) => `${label} ${n} (${pct}%)`,
+    score: 'Score — FICO17 v6',
+    v6Label: 'FICO17 v6 score',
+    v6Scored: (n: string) => `${n} ${n === '1' ? 'observation' : 'observations'} scored on v6 · each out of its own maximum`,
+    noV6: 'No v6 visit yet',
+    sections: { c: 'What the teacher does', d: 'What the children do', f: 'Subject knowledge' },
+    sectionCodes: { c: 'C', d: 'D', f: 'F' },
+    sectionLine: (code: string, n: string) => `Section ${code} · v6 · ${n} scored`,
+    notInScore: 'Counted above, not in this score:',
+    v3Part: (n: string, pct: string) => `${n} FICO V3 ${n === '1' ? 'visit' : 'visits'} (from before GB moved to v6; ${pct} on V3)`,
+    hotsPart: (n: string) => `${n} HOTS ${n === '1' ? 'visit' : 'visits'} copied from old Rumi (no FICO score)`,
+    toolPart: (n: string) => `${n} ${n === '1' ? 'visit' : 'visits'} on the grade 6–8 tools used before 17 Nov (no v6 score)`,
+    otherPart: (n: string) => `${n} other ${n === '1' ? 'visit' : 'visits'} with no score`,
+    neverMixed: 'V3 and v6 are never averaged together.',
+    chart: 'Avg v6 scores by area',
+    areas: 'Area breakdown',
+    peopleLine: (t: string, p: string) => `${t} teachers · ${p} principals`,
+    byPrincipals: 'By principals',
+    byFmos: 'By FMOs',
+    peopleObserved: 'People observed',
+    v6Short: 'FICO17 v6',
+    v6Of: (pct: string, n: string) => `${pct} (${n} scored)`,
+    obs: (n: string) => `${n} obs`,
+    pairs: {
+      principalTeacher: 'Principal → teacher', fmoTeacher: 'FMO → teacher', fmoPrincipal: 'FMO → principal',
+      principalPrincipal: 'Principal → principal', otherTeacher: 'Other → teacher', otherPrincipal: 'Other → principal',
+    },
+    schoolObserved: (t: string, tn: string, p: string, pn: string) => `${t} of ${tn} teachers · ${p} of ${pn} principals observed`,
+    visits: (n: string) => `Who observed whom (${n})`,
+    columns: { date: 'Day', who: 'Who → whom', rubric: 'Rubric', score: 'Score' },
+    principal: 'Principal',
+    fmo: 'FMO',
+    other: 'Other',
+    observed: { teacher: 'teacher', principal: 'principal' },
+    rubrics: { v6: 'FICO17 v6', v3: 'FICO V3', hots: 'HOTS (copied)', fde612: 'Grade 6–8 tool', other: '—' },
+    none: 'No finished observation in the period',
+    noSchools: 'No schools in this area.',
+    humanChips: { principal: (n: string) => `principals ${n}`, fmo: (n: string) => `FMOs ${n}` },
+    v6Tile: 'FICO17 v6 (observations)',
+    v3Chip: (pct: string, n: string) => `V3 ${pct} on ${n}`,
+    byArea: 'By area',
+    areaRows: {
+      schoolsTeachers: 'Schools · teachers', lps: 'LPs opened', dc: 'DC observations', human: 'Human observations',
+      training: 'Training modules', v6: 'FICO17 v6',
+    },
+  },
+
   states: {
     loading: 'Loading the numbers',
     forbiddenTitle: 'Schools analytics',
@@ -769,7 +836,13 @@ export type AnalyticsWords = typeof EN;
 export const SCHOOLS_ANALYTICS_COPY: { readonly en: AnalyticsWords; readonly ur?: AnalyticsWords } = { en: EN };
 
 /** Whose view the words are for: GET /api/portal/analytics/scope (the viewer's organization and its regions). */
-export type WordsScope = { organization?: string | null; regions?: readonly string[] | null };
+export type WordsScope = {
+  organization?: string | null;
+  regions?: readonly string[] | null;
+  /** bd-97daxo.33: a view's areas and their districts (GET /analytics/scope), when its region is split by district. */
+  areas?: readonly string[] | null;
+  areaDistricts?: Readonly<Record<string, readonly string[]>> | null;
+};
 
 /** FDE's organization: its view keeps the words above exactly. */
 const DEFAULT_ORGANIZATION = 'niete';
@@ -788,7 +861,12 @@ const swap = (text: string, pairs: ReadonlyArray<readonly [string | RegExp, stri
  * none of them is named; "sector" is FDE's word for a region. Its LP Engagement teachers follow the view's own rule
  * (dashboard/services/lp-engagement WHOSE BANDS): her level, else her registration grades, else Primary.
  */
-function regionalWords(w: AnalyticsWords, regions: readonly string[]): AnalyticsWords {
+function regionalWords(
+  w: AnalyticsWords,
+  regions: readonly string[],
+  areas: readonly string[] = [],
+  areaDistricts: Readonly<Record<string, readonly string[]>> = {},
+): AnalyticsWords {
   const where = joinNames(regions) || 'this region';
   const notHere = `No school in ${where} on record`;
   const how = (title: string, items: ReadonlyArray<{ term: string; text: string }>) => ({ title, items });
@@ -796,7 +874,7 @@ function regionalWords(w: AnalyticsWords, regions: readonly string[]): Analytics
     const item = w.how.groups.find((g) => g.title === group)?.items.find((i) => i.term === term);
     return { term: as ?? term, text: item?.text ?? '' };
   };
-  return {
+  const base: AnalyticsWords = {
     ...w,
     lede: `How NIETE is used in ${where}'s schools, region by region. Every number is for a school or a region; no teacher is named on this page.`,
     sections: {
@@ -896,6 +974,97 @@ function regionalWords(w: AnalyticsWords, regions: readonly string[]): Analytics
       noSchools: 'No schools found for this region.',
     },
   };
+  // bd-97daxo.33: who observed whom and FICO17 v6, for every non-FDE view; areas when the view's region is split by district.
+  const withObservers = observerWords(base, where);
+  return areas.length ? areaWords(withObservers, where, areas, areaDistricts) : withObservers;
+}
+
+/**
+ * bd-97daxo.33 — a non-FDE view's observations: every finished visit (an FMO observing a teacher or a
+ * principal, a principal observing a teacher), who observed whom, FICO17 v6 as the main score. Its Information tab
+ * says so in place of the teacher-only Human observations and Avg HITL.
+ */
+function observerWords(w: AnalyticsWords, where: string): AnalyticsWords {
+  const obs = w.how.groups.find((g) => g.title === 'Observations')?.items ?? [];
+  const keep = (term: string) => obs.find((i) => i.term === term);
+  const items = [
+    { term: 'Total observations', text: `Every finished human observation in the period at a school in ${where}: an FMO observing a teacher or a principal, and a principal observing a teacher. A visit still waiting for the observer's review is not counted yet; the observer cards say how many are waiting. Test accounts are left out.` },
+    { term: 'Principals and FMOs', text: 'Who did the observing, by their role on NIETE: a principal, or an FMO (a coach). Principals are the primary observers, FMOs the secondary. FMOs are named on each school\'s list of visits; principals are shown by role only; no teacher is named.' },
+    { term: 'People observed', text: 'The different teachers and principals observed at least once in the period, out of the teachers and principals at those schools today.' },
+    { term: 'FICO17 v6 score', text: `The main score. Observers in ${where} score on FICO17 v6, at every grade (grades 6-8 included since 17 Nov). Each visit is scored out of its own maximum (only the indicators that applied), and the average is the mean of those visit scores, shown with how many visits it is from. Its sections: C What the teacher does, D What the children do, F Subject knowledge. An area with no v6 visit shows "No v6 visit yet", never 0%.` },
+    { term: 'Counted, not in the v6 score', text: 'FICO V3 visits (from before the move to v6) are averaged on their own and shown beside the v6 score, never mixed into it. HOTS visits copied from old Rumi, and visits on the grade 6-8 tools used before 17 Nov, count as observations but carry no v6 score.' },
+    ...(keep('DC observations') ? [keep('DC observations')!] : []),
+    { term: 'Digital Coach scores (B, C, D)', text: 'The Digital Coach tab keeps FICO V3: its Section B, C and D scores, out of 100 and shown as a percentage, over its scored observations. Digital Coach observes teachers only.' },
+    ...(keep('Avg FICO') ? [keep('Avg FICO')!] : []),
+  ];
+  return {
+    ...w,
+    observerView: true,
+    how: { ...w.how, groups: w.how.groups.map((g) => (g.title === 'Observations' ? { ...g, items } : g)) },
+  };
+}
+
+/**
+ * bd-97daxo.33 — a view whose region is split by district into areas (Gilgit and Baltistan): the filter, the cards and the
+ * breakdown say "area", and the Information tab lists each area's districts (from the server's one area file).
+ */
+function areaWords(
+  w: AnalyticsWords,
+  where: string,
+  areas: readonly string[],
+  areaDistricts: Readonly<Record<string, readonly string[]>>,
+): AnalyticsWords {
+  const list = areas.map((a) => `${a}: ${joinNames(areaDistricts[a] ?? []) || 'its districts'}`).join('. ');
+  return {
+    ...w,
+    lede: `How NIETE is used in ${where}'s schools, area by area. Every number is for a school or an area; teachers are never named.`,
+    filters: { ...w.filters, region: 'Area', allRegions: `All of ${where}` },
+    ofRegions: (n: string) => `of ${n} ${n === '1' ? 'area' : 'areas'}`,
+    breakdown: { ...w.breakdown, back: 'Back to all areas' },
+    sections: {
+      ...w.sections,
+      sectors: 'Areas — click to view school breakdown',
+      lpChart: 'LPs opened by area',
+      trainingChart: 'Modules completed by area',
+      obsChart: 'Avg observation score by area',
+      obsSectors: 'Area breakdown',
+      coachingSectors: 'Area overview',
+    },
+    obsV7: {
+      ...w.obsV7,
+      chart: { human: 'Avg observation scores by area', dc: 'Digital Coach — avg scores by area' },
+      sectors: 'Area breakdown',
+      tiles: { ...w.obsV7.tiles, sectorsActive: { human: 'Areas active', dc: 'Areas covered' } },
+    },
+    coachingV7: { ...w.coachingV7, byRegion: 'Coaches by area' },
+    lpEngagement: {
+      ...w.lpEngagement,
+      sections: { ...w.lpEngagement.sections, sectors: 'Areas — click to view school breakdown' },
+      cards: { ...w.lpEngagement.cards, chart: 'Area-wise Performance in Subjects & Grades', chartHint: 'Active teachers, % per area' },
+      tiles: { ...w.lpEngagement.tiles, activeSectors: 'Active Areas' },
+      hints: { ...w.lpEngagement.hints, activeSectors: 'Areas with an active teacher' },
+      noSchools: 'No schools found for this area.',
+    },
+    trainingLevels: {
+      ...w.trainingLevels,
+      sections: { ...w.trainingLevels.sections, chart: 'Training completion — area comparison', sectors: 'Areas' },
+      partners: { ...w.trainingLevels.partners, perSector: 'Per-area breakdown', columns: { ...w.trainingLevels.partners.columns, sector: 'Area' } },
+    },
+    how: {
+      ...w.how,
+      groups: [
+        {
+          title: 'Areas',
+          items: [
+            { term: 'Gilgit and Baltistan', text: `${where} is shown area by area, each school in the area of its district. ${list}.` },
+            { term: 'Area not set', text: 'A school with no district on record, or a district not in either area, is shown under Area not set until its district is added, so the areas always add up to the whole.' },
+            { term: 'Who can see it', text: `Access does not change: this view shows ${where}'s schools only, whatever the area chosen.` },
+          ],
+        },
+        ...w.how.groups,
+      ],
+    },
+  };
 }
 
 /**
@@ -907,5 +1076,5 @@ export function analyticsCopy(lang?: string | null, scope?: WordsScope | null): 
   const words = (lang === 'ur' && SCHOOLS_ANALYTICS_COPY.ur) || SCHOOLS_ANALYTICS_COPY.en;
   const organization = (scope?.organization ?? '').trim().toLowerCase();
   if (!organization || organization === DEFAULT_ORGANIZATION) return words;
-  return regionalWords(words, scope?.regions ?? []);
+  return regionalWords(words, scope?.regions ?? [], scope?.areas ?? [], scope?.areaDistricts ?? {});
 }
