@@ -11,16 +11,16 @@ const supabase = () => require('../../../config/supabase'); // eslint-disable-li
 const Snap = require('../../settings/settings-snapshot');
 const { logToFile } = require('../../../utils/logger');
 
-const KEY = 'sa_r28_ceiling';
+const SETTING = 'sa_r28_ceiling'; // the app_settings row (a setting name, not a secret)
 const TTL_MS = 30 * 1000;
 let cache = null;
 
 async function on(at = Date.now(), client = null) {
   if (cache && at - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await Snap.rows([KEY], () => (client || supabase()).from('app_settings').select('key, value').eq('key', KEY));
+    const { data, error } = await Snap.rows([SETTING], () => (client || supabase()).from('app_settings').select('key, value').eq('key', SETTING));
     if (error) throw new Error(error.message || 'app_settings read failed');
-    cache = { at, on: (data || []).some((r) => r && r.key === KEY && r.value === true) };
+    cache = { at, on: (data || []).some((r) => r && r.key === SETTING && r.value === true) };
     return cache.on;
   } catch (err) {
     logToFile('⚠️ sa ceiling: settings lookup failed — off', { error: err.message });
@@ -34,4 +34,4 @@ async function enabled(deps = {}) {
   return on(Date.now(), deps.supabase || null);
 }
 
-module.exports = { KEY, on, enabled };
+module.exports = { KEY: SETTING, on, enabled };
