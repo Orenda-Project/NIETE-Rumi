@@ -101,7 +101,7 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     for (let n = 1; n <= 5; n += 1) expect(r28.mcq.questions[`en.story2.q${n}`].options).toHaveLength(4);
     // the speculative q6 is replaced in the MCQ form by a literal question under a new id (an old id never gets new text)
     expect(r28.mcq.questions['en.story2.q6']).toBeUndefined();
-    expect(r28.mcq.questions['en.story2.q6r']).toMatchObject({ replaces_question: 'en.story2.q6', question: "Who put wet cloths on Sam's leg?" });
+    expect(r28.mcq.questions['en.story2.q6r']).toMatchObject({ replaces_question: 'en.story2.q6', question: "What did Mother put on Sam's leg?" });
     for (let n = 1; n <= extra.reading.ur.story2.questions.length; n += 1) expect(r28.mcq.questions[`ur.story2.q${n}`].options).toHaveLength(4);
   });
 
