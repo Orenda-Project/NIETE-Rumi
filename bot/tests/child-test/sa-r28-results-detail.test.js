@@ -1,0 +1,90 @@
+'use strict';
+
+/**
+ * Round 28 on the coach's Results (shapeTask through saResults): an extended timed task's scorer reports the first N
+ * items (detail.of_base / correct_base) and Results shows "first N correct" beside the rate; a tap task the child heard
+ * too few items of carries `unrated`. Today's rows (no such fields) come back byte for byte as before.
+ */
+
+const sa = require('../../shared/services/child-test/app/sa-api.service');
+
+const COACH = 'aaaaaaaa-0000-4000-8000-000000000001';
+const SID = 'cccccccc-0000-4000-8000-000000000003';
+
+function world(blocks) {
+  const session = {
+    id: SID, coach_user_id: COACH, student_id: 'st-1', draw_id: 'd-1', school_id: 'sch-1', grade: 3, form: 'A',
+    item_bank_version: 'sa-battery', status: 'completed', started_at: '2026-10-21T05:00:00Z',
+    finished_at: '2026-10-21T05:20:00Z', device: { block: 'B1' },
+  };
+  return {
+    enabled: async () => true,
+    supabase: { from: () => { throw new Error('no direct reads'); } },
+    store: {
+      getSession: async (id) => ({ ok: true, session: id === SID ? session : null }),
+      listBlocks: async (id) => ({ ok: true, blocks: id === SID ? blocks : [] }),
+    },
+    saStore: { findByClient: async () => ({ ok: true, sessionId: null }) },
+    bank: null,
+    now: () => new Date('2026-10-21T06:00:00Z'),
+    log: () => {},
+    logError: () => {},
+  };
+}
+
+const words = (detail) => ({
+  block: 'ur.words4', response_mode: 'record', lang: 'ur', created_at: '2026-10-21T05:01:00Z', ai_status: 'scored',
+  audio_r2_key: 'k', ai_marks: { correct: 9, attempted: 12, per_minute: 9, ...(detail ? { detail } : {}) },
+  responses: [{ kind: 'result', mode: 'record', stop_reason: 'time_up' }],
+});
+
+describe('round 28 Results detail', () => {
+  test('an extended timed task whose marks carry of_base / correct_base gets firstN', async () => {
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world([words({ of_base: 4, correct_base: 3, of_all: 12 })]));
+    expect(out.tasks[0].firstN).toEqual({ correct: 3, of: 4 });
+    expect(out.tasks[0].score).toEqual({ correct: 9, attempted: 12, per_minute: 9 });
+  });
+
+  test("today's row (no base fields, or a non-number) is byte-identical: no firstN key", async () => {
+    for (const detail of [null, { of_all: 12 }, { of_base: 4 }, { of_base: '4', correct_base: 3 }]) {
+      // eslint-disable-next-line no-await-in-loop
+      const out = await sa.saResults({ userId: COACH, sessionId: SID }, world([words(detail)]));
+      expect(out.tasks[0]).toEqual({
+        taskId: 'ur.words4', mode: 'record', attempted: null, correct: null, optionsN: null, chanceCorrected: null,
+        itemsPerMin: null, stopReason: 'time_up', recording: 'scored', score: { correct: 9, attempted: 12, per_minute: 9 }, title: null,
+      });
+    }
+  });
+
+  test('a tap task with unrated: true (too few heard) passes unrated, presented and asked through', async () => {
+    const blocks = [{
+      block: 'ur.story_mcq_w3', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:02:00Z', ai_status: 'scored',
+      ai_marks: { tap_correct: 2, tap_attempted: 3, options_n: 4, stop_reason: 'complete' },
+      responses: [{ kind: 'result', mode: 'tap', correct: 2, attempted: 3, unrated: true, presented: 3, asked: ['ur.story_w3.q1', 'ur.story_w3.q2', 'ur.story_w3.q3'] }],
+    }];
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(blocks));
+    expect(out.tasks[0]).toMatchObject({ mode: 'tap', correct: 2, attempted: 3, unrated: true, presented: 3, asked: ['ur.story_w3.q1', 'ur.story_w3.q2', 'ur.story_w3.q3'] });
+  });
+
+  test('a tap task without those fields has no unrated / presented / asked keys', async () => {
+    const blocks = [{
+      block: 'ur.letter_pick10', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:02:00Z', ai_status: 'scored',
+      ai_marks: { tap_correct: 8, tap_attempted: 10, options_n: 5, stop_reason: 'complete' },
+      responses: [{ kind: 'result', mode: 'tap', correct: 8, attempted: 10, unrated: false }],
+    }];
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(blocks));
+    expect(Object.keys(out.tasks[0]).sort()).toEqual(['attempted', 'chanceCorrected', 'correct', 'itemsPerMin', 'mode', 'optionsN', 'recording', 'score', 'stopReason', 'taskId', 'title']);
+  });
+});
+
+describe("round 28 Results detail: today's spoken questions", () => {
+  test('an oral comprehension result that keeps asked[] (as today) gets no asked / presented / unrated key', async () => {
+    const blocks = [{
+      block: 'ur.story_comp_w3', response_mode: 'oral', lang: 'ur', created_at: '2026-10-21T05:03:00Z', ai_status: 'scored',
+      audio_r2_key: 'k', ai_marks: { correct: 2, of: 4 },
+      responses: [{ kind: 'result', mode: 'oral', asked: ['ur.story_w3.q1', 'ur.story_w3.q2'], presented: 2, unrated: true }],
+    }];
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(blocks));
+    expect(Object.keys(out.tasks[0]).sort()).toEqual(['attempted', 'chanceCorrected', 'correct', 'itemsPerMin', 'mode', 'optionsN', 'recording', 'score', 'stopReason', 'taskId', 'title']);
+  });
+});
