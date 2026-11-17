@@ -249,15 +249,27 @@ describe('round 28 bank: EN familiar-word accept lists', () => {
     expect(spec.record.items.map((x) => x.accept || null)).toEqual([null, ['said', 'sed', 'set'], ['ap'], ['fine', 'fain', 'fide']]);
   });
 
+  test('the counts source carries them too (sa_r8_counts serves today\'s 5th word from it), so the 5th word has its forms', () => {
+    const { PLAN } = require('../../shared/services/child-test/sa/counts');
+    const from = PLAN['en.words4'].add.from;
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const src = byId(runtime(form, lang))[from];
+      expect([form, lang, src.r28_accept]).toEqual([form, lang, true]);
+      for (const x of src.items) expect([form, lang, x.target, x.accept || null]).toEqual([form, lang, x.target, lists()[String(x.target).toLowerCase()] || null]);
+      const fifth = src.items.find((x) => /\.items\[4\]$/.test(String(x.src)));
+      expect([fifth.target, fifth.accept]).toEqual(['come', ['kam', 'cam']]);
+    }
+  });
+
   test('a phone never receives them: no accept on a words item and no r28_accept, OFF and with every round-28 switch ON', () => {
     const ALL = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true };
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       for (const on of [{}, { rdfW3Forms: true }, ALL]) {
         const s = applySwitches(runtime(form, lang), on);
-        const t = s.tasks.find((x) => x.id === 'en.words4');
-        if (!t) continue;
-        expect([form, lang, 'r28_accept' in t]).toEqual([form, lang, false]);
-        expect([form, lang, [...t.items, ...(t.ext_items || [])].filter((x) => 'accept' in x).length]).toEqual([form, lang, 0]);
+        for (const t of s.tasks.filter((x) => x && /words/.test(x.id))) {
+          expect([form, lang, t.id, 'r28_accept' in t]).toEqual([form, lang, t.id, false]);
+          expect([form, lang, t.id, [...(t.items || []), ...(t.ext_items || [])].filter((x) => 'accept' in x).length]).toEqual([form, lang, t.id, 0]);
+        }
       }
     }
   });

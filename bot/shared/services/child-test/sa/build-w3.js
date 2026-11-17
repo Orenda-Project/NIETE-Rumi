@@ -19,6 +19,7 @@
  */
 
 const { COMMON, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { PLAN: COUNTS_PLAN } = require('./counts');
 
 const W3_TASKS = [
   'ur.letter_names5', 'ur.letter_sounds5', 'ur.words4', 'ur.story_w3', 'ur.story_comp_w3',
@@ -474,7 +475,7 @@ const R28_TITLE = { letter_pick: { en: 'Letter sounds (listen and tap)', ur: 'ح
 /** r28 clips live under sa/v5 (the battery route rewrites sa/v1 paths on serve), keyed as every clip: sha1(lang|text). */
 const v5 = (said, lang, text) => said(lang, text).audio.replace(/^sa\/v1\//, 'sa/v5/');
 
-function r28Tasks(f, { r28 }, w3List, H) {
+function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
   if (!r28 || !w3List.length) return [];
   const { spoken, said, sayBoth, toUrDigits } = H;
   const byId = new Map(w3List.map((t) => [t.task, t]));
@@ -513,6 +514,10 @@ function r28Tasks(f, { r28 }, w3List, H) {
     if (!t) continue;
     const withAccept = (x) => { const a = wa.forms[String(x.target).toLowerCase()]; return a ? { ...x, accept: a } : x; };
     Object.assign(t, { r28_accept: true, items: t.items.map(withAccept), ...(t.ext_items ? { ext_items: t.ext_items.map(withAccept) } : {}) });
+    // sa_r8_counts serves today's 5th word from its source task (counts.js PLAN add.from): that task carries the forms too
+    const from = COUNTS_PLAN[id] && COUNTS_PLAN[id].add && COUNTS_PLAN[id].add.from;
+    const src = from && coreList.find((x) => x.task === from);
+    if (src && src.tap) Object.assign(src, { r28_accept: true, tap: { ...src.tap, items: src.tap.items.map(withAccept) } });
   }
 
   for (const lang of ['ur', 'en']) {

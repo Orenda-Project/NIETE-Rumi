@@ -87,7 +87,8 @@ var CORE = 'sa-core-' + VERSION;
 // through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
 // v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
 // familiar words' accept forms (scorer only; never served).
-var SESSION = 'sa-session-v26';
+// v27: the EN familiar words' accept forms also on the counts source (sa_r8_counts' 5th word; scorer only, never served).
+var SESSION = 'sa-session-v27';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
