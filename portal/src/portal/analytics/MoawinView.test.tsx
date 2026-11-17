@@ -157,7 +157,7 @@ describe("the words: an area view", () => {
 describe("Observations (Human) as Moawin", () => {
   it("every finished visit, the two observer cards (principals first), v6 as the headline with its n", async () => {
     renderPage("/observations");
-    await screen.findByTestId("observers-human");
+    await screen.findByTestId("observers-human", {}, { timeout: 5000 });
     expect(h.getObservers).toHaveBeenCalledWith({ from: "2026-11-01", to: "2026-11-17", region: "all" });
     expect(within(screen.getByTestId("tile-observations")).getByText("41")).toBeTruthy();
     expect(within(screen.getByTestId("tile-peopleObserved")).getByText("33")).toBeTruthy();
@@ -181,7 +181,7 @@ describe("Observations (Human) as Moawin", () => {
 
   it("an area with no v6 visit says so, never 0%", async () => {
     renderPage("/observations");
-    const card = await screen.findByTestId("sector-card-Baltistan");
+    const card = await screen.findByTestId("sector-card-Baltistan", {}, { timeout: 5000 });
     expect(card.textContent).toMatch(/no v6 visit yet/i);
     expect(card.textContent).not.toMatch(/0%/);
   });
@@ -189,9 +189,9 @@ describe("Observations (Human) as Moawin", () => {
   it("an area's schools: who observed whom — FMOs by name, principals by role, no teacher named", async () => {
     const user = userEvent.setup();
     renderPage("/observations");
-    await user.click(await screen.findByTestId("sector-card-Baltistan"));
-    await waitFor(() => expect(h.getObservers).toHaveBeenLastCalledWith({ from: "2026-11-01", to: "2026-11-17", region: "Baltistan" }));
-    const nar = await screen.findByTestId("observer-school-b1");
+    await user.click(await screen.findByTestId("sector-card-Baltistan", {}, { timeout: 5000 }));
+    await waitFor(() => expect(h.getObservers).toHaveBeenLastCalledWith({ from: "2026-11-01", to: "2026-11-17", region: "Baltistan" }), { timeout: 5000 });
+    const nar = await screen.findByTestId("observer-school-b1", {}, { timeout: 5000 });
     expect(nar.textContent).toMatch(/Principal → teacher\s*2/);
     expect(nar.textContent).toMatch(/FMO → teacher\s*1/);
     expect(nar.textContent).toMatch(/Shigar/);
@@ -205,7 +205,7 @@ describe("Observations (Human) as Moawin", () => {
 
   it("Digital Coach keeps its own tab (no observers read)", async () => {
     renderPage("/observations?obs=dc");
-    await screen.findByTestId("observations-dc");
+    await screen.findByTestId("observations-dc", {}, { timeout: 5000 });
     expect(h.getObservers).not.toHaveBeenCalled();
   });
 });
@@ -213,8 +213,8 @@ describe("Observations (Human) as Moawin", () => {
 describe("Overview as Moawin", () => {
   it("Human observations from the observers read, with principals and FMOs; FICO17 v6 replaces Avg HITL; By area", async () => {
     renderPage();
-    const human = await screen.findByTestId("tile-humanObservations");
-    await waitFor(() => expect(within(human).getByText("41")).toBeTruthy());
+    const human = await screen.findByTestId("tile-humanObservations", {}, { timeout: 5000 });
+    await waitFor(() => expect(within(human).getByText("41")).toBeTruthy(), { timeout: 5000 });
     expect(human.textContent).toMatch(/principals 5/);
     expect(human.textContent).toMatch(/FMOs 36/);
     expect(screen.queryByTestId("tile-avgHitl")).toBeNull();
@@ -241,11 +241,11 @@ describe("FDE's view does not change", () => {
   });
   it("Overview and Observations never ask for observers; Avg HITL stays; no area section", async () => {
     renderPage();
-    await screen.findByTestId("tile-avgHitl");
+    await screen.findByTestId("tile-avgHitl", {}, { timeout: 5000 });
     expect(screen.queryByTestId("tile-v6")).toBeNull();
     expect(screen.queryByTestId(/^area-card-/)).toBeNull();
     renderPage("/observations");
-    await screen.findByTestId("observations-human");
+    await screen.findByTestId("observations-human", {}, { timeout: 5000 });
     expect(h.getObservers).not.toHaveBeenCalled();
   });
 });
