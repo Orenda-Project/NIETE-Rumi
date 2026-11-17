@@ -164,7 +164,7 @@
   "W-LS-T": {
    "short_name": {
     "en": "Letter sounds (listen and tap)",
-    "ur": "حروف کی آوازیں (سن کر ٹیپ)"
+    "ur": "حروف کی آوازیں (سن کر چُنیں)"
    },
    "sentence": {
     "en": "children tested could not give the sound of most letters.",
@@ -224,7 +224,7 @@
   "W-RC-T": {
    "short_name": {
     "en": "Story questions (listen and tap)",
-    "ur": "کہانی کے سوال (سن کر ٹیپ)"
+    "ur": "کہانی کے سوال (سن کر چُنیں)"
    },
    "sentence": {
     "en": "children tested read the passage but could not answer most questions.",

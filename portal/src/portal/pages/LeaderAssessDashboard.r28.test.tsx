@@ -75,7 +75,7 @@ describe("LeaderAssessDashboard: round 28 tasks", () => {
     api.getSessions.mockResolvedValue({ sessions: [row([tap("ur.letter_pick10", 8)])] });
     renderPage();
     await screen.findByTestId("dash-live");
-    expect(within(screen.getByTestId("dash-task-ur.letter_pick10")).getByRole("heading").textContent).toBe("حروف کی آوازیں (سن کر ٹیپ)");
+    expect(within(screen.getByTestId("dash-task-ur.letter_pick10")).getByRole("heading").textContent).toBe("حروف کی آوازیں (سن کر چُنیں)");
   });
 });
 
@@ -98,13 +98,13 @@ describe("LeaderAssessDashboard: round 28 headline split", () => {
     expect(cell.textContent).toBe("spoken 67% · listen and tap 100%");
   });
 
-  it("Urdu: the two labels are «بول کر» and «سن کر ٹیپ»", async () => {
+  it("Urdu: the two labels are «بول کر» and «سن کر چُنیں»", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     api.getSessions.mockResolvedValue({ sessions: [row([comp(4)]), row([comp(4)]), row([comp(1)]), row([mcq(5)]), row([mcq(6)]), row([mcq(5)])] });
     renderPage();
     await screen.findByTestId("dash-live");
     expect(screen.getByTestId("dash-rwc-spoken").textContent).toContain("بول کر");
-    expect(screen.getByTestId("dash-rwc-tapped").textContent).toContain("سن کر ٹیپ");
+    expect(screen.getByTestId("dash-rwc-tapped").textContent).toContain("سن کر چُنیں");
   });
 
   it("an old-form-only cohort renders today's tile: one number, no split", async () => {

@@ -28,8 +28,8 @@ describe('result-cell W ids have seed rows (the FK target set)', () => {
 
   test('W-LS-T / W-RC-T mirror W-LS / W-RC except the title and the note', () => {
     const lib = (id) => library.weaknesses.find((w) => w.id === id);
-    const pairs = [['W-LS-T', 'W-LS', 'Letter sounds (listen and tap)', 'حروف کی آوازیں (سن کر ٹیپ)', 'E4T'],
-      ['W-RC-T', 'W-RC', 'Story questions (listen and tap)', 'کہانی کے سوال (سن کر ٹیپ)', 'E11T']];
+    const pairs = [['W-LS-T', 'W-LS', 'Letter sounds (listen and tap)', 'حروف کی آوازیں (سن کر چُنیں)', 'E4T'],
+      ['W-RC-T', 'W-RC', 'Story questions (listen and tap)', 'کہانی کے سوال (سن کر چُنیں)', 'E11T']];
     for (const [id, old, en, ur, code] of pairs) {
       const a = lib(id); const b = lib(old);
       expect(a.short_name_en).toBe(en);

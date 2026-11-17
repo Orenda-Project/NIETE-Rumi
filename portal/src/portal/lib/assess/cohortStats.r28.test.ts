@@ -49,8 +49,8 @@ describe('round 28 task specs', () => {
     for (const lang of ['ur', 'en']) {
       expect(DASH_COPY.en.tasks[`${lang}.letter_pick10`]).toBe('Letter sounds (listen and tap)');
       expect(DASH_COPY.en.tasks[`${lang}.story_mcq_w3`]).toBe('Story questions (listen and tap)');
-      expect(DASH_COPY.ur.tasks[`${lang}.letter_pick10`]).toBe('حروف کی آوازیں (سن کر ٹیپ)');
-      expect(DASH_COPY.ur.tasks[`${lang}.story_mcq_w3`]).toBe('کہانی کے سوال (سن کر ٹیپ)');
+      expect(DASH_COPY.ur.tasks[`${lang}.letter_pick10`]).toBe('حروف کی آوازیں (سن کر چُنیں)');
+      expect(DASH_COPY.ur.tasks[`${lang}.story_mcq_w3`]).toBe('کہانی کے سوال (سن کر چُنیں)');
       expect(DASH_COPY.en.tasks[`${lang}.letter_sounds5`]).toBe('Letter sounds');
       expect(DASH_COPY.en.tasks[`${lang}.story_comp_w3`]).toBe('Reading comprehension');
       expect(DASH_COPY.ur.tasks[`${lang}.letter_sounds5`]).toBe('حروف کی آوازیں');

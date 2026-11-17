@@ -163,7 +163,7 @@ const ur: DashCopy = {
   rwc: 'سمجھ کر پڑھنے والے',
   rwcHint: 'عبارت کے ⁦۸۰⁩٪ یا زیادہ سوال درست',
   rwcSpoken: 'بول کر',
-  rwcTapped: 'سن کر ٹیپ',
+  rwcTapped: 'سن کر چُنیں',
   guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
     ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
     : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),
@@ -221,8 +221,8 @@ const ur: DashCopy = {
     'ur.story_w3': 'عبارت پڑھنا', 'ur.story_comp_w3': 'عبارت کی سمجھ',
     'en.letter_names5': 'حروف کے نام', 'en.letter_sounds5': 'حروف کی آوازیں', 'en.words4': 'جانے پہچانے الفاظ',
     'en.story_w3': 'عبارت پڑھنا', 'en.story_comp_w3': 'عبارت کی سمجھ',
-    'ur.letter_pick10': 'حروف کی آوازیں (سن کر ٹیپ)', 'en.letter_pick10': 'حروف کی آوازیں (سن کر ٹیپ)',
-    'ur.story_mcq_w3': 'کہانی کے سوال (سن کر ٹیپ)', 'en.story_mcq_w3': 'کہانی کے سوال (سن کر ٹیپ)',
+    'ur.letter_pick10': 'حروف کی آوازیں (سن کر چُنیں)', 'en.letter_pick10': 'حروف کی آوازیں (سن کر چُنیں)',
+    'ur.story_mcq_w3': 'کہانی کے سوال (سن کر چُنیں)', 'en.story_mcq_w3': 'کہانی کے سوال (سن کر چُنیں)',
     'ma.number_id8': 'اعداد کی پہچان', 'ma.discrimination2': 'مقدار کا موازنہ', 'ma.missing4': 'غائب عدد',
     'ma.add2i': 'جمع', 'ma.sub2i': 'تفریق', 'ma.mul2i': 'ضرب', 'ma.fluency1m': 'زبانی حساب، ایک منٹ',
   },
