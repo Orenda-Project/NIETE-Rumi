@@ -587,16 +587,6 @@
       "UP: bot/tests/quiz has 299 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 288."
     ]
   },
-  "tests/setup/raw-sql-schools-columns.test.js": {
-    "failing": [
-      "raw SQL against schools only reads declared columns every column raw SQL reads from schools is declared in 00_complete-schema.sql"
-    ],
-    "offenders": [
-      "dashboard/services/schools-analytics.service.js: schools.regionparam",
-      "dashboard/services/schools-analytics.service.js: schools.school_id",
-      "dashboard/services/schools-analytics.service.js: schools.u"
-    ]
-  },
   "tests/setup/repo-seam-tests.test.js": {
     "failing": [
       "the tree every repo seam has a seam test, or is listed (missing / pure); both lists match today exactly"
