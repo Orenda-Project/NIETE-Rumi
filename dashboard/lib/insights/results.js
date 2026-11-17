@@ -141,4 +141,7 @@ function buildResultCells({ sessions, blocks, testAccountIds, term, jobRunId, co
   return rows;
 }
 
-module.exports = { buildResultCells, codeOf };
+/** Every W id this stage can write: each needs a coachip_weaknesses seed row (coachip_result_cells.w_id is its FK). */
+const RESULT_WS = WS.map((s) => s.w);
+
+module.exports = { buildResultCells, codeOf, RESULT_WS };
