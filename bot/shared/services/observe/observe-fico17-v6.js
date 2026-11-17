@@ -59,13 +59,19 @@ const isReady = () => process.env[READY_ENV] === 'true';
 
 // `lessonIsPrimary` (bd-pni007): true when the coach named this lesson's class as grades 1-5 (obs612 switch on).
 // That answer decides the grades 1-5 gate instead of the teacher's profile. Absent: the profile, exactly as before.
-async function decideVisitFramework({ userId, region, teacherUserId = null, lessonIsPrimary } = {}) {
+// `schoolExtId` (bd-hk2jm3): the school the coach picked, for the visit's region (below).
+async function decideVisitFramework({ userId, region, teacherUserId = null, lessonIsPrimary, schoolExtId = null } = {}) {
   if (process.env.OBSERVE_FRAMEWORK !== 'fico') return null;
   if (!isReady()) return null;
   try {
     const { coachRubric } = require('../coaching/fico-rubric-switch');
     if ((await coachRubric({ userId, region })) !== 'v6') return null;
     if (lessonIsPrimary === true) return V6;
+    // bd-hk2jm3 (operator 17 Nov ~15:15: "for Gilgit Baltistan, it's gonna be the same Fico one ... for HITL, it's
+    // supposed to be V6"): FDE's grades 6-8 are ICT's only, so a GB visit has no FDE grades and v6 reaches every grade,
+    // a teacher of unknown level and an unbound capture included. Only a positive GB answer widens it.
+    const { isGbVisit } = require('../coaching/fde-region');
+    if (await isGbVisit({ observer: { id: userId, ...(region !== undefined ? { region } : {}) }, teacherUserId, schoolExtId })) return V6;
     // bd-ra8xu.42: grades 1-5 only (operator 11 Nov ~18:05). A grades 6-12 teacher, an unknown level or an unbound
     // capture stays V3 until FDE's 6-12 rubric lands (#94).
     const { isPrimaryVisit } = require('../coaching/fico-visit-grade');

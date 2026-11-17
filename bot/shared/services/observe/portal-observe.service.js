@@ -221,15 +221,18 @@ function lessonOfArg(lesson) {
  * decides the grades 1-5 gate); otherwise nothing (today's rubric). Never throws: any failure is today's path.
  * @returns {Promise<{v6Stamp: string|null, fdeLesson: object|null}>}
  */
-async function decideStamp(d, coach, teacherUserId, lesson) {
+async function decideStamp(d, coach, teacherUserId, lesson, schoolExtId = null) {
   // Principals have the coach HITL rubric (FICO17 v6, FDE 6-8) on the WhatsApp bot only (operator decision, 15 Nov;
   // the portal path is untested for them). A portal visit a principal starts stays on today's rubric even when the
   // coach switches carry role:principal, UNLESS the principal app's switch names her (operator, 17 Nov: "get the
   // principal thingy live for her"): she then gets the coach rubric exactly as a coach, decided below by the same
   // switches. Coaches are unchanged.
   if (!(await hasPortalCoachRubric(d, coach))) return { v6Stamp: null, fdeLesson: null };
+  // bd-hk2jm3: FDE is ICT's only. The visit (its teacher and the school picked) decides, as on WhatsApp: a GB visit
+  // is never FDE, and a class named anyway decides nothing (its v6 has no grade gate in GB).
+  const visit = { teacherUserId: teacherUserId || null, ...(schoolExtId ? { schoolExtId: String(schoolExtId) } : {}) };
   let fdeOn = false;
-  try { fdeOn = !!(await d.rubric.fdeOn(coach)); } catch (_) { fdeOn = false; }
+  try { fdeOn = !!(await d.rubric.fdeOn(coach, visit)); } catch (_) { fdeOn = false; }
   const named = fdeOn && lesson ? lesson : null;
   if (named && !named.primary) return { v6Stamp: null, fdeLesson: named };
   let v6Stamp = null;
@@ -238,6 +241,7 @@ async function decideStamp(d, coach, teacherUserId, lesson) {
       userId: coach.id,
       region: coach.region,
       teacherUserId,
+      ...(visit.schoolExtId ? { schoolExtId: visit.schoolExtId } : {}),
       ...(named && named.primary ? { lessonIsPrimary: true } : {}),
     })) || null;
   } catch (_) { v6Stamp = null; }
@@ -399,7 +403,7 @@ async function startPortalObservation({
   }
 
   // bd-ra8xu.40: the visit's rubric, decided ONCE here as observe-capture decides it on WhatsApp.
-  const { v6Stamp, fdeLesson } = await decideStamp(d, coach, ownerUserId, lesson);
+  const { v6Stamp, fdeLesson } = await decideStamp(d, coach, ownerUserId, lesson, schoolExtId);
 
   const startedAt = d.now().toISOString();
   const planKey = lessonPlanKey || libraryPdfKey;

@@ -34,6 +34,9 @@ jest.mock('../../bot/shared/services/observe/observe-state.service', () => ({
 }));
 const mockSwitchOn = { value: false };
 jest.mock('../../bot/shared/services/coaching/obs612-switch', () => ({ isOn: jest.fn(() => Promise.resolve(mockSwitchOn.value)) }));
+// bd-hk2jm3: the visit's region (FDE is ICT's only) has its own suite (tests/coaching/bd-hk2jm3-fde-ict-only); here an
+// ICT visit, so the switch alone decides.
+jest.mock('../../bot/shared/services/coaching/fde-region', () => ({ fdeAllowed: jest.fn(() => Promise.resolve(true)), isGbVisit: jest.fn(() => Promise.resolve(false)) }));
 jest.mock('../../bot/shared/services/observe/observe2/rubric', () => ({
   visitRubric: jest.fn(() => Promise.resolve({ rubricVersion: 'fico17_v6', shadow: false })),
 }));
