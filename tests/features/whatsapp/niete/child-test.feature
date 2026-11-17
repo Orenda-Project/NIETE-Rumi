@@ -1554,7 +1554,18 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then Jugnu reads the question and the four answers from the phone
     And the coach's screen shows the question and the answers folded away, without marking the right one
 
-  @e2e @wip @draft @config-gated @P1 @CT248 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT253 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (the coach-led phone fit runs in a
+  # real browser when playwright-core is present).
+  Scenario: With sa_r28_mcq on, a coach-led story question fits a 360x640 phone in every coach state
+    Given sa_r28_mcq is on, the test is coach-led on a 360x640 phone and the question is the bank's longest
+    When Jugnu reads the question, then each answer, the child holds an answer, the Next is offered, and the coach opens the fold
+    Then the four answer cards and the replay are whole on the screen and stay in the same place in every one of those states, with nothing to scroll
+    And the coach's Next shows in the row with the replay, never below the cards, and the open fold lies over the screen without pushing the cards
+    And the coach's line reads "Jugnu reads the question and all four answers. Do not read, translate or give the answer. Let the child tap the answer." and in Urdu «جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔»
+    And with sa_r28_mcq off neither that line nor the old one shows
+
+  @e2e @wip @draft @config-gated @P1 @CT254 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
   Scenario: With sa_r28_mcq on, every story and story-question result names the version of the story the child had
     Given sa_r28_mcq is on and the battery rotates between versions of the story
