@@ -145,6 +145,12 @@ async function handleRow(kind, row, handler, now) {
       return 'deferred';
     }
 
+    // From here the teacher may get the message: a stuck row is then failed, never requeued (bd-pw1ccr.41.1).
+    // Not stamped = no longer ours, or the write failed: don't send; unstamped, it is requeued once and retried.
+    if (!(await store.markStarted(row.id))) {
+      logError('could not mark the row started; not sending it this tick', { kind, id: row.id });
+      return 'deferred';
+    }
     const outcome = await handler(row, { now });
 
     if (outcome && outcome.sent) {
@@ -191,7 +197,7 @@ async function runSweep({ now = new Date(), limit = store.DEFAULT_CLAIM_LIMIT } 
   if (!isEnabled()) return { off: true, ...counts };
 
   try {
-    counts.expired = await store.expireStuck({ now });
+    counts.expired = await store.expireStuck({ now, requeueKinds: [...registry.keys()] });
   } catch (error) {
     logError('expireStuck failed', { error: error.message });
   }
