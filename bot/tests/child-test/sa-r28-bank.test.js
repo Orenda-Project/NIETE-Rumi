@@ -178,6 +178,16 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     expect(opts('ur.story2.q5').filter((o) => /نہلا|کھلونے/.test(o))).toEqual([]);
   });
 
+  test('the tap tasks are titled «(سن کر چُنیں)» (listen and choose) in Urdu, never «ٹیپ»', () => {
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const b = byId(runtime(form, lang));
+      for (const l of ['ur', 'en']) {
+        expect(b[`${l}.letter_pick10`].title.ur).toBe('حروف کی آوازیں (سن کر چُنیں)');
+        expect(b[`${l}.story_mcq_w3`].title.ur).toBe('کہانی کے سوال (سن کر چُنیں)');
+      }
+    }
+  });
+
   test('served OFF: no r28 task, no r28_tasks, no ext_items, base_n or ext_stop anywhere', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       for (const on of [{}, { rdfW3Forms: true }]) {

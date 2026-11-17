@@ -466,8 +466,8 @@ const R28_COACH = {
   mcq: L('Jugnu will read each question and its four answers. The child taps an answer. Do not read the answers yourself.',
     'جگنو ہر سوال اور اس کے چار جواب پڑھے گا۔ بچہ ایک جواب پر ٹیپ کرے۔ جواب خود نہ پڑھیں۔', 'r28: Jugnu reads question and options in both modes'),
 };
-const R28_TITLE = { letter_pick: { en: 'Letter sounds (listen and tap)', ur: 'حروف کی آوازیں (سن کر ٹیپ)' },
-  mcq: { en: 'Story questions (listen and tap)', ur: 'کہانی کے سوال (سن کر ٹیپ)' } };
+const R28_TITLE = { letter_pick: { en: 'Letter sounds (listen and tap)', ur: 'حروف کی آوازیں (سن کر چُنیں)' },
+  mcq: { en: 'Story questions (listen and tap)', ur: 'کہانی کے سوال (سن کر چُنیں)' } };
 /** r28 clips live under sa/v5 (the battery route rewrites sa/v1 paths on serve), keyed as every clip: sha1(lang|text). */
 const v5 = (said, lang, text) => said(lang, text).audio.replace(/^sa\/v1\//, 'sa/v5/');
 
