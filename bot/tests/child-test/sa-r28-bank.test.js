@@ -132,6 +132,27 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     expect(rw('coach.G5.A').length).toBeGreaterThan(0);
   });
 
+  test('number identification: Core 20, then the Jordan 2021 page A grid in printed order, never a numeral twice in one run', () => {
+    const jordanA = ['3', '9', '7', '0', '20', '77', '29', '61', '54', '58', '91', '70', '45', '89', '33', '104', '368', '740', '500', '898'];
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const t = byId(runtime(form, lang))['ma.number_id8'];
+      const shown = [...t.items, ...t.ext_items].map((x) => String(x.show));
+      expect([form, lang, shown.filter((n, i) => shown.indexOf(n) !== i)]).toEqual([form, lang, []]);
+      const jo = t.ext_items.filter((x) => /^jordan_egma_2021:stimulus p\.A/.test(x.src));
+      const core = new Set(v3.sets.A.maths['3'].number_id.items);
+      expect(jo.map((x) => String(x.show))).toEqual(jordanA.filter((n) => !core.has(n)));
+      const grades45 = /G[45]\./.test(form);
+      expect([form, shown.length]).toEqual([form, grades45 ? 50 : 42]);
+    }
+  });
+
+  test('letter_pick10: b and m are never in one row (a pre-voiced /ba/ reads near /m/ on a phone speaker)', () => {
+    for (const form of COACH_FORMS) {
+      const t = byId(runtime(form, 'en'))['en.letter_pick10'];
+      for (const it of [...t.items, ...t.practice]) expect([it.target, it.options.includes('b') && it.options.includes('m')]).toEqual([it.target, false]);
+    }
+  });
+
   test('served OFF: no r28 task, no r28_tasks, no ext_items, base_n or ext_stop anywhere', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       for (const on of [{}, { rdfW3Forms: true }]) {
