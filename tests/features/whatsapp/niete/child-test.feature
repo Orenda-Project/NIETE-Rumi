@@ -1243,14 +1243,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @config-gated @P1 @CT207 @no-mock-driver
   # No mock driver: the gate runs in the scoring sweep against a model and speech-to-text, not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-letter-gate.test.js.
-  Scenario: With sa_r28_letter_gate on, a letter recording is not muted because speech-to-text heard no word
+  Scenario: With sa_r28_letter_gate on, a letter-sound recording is judged by whether a voice is heard, not by words heard
     Given sa_r28_letter_gate is on and the speech gate is on
-    And a child says bare letter sounds in a letter-sound or letter-name recording, with no whole word
+    And a child says bare letter sounds in a letter-sound recording, with no whole word
     When the recording is scored
-    Then speech-to-text is not asked about that recording and the model marks the letters it hears
+    Then speech-to-text is not asked about that recording, a voice check on the recording passes and the model marks the letters it hears
+    And the model is not shown the expected answers for the letters
+    And a silent recording, or one holding only steady noise, is not reached and the model is not asked
     And a recording shorter than the minimum speech length, or one the model finds holds no letters, is still not reached
-    And word, passage and question recordings are muted as before when speech-to-text hears no word
-    And with sa_r28_letter_gate off a letter recording with no word heard is not reached, exactly as before
+    And letter-name, word, passage, question and spoken-maths recordings are muted as before when speech-to-text hears no word
+    And with sa_r28_letter_gate off a letter-sound recording with no word heard is not reached, exactly as before
 
   @e2e @wip @draft @config-gated @P1 @CT208 @no-mock-driver
   # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-no-echo-ur.test.js.
