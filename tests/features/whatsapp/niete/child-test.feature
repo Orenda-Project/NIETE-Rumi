@@ -1493,6 +1493,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When a story question shows
     Then Jugnu reads the question and the four answers from the phone
     And the coach's screen shows the question and the answers folded away, without marking the right one
+
+  @e2e @wip @draft @config-gated @P1 @CT248 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, every story and story-question result names the version of the story the child had
+    Given sa_r28_mcq is on and the battery rotates between versions of the story
+    When a child reads the story and answers its questions
+    Then the story's result and the questions' result both name the version this phone showed, the same one
+    And with no rotation both results say no version (null), never leave it out
   @e2e @wip @draft @config-gated @P1 @CT208 @no-mock-driver
   # No mock driver: the portal reads the server's results. Asserted in portal/src/portal/lib/assess/cohortStats.r28.test.ts,
   # portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx, portal/src/portal/pages/LeaderAssessResults.r28.test.tsx
