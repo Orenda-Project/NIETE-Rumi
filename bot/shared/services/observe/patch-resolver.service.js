@@ -28,6 +28,7 @@
 
 /** Only these two roles are ever in a patch. Not coaches, not unregistered. */
 const { teacherLevelOf, primaryBandOf } = require('../../utils/teacher-level');
+const { isOnPrincipalApp } = require('./principal-app-switch');
 // EMIS, else the holding key: the one rule every observation_schedules writer keys a school by.
 const { schoolKeyOf } = require('./school-key');
 
@@ -267,24 +268,16 @@ function schoolIdsForHoldings(holdings) {
   return out;
 }
 
-/** bd-33wxxi.4 — app_settings key of the principal app (dashboard/lib/feature-flags.js PORTAL_PRINCIPAL_APP_KEY). */
-const PRINCIPAL_APP_KEY = 'portal_principal_app';
-
 /**
  * bd-33wxxi.4 — the school of a principal ON THE PRINCIPAL APP, or null. The switch is read with the portal's rule
- * (true, "true", or a list of users.id naming her; anything else, no row or a failed read is off), and her own users row
- * must say principal with a school_id. Fail-closed: null means today's roster (her leader_schools holdings).
+ * (principal-app-switch: true, "true", or a list of users.id naming her; anything else, no row or a failed read is off),
+ * and her own users row must say principal with a school_id. Fail-closed: null means today's roster (her leader_schools
+ * holdings).
  */
 async function principalAppSchoolId(supabase, userId) {
   if (!userId) return null;
   try {
-    const { data: flag, error } = await supabase.from('app_settings').select('value').eq('key', PRINCIPAL_APP_KEY).maybeSingle();
-    if (error || !flag) return null;
-    let v = flag.value;
-    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* the raw string */ } }
-    const on = v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true')
-      || (Array.isArray(v) && v.some((id) => typeof id === 'string' && id === userId));
-    if (!on) return null;
+    if (!(await isOnPrincipalApp(supabase, userId))) return null;
     const { data: me, error: meErr } = await supabase.from('users').select('role, school_id').eq('id', userId).maybeSingle();
     if (meErr || !me || String(me.role || '').trim().toLowerCase() !== 'principal') return null;
     return me.school_id || null;
