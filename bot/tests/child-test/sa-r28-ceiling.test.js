@@ -277,16 +277,39 @@ describe('level.js: the ladder on the first N (C-8), the new parts (A.7 #8, B.7 
     expect(ur(upTo([tap('ur.story_mcq_w3', 4, 6)])).level).toBe('comprehension');
     expect(ur(upTo([tap('ur.story_mcq_w3', 3, 6)])).level).toBe('story');
   });
-  test('a tap part read on what was presented: 8 of 9 presented meets 0.8, 7 of 9 does not; 3 of 4 presented meets the MCQ two thirds', () => {
+  test('the picker is read on what was presented: 8 of 9 presented meets 0.8, 7 of 9 does not', () => {
     const tapP = (block, correct, attempted, presented) => ({ ...tap(block, correct, attempted), responses: [{ kind: 'result', mode: 'tap', correct, attempted, presented, stop_reason: 'complete' }] });
     expect(ur([tapP('ur.letter_pick10', 8, 9, 9)]).level).toBe('letters');
     expect(ur([tapP('ur.letter_pick10', 7, 9, Array.from({ length: 9 }, (_, i) => `p${i}`))]).level).toBe('beginner');
-    const upTo = (rows) => [spoken('ur.letter_names5', ext(5, 5, 5, 5)), spoken('ur.words4', ext(4, 4, 4, 4)), spoken('ur.story_w3', { correct: 30, attempted: 32 }), ...rows];
-    expect(ur(upTo([tapP('ur.story_mcq_w3', 3, 4, 4)])).level).toBe('comprehension');
   });
-  test('an unrated tap part (too few presented) is pending, never scored', () => {
-    const tapU = (block, correct, attempted) => ({ ...tap(block, correct, attempted), responses: [{ kind: 'result', mode: 'tap', correct, attempted, unrated: true, stop_reason: 'complete' }] });
-    expect(ur([tapU('ur.letter_pick10', 5, 5)])).toMatchObject({ level: null, pending: true });
+  // SPEC v2.1 (B.5): the MCQ part is read as correct of (6 − questions whose clip was lost); a question the reading gate
+  // did not ask counts as wrong, as the oral part today. The result row carries asked[], unavailable and of_all 6.
+  const mcq = ({ asked, lost = 0, right }) => ({
+    block: 'ur.story_mcq_w3', response_mode: 'tap', ai_status: 'pending', ai_marks: null,
+    responses: [{ kind: 'result', mode: 'tap', correct: right, attempted: asked - lost, asked: Array.from({ length: asked - lost }, (_, i) => `ur.story_w3.q${i + 1}`), presented: asked - lost, ...(lost ? { unavailable: lost } : {}), of_all: 6, stop_reason: 'complete' }],
+  });
+  const toStory = (rows) => [spoken('ur.letter_names5', ext(5, 5, 5, 5)), spoken('ur.words4', ext(4, 4, 4, 4)), spoken('ur.story_w3', { correct: 30, attempted: 32 }), ...rows];
+  test('B.7.6: a session with 3 asked and 2 right at share 0.67 is unmet', () => {
+    expect(ur(toStory([mcq({ asked: 3, right: 2 })])).level).toBe('story');
+  });
+  test('6 asked, 1 lost, 4 right → 4 of 5 → met', () => {
+    expect(ur(toStory([mcq({ asked: 6, lost: 1, right: 4 })])).level).toBe('comprehension');
+  });
+  test('3 asked, 0 lost, 2 right → 2 of 6 → unmet', () => {
+    expect(ur(toStory([mcq({ asked: 3, lost: 0, right: 2 })]))).toMatchObject({ level: 'story', pending: false });
+  });
+  test('4 asked of 6, 4 right → 4 of 6 → met (two thirds, compared exactly)', () => {
+    expect(ur(toStory([mcq({ asked: 4, right: 4 })])).level).toBe('comprehension');
+  });
+  test('unrated is absent, not pending: letter names 2 of 5 + an unrated picker → letters rung unmet, pending false', () => {
+    const tapU = (block, correct, attempted) => ({ ...tap(block, correct, attempted), responses: [{ kind: 'result', mode: 'tap', correct, attempted, presented: 3, unavailable: 7, unrated: true, stop_reason: 'complete' }] });
+    const line = ur([spoken('ur.letter_names5', ext(2, 5, 2, 5)), tapU('ur.letter_pick10', 3, 3)]);
+    expect(line).toMatchObject({ level: 'beginner', pending: false });
+    expect(line).not.toHaveProperty('unrated');
+  });
+  test('a subject whose rung parts are all unrated: level null, not pending, unrated true', () => {
+    const tapU = (block) => ({ ...tap(block, 2, 2), responses: [{ kind: 'result', mode: 'tap', correct: 2, attempted: 2, presented: 2, unavailable: 8, unrated: true, stop_reason: 'complete' }] });
+    expect(ur([tapU('ur.letter_pick10')])).toEqual({ subject: 'ur', reached: { taskId: 'ur.letter_pick10', title: null }, level: null, pending: false, stop: null, unrated: true });
   });
   test('the oral comprehension part keeps its share of a half', () => {
     const upTo = (rows) => [spoken('ur.letter_names5', ext(5, 5, 5, 5)), spoken('ur.words4', ext(4, 4, 4, 4)), spoken('ur.story_w3', { correct: 30, attempted: 32 }), ...rows];
@@ -312,5 +335,38 @@ describe('levelReader.itemsOf: base items only (sa-api)', () => {
     };
     const out = await sa.saResults({ userId: COACH, sessionId: SID }, world);
     expect(out.levels.find((x) => x.subject === 'ur').level).toBe('letters');
+  });
+});
+
+describe('C-5 on every timed task (SPEC v2.1): with sa_r28_ceiling ON no clock means no rate', () => {
+  test('ON: a run that stopped inside today\'s items, no time_used_ms → pending', async () => {
+    const d = deps({ tasks: [words()] }, (i) => (i <= 3 ? 'correct' : 'skipped'), { ceiling: true });
+    const got = await score.scoreRow(row('en.words4', { cells: cells('en.words4', 3), last_item_index: 2, stop_reason: 'early_stop_silence' }), session(), d);
+    expect(got.marks).toMatchObject({ correct: 3, attempted: 3, per_minute: null, seconds_used: null });
+    expect(got.marks.detail.rate_pending).toBe(true);
+  });
+  test('ON: a task that does not extend at all, time_used_ms 0 → pending', async () => {
+    const plain = { ...words() };
+    delete plain.base_n; delete plain.ext_items;
+    const d = deps({ tasks: [plain] }, () => 'correct', { ceiling: true });
+    const got = await score.scoreRow(row('en.words4', { cells: cells('en.words4', 4), last_item_index: 3, time_used_ms: 0, stop_reason: 'complete' }), session(), d);
+    expect(got.marks).toMatchObject({ per_minute: null, seconds_used: null });
+    expect(got.marks.detail.rate_pending).toBe(true);
+  });
+  test('ON: the story passage with no clock → pending', async () => {
+    const W = ['a', 'cat', 'sat', 'on', 'the', 'mat'];
+    const story = { id: 'en.story_w3', w3: true, kind: 'passage', subtask: 'oral_reading_fluency', lang: 'en', response: 'record', time_limit_s: 60, stop: {},
+      passage: { text: W.join(' ') }, items: W.map((w, k) => ({ id: `en.story_w3.w${k + 1}`, target: w, line: 1 })) };
+    const d = deps({ tasks: [story] }, () => 'correct', { ceiling: true });
+    const got = await score.scoreRow(row('en.story_w3', { last_word_index: 5, stop_reason: 'complete' }), session(), d);
+    expect(got.marks).toMatchObject({ correct: 6, per_minute: null, seconds_used: null });
+    expect(got.marks.detail.rate_pending).toBe(true);
+  });
+  test('OFF: the same no-clock run inside today\'s items keeps today\'s 60 s and says it was assumed', async () => {
+    const d = deps({ tasks: [words()] }, (i) => (i <= 3 ? 'correct' : 'skipped'));
+    const got = await score.scoreRow(row('en.words4', { cells: cells('en.words4', 3), last_item_index: 2, stop_reason: 'early_stop_silence' }), session(), d);
+    expect(got.marks).toMatchObject({ correct: 3, per_minute: 3, seconds_used: 60 });
+    expect(got.marks.detail.seconds_assumed).toBe(true);
+    expect(got.marks.detail).not.toHaveProperty('rate_pending');
   });
 });
