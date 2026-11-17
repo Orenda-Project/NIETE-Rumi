@@ -236,6 +236,8 @@
     if (t.chip) r.chip = t.chip;
     // Round 28 (r28_letter_pick): the letter-sound picker keeps its kind for the page (its own screen)
     if (t.kind === 'pick') r.kind = 'pick';
+    // Round 28 (sa_r28_ceiling): the base the route served (base_n), recorded on the result for the scorer
+    if (t.base_n != null) r.base_n = t.base_n;
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
     } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {
@@ -537,6 +539,8 @@
       // the rotation variant this child saw (sa-page.js rotate): its id, null for the passage without rotation, so the
       // scorer marks the text the child read instead of guessing it from the session id
       if (has(t, 'variant_id')) r.variant = t.variant_id;
+      // round 28 (sa_r28_ceiling): the base this child was served (5 words with the counts spare, else 4), never the bank's
+      if (ceilingOn && Number(t.base_n) > 0) r.base_n = Number(t.base_n);
       // round 28 (the letter-sound picker): items whose sound played, the ones that could not, and whether it is rated
       if (t.kind === 'pick') {
         var lost = st.answers.filter(function (a) { return a.unavailable; }).length;
