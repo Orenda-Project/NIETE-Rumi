@@ -14,7 +14,8 @@
  * an hour.
  *
  * Executes the real GPT5MiniService.analyzePedagogy with the real FICO module;
- * the only mock is the model client (network boundary).
+ * mocked: the model client (network boundary), and the parse outcome of the
+ * one malformed sample (held to production's: it throws; see parseLikeProduction).
  *
  *   J1  first reply unreadable, second readable → resolves after two calls with the same request
  *   J2  both unreadable → still throws "JSON parsing failed" after exactly two calls (SQS takes over)
@@ -23,8 +24,6 @@
  */
 jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logWarn: jest.fn(), logError: jest.fn() }));
-// jsonrepair as identity: the replies below are the kind it could not mend in production.
-jest.mock('jsonrepair', () => ({ jsonrepair: (s) => s }), { virtual: true });
 jest.mock('dotenv', () => ({ config: () => ({}) }), { virtual: true });
 
 const GPT5MiniService = require('../../bot/shared/services/gpt5-mini.service');
@@ -35,8 +34,23 @@ const reply = (content) => ({
   usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
 });
 const READABLE = reply(JSON.stringify({ executive_summary: 'ok', domains: {} }));
-// An unescaped quote inside a string value, closing normally — what prod returned.
-const UNREADABLE = reply('{\n  "executive_summary": "The teacher asked "why?"",\n  "domains": {}\n}');
+// A complete reply with one bad character mid-body, the production shape.
+const UNREADABLE_TEXT = '{\n  "executive_summary": "The teacher asked "why?"",\n  "domains": {}\n}';
+const UNREADABLE = reply(UNREADABLE_TEXT);
+
+// Whether a given jsonrepair release can mend THIS sample differs by version (3.14 cannot, a later
+// one can), and production's own samples were ones the shipped jsonrepair could not mend. So the
+// parse step is held to production's outcome for the sample — it throws, with production's message —
+// and every other reply goes through the real parser.
+const realParse = GPT5MiniService._safeJsonParse.bind(GPT5MiniService);
+function parseLikeProduction() {
+  return jest.spyOn(GPT5MiniService, '_safeJsonParse').mockImplementation((content) => {
+    if (content === UNREADABLE_TEXT) {
+      throw new SyntaxError("Expected ',' or '}' after property value in JSON at position 45 (line 2 column 44)");
+    }
+    return realParse(content);
+  });
+}
 
 function stub(behaviour) {
   const calls = [];
@@ -46,6 +60,9 @@ function stub(behaviour) {
 
 describe('an unreadable analysis reply is asked for again once, in the same job', () => {
   const real = GPT5MiniService.openai;
+  let parseSpy;
+  beforeEach(() => { parseSpy = parseLikeProduction(); });
+  afterEach(() => { parseSpy.mockRestore(); });
   afterAll(() => { GPT5MiniService.openai = real; });
 
   test('J1: unreadable then readable → the analysis completes after two calls with the same request', async () => {
