@@ -1,2 +1,4 @@
 {"ts":"2026-11-17T11:39:30Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"2781db856dfa","branch":"bd-pw1ccr.41.1-15315","user":""}
 {"ts":"2026-11-17T11:39:31Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,coaching owe their Gherkin","sha":"2781db856dfa","branch":"bd-pw1ccr.41.1-15315","user":""}
+{"ts":"2026-11-17T11:39:32Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,coaching spec_sync=true","sha":"2781db856dfa","branch":"bd-pw1ccr.41.1-15315","user":""}
+{"ts":"2026-11-17T11:39:47Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"62ed4600-0f2a-4311-a314-feffb1d8adb6","sha":"2781db856dfa","branch":"bd-pw1ccr.41.1-15315","user":""}
