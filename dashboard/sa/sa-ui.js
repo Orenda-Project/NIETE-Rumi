@@ -607,6 +607,8 @@
     // ?probe=1 (sandbox/staging QA): console.debug('hl', option, audio.currentTime) on every light-on and light-off
     var mcqProbe = r28Mcq && typeof location !== 'undefined' && /[?&]probe=1(&|$)/.test(String(location.search || ''));
     var mcq = null; // the read-out of the MCQ item on show: { item, phase, lit, chosen, … } (readOut)
+    var mcqPass = null; // round 9 (row 31): the practice passage's own step on show: { item, task, key, t0, run, playing, settle }
+    var mcqPassDone = {}; // task|item → the practice passage step ended (logged once; a retry never repeats it)
     var mcqFold = null; // coach-led: { item, task } whose fold the coach opened (modal while open; kept across a redraw)
     var mcqFoldBy = null; // the closing tap's facets for fold_close ({ by: 'tap', card }); else the summary closed it
     // the double tap's second half after the fold closed (ghostGuard): the card is the .sae-mcq-opt's data-index
@@ -2755,6 +2757,81 @@
       runner.log('replay', { task_id: v.task.id, item_id: it.id, value: 'child' });
       readOut(it, v.task, { replay: true, child: true });
     }
+    /** Round 9 (row 31, SPEC B-7 in the practice): the practice passage is its own step: Jugnu plays its clip with the
+     *  passage on the screen and NO answer cards; it ends at the clip's end + the 600 ms settle (or the coach's Next in
+     *  the head row), never on a child's tap; then the question draws as the scored screen does (no passage on it, the
+     *  fold = prompt + options). The guard: a passage with no clip key, or a clip lost at play time, has no step: the
+     *  question draws with its own clips. practice_passage {task_id, item_id, ms, audio, by} once (delivery only; audio =
+     *  the passage clip reached its end at least once). */
+    function mcqPassKey(t, it) { return (t && t.id) + '|' + (it && it.id); }
+    function mcqPassAudio(it) {
+      var p = it && it.passage;
+      return p && typeof p === 'object' && typeof p.audio === 'string' && p.audio ? p.audio : null;
+    }
+    /** The passage step is on show for this practice item (its clip key present and the step not yet ended). */
+    function mcqPassOn(it, t) {
+      return !!(it && it.passage && mcqPassAudio(it) && !mcqPassDone[mcqPassKey(t, it)]);
+    }
+    function mcqPractice(it, t) {
+      if (!it || !it.passage || mcqPassDone[mcqPassKey(t, it)]) return readOut(it, t, {});
+      if (!mcqPassAudio(it)) { mcqPassLog(t, it, 0, false, 'no_clip'); return readOut(it, t, {}); } // the guard: no step
+      var P = { item: it.id, task: t.id, key: mcqPassKey(t, it), t0: mcqNow(), run: 0, playing: false, settle: null, heard: false };
+      mcqPass = P;
+      return mcqPassPlay(P);
+    }
+    function mcqPassLog(t, it, ms, audio, by) {
+      var k = mcqPassKey(t, it);
+      if (mcqPassDone[k]) return;
+      mcqPassDone[k] = true;
+      runner.log('practice_passage', { task_id: t.id, item_id: it.id, ms: ms, audio: audio, by: by });
+    }
+    function mcqPassPaint() {
+      var P = mcqPass;
+      var box = P ? el.querySelector('.sae-mcq-passage-step') : null;
+      if (!box || box.getAttribute('data-item') !== P.item) return;
+      var rb = box.querySelector('.sae-mcq-replay');
+      if (rb) rb.disabled = P.playing;
+      var j = box.querySelector('.sae-mcq-jugnu');
+      if (j) j.classList.toggle('is-talking', P.playing);
+    }
+    function mcqPassPlay(P) {
+      var v = runner.view(), it = v.practice;
+      if (!it || it.id !== P.item) return Promise.resolve();
+      var tok = ++P.run, g = gen;
+      function live() { return alive && mcqPass === P && P.run === tok && g === gen; }
+      if (P.settle != null) { clearTimeout(P.settle); P.settle = null; }
+      P.playing = true;
+      mcqPassPaint();
+      return say(null, mcqPassAudio(it), true, { clip_only: true }).then(function () {
+        if (!live()) return;
+        P.playing = false;
+        var first = !P.heard;
+        P.heard = true; // the clip reached its end once: from now on the coach's Next (no Skip drawn) can end the step
+        if (first && manual) draw(); else mcqPassPaint();
+        P.settle = later(function () { P.settle = null; if (live()) mcqPassEnd(P, 'clip_end', true); }, MCQ_SETTLE_MS);
+      }, function () {
+        if (live()) mcqPassEnd(P, 'clip_lost', P.heard); // B-17's path: the step ends, the question draws; audio = the clip reached its end once
+      });
+    }
+    function mcqPassEnd(P, by, audio) {
+      if (mcqPass !== P) return;
+      mcqPass = null;
+      if (P.settle != null) { clearTimeout(P.settle); P.settle = null; }
+      var v = runner.view();
+      var it = v.practice;
+      if (v.phase !== 'practice' || !it || it.id !== P.item) { mcqPassDone[P.key] = true; return; }
+      mcqPassLog(v.task, it, Math.round(mcqNow() - P.t0), audio, by);
+      draw();
+      readOut(it, v.task, {});
+    }
+    /** The child's replay (or Jugnu) in the passage step: the passage's clip again, nothing else; never while it plays. */
+    function mcqPassReplay() {
+      var P = mcqPass;
+      if (!alive || busy || !P || P.playing) return;
+      if (mcqFoldOpen(P.item) || mcqGhost()) return;
+      runner.log('replay', { task_id: P.task, item_id: P.item, value: 'child', what: 'passage' });
+      mcqPassPlay(P);
+    }
     /** Coach-led: what Jugnu reads, folded (the coach never reads it out; the key is not marked). */
     /** SPEC B-14 (extended), coach-led only: the coach's own line above the fold. Text only: never spoken, no clip. */
     function mcqCoachLine() {
@@ -2833,6 +2910,7 @@
     }
     function sMcq(v, it, fb, practice) {
       var t = v.task, tl = taskLang(t), d = dirOf(t);
+      if (practice && !fb && mcqPassOn(it, t)) return sMcqPassage(v, it);
       var S = mcq && mcq.item === it.id ? mcq : { phase: 'listening', lit: -1, chosen: null };
       var reading = mcqReadingPhase(S);
       var cardsEl = h('div', { class: 'sae-mcq-opts', lang: tl, dir: d }, (it.options || []).map(function (o, i) {
@@ -2870,7 +2948,6 @@
         h('div', { class: 'sae-row sae-mcq-head' }, [j, practice && !skipB ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, skipB, headNext]),
         mcqCoachLine(),
         mcqCoach(it, t),
-        practice && it.passage ? h('p', { class: 'sae-mcq-passage', lang: tl, dir: d, text: tx(it.passage) }) : null,
         h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
         cardsEl,
         practice ? feedbackLine(fb) : null,
@@ -2878,6 +2955,32 @@
       s.setAttribute('data-item', it.id);
       if (manual) mcqModal(s);
       Promise.resolve().then(function () { mcqFit(s); });
+      return s;
+    }
+    /** Round 9 (row 31): the practice passage's step: Jugnu, the passage whole, no answer cards. The head row as the
+     *  question's (Jugnu, the chip or the coach's Skip, the replay = the passage again); coach-led: the coach's line and
+     *  the closed fold as on the question screen, and the coach's Next in the head when no Skip is drawn. */
+    function sMcqPassage(v, it) {
+      var t = v.task, tl = taskLang(t), d = dirOf(t);
+      var P = mcqPass && mcqPass.item === it.id ? mcqPass : { playing: true };
+      var rb = h('button', { class: 'sae-replay sa-replay sae-mcq-replay', type: 'button', 'aria-label': C.replay_question, title: C.replay_question, onclick: mcqPassReplay }, [h('span', { 'aria-hidden': 'true', text: '🔁' })]);
+      rb.disabled = !!P.playing;
+      var j = jugnu(P.playing ? 'hello' : 'idle', true);
+      j.classList.add('sae-mcq-jugnu');
+      if (P.playing) j.classList.add('is-talking');
+      j.addEventListener('click', mcqPassReplay);
+      var skipB = skipInstrBtn(v);
+      // the coach's Next: coach-led, no Skip drawn, and only once the clip has ended (a stalled settle, a replay)
+      var next = manual && !skipB && P.heard ? btn(C.next, function () { if (mcqPass && mcqPass.item === it.id) mcqPassEnd(mcqPass, 'coach_next', !!mcqPass.heard); }, 'sae-secondary sa-next sae-mcq-next') : null;
+      var s = screen(v, 'sae-run sae-mcq sae-mcq-practice sae-mcq-passage-step', [
+        t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
+        h('div', { class: 'sae-row sae-mcq-head' }, [j, !skipB ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, skipB, next]),
+        mcqCoachLine(),
+        mcqCoach(it, t),
+        h('p', { class: 'sae-mcq-passage', lang: tl, dir: d, text: tx(it.passage) }),
+      ], null);
+      s.setAttribute('data-item', it.id);
+      if (manual) mcqModal(s);
       return s;
     }
     function sRunMcq(v) { return sMcq(v, v.item, null, false); }
@@ -3449,7 +3552,7 @@
               if (alive && gp2 === gen && lastKey === k0) return sayChain(modelOf(v.practice));
             });
           }
-          if (isMcq(t)) return readOut(v.practice, t, {}); // sa_r28_mcq: the same read-out as the scored questions
+          if (isMcq(t)) return mcqPractice(v.practice, t); // sa_r28_mcq: the passage's step (row 31), then the same read-out as the scored questions
           if (!(t.mode === 'record' && t.say_on === 'replay')) return sayItem(v.practice, t);
           return null;
         });
@@ -3565,7 +3668,7 @@
       starEl = null;
       var entered = key !== lastKey && !hold && !listening && showPhase !== 'handover' && showPhase !== 'refused';
       if (entered) {
-        gen++; typed = ''; mcq = null;
+        gen++; typed = ''; mcq = null; mcqPass = null;
         if (mcqFold) runner.log('fold_close', { task_id: mcqFold.task, item_id: mcqFold.item, by: 'item', card: null });
         mcqFold = null;
         // the picker's fold opened under the old item (e.g. in the 400 ms press window): its close, once; the new item

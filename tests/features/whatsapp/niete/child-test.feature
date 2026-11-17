@@ -1643,6 +1643,40 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the question and the answer cards keep their distance from the top row
     And with the coach's fold open, a tap on Skip instructions only closes the fold
     And with the fold closed, a tap on Skip instructions goes to the part's Ready screen and nothing more is read or lit
+  @e2e @wip @draft @config-gated @P1 @CT274 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 31 (coach-led): the passage step …",
+  # "row 31 (RDF auto): the passage step …", "row 31: the child's replay in the passage step …", "row 31 (coach-led, no Skip drawn): the coach's Next …").
+  Scenario: With sa_r28_mcq on, the practice story is its own step before the practice question
+    Given sa_r28_mcq is on and the practice question has a practice story with its recording
+    When the practice question begins, coach-led or on the child's own run
+    Then Jugnu reads the practice story with the story on screen and no answer cards
+    And a tap on the story does not move on
+    And the child's replay button plays the story again and nothing else
+    And the question follows when the story's recording ends and a moment has passed, or when the coach taps Next
+    And the question screen then shows no story, and the coach's fold shows only the question and the four answers
+    And Jugnu reads the question and the four answers as in the scored questions
+    And a second try at the practice question does not read the story again
+    And the story step is logged once with how long it took
+  @e2e @wip @draft @config-gated @P1 @CT275 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 31 guard (coach-led): a passage with NO clip key …",
+  # "row 31 guard (RDF auto): …", "row 31 guard (…): the passage clip lost at play time …").
+  Scenario: With sa_r28_mcq on, a practice story without a recording never shows on its own
+    Given sa_r28_mcq is on and the practice story has no recording, or its recording fails to play
+    When the practice question begins, coach-led or on the child's own run
+    Then the practice question shows at once and Jugnu reads the question and its answers
+    And the story never shows with the answer cards and nothing waits for a tap
+    And the story step is logged once as having no recording
+  @e2e @wip @draft @config-gated @P1 @CT276 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("ur, with the Skip: the passage step whole with no cards, then all eleven practice question frames …",
+  # and the same for "ur, without the Skip", "en, with the Skip", "en, without the Skip").
+  Scenario: With sa_r28_mcq on, the practice question fits a coach's phone in Urdu and English
+    Given sa_r28_mcq and the production screen settings are on and a coach runs the practice story question on a 360x640 phone, with or without Skip instructions
+    When the practice story or the practice question is on screen, in any practice state (the story read, the question read, an answer lit, the answers over, an answer chosen, the feedback shown, the right answer shown, the coach's fold open or closed)
+    Then the screen does not scroll and the story shows whole on its own step
+    And all four answer cards are whole and tappable at their centres, the lowest card's ring at least 8 px above the bottom
+    And the top row is the same height in every state, so the question and the cards never move
+    And the feedback line shows under the cards without pushing them
+    And the coach's open fold stays on the screen
   @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
   Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had

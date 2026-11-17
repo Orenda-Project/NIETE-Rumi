@@ -812,3 +812,16 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-r9-skip{flex:none;margin:0;margin-inline-start:12px;height:56px;min-height:56px;padding-inline:10px;white-space:nowrap}
 }
 /* end round 28, round 8 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 9 (row 31: the practice question fits as the scored one) ----
+   Coach-led, below 700 px. The practice passage has its own step (sa-ui.js), so the practice question screen draws as
+   the scored one; two things it carries more are held to the scored screen's bar here. (1) The «مشق» / "Practice" chip,
+   when the MCQ head draws it (no Skip: the frame that names the right card, or a battery without the Skip), takes the
+   row's own 56 px box instead of its 72 px Nastaliq one, so the stem and the cards never move between the practice
+   frames; its one line is centred in that box. (2) The feedback line under the cards (practice only; text only, coach-led): one fixed
+   40 px line, empty or not (nothing moves when it fills), 7 px clear of the lowest card's ring, at the coach-register
+   size the picker's head feedback uses. The Urdu fit's inline block padding is overridden on both (the box holds the ink). */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-chip{box-sizing:border-box;height:56px;max-height:56px;padding-top:0 !important;padding-bottom:0 !important;line-height:56px;flex:none}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
+}
+/* end round 28, round 9 */
