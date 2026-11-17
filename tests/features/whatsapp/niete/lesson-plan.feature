@@ -1292,8 +1292,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Given the NIETE bot chat is open
     And I take an English Grades 6-12 lesson whose teaching part is still over 4 pages after common mistakes and differentiation move to the support pages
     When the lesson-plan PDF is delivered to the chat
-    Then the homework section in the teaching part is one line pointing to "Homework, in full" in the support pages
-    And every homework question is printed in "Homework, in full" with its answer and its textbook source
+    Then the teaching part has no homework section, only one line pointing to "Homework, in full" in the support pages
+    And every homework question is printed in "Homework, in full" with its answer and its textbook source, under the homework notes
     And a lesson that fits within its teaching pages still prints its homework questions in the teaching part, unchanged
     # bd-xkkw9.2 (queue #114, from bd-xkkw9.1): third paint in render_lp.js renderDoc, kept only when it
     # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.

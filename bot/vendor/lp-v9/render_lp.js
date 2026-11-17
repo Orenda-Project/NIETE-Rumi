@@ -992,6 +992,7 @@ async function renderDoc(a) {
   // layout is painted again so the files on disk are the ones reported. A lesson that fits
   // keeps the groups in the flow, exactly as bd-a8veu.10 placed them.
   let pass = await paint(false);
+  const groupsMovable = !!pass.built.flowHosted;
   let flowGroupsMoved = false;
   if (pass.built.flowHosted && teachOver(pass)) {
     const alt = await paint(true);
@@ -999,15 +1000,17 @@ async function renderDoc(a) {
     else pass = await paint(false);
   }
   // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
-  // bd-xkkw9.2). Still over TEACH after that: ONE more paint with the homework items printed
-  // only in Reference "Homework, in full" (a pointer line stays in the flow), on top of
-  // whichever layout won above. Same keep rule: fewer pages over in total, else the previous
+  // bd-xkkw9.2). Still over TEACH after that: ONE more paint with BOTH moves — the two groups
+  // in Reference (when the lesson has them in the flow) AND the homework section printed only in
+  // Reference "Homework, in full", a pointer line left in the flow. Both together, because the
+  // box move alone is often refused (it frees under a page) while the two together fit: that is
+  // the layout bd-xkkw9.1 measured. Same keep rule: fewer pages over in total, else the previous
   // layout is painted again so the files on disk are the ones reported. Only a lesson whose
   // every homework item has its answer in Reference is eligible (built.homeworkMovable).
   let homeworkMoved = false;
   if (pass.built.homeworkMovable && teachOver(pass)) {
-    const alt = await paint(pass.noFlowHosts, true);
-    if (overage(alt) < overage(pass)) { pass = alt; homeworkMoved = true; }
+    const alt = await paint(groupsMovable || pass.noFlowHosts, true);
+    if (overage(alt) < overage(pass)) { pass = alt; homeworkMoved = true; flowGroupsMoved = alt.noFlowHosts && groupsMovable; }
     else pass = await paint(pass.noFlowHosts, false);
   }
   const { built, result } = pass;

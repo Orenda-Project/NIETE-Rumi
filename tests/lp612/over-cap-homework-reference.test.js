@@ -140,20 +140,26 @@ describe('still over TEACH after the two-box move: homework prints only in Refer
     expect(mockHwIn(out.htmlPath)).toBe(false);
     expect(teachHtml(out)).toMatch(/class="blk hwptr\b/);
     expect(teachHtml(out)).toContain('Homework, in full');
-    // moved, never dropped: every homework question is printed in Reference with its answer
+    // the whole section leaves the flow: no homework bar, no homework notes
+    expect(teachHtml(out)).not.toMatch(/class="[^"]*\bs-h\b/);
+    expect(teachHtml(out)).not.toContain('Answers are checked at the start of the next period');
+    // moved, never dropped: every homework question is printed in Reference with its answer,
+    // and the section's own notes print there too
     const sup = supportHtml(out);
     expect(sup).toContain('Homework, in full');
     expect(sup).toContain('Which product is defined?');
+    expect(sup).toContain('Answers are checked at the start of the next period');
   });
 
-  test('box move refused (Reference over its cap): the homework move is tried on the flow layout', async () => {
-    // groups moved: Reference over cap, so that paint is refused · groups in, homework moved: fits
-    mockPages = pages(at(T + 1, 2), at(T, 2), at(T, CAPS.max.support + 1), at(T, CAPS.max.support + 1));
+  test('box move alone refused, both moves together fit: the third paint makes both', async () => {
+    // groups moved alone: no fewer pages over, refused · groups AND homework moved: fits both caps
+    mockPages = pages(at(T + 1, 2), at(T + 1, 2), at(T + 1, 2), at(T, 3));
     const out = await render();
-    expect(out.flowGroupsMoved).toBe(false);
     expect(out.homeworkMoved).toBe(true);
-    expect(out.pagesByPart).toEqual({ teach: T, support: 2 });
-    expect(mockGroupsIn(out.htmlPath)).toBe(true);
+    expect(out.flowGroupsMoved).toBe(true);
+    expect(out.pagesByPart).toEqual({ teach: T, support: 3 });
+    expect(pageCount(out)).toEqual([]);
+    expect(mockGroupsIn(out.htmlPath)).toBe(false);
     expect(mockHwIn(out.htmlPath)).toBe(false);
   });
 

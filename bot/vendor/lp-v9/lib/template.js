@@ -1848,13 +1848,7 @@ function page1(doc, ctx, secIndex) {
         out.push({ html: `<div class="blk reteach"><div class="lbl">${esc(L.reteach)}</div><div class="t">${rich(s.reteach_rule)}</div></div>`, sp: 2 });
       }
     }
-    if (s.id === "homework" && s.homework && ctx.hwRefOnly) {
-      // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
-      // bd-xkkw9.2). Still over the TEACH cap after the two-box move: the items print once, in
-      // Reference "Homework, in full" (every item has its answer there — homeworkMovable), and
-      // the flow keeps one line saying where. Reuses `.cite` so no CSS changes for any lesson.
-      out.push({ html: `<div class="blk hwptr"><span class="cite">${esc(L.hwPointer(L.p2Hw))}</span></div>`, sp: 2 });
-    } else if (s.id === "homework" && s.homework) {
+    if (s.id === "homework" && s.homework) {
       // NO ANSWERS HERE. Defect class E: the reviewed plan printed the answer beside the
       // question, so the homework taught nothing. The answers live in reference F.
       //
@@ -1944,9 +1938,15 @@ function page1(doc, ctx, secIndex) {
   // consecutive layout:"half" sections share one two-column band. Each keeps its own
   // lettered bar, so the closed heading vocabulary survives; only the stacking goes away.
   // A band is ONE atom: two columns cannot straddle a page break.
-  for (let i = 0; i < doc.sections.length; i++) {
-    const s = doc.sections[i];
-    const n = doc.sections[i + 1];
+  // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
+  // bd-xkkw9.2). Still over the TEACH cap after the two-box move: the homework section leaves the
+  // flow whole (bar, notes, items) and prints in Reference "Homework, in full", where every item
+  // already has its answer (homeworkMovable). One pointer line stands where it was; it reuses
+  // `.cite`, so no CSS changes for any lesson. Off, `flowSecs` IS doc.sections.
+  const flowSecs = ctx.hwRefOnly ? doc.sections.filter((s) => s.id !== "homework") : doc.sections;
+  for (let i = 0; i < flowSecs.length; i++) {
+    const s = flowSecs[i];
+    const n = flowSecs[i + 1];
     if (!PAGE.oneColumn && s.layout === "half" && n && n.layout === "half") {
       A.push(atom(`<div class="secrow">${whole(s, HALF_COL)}${whole(n, HALF_COL)}</div>`, { sp: 4 }));
       i++;
@@ -1954,6 +1954,7 @@ function page1(doc, ctx, secIndex) {
       A.push(...sectionAtoms(s, FULL_COL));
     }
   }
+  if (ctx.hwRefOnly) A.push(atom(`<div class="blk hwptr"><span class="cite">${esc(L.hwPointer(L.p2Hw))}</span></div>`, { sp: 3 }));
 
   // The materials and the pacing moved UP into the resources card; what stays here is the one
   // sentence that is only true at the end of the teach part — the next sheet is planning material.
@@ -2356,13 +2357,17 @@ function page2(doc, ctx, secIndex) {
   // two pages side by side. F is the tallest structure on the support page — median 496px, max
   // 853px across the study's 24 lessons — and therefore the single biggest source of stranded
   // space. It splits by row, and when `homework_key` is absent (bd-s19g8) it is not painted.
-  S(L.p2Hw, gridRows("grid2", (P.homework_key || [])
+  // bd-xkkw9.2 — with the homework section out of the flow, its own notes (how it is checked, what
+  // to bring) print here, above the questions, so nothing the section said is lost.
+  const hwSec = ctx.hwRefOnly ? (doc.sections || []).find((x) => x.id === "homework") : null;
+  const hwBlk = hwSec ? makeBlockRenderer(ctx) : null;
+  S(L.p2Hw, [...(hwSec ? (hwSec.blocks || []).map((b) => ({ html: hwBlk(b, FULL_COL), sp: 1 })) : []), ...gridRows("grid2", (P.homework_key || [])
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
       <span class="refq">${it ? rich(it.q) + (ctx.hwRefOnly ? hwSourceHtml(it.source, L) : "") : (h.item ? rich(h.item) : esc(L.refMissing))}</span>
       <p class="a">${rich(h.answer)}</p></div>`;
-    })));
+    }))]);
 
   // bd-a8veu.20 — NEXT PERIOD / NOT GOING TODAY IS NO LONGER PAINTED. Operator, on a grade-6
   // English plan: "inside Reference, A is not at all needed since on Page 1 it is already

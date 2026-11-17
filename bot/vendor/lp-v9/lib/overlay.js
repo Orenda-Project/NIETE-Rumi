@@ -239,7 +239,7 @@ const LABELS = {
     checkpoint: "Board question", exitTicket: "Exit ticket", reteach: "Re-teach rule",
     markAbbr: "m", teacherNote: "Teacher note —", distractors: "what each wrong option catches",
     refMissing: "\u26a0 this answer names no question in the plan",
-    // bd-xkkw9.2 — printed in the teach flow IN PLACE OF the homework items when a lesson is still
+    // bd-xkkw9.2 — printed in the teach flow IN PLACE OF the homework section when a lesson is still
     // over its TEACH cap after the two-box move. Names the Reference heading it points at.
     hwPointer: (h) => `Homework questions, with their answers: see “${h}” in the support pages.`,
     grade: "Grade", pp: "pp. ",
