@@ -637,6 +637,19 @@ button{font:inherit;color:inherit}
   .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach>summary{line-height:1.8;padding-top:.25em;padding-bottom:0}
 }
 /* end round 28, A5 */
+/* round 28, A6 (r28_letter_pick, coach-led, the Urdu phone with the production layout switches): the coach's line
+   («آواز جگنو بولے گا۔ …», two lines at 15 px) keeps whole lines. Measured by ink (2x, luminance < 120): at line-height
+   1.6 the first line's descenders ran 10.5 px into the second line's ink and the last line's ink ran 7.4 px below the
+   line's box, 4.4 px of it under the fold. Line-height 2.5 gives the two lines 3.5 px of clear ink between them, 2 px of
+   padding keeps the last line inside the box, and the line no longer tucks under the fold (no negative margin). The
+   ~34 px this takes comes from the screen's own gaps (top/bottom padding, the top bar's gap, the body's padding and
+   gaps); the cards, the replay pill and its 32 px stay as they are. */
+@media (max-width:699px){
+  .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led{padding-top:6px;padding-bottom:8px;gap:4px}
+  .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led .sae-body{gap:5px;padding-top:4px;padding-bottom:4px}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-coach-line{margin-bottom:0;line-height:2.5;padding:0 calc(10px + .6em) 2px}
+}
+/* end round 28, A6 */
 @media (min-width:700px){
   .sae-screen.sae-pick{max-width:min(94vw,760px)}
   .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}

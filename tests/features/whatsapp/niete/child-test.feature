@@ -1508,6 +1508,32 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the item is playing, has played, has a card chosen, offers Next, or has the fold open
     Then the five letter cards and the big sound button are whole on screen without scrolling and never move
     And every letter's ink sits inside its card
+  @e2e @wip @draft @config-gated @P1 @CT263 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A6: scored item:
+  # fold open → …", "the summary close arms the guard too …", "practice P2: the same guard …", "RDF auto (no fold) …").
+  Scenario: With sa_r28_letter_pick on, coach-led, a double tap that closes the fold never also answers
+    Given sa_r28_letter_pick is on, the battery is coach-led and the coach has opened the fold on an item
+    When a tap closes the fold and a second tap lands on a letter card within 300 ms
+    Then the second tap records no answer and no card is pressed, and it is logged once as a ghost tap with its card
+    And a tap on a card after 300 ms answers as usual, on scored and practice items alike
+    And without the fold (RDF auto) no tap is ever logged as a ghost tap
+  @e2e @wip @draft @config-gated @P1 @CT264 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A6: the fold's own
+  # replay …", "a fold opened in the 400 ms press window …", "the modal reads the fold's live state …", "a fold no longer
+  # on the screen …").
+  Scenario: With sa_r28_letter_pick on, coach-led, every opening of the fold has its closing in the log
+    Given sa_r28_letter_pick is on and the battery is coach-led
+    When the coach closes the fold with its own sound button
+    Then the log shows the fold closed by that button, then the replay
+    And when the coach opens the fold just after an answer, the next item logs the old fold's closing and starts folded
+    And a card tapped in the same instant as the fold is opened only closes it
+  @e2e @wip @draft @config-gated @P1 @CT265 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("ur/en, the coach line
+  # (A6): …"; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick on, coach-led, the coach's line keeps whole lines on a small phone
+    Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual Urdu layout settings
+    When the coach's line shows above the fold
+    Then its lines do not run into each other and its last line is whole, never under the fold
   @e2e @wip @draft @config-gated @P1 @CT251 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("every rotated variant …"),
   # bot/tests/child-test/sa-r28-mcq-of-all.test.js, portal cohortStats.r28.test.ts and LeaderAssessResults.r28.test.tsx.

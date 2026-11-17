@@ -108,7 +108,10 @@
  *                     fold carries a replay only, never the target letter; on a practice item the sound and the letter
  *                     («بَ → ب»). The open fold is modal: the first tap anywhere closes it and does nothing else (its
  *                     own replay: closes, then plays); the item's sound never starts while it is open. Logged:
- *                     fold_open {task_id, item_id}, fold_close {task_id, item_id, by: 'summary'|'tap', card}.
+ *                     fold_open {task_id, item_id}, fold_close {task_id, item_id, by: 'summary'|'tap'|'replay'|'item',
+ *                     card} ('replay': its own replay button; 'item': the item changed under it, card null). A tap
+ *                     within GHOST_MS of a close is the double tap's second half: logged once as ghost_tap {task_id,
+ *                     item_id, ms_after_close, card}, never scored (the MCQ's guard, ghostGuard).
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -351,6 +354,7 @@
   var PICK_CLIP_AFTER_MS = 300; // round 28: the item's sound starts this long after it shows
   var PICK_AUTO_NEXT_MS = 2000; // round 28: RDF auto, the modelled practice moves on this long after its model line
   var PICK_WARM_MS = 5000;      // round 28: the first practice waits for the task's clips at most this long
+  var GHOST_MS = 300;           // round 28: a tap this soon after a coach fold closes is the double tap's second half
   var MN_FLOAT_MS = 300;    // round 8 item 30: a tapped number floats into the blank this long
   var MN_HOLD_MS = 450;     // ... and the screen waits this much longer than a plain tap, so the child sees it land
   var WARM_N = 10;
@@ -591,6 +595,12 @@
     var PROMPT_LEAD_IN_MS = 300; // A.4: every v5 prompt clip opens with 0.30 s of lead-in (the speech start when there is no timing map)
     var pickFold = null;     // coach-led: the item whose fold the coach opened (it re-folds on the next item)
     var pickFoldWait = [];   // coach-led: what waits for the open fold to close (the item's sound never starts under it)
+    var pickFoldTask = null; // coach-led: the task of the item whose fold is open (its fold_close by 'item' at the change)
+    // coach-led: the double tap's second half after the picker's fold closed (ghostGuard); the card's 0-based index
+    var pickGG = ghostGuard(function (n) {
+      var c = n && n.closest ? n.closest('.sae-pick-cards .sae-opt') : null;
+      return c ? Array.prototype.indexOf.call(c.closest('.sae-pick-cards').querySelectorAll('.sae-opt'), c) : null;
+    });
     // Round 28 (sa_r28_mcq; opts.r28.mcq from sa-engine.js, or battery.ui.r28_mcq): a kind 'mcq' tap task is the spoken
     // multiple choice (sRunMcq)
     var r28Mcq = !!(opts.r28 && opts.r28.mcq === true) || opts.r28_mcq === true || r7.r28_mcq === true;
@@ -599,10 +609,30 @@
     var mcq = null; // the read-out of the MCQ item on show: { item, phase, lit, chosen, … } (readOut)
     var mcqFold = null; // coach-led: { item, task } whose fold the coach opened (modal while open; kept across a redraw)
     var mcqFoldBy = null; // the closing tap's facets for fold_close ({ by: 'tap', card }); else the summary closed it
-    var mcqFoldShut = -1e9; // when the fold last closed: a tap within MCQ_GHOST_MS of it is the double tap's second half
-    var mcqFoldShutOf = null; // { item, task } of that fold (the ghost_tap's ids)
+    // the double tap's second half after the fold closed (ghostGuard): the card is the .sae-mcq-opt's data-index
+    var mcqGG = ghostGuard(function (n) { var c = n && n.closest ? n.closest('.sae-mcq-opt') : null; return c ? Number(c.getAttribute('data-index')) : null; });
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
+    /**
+     * Round 28 (lead ruling; the coach-led MCQ and picker folds): the first tap on an open fold only closes it, and the
+     * double tap's second half, within GHOST_MS of that close, is no answer either. One guard per screen kind:
+     * closed(item, task) when its fold closes; on() while it holds (coach-led only); swallow(e) → true when the tap is
+     * that second half: logged once as ghost_tap {task_id, item_id, ms_after_close, card: cardOf(target)} and stopped.
+     */
+    function ghostGuard(cardOf) {
+      var shut = -1e9, of = null;
+      function on() { return manual && mcqNow() - shut < GHOST_MS; }
+      return {
+        closed: function (item, task) { shut = mcqNow(); of = { item: item, task: task }; },
+        on: on,
+        swallow: function (e) {
+          if (!on()) return false;
+          if (of) runner.log('ghost_tap', { task_id: of.task, item_id: of.item, ms_after_close: Math.round(mcqNow() - shut), card: cardOf(e.target) });
+          e.stopImmediatePropagation(); e.preventDefault();
+          return true;
+        },
+      };
+    }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
     function gateOn(key, p) {
       if (r7.audio_gated_next !== true || manual) return;
@@ -960,36 +990,48 @@
         ? h('button', { class: 'sae-pick-coach-replay', type: 'button', 'aria-label': C.replay_sound, title: C.replay_sound }, [h('span', { 'aria-hidden': 'true', text: '🔊' })])
         : h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: (it.prompt_text != null ? String(it.prompt_text) : '') + ' → ' + String(it.target) });
       var d = h('details', { class: 'sae-coach-says is-coach sae-pick-coach', open: pickFold === it.id }, [h('summary', { text: C.coach }), body]);
-      d.addEventListener('toggle', function () { pickFoldSet(it, t, d.open, 'summary', null); });
+      // a fold no longer on the screen (redrawn before its toggle arrived) changes nothing
+      d.addEventListener('toggle', function () { if (d.isConnected) pickFoldSet(it, t, d.open, 'summary', null); });
       return d;
     }
     /** The fold's state, logged once per change (a redraw of the open fold, or the browser's own late toggle, is none):
-     *  fold_open {task_id, item_id}; fold_close {task_id, item_id, by: 'summary'|'tap', card: the card index or null}. */
+     *  fold_open {task_id, item_id}; fold_close {task_id, item_id, by: 'summary'|'tap'|'replay', card: the card index or
+     *  null}. A close arms the ghost-click guard (pickGG). */
     function pickFoldSet(it, t, open, by, card) {
       var was = pickFold === it.id;
       if (open === was) return;
       pickFold = open ? it.id : null;
+      pickFoldTask = open ? t.id : null;
       if (open) { runner.log('fold_open', { task_id: t.id, item_id: it.id }); return; }
       runner.log('fold_close', { task_id: t.id, item_id: it.id, by: by, card: card == null ? null : card });
+      pickGG.closed(it.id, t.id);
       var w = pickFoldWait; pickFoldWait = [];
       w.forEach(function (ok) { ok(); });
     }
     /** Coach-led only: the open fold is modal. The first tap anywhere on the screen but its own label closes it and
-     *  does nothing else (no answer, no sound, no Next); the fold's own replay closes it, then the sound plays. */
+     *  does nothing else (no answer, no sound, no Next); the fold's own replay closes it (by 'replay'), then the sound
+     *  plays. Open or not is the fold element's own state at the tap (a summary tap opens it at once; its toggle event
+     *  comes later). Closed: a tap within GHOST_MS of the close is swallowed and logged (ghost_tap), never scored. */
     function pickModal(scr, it, t) {
       if (!manual || !scr) return scr;
       scr.addEventListener('click', function (e) {
-        if (pickFold !== it.id) return;
         var tg = e.target && e.target.closest ? e.target : null;
-        if (tg && tg.closest('summary')) return; // the label's own toggle: by 'summary'
+        var onSum = !!(tg && tg.closest('summary'));
+        var d = scr.querySelector('details.sae-pick-coach');
+        if (!(d ? d.open : pickFold === it.id)) {
+          if (!onSum) pickGG.swallow(e); // the double tap's second half: never an answer, a replay or a Next
+          return;
+        }
+        if (onSum) return; // the label's own toggle: by 'summary'
         e.stopImmediatePropagation();
         e.preventDefault();
+        if (pickFold !== it.id) pickFoldSet(it, t, true); // opened in this frame: its toggle event has not come yet
         var card = tg ? tg.closest('.sae-pick-cards .sae-opt') : null;
         var all = card ? Array.prototype.slice.call(scr.querySelectorAll('.sae-pick-cards .sae-opt')) : [];
-        var d = scr.querySelector('details.sae-pick-coach');
-        pickFoldSet(it, t, false, 'tap', card ? all.indexOf(card) : null);
+        var rep = !!(tg && tg.closest('.sae-pick-coach-replay'));
+        pickFoldSet(it, t, false, rep ? 'replay' : 'tap', card ? all.indexOf(card) : null);
         if (d) d.open = false;
-        if (tg && tg.closest('.sae-pick-coach-replay')) pickAgain(it, t, 'coach');
+        if (rep) pickAgain(it, t, 'coach');
       }, true);
       return scr;
     }
@@ -2511,7 +2553,7 @@
     // promptDone() (the item's clock starts), every card ready, and 600 ms on the held choice stands (is-pressed 400 ms,
     // then runner.answer(index, meta)). No choice yet: the first tap selects and stands 600 ms later. Replay re-reads it
     // all and keeps the choice. Coach-led: Jugnu still reads; the coach sees the words folded.
-    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400, MCQ_WARM_MS = 5000, MCQ_GHOST_MS = 300;
+    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400, MCQ_WARM_MS = 5000;
     function isMcq(t) { return r28Mcq && !!t && t.kind === 'mcq'; }
     function mcqNow() { return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now(); }
     function mcqState(it, practice) {
@@ -2708,7 +2750,7 @@
       return h('p', { class: 'sae-coach-says is-coach sae-mcq-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.mcq_coach_line });
     }
     function mcqFoldOpen(itemId) { return manual && !!mcqFold && mcqFold.item === itemId; }
-    function mcqGhost() { return manual && mcqNow() - mcqFoldShut < MCQ_GHOST_MS; }
+    function mcqGhost() { return mcqGG.on(); }
     /** B.3 (lead ruling): the coach's fold, modal while open. fold_open / fold_close are logged once per open and once
      *  per close (a redraw keeps it open and logs nothing; an item that ends under an open fold logs its close). */
     function mcqCoach(it, t) {
@@ -2730,8 +2772,7 @@
         if (fd.open === mcqFoldOpen(it.id)) return; // a redraw's own toggle, or the same state again: nothing changed
         mcqFold = fd.open ? { item: it.id, task: t.id } : null;
         if (fd.open) { runner.log('fold_open', { task_id: t.id, item_id: it.id }); return; }
-        mcqFoldShut = mcqNow();
-        mcqFoldShutOf = { item: it.id, task: t.id };
+        mcqGG.closed(it.id, t.id);
         var by = mcqFoldBy || { by: 'summary' };
         mcqFoldBy = null;
         runner.log('fold_close', { task_id: t.id, item_id: it.id, by: by.by, card: by.card });
@@ -2745,12 +2786,8 @@
         var fd = s.querySelector('details.sae-mcq-coach');
         var sum = fd ? fd.querySelector('summary') : null;
         var onSum = !!(sum && e.target && sum.contains(e.target));
-        // the double tap's second half (within MCQ_GHOST_MS of the close) is swallowed: it never answers or skips
-        if (!onSum && !(fd && fd.open) && mcqGhost()) {
-          var gc = e.target && e.target.closest ? e.target.closest('.sae-mcq-opt') : null;
-          if (mcqFoldShutOf) runner.log('ghost_tap', { task_id: mcqFoldShutOf.task, item_id: mcqFoldShutOf.item, ms_after_close: Math.round(mcqNow() - mcqFoldShut), card: gc ? Number(gc.getAttribute('data-index')) : null });
-          e.stopImmediatePropagation(); e.preventDefault(); return; // never scored
-        }
+        // the double tap's second half (within GHOST_MS of the close) is swallowed: it never answers or skips
+        if (!onSum && !(fd && fd.open) && mcqGG.swallow(e)) return; // never scored
         if (!fd || !fd.open || onSum) return;
         var card = e.target && e.target.closest ? e.target.closest('.sae-mcq-opt') : null;
         mcqFoldBy = { by: 'tap', card: card ? Number(card.getAttribute('data-index')) : null };
@@ -3515,6 +3552,14 @@
         gen++; typed = ''; mcq = null;
         if (mcqFold) runner.log('fold_close', { task_id: mcqFold.task, item_id: mcqFold.item, by: 'item', card: null });
         mcqFold = null;
+        // the picker's fold opened under the old item (e.g. in the 400 ms press window): its close, once; the new item
+        // is drawn folded and nothing waits on the old fold
+        if (pickFold != null) {
+          runner.log('fold_close', { task_id: pickFoldTask, item_id: pickFold, by: 'item', card: null });
+          pickFold = null; pickFoldTask = null;
+          var pfw = pickFoldWait; pickFoldWait = [];
+          pfw.forEach(function (ok) { ok(); });
+        }
       }
       recorderHooks(v);
       clockEls = null;
