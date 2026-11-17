@@ -736,8 +736,9 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     await wait(20);
     for (let k = 0; k < 5; k++) await voice.speakNext(30); // promptDone() at c = 0
     await wait(100);
-    const nextMs = runner.view().task.next_at_s * 1000;
-    expect(nextMs).toBeGreaterThan(0);
+    // the wait is per mode (A-11 / B-13, worker A3): this mount is RDF auto (no manual), so 30 s, not the bank's 15 s
+    const nextMs = 30 * 1000;
+    expect(runner.view().task.next_at_s).toBe(15); // the bank's value stays; the engine reads the mode
     c.add(nextMs - 6000);
     expect(runner.view().offer_next).toBe(false);
     el.querySelector('.sae-mcq-replay').click();
@@ -924,7 +925,7 @@ describe('sa_r28_mcq core: a replay pauses both clocks until its read-out ends (
   test('replayStart(): no Next, no auto replay, no answer while the re-read runs; the clocks restart at its promptDone()', () => {
     const { r, c, events } = solo();
     r.promptDone();
-    const nextMs = r.view().task.next_at_s * 1000;
+    const nextMs = 30 * 1000; // RDF auto (solo() mounts without manual): the per-mode wait, not the bank's 15 s
     c.add(nextMs - 6000);
     expect(r.replayStart()).toBe(true);
     c.add(9000);
