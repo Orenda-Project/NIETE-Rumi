@@ -27,6 +27,8 @@ const en = {
   guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
     ? `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n} (${f[1].pct} reach ${f[1].k} of ${f[1].n}).`
     : `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n}.`),
+  // round 28: the cohort's floor is read at its modal count; how many rated children heard fewer items
+  floorFewer: (k: number, n: string) => (k === 1 ? `${n} child heard fewer items` : `${n} children heard fewer items`),
   tapBefore: (pct: string) => `Taps before the sound: ${pct} of items`,
   tapCare: 'read with care',
   orf: 'Words per minute (median)',
@@ -163,6 +165,7 @@ const ur: DashCopy = {
   guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
     ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
     : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),
+  floorFewer: (k: number, n: string) => (k === 1 ? `${n} بچے نے کم آئٹمز سنے` : `${n} بچوں نے کم آئٹمز سنے`),
   tapBefore: (pct: string) => `آواز سے پہلے ٹیپ: ${pct} آئٹمز`,
   tapCare: 'احتیاط سے پڑھیں',
   orf: 'فی منٹ الفاظ (درمیانی)',

@@ -10,7 +10,7 @@ import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } 
 import { masked, NO_SECTOR, pktWhen, secondVoiceCount, tapBeforeSoundOf, toDashStudents, withPractice } from '../lib/assess/realCohort';
 import { fmtFloor, tapFloors, TAP_CARE_ABOVE } from '../lib/assess/guessFloor';
 import type { SaDashboardSession } from '../types/childTestSa';
-import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type ComprehensionByForm, type Filter } from '../lib/assess/cohortStats';
+import { applyFilter, cohortTapOf, groupBy, headline, ORF_BANDS, summariseTask, type ComprehensionByForm, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 import { COPY } from '../lib/assess/copy';
 import { hasLevels, subjectsIn, typicalLevel } from '../lib/assess/levels';
@@ -282,12 +282,15 @@ export default function LeaderAssessDashboard() {
   // card also the cohort's taps before the sound, with a warning above 10%. Text only: no score reads them.
   const tappedLines = (spec: TaskSpec) => {
     const optionsN = rows.map((st) => st.results.tasks.find((t) => t.taskId === spec.taskId)?.optionsN).find((x) => typeof x === 'number');
-    const floors = tapFloors(spec.taskId, optionsN);
+    // read at the cohort's modal `of` (the items most rated children had), with how many children had fewer
+    const co = cohortTapOf(rows, spec);
+    const floors = tapFloors(spec.taskId, optionsN, co ? co.of : null);
     if (!floors) return null;
     const before = /\.letter_pick10$/.test(spec.taskId) ? tapBeforeSoundOf(rows, spec.taskId) : null;
     return (
       <>
         <p data-testid="dash-guess-floor" className="mt-2 text-xs text-slate-600">{c.guessFloor(floors.map((f) => ({ pct: num(fmtFloor(f.share)), k: num(f.k), n: num(f.n) })))}</p>
+        {co && co.fewer > 0 ? <p data-testid="dash-floor-fewer" className="text-xs text-slate-600">{c.floorFewer(co.fewer, num(co.fewer))}</p> : null}
         {before ? <p data-testid="dash-tap-before" className="text-xs text-slate-600">{c.tapBefore(pct(before.n / before.of))}</p> : null}
         {before && before.n / before.of > TAP_CARE_ABOVE ? <p data-testid="dash-tap-care" role="note" className="text-xs font-semibold text-amber-800">{c.tapCare}</p> : null}
       </>

@@ -170,3 +170,35 @@ describe("LeaderAssessDashboard: round 28 guessing floor and tap-before-sound", 
     expect(within(screen.getByTestId("dash-task-ur.letter_sounds5")).queryByTestId("dash-guess-floor")).toBeNull();
   });
 });
+
+// Round 28 (lead ruling): the cohort card reads the floor at the cohort's modal `of` (the items most rated children
+// had), and says how many children heard fewer.
+describe("LeaderAssessDashboard: the floor at the cohort's modal count", () => {
+  const pickOf = (correct: number, presented: number) => ({ ...pickT(correct), attempted: presented, presented });
+  it("3 children at 10, 2 at 9: the floor at 10 and '2 children heard fewer items'", async () => {
+    api.getSessions.mockResolvedValue({ sessions: [10, 10, 10, 9, 9].map((of) => row([pickOf(8, of)])) });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.letter_pick10");
+    expect(within(card).getByTestId("dash-guess-floor").textContent).toBe("By guessing alone, 0.008% of children reach 8 of 10 (0.6% reach 6 of 10).");
+    expect(within(card).getByTestId("dash-floor-fewer").textContent).toBe("2 children heard fewer items");
+  });
+  it("every child at 10: no hint", async () => {
+    api.getSessions.mockResolvedValue({ sessions: [10, 10, 10, 10, 10].map((of) => row([pickOf(8, of)])) });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.letter_pick10");
+    expect(within(card).getByTestId("dash-guess-floor").textContent).toBe("By guessing alone, 0.008% of children reach 8 of 10 (0.6% reach 6 of 10).");
+    expect(within(card).queryByTestId("dash-floor-fewer")).toBeNull();
+  });
+  it("an MCQ cohort mostly on 4 (2 lost): the floor at 3 of 4; Urdu hint for the one on fewer", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    const m = (lost: number) => ({ ...mcq(3), unavailable: lost });
+    api.getSessions.mockResolvedValue({ sessions: [2, 2, 2, 0, 3].map((lost) => row([m(lost)])) });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.story_mcq_w3");
+    expect(within(card).getByTestId("dash-guess-floor").textContent).toBe("صرف اندازے سے ⁦۵.۱%⁩ بچے ⁦۴⁩ میں سے ⁦۳⁩ تک پہنچتے ہیں۔");
+    expect(within(card).getByTestId("dash-floor-fewer").textContent).toBe("⁦۱⁩ بچے نے کم آئٹمز سنے");
+  });
+});
