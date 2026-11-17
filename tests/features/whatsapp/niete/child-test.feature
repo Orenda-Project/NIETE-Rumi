@@ -1460,6 +1460,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given sa_r28_mcq is on and a story question is being read
     When the child taps an answer card while Jugnu is reading the answers
     Then that card stays chosen and Jugnu still reads every remaining answer
+    And the chosen card is filled in the battery's colour, the brightest card on the screen, while the card being read has only a ring around it
     And a tap on another card before the choice stands moves the choice and is counted as a change
     And the choice stands 600 ms after the last answer has been read, and only then is it scored
     And a child who has not tapped by then can tap a card, which stands 600 ms later

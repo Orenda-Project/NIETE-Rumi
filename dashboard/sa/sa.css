@@ -625,10 +625,12 @@ button{font:inherit;color:inherit}
 .sae-mcq-opt[dir=rtl]{text-align:right;justify-content:flex-start}
 .sae-mcq-ink{display:block;min-width:0;overflow-wrap:anywhere}
 .sae-mcq-opt.is-waiting{opacity:.55;border-color:transparent;box-shadow:none}
-.sae-mcq-opt.is-speaking{opacity:1;border-color:var(--sae-accent);box-shadow:0 0 0 4px var(--sae-accent-l),0 0 16px rgba(242,165,22,.55)}
+/* B.3 amended: the held choice is the brightest state. speaking = an outline ring only (no fill, no glow); chosen = the
+   battery's accent fill; speaking + chosen = the fill with the ring. */
+.sae-mcq-opt.is-speaking{opacity:1;border-color:var(--sae-accent);box-shadow:0 0 0 3px var(--sae-accent)}
 .sae-mcq-opt.is-ready{opacity:1}
-.sae-mcq-opt.is-chosen{opacity:1;border-color:var(--sae-ink);background:var(--sae-accent-l);box-shadow:0 0 0 3px var(--sae-ink)}
-.sae-mcq-opt.is-chosen.is-speaking{box-shadow:0 0 0 3px var(--sae-ink),0 0 16px rgba(242,165,22,.55)}
+.sae-mcq-opt.is-chosen{opacity:1;border-color:var(--sae-ink);background:var(--sae-accent);box-shadow:0 0 0 3px var(--sae-ink)}
+.sae-mcq-opt.is-chosen.is-speaking{background:var(--sae-accent);box-shadow:0 0 0 3px var(--sae-ink),0 0 0 7px var(--sae-accent)}
 .sae-mcq-opt.is-pressed{transform:scale(.97);background:var(--sae-accent)}
 .sae-mcq-opt.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg)}
 .sae-mcq-opt.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg)}

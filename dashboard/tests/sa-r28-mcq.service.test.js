@@ -673,3 +673,68 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(el.querySelector('.sae-mcq')).toBeNull();
   });
 });
+
+// ------------------------------------------------------------------------------------------------------------------
+// B.3 amended: the held choice is the brightest state. idle (dimmed); speaking = an outline ring only (no fill, no
+// glow); chosen = the battery's accent FILL; speaking + chosen = the fill with the ring. Pinned on sa.css itself
+// (jsdom cannot compute a glow), the exact declarations shipped.
+// ------------------------------------------------------------------------------------------------------------------
+describe('sa_r28_mcq CSS: the chosen card is the brightest state (B.3 amended)', () => {
+  const fs = require('fs');
+  const css = fs.readFileSync(path.join(__dirname, '../sa/sa.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  /** The declarations of the rule whose selector is exactly `sel` (top level, the last one wins as in the cascade). */
+  function decls(sel) {
+    const out = {};
+    let found = false;
+    css.split('}').forEach((chunk) => {
+      const at = chunk.lastIndexOf('{');
+      if (at < 0) return;
+      const head = chunk.slice(0, at).split('{').pop().trim();
+      if (head !== sel) return;
+      found = true;
+      chunk.slice(at + 1).split(';').forEach((d) => {
+        const i = d.indexOf(':');
+        if (i > 0) out[d.slice(0, i).trim()] = d.slice(i + 1).trim();
+      });
+    });
+    return found ? out : null;
+  }
+  /** Each box-shadow layer's blur radius (the third length); a ring has blur 0. */
+  function blurs(shadow) {
+    if (!shadow || shadow === 'none') return [];
+    return shadow.split(/,(?![^(]*\))/).map((layer) => {
+      const lens = layer.trim().split(/\s+/).filter((x) => /^-?\d/.test(x));
+      return parseFloat(lens[2] || '0');
+    });
+  }
+  test('speaking = an outline ring only: accent border and a 3 px accent ring, no fill, no glow', () => {
+    const s = decls('.sae-mcq-opt.is-speaking');
+    expect(s).not.toBeNull();
+    expect(s.background).toBeUndefined();
+    expect(s['background-color']).toBeUndefined();
+    expect(s['border-color']).toBe('var(--sae-accent)');
+    expect(s['box-shadow']).toBe('0 0 0 3px var(--sae-accent)');
+    expect(blurs(s['box-shadow']).every((b) => b === 0)).toBe(true);
+  });
+  test('chosen = the battery\'s accent fill, ink border and ink ring, no glow', () => {
+    const c = decls('.sae-mcq-opt.is-chosen');
+    expect(c.background).toBe('var(--sae-accent)');
+    expect(c['border-color']).toBe('var(--sae-ink)');
+    expect(c['box-shadow']).toBe('0 0 0 3px var(--sae-ink)');
+    expect(blurs(c['box-shadow']).every((b) => b === 0)).toBe(true);
+  });
+  test('speaking + chosen = the fill with the ring (the ink ring, then the accent ring outside it), no glow', () => {
+    const b = decls('.sae-mcq-opt.is-chosen.is-speaking');
+    expect(b.background).toBe('var(--sae-accent)');
+    expect(b['box-shadow']).toBe('0 0 0 3px var(--sae-ink),0 0 0 7px var(--sae-accent)');
+    expect(blurs(b['box-shadow']).every((x) => x === 0)).toBe(true);
+  });
+  test('no MCQ card state carries a glow (a blurred shadow) brighter than the held choice', () => {
+    for (const sel of ['.sae-mcq-opt.is-speaking', '.sae-mcq-opt.is-chosen', '.sae-mcq-opt.is-chosen.is-speaking', '.sae-mcq-opt.is-ready']) {
+      const d = decls(sel) || {};
+      expect({ sel, glow: blurs(d['box-shadow']).some((x) => x > 0) }).toEqual({ sel, glow: false });
+    }
+    // the idle (waiting) card stays dimmed as today
+    expect(decls('.sae-mcq-opt.is-waiting')).toEqual({ opacity: '.55', 'border-color': 'transparent', 'box-shadow': 'none' });
+  });
+});
