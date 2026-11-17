@@ -1,7 +1,7 @@
 /**
  * Jugnu's voice for the self-administered runner (switch sa_engine).
  *
- * SAE.voice.create({ lang, base, muted, onSpeak }) → { speak(textObj, audioObj) → Promise, stop(), setMuted(b) }
+ * SAE.voice.create({ lang, base, muted, onSpeak }) → { speak(textObj, audioObj[, opts]) → Promise, stop(), setMuted(b) }
  * onSpeak({ speaking: true|false, text }) fires when Jugnu starts and stops talking (the game skin moves the mouth).
  *   1. a recorded clip: base + audioObj[lang], played in an <audio> element, when given. A clip that errors, is
  *      refused (a busy tunnel's 429) or has not started in load_ms is tried once more after retry_ms (1.5 s: the
@@ -15,6 +15,9 @@
  * textObj: a string, { en, ur }, or { text, lang } (a line in the task's own language: spoken with that language's
  * voice); a { …, audio } on it is used when audioObj is not given. audioObj: a key string or { en, ur }.
  * speak() never throws and its promise always resolves (when the words end, on any error, or on a guard timeout).
+ * Round 28 (the letter-sound picker), opts.clip_only: the line is the clip or nothing. No clip, a clip that fails twice
+ * or gives up, or no audio element: the promise REJECTS and the phone's voice is never used (it would say the letter's
+ * name). Muted, a line cut by the next one and a page hidden mid-line behave as without it.
  * A new speak() or stop() cuts the one before it and resolves its promise.
  * The page hidden mid-line (another tab, another app, the screen off; the tester, 28 Oct):
  *   - a clip refused, failing or not started while the page is hidden is held, never handed to the phone's voice;
@@ -190,9 +193,10 @@
       c.done();
     }
 
-    function speak(textObj, audioObj) {
+    function speak(textObj, audioObj, so) {
+      var clipOnly = !!(so && so.clip_only);
       try { stopCur(); } catch (e) { cur = null; }
-      return new Promise(function (resolve) {
+      return new Promise(function (resolve, reject) {
         var finished = false, timers = [], said = false;
         var said0 = null;
         try {
@@ -212,6 +216,16 @@
             if (cur === me) cur = null;
             resolve();
           },
+          // round 28 (clip_only): the clip could not be played; the caller decides (never the phone's voice)
+          fail: function () {
+            if (finished) return;
+            finished = true;
+            free(me.slot); me.slot = null;
+            if (said) notify(false, text);
+            timers.forEach(function (t) { clearTimeout(t); });
+            if (cur === me) cur = null;
+            reject(new Error('clip_unavailable'));
+          },
         };
         cur = me;
         function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -220,6 +234,7 @@
 
         function tts() {
           if (finished || cur !== me) return;
+          if (clipOnly) { me.fail(); return; }
           try {
             var s = synth(), U = Utter();
             if (muted || !text || !s || !U || !s.speak) { pause(); return; }
@@ -245,6 +260,7 @@
         function lost() {
           if (finished || cur !== me) return;
           if (unlockOn) held('lost');
+          if (clipOnly) { me.fail(); return; }
           var s = null;
           try { s = synth(); } catch (e) { s = null; }
           var has = false;
@@ -253,6 +269,7 @@
         }
         function silent() {
           if (finished || cur !== me) return;
+          if (clipOnly) { me.fail(); return; }
           if (onSilent && text) { try { onSilent({ text: text, lang: tl }); } catch (e) { /* ignore */ } }
           pause();
         }
