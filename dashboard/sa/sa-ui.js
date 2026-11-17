@@ -1925,10 +1925,15 @@
         if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
         if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
       }, t);
+      // coach-led: the feedback line sits in the head row beside the chip (a phone holds the coach line, the fold, the
+      // five cards and the replay pill; a line below the pill would push the screen into a scroll), so it comes and goes
+      // without moving the cards or the pill
+      var fbLine = feedbackLine(fb);
       return pickModal(screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : '') + (manual ? ' is-coach-led' : ''), [
         h('div', { class: 'sae-row sae-pick-head' }, [
           jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true),
           h('span', { class: 'sae-chip', text: C.practice }),
+          manual ? fbLine : null,
           replayBtn(function () { gen++; if (model) pickModel(p, t, keyOf(runner.view())); else pickAgain(p, t); }),
           skipInstrBtn(v),
         ]),
@@ -1936,7 +1941,7 @@
         coachSays(p, true, t),
         cards,
         model ? null : pickReplay(p, t),
-        feedbackLine(fb),
+        manual ? null : fbLine,
       ], [model && pickModelled === k ? btn(C.next, function () { pickNext(k); }, 'sae-primary sa-next sae-pick-next') : null]), p, t);
     }
 

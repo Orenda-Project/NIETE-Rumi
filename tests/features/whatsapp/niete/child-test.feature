@@ -1534,6 +1534,15 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual Urdu layout settings
     When the coach's line shows above the fold
     Then its lines do not run into each other and its last line is whole, never under the fold
+  @e2e @wip @draft @config-gated @P1 @CT270 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("ur/en, the served
+  # practice (A7): …"; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick on, coach-led, every practice screen fits a small phone with all five cards reachable
+    Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual layout settings
+    When the practice example is modelled with its Next showing, with the coach's fold open or closed
+    And the practice item is answered wrong, tried again, and answered, with the coach's fold open or closed
+    Then the screen never scrolls, all five letter cards can be tapped, and the replay button does not move
+    And the feedback line shows whole beside the practice label, and the fold still shows the sound and its letter
   @e2e @wip @draft @config-gated @P1 @CT251 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("every rotated variant …"),
   # bot/tests/child-test/sa-r28-mcq-of-all.test.js, portal cohortStats.r28.test.ts and LeaderAssessResults.r28.test.tsx.

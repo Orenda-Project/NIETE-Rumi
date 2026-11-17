@@ -1357,19 +1357,19 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   afterAll(async () => { if (browser) await browser.close(); });
 
   /** The served battery of `lang`, its own picker task alone (practice set aside: the items are what is measured). */
-  function served(lang) {
+  function served(lang, keepPractice) {
     const { applySwitches } = require('../routes/sa-battery-switches');
     const on = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true };
     const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${lang}.json`), 'utf8'));
     const b = applySwitches(raw, on);
     const t = b.tasks.find((x) => x.id === `${lang}.letter_pick10`);
-    const bat = Object.assign({}, b, { ui: Object.assign({}, b.ui, LAYOUT), tasks: [Object.assign({}, t, { practice: [] })] });
+    const bat = Object.assign({}, b, { ui: Object.assign({}, b.ui, LAYOUT), tasks: [keepPractice ? t : Object.assign({}, t, { practice: [] })] });
     delete bat.rdf_auto; delete bat.rdf_manual;
     return bat;
   }
   /** The page: coach-led, a voice whose clip lines end only when the test says (window.__end()), a clock it moves. */
-  function page(lang) {
-    const bat = served(lang);
+  function page(lang, keepPractice) {
+    const bat = served(lang, keepPractice);
     return { bat, html: `<!doctype html><html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
 <script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
@@ -1392,7 +1392,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   var el = document.getElementById('m');
   var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
     r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak });
-  runner.start(); runner.instructionDone(); runner.begin(); view.render();
+  runner.start(); runner.instructionDone(); ${keepPractice ? '' : 'runner.begin(); '}view.render();
   window.__view = view; window.__runner = runner;
 </script></body></html>` };
   }
@@ -1425,6 +1425,11 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       fold: d ? Object.assign(R(d), { open: d.open, target_in_fold: !!it && Array.from(d.querySelectorAll('*')).some((x) => x !== sm && !sm.contains(x) && x.textContent.includes(it.target)),
         replay: foldReplay && d.open ? Object.assign(R(foldReplay), { hit: document.elementFromPoint((foldReplay.getBoundingClientRect().left + foldReplay.getBoundingClientRect().right) / 2, (foldReplay.getBoundingClientRect().top + foldReplay.getBoundingClientRect().bottom) / 2) === foldReplay || foldReplay.contains(document.elementFromPoint((foldReplay.getBoundingClientRect().left + foldReplay.getBoundingClientRect().right) / 2, (foldReplay.getBoundingClientRect().top + foldReplay.getBoundingClientRect().bottom) / 2)) }) : null }) : null,
       coach_line: !!document.querySelector('.sae-pick-coach-line'),
+      fold_line: (() => { const fl = d && d.open ? d.querySelector('.sae-coach-line') : null; if (!fl) return null; const b = fl.getBoundingClientRect(); return { text: fl.textContent, font_px: parseFloat(getComputedStyle(fl).fontSize), visible: b.width > 0 && b.height > 0 }; })(),
+      view: (() => { const v = window.__runner.view(); return { phase: v.phase, practice: v.practice ? v.practice.id : null }; })(),
+      fb: (() => { const f = document.querySelector('.sae-pick .sae-fb:not(.is-empty)'); return f ? Object.assign(R(f), { text: f.textContent, whole: f.scrollWidth <= f.clientWidth + 0.5 && f.scrollHeight <= f.clientHeight + 0.5 }) : null; })(),
+      // the screen's blocks top to bottom (where the height goes)
+      layout: screen ? [screen].concat(Array.from(screen.children), body ? Array.from(body.children) : []).map((n) => ({ cls: String(n.className).split(' ').slice(0, 3).join('.'), top: +n.getBoundingClientRect().top.toFixed(1), h: +n.getBoundingClientRect().height.toFixed(1) })) : null,
     };
   });
   /** U2: each card's letter ink (pixels dark with its ink shown, not dark with it hidden), against the card's clip box. */
@@ -1644,6 +1649,129 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       const ink = Object.entries(r.ink);
       expect(ink).toHaveLength(10);
       ink.forEach(([item, cs]) => cs.forEach((c) => expect({ item, card: c.card, letter: c.letter, inside: c.inside }).toEqual({ item, card: c.card, letter: c.letter, inside: true })));
+    }, 180000);
+  }
+
+  /**
+   * A7: the practice screens, coach-led, with the production layout switches (S2: the Urdu example had 73 px of inner
+   * scroll and 2 of 5 cards hit-testable, on the MODELLED example). P1 (role example): before the model (its sound
+   * playing), then `model` — modelled, Jugnu's hand on the model letter, its own Next pill (sae-pick-next) present —
+   * with the fold closed, open (the sound and the letter «لَ → ل» on it) and closed again. P2 (role practice): its
+   * sound, after it, a wrong tap's feedback, the retry (the same item again), the fold open and closed, the second
+   * wrong tap's feedback (the right card shown); `right` (a second walk): wrong, the retry, then the right card.
+   * The served practice of the served battery, as the coach meets it.
+   */
+  async function practiceStates(lang, shots, right) {
+    const out = {};
+    const { html } = page(lang, true);
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    await p.route('**/*', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+      if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+      if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await p.goto('http://sa.test/');
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(500);
+    const tag = process.env.SA_PICK_SHOT_TAG || 'a7';
+    const snap = async (name, wait) => {
+      if (wait !== 0) await p.waitForTimeout(wait || 250);
+      out[name] = await p.evaluate(measure);
+      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}_${lang}_phone_coach.png`) });
+    };
+    const endAll = async () => { for (let k = 0; k < 8 && (await p.evaluate(() => window.__end())); k++) await p.waitForTimeout(150); };
+    const label = async () => { const s = await p.evaluate(() => { const b = document.querySelector('details.sae-pick-coach > summary').getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; }); await p.mouse.click(lang === 'ur' ? s.r - 30 : s.l + 30, (s.t + s.b) / 2); };
+    const card = async (k) => { const c = await p.evaluate((k) => { const b = document.querySelectorAll('.sae-pick-cards .sae-opt')[k].getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, k); await p.mouse.click(c.x, c.y); };
+    const wrong = () => p.evaluate(() => { const v = window.__runner.view(); return v.practice.options.findIndex((o) => String(o) !== String(v.practice.target)); });
+    if (!right) await snap('p1_listening', 0);
+    for (let k = 0; k < 10 && !(await p.evaluate(() => !!document.querySelector('.sae-pick-next'))); k++) { await endAll(); await p.waitForTimeout(300); }
+    if (!right) {
+      await snap('model');
+      await label();
+      await snap('model_foldopen', 350);
+      await label();
+      await snap('model_foldclosed', 450); // past the ghost guard
+    }
+    await p.click('.sae-pick-next');
+    await p.waitForTimeout(500);
+    if (right) {
+      await endAll(); await p.waitForTimeout(250);
+      await card(await wrong()); await p.waitForTimeout(1600); await endAll(); await p.waitForTimeout(250);
+      await card(await p.evaluate(() => { const v = window.__runner.view(); return v.practice.options.findIndex((o) => String(o) === String(v.practice.target)); }));
+      await snap('p2_feedback_right', 150);
+      await ctx.close();
+      return out;
+    }
+    await snap('p2_listening', 0);
+    await endAll();
+    await snap('p2_aftersound');
+    await card(await wrong());
+    await snap('p2_feedback', 150); // the feedback line (try again), inside FEEDBACK_MS
+    await p.waitForTimeout(1600);
+    await endAll();
+    await snap('p2_retry');
+    await label();
+    await snap('p2_foldopen', 350);
+    await label();
+    await snap('p2_foldclosed', 450);
+    await card(await wrong());
+    await snap('p2_feedback_shown', 150); // the second wrong tap: the right card shown
+    await ctx.close();
+    return out;
+  }
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}, the served practice (A7): P1 and P2, the feedback, the retry, the fold open and closed — nothing scrolls, all five cards hit-testable, nothing moves`, async () => {
+      const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null);
+      Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true));
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a7'}_practice_sizes_${lang}.json`), JSON.stringify(r, null, 1));
+      const P0 = ['p1_listening'];
+      const P1 = ['model', 'model_foldopen', 'model_foldclosed'];
+      const P2 = ['p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
+      // the walk reached every state it names
+      P0.concat(P1).forEach((s) => expect({ s, practice: r[s].view.practice }).toEqual({ s, practice: `${lang}.letter_pick10.p1` }));
+      P2.forEach((s) => expect({ s, practice: r[s].view.practice || r[s].view.phase }).toEqual({ s, practice: /^p2_feedback_(shown|right)$/.test(s) ? 'ready' : `${lang}.letter_pick10.p2` }));
+      // the modelled example: its own Next pill (the practice's Next, in the child's register) present, in every fold state
+      P1.forEach((s) => expect({ s, next_pill: !!r[s].next && r[s].next.foot }).toEqual({ s, next_pill: true }));
+      expect({ p1: r.model_foldopen.fold.open, p2: r.p2_foldopen.fold.open, p1c: r.model_foldclosed.fold.open, p2c: r.p2_foldclosed.fold.open }).toEqual({ p1: true, p2: true, p1c: false, p2c: false });
+      expect(r.p2_feedback.fb).not.toBeNull();
+      expect(r.p2_feedback_shown.fb).not.toBeNull();
+      expect(r.p2_feedback_right.fb).not.toBeNull();
+      // the practice fold keeps the sound and the letter (ruled), readable
+      for (const s of ['model_foldopen', 'p2_foldopen']) {
+        const f = r[s].fold_line;
+        expect({ s, line: f && f.visible, arrow: !!f && f.text.includes('→') }).toEqual({ s, line: true, arrow: true });
+        expect(f.font_px).toBeGreaterThanOrEqual(22); // as A4 laid it (22 px); never smaller
+      }
+      // every state at a glance (S2's failing cell first: the modelled example, 73 px of inner scroll, 2 of 5 cards)
+      const glance = (m) => ({ page_h: m.page_h, inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length });
+      const all = P1.concat(P0, P2);
+      expect(all.map((s) => Object.assign({ s }, glance(r[s])))).toEqual(all.map((s) => ({ s, page_h: 640, inner_scroll: 0, cards_hit: 5 })));
+      for (const [set, at] of [[P1, r.model], [P0, r.p1_listening], [P2, r.p2_listening]]) {
+        for (const state of set) {
+          const m = r[state];
+          expect({ state, page_h: m.page_h, inner_scroll: m.inner_scroll }).toEqual({ state, page_h: m.vh, inner_scroll: 0 });
+          expect(m.cards).toHaveLength(5);
+          m.cards.forEach((c, i) => {
+            expect({ state, card: i + 1, whole: c.top >= 0 && c.bottom <= m.vh, hit: c.hit }).toEqual({ state, card: i + 1, whole: true, hit: true });
+            expect({ state, card: i + 1, w: c.w, h: c.h }).toEqual({ state, card: i + 1, w: at.cards[i].w, h: at.cards[i].h });
+            expect(Math.min(c.w, c.h)).toBeGreaterThanOrEqual(96);
+            expect({ state, card: i + 1, moved: Math.abs(c.top - at.cards[i].top) > 0.5 || Math.abs(c.left - at.cards[i].left) > 0.5 }).toEqual({ state, card: i + 1, moved: false });
+          });
+          if (m.next) expect({ state, next_inside: m.next.top >= 0 && m.next.bottom <= m.vh }).toEqual({ state, next_inside: true });
+          // the feedback line on screen, its words whole inside its own box (one line, nothing spilling past its pill)
+          if (m.fb) expect({ state, fb_inside: m.fb.top >= 0 && m.fb.bottom <= m.vh && m.fb.left >= 0 && m.fb.right <= 360, fb_whole: m.fb.whole }).toEqual({ state, fb_inside: true, fb_whole: true });
+          if (set === P2) {
+            // the replay pill (A.3: ≥ 64 px tall, ≥ 32 px below the cards) on screen and where it was
+            expect({ state, pill_moved: ['top', 'left', 'w', 'h'].some((k) => Math.abs(m.pill[k] - at.pill[k]) > 0.5) }).toEqual({ state, pill_moved: false });
+            expect(m.pill.h).toBeGreaterThanOrEqual(64);
+            expect(m.pill.top - m.cards_bottom).toBeGreaterThanOrEqual(32);
+            expect({ state, pill_inside: m.pill.bottom <= m.vh }).toEqual({ state, pill_inside: true });
+          }
+        }
+      }
     }, 180000);
   }
 });
