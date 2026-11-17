@@ -42,7 +42,8 @@ function strings(x, out = [], key = '') {
 }
 
 const runtime = (form, lang) => read(`sa/sa.${form}.${lang}.json`);
-const w3Of = (b) => b.tasks.filter((t) => t.w3);
+// Round 28's tasks (r28) ride the W3 forms but are their own measures, tested in sa-r28-bank.test.js.
+const w3Of = (b) => b.tasks.filter((t) => t.w3 && !t.r28);
 
 describe('RDF auto / RDF manual forms (Wave 3)', () => {
   test('each coach form lists rdf_auto and rdf_manual (the same tasks), named, manual flagged', () => {
@@ -176,7 +177,7 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
   });
 
   test('Jugnu\'s Urdu to the child has nothing gendered (the coach reads the official wording, which offers both forms)', () => {
-    for (const t of Object.values(buildSaBank({ v3, extra, w3 }).tasks).filter((x) => x.w3)) {
+    for (const t of Object.values(buildSaBank({ v3, extra, w3 }).tasks).filter((x) => x.w3 && !x.r28)) {
       for (const [key, s] of strings({ script: t.script, models: (t.practice || []).map((p) => p.model) })) expect([t.task, key, GENDERED_TO_CHILD.test(s)]).toEqual([t.task, key, false]);
     }
   });
@@ -187,7 +188,7 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
     expect(keys.has(bank.lines.coach_will_instruct.audio.ur)).toBe(true);
     expect(keys.has(bank.lines.coach_will_instruct.audio.en)).toBe(true);
     let n = 0;
-    for (const t of Object.values(bank.tasks).filter((x) => x.w3)) {
+    for (const t of Object.values(bank.tasks).filter((x) => x.w3 && !x.r28)) {
       for (const [, a] of strings({ items: t.items, practice: t.practice, script: t.script }).filter(([k]) => /audio(\.(en|ur))?$/.test(k))) {
         n += 1;
         expect([t.task, a, keys.has(a)]).toEqual([t.task, a, true]);
