@@ -168,6 +168,8 @@ const SWITCHES = {
   r20AutoEndSection: 'sa_r20_auto_end_section',
   // round 28 (the 17 Nov evaluation meeting): the listen-and-tap letter sounds, the spoken MCQ, the ceiling extension
   r28LetterPick: 'sa_r28_letter_pick', r28Mcq: 'sa_r28_mcq', r28Ceiling: 'sa_r28_ceiling',
+  // round 28, E-3: the story's clock stops at Done, not at the last-word tap (sa-core.js finish)
+  r28StoryClock: 'sa_r28_story_clock',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
 const R13_ALL = (v) => v === true || v === 'all';
@@ -197,7 +199,7 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit',
   r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once',
   r20AutoEndSection: 'r20_auto_end_section',
-  r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling' };
+  r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling', r28StoryClock: 'r28_story_clock' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');
