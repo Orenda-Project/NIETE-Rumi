@@ -1,0 +1,59 @@
+{
+ "recorded": "2026-11-17",
+ "batteries": {
+  "sa.coach.G1.A.ur.json": {
+   "all_off": "370468a1f3dc5449fa405082c3c41e9cb8e74797caf79161458aff80aa139373",
+   "earlier_on": "71d290d370433cdcb5d2217911f9307790999e229370e7f3877e3bb1987b672d"
+  },
+  "sa.coach.G1.A.en.json": {
+   "all_off": "5dc12e6666a2ee2b0bd89067f0c34cd9185258ac2a96f93077d9372999a477af",
+   "earlier_on": "e0434cef0a7cc5f39167449e62eb1d040a370c6b512a0f7af391dcea18d84da7"
+  },
+  "sa.coach.G2.A.ur.json": {
+   "all_off": "3e52c99cca60312cf0a52e947fab5dededed9f9c1a26858c277f7733988f264a",
+   "earlier_on": "b498e97e0dd26067a0e54cf495a0acd84df1ce003dffe59181fee679cb45bee8"
+  },
+  "sa.coach.G2.A.en.json": {
+   "all_off": "4f598d4da01d72770ac6b7e2150b4bad02dfccd44f307ae955f54747d79edd36",
+   "earlier_on": "254f37a09af43e2bbcddf5643af85413f864b6e08ec5ff3891e08c53b0aa88b0"
+  },
+  "sa.coach.G3.A.ur.json": {
+   "all_off": "c86408dd7bfcc56f9ee721d38fc030049b638de528593f505ea9f19633f20a66",
+   "earlier_on": "604f39550e43577381b8728bc24684c8e83f7a82dee940c4a3f74eba5b595374"
+  },
+  "sa.coach.G3.A.en.json": {
+   "all_off": "c654f18d4d23fdda0df9318a4832f62cd6c0ac41d653336c32ee4f799a32d23c",
+   "earlier_on": "7ed4820ba820050b2ecb7b68a26f7bdc85f48867a2a9d2b54ef3443c424c1551"
+  },
+  "sa.coach.G4.A.ur.json": {
+   "all_off": "3f3a9fe4905b85086698b4ef0b1d2bc507ca4825f93772b6b8ef8731deb6ec12",
+   "earlier_on": "f8323fbd3f28803800166aac31ddeec665a28c661a864d644bdfc1d21858dd29"
+  },
+  "sa.coach.G4.A.en.json": {
+   "all_off": "ca8d60dd52208d896bb26dbe93e742b4b845f11462378c4fb1739d74047928f1",
+   "earlier_on": "d2a3bfb70119fd531324f60eacb09a55245dd755b52947822ccf8d27171e5b53"
+  },
+  "sa.coach.G5.A.ur.json": {
+   "all_off": "6955f6ac8182e8a42a61e1e28cb3052d9cc7c18f1885948cf0a6203fde10b76d",
+   "earlier_on": "69b44cc8edacde468c285926a8d21fd5729724e675c4abce4553a4565ca2295d"
+  },
+  "sa.coach.G5.A.en.json": {
+   "all_off": "9ff84a9d642be745207053837fb7703cbd8ef025fc367cbca073f418c74570da",
+   "earlier_on": "b9e347f77293060a7776f37561a6feafd822cc94c79eef45d8edcaaf909e9854"
+  }
+ },
+ "runs": {
+  "sa.coach.G3.A.ur.json:rdf_auto": {
+   "events": "b567f485e727e04fdb91ea83fd9a520fb220af669fc6cfd262b01bef9212f37d",
+   "results": "2f6050800a9324dcfd46387be78e32a8e4315510a36da5352a4fa53b68f1b2e6",
+   "n_events": 262,
+   "n_results": 17
+  },
+  "sa.coach.G3.A.en.json:rdf_auto": {
+   "events": "52fcacc29784b31b5843f62e04c1a95cd2b32642fa6238d067112d1f79447e20",
+   "results": "2f6050800a9324dcfd46387be78e32a8e4315510a36da5352a4fa53b68f1b2e6",
+   "n_events": 262,
+   "n_results": 17
+  }
+ }
+}
