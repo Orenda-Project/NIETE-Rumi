@@ -103,9 +103,12 @@
  *   the clip          speak(…, { clip_only: true }): a clip that cannot play is never said by the phone's voice. The
  *                     item's first play lost → runner.clipLost(item, 'prompt'): that item is unavailable and the next one
  *                     shows (the task never ends on it); a replay lost → clipLost(item, 'replay'): the item stays open.
- *   coach-led         the coach's line (C.pick_coach_line, text only) above the fold; the fold shows the sound and
- *                     the letter («بَ → ب»), never in the open: folded on every item, kept open across a redraw once the
- *                     coach opens it, folded again on the next item.
+ *   coach-led         the coach's line (C.pick_coach_line, text only) above the fold: folded on every item, kept open
+ *                     across a redraw once the coach opens it, folded again on the next item. On a scored item the open
+ *                     fold carries a replay only, never the target letter; on a practice item the sound and the letter
+ *                     («بَ → ب»). The open fold is modal: the first tap anywhere closes it and does nothing else (its
+ *                     own replay: closes, then plays); the item's sound never starts while it is open. Logged:
+ *                     fold_open {task_id, item_id}, fold_close {task_id, item_id, by: 'summary'|'tap', card}.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -586,7 +589,8 @@
     var pickTimes = {};      // task id → the prompt timing map (null: none), once fetched
     var TAP_LEAD_IN_MS = 150; // a tap before speech_start_ms + this is a tap into the clip's lead-in (tap_before_sound)
     var PROMPT_LEAD_IN_MS = 300; // A.4: every v5 prompt clip opens with 0.30 s of lead-in (the speech start when there is no timing map)
-    var pickFold = null;     // coach-led: the item whose folded target the coach opened (it re-folds on the next item)
+    var pickFold = null;     // coach-led: the item whose fold the coach opened (it re-folds on the next item)
+    var pickFoldWait = [];   // coach-led: what waits for the open fold to close (the item's sound never starts under it)
     // Round 28 (sa_r28_mcq; opts.r28.mcq from sa-engine.js, or battery.ui.r28_mcq): a kind 'mcq' tap task is the spoken
     // multiple choice (sRunMcq)
     var r28Mcq = !!(opts.r28 && opts.r28.mcq === true) || opts.r28_mcq === true || r7.r28_mcq === true;
@@ -829,6 +833,13 @@
      *  and shows the next; 'replay' keeps it open (runner.clipLost). A practice item's lost clip changes nothing. */
     function sayClip(it, t, stage) {
       if (!it) return Promise.resolve(false);
+      // coach-led (lead ruling, SPEC A.6): the sound never starts while the coach's fold is open; it waits for the close
+      if (manual && pickFold === it.id) {
+        var gw = gen;
+        return new Promise(function (ok) { pickFoldWait.push(ok); }).then(function () {
+          return alive && gw === gen ? sayClip(it, t, stage) : false;
+        });
+      }
       var ps = pickOf(it);
       var tok = ++ps.tok;
       ps.playing = true;
@@ -880,10 +891,10 @@
       return pickTimes[t.id];
     }
     /** The child asked for the sound again (the big replay, or Jugnu's): counted and logged, the clip only. */
-    function pickAgain(it, t) {
+    function pickAgain(it, t, who) {
       if (busy || !alive) return;
       pickOf(it).replays++;
-      runner.log('replay', { task_id: t.id, item_id: it.id, value: 'child' });
+      runner.log('replay', { task_id: t.id, item_id: it.id, value: who || 'child' });
       sayClip(it, t, 'replay');
     }
     /**
@@ -933,20 +944,55 @@
       if (!manual || !isPick(t)) return null;
       return h('p', { class: 'sae-coach-says is-coach sae-pick-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.pick_coach_line });
     }
+    /**
+     * Coach-led only, the picker's fold. Folded on every item; opened only by the coach, kept open across a redraw of the
+     * same item, folded on the next. Lead ruling (SPEC A.6): on a live (scored) item the target letter is never on the
+     * screen, so the open fold carries the replay only (the coach line sits just above it); the bank gives no letter
+     * name as a word, so no written cue. On a practice item it still shows the sound and the letter («بَ → ب»).
+     */
+    function pickFoldEl(it, t, live) {
+      if (!manual || !it) return null;
+      var body = live
+        ? h('button', { class: 'sae-pick-coach-replay', type: 'button', 'aria-label': C.replay_sound, title: C.replay_sound }, [h('span', { 'aria-hidden': 'true', text: '🔊' })])
+        : h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: (it.prompt_text != null ? String(it.prompt_text) : '') + ' → ' + String(it.target) });
+      var d = h('details', { class: 'sae-coach-says is-coach sae-pick-coach', open: pickFold === it.id }, [h('summary', { text: C.coach }), body]);
+      d.addEventListener('toggle', function () { pickFoldSet(it, t, d.open, 'summary', null); });
+      return d;
+    }
+    /** The fold's state, logged once per change (a redraw of the open fold, or the browser's own late toggle, is none):
+     *  fold_open {task_id, item_id}; fold_close {task_id, item_id, by: 'summary'|'tap', card: the card index or null}. */
+    function pickFoldSet(it, t, open, by, card) {
+      var was = pickFold === it.id;
+      if (open === was) return;
+      pickFold = open ? it.id : null;
+      if (open) { runner.log('fold_open', { task_id: t.id, item_id: it.id }); return; }
+      runner.log('fold_close', { task_id: t.id, item_id: it.id, by: by, card: card == null ? null : card });
+      var w = pickFoldWait; pickFoldWait = [];
+      w.forEach(function (ok) { ok(); });
+    }
+    /** Coach-led only: the open fold is modal. The first tap anywhere on the screen but its own label closes it and
+     *  does nothing else (no answer, no sound, no Next); the fold's own replay closes it, then the sound plays. */
+    function pickModal(scr, it, t) {
+      if (!manual || !scr) return scr;
+      scr.addEventListener('click', function (e) {
+        if (pickFold !== it.id) return;
+        var tg = e.target && e.target.closest ? e.target : null;
+        if (tg && tg.closest('summary')) return; // the label's own toggle: by 'summary'
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        var card = tg ? tg.closest('.sae-pick-cards .sae-opt') : null;
+        var all = card ? Array.prototype.slice.call(scr.querySelectorAll('.sae-pick-cards .sae-opt')) : [];
+        var d = scr.querySelector('details.sae-pick-coach');
+        pickFoldSet(it, t, false, 'tap', card ? all.indexOf(card) : null);
+        if (d) d.open = false;
+        if (tg && tg.closest('.sae-pick-coach-replay')) pickAgain(it, t, 'coach');
+      }, true);
+      return scr;
+    }
     /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer).
      *  Round 28: a letter-sound item folds its sound and the letter («بَ → ب»). */
     function coachSays(it, folded, t) {
-      if (isPick(t)) {
-        if (!manual || !it) return null;
-        var pw = (it.prompt_text != null ? String(it.prompt_text) : '') + ' → ' + String(it.target);
-        // folded on every item; opened only by the coach, kept open across a redraw of the same item, folded on the next
-        var d = h('details', { class: 'sae-coach-says is-coach sae-pick-coach', open: pickFold === it.id }, [
-          h('summary', { text: C.coach }),
-          h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: pw }),
-        ]);
-        d.addEventListener('toggle', function () { pickFold = d.open ? it.id : (pickFold === it.id ? null : pickFold); });
-        return d;
-      }
+      if (isPick(t)) return pickFoldEl(it, t, false);
       if (!manual || !itemWords(it)) return null;
       var said = h('p', { class: 'sae-say sae-coach-line', text: itemWords(it) });
       if (appAsks) return h('details', { class: 'sae-coach-says is-coach is-app' }, [h('summary', { text: C.coach_app }), said]);
@@ -1787,12 +1833,12 @@
       // coach-led (lead ruling, every coach state): the coach's Next sits in the head row, never at the foot, and its
       // place is held (hidden) until it is offered, so the cards and the replay pill never move when it appears
       var coachNext = manual ? (nextBtn(v) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' })) : null;
-      return screen(v, 'sae-run sae-run-tap sae-pick' + (manual ? ' is-coach-led' : ''), [
+      return pickModal(screen(v, 'sae-run sae-run-tap sae-pick' + (manual ? ' is-coach-led' : ''), [
         clock(v),
         // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
         h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), replayBtn(function () { pickAgain(it, t); }), coachNext]),
         pickCoachLine(t),
-        coachSays(it, true, t),
+        pickFoldEl(it, t, true),
         pickCards(it.options, function (o, b) {
           if (pickPreSound(it, t, o)) return; // before the sound: logged, never scored; the item stays open
           busy = true;
@@ -1801,7 +1847,7 @@
           later(function () { busy = false; draw(); }, PICK_PRESS_MS);
         }, null, t),
         pickReplay(it, t),
-      ], itemFoot(v, manual ? [] : [nextBtn(v)]));
+      ], itemFoot(v, manual ? [] : [nextBtn(v)])), it, t);
     }
     /** The model line(s) of the example, said by Jugnu in both modes (the coach never voices the sound). */
     function pickModelOf(p) { return Array.isArray(p.model) ? p.model.map(function (m) { return [m, m && m.audio, true]; }) : []; }
@@ -1833,7 +1879,7 @@
         if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
         if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
       }, t);
-      return screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : '') + (manual ? ' is-coach-led' : ''), [
+      return pickModal(screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : '') + (manual ? ' is-coach-led' : ''), [
         h('div', { class: 'sae-row sae-pick-head' }, [
           jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true),
           h('span', { class: 'sae-chip', text: C.practice }),
@@ -1845,7 +1891,7 @@
         cards,
         model ? null : pickReplay(p, t),
         feedbackLine(fb),
-      ], [model && pickModelled === k ? btn(C.next, function () { pickNext(k); }, 'sae-primary sa-next sae-pick-next') : null]);
+      ], [model && pickModelled === k ? btn(C.next, function () { pickNext(k); }, 'sae-primary sa-next sae-pick-next') : null]), p, t);
     }
 
     /** The passage's words (task.passage.words) as buttons, or as plain text when onWord is null. */
