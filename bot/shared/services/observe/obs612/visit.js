@@ -14,8 +14,9 @@
  * A grade 1-5 lesson stays on FICO; the coach's naming it decides the FICO grade gate (bd-ra8xu.42) instead of the
  * teacher's profile. Self-recordings (the DC) never come here.
  *
- * Runs only while app_settings.obs612_coach is on for the coach (coaching/obs612-switch.js). Off: asksClass is
- * false, every caller takes its old path, and nothing here runs.
+ * Runs only while app_settings.obs612_coach is on for the coach (coaching/obs612-switch.js), and never for a GB
+ * visit (bd-hk2jm3: FDE is ICT's; coaching/fde-region.js). Off: asksClass is false, every caller takes its old path,
+ * and nothing here runs.
  *
  * The FDE form of a visit is ONE observation_field_forms row: rubric_version = the obs612 id ('obs612-msci-v1' …),
  * visit_context.{grade, subject, sheet, via}. The Flow token is `<coachUserId>:obs612:<formId>`.
@@ -49,15 +50,24 @@ function isObs612Form(form) {
   return Boolean(form) && O.isObs612Id(form.rubric_version);
 }
 
-/** Does this coach get the class question? (the switch). Never throws: false on any failure. */
-async function asksClass(user) {
+/**
+ * Does this coach get the class question? The switch, and never for a GB visit (bd-hk2jm3, operator 17 Nov: FDE's
+ * grade 6-8 tools are ICT's only; GB stays on FICO, v6 for HITL). `visit` names what is known of the visit: the
+ * observed teacher's users.id and the school the coach picked (school_ext_id); without them the coach's own region
+ * decides (coaching/fde-region.js). Never throws: false on any failure.
+ * @param {object} user  the coach's (or principal's) users row
+ * @param {{teacherUserId?: string|null, schoolExtId?: string|null}} [visit]
+ */
+async function asksClass(user, visit = {}) {
   if (!user || !user.id) return false;
   try {
-    return await require('../../coaching/obs612-switch').isOn({
+    const on = await require('../../coaching/obs612-switch').isOn({
       userId: user.id,
       region: user.region,
       role: user.role, // bd-9bppaz: "role:principal" needs no read (undefined: read only when a role key needs it)
     });
+    if (!on) return false;
+    return await require('../../coaching/fde-region').fdeAllowed({ observer: user, ...(visit || {}) });
   } catch (_) {
     return false;
   }

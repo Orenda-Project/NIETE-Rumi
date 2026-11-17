@@ -72,7 +72,26 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // decides the grades 1-5 gate instead of the profile. Not named (the switch off, no answer): today's path.
   let lesson = null;
   try { lesson = require('./obs612/visit').lessonOfState(st); } catch (_) { lesson = null; }
-  const fdeLesson = lesson && !lesson.primary && !(st && st.origin === 'observe2') ? lesson : null;
+  // bd-hk2jm3: what is known of the visit, for its region (FDE is ICT's only; coaching/fde-region.js).
+  const visit = {
+    teacherUserId: ownerUserId !== user.id ? ownerUserId : null,
+    schoolExtId: (boundTeacher && boundTeacher.school_ext_id) || null,
+  };
+  let fdeLesson = lesson && !lesson.primary && !(st && st.origin === 'observe2') ? lesson : null;
+  if (fdeLesson) {
+    // bd-hk2jm3: a GB visit is never FDE, whatever the switch said when the class was asked (a question asked before
+    // this rule, a stale state). The class it named is a FICO lesson, its grade kept: FICO17 v6 when the coach switch
+    // says so (decided below).
+    let allowed = false;
+    try { allowed = await require('../coaching/fde-region').fdeAllowed({ observer: user, ...visit }); } catch (_) { allowed = false; }
+    if (!allowed) {
+      logToFile('🔭 obs612: a grade 6-8 lesson named on a GB visit (or its region unreadable) — FICO, not FDE', {
+        userId: user.id, rubricId: fdeLesson.rubricId, grade: fdeLesson.grade,
+      });
+      lesson = { primary: true, grade: fdeLesson.grade, subject: null };
+      fdeLesson = null;
+    }
+  }
 
   let v6Stamp = null;
   try {
@@ -81,7 +100,8 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
         userId: user.id,
         region: user.region,
         // The observed teacher, when the visit picker bound one (grades 1-5 gate); an unbound capture has none.
-        teacherUserId: ownerUserId !== user.id ? ownerUserId : null,
+        teacherUserId: visit.teacherUserId,
+        ...(visit.schoolExtId ? { schoolExtId: visit.schoolExtId } : {}),
         ...(lesson && lesson.primary ? { lessonIsPrimary: true } : {}),
       });
     }
