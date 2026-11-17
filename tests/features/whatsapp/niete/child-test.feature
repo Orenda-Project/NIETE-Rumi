@@ -1302,10 +1302,10 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # No mock driver: as @CT201. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
   Scenario: With sa_r28_ceiling on, the first-line rule and the missing clock are applied when the recording is scored
     Given sa_r28_ceiling is on
-    When a child got none of the first 10 letters right and some later ones right
+    When a child read past today's letters and got none of the first 10 right and some later ones right
     Then the letters score is 0, with the items tried and the time used kept as they were
-    And a result without the time used gets no rate until the time is known
-    And with sa_r28_ceiling off the same run is scored as today
+    And with sa_r28_ceiling on a result without the time used gets no rate until the time is known
+    And a run that stayed inside today's letters (every run with sa_r28_ceiling off) is scored as today
 
   @e2e @wip @draft @config-gated @P1 @CT203 @no-mock-driver
   # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
