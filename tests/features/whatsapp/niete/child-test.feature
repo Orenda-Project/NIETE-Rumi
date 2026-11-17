@@ -1355,3 +1355,49 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the coach opens Results
     Then the letters level is decided on today's first 5 letters, all right, so it is met
     And a child with 3 of today's first 5 right does not meet it however many later letters were right
+  @e2e @wip @draft @config-gated @P1 @CT189 @no-mock-driver
+  # No mock driver: the picker runs on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the letter-sound picker plays a sound and is scored on the phone by the letter tapped
+    Given sa_r28_letter_pick is on and a child's battery has the letter-sound picker
+    When an item shows five letter cards and Jugnu plays its sound
+    And the child taps a card, during the sound or after it
+    Then the tap counts once for that item, right when it is the letter for the sound, wrong otherwise
+    And the answer keeps how many times the child played the sound again and how long after the sound the tap came
+    And no right or wrong is shown on a scored item
+    And with sa_r28_letter_pick off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT190 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the big speaker plays the sound again and a child who never taps is not stuck
+    Given sa_r28_letter_pick is on and an item of the letter-sound picker is on show
+    When the child taps the big speaker under the cards
+    Then only the item's sound plays again, never the instruction, and the replay is recorded
+    And with no tap 10 seconds after the sound ends Jugnu plays it once more by itself
+    And at 15 seconds Next is offered, and an item passed with Next is scored wrong
+
+  @e2e @wip @draft @config-gated @P1 @CT191 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the first practice is shown by Jugnu and the second is the child's try
+    Given sa_r28_letter_pick is on and the letter-sound picker's practice is on show
+    When the first practice item shows
+    Then the right card is lit, no card can be tapped, and Jugnu plays the sound and says the model line
+    And Next then appears, and in RDF auto the practice moves on by itself 2 seconds later
+    When the child gets the second practice item wrong twice
+    Then the child is asked to try again once, and then the right card is shown
+
+  @e2e @wip @draft @config-gated @P1 @CT192 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, a sound that cannot play skips the part and is never said by the phone's voice
+    Given sa_r28_letter_pick is on and the sound of a letter-sound item is not on the phone
+    When the item shows and its sound cannot play
+    Then the part ends as assets unavailable and nothing in it is scored
+    And the phone's own voice never says the letter
+
+  @e2e @wip @draft @config-gated @P1 @CT193 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, coach-led, Jugnu still plays the sound and the coach sees the answer folded
+    Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
+    When an item of the letter-sound picker shows
+    Then Jugnu plays the sound from the phone, the coach does not say it
+    And the coach's screen shows the sound and its letter folded away, not in the open
