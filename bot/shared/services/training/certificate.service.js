@@ -78,6 +78,16 @@ function mintedHere(cert) {
 }
 
 /**
+ * The guard's answer when this call did not write the certificate. A race
+ * another request won still means the teacher HOLDS it, so that is said
+ * (`already_issued`): the level list shows the level certified instead of
+ * offering the exam again. `issued` stays false, so nobody congratulates twice.
+ */
+function notMintedHere(cert) {
+  return cert && cert.already_issued === true ? { issued: false, already_issued: true } : { issued: false };
+}
+
+/**
  * Issue (or return the already-issued) certificate for a completed level.
  * Idempotent per (user_id, level_id) — NOT per attempt; see the guard below
  * for why that distinction cost production 3,113 surplus rows.
@@ -280,7 +290,7 @@ async function certifyOnLevelExam(supabase, { userId, level, programId }) {
   const cert = await issueCertificate(supabase, {
     userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
   });
-  if (!mintedHere(cert)) return { issued: false };
+  if (!mintedHere(cert)) return notMintedHere(cert);
   return {
     issued: true,
     certificate_code: cert.certificate_code,
@@ -351,7 +361,7 @@ async function certifyOnCapstone(supabase, { userId, level, programId }) {
   const cert = await issueCertificate(supabase, {
     userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
   });
-  if (!mintedHere(cert)) return { issued: false };
+  if (!mintedHere(cert)) return notMintedHere(cert);
   return {
     issued: true,
     certificate_code: cert.certificate_code,
@@ -526,7 +536,7 @@ async function maybeIssueQuizScoreCertificate(
         userId, programId, levelId: level.id, attemptId,
       });
       // A failed insert is not a certificate (see issueCertificate).
-      if (!mintedHere(cert)) return { issued: false };
+      if (!mintedHere(cert)) return notMintedHere(cert);
       return {
         issued: true,
         certificate_code: cert.certificate_code,
@@ -573,7 +583,7 @@ async function maybeIssueQuizScoreCertificate(
     });
     // Same rule as every other branch: a failed insert, or a race another
     // request won, is not a certificate THIS call issued.
-    if (!mintedHere(cert)) return { issued: false };
+    if (!mintedHere(cert)) return notMintedHere(cert);
     return {
       issued: true,
       certificate_code: cert.certificate_code,
