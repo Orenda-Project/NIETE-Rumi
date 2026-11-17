@@ -2773,7 +2773,7 @@
         mcqFold = fd.open ? { item: it.id, task: t.id } : null;
         if (fd.open) { runner.log('fold_open', { task_id: t.id, item_id: it.id }); return; }
         mcqGG.closed(it.id, t.id);
-        var by = mcqFoldBy || { by: 'summary' };
+        var by = mcqFoldBy || { by: 'summary', card: null }; // the card key always present (null: no card under the close)
         mcqFoldBy = null;
         runner.log('fold_close', { task_id: t.id, item_id: it.id, by: by.by, card: by.card });
       });

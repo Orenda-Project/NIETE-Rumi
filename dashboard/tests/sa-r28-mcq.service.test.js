@@ -969,7 +969,10 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(answers).toHaveLength(1);
     expect(answers[0].v).toBe(2);
     expect(events.filter((e) => e.type === 'ghost_tap')).toHaveLength(1); // the tap at +350 ms answered: no ghost
-    expect(foldEvents(events).filter((e) => e.type === 'fold_close').map((e) => [e.by, e.card])).toEqual([['tap', 2], ['summary', undefined]]);
+    // every close carries the card key (null when no card was under the tap), the summary's too: a JSON line keeps it
+    const closes = events.filter((e) => e.type === 'fold_close'); // the raw logged events, not the test's projection
+    expect(closes.map((e) => [e.by, e.card])).toEqual([['tap', 2], ['summary', null]]);
+    expect(closes.map((e) => JSON.parse(JSON.stringify(e)).hasOwnProperty('card'))).toEqual([true, true]);
   }, 20000);
 
   test('modal fold: a fold opened in the 400 ms press window is closed by the item change: one fold_close by item for the old item, the next item drawn folded', async () => {
@@ -1358,6 +1361,7 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
       fold_open: !!document.querySelector('details.sae-mcq-coach[open]'),
       coach_line: !!document.querySelector('.sae-mcq-coach-line'),
       q_font: qEl ? parseFloat(getComputedStyle(qEl).fontSize) : 0,
+      title_display: (() => { const t = document.querySelector('.sae-mcq .sae-task-tag'); return t ? getComputedStyle(t).display : null; })(),
     };
   });
   /** Every coach state of one question: listening (the question being read), speaking (answer 2 lit), chosen (answer 4
@@ -1438,6 +1442,11 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
           });
           expect({ state, replay: m.replay }).toEqual({ state, replay: at.replay });
           expect(m.q_font).toBeGreaterThanOrEqual(lang === 'ur' ? 22 : 20);
+          // round 6: no task title on the coach-led phone screen (the coach's line names the task, Jugnu says it), and
+          // the lowest card's ring (the chosen card's, bottom + 7 px) ends at least 8 px above the screen's bottom edge
+          expect({ state, title_display: m.title_display }).toEqual({ state, title_display: 'none' });
+          expect({ state, ring_margin_ok: m.vh - Math.max(...m.cards.map((c) => c.ring_bottom)) >= 8, ring_bottom: Math.max(...m.cards.map((c) => c.ring_bottom)) })
+            .toEqual({ state, ring_margin_ok: true, ring_bottom: Math.max(...m.cards.map((c) => c.ring_bottom)) });
         }
         // the coach's Next: in the head row beside the replay, never in the foot, on screen
         const n = r.offernext.next;
@@ -1593,14 +1602,20 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       const longest = await foldList(p);
       await ctx.close();
       sizes[lang] = { longest_question_with_longest_set: longest, per_question: rows };
+      // round 6, all questions at once (so a failure lists every one): no ink above the stem card's clip top, and the
+      // lowest card's ring ≥ 8 px above the screen's bottom edge
+      expect(Object.entries(rows).map(([id, r]) => ({ id, lines: r.lines, above: r.ink_above_top, ring_margin: 640 - r.ring_bottom }))
+        .filter((x) => x.above !== 0 || x.ring_margin < 8)).toEqual([]);
       for (const [id, m] of Object.entries(rows)) {
         const r = m;
         expect({ id, nastaliq: r.nastaliq, page_h: r.page_h, inner_scroll: r.inner_scroll, ring_ok: r.ring_bottom <= 640, cards: r.card_h })
           .toEqual({ id, nastaliq: true, page_h: 640, inner_scroll: 0, ring_ok: true, cards: [56, 56, 56, 56] });
+        // round 6: the lowest card's ring ends ≥ 8 px above the screen's bottom edge on every question
+        expect({ id, ring_margin: 640 - r.ring_bottom >= 8 ? 'ok' : 640 - r.ring_bottom }).toEqual({ id, ring_margin: 'ok' });
         expect({ id, lines_ok: r.lines >= 1 && r.lines <= (lang === 'ur' ? 2 : 3), below: r.ink_below_bottom }).toEqual({ id, lines_ok: true, below: 0 });
-        // the first line's ascender: whole on every one-line question and in Latin; a two-line Urdu question has the
-        // room the 640 px budget leaves (B5 report: ≤ 11 px of the tallest stroke still above the edge)
-        expect({ id, above_ok: r.ink_above_top <= (lang === 'ur' && r.lines === 2 ? 11 : 0) }).toEqual({ id, above_ok: true });
+        // the first line's ascender: whole on every served question, one line or two, Urdu and Latin (round 6: the
+        // task title's room pays for it on the coach-led phone)
+        expect({ id, lines: r.lines, above: r.ink_above_top }).toEqual({ id, lines: r.lines, above: 0 });
         expect({ id, coach_line_room_ok: r.coach_line_room >= 0 }).toEqual({ id, coach_line_room_ok: true });
         expect({ id, fold_min_gap_ok: r.fold.min_gap >= 2, overlay_ok: r.fold.overlay_bottom <= 640 }).toEqual({ id, fold_min_gap_ok: true, overlay_ok: true });
       }
@@ -1653,6 +1668,68 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       expect(close.ms).toBeLessThan(150);
       expect(close.max_transition_ms).toBeLessThanOrEqual(150);
     }, 120000);
+  }
+});
+
+// ------------------------------------------------------------------------------------------------------------------
+// B.3 round 6: the task title is hidden on the coach-led PHONE MCQ screen only (the coach's line names the task and Jugnu
+// says it); RDF auto at phone width and both modes on a tablet keep it, shown and on one line.
+// ------------------------------------------------------------------------------------------------------------------
+maybeBrowser('sa_r28_mcq round 6: the task title on the MCQ screen per mode and width (B.3)', () => {
+  const fs = require('fs');
+  const SA = path.join(__dirname, '..', 'sa');
+  const PUB = path.join(__dirname, '..', 'public', 'wq');
+  let browser;
+  beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
+  afterAll(async () => { if (browser) await browser.close(); });
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  function page(lang, manual) {
+    const w = longestOf(lang);
+    const item = (n) => ({ id: `${lang}.story_w3.q${n}`, prompt: { text: w.q, audio: `sa/v5/${lang}/syn_q${n}.mp3` }, options: w.options,
+      option_audio: [1, 2, 3, 4].map((k) => `sa/v5/${lang}/syn_q${n}_o${k}.mp3`), target_index: 1, key: 2, src: 'synthetic' });
+    const task = mcqTask([item(1), item(2)], { id: `${lang}.story_mcq_w3`, lang, depends_on: null });
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
+<script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
+<script>${fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8')}</script>
+<script>
+  function speak() { return new Promise(function () {}); }
+  speak.audio = function () { return null; };
+  var battery = { battery_id: 'b', ui: ${JSON.stringify(Object.assign({ r28_mcq: true }, LAYOUT))}, tasks: [${JSON.stringify(task)}] };
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return 0; }, manual: ${manual}, onEvent: function () {} });
+  var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: ${manual}, handover: false, ur_fit: true,
+    r28: { letter_pick: false, mcq: true, ceiling: false }, speak: speak });
+  runner.start(); runner.instructionDone(); runner.begin(); view.render();
+</script></body></html>`;
+  }
+  for (const lang of ['ur', 'en']) {
+    for (const [name, vw, vh, manual, shown] of [['coach-led phone', 360, 640, true, false], ['RDF auto phone', 360, 640, false, true],
+      ['coach-led tablet', 800, 1280, true, true], ['RDF auto tablet', 800, 1280, false, true]]) {
+      test(`${lang}, ${name}: the task title is ${shown ? 'shown' : 'hidden'}`, async () => {
+        const ctx = await browser.newContext({ viewport: { width: vw, height: vh } });
+        const p = await ctx.newPage();
+        const html = page(lang, manual);
+        await p.route('**/*', (route) => {
+          const u = new URL(route.request().url());
+          if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+          if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+          if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+          return route.fulfill({ status: 404, body: '' });
+        });
+        await p.goto('http://sa.test/');
+        await p.evaluate(() => document.fonts.ready);
+        await p.waitForTimeout(300);
+        const t = await p.evaluate(() => {
+          const e = document.querySelector('.sae-mcq .sae-task-tag'); const b = e ? e.getBoundingClientRect() : null;
+          return { mcq: !!document.querySelector('.sae-mcq'), coach: !!document.querySelector('details.sae-mcq-coach'), present: !!e,
+            display: e ? getComputedStyle(e).display : null, h: b ? Math.round(b.height) : 0, on_screen: !!b && b.top >= 0 && b.bottom <= window.innerHeight };
+        });
+        await ctx.close();
+        expect({ mcq: t.mcq, coach: t.coach, present: t.present }).toEqual({ mcq: true, coach: manual, present: true });
+        if (shown) expect({ display: t.display !== 'none', h: t.h > 0, on_screen: t.on_screen }).toEqual({ display: true, h: true, on_screen: true });
+        else expect({ display: t.display, h: t.h }).toEqual({ display: 'none', h: 0 });
+      }, 60000);
+    }
   }
 });
 

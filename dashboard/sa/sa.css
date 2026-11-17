@@ -721,6 +721,9 @@ button{font:inherit;color:inherit}
   .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body>:first-child{margin-top:0}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:15px;line-height:1.5}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag:lang(ur){line-height:1.9}
+  /* round 6: no task title on the coach-led phone screen (the coach's line names the task and Jugnu says it); its room
+     goes to the Urdu question's top edge and to clear space under the lowest card's ring. RDF auto and the tablet keep it. */
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag{display:none}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{gap:12px;flex-wrap:nowrap;min-height:56px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-jugnu{width:48px;height:48px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{min-height:56px;padding-inline:12px;font-size:20px;line-height:1.5}
@@ -740,7 +743,7 @@ button{font:inherit;color:inherit}
    Next. (1) The open fold's Urdu answer list: a line pitch that keeps one line's ink off the next on every served set
    (Nastaliq ink runs ~3x its size), paid for inside the overlay by a smaller question line above it. (2) The Urdu
    question card: room inside its clip box (padding, not a border) for the descender of its second line and as much of
-   the first line's ascender as the 640 px budget leaves (all of it on a one-line question, .is-one-line from sa-ui.js),
+   the first line's ascender (round 6: all of it, one line or two, from the hidden task title's room),
    paid for by the body's gaps and the card gap; a Latin question shows up to three lines (never clipped). (3) The coach's
    line ends above the fold's box. (4) Every width: the coach's Next in the coach's register (a dashed box, never the
    child's pill), at the row's end edge over the body's side padding, at least 48 px from the child's replay. */
@@ -751,8 +754,7 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:4px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body>p.sae-coach-line[lang=ur]{font-size:18px;line-height:1.9;padding-top:0;padding-bottom:0;margin:0}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]{line-height:3.5}
-  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur]{padding-top:14px;padding-bottom:13px}
-  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur].is-one-line{padding-top:24px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur]{padding-top:25px;padding-bottom:13px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q:not([lang=ur]){-webkit-line-clamp:3}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{margin:0 0 2px}
   .sae[lang=ur] .sae-mcq.sae-screen:has(.sae-mcq-coach){gap:0}

@@ -1583,6 +1583,17 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the probe logs hl 0 when the question's clip starts and ends, and no card lights for it
     And a choice made while a replayed question is read, or before the first answer lights, records chosen_at_option 0
     And a tap during the first reading of the question is still ignored
+  @e2e @wip @draft @config-gated @P1 @CT266 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("sa_r28_mcq round 6: the task title …",
+  # "ur: every served question and answer set …", "… listening, speaking, chosen, Next offered, fold open …", "modal fold: a double tap …").
+  Scenario: With sa_r28_mcq on, the coach-led phone question screen has no task title and every Urdu question is whole
+    Given sa_r28_mcq is on and a coach runs the battery on a 360x640 phone
+    When any story question is on screen
+    Then the task title is not shown (the coach's line names the task and Jugnu says it)
+    And no stroke of the Urdu question is cut at the top or bottom of its card, on every served question
+    And the lowest answer card's ring ends at least 8 px above the bottom of the screen in every coach state
+    And in RDF auto, and on a tablet in either mode, the task title is still shown
+    And closing the coach's fold with its own label logs fold_close with card null
   @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
   Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had
