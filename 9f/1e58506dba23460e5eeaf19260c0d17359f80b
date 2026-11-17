@@ -1,0 +1,2 @@
+{"ts":"2026-11-17T18:03:39Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan spec_sync=true","sha":"9f1e58506dba","branch":"bd-xkkw9.2-sandbox","user":""}
+{"ts":"2026-11-17T18:03:47Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,lesson-plan owe their Gherkin","sha":"9f1e58506dba","branch":"bd-xkkw9.2-sandbox","user":""}
