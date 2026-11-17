@@ -803,3 +803,12 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{line-height:2.81;padding:0 22px;margin:-1px 0 -2px}
 }
 /* end round 28, round 7 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 8 (row 30: the coach's Skip instructions in the practice head) ----
+   Coach-led practice only (r9_skip_instructions draws the Skip there; sa-ui.js drops the practice chip when it is drawn),
+   below 700 px. The head row holds Jugnu 48 + the replay 56 + the Skip, which keeps one line at its served font (no
+   shrink, no wrap, the row's own 56 px, the picker head's 10 px sides) and sits >= 24 px from the child's replay
+   (gap 12 + margin 12). */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-r9-skip{flex:none;margin:0;margin-inline-start:12px;height:56px;min-height:56px;padding-inline:10px;white-space:nowrap}
+}
+/* end round 28, round 8 */

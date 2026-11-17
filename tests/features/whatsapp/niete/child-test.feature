@@ -1630,6 +1630,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the last line's ink stays inside the coach's line box
     And the coach's line keeps its 13 px size, and the lowest answer card's ring still ends at least 8 px above the bottom of the screen
     And the English coach's line is as it was
+  @e2e @wip @draft @config-gated @P1 @CT273 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("ur: every practice state — the head row whole on the phone with the Skip on one line …",
+  # "en: every practice state — the head row whole on the phone with the Skip on one line …").
+  Scenario: With sa_r28_mcq on, the coach's Skip instructions sits whole in the practice question's top row on a phone
+    Given sa_r28_mcq and the coach's Skip instructions are on and a coach runs the practice story question on a 360x640 phone
+    When the practice question is on screen, in any practice state (the question read, an answer lit, the answers over, an answer chosen, the feedback shown, the coach's fold open or closed)
+    Then Jugnu, the replay button and the Skip instructions button sit in one row inside the screen, each whole and tappable at its centre
+    And the Skip instructions button shows its label on one line at its usual size and stays in the same place in every practice state
+    And the Practice label gives its place to the Skip instructions button
+    And the replay button and the Skip instructions button are at least 24 px apart
+    And the question and the answer cards keep their distance from the top row
+    And with the coach's fold open, a tap on Skip instructions only closes the fold
+    And with the fold closed, a tap on Skip instructions goes to the part's Ready screen and nothing more is read or lit
   @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
   Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had

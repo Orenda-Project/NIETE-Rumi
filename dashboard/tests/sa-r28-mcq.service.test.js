@@ -1463,7 +1463,7 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
   }
   // the layout switches the coach-led battery carries (ur_fit, r8_layout, r8_lang_switch, r9_comp_text, r9_scroll_cue,
   // r10_urdu_fit): the Urdu body scrolls by itself there and the Urdu labels are padded to their ink
-  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true, r9_skip_instructions: true }; // + the Skip (row 21: the seven)
   for (const lang of ['ur', 'en']) {
     for (const [name, ui, urFit] of [['the plain page', {}, false], ['the layout switches on (ur_fit, r8, r9, r10)', LAYOUT, true]]) {
       test(`${lang}, ${name}, the longest question and answers: listening, speaking, chosen, Next offered, fold open — nothing scrolls, nothing moves`, async () => {
@@ -1552,7 +1552,7 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
   let browser;
   beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
   afterAll(async () => { if (browser) await browser.close(); });
-  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true, r9_skip_instructions: true }; // + the Skip (row 21: the seven)
   const sizes = {};
   afterAll(() => { if (process.env.SA_FIT_SIZES) fs.writeFileSync(process.env.SA_FIT_SIZES, JSON.stringify(sizes, null, 1)); });
 
@@ -1749,7 +1749,7 @@ maybeBrowser('sa_r28_mcq round 6: the task title on the MCQ screen per mode and 
   let browser;
   beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
   afterAll(async () => { if (browser) await browser.close(); });
-  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true, r9_skip_instructions: true }; // + the Skip (row 21: the seven)
   function page(lang, manual) {
     const w = longestOf(lang);
     const item = (n) => ({ id: `${lang}.story_w3.q${n}`, prompt: { text: w.q, audio: `sa/v5/${lang}/syn_q${n}.mp3` }, options: w.options,
@@ -1802,6 +1802,252 @@ maybeBrowser('sa_r28_mcq round 6: the task title on the MCQ screen per mode and 
 
 // RDF auto and the tablet keep their layout: every coach-fit rule sits in the one phone @media block and only matches
 // the coach-led MCQ screen (the one that carries the coach's fold, which RDF auto never draws).
+// ------------------------------------------------------------------------------------------------------------------
+// round 8 (row 30): the MCQ PRACTICE head on the coach-led 360×640 phone with the coach's served Skip instructions
+// (r9_skip_instructions, on every tier) and the production layout switches. The head row holds Jugnu, the replay and
+// the Skip, the Skip on one line at its served font, pinned in every practice state (the stem being read, each option
+// lit, the read-out over with no choice, a choice held, feedback shown, the fold open and closed); the stem, the cards
+// and the ring stay where they are without the Skip. In the fold-open state the tap at the Skip's centre only closes
+// the modal fold; with the fold closed it skips to the part's Ready screen and nothing more is said or lit.
+// ------------------------------------------------------------------------------------------------------------------
+/** The bank's served practice question of a language (the contract's practice shape). */
+function practiceOf(lang) {
+  const fs = require('fs');
+  const dir = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test');
+  const p = JSON.parse(fs.readFileSync(path.join(dir, 'item-bank.sa-r28.v1.json'), 'utf8')).mcq.practice[lang];
+  return { id: `${lang}.story_mcq_w3.p1`, passage: { text: p.passage }, prompt: { text: p.question, audio: `sa/v5/${lang}/syn_pq.mp3` },
+    options: p.options, option_audio: [1, 2, 3, 4].map((k) => `sa/v5/${lang}/syn_p_o${k}.mp3`), target_index: p.target_index, key: p.target_index + 1 };
+}
+
+maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the served Skip instructions (row 30)', () => {
+  const fs = require('fs');
+  const SA = path.join(__dirname, '..', 'sa');
+  const PUB = path.join(__dirname, '..', 'public', 'wq');
+  let browser;
+  beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
+  afterAll(async () => { if (browser) await browser.close(); });
+  // the production switch set (seven): ur_fit (mount) + r8_layout, r8_lang_switch, r9_scroll_cue, r9_comp_text,
+  // r10_urdu_fit, r9_skip_instructions
+  const SERVED = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true, r9_skip_instructions: true };
+  const sizes = {};
+  afterAll(() => { if (process.env.SA_B8_SIZES) fs.writeFileSync(process.env.SA_B8_SIZES, JSON.stringify(sizes, null, 1)); });
+
+  function page(lang, ui) {
+    const w = longestOf(lang);
+    const item = (n) => ({ id: `${lang}.story_w3.q${n}`, prompt: { text: w.q, audio: `sa/v5/${lang}/syn_q${n}.mp3` }, options: w.options,
+      option_audio: [1, 2, 3, 4].map((k) => `sa/v5/${lang}/syn_q${n}_o${k}.mp3`), target_index: 1, key: 2, src: 'synthetic' });
+    const task = mcqTask([item(1), item(2)], { id: `${lang}.story_mcq_w3`, lang, depends_on: null, practice: [practiceOf(lang)] });
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
+<script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
+<script>${fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8')}</script>
+<script>
+  window.__T = 0; window.__ev = []; window.__speaks = []; var cur = null;
+  function speak(t, a0) { window.__speaks.push({ at: Date.now(), clip: a0 && (a0.audio || a0) }); var a = new EventTarget(); a.paused = false; a.ended = false; a.currentTime = 0.5; var line = { a: a }; cur = line;
+    return new Promise(function (res) { line.end = function () { a.paused = true; a.ended = true; a.dispatchEvent(new Event('ended')); if (cur === line) cur = null; res(); }; }); }
+  speak.audio = function () { return cur ? cur.a : null; };
+  window.__end = function () { if (!cur) return false; cur.end(); return true; };
+  var battery = { battery_id: 'b', ui: ${JSON.stringify(Object.assign({ r28_mcq: true }, ui))}, tasks: [${JSON.stringify(task)}] };
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, onEvent: function (e) { window.__ev.push(e); } });
+  var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
+    r28: { letter_pick: false, mcq: true, ceiling: false }, speak: speak });
+  runner.start(); runner.instructionDone(); view.render(); window.__view = view; window.__runner = runner;
+</script></body></html>`;
+  }
+  async function open(lang, ui) {
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    const html = page(lang, ui);
+    await p.route('**/*', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+      if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+      if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await p.goto('http://sa.test/');
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(400);
+    return { ctx, p };
+  }
+  const measure = () => document.fonts.ready.then(() => {
+    const vh = window.innerHeight;
+    const R = (e) => { const b = e.getBoundingClientRect(); return { left: +b.left.toFixed(1), right: +b.right.toFixed(1), top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
+    const hitAt = (e) => { const b = e.getBoundingClientRect(); const x = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!x && e.contains(x); };
+    const head = document.querySelector('.sae-mcq-head');
+    const kids = Array.from(head.children).map((c) => Object.assign(R(c), { cls: c.className.replace(/\s+/g, ' ').trim(), sw: c.scrollWidth, cw: c.clientWidth, whole: c.scrollWidth <= c.clientWidth, hit: hitAt(c) }));
+    const sk = head.querySelector('.sae-r9-skip');
+    let skip = null;
+    if (sk) {
+      const cs = getComputedStyle(sk); const rg = document.createRange(); rg.selectNodeContents(sk);
+      const lines = new Set(Array.from(rg.getClientRects()).filter((x) => x.width > 1).map((x) => Math.round(x.top))).size;
+      skip = Object.assign(R(sk), { text: sk.textContent, cp: Array.from(sk.textContent).length, font: parseFloat(cs.fontSize), lines, ellipsis: cs.textOverflow === 'ellipsis' && sk.scrollWidth > sk.clientWidth,
+        white_space: cs.whiteSpace, hit: hitAt(sk) });
+    }
+    const rb = head.querySelector('.sae-mcq-replay');
+    const q = document.querySelector('.sae-mcq-q');
+    const cards = Array.from(document.querySelectorAll('.sae-mcq-opt')).map((c) => { const b = c.getBoundingClientRect(); return { top: +b.top.toFixed(1), h: +b.height.toFixed(1), ring_bottom: +(b.bottom + 7).toFixed(1), cls: c.className }; });
+    const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+    const replay = rb ? R(rb) : null;
+    return {
+      vh, page_h: document.documentElement.scrollHeight, inner_scroll: over(document.querySelector('.sae-screen')) + over(document.querySelector('.sae-mcq .sae-body')),
+      phase: window.__runner.view().phase, head: Object.assign(R(head), { sw: head.scrollWidth, cw: head.clientWidth }), kids, skip, replay,
+      chip: !!head.querySelector('.sae-chip'),
+      // the row's spare: its content width less the children's extent (gaps and the Skip's margin included)
+      row_spare: +(head.clientWidth - (Math.max(...kids.map((k) => k.right)) - Math.min(...kids.map((k) => k.left)))).toFixed(1),
+      replay_skip_edge: skip && replay ? +Math.max(replay.left - skip.right, skip.left - replay.right).toFixed(1) : null,
+      stem: q ? R(q) : null, cards, ring_margin: +(vh - Math.max(...cards.map((c) => c.ring_bottom))).toFixed(1),
+      fb: (() => { const f = document.querySelector('.sae-mcq .sae-fb:not(.is-empty)'); return f ? Object.assign(R(f), { text: f.textContent }) : null; })(),
+      fold_open: !!document.querySelector('details.sae-mcq-coach[open]'),
+      body_kids: Array.from(document.querySelectorAll('.sae-mcq .sae-body > *, .sae-mcq > *')).map((e) => Object.assign(R(e), { cls: String(e.className || e.tagName).split(' ')[0] })),
+    };
+  });
+  /** The stem's ink above its clip top (everything around it hidden, its overflow shown): luminance < 120 at 2× DPR. */
+  async function stemAbove(p) {
+    const g = await p.evaluate(() => {
+      const q = document.querySelector('.sae-mcq-q'); const cs = getComputedStyle(q); const r = q.getBoundingClientRect();
+      window.__b8h = [];
+      document.querySelectorAll('.sae-mcq-opts, details.sae-mcq-coach, .sae-mcq-coach-line, .sae-mcq-passage, .sae-mcq-head, .sae-fb').forEach((e) => { window.__b8h.push(e); e.style.visibility = 'hidden'; });
+      q.style.overflow = 'visible';
+      return { top: r.top + parseFloat(cs.borderTopWidth), bottom: r.bottom };
+    });
+    const y0 = Math.max(0, Math.floor(g.top - 30)); const y1 = Math.min(640, Math.ceil(g.bottom));
+    const png = await p.screenshot({ clip: { x: 0, y: y0, width: 360, height: y1 - y0 } });
+    const first = await p.evaluate(async ([b64, top]) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const gg = c.getContext('2d'); gg.drawImage(img, 0, 0);
+      const d = gg.getImageData(0, 0, c.width, c.height).data;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) { const i = (y * c.width + x) * 4; if (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] < 120) return top + y / 2; }
+      return null;
+    }, [png.toString('base64'), y0]);
+    await p.evaluate(() => { window.__b8h.forEach((e) => { e.style.visibility = ''; }); document.querySelector('.sae-mcq-q').style.overflow = ''; });
+    return first == null ? null : +Math.max(0, g.top - first).toFixed(1);
+  }
+  const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
+  const SHOT = { listening: 'listening', option2: 'speaking', chosen: 'chosen', feedback: 'feedback', foldopen: 'foldopen' };
+  /** Every MCQ practice state of the served practice question, in one walk. */
+  async function walk(lang, ui) {
+    const out = {}; const taps = {};
+    const shots = process.env.SA_B8_SHOTS || null;
+    const snap = async (p, name) => {
+      await p.waitForTimeout(200);
+      out[name] = await p.evaluate(measure);
+      out[name].stem_above = await stemAbove(p);
+      if (shots && SHOT[name] && ui.r9_skip_instructions) await p.screenshot({ path: path.join(shots, `b8_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
+    };
+    let { ctx, p } = await open(lang, ui);
+    await snap(p, 'listening');
+    await endLine(p, 900); // the question ends; the swallow, then option 1 is read
+    for (let k = 1; k <= 4; k++) { await snap(p, `option${k}`); await endLine(p, k < 4 ? 600 : 300); }
+    await snap(p, 'open'); // the read-out over, no choice
+    await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = true; d.dispatchEvent(new Event('toggle')); });
+    await snap(p, 'foldopen');
+    if (ui.r9_skip_instructions) {
+      // the open fold is modal (B.3): the tap at the Skip's centre only closes it; the Skip does not fire
+      const sk = out.foldopen.skip;
+      const n0 = await p.evaluate(() => window.__ev.length);
+      await p.mouse.click(sk.left + sk.w / 2, sk.top + sk.h / 2);
+      await p.waitForTimeout(150);
+      taps.foldopen = await p.evaluate((n) => ({ phase: window.__runner.view().phase, fold_open: !!document.querySelector('details.sae-mcq-coach[open]'),
+        events: window.__ev.slice(n).map((e) => ({ type: e.type, by: e.by, card: e.card })) }), n0);
+      await p.waitForTimeout(400); // past the ghost window
+    } else {
+      await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = false; d.dispatchEvent(new Event('toggle')); });
+      await p.waitForTimeout(400);
+    }
+    await snap(p, 'foldclosed');
+    await p.evaluate(() => document.querySelectorAll('.sae-mcq-opt')[3].click()); // a wrong card, held
+    await snap(p, 'chosen');
+    await p.waitForTimeout(900); // settle + press: the practice's feedback
+    out.feedback = await p.evaluate(measure);
+    out.feedback.stem_above = await stemAbove(p);
+    if (shots && ui.r9_skip_instructions) await p.screenshot({ path: path.join(shots, `b8_practice_feedback_${lang}_phone_coach.png`) });
+    await p.waitForTimeout(1600); // the retry: the same question read again
+    for (let k = 0; k < 5; k++) await endLine(p, k === 0 ? 900 : 600);
+    await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelectorAll('.sae-mcq-opt')[2].click()); // wrong again: the right card shown
+    await p.waitForTimeout(1150);
+    out.feedback_shown = await p.evaluate(measure);
+    out.feedback_shown.stem_above = await stemAbove(p);
+    await ctx.close();
+    if (ui.r9_skip_instructions) {
+      // the fold closed: the Skip's tap during option 2's clip lands on the Ready screen; nothing later is said or lit
+      ({ ctx, p } = await open(lang, ui));
+      await endLine(p, 900); await endLine(p, 600); // option 2 lit, its clip playing
+      const before = await p.evaluate(measure);
+      const sk = before.skip;
+      const n0 = await p.evaluate(() => ({ ev: window.__ev.length, speaks: window.__speaks.length }));
+      await p.mouse.click(sk.left + sk.w / 2, sk.top + sk.h / 2);
+      const t0 = Date.now();
+      await p.waitForTimeout(100);
+      const after = await p.evaluate((n) => ({ phase: window.__runner.view().phase, ready_drawn: !!document.querySelector('.sae-ready'),
+        events: window.__ev.slice(n.ev).map((e) => e.type) }), n0);
+      await endLine(p, 1500); // the clip in flight ends; the read-out must not go on
+      const later = await p.evaluate((n) => ({ speaks_after: window.__speaks.slice(n.speaks).map((s) => s.clip), lit: document.querySelectorAll('.sae-mcq-opt.is-speaking').length, phase: window.__runner.view().phase }), n0);
+      taps.foldclosed = Object.assign({ lit_before: before.cards.map((c) => /is-speaking/.test(c.cls)), ms_to_check: Date.now() - t0 }, after, later);
+      await ctx.close();
+    }
+    return { out, taps };
+  }
+
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}: every practice state — the head row whole on the phone with the Skip on one line at its served font, pinned, ≥ 24 px from the replay; the stem, the cards and the ring as without the Skip`, async () => {
+      const base = (await walk(lang, Object.assign({}, SERVED, { r9_skip_instructions: false }))).out;
+      const { out, taps } = await walk(lang, SERVED);
+      const order = ['listening', 'option1', 'option2', 'option3', 'option4', 'open', 'foldopen', 'foldclosed', 'chosen', 'feedback'];
+      expect(Object.keys(out).sort()).toEqual(order.concat('feedback_shown').sort());
+      sizes[lang] = { states: out, taps, without_skip: Object.fromEntries(Object.entries(base).map(([k, m]) => [k, { head_h: m.head.h, chip: m.chip, cards_top: m.cards.map((c) => c.top), ring_margin: m.ring_margin, stem_top: m.stem.top }])) };
+      const label = lang === 'ur' ? 'ہدایات چھوڑیں' : 'Skip instructions';
+      const at = out.listening;
+      for (const s of order) {
+        const m = out[s];
+        expect({ s, phase: m.phase }).toEqual({ s, phase: 'practice' });
+        // (a) every head child inside 0–360, whole, hit at its centre; (b) the row does not overflow
+        m.kids.forEach((k) => expect({ s, cls: k.cls, inside: k.left >= 0 && k.right <= 360, whole: k.whole, hit: k.hit }).toEqual({ s, cls: k.cls, inside: true, whole: true, hit: true }));
+        expect({ s, row_over: m.head.sw > m.head.cw + 0.5 }).toEqual({ s, row_over: false });
+        // (c) the Skip: present, one line at the served font, the label as served, ≥ 48 px tall, pinned in the head
+        expect(m.skip).not.toBeNull();
+        expect({ s, text: m.skip.text, lines: m.skip.lines, ellipsis: m.skip.ellipsis, font_ok: m.skip.font >= (lang === 'ur' ? 20 : 18), cp_ok: m.skip.cp <= 20, tall: m.skip.h >= 48 })
+          .toEqual({ s, text: label, lines: 1, ellipsis: false, font_ok: true, cp_ok: true, tall: true });
+        expect({ s, left: m.skip.left, w: m.skip.w, h: m.skip.h, off: +(m.skip.top - m.head.top).toFixed(1) })
+          .toEqual({ s, left: at.skip.left, w: at.skip.w, h: at.skip.h, off: +(at.skip.top - at.head.top).toFixed(1) });
+        // the chip yields to the Skip (means ii): the practice coach line says it is practice
+        expect({ s, chip: m.chip }).toEqual({ s, chip: false });
+        // (d′) the child's replay and the coach's Skip ≥ 24 px apart
+        expect({ s, edge_ok: m.replay_skip_edge >= 24 }).toEqual({ s, edge_ok: true });
+        // (d) the head's height kept and equal; the stem whole at its top; the cards and the ring where they are without the Skip
+        expect({ s, head_h: m.head.h, head_ok: m.head.h >= 56 }).toEqual({ s, head_h: at.head.h, head_ok: true });
+        expect({ s, stem_above: m.stem_above }).toEqual({ s, stem_above: 0 });
+        // below the head nothing moves against the screen without the Skip: the stem and every card keep their distance
+        // from the head's bottom, and the head is never taller (UR: the chip's 72 px row gives way to 56)
+        const rel = (x) => ({ stem: +(x.stem.top - x.head.bottom).toFixed(1), cards: x.cards.map((c) => +(c.top - x.head.bottom).toFixed(1)) });
+        expect({ s, rel: rel(m), head_not_taller: m.head.h <= base[s].head.h }).toEqual({ s, rel: rel(base[s]), head_not_taller: true });
+        if (lang === 'en') {
+          expect({ s, page_h: m.page_h, inner_scroll: m.inner_scroll }).toEqual({ s, page_h: m.vh, inner_scroll: 0 });
+          expect({ s, ring_ok: m.ring_margin >= 8 }).toEqual({ s, ring_ok: true });
+        } else {
+          // the Urdu practice screen (passage + stem + four cards + the feedback line under them) does not fit 640 with
+          // or without the Skip (reported for a ruling): the Skip never makes it worse
+          expect({ s, inner_not_worse: m.inner_scroll <= base[s].inner_scroll, ring_not_worse: m.ring_margin >= base[s].ring_margin }).toEqual({ s, inner_not_worse: true, ring_not_worse: true });
+        }
+      }
+      // the second wrong answer ends the practice (the runner is on its Ready screen while the feedback shows): no Skip
+      expect({ phase: out.feedback_shown.phase, skip: out.feedback_shown.skip, fb: !!out.feedback_shown.fb }).toEqual({ phase: 'ready', skip: null, fb: true });
+      expect(out.feedback.fb).not.toBeNull();
+      expect(out.feedback_shown.fb).not.toBeNull();
+      expect(/is-speaking/.test(out.option2.cards[1].cls)).toBe(true);
+      expect(/is-chosen/.test(out.chosen.cards[3].cls)).toBe(true);
+      expect(out.foldopen.fold_open).toBe(true);
+      // the fold open: the tap at the Skip's centre closes the fold (modal), the Skip does not fire
+      expect(taps.foldopen).toEqual({ phase: 'practice', fold_open: false, events: [{ type: 'fold_close', by: 'tap', card: null }] });
+      // the fold closed: the same tap skips to the part's Ready screen; nothing later is said or lit
+      expect({ lit_before: taps.foldclosed.lit_before[1], phase: taps.foldclosed.phase, ready: taps.foldclosed.ready_drawn, skipped: taps.foldclosed.events.includes('skip_instructions'),
+        speaks_after: taps.foldclosed.speaks_after, lit: taps.foldclosed.lit })
+        .toEqual({ lit_before: true, phase: 'ready', ready: true, skipped: true, speaks_after: [], lit: 0 });
+    }, 240000);
+  }
+});
+
 describe('sa_r28_mcq CSS: the coach-led phone fit leaves RDF auto and the tablet as they were (B.3, coach-led fit)', () => {
   const fs = require('fs');
   const css = fs.readFileSync(path.join(__dirname, '../sa/sa.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

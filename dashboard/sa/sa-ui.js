@@ -2861,9 +2861,13 @@
       // B.3 coach-led fit: the coach's Next sits in the head row beside the replay, never in the foot, so its arrival
       // never moves the cards or the replay (the head row is the replay's height either way)
       var headNext = manual ? next : null;
+      // round 8 (row 30): the coach's Skip instructions (r9, coach-led practice) takes the practice chip's place in the
+      // head row, so Jugnu, the replay and the Skip keep one row at the served font on a 360 px phone; the practice
+      // coach line already tells the coach it is practice
+      var skipB = practice ? skipInstrBtn(v) : null;
       var s = screen(v, 'sae-run sae-mcq' + (practice ? ' sae-mcq-practice' : '') + (S.phase === 'listening' && S.read_end == null && !fb ? ' sae-mcq-listening' : ''), [
         t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
-        h('div', { class: 'sae-row sae-mcq-head' }, [j, practice ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, practice ? skipInstrBtn(v) : null, headNext]),
+        h('div', { class: 'sae-row sae-mcq-head' }, [j, practice && !skipB ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, skipB, headNext]),
         mcqCoachLine(),
         mcqCoach(it, t),
         practice && it.passage ? h('p', { class: 'sae-mcq-passage', lang: tl, dir: d, text: tx(it.passage) }) : null,
