@@ -719,8 +719,7 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
   const pending = clockPending(deps, res);
   const numbers = timedNumbers(rows, res, { stopped, attemptedTo: reached == null ? null : Math.min(reached, items.length), pending });
-  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rec.items, rows, numbers, { stopped, pending, res }), ...(r28 ? { letterGate: true } : {}) };
-  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rows, numbers, { stopped, pending, res }) };
+  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rows, numbers, { stopped, pending, res }), ...(r28 ? { letterGate: true } : {}) };
 }
 
 // sa_r28_ceiling (C-7, red team C9): a final cell on show for less than this at time up was presented, not attempted
