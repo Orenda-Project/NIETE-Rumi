@@ -152,6 +152,31 @@ describe('Questions', () => {
     await waitFor(() => expect(screen.queryByRole('textbox', { name: C.typeCount('MCQs') })).toBeNull());
   });
 
+  // The drawer's cards used to shrink to fit 88% of the screen and hide their rows (G1 English: 4 of 18 visible, no
+  // scroll). Now only the list scrolls, under sticky group names, with the count and Done pinned below it.
+  it('the types drawer scrolls only its list; title, count and Done stay put', async () => {
+    setPicks(picks({ typesSeeded: true, seen: 5, typeCounts: { MCQs: 4 } }));
+    at(newPaperPath('questions'), newPaperPath('questions'), <QuestionsStep />);
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.addType) }));
+    const tray = await screen.findByTestId('types-tray');
+    expect(tray.className).toContain('max-h-[calc(100dvh');
+
+    const list = within(tray).getByTestId('types-list');
+    for (const c of ['min-h-0', 'flex-1', 'overflow-y-auto']) expect(list.className.split(' ')).toContain(c);
+    for (const name of [C.objective, C.written]) {
+      expect(within(list).getByText(name).className.split(' ')).toContain('sticky');
+    }
+    const boxes = within(tray).getAllByRole('checkbox');
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const b of boxes) expect(list.contains(b)).toBe(true);
+
+    const foot = within(tray).getByTestId('types-foot');
+    expect(foot.className.split(' ')).toContain('shrink-0');
+    expect(list.contains(foot)).toBe(false);
+    expect(within(foot).getByText(C.typesCap(1, 8))).toBeTruthy();
+    expect(within(foot).getByRole('button', { name: C.done })).toBeTruthy();
+  });
+
   it('at 1 the minus is a bin: one more tap takes the type off the page', async () => {
     setPicks(picks({ typesSeeded: true, seen: 5, typeCounts: { MCQs: 4, 'True/False': 2 } }));
     at(newPaperPath('questions'), newPaperPath('questions'), <QuestionsStep />);
