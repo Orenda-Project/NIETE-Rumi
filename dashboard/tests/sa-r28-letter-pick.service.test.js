@@ -967,6 +967,9 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     const ev = (m, type) => m.events.filter((e) => e.type === type);
     const open = (m) => { fold(m).open = true; fold(m).dispatchEvent(new dom.window.Event('toggle')); };
     const shut = (m) => { fold(m).open = false; fold(m).dispatchEvent(new dom.window.Event('toggle')); };
+    /** A6: the ghost-click guard's clock (performance.now) moved 1 s on, so the next tap is past it. */
+    const pastGuard = () => { const n = performance.now(); jest.spyOn(performance, 'now').mockImplementation(() => n + 1000); };
+    afterEach(() => { jest.restoreAllMocks(); });
     /** Coach-led, the item on show, its first sound played and ended (instant clips), past the pre-sound window. */
     async function live(o) {
       const m = mount(Object.assign({ manual: true, practice: false, instant: true }, o || {}));
@@ -1064,6 +1067,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(cards(m)[3].classList.contains('is-pressed')).toBe(false);
       expect(fold(m).open).toBe(false);
       expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ task_id: 'ur.letter_pick10', item_id: it.id, by: 'tap', card: 3 })]);
+      pastGuard(); // past the 300 ms ghost-click guard (A6): its clock (performance.now) moved on
       cards(m)[3].click();
       const a = m.r.snapshot().current.answers;
       expect(a).toHaveLength(1);
@@ -1089,18 +1093,19 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(clipCalls(m)).toHaveLength(before);
       expect(ev(m, 'replay')).toHaveLength(0);
       expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ by: 'tap', card: null })]);
+      pastGuard(); // past the 300 ms ghost-click guard (A6): its clock (performance.now) moved on
       m.el.querySelector('.sae-pick-replay').click();
       expect(clipCalls(m)).toHaveLength(before + 1);
       expect(ev(m, 'replay')).toEqual([expect.objectContaining({ value: 'child' })]);
     });
 
-    test('the fold\'s own replay button: the fold closes first (by tap, card null), then the sound plays', async () => {
+    test('the fold\'s own replay button: the fold closes first (by replay, card null), then the sound plays', async () => {
       const m = await live();
       const before = clipCalls(m).length;
       open(m);
       fold(m).querySelector('button.sae-pick-coach-replay').click();
       expect(fold(m).open).toBe(false);
-      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ by: 'tap', card: null })]);
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ by: 'replay', card: null })]);
       expect(clipCalls(m)).toHaveLength(before + 1);
       expect(ev(m, 'replay')).toEqual([expect.objectContaining({ value: 'coach' })]);
     });
@@ -1128,6 +1133,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       m.el.querySelector('.sa-next').click();
       expect(m.r.view().item_index).toBe(0);
       expect(fold(m).open).toBe(false);
+      pastGuard(); // past the 300 ms ghost-click guard (A6): its clock (performance.now) moved on
       m.el.querySelector('.sa-next').click();
       expect(m.r.view().item_index).toBe(1);
     });
@@ -1142,6 +1148,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       cards(m)[0].click();
       expect(pa).not.toHaveBeenCalled();
       expect(fold(m).open).toBe(false);
+      pastGuard(); // past the 300 ms ghost-click guard (A6): its clock (performance.now) moved on
       cards(m)[0].click();
       expect(pa).toHaveBeenCalledTimes(1);
     });
@@ -1154,6 +1161,147 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       cards(m)[2].click();
       expect(m.r.snapshot().current.answers).toHaveLength(1);
       expect(ev(m, 'fold_open').concat(ev(m, 'fold_close'))).toEqual([]);
+    });
+  });
+
+  describe('round 28 A6: the ghost-click guard after the fold closes, the fold replay closes by replay, every fold_open has its close (SPEC A.6)', () => {
+    const cards = (m) => m.el.querySelectorAll('.sae-pick-cards .sae-opt');
+    const fold = (m) => m.el.querySelector('details.sae-pick-coach');
+    const ev = (m, type) => m.events.filter((e) => e.type === type);
+    const open = (m) => { fold(m).open = true; fold(m).dispatchEvent(new dom.window.Event('toggle')); };
+    /** The guard's clock is performance.now(): held by the test, moved by hand. */
+    let T = 0;
+    let perf = null;
+    beforeEach(() => { T = 100000; perf = jest.spyOn(performance, 'now').mockImplementation(() => T); });
+    afterEach(() => { if (perf) perf.mockRestore(); });
+    async function live(o) {
+      const m = mount(Object.assign({ manual: true, practice: false, instant: true }, o || {}));
+      toRunning(m);
+      await wait(360 + 500);
+      return m;
+    }
+
+    test('scored item: fold open → the first tap closes it → a tap on card 2 at +200 ms is a ghost (no answer, not pressed, one ghost_tap {ms_after_close 200, card 1}) → card 2 at +400 ms answers once', async () => {
+      const m = await live();
+      const it = m.r.view().item;
+      open(m);
+      cards(m)[3].click(); // the first tap: closes the fold only
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ item_id: it.id, by: 'tap', card: 3 })]);
+      T += 200;
+      cards(m)[1].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(Array.from(cards(m)).some((c) => c.classList.contains('is-pressed') || c.classList.contains('is-chosen'))).toBe(false);
+      expect(ev(m, 'ghost_tap').map((e) => ({ task_id: e.task_id, item_id: e.item_id, ms_after_close: e.ms_after_close, card: e.card })))
+        .toEqual([{ task_id: 'ur.letter_pick10', item_id: it.id, ms_after_close: 200, card: 1 }]);
+      T += 200;
+      cards(m)[1].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ item_id: it.id, value: it.options[1] });
+      expect(ev(m, 'ghost_tap')).toHaveLength(1);
+    });
+
+    test('the summary close arms the guard too; a tap at +299 ms is a ghost, at +300 ms it answers', async () => {
+      const m = await live();
+      open(m);
+      fold(m).open = false; fold(m).dispatchEvent(new dom.window.Event('toggle')); // the coach folds it (by summary)
+      T += 299;
+      cards(m)[0].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(ev(m, 'ghost_tap')).toEqual([expect.objectContaining({ ms_after_close: 299, card: 0 })]);
+      T += 1;
+      cards(m)[0].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(1);
+    });
+
+    test('practice P2: the same guard (no practice answer at +200 ms, one ghost_tap; one at +400 ms)', async () => {
+      const m = mount({ manual: true, instant: true });
+      m.r.start(); m.r.instructionDone(); m.r.practiceModelled();
+      m.view.render();
+      await wait(360 + 500);
+      const p2 = m.r.view().practice;
+      const pa = jest.spyOn(m.r, 'practiceAnswer');
+      open(m);
+      cards(m)[0].click();
+      T += 200;
+      cards(m)[1].click();
+      expect(pa).not.toHaveBeenCalled();
+      expect(ev(m, 'ghost_tap')).toEqual([expect.objectContaining({ item_id: p2.id, ms_after_close: 200, card: 1 })]);
+      T += 200;
+      cards(m)[1].click();
+      expect(pa).toHaveBeenCalledTimes(1);
+    });
+
+    test('RDF auto (no fold): two fast taps never log ghost_tap', async () => {
+      const m = mount({ practice: false, instant: true });
+      toRunning(m);
+      await wait(360 + 500);
+      cards(m)[1].click();
+      T += 100;
+      cards(m)[2].click();
+      expect(ev(m, 'ghost_tap')).toEqual([]);
+      expect(m.r.snapshot().current.answers).toHaveLength(1);
+    });
+
+    test('the fold\'s own replay: fold_close {by: replay, card: null} then the replay event; the child\'s pill under an open fold: fold_close {by: tap}, no replay, no sound', async () => {
+      const m = await live();
+      const before = clipCalls(m).length;
+      open(m);
+      fold(m).querySelector('button.sae-pick-coach-replay').click();
+      const seq = m.events.filter((e) => e.type === 'fold_close' || e.type === 'replay').map((e) => [e.type, e.by === undefined ? e.value : e.by, e.card === undefined ? '-' : e.card]);
+      expect(seq).toEqual([['fold_close', 'replay', null], ['replay', 'coach', '-']]);
+      expect(clipCalls(m)).toHaveLength(before + 1);
+      T += 1000;
+      open(m);
+      m.el.querySelector('.sae-pick-replay').click();
+      expect(ev(m, 'fold_close').slice(1)).toEqual([expect.objectContaining({ by: 'tap', card: null })]);
+      expect(ev(m, 'replay')).toHaveLength(1);
+      expect(clipCalls(m)).toHaveLength(before + 1);
+    });
+
+    test('a fold opened in the 400 ms press window: the item change logs one fold_close {by: item, card: null} for the old item; the new item is drawn folded, no fold_open for it', async () => {
+      const m = await live();
+      const old = m.r.view().item;
+      cards(m)[0].click(); // answered: the pressed card, the next item 400 ms away
+      expect(m.r.snapshot().current.answers).toHaveLength(1);
+      open(m); // the coach opens the fold inside the press window
+      await wait(450);
+      m.view.render();
+      const now = m.r.view().item;
+      expect(now.id).not.toBe(old.id);
+      expect(fold(m).open).toBe(false);
+      expect(ev(m, 'fold_open').map((e) => e.item_id)).toEqual([old.id]);
+      expect(ev(m, 'fold_close').map((e) => ({ task_id: e.task_id, item_id: e.item_id, by: e.by, card: e.card })))
+        .toEqual([{ task_id: 'ur.letter_pick10', item_id: old.id, by: 'item', card: null }]);
+      // the new item is not under an orphaned modal: its sound plays and a tap answers
+      await wait(360 + 500);
+      T += 1000;
+      cards(m)[2].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(2);
+    });
+
+    test('the modal reads the fold\'s live state: a summary click and a card click in the same tick → no answer, one fold_close (by tap)', async () => {
+      const m = await live();
+      fold(m).querySelector('summary').click(); // the browser opens it at once; its toggle event comes later
+      cards(m)[1].click();                      // the second finger, before that toggle
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(Array.from(cards(m)).some((c) => c.classList.contains('is-pressed'))).toBe(false);
+      await wait(20); // the queued toggle (now closed) changes nothing
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ by: 'tap', card: 1 })]);
+      expect(ev(m, 'fold_open')).toHaveLength(1);
+      expect(fold(m).open).toBe(false);
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+    });
+
+    test('a fold no longer on the screen (redrawn before its toggle arrived) changes nothing: no fold_open, the next tap answers', async () => {
+      const m = await live();
+      fold(m).querySelector('summary').click(); // opened at once, its toggle event queued
+      m.view.render();                          // a redraw replaces the fold before that toggle arrives
+      await wait(20);
+      expect(fold(m).open).toBe(false);
+      expect(ev(m, 'fold_open')).toEqual([]);
+      cards(m)[2].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(1);
     });
   });
 });
@@ -1332,7 +1480,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const snap = async (p, name, wait) => {
       if (wait !== 0) await p.waitForTimeout(wait || 250);
       out[name] = await p.evaluate(measure);
-      if (shots) await p.screenshot({ path: path.join(shots, `a5_${name}_${lang}_phone_coach.png`) });
+      if (shots) await p.screenshot({ path: path.join(shots, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_${name}_${lang}_phone_coach.png`) });
     };
     let { ctx, p } = await open();
     await snap(p, 'listening');
@@ -1372,10 +1520,93 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     await ctx.close();
     return out;
   }
+  /**
+   * A6 (U2 for the coach's own line, the MCQ coach line's bar): the picker's coach line (C.pick_coach_line) shown alone
+   * (every other element hidden), its text split at its line breaks into spans laid out exactly as before, one line's
+   * text drawn at a time; ink = luminance < 120 with that line drawn and >= 120 with no text drawn, 2x DPR. → each
+   * line's ink rows, the gaps between them, and the last ink against the line's clip box (inside its border) and the
+   * fold's box top.
+   */
+  async function coachInk(lang) {
+    const { html } = page(lang);
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    await p.route('**/*', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+      if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+      if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await p.goto('http://sa.test/');
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(500);
+    await p.evaluate(() => window.__end());
+    await p.waitForTimeout(250);
+    const geo = await p.evaluate(() => {
+      const el = document.querySelector('.sae-pick-coach-line'); const tn = el.firstChild; const s = tn.textContent;
+      const h0 = el.getBoundingClientRect().height;
+      const r = document.createRange(); const tops = []; const starts = [];
+      for (let i = 0; i < s.length; i++) {
+        r.setStart(tn, i); r.setEnd(tn, i + 1);
+        const rc = r.getClientRects()[0];
+        if (!rc || !rc.width) continue;
+        const t = Math.round(rc.top);
+        if (!tops.length || Math.abs(t - tops[tops.length - 1]) > 4) { tops.push(t); starts.push(i); }
+      }
+      el.textContent = '';
+      starts.forEach((st, k) => { const sp = document.createElement('span'); sp.className = 'a6-line'; sp.textContent = s.slice(st, k + 1 < starts.length ? starts[k + 1] : s.length); el.appendChild(sp); });
+      const b = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+      const keep = new Set(); let n = el; while (n) { keep.add(n); n = n.parentElement; }
+      const fold = document.querySelector('details.sae-pick-coach').getBoundingClientRect();
+      document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !el.contains(x)) x.style.visibility = 'hidden'; });
+      return { lines: starts.length, same_layout: Math.abs(b.height - h0) < 0.5, top: b.top, bottom: b.bottom,
+        clip_bottom: b.bottom - parseFloat(cs.borderBottomWidth), clip_top: b.top + parseFloat(cs.borderTopWidth), fold_top: fold.top,
+        nastaliq: document.documentElement.lang !== 'ur' || document.fonts.check(cs.font, s) };
+    });
+    const clip = { x: 0, y: Math.max(0, Math.floor(geo.top) - 30), width: 360, height: 0 };
+    clip.height = Math.min(640, Math.ceil(geo.bottom) + 40) - clip.y;
+    const draw = (k) => p.evaluate((k) => document.querySelectorAll('.a6-line').forEach((sp, i) => { sp.style.color = k === i ? '' : 'transparent'; }), k);
+    await draw(-1);
+    const none = (await p.screenshot({ clip })).toString('base64');
+    const ink = [];
+    for (let k = 0; k < geo.lines; k++) {
+      await draw(k);
+      const one = (await p.screenshot({ clip })).toString('base64');
+      ink.push(await p.evaluate(async ([a, b, y0]) => {
+        const px = async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0); return { w: c.width, h: c.height, d: g.getImageData(0, 0, c.width, c.height).data }; };
+        const A = await px(a), B = await px(b);
+        const L = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        let top = null, bottom = null;
+        for (let y = 0; y < A.h; y++) for (let x = 0; x < A.w; x++) { const i = (y * A.w + x) * 4; if (L(A.d, i) < 120 && L(B.d, i) >= 120) { const cy = y0 + y / 2; if (top == null) top = cy; bottom = cy; } }
+        return { top, bottom };
+      }, [one, none, clip.y]));
+    }
+    await ctx.close();
+    const last = ink[ink.length - 1];
+    const gaps = ink.slice(1).map((x, i) => +(x.top - ink[i].bottom).toFixed(1));
+    return Object.assign(geo, { ink, gaps, min_gap: gaps.length ? Math.min.apply(null, gaps) : null,
+      below_clip_px: +Math.max(0, last.bottom + 0.5 - geo.clip_bottom).toFixed(1), below_fold_top_px: +Math.max(0, last.bottom + 0.5 - geo.fold_top).toFixed(1),
+      first_ink_above_clip_px: +Math.max(0, geo.clip_top - ink[0].top).toFixed(1) });
+  }
+  const coachInkOf = {};
+  const coachInkFor = (lang) => (coachInkOf[lang] = coachInkOf[lang] || coachInk(lang));
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}, the coach line (A6): its last line's ink is inside its clip box and nothing of it lies under the fold's box`, async () => {
+      const c = await coachInkFor(lang);
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_coachline_${lang}.json`), JSON.stringify(c, null, 1));
+      expect({ same_layout: c.same_layout, nastaliq: c.nastaliq, lines_ge_1: c.lines >= 1 }).toEqual({ same_layout: true, nastaliq: true, lines_ge_1: true });
+      expect({ below_clip_px: c.below_clip_px, below_fold_top_px: c.below_fold_top_px }).toEqual({ below_clip_px: 0, below_fold_top_px: 0 });
+    }, 120000);
+    test(`${lang}, the coach line (A6): at least 2 px of ink between each line and the next`, async () => {
+      const c = await coachInkFor(lang);
+      c.gaps.forEach((g, i) => expect({ between: [i + 1, i + 2], gap_ge_2: g >= 2, gap: g }).toEqual({ between: [i + 1, i + 2], gap_ge_2: true, gap: g }));
+    }, 120000);
+  }
   for (const lang of ['ur', 'en']) {
     test(`${lang}, the served battery: listening, after the sound, chosen, Next offered, fold open — nothing scrolls, nothing moves; the letters' ink inside their cards`, async () => {
       const r = await states(lang, process.env.SA_PICK_SHOTS || null);
-      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `a5_sizes_${lang}.json`), JSON.stringify(r, null, 1));
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_sizes_${lang}.json`), JSON.stringify(r, null, 1));
       const at = r.listening;
       expect(/is-pressed/.test(r.chosen.cards[3].cls)).toBe(true);
       expect(r.offernext.next).not.toBeNull();
