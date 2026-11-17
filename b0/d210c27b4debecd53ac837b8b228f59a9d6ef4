@@ -1,0 +1,2 @@
+{"ts":"2026-11-17T18:31:11Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan spec_sync=true","sha":"b0d210c27b4d","branch":"bd-xkkw9.2-sandbox","user":""}
+{"ts":"2026-11-17T18:31:14Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"b0d210c27b4d","branch":"bd-xkkw9.2-sandbox","user":""}
