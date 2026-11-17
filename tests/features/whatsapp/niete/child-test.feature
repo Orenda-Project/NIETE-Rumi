@@ -1239,3 +1239,32 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the check says another person spoke and part of their words were heard
     Then the flag stands when at least that share of their words was heard, and is cleared otherwise
     And a value of true uses the default share, and any other value turns the stricter check off
+
+  @e2e @wip @draft @config-gated @P1 @CT204 @no-mock-driver
+  # No mock driver: the battery route serves a JSON file to the child's page, not a chat. Asserted in
+  # dashboard/tests/sa-r28-off-identity.service.test.js and sa-r28-switches.service.test.js.
+  Scenario: With every sa_r28_* switch off, the battery a phone receives is exactly today's
+    Given the built battery carries the listen-and-tap letter sounds, the spoken MCQ and the extension items
+    And sa_r28_letter_pick, sa_r28_mcq and sa_r28_ceiling are all off
+    When a phone fetches any coach form battery
+    Then it receives today's battery byte for byte: no new task, no extension item, no round-28 line, no round-28 flag
+    And a scripted child through the Urdu and the English RDF auto forms produces today's events and results
+
+  @e2e @wip @draft @config-gated @P1 @CT205 @no-mock-driver
+  # No mock driver: as @CT204. Asserted in dashboard/tests/sa-r28-switches.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the listen-and-tap letter sounds take the place of the read-aloud ones
+    Given sa_r28_letter_pick is on
+    When a phone fetches a coach form battery
+    Then the RDF auto and RDF manual lists name the listen-and-tap letter-sound task where the read-aloud one was
+    And the read-aloud letter-sound task is not in the battery
+    And the battery carries the round-28 lines for that task and the flag the engine reads
+    And with sa_r28_mcq on, the spoken MCQ takes the place of the spoken story questions the same way, keeping its gate
+
+  @e2e @wip @draft @config-gated @P1 @CT206 @no-mock-driver
+  # No mock driver: as @CT204. Asserted in dashboard/tests/sa-r28-switches.service.test.js.
+  Scenario: With sa_r28_ceiling on, a timed task's grid runs past today's first items
+    Given sa_r28_ceiling is on
+    When a phone fetches a coach form battery
+    Then every timed letter, word, number and quick-sum task carries its extension items after today's first ones
+    And its grid lists every item in order, and the task says how many of them are today's
+    And with the switch off those items are sliced away and the task is exactly today's
