@@ -31,9 +31,10 @@ const comp = { id: 'ur.story_comp_w3', w3: true, response: 'oral', items: [{ id:
 const mcq = { id: 'ur.story_mcq_w3', w3: true, r28: 'mcq', replaces: 'ur.story_comp_w3', kind: 'mcq', response: 'tap',
   items: [{ id: 'ur.story_w3.q1', options: ['a', 'b', 'c', 'd'], target_index: 1 }], depends_on: { task: 'ur.story_w3', upto_item: 'last_word_tap' } };
 const words = { id: 'ur.words4', w3: true, response: 'record', present: 'one_at_a_time', time_limit_s: 60, base_n: 2,
-  grid: ['بچہ', 'گھر', 'پانی', 'کتاب'],
-  items: [{ id: 'ur.words4.01', show: 'بچہ', target: 'بچہ' }, { id: 'ur.words4.02', show: 'گھر', target: 'گھر' },
-    { id: 'ur.words4.03', show: 'پانی', target: 'پانی', ext: true }, { id: 'ur.words4.c2.01', show: 'کتاب', target: 'کتاب', ext: true, cycle: 2, repeat_of: 'ur.words4.01' }] };
+  grid: ['بچہ', 'گھر'],
+  items: [{ id: 'ur.words4.01', show: 'بچہ', target: 'بچہ' }, { id: 'ur.words4.02', show: 'گھر', target: 'گھر' }],
+  ext_items: [{ id: 'ur.words4.03', show: 'پانی', target: 'پانی', ext: true, src: 'x' }, { id: 'ur.words4.04', show: 'کتاب', target: 'کتاب', ext: true, src: 'x' }],
+  ext_stop: { type: 'first_row', n: 5 } };
 const story = { id: 'ur.story_w3', w3: true, response: 'record', passage: { text: 'x' }, items: [] };
 const BUILT = {
   battery_id: 'b', lang: 'ur',
@@ -41,17 +42,18 @@ const BUILT = {
   rdf_manual: ['ur.letter_sounds5', 'ur.words4', 'ur.story_w3', 'ur.story_comp_w3'],
   lines: { welcome: { text: 'hi', audio: 'sa/v1/ur/a.mp3' } },
   lines_r28: { lp_intro: { text: 'listen', audio: 'sa/v5/ur/b.mp3', r28: 'letter_pick' }, mcq_intro: { text: 'four', audio: 'sa/v5/ur/c.mp3', r28: 'mcq' } },
+  r28_tasks: ['ur.letter_pick10', 'ur.story_mcq_w3'],
   tasks: [sounds, pick, words, story, comp, mcq],
 };
-// What a phone received before round 28: no r28 task, no extension item, no `base_n`, no round-28 line.
+// What a phone received before round 28: no r28 task or list, no extension item, no `base_n`, no round-28 line.
+const { base_n: _bn, ext_items: _ei, ext_stop: _es, ...wordsToday } = words;
 const TODAY = {
   battery_id: 'b', lang: 'ur',
   rdf_auto: ['ur.letter_sounds5', 'ur.words4', 'ur.story_w3', 'ur.story_comp_w3'],
   rdf_manual: ['ur.letter_sounds5', 'ur.words4', 'ur.story_w3', 'ur.story_comp_w3'],
   lines: { welcome: { text: 'hi', audio: 'sa/v1/ur/a.mp3' } },
-  tasks: [sounds, { ...words, grid: ['بچہ', 'گھر'], items: words.items.slice(0, 2), base_n: undefined }, story, comp],
+  tasks: [sounds, wordsToday, story, comp],
 };
-delete TODAY.tasks[1].base_n;
 const ids = (b, key = 'tasks') => (key === 'tasks' ? b.tasks.map((t) => t.id) : b[key]);
 
 describe('round 28 battery switches (sa-battery-switches.js)', () => {
@@ -66,6 +68,7 @@ describe('round 28 battery switches (sa-battery-switches.js)', () => {
     const out = applySwitches(BUILT, OFF);
     expect(out).toEqual(TODAY);
     expect(out.ui).toBeUndefined();
+    expect(out.r28_tasks).toBeUndefined();
   });
 
   test('all OFF on a battery with nothing of round 28: the battery as before (the round adds no key)', () => {
@@ -100,9 +103,12 @@ describe('round 28 battery switches (sa-battery-switches.js)', () => {
   test('sa_r28_ceiling ON: the extension items and base_n stay, the grid is the whole list, the lists are untouched', () => {
     const out = applySwitches(BUILT, { ...OFF, r28Ceiling: true });
     const w = out.tasks.find((t) => t.id === 'ur.words4');
-    expect(w.items.map((i) => i.id)).toEqual(['ur.words4.01', 'ur.words4.02', 'ur.words4.03', 'ur.words4.c2.01']);
+    expect(w.items.map((i) => i.id)).toEqual(['ur.words4.01', 'ur.words4.02', 'ur.words4.03', 'ur.words4.04']);
     expect(w.grid).toEqual(['بچہ', 'گھر', 'پانی', 'کتاب']);
     expect(w.base_n).toBe(2);
+    expect(w.ext_items).toBeUndefined();
+    expect(w.ext_stop).toBeUndefined();
+    expect(out.r28_tasks).toBeUndefined();
     expect(ids(out)).toEqual(['ur.letter_sounds5', 'ur.words4', 'ur.story_w3', 'ur.story_comp_w3']);
     expect(out.ui).toEqual({ r28_ceiling: true });
   });
