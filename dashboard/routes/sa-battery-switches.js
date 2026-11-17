@@ -263,14 +263,23 @@ function withoutW3(battery) {
  *   r28_tasks           the builder's list of the round's task ids (how they reach `tasks[]`): never served.
  *   lines_r28           the round's own lines, each `{ text, audio, r28: <kind> }`: a line joins `lines` (without the
  *                       `r28` key) when its kind's switch is ON; the `lines_r28` key never reaches a phone.
+ *   r28_accept          on the EN familiar words: each item's `accept` holds the local forms that keep the same word,
+ *                       which the scorer reads from the battery file (the words prompt); a phone never receives them,
+ *                       OFF or ON, so the task goes out without `r28_accept` and its items (and ext_items) without `accept`.
  *   Each ON adds battery.ui.r28_<x> = true for the engine (UI). A battery with nothing of round 28 comes back as it is.
  */
 const R28_KINDS = { r28LetterPick: 'letter_pick', r28Mcq: 'mcq' };
 const hasExt = (t) => Boolean(t && (t.base_n != null || Array.isArray(t.ext_items) || t.ext_stop != null));
+const noAccept = (x) => { if (!x || !('accept' in x)) return x; const { accept: _a, ...rest } = x; return rest; };
+const withoutAccept = (t) => {
+  if (!t || !t.r28_accept) return t;
+  const { r28_accept: _r, ...rest } = t;
+  return { ...rest, items: t.items.map(noAccept), ...(Array.isArray(t.ext_items) ? { ext_items: t.ext_items.map(noAccept) } : {}) };
+};
 function withR28(battery, on) {
-  const tasks = battery.tasks;
+  const tasks = battery.tasks.map(withoutAccept);
   const hasTask = tasks.some((t) => t && t.r28);
-  if (!hasTask && !tasks.some(hasExt) && !battery.lines_r28 && !battery.r28_tasks) return battery;
+  if (!hasTask && !battery.tasks.some((t) => t && (hasExt(t) || t.r28_accept)) && !battery.lines_r28 && !battery.r28_tasks) return battery;
   const kinds = new Set(Object.entries(R28_KINDS).filter(([k]) => on[k] === true).map(([, kind]) => kind));
   // ON: the new task sits where the task it replaces sat; OFF: it is dropped.
   const byOld = new Map(tasks.filter((t) => t && t.r28 && kinds.has(t.r28) && t.replaces).map((t) => [t.replaces, t]));
