@@ -61,4 +61,27 @@ describe('round 28 clips under sa/v5', () => {
     const lock = JSON.parse(fs.readFileSync(path.join(DASH, 'sa', 'clips.lock.json'), 'utf8'));
     expect([...keys.keys()].filter((k) => !lock.files[`dashboard/${k}`])).toEqual([]);
   });
+
+  // SPEC A.5: tap_ms = tap - speech_end_ms (negative during the sound); tap_before_sound when the tap lands before
+  // speech_start_ms + 150. A prompt without an entry falls back to the clip-end rule, so every prompt needs one.
+  it('prompt_timings.json gives every picker prompt where its sound starts and ends inside the file', () => {
+    const prompts = new Set();
+    const walk = (x) => {
+      if (Array.isArray(x)) { x.forEach(walk); return; }
+      if (!x || typeof x !== 'object') return;
+      if (typeof x.prompt_audio === 'string' && KEY.test(x.prompt_audio)) prompts.add(x.prompt_audio);
+      Object.values(x).forEach(walk);
+    };
+    for (const n of NAMES) walk(JSON.parse(fs.readFileSync(path.join(BATTERIES, n), 'utf8')));
+    const file = path.join(V5, 'prompt_timings.json');
+    const t = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+    const bad = [...prompts].filter((k) => {
+      const e = t[k];
+      return !e || !Number.isInteger(e.speech_start_ms) || !Number.isInteger(e.speech_end_ms) || e.speech_start_ms < 0
+        || e.speech_end_ms <= e.speech_start_ms + 100 || !Number.isInteger(e.dur_ms) || e.speech_end_ms > e.dur_ms;
+    });
+    expect({ prompts: prompts.size > 0, bad }).toEqual({ prompts: true, bad: [] });
+    const lock = JSON.parse(fs.readFileSync(path.join(DASH, 'sa', 'clips.lock.json'), 'utf8'));
+    expect(Boolean(lock.files['dashboard/sa/v5/prompt_timings.json'])).toBe(true);
+  });
 });
