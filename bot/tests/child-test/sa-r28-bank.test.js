@@ -146,11 +146,36 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     }
   });
 
-  test('letter_pick10: b and m are never in one row (a pre-voiced /ba/ reads near /m/ on a phone speaker)', () => {
+  test('letter_pick10: b and m (ب and م) are never in one row (a pre-voiced /ba/ reads near /m/ on a phone speaker)', () => {
+    for (const form of COACH_FORMS) for (const [l, pair] of [['en', ['b', 'm']], ['ur', ['ب', 'م']]]) {
+      const t = byId(runtime(form, l))[`${l}.letter_pick10`];
+      for (const it of [...t.items, ...t.practice]) expect([it.id, pair.every((x) => it.options.includes(x))]).toEqual([it.id, false]);
+    }
+  });
+
+  test('letter_pick10: a vowel row never offers the vowel these children merge with it (a with e, o with u)', () => {
+    const merged = { a: 'e', o: 'u' };
     for (const form of COACH_FORMS) {
       const t = byId(runtime(form, 'en'))['en.letter_pick10'];
-      for (const it of [...t.items, ...t.practice]) expect([it.target, it.options.includes('b') && it.options.includes('m')]).toEqual([it.target, false]);
+      for (const it of t.items) if (merged[it.target]) expect([it.id, it.options.includes(merged[it.target])]).toEqual([it.id, false]);
     }
+  });
+
+  test('letter_pick10: a distractor is never the previous or the next item\'s target', () => {
+    for (const form of COACH_FORMS) for (const l of ['ur', 'en']) {
+      const items = byId(runtime(form, l))[`${l}.letter_pick10`].items;
+      items.forEach((it, i) => {
+        const near = [items[i - 1], items[i + 1]].filter(Boolean).map((x) => x.target);
+        expect([it.id, it.options.filter((o) => o !== it.target && near.includes(o))]).toEqual([it.id, []]);
+      });
+    }
+  });
+
+  test('story_mcq_w3: no option is a second right answer by the passage (water is put in the plant; bathing and toys are care too)', () => {
+    const opts = (id) => r28.mcq.questions[id].options;
+    expect(opts('en.story_w3.q4')).not.toContain('Some water');
+    expect(opts('en.story_w3.q2')).not.toContain('The teacher');
+    expect(opts('ur.story2.q5').filter((o) => /نہلا|کھلونے/.test(o))).toEqual([]);
   });
 
   test('served OFF: no r28 task, no r28_tasks, no ext_items, base_n or ext_stop anywhere', () => {

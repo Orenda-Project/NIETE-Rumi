@@ -30,7 +30,7 @@
     {
      "target": "م",
      "options": [
-      "ب",
+      "ت",
       "ف",
       "ق",
       "م",
@@ -61,7 +61,7 @@
       "ش",
       "ب",
       "د",
-      "ر",
+      "ل",
       "س"
      ],
      "say": "سَ",
@@ -210,7 +210,7 @@
       "z",
       "w",
       "y",
-      "r"
+      "h"
      ],
      "say": "za",
      "ipa": "/z/",
@@ -220,7 +220,7 @@
     {
      "target": "r",
      "options": [
-      "n",
+      "h",
       "l",
       "u",
       "r",
@@ -236,7 +236,7 @@
      "options": [
       "n",
       "u",
-      "r",
+      "y",
       "w",
       "h"
      ],
@@ -292,7 +292,7 @@
      "options": [
       "d",
       "c",
-      "e",
+      "q",
       "g",
       "a"
      ],
@@ -322,7 +322,7 @@
       "q",
       "d",
       "o",
-      "u"
+      "g"
      ],
      "say": "o",
      "ipa": "/ɒ/",
@@ -544,10 +544,10 @@
    },
    "ur.story2.q5": {
     "options": [
-     "انھیں نہلا کر",
+     "انھیں بھوکا رکھ کر",
      "وقت پر دانہ پانی دے کر",
      "انھیں پنجرے سے باہر چھوڑ کر",
-     "انھیں کھلونے دے کر"
+     "ان پر شور مچا کر"
     ],
     "target_index": 1,
     "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
@@ -578,7 +578,7 @@
    "en.story_w3.q2": {
     "options": [
      "Flowers",
-     "The teacher",
+     "Grass",
      "Trees",
      "Vegetables"
     ],
@@ -589,7 +589,7 @@
    "en.story.q2": {
     "options": [
      "Flowers",
-     "The teacher",
+     "Grass",
      "Trees",
      "Vegetables"
     ],
@@ -623,7 +623,7 @@
     "options": [
      "Some seeds",
      "The plant",
-     "Some water",
+     "Some stones",
      "His school bag"
     ],
     "target_index": 1,
@@ -634,7 +634,7 @@
     "options": [
      "Some seeds",
      "The plant",
-     "Some water",
+     "Some stones",
      "His school bag"
     ],
     "target_index": 1,
