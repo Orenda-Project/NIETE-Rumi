@@ -1,4 +1,4 @@
-// NOT @mock-lane yet — this driver is mock-CAPABLE (api.fresh, no browser DOM) and run-suite has an un-register seed, but the bot caches the teacher's registration at stack startup and the stack is shared across features, so R01/R03/R06 see the cached 'registered' state. Re-add the @mock-lane marker once the bot's user cache is invalidated on the unregister (or registration gets its own stack).
+// @mock-lane — R24–R29 only ("Is this you?", registration-itu.cjs: a NEW number per scenario). R01–R23 stay on the chrome lane: the bot caches the shared driver's registration at stack start and the stack is shared across features, so R01/R03/R06 would see the cached 'registered' state; on the mock lane they record DEFERRED.
 /* registration.feature — @e2e scenarios across the v5 Flow's five screens (bd-x7aprz.2) and the front door (R14–R19), one process.
  * Precondition: the driver must be UNREGISTERED (no name, registration flags clear — the bot's
  * isRegistered() gate) so /register opens the Flow. users.name is the only name column.
@@ -10,7 +10,7 @@ const SEARCH_EMIS = '215';
 const SEARCH_HIT = /G-7\/3-2/;
 const SEARCH_TITLE = 'IMSG G-7/3-2';
 
-exports.run = async ({ api, rec, sleep, want = () => true }) => {
+async function runChromeLane({ api, rec, sleep, want }) {
   const t = () => Date.now();
   let s, r;
   await api.resetFlow();          // a Flow remembers its screen across opens
@@ -283,4 +283,12 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { reopened: canReopen, flowOpened: o10.ok, dbName: fnLine.trim(), stillUnregistered: stillUnreg }, t() - s);
   }
   if (seedSchool) { try { api.db('purge-school'); } catch (_) {} }
+
+}
+
+exports.run = async ({ api, rec, sleep, want = () => true }) => {
+  const itu = require('../registration-itu.cjs');
+  if (api.caps && api.caps.method === 'mock') itu.deferChromeLane(rec, want); else await runChromeLane({ api, rec, sleep, want });
+  const r = await itu.drive({ api, rec, sleep, want });
+  r('R23'); r('R24'); r('R25'); r('R26'); r('R27'); r('R28'); r('R29');
 };
