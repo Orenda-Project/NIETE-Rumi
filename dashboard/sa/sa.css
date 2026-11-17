@@ -595,6 +595,10 @@ button{font:inherit;color:inherit}
 .sae-pick-replay{display:grid;place-items:center;width:50%;min-width:168px;max-width:280px;min-height:72px;margin:32px auto 0;border-radius:999px;border:3px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:36px;line-height:1;cursor:pointer;box-shadow:0 4px 0 var(--sae-accent-d);font-family:var(--sae-f)}
 .sae-pick-replay:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-accent-d)}
 .sae-pick-replay:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+/* coach-led (lead ruling A.6): the coach's line sits tight on the fold, so the five cards and the replay pill (32 px
+   below them, A.3) still fit a 360x640 phone without scrolling */
+.sae-pick .sae-pick-coach-line{margin:0 0 -6px;padding:3px 10px;font-size:15px;line-height:1.6}
+.sae-pick details.sae-pick-coach{padding:4px 12px}
 @media (min-width:700px){
   .sae-screen.sae-pick{max-width:min(94vw,760px)}
   .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
