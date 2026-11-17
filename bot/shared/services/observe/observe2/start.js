@@ -208,7 +208,10 @@ async function askedLessonOrSentFde(user, from, form, { afterLesson = false } = 
       await Obs612.sendForm(user, from, form, { live: !afterLesson && !form.coaching_session_id });
       return true;
     }
-    if (Obs612.lessonNamed(form) || !(await Obs612.asksClass(user))) return false;
+    // bd-hk2jm3: never for a GB visit (FDE is ICT's only).
+    const vc = form.visit_context || {};
+    const visit = { teacherUserId: form.teacher_user_id || null, schoolExtId: vc.school_ext_id || null };
+    if (Obs612.lessonNamed(form) || !(await Obs612.asksClass(user, visit))) return false;
     const teacherName = (form.visit_context && form.visit_context.teacher_name) || null;
     return Boolean(await Obs612.askClass(user, from, { kind: 'f', ref: form.id, teacherName }));
   } catch (err) {
