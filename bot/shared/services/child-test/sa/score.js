@@ -576,12 +576,15 @@ function echoed(q, g, sttText) {
 const MUTE = { verdict: 'not_reached', heard: '', conf: 0, no_speech: true };
 
 /**
- * E-11 (behind the r28 switches): what a gate override leaves on the item: the clip's length and what STT heard in it
- * (stt_text cut to 80 characters), when STT ran. The model's own answer is added by the caller (raw_verdict, raw_heard).
+ * E-11 (behind the r28 switches): what a gate override leaves on the item: the clip's length and how many words STT heard
+ * in it, when STT ran. The transcript itself (stt_text, cut to 80 code points) is kept ONLY where `text` is asked for: the
+ * echo override, where it is the phone's own question by construction. A speech-gate mute or the model's found:false on a
+ * coach-led clip never stores it (an adult's words, a child's name). The model's own answer is added by the caller
+ * (raw_verdict, raw_heard).
  */
-const sttNote = (heard, clip) => ({
+const sttNote = (heard, clip, { text = false } = {}) => ({
   ...(clip && Number.isFinite(Number(clip.durationSec)) ? { clip_s: round1(Number(clip.durationSec)) } : {}),
-  ...(heard && Number.isInteger(heard.words) ? { stt_words: heard.words, stt_text: Array.from(String(heard.text || '')).slice(0, 80).join('') } : {}),
+  ...(heard && Number.isInteger(heard.words) ? { stt_words: heard.words, ...(text ? { stt_text: Array.from(String(heard.text || '')).slice(0, 80).join('') } : {}) } : {}),
 });
 
 /** Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect). */
@@ -632,9 +635,10 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
   else if (letters) {
     const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time', variantB: r28 }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
-    // E-11: the model's own found:false overrides its marks; ON, each item keeps the model's verdict and what it heard
+    // E-11: the model's own found:false overrides its marks; ON, each item keeps the model's verdict and what it heard,
+    // under its own reason ('found_false': the third mute cause beside 'duration' and 'no_voice' / 'no_words')
     const raw = (k) => { const it = by.get(k + 1) || {}; return { raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') }; };
-    rows = gateOn() && json.found === false ? timedRows(items, (k) => (letterGate === true ? { ...MUTE, gate: { ...(gate || note), ...raw(k) } } : MUTE))
+    rows = gateOn() && json.found === false ? timedRows(items, (k) => (letterGate === true ? { ...MUTE, gate: { ...(gate || note), reason: 'found_false', ...raw(k) } } : MUTE))
       : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; });
   } else {
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
@@ -650,8 +654,10 @@ function reachedOf(task, res, n) {
   return Number.isInteger(res.last_item_index) ? Math.min(n, res.last_item_index + 1) : null;
 }
 
-// sa_r28_child_only_answer: the one sentence the spoken-maths prompt gains with the switch ON (OFF, unchanged)
-const CHILD_ONLY = 'Mark only the child\'s own final answer for each item (a self-correction by the child counts); ignore any other speaker (an adult or another child), and an answer the child gives or changes after another person has spoken does not count.';
+// sa_r28_child_only_answer: the one sentence the spoken-maths prompt gains with the switch ON (OFF, unchanged). An answer
+// that follows an adult's SUPPORT ("louder", "next") keeps its credit; only a number another person said, or a change to
+// it, is discounted, and the item is then marked from what the child said before (the ladder reads as a human grader's).
+const CHILD_ONLY = 'Mark only the child\'s own answer for each item (a self-correction by the child counts). Ignore every other speaker, adult or child: a number said by another person is never the child\'s answer, and a number the child repeats or changes to after another person has said it is not either; mark such an item from what the child said before the other person spoke ("w" if a different number, "s" if nothing). Other words from another person (instructions, encouragement) do not change the mark.';
 /** `childOnly` (sa_r28_child_only_answer ON) adds CHILD_ONLY after the phone's-voice sentence. */
 function oralPrompt({ lang, task, items, one, childOnly = false }) {
   const what = /fluency/.test(task.subtask || '') ? 'quick sums, as many as it can in one minute'
@@ -691,7 +697,7 @@ async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = f
     const none = gateOn() && json.found === false;
     p.at.forEach((k, j) => {
       const it = by.get(j + 1) || {};
-      got.set(k, none ? { mute: true, ...(note ? { gate: { ...note, raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') } } : {}) } : it);
+      got.set(k, none ? { mute: true, ...(note ? { gate: { ...note, reason: 'found_false', raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') } } : {}) } : it);
     });
   }
   const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? (it.gate ? { ...MUTE, gate: it.gate } : MUTE) : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
@@ -763,7 +769,7 @@ async function scoreQuestions(task, rec, row, res, deps, calls, { noEchoUr = fal
   const echo = (q, g, text) => !noEcho && echoed(q, g, text);
   // E-11: a mute (sa_r28_letter_gate ON) or an echo zero (sa_r28_no_echo_ur ON) keeps what was overridden
   const muteNote = (why, stt, clip) => (letterGate === true ? { gate: { ...sttNote(stt, clip), reason: why } } : {});
-  const echoNote = (g, stt, clip) => (noEchoUr === true ? { gate: { raw_verdict: g.verdict, raw_heard: String(g.answer || ''), ...sttNote(stt, clip) } } : {});
+  const echoNote = (g, stt, clip) => (noEchoUr === true ? { gate: { raw_verdict: g.verdict, raw_heard: String(g.answer || ''), ...sttNote(stt, clip, { text: true }) } } : {});
   const all = rec.questions || [];
   const asked = res && Array.isArray(res.asked) && res.asked.length ? res.asked : all.map((q) => q.id);
   const qs = asked.map((id) => all.find((q) => q.id === id)).filter(Boolean);

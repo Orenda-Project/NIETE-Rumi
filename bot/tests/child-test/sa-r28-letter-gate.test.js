@@ -209,11 +209,13 @@ describe('sa_r28_letter_gate: letter SOUNDS are gated on voice activity, not on 
     got.marks.detail.items.forEach((i) => expect(i).toMatchObject({ reason: 'duration', clip_s: 0.5, no_speech: true }));
   });
 
-  test("ON: the model's own found:false still mutes a voiced clip", async () => {
+  test("ON: the model's own found:false still mutes a voiced clip, and the gated row says so: reason 'found_false' beside the voice check's numbers", async () => {
     const s = standIns({ clip: 'voiced3', right: 5, found: false });
     const got = await score.scoreRow(SOUNDS(), session(), ON(s));
     expect(got.marks.correct).toBe(0);
     expect(got.marks.detail.items.every((i) => i.verdict === 'not_reached' && i.no_speech)).toBe(true);
+    // the weekly precision table splits the three mute causes (duration / no_voice / found_false) from the stored marks
+    got.marks.detail.items.forEach((i) => expect(i).toMatchObject({ reason: 'found_false', vad_pass: true, raw_verdict: 'correct' }));
   });
 
   test('ON: a voice check that cannot run falls back to the STT gate (never the model alone)', async () => {

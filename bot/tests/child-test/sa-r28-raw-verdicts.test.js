@@ -4,8 +4,10 @@
  * E-11: a gate that overrides the model (the speech gate's mute, the model's own found:false, the echo check) dropped
  * the model's answer and what speech-to-text heard, so a wrong gate stayed invisible. Behind the same r28 switches
  * (sa_r28_letter_gate for the speech gate's mutes and found:false, sa_r28_no_echo_ur for the echo check), the item keeps
- * raw_verdict / raw_heard (the model's, when it was asked) and stt_words / stt_text (<= 80 characters) / clip_s (when
- * speech-to-text ran), plus the mute's reason. No mark changes; OFF stores nothing new. Only the clip, speech-to-text and
+ * raw_verdict / raw_heard (the model's, when it was asked) and stt_words / clip_s (when speech-to-text ran), plus the
+ * override's reason ('duration' / 'no_words' / 'no_voice' / 'found_false'). stt_text (<= 80 code points) is kept ONLY on
+ * the echo override, where it is the phone's own question by construction: a coach-led clip's transcript (an adult's
+ * words, a child's name) never enters the marks. No mark changes; OFF stores nothing new. Only the clip, speech-to-text and
  * the model are stand-ins; every fixture is synthetic.
  */
 
@@ -73,20 +75,22 @@ describe('E-11: a gate override keeps what the model and speech-to-text said', (
   });
   afterEach(() => { process.env = { ...before }; });
 
-  test('speech gate mute (letter names, STT 0 words): ON stores reason, stt_words, stt_text, clip_s; OFF nothing new', async () => {
+  test('speech gate mute (letter names, STT 0 words): ON stores reason, stt_words, clip_s and never stt_text; OFF nothing new', async () => {
     const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns(), ...ON });
-    on.marks.detail.items.forEach((i) => expect(i).toMatchObject({ verdict: 'not_reached', no_speech: true, reason: 'no_words', stt_words: 0, stt_text: '', clip_s: 3 }));
+    on.marks.detail.items.forEach((i) => expect(i).toMatchObject({ verdict: 'not_reached', no_speech: true, reason: 'no_words', stt_words: 0, clip_s: 3 }));
+    on.marks.detail.items.forEach((i) => expect(i).not.toHaveProperty('stt_text'));
     expect(on.marks.detail.items[0]).not.toHaveProperty('raw_verdict');
     noNewKeys(await score.scoreRow(row('ur.letter_names5'), session(), standIns()));
   });
 
-  test("the model's found:false (letter names, STT heard words): ON stores raw_verdict / raw_heard per item and the STT words", async () => {
+  test("the model's found:false (letter names, STT heard words): ON stores reason 'found_false', raw_verdict / raw_heard per item and the STT word count, never the transcript", async () => {
     const s = standIns({ stt: 'دال جیم', found: false });
     const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...s, ...ON });
     expect(on.marks.correct).toBe(0);
     expect(on.marks.detail.items.map((i) => [i.verdict, i.raw_verdict, i.raw_heard])).toEqual([
       ['not_reached', 'wrong', 'h1'], ['not_reached', 'correct', 'h2'], ['not_reached', 'correct', 'h3'], ['not_reached', 'correct', 'h4'], ['not_reached', 'correct', 'h5']]);
-    expect(on.marks.detail.items[0]).toMatchObject({ stt_words: 2, stt_text: 'دال جیم', clip_s: 3 });
+    expect(on.marks.detail.items[0]).toMatchObject({ reason: 'found_false', stt_words: 2, clip_s: 3 });
+    on.marks.detail.items.forEach((i) => { expect(i.reason).toBe('found_false'); expect(i).not.toHaveProperty('stt_text'); });
     noNewKeys(await score.scoreRow(row('ur.letter_names5'), session(), s));
   });
 
@@ -102,12 +106,13 @@ describe('E-11: a gate override keeps what the model and speech-to-text said', (
     noNewKeys(await score.scoreRow(row('ur.story_y'), session(), standIns()));
   });
 
-  test("spoken maths: ON a mute stores stt_words; the model's found:false stores raw_verdict / raw_heard", async () => {
+  test("spoken maths: ON a mute stores stt_words (never stt_text); the model's found:false stores reason 'found_false', raw_verdict / raw_heard", async () => {
     const mute = await score.scoreRow(row('ma.add2i'), session(), { ...standIns(), ...ON });
-    mute.marks.detail.items.forEach((i) => expect(i).toMatchObject({ reason: 'no_words', stt_words: 0, clip_s: 3 }));
+    mute.marks.detail.items.forEach((i) => { expect(i).toMatchObject({ reason: 'no_words', stt_words: 0, clip_s: 3 }); expect(i).not.toHaveProperty('stt_text'); });
     const none = await score.scoreRow(row('ma.add2i'), session(), { ...standIns({ stt: 'انیس', found: false }), ...ON });
     expect(none.marks.correct).toBe(0);
-    expect(none.marks.detail.items.map((i) => [i.raw_verdict, i.raw_heard, i.stt_words])).toEqual([['wrong', 'h1', 1], ['correct', 'h2', 1]]);
+    expect(none.marks.detail.items.map((i) => [i.reason, i.raw_verdict, i.raw_heard, i.stt_words])).toEqual([['found_false', 'wrong', 'h1', 1], ['found_false', 'correct', 'h2', 1]]);
+    none.marks.detail.items.forEach((i) => expect(i).not.toHaveProperty('stt_text'));
     noNewKeys(await score.scoreRow(row('ma.add2i'), session(), standIns({ stt: 'انیس', found: false })));
   });
 
@@ -125,11 +130,15 @@ describe('E-11: a gate override keeps what the model and speech-to-text said', (
     noNewKeys(off);
   });
 
-  test('stt_text is cut to 80 characters (code points)', async () => {
-    const long = Array.from({ length: 30 }, () => 'جیم').join(' ');
-    const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns({ stt: long, found: false }), ...ON });
+  test('stt_text is stored only on the echo override (the phone\'s question by construction), cut to 80 code points', async () => {
+    const long = Array.from({ length: 20 }, () => 'Who did Bano play with').join(' ');
+    const on = await score.scoreRow(qRow('en.story_x_comp', Q_EN), session(), { ...standIns({ stt: long, question: 'the parrot' }), noEchoUr: true });
+    expect(on.marks.detail.items[0]).toMatchObject({ verdict: 'no_answer', echo: true, stt_words: 100 });
     expect(Array.from(on.marks.detail.items[0].stt_text)).toHaveLength(80);
     expect(long.startsWith(on.marks.detail.items[0].stt_text)).toBe(true);
+    // the same long transcript on a letter-names found:false or a speech-gate mute leaves only its word count
+    const names = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns({ stt: long, found: false }), ...ON });
+    names.marks.detail.items.forEach((i) => { expect(i.stt_words).toBe(100); expect(i).not.toHaveProperty('stt_text'); });
   });
 
   test('ON with no override (the model marks stand): no new keys', async () => {

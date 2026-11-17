@@ -62,6 +62,9 @@ describe("sa_r28_child_only_answer: spoken maths marks the child's own final ans
     expect(p({ ...a, childOnly: false })).toBe(OFF_ORAL);
     const S = score.__internals.CHILD_ONLY;
     expect(typeof S).toBe('string');
+    // the signed sentence, by value: an answer that follows coach SUPPORT ("louder", "next") keeps its credit; only a number
+    // another person said, or a change to it, is discounted, and the item is marked from what the child said before
+    expect(S).toBe('Mark only the child\'s own answer for each item (a self-correction by the child counts). Ignore every other speaker, adult or child: a number said by another person is never the child\'s answer, and a number the child repeats or changes to after another person has said it is not either; mark such an item from what the child said before the other person spoke ("w" if a different number, "s" if nothing). Other words from another person (instructions, encouragement) do not change the mark.');
     const on = p({ ...a, childOnly: true });
     expect(on).toContain(S);
     expect(on.replace(` ${S}`, '')).toBe(OFF_ORAL);
