@@ -49,7 +49,12 @@ function wav(seconds, fill) {
   h.writeUInt32LE(RATE * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(data.length, 40);
   return Buffer.concat([h, data]).toString('base64');
 }
-const CLIPS = { silent6: [6, SILENCE], hiss6: [6, HISS_40], voiced3: [3, VOICED], short05: [0.5, VOICED] };
+/** a child sounding letters with no pause: 6 s of 400 ms sounds and 100 ms gaps over a quiet room (no 150 ms silence) */
+const NO_PAUSE = (t) => room() + ((t % 0.5) < 0.4 ? 0.3 * Math.sin(2 * Math.PI * 220 * t) : 0);
+/** steady noise whose level wobbles (every 50 ms between -45 and -30 dBFS): no 150 ms below its floor, a small margin */
+const wobbleLo = noise(-45); const wobbleHi = noise(-30);
+const WOBBLE = (t) => (Math.floor(t / 0.05) % 2 ? wobbleHi() : wobbleLo());
+const CLIPS = { silent6: [6, SILENCE], hiss6: [6, HISS_40], voiced3: [3, VOICED], short05: [0.5, VOICED], nopause6: [6, NO_PAUSE], wobble6: [6, WOBBLE] };
 const CLIP64 = {};
 const clipFor = (name) => { if (!CLIP64[name]) CLIP64[name] = wav(...CLIPS[name]); return { base64: CLIP64[name], durationSec: CLIPS[name][0] }; };
 
@@ -174,6 +179,26 @@ describe('sa_r28_letter_gate: letter SOUNDS are gated on voice activity, not on 
     got.marks.detail.items.forEach((i) => { expect(i).toMatchObject({ vad_pass: true, clip_s: 3 }); expect(i).not.toHaveProperty('reason'); });
   });
 
+  test('ON: a letter-sounds clip with no pause reaches the model; vad_margin_db is stored on the call and the items', async () => {
+    const s = standIns({ clip: 'nopause6', words: 0, right: 4 });
+    const got = await score.scoreRow(SOUNDS(), session(), ON(s));
+    expect(s.prompts.map((p) => p.job)).toEqual(['child_test.sa_letters']);
+    expect(got.marks.correct).toBe(4);
+    const call = got.marks.meta.calls.find((c) => c.model === 'skipped_r28');
+    expect(call).toMatchObject({ vad_pass: true });
+    expect(call.vad_margin_db).toBeGreaterThanOrEqual(29);
+    got.marks.detail.items.forEach((i) => expect(i.vad_margin_db).toBe(call.vad_margin_db));
+  });
+
+  test('ON: steady noise with no pause scores 0 (no_voice), its margin stored', async () => {
+    const s = standIns({ clip: 'wobble6', right: 5 });
+    const got = await score.scoreRow(SOUNDS(), session(), ON(s));
+    expect(got.marks.correct).toBe(0);
+    expect(s.prompts).toEqual([]);
+    expect(got.marks.detail.items[0]).toMatchObject({ reason: 'no_voice', vad_pass: false });
+    expect(got.marks.detail.items[0].vad_margin_db).toBeLessThan(20);
+  });
+
   test('ON: a 0.5 s letter-sounds clip stays not_reached x5 (the duration floor), nothing decoded or called', async () => {
     const s = standIns({ clip: 'short05', words: 0 });
     const got = await score.scoreRow(SOUNDS(), session(), ON(s));
@@ -184,11 +209,13 @@ describe('sa_r28_letter_gate: letter SOUNDS are gated on voice activity, not on 
     got.marks.detail.items.forEach((i) => expect(i).toMatchObject({ reason: 'duration', clip_s: 0.5, no_speech: true }));
   });
 
-  test("ON: the model's own found:false still mutes a voiced clip", async () => {
+  test("ON: the model's own found:false still mutes a voiced clip, and the gated row says so: reason 'found_false' beside the voice check's numbers", async () => {
     const s = standIns({ clip: 'voiced3', right: 5, found: false });
     const got = await score.scoreRow(SOUNDS(), session(), ON(s));
     expect(got.marks.correct).toBe(0);
     expect(got.marks.detail.items.every((i) => i.verdict === 'not_reached' && i.no_speech)).toBe(true);
+    // the weekly precision table splits the three mute causes (duration / no_voice / found_false) from the stored marks
+    got.marks.detail.items.forEach((i) => expect(i).toMatchObject({ reason: 'found_false', vad_pass: true, raw_verdict: 'correct' }));
   });
 
   test('ON: a voice check that cannot run falls back to the STT gate (never the model alone)', async () => {
@@ -301,7 +328,22 @@ describe('sa_r28_letter_gate: letter SOUNDS are gated on voice activity, not on 
 
 describe('voiceActivity: a relative floor, silencedetect-like windows', () => {
   test('the shipped defaults are one constant object', () => {
-    expect(VAD).toMatchObject({ minSilenceMs: 150, minVoicedMs: 500, maxVoicedShare: 0.9, floorRule: { percentile: 10, plusDb: 10 } });
+    expect(VAD).toMatchObject({ minSilenceMs: 150, minVoicedMs: 500, maxVoicedShare: 0.9, minMarginDb: 20, floorRule: { percentile: 10, plusDb: 10 } });
+  });
+
+  test('a child with no pause (share ~1.0) passes on the margin; steady noise with the same share fails on it', () => {
+    const v = voiceActivity(pcm(6, NO_PAUSE), RATE);
+    expect(v.share).toBeGreaterThanOrEqual(0.9);
+    expect(v.margin_db).toBeGreaterThanOrEqual(29);
+    expect(v.pass).toBe(true);
+    const n = voiceActivity(pcm(6, WOBBLE), RATE);
+    expect(n.share).toBeGreaterThanOrEqual(0.9);
+    expect(n.margin_db).toBeLessThan(20);
+    expect(n.pass).toBe(false);
+    // the margin is the 90th-percentile frame loudness minus the (clamped) floor
+    expect(voiceActivity(pcm(6, SILENCE), RATE)).toMatchObject({ pass: false, floor_db: -70, margin_db: -30 });
+    expect(voiceActivity(pcm(6, HISS_40), RATE).pass).toBe(false);
+    expect(voiceActivity(pcm(3, VOICED), RATE).pass).toBe(true);
   });
 
   test('digital silence and steady hiss fail; three short sounds over a quiet room pass', () => {
