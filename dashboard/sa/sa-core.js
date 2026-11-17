@@ -958,6 +958,8 @@
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         if (mcqReading(t)) return undefined; // sa_r28_mcq: a tap before the read-out ended is not an answer
         var it = st.items[st.item_i];
+        // round 28 (the pre-sound rule, SPEC A.5): a tap before the sound is logged as the screens log it, never scored
+        if (meta && meta.tap_before_sound === true) { ev('tap_before_sound', { task_id: st.task_id, item_id: it.id, value: value, tap_ms: meta.tap_ms }); return undefined; }
         st.oral_run = 0; // round 13b: an answered question starts the count again
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
         return score(it, value, meta);
