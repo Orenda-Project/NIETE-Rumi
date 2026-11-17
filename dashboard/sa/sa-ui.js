@@ -671,16 +671,20 @@
       return openingGate.then(function () { if (alive && keyOf(runner.view()) === k) return fn(); });
     }
     /** RDF manual: the coach gives every instruction and reads every item; Jugnu says only the line the caller marks. */
-    function say(textObj, audioObj, inManual) {
+    /** vo (round 28): the voice's options; { clip_only: true } → the promise rejects when the clip cannot play. */
+    function say(textObj, audioObj, inManual, vo) {
       if (!textObj && !audioObj) return Promise.resolve();
       if (manual && !inManual) return Promise.resolve();
       if (r8Lang && lang !== homeLang) { var tagged = langSaid(textObj, audioObj); textObj = tagged[0]; audioObj = tagged[1]; }
+      var clipOnly = !!(vo && vo.clip_only);
       try {
-        var p = Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {});
-        if (r9Scroll) { talk = p; talkN++; p.then(function () { talkN--; }); }
-        if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, p); } catch (e) { /* the plain words */ } }
+        var raw = vo ? speakFn(textObj || null, audioObj || null, vo) : speakFn(textObj || null, audioObj || null);
+        var p = clipOnly ? Promise.resolve(raw) : Promise.resolve(raw).catch(function () {});
+        var settled = clipOnly ? p.catch(function () {}) : p;
+        if (r9Scroll) { talk = settled; talkN++; settled.then(function () { talkN--; }); }
+        if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, settled); } catch (e) { /* the plain words */ } }
         return p;
-      } catch (e) { return Promise.resolve(); }
+      } catch (e) { return clipOnly ? Promise.reject(e) : Promise.resolve(); }
     }
     /** Say lines one after another, unless the screen changes. */
     function sayChain(list) {
@@ -2183,7 +2187,7 @@
     // promptDone() (the item's clock starts), every card ready, and 600 ms on the held choice stands (is-pressed 400 ms,
     // then runner.answer(index, meta)). No choice yet: the first tap selects and stands 600 ms later. Replay re-reads it
     // all and keeps the choice. Coach-led: Jugnu still reads; the coach sees the words folded.
-    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400;
+    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400, MCQ_WARM_MS = 5000;
     function isMcq(t) { return r28Mcq && !!t && t.kind === 'mcq'; }
     function mcqNow() { return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now(); }
     function mcqState(it, practice) {
@@ -2215,9 +2219,11 @@
       var j = box.querySelector('.sae-mcq-jugnu');
       if (j) j.classList.toggle('is-talking', mcqReadingPhase(S));
     }
-    /** One line of the read-out; an option's card (k ≥ 0) is lit from its clip's playing to its ended. */
+    /** One line of the read-out, clip only (B-17: never the phone's voice, never a silent stand-in; a lost clip rejects);
+     *  an option's card (k ≥ 0) is lit from its clip's playing to its ended, never unless the clip reached playing. */
     function mcqLine(S, k, textObj, clip, live) {
-      var p = say(textObj, clip, true);
+      if (!clip) return Promise.reject(new Error('no clip'));
+      var p = say(null, clip, true, { clip_only: true });
       if (k < 0) return p;
       var seen = null, on = false, fr = null, done = false;
       function light(a, b) {
@@ -2243,8 +2249,9 @@
         }
         fr = nextFrame(step);
       }
-      if (typeof speakFn.audio === 'function') step(); else light(null, true); // no element to follow: lit for the line
-      return p.then(function () { done = true; if (fr != null) cancelFrame(fr); light(seen, false); });
+      if (typeof speakFn.audio === 'function') step();
+      function off() { done = true; if (fr != null) cancelFrame(fr); light(seen, false); }
+      return p.then(off, function (e) { off(); throw e; });
     }
     /** The read-out (the one place it lives): question, swallow, the four answers, then the answer window. */
     function readOut(it, t, o) {
@@ -2262,8 +2269,12 @@
       if (S.settle != null) { clearTimeout(S.settle); S.settle = null; }
       S.phase = 'listening'; S.lit = -1; S.last_lit = -1;
       mcqPaint();
-      var tl = taskLang(t);
-      var p = mcqLine(S, -1, it.prompt || null, (it.prompt && it.prompt.audio) || it.prompt_audio || null, live)
+      var qClip = (it.prompt && it.prompt.audio) || it.prompt_audio || null;
+      var clips = [qClip].concat(Array.isArray(it.option_audio) ? it.option_audio : []);
+      var first = S.reads === 1;
+      // B-17: before a question's first read-out its five clips are warmed; it begins when they are ready, at most 5 s
+      var p = (first ? mcqWarm(clips) : Promise.resolve())
+        .then(function () { if (live()) return mcqLine(S, -1, null, qClip, live); })
         .then(function () { if (live()) return delay(MCQ_SWALLOW_MS); });
       (it.options || []).forEach(function (opt, k, all) {
         p = p.then(function () {
@@ -2271,7 +2282,7 @@
           S.phase = 'options';
           mcqPaint();
           var clip = Array.isArray(it.option_audio) ? it.option_audio[k] || null : null;
-          return mcqLine(S, k, { text: String(opt), lang: tl }, clip, live).then(function () { if (live() && k < all.length - 1) return delay(MCQ_GAP_MS); });
+          return mcqLine(S, k, null, clip, live).then(function () { if (live() && k < all.length - 1) return delay(MCQ_GAP_MS); });
         });
       });
       return p.then(function () {
@@ -2283,7 +2294,32 @@
         S.lit = -1;
         if (S.chosen != null) mcqSettle(S);
         draw();
+      }, function () {
+        // B-17: a clip lost after the voice's retry. The first read-out: the question is unavailable (never scored) and
+        // the next one shows. A replay: logged lost, the question stays open with its cards. A practice item: the
+        // child can still answer (the practice is never scored).
+        if (!live()) return;
+        S.lit = -1;
+        var v = runner.view();
+        if (first && !S.practice && typeof runner.clipLost === 'function' && v.item && v.item.id === S.item) {
+          runner.clipLost(S.item, 'prompt');
+          mcq = null;
+          draw();
+          return;
+        }
+        if (!S.practice && typeof runner.clipLost === 'function') runner.clipLost(S.item, 'replay');
+        if (S.read_end == null) { S.read_end = mcqNow(); if (!S.practice && runner.promptDone) runner.promptDone(); }
+        S.phase = 'open';
+        if (S.chosen != null) mcqSettle(S);
+        draw();
       });
+    }
+    /** B-17: the page's preload (the voice's, via opts.preload(list, ms)) for a question's clips, at most MCQ_WARM_MS. */
+    function mcqWarm(list) {
+      var pre = typeof opts.preload === 'function' ? opts.preload : null;
+      var keys = list.filter(Boolean);
+      if (!pre || !keys.length) return Promise.resolve();
+      return capped(Promise.resolve().then(function () { return pre(keys, MCQ_WARM_MS); }), MCQ_WARM_MS);
     }
     function mcqTap(i) {
       var S = mcq;
