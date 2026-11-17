@@ -85,8 +85,10 @@ function jsFiles(dir) {
  */
 function singleTableSchoolsSql(code) {
   const found = [];
-  for (const m of code.matchAll(/`([^`]*?\bFROM\s+schools\b[^`]*?)`/gis)) {
+  // Consume backticks in pairs, then keep the pairs that read from schools; a closing backtick never reopens.
+  for (const m of code.matchAll(/`([^`]*)`/g)) {
     const sql = m[1];
+    if (!/\bFROM\s+schools\b/i.test(sql)) continue;
     const tables = [...sql.matchAll(/\b(?:FROM|JOIN)\s+([a-z_][a-z0-9_]*)/gi)].map((t) => t[1].toLowerCase());
     if (tables.every((t) => t === 'schools')) found.push(sql);
   }
@@ -110,6 +112,19 @@ describe('raw SQL against schools only reads declared columns', () => {
   it('finds the schools table in the schema at all', () => {
     expect(declared.size).toBeGreaterThan(0);
     expect(declared).toContain('name');
+  });
+
+  // bd-mhhd79: a closing backtick in a comment is not the start of a template literal. Reading it as one turned
+  // the plain JS between two `inline code` spans (which held a single-quoted 'FROM schools' query) into "SQL".
+  it('reads only real template literals, never the code between two backticked comment words', () => {
+    const code = [
+      '// rows whose `region` is the area',
+      "pool.query('SELECT id, district FROM schools WHERE region = ANY($1)');",
+      'const placeSchools = (plan) => plan.map(push);',
+      '// a `region` again',
+      'const real = `SELECT name FROM schools WHERE id = $1`;',
+    ].join('\n');
+    expect(singleTableSchoolsSql(code)).toEqual(['SELECT name FROM schools WHERE id = $1']);
   });
 
   it('every column raw SQL reads from schools is declared in 00_complete-schema.sql', () => {
