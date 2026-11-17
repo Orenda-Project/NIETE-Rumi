@@ -151,6 +151,8 @@ describe("the words: an area view", () => {
   it("the Information tab explains who observed whom, FICO17 v6 and the areas", () => {
     const text = c.how.groups.flatMap((g) => g.items.map((i) => `${i.term}: ${i.text}`)).join("\n");
     for (const w of [/FICO17 v6/, /principal/i, /FMO/, /HOTS/, /Gilgit/, /Baltistan/, /Skardu/, /Area not set/, /grades 6.8/i]) expect(text).toMatch(w);
+    // the view shows no Avg HITL, so its definitions never name it
+    expect(text).not.toMatch(/HITL/);
   });
 });
 
