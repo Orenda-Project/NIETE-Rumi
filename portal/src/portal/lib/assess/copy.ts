@@ -207,6 +207,11 @@ const en = {
     firstN: (n: number) => `First ${n} correct`,
     ofN: (x: number, n: number) => `${x} of ${n}`,
     unrated: "not rated (too few items heard)",
+    // round 28 (SPEC F): the guessing floor beside a tapped score (guessFloor.ts), and the child's taps before the sound
+    guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
+      ? `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n} (${f[1].pct} reach ${f[1].k} of ${f[1].n}).`
+      : `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n}.`),
+    tapBefore: "Taps before the sound",
     // round 28 (voice check): what the other voice was
     voiceKinds: { help: "An adult said an answer", other_child: "Another child was reading too" } as Record<string, string>,
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
@@ -427,6 +432,10 @@ const ur: Copy = {
     firstN: (n: number) => `پہلے ⁦${urDigits(n)}⁩ درست`,
     ofN: (x: number, n: number) => `⁦${urDigits(n)}⁩ میں سے ⁦${urDigits(x)}⁩`,
     unrated: "درجہ نہیں (بہت کم سنے گئے)",
+    guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
+      ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
+      : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),
+    tapBefore: "آواز سے پہلے ٹیپ",
     voiceKinds: { help: "ایک بڑے نے جواب بتایا", other_child: "ایک اور بچہ بھی پڑھ رہا تھا" },
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "⁨CWPM⁩ (فی منٹ درست الفاظ)",

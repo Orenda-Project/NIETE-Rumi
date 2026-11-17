@@ -125,3 +125,48 @@ describe("LeaderAssessDashboard: round 28 headline split", () => {
     expect(screen.getByTestId("dash-rwc").textContent).toContain("listen and tap");
   });
 });
+
+// Round 28 (SPEC F): the guessing floor beside every tapped share, and the picker's tap-before-sound rate. Text only.
+const pickT = (correct: number, before?: { n: number; of: number }) => ({ ...tap("ur.letter_pick10", correct), ...(before ? { tapBeforeSound: before } : {}) });
+
+describe("LeaderAssessDashboard: round 28 guessing floor and tap-before-sound", () => {
+  it("the picker card: the floor line, the tap-before-sound rate, and the warning above 10% (8 of 50 = 16%)", async () => {
+    api.getSessions.mockResolvedValue({ sessions: Array.from({ length: 5 }, () => row([pickT(8, { n: 2, of: 10 })])).map((r, i) => (i < 4 ? r : row([pickT(7, { n: 0, of: 10 })]))) });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.letter_pick10");
+    expect(within(card).getByTestId("dash-guess-floor").textContent).toBe("By guessing alone, 0.008% of children reach 8 of 10 (0.6% reach 6 of 10).");
+    expect(within(card).getByTestId("dash-tap-before").textContent).toBe("Taps before the sound: 16% of items");
+    expect(within(card).getByTestId("dash-tap-care").textContent).toBe("read with care");
+  });
+
+  it("at or below 10% the rate shows with no warning", async () => {
+    api.getSessions.mockResolvedValue({ sessions: Array.from({ length: 5 }, (_, i) => row([pickT(8, { n: i < 2 ? 1 : 0, of: 10 })])) });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.letter_pick10");
+    expect(within(card).getByTestId("dash-tap-before").textContent).toBe("Taps before the sound: 4% of items");
+    expect(within(card).queryByTestId("dash-tap-care")).toBeNull();
+  });
+
+  it("the MCQ card: the floor line, no tap-before-sound line; Urdu", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getSessions.mockResolvedValue({ sessions: Array.from({ length: 5 }, () => row([{ ...mcq(5), tapBeforeSound: { n: 1, of: 6 } }])) });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.story_mcq_w3");
+    expect(within(card).getByTestId("dash-guess-floor").textContent).toBe("صرف اندازے سے ⁦۳.۸%⁩ بچے ⁦۶⁩ میں سے ⁦۴⁩ تک پہنچتے ہیں۔");
+    expect(within(card).queryByTestId("dash-tap-before")).toBeNull();
+  });
+
+  it("a masked card (fewer than 5) has no floor or rate line; the old cards never have one", async () => {
+    api.getSessions.mockResolvedValue({ sessions: [...Array.from({ length: 5 }, () => row(today())), row([pickT(8, { n: 5, of: 10 })])] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const card = screen.getByTestId("dash-task-ur.letter_pick10");
+    expect(within(card).getByTestId("dash-masked")).toBeTruthy();
+    expect(within(card).queryByTestId("dash-guess-floor")).toBeNull();
+    expect(within(card).queryByTestId("dash-tap-before")).toBeNull();
+    expect(within(screen.getByTestId("dash-task-ur.letter_sounds5")).queryByTestId("dash-guess-floor")).toBeNull();
+  });
+});

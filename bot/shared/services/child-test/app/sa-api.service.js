@@ -855,7 +855,16 @@ function shapeTask(r, stops = false) {
     ...(tap && typeof res.presented === 'number' ? { presented: res.presented } : {}),
     ...(tap && typeof res.unavailable === 'number' ? { unavailable: res.unavailable } : {}),
     ...(tap && Array.isArray(res.asked) ? { asked: res.asked.filter((q) => typeof q === 'string') } : {}),
+    // round 28 (picker / MCQ): taps made before the prompt's sound ended, over the answers the phone timed (tap_ms)
+    ...(tap ? tapBeforeOf(res) : {}),
   };
+}
+
+/** { tapBeforeSound: { n, of } } when some answer carries a numeric tap_ms; else nothing (today's tap tasks). */
+function tapBeforeOf(res) {
+  const timed = (Array.isArray(res.answers) ? res.answers : []).filter((a) => a && typeof a.tap_ms === 'number');
+  if (!timed.length) return {};
+  return { tapBeforeSound: { n: timed.filter((a) => a.tap_before_sound === true).length, of: timed.length } };
 }
 
 const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.block).localeCompare(String(b.block));
