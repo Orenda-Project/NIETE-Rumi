@@ -131,6 +131,9 @@ describe('sa_r28_voice_help: flag help, not support', () => {
       expect(prompt).toContain('asks the same item again after a WRONG answer and the child then changes to the RIGHT answer');
       expect(prompt).toContain('asking a question again when the child had not answered, does not change the answer, or changes it to another wrong answer');
       expect(prompt).not.toContain('whether the new answer is right or not');
+      // the read-again rule stays help on its own sentence: "So is …" after the support sentence read as support
+      expect(prompt).toContain('Telling the child to read the passage again from some point ("دوبارہ پڑھو، یہاں سے") is help too.');
+      expect(prompt).not.toContain('So is telling the child');
     }
   });
 
