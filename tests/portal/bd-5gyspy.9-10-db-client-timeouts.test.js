@@ -73,8 +73,10 @@ describe('bd-5gyspy.9: the DB-context budget follows the route budget', () => {
     expect(res.sent).toEqual([]);
     jest.advanceTimersByTime(90000); // past the route's 120 s budget: the DB context lets go
     expect(res.sent).toEqual([{ status: 504, body: { error: 'Request timeout' } }]);
-    for (let i = 0; i < 5; i++) await Promise.resolve(); // cleanup awaits RESET ROLE before it releases
-    expect(fakeClient.query).toHaveBeenCalledWith('RESET ROLE');
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    // bd-sex15q.50: the role and admin id are transaction-local, so cleanup has nothing session-scoped to RESET; it
+    // releases the client once, straight away
+    expect(fakeClient.query).not.toHaveBeenCalledWith('RESET ROLE');
     expect(fakeClient.release).toHaveBeenCalledTimes(1);
   });
 
