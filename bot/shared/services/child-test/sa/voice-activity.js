@@ -8,7 +8,10 @@
  * but the floor is RELATIVE to the clip's own noise floor, never a fixed dBFS: phones level differently (AGC). The
  * floor is the floorRule.percentile-th percentile of the clip's frame loudness plus floorRule.plusDb, and never below
  * floorRule.minDb (digital silence has no noise floor to measure).
- *   pass = voiced >= minVoicedMs AND voiced share < maxVoicedShare (speech pauses; steady noise, of any level, does not)
+ *   pass = voiced >= minVoicedMs AND (voiced share < maxVoicedShare OR margin_db >= minMarginDb)
+ * Speech pauses and steady noise, of any level, does not; a child sounding letters with no 150 ms pause has a voiced
+ * share near 1 but stands far above the floor, which steady noise does not: margin_db is the 90th-percentile frame
+ * loudness minus the (clamped) floor.
  * VAD holds the shipped numbers in one place; the study lane sets them from its measurements.
  */
 const fs = require('fs');
@@ -20,6 +23,7 @@ const VAD = Object.freeze({
   floorRule: Object.freeze({ percentile: 10, plusDb: 10, minDb: -70 }),
   minVoicedMs: 500,
   maxVoicedShare: 0.9,
+  minMarginDb: 20,             // or: the loud frames stand this far above the floor (a child with no pause)
 });
 const DB_MIN = -100;
 const RATE = 16000;
@@ -28,7 +32,7 @@ const params = (over = {}) => ({ ...VAD, ...over, floorRule: { ...VAD.floorRule,
 
 /**
  * samples: PCM (an Int16Array, or numbers in -1..1), rate in Hz.
- * → { voiced_ms, share, floor_db, pass, total_ms } (share 0-1, two decimals; floor_db one decimal).
+ * → { voiced_ms, share, floor_db, margin_db, pass, total_ms } (share 0-1, two decimals; dB one decimal).
  */
 function voiceActivity(samples, rate = RATE, over = {}) {
   const p = params(over);
@@ -44,10 +48,11 @@ function voiceActivity(samples, rate = RATE, over = {}) {
     db.push({ size: end - at, db: rms > 0 ? Math.max(DB_MIN, 20 * Math.log10(rms)) : DB_MIN });
   }
   const totalMs = (len / rate) * 1000;
-  if (!db.length) return { voiced_ms: 0, share: 0, floor_db: null, pass: false, total_ms: 0 };
+  if (!db.length) return { voiced_ms: 0, share: 0, floor_db: null, margin_db: null, pass: false, total_ms: 0 };
   const sorted = db.map((f) => f.db).sort((a, b) => a - b);
   const pct = sorted[Math.floor(((sorted.length - 1) * p.floorRule.percentile) / 100)];
   const floor = Math.max(pct + p.floorRule.plusDb, p.floorRule.minDb);
+  const margin = sorted[Math.floor((sorted.length - 1) * 0.9)] - floor;
   let silentSamples = 0;
   let run = 0;
   const close = () => { if ((run / rate) * 1000 >= p.minSilenceMs) silentSamples += run; run = 0; };
@@ -61,7 +66,8 @@ function voiceActivity(samples, rate = RATE, over = {}) {
     voiced_ms: Math.round(voicedMs),
     share: Math.round(share * 100) / 100,
     floor_db: Math.round(floor * 10) / 10,
-    pass: voicedMs >= p.minVoicedMs && share < p.maxVoicedShare,
+    margin_db: Math.round(margin * 10) / 10,
+    pass: voicedMs >= p.minVoicedMs && (share < p.maxVoicedShare || margin >= p.minMarginDb),
     total_ms: Math.round(totalMs),
   };
 }
