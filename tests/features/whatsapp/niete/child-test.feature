@@ -1244,7 +1244,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # Asserted in bot/tests/child-test/sa-score-voice-help.test.js.
   Scenario: With sa_r28_voice_help on, an adult only encouraging the child is not flagged
     Given sa_r28_voice_help is on and the another-voice check is on
-    And an adult speaks to the child during a recorded part only to instruct or encourage, for example "speak louder", "press next" or "well done"
+    And an adult speaks to the child during a recorded part only to instruct or encourage, for example "speak louder", "press next" or "well done", or asks a question again and the child keeps the answer or changes it to another wrong one
     When the recording is scored
     Then the coach's Results for that task do not say another voice was heard
     And the task's detail logs the adult's speech as support, never as a flag
@@ -1254,7 +1254,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # No mock driver: as @CT240. Asserted in bot/tests/child-test/sa-score-voice-help.test.js.
   Scenario: With sa_r28_voice_help on, an adult saying the answer is flagged as help
     Given sa_r28_voice_help is on and the another-voice check is on
-    And an adult says an item or the answer before the child does, corrects the child, or asks again after a wrong answer and the child changes it
+    And an adult says an item or the answer before the child does, corrects the child, or asks again after a wrong answer and the child changes it to the right answer
     When the adult's words are among the words heard in that recording
     Then the task is flagged, with the kind of help and only the words that are the task's own items or answers
     And the child's marks are the same as without the check
@@ -1267,3 +1267,54 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the task is not flagged and no model is asked
     And with sa_r28_voice_help off the check and the Results are exactly as before
 
+  @e2e @wip @draft @config-gated @P1 @CT207 @no-mock-driver
+  # No mock driver: the gate runs in the scoring sweep against a model and speech-to-text, not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-letter-gate.test.js.
+  Scenario: With sa_r28_letter_gate on, a letter-sound recording is judged by whether a voice is heard, not by words heard
+    Given sa_r28_letter_gate is on and the speech gate is on
+    And a child says bare letter sounds in a letter-sound recording, with no whole word
+    When the recording is scored
+    Then speech-to-text is not asked about that recording, a voice check on the recording passes and the model marks the letters it hears
+    And the model is not shown the expected answers for the letters
+    And a silent recording, or one holding only steady noise, is not reached and the model is not asked
+    And a recording shorter than the minimum speech length, or one the model finds holds no letters, is still not reached
+    And letter-name, word, passage, question and spoken-maths recordings are muted as before when speech-to-text hears no word
+    And with sa_r28_letter_gate off a letter-sound recording with no word heard is not reached, exactly as before
+    And word, passage and question recordings are muted as before when speech-to-text hears no word
+    And with sa_r28_letter_gate off a letter recording with no word heard is not reached, exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT211 @no-mock-driver
+  # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-no-echo-ur.test.js.
+  Scenario: With sa_r28_no_echo_ur on, a quiet Urdu answer is not zeroed because speech-to-text heard only the question
+    Given sa_r28_no_echo_ur is on and the speech gate is on
+    And in an Urdu comprehension question speech-to-text hears the phone's question but not the child's short answer
+    When the model marks the child's answer correct
+    Then the answer counts as correct
+    And the Urdu questions prompt tells the model that repeating the question is not an answer
+    And English questions keep the echo check
+    And with sa_r28_no_echo_ur off the answer is not counted, exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT212 @no-mock-driver
+  # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-child-only-answer.test.js.
+  Scenario: With sa_r28_child_only_answer on, spoken maths marks only the child's own final answer
+    Given sa_r28_child_only_answer is on
+    And in a spoken sum the child says a wrong number and then another person says the right one
+    When the recording is scored
+    Then the scoring instructions say to mark only the child's own answer and to ignore any other speaker
+    And a number another person said is never the child's answer, nor a change the child makes to it afterwards
+    And such an item is marked from what the child said before the other person spoke
+    And the child's own self-correction still counts
+    And another person's instructions or encouragement do not change the mark
+    And with sa_r28_child_only_answer off the scoring instructions are exactly as before
+
+  @e2e @wip @draft @config-gated @P2 @CT213 @no-mock-driver
+  # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-raw-verdicts.test.js.
+  Scenario: With the r28 switches on, a recording a gate overrode keeps what the model and speech-to-text said
+    Given sa_r28_letter_gate is on, or sa_r28_no_echo_ur is on for the echo check
+    When a gate mutes a recording, or overrides the model's marks for it
+    Then each item keeps why it was overridden, the recording's length and how many words speech-to-text heard
+    And the model's own "no child heard" is its own reason, apart from a short or a silent recording
+    And when the model was asked, each item keeps the model's own verdict and what it heard
+    And the transcript itself, cut to 80 characters, is kept only on the echo check, never on a muted recording
+    And the child's marks are the same as without the switch
+    And with the switches off nothing new is stored
