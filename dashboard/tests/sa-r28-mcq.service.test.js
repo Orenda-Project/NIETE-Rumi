@@ -738,3 +738,68 @@ describe('sa_r28_mcq CSS: the chosen card is the brightest state (B.3 amended)',
     expect(decls('.sae-mcq-opt.is-waiting')).toEqual({ opacity: '.55', 'border-color': 'transparent', 'box-shadow': 'none' });
   });
 });
+
+// ------------------------------------------------------------------------------------------------------------------
+// variant on 100 % of story / MCQ results: the passage and its MCQ record the rotation variant this phone ran
+// (sa-page.js rotate), the same id for both; without rotation the key is there and null, never absent.
+// ------------------------------------------------------------------------------------------------------------------
+describe('sa_r28_mcq: every story and MCQ result records its variant', () => {
+  const { rotate } = require('../sa/sa-page');
+  const vq = (vid) => QS.map((x) => Object.assign({}, x, { id: `${x.id}.${vid}` }));
+  const passage = (extra) => Object.assign({
+    id: 'ur.story_w3', kind: 'passage', subtask: 'oral_reading_fluency', response: 'record', time_limit_s: 60,
+    passage: { text: 'x' }, items: words,
+  }, extra || {});
+  const VARIANTS = ['rwp2026', 'select2024'];
+  const rotating = () => ({
+    battery_id: 'b', ui: { r28_mcq: true },
+    tasks: [
+      passage({ variants: VARIANTS.map((id) => ({ id, passage: { text: id }, items: words })) }),
+      mcqTask(QS, { depends_on: null, variants: VARIANTS.map((id) => ({ id, items: vq(id) })) }),
+    ],
+  });
+  function runStory(battery) {
+    const c = clock();
+    const b = { battery_id: battery.battery_id, ui: battery.ui, tasks: battery.tasks.filter((t) => t.id === 'ur.story_w3') };
+    const r = core.createRunner({ battery: b, now: c.now, onEvent: () => {} });
+    r.start(); r.instructionDone(); r.begin();
+    c.add(10 * 60 * 1000); r.tick();
+    if (r.view().phase === 'last_word') r.lastWord(12);
+    return r.results().find((x) => x.task_id === 'ur.story_w3');
+  }
+  function runMcq(battery) {
+    const c = clock();
+    const b = { battery_id: battery.battery_id, ui: battery.ui, tasks: battery.tasks.filter((t) => t.kind === 'mcq') };
+    const r = core.createRunner({ battery: b, now: c.now, onEvent: () => {} });
+    r.start(); r.instructionDone(); r.begin();
+    for (let i = 0; i < 10 && r.view().phase === 'running'; i += 1) { r.promptDone(); r.answer(0); }
+    return r.results().find((x) => x.task_id === 'ur.story_mcq_w3');
+  }
+  test('rotated to each variant in turn: the MCQ result carries variant = that id, and the story the same id', () => {
+    const seen = new Set();
+    for (let i = 0; i < 200 && seen.size < VARIANTS.length; i += 1) {
+      const b = rotate(rotating(), `seed-${i}`);
+      const vid = b.tasks[1].variant.id;
+      expect(b.tasks[0].variant.id).toBe(vid); // the passage and its questions stay together
+      const m = runMcq(b);
+      const s = runStory(b);
+      expect(m).toHaveProperty('variant', vid);
+      expect(s).toHaveProperty('variant', vid);
+      expect(m.answers[0].item_id).toBe(`ur.story_w3.q1.${vid}`); // the variant's own questions were asked
+      seen.add(vid);
+    }
+    expect([...seen].sort()).toEqual([...VARIANTS].sort());
+  });
+  test('no rotation: the MCQ and the story results carry variant null (the key present, never undefined)', () => {
+    const plain = { battery_id: 'b', ui: { r28_mcq: true }, tasks: [passage(), mcqTask(QS, { depends_on: null })] };
+    const m = runMcq(rotate(plain, 'seed-0'));
+    const s = runStory(rotate(plain, 'seed-0'));
+    expect(m).toHaveProperty('variant', null);
+    expect(s).toHaveProperty('variant', null);
+  });
+  test('OFF (no r28_mcq): the mcq-kind task result is as today (no variant key)', () => {
+    const b = rotate(Object.assign(rotating(), { ui: {} }), 'seed-1');
+    const m = runMcq(b);
+    expect(m).not.toHaveProperty('variant');
+  });
+});

@@ -227,7 +227,8 @@
       silence_stop_s: num(t.silence_stop_s, t.record && t.record.silence_stop_s, 20),
     };
     // A passage keeps the rotation variant it was given (sa-page.js rotate; null without rotation), for its result.
-    if (t.kind === 'passage') r.variant_id = t.variant && t.variant.id ? t.variant.id : null;
+    // Round 28 (sa_r28_mcq): the MCQ on the story keeps it too (recorded only with the switch on, finish()).
+    if (t.kind === 'passage' || t.kind === 'mcq') r.variant_id = t.variant && t.variant.id ? t.variant.id : null;
     // Round 28 (sa_r28_mcq): the story's questions as a spoken multiple choice (a tap task the runner gates on promptDone)
     if (t.kind === 'mcq') r.kind = 'mcq';
     // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
@@ -538,7 +539,7 @@
       };
       // the rotation variant this child saw (sa-page.js rotate): its id, null for the passage without rotation, so the
       // scorer marks the text the child read instead of guessing it from the session id
-      if (has(t, 'variant_id')) r.variant = t.variant_id;
+      if (has(t, 'variant_id') && (t.kind !== 'mcq' || mcqOn)) r.variant = t.variant_id;
       // round 28 (sa_r28_ceiling): the base this child was served (5 words with the counts spare, else 4), never the bank's
       if (ceilingOn && Number(t.base_n) > 0) r.base_n = Number(t.base_n);
       // round 28 (the letter-sound picker): items whose sound played, the ones that could not, and whether it is rated
