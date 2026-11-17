@@ -1262,3 +1262,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the Urdu questions prompt tells the model that repeating the question is not an answer
     And English questions keep the echo check
     And with sa_r28_no_echo_ur off the answer is not counted, exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT209 @no-mock-driver
+  # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-child-only-answer.test.js.
+  Scenario: With sa_r28_child_only_answer on, spoken maths marks only the child's own final answer
+    Given sa_r28_child_only_answer is on
+    And in a spoken sum the child says a wrong number and then another person says the right one
+    When the recording is scored
+    Then the scoring instructions say to mark only the child's own final answer and to ignore any other speaker
+    And the child's own self-correction still counts
+    And with sa_r28_child_only_answer off the scoring instructions are exactly as before
