@@ -345,10 +345,15 @@ def main():
                      "update coaching_sessions set " + ", ".join(f"{c} = null" for c in CS_NULL_COLS)
                      + ", analysis_data = case when jsonb_typeof(analysis_data) = 'object' then analysis_data - %s::text[]"
                        " else analysis_data end", cs_where, (list(ANALYSIS_QUOTE_KEYS),))
-    names_in_prose(cur, run, "coaching_sessions", ("user_id", "observer_user_id"), ("analysis_data", "prioritized_action"),
-                   cs_where + " and (analysis_data is not null or prioritized_action is not null)", uinfo, fake_of_user)
+    # every session whose teacher or observer is scrubbed, including those a keep-list coach recorded (kept, but the
+    # teacher in them is a real person who now carries a dummy name)
+    names_in_prose(cur, run, "coaching_sessions", ("user_id", "observer_user_id"),
+                   ("analysis_data", "prioritized_action", "transcript_text"),
+                   "(analysis_data is not null or prioritized_action is not null or transcript_text is not null)"
+                   " and (user_id in (select id from nk_users) or observer_user_id in (select id from nk_users))",
+                   uinfo, fake_of_user, {"analysis_data": "jsonb", "prioritized_action": "jsonb", "transcript_text": "text"})
     names_in_prose(cur, run, "quizzes", ("teacher_id",), ("meta",),
-                   "meta is not null and (teacher_id is null or teacher_id in (select id from nk_users))", uinfo, fake_of_user)
+                   "meta is not null and teacher_id in (select id from nk_users)", uinfo, fake_of_user)
     run.exec_counted(cur, "coachip_moments.clip_nulled", "coachip_moments", "update coachip_moments set clip_r2_key = null,"
                      " clip_status = case when clip_status = 'ready' then 'expired'::coachip_clip_status else clip_status end",
                      "clip_r2_key is not null and session_id not in (select id from coaching_sessions where not (" + cs_where + "))")
@@ -477,7 +482,7 @@ def main():
     return 0 if ok else 1
 
 
-def names_in_prose(cur, run, table, owner_cols, text_cols, where, uinfo, fake_of_user):
+def names_in_prose(cur, run, table, owner_cols, text_cols, where, uinfo, fake_of_user, casts=None):
     """Replace the owners' real names inside kept prose (AI analysis, coach focus, quiz digests) with their dummies."""
     sel_owner = ", ".join(f"{c}::text" for c in owner_cols)
     sel_text = ", ".join(f"{c}::text" for c in text_cols)
@@ -505,7 +510,8 @@ def names_in_prose(cur, run, table, owner_cols, text_cols, where, uinfo, fake_of
                     new[c] = nt
         if new:
             todo.append(((rid,), new))
-    run.batch_update(cur, "public", table, ["id"], todo, {c: "jsonb" for c in text_cols}, f"{table}.prose_names_replaced")
+    run.batch_update(cur, "public", table, ["id"], todo, casts or {c: "jsonb" for c in text_cols},
+                     f"{table}.prose_names_replaced")
 
 
 def scrub_names(cur, run, uinfo, keep_ids, keep_nat):
