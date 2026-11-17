@@ -1,3 +1,4 @@
 {"ts":"2026-11-17T16:00:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"cbc692469e7b","branch":"bd-snkn32.50-29391","user":""}
 {"ts":"2026-11-17T16:00:36Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"cbc692469e7b","branch":"bd-snkn32.50-29391","user":""}
 {"ts":"2026-11-17T16:28:07Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (scenario for the ready-made close + page guard committed in db408b922; later commits only change wording/guard it already covers)","sha":"cbc692469e7b","branch":"bd-snkn32.50-29391","user":""}
+{"ts":"2026-11-17T16:28:07Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"697de767-3b2c-4338-9091-85c0bea70620","sha":"cbc692469e7b","branch":"bd-snkn32.50-29391","user":""}
