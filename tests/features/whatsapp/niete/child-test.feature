@@ -1481,6 +1481,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then a line above the folded answer asks the coach not to say the sound and to press the sound button instead
     And the folded answer opens only when the coach taps it and is folded again on the next item
     And on the child's own run there is no such line
+  @e2e @wip @draft @config-gated @P1 @CT251 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("every rotated variant …"),
+  # bot/tests/child-test/sa-r28-mcq-of-all.test.js, portal cohortStats.r28.test.ts and LeaderAssessResults.r28.test.tsx.
+  Scenario: With sa_r28_mcq on, a child served a 5-question story is read out of 5, never 6
+    Given sa_r28_mcq is on and the phone rotated the child to a story variant with 5 questions
+    When the child answers 4 of the 5 questions right
+    Then the result records of_all 5, the questions of the served variant before any lost clip
+    And the child meets the comprehension rung and counts in the 80%+ share
+    And Results reads the guessing floor on 4 of 5
+    And the 5-question variant is never padded to 6
   @e2e @wip @draft @config-gated @P1 @CT194 @no-mock-driver
   # No mock driver: the story's questions run on the child's assessment page, not in the chat.
   # Asserted in dashboard/tests/sa-r28-mcq.service.test.js.

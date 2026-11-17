@@ -73,7 +73,7 @@ function taskIn(s: DashStudent, taskId: string): SaTaskResult | undefined {
 
 /**
  * The items a round-28 tapped task is read on (null for every other row): the MCQ (a tapped comprehension task) is
- * of 6 − the questions whose clips were lost (`unavailable`), a question the reading gate did not ask counting as
+ * of ofAll (the served variant's questions; the spec's 6 when absent) − the questions whose clips were lost (`unavailable`), a question the reading gate did not ask counting as
  * wrong (so never `asked.length`); the picker (a live-only tapped spec) is of the items `presented`. The share and the
  * guessing floor both divide by this, never a second formula.
  */
@@ -81,7 +81,9 @@ export function tapOf(t: SaTaskResult | undefined, spec: TaskSpec): number | nul
   if (t?.mode !== 'tap') return null;
   if (spec.kind === 'comprehension') {
     const lost = typeof t.unavailable === 'number' && t.unavailable > 0 ? t.unavailable : 0;
-    return spec.max - lost > 0 ? spec.max - lost : null;
+    // the served variant's questions (ofAll: 5 on a 5-question story), else the spec's
+    const all = typeof t.ofAll === 'number' && t.ofAll > 0 ? t.ofAll : spec.max;
+    return all - lost > 0 ? all - lost : null;
   }
   if (spec.example === false && typeof t.presented === 'number' && t.presented > 0) return t.presented;
   return null;

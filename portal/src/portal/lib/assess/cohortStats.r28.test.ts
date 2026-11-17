@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { exampleCohort, TASKS } from './exampleCohort';
-import { comprehensionShare, headline, specOf, summariseTask } from './cohortStats';
+import { comprehensionShare, headline, specOf, summariseTask, tapOf } from './cohortStats';
 import { DASH_COPY } from './dashboardCopy';
 import type { DashStudent } from './exampleCohort';
 import type { SaTaskResult } from '../../types/childTestSa';
@@ -135,5 +135,21 @@ describe('round 28 follow-up: MCQ of = 6 − lost clips; picker of = presented',
   });
   it('an unrated MCQ stays unscored', () => {
     expect(comprehensionShare(tap('ur.story_mcq_w3', 3, 3, 4, { unrated: true, presented: 3, unavailable: 3 }), spec())).toBeNull();
+  });
+});
+
+// Round 28 (lead ruling): the MCQ is read on the SERVED variant's questions (`ofAll`, 5 on a 5-question story), less
+// lost clips; never the spec's 6. The 5-question variant stays at 5.
+describe('round 28: the MCQ of = ofAll − lost (the served variant), before spec.max', () => {
+  const spec = () => specOf('ur.story_mcq_w3') as never;
+  it('tapOf reads ofAll − lost: 5-question variant → 5; 1 lost → 4; no ofAll → 6 − lost (as before)', () => {
+    expect(tapOf(tap('ur.story_mcq_w3', 4, 5, 4, { ofAll: 5, presented: 5 }), spec())).toBe(5);
+    expect(tapOf(tap('ur.story_mcq_w3', 3, 4, 4, { ofAll: 5, presented: 4, unavailable: 1 }), spec())).toBe(4);
+    expect(tapOf(tap('ur.story_mcq_w3', 4, 6, 4, { presented: 6 }), spec())).toBe(6);
+    expect(tapOf(tap('ur.story_mcq_w3', 4, 5, 4, { presented: 5, unavailable: 1 }), spec())).toBe(5);
+  });
+  it('headline: a child served 5 questions with 4 right is in the 80%+ share (tapped 1.0); 3 of 5 is not', () => {
+    expect(headline([one('f', [tap('ur.story_mcq_w3', 4, 5, 4, { ofAll: 5, presented: 5 })])]).readingWithComprehension.ur).toEqual({ spoken: null, tapped: 1 });
+    expect(headline([one('g', [tap('ur.story_mcq_w3', 3, 5, 4, { ofAll: 5, presented: 5 })])]).readingWithComprehension.ur).toEqual({ spoken: null, tapped: 0 });
   });
 });

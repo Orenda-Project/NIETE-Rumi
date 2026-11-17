@@ -946,3 +946,44 @@ describe('sa_r28_mcq core: a replay pauses both clocks until its read-out ends (
     expect(r.view().offer_next).toBe(true);
   });
 });
+
+describe('sa_r28_mcq: of_all is the served (rotated) variant\'s question count', () => {
+  const { rotate } = require('../sa/sa-page');
+  const vq = (vid, n) => QS.slice(0, n).map((x) => Object.assign({}, x, { id: `${x.id}.${vid}`, gate: undefined, needs_line: undefined }));
+  const VARIANTS = [{ id: 'six', n: 6 }, { id: 'five', n: 5 }];
+  const battery = () => ({
+    battery_id: 'b', ui: { r28_mcq: true },
+    tasks: [mcqTask(QS, { depends_on: null, variants: VARIANTS.map((v) => ({ id: v.id, items: vq(v.id, v.n) })) })],
+  });
+  function finished(b, lost) {
+    const c = clock();
+    const r = core.createRunner({ battery: b, now: c.now, onEvent: () => {} });
+    r.start(); r.instructionDone(); r.begin();
+    b.tasks[0].items.forEach((it, i) => {
+      if (i < (lost || 0)) { r.clipLost(it.id, 'prompt'); return; }
+      r.promptDone(); r.answer(0);
+    });
+    return r.results().find((x) => x.task_id === 'ur.story_mcq_w3');
+  }
+  test('every rotated variant: the finished result has of_all === that variant\'s items.length (5 stays 5)', () => {
+    const seen = new Set();
+    for (let i = 0; i < 200 && seen.size < VARIANTS.length; i += 1) {
+      const b = rotate(battery(), `seed-${i}`);
+      const res = finished(b);
+      expect(res.of_all).toBe(b.tasks[0].items.length);
+      seen.add(b.tasks[0].variant.id);
+    }
+    expect([...seen].sort()).toEqual(['five', 'six']);
+  });
+  test('of_all is taken before the lost-clip filter: presented = of_all − lost', () => {
+    const b = rotate(battery(), 'seed-0');
+    const res = finished(b, 1);
+    expect(res.of_all).toBe(b.tasks[0].items.length);
+    expect(res.presented).toBe(res.of_all - 1);
+    expect(res.unavailable).toBe(1);
+  });
+  test('OFF (no r28_mcq): the mcq-kind task result has no of_all key (as today)', () => {
+    const b = rotate(Object.assign(battery(), { ui: {} }), 'seed-0');
+    expect(finished(b)).not.toHaveProperty('of_all');
+  });
+});

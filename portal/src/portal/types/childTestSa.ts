@@ -144,6 +144,8 @@ export type SaTaskResult = {
   asked?: string[];
   /** round 28 (tap): items whose clips were lost (out of every denominator) */
   unavailable?: number;
+  /** round 28 (MCQ, picker): the items of the variant the phone served, before lost clips (a 5-question story: 5) */
+  ofAll?: number;
   /** round 28 (voice check 'r28'): the other voice was an adult helping, another child, or neither */
   secondVoiceKind?: 'help' | 'other_child' | 'other_voice' | (string & {});
   /** round 28 (tap): answers tapped before the prompt's sound ended (n), of the answers the phone timed (of) */

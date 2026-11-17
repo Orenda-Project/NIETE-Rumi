@@ -589,6 +589,8 @@
         r.asked = st.items.map(function (q) { return q.id; }).filter(function (id) { return lostIds.indexOf(id) < 0; });
         // presented is a COUNT (as the picker's): the ids of the presented questions are asked[]
         r.presented = st.answers.filter(function (a) { return !a.unavailable; }).length;
+        // of_all: the SERVED (rotated) variant's questions, before the lost-clip filter (6 on most stories, 5 on a 5-question one)
+        r.of_all = t.items.length;
         if (lostIds.length) { r.unavailable = lostIds.length; if (r.presented < MCQ_MIN_PRESENTED) r.unrated = true; }
       }
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
