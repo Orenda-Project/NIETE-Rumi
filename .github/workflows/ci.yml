@@ -89,8 +89,12 @@ jobs:
       - name: Install canvas system dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev
 
+      # SKIP_PLAYWRIGHT_INSTALL: bot's postinstall downloads chromium, and Playwright has no build for
+      # ubuntu-latest (26.04) yet — `npm ci` exited 1 on it. No root suite drives a real browser.
       - name: Install bot dependencies
         working-directory: bot
+        env:
+          SKIP_PLAYWRIGHT_INSTALL: '1'
         run: npm ci
 
       - name: Install dashboard dependencies
