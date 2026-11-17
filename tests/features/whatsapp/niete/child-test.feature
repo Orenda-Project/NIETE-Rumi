@@ -1278,6 +1278,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the same questions are asked as the spoken questions would have been
     And each answer is scored on the phone as right or wrong, with which answer was playing at the first tap, how many times the choice changed and how many replays there were
     And a question the child does not answer offers Next after the wait, and Next counts it as wrong
+    And a child who read fewer than 10 words, or stopped on the story's first line, is asked no question, coach-led too
+    And a question whose recording cannot be played is left out: not asked, not wrong, and the next question shows
+    And when fewer than 4 questions could be played the part is kept but not rated
 
   @e2e @wip @draft @config-gated @P2 @CT198 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
