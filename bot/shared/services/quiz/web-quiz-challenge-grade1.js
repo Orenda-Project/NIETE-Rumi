@@ -36,6 +36,7 @@ const supabase = require('../../config/supabase');
 const { logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const Late = require('./web-quiz-challenge-late');   // a result that arrives late (played with no network)
 
 const FORM = '1';
 const EXERCISE = 'numbers';
@@ -215,18 +216,25 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     return c && c.ex === EXERCISE && c.r && c.sid ? c : null;
   }
 
-  /** Score the taps against the served block and move the served row to scored (once). */
+  /**
+   * Score the taps against the served block and move the served row to scored (once). A late result (`c.late`, set by
+   * the base service's runOfMaybeLate under web_quiz_challenge_late_result) also finishes a row the sweep closed,
+   * keeps its note in meta.late, and may make the row the record again (web-quiz-challenge-late.js writeLate).
+   */
   async function submit(c, body = {}) {
     if (!(await on())) fail(403, 'not_eligible');
-    const { data: row, error } = await supabase.from(TABLE).select('id, status, meta').eq('id', c.r).maybeSingle();
+    const late = c.late ? { stamp: c.late, record: !!c.lateRecord } : null;
+    const { data: row, error } = await supabase.from(TABLE).select(late ? `id, status, meta, ${Late.RECORD_COLS}` : 'id, status, meta').eq('id', c.r).maybeSingle();
     if (error) fail(isMissingTable(error) ? 503 : 502, isMissingTable(error) ? 'unavailable' : 'db_unavailable');
     if (!row) fail(404, 'not_found');
-    if (row.status !== 'served') fail(409, 'already_done');
+    if (late ? !Late.OPEN.includes(row.status) : row.status !== 'served') fail(409, 'already_done');
     const { score, rows } = scoreNumberId(items(), body.taps);
-    const meta = { ...(row.meta || {}), ms: Number(body.ms) || null, ...((await settingOn(ITEMS_FLAG_KEY)) ? { items: rows } : {}) };
+    const own = { ms: Number(body.ms) || null, ...((await settingOn(ITEMS_FLAG_KEY)) ? { items: rows } : {}) };
     const at = new Date(Date.now()).toISOString();
-    const patch = { status: 'scored', score, scored_at: at, helped: helpedCol(body.helped), meta };
-    const { data: hit, error: upErr } = await supabase.from(TABLE).update(patch).eq('id', c.r).eq('status', 'served').select('id');
+    const patchOf = (meta, note) => ({ status: 'scored', score, scored_at: at, helped: helpedCol(body.helped), meta: { ...(meta || {}), ...own, ...note } });
+    const { data: hit, error: upErr } = late
+      ? await Late.writeLate(row, late, (meta, note) => patchOf(meta, { late: note }), (patch) => supabase.from(TABLE).update(patch).eq('id', c.r).in('status', Late.OPEN).select('id'))
+      : await supabase.from(TABLE).update(patchOf(row.meta, {})).eq('id', c.r).eq('status', 'served').select('id');
     if (upErr) {
       logError('web_quiz.challenge_store_failed', { runId: c.r, missingTable: isMissingTable(upErr), error: String(upErr.message || '').slice(0, 200) });
       fail(503, 'unavailable');
