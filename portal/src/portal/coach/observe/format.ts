@@ -53,6 +53,34 @@ export function dayMonth(day: string | null | undefined, words: Pick<ObserveCopy
   return m ? `${Number(m[3])} ${words.months[Number(m[2]) - 1]}` : '';
 }
 
+const PK_PARTS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Karachi', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hourCycle: 'h23',
+});
+const pkParts = (d: Date) => {
+  const parts = PK_PARTS.formatToParts(d);
+  const n = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { y: n('year'), mo: n('month'), d: n('day'), h: n('hour'), min: n('minute') };
+};
+
+/**
+ * bd-brv7rs — when one of her own plans was made, so two plans for the same lesson can be told apart: "Today 8:05 AM",
+ * "Yesterday 9:00 PM", else "12 Nov 2:40 PM". The day is Pakistan's calendar day (not a rolling 24 hours) and the
+ * clock is Pakistan's, whatever the phone's zone (WhatsApp's twin: bd-4alcjx ownWhen). Empty when there is no time.
+ */
+export function madeWhen(
+  iso: string | null | undefined, words: Pick<ObserveCopy, 'today' | 'yesterday' | 'months'> & { am: string; pm: string }, now: Date = new Date(),
+): string {
+  const at = new Date(String(iso || ''));
+  if (!iso || Number.isNaN(at.getTime())) return '';
+  const t = pkParts(at);
+  const today = pkParts(now);
+  const dayN = (p: { y: number; mo: number; d: number }) => Date.UTC(p.y, p.mo - 1, p.d) / 86_400_000;
+  const ago = dayN(today) - dayN(t);
+  const day = ago === 0 ? words.today : ago === 1 ? words.yesterday : `${t.d} ${words.months[t.mo - 1]}`;
+  const clock = `${t.h % 12 === 0 ? 12 : t.h % 12}:${String(t.min).padStart(2, '0')} ${t.h >= 12 ? words.pm : words.am}`;
+  return `${day} ${clock}`;
+}
+
 /** "PDF", "Word" or "Photo" for a plan kind; empty when there is none. */
 export function planKindLabel(kind: PlanKind | null | undefined, words: Pick<ObserveCopy, 'kindPdf' | 'kindWord' | 'kindPhoto'>): string {
   if (kind === 'pdf') return words.kindPdf;
