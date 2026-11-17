@@ -72,6 +72,9 @@ const en = {
     'ur.story_w3': 'Passage reading', 'ur.story_comp_w3': 'Reading comprehension',
     'en.letter_names5': 'Letter names', 'en.letter_sounds5': 'Letter sounds', 'en.words4': 'Familiar words',
     'en.story_w3': 'Passage reading', 'en.story_comp_w3': 'Reading comprehension',
+    // round 28: the new tapped tasks carry the distinguishing title; the old titles above stay byte for byte
+    'ur.letter_pick10': 'Letter sounds (listen and tap)', 'en.letter_pick10': 'Letter sounds (listen and tap)',
+    'ur.story_mcq_w3': 'Story questions (listen and tap)', 'en.story_mcq_w3': 'Story questions (listen and tap)',
     'ma.number_id8': 'Number identification', 'ma.discrimination2': 'Quantity comparison', 'ma.missing4': 'Missing number',
     'ma.add2i': 'Addition', 'ma.sub2i': 'Subtraction', 'ma.mul2i': 'Multiplication', 'ma.fluency1m': 'Mental maths, 1 minute',
   } as Record<string, string>,
@@ -197,6 +200,8 @@ const ur: DashCopy = {
     'ur.story_w3': 'عبارت پڑھنا', 'ur.story_comp_w3': 'عبارت کی سمجھ',
     'en.letter_names5': 'حروف کے نام', 'en.letter_sounds5': 'حروف کی آوازیں', 'en.words4': 'جانے پہچانے الفاظ',
     'en.story_w3': 'عبارت پڑھنا', 'en.story_comp_w3': 'عبارت کی سمجھ',
+    'ur.letter_pick10': 'حروف کی آوازیں (سن کر ٹیپ)', 'en.letter_pick10': 'حروف کی آوازیں (سن کر ٹیپ)',
+    'ur.story_mcq_w3': 'کہانی کے سوال (سن کر ٹیپ)', 'en.story_mcq_w3': 'کہانی کے سوال (سن کر ٹیپ)',
     'ma.number_id8': 'اعداد کی پہچان', 'ma.discrimination2': 'مقدار کا موازنہ', 'ma.missing4': 'غائب عدد',
     'ma.add2i': 'جمع', 'ma.sub2i': 'تفریق', 'ma.mul2i': 'ضرب', 'ma.fluency1m': 'زبانی حساب، ایک منٹ',
   },

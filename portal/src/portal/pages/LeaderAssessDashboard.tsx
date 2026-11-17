@@ -429,7 +429,8 @@ export default function LeaderAssessDashboard() {
     );
   } else {
     const hideAll = hide(h.n);
-    const readTasks = TASKS.filter((t) => t.domain === read);
+    // round 28: a live-only task (example: false) has a card only when some session in view has a score for it
+    const readTasks = TASKS.filter((t) => t.domain === read && (t.example !== false || summariseTask(rows, t).n > 0));
     const mathsTasks = TASKS.filter((t) => t.domain === 'ma');
     body = (
       <div className="space-y-5">
