@@ -233,7 +233,9 @@ def main():
     out = Path(a.out) if a.out else None
     if out:
         out.mkdir(parents=True, exist_ok=True)
-    conn = psycopg2.connect(url)
+    # keepalives: the pooler path drops a quiet connection mid-transaction otherwise (seen twice on 17 Nov)
+    conn = psycopg2.connect(url, keepalives=1, keepalives_idle=20, keepalives_interval=10, keepalives_count=6,
+                            application_name="sandbox-pii-purge")
     conn.autocommit = False
     cur = conn.cursor()
     cur.execute("set local statement_timeout = '15min'")
@@ -343,7 +345,10 @@ def main():
                      "update coaching_sessions set " + ", ".join(f"{c} = null" for c in CS_NULL_COLS)
                      + ", analysis_data = case when jsonb_typeof(analysis_data) = 'object' then analysis_data - %s::text[]"
                        " else analysis_data end", cs_where, (list(ANALYSIS_QUOTE_KEYS),))
-    names_in_analysis(cur, run, cs_where, uinfo, fake_of_user)
+    names_in_prose(cur, run, "coaching_sessions", ("user_id", "observer_user_id"), ("analysis_data", "prioritized_action"),
+                   cs_where + " and (analysis_data is not null or prioritized_action is not null)", uinfo, fake_of_user)
+    names_in_prose(cur, run, "quizzes", ("teacher_id",), ("meta",),
+                   "meta is not null and (teacher_id is null or teacher_id in (select id from nk_users))", uinfo, fake_of_user)
     run.exec_counted(cur, "coachip_moments.clip_nulled", "coachip_moments", "update coachip_moments set clip_r2_key = null,"
                      " clip_status = case when clip_status = 'ready' then 'expired'::coachip_clip_status else clip_status end",
                      "clip_r2_key is not null and session_id not in (select id from coaching_sessions where not (" + cs_where + "))")
@@ -472,14 +477,16 @@ def main():
     return 0 if ok else 1
 
 
-def names_in_analysis(cur, run, cs_where, uinfo, fake_of_user):
-    """Replace the teacher's and observer's real names inside the kept analysis prose with their dummies."""
-    cur.execute(f"select id, user_id::text, observer_user_id::text, analysis_data::text from coaching_sessions"
-                f" where analysis_data is not null and {cs_where}")
+def names_in_prose(cur, run, table, owner_cols, text_cols, where, uinfo, fake_of_user):
+    """Replace the owners' real names inside kept prose (AI analysis, coach focus, quiz digests) with their dummies."""
+    sel_owner = ", ".join(f"{c}::text" for c in owner_cols)
+    sel_text = ", ".join(f"{c}::text" for c in text_cols)
+    cur.execute(f"select id::text, {sel_owner}, {sel_text} from {table} where {where}")
     todo = []
-    for sid, tu, ou, txt in cur.fetchall():
+    for row in cur.fetchall():
+        rid, owners, texts = row[0], row[1:1 + len(owner_cols)], row[1 + len(owner_cols):]
         mapping = {}
-        for u in (tu, ou):
+        for u in owners:
             info = uinfo.get(u)
             if not info or not info["scrub_name"] or not info.get("name"):
                 continue
@@ -490,11 +497,15 @@ def names_in_analysis(cur, run, cs_where, uinfo, fake_of_user):
                 mapping.setdefault(first, fake.split()[0])
         if not mapping:
             continue
-        new = ss.replace_names(txt, mapping)
-        if new != txt:
-            todo.append(((str(sid),), {"analysis_data": new}))
-    run.batch_update(cur, "public", "coaching_sessions", ["id"], todo, {"analysis_data": "jsonb"},
-                     "coaching_sessions.analysis_names_replaced")
+        new = {}
+        for c, txt in zip(text_cols, texts):
+            if txt:
+                nt = ss.replace_names(txt, mapping)
+                if nt != txt:
+                    new[c] = nt
+        if new:
+            todo.append(((rid,), new))
+    run.batch_update(cur, "public", table, ["id"], todo, {c: "jsonb" for c in text_cols}, f"{table}.prose_names_replaced")
 
 
 def scrub_names(cur, run, uinfo, keep_ids, keep_nat):
