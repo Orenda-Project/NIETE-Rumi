@@ -212,3 +212,101 @@ describe('the switch module (app_settings sa_r28_words_prompt)', () => {
     expect(await wordsPrompt.on(4e13, { from: () => { throw new Error('boom'); } })).toBe(false);
   });
 });
+
+// sa_r28_words_prompt with sa_r28_ceiling: an extended run is prompted with the cells the child reached (the ceiling's cut
+// list, at least today's base N), never the whole published grid; each listed word keeps its own accepted forms.
+describe('sa_r28_words_prompt on an extended run (sa_r28_ceiling): the prompt lists the cells reached', () => {
+  const before = { ...process.env };
+  beforeEach(() => {
+    process.env.CHILD_TEST_SA_SCORER = 'on'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; process.env.CHILD_TEST_SA_SPEECH_GATE = 'on';
+    delete process.env.CHILD_TEST_SA_MIN_SPEECH_S; delete process.env.CHILD_TEST_SA_SECOND_VOICE;
+  });
+  afterEach(() => { process.env = { ...before }; });
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const W20 = ['sad', 'find', 'come', 'up', 'fine', 'said', 'cup', 'pen', 'run', 'big', 'hat', 'sun', 'dog', 'top', 'map', 'red', 'box', 'leg', 'pot', 'van'];
+  // the accepted forms sit on positions 5-8 (extension items)
+  const ACC = { 4: ['fain', 'fide'], 5: ['sed'], 6: ['kap'], 7: ['pin'] };
+  const all = (id) => W20.map((w, k) => ({ id: `${id}.${pad(k + 1)}`, show: w, target: w, answer: w, src: `fixture:${id}[${k}]`, ...(k >= 4 ? { ext: true } : {}), ...(ACC[k] ? { accept: ACC[k] } : {}) }));
+  const base = { w3: true, kind: 'grid', subtask: 'familiar_word_reading', lang: 'en', response: 'record', present: 'one_at_a_time', time_limit_s: 60, advance_after_s: 3, stop: {} };
+  // the committed extended task: today's 4 items / grid, the extension beside them (base_n, ext_items)
+  const extended = () => { const it = all('en.words4'); return { ...base, id: 'en.words4', items: it.slice(0, 4), grid: W20.slice(0, 4), base_n: 4, ext_items: it.slice(4) }; };
+  // a task without base_n: its whole list is its grid
+  const plain = () => { const it = all('en.words4'); return { ...base, id: 'en.words4', items: it, grid: W20.slice() }; };
+  const cells = (n) => Array.from({ length: n }, (_, i) => ({ i, item_id: `en.words4.${pad(i + 1)}`, at_ms: i * 2000, ms: 2000, how: 'tap' }));
+  const run = (n) => ({ ...row('en.words4'), responses: [{ kind: 'result', mode: 'record', session_id: 'phone-session', time_used_ms: 30000, cells: cells(n), last_item_index: n - 1, stop_reason: 'early_stop_silence' }] });
+  const lines = (prompt) => prompt.split('\n').filter((l) => /^\d+: /.test(l));
+  const card = (n) => W20.slice(0, n).map((w, k) => `${k + 1}: ${w}${ACC[k] ? ` (also: ${ACC[k].join(', ')})` : ''}`);
+  const deps = (task) => ({ ...standIns({ v: Array(20).fill('c') }), phoneBattery: () => ({ tasks: [task] }), wordsPrompt: true, ceiling: true });
+
+  test('reached 7 of a 20-word extended grid (base 4): positions 1-7 exactly, 5-7 with their accepted forms, 8+ absent', async () => {
+    const s = deps(extended());
+    const got = await score.scoreRow(run(7), session(), s);
+    expect(got.ok).toBe(true);
+    expect(s.prompts).toHaveLength(1);
+    const { prompt } = s.prompts[0];
+    expect(prompt).toContain('The phone showed 7 separate words');
+    expect(lines(prompt)).toEqual(card(7));
+    expect(prompt).toContain('\n5: fine (also: fain, fide)\n6: said (also: sed)\n7: cup (also: kap)\nFor EVERY position 1-7 ');
+    expect(prompt).not.toMatch(/^8: /m);
+    expect(prompt).not.toContain('pin');
+    expect(got.marks.detail.items).toHaveLength(7);
+  });
+
+  test('reached 2 (inside today\'s items): positions 1-4, today\'s base N, never fewer', async () => {
+    const s = deps(extended());
+    await score.scoreRow(run(2), session(), s);
+    const { prompt } = s.prompts[0];
+    expect(prompt).toContain('The phone showed 4 separate words');
+    expect(lines(prompt)).toEqual(card(4));
+  });
+
+  test('a task without base_n: the whole grid, as before', async () => {
+    const s = deps(plain());
+    await score.scoreRow(run(7), session(), s);
+    const { prompt } = s.prompts[0];
+    expect(prompt).toContain('The phone showed 20 separate words');
+    expect(lines(prompt)).toEqual(card(20));
+  });
+});
+
+// sa_r8_counts: today's 5th word comes from the battery's spare list; it keeps the spare's accepted forms (none: no key)
+describe('sa_r8_counts: a spare keeps its accepted forms', () => {
+  const { countsTask } = require('../../shared/services/child-test/sa/counts'); // eslint-disable-line global-require
+  const spareList = (id, targets, accepts = {}) => ({ id, items: targets.map((t, k) => ({ id: `${id}.${k}`, target: t, src: `fixture:${id}.items[${k}]`, ...(accepts[k] ? { accept: accepts[k] } : {}) })) });
+  const words4 = () => words('en.words4', ['sad', 'find', 'come', 'up']);
+  const COUNTS = (accepts) => ({ tasks: [spareList('en.words', ['go', 'sad', 'find', 'up', 'come'], accepts), words4()] });
+
+  test('the 5th word of en.words4 carries accept from its spare; no accept on the spare: the item is as before', () => {
+    const b = COUNTS({ 4: ['kam', 'cam'] });
+    const t = countsTask(b, b.tasks[1]);
+    expect(t.items).toHaveLength(5);
+    expect(t.items[4]).toEqual({ id: 'en.words4.05', show: 'come', target: 'come', answer: 'come', src: 'fixture:en.words.items[4]', accept: ['kam', 'cam'] });
+    expect(t.items[4].accept).not.toBe(b.tasks[0].items[4].accept);
+    for (const acc of [undefined, []]) {
+      const b0 = COUNTS({ 4: acc });
+      expect(countsTask(b0, b0.tasks[1]).items[4]).toEqual({ id: 'en.words4.05', show: 'come', target: 'come', answer: 'come', src: 'fixture:en.words.items[4]' });
+    }
+  });
+
+  test('every spare shape (options, shown, plain) carries a non-empty accept list', () => {
+    const b = {
+      tasks: [
+        { id: 'ma.discrimination', items: [0, 1, 2].map((k) => ({ id: `d${k}`, target: '7', options: ['7', '9'], src: `fixture:d.items[${k}]`, accept: ['saat'] })) },
+        { id: 'ma.discrimination2', items: [{ id: 'ma.discrimination2.01', target: '3', options: ['3', '5'] }] },
+        { id: 'ma.add2', items: [0, 1, 2, 3, 4].map((k) => ({ id: `a${k}`, shown: `${k} + 1 =`, target: String(k + 1), src: `fixture:a.items[${k}]`, accept: [`x${k}`] })) },
+        { id: 'ma.add2i', items: [{ id: 'ma.add2i.01', show: '1 + 1', target: '2', answer: '2' }] },
+      ],
+    };
+    expect(countsTask(b, b.tasks[1]).items[1].accept).toEqual(['saat']);
+    expect(countsTask(b, b.tasks[3]).items.slice(1).map((x) => x.accept)).toEqual([['x2'], ['x3'], ['x4']]);
+  });
+
+  test('the words prompt lists the counts form\'s 5th word with its accepted forms', async () => {
+    const b = COUNTS({ 4: ['kam', 'cam'] });
+    const s = { ...ON(standIns({ v: ['c', 'c', 'c', 'c', 'c'] })), phoneBattery: () => b };
+    const r = { ...row('en.words4'), responses: [{ kind: 'result', mode: 'record', session_id: 'phone-session', time_used_ms: 30000, cells: [0, 1, 2, 3, 4].map((i) => ({ i, item_id: `en.words4.0${i + 1}`, at_ms: i * 2000, ms: 2000, how: 'tap' })), last_item_index: 4 }] };
+    await score.scoreRow(r, session(), s);
+    expect(s.prompts[0].prompt).toContain('\n4: up\n5: come (also: kam, cam)\n');
+  });
+});
