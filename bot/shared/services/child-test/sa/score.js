@@ -542,6 +542,7 @@ async function silent(deps, calls, clip, lang, heard = null, { vad = false } = {
     const s = await bounded('stt', limitOf(deps, 'stt'), (signal) => deps.speechOf(clip, lang, signal));
     calls.push({ job: 'child_test.sa_speech_gate', model: s.model || 'stt', cost: s.cost == null ? null : Math.round(s.cost * 1e5) / 1e5, seconds: round1(s.seconds || 0), error: null, words: s.words });
     if (heard && typeof s.text === 'string') heard.text = s.text;
+    if (heard && Number.isInteger(s.words)) heard.words = s.words;
     return Number.isInteger(s.words) ? (s.words === 0 ? 'no_words' : false) : null;
   } catch (e) {
     calls.push({ job: 'child_test.sa_speech_gate', model: 'stt', cost: null, seconds: 0, error: String((e && e.message) || e).slice(0, 120) });
@@ -573,6 +574,15 @@ function echoed(q, g, sttText) {
 
 /** A clip with no speech: each of its items is not reached (timed) / no answer (questions), conf 0, never correct. */
 const MUTE = { verdict: 'not_reached', heard: '', conf: 0, no_speech: true };
+
+/**
+ * E-11 (behind the r28 switches): what a gate override leaves on the item: the clip's length and what STT heard in it
+ * (stt_text cut to 80 characters), when STT ran. The model's own answer is added by the caller (raw_verdict, raw_heard).
+ */
+const sttNote = (heard, clip) => ({
+  ...(clip && Number.isFinite(Number(clip.durationSec)) ? { clip_s: round1(Number(clip.durationSec)) } : {}),
+  ...(heard && Number.isInteger(heard.words) ? { stt_words: heard.words, stt_text: Array.from(String(heard.text || '')).slice(0, 80).join('') } : {}),
+});
 
 /** Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect). */
 function timedRows(refs, verdictOf) {
@@ -616,11 +626,15 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
     ...(Number.isFinite(Number(clip.durationSec)) ? { clip_s: round1(Number(clip.durationSec)) } : {}),
     ...(heard.vad ? { vad_voiced_ms: heard.vad.voiced_ms, vad_share: heard.vad.share, vad_floor_db: heard.vad.floor_db, vad_pass: heard.vad.pass } : {}),
   } : null;
-  if (mute) rows = timedRows(items, () => (gate ? { ...MUTE, gate: { ...gate, reason: mute } } : MUTE));
+  // E-11 (sa_r28_letter_gate ON, every other grid task): a mute keeps its reason, the clip's length and STT's words
+  const note = letterGate === true && !r28 ? sttNote(heard, clip) : null;
+  if (mute) rows = timedRows(items, () => (gate || note ? { ...MUTE, gate: { ...(gate || note), reason: mute } } : MUTE));
   else if (letters) {
     const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time', variantB: r28 }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
-    rows = gateOn() && json.found === false ? timedRows(items, () => (gate ? { ...MUTE, gate } : MUTE))
+    // E-11: the model's own found:false overrides its marks; ON, each item keeps the model's verdict and what it heard
+    const raw = (k) => { const it = by.get(k + 1) || {}; return { raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') }; };
+    rows = gateOn() && json.found === false ? timedRows(items, (k) => (letterGate === true ? { ...MUTE, gate: { ...(gate || note), ...raw(k) } } : MUTE))
       : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; });
   } else {
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
@@ -653,7 +667,7 @@ Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <i
 }
 
 /** Spoken maths (W3: number identification, mental + − ×, one-minute fluency): one clip for the task, or one per item. */
-async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = false } = {}) {
+async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = false, letterGate = false } = {}) {
   const items = rec.items || [];
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   const one = task.present === 'one_at_a_time';
@@ -667,13 +681,20 @@ async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = f
   for (const p of parts) {
     const clip = p.clip || await clipOf(deps, p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
-    if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
+    const heard = {};
+    const mute = await silent(deps, calls, clip, task.lang, heard);
+    // E-11 (sa_r28_letter_gate ON): an override keeps its reason, the clip's length, STT's words and the model's answer
+    const note = letterGate === true ? sttNote(heard, clip) : null;
+    if (mute) { p.at.forEach((k) => got.set(k, { mute: true, ...(note ? { gate: { ...note, reason: mute } } : {}) })); continue; }
     const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one, childOnly: childOnlyAnswer === true }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
     const none = gateOn() && json.found === false;
-    p.at.forEach((k, j) => got.set(k, none ? { mute: true } : by.get(j + 1) || {}));
+    p.at.forEach((k, j) => {
+      const it = by.get(j + 1) || {};
+      got.set(k, none ? { mute: true, ...(note ? { gate: { ...note, raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') } } : {}) } : it);
+    });
   }
-  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? MUTE : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? (it.gate ? { ...MUTE, gate: it.gate } : MUTE) : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
   rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
   const timed = Number(rec.time_limit_s) > 0;
   const attemptedTo = reachedOf(task, res, items.length);
@@ -693,11 +714,15 @@ async function storyRows(tokens, lang, clip, deps, calls, job) {
   return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }));
 }
 
-async function scorePassage(task, rec, row, res, deps, calls) {
+async function scorePassage(task, rec, row, res, deps, calls, { letterGate = false } = {}) {
   const p = rec.passage || {};
   const tokens = Array.isArray(p.words) && p.words.length ? p.words.map((w) => String(w.target)) : String(p.text || '').split(/\s+/).filter(Boolean);
   const clip = await clipOf(deps, row.audio_r2_key);
-  const rows = (await silent(deps, calls, clip, task.lang)) ? timedRows(tokens, () => MUTE)
+  const heard = {};
+  const mute = await silent(deps, calls, clip, task.lang, heard);
+  // E-11 (sa_r28_letter_gate ON): a mute keeps its reason, the clip's length and STT's words
+  const note = mute && letterGate === true ? { ...sttNote(heard, clip), reason: mute } : null;
+  const rows = mute ? timedRows(tokens, () => (note ? { ...MUTE, gate: note } : MUTE))
     : await storyRows(tokens, task.lang, clip, deps, calls, 'child_test.sa_story');
   // RULING #2: the child taps the last word read; words after it were not attempted
   const tapped = res && Number.isInteger(res.last_word_index) ? Math.min(tokens.length, res.last_word_index + 1) : null;
@@ -732,10 +757,13 @@ function lastWordOf(rows, tapped, lines, tapper = 'coach') {
   return { attempted: useCoach ? tapped : heard, heard, source: useCoach ? tapper : 'recording', check: tapped == null ? null : differ ? 'differ' : 'agree' };
 }
 
-async function scoreQuestions(task, rec, row, res, deps, calls, { noEchoUr = false } = {}) {
+async function scoreQuestions(task, rec, row, res, deps, calls, { noEchoUr = false, letterGate = false } = {}) {
   // sa_r28_no_echo_ur ON, an Urdu task: no echo check (the prompt asks the model to judge a repeated question)
   const noEcho = noEchoUr === true && task.lang === 'ur';
   const echo = (q, g, text) => !noEcho && echoed(q, g, text);
+  // E-11: a mute (sa_r28_letter_gate ON) or an echo zero (sa_r28_no_echo_ur ON) keeps what was overridden
+  const muteNote = (why, stt, clip) => (letterGate === true ? { gate: { ...sttNote(stt, clip), reason: why } } : {});
+  const echoNote = (g, stt, clip) => (noEchoUr === true ? { gate: { raw_verdict: g.verdict, raw_heard: String(g.answer || ''), ...sttNote(stt, clip) } } : {});
   const all = rec.questions || [];
   const asked = res && Array.isArray(res.asked) && res.asked.length ? res.asked : all.map((q) => q.id);
   const qs = asked.map((id) => all.find((q) => q.id === id)).filter(Boolean);
@@ -749,27 +777,29 @@ async function scoreQuestions(task, rec, row, res, deps, calls, { noEchoUr = fal
       if (!(section ? section.has(q.id) : k)) continue; // no clip (or stretch) for this question: no answer heard
       const clip = section ? section.get(q.id) : await clipOf(deps, k.key);
       const stt = {};
-      if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
+      const why = await silent(deps, calls, clip, task.lang, stt);
+      if (why) { marked.set(q.id, { mute: true, ...muteNote(why, stt, clip) }); continue; }
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false, noEcho }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       const got = (json.questions || [])[0];
-      if (got) marked.set(q.id, echo(q, got, stt.text) ? { mute: true, echo: true } : got);
+      if (got) marked.set(q.id, echo(q, got, stt.text) ? { mute: true, echo: true, ...echoNote(got, stt, clip) } : got);
     }
   } else if (row.audio_r2_key) {
     const clip = await clipOf(deps, row.audio_r2_key);
     const stt = {};
-    if (await silent(deps, calls, clip, task.lang, stt)) qs.forEach((q) => marked.set(q.id, { mute: true }));
+    const why = await silent(deps, calls, clip, task.lang, stt);
+    if (why) qs.forEach((q) => marked.set(q.id, { mute: true, ...muteNote(why, stt, clip) }));
     else {
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true, noEcho }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       for (const g of json.questions || []) {
         const q = qs.find((x) => x.id === g.id);
-        marked.set(g.id, q && echo(q, g, stt.text) ? { mute: true, echo: true } : g);
+        marked.set(g.id, q && echo(q, g, stt.text) ? { mute: true, echo: true, ...echoNote(g, stt, clip) } : g);
       }
     }
   }
   const rows = qs.map((q, k) => {
     const g = marked.get(q.id);
     const clip = keys.some((x) => x.i === q.id) || Boolean(row.audio_r2_key);
-    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip, ...(g.echo ? { echo: true } : {}) };
+    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip, ...(g.echo ? { echo: true } : {}), ...(g.gate || {}) };
     return { i: k + 1, id: q.id, verdict: g ? g.verdict : 'no_answer', heard: g ? String(g.answer || '') : '', conf: g ? conf01(g.confidence) : null, clip };
   });
   return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false, section: Boolean(section) };
@@ -1056,9 +1086,9 @@ async function scoreRow(row, session, deps = {}) {
     const gate = compGate(passage);   // null unless sa_stop_rules
     if (gate) out = notReached(rec, res, gate);
     else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate });
-    else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
-    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls, { childOnlyAnswer });
-    else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr });
+    else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls, { letterGate });
+    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls, { childOnlyAnswer, letterGate });
+    else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr, letterGate });
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
     if (stops && row.block === MUL && session.sums && session.sums.known && !session.sums.right) out = gateMul(out);
     const confidence = mean(out.rows.map((r) => r.conf));

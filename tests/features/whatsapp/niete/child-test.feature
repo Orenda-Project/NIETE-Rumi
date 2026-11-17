@@ -1304,3 +1304,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the scoring instructions say to mark only the child's own final answer and to ignore any other speaker
     And the child's own self-correction still counts
     And with sa_r28_child_only_answer off the scoring instructions are exactly as before
+
+  @e2e @wip @draft @config-gated @P2 @CT210 @no-mock-driver
+  # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-raw-verdicts.test.js.
+  Scenario: With the r28 switches on, a recording a gate overrode keeps what the model and speech-to-text said
+    Given sa_r28_letter_gate is on, or sa_r28_no_echo_ur is on for the echo check
+    When a gate mutes a recording, or overrides the model's marks for it
+    Then each item keeps why it was muted, the recording's length and the words speech-to-text heard, cut to 80 characters
+    And when the model was asked, each item keeps the model's own verdict and what it heard
+    And the child's marks are the same as without the switch
+    And with the switches off nothing new is stored
