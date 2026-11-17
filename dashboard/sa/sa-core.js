@@ -155,6 +155,7 @@
   var FLUENCY_ITEM_S = 5;
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
   var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
+  var SHORT_CELL_MS = 500; // sa_r28_ceiling (C-7): a final cell on show for less than this at time up is not attempted
   var R9_WAIT_MIN_S = 30; // r9_question_time: no question in an untimed part moves on by itself before this
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
   // Round 8 (r8_reading_position): under this many voiced seconds on the passage, the child read nothing. 1.0 s, not 2.0:
@@ -313,6 +314,9 @@
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
+    // sa_r28_ceiling (opts.ceiling, from battery.ui.r28_ceiling): a final cell closed by the clock under
+    // SHORT_CELL_MS is presented (it stays in cells with its ms) but not attempted (last_item_index skips it)
+    var ceilingOn = opts.ceiling === true;
     // Round 7b: End this section (RDF manual), the move-on when a part is not finished and the silence repeat (RDF auto).
     var endSectionOn = !!opts.end_section && (manual || !!opts.auto_end_section);
     var incompleteOn = !!opts.incomplete && !manual;
@@ -476,7 +480,12 @@
     function finish(reason) {
       var t = task();
       if (silenceDue(t, reason)) { silenceReminder(t); return; }
+      var closedByClock = !!st.cell && reason === STOP.TIME_UP;
       if (st.cell) closeCell(reason);
+      if (ceilingOn && closedByClock) {
+        var lastCell = st.cells[st.cells.length - 1];
+        if (lastCell && lastCell.ms < SHORT_CELL_MS) st.last_item_index = st.cells.length > 1 ? st.cells[st.cells.length - 2].i : null;
+      }
       var used = st.started == null ? 0 : Math.round(now() - st.started);
       // The clock as it really ran (a throttled tab, a late time-up): never capped, unlike time_used_ms.
       var elapsed = used;
