@@ -122,6 +122,8 @@ export default function LeaderAssessResults() {
     // round 28: a tapped task heard too little is not rated (no score, never a low one); an extended timed task's first N
     const unrated = t.mode === 'tap' && t.unrated === true;
     const firstN = t.firstN && typeof t.firstN.correct === 'number' && typeof t.firstN.of === 'number' ? t.firstN : null;
+    // round 28: the voice check's kind renders its own line, and then the one footnote (never on today's rows)
+    const voiceKind = spoken && scored && t.secondVoiceKind && r.voiceKinds[t.secondVoiceKind] ? r.voiceKinds[t.secondVoiceKind] : null;
     // round 28 (SPEC F): a rated tapped picker / MCQ says how many children reach its rung by guessing alone (text only)
     // on the items this child actually had (presented / 6 − lost): the same tapOf the share divides by
     const tapSpec = t.mode === 'tap' ? specOf(t.taskId) : undefined;
@@ -155,12 +157,13 @@ export default function LeaderAssessResults() {
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
           {/* round 28: with the voice check's kind, say what was heard ('other_voice': no line); without it, today's line */}
           {spoken && scored && (t.secondVoiceKind
-            ? (r.voiceKinds[t.secondVoiceKind] ? <Row label={r.secondVoice} value={r.voiceKinds[t.secondVoiceKind]} /> : null)
+            ? (voiceKind ? <Row label={r.secondVoice} value={voiceKind} /> : null)
             : (t.secondVoice ? <Row label={r.secondVoice} value={r.secondVoiceYes} /> : null))}
           </>}
           {stop && <Row label={r.stopReason} value={stop} />}
           {stop && t.stopWhy && r.whys[t.stopWhy] && <Row label={r.why} value={r.whys[t.stopWhy]} />}
         </dl>
+        {voiceKind ? <p data-testid="result-voice-note" className="mt-1 text-xs text-slate-500">{r.voiceNote}</p> : null}
         {floors ? <p data-testid="result-guess-floor" className="mt-2 text-xs text-slate-600">{r.guessFloor(floors.map((f) => ({ pct: numIn(lang, fmtFloor(f.share)), k: numIn(lang, f.k), n: numIn(lang, f.n) })))}</p> : null}
       </li>
     );

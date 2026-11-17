@@ -8,7 +8,7 @@
  * or the answer, correcting, building the answer) in a few. ON: each clip gets a transcript split by speaker, a text
  * model reads it beside the task's own items and answers and labels the clip help / other_child / support / unclear /
  * none; only help and other_child flag, and only when the quoted words are in the transcript. The detail says what
- * kind of help (Results: "An adult said an answer") and the matched item words; support and unclear are logged, never
+ * kind of help (Results: "An adult helped with the answer") and the matched item words; support and unclear are logged, never
  * a flag. OFF: unchanged. The scorer's own path runs here; only the clip, speech-to-text and the models are stand-ins.
  */
 
