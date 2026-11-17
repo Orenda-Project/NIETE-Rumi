@@ -90,6 +90,8 @@ function withDefaults(deps = {}) {
       fdeOn: require('./obs612/visit').asksClass,
       createLessonForm: require('./observe2/field-form.store').createLessonForm,
     }),
+    // Does the principal app's switch (portal_principal_app) name this principal? (the portal's rule)
+    principalApp: () => require('./principal-app-switch').isOnPrincipalApp,
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
@@ -222,8 +224,10 @@ function lessonOfArg(lesson) {
 async function decideStamp(d, coach, teacherUserId, lesson) {
   // Principals have the coach HITL rubric (FICO17 v6, FDE 6-8) on the WhatsApp bot only (operator decision, 15 Nov;
   // the portal path is untested for them). A portal visit a principal starts stays on today's rubric even when the
-  // coach switches carry role:principal. Coaches are unchanged.
-  if (isPrincipalRole(coach && coach.role)) return { v6Stamp: null, fdeLesson: null };
+  // coach switches carry role:principal, UNLESS the principal app's switch names her (operator, 17 Nov: "get the
+  // principal thingy live for her"): she then gets the coach rubric exactly as a coach, decided below by the same
+  // switches. Coaches are unchanged.
+  if (!(await hasPortalCoachRubric(d, coach))) return { v6Stamp: null, fdeLesson: null };
   let fdeOn = false;
   try { fdeOn = !!(await d.rubric.fdeOn(coach)); } catch (_) { fdeOn = false; }
   const named = fdeOn && lesson ? lesson : null;
@@ -238,6 +242,20 @@ async function decideStamp(d, coach, teacherUserId, lesson) {
     })) || null;
   } catch (_) { v6Stamp = null; }
   return { v6Stamp, fdeLesson: null };
+}
+
+/**
+ * May this leader's PORTAL visit carry the coach HITL rubric (v6 / FDE, when the coach switches say so)?
+ * Every non-principal: yes, as before (no read). A principal: only when the principal app's switch names her (the test
+ * switch, app_settings portal_principal_app); any other principal, or a failed read, stays on today's rubric.
+ */
+async function hasPortalCoachRubric(d, coach) {
+  if (!isPrincipalRole(coach && coach.role)) return true;
+  try {
+    return (await d.principalApp(d.supabase, coach.id)) === true;
+  } catch (_) {
+    return false;
+  }
 }
 
 /**
@@ -286,8 +304,9 @@ async function lessonQuestion({ userId }, deps) {
   const d = withDefaults(deps);
   const coach = await loadCoach(d, userId);
   if (!coach || !LEADER_ROLES.includes(coach.role)) return { status: 'ok', ask: false };
-  // A principal's portal visit is never FDE (decideStamp above), so the class is not asked.
-  if (isPrincipalRole(coach.role)) return { status: 'ok', ask: false };
+  // A principal's portal visit is never FDE (decideStamp above), so the class is not asked — unless the principal app
+  // names her: then FDE's switch decides, as for a coach.
+  if (!(await hasPortalCoachRubric(d, coach))) return { status: 'ok', ask: false };
   let ask = false;
   try { ask = !!(await d.rubric.fdeOn(coach)); } catch (_) { ask = false; }
   if (!ask) return { status: 'ok', ask: false };
