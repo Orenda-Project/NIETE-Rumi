@@ -38,6 +38,8 @@ function stubTable(handlers) {
       insert: jest.fn((payload) => { (h.onInsert || (() => {}))(payload); return chain; }),
       eq: jest.fn((col, val) => { (h.onEq || (() => {}))(col, val); return chain; }),
       maybeSingle: jest.fn(async () => ({ data: h.row === undefined ? null : h.row, error: null })),
+      // _writeMetrics reads with limit(1), not maybeSingle() (bd-v0toag.80): an array of rows.
+      limit: jest.fn(async () => ({ data: h.row === undefined ? [] : [h.row], error: null })),
       then: undefined,
     };
     return chain;
@@ -182,7 +184,8 @@ describe('the survey is wired to the right place in the delivery', () => {
   test('generateReport sends it after the voice debrief and before the commit prompt', () => {
     const voice = SRC.indexOf('this.generateAndSendVoiceDebrief(');
     const survey = SRC.indexOf('sendFeedbackPrompt(');
-    const commit = SRC.indexOf('cardCopy.commitPrompt');
+    // The commit prompt moved to report-commit-prompt.js (bd-v0toag.124); its call site stays here.
+    const commit = SRC.indexOf('sendCommitPrompt(');
     expect(voice).toBeGreaterThan(-1);
     expect(survey).toBeGreaterThan(-1);
     expect(commit).toBeGreaterThan(-1);
