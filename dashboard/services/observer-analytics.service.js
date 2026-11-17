@@ -204,8 +204,10 @@ function summarizeObserverAnalytics(rows = {}, opts = {}) {
     e.acc.principals += count(r.principals);
   }
 
+  // By the instant, never by created_at's string: pg hands back a Date, whose string starts with the weekday.
+  const when = (v) => { const t = v instanceof Date ? v.getTime() : Date.parse(v); return Number.isFinite(t) ? t : 0; };
   const sorted = [...(src.sessions || [])].filter(Boolean)
-    .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id)));
+    .sort((a, b) => (when(a.created_at) - when(b.created_at)) || String(a.id).localeCompare(String(b.id)));
   for (const s of sorted) {
     const e = bySchool.get(s.school_id);
     if (!e || s.observed_test === true || s.observer_test === true || !OBSERVED.includes(s.observed_role)) continue;

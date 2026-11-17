@@ -203,6 +203,16 @@ describe("Observations (Human) as Moawin", () => {
     expect(screen.getByTestId("observer-school-b2").textContent).toMatch(/No finished observation in the period/);
   });
 
+  it("no area with a v6 visit: one plain line instead of a chart of empty bars", async () => {
+    h.getObservers.mockImplementation(async () => {
+      const o = observers(null);
+      return { ...o, regions: o.regions.map((r) => ({ ...r, v6: counts().v6 })) };
+    });
+    renderPage("/observations");
+    expect((await screen.findByTestId("chart-v6-none", {}, { timeout: 5000 })).textContent).toBe("No v6 visit yet");
+    expect(screen.queryByTestId("chart-v6")).toBeNull();
+  });
+
   it("Digital Coach keeps its own tab (no observers read)", async () => {
     renderPage("/observations?obs=dc");
     await screen.findByTestId("observations-dc", {}, { timeout: 5000 });
