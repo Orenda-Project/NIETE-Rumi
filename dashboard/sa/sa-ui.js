@@ -2419,12 +2419,14 @@
       return mcq;
     }
     function mcqReadingPhase(S) { return S.phase === 'listening' || S.phase === 'options'; }
+    /** Lead ruling (B.3): after the first full read-out the cards never lock; only the first read is a locked one. */
+    function mcqLocked(S) { return mcqReadingPhase(S) && S.read_end == null; }
     /** A card's state classes (B.3): waiting (dimmed) → speaking (lit) → ready → chosen (held) → pressed. */
     function mcqCls(c, S, i) {
-      var chosen = S.chosen === i, reading = mcqReadingPhase(S);
-      c.classList.toggle('is-waiting', reading && !chosen && S.lit !== i);
+      var chosen = S.chosen === i, locked = mcqLocked(S);
+      c.classList.toggle('is-waiting', locked && !chosen && S.lit !== i);
       c.classList.toggle('is-speaking', S.lit === i);
-      c.classList.toggle('is-ready', !reading && !chosen);
+      c.classList.toggle('is-ready', !locked && !chosen);
       c.classList.toggle('is-chosen', chosen);
       c.classList.toggle('is-pressed', chosen && S.phase === 'pressed');
       c.setAttribute('aria-pressed', chosen ? 'true' : 'false');
@@ -2433,7 +2435,7 @@
       var S = mcq;
       var box = S ? el.querySelector('.sae-mcq') : null;
       if (!box || box.getAttribute('data-item') !== S.item) return;
-      box.classList.toggle('sae-mcq-listening', S.phase === 'listening');
+      box.classList.toggle('sae-mcq-listening', S.phase === 'listening' && S.read_end == null);
       Array.prototype.forEach.call(box.querySelectorAll('.sae-mcq-opt'), function (c, i) { mcqCls(c, S, i); });
       var rb = box.querySelector('.sae-mcq-replay');
       if (rb) rb.disabled = S.phase !== 'open';
@@ -2485,6 +2487,8 @@
         S.replays++;
       }
       S.reads++;
+      // a re-read after the first full read-out: the runner's clocks wait for its end (both count from the last play)
+      if (S.read_end != null && !S.practice && typeof runner.replayStart === 'function') runner.replayStart();
       var tok = ++S.run, g = gen;
       function live() { return alive && mcq === S && S.run === tok && g === gen; }
       if (S.settle != null) { clearTimeout(S.settle); S.settle = null; }
@@ -2529,7 +2533,8 @@
           return;
         }
         if (!S.practice && typeof runner.clipLost === 'function') runner.clipLost(S.item, 'replay');
-        if (S.read_end == null) { S.read_end = mcqNow(); if (!S.practice && runner.promptDone) runner.promptDone(); }
+        S.read_end = mcqNow();
+        if (!S.practice && runner.promptDone) runner.promptDone(); // the clocks restart (a lost replay paused them)
         S.phase = 'open';
         if (S.chosen != null) mcqSettle(S);
         draw();
@@ -2544,7 +2549,9 @@
     }
     function mcqTap(i) {
       var S = mcq;
-      if (!alive || busy || !S || (S.phase !== 'options' && S.phase !== 'open') || S.chosen === i) return;
+      // the first read of the question ignores taps; after the first full read-out a tap always counts (lead ruling, B.3)
+      var canTap = !!S && (S.phase === 'options' || S.phase === 'open' || (S.phase === 'listening' && S.read_end != null));
+      if (!alive || busy || !S || !canTap || S.chosen === i) return;
       if (S.chosen == null) {
         S.first_at = mcqNow();
         S.at_option = S.phase === 'options' ? Math.max(0, S.last_lit) + 1 : null;
@@ -2634,7 +2641,7 @@
         shownOffer = !!v.offer_next;
         if (v.offer_next && !reading && S.chosen == null) next = btn(C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
       }
-      var s = screen(v, 'sae-run sae-mcq' + (practice ? ' sae-mcq-practice' : '') + (S.phase === 'listening' && !fb ? ' sae-mcq-listening' : ''), [
+      var s = screen(v, 'sae-run sae-mcq' + (practice ? ' sae-mcq-practice' : '') + (S.phase === 'listening' && S.read_end == null && !fb ? ' sae-mcq-listening' : ''), [
         t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row sae-mcq-head' }, [j, practice ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, practice ? skipInstrBtn(v) : null]),
         mcqCoachLine(),
