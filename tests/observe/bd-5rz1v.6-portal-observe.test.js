@@ -825,6 +825,134 @@ describe('a principal on the portal: today\'s rubric, whatever the coach switche
   });
 });
 
+// bd-412rly (operator, 17 Nov: "get the principal thingy live for her"): a principal the principal app is ON for
+// (app_settings portal_principal_app names her: the test switch) gets the coach HITL rubric on the portal exactly as on
+// WhatsApp: FICO17 v6 for grades 1-5 and 9-12, FDE's tool for 6-8, decided by the same coach switches (role:principal
+// keys). Every other principal is unchanged (the block above): no stamp, no class question.
+describe('a principal ON the principal app: the coach HITL rubric on the portal, as on WhatsApp', () => {
+  const start = (args, d) => Svc.startPortalObservation({ userId: COACH, teacherExtId: ayesha.teacher_ext_id, schoolExtId: 'sch-1', key: KEY, ...args }, d);
+  const OTHER_PRINCIPAL = 'c0ac0000-0000-4000-8000-0000000000ff';
+  const onApp = (value) => fakeSupabase({
+    users: () => coachRow({ role: 'principal', region: 'sihala' }),
+    coaching_sessions: () => null,
+    app_settings: (filters) => (filters.key === 'portal_principal_app' ? (value === undefined ? null : { value }) : null),
+  });
+  const sessionInsert = (d) => d.supabase.writes.inserts.find((w) => w.table === 'coaching_sessions').row;
+  const switchesOn = () => ({ fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') });
+
+  test('the switch names her: a v6 stamp, decided by the coach switch exactly as for a coach', async () => {
+    const d = deps({ supabase: onApp(JSON.stringify([OTHER_PRINCIPAL, COACH])), rubric: switchesOn() });
+    expect(await start({}, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID });
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6', framework_selection_reason: 'coach_rubric_switch' });
+  });
+
+  test('a grades 1-5 lesson named: v6, decided as a named FICO class', async () => {
+    const d = deps({ supabase: onApp([COACH]), rubric: switchesOn() });
+    await start({ lesson: { primary: true } }, d);
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, lessonIsPrimary: true });
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+  });
+
+  test('grade 10: FICO (v6), no FDE form', async () => {
+    const d = deps({ supabase: onApp([COACH]), rubric: switchesOn() });
+    await start({ lesson: { grade: 10 } }, d);
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+  });
+
+  test('grade 7 Maths: FDE\'s tool — the form row and the stamp, as for a coach', async () => {
+    const d = deps({ supabase: onApp([COACH]), rubric: switchesOn() });
+    expect(await start({ lesson: { grade: 7, subject: 'maths' } }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(d.rubric.decideV6).not.toHaveBeenCalled();
+    expect(d.rubric.createLessonForm).toHaveBeenCalledWith(expect.objectContaining({
+      observerUserId: COACH, teacherUserId: TEACHER_UID, rubricVersion: 'obs612-msci-v1',
+      visitContext: expect.objectContaining({ grade: 7, subject: 'maths', via: 'observe', channel: 'portal' }),
+    }));
+    expect(d.supabase.writes.updates).toContainEqual(expect.objectContaining({
+      table: 'coaching_sessions', patch: { framework: 'obs612-msci-v1', framework_selection_reason: 'obs612_lesson' },
+    }));
+  });
+
+  test('the switch on for everyone (true): the portal opens the app for her, so the bot agrees', async () => {
+    const d = deps({ supabase: onApp(true), rubric: switchesOn() });
+    await start({}, d);
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+  });
+
+  test('Check and send asks her the class (FDE\'s switch decides, as for a coach)', async () => {
+    const d = deps({ supabase: onApp([COACH]), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
+    const out = await Svc.lessonQuestion({ userId: COACH }, d);
+    expect(out).toMatchObject({ status: 'ok', ask: true, grades: [6, 7, 8, 9, 10, 11, 12], subjectGrades: [6, 7, 8] });
+    expect(d.rubric.fdeOn).toHaveBeenCalledWith(expect.objectContaining({ id: COACH, role: 'principal' }));
+  });
+
+  test.each([
+    ['the switch names another principal', [OTHER_PRINCIPAL]],
+    ['no switch row', undefined],
+    ['the switch says "teachers"', 'teachers'],
+    ['a malformed value', '{nope'],
+    ['an empty list', []],
+  ])('%s: today\'s rubric, the coach switches not asked, no class question', async (_label, value) => {
+    const d = deps({ supabase: onApp(value), rubric: switchesOn() });
+    await start({ lesson: { grade: 7, subject: 'maths' } }, d);
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+    expect(d.rubric.decideV6).not.toHaveBeenCalled();
+    expect(d.rubric.fdeOn).not.toHaveBeenCalled();
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+    const q = deps({ supabase: onApp(value), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
+    expect(await Svc.lessonQuestion({ userId: COACH }, q)).toEqual({ status: 'ok', ask: false });
+  });
+
+  test('the switch read fails: today\'s rubric (fail-closed)', async () => {
+    const sb = onApp([COACH]);
+    const from = sb.from;
+    sb.from = (table) => { if (table === 'app_settings') throw new Error('db down'); return from(table); };
+    const d = deps({ supabase: sb, rubric: switchesOn() });
+    expect(await start({}, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+    expect(d.rubric.decideV6).not.toHaveBeenCalled();
+  });
+
+  test('a coach is never asked about the principal switch (unchanged path)', async () => {
+    const appSettings = jest.fn(() => null);
+    const sb = fakeSupabase({ users: () => coachRow({ role: 'coach', region: 'sihala' }), coaching_sessions: () => null, app_settings: appSettings });
+    const d = deps({ supabase: sb, rubric: switchesOn() });
+    await start({}, d);
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+    expect(appSettings).not.toHaveBeenCalled();
+    await Svc.lessonQuestion({ userId: COACH }, deps({ supabase: sb, rubric: switchesOn() }));
+    expect(appSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe('principal-app-switch isOnPrincipalApp — the portal\'s rule for portal_principal_app', () => {
+  const mod = () => require('../../bot/shared/services/observe/principal-app-switch');
+  const isOnPrincipalApp = (...a) => mod().isOnPrincipalApp(...a);
+  const sb = (row) => fakeSupabase({ app_settings: (f) => (f.key === 'portal_principal_app' ? row : null) });
+  test('the key is the portal\'s', () => expect(mod().PRINCIPAL_APP_KEY).toBe('portal_principal_app'));
+  test.each([
+    [[COACH], true],
+    [JSON.stringify([COACH]), true],
+    [true, true],
+    ['true', true],
+    [' TRUE ', true],
+    [[OTHER], false],
+    [JSON.stringify([OTHER]), false],
+    ['teachers', false],
+    [false, false],
+    [{ users: [COACH] }, false],
+    [[7], false],
+  ])('value %j -> %j', async (value, want) => {
+    expect(await isOnPrincipalApp(sb({ value }), COACH)).toBe(want);
+  });
+  test('no row, no user, a thrown read: off', async () => {
+    expect(await isOnPrincipalApp(sb(null), COACH)).toBe(false);
+    expect(await isOnPrincipalApp(sb({ value: [COACH] }), null)).toBe(false);
+    expect(await isOnPrincipalApp({ from: () => { throw new Error('x'); } }, COACH)).toBe(false);
+  });
+});
+
 describe('role-features isPrincipalRole', () => {
   const { isPrincipalRole, observesOwnSchoolAtOnce } = require('../../bot/shared/config/role-features');
   test.each([['principal', true], [' Principal ', true], ['coach', false], ['teacher', false], ['', false], [null, false], [undefined, false], [7, false]])(
