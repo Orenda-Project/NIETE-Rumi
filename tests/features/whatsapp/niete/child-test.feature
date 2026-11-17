@@ -1552,3 +1552,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When a timed task's result arrives without the time used, whether or not it went past today's items
     Then the task is scored but its rate is left waiting, never worked out on an assumed minute
     And with sa_r28_ceiling off the rate uses the minute as today and the marks say the minute was assumed
+
+  @e2e @wip @draft @config-gated @P1 @CT245 @no-mock-driver
+  # No mock driver: the scoring sweep runs against a model. Asserted in bot/tests/child-test/sa-r28-base-served.test.js
+  # and dashboard/tests/sa-r28-base-served.service.test.js.
+  Scenario: With sa_r28_ceiling on, the words task's first-words anchor is the five words the child was served
+    Given sa_r28_ceiling is on
+    And sa_r8_counts is on, so every child is served a fifth word
+    When a child reads past the fifth word before the minute ends
+    Then the words rung, the first-words count and the first-line rule all read the first five words, as today's five
+    And with sa_r8_counts off they read the first four words the child was served

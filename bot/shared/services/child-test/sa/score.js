@@ -285,6 +285,15 @@ function ranCounts(battery, t, row) {
 }
 
 /**
+ * sa_r28_ceiling (C-2, C-8): the base the child was SERVED, which the phone records on its result (base_n: 5 words when
+ * sa_r8_counts served the spare, 4 when not); a result without it was served the committed task's base.
+ */
+function servedBase(t, row) {
+  const res = resultOf(row) || {};
+  return Number(res.base_n) > 0 ? Number(res.base_n) : Number(t.base_n);
+}
+
+/**
  * sa_r28_ceiling (C-2, C-10): the committed task keeps today's items, grid and stop and carries the extension beside
  * them (base_n, ext_items, ext_stop); the route serves items + ext_items only with the switch ON. A run whose cells go
  * past base_n (and past the counts form's own N, sa_r8_counts) ran the extended list: the task as it ran (items + ext_items, the grid rebuilt, ext_stop as its stop).
@@ -292,12 +301,14 @@ function ranCounts(battery, t, row) {
  * extended.
  */
 function extendedOf(t, row, ran = 0) {
-  const base = Number(t.base_n);
+  const base = servedBase(t, row);
   if (!(base > 0) || !Array.isArray(t.ext_items) || !t.ext_items.length) return null;
   const res = resultOf(row) || {};
-  if (!(Array.isArray(res.cells) && res.cells.length > Math.max(base, ran))) return null;
+  // the phone's own base says what was served (its counts form included); else the counts form's N is inferred
+  const served = Number(res.base_n) > 0;
+  if (!(Array.isArray(res.cells) && res.cells.length > (served ? base : Math.max(base, ran)))) return null;
   const items = (t.items || []).concat(t.ext_items);
-  const out = { ...t, items };
+  const out = { ...t, items, base_n: base };
   if (Array.isArray(t.grid)) out.grid = items.map((x) => x.show);
   if (t.ext_stop) out.stop = t.ext_stop;
   return out;
