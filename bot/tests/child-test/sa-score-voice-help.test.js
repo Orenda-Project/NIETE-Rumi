@@ -120,6 +120,23 @@ describe('sa_r28_voice_help: flag help, not support', () => {
     expect(JSON.stringify(got.marks.meta)).not.toContain('آپ کہو گے');
   });
 
+  test('ON: a re-ask is help only when the child\'s new answer is right; no change, or wrong to another wrong, is support', async () => {
+    const s = standIns();
+    await score.scoreRow(row(), session(), { ...s, voiceHelp: true });
+    const judged = s.jobs.filter((j) => j.schema && j.schema.name === 'sa_voice_help');
+    expect(judged).toHaveLength(3);
+    for (const { prompt } of judged) {
+      expect(prompt).toContain('right after a WRONG answer ("-3?", "کیا لگایا، زمین میں؟"), and the child then gives a different answer and the new answer is right, that is help (kind "corrected")');
+      expect(prompt).toContain('If the new answer is still wrong, or the child keeps the same answer, the re-ask is support: the score cannot move.');
+      expect(prompt).toContain('asks the same item again after a WRONG answer and the child then changes to the RIGHT answer');
+      expect(prompt).toContain('asking a question again when the child had not answered, does not change the answer, or changes it to another wrong answer');
+      expect(prompt).not.toContain('whether the new answer is right or not');
+      // the read-again rule stays help on its own sentence: "So is …" after the support sentence read as support
+      expect(prompt).toContain('Telling the child to read the passage again from some point ("دوبارہ پڑھو، یہاں سے") is help too.');
+      expect(prompt).not.toContain('So is telling the child');
+    }
+  });
+
   test('ON: a help label whose quote is not in the transcript is kept as unclear, never a flag', async () => {
     const s = standIns({ q2: { turns: SUPPORT, judge: { label: 'help', kind: 'said_answer', who: 'adult', evidence: 'انھیں بھوک لگی تھی', confidence: 0.6 } } });
     const got = await score.scoreRow(row(), session(), { ...s, voiceHelp: true });
