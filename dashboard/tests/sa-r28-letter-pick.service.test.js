@@ -101,6 +101,14 @@ describe('core: a pick task runs as an untimed tap task', () => {
     expect(a[2]).toMatchObject({ replays: 0, tap_ms: 0 });
   });
 
+  test('answer meta keeps tap_before_sound and tap_ms_src (timed against the prompt\'s speech)', () => {
+    const { r } = runner({ practice: false });
+    toItems(r); r.begin();
+    const items = r.view().task.items;
+    r.answer(items[0].target, { replays: 0, tap_ms: -900, tap_before_sound: true, tap_ms_src: 'timings' });
+    expect(r.snapshot().current.answers[0]).toEqual({ item_id: items[0].id, value: items[0].target, ok: true, replays: 0, tap_ms: -900, tap_before_sound: true, tap_ms_src: 'timings' });
+  });
+
   test('tick() says replay once at 10 s; Next is offered at next_at_s (15 s)', () => {
     const { r, at, events } = runner({ practice: false });
     toItems(r); r.begin();
@@ -366,6 +374,60 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(a).toHaveLength(1);
     expect(a[0]).toMatchObject({ item_id: it.id, value: it.options[0], replays: 0, tap_ms: 0 });
     expect(cards[0].classList.contains('is-pressed')).toBe(true);
+  });
+
+  /** The audio lane's prompt timing map, served at v5/prompt_timings.json (stubbed fetch). */
+  function timingsFetch(map) {
+    const f = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(map) }));
+    dom.window.fetch = f;
+    return f;
+  }
+
+  test('timings: a tap 200 ms into the clip, speech starting at 300 ms: tap_before_sound, tap_ms negative (from speech end)', async () => {
+    const it0 = battery({ practice: false }).tasks[0].items[0];
+    const f = timingsFetch({ [it0.prompt_audio]: { speech_start_ms: 300, speech_end_ms: 1200 } });
+    const m = mount({ practice: false });
+    toRunning(m);
+    await wait(300 + 200); // the clip starts 300 ms after the item shows; 200 ms into it
+    m.el.querySelector('.sae-pick-cards .sae-opt').click();
+    const a = m.r.snapshot().current.answers[0];
+    expect(a).toMatchObject({ tap_before_sound: true, tap_ms_src: 'timings' });
+    expect(a.tap_ms).toBeLessThan(-800);
+    expect(a.tap_ms).toBeGreaterThan(-1150);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(f.mock.calls[0][0]).toBe('v5/prompt_timings.json');
+    expect(f.mock.calls[0][1]).toEqual({ credentials: 'same-origin' });
+  });
+
+  test('timings: a tap 2 s after the clip began, speech ending at 1.2 s: tap_ms 800, src timings; the map is fetched once per task', async () => {
+    const its = battery({ practice: false }).tasks[0].items;
+    const map = {};
+    its.forEach((x) => { map[x.prompt_audio] = { speech_start_ms: 300, speech_end_ms: 1200 }; });
+    const f = timingsFetch(map);
+    const m = mount({ practice: false });
+    toRunning(m);
+    await wait(300 + 2000);
+    m.el.querySelector('.sae-pick-cards .sae-opt').click();
+    const a = m.r.snapshot().current.answers[0];
+    expect(a.tap_ms_src).toBe('timings');
+    expect(a).not.toHaveProperty('tap_before_sound');
+    expect(a.tap_ms).toBeGreaterThanOrEqual(760);
+    expect(a.tap_ms).toBeLessThan(900);
+    await wait(450 + 350);
+    m.el.querySelector('.sae-pick-cards .sae-opt').click();
+    expect(m.r.snapshot().current.answers[1].tap_ms_src).toBe('timings');
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  test('no timing map (404): today\'s rule, tap_ms_src file', async () => {
+    dom.window.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 404 }));
+    const m = mount({ practice: false });
+    toRunning(m);
+    await wait(360);
+    m.el.querySelector('.sae-pick-cards .sae-opt').click();
+    const a = m.r.snapshot().current.answers[0];
+    expect(a).toMatchObject({ tap_ms: 0, tap_ms_src: 'file' });
+    expect(a).not.toHaveProperty('tap_before_sound');
   });
 
   test('a tap after the clip ended: tap_ms is the time since its end', async () => {

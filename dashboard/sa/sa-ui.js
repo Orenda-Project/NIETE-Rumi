@@ -89,7 +89,8 @@
  *   sRunPick          Jugnu's sound clip plays 300 ms after the item shows (coach-led too: the coach never voices it),
  *                     five letter cards of one size (phone 2 + 3, tablet one row), one big replay under them (the clip
  *                     only, logged replay { value: 'child' }, counted). A tap counts at any time, the clip playing or
- *                     not: runner.answer(value, { replays, tap_ms }). No feedback on a scored item.
+ *                     not: runner.answer(value, { replays, tap_ms, tap_ms_src[, tap_before_sound] }), tap_ms against
+ *                     the prompt's speech end from v5/prompt_timings.json when it has the clip. No feedback on a scored item.
  *   practice          P1 (role 'example') is modelled: the cards disabled, the right one lit, the clip then the model
  *                     line, then Next (RDF auto: also on by itself 2 s later) → runner.practiceModelled(). P2 is the tap
  *                     practice as for every tap task, with the clip and the replay. At the task's entry every clip of
@@ -390,6 +391,31 @@
     }, function () { delete TIMINGS[u]; return null; });
     return p;
   }
+  // Round 28 (the letter-sound picker): where the voice is inside each prompt clip, from the audio lane's map
+  // (sa/v5/prompt_timings.json: { "<prompt_audio key>": { speech_start_ms, speech_end_ms } }). Fetched once per task.
+  var PROMPT_TIMINGS_URL = 'v5/prompt_timings.json';
+  var PROMPT_TIMINGS = null;
+  /** Promise<{ key: { s, e } } | null>; never rejects; a refused fetch (offline) is asked again next time. */
+  function promptTimings() {
+    if (PROMPT_TIMINGS) return PROMPT_TIMINGS;
+    var f = typeof window !== 'undefined' && typeof window.fetch === 'function' ? window.fetch.bind(window) : (typeof fetch === 'function' ? fetch : null);
+    if (!f) return Promise.resolve(null);
+    var p = PROMPT_TIMINGS = Promise.resolve().then(function () { return f(PROMPT_TIMINGS_URL, { credentials: 'same-origin' }); }).then(function (r) {
+      return r && r.ok ? Promise.resolve(r.json()).then(promptTimingsOk, function () { return null; }) : null;
+    }, function () { PROMPT_TIMINGS = null; return null; });
+    return p;
+  }
+  /** The map checked: only entries with 0 ≤ speech_start_ms ≤ speech_end_ms are kept. */
+  function promptTimingsOk(d) {
+    if (!d || typeof d !== 'object') return null;
+    var out = {}, n = 0;
+    for (var k in d) {
+      if (!Object.prototype.hasOwnProperty.call(d, k) || !d[k]) continue;
+      var st = Number(d[k].speech_start_ms), en = Number(d[k].speech_end_ms);
+      if (isFinite(st) && isFinite(en) && st >= 0 && en >= st) { out[k] = { s: st, e: en }; n++; }
+    }
+    return n ? out : null;
+  }
   function nextFrame(fn) { return typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16); }
   function cancelFrame(id) { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id); else clearTimeout(id); }
 
@@ -548,6 +574,8 @@
     var pickSt = { id: null, tok: 0, playing: false, end_at: null, replays: 0 }; // the item on show: its clip, its replays
     var pickModelled = null; // the modelled practice screen (its key) whose model line has ended: its Next shows
     var pickWarm = {};       // task id → the promise of its clips loaded (or the PICK_WARM_MS cap)
+    var pickTimes = {};      // task id → the prompt timing map (null: none), once fetched
+    var TAP_LEAD_IN_MS = 150; // a tap before speech_start_ms + this is a tap into the clip's lead-in (tap_before_sound)
     // Round 28 (sa_r28_mcq; opts.r28.mcq from sa-engine.js, or battery.ui.r28_mcq): a kind 'mcq' tap task is the spoken
     // multiple choice (sRunMcq)
     var r28Mcq = !!(opts.r28 && opts.r28.mcq === true) || opts.r28_mcq === true || r7.r28_mcq === true;
@@ -782,7 +810,7 @@
     function isPick(t) { return r28Pick && !!t && t.kind === 'pick' && t.mode === 'tap'; }
     /** The clip state of the item (or practice item) on show; a new item starts afresh. */
     function pickOf(it) {
-      if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0 };
+      if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0, call_at: null, el: null, dur_ms: null };
       return pickSt;
     }
     /** The item's sound, clip only (never the phone's voice), in coach-led too. → Promise<true> when it played, false
@@ -793,9 +821,16 @@
       var ps = pickOf(it);
       var tok = ++ps.tok;
       ps.playing = true;
+      ps.call_at = Date.now(); ps.end_at = null; ps.dur_ms = null;
       var p = it.prompt_audio ? say(null, it.prompt_audio, true, { clip_only: true }) : Promise.reject(new Error('no clip'));
+      // the voice's element for this clip (for where in the clip a tap lands), when the voice exposes it
+      try { ps.el = typeof speakFn.audio === 'function' ? speakFn.audio() : null; } catch (e) { ps.el = null; }
       return p.then(function () {
-        if (ps === pickSt && tok === ps.tok) { ps.playing = false; ps.end_at = Date.now(); }
+        if (ps === pickSt && tok === ps.tok) {
+          ps.playing = false; ps.end_at = Date.now();
+          var d = ps.el && Number(ps.el.duration);
+          ps.dur_ms = d && isFinite(d) && d > 0 ? d * 1000 : null;
+        }
         return true;
       }, function () {
         if (ps === pickSt && tok === ps.tok) ps.playing = false;
@@ -820,6 +855,14 @@
       }
       return pickWarm[t.id];
     }
+    /** The task's prompt timing map, fetched once at its entry (null until it arrives, or when there is none). */
+    function pickTimesFor(t) {
+      if (!Object.prototype.hasOwnProperty.call(pickTimes, t.id)) {
+        pickTimes[t.id] = null;
+        promptTimings().then(function (m) { pickTimes[t.id] = m || null; });
+      }
+      return pickTimes[t.id];
+    }
     /** The child asked for the sound again (the big replay, or Jugnu's): counted and logged, the clip only. */
     function pickAgain(it, t) {
       if (busy || !alive) return;
@@ -827,10 +870,24 @@
       runner.log('replay', { task_id: t.id, item_id: it.id, value: 'child' });
       sayClip(it, t, 'replay');
     }
-    /** A tap's replays and its time after the clip (0 while the clip plays or before it began). */
-    function pickMeta(it) {
-      var ps = pickOf(it);
-      return { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(Date.now() - ps.end_at)) };
+    /**
+     * A tap's replays and its time. With the prompt's timings (SPEC A.5): tap_ms = the tap's place in the clip minus the
+     * end of the speech (negative while the sound plays), tap_before_sound when it came before speech start + 150 ms,
+     * tap_ms_src 'timings'. Without them: 0 while the clip plays or before it began, else ms since it ended; 'file'.
+     * The place in the clip: the playing element's time, else the time since the clip was asked for (0 before it was).
+     */
+    function pickMeta(it, t) {
+      var ps = pickOf(it), now = Date.now();
+      var tm = t ? pickTimesFor(t) : null;
+      var e = tm && it.prompt_audio ? tm[it.prompt_audio] : null;
+      if (!e) return { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(now - ps.end_at)), tap_ms_src: 'file' };
+      var pos;
+      if (ps.call_at == null) pos = 0;
+      else if (ps.playing || ps.end_at == null) pos = ps.el && Number(ps.el.currentTime) > 0 ? Number(ps.el.currentTime) * 1000 : now - ps.call_at;
+      else pos = (ps.dur_ms != null ? ps.dur_ms : ps.end_at - ps.call_at) + (now - ps.end_at);
+      var m = { replays: ps.replays, tap_ms: Math.round(pos - e.e), tap_ms_src: 'timings' };
+      if (pos < e.s + TAP_LEAD_IN_MS) m.tap_before_sound = true;
+      return m;
     }
     /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer).
      *  Round 28: a letter-sound item folds its sound and the letter («بَ → ب»). */
@@ -1688,7 +1745,7 @@
         pickCards(it.options, function (o, b) {
           busy = true;
           b.classList.add('is-pressed');
-          runner.answer(o, pickMeta(it));
+          runner.answer(o, pickMeta(it, t));
           later(function () { busy = false; draw(); }, PICK_PRESS_MS);
         }, null, t),
         pickReplay(it, t),
@@ -3117,7 +3174,7 @@
       var t = v.task;
       var s = (t && t.script) || {};
       // round 28: the letter-sound picker's clips start loading as soon as its part begins
-      if (isPick(t) && ['instruction', 'practice', 'ready', 'running'].indexOf(v.phase) >= 0) pickReady(t);
+      if (isPick(t) && ['instruction', 'practice', 'ready', 'running'].indexOf(v.phase) >= 0) { pickReady(t); pickTimesFor(t); }
       if (v.phase === 'battery_intro') afterOpening(function () { return say(line('welcome')); });
       else if (v.phase === 'audio_check') {
         if (checkBad) say(line('audio_fail') || { en: COPY.en.audio_bad_sub, ur: COPY.ur.audio_bad_sub }, null, true);
