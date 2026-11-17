@@ -203,6 +203,10 @@ const en = {
     secondVoiceNote: (n: string, one: boolean) => `Another person's voice was heard in ${n} ${one ? "recording" : "recordings"}. Those scores may include help from someone else: listen to the recording before relying on them.`,
     score: "Score",
     scoreKeys: { correct: "Correct", attempted: "Attempted", per_minute: "Correct per minute", seconds_used: "Seconds used", of: "Questions" },
+    // round 28: the extended timed task's first N items (today's scale) beside the rate; a tapped task heard too little
+    firstN: (n: number) => `First ${n} correct`,
+    ofN: (x: number, n: number) => `${x} of ${n}`,
+    unrated: "not rated (too few items heard)",
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "CWPM (correct words per minute)",
     cwpmHow: "CWPM, correct words per minute (familiar words and the passage) = correct words × 60 ÷ the seconds the child read (60 at most).",
@@ -418,6 +422,9 @@ const ur: Copy = {
     scored: "ریکارڈنگ کے نمبر لگ گئے",
     score: "نمبر",
     scoreKeys: { correct: "درست", attempted: "کوشش", per_minute: "فی منٹ درست", seconds_used: "لگے ہوئے سیکنڈ", of: "کل سوال" },
+    firstN: (n: number) => `پہلے ⁦${urDigits(n)}⁩ درست`,
+    ofN: (x: number, n: number) => `⁦${urDigits(n)}⁩ میں سے ⁦${urDigits(x)}⁩`,
+    unrated: "درجہ نہیں (بہت کم سنے گئے)",
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "⁨CWPM⁩ (فی منٹ درست الفاظ)",
     cwpmHow: "⁨CWPM⁩، فی منٹ درست الفاظ (جانے پہچانے الفاظ اور عبارت) = درست الفاظ × ⁦۶۰⁩ ÷ بچے کے پڑھنے کے سیکنڈ (زیادہ سے زیادہ ⁦۶۰⁩)۔",

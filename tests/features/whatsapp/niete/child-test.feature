@@ -1412,3 +1412,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When a story question shows
     Then Jugnu reads the question and the four answers from the phone
     And the coach's screen shows the question and the answers folded away, without marking the right one
+  @e2e @wip @draft @config-gated @P1 @CT208 @no-mock-driver
+  # No mock driver: the portal reads the server's results. Asserted in portal/src/portal/lib/assess/cohortStats.r28.test.ts,
+  # portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx, portal/src/portal/pages/LeaderAssessResults.r28.test.tsx
+  # and bot/tests/child-test/sa-r28-results-detail.test.js.
+  Scenario: the round-28 tapped tasks carry their own labels and rows on Results and the dashboard, never merged with the old ones
+    Given sa_r28_letter_pick and sa_r28_mcq are on and some children took the tapped letter-sounds and story-question tasks
+    When a coach opens the results dashboard and a child's Results
+    Then the tapped tasks show as "Letter sounds (listen and tap)" and "Story questions (listen and tap)" in English, and in Urdu «حروف کی آوازیں (سن کر ٹیپ)» and «کہانی کے سوال (سن کر ٹیپ)»
+    And the old spoken tasks keep their titles and their own rows, and a tapped task's card shows only when a child in view has a score for it
+    And a tapped task the child heard too few items of says "not rated (too few items heard)" and shows no score
+    And a timed task that ran past its first items shows "First N correct" beside its rate
