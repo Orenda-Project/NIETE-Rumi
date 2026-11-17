@@ -85,6 +85,18 @@
  *                     the light moved only when the word changes. No file, a 404, a word count unlike the text on the
  *                     screen, a clip that is not v4 or no audio element: the plain words, silently.
  *
+ * Round 28, the letter-sound picker (opts.r28.letter_pick, else battery.ui.r28_letter_pick, and a task of kind 'pick'):
+ *   sRunPick          Jugnu's sound clip plays 300 ms after the item shows (coach-led too: the coach never voices it),
+ *                     five letter cards of one size (phone 2 + 3, tablet one row), one big replay under them (the clip
+ *                     only, logged replay { value: 'child' }, counted). A tap counts at any time, the clip playing or
+ *                     not: runner.answer(value, { replays, tap_ms }). No feedback on a scored item.
+ *   practice          P1 (role 'example') is modelled: the cards disabled, the right one lit, the clip then the model
+ *                     line, then Next (RDF auto: also on by itself 2 s later) → runner.practiceModelled(). P2 is the tap
+ *                     practice as for every tap task, with the clip and the replay.
+ *   the clip          speak(…, { clip_only: true }): a clip that cannot play is never said by the phone's voice; the
+ *                     task ends assets_unavailable (runner.imageUnavailable(task, item, 'clip')).
+ *   coach-led         the coach's fold shows the sound and the letter («بَ → ب»), never in the open.
+ *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -109,6 +121,7 @@
       warm_title: 'Pop the bubbles!',
       warm_sub: 'As fast as you can.',
       replay: 'Hear again',
+      replay_sound: 'Hear it again',
       next: 'Next',
       practice: 'Practice',
       right: 'That’s right!',
@@ -209,6 +222,7 @@
       warm_title: 'بلبلے پھوڑیں!',
       warm_sub: 'جتنی جلدی ہو سکے۔',
       replay: 'دوبارہ سنیں',
+      replay_sound: 'دوبارہ سنیں',
       next: 'آگے',
       practice: 'مشق',
       right: 'بالکل ٹھیک!',
@@ -313,6 +327,9 @@
   var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
   var MIC_SKIP_MS = 3000;   // a record task skipped for no microphone: its line stays this long (RULING #38b)
   var PRESS_MS = 180;
+  var PICK_PRESS_MS = 400;      // round 28: the letter-sound picker's pressed card, then the next item
+  var PICK_CLIP_AFTER_MS = 300; // round 28: the item's sound starts this long after it shows
+  var PICK_AUTO_NEXT_MS = 2000; // round 28: RDF auto, the modelled practice moves on this long after its model line
   var MN_FLOAT_MS = 300;    // round 8 item 30: a tapped number floats into the blank this long
   var MN_HOLD_MS = 450;     // ... and the screen waits this much longer than a plain tap, so the child sees it land
   var WARM_N = 10;
@@ -518,6 +535,10 @@
     var r12IntroOnce = r7.r12_intro_once === true;
     var introSaid = false;
     var practiceEndAt = null; // when the tap that ended the practice came (Date.now())
+    // Round 28 (battery.ui.r28_letter_pick): the letter-sound picker, a tap task of kind 'pick' (sRunPick)
+    var r28Pick = !!(opts.r28 && opts.r28.letter_pick === true) || opts.r28_letter_pick === true || r7.r28_letter_pick === true;
+    var pickSt = { id: null, tok: 0, playing: false, end_at: null, replays: 0 }; // the item on show: its clip, its replays
+    var pickModelled = null; // the modelled practice screen (its key) whose model line has ended: its Next shows
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -663,16 +684,20 @@
       return openingGate.then(function () { if (alive && keyOf(runner.view()) === k) return fn(); });
     }
     /** RDF manual: the coach gives every instruction and reads every item; Jugnu says only the line the caller marks. */
-    function say(textObj, audioObj, inManual) {
+    /** vo (round 28): the voice's options; { clip_only: true } → the promise rejects when the clip cannot play. */
+    function say(textObj, audioObj, inManual, vo) {
       if (!textObj && !audioObj) return Promise.resolve();
       if (manual && !inManual) return Promise.resolve();
       if (r8Lang && lang !== homeLang) { var tagged = langSaid(textObj, audioObj); textObj = tagged[0]; audioObj = tagged[1]; }
+      var clipOnly = !!(vo && vo.clip_only);
       try {
-        var p = Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {});
-        if (r9Scroll) { talk = p; talkN++; p.then(function () { talkN--; }); }
-        if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, p); } catch (e) { /* the plain words */ } }
+        var raw = vo ? speakFn(textObj || null, audioObj || null, vo) : speakFn(textObj || null, audioObj || null);
+        var p = clipOnly ? Promise.resolve(raw) : Promise.resolve(raw).catch(function () {});
+        var settled = clipOnly ? p.catch(function () {}) : p;
+        if (r9Scroll) { talk = settled; talkN++; settled.then(function () { talkN--; }); }
+        if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, settled); } catch (e) { /* the plain words */ } }
         return p;
-      } catch (e) { return Promise.resolve(); }
+      } catch (e) { return clipOnly ? Promise.reject(e) : Promise.resolve(); }
     }
     /** Say lines one after another, unless the screen changes. */
     function sayChain(list) {
@@ -723,6 +748,7 @@
     /** What Jugnu says for an item: its say (in the task's language) or its prompt. */
     function sayItem(it, t) {
       if (!it) return Promise.resolve();
+      if (isPick(t)) return sayClip(it, t);
       if (typeof it.say === 'string') return say({ text: it.say, lang: taskLang(t) }, it.prompt_audio || null, appAsks);
       if (it.say) return say(it.say, it.prompt_audio || null, appAsks);
       if (it.prompt) return say(it.prompt, it.prompt.audio || it.prompt_audio || null, appAsks);
@@ -736,8 +762,55 @@
     function itemSpeaks(it) { return !!(it && (it.say || it.prompt || it.prompt_audio)); }
     /** The words Jugnu says for an item, for the coach to read out (RDF manual). */
     function itemWords(it) { return !it ? '' : shownNums(it.id, typeof it.say === 'string' ? it.say : tx(it.say || it.prompt)); }
-    /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer). */
-    function coachSays(it, folded) {
+    // ---------- round 28 (r28_letter_pick): the letter-sound picker's sound ----------
+    function isPick(t) { return r28Pick && !!t && t.kind === 'pick' && t.mode === 'tap'; }
+    /** The clip state of the item (or practice item) on show; a new item starts afresh. */
+    function pickOf(it) {
+      if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0 };
+      return pickSt;
+    }
+    /** The item's sound, clip only (never the phone's voice), in coach-led too. → Promise<true> when it played; a clip
+     *  that cannot play ends the task assets_unavailable (→ false). */
+    function sayClip(it, t) {
+      if (!it) return Promise.resolve(false);
+      var ps = pickOf(it);
+      var tok = ++ps.tok;
+      ps.playing = true;
+      var p = it.prompt_audio ? say(null, it.prompt_audio, true, { clip_only: true }) : Promise.reject(new Error('no clip'));
+      return p.then(function () {
+        if (ps === pickSt && tok === ps.tok) { ps.playing = false; ps.end_at = Date.now(); }
+        return true;
+      }, function () {
+        if (ps === pickSt && tok === ps.tok) ps.playing = false;
+        if (!alive) return false;
+        runner.imageUnavailable(t.id, it.id, 'clip');
+        draw();
+        return false;
+      });
+    }
+    /** The child asked for the sound again (the big replay, or Jugnu's): counted and logged, the clip only. */
+    function pickAgain(it, t) {
+      if (busy || !alive) return;
+      pickOf(it).replays++;
+      runner.log('replay', { task_id: t.id, item_id: it.id, value: 'child' });
+      sayClip(it, t);
+    }
+    /** A tap's replays and its time after the clip (0 while the clip plays or before it began). */
+    function pickMeta(it) {
+      var ps = pickOf(it);
+      return { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(Date.now() - ps.end_at)) };
+    }
+    /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer).
+     *  Round 28: a letter-sound item folds its sound and the letter («بَ → ب»). */
+    function coachSays(it, folded, t) {
+      if (isPick(t)) {
+        if (!manual || !it) return null;
+        var pw = (it.prompt_text != null ? String(it.prompt_text) : '') + ' → ' + String(it.target);
+        return h('details', { class: 'sae-coach-says is-coach sae-pick-coach' }, [
+          h('summary', { text: C.coach }),
+          h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: pw }),
+        ]);
+      }
       if (!manual || !itemWords(it)) return null;
       var said = h('p', { class: 'sae-say sae-coach-line', text: itemWords(it) });
       if (appAsks) return h('details', { class: 'sae-coach-says is-coach is-app' }, [h('summary', { text: C.coach_app }), said]);
@@ -1426,6 +1499,7 @@
       return h('p', { class: 'sae-fb sa-feedback ' + (fb.res.ok ? 'is-ok' : 'is-again'), role: 'status' }, [fb.text]);
     }
     function sPractice(v) {
+      if (isPick(v.task)) return sPracticePick(v);
       if (v.task.mode === 'record' && !hold) return sPracticeSpoken(v);
       var p = hold ? hold.item : v.practice;
       var t = v.task;
@@ -1558,6 +1632,77 @@
           later(function () { busy = false; draw(); }, PRESS_MS + wait);
         }, null, taskLang(t), t, it.glyphs),
       ], itemFoot(v, [nextBtn(v)]));
+    }
+
+    // ---------- round 28 (r28_letter_pick): the letter-sound picker ----------
+    /** Five letter cards of one size (phone 2 + 3, tablet one row; sa.css .sae-pick-cards), the letter only. */
+    function pickCards(options, onPick, decorate, t) {
+      return h('div', { class: 'sae-pick-cards' }, [tiles(options, onPick || function () {}, decorate, taskLang(t), t, null)]);
+    }
+    /** The one big replay under the cards: the sound again, nothing else. No words on it. */
+    function pickReplay(it, t) {
+      return h('button', { class: 'sae-pick-replay', type: 'button', 'aria-label': C.replay_sound, title: C.replay_sound, onclick: function () { pickAgain(it, t); } }, [
+        h('span', { class: 'sae-pick-replay-i', 'aria-hidden': 'true', text: '🔊' }),
+      ]);
+    }
+    function sRunPick(v) {
+      var it = v.item, t = v.task;
+      return screen(v, 'sae-run sae-run-tap sae-pick', [
+        clock(v),
+        // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
+        h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), replayBtn(function () { pickAgain(it, t); })]),
+        coachSays(it, true, t),
+        pickCards(it.options, function (o, b) {
+          busy = true;
+          b.classList.add('is-pressed');
+          runner.answer(o, pickMeta(it));
+          later(function () { busy = false; draw(); }, PICK_PRESS_MS);
+        }, null, t),
+        pickReplay(it, t),
+      ], itemFoot(v, [nextBtn(v)]));
+    }
+    /** The model line(s) of the example, said by Jugnu in both modes (the coach never voices the sound). */
+    function pickModelOf(p) { return Array.isArray(p.model) ? p.model.map(function (m) { return [m, m && m.audio, true]; }) : []; }
+    /** P1: the sound, then the model line; then its Next (RDF auto: on by itself after PICK_AUTO_NEXT_MS). */
+    function pickModel(p, t, k) {
+      var g = gen;
+      return sayClip(p, t).then(function (ok) {
+        if (!ok || !alive || g !== gen || lastKey !== k) return null;
+        return sayChain(pickModelOf(p)).then(function () {
+          if (!alive || g !== gen || lastKey !== k) return;
+          pickModelled = k;
+          draw();
+          if (!manual) later(function () { if (pickModelled === k) pickNext(k); }, PICK_AUTO_NEXT_MS);
+        });
+      });
+    }
+    function pickNext(k) {
+      if (!alive || keyOf(runner.view()) !== k) return;
+      if (runner.practiceModelled()) { pickModelled = null; draw(); }
+    }
+    function sPracticePick(v) {
+      var p = hold ? hold.item : v.practice, t = v.task, fb = hold;
+      var model = p.role === 'example' && !fb;
+      var k = keyOf(v);
+      var cards = pickCards(p.options, model ? null : function (o) { practicePick(p, t, o); }, function (o, b) {
+        if (model) { b.disabled = true; b.classList.add(String(o) === String(p.target) ? 'is-model' : 'is-dim'); return; }
+        if (!fb) return;
+        b.disabled = true;
+        if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
+        if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
+      }, t);
+      return screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : ''), [
+        h('div', { class: 'sae-row sae-pick-head' }, [
+          jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true),
+          h('span', { class: 'sae-chip', text: C.practice }),
+          replayBtn(function () { gen++; if (model) pickModel(p, t, keyOf(runner.view())); else pickAgain(p, t); }),
+          skipInstrBtn(v),
+        ]),
+        coachSays(p, true, t),
+        cards,
+        model ? null : pickReplay(p, t),
+        feedbackLine(fb),
+      ], [model && pickModelled === k ? btn(C.next, function () { pickNext(k); }, 'sae-primary sa-next sae-pick-next') : null]);
     }
 
     /** The passage's words (task.passage.words) as buttons, or as plain text when onWord is null. */
@@ -2718,6 +2863,8 @@
         var k0 = keyOf(v);
         var said = sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
           if (!alive || lastKey !== k0 || hold) return null;
+          // round 28: the letter-sound picker's example is modelled (the sound, the model line, then Next)
+          if (isPick(t) && v.practice.role === 'example') return pickModel(v.practice, t, k0);
           if (t.mode === 'record' && v.practice.role === 'example') return sayChain(modelOf(v.practice));
           // r8_practice_autoplay: the prompt (unless the task reads it only on replay), then the answer, no tap needed
           if (autoAnswer(t, v.practice)) {
@@ -2736,7 +2883,14 @@
         gateOn(keyOf(v), sayChain(manual ? [] : [intro ? [intro] : null, s.begin ? [s.begin] : null]));
       }
       else if (v.phase === 'running' && v.item) {
-        if (t.mode === 'oral') {
+        if (isPick(t)) {
+          // round 28: the sound 300 ms after the item shows (coach-led too); the wait for replay / Next starts at its end
+          var kp = keyOf(v), gp3 = gen, itp = v.item;
+          later(function () {
+            if (gp3 !== gen || keyOf(runner.view()) !== kp) return;
+            sayClip(itp, t).then(function (ok) { if (ok && alive && gp3 === gen && lastKey === kp && runner.promptDone) runner.promptDone(); });
+          }, PICK_CLIP_AFTER_MS);
+        } else if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
           sayItem(v.item, t).then(function () {
             if (!alive || g2 !== gen || lastKey !== key) return;
@@ -2851,7 +3005,7 @@
         case 'ready': s = sReady(v); break;
         case 'listen': s = sListen(v); break;
         case 'running':
-          s = v.task.mode === 'tap' ? sRunTap(v) : v.task.mode === 'keypad' ? sRunKeypad(v) : v.task.mode === 'keyboard' ? sRunKeyboard(v) : v.task.mode === 'oral' ? sRunOral(v) : sRunRecord(v);
+          s = v.task.mode === 'tap' ? (isPick(v.task) ? sRunPick(v) : sRunTap(v)) : v.task.mode === 'keypad' ? sRunKeypad(v) : v.task.mode === 'keyboard' ? sRunKeyboard(v) : v.task.mode === 'oral' ? sRunOral(v) : sRunRecord(v);
           break;
         case 'last_word': s = sLastWord(v); break;
         case 'task_end': s = sTaskEnd(v); break;
