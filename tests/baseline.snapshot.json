@@ -1,10 +1,4 @@
 {
-  "tests/books/catalog-shelf.test.js": {
-    "failing": [
-      "the real catalog an ICT teacher's menus are byte-identical to origin/sandbox 49416a018"
-    ],
-    "offenders": []
-  },
   "tests/coaching/framework-registry.test.js": {
     "failing": [
       "Framework Registry (bd-596) getFramework() SCENARIO: getFramework(\"fico\") returns FICO module"

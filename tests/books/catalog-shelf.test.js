@@ -10,12 +10,15 @@
  * - ICT menus are byte-identical: the hash below was taken on origin/sandbox 49416a018, before this change.
  *   Re-pinned for bd-a3o891: Grade 4 English chapters 2-12 now carry their own titles (were Grade 2's);
  *   a render diff showed that chapter list as the only change.
+ *   Re-pinned for bd-zrdvmi.1.2 (#4871, eight G3-5 ch12-13 days split into one-topic parts): the pre-#4871 catalog
+ *   renders the old hash exactly, and the render diff is 12 entries, all those chapters' lesson lists and their
+ *   subject and chapter counts (G3 English/Math ch12, G4 English ch12, G5 English ch12-13). bd-nij2nd.1.
  */
 
 const Catalog = require('../../bot/shared/services/lp-v8-catalog.service');
 const { renderAll, hashOf } = require('./menu-snapshot');
 
-const ICT_MENU_HASH_49416a018 = '1e1809c2c9fc18d6e0b9f28d601b88df6e1ddbfb61354efb9257d54a720d756f';
+const ICT_MENU_HASH_49416a018 = 'd916ad9a81e10e456565253a6ed090e1bb8b435c2e19c5fc04f0f08a5104b701';
 
 const lesson = (id, segmentIndex = 1, title = 'Lesson') => ({
   lesson_id: id, segment_index: segmentIndex, lp_type: 'content', day_label: `Day ${segmentIndex}`, pages_label: 'p.1',
