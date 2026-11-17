@@ -46,6 +46,8 @@ const { authorLessonPlan, overlayLessonPlan } = require('../shared/services/lp61
 // second copy of the rule quietly omits a clause.
 const { deliveryVerdict, degradedNotice } = require('../shared/services/lp612-render-policy.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
+// bd-snkn32.50 — the "Before they write" close her own plans get (bd-snkn32.48), on the ready-made ones too.
+const { addCloseStep } = require('../shared/services/lp612-own-close');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
 const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
@@ -1079,6 +1081,8 @@ async function process(payload) {
       // It runs on the reused branch too, which is the point: a cached lesson coming back for a
       // template bump loses the key on the way through rather than carrying it forever.
       stripModelAnswers(authored.lpDoc);
+      // bd-snkn32.50: success criteria read aloud + thumbs, added by code after the gates (reused docs too).
+      authored.lpDoc = addCloseStep(authored.lpDoc);
 
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
@@ -1123,6 +1127,7 @@ async function process(payload) {
         }, 'warn');
         let recovered;
         try {
+          bestSoFar.lpDoc = addCloseStep(bestSoFar.lpDoc);   // bd-snkn32.50
           recovered = await withTimeout(
             renderFinal(bestSoFar.lpDoc, 'final'), overlayTimeoutMs(), 'AUTHOR_TIMEOUT',
           );
@@ -1199,8 +1204,10 @@ async function process(payload) {
           });
           // A CLONE. The English document stays intact and renderable on this variable, because
           // it is the fallback — mutating it here would destroy the thing we fall back to.
-          const overlaid = JSON.parse(JSON.stringify(authored.lpDoc));
+          let overlaid = JSON.parse(JSON.stringify(authored.lpDoc));
           overlaid.ur_overlay = out.overlay;
+          // bd-snkn32.50: the close's Urdu is fixed wording, not the overlay model's.
+          overlaid = addCloseStep(overlaid);
           const render = await renderFinal(overlaid, 'overlay');
           return { out, overlaid, render };
         })(), overlayTimeoutMs(), 'OVERLAY_TIMEOUT');
