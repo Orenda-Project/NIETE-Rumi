@@ -110,6 +110,7 @@ const { voiceActivity } = require('./voice-activity');
 const voiceHelpSwitch = require('../app/voice-help-switch');
 const VH = require('./voice-help');
 const noEchoUrSwitch = require('../app/no-echo-ur-switch');
+const childOnlySwitch = require('../app/child-only-answer-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -635,12 +636,15 @@ function reachedOf(task, res, n) {
   return Number.isInteger(res.last_item_index) ? Math.min(n, res.last_item_index + 1) : null;
 }
 
-function oralPrompt({ lang, task, items, one }) {
+// sa_r28_child_only_answer: the one sentence the spoken-maths prompt gains with the switch ON (OFF, unchanged)
+const CHILD_ONLY = 'Mark only the child\'s own final answer for each item (a self-correction by the child counts); ignore any other speaker (an adult or another child), and an answer the child gives or changes after another person has spoken does not count.';
+/** `childOnly` (sa_r28_child_only_answer ON) adds CHILD_ONLY after the phone's-voice sentence. */
+function oralPrompt({ lang, task, items, one, childOnly = false }) {
   const what = /fluency/.test(task.subtask || '') ? 'quick sums, as many as it can in one minute'
     : /number_id/.test(task.subtask || '') ? 'the NAME of each number shown (e.g. "forty-five" / «پینتالیس» for 45)'
       : 'the answer to each sum shown, worked out in its head';
   const list = items.map((x, i) => `${i + 1}: shown "${x.show}" → correct answer ${x.answer}`).join('\n');
-  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.
+  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.${childOnly ? ` ${CHILD_ONLY}` : ''}
 Marking rules: "c" if the child's final answer for that item is the correct number (a self-correction counts), "w" if it says a different number or "I don't know", "s" if it never reached the item or said nothing for it.
 ITEMS (position: what was shown → the correct answer):
 ${list}
@@ -649,7 +653,7 @@ Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <i
 }
 
 /** Spoken maths (W3: number identification, mental + − ×, one-minute fluency): one clip for the task, or one per item. */
-async function scoreOral(task, rec, row, res, deps, calls) {
+async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = false } = {}) {
   const items = rec.items || [];
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   const one = task.present === 'one_at_a_time';
@@ -664,7 +668,7 @@ async function scoreOral(task, rec, row, res, deps, calls) {
     const clip = p.clip || await clipOf(deps, p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
     if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
-    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
+    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one, childOnly: childOnlyAnswer === true }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
     const none = gateOn() && json.found === false;
     p.at.forEach((k, j) => got.set(k, none ? { mute: true } : by.get(j + 1) || {}));
@@ -1015,6 +1019,8 @@ async function scoreRow(row, session, deps = {}) {
   const help = Boolean(voices) && voiceHelpSwitch.valueOf(d.voiceHelp) && Boolean(d.speechTurnsOf);
   // sa_r28_no_echo_ur (the sweep reads the setting; true only)
   const noEchoUr = noEchoUrSwitch.valueOf(d.noEchoUr);
+  // sa_r28_child_only_answer (the sweep reads the setting; true only)
+  const childOnlyAnswer = childOnlySwitch.valueOf(d.childOnlyAnswer);
   const strict = Boolean(voices) && !help && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
@@ -1051,7 +1057,7 @@ async function scoreRow(row, session, deps = {}) {
     if (gate) out = notReached(rec, res, gate);
     else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate });
     else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
-    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls);
+    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls, { childOnlyAnswer });
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr });
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
     if (stops && row.block === MUL && session.sums && session.sums.known && !session.sums.right) out = gateMul(out);
@@ -1297,6 +1303,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const letterGate = await letterGateSwitch.enabled(deps);
   const voiceHelp = await voiceHelpSwitch.enabled(deps);
   const noEchoUr = await noEchoUrSwitch.enabled(deps);
+  const childOnlyAnswer = await childOnlySwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1333,7 +1340,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1369,5 +1376,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY },
 };
