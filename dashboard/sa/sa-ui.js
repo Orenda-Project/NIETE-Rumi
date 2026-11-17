@@ -92,9 +92,12 @@
  *                     not: runner.answer(value, { replays, tap_ms }). No feedback on a scored item.
  *   practice          P1 (role 'example') is modelled: the cards disabled, the right one lit, the clip then the model
  *                     line, then Next (RDF auto: also on by itself 2 s later) → runner.practiceModelled(). P2 is the tap
- *                     practice as for every tap task, with the clip and the replay.
- *   the clip          speak(…, { clip_only: true }): a clip that cannot play is never said by the phone's voice; the
- *                     task ends assets_unavailable (runner.imageUnavailable(task, item, 'clip')).
+ *                     practice as for every tap task, with the clip and the replay. At the task's entry every clip of
+ *                     the task is loaded (opts.preload(list, ms), the voice's preload); P1 starts once they are ready
+ *                     or after PICK_WARM_MS.
+ *   the clip          speak(…, { clip_only: true }): a clip that cannot play is never said by the phone's voice. The
+ *                     item's first play lost → runner.clipLost(item, 'prompt'): that item is unavailable and the next one
+ *                     shows (the task never ends on it); a replay lost → clipLost(item, 'replay'): the item stays open.
  *   coach-led         the coach's fold shows the sound and the letter («بَ → ب»), never in the open.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
@@ -330,6 +333,7 @@
   var PICK_PRESS_MS = 400;      // round 28: the letter-sound picker's pressed card, then the next item
   var PICK_CLIP_AFTER_MS = 300; // round 28: the item's sound starts this long after it shows
   var PICK_AUTO_NEXT_MS = 2000; // round 28: RDF auto, the modelled practice moves on this long after its model line
+  var PICK_WARM_MS = 5000;      // round 28: the first practice waits for the task's clips at most this long
   var MN_FLOAT_MS = 300;    // round 8 item 30: a tapped number floats into the blank this long
   var MN_HOLD_MS = 450;     // ... and the screen waits this much longer than a plain tap, so the child sees it land
   var WARM_N = 10;
@@ -539,6 +543,7 @@
     var r28Pick = !!(opts.r28 && opts.r28.letter_pick === true) || opts.r28_letter_pick === true || r7.r28_letter_pick === true;
     var pickSt = { id: null, tok: 0, playing: false, end_at: null, replays: 0 }; // the item on show: its clip, its replays
     var pickModelled = null; // the modelled practice screen (its key) whose model line has ended: its Next shows
+    var pickWarm = {};       // task id → the promise of its clips loaded (or the PICK_WARM_MS cap)
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -748,7 +753,7 @@
     /** What Jugnu says for an item: its say (in the task's language) or its prompt. */
     function sayItem(it, t) {
       if (!it) return Promise.resolve();
-      if (isPick(t)) return sayClip(it, t);
+      if (isPick(t)) return sayClip(it, t, 'replay');
       if (typeof it.say === 'string') return say({ text: it.say, lang: taskLang(t) }, it.prompt_audio || null, appAsks);
       if (it.say) return say(it.say, it.prompt_audio || null, appAsks);
       if (it.prompt) return say(it.prompt, it.prompt.audio || it.prompt_audio || null, appAsks);
@@ -769,9 +774,10 @@
       if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0 };
       return pickSt;
     }
-    /** The item's sound, clip only (never the phone's voice), in coach-led too. → Promise<true> when it played; a clip
-     *  that cannot play ends the task assets_unavailable (→ false). */
-    function sayClip(it, t) {
+    /** The item's sound, clip only (never the phone's voice), in coach-led too. → Promise<true> when it played, false
+     *  when it could not (after the voice's one retry): stage 'prompt' (the item's first play) makes the item unavailable
+     *  and shows the next; 'replay' keeps it open (runner.clipLost). A practice item's lost clip changes nothing. */
+    function sayClip(it, t, stage) {
       if (!it) return Promise.resolve(false);
       var ps = pickOf(it);
       var tok = ++ps.tok;
@@ -783,17 +789,32 @@
       }, function () {
         if (ps === pickSt && tok === ps.tok) ps.playing = false;
         if (!alive) return false;
-        runner.imageUnavailable(t.id, it.id, 'clip');
-        draw();
+        var v = runner.view();
+        if (v.phase === 'running' && v.item && v.item.id === it.id && typeof runner.clipLost === 'function') {
+          var moved = runner.clipLost(it.id, stage === 'prompt' ? 'prompt' : 'replay');
+          if (moved && stage === 'prompt' && !busy) draw();
+        }
         return false;
       });
+    }
+    /** The task's clips (its items' and its practice's), loaded once at its entry; P1 waits for them, at most PICK_WARM_MS. */
+    function pickReady(t) {
+      if (!pickWarm[t.id]) {
+        var list = (t.items || []).concat(t.practice || []).map(function (x) { return x && x.prompt_audio; }).filter(Boolean);
+        var pre = typeof opts.preload === 'function' ? opts.preload : null;
+        pickWarm[t.id] = !pre ? Promise.resolve() : Promise.race([
+          Promise.resolve().then(function () { return pre(list, PICK_WARM_MS); }).then(null, function () { return null; }),
+          delay(PICK_WARM_MS),
+        ]);
+      }
+      return pickWarm[t.id];
     }
     /** The child asked for the sound again (the big replay, or Jugnu's): counted and logged, the clip only. */
     function pickAgain(it, t) {
       if (busy || !alive) return;
       pickOf(it).replays++;
       runner.log('replay', { task_id: t.id, item_id: it.id, value: 'child' });
-      sayClip(it, t);
+      sayClip(it, t, 'replay');
     }
     /** A tap's replays and its time after the clip (0 while the clip plays or before it began). */
     function pickMeta(it) {
@@ -1666,8 +1687,8 @@
     /** P1: the sound, then the model line; then its Next (RDF auto: on by itself after PICK_AUTO_NEXT_MS). */
     function pickModel(p, t, k) {
       var g = gen;
-      return sayClip(p, t).then(function (ok) {
-        if (!ok || !alive || g !== gen || lastKey !== k) return null;
+      return sayClip(p, t, 'practice').then(function () {
+        if (!alive || g !== gen || lastKey !== k) return null;
         return sayChain(pickModelOf(p)).then(function () {
           if (!alive || g !== gen || lastKey !== k) return;
           pickModelled = k;
@@ -2834,6 +2855,8 @@
     function enter(v) {
       var t = v.task;
       var s = (t && t.script) || {};
+      // round 28: the letter-sound picker's clips start loading as soon as its part begins
+      if (isPick(t) && ['instruction', 'practice', 'ready', 'running'].indexOf(v.phase) >= 0) pickReady(t);
       if (v.phase === 'battery_intro') afterOpening(function () { return say(line('welcome')); });
       else if (v.phase === 'audio_check') {
         if (checkBad) say(line('audio_fail') || { en: COPY.en.audio_bad_sub, ur: COPY.ur.audio_bad_sub }, null, true);
@@ -2864,7 +2887,10 @@
         var said = sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
           if (!alive || lastKey !== k0 || hold) return null;
           // round 28: the letter-sound picker's example is modelled (the sound, the model line, then Next)
-          if (isPick(t) && v.practice.role === 'example') return pickModel(v.practice, t, k0);
+          if (isPick(t) && v.practice.role === 'example') {
+            var ex = v.practice;
+            return pickReady(t).then(function () { if (alive && lastKey === k0 && !hold) return pickModel(ex, t, k0); });
+          }
           if (t.mode === 'record' && v.practice.role === 'example') return sayChain(modelOf(v.practice));
           // r8_practice_autoplay: the prompt (unless the task reads it only on replay), then the answer, no tap needed
           if (autoAnswer(t, v.practice)) {
@@ -2888,7 +2914,7 @@
           var kp = keyOf(v), gp3 = gen, itp = v.item;
           later(function () {
             if (gp3 !== gen || keyOf(runner.view()) !== kp) return;
-            sayClip(itp, t).then(function (ok) { if (ok && alive && gp3 === gen && lastKey === kp && runner.promptDone) runner.promptDone(); });
+            sayClip(itp, t, 'prompt').then(function (ok) { if (ok && alive && gp3 === gen && lastKey === kp && runner.promptDone) runner.promptDone(); });
           }, PICK_CLIP_AFTER_MS);
         } else if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;

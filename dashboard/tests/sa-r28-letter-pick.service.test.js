@@ -3,7 +3,8 @@
  * Round 28 (switch sa_r28_letter_pick, engine flag battery.ui.r28_letter_pick): the letter-sound picker. Jugnu plays a
  * sound clip, five letter cards, the child taps one; scored on the phone. A task of kind 'pick' (response tap,
  * untimed, replay at 10 s, Next at 15 s). P1 is modelled (no tap), P2 is the engine's retry-once-then-show practice.
- * A clip that cannot play ends the task assets_unavailable and is never spoken by the browser voice.
+ * A clip that cannot play is never spoken by the browser voice: its item is unavailable (out of every count) and the
+ * task goes on; a lost replay leaves the item open; under 6 items presented the task is unrated.
  * Fixtures are synthetic.
  */
 const path = require('path');
@@ -148,21 +149,66 @@ describe('core: a pick task runs as an untimed tap task', () => {
     expect(r.view().phase).toBe('ready');
   });
 
-  test('imageUnavailable(task, item, \'clip\'): assets_unavailable, nothing scored, the event says why', () => {
+  test('clipLost(item, \'prompt\') on item 8: seven answers kept, item 8 unavailable, the task goes on; presented 9 of 10', () => {
     const { r, events } = runner({ practice: false });
     toItems(r); r.begin();
-    const it = r.view().item;
-    r.imageUnavailable('ur.letter_pick10', it.id, 'clip');
+    const items = r.view().task.items;
+    for (let i = 0; i < 7; i++) r.answer(items[i].target);
+    expect(r.clipLost(items[7].id, 'prompt')).toBe(true);
+    expect(r.view().phase).toBe('running');
+    expect(r.view().item.id).toBe(items[8].id);
+    expect(r.snapshot().current.answers).toHaveLength(8);
+    expect(r.snapshot().current.answers[7]).toEqual({ item_id: items[7].id, value: null, unavailable: 'clip' });
+    expect(events.find((e) => e.type === 'item_unavailable')).toMatchObject({ task_id: 'ur.letter_pick10', item_id: items[7].id, value: { why: 'clip' } });
+    expect(events.filter((e) => e.type === 'image_unavailable')).toHaveLength(0);
+    r.answer(items[8].target); r.answer(items[9].target);
     const res = r.results()[0];
-    expect(res).toMatchObject({ stop_reason: 'assets_unavailable', attempted: 0, answers: [] });
-    expect(events.find((e) => e.type === 'image_unavailable')).toMatchObject({ task_id: 'ur.letter_pick10', item_id: it.id, value: { why: 'clip' } });
+    expect(res).toMatchObject({ stop_reason: 'complete', attempted: 9, correct: 9, presented: 9, unavailable: 1, of_all: 10, scored_on: 'phone' });
+    expect(res).not.toHaveProperty('unrated');
   });
 
-  test('imageUnavailable(task, item) without why logs today\'s event (no value)', () => {
-    const { r, events } = runner({ practice: false });
+  test('five items unavailable: the task runs to its end and is unrated', () => {
+    const { r } = runner({ practice: false });
     toItems(r); r.begin();
-    r.imageUnavailable('ur.letter_pick10', r.view().item.id);
-    expect(events.find((e) => e.type === 'image_unavailable')).not.toHaveProperty('value');
+    const items = r.view().task.items;
+    items.forEach((it, i) => { if (i % 2) r.clipLost(it.id, 'prompt'); else r.answer(it.target); });
+    expect(r.results()[0]).toMatchObject({ stop_reason: 'complete', attempted: 5, presented: 5, unavailable: 5, of_all: 10, unrated: true, scored_on: 'phone' });
+  });
+
+  test('clipLost(item, \'replay\'): logged lost, the item stays open, no auto replay for it', () => {
+    const { r, at, events } = runner({ practice: false });
+    toItems(r); r.begin();
+    const it = r.view().item;
+    at(4000);
+    expect(r.clipLost(it.id, 'replay')).toBe(true);
+    expect(events.filter((e) => e.type === 'replay')).toEqual([expect.objectContaining({ item_id: it.id, value: 'lost' })]);
+    at(11000); expect(r.tick()).toBeNull();
+    expect(r.view().item.id).toBe(it.id);
+    expect(r.answer(it.target)).toBe(true);
+  });
+
+  test('clipLost for an item not on show, or on a task that is not a picker, does nothing', () => {
+    const { r } = runner({ practice: false });
+    toItems(r); r.begin();
+    expect(r.clipLost('ur.letter_pick10.05', 'prompt')).toBe(false);
+    expect(r.snapshot().current.answers).toHaveLength(0);
+    const b = { battery_id: 'x', tasks: [JSON.parse(JSON.stringify(AFTER))] };
+    const r2 = createRunner({ battery: b, now: () => 0 });
+    r2.start(); r2.instructionDone(); r2.begin();
+    expect(r2.clipLost('a1', 'prompt')).toBe(false);
+  });
+
+  test('a picker reloaded after an unavailable item counts only what was answered', () => {
+    const { r } = runner({ practice: false });
+    toItems(r); r.begin();
+    const items = r.view().task.items;
+    r.answer(items[0].target);
+    r.clipLost(items[1].id, 'prompt');
+    const snap = r.snapshot();
+    const r2 = createRunner({ battery: battery({ practice: false }), now: () => 0, resume: snap });
+    r2.start(); r2.instructionDone(); r2.begin();
+    for (let i = 2; i < 10; i++) r2.answer(items[i].target);
+    expect(r2.results()[0]).toMatchObject({ attempted: 9, correct: 9, presented: 9, unavailable: 1 });
   });
 });
 
@@ -219,6 +265,34 @@ describe('sa-voice speak(text, audio, { clip_only })', () => {
   });
 });
 
+describe('sa-voice preload(list, ms)', () => {
+  function loader(ok, log) {
+    return class A {
+      constructor() { this.listeners = {}; }
+      set src(u) { this._src = u; log.push(u); }
+      get src() { return this._src; }
+      load() { setTimeout(() => { if (ok(this._src)) { if (this.oncanplaythrough) this.oncanplaythrough(); } else if (this.onerror) this.onerror(); }, 5); }
+      play() { return Promise.resolve(); }
+      pause() {}
+    };
+  }
+  test('loads every clip once and resolves when all are ready or failed', async () => {
+    jest.resetModules();
+    const log = [];
+    const v = require(VOICE).create({ lang: 'ur', base: '/', Audio: loader((u) => !/bad/.test(u), log) });
+    const got = await v.preload(['sa/v5/ur/a.mp3', 'sa/v5/ur/bad.mp3', 'sa/v5/ur/a.mp3'], 1000);
+    expect(got).toEqual({ ready: 1, of: 2 });
+    expect(log).toEqual(['/sa/v5/ur/a.mp3', '/sa/v5/ur/bad.mp3']);
+  });
+  test('resolves after ms when a clip never answers', async () => {
+    jest.resetModules();
+    const v = require(VOICE).create({ lang: 'ur', base: '/', Audio: class { load() {} } });
+    const t0 = Date.now();
+    await expect(v.preload(['x.mp3'], 60)).resolves.toEqual({ ready: 0, of: 1 });
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(50);
+  });
+});
+
 // ---------- sa-ui on a DOM ----------
 let JSDOM = null;
 try { ({ JSDOM } = require('jsdom')); } catch (_) { /* not installed here */ }
@@ -250,13 +324,14 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     const pending = [];
     const speak = jest.fn((text, audio, vo) => {
       if (vo && vo.clip_only) {
-        if (o.fail) return Promise.reject(new Error('clip'));
+        if (o.fail === true || (typeof o.fail === 'function' && o.fail(audio))) return Promise.reject(new Error('clip'));
+        if (o.instant) return Promise.resolve();
         return new Promise((ok) => pending.push(ok));
       }
       return Promise.resolve();
     });
     const el = document.getElementById('m');
-    const view = ui.mount(el, Object.assign({ runner: r, battery: b, lang: o.lang || 'ur', mode: 'proctored', speak, manual: !!o.manual, r28: { letter_pick: o.flag !== false } }, o.ui || {}));
+    const view = ui.mount(el, Object.assign({ runner: r, battery: b, lang: o.lang || 'ur', mode: 'proctored', speak, manual: !!o.manual, r28: { letter_pick: o.flag !== false }, preload: o.preload }, o.ui || {}));
     views.push(view);
     return { r, el, view, speak, events, end: () => { while (pending.length) pending.shift()(); } };
   }
@@ -319,13 +394,52 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(m.r.snapshot().current.answers[0]).toMatchObject({ replays: 1, tap_ms: 0 });
   });
 
-  test('a clip that will not play ends the task assets_unavailable (why clip), nothing scored', async () => {
-    const m = mount({ fail: true, practice: false });
+  test('the first clip of an item that will not play: that item is unavailable, the next item shows, nothing ends', async () => {
+    const m = mount({ practice: false, fail: (a) => /ls_1\.mp3$/.test(a) });
     toRunning(m);
-    await wait(360);
-    const res = m.r.results()[0];
-    expect(res).toMatchObject({ task_id: 'ur.letter_pick10', stop_reason: 'assets_unavailable', attempted: 0, answers: [] });
-    expect(m.events.find((e) => e.type === 'image_unavailable')).toMatchObject({ value: { why: 'clip' } });
+    const items = m.r.view().task.items;
+    await wait(380);
+    expect(m.r.view().phase).toBe('running');
+    expect(m.r.view().item.id).toBe(items[1].id);
+    expect(m.r.snapshot().current.answers).toEqual([{ item_id: items[0].id, value: null, unavailable: 'clip' }]);
+    expect(m.events.find((e) => e.type === 'item_unavailable')).toMatchObject({ item_id: items[0].id, value: { why: 'clip' } });
+    expect(m.events.filter((e) => e.type === 'image_unavailable')).toHaveLength(0);
+    expect(m.el.querySelectorAll('.sae-pick-cards .sae-opt')).toHaveLength(5);
+  });
+
+  test('every clip lost: the task runs to its end, unrated, nothing scored', async () => {
+    const m = mount({ practice: false, fail: true });
+    toRunning(m);
+    await wait(10 * 330 + 300);
+    expect(m.r.results()[0]).toMatchObject({ task_id: 'ur.letter_pick10', stop_reason: 'complete', attempted: 0, presented: 0, unavailable: 10, unrated: true });
+  });
+
+  test('a replay that will not play leaves the item open: the cards still answer, the replay is logged lost', async () => {
+    let n = 0;
+    const m = mount({ practice: false, instant: true, fail: (a) => /ls_1\.mp3$/.test(a) && ++n > 1 });
+    toRunning(m);
+    const it = m.r.view().item;
+    await wait(360); // the first play went through
+    m.el.querySelector('.sae-pick-replay').click();
+    await wait(20);
+    expect(m.events.filter((e) => e.type === 'replay').map((e) => e.value)).toEqual(['child', 'lost']);
+    expect(m.r.view().item.id).toBe(it.id);
+    m.el.querySelector('.sae-pick-cards .sae-opt').click();
+    expect(m.r.snapshot().current.answers[0]).toMatchObject({ item_id: it.id, value: it.options[0], replays: 1 });
+  });
+
+  test('P1 waits for the task\'s clips to load (opts.preload) before its sound', async () => {
+    let loaded;
+    const asked = [];
+    const m = mount({ manual: true, preload: (list, ms) => { asked.push([list.length, ms]); return new Promise((ok) => { loaded = ok; }); } });
+    m.r.start(); m.r.instructionDone();
+    m.view.render();
+    await wait(50);
+    expect(asked).toEqual([[12, 5000]]);
+    expect(clipCalls(m)).toHaveLength(0);
+    loaded({ ready: 12, of: 12 });
+    await wait(20);
+    expect(clipCalls(m).map((x) => x[1])).toEqual([m.r.view().practice.prompt_audio]);
   });
 
   test('P1 (modelled): every card disabled, the target lit; Next after the model line; Next → P2', async () => {
@@ -405,8 +519,8 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     views.push(ui.mount(el, { runner: r, battery: b, lang: 'ur', mode: 'proctored', speak: voice.speak, r28: { letter_pick: true } }));
     r.start(); r.instructionDone(); r.begin();
     views[0].render();
-    await wait(600);
+    await wait(10 * 420 + 400);
     expect(log.filter((x) => x[0] === 'tts')).toHaveLength(0);
-    expect(r.results()[0]).toMatchObject({ stop_reason: 'assets_unavailable', attempted: 0 });
+    expect(r.results()[0]).toMatchObject({ stop_reason: 'complete', attempted: 0, presented: 0, unrated: true });
   });
 });
