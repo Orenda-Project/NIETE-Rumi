@@ -1,0 +1,2 @@
+{"ts":"2026-11-17T11:38:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"e5f9d4268418","branch":"bd-pw1ccr.41.1-15315","user":""}
+{"ts":"2026-11-17T11:38:58Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,coaching owe their Gherkin","sha":"e5f9d4268418","branch":"bd-pw1ccr.41.1-15315","user":""}
