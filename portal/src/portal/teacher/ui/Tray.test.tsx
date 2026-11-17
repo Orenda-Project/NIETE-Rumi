@@ -27,6 +27,18 @@ function Harness({ onClose = () => {} }: { onClose?: () => void }) {
 }
 
 describe("Tray", () => {
+  it("88% of the screen at most by default; `tall` alone opens it to 24px from the top", () => {
+    const { unmount } = render(<Tray open title="Short" onClose={() => {}}><p>x</p></Tray>);
+    const plain = screen.getByRole("dialog");
+    expect(classes(plain)).toContain("max-h-[88vh]");
+    expect(plain.className).not.toContain("100dvh");
+    unmount();
+    render(<Tray open tall title="Long" onClose={() => {}}><p>x</p></Tray>);
+    const tall = screen.getByRole("dialog");
+    expect(tall.className).toContain("max-h-[calc(100dvh");
+    expect(classes(tall)).not.toContain("max-h-[88vh]");
+  });
+
   it("a dialog titled with its title: the Android Back convention, the canvas look", () => {
     render(<Harness />);
     const dialog = screen.getByRole("dialog", { name: "Select grade" });

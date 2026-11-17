@@ -22,11 +22,17 @@ export interface TrayProps {
   children: ReactNode;
   closeLabel?: string;
   testId?: string;
+  /**
+   * Open as tall as the content needs, up to 24px from the top of the screen (a centred card on a desktop keeps 88%).
+   * For a long list the sheet scrolls inside a child of its own: New paper's Question types (18-20 rows).
+   * Off by default, so every other sheet keeps 88% at most.
+   */
+  tall?: boolean;
 }
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Tray({ open, title, onClose, children, closeLabel: closeLabelProp, testId }: TrayProps) {
+export function Tray({ open, title, onClose, children, closeLabel: closeLabelProp, testId, tall = false }: TrayProps) {
   const kit = useKitCopy();
   const closeLabel = closeLabelProp ?? kit.close;
   const panel = useRef<HTMLDivElement>(null);
@@ -84,7 +90,8 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
         onClick={(e) => e.stopPropagation()}
         onKeyDown={trapTab}
         className={cn(
-          'flex max-h-[88vh] w-full flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-[#f3f4f6] px-3.5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-2 text-[#1d2025] outline-none',
+          tall ? 'max-h-[calc(100dvh_-_24px_-_env(safe-area-inset-top,0px))] md:max-h-[88vh]' : 'max-h-[88vh]',
+          'flex w-full flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-[#f3f4f6] px-3.5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-2 text-[#1d2025] outline-none',
           'motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-300',
           'md:max-w-md md:rounded-[22px] md:pb-4',
         )}
