@@ -45,7 +45,7 @@
     var voice = SAE.voice.create({ lang: lang, base: '/', muted: muted });
     var ui = SAE.ui.mount(el, {
       runner: runner, battery: battery, lang: lang, mode: mode, speak: voice.speak, muted: muted,
-      child: q.get('name') ? { first_name: q.get('name') } : null,
+      child: q.get('name') ? { name: q.get('name') } : null,
       back: q.get('back') || null,
       onMute: mode === 'game' ? function (b) { voice.setMuted(b); } : null,
       onRecordStart: function (t, it) { events.push({ type: 'qa_record_start', task_id: t.id, item_id: it ? it.id : null }); },

@@ -47,7 +47,7 @@
       drain: q.get('drain') === '1',
       // A linked phone's token (the coach's QR/link): the sink uses the token routes, no cookie.
       token: /^[A-Za-z0-9._~-]{16,700}$/.test(q.get('t') || '') ? q.get('t') : null,
-      first_name: name || null,
+      child_name: name || null,
     };
   }
 
@@ -393,7 +393,7 @@
       var offline = prepareOf(SAE, battery, p.lang, url, linesDone);
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
-        child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
+        child: p.child_name ? { name: p.child_name } : null, back: p.back, embed: p.embed,
         manual: manualOf(full, p.block), whole: wholeOf(p.block), opening: opening ? Promise.race([opening, offline]) : null,
       }).then(function (engine) {
         root.__sae = engine;

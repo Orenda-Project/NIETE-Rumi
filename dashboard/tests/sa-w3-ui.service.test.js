@@ -174,7 +174,7 @@ maybe('sa-ui: Wave 3 screens', () => {
   const grid = { battery_id: 'b', tasks: [{ id: 'en.letters', subtask: 'letter_name_identification', response: 'record', lang: 'en', time_limit_s: 60, grid: ['m', 'S', 't'], items: [] }] };
 
   test('one cell at a time: one big cell, Next shows the next; the grid is not drawn', async () => {
-    const { runner, el, view } = mount(grid, { one_at_a_time: true }, { child: { first_name: 'Ali Testwala' } });
+    const { runner, el, view } = mount(grid, { one_at_a_time: true }, { child: { name: 'Ali Testwala' } });
     runner.start(); runner.instructionDone(); runner.begin();
     view.render(); await flush();
     expect(el.querySelector('.sae-grid')).toBeNull();

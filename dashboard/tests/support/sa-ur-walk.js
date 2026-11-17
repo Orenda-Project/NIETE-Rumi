@@ -107,7 +107,7 @@ function walkScript() {
     var el = document.getElementById('sae-root');
     var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: cfg.lang, mode: cfg.mode,
       speak: function () { return Promise.resolve(); }, check_words: battery.check_words || null,
-      child: cfg.mode === 'proctored' ? { first_name: cfg.child || 'Zara Testwala' } : null,
+      child: cfg.mode === 'proctored' ? { name: cfg.child || 'Zara Testwala' } : null,
       onMute: cfg.mode === 'game' ? function () {} : null, onUnlock: function () {}, onHandover: function () {},
       micProbe: function () { return Promise.resolve({ ok: true, rms: 0.2, url: null }); },
       micLevel: function (cb) { cb(0.6); return function () {}; },

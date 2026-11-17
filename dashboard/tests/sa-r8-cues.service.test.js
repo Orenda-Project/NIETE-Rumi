@@ -341,7 +341,7 @@ maybe('round 8 item 32: the instruction lit word by word (r8_highlight)', () => 
 
   test('the child\'s name in front of the words is not part of the lit text', async () => {
     fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
-    const { el } = mount({ child: { first_name: 'Sam' } });
+    const { el } = mount({ child: { name: 'Sam' } });
     await frames();
     expect(el.querySelector('.sae-say .sae-name').textContent).toBe('Sam');
     expect(el.querySelectorAll('.sae-say .sae-r8-w').length).toBe(5);

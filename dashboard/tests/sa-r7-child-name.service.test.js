@@ -36,19 +36,19 @@ maybe('the child\'s name at each task\'s start (sa-ui)', () => {
     return { runner, el, view };
   }
   test('the instruction starts with the name: «Rabia، ان دو نمبروں کو دیکھیں…»', async () => {
-    const { el, view } = mount({ child: { first_name: 'Rabia' } });
+    const { el, view } = mount({ child: { name: 'Rabia' } });
     view.render(); await flush();
     const say = el.querySelector('.sae-instr .sae-say');
     expect(say.textContent).toBe('Rabia، ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا ہے، اسے دبائیں۔');
     expect(say.querySelector('bdi.sae-name').textContent).toBe('Rabia');
   });
   test('English page: "Rabia, Look at these two numbers…"', async () => {
-    const { el, view } = mount({ child: { first_name: 'Rabia' }, lang: 'en' });
+    const { el, view } = mount({ child: { name: 'Rabia' }, lang: 'en' });
     view.render(); await flush();
     expect(el.querySelector('.sae-instr .sae-say').textContent).toBe('Rabia, Look at these two numbers. Tap the bigger one.');
   });
   test('the Ready screen: «Rabia، تیار ہیں؟»', async () => {
-    const { runner, el, view } = mount({ child: { first_name: 'Rabia' } });
+    const { runner, el, view } = mount({ child: { name: 'Rabia' } });
     runner.instructionDone(); view.render(); await flush();
     expect(runner.view().phase).toBe('ready');
     expect(el.querySelector('.sae-ready .sae-h1').textContent).toBe('Rabia، تیار ہیں؟');

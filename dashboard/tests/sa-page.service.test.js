@@ -8,10 +8,10 @@ const { params, pick } = require('../sa/sa-page');
 test('the page reads its link strictly', () => {
   expect(params('?s=3f1c2d4e-aaaa-4bbb-8ccc-123456789abc&form=sa.coach.G3.A.ur&mode=proctored&block=B2&back=/portal/leader/sa', '#n=Ali%20Testwala')).toEqual({
     session_id: '3f1c2d4e-aaaa-4bbb-8ccc-123456789abc', form: 'sa.coach.G3.A.ur', mode: 'proctored', lang: 'ur', block: 'B2',
-    back: '/portal/leader/sa', skin: null, embed: false, drain: false, token: null, first_name: 'Ali Testwala',
+    back: '/portal/leader/sa', skin: null, embed: false, drain: false, token: null, child_name: 'Ali Testwala',
   });
   const bad = params('?s=x&form=../../etc&mode=root&block=B99&back=//evil.example/x&n=Name', '');
-  expect(bad).toMatchObject({ session_id: null, form: null, mode: 'proctored', block: null, back: null, first_name: null });
+  expect(bad).toMatchObject({ session_id: null, form: null, mode: 'proctored', block: null, back: null, child_name: null });
   expect(params('?s=abcdef12&form=sa.game.G23.en&mode=game&skin=game', '').lang).toBe('en');
   expect(params('?back=https://evil.example', '').back).toBeNull();
 });
