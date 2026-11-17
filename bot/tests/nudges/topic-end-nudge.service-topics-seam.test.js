@@ -19,7 +19,7 @@ const Nudge = require('../../shared/services/nudges/topic-end-nudge.service');
 const Arm = require('../../shared/services/nudges/topic-end-arm');
 
 const SCHOOL = 'b0000000-0000-4000-8000-00000000000b';
-const USER = { id: '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10', phone_number: '920000000000', role: 'teacher', school_id: SCHOOL };
+const USER = { id: '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10', phone_number: '+92300FIXTURE1', role: 'teacher', school_id: SCHOOL };
 const seg = (i) => ({ lesson_id: `grade_1_english_ch4_seg${i}`, segment_index: i });
 const CHAPTER = { number: 4, lessons: [1, 2, 3, 4, 5, 6].map(seg) };
 const topic = (id, name, sort, days, extra = {}) => ({
