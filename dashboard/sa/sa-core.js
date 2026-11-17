@@ -124,7 +124,12 @@
  * keeps kind 'pick' for the page. answer(value, meta) keeps meta.replays (the child's replays of the clip) and
  * meta.tap_ms (0 for a tap during the clip, else ms since it ended) on the answer; without meta the answer is as before.
  * practiceModelled(): an example practice item (role 'example') is modelled, not answered: one practice_model event, no
- * score. imageUnavailable(task, item, why): why ('clip') goes on the image_unavailable event as value { why }.
+ * score. clipLost(itemId, 'prompt'): the item's clip could not be played (after the voice's one retry): the item is
+ * unavailable (not attempted, not wrong, out of every denominator), answers[] gets { item_id, value: null,
+ * unavailable: 'clip' }, one item_unavailable event { why: 'clip' }, and the next item shows; the task never ends on it.
+ * clipLost(itemId, 'replay'): a replay that could not play: logged (replay, value 'lost'), the item stays open and its
+ * auto replay is not tried again. A pick task's result adds presented (items not unavailable), unavailable and of_all
+ * (its items); with fewer than PICK_MIN_PRESENTED presented it is unrated: true (scored_on stays 'phone').
  *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
@@ -170,6 +175,7 @@
   var NO_VOICE_S = 1.0;
   var VOICE_TICK_MS = 100; // the recorder's ear reads the level ten times a second
   var VOICE_RUN_TICKS = 3; // and reports a voice after three loud reads in a row
+  var PICK_MIN_PRESENTED = 6; // round 28: a letter-sound picker with fewer items whose sound played is not rated
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -456,7 +462,7 @@
       };
       if (from && from.answers) {
         // An untimed task resumes at the item reached, with what was answered before the reload.
-        from.answers.forEach(function (a) { tally(t, a.ok, a.value); st.answers.push(a); });
+        from.answers.forEach(function (a) { if (!a.unavailable) tally(t, a.ok, a.value); st.answers.push(a); });
         st.item_i = from.answers.length;
       }
       ev('task_intro', { task_id: t.id, value: resumed ? { resumed: true } : undefined });
@@ -519,6 +525,14 @@
       // the rotation variant this child saw (sa-page.js rotate): its id, null for the passage without rotation, so the
       // scorer marks the text the child read instead of guessing it from the session id
       if (has(t, 'variant_id')) r.variant = t.variant_id;
+      // round 28 (the letter-sound picker): items whose sound played, the ones that could not, and whether it is rated
+      if (t.kind === 'pick') {
+        var lost = st.answers.filter(function (a) { return a.unavailable; }).length;
+        r.presented = st.answers.length - lost;
+        r.unavailable = lost;
+        r.of_all = t.items.length;
+        if (r.presented < PICK_MIN_PRESENTED) r.unrated = true;
+      }
       if (t.mode === 'record') {
         r.mercy_offered = !!st.mercy;
         r.mercy_ear = st.ear || 'running';
@@ -866,6 +880,32 @@
         return true;
       },
       /**
+       * Round 28 (the letter-sound picker): the clip of the item on show could not be played. stage 'prompt' (its first
+       * play): the item is unavailable, never scored, and the next item shows (the task ends complete after the last).
+       * stage 'replay': logged, the item stays open, no auto replay for it. A late call for another item is ignored.
+       * → true when it acted.
+       */
+      clipLost: function (itemId, stage) {
+        var t = task();
+        if (st.phase !== 'running' || !t || t.kind !== 'pick') return false;
+        var it = st.items[st.item_i];
+        if (!it || it.id !== itemId) return false;
+        if (stage === 'replay') {
+          st.replayed = true;
+          ev('replay', { task_id: t.id, item_id: it.id, value: 'lost' });
+          return true;
+        }
+        st.answers.push({ item_id: it.id, value: null, unavailable: 'clip' });
+        ev('item_unavailable', { task_id: t.id, item_id: it.id, value: { why: 'clip' } });
+        st.item_i++;
+        st.item_started = now();
+        st.ask_at = st.item_started;
+        st.answer_at = null;
+        st.replayed = false;
+        if (st.item_i >= st.items.length) finish(STOP.COMPLETE);
+        return true;
+      },
+      /**
        * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach skips the part's instruction and practice. It lands
        * on the part's Ready screen, never past it: Go still starts the clock and the first item is still asked (a timed
        * part's clock must not start before the child holds the phone). A session gate (mic check, oral practice, keypad
@@ -1018,7 +1058,7 @@
         st.oral_run = 0; // round 13b: the question asked again starts the count again
         if (st.rec_marks && st.rec_marks.length) st.rec_marks.pop();
         st.attempted = 0; st.correct = 0; st.incorrect = 0; st.streak = 0; st.first_line_correct = 0;
-        st.answers.forEach(function (a) { tally(t, a.ok); });
+        st.answers.forEach(function (a) { if (!a.unavailable) tally(t, a.ok); });
         st.item_i = st.answers.length;
         st.item_started = now();
         st.ask_at = st.item_started;
@@ -1028,14 +1068,11 @@
         return true;
       },
       /** A picture of this task would not load (the page's <img> error): image_unavailable, the task ends as
-       *  assets_unavailable. A late error from another task's picture is ignored. why (round 28, optional): what would not
-       *  load ('clip': the letter-sound picker's sound), as the event's value { why }. */
-      imageUnavailable: function (taskId, itemId, why) {
+       *  assets_unavailable. A late error from another task's picture is ignored. */
+      imageUnavailable: function (taskId, itemId) {
         if (taskId !== st.task_id || ['running', 'instruction', 'practice', 'ready'].indexOf(st.phase) < 0) return;
         if (st.started == null) st.started = now();
-        var e = { task_id: st.task_id, item_id: itemId == null ? null : itemId };
-        if (why) e.value = { why: String(why) };
-        ev('image_unavailable', e);
+        ev('image_unavailable', { task_id: st.task_id, item_id: itemId == null ? null : itemId });
         finish(STOP.ASSETS);
       },
       /** After the task-end screen: the next task (after any a round 7b skip passed over). */

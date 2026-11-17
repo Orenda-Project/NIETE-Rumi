@@ -1340,17 +1340,20 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With sa_r28_letter_pick on, the first practice is shown by Jugnu and the second is the child's try
     Given sa_r28_letter_pick is on and the letter-sound picker's practice is on show
     When the first practice item shows
-    Then the right card is lit, no card can be tapped, and Jugnu plays the sound and says the model line
+    Then the right card is lit, no card can be tapped, and once the part's sounds are loaded (or after 5 seconds) Jugnu plays the sound and says the model line
     And Next then appears, and in RDF auto the practice moves on by itself 2 seconds later
     When the child gets the second practice item wrong twice
     Then the child is asked to try again once, and then the right card is shown
 
   @e2e @wip @draft @config-gated @P1 @CT192 @no-mock-driver
   # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
-  Scenario: With sa_r28_letter_pick on, a sound that cannot play skips the part and is never said by the phone's voice
-    Given sa_r28_letter_pick is on and the sound of a letter-sound item is not on the phone
-    When the item shows and its sound cannot play
-    Then the part ends as assets unavailable and nothing in it is scored
+  Scenario: With sa_r28_letter_pick on, a sound that cannot play leaves out that item only and is never said by the phone's voice
+    Given sa_r28_letter_pick is on and the sound of one letter-sound item cannot play, even after one more try
+    When that item shows
+    Then that item is left out: not attempted, not wrong, and the next item shows
+    And the answers given before it are kept
+    And a replay that cannot play leaves the item open, and the cards still take a tap
+    And with fewer than 6 items whose sound played, the part runs to its end and is not rated
     And the phone's own voice never says the letter
 
   @e2e @wip @draft @config-gated @P1 @CT193 @no-mock-driver
