@@ -122,7 +122,8 @@
  * Round 28 (battery.ui.r28_letter_pick; the served battery carries a task of kind 'pick' only when it is ON): the
  * letter-sound picker is an untimed tap task (five letter cards, Jugnu's clip, replay_at_s 10, next_at_s 15). Its task
  * keeps kind 'pick' for the page. answer(value, meta) keeps meta.replays (the child's replays of the clip) and
- * meta.tap_ms (0 for a tap during the clip, else ms since it ended) on the answer; without meta the answer is as before.
+ * meta.tap_ms (tap time minus the prompt's speech end, negative during the sound; see sa-ui.js), tap_before_sound and
+ * tap_ms_src on the answer; without meta the answer is as before.
  * practiceModelled(): an example practice item (role 'example') is modelled, not answered: one practice_model event, no
  * score. clipLost(itemId, 'prompt'): the item's clip could not be played (after the voice's one retry): the item is
  * unavailable (not attempted, not wrong, out of every denominator), answers[] gets { item_id, value: null,
@@ -727,7 +728,7 @@
     /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
     function answerMeta(a, meta) {
       if (!meta || typeof meta !== 'object') return a;
-      ['replays', 'tap_ms', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
       return a;
     }
 
