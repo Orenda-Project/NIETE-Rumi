@@ -22,10 +22,15 @@ skill (reuse, design system, WhatsApp vs page, switches, scoping, tracking, test
 
 1. Branch from sandbox: `git fetch origin && git switch -c <you>/<topic> origin/sandbox`. One change per branch.
 2. Write the failing test first, then the change. New behaviour starts OFF behind an `app_settings` switch.
+   Data follows the same rule as screens: extend an existing table (a region, organization, grade-band or kind
+   column) instead of adding a parallel one per region, grade or feature, and give any new table a one-line reason
+   in the PR. Lesson plans show why: `docs/lesson-plan-data-model-debt.md`.
 3. Open a PR into `sandbox` and fill in the template. When CI is green, merge it into `sandbox` and try it on the
-   sandbox portal and bot with your test account.
-4. Tick **Ready for review** in the PR and post its link in the team's review channel. The core team carries it to
-   `staging` and production with the product owner's go; never push to or open a PR into `staging` or `main`.
+   sandbox portal and bot with your test account. A check that is already red on `sandbox` itself must fail the
+   same way on your PR, never more: compare with the latest CI run on the `sandbox` branch.
+4. Tick **Ready for review** in the PR and send its link to the product owner in a direct message (there is no
+   channel for this). The core team carries it to `staging` and production with the product owner's go; never
+   push to or open a PR into `staging` or `main`.
 
 **Data and privacy**
 
