@@ -638,8 +638,10 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
   }, 20000);
 
   test('coach line (coach-led only, text only): shown above the fold in Urdu and English, never spoken; not in RDF auto', async () => {
-    const UR = 'جگنو سوال خود پڑھے گا۔ بچے کو جواب نہ بتائیں، سوال دوبارہ نہ پوچھیں، صرف \'آگے\' دبائیں۔';
-    const EN = 'Jugnu reads the question. Do not tell the child the answer, do not repeat the question; just press Next.';
+    // the MCQ's own line (B-14 amended): the child taps the answer, so it never sends the coach to a Next, and it
+    // keeps «do not translate»
+    const UR = 'جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔';
+    const EN = 'Jugnu reads the question and all four answers. Do not read, translate or give the answer. Let the child tap the answer.';
     setup();
     const said = (v) => v.lines.map((l) => JSON.stringify([l.textObj, l.audioObj])).join('|');
     const ur = mountMcq({ runner: { manual: true }, ui: { manual: true } });
@@ -651,7 +653,9 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(line.compareDocumentPosition(ur.el.querySelector('details.sae-mcq-coach')) & 4).toBeTruthy(); // the fold after it
     for (let i = 0; i < 5; i++) await ur.voice.speakNext(30);
     expect(said(ur.voice)).not.toContain('Jugnu reads the question');
-    expect(said(ur.voice)).not.toContain('جگنو سوال خود');
+    expect(said(ur.voice)).not.toContain('جگنو سوال اور');
+    expect(UR).not.toMatch(/آگے/);
+    expect(EN).not.toMatch(/Next/);
     views.forEach((v) => v.destroy()); views = [];
     const en = mountMcq({ runner: { manual: true }, ui: { manual: true, lang: 'en' } });
     await wait(20);
@@ -660,6 +664,56 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     const auto = mountMcq();
     await wait(20);
     expect(auto.el.querySelector('.sae-mcq-coach-line')).toBeNull();
+    views.forEach((v) => v.destroy()); views = [];
+    // OFF (no r28_mcq): the spoken comprehension task, coach-led, carries neither the new line nor the old one
+    const OLD_UR = 'جگنو سوال خود پڑھے گا۔';
+    const OLD_EN = 'Jugnu reads the question. Do not tell the child the answer';
+    for (const lang of ['ur', 'en']) {
+      const core2 = require('../sa/sa-core');
+      const ui = require('../sa/sa-ui');
+      const oral = Object.assign(oralTwin(), { response: 'oral', lang, title: { en: 'Story questions', ur: 'کہانی کے سوال' }, time_limit_s: null, depends_on: null });
+      const battery = { battery_id: 'b', tasks: [oral], ui: {} };
+      const runner = core2.createRunner({ battery, manual: true, onEvent: () => {} });
+      const view = ui.mount(document.getElementById('m'), { runner, battery, lang, mode: 'proctored', manual: true, speak: () => Promise.resolve() });
+      views.push(view);
+      runner.start(); runner.instructionDone(); runner.begin(); view.render();
+      await wait(20);
+      const text = document.getElementById('m').textContent;
+      expect(document.getElementById('m').querySelector('.sae-mcq-coach-line')).toBeNull();
+      for (const str of [UR, EN, OLD_UR, OLD_EN]) expect({ lang, has: text.includes(str) }).toEqual({ lang, has: false });
+      views.forEach((v) => v.destroy()); views = [];
+    }
+  }, 20000);
+
+  test('coach-led: the offered Next is in the head row beside the replay, never the foot; RDF auto keeps it in the foot (B.3 coach-led fit)', async () => {
+    setup();
+    for (const coach of [true, false]) {
+      let T = 0;
+      const now = () => T;
+      const task = { replay_at_s: null }; // no auto replay in this test: the clock runs straight to the Next
+      const m = coach
+        ? mountMcq({ task, runner: { manual: true, now }, ui: { manual: true } })
+        : mountMcq({ task, runner: { now } });
+      for (let i = 0; i < 5; i++) await m.voice.speakNext(30);
+      await wait(700);
+      expect(m.el.querySelector('.sa-next')).toBeNull();
+      T += (coach ? 15 : 30) * 1000 + 500;
+      m.view.render();
+      await wait(20);
+      const head = m.el.querySelector('.sae-mcq-head .sa-next');
+      const foot = m.el.querySelector('.sae-foot .sa-next');
+      expect({ coach, head: !!head, foot: !!foot }).toEqual({ coach, head: coach, foot: !coach });
+      if (coach) {
+        // after the replay, Jugnu and the replay keep their order; the Next is the row's last child
+        const row = Array.from(m.el.querySelector('.sae-mcq-head').children);
+        expect(row[row.length - 1]).toBe(head);
+        expect(row.indexOf(m.el.querySelector('.sae-mcq-replay'))).toBeLessThan(row.indexOf(head));
+        expect(m.el.querySelector('.sae-foot')).toBeNull(); // no foot at all: nothing below the cards to come and go
+        head.click();
+        expect(m.runner.view().item_index).toBe(1); // the coach's Next moves on (a skip), as the foot's did
+      }
+      views.forEach((v) => v.destroy()); views = [];
+    }
   }, 20000);
 
   test('coach line on the practice screen too (coach-led)', async () => {
@@ -944,5 +998,229 @@ describe('sa_r28_mcq core: a replay pauses both clocks until its read-out ends (
     c.add(16000);
     expect(r.replayStart()).toBe(false);
     expect(r.view().offer_next).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------------------------
+// B.3 coach-led fit: on a 360×640 phone, coach-led, the four answer cards are on screen WHOLE (ring and fill) and the
+// Next offered at 15 s is on screen, without scrolling, on the bank's longest question and longest answer set (UR, EN).
+// A real browser lays the screen out (jsdom has no layout); skipped without playwright-core (PWCORE=<path>).
+// ------------------------------------------------------------------------------------------------------------------
+let chromium = null;
+try { ({ chromium } = require(process.env.PWCORE || 'playwright-core')); } catch (_) { /* no browser here */ }
+const maybeBrowser = chromium ? describe : describe.skip;
+
+/** The bank's longest question (code points) and longest four-answer set, per language: the worst case for the fit. */
+function longestOf(lang) {
+  const fs = require('fs');
+  const dir = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test');
+  const qs = JSON.parse(fs.readFileSync(path.join(dir, 'item-bank.sa-r28.v1.json'), 'utf8')).mcq.questions;
+  const prompts = {};
+  (function walk(o) {
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (!o || typeof o !== 'object') return;
+    if (typeof o.id === 'string' && qs[o.id] && o.prompt != null && !(o.id in prompts)) prompts[o.id] = typeof o.prompt === 'string' ? o.prompt : String(o.prompt.text || '');
+    Object.keys(o).forEach((k) => walk(o[k]));
+  })(JSON.parse(fs.readFileSync(path.join(dir, 'item-bank.sa.v1.json'), 'utf8')));
+  const cp = (s) => Array.from(String(s)).length;
+  const ids = Object.keys(qs).filter((k) => k.startsWith(lang + '.'));
+  const q = ids.filter((k) => prompts[k]).map((k) => prompts[k]).sort((a, b) => cp(b) - cp(a))[0];
+  const sum = (o) => o.reduce((s, x) => s + cp(x), 0);
+  const options = ids.map((k) => qs[k].options).sort((a, b) => sum(b) - sum(a))[0];
+  return { q, options };
+}
+
+maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the replay and the coach\'s Next on screen in every coach state (B.3, coach-led fit)', () => {
+  const fs = require('fs');
+  const SA = path.join(__dirname, '..', 'sa');
+  const PUB = path.join(__dirname, '..', 'public', 'wq');
+  let browser;
+  beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
+  afterAll(async () => { if (browser) await browser.close(); });
+
+  /** The page: the MCQ task alone, coach-led, with a voice whose lines end only when the test says (window.__end()). */
+  function page(lang, ui, urFit) {
+    const w = longestOf(lang);
+    const item = (n) => ({ id: `${lang}.story_w3.q${n}`, prompt: { text: w.q, audio: `sa/v5/${lang}/syn_q${n}.mp3` }, options: w.options,
+      option_audio: [1, 2, 3, 4].map((k) => `sa/v5/${lang}/syn_q${n}_o${k}.mp3`), target_index: 1, key: 2, src: 'synthetic' });
+    const task = mcqTask([item(1), item(2)], { id: `${lang}.story_mcq_w3`, lang, depends_on: null });
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
+<script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
+<script>${fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8')}</script>
+<script>
+  window.__T = 0;
+  var cur = null;
+  function speak() {
+    var a = new EventTarget(); a.paused = false; a.ended = false; a.currentTime = 0.5;
+    var line = { a: a };
+    cur = line;
+    return new Promise(function (res) { line.end = function () { a.paused = true; a.ended = true; a.dispatchEvent(new Event('ended')); if (cur === line) cur = null; res(); }; });
+  }
+  speak.audio = function () { return cur ? cur.a : null; };
+  window.__end = function () { if (!cur) return false; cur.end(); return true; };
+  var battery = { battery_id: 'b', ui: ${JSON.stringify(Object.assign({ r28_mcq: true }, ui))}, tasks: [${JSON.stringify(task)}] };
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, onEvent: function () {} });
+  var el = document.getElementById('m');
+  var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: ${urFit},
+    r28: { letter_pick: false, mcq: true, ceiling: false }, speak: speak });
+  runner.start(); runner.instructionDone(); runner.begin(); view.render();
+  window.__view = view; window.__runner = runner;
+</script></body></html>`;
+  }
+  const measure = () => document.fonts.ready.then(() => {
+    const vh = window.innerHeight;
+    const R = (e) => { const b = e.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), h: Math.round(b.height) }; };
+    const seen = (e) => { const b = e.getBoundingClientRect(); const hit = document.elementFromPoint(b.left + Math.min(10, b.width / 2), (b.top + b.bottom) / 2); return !!hit && e.contains(hit); };
+    // a card is whole when its ring (box-shadow ≤ 7 px) is inside the viewport and nothing covers its top or bottom
+    const cards = Array.from(document.querySelectorAll('.sae-mcq-opt')).map((c) => {
+      const b = c.getBoundingClientRect();
+      const x = b.left + b.width / 2;
+      const hitTop = document.elementFromPoint(x, b.top + 3);
+      const hitBottom = document.elementFromPoint(x, Math.min(vh - 1, b.bottom - 3));
+      return Object.assign(R(c), { ring_bottom: Math.round(b.bottom + 7), shown: !!(hitTop && c.contains(hitTop)) && !!(hitBottom && c.contains(hitBottom)), cls: c.className });
+    });
+    const next = document.querySelector('.sa-next');
+    const rb = document.querySelector('.sae-mcq-replay');
+    const body = document.querySelector('.sae-mcq .sae-body');
+    const screen = document.querySelector('.sae-screen');
+    const qEl = document.querySelector('.sae-mcq-q');
+    const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+    return {
+      vh, page_h: document.documentElement.scrollHeight, inner_scroll: over(screen) + over(body),
+      nastaliq: document.documentElement.lang !== 'ur' || document.fonts.check(getComputedStyle(qEl).font, qEl.textContent),
+      cards, replay: rb ? R(rb) : null,
+      next: next ? Object.assign(R(next), { shown: seen(next), in_head: !!next.closest('.sae-mcq-head') }) : null,
+      foot_next: !!document.querySelector('.sae-foot .sa-next'),
+      fold_open: !!document.querySelector('details.sae-mcq-coach[open]'),
+      coach_line: !!document.querySelector('.sae-mcq-coach-line'),
+      q_font: qEl ? parseFloat(getComputedStyle(qEl).fontSize) : 0,
+    };
+  });
+  /** Every coach state of one question: listening (the question being read), speaking (answer 2 lit), chosen (answer 4
+   *  held while answer 3 is read), then on a fresh page the offered Next and the coach's fold open over it. */
+  async function states(lang, ui, urFit, shots) {
+    const out = {};
+    const open = async () => {
+      const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: shots ? 2 : 1 });
+      const p = await ctx.newPage();
+      const html = page(lang, ui, urFit);
+      await p.route('**/*', (route) => {
+        const u = new URL(route.request().url());
+        if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+        if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+        if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+        return route.fulfill({ status: 404, body: '' });
+      });
+      await p.goto('http://sa.test/');
+      await p.evaluate(() => document.fonts.ready);
+      await p.waitForTimeout(400);
+      return { ctx, p };
+    };
+    const snap = async (p, name) => {
+      await p.waitForTimeout(250);
+      out[name] = await p.evaluate(measure);
+      if (shots) await p.screenshot({ path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
+    };
+    const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
+    let { ctx, p } = await open();
+    await snap(p, 'listening');
+    await endLine(p, 900); // the question ends; 600 ms swallow, then answer 1 is read
+    await endLine(p, 600); // answer 1 ends; 400 ms gap, then answer 2 is read
+    await snap(p, 'speaking');
+    await endLine(p, 600); // answer 3 is read
+    await p.evaluate(() => document.querySelectorAll('.sae-mcq-opt')[3].click());
+    await snap(p, 'chosen');
+    await ctx.close();
+    ({ ctx, p } = await open());
+    for (let k = 0; k < 5; k++) await endLine(p, k === 0 ? 900 : 600); // the whole read-out, no choice
+    for (let k = 0; k < 6; k++) { // past the coach-led wait (15 s); an auto replay in between restarts it
+      await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+      await p.waitForTimeout(300);
+      while (await p.evaluate(() => window.__end())) await p.waitForTimeout(700);
+      const drawn = await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); });
+      if (drawn) break;
+    }
+    await snap(p, 'offernext');
+    await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } });
+    await snap(p, 'foldopen');
+    await ctx.close();
+    if (process.env.SA_FIT_DEBUG) process.stdout.write(`MCQFIT ${lang} ${urFit ? 'layout' : 'plain'} ${JSON.stringify(out)}\n`);
+    return out;
+  }
+  // the layout switches the coach-led battery carries (ur_fit, r8_layout, r8_lang_switch, r9_comp_text, r9_scroll_cue,
+  // r10_urdu_fit): the Urdu body scrolls by itself there and the Urdu labels are padded to their ink
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  for (const lang of ['ur', 'en']) {
+    for (const [name, ui, urFit] of [['the plain page', {}, false], ['the layout switches on (ur_fit, r8, r9, r10)', LAYOUT, true]]) {
+      test(`${lang}, ${name}, the longest question and answers: listening, speaking, chosen, Next offered, fold open — nothing scrolls, nothing moves`, async () => {
+        const shots = process.env.SA_FIT_SHOTS || null;
+        const r = await states(lang, ui, urFit, shots);
+        const at = r.listening;
+        expect(r.speaking.cards.map((c) => /is-speaking/.test(c.cls))).toEqual([false, true, false, false]);
+        expect(/is-chosen/.test(r.chosen.cards[3].cls)).toBe(true);
+        expect(r.offernext.next).not.toBeNull();
+        expect(r.foldopen.fold_open).toBe(true);
+        for (const [state, m] of Object.entries(r)) {
+          expect({ state, coach_line: m.coach_line, nastaliq: m.nastaliq }).toEqual({ state, coach_line: true, nastaliq: true });
+          expect({ state, page_h: m.page_h, inner_scroll: m.inner_scroll }).toEqual({ state, page_h: m.vh, inner_scroll: 0 });
+          expect(m.cards).toHaveLength(4);
+          m.cards.forEach((c, i) => {
+            // whole and seen (an open fold may lie over them as an overlay, but never pushes them: positions below)
+            if (state !== 'foldopen') expect({ state, card: i + 1, whole: c.ring_bottom <= m.vh && c.top >= 0 && c.shown }).toEqual({ state, card: i + 1, whole: true });
+            expect({ state, card: i + 1, inside: c.ring_bottom <= m.vh && c.top >= 0 }).toEqual({ state, card: i + 1, inside: true });
+            expect(c.h).toBeGreaterThanOrEqual(56); // B.3: the cards never shrink below their minimum
+            // the cards stay where they are in every coach state
+            expect({ state, card: i + 1, top: c.top, h: c.h }).toEqual({ state, card: i + 1, top: at.cards[i].top, h: at.cards[i].h });
+          });
+          expect({ state, replay: m.replay }).toEqual({ state, replay: at.replay });
+          expect(m.q_font).toBeGreaterThanOrEqual(lang === 'ur' ? 22 : 20);
+        }
+        // the coach's Next: in the head row beside the replay, never in the foot, on screen
+        const n = r.offernext.next;
+        expect({ in_head: n.in_head, foot: r.offernext.foot_next, shown: n.shown, inside: n.top >= 0 && n.bottom <= r.offernext.vh })
+          .toEqual({ in_head: true, foot: false, shown: true, inside: true });
+      }, 120000);
+    }
+  }
+});
+
+// RDF auto and the tablet keep their layout: every coach-fit rule sits in the one phone @media block and only matches
+// the coach-led MCQ screen (the one that carries the coach's fold, which RDF auto never draws).
+describe('sa_r28_mcq CSS: the coach-led phone fit leaves RDF auto and the tablet as they were (B.3, coach-led fit)', () => {
+  const fs = require('fs');
+  const css = fs.readFileSync(path.join(__dirname, '../sa/sa.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  /** Every top-level rule and every rule inside an @media, with the @media it sits in ('' at the top level). */
+  function rules() {
+    const out = []; const stack = []; let buf = '';
+    for (const ch of css) {
+      if (ch === '{') { stack.push(buf.trim()); buf = ''; } else if (ch === '}') {
+        const head = stack.pop();
+        if (!/^@/.test(head)) out.push({ sel: head, media: stack.filter((x) => /^@media/.test(x)).join(' '), body: buf.trim() });
+        buf = '';
+      } else buf += ch;
+    }
+    return out;
+  }
+  test('the coach-fit rules: inside @media (max-width:699px) (bar the head row\'s Next placement), each scoped to the coach-led MCQ screen', () => {
+    const fit = rules().filter((r) => /:has\(\.sae-mcq-coach\)/.test(r.sel));
+    expect(fit.length).toBeGreaterThanOrEqual(8);
+    fit.forEach((r) => {
+      // every width: only the head row's relative box and the coach's Next placed on it (the Next exists only coach-led)
+      const placement = r.media === '' && /\.sae-mcq-head(>\.sae-mcq-next)?$/.test(r.sel) && !/height|font|padding|margin|gap/.test(r.body);
+      expect({ sel: r.sel, media: placement ? '@media (max-width:699px)' : r.media }).toEqual({ sel: r.sel, media: '@media (max-width:699px)' });
+      r.sel.split(',').forEach((one) => expect({ one: one.trim(), scoped: /\.sae-mcq(\.sae-screen)?:has\(\.sae-mcq-coach\)/.test(one) }).toEqual({ one: one.trim(), scoped: true }));
+    });
+  });
+  test('the coach boxes take the tightening (smaller type, one box), the question clamps to two lines, the cards keep 56 px', () => {
+    const fit = rules().filter((r) => r.media === '@media (max-width:699px)');
+    const decl = (sel) => { const r = fit.find((x) => x.sel === sel); return r ? Object.fromEntries(r.body.split(';').filter((d) => d.includes(':')).map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()])) : null; };
+    const line = decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line');
+    expect(line).not.toBeNull();
+    expect(parseFloat(line['font-size'])).toBeLessThan(14);
+    expect(line.margin).toBe('0 0 -6px');
+    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q')['-webkit-line-clamp']).toBe('2');
+    // no rule of the fit touches a card's height
+    fit.filter((r) => /sae-mcq-opt\b/.test(r.sel)).forEach((r) => expect(r.body).not.toMatch(/height/));
   });
 });

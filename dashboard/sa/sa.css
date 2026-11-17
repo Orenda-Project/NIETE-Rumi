@@ -652,3 +652,35 @@ button{font:inherit;color:inherit}
   .sae-mcq-opt[lang=ur]{font-size:28px}
   .sae-mcq-opts{gap:12px}
 }
+/* ---- round 28: spoken MCQ, coach-led on a phone (B.3 coach-led fit, sa_r28_mcq) ----
+   Coach-led only (the screen that carries the coach's fold), so RDF auto is as before; below 700 px only, but for the
+   two rules that place the coach's Next (every width, so it never moves the cards on a tablet either). On a 360x640 phone the four cards (min 56 px, B.3) and the child's replay stay where they are in every coach
+   state on the bank's longest question: the coach's Next sits in the head row beside the replay (sa-ui.js), the fold
+   opens OVER the screen (never pushing the cards), the coach's line and the folded row read as one box in the coach's
+   smaller type (the Nastaliq keeps a line height that holds its ink), the task title keeps to one line, and the
+   question keeps to its two-line clamp from the first draw (Jugnu reads it whole; the fold has it). */
+/* coach-led, every width: the coach's Next at the head row's end edge, centred on it and out of the flow, so its
+   arrival moves neither Jugnu, the replay nor the row's height (so never the cards) */
+.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{position:relative}
+.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{position:absolute;top:50%;inset-inline-end:0;transform:translateY(-50%);box-sizing:border-box;width:auto;min-width:0;max-width:calc(50% - 72px);white-space:nowrap;overflow:hidden}
+@media (max-width:699px){
+  .sae .sae-mcq.sae-screen:has(.sae-mcq-coach){gap:4px;padding-top:4px;padding-bottom:2px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-body{gap:4px}
+  .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{padding-top:0;padding-bottom:8px}
+  .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body>:first-child{margin-top:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:15px;line-height:1.5}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag:lang(ur){line-height:1.9}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{gap:12px;flex-wrap:nowrap;min-height:56px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-jugnu{width:48px;height:48px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{min-height:56px;padding-inline:12px;font-size:20px;line-height:1.5}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line{margin:0 0 -6px;padding:2px 10px 0;font-size:13px;line-height:1.4;border-bottom-width:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{line-height:1.9}
+  .sae .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach{position:relative;padding:0 10px 2px;border-top-width:0;border-top-left-radius:0;border-top-right-radius:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach>summary{font-size:13px;line-height:1.6;padding-top:0}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach>summary{line-height:2.2}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body{position:absolute;top:100%;left:-3px;right:-3px;z-index:5;padding:4px 12px 8px;background:var(--sae-card);border:3px dashed var(--sae-line);border-top-width:0;border-radius:0 0 var(--sae-r) var(--sae-r);box-shadow:0 8px 16px rgba(0,0,0,.18)}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  /* a clamped Latin question: its bottom room is a border in the card's own colour, so a third line never shows through it */
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q:not([lang=ur]){padding-bottom:0;border-bottom:10px solid var(--sae-accent-l)}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:5px}
+}

@@ -133,7 +133,7 @@
       replay: 'Hear again',
       replay_sound: 'Hear it again',
       replay_question: 'Hear the question again',
-      mcq_coach_line: 'Jugnu reads the question. Do not tell the child the answer, do not repeat the question; just press Next.',
+      mcq_coach_line: 'Jugnu reads the question and all four answers. Do not read, translate or give the answer. Let the child tap the answer.',
       // round 28 (sa_r28_letter_pick, lead ruling A.6): the coach's line on every picker screen, coach-led only, text only
       pick_coach_line: 'Jugnu says the sound. Please do not say it. If the child did not hear it, press the sound button.',
       next: 'Next',
@@ -238,7 +238,7 @@
       replay: 'دوبارہ سنیں',
       replay_sound: 'دوبارہ سنیں',
       replay_question: 'سوال دوبارہ سنیں',
-      mcq_coach_line: 'جگنو سوال خود پڑھے گا۔ بچے کو جواب نہ بتائیں، سوال دوبارہ نہ پوچھیں، صرف \'آگے\' دبائیں۔',
+      mcq_coach_line: 'جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔',
       pick_coach_line: 'آواز جگنو بولے گا۔ آپ آواز نہ بولیں۔ بچہ نہ سنے تو آواز والا بٹن دبائیں۔',
       next: 'آگے',
       practice: 'مشق',
@@ -2646,8 +2646,11 @@
       var tl = taskLang(t), d = dirOf(t);
       return h('details', { class: 'sae-coach-says is-coach is-app sae-mcq-coach' }, [
         h('summary', { text: C.coach_app }),
-        h('p', { class: 'sae-say sae-coach-line', lang: tl, dir: d, text: tx(it.prompt) }),
-        h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', { text: String(x) }); })),
+        // one box under the summary: on a coach-led phone it opens over the screen (sa.css), never pushing the cards
+        h('div', { class: 'sae-mcq-coach-body' }, [
+          h('p', { class: 'sae-say sae-coach-line', lang: tl, dir: d, text: tx(it.prompt) }),
+          h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', { text: String(x) }); })),
+        ]),
       ]);
     }
     /** A screen whose four cards and question do not fit: the question card clamps to two lines first (B.3). */
@@ -2681,18 +2684,21 @@
       var next = null;
       if (!practice) {
         shownOffer = !!v.offer_next;
-        if (v.offer_next && !reading && S.chosen == null) next = btn(C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
+        if (v.offer_next && !reading && S.chosen == null) next = btn(C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next' + (manual ? ' sae-mcq-next' : ''));
       }
+      // B.3 coach-led fit: the coach's Next sits in the head row beside the replay, never in the foot, so its arrival
+      // never moves the cards or the replay (the head row is the replay's height either way)
+      var headNext = manual ? next : null;
       var s = screen(v, 'sae-run sae-mcq' + (practice ? ' sae-mcq-practice' : '') + (S.phase === 'listening' && S.read_end == null && !fb ? ' sae-mcq-listening' : ''), [
         t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
-        h('div', { class: 'sae-row sae-mcq-head' }, [j, practice ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, practice ? skipInstrBtn(v) : null]),
+        h('div', { class: 'sae-row sae-mcq-head' }, [j, practice ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, practice ? skipInstrBtn(v) : null, headNext]),
         mcqCoachLine(),
         mcqCoach(it, t),
         practice && it.passage ? h('p', { class: 'sae-mcq-passage', lang: tl, dir: d, text: tx(it.passage) }) : null,
         h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
         cardsEl,
         practice ? feedbackLine(fb) : null,
-      ], practice ? null : itemFoot(v, [next]));
+      ], practice ? null : itemFoot(v, [headNext ? null : next]));
       s.setAttribute('data-item', it.id);
       Promise.resolve().then(function () { mcqFit(s); });
       return s;
