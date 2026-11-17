@@ -374,10 +374,16 @@ const SENSITIVE_RE = new RegExp([
  * sensitive, `[withheld <hash>]` — as stable as the text when the line moves, and it never puts
  * the value in the snapshot or the log.
  */
+// The names added-lines-hygiene keeps out of the public repo (a numbered decision, a reviewer handle).
+// A snapshot that accepts that guard's offenders must not copy them into a new committed file (bd-nij2nd).
+const { tokensIn: privateNamesIn } = require('./setup/added-lines-hygiene-lib');
+
+const withhold = (text) => `[withheld ${crypto.createHash('sha256').update(text).digest('hex').slice(0, 12)}]`;
+const mustWithhold = (text) => SENSITIVE_RE.test(text) || privateNamesIn(text).length > 0;
+
 function keyText(line) {
   const text = squash(line);
-  if (!SENSITIVE_RE.test(text)) return text;
-  return `[withheld ${crypto.createHash('sha256').update(text).digest('hex').slice(0, 12)}]`;
+  return mustWithhold(text) ? withhold(text) : text;
 }
 
 function contentKey(file, text, n = 1) {
@@ -413,7 +419,8 @@ function keyOffenders(raws, lineAt) {
     const m = POSITION_RE.exec(raw);
     const text = m && lineAt ? lineAt(m[1], Number(m[2])) : null;
     if (typeof text === 'string') located.push({ raw, file: m[1], line: Number(m[2]), text: keyText(text) });
-    else out.push({ key: raw });
+    // A guard message with no line is kept as it is, unless it names a private work item.
+    else out.push({ key: privateNamesIn(raw).length ? withhold(squash(raw)) : raw });
   }
   const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
   located.sort((a, b) => cmp(a.file, b.file) || a.line - b.line || cmp(a.raw, b.raw));
