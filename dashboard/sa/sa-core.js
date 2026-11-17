@@ -317,6 +317,9 @@
     // sa_r28_ceiling (opts.ceiling, from battery.ui.r28_ceiling): a final cell closed by the clock under
     // SHORT_CELL_MS is presented (it stays in cells with its ms) but not attempted (last_item_index skips it)
     var ceilingOn = opts.ceiling === true;
+    // sa_r28_story_clock (opts.story_clock, from battery.ui.r28_story_clock): a record task's clock stops at Done (the
+    // recorder stops there), not at the last-word tap; elapsed_ms stays the real elapsed
+    var storyClock = opts.story_clock === true;
     // Round 7b: End this section (RDF manual), the move-on when a part is not finished and the silence repeat (RDF auto).
     var endSectionOn = !!opts.end_section && (manual || !!opts.auto_end_section);
     var incompleteOn = !!opts.incomplete && !manual;
@@ -489,6 +492,7 @@
       var used = st.started == null ? 0 : Math.round(now() - st.started);
       // The clock as it really ran (a throttled tab, a late time-up): never capped, unlike time_used_ms.
       var elapsed = used;
+      if (storyClock && t.mode === 'record' && st.started != null && st.used_at_stop != null) used = Math.round(st.used_at_stop - st.started);
       var lim = limitMs(t);
       if (lim != null && used > lim) used = lim;
       var phone = t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard';
@@ -887,6 +891,7 @@
       done: function () {
         if (st.phase !== 'running' || task().mode !== 'record') return;
         ev('reading_done', { task_id: st.task_id });
+        if (storyClock) st.used_at_stop = now();
         if (task().items.length && skipLW) { st.last_word_skipped = true; finish(STOP.COMPLETE); } else if (task().items.length) st.phase = 'last_word'; else finish(STOP.COMPLETE);
       },
       /** The last word read (index into the passage's words). */
