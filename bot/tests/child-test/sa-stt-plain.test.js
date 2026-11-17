@@ -52,6 +52,28 @@ describe('transcribePlain', () => {
     expect(axios.delete).toHaveBeenCalled();
   });
 
+  test('diarize (sa_r28_voice_help): the same request with the speaker split on, and the words as speaker turns', async () => {
+    axios.get.mockImplementation(async (url) => (url.endsWith('/transcript')
+      ? { data: { tokens: [
+        { text: 'اونچی', start_ms: 1000, end_ms: 1400, speaker: '1' }, { text: ' آواز', start_ms: 1400, end_ms: 1800, speaker: '1' },
+        { text: ' پنجرے', start_ms: 4000, end_ms: 4400, speaker: '2' }, { text: ' میں', start_ms: 4400, end_ms: 4700, speaker: '2' },
+      ] } }
+      : { data: { status: 'completed' } }));
+    const r = await stt.transcribePlain(file, 6, { pollMs: 1, diarize: true });
+    const body = axios.post.mock.calls.find(([url]) => url.endsWith('/v1/transcriptions'))[1];
+    expect(body).toMatchObject({ language_hints: ['ur', 'en'], enable_language_identification: true, enable_speaker_diarization: true });
+    expect(body).not.toHaveProperty('context');
+    expect(r.words).toBe(4);
+    expect(r.turns).toBe('[1s] spk1: اونچی آواز\n[4s] spk2: پنجرے میں');
+    expect(r.model).toMatch(/:plain:diarized$/);
+  });
+
+  test('without diarize the result carries no turns (the stricter check\'s pass is unchanged)', async () => {
+    const r = await stt.transcribePlain(file, 4, { pollMs: 1 });
+    expect(r).not.toHaveProperty('turns');
+    expect(r.model).toMatch(/:plain$/);
+  });
+
   test('a failed transcription is an error, not "no words"', async () => {
     axios.get.mockImplementation(async (url) => (url.endsWith('/transcript') ? { data: { tokens: [] } } : { data: { status: 'error', error_message: 'bad audio' } }));
     await expect(stt.transcribePlain(file, 4, { pollMs: 1 })).rejects.toThrow(/plain_stt_error/);

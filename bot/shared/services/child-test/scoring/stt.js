@@ -34,8 +34,10 @@ async function transcribe(file, language, durationSec, { signal } = {}) {
  * some real recordings it heard no word where this request heard an adult clearly. Used only to back up an
  * another-voice flag, never for the marks. The transcription and the uploaded file are deleted afterwards.
  * { words, text, model, seconds, cost }; throws on an error status; an aborted `signal` rejects with reason 'timeout'.
+ * `diarize` (sa_r28_voice_help): the same request with Soniox's speaker split on, and `turns` beside the words, rendered
+ * as renderTurns does ("[12s] spk1: …"), for the help check to read.
  */
-async function transcribePlain(file, durationSec, { signal, pollMs = 2000, maxWaitMs = 170 * 1000 } = {}) {
+async function transcribePlain(file, durationSec, { signal, pollMs = 2000, maxWaitMs = 170 * 1000, diarize = false } = {}) {
   /* eslint-disable global-require */
   const axios = require('axios');
   const FormData = require('form-data');
@@ -60,6 +62,7 @@ async function transcribePlain(file, durationSec, { signal, pollMs = 2000, maxWa
     fileId = (await untilAborted(axios.post(`${base}/files`, form, { headers: { ...headers, ...form.getHeaders() } }), signal)).data.id;
     trId = (await untilAborted(axios.post(`${base}/transcriptions`, {
       file_id: fileId, model: SONIOX_PRIMARY_MODEL, language_hints: ['ur', 'en'], enable_language_identification: true,
+      ...(diarize ? { enable_speaker_diarization: true } : {}),
     }, { headers }), signal)).data.id;
     for (;;) {
       const st = (await untilAborted(axios.get(`${base}/transcriptions/${trId}`, { headers }), signal)).data || {};
@@ -73,7 +76,8 @@ async function transcribePlain(file, durationSec, { signal, pollMs = 2000, maxWa
     return {
       words: words.length,
       text: words.map((w) => w.raw).join(' '),
-      model: `soniox:${SONIOX_PRIMARY_MODEL}:plain`,
+      ...(diarize ? { turns: renderTurns(words) } : {}),
+      model: `soniox:${SONIOX_PRIMARY_MODEL}:plain${diarize ? ':diarized' : ''}`,
       seconds: (Date.now() - started) / 1000,
       cost: Number.isFinite(durationSec) ? Math.round(durationSec / 3600 * SONIOX_ASYNC_USD_PER_HOUR * 1e5) / 1e5 : null,
     };
