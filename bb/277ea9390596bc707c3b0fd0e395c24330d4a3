@@ -1,2 +1,3 @@
 {"ts":"2026-11-17T18:05:06Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"bb277ea93905","branch":"bd-xkkw9.2-sandbox","user":""}
 {"ts":"2026-11-17T18:07:33Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (quiz lane uses lp-v9 rich/fonts/diagrams only; this change touches the 6-12 LP template homework paint, overlay label packs and a homework-only field in questions.js, none of which the quiz renders)","sha":"bb277ea93905","branch":"bd-xkkw9.2-sandbox","user":""}
+{"ts":"2026-11-17T18:07:33Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"5cf7cacf-d68f-4b29-898d-1a5f11abd1df","sha":"bb277ea93905","branch":"bd-xkkw9.2-sandbox","user":""}
