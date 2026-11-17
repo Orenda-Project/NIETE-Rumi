@@ -25,7 +25,7 @@ const { rich, esc, display, displayChem, setRtlProse, setUrduInline } = require(
 const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
-const { questionIndex } = require("./questions");
+const { questionIndex, allQuestions } = require("./questions");
 const { fbiseRow, noBoardExam } = require("./fbise_chips");
 
 // ── diagram-type badge: the enum is OURS, the badge is the TEACHER'S ─────────
@@ -1848,7 +1848,13 @@ function page1(doc, ctx, secIndex) {
         out.push({ html: `<div class="blk reteach"><div class="lbl">${esc(L.reteach)}</div><div class="t">${rich(s.reteach_rule)}</div></div>`, sp: 2 });
       }
     }
-    if (s.id === "homework" && s.homework) {
+    if (s.id === "homework" && s.homework && ctx.hwRefOnly) {
+      // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
+      // bd-xkkw9.2). Still over the TEACH cap after the two-box move: the items print once, in
+      // Reference "Homework, in full" (every item has its answer there — homeworkMovable), and
+      // the flow keeps one line saying where. Reuses `.cite` so no CSS changes for any lesson.
+      out.push({ html: `<div class="blk hwptr"><span class="cite">${esc(L.hwPointer(L.p2Hw))}</span></div>`, sp: 2 });
+    } else if (s.id === "homework" && s.homework) {
       // NO ANSWERS HERE. Defect class E: the reviewed plan printed the answer beside the
       // question, so the homework taught nothing. The answers live in reference F.
       //
@@ -2354,7 +2360,7 @@ function page2(doc, ctx, secIndex) {
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
-      <span class="refq">${it ? rich(it.q) : (h.item ? rich(h.item) : esc(L.refMissing))}</span>
+      <span class="refq">${it ? rich(it.q) + (ctx.hwRefOnly ? hwSourceHtml(it.source, L) : "") : (h.item ? rich(h.item) : esc(L.refMissing))}</span>
       <p class="a">${rich(h.answer)}</p></div>`;
     })));
 
@@ -2492,6 +2498,8 @@ function buildHtml(input, opts = {}) {
     rasterFigure: false,
     vectorFigure: false,
     noFlowHosts: !!opts.noFlowHosts,
+    // bd-xkkw9.2 — only ever true for a lesson whose every homework item has its answer in F.
+    hwRefOnly: !!opts.hwRefOnly && homeworkMovable(doc),
   };
 
   const fonts = fontCss({ urdu: rtl || urduScript, quranic: true });
@@ -2553,8 +2561,29 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
       const P2 = doc.page2 || {};
       return !!((h.mistakes && (P2.mistakes || []).length) || (h.differentiation && P2.differentiation));
     })(),
+    // bd-xkkw9.2 — may the homework print only in Reference? (renderDoc's third paint)
+    homeworkMovable: homeworkMovable(doc),
+    homeworkMoved: ctx.hwRefOnly,
     pageContentHeight: PAGE_CONTENT_H,
   };
+}
+
+/**
+ * bd-xkkw9.2 — true when every homework item the flow prints has an answered entry in
+ * `page2.homework_key`, so printing the items only in Reference loses nothing. Refs are read
+ * through allQuestions, so derived refs (H1, H2 …) count exactly as F resolves them.
+ */
+function homeworkMovable(doc) {
+  const hw = allQuestions(doc).filter((q) => q.kind === "homework");
+  if (!hw.length) return false;
+  const keyed = new Set(((doc.page2 && doc.page2.homework_key) || []).filter((h) => h && h.ref && h.answer).map((h) => h.ref));
+  return hw.every((q) => keyed.has(q.ref));
+}
+
+/** The book source a homework item carried in the flow, for its Reference card (bd-xkkw9.2). */
+function hwSourceHtml(src, L) {
+  if (!src || !(src.page || src.questions || src.paper)) return "";
+  return ` <span class="src">(${[src.paper, src.questions, src.page ? `${L.page}${src.page}` : null].filter(Boolean).map((x) => rich(x)).join(", ")})</span>`;
 }
 
 module.exports = { buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,

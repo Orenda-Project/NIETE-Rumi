@@ -1489,6 +1489,28 @@ brief and each flash sibling (red 4/4 before, green after).
 DIVERGENCE` comments mark all four sites. Offer the same rule upstream at the next re-sync and
 regenerate the flash briefs there with `build_flash_brief.py`.
 
+### 3.39 Still over the TEACH cap after §3.37: homework prints only in Reference — `lib/template.js`, `lib/overlay.js`, `lib/questions.js`, `render_lp.js` `renderDoc` (2026-11-17, bd-xkkw9.2)
+
+Builds on §3.37 (NIETE-only). Every lesson already prints its homework questions in full, with the
+answers, in Reference "Homework, in full" (from `page2.homework_key`), so the teach-flow copy is a
+duplicate.
+
+- `buildHtml(doc, { hwRefOnly: true })` prints one pointer line (`L.hwPointer`, en + ur, naming the
+  `L.p2Hw` heading; reuses `.cite`, so no CSS changes) in the homework section in place of the items.
+  It only takes effect when `homeworkMovable(doc)`: every homework item's ref (authored or derived,
+  via `allQuestions`) has an answered `homework_key` entry. In that build the Reference card also
+  carries the item's book source, which used to print only in the flow (`questions.js` now passes
+  `source` on homework entries). `buildHtml` returns `homeworkMovable` and `homeworkMoved`.
+- `renderDoc`: after §3.37, if TEACH is still over and `homeworkMovable`, ONE more paint with
+  `hwRefOnly` on top of whichever layout won; kept only if over the caps by fewer pages in total,
+  else the previous layout is painted again. Report `homework_moved`, return `homeworkMoved`.
+- A lesson that fits never takes this paint, so its files are byte-identical to before.
+- Why: queue #112 (bd-xkkw9.1): ~3 in 10 lessons still over after §3.37; of the 40 still over on
+  re-render, 31 fit both caps with homework only in Reference.
+- Test: `tests/lp612/over-cap-homework-reference.test.js`.
+
+**LOCAL-ONLY divergence**: `VENDOR DIVERGENCE` comments mark the template and renderer sites.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
