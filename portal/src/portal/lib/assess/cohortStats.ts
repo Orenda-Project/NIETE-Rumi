@@ -72,16 +72,25 @@ function taskIn(s: DashStudent, taskId: string): SaTaskResult | undefined {
 }
 
 /**
- * The share of a comprehension task's questions answered right: its own `of`, else (round 28's tapped MCQ only) the
- * questions the gate allowed (`asked`), else the spec's. An unrated task has no share (correctOf is null).
+ * The share of a comprehension task's questions answered right: its own `of`, else the spec's. Round 28's tapped MCQ:
+ * of = 6 − the questions whose clips were lost (`unavailable`); a question the reading gate did not ask counts as wrong,
+ * so it is never `asked.length`. An unrated task has no share (correctOf is null).
  */
 export function comprehensionShare(t: SaTaskResult | undefined, spec: TaskSpec): number | null {
   const c = correctOf(t);
   if (c === null) return null;
-  let of = spec.max;
-  if (t?.score && typeof t.score.of === 'number' && t.score.of > 0) of = t.score.of;
-  else if (t?.mode === 'tap' && Array.isArray(t.asked) && t.asked.length > 0) of = t.asked.length;
+  if (t?.mode === 'tap') {
+    const lost = typeof t.unavailable === 'number' && t.unavailable > 0 ? t.unavailable : 0;
+    return spec.max - lost > 0 ? c / (spec.max - lost) : null;
+  }
+  const of = t?.score && typeof t.score.of === 'number' && t.score.of > 0 ? t.score.of : spec.max;
   return c / of;
+}
+
+/** Round 28's picker: correct of the items presented (lost clips are out of the denominator); every other task: of its max. */
+function itemsShare(t: SaTaskResult | undefined, c: number, spec: TaskSpec): number {
+  if (t?.mode === 'tap' && spec.example === false && typeof t.presented === 'number' && t.presented > 0) return c / t.presented;
+  return c / spec.max;
 }
 
 export type TaskSummary = {
@@ -112,7 +121,7 @@ export function summariseTask(students: DashStudent[], spec: TaskSpec): TaskSumm
     const c = spec.kind === 'passage' ? wcpmOf(t) : correctOf(t);
     if (c === null) continue;
     values.push(c);
-    shares.push(spec.kind === 'comprehension' ? (comprehensionShare(t, spec) as number) : c / spec.max);
+    shares.push(spec.kind === 'comprehension' ? (comprehensionShare(t, spec) as number) : itemsShare(t, c, spec));
   }
   const n = values.length;
   const distribution = spec.kind === 'passage'
