@@ -572,3 +572,45 @@ button{font:inherit;color:inherit}
    down so the taller pill covers no more of the screen than it must. */
 @media (max-width:699px){.sae.is-r10-urfit.is-r9-scroll[lang=ur] .sae-r9-scroll{font-size:16px}}
 /* end round 10 layout 1 */
+
+/* ---- round 28: spoken MCQ (.sae-mcq) ---- (sa_r28_mcq; sa-ui.js sMcq). Four stacked full-width answer cards, the one
+   Jugnu is reading lit (border + glow), the rest dimmed (.55) while he reads; a held choice lit steady; no letters. At
+   360×640 the question card clamps to two lines (is-clamp) before an answer card ever shrinks. */
+.sae-mcq.sae-screen{gap:6px;padding-top:8px}
+.sae-mcq .sae-body{justify-content:flex-start;gap:8px;align-items:stretch}
+.sae-mcq .sae-task-tag{text-align:center;line-height:1.4}
+.sae-mcq .sae-task-tag:lang(ur){font-size:17px;line-height:1.6}
+.sae-mcq-head{display:flex;align-items:center;justify-content:center;gap:14px}
+.sae-mcq-jugnu{cursor:pointer;transition:transform .2s;width:60px;height:60px;object-fit:contain}
+.sae-mcq-jugnu.is-talking{transform:scale(1.06)}
+.sae-mcq-replay{width:56px;height:56px;min-width:56px;min-height:56px}
+.sae-mcq-replay:disabled{opacity:.4;cursor:default}
+.sae-mcq-q{width:100%;margin:0;padding:10px 14px;border-radius:var(--sae-r);background:var(--sae-accent-l);color:var(--sae-ink);font-size:20px;font-weight:700;line-height:1.35;text-align:start}
+.sae-mcq-q[lang=ur]{font-family:var(--sae-fu);font-size:22px;font-weight:400;line-height:1.75;padding-top:4px;padding-bottom:4px}
+.sae-mcq.is-clamp .sae-mcq-q{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.sae-mcq-passage{width:100%;margin:0;padding:8px 12px;border-radius:14px;background:var(--sae-card);border:2px dashed var(--sae-line);font-size:17px;line-height:1.4;text-align:start}
+.sae-mcq-passage[lang=ur]{font-family:var(--sae-fu);line-height:2}
+.sae-mcq-opts{display:flex;flex-direction:column;gap:8px;width:100%}
+.sae-mcq-opt{display:flex;align-items:center;width:100%;min-height:56px;padding:6px 16px;border-radius:16px;border:3px solid var(--sae-line);background:var(--sae-card);color:var(--sae-ink);font-family:var(--sae-f);font-size:19px;font-weight:600;line-height:1.3;text-align:start;cursor:pointer;box-shadow:0 3px 0 var(--sae-line);transition:opacity .15s,border-color .15s,box-shadow .15s}
+.sae-mcq-opt[lang=ur]{font-family:var(--sae-fu);font-size:18px;font-weight:400;line-height:1.75;padding-top:0;padding-bottom:0}
+.sae-mcq-opt[dir=rtl]{text-align:right;justify-content:flex-start}
+.sae-mcq-ink{display:block;min-width:0;overflow-wrap:anywhere}
+.sae-mcq-opt.is-waiting{opacity:.55;border-color:transparent;box-shadow:none}
+.sae-mcq-opt.is-speaking{opacity:1;border-color:var(--sae-accent);box-shadow:0 0 0 4px var(--sae-accent-l),0 0 16px rgba(242,165,22,.55)}
+.sae-mcq-opt.is-ready{opacity:1}
+.sae-mcq-opt.is-chosen{opacity:1;border-color:var(--sae-ink);background:var(--sae-accent-l);box-shadow:0 0 0 3px var(--sae-ink)}
+.sae-mcq-opt.is-chosen.is-speaking{box-shadow:0 0 0 3px var(--sae-ink),0 0 16px rgba(242,165,22,.55)}
+.sae-mcq-opt.is-pressed{transform:scale(.97);background:var(--sae-accent)}
+.sae-mcq-opt.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg)}
+.sae-mcq-opt.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg)}
+.sae-mcq-opt:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+.sae-mcq.sae-mcq-listening .sae-mcq-opt{opacity:.55;border-color:transparent;box-shadow:none}
+.sae-mcq-coach{width:100%;text-align:start}
+.sae-mcq-coach-opts{margin:4px 0 0;padding-inline-start:22px}
+@media (min-width:700px){
+  .sae-mcq-q{font-size:26px}
+  .sae-mcq-q[lang=ur]{font-size:30px}
+  .sae-mcq-opt{min-height:72px;font-size:24px}
+  .sae-mcq-opt[lang=ur]{font-size:28px}
+  .sae-mcq-opts{gap:12px}
+}

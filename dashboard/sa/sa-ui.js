@@ -109,6 +109,7 @@
       warm_title: 'Pop the bubbles!',
       warm_sub: 'As fast as you can.',
       replay: 'Hear again',
+      replay_question: 'Hear the question again',
       next: 'Next',
       practice: 'Practice',
       right: 'That’s right!',
@@ -209,6 +210,7 @@
       warm_title: 'بلبلے پھوڑیں!',
       warm_sub: 'جتنی جلدی ہو سکے۔',
       replay: 'دوبارہ سنیں',
+      replay_question: 'سوال دوبارہ سنیں',
       next: 'آگے',
       practice: 'مشق',
       right: 'بالکل ٹھیک!',
@@ -518,6 +520,12 @@
     var r12IntroOnce = r7.r12_intro_once === true;
     var introSaid = false;
     var practiceEndAt = null; // when the tap that ended the practice came (Date.now())
+    // Round 28 (sa_r28_mcq; opts.r28.mcq from sa-engine.js, or battery.ui.r28_mcq): a kind 'mcq' tap task is the spoken
+    // multiple choice (sRunMcq)
+    var r28Mcq = !!(opts.r28 && opts.r28.mcq === true) || opts.r28_mcq === true || r7.r28_mcq === true;
+    // ?probe=1 (sandbox/staging QA): console.debug('hl', option, audio.currentTime) on every light-on and light-off
+    var mcqProbe = r28Mcq && typeof location !== 'undefined' && /[?&]probe=1(&|$)/.test(String(location.search || ''));
+    var mcq = null; // the read-out of the MCQ item on show: { item, phase, lit, chosen, … } (readOut)
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -723,6 +731,7 @@
     /** What Jugnu says for an item: its say (in the task's language) or its prompt. */
     function sayItem(it, t) {
       if (!it) return Promise.resolve();
+      if (isMcq(t) && Array.isArray(it.options)) return readOut(it, t, { replay: true }); // sa_r28_mcq: the runner's auto replay
       if (typeof it.say === 'string') return say({ text: it.say, lang: taskLang(t) }, it.prompt_audio || null, appAsks);
       if (it.say) return say(it.say, it.prompt_audio || null, appAsks);
       if (it.prompt) return say(it.prompt, it.prompt.audio || it.prompt_audio || null, appAsks);
@@ -1426,6 +1435,7 @@
       return h('p', { class: 'sae-fb sa-feedback ' + (fb.res.ok ? 'is-ok' : 'is-again'), role: 'status' }, [fb.text]);
     }
     function sPractice(v) {
+      if (isMcq(v.task)) return sMcq(v, hold ? hold.item : v.practice, hold, true); // sa_r28_mcq (B-12)
       if (v.task.mode === 'record' && !hold) return sPracticeSpoken(v);
       var p = hold ? hold.item : v.practice;
       var t = v.task;
@@ -2166,6 +2176,217 @@
       }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')])));
     }
 
+    // ---------- round 28 (sa_r28_mcq): the spoken multiple choice (SPEC B-3, B-4 FINAL, B-12 to B-14) ----------
+    // Jugnu reads the question (taps ignored, then a 600 ms swallow), then the four answers, each card lit while its own
+    // clip plays (the audio element's playing/ended events, never a timer off a duration), 400 ms apart. A tap during the
+    // answers holds a choice (is-chosen) and the read-out goes on; a later tap moves it (changes). After the last answer:
+    // promptDone() (the item's clock starts), every card ready, and 600 ms on the held choice stands (is-pressed 400 ms,
+    // then runner.answer(index, meta)). No choice yet: the first tap selects and stands 600 ms later. Replay re-reads it
+    // all and keeps the choice. Coach-led: Jugnu still reads; the coach sees the words folded.
+    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400;
+    function isMcq(t) { return r28Mcq && !!t && t.kind === 'mcq'; }
+    function mcqNow() { return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now(); }
+    function mcqState(it, practice) {
+      if (!mcq || mcq.item !== it.id) {
+        mcq = { item: it.id, practice: !!practice, phase: 'listening', lit: -1, last_lit: -1, chosen: null, first_at: null,
+          at_option: null, tap_ms: null, changes: 0, replays: 0, reads: 0, run: 0, read_end: null, settle: null };
+      }
+      return mcq;
+    }
+    function mcqReadingPhase(S) { return S.phase === 'listening' || S.phase === 'options'; }
+    /** A card's state classes (B.3): waiting (dimmed) → speaking (lit) → ready → chosen (held) → pressed. */
+    function mcqCls(c, S, i) {
+      var chosen = S.chosen === i, reading = mcqReadingPhase(S);
+      c.classList.toggle('is-waiting', reading && !chosen && S.lit !== i);
+      c.classList.toggle('is-speaking', S.lit === i);
+      c.classList.toggle('is-ready', !reading && !chosen);
+      c.classList.toggle('is-chosen', chosen);
+      c.classList.toggle('is-pressed', chosen && S.phase === 'pressed');
+      c.setAttribute('aria-pressed', chosen ? 'true' : 'false');
+    }
+    function mcqPaint() {
+      var S = mcq;
+      var box = S ? el.querySelector('.sae-mcq') : null;
+      if (!box || box.getAttribute('data-item') !== S.item) return;
+      box.classList.toggle('sae-mcq-listening', S.phase === 'listening');
+      Array.prototype.forEach.call(box.querySelectorAll('.sae-mcq-opt'), function (c, i) { mcqCls(c, S, i); });
+      var rb = box.querySelector('.sae-mcq-replay');
+      if (rb) rb.disabled = S.phase !== 'open';
+      var j = box.querySelector('.sae-mcq-jugnu');
+      if (j) j.classList.toggle('is-talking', mcqReadingPhase(S));
+    }
+    /** One line of the read-out; an option's card (k ≥ 0) is lit from its clip's playing to its ended. */
+    function mcqLine(S, k, textObj, clip, live) {
+      var p = say(textObj, clip, true);
+      if (k < 0) return p;
+      var seen = null, on = false, fr = null, done = false;
+      function light(a, b) {
+        if (on === b || !live()) return;
+        on = b;
+        S.lit = b ? k : -1;
+        if (b) S.last_lit = k;
+        mcqPaint();
+        // eslint-disable-next-line no-console
+        if (mcqProbe) { try { console.debug('hl', k + 1, a ? (+a.currentTime || 0) : null); } catch (e) { /* no console */ } }
+      }
+      function step() {
+        fr = null;
+        if (done || !live()) return;
+        var a = null;
+        try { a = speakFn.audio(); } catch (e) { a = null; }
+        if (a && a !== seen) {
+          seen = a;
+          var el2 = a;
+          el2.addEventListener('playing', function () { if (!done) light(el2, true); });
+          el2.addEventListener('ended', function () { if (seen === el2) light(el2, false); });
+          if (el2.paused === false && !el2.ended && (+el2.currentTime || 0) > 0) light(el2, true);
+        }
+        fr = nextFrame(step);
+      }
+      if (typeof speakFn.audio === 'function') step(); else light(null, true); // no element to follow: lit for the line
+      return p.then(function () { done = true; if (fr != null) cancelFrame(fr); light(seen, false); });
+    }
+    /** The read-out (the one place it lives): question, swallow, the four answers, then the answer window. */
+    function readOut(it, t, o) {
+      o = o || {};
+      var S = mcqState(it, runner.view().phase === 'practice');
+      if (S.phase === 'pressed' || S.phase === 'done') return Promise.resolve();
+      if (S.reads > 0 && mcqReadingPhase(S)) return Promise.resolve(); // one read-out at a time
+      if (o.replay && S.reads > 0) {
+        if (!o.child && S.chosen != null) return Promise.resolve(); // the auto replay is for a child who has not chosen
+        S.replays++;
+      }
+      S.reads++;
+      var tok = ++S.run, g = gen;
+      function live() { return alive && mcq === S && S.run === tok && g === gen; }
+      if (S.settle != null) { clearTimeout(S.settle); S.settle = null; }
+      S.phase = 'listening'; S.lit = -1; S.last_lit = -1;
+      mcqPaint();
+      var tl = taskLang(t);
+      var p = mcqLine(S, -1, it.prompt || null, (it.prompt && it.prompt.audio) || it.prompt_audio || null, live)
+        .then(function () { if (live()) return delay(MCQ_SWALLOW_MS); });
+      (it.options || []).forEach(function (opt, k, all) {
+        p = p.then(function () {
+          if (!live()) return null;
+          S.phase = 'options';
+          mcqPaint();
+          var clip = Array.isArray(it.option_audio) ? it.option_audio[k] || null : null;
+          return mcqLine(S, k, { text: String(opt), lang: tl }, clip, live).then(function () { if (live() && k < all.length - 1) return delay(MCQ_GAP_MS); });
+        });
+      });
+      return p.then(function () {
+        if (!live()) return;
+        S.read_end = mcqNow();
+        if (S.first_at != null && S.tap_ms == null) S.tap_ms = Math.round(S.first_at - S.read_end);
+        if (!S.practice && runner.promptDone) runner.promptDone(); // B-13: the item's clock starts at the end of the last answer
+        S.phase = 'open';
+        S.lit = -1;
+        if (S.chosen != null) mcqSettle(S);
+        draw();
+      });
+    }
+    function mcqTap(i) {
+      var S = mcq;
+      if (!alive || busy || !S || (S.phase !== 'options' && S.phase !== 'open') || S.chosen === i) return;
+      if (S.chosen == null) {
+        S.first_at = mcqNow();
+        S.at_option = S.phase === 'options' ? Math.max(0, S.last_lit) + 1 : null;
+        if (S.phase === 'open') S.tap_ms = Math.round(S.first_at - S.read_end);
+      } else S.changes++;
+      S.chosen = i;
+      mcqPaint();
+      if (S.phase === 'open') mcqSettle(S);
+    }
+    function mcqSettle(S) {
+      if (S.settle != null) return;
+      S.settle = later(function () { S.settle = null; mcqStand(S); }, MCQ_SETTLE_MS);
+    }
+    /** The choice stands (600 ms after the read-out ended, or after the first later tap): it is recorded at once (scored
+     *  exactly then, SPEC B-4 c), the card shows is-pressed for 400 ms (B-5), then the next question. A practice choice
+     *  goes to the practice's feedback after the press. */
+    function mcqStand(S) {
+      if (mcq !== S || S.phase !== 'open' || S.chosen == null) return;
+      S.phase = 'pressed';
+      busy = true; // the clock loop waits: the pressed card stays on screen
+      mcqPaint();
+      if (!S.practice) runner.answer(S.chosen, { tap_ms: S.tap_ms, chosen_at_option: S.at_option, changes: S.changes, replays: S.replays });
+      later(function () {
+        busy = false;
+        if (mcq !== S) return;
+        S.phase = 'done';
+        var v = runner.view();
+        if (S.practice) { if (v.phase === 'practice' && v.practice) practicePick(v.practice, v.task, S.chosen); return; }
+        draw();
+      }, MCQ_PRESS_MS);
+    }
+    /** The replay button or Jugnu: only once the read-out has ended (and never while a replay runs). */
+    function mcqReplay() {
+      var S = mcq;
+      if (!alive || busy || !S || S.phase !== 'open') return;
+      var v = runner.view();
+      var it = S.practice ? v.practice : v.item;
+      if (!it || it.id !== S.item) return;
+      runner.log('replay', { task_id: v.task.id, item_id: it.id, value: 'child' });
+      readOut(it, v.task, { replay: true, child: true });
+    }
+    /** Coach-led: what Jugnu reads, folded (the coach never reads it out; the key is not marked). */
+    function mcqCoach(it, t) {
+      if (!manual) return null;
+      var tl = taskLang(t), d = dirOf(t);
+      return h('details', { class: 'sae-coach-says is-coach is-app sae-mcq-coach' }, [
+        h('summary', { text: C.coach_app }),
+        h('p', { class: 'sae-say sae-coach-line', lang: tl, dir: d, text: tx(it.prompt) }),
+        h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', { text: String(x) }); })),
+      ]);
+    }
+    /** A screen whose four cards and question do not fit: the question card clamps to two lines first (B.3). */
+    function mcqFit(s) {
+      if (!s || !s.isConnected || typeof window === 'undefined') return;
+      var doc = document.documentElement;
+      if (doc && window.innerHeight && doc.scrollHeight > window.innerHeight + 1) s.classList.add('is-clamp');
+    }
+    function sMcq(v, it, fb, practice) {
+      var t = v.task, tl = taskLang(t), d = dirOf(t);
+      var S = mcq && mcq.item === it.id ? mcq : { phase: 'listening', lit: -1, chosen: null };
+      var reading = mcqReadingPhase(S);
+      var cardsEl = h('div', { class: 'sae-mcq-opts', lang: tl, dir: d }, (it.options || []).map(function (o, i) {
+        var b = h('button', { class: 'sae-mcq-opt sa-tile', type: 'button', 'data-index': String(i), lang: tl, dir: d }, [h('span', { class: 'sae-mcq-ink', text: String(o) })]);
+        if (fb) {
+          b.disabled = true;
+          if (Number(fb.value) === i) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
+          if (!fb.res.ok && !fb.res.retry && i === it.target_index) b.classList.add('is-right', 'is-shown');
+        } else {
+          b.addEventListener('click', function () { mcqTap(i); });
+          mcqCls(b, S, i);
+        }
+        return b;
+      }));
+      var rb = h('button', { class: 'sae-replay sa-replay sae-mcq-replay', type: 'button', 'aria-label': C.replay_question, title: C.replay_question, onclick: mcqReplay }, [h('span', { 'aria-hidden': 'true', text: '🔁' })]);
+      rb.disabled = !!fb || S.phase !== 'open';
+      var j = jugnu(reading ? 'hello' : 'idle', true);
+      j.classList.add('sae-mcq-jugnu');
+      if (reading) j.classList.add('is-talking');
+      j.addEventListener('click', mcqReplay);
+      var next = null;
+      if (!practice) {
+        shownOffer = !!v.offer_next;
+        if (v.offer_next && !reading && S.chosen == null) next = btn(C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
+      }
+      var s = screen(v, 'sae-run sae-mcq' + (practice ? ' sae-mcq-practice' : '') + (S.phase === 'listening' && !fb ? ' sae-mcq-listening' : ''), [
+        t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
+        h('div', { class: 'sae-row sae-mcq-head' }, [j, practice ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, practice ? skipInstrBtn(v) : null]),
+        mcqCoach(it, t),
+        practice && it.passage ? h('p', { class: 'sae-mcq-passage', lang: tl, dir: d, text: tx(it.passage) }) : null,
+        h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
+        cardsEl,
+        practice ? feedbackLine(fb) : null,
+      ], practice ? null : itemFoot(v, [next]));
+      s.setAttribute('data-item', it.id);
+      Promise.resolve().then(function () { mcqFit(s); });
+      return s;
+    }
+    function sRunMcq(v) { return sMcq(v, v.item, null, false); }
+
     /** r9_comp_text: a story question in writing for the child (Jugnu still says it on arrival), in the task's language.
      *  Only the story's questions: a listening question written down would turn listening into reading. In RDF manual
      *  these are the coach's words too, so the coach's own copy gives way (one copy on the screen); a coach who reads
@@ -2726,6 +2947,7 @@
               if (alive && gp2 === gen && lastKey === k0) return sayChain(modelOf(v.practice));
             });
           }
+          if (isMcq(t)) return readOut(v.practice, t, {}); // sa_r28_mcq: the same read-out as the scored questions
           if (!(t.mode === 'record' && t.say_on === 'replay')) return sayItem(v.practice, t);
           return null;
         });
@@ -2736,7 +2958,9 @@
         gateOn(keyOf(v), sayChain(manual ? [] : [intro ? [intro] : null, s.begin ? [s.begin] : null]));
       }
       else if (v.phase === 'running' && v.item) {
-        if (t.mode === 'oral') {
+        if (isMcq(t)) {
+          readOut(v.item, t, {}); // sa_r28_mcq: question, then the four answers lit in turn; promptDone() at its end
+        } else if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
           sayItem(v.item, t).then(function () {
             if (!alive || g2 !== gen || lastKey !== key) return;
@@ -2831,7 +3055,7 @@
       if (v.phase !== 'keypad_warmup' && kpw) { clearTimeout(kpw.timer); kpw = null; }
       starEl = null;
       var entered = key !== lastKey && !hold && !listening && showPhase !== 'handover' && showPhase !== 'refused';
-      if (entered) { gen++; typed = ''; }
+      if (entered) { gen++; typed = ''; mcq = null; }
       recorderHooks(v);
       clockEls = null;
       displayEl = null;
@@ -2851,7 +3075,7 @@
         case 'ready': s = sReady(v); break;
         case 'listen': s = sListen(v); break;
         case 'running':
-          s = v.task.mode === 'tap' ? sRunTap(v) : v.task.mode === 'keypad' ? sRunKeypad(v) : v.task.mode === 'keyboard' ? sRunKeyboard(v) : v.task.mode === 'oral' ? sRunOral(v) : sRunRecord(v);
+          s = isMcq(v.task) ? sRunMcq(v) : v.task.mode === 'tap' ? sRunTap(v) : v.task.mode === 'keypad' ? sRunKeypad(v) : v.task.mode === 'keyboard' ? sRunKeyboard(v) : v.task.mode === 'oral' ? sRunOral(v) : sRunRecord(v);
           break;
         case 'last_word': s = sLastWord(v); break;
         case 'task_end': s = sTaskEnd(v); break;
