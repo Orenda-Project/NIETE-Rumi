@@ -126,3 +126,25 @@ describe('addCloseStep', () => {
     expect(addCloseStep(null)).toBe(null);
   });
 });
+
+// bd-snkn32.50 — the page guard takes the close back out of a lesson it would push over the cap.
+describe('removeCloseStep', () => {
+  const { removeCloseStep } = require('../../bot/shared/services/lp612-own-close');
+  test('takes the box and its Urdu toggle entries back out, nothing else', () => {
+    const before = doc({ ur_overlay: { '/objectives/items/0/text': 'آپ', '/objectives/items/1/text': 'آپ' } });
+    const out = removeCloseStep(addCloseStep(before));
+    expect(out).toEqual(before);
+  });
+  test('an Urdu-medium box is found by its Urdu title', () => {
+    const before = doc({ provenance: { medium: 'ur' } });
+    expect(removeCloseStep(addCloseStep(before))).toEqual(before);
+  });
+  test('null when there is no box to take out; the given doc is never changed', () => {
+    const d = doc();
+    expect(removeCloseStep(d)).toBeNull();
+    const withBox = addCloseStep(d);
+    const copy = JSON.parse(JSON.stringify(withBox));
+    removeCloseStep(withBox);
+    expect(withBox).toEqual(copy);
+  });
+});

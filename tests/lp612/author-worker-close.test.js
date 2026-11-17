@@ -168,4 +168,29 @@ describe('a ready-made 6-12 plan ends with the "Before they write" close, as her
     await Worker.process(JOB);
     expect(finalDoc().sections[0].blocks[1].title).toBe('لکھنے سے پہلے');
   });
+
+  it('THE 4-PAGE CAP HOLDS: a lesson the close pushes over the cap goes out without it', async () => {
+    const over = new Error('render produced 1 defect(s): PAGE COUNT: teach needs 5 pages; the cap is 4.');
+    over.code = 'RENDER_FAILED';
+    Object.assign(over, { problems: ['PAGE COUNT: teach needs 5 pages; the cap is 4.'], infra: false, pdfPath: '/tmp/over.pdf', pagesByPart: { teach: 5, support: 2 } });
+    mockRenderLessonPlan.mockImplementation(async ({ lpDoc }) => {
+      if (box(lpDoc)) throw over;
+      return { ...englishRender(), pdfPath: '/tmp/fits.pdf', pagesByPart: { teach: 4, support: 2 } };
+    });
+    seed();
+    const out = await Worker.process({ ...JOB, lang: 'en' });
+    expect(out.status).toBe('ready');
+    expect(box(storedDoc())).toBeUndefined();
+    expect(readyPatch().payload).toMatchObject({ over_cap: false });
+  });
+
+  it('a lesson that is over the cap even without the close keeps it', async () => {
+    const over = new Error('render produced 1 defect(s): PAGE COUNT: teach needs 6 pages; the cap is 4.');
+    over.code = 'RENDER_FAILED';
+    Object.assign(over, { problems: ['PAGE COUNT: teach needs 6 pages; the cap is 4.'], infra: false, pdfPath: '/tmp/over.pdf', pagesByPart: { teach: 6, support: 2 } });
+    mockRenderLessonPlan.mockRejectedValue(over);
+    seed();
+    await Worker.process({ ...JOB, lang: 'en' });
+    expect(box(storedDoc())).toBeDefined();
+  });
 });
