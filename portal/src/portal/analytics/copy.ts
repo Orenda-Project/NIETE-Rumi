@@ -768,7 +768,144 @@ export type AnalyticsWords = typeof EN;
 
 export const SCHOOLS_ANALYTICS_COPY: { readonly en: AnalyticsWords; readonly ur?: AnalyticsWords } = { en: EN };
 
-/** The words for a language, English until that language's table exists. */
-export function analyticsCopy(lang?: string | null): AnalyticsWords {
-  return (lang === 'ur' && SCHOOLS_ANALYTICS_COPY.ur) || SCHOOLS_ANALYTICS_COPY.en;
+/** Whose view the words are for: GET /api/portal/analytics/scope (the viewer's organization and its regions). */
+export type WordsScope = { organization?: string | null; regions?: readonly string[] | null };
+
+/** FDE's organization: its view keeps the words above exactly. */
+const DEFAULT_ORGANIZATION = 'niete';
+
+/** "Gilgit-Baltistan", "Hunza and Skardu", "A, B and C". */
+const joinNames = (names: readonly string[]): string =>
+  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/** Replace each [from, to] in a text; a word-for-word phrase replacement keeps the rest in step with FDE's text. */
+const swap = (text: string, pairs: ReadonlyArray<readonly [string | RegExp, string]>): string =>
+  pairs.reduce<string>((t, [from, to]) => t.replace(from, to), text);
+
+/**
+ * Another organization's view (Moawin's Gilgit-Baltistan): the same page over its own regions' schools, roster and
+ * coaches. FDE's programme list, the RDF's lists, Islamabad, the six ICT sectors and the ICT dashboard are FDE's, so
+ * none of them is named; "sector" is FDE's word for a region. Its LP Engagement teachers follow the view's own rule
+ * (dashboard/services/lp-engagement WHOSE BANDS): her level, else her registration grades, else Primary.
+ */
+function regionalWords(w: AnalyticsWords, regions: readonly string[]): AnalyticsWords {
+  const where = joinNames(regions) || 'this region';
+  const notHere = `No school in ${where} on record`;
+  const how = (title: string, items: ReadonlyArray<{ term: string; text: string }>) => ({ title, items });
+  const keep = (group: string, term: string, as?: string) => {
+    const item = w.how.groups.find((g) => g.title === group)?.items.find((i) => i.term === term);
+    return { term: as ?? term, text: item?.text ?? '' };
+  };
+  return {
+    ...w,
+    lede: `How NIETE is used in ${where}'s schools, region by region. Every number is for a school or a region; no teacher is named on this page.`,
+    sections: {
+      ...w.sections,
+      sectors: 'Regions — click to view school breakdown',
+      lpChart: 'LPs opened by region',
+      trainingChart: 'Modules completed by region',
+      obsChart: 'Avg observation score by region',
+      obsSectors: 'Region breakdown',
+      coachingSectors: 'Region overview',
+    },
+    how: {
+      ...w.how,
+      listsAsOf: () => '',
+      groups: [
+        how('Schools and teachers', [
+          { term: 'Schools', text: `The schools in ${where} on record: active, and not a test school. A school in another region is not shown and not counted in any number.` },
+          { term: 'Teachers', text: "The teachers at those schools today (role teacher, not a test account). A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
+        ]),
+        how('LP Engagement', [
+          { term: 'Lesson plans used', text: swap(keep('LP Engagement', 'Lesson plans used').text, [[', counted as the RDF counts them:', ':']]) },
+          keep('LP Engagement', 'LPs opened'),
+          keep('LP Engagement', 'Teachers who opened'),
+          { term: 'Regions with activity', text: 'Regions where at least one lesson plan was opened in the period.' },
+          { term: 'Teachers tracked', text: "The teachers at the region's schools today, by band: Primary is teachers whose level includes Primary; Mid / High is teachers whose level includes Middle or High. A teacher who has not set a level is placed by the grades she gave at registration (grades 1 to 5 Primary, 6 to 12 Mid / High); one with neither counts as Primary. A teacher who teaches both is in both." },
+          { term: 'Active and Non-Active', text: swap(keep('LP Engagement', 'Active and Non-Active').text, [[/ This is the RDF's own rule[^.]*\./, '']]) },
+          { term: 'Overall LP Engagement', text: swap(keep('LP Engagement', 'Overall LP Engagement').text, [[', as the RDF writes it', ''], ["A sector's", "A region's"]]) },
+          keep('LP Engagement', 'By subject and by grade'),
+          { term: 'Active regions', text: 'Regions where at least one teacher tracked is Active.' },
+        ]),
+        how('Trainings', [
+          keep('Trainings', 'Modules completed'),
+          keep('Trainings', 'Teachers trained'),
+          { term: 'Teachers on the Trainings tab', text: `Everyone in ${where} on NIETE's primary training programme (Primary) or its middle and high programme (Mid / High), whatever their role and whether or not they have a school. A teacher on both programmes is in both.` },
+          keep('Trainings', 'Passed, In Progress, Not Started'),
+          keep('Trainings', 'Mid / High programmes'),
+          { term: 'Regions and No school', text: `A member is in the region of her school. Members with no school in ${where} on record (a coach, a principal, or a teacher with no school) are shown together under No school, so the numbers add up to the total.` },
+          keep('Trainings', 'Passed all levels'),
+        ]),
+        how('Observations', [
+          ...(w.how.groups.find((g) => g.title === 'Observations')?.items ?? [])
+            .map((i) => (i.term === 'Sectors active' ? { term: 'Regions active', text: i.text } : i)),
+        ]),
+        how('Coaching', [
+          { term: 'Total coaches', text: "The coaches (FMOs) linked to the region's schools on NIETE. A coach with two phone numbers counts once. The period does not change it." },
+          { term: 'Coach visits', text: `Scheduled coach visits marked done, on a day in the period, at a school in ${where}.` },
+          keep('Coaching', 'Schools visited'),
+          keep('Coaching', 'Schools in a region'),
+          { term: 'Coaches by region', text: "The names of each region's coaches (FMOs), A to Z. No teacher is named." },
+        ]),
+        how('Regions, periods and totals', [
+          keep('Regions, periods and totals', 'Regions and totals'),
+          { term: 'Section scores (B, C, D)', text: swap(keep('Regions, periods and totals', 'Section scores (B, C, D)').text, [['These follow the ICT dashboard. ', '']]) },
+          keep('Regions, periods and totals', 'Period'),
+        ]),
+      ],
+    },
+    trainingLevels: {
+      ...w.trainingLevels,
+      sections: { ...w.trainingLevels.sections, chart: 'Training completion — region comparison', sectors: 'Regions' },
+      school: { ...w.trainingLevels.school, noSchoolHint: notHere },
+      noSector: { title: 'No school', note: `On the programme, but with no school in ${where} on record` },
+      population: {
+        primary: (n: string) => `${n} teachers in ${where} on NIETE's primary programme (any role, any school)`,
+        midhigh: (n: string) => `${n} teachers in ${where} on NIETE's middle and high programme (any role, any school)`,
+      },
+      about: {
+        ...w.trainingLevels.about,
+        counted: swap(w.trainingLevels.about.counted, [["everyone on NIETE's", `everyone in ${where} on NIETE's`], [', as the RDF counts them', '']]),
+        countedMidHigh: swap(w.trainingLevels.about.countedMidHigh, [["everyone on NIETE's", `everyone in ${where} on NIETE's`]]),
+      },
+      partners: {
+        ...w.trainingLevels.partners,
+        perSector: 'Per-region breakdown',
+        columns: { ...w.trainingLevels.partners.columns, sector: 'Region' },
+      },
+    },
+    obsV7: {
+      ...w.obsV7,
+      chart: { human: 'Avg observation scores by region', dc: 'Digital Coach — avg scores by region' },
+      sectors: 'Region breakdown',
+      tiles: { ...w.obsV7.tiles, sectorsActive: { human: 'Regions active', dc: 'Regions covered' } },
+    },
+    coachingV7: { ...w.coachingV7, byRegion: 'Coaches by region' },
+    lpEngagement: {
+      ...w.lpEngagement,
+      sections: { ...w.lpEngagement.sections, sectors: 'Regions — click to view school breakdown' },
+      cards: { ...w.lpEngagement.cards, chart: 'Region-wise Performance in Subjects & Grades', chartHint: 'Active teachers, % per region' },
+      tiles: { ...w.lpEngagement.tiles, activeSectors: 'Active Regions' },
+      // No RDF list is this view's: its teachers are always the schools' roster.
+      hints: {
+        ...w.lpEngagement.hints,
+        tracked: { rdf: w.lpEngagement.hints.tracked.roster, roster: w.lpEngagement.hints.tracked.roster },
+        activeSectors: 'Regions with an active teacher',
+      },
+      noSchoolHint: notHere,
+      noSchools: 'No schools found for this region.',
+    },
+  };
+}
+
+/**
+ * The words for a language, English until that language's table exists — and, given the viewer's scope, for its
+ * organization: FDE's view (niete, or no scope) keeps them as they are; any other organization's view gets its own
+ * regions' words (regionalWords).
+ */
+export function analyticsCopy(lang?: string | null, scope?: WordsScope | null): AnalyticsWords {
+  const words = (lang === 'ur' && SCHOOLS_ANALYTICS_COPY.ur) || SCHOOLS_ANALYTICS_COPY.en;
+  const organization = (scope?.organization ?? '').trim().toLowerCase();
+  if (!organization || organization === DEFAULT_ORGANIZATION) return words;
+  return regionalWords(words, scope?.regions ?? []);
 }

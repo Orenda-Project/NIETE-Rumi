@@ -616,3 +616,71 @@ describe('one list of FDE\'s six sectors', () => {
     expect(six.sort()).toEqual([...SIX].sort());
   });
 });
+
+// Most GB teachers came over from old Rumi with no teacher_level (94 of 102 on prod, 16 Nov), so by level alone GB's LP
+// Engagement tab counted 10 of 102. A view with no RDF lists of its own bands a teacher by her level, else her
+// registration grades, else Primary (the RDF's GB lines count every GB teacher). FDE's view keeps its rule.
+describe("LP Engagement: another organization's view bands a teacher with no level by her grades, else as Primary", () => {
+  const GB_NO_LEVEL = [
+    { id: 'gt4', school_id: 'g1', bands: null, grades_taught: '["grade_2", "grade_3"]' },
+    { id: 'gt5', school_id: 'g2', bands: null, grades_taught: '["grade_6"]' },
+    { id: 'gt6', school_id: 'g1', bands: null, grades_taught: null },
+  ];
+  const FDE_NO_LEVEL = [{ id: 'u6', school_id: 's1', bands: null, grades_taught: '["grade_1"]' }];
+  async function lp(viewer, band, opts) {
+    fresh(opts);
+    data.roster.push(...(viewer === GB_VIEWER ? GB_NO_LEVEL : FDE_NO_LEVEL));
+    const out = await call('/analytics/lp-engagement', { userId: viewer, query: { ...WINDOW, band } });
+    expect(out.statusCode).toBe(200);
+    return out.payload.overview;
+  }
+
+  it('GB Primary: its two Primary-level teachers, the grade 2-3 teacher and the one with no signal', async () => {
+    expect(await lp(GB_VIEWER, 'primary')).toEqual({ teachers: 4, active: 1, nonActive: 3, activePct: 25, activeSectors: 1 });
+  });
+
+  it('GB Mid / High: its Middle-level teacher and the grade 6 teacher', async () => {
+    expect(await lp(GB_VIEWER, 'midhigh')).toEqual({ teachers: 2, active: 1, nonActive: 1, activePct: 50, activeSectors: 1 });
+  });
+
+  it("FDE's view (no lists loaded) does not count a teacher with no level, as before", async () => {
+    const before = await answer('/analytics/lp-engagement', { ...WINDOW, band: 'primary' }, FDE_VIEWER);
+    expect(await lp(FDE_VIEWER, 'primary')).toEqual(before.payload.overview);
+  });
+});
+
+// The page words its numbers for the viewer's organization (Gilgit-Baltistan's, not Islamabad's), so it asks whose
+// view it is before it shows a word. One small read: the gate, then the registry.
+describe('GET /analytics/scope: whose view this is', () => {
+  it('a GB account: moawin and its regions', async () => {
+    const { statusCode, payload } = await answer('/analytics/scope', {}, GB_VIEWER);
+    expect(statusCode).toBe(200);
+    expect(payload).toEqual({ success: true, organization: 'moawin', regions: [GB] });
+    expect(queries).toHaveLength(0);
+  });
+
+  it("an FDE account: niete and the six, in order (absent from the map, or mapped explicitly)", async () => {
+    const absent = await answer('/analytics/scope', {}, FDE_VIEWER);
+    expect(absent.payload).toEqual({ success: true, organization: 'niete', regions: SIX });
+    const explicit = await answer('/analytics/scope', {}, FDE_VIEWER, { appSettings: settings({ orgs: { [FDE_VIEWER]: 'niete' } }) });
+    expect(explicit.payload).toEqual(absent.payload);
+  });
+
+  it('not an analytics account: 403; signed out: 401', async () => {
+    expect((await answer('/analytics/scope', {}, TEACHER)).statusCode).toBe(403);
+    expect((await answer('/analytics/scope', {}, null)).statusCode).toBe(401);
+  });
+
+  it('the map or the registry unreadable: 500, no organization guessed', async () => {
+    const appSettings = { rows: [
+      { key: 'portal_analytics_only', value: [GB_VIEWER] },
+      { key: 'portal_analytics_organizations', readError: { message: 'timeout' } },
+    ] };
+    const map = await answer('/analytics/scope', {}, GB_VIEWER, { appSettings });
+    expect(map.statusCode).toBe(500);
+    expect(map.payload.organization).toBeUndefined();
+    const reg = await answer('/analytics/scope', {}, GB_VIEWER, { registry: { error: { message: 'pool exhausted' } } });
+    expect(reg.statusCode).toBe(500);
+    expect(reg.payload.organization).toBeUndefined();
+  });
+});
