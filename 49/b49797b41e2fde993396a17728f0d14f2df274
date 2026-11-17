@@ -1,0 +1,3 @@
+{"ts":"2026-11-17T15:41:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"49b49797b41e","branch":"bd-nij2nd-sandbox","user":""}
+{"ts":"2026-11-17T15:42:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"49b49797b41e","branch":"bd-nij2nd-sandbox","user":""}
+{"ts":"2026-11-17T15:42:14Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"61683964-e141-4e72-bd4b-740e9c6de1f9","sha":"49b49797b41e","branch":"bd-nij2nd-sandbox","user":""}
