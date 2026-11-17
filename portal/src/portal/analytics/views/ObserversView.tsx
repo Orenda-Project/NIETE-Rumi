@@ -8,7 +8,7 @@ import { count, NO_VALUE } from '../format';
 import { GroupedBarChart, type ChartSeries } from '../GroupedBarChart';
 import { ICT, LOW_SCORE } from '../ictPalette';
 import { Section, Tile, TileGrid } from '../Section';
-import { Breakdown, SectorCard, SectorGrid } from '../SectorCards';
+import { Breakdown, SectorCard } from '../SectorCards';
 import { chip, toggleRegion, type TabProps } from './shared';
 
 /**
@@ -279,6 +279,9 @@ export function ObserversHuman(p: TabProps & { read: ObserversState }) {
       </Section>
 
       <Section id="obs-chart" eyebrow={c.observers.chart}>
+        {d.regions.every((r) => r.v6.n === 0) ? (
+          <p data-testid="chart-v6-none" className="rounded-xl border border-dashed border-border bg-white px-4 py-3 text-sm text-muted-foreground">{c.observers.noV6}</p>
+        ) : (
         <div className="rounded-2xl border-2 bg-white p-3 shadow-sm sm:p-5" style={{ borderColor: ICT.blueBorder }}>
           <GroupedBarChart
             testId="chart-v6"
@@ -286,17 +289,19 @@ export function ObserversHuman(p: TabProps & { read: ObserversState }) {
             series={series}
             groups={d.regions.map((r) => ({ key: r.region, label: r.region, values: { c: r.v6.sections.c.avg, d: r.v6.sections.d.avg, f: r.v6.sections.f.avg } }))}
             format={(v) => pct(v, c)}
-            empty={c.observers.noV6}
+            empty={NO_VALUE}
             axisLabel={phone ? undefined : c.obsV7.axis}
             layout={phone ? 'rows' : 'columns'}
             score="hitl"
             selected={region}
           />
         </div>
+        )}
       </Section>
 
       <Section id="obs-areas" eyebrow={c.observers.areas}>
-        <SectorGrid>
+        {/* One area per row on a phone: each card carries four labelled rows, too many for half a 390 px screen. */}
+        <div className="grid gap-2.5 sm:grid-cols-2">
           {d.regions.map((r) => (
             <SectorCard key={r.region} region={r.region} selected={region === r.region} onSelect={() => toggleRegion(p, r.region)} action={c.sectorCards.view} hide={c.sectorCards.hide}>
               <span className="text-[28px] font-extrabold leading-none tabular-nums text-foreground">{count(r.observations, c)}</span>
@@ -313,7 +318,7 @@ export function ObserversHuman(p: TabProps & { read: ObserversState }) {
               </span>
             </SectorCard>
           ))}
-        </SectorGrid>
+        </div>
         {region ? (
           <Breakdown c={c} region={region} onBack={() => p.onRegion(null)}>
             {schools.length === 0 ? (

@@ -178,6 +178,20 @@ describe('summarizeObserverAnalytics', () => {
     expect(out1.schools.find((x) => x.schoolId === 'g1').visits[0].date).toBe('2026-11-12');
   });
 
+  test('visits are in time order when the driver hands created_at back as a Date (as pg does)', () => {
+    const f = fixture();
+    const at = (iso) => new Date(iso);
+    // Fri 9 Oct, Thu 1 Oct, Mon 12 Oct: as strings these sort by weekday name, never by time
+    f.sessions = [
+      visit('g1', 'coach', 'teacher', 'hots', { created_at: at('2026-10-09T05:00:00Z') }),
+      visit('g1', 'coach', 'teacher', 'hots', { created_at: at('2026-10-01T05:00:00Z') }),
+      visit('g1', 'coach', 'teacher', 'hots', { created_at: at('2026-10-12T05:00:00Z') }),
+    ];
+    f.scores = new Map();
+    const warza = OA.summarizeObserverAnalytics(f, { regions: AREAS }).schools.find((x) => x.schoolId === 'g1');
+    expect(warza.visits.map((v) => v.date)).toEqual(['2026-10-01', '2026-10-09', '2026-10-12']);
+  });
+
   test('the area filter scopes the overview and the schools; the area cards always carry every area', () => {
     const bal = OA.summarizeObserverAnalytics(fixture(), { regions: AREAS, region: 'Baltistan' });
     expect(bal.overview.observations).toBe(4);
