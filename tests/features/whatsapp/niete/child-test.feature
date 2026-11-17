@@ -1284,7 +1284,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And word, passage and question recordings are muted as before when speech-to-text hears no word
     And with sa_r28_letter_gate off a letter recording with no word heard is not reached, exactly as before
 
-  @e2e @wip @draft @config-gated @P1 @CT208 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT211 @no-mock-driver
   # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-no-echo-ur.test.js.
   Scenario: With sa_r28_no_echo_ur on, a quiet Urdu answer is not zeroed because speech-to-text heard only the question
     Given sa_r28_no_echo_ur is on and the speech gate is on
@@ -1295,7 +1295,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And English questions keep the echo check
     And with sa_r28_no_echo_ur off the answer is not counted, exactly as before
 
-  @e2e @wip @draft @config-gated @P1 @CT209 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT212 @no-mock-driver
   # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-child-only-answer.test.js.
   Scenario: With sa_r28_child_only_answer on, spoken maths marks only the child's own final answer
     Given sa_r28_child_only_answer is on
@@ -1305,7 +1305,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the child's own self-correction still counts
     And with sa_r28_child_only_answer off the scoring instructions are exactly as before
 
-  @e2e @wip @draft @config-gated @P2 @CT210 @no-mock-driver
+  @e2e @wip @draft @config-gated @P2 @CT213 @no-mock-driver
   # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-raw-verdicts.test.js.
   Scenario: With the r28 switches on, a recording a gate overrode keeps what the model and speech-to-text said
     Given sa_r28_letter_gate is on, or sa_r28_no_echo_ur is on for the echo check
