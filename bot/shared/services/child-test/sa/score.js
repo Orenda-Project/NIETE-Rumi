@@ -320,6 +320,8 @@ const UR_NAMES = () => require('../scoring/tasks/prompts').UR_NAMES || {}; // es
 // sa_r28_letter_gate, the letter-SOUNDS prompt ON ("variant B"): the card without the expected answers, plus these two
 // sentences (OFF, the prompt is unchanged)
 const LETTER_SOUNDS_BARE = 'The clip may hold bare letter sounds (a consonant said on its own, with no vowel), which a speech-to-text engine often does not register: judge from the audio itself.';
+// English letter sounds only (the signed key: a continuant held, a short "uh" only after a stop; Urdu keeps zabar)
+const LETTER_SOUNDS_EN_VOWEL = 'A sound followed by a vowel, such as \'la\' for l, is WRONG, except a short \'uh\' after a stop such as \'duh\' for d.';
 const LETTER_SOUNDS_NO_CHILD = 'If the clip holds only noise, silence or the phone\'s own voice, and no child saying letters, return found: false and every v = "s".';
 /** The R8 letters prompt; `variantB` (sa_r28_letter_gate ON, letter sounds) is the card without the expected answers. */
 function lettersPrompt({ grade, lang, items, perRow, sound, answers = [], one = false, variantB = false }) {
@@ -331,7 +333,7 @@ function lettersPrompt({ grade, lang, items, perRow, sound, answers = [], one = 
     ? `the child says each letter's SOUND${ur ? ' (e.g. "بَ" for ب)' : ' (e.g. /b/ for b)'}; a letter NAME said instead of its sound is WRONG`
     : `the child says each letter's NAME${ur ? ' (e.g. الف، بے، جیم; "یے" alone is acceptable for ی and ے, "ہمزہ" for ء)' : ' (upper or lower case is the same letter)'}; a clear letter SOUND for that letter also counts`;
   return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${ur ? 'Urdu' : 'English'} LETTER ${sound ? 'SOUND' : 'NAME'} task of an EGRA reading test ALONE on a phone, wearing headphones. ${one ? `The phone showed ${items.length} letters ONE AT A TIME, in this order, each for a few seconds,` : `The phone showed a card of ${items.length} letters, ${perRow} per row, read ${ur ? 'right to left' : 'left to right'} row by row,`} and recorded the child for up to 60 seconds. There is no adult in the clip; the phone's own voice may be faintly heard.${variantB ? ` ${LETTER_SOUNDS_BARE}` : ''}
-Marking rules: ${rule}. A self-correction counts as correct. A letter said wrongly, or passed over while the child keeps going, is WRONG. Every position after the last letter the child reached is SKIPPED.${variantB ? ` ${LETTER_SOUNDS_NO_CHILD}` : ''}
+Marking rules: ${rule}.${variantB && sound && !ur ? ` ${LETTER_SOUNDS_EN_VOWEL}` : ''} A self-correction counts as correct. A letter said wrongly, or passed over while the child keeps going, is WRONG. Every position after the last letter the child reached is SKIPPED.${variantB ? ` ${LETTER_SOUNDS_NO_CHILD}` : ''}
 ${variantB ? 'The printed letters in order (position: letter):' : answers.length ? 'The printed letters in order (position: letter (what a correct child says)):' : `The printed card in reading order (position: letter${ur ? ' (its name)' : ''}):`}
 ${card}
 For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s" (skipped / not reached), heard = what the child said for that letter ("" if skipped), and conf = your confidence 0-1 in that verdict. found = whether the clip contains the child saying letters from this card at all.
@@ -1322,5 +1324,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, LETTER_SOUNDS_EN_VOWEL, silent, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY },
 };
