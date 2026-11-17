@@ -99,13 +99,20 @@ function makeStore(seed = []) {
       for (const r of won) r.status = 'sending';
       return won;
     }),
+    // The sweeper stamps a claimed row before its handler (bd-pw1ccr.41.1); guarded on sending.
+    markStarted: jest.fn(async (id) => {
+      const row = find(id);
+      if (!row || row.status !== 'sending') return false;
+      row.context = { ...(row.context || {}), send_started_at: new Date().toISOString() };
+      return true;
+    }),
     expireStuck: jest.fn(async () => 0),
   };
   return api;
 }
 
 const FUNCTIONS = ['schedule', 'markSkipped', 'markSent', 'markFailed', 'recordAnswer', 'claimQuiz',
-  'byId', 'rowsFor', 'todayRow', 'claimDue', 'expireStuck'];
+  'byId', 'rowsFor', 'todayRow', 'claimDue', 'markStarted', 'expireStuck'];
 
 function storeFacade(get) {
   const facade = { SKIP_REASONS, KINDS, STATUS, DEFAULT_CLAIM_LIMIT, STUCK_MINUTES, TABLE };
