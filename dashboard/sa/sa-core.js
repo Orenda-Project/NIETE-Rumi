@@ -176,6 +176,7 @@
   var VOICE_TICK_MS = 100; // the recorder's ear reads the level ten times a second
   var VOICE_RUN_TICKS = 3; // and reports a voice after three loud reads in a row
   var PICK_MIN_PRESENTED = 6; // round 28: a letter-sound picker with fewer items whose sound played is not rated
+  var MCQ_MIN_PRESENTED = 4; // round 28 (B-17): a spoken MCQ that lost clips and kept fewer questions is not rated
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -444,6 +445,9 @@
         var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
         // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question,
         // whatever the variant's questions carry (min_words gates or needs_line).
+        // Round 28 (SPEC E-6): the spoken MCQ keeps the RWP gate on every path (coach-led and the per-question gate too):
+        // fewer than 10 words read, or a stop on the first line, asks no question
+        if (mcqOn && t.kind === 'mcq' && (read < COMP_ALL_MIN_WORDS || dep.stop_reason === STOP.FIRST_LINE)) return { skip: STOP.SKIPPED_NO_LINE };
         if (compAll) {
           return read >= COMP_ALL_MIN_WORDS && dep.stop_reason !== STOP.FIRST_LINE ? { items: t.items } : { skip: STOP.SKIPPED_NO_LINE };
         }
@@ -556,7 +560,14 @@
         }
       }
       if (st.cells) r.cells = st.cells.slice();
-      if (t.mode === 'oral' || (mcqOn && t.kind === 'mcq')) r.asked = st.items.map(function (q) { return q.id; });
+      if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
+      if (mcqOn && t.kind === 'mcq') {
+        // round 28 (B-17): a question whose clips were lost is not asked; presented = the questions whose clips all played
+        var lostIds = st.answers.filter(function (a) { return a.unavailable; }).map(function (a) { return a.item_id; });
+        r.asked = st.items.map(function (q) { return q.id; }).filter(function (id) { return lostIds.indexOf(id) < 0; });
+        r.presented = st.answers.filter(function (a) { return !a.unavailable; }).map(function (a) { return a.item_id; });
+        if (lostIds.length) { r.unavailable = lostIds.length; if (r.presented.length < MCQ_MIN_PRESENTED) r.unrated = true; }
+      }
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
       // the server waits for audio only where a recording exists.
@@ -949,6 +960,33 @@
         st.oral_run = 0; // round 13b: an answered question starts the count again
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
         return score(it, value, meta);
+      },
+      /**
+       * Round 28 (the spoken MCQ, B-17; the letter picker's A-13 twin): a clip of the item on show could not be played
+       * (after the voice's one retry). stage 'prompt' (its first read-out): the item is unavailable (not asked, not
+       * attempted, not wrong), answers[] gets { item_id, value: null, unavailable: 'clip' }, one item_unavailable event,
+       * and the next item shows; the task never ends on it (complete after the last). stage 'replay': logged (replay,
+       * value 'lost'), the item stays open and its auto replay is not tried again. → true when it acted.
+       */
+      clipLost: function (itemId, stage) {
+        var t = task();
+        if (st.phase !== 'running' || !t || !(mcqOn && t.kind === 'mcq')) return false;
+        var it = st.items[st.item_i];
+        if (!it || it.id !== itemId) return false;
+        if (stage === 'replay') {
+          st.replayed = true;
+          ev('replay', { task_id: t.id, item_id: it.id, value: 'lost' });
+          return true;
+        }
+        st.answers.push({ item_id: it.id, value: null, unavailable: 'clip' });
+        ev('item_unavailable', { task_id: t.id, item_id: it.id, value: { why: 'clip' } });
+        st.item_i++;
+        st.item_started = now();
+        st.ask_at = st.item_started;
+        st.answer_at = null;
+        st.replayed = false;
+        if (st.item_i >= st.items.length) finish(STOP.COMPLETE);
+        return true;
       },
       /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
       promptDone: function () {
