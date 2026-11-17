@@ -24,6 +24,8 @@ const h = vi.hoisted(() => ({
   getTrainingLevels: vi.fn(),
   getObservations: vi.fn(),
   getLpEngagement: vi.fn(),
+  // whose view this is (organization + regions): read once, before any word is shown
+  getScope: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -36,7 +38,7 @@ vi.mock("../hooks/useAuth", () => ({
 }));
 vi.mock("../services/api", async (orig) => ({
   ...(await orig<typeof import("../services/api")>()),
-  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching, getLpEngagement: h.getLpEngagement },
+  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching, getLpEngagement: h.getLpEngagement, getScope: h.getScope },
   trainingLevelsAnalytics: { get: h.getTrainingLevels },
   observationsAnalytics: { get: h.getObservations },
 }));
@@ -91,6 +93,7 @@ beforeEach(() => {
   h.getLpEngagement.mockImplementation(async (p: { from?: string | null; to?: string | null; region?: string | null; band?: "primary" | "midhigh" }) => fixtureLpEngagement(p));
   h.getTrainingLevels.mockImplementation(async (p: { region: string | null; band: "primary" | "midhigh" }) => fixtureTrainingLevels(p));
   h.getObservations.mockImplementation(async (p: Params) => fixtureObservations(p));
+  h.getScope.mockResolvedValue({ success: true, organization: "niete", regions: [...REGION_ORDER] });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -838,5 +841,54 @@ describe("v8 (FDE feedback 2026-10-19): counted against the RDF's lists", () => 
     expect(await screen.findByText("Lesson plans used")).toBeInTheDocument();
     await userEvent.click(within(sidebar()).getByText("Information"));
     expect(await screen.findByTestId("lists-as-of")).toHaveTextContent("FDE's school list as of 2026-10-19 · RDF teachers as of 2026-10-19 · RDF coach roster as of 2026-09-24");
+  });
+});
+
+/**
+ * A Moawin (Gilgit-Baltistan) head-office account: the same page, worded for its own region. The page asks whose view
+ * it is (GET /analytics/scope) before it shows a word, so a GB reader never sees FDE's definitions, not even while
+ * the numbers load (a cold schools read can take 45 seconds).
+ */
+describe("a Moawin (Gilgit-Baltistan) account", () => {
+  const GB = { success: true, organization: "moawin", regions: ["Gilgit-Baltistan"] };
+  const FDE_WORDS = /Islamabad|FDE|\bRDF\b|six ICT/;
+  // The page's words, without the signed-in name this file's mocked account carries ("FDE Islamabad").
+  const pageWords = () => (document.body.textContent ?? "").split("FDE Islamabad").join("");
+
+  it("the Overview says whose schools these are", async () => {
+    h.getScope.mockResolvedValue(GB);
+    renderPage();
+    await screen.findByTestId("tile-schools");
+    expect(document.body.textContent).toMatch(/Gilgit-Baltistan's schools/);
+    expect(pageWords()).not.toMatch(FDE_WORDS);
+  });
+
+  it("Information: nothing is defined until the scope is known, then the Moawin view's own rules", async () => {
+    let answer: (v: typeof GB) => void = () => {};
+    h.getScope.mockReturnValue(new Promise((r) => { answer = r; }));
+    renderPage("/info");
+    await waitFor(() => expect(h.getScope).toHaveBeenCalledTimes(1));
+    expect(pageWords()).not.toMatch(FDE_WORDS);
+    expect(screen.queryByTestId("how-counted")).toBeNull();
+    answer(GB);
+    await screen.findByTestId("how-counted");
+    expect(document.body.textContent).toMatch(/registration/);
+    expect(pageWords()).not.toMatch(FDE_WORDS);
+  });
+
+  it("the scope unreadable: the retry state, never FDE's words in its place", async () => {
+    h.getScope.mockRejectedValue(Object.assign(new Error("boom"), { response: { status: 500 } }));
+    renderPage("/info");
+    await screen.findByTestId("analytics-error");
+    expect(pageWords()).not.toMatch(FDE_WORDS);
+  });
+
+  it("asked once per visit, not on every tab", async () => {
+    h.getScope.mockResolvedValue(GB);
+    renderPage();
+    await screen.findByTestId("tile-schools");
+    await userEvent.setup().click(within(sidebar()).getByText("Coaching"));
+    await waitFor(() => expect(where()).toMatch(/\/coaching/));
+    expect(h.getScope).toHaveBeenCalledTimes(1);
   });
 });

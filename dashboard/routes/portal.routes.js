@@ -1769,6 +1769,8 @@ function countOutputs(userIds, [from, to]) {
  *     organization's (training-levels). keepsUnplaced: the default organization (FDE's) keeps the people no region
  *     places, where they always were.
  *   - fdeLists: FDE's v8 lists are FDE's populations — only FDE's view counts against them.
+ *   - lpBandRule: how LP Engagement bands a roster teacher with no RDF list — FDE's view by teacher_level, as the RDF
+ *     does; another organization's by level, else registration grades, else Primary (services/lp-engagement WHOSE BANDS).
  */
 async function analyticsScope(req) {
   const organization = req.analyticsOrganization;
@@ -1780,7 +1782,10 @@ async function analyticsScope(req) {
     .filter((r) => r.organization !== organization)
     .map((r) => r.display_name);
   const isDefault = organization === DEFAULT_ANALYTICS_ORGANIZATION;
-  return { organization, regions, foreignRegions, keepsUnplaced: isDefault, fdeLists: isDefault };
+  return {
+    organization, regions, foreignRegions, keepsUnplaced: isDefault, fdeLists: isDefault,
+    lpBandRule: isDefault ? 'level' : 'derived',
+  };
 }
 /** The lists this scope counts against: FDE's (loaded) for FDE's view, none (every tab's v7 rule) for any other. */
 /**
@@ -1818,6 +1823,25 @@ const listsKey = (lists) => `${lists.missing.schools ? 0 : 1}${lists.missing.tea
 // score) is also memoised per session inside the service, so a new window or region only
 // reads the scores it has not seen.
 const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/scope
+ *
+ * Whose view this is: { success, organization, regions } — the viewer's organization (requireAnalyticsViewer's
+ * portal_analytics_organizations rule, absent = 'niete') and the regions it owns in the region registry, in dashboard
+ * order. The page reads it once, before it shows a word, so an organization other than FDE's is worded for its own
+ * regions (Gilgit-Baltistan's, never Islamabad's). No data is read. Same gate as every analytics route; the map or the
+ * registry unreadable is a 500, never a guessed organization.
+ */
+router.get('/analytics/scope', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const scope = await analyticsScope(req);
+    res.json({ success: true, organization: scope.organization, regions: scope.regions });
+  } catch (error) {
+    console.error('analytics/scope error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load the analytics scope.' });
+  }
+});
 
 /**
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
@@ -9459,7 +9483,7 @@ router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
     const body = await lpEngagementCache.getOrLoad(key, async () => {
-      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists, regions: scope.regions });
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists, regions: scope.regions, bandRule: scope.lpBandRule });
       return {
         success: true,
         range,

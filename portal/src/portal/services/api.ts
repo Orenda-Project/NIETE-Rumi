@@ -7,7 +7,7 @@ import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, Ch
 import type { SaBlock, SaDashboardSession, SaEarMark, SaList, SaOutcome, SaResults, SaReview, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
+import type { AnalyticsScope, CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
 import type { LpBand, LpEngagementResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
@@ -1095,6 +1095,12 @@ export type EditError = { id?: string; subIndex?: number; addedIndex?: number; m
 // `from`/`to` are inclusive days (YYYY-MM-DD); null leaves that end open. `region` is one of the six sector
 // names or 'all' (null = all).
 export const analytics = {
+  // Whose view this is (organization + its regions): the page reads it once, before it shows a word, so another
+  // organization's account (Moawin's Gilgit-Baltistan) is never shown FDE's wording.
+  getScope: async (): Promise<AnalyticsScope> => {
+    const response = await api.get('/analytics/scope');
+    return response.data;
+  },
   getSchools: async (q: { from: string | null; to: string | null; region: string | null }): Promise<SchoolsAnalyticsResponse> => {
     const params: Record<string, string> = {};
     if (q.from) params.from = q.from;
