@@ -212,6 +212,11 @@ const missingOn = () => settingOn(MISSING_FLAG_KEY);
 // payload says zero_listen, and a read run's token may ask for its passage's timings once it settled as not a reading
 const ZERO_LISTEN_FLAG_KEY = 'web_quiz_zero_read_listen';
 const zeroListenOn = () => settingOn(ZERO_LISTEN_FLAG_KEY, { strict: true });
+// A result that arrives late (played with no network, sent when the network is back): web-quiz-challenge-late.js.
+// _late_result takes it for the run it was played in; _late_record gives that run its record back. Both default off.
+const Late = require('./web-quiz-challenge-late');
+const lateOn = () => settingOn(Late.FLAG_KEY);
+const lateRecordOn = () => settingOn(Late.RECORD_FLAG_KEY);
 // ── challenge v2 switches (web_quiz_challenge_v2 → _period, _pool); each read on its own, each child only under _v2 ──
 //   _v2      the provenance columns on every new run row (inserted when served), the server ch_start's fields
 //   _period  the record rule "one record per canonical child × stop × PKT calendar month" (read-side)
@@ -1108,23 +1113,35 @@ async function servedInfo(id) {
     tryout: (data.meta && data.meta.tryout && data.meta.tryout.item_id) || null, form: /^G[1-5]$/.test(String(data.form || '')) ? data.form.slice(1) : null };
 }
 
-/** A served row starts being scored (read upload, live mint, listen questions): status 'scoring', meta merged. */
-async function startServed(id, meta) {
-  const { data, error } = await supabase.from(TABLE).select('id, status, meta').eq('id', id).maybeSingle();
-  if (error || !data || data.status !== 'served') return error ? 'unstored' : 'duplicate';
-  const { data: hit, error: e2 } = await supabase.from(TABLE).update({ status: 'scoring', meta: { ...(data.meta || {}), ...meta } }).eq('id', id).eq('status', 'served').select('id');
+// A late result's run (runOfMaybeLate): what its row keeps and whether the record may come back; null for any other run.
+const lateOf = (c) => (c && c.late ? { stamp: c.late, record: !!c.lateRecord } : null);
+// The row a result may still finish: served — or, for a late result, closed by the sweep (abandoned).
+const openRow = (row, c) => isServedRow(row) || (!!lateOf(c) && !!row && row.status === 'abandoned');
+
+/**
+ * The one write of a served row (`patchOf(meta, note)` builds it from the row's meta): only while the row is still
+ * 'served'. A late result (`late`, web-quiz-challenge-late.js) also takes a row the sweep closed, keeps its note in
+ * meta.late, and may make the row the record again (Late.writeLate). 'stored' | 'duplicate' | 'unstored'.
+ */
+async function writeServed(id, late, patchOf) {
+  const { data, error } = await supabase.from(TABLE).select(late ? `id, status, meta, ${Late.RECORD_COLS}` : 'id, status, meta').eq('id', id).maybeSingle();
+  if (error || !data || !(late ? Late.OPEN.includes(data.status) : data.status === 'served')) return error ? 'unstored' : 'duplicate';
+  const { data: hit, error: e2 } = late
+    ? await Late.writeLate(data, late, (meta, note) => patchOf(meta, { late: note }), (patch) => supabase.from(TABLE).update(patch).eq('id', id).in('status', Late.OPEN).select('id'))
+    : await supabase.from(TABLE).update(patchOf(data.meta, {})).eq('id', id).eq('status', 'served').select('id');
   if (e2) { storeFailed(id, e2); return 'unstored'; }
   return hit && hit.length ? 'stored' : 'duplicate';
 }
 
+/** A served row starts being scored (read upload, live mint, listen questions): status 'scoring', meta merged. */
+async function startServed(id, meta, late = null) {
+  return writeServed(id, late, (cur, note) => ({ status: 'scoring', meta: { ...(cur || {}), ...meta, ...note } }));
+}
+
 /** A served row's result (bigger, the warm-up): written once, only while the row is still 'served'. */
-async function finishServed(id, row) {
-  const { data, error } = await supabase.from(TABLE).select('id, status, meta').eq('id', id).maybeSingle();
-  if (error || !data || data.status !== 'served') return error ? 'unstored' : 'duplicate';
+async function finishServed(id, row, late = null) {
   const { id: _id, student_id: _s, exercise: _e, grade: _g, lang: _l, created_at: _c, ...rest } = row;
-  const { data: hit, error: e2 } = await supabase.from(TABLE).update({ ...rest, meta: { ...(data.meta || {}), ...(row.meta || {}) } }).eq('id', id).eq('status', 'served').select('id');
-  if (e2) { storeFailed(id, e2); return 'unstored'; }
-  return hit && hit.length ? 'stored' : 'duplicate';
+  return writeServed(id, late, (cur, note) => ({ ...rest, meta: { ...(cur || {}), ...(row.meta || {}), ...note } }));
 }
 
 /**
@@ -1697,6 +1714,24 @@ function runOf(ct) {
   return c;
 }
 
+/**
+ * The run of a request that may be late (web_quiz_challenge_late_result). A token still alive is today's run, and
+ * `late` is not read. A lapsed one is taken only when the request says it is late, the switch is on and the token is
+ * this run's own (web-quiz-challenge-late lapsedRun): the run then carries `late` (what the row keeps: meta.late) and
+ * `lateRecord` (whether a row the sweep closed may be the record again). Anything else: 401 bad_token, as today.
+ * `known`: which exercises this caller takes (the grade-1 form's is not in the menu's list).
+ */
+async function runOfMaybeLate(ct, late, { now = Date.now(), known = (ex) => !!byId(ex) } = {}) {
+  const alive = T.verify(ct, 'c');
+  if (alive) {
+    if (!alive.r || !alive.sid || !known(alive.ex)) fail(401, 'bad_token');
+    return alive;
+  }
+  const c = late ? Late.lapsedRun(ct, now) : null;
+  if (!c || !known(c.ex) || !(await lateOn())) fail(401, 'bad_token');
+  return { ...c, late: Late.stamp(c, late, now), lateRecord: await lateRecordOn() };
+}
+
 // A child's voice is scored and forgotten: a private prefix (never the quiz-audio keys), deleted after scoring;
 // the hourly orphan sweep catches an upload whose result never came (the buckets have no expiry rule). A kept
 // reading (web_quiz_challenge_keep_audio) lives under kept/ and leaves only by the purge.
@@ -1801,9 +1836,9 @@ async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, ma
   return out;
 }
 
-async function presignUpload({ ct, type, size, audio_consent } = {}, { device = null } = {}) {
+async function presignUpload({ ct, type, size, audio_consent, late } = {}, { device = null } = {}) {
   if (await PracticeCh().runOf(ct)) fail(403, 'practice');   // a preview never records a voice
-  const c = runOf(ct);
+  const c = await runOfMaybeLate(ct, late);   // a reading recorded with no network goes up for the run it was read in
   if (c.ex !== 'read') fail(400, 'no_audio');
   const base = String(type || '').split(';')[0].trim().toLowerCase();
   const ext = AUDIO_TYPES[base];
@@ -1833,7 +1868,7 @@ const isLiveRow = (row) => !!row && row.status === 'scoring' && !!row.meta && ro
 async function uploadable(c, mem) {
   if (mem && mem.status) return mem.status === 'open' || mem.status === 'live';
   const row = await storedRun(c.r);
-  return !row || isLiveRow(row) || isServedRow(row);
+  return !row || isLiveRow(row) || openRow(row, c);
 }
 
 /** The run's state from what this process knows, else from the table. */
@@ -1935,9 +1970,12 @@ function liveCount(v, passageLen) {
 async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = null } = {}) {
   // a preview's run (web_quiz_practice_play): scored here and forgotten
   { const pc = await PracticeCh().runOf(body.ct); if (pc) return PracticeCh().submit(pc, body); }
-  const g1Run = Grade1.challengeOf(body.ct);   // grade-1 form: its run token scores there
+  // grade-1 form: its run token scores there (a lapsed one only as a late result: runOfMaybeLate)
+  const g1Late = body.late ? Late.lapsedRun(body.ct, now) : null;
+  const g1Run = Grade1.challengeOf(body.ct)
+    || (g1Late && g1Late.ex === Grade1.EXERCISE ? await runOfMaybeLate(body.ct, body.late, { now, known: (ex) => ex === Grade1.EXERCISE }) : null);
   if (g1Run) return Grade1.submit(g1Run, body);
-  const c = runOf(body.ct);
+  const c = await runOfMaybeLate(body.ct, body.late, { now });
   // class round: the claim finishes a run only during this child's open turn (one round run per child per game per
   // term; the token's mode must be the one the server chose); the row's columns were written at the serve
   const claim = c.cr ? await require('./web-quiz-class-round').claimFor(c.cr, c.sid, c.ex, c.r) : null;
@@ -1954,14 +1992,16 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // A live run (its row made at the mint) takes its one result; any other stored or finished run is done.
   const storedRow = mem.status ? null : await storedRun(c.r);
   const isLive = mem.status === 'live' || (c.ex === 'read' && isLiveRow(storedRow));
-  if ((mem.status && mem.status !== 'open' && !isLive) || (storedRow && !isLive && !isServedRow(storedRow))) fail(409, 'already_done');
+  if ((mem.status && mem.status !== 'open' && !isLive) || (storedRow && !isLive && !openRow(storedRow, c))) fail(409, 'already_done');
   let run = await runFor(c, mem, body.lang);
   const base = { id: c.r, student_id: c.sid, exercise: c.ex, grade: run.grade, lang: run.lang, created_at: nowIso() };
   // challenge v2: a run served under _v2 already has its row: it is finished in place, never inserted a second time
-  const sv = mem.v2 || (isServedRow(storedRow) ? await servedInfo(c.r) : null);
+  const sv = mem.v2 || (openRow(storedRow, c) ? await servedInfo(c.r) : null);
   if (sv && sv.form && !mem.task) run = { ...run, form: sv.form };   // M8: the served row's (fixed-grade) form
   if (sv && !run.v2 && sv.mode != null) run = { ...run, mode: sv.mode, record: sv.record };   // the served row's mode, when the memory is gone
-  const writeRun = sv ? (row) => finishServed(c.r, row) : insertRun;
+  // a late result (c.late) finishes its own row even after the sweep closed it; with no served row it is inserted, and says so
+  const lateNote = c.late ? { late: c.late } : {};
+  const writeRun = sv ? (row) => finishServed(c.r, row, lateOf(c)) : (row) => insertRun(c.late ? { ...row, meta: { ...(row.meta || {}), ...lateNote } } : row);
   const helpedV2 = sv ? { helped: helpedCol(helpedOf(body.helped)) } : {};
 
   if (c.ex === 'missing') {
@@ -2049,7 +2089,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
   // live reading v3 (off ⇒ {}): the UI version and how the page says it ended, kept through the scorer's final write too
   const lr3Meta = await LiveReadV3().metaFor(body, { record: !!rules.record });
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...lr3Meta };
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...lr3Meta, ...lateNote };
   // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
   // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
@@ -2061,7 +2101,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     await updateRunMeta(c.r, (cur) => ({ status: 'scoring', meta: { ...servedMeta(cur.meta), ...metaIn, ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } }));
   }
   else {
-    const stored = sv ? await startServed(c.r, metaIn) : await insertRun({ ...base, status: 'scoring', meta: metaIn });
+    const stored = sv ? await startServed(c.r, metaIn, lateOf(c)) : await insertRun({ ...base, status: 'scoring', meta: metaIn });
     if (stored === 'duplicate') await refuse(409, 'already_done');
   }
   const ext = key.split('.').pop();
@@ -2076,7 +2116,8 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     const stamp = rules.record ? { ms: metaIn.ms, ...keep, ...(rules.trail ? { helped: guardIn.helped } : {}) } : {};
     // answers to the questions may have been given while this reading was scored: keep them (meta.comp)
     await updateRunMeta(c.r, (cur) => {
-      const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
+      // what the row already keeps beside the scorer's own: the answers given meanwhile, and a late result's note
+      const comp = { ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}), ...(cur.meta && cur.meta.late ? { late: cur.meta.late } : {}) };
       return r.failed
         ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm,
@@ -2257,9 +2298,9 @@ async function listenPreview(hub, pid, { lang, device } = {}) {
  * The questions the child reached (EGRA: only about text read; a stopped reader gets none), at most 3, in bank order.
  * Words attempted: the checked score, else the live count stored with the result, else the page's own count (bounded).
  */
-async function questions({ ct, attempted, lang } = {}) {
+async function questions({ ct, attempted, lang, late } = {}) {
   { const pc = await PracticeCh().runOf(ct); if (pc) return PracticeCh().questions(pc, { lang }); }
-  const c = runOf(ct);
+  const c = await runOfMaybeLate(ct, late);   // answers given with no network are sent for the run they were given in
   const { run, row, mem, spec } = await readingOf(c, lang);
   if (c.ex === 'listen') return listenQuestions(c, run, row, spec);
   const out = [];
@@ -2330,9 +2371,9 @@ async function listenQuestions(c, run, row, spec) {
     if (optAudio) item.option_clips = await Promise.all(t.options.map(async (o) => ({ url: await clipUrl(clipKey('listen', `${k}-opt`, run.lang, o), o, run.lang) })));
     out.push(item);
   }
-  if ((!row || isServedRow(row)) && out.length) {
+  if ((!row || openRow(row, c)) && out.length) {
     RUNS.set(c.r, { ...run, ...(RUNS.get(c.r) && RUNS.get(c.r).v2 ? { v2: RUNS.get(c.r).v2 } : {}), status: 'listening' });
-    if (row) await startServed(c.r, { phase: 'listen', n: out.length });
+    if (row) await startServed(c.r, { phase: 'listen', n: out.length }, lateOf(c));
     else await insertRun({ id: c.r, student_id: c.sid, exercise: 'listen', grade: run.grade, lang: run.lang, status: 'scoring', created_at: nowIso(), meta: { phase: 'listen', n: out.length } });
   }
   logEvent('web_quiz.ch_qs', { lang: run.lang, n: out.length, step: 'listen' });
@@ -2340,9 +2381,9 @@ async function listenQuestions(c, run, row, spec) {
 }
 
 /** One tap: { ok, answer } (the right option's text). A question counts once; at most 3 per reading. */
-async function answer({ ct, q, pick, lang, helped } = {}) {
+async function answer({ ct, q, pick, lang, helped, late } = {}) {
   { const pc = await PracticeCh().runOf(ct); if (pc) return PracticeCh().answer(pc, { q, pick, lang }); }
-  const c = runOf(ct);
+  const c = await runOfMaybeLate(ct, late);
   const { run, row, mem, spec } = await readingOf(c, lang);
   const bq = (spec.questions || []).find((x) => x.id === q);
   const p = Number(pick);
@@ -2365,7 +2406,7 @@ async function answer({ ct, q, pick, lang, helped } = {}) {
     // merged into the row as it is now (another tap or the checked score may have written since it was read)
     const written = await updateRunMeta(c.r, (cur) => {
       const a = { ...((cur.meta && cur.meta.comp && cur.meta.comp.a) || {}), ...ans };
-      return { meta: { ...(cur.meta || {}), comp: tally(a) } };
+      return { meta: { ...(cur.meta || {}), comp: tally(a), ...(c.late ? { late: { ...c.late, ...((cur.meta && cur.meta.late && cur.meta.late.record) ? { record: cur.meta.late.record } : {}) } } : {}) } };
     });
     if (written) numbers = written.meta.comp;
     // the lamps once the answers are in (web_quiz_challenge_rungs; a scored v2 reading only; off ⇒ no query)
