@@ -17,8 +17,9 @@
  *
  * A flag needs evidence: the model quotes the other person's words, and those words must be in the transcript (as the
  * stricter check sa_r26_voice_strict does). A help label whose quote is not in the transcript is kept as "unclear".
- * No word heard: none, and no model call. The quote and the reason are never kept (they can hold a name); the label
- * and a fixed `kind` are, so Results can say what happened ("an adult said the answer"), not just "another voice".
+ * No word heard: none, and no model call. The quote is never kept (it can hold a name); the label, a fixed `kind`,
+ * the task's own words the quote holds and the ids of those items are, so Results can say what happened and where
+ * ("an adult said the answer (word 7)"), not just "another voice".
  * Still a flag, never a change of mark.
  */
 
@@ -144,4 +145,90 @@ function matchedWords(quote, task) {
   return best.join(' ');
 }
 
-module.exports = { SCHEMA, LABELS, KINDS, contentOf, promptOf, decide, matchedWords };
+/*
+ * Across scripts. On an English task the coach often speaks Urdu, and speech-to-text writes the English word in Urdu
+ * script («پلانٹ» for plant) or spells it in Urdu letter names («ایف کے بعد آئی» for f, i). Both sides go to a
+ * consonant skeleton (vowels, w/y/h and their Urdu letters dropped), and letter names to their letters.
+ */
+const UR_SK = { 'ب': 'b', 'پ': 'p', 'ت': 't', 'ٹ': 't', 'ث': 's', 'ج': 'j', 'چ': 'C', 'خ': 'k', 'د': 'd', 'ڈ': 'd', 'ذ': 'z', 'ر': 'r', 'ڑ': 'r', 'ز': 'z', 'ژ': 'z', 'س': 's', 'ش': 'S', 'ص': 's', 'ض': 'z', 'ط': 't', 'ظ': 'z', 'غ': 'g', 'ف': 'f', 'ق': 'k', 'ک': 'k', 'ك': 'k', 'گ': 'g', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ں': 'n' };
+// s and z are one sound class (the English plural s is written ز: «ٹریز» for trees)
+const urSkeleton = (w) => [...norm(w)].map((c) => UR_SK[c] || '').join('').replace(/z/g, 's').replace(/(.)\1+/g, '$1');
+const enSkeleton = (w) => norm(w).replace(/sch/g, 'sk').replace(/sh/g, 'S').replace(/ch/g, 'C').replace(/ph/g, 'f').replace(/th/g, 't').replace(/ck/g, 'k')
+  .replace(/c(?=[eiy])/g, 's').replace(/[cq]/g, 'k').replace(/x/g, 'ks')
+  .replace(/[aeiouywhv]/g, '').replace(/z/g, 's').replace(/(.)\1+/g, '$1');
+const LETTER_NAMES = { 'اے': 'a', 'بی': 'b', 'سی': 'c', 'ڈی': 'd', 'ای': 'e', 'ایف': 'f', 'جی': 'g', 'ایچ': 'h', 'آئی': 'i', 'جے': 'j', 'ایل': 'l', 'ایم': 'm', 'این': 'n', 'او': 'o', 'پی': 'p', 'کیو': 'q', 'آر': 'r', 'ایس': 's', 'ٹی': 't', 'یو': 'u', 'وی': 'v', 'ڈبلیو': 'w', 'ایکس': 'x', 'وائی': 'y', 'زیڈ': 'z' };
+const URDU = /[؀-ۿ]/;
+const isLetterTask = (task) => /letter/.test(String((task && (task.subtask || task.task)) || ''));
+
+/** A task's items, each with its id and the phrases that are its content (the sum itself is left out: reading it is support). */
+function itemsOf(task) {
+  const rec = (task && task.record) || {};
+  return (Array.isArray(rec.items) ? rec.items : []).filter((x) => x && typeof x.id === 'string').map((x) => {
+    const sum = /[+\-−×x÷]/.test(String(x.show || ''));
+    const phrases = [sum ? null : x.show, sum ? null : x.target, x.answer, ...(Array.isArray(x.accept) ? x.accept : [])]
+      .filter((p) => p != null && String(p).trim()).map(String);
+    // the item's own word; a question has none (only accepted answers), so the answer said stands for it
+    const own = x.answer != null ? x.answer : (sum ? null : (x.target != null ? x.target : x.show));
+    return { id: x.id, phrases, text: own == null ? null : String(own) };
+  });
+}
+
+/** Items that `said(phrase)` finds, as { words, items } (each item's own word, else the phrase that matched). */
+function found(task, said) {
+  const hits = itemsOf(task).map((it) => ({ it, p: it.phrases.find(said) })).filter((h) => h.p != null);
+  if (!hits.length) return null;
+  return { words: [...new Set(hits.map((h) => (h.it.text != null ? h.it.text : h.p)))].join(' '), items: hits.map((h) => h.it.id) };
+}
+
+/** The longest run of `ws` (quote words) equal, word by word under `eq`, to a run of `seq`: [quote start, seq start, length]. */
+function longestRun(ws, seq, eq) {
+  let best = [0, 0, 0];
+  for (let i = 0; i < ws.length; i += 1) {
+    for (let j = 0; j < seq.length; j += 1) {
+      let n = 0;
+      while (i + n < ws.length && j + n < seq.length && eq(ws[i + n], seq[j + n])) n += 1;
+      if (n > best[2]) best = [i, j, n];
+    }
+  }
+  return best;
+}
+
+/**
+ * The task's items the other person's quote touched, as { words, items }: words = those items' own text (the target
+ * word in the task's spelling, never the adult's other words), items = their ids, in task order. A passage gives the
+ * word positions of the longest run of passage words in the quote (a repeated word: where a reader meets it first).
+ * A lone word counts only when it is a number or 3+ letters (any length on a letter task). On an English task the
+ * quote is also read across scripts (Urdu-script spelling, Urdu letter names). Nothing matched: { words: '', items: [] }.
+ */
+function matchedItems(quote, task) {
+  const none = { words: '', items: [] };
+  const ws = tokens(quote);
+  if (!ws.length || !task) return none;
+  const rec = task.record || {};
+  const lone = (w) => /^\p{N}+$/u.test(norm(w)) || norm(w).length >= 3 || isLetterTask(task);
+  const en = task.lang === 'en';
+  const same = (a, b) => norm(a) !== '' && norm(a) === norm(b);
+  const across = (a, b) => en && URDU.test(a) && !URDU.test(b) && norm(b).length >= 3 && urSkeleton(a).length >= 2 && urSkeleton(a) === enSkeleton(b);
+  const eq = (a, b) => same(a, b) || across(a, b);
+  const words = rec.passage && Array.isArray(rec.passage.words) ? rec.passage.words.filter((w) => w && typeof w.id === 'string') : [];
+  if (words.length) {
+    const seq = words.map((w) => String(w.target));
+    const [, j, n] = longestRun(ws, seq, eq);
+    if (!n || (n === 1 && !lone(seq[j]))) return none;
+    const run = words.slice(j, j + n);
+    return { words: run.map((w) => String(w.target).replace(/[^\p{L}\p{N}'’-]+$/u, '')).join(' '), items: run.map((w) => w.id) };
+  }
+  const whole = found(task, (p) => {
+    const ps = tokens(p);
+    const [, , n] = longestRun(ws, ps, eq);
+    return ps.length > 0 && n === ps.length && (n > 1 || lone(ps[0]));
+  });
+  if (whole) return whole;
+  if (!en) return none;
+  // a word spelled in Urdu letter names (two letters or more, in order, inside one item's word; one on a letter task)
+  const letters = ws.map((w) => LETTER_NAMES[norm(w)] || '').filter(Boolean).join('').replace(/(.)\1+/g, '$1');
+  if (!letters || (letters.length < 2 && !isLetterTask(task))) return none;
+  return found(task, (p) => (letters.length < 2 ? norm(p) === letters : norm(p).length >= 3 && norm(p).includes(letters))) || none;
+}
+
+module.exports = { SCHEMA, LABELS, KINDS, contentOf, promptOf, decide, matchedWords, matchedItems };

@@ -115,6 +115,8 @@ describe('sa_r28_voice_help: flag help, not support', () => {
     expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_clips: 1, second_voice_kind: 'help', voice_check: 'r28' });
     // the words that match the task's answer, never the rest of what the adult said (it can hold a name)
     expect(got.marks.detail.second_voice_reason).toBe('پنجرے میں');
+    // a per-question clip: the item the help touched is that clip's own question
+    expect(got.marks.detail.second_voice_items).toEqual(['ur.story2.q1']);
     expect(got.marks.detail.items.map((i) => !!i.second_voice)).toEqual([true, false, false]);
     expect(helpCalls(got).find((c) => c.label === 'help')).toMatchObject({ kind: 'said_answer', voice_check: 'words_heard' });
     expect(JSON.stringify(got.marks.meta)).not.toContain('آپ کہو گے');
