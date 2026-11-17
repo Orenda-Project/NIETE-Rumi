@@ -602,6 +602,7 @@ button{font:inherit;color:inherit}
   .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(n){grid-row:1;grid-column:auto;height:clamp(120px,17vw,150px);font-size:64px}
   .sae .sae-pick-cards .sae-opts .sae-opt[lang=ur],.sae .sae-pick-cards .sae-opts .sae-opt.is-short[lang=ur]{font-size:68px}
   .sae-pick-replay{min-height:88px;font-size:44px}
+}
 /* ---- round 28: spoken MCQ (.sae-mcq) ---- (sa_r28_mcq; sa-ui.js sMcq). Four stacked full-width answer cards, the one
    Jugnu is reading lit (border + glow), the rest dimmed (.55) while he reads; a held choice lit steady; no letters. At
    360×640 the question card clamps to two lines (is-clamp) before an answer card ever shrinks. */
