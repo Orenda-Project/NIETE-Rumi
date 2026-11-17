@@ -1244,7 +1244,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # Asserted in bot/tests/child-test/sa-score-voice-help.test.js.
   Scenario: With sa_r28_voice_help on, an adult only encouraging the child is not flagged
     Given sa_r28_voice_help is on and the another-voice check is on
-    And an adult speaks to the child during a recorded part only to instruct or encourage, for example "speak louder", "press next" or "well done"
+    And an adult speaks to the child during a recorded part only to instruct or encourage, for example "speak louder", "press next" or "well done", or asks a question again and the child keeps the answer or changes it to another wrong one
     When the recording is scored
     Then the coach's Results for that task do not say another voice was heard
     And the task's detail logs the adult's speech as support, never as a flag
@@ -1254,7 +1254,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # No mock driver: as @CT240. Asserted in bot/tests/child-test/sa-score-voice-help.test.js.
   Scenario: With sa_r28_voice_help on, an adult saying the answer is flagged as help
     Given sa_r28_voice_help is on and the another-voice check is on
-    And an adult says an item or the answer before the child does, corrects the child, or asks again after a wrong answer and the child changes it
+    And an adult says an item or the answer before the child does, corrects the child, or asks again after a wrong answer and the child changes it to the right answer
     When the adult's words are among the words heard in that recording
     Then the task is flagged, with the kind of help and only the words that are the task's own items or answers
     And the child's marks are the same as without the check
