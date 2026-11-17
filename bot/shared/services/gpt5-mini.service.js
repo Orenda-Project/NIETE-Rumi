@@ -457,6 +457,24 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         });
       }
 
+      // bd-nu8svu — a reply that is not valid JSON is asked for again once, straight away. Almost all
+      // of these finish with 'stop' (the model wrote a broken object, it was not cut off), and the
+      // same request redelivered ~16 min later usually succeeded; 5 of 24 sessions (1-17 Nov) never did.
+      try {
+        this._safeJsonParse(response.choices[0].message.content);
+      } catch (firstParseError) {
+        logWarn('⚠️ Analysis reply was not valid JSON — retrying once', {
+          error: firstParseError.message,
+          finishReason: response.choices[0].finish_reason,
+          coachingSessionId: metadata.coachingSessionId || null,
+        });
+        try {
+          response = await this.openai.chat.completions.create({ ...scoringRequest, messages: sentMessages });
+        } catch (retryCallError) {
+          logWarn('⚠️ Retry of the unparseable analysis failed — keeping the first reply', { error: retryCallError.message });
+        }
+      }
+
       const duration = Date.now() - startTime;
       const rawContent = response.choices[0].message.content;
 

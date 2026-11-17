@@ -58,6 +58,30 @@ function generateCertificateCode(now = new Date()) {
 }
 
 /**
+ * The certificate already held for (user, level), shaped as issueCertificate answers, or null.
+ * Oldest first, as a capped LIST read — see issueCertificate for why not `.maybeSingle()`.
+ */
+async function alreadyIssued(supabase, userId, levelId) {
+  const { data: existingRows } = await supabase
+    .from('training_certificates')
+    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, pdf_r2_key')
+    .eq('user_id', userId)
+    .eq('level_id', levelId)
+    .order('issued_at', { ascending: true })
+    .limit(1);
+  const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+  if (!existing) return null;
+  return {
+    certificate_code: existing.certificate_code,
+    teacher_name: existing.teacher_name_snapshot,
+    level_name: existing.level_name_snapshot,
+    issued_at: existing.issued_at,
+    already_issued: true,
+    pdf_r2_key: existing.pdf_r2_key || null,
+  };
+}
+
+/**
  * Issue (or return the already-issued) certificate for a completed level.
  * Idempotent per (user_id, level_id) — NOT per attempt; see the guard below
  * for why that distinction cost production 3,113 surplus rows.
@@ -88,24 +112,8 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
   //
   // Ordered oldest-first: the teacher keeps the certificate they FIRST earned,
   // which is the same row the backfill keeps, so code and data agree.
-  const { data: existingRows } = await supabase
-    .from('training_certificates')
-    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, pdf_r2_key')
-    .eq('user_id', userId)
-    .eq('level_id', levelId)
-    .order('issued_at', { ascending: true })
-    .limit(1);
-  const existing = Array.isArray(existingRows) ? existingRows[0] : null;
-  if (existing) {
-    return {
-      certificate_code: existing.certificate_code,
-      teacher_name: existing.teacher_name_snapshot,
-      level_name: existing.level_name_snapshot,
-      issued_at: existing.issued_at,
-      already_issued: true,
-      pdf_r2_key: existing.pdf_r2_key || null,
-    };
-  }
+  const existing = await alreadyIssued(supabase, userId, levelId);
+  if (existing) return existing;
 
   const [{ data: user }, { data: level }] = await Promise.all([
     supabase.from('users').select('name').eq('id', userId).maybeSingle(),
@@ -125,6 +133,18 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
     teacher_name_snapshot: teacherName,
     level_name_snapshot: levelName,
   });
+  if (error && error.code === '23505') {
+    // bd-nu8svu — a lost race, not a failure. Two calls for the same (user, level) both read "none yet"
+    // above and both insert; training_certificates_user_level_uniq keeps one. The violation proves the
+    // certificate exists, so answer with the row that won. Production logged 41 of these as errors
+    // (2-17 Nov), often 2-4 in the same millisecond for one teacher, and answered { issued: false }
+    // for a certificate she held.
+    const won = await alreadyIssued(supabase, userId, levelId);
+    if (won) {
+      logToFile('🎓 Certificate already issued by a concurrent call — returning it', { userId, levelId, attemptId });
+      return won;
+    }
+  }
   if (error) {
     // A failed insert must not be reported as an issued
     // certificate.
@@ -229,7 +249,7 @@ async function certifyOnLevelExam(supabase, { userId, level, programId }) {
   const cert = await issueCertificate(supabase, {
     userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
   });
-  if (cert.issued === false) return { issued: false };
+  if (cert.issued === false || cert.already_issued) return { issued: false };
   return {
     issued: true,
     certificate_code: cert.certificate_code,
@@ -300,7 +320,7 @@ async function certifyOnCapstone(supabase, { userId, level, programId }) {
   const cert = await issueCertificate(supabase, {
     userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
   });
-  if (cert.issued === false) return { issued: false };
+  if (cert.issued === false || cert.already_issued) return { issued: false };
   return {
     issued: true,
     certificate_code: cert.certificate_code,
@@ -475,7 +495,7 @@ async function maybeIssueQuizScoreCertificate(
         userId, programId, levelId: level.id, attemptId,
       });
       // A failed insert is not a certificate (see issueCertificate).
-      if (cert.issued === false) return { issued: false };
+      if (cert.issued === false || cert.already_issued) return { issued: false };
       return {
         issued: true,
         certificate_code: cert.certificate_code,
@@ -520,6 +540,7 @@ async function maybeIssueQuizScoreCertificate(
     const cert = await issueCertificate(supabase, {
       userId, programId, levelId: level.id, attemptId,
     });
+    if (cert.issued === false || cert.already_issued) return { issued: false };
     return {
       issued: true,
       certificate_code: cert.certificate_code,
