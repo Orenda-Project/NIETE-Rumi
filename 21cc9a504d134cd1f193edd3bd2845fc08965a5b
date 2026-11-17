@@ -1,0 +1,2 @@
+{"ts":"2026-11-17T05:19:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-coaching,portal-smoke spec_sync=true","sha":"21cc9a504d13","branch":"bd-sy4kcv-90792","user":"Fatima"}
+{"ts":"2026-11-17T05:26:10Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (only_shared fan-out; no main page added or removed)","sha":"21cc9a504d13","branch":"bd-sy4kcv-90792","user":"Fatima"}
