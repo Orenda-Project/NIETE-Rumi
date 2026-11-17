@@ -69,10 +69,64 @@ async function grammarTopicsPaper(page, ctx) {
   return { topicIds: body.topicIds, questionTypes: body.questionTypes };
 }
 
+// TA19 (bd-5icld3) — the Question types drawer on a phone. Grade 1 English's real list (QuestionTypes.forSubject): 12
+// objective + 6 written. Reads answered by page.route, as TA18; nothing is generated.
+const G1_ENGLISH = [
+  ...['MCQs', 'MSQs', 'Fill in the Blanks', 'Missing Letters', 'True/False', 'Match the Column', 'Circle the Correct Answer',
+    'Rewrite Sentences', 'Brief Answers', 'Listening', 'Speaking', 'Reading'].map((id) => ({ id, category: 'objective' })),
+  ...['Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Rewriting', 'Story Completion', 'Simple Writing']
+    .map((id) => ({ id, category: 'subjective' })),
+];
+
+async function typesDrawerOnPhone(page, ctx) {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await asRole(page, ctx, 'teacher', 'teacherV2');
+  await page.route('**/api/portal/assessment/options**', (r) => json(r, { success: true, grades: [1], maxQuestions: 50,
+    defaultQuestions: 15, ...(new URL(r.request().url()).searchParams.get('subject') ? { types: G1_ENGLISH } : { subjects: [] }) }));
+  await page.route('**/api/portal/assessment/chapters**', (r) => json(r, { success: true, chapters: [
+    { chapter_number: 1, chapter_title: 'All About Me', page_start: 1, page_end: 20, page_count: 20 }] }));
+  await page.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [PICKS_KEY,
+    JSON.stringify({ grade: 1, subject: 'english', subjectName: 'English', coverBy: 'chapters', chapters: [1] })]);
+
+  await page.goto(ctx.baseUrl + NEW + 'questions', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('add-type').click();
+  const tray = page.getByTestId('types-tray');
+  await tray.waitFor();
+  await page.waitForTimeout(400); // the rise animation
+  for (const g of ['Objective', 'Written']) await tray.getByText(g, { exact: true }).waitFor();
+
+  const m = await page.evaluate(() => {
+    const t = document.querySelector('[data-testid="types-tray"]');
+    const list = t.querySelector('[data-testid="types-list"]');
+    const foot = t.querySelector('[data-testid="types-foot"]');
+    const close = t.querySelector('button[aria-label]');
+    const r = (el) => el.getBoundingClientRect();
+    const onScreen = (el) => { const b = r(el); return b.top >= 0 && b.bottom <= innerHeight + 0.5; };
+    const boxes = [...list.querySelectorAll('[role="checkbox"]')];
+    const reached = boxes.filter((b) => { b.scrollIntoView({ block: 'nearest' }); const lb = r(list), bb = r(b);
+      return bb.top >= lb.top - 0.5 && bb.bottom <= lb.bottom + 0.5 && onScreen(b); }).length;
+    return { rows: boxes.length, reached, scrolls: list.scrollHeight > list.clientHeight + 1,
+      footOnScreen: onScreen(foot), closeOnScreen: onScreen(close) };
+  });
+  expect(m.rows === 18, `the drawer should list 18 types, got ${m.rows}`);
+  expect(m.reached === 18, `every type should scroll into view inside the list, reached ${m.reached} of 18`);
+  expect(m.scrolls, 'on a 360x640 phone the list should scroll');
+  expect(m.footOnScreen && m.closeOnScreen, 'the count, Done and close should stay on screen with the list scrolled to the end');
+
+  await tray.getByRole('checkbox', { name: 'Simple Writing' }).click();
+  await tray.getByTestId('types-foot').getByRole('button', { name: 'Done' }).click();
+  await tray.waitFor({ state: 'detached' });
+  const box = page.getByRole('textbox', { name: /Simple Writing/ });
+  await box.waitFor({ timeout: 10000 });
+  expect((await box.inputValue()) === '1', 'Simple Writing should be on the page at 1');
+  return m;
+}
+
 const scenarios = [
   pagesScenario("TA01", "Teacher app v2: Assessment opens", "teacher", "teacherV2", [{ path: "/portal/teacher/assessment", heading: /^Assessment$/ }]),
   pagesScenario("TA02", "Classic portal: Assessment opens", "teacher", "classic", [{ path: "/portal/assessment", heading: /^Assessment$/ }]),
   { id: 'TA18', title: 'Teacher makes a grammar-only paper on topics taught', run: grammarTopicsPaper },
+  { id: 'TA19', title: 'On a phone, every question type in the drawer can be reached and Done never scrolls away', run: typesDrawerOnPhone },
 ];
 
 module.exports = { feature: "teacher-assessment", spec: 'tests/features/web/teacher-assessment.feature', scenarios };
