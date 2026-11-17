@@ -134,6 +134,14 @@ export type SaTaskResult = {
   score: Record<string, number> | null;
   /** the scorer heard another person (an adult, another child) in the recording: the score may include their help */
   secondVoice?: boolean;
+  /** round 28 (tap picker / MCQ): too few items heard to rate; Results says "not rated", the dashboard leaves it out */
+  unrated?: boolean;
+  /** round 28: how many items the child heard (lost clips are not presented) */
+  presented?: number;
+  /** round 28 (ceiling): the scorer's first N items, today's scale, shown beside the rate */
+  firstN?: { correct: number; of: number };
+  /** round 28 (MCQ): the question ids the gate allowed */
+  asked?: string[];
 };
 
 /** Round 20 level vocabulary (as sent for review): reading and maths ladders, plus Beginner. */
