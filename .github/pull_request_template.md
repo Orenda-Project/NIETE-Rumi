@@ -44,4 +44,4 @@ This repo is public: no phone numbers, real names, keys or internal ticket ids a
 - [ ] Words are in `copy.ts`, in English and Urdu (machine-drafted Urdu marked for a human read)
 - [ ] No secret, phone number, real name or ticket id in the code, tests or this PR
 - [ ] Merged into `sandbox`, the sandbox deploy finished, and it works there
-- [ ] **Ready for review** (tick last, then post this PR's link in the review channel)
+- [ ] **Ready for review** (tick last, then send this PR's link to the product owner in a direct message)
