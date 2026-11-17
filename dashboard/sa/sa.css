@@ -599,6 +599,28 @@ button{font:inherit;color:inherit}
    below them, A.3) still fit a 360x640 phone without scrolling */
 .sae-pick .sae-pick-coach-line{margin:0 0 -6px;padding:3px 10px;font-size:15px;line-height:1.6}
 .sae-pick details.sae-pick-coach{padding:4px 12px}
+/* round 28, A4 (r28_letter_pick; .is-coach-led = the coach-led picker screens). (1) A Nastaliq letter's text box runs
+   well past its card (fitInk moves the ink to the card's middle), so the letter never takes a tap: a tap lands on the
+   card's own box, never on the fold above it or on a card of the other row. (2) Every coach state keeps the five cards
+   and the replay pill where they are: the open fold shows the sound -> letter on its own row (laid over the fold, a tap
+   on it still folds it), and the coach's Next sits in the head row in a place held for it. (3) The phone fits with the
+   real font and the served two-line title: tighter gaps, a smaller Jugnu and title; the cards and the replay pill keep
+   RDF auto's sizes (A.3). The tablet keeps its sizes; its fold sits 24 px clear of the cards' ink. */
+.sae .sae-pick-cards .sae-opt .sae-ink{pointer-events:none}
+.sae-pick.is-coach-led details.sae-pick-coach{position:relative;min-height:44px;box-sizing:border-box}
+.sae-pick.is-coach-led details.sae-pick-coach>.sae-coach-line{position:absolute;top:0;bottom:0;inset-inline-end:16px;max-width:calc(100% - 120px);margin:0;padding:0;display:flex;align-items:center;font-size:22px;line-height:1.2;white-space:nowrap;pointer-events:none}
+.sae-pick.is-coach-led .sae-pick-head .sa-next,.sae-pick.is-coach-led .sae-pick-head .sae-pick-next-slot{flex:0 0 auto;box-sizing:border-box;width:96px;max-width:96px;min-height:56px;margin:0;padding:0 10px;font-size:20px}
+.sae-pick.is-coach-led .sae-pick-head .sae-pick-next-slot{display:block;visibility:hidden}
+@media (max-width:699px){
+  .sae-screen.sae-pick.is-coach-led .sae-body{gap:8px}
+  .sae-pick.is-coach-led .sae-pick-head{gap:8px}
+  .sae-pick.is-coach-led .sae-pick-head .sae-jugnu-s{width:64px;height:64px}
+  .sae-pick.is-coach-led .sae-pick-head .sae-task-tag{font-size:16px}
+}
+@media (min-width:700px){
+  .sae-pick.is-coach-led details.sae-pick-coach{margin-bottom:24px}
+}
+/* end round 28, A4 */
 @media (min-width:700px){
   .sae-screen.sae-pick{max-width:min(94vw,760px)}
   .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}

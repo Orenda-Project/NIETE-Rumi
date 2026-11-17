@@ -1776,10 +1776,13 @@
     }
     function sRunPick(v) {
       var it = v.item, t = v.task;
-      return screen(v, 'sae-run sae-run-tap sae-pick', [
+      // coach-led (lead ruling, every coach state): the coach's Next sits in the head row, never at the foot, and its
+      // place is held (hidden) until it is offered, so the cards and the replay pill never move when it appears
+      var coachNext = manual ? (nextBtn(v) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' })) : null;
+      return screen(v, 'sae-run sae-run-tap sae-pick' + (manual ? ' is-coach-led' : ''), [
         clock(v),
         // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
-        h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), replayBtn(function () { pickAgain(it, t); })]),
+        h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), replayBtn(function () { pickAgain(it, t); }), coachNext]),
         pickCoachLine(t),
         coachSays(it, true, t),
         pickCards(it.options, function (o, b) {
@@ -1790,7 +1793,7 @@
           later(function () { busy = false; draw(); }, PICK_PRESS_MS);
         }, null, t),
         pickReplay(it, t),
-      ], itemFoot(v, [nextBtn(v)]));
+      ], itemFoot(v, manual ? [] : [nextBtn(v)]));
     }
     /** The model line(s) of the example, said by Jugnu in both modes (the coach never voices the sound). */
     function pickModelOf(p) { return Array.isArray(p.model) ? p.model.map(function (m) { return [m, m && m.audio, true]; }) : []; }
@@ -1822,7 +1825,7 @@
         if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
         if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
       }, t);
-      return screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : ''), [
+      return screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : '') + (manual ? ' is-coach-led' : ''), [
         h('div', { class: 'sae-row sae-pick-head' }, [
           jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true),
           h('span', { class: 'sae-chip', text: C.practice }),
