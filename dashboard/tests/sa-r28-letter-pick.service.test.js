@@ -1357,9 +1357,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   afterAll(async () => { if (browser) await browser.close(); });
 
   /** The served battery of `lang`, its own picker task alone (practice set aside: the items are what is measured). */
-  function served(lang, keepPractice) {
+  function served(lang, keepPractice, more) {
     const { applySwitches } = require('../routes/sa-battery-switches');
-    const on = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true };
+    const on = Object.assign({ rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true }, more || {});
     const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${lang}.json`), 'utf8'));
     const b = applySwitches(raw, on);
     const t = b.tasks.find((x) => x.id === `${lang}.letter_pick10`);
@@ -1368,8 +1368,8 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     return bat;
   }
   /** The page: coach-led, a voice whose clip lines end only when the test says (window.__end()), a clock it moves. */
-  function page(lang, keepPractice) {
-    const bat = served(lang, keepPractice);
+  function page(lang, keepPractice, more) {
+    const bat = served(lang, keepPractice, more);
     return { bat, html: `<!doctype html><html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
 <script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
@@ -1427,7 +1427,25 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       coach_line: !!document.querySelector('.sae-pick-coach-line'),
       fold_line: (() => { const fl = d && d.open ? d.querySelector('.sae-coach-line') : null; if (!fl) return null; const b = fl.getBoundingClientRect(); return { text: fl.textContent, font_px: parseFloat(getComputedStyle(fl).fontSize), visible: b.width > 0 && b.height > 0 }; })(),
       view: (() => { const v = window.__runner.view(); return { phase: v.phase, practice: v.practice ? v.practice.id : null }; })(),
-      fb: (() => { const f = document.querySelector('.sae-pick .sae-fb:not(.is-empty)'); return f ? Object.assign(R(f), { text: f.textContent, whole: f.scrollWidth <= f.clientWidth + 0.5 && f.scrollHeight <= f.clientHeight + 0.5 }) : null; })(),
+      fb: (() => { const f = document.querySelector('.sae-pick .sae-fb:not(.is-empty)'); return f ? Object.assign(R(f), { text: f.textContent, whole: f.scrollWidth <= f.clientWidth + 0.5 && f.scrollHeight <= f.clientHeight + 0.5, font_px: parseFloat(getComputedStyle(f).fontSize), in_head: !!f.closest('.sae-pick-head') }) : null; })(),
+      // A8: the head row's children (Jugnu, the chip, the feedback line, the coach's Skip): each one's box, clipped or not
+      head: (() => {
+        const hd = document.querySelector('.sae-pick-head'); if (!hd) return null;
+        const kids = Array.from(hd.children).filter((k) => getComputedStyle(k).display !== 'none').map((k) => {
+          const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+          return Object.assign(R(k), { cls: String(k.className).split(' ').slice(0, 2).join('.'), text: k.textContent.trim(),
+            clip: k.tagName !== 'IMG' && (k.scrollWidth > k.clientWidth + 0.5 || k.scrollHeight > k.clientHeight + 0.5), hit: !!e && (e === k || k.contains(e)) });
+        });
+        return Object.assign(R(hd), { over_x: Math.max(0, hd.scrollWidth - hd.clientWidth), kids });
+      })(),
+      // A8: the coach's Skip instructions (r9_skip_instructions): where it is, and whether a tap at its centre reaches it
+      skip: (() => {
+        const k = document.querySelector('.sae-r9-skip'); if (!k) return null;
+        const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+        return Object.assign(R(k), { text: k.textContent.trim(), cp: Array.from(k.textContent.trim()).length, hit: !!e && (e === k || k.contains(e)),
+          font_px: parseFloat(getComputedStyle(k).fontSize), lines: new Set(Array.from((() => { const rg = document.createRange(); rg.selectNodeContents(k); return rg.getClientRects(); })()).map((x) => Math.round(x.top))).size, ellipsis: getComputedStyle(k).textOverflow === 'ellipsis',
+          in_head: !!k.closest('.sae-pick-head'), foot: !!k.closest('.sae-foot'), clip: k.scrollWidth > k.clientWidth + 0.5 || k.scrollHeight > k.clientHeight + 0.5 });
+      })(),
       // the screen's blocks top to bottom (where the height goes)
       layout: screen ? [screen].concat(Array.from(screen.children), body ? Array.from(body.children) : []).map((n) => ({ cls: String(n.className).split(' ').slice(0, 3).join('.'), top: +n.getBoundingClientRect().top.toFixed(1), h: +n.getBoundingClientRect().height.toFixed(1) })) : null,
     };
@@ -1661,10 +1679,10 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
    * wrong tap's feedback (the right card shown); `right` (a second walk): wrong, the retry, then the right card.
    * The served practice of the served battery, as the coach meets it.
    */
-  async function practiceStates(lang, shots, right) {
+  async function practiceStates(lang, shots, right, more, vp) {
     const out = {};
-    const { html } = page(lang, true);
-    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const { html } = page(lang, true, more);
+    const ctx = await browser.newContext({ viewport: vp || { width: 360, height: 640 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
     await p.route('**/*', (route) => {
       const u = new URL(route.request().url());
@@ -1680,7 +1698,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const snap = async (name, wait) => {
       if (wait !== 0) await p.waitForTimeout(wait || 250);
       out[name] = await p.evaluate(measure);
-      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}_${lang}_phone_coach.png`) });
+      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}${more && more.r9SkipInstructions ? '_skip' : ''}_${lang}_${vp ? 'tablet' : 'phone'}_coach.png`) });
     };
     const endAll = async () => { for (let k = 0; k < 8 && (await p.evaluate(() => window.__end())); k++) await p.waitForTimeout(150); };
     const label = async () => { const s = await p.evaluate(() => { const b = document.querySelector('details.sae-pick-coach > summary').getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; }); await p.mouse.click(lang === 'ur' ? s.r - 30 : s.l + 30, (s.t + s.b) / 2); };
@@ -1774,4 +1792,85 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       }
     }, 180000);
   }
+
+  /**
+   * A8: the coach's Skip instructions (sa_r9_skip_instructions, ON on every tier) is served on the coach-led practice
+   * screens, in the head row beside Jugnu and the chip; A7's feedback line joins that row while it shows. With it in the
+   * served set, in every practice state: every head-row child inside 0–360, whole (its own scroll box) and hit-testable
+   * at its centre, inside the 64 px row; the row's own scrollWidth ≤ clientWidth; the Skip at ONE rect on every screen it
+   * is drawn on, ≤ 20 code points, ≥ 48 px tall, one line at its served font; in the try-again window (practice going on, the feedback showing) the Skip
+   * is not drawn and the feedback line takes the chip's slot; the feedback line whole at ≥ 15 px; the cards, the replay
+   * pill, the Next pill and the fold where the same walk without the Skip puts them; 640 / 0 / 5 of 5.
+   */
+  const A8_STATES = ['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
+  const a8TryAgain = (m) => m.view.phase === 'practice' && !!m.fb;
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}, the served practice with the coach's Skip (A8): every head-row child inside the phone and hit-testable, the Skip in one place, the feedback line whole, nothing below moves`, async () => {
+      const more = { r9SkipInstructions: true };
+      const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, more);
+      Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true, more));
+      const base = await practiceStates(lang, null, false);
+      Object.assign(base, await practiceStates(lang, null, true));
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_sizes_${lang}.json`), JSON.stringify({ skip: r, no_skip: base }, null, 1));
+      const all = A8_STATES;
+      // the Skip: drawn on every practice screen but the try-again window; never on the held last feedback (phase ready)
+      const want = (m) => (m.view.phase === 'practice' && !a8TryAgain(m) ? 'drawn' : 'absent');
+      const row = (m) => ({
+        head_h: m.head && Math.round(m.head.h), over_x: m.head && m.head.over_x,
+        out: m.head ? m.head.kids.filter((k) => k.left < -0.5 || k.right > 360.5 || k.left < m.head.left - 0.5 || k.right > m.head.right + 0.5 || k.top < m.head.top - 0.5 || k.bottom > m.head.bottom + 0.5).map((k) => k.cls) : null,
+        clipped: m.head ? m.head.kids.filter((k) => k.clip).map((k) => k.cls) : null,
+        not_hit: m.head ? m.head.kids.filter((k) => !k.hit).map((k) => k.cls) : null,
+        jugnu: m.head ? m.head.kids.filter((k) => /jugnu/.test(k.cls)).map((k) => `${Math.round(k.w)}x${Math.round(k.h)}`).join() : null,
+        skip: m.skip ? (m.skip.in_head && m.skip.hit && !m.skip.clip ? 'drawn' : 'drawn-broken') : 'absent',
+        chip_with_fb: a8TryAgain(m) ? m.head.kids.some((k) => k.cls === 'sae-chip') : 'n/a',
+        fb: m.fb ? m.fb.whole && m.fb.top >= 0 && m.fb.bottom <= m.vh && m.fb.left >= 0 && m.fb.right <= 360 && m.fb.font_px >= 15 : 'none',
+        page_h: m.page_h, inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length,
+      });
+      expect(all.map((s) => Object.assign({ s }, row(r[s])))).toEqual(all.map((s) => ({
+        s, head_h: 64, over_x: 0, out: [], clipped: [], not_hit: [], jugnu: '64x64', skip: want(r[s]), chip_with_fb: a8TryAgain(r[s]) ? false : 'n/a', fb: r[s].fb ? true : 'none', page_h: 640, inner_scroll: 0, cards_hit: 5,
+      })));
+      // the Skip at ONE rect on every screen it is drawn on (the coach's thumb learns it once)
+      const drawn = all.filter((s) => want(r[s]) === 'drawn');
+      expect(drawn).toEqual(['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_retry', 'p2_foldopen', 'p2_foldclosed']);
+      // its place in the row (left, width, height, offset from the row's top) is one; the row itself moves only with the
+      // body's ruled re-centring (the cards' own once-per-group shift, A7 / O-32), so within each group its rect is one
+      const at = (s) => [r[s].skip.left, r[s].skip.w, r[s].skip.h, r[s].skip.top - r[s].head.top].map((x) => x.toFixed(1)).join();
+      expect(drawn.map((s) => ({ s, at: at(s) }))).toEqual(drawn.map((s) => ({ s, at: at(drawn[0]) })));
+      for (const g of [['p1_listening'], ['model', 'model_foldopen', 'model_foldclosed'], ['p2_listening', 'p2_aftersound', 'p2_retry', 'p2_foldopen', 'p2_foldclosed']]) {
+        const rect = (s) => [r[s].skip.top, r[s].skip.left, r[s].skip.w, r[s].skip.h].map((x) => x.toFixed(1)).join();
+        expect(g.map((s) => ({ s, rect: rect(s) }))).toEqual(g.map((s) => ({ s, rect: rect(g[0]) })));
+        // the row moves exactly as the cards do between groups (never on its own)
+        const dy = (s) => +(r[s].head.top - r[s].cards[0].top).toFixed(1);
+        expect(drawn.map((s) => ({ s, head_to_cards: dy(s) }))).toEqual(drawn.map((s) => ({ s, head_to_cards: dy(drawn[0]) })));
+      }
+      // one line, the served label and font (UR 20 px / EN 18 px), no ellipsis, no clip, ≥ 48 px tall, whole and hit
+      drawn.forEach((s) => {
+        const k = r[s].skip;
+        expect({ s, text: k.text, lines: k.lines, font_px: k.font_px, ellipsis: k.ellipsis, clip: k.clip, tall: k.h >= 48, hit: k.hit })
+          .toEqual({ s, text: lang === 'ur' ? 'ہدایات چھوڑیں' : 'Skip instructions', lines: 1, font_px: lang === 'ur' ? 20 : 18, ellipsis: false, clip: false, tall: true, hit: true });
+        expect(k.cp).toBeLessThanOrEqual(20);
+      });
+      for (const s of all) {
+        const m = r[s], b = base[s];
+        expect({ s, view: m.view }).toEqual({ s, view: b.view }); // the same walk
+        // nothing below the head moves for the Skip: the cards, the replay pill, the Next pill, the fold
+        const pos = (x) => x && { top: x.top, left: x.left, w: x.w, h: x.h };
+        const near = (a, c) => (a == null || c == null ? a === c : ['top', 'left', 'w', 'h'].every((k) => Math.abs(a[k] - c[k]) <= 0.5));
+        m.cards.forEach((c, i) => expect({ s, card: i + 1, same: near(pos(c), pos(b.cards[i])) }).toEqual({ s, card: i + 1, same: true }));
+        expect({ s, pill: near(pos(m.pill), pos(b.pill)), next: near(pos(m.next), pos(b.next)), fold: near(pos(m.fold), pos(b.fold)) }).toEqual({ s, pill: true, next: true, fold: true });
+        if (b.fb) expect({ s, text: m.fb && m.fb.text, font_ok: !!m.fb && m.fb.font_px >= 15 }).toEqual({ s, text: b.fb.text, font_ok: true });
+      }
+    }, 300000);
+  }
+  test('ur and en, the tablet (800×1280), with the coach\'s Skip (A8): the practice feedback state holds the cards, nothing scrolls, the feedback line whole; the Skip served before it', async () => {
+    const out = {};
+    for (const lang of ['ur', 'en']) {
+      const st = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, { r9SkipInstructions: true }, { width: 800, height: 1280 });
+      const m = st.p2_feedback, a = st.p2_aftersound;
+      out[lang] = { p2_aftersound: a, p2_feedback: m };
+      expect({ lang, cards_bottom_ok: m.cards_bottom <= 1280, inner_scroll: m.inner_scroll, page_h: m.page_h, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, fb_whole: !!m.fb && m.fb.whole, skip_before: !!a.skip && a.skip.hit })
+        .toEqual({ lang, cards_bottom_ok: true, inner_scroll: 0, page_h: 1280, cards_hit: 5, fb_whole: true, skip_before: true });
+    }
+    if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_tablet.json`), JSON.stringify(out, null, 1));
+  }, 300000);
 });

@@ -667,6 +667,20 @@ button{font:inherit;color:inherit}
   .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-foot{padding-top:2px}
 }
 /* end round 28, A7 */
+/* round 28, A8 (r28_letter_pick with r9_skip_instructions, coach-led practice on a phone): the coach's Skip («ہدایات
+   چھوڑیں» / "Skip instructions") is served on the practice screens, in the head row with Jugnu and the chip. In Urdu it
+   wrapped to two 20 px lines, a 97 px box spilling 17 px above and below the 64 px row onto the coach line, and Jugnu
+   was squeezed. The Skip is now one line (its served 20 px Urdu / 18 px English, its label as served, no ellipsis) in a 56 px box
+   inside the row, the chip's inline padding 8 px, Jugnu keeps 64 px; in the try-again window the
+   Skip is not drawn and the feedback line takes the chip's slot (sa-ui.js). The cards, the replay pill, the Next pill and
+   the fold are as A7 left them. */
+@media (max-width:699px){
+  .sae.is-r9-skip .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-jugnu-s{flex:none;width:64px;height:64px}
+  .sae.is-r9-skip .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-chip{padding-inline:8px}
+  .sae.is-r9-skip .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-r9-skip{flex:none;margin:0;box-sizing:border-box;width:auto;height:56px;min-height:0;padding:0 10px;line-height:1.25;white-space:nowrap}
+  .sae.is-r9-skip[lang=ur] .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-r9-skip{line-height:2}
+}
+/* end round 28, A8 */
 @media (min-width:700px){
   .sae-screen.sae-pick{max-width:min(94vw,760px)}
   .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}

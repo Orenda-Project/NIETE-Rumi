@@ -1543,6 +1543,23 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the practice item is answered wrong, tried again, and answered, with the coach's fold open or closed
     Then the screen never scrolls, all five letter cards can be tapped, and the replay button does not move
     And the feedback line shows whole beside the practice label, and the fold still shows the sound and its letter
+  @e2e @wip @draft @config-gated @P1 @CT271 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("ur/en, the served
+  # practice with the coach's Skip (A8): …" and the tablet row; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick and the coach's Skip instructions on, coach-led, the Skip shares the practice head row on a small phone
+    Given sa_r28_letter_pick and sa_r9_skip_instructions are on, the battery is coach-led and the phone is 360 by 640
+    When the practice example is modelled and the practice item is heard, answered and tried again, with the fold open or closed
+    Then the Skip instructions button shows on one line at its usual size, in the same place in the head row on every practice screen
+    And Jugnu, the practice label and the Skip button all sit whole on the screen and can each be tapped
+    And the cards, the replay button, the Next button and the fold are where they are without the Skip button
+  @e2e @wip @draft @config-gated @P1 @CT272 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("… (A8): …").
+  Scenario: With sa_r28_letter_pick and the coach's Skip instructions on, coach-led, the try-again line takes the label's place
+    Given sa_r28_letter_pick and sa_r9_skip_instructions are on, the battery is coach-led and the phone is 360 by 640
+    When the child taps a wrong card on the practice item and Jugnu asks them to try again
+    Then the feedback line shows whole beside Jugnu in place of the practice label, and the Skip button is not drawn
+    And when the item is shown again the practice label and the Skip button come back in the same place
+    And on a tablet the same moment keeps all five cards on screen with nothing scrolling
   @e2e @wip @draft @config-gated @P1 @CT251 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("every rotated variant …"),
   # bot/tests/child-test/sa-r28-mcq-of-all.test.js, portal cohortStats.r28.test.ts and LeaderAssessResults.r28.test.tsx.
