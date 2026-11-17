@@ -180,3 +180,14 @@ describe("LeaderAssessResults: the floor on the items the child had", () => {
     expect(within(screen.getByTestId("result-task-en.story_mcq_w3")).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 1.6% of children reach 4 of 5.");
   });
 });
+
+// Round 28 (lead ruling): the MCQ on a 5-question story variant is read out of 5 (ofAll), never the spec's 6.
+describe("LeaderAssessResults: the MCQ on the served variant's questions", () => {
+  it("a 5-question variant (ofAll 5) reads 4 of 5 (1.6%), never 4 of 6", async () => {
+    const mcq = { ...pick, taskId: "ur.story_mcq_w3", attempted: 5, correct: 4, optionsN: 4, presented: 5, ofAll: 5 };
+    api.getResults.mockResolvedValue(RESULTS([mcq]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(card).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 1.6% of children reach 4 of 5.");
+  });
+});

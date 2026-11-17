@@ -854,6 +854,8 @@ function shapeTask(r, stops = false) {
     ...(tap && ((m && m.unrated === true) || res.unrated === true) ? { unrated: true } : {}),
     ...(tap && typeof res.presented === 'number' ? { presented: res.presented } : {}),
     ...(tap && typeof res.unavailable === 'number' ? { unavailable: res.unavailable } : {}),
+    // round 28 (MCQ, picker): the questions of the variant the phone served, before lost clips (the share's denominator)
+    ...(tap && typeof res.of_all === 'number' ? { ofAll: res.of_all } : {}),
     ...(tap && Array.isArray(res.asked) ? { asked: res.asked.filter((q) => typeof q === 'string') } : {}),
     // round 28 (picker / MCQ): taps made before the prompt's sound ended, over the answers the phone timed (tap_ms)
     ...(tap ? tapBeforeOf(res) : {}),
