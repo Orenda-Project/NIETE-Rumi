@@ -1,10 +1,12 @@
 'use strict';
 /**
- * Round 28 C (sa_r28_ceiling): the timed one-at-a-time tasks run every cell of a longer grid until the clock ends.
- * The battery file the scorer reads always carries the whole grid (the first base_n items as today, then items marked
- * ext). The scorer prompts with the items the child reached (at least the base N), keeps the first N as a fixed anchor
- * (correct_base / of_base) for the Results ladder, follows the phone's 500 ms final-cell rule, applies the first-line
- * stop and the "no clock, no rate" rule only with the switch ON. All batteries here are synthetic.
+ * Round 28 C (sa_r28_ceiling): the timed one-at-a-time tasks run every cell of a longer list until the clock ends.
+ * The committed task (what the scorer reads) keeps today's items / grid / stop and carries the extension beside them:
+ * base_n, ext_items (ext: true), ext_stop. The route serves items + ext_items only with the switch ON, so a run whose
+ * cells go past base_n ran the extended list; any other run is today's task, scored byte for byte as before.
+ * Extended: the scorer prompts with the items reached (at least the base N), adds of_all / of_base / correct_base (the
+ * Results ladder's fixed anchor), applies ext_stop (C-12) and follows the phone's 500 ms final-cell rule; with the
+ * switch ON a run without the phone's clock gets no rate (C-5). All batteries here are synthetic.
  */
 const score = require('../../shared/services/child-test/sa/score');
 const level = require('../../shared/services/child-test/sa/level');
@@ -15,14 +17,14 @@ const pad = (n) => String(n).padStart(2, '0');
 const WORDS = Array.from({ length: 50 }, (_, k) => `word${k + 1}`);
 const LETTERS = Array.from({ length: 100 }, (_, k) => 'bcdfghjklmnpqrstvwxyz'[k % 21]);
 
-/** An extended timed task: base items, then ext items; `cycleFrom` marks later items as a second pass (the contract's shape). */
-function extTask(id, subtask, shows, { base = 4, cycleFrom = null, stop = {} } = {}) {
-  const items = shows.map((w, k) => ({
-    id: `${id}.${pad(k + 1)}`, show: w, target: w, answer: w, src: `fixture:${id}[${k}]`,
-    ...(k >= base ? { ext: true } : {}),
-    ...(cycleFrom != null && k >= cycleFrom ? { cycle: 2 } : {}),
-  }));
-  return { id, w3: true, kind: 'grid', subtask, lang: 'en', response: 'record', present: 'one_at_a_time', time_limit_s: 60, advance_after_s: 3, stop, base_n: base, items, grid: shows.slice() };
+/** A committed extended task: today's items / grid / stop, then base_n, ext_items (ext: true) and ext_stop beside them. */
+function extTask(id, subtask, shows, { base = 4, extStop = null } = {}) {
+  const all = shows.map((w, k) => ({ id: `${id}.${pad(k + 1)}`, show: w, target: w, answer: w, src: `fixture:${id}[${k}]`, ...(k >= base ? { ext: true } : {}) }));
+  const items = all.slice(0, base);
+  return {
+    id, w3: true, kind: 'grid', subtask, lang: 'en', response: 'record', present: 'one_at_a_time', time_limit_s: 60, advance_after_s: 3, stop: {},
+    items, grid: items.map((x) => x.show), base_n: base, ext_items: all.slice(base), ...(extStop ? { ext_stop: extStop } : {}),
+  };
 }
 const words = (o) => extTask('en.words4', 'familiar_word_reading', WORDS, { base: 4, ...o });
 const letters = (o) => extTask('en.letter_names5', 'letter_name_identification', LETTERS, { base: 5, ...o });
@@ -58,8 +60,8 @@ const listed = (prompt) => {
 
 describe('scoreGrid on an extended grid (C-7, C.4)', () => {
   test('12 cells of a 50-word grid (base 4): the prompt lists the 12 reached, rows 12, of_all 12, of_base 4, correct_base on the first 4', async () => {
-    const t = words({ cycleFrom: 8 });
-    // right: 1, 3, 4 (base), 6, 9, 10 (9 and 10 are second-pass items)
+    const t = words();
+    // right: 1, 3, 4 (base), 6, 9, 10
     const right = new Set([1, 3, 4, 6, 9, 10]);
     const d = deps({ tasks: [t] }, (i) => (i <= 12 ? (right.has(i) ? 'correct' : 'wrong') : 'skipped'));
     const got = await score.scoreRow(row('en.words4', { cells: cells('en.words4', 12, { how: 'time_up', ms: 1500 }), last_item_index: 11, time_used_ms: 60000, stop_reason: 'time_up' }), session(), d);
@@ -73,7 +75,7 @@ describe('scoreGrid on an extended grid (C-7, C.4)', () => {
     expect(m.detail.of_all).toBe(12);
     expect(m.detail.of_base).toBe(4);
     expect(m.detail.correct_base).toBe(3);
-    expect(m.detail.correct_cycle1).toBe(4);
+    expect(m.detail).not.toHaveProperty('correct_cycle1');
     expect(m.per_minute).toBe(6);
     expect(m.seconds_used).toBe(60);
   });
@@ -85,13 +87,23 @@ describe('scoreGrid on an extended grid (C-7, C.4)', () => {
     expect(got.marks).toMatchObject({ correct: 50, attempted: 50, per_minute: 75, seconds_used: 40 });
   });
 
-  test('3 cells (an OFF-style run): the prompt lists the 4 base items, as today', async () => {
+  test('3 cells (an OFF-style run): the prompt lists the 4 base items and the marks are today\'s (no new keys)', async () => {
     const d = deps({ tasks: [words()] }, (i) => (i <= 3 ? 'correct' : 'skipped'));
     const got = await score.scoreRow(row('en.words4', { cells: cells('en.words4', 3), last_item_index: 2, time_used_ms: 20000, stop_reason: 'early_stop_silence' }), session(), d);
     expect(listed(d.prompts[0])).toBe(4);
     expect(got.marks.detail.items).toHaveLength(4);
     expect(got.marks).toMatchObject({ correct: 3, attempted: 3 });
-    expect(got.marks.detail).toMatchObject({ of_all: 3, of_base: 4, correct_base: 3 });
+    for (const k of ['of_all', 'of_base', 'correct_base', 'seconds_assumed', 'rate_pending']) expect(got.marks.detail).not.toHaveProperty(k);
+  });
+
+  test('a committed extended task and today\'s task give the same marks for a run inside today\'s items', async () => {
+    const plain = { ...words() };
+    delete plain.base_n; delete plain.ext_items;
+    const res = { cells: cells('en.words4', 4), last_item_index: 3, time_used_ms: 30000, stop_reason: 'complete' };
+    const a = await score.scoreRow(row('en.words4', res), session(), deps({ tasks: [words()] }, (i) => (i === 2 ? 'wrong' : 'correct')));
+    const b = await score.scoreRow(row('en.words4', res), session(), deps({ tasks: [plain] }, (i) => (i === 2 ? 'wrong' : 'correct')));
+    const strip = (g) => { const m = { ...g.marks }; delete m.meta; return m; };
+    expect(strip(a)).toEqual(strip(b));
   });
 
   test('a task without base_n: the marks are byte-identical to the ones before round 28 (snapshot taken on the base commit)', async () => {
@@ -141,27 +153,31 @@ describe('the 500 ms final cell (C-7, red team C9)', () => {
     const d = deps({ tasks: [letters()] }, () => 'skipped');
     const got = await score.scoreRow(row('en.letter_names5', { cells: cells('en.letter_names5', 1, { how: 'time_up', ms: 300 }), last_item_index: null, time_used_ms: 60000, stop_reason: 'time_up' }), session(), d);
     expect(got.marks.attempted).toBe(0);
-    expect(got.marks.detail.of_all).toBe(0);
+    expect(got.marks.correct).toBe(0);
   });
 });
 
-describe('the first-line stop (C-12) and seconds used (C-5), behind sa_r28_ceiling', () => {
-  const FIRST_LINE = { first_line_n: 10, first_line_min_correct: 1 };
-  const lineRun = (ceiling) => {
-    const d = deps({ tasks: [letters({ stop: FIRST_LINE })] }, (i) => (i <= 10 ? 'wrong' : i <= 13 ? 'correct' : 'skipped'), ceiling === undefined ? {} : { ceiling });
-    return score.scoreRow(row('en.letter_names5', { cells: cells('en.letter_names5', 13), last_item_index: 12, time_used_ms: 60000, stop_reason: 'time_up' }), session(), d);
-  };
-  test('ON: 0 right in the first 10 letters, 3 right later → correct 0; attempted and seconds as run', async () => {
-    const got = await lineRun(true);
+describe('the first-line stop (C-12: ext_stop, only on a run past base_n) and seconds used (C-5)', () => {
+  const EXT_STOP = { type: 'first_row', n: 10 };
+  test('extended: 0 right in the first 10 letters, 3 right later → correct 0; attempted and seconds as run', async () => {
+    const d = deps({ tasks: [letters({ extStop: EXT_STOP })] }, (i) => (i <= 10 ? 'wrong' : i <= 13 ? 'correct' : 'skipped'));
+    const got = await score.scoreRow(row('en.letter_names5', { cells: cells('en.letter_names5', 13), last_item_index: 12, time_used_ms: 60000, stop_reason: 'time_up' }), session(), d);
     expect(got.marks).toMatchObject({ correct: 0, attempted: 13, seconds_used: 60, per_minute: 0 });
     expect(got.marks.detail.stopped_by_rule).toBe(true);
+    expect(got.marks.detail.correct_base).toBe(0);
   });
-  test('OFF: the same run is not zeroed', async () => {
-    for (const c of [false, undefined]) {
-      const got = await lineRun(c);
-      expect(got.marks).toMatchObject({ correct: 3, attempted: 13 });
-      expect(got.marks.detail.stopped_by_rule).toBe(false);
-    }
+  test('a run inside today\'s 5 letters (every OFF run): ext_stop is not applied, the marks are today\'s', async () => {
+    const d = deps({ tasks: [letters({ extStop: EXT_STOP })] }, () => 'wrong');
+    const got = await score.scoreRow(row('en.letter_names5', { cells: cells('en.letter_names5', 5), last_item_index: 4, time_used_ms: 60000, stop_reason: 'time_up' }), session(), { ...d, stopRules: true });
+    expect(got.marks).toMatchObject({ correct: 0, attempted: 5 });
+    expect(got.marks.detail.stopped_by_rule).toBe(false);
+    expect(listed(d.prompts[0])).toBe(5);
+  });
+  test('extended, 3 right in the first 10: not stopped', async () => {
+    const d = deps({ tasks: [letters({ extStop: EXT_STOP })] }, (i) => (i <= 3 || i === 12 ? 'correct' : i <= 13 ? 'wrong' : 'skipped'));
+    const got = await score.scoreRow(row('en.letter_names5', { cells: cells('en.letter_names5', 13), last_item_index: 12, time_used_ms: 60000, stop_reason: 'time_up' }), session(), d);
+    expect(got.marks).toMatchObject({ correct: 4, attempted: 13 });
+    expect(got.marks.detail.stopped_by_rule).toBe(false);
   });
   test('ON: no time_used_ms → the rate is pending (no per_minute), never an assumed 60 s', async () => {
     const d = deps({ tasks: [words()] }, (i) => (i <= 8 ? 'correct' : 'skipped'), { ceiling: true });
@@ -179,8 +195,8 @@ describe('the first-line stop (C-12) and seconds used (C-5), behind sa_r28_ceili
 
 describe('spoken maths on an extended list (C-7 for ma.number_id8 / ma.fluency1m)', () => {
   test('one clip, 10 numbers reached of a 52-item list (base 8): the prompt lists the 10', async () => {
-    const items = Array.from({ length: 52 }, (_, k) => ({ id: `ma.number_id8.${pad(k + 1)}`, show: String(k + 10), target: k + 10, answer: k + 10, src: `fixture:numbers[${k}]`, ...(k >= 8 ? { ext: true } : {}) }));
-    const t = { id: 'ma.number_id8', w3: true, kind: 'oral', subtask: 'number_identification', lang: null, response: 'record', present: 'one_at_a_time', time_limit_s: 60, advance_after_s: 5, stop: {}, base_n: 8, items };
+    const all = Array.from({ length: 52 }, (_, k) => ({ id: `ma.number_id8.${pad(k + 1)}`, show: String(k + 10), target: k + 10, answer: k + 10, src: `fixture:numbers[${k}]`, ...(k >= 8 ? { ext: true } : {}) }));
+    const t = { id: 'ma.number_id8', w3: true, kind: 'oral', subtask: 'number_identification', lang: null, response: 'record', present: 'one_at_a_time', time_limit_s: 60, advance_after_s: 5, stop: {}, items: all.slice(0, 8), base_n: 8, ext_items: all.slice(8) };
     const prompts = [];
     const d = { bank: null, phoneBattery: () => ({ tasks: [t] }), clipOf: async () => ({ base64: 'AAAA', durationSec: 60 }), model: () => 'test-model',
       chatJSON: async ({ prompt }) => { prompts.push(prompt); const n = (prompt.match(/^\d+: shown/gm) || []).length; return { json: { found: true, items: Array.from({ length: n }, (_, k) => ({ i: k + 1, heard: 'x', v: k < 10 ? 'c' : 's', conf: 0.9 })) }, cost: 0, seconds: 1 }; } };
@@ -193,14 +209,18 @@ describe('spoken maths on an extended list (C-7 for ma.number_id8 / ma.fluency1m
 
 describe('sa_r8_counts with the extension (counts.js dedupe; score.js ranCounts)', () => {
   const spareTask = { id: 'en.words', items: [0, 1, 2, 3, 4].map((k) => ({ id: `en.words.${k}`, target: WORDS[k], src: `v3:sets.A.reading.en.words.items[${k}]` })) };
-  /** words4 as the item bank builds it with C: the 5th word IS the spare the counts plan adds (same src). */
-  const extended = () => {
+  /** words4 as the item bank commits it: the extension's first word (.05) IS the spare the counts plan adds (same src). */
+  const committed = () => {
     const t = words();
-    t.items = t.items.map((x, k) => ({ ...x, src: `v3:sets.A.reading.en.words.items[${k}]` }));
+    const src = (x, k) => ({ ...x, src: `v3:sets.A.reading.en.words.items[${k}]` });
+    t.items = t.items.map(src);
+    t.ext_items = t.ext_items.map((x, k) => src(x, k + 4));
     return t;
   };
-  test('the 5th word already there (ext .05): no duplicate .51, items as built', () => {
-    const t = extended();
+  /** As the route serves it ON: items + ext_items, the grid rebuilt. */
+  const served = () => { const t = committed(); const items = t.items.concat(t.ext_items); return { ...t, items, grid: items.map((x) => x.show) }; };
+  test('served ON (the 5th word already there as ext .05): no duplicate .51, items as served', () => {
+    const t = served();
     const out = countsTask({ tasks: [t, spareTask] }, t);
     expect(out.items).toHaveLength(50);
     expect(out.items.map((x) => x.id)).toEqual(t.items.map((x) => x.id));
@@ -208,20 +228,25 @@ describe('sa_r8_counts with the extension (counts.js dedupe; score.js ranCounts)
     expect(out.grid).toEqual(t.items.map((x) => x.show));
   });
   test('today\'s task (4 items): the 5th word is still added as .05', () => {
-    const t = { ...extended(), items: extended().items.slice(0, 4), grid: WORDS.slice(0, 4) };
-    delete t.base_n;
+    const t = committed();
     const out = countsTask({ tasks: [t, spareTask] }, t);
     expect(out.items.map((x) => x.id)).toEqual(['en.words4.01', 'en.words4.02', 'en.words4.03', 'en.words4.04', 'en.words4.05']);
     expect(out.items[4].show).toBe(WORDS[4]);
   });
-  test('an ON run of 12 cells on the extended task: every cell item_id resolves, the counts form is not used', () => {
-    const t = extended();
-    const got = score.phoneSpecFor(session(), row('en.words4', { cells: cells('en.words4', 12) }), () => ({ tasks: [t, spareTask] }));
+  test('an ON run of 12 cells: every cell item_id resolves in the extended list, no id twice, the counts form not used', () => {
+    const got = score.phoneSpecFor(session(), row('en.words4', { cells: cells('en.words4', 12) }), () => ({ tasks: [committed(), spareTask] }));
     const ids = got.spec.record.items.map((x) => x.id);
     expect(ids).toHaveLength(50);
+    expect(new Set(ids).size).toBe(50);
     cells('en.words4', 12).forEach((c) => expect(ids).toContain(c.item_id));
     expect(got.spec.record.base_n).toBe(4);
     expect(got.spec.record.items[4].ext).toBe(true);
+  });
+  test('counts ON, ceiling OFF: a run of 5 cells is today\'s counts form (5 words), not the extension', () => {
+    const got = score.phoneSpecFor(session(), row('en.words4', { cells: cells('en.words4', 5) }), () => ({ tasks: [committed(), spareTask] }));
+    expect(got.spec.record.items).toHaveLength(5);
+    expect(got.spec.record).not.toHaveProperty('base_n');
+    expect(got.spec.record.stop).toEqual({});
   });
 });
 
@@ -251,6 +276,17 @@ describe('level.js: the ladder on the first N (C-8), the new parts (A.7 #8, B.7 
     expect(ur(upTo([tap('ur.story_mcq_w3', 2, 3)])).level).toBe('story');
     expect(ur(upTo([tap('ur.story_mcq_w3', 4, 6)])).level).toBe('comprehension');
     expect(ur(upTo([tap('ur.story_mcq_w3', 3, 6)])).level).toBe('story');
+  });
+  test('a tap part read on what was presented: 8 of 9 presented meets 0.8, 7 of 9 does not; 3 of 4 presented meets the MCQ two thirds', () => {
+    const tapP = (block, correct, attempted, presented) => ({ ...tap(block, correct, attempted), responses: [{ kind: 'result', mode: 'tap', correct, attempted, presented, stop_reason: 'complete' }] });
+    expect(ur([tapP('ur.letter_pick10', 8, 9, 9)]).level).toBe('letters');
+    expect(ur([tapP('ur.letter_pick10', 7, 9, Array.from({ length: 9 }, (_, i) => `p${i}`))]).level).toBe('beginner');
+    const upTo = (rows) => [spoken('ur.letter_names5', ext(5, 5, 5, 5)), spoken('ur.words4', ext(4, 4, 4, 4)), spoken('ur.story_w3', { correct: 30, attempted: 32 }), ...rows];
+    expect(ur(upTo([tapP('ur.story_mcq_w3', 3, 4, 4)])).level).toBe('comprehension');
+  });
+  test('an unrated tap part (too few presented) is pending, never scored', () => {
+    const tapU = (block, correct, attempted) => ({ ...tap(block, correct, attempted), responses: [{ kind: 'result', mode: 'tap', correct, attempted, unrated: true, stop_reason: 'complete' }] });
+    expect(ur([tapU('ur.letter_pick10', 5, 5)])).toMatchObject({ level: null, pending: true });
   });
   test('the oral comprehension part keeps its share of a half', () => {
     const upTo = (rows) => [spoken('ur.letter_names5', ext(5, 5, 5, 5)), spoken('ur.words4', ext(4, 4, 4, 4)), spoken('ur.story_w3', { correct: 30, attempted: 32 }), ...rows];

@@ -87,3 +87,44 @@ describe('the 500 ms final cell (C-7, red team C9)', () => {
     expect(res.last_item_index).toBe(1);
   });
 });
+
+// C.3: the clock is the only progress on a cell past today's items: no "6 of 12" (or «۱۲ میں سے ۶») anywhere.
+let JSDOM = null;
+try { ({ JSDOM } = require('jsdom')); } catch (_) {
+  try { ({ JSDOM } = require('../../portal/node_modules/jsdom')); } catch (__) { /* not installed here */ } // eslint-disable-line global-require
+}
+const maybe = JSDOM ? describe : describe.skip;
+maybe('the cell screen past the base items (jsdom)', () => {
+  let dom;
+  const keep = {};
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
+    for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+      keep[k] = global[k];
+      global[k] = k === 'window' ? dom.window : dom.window[k];
+    }
+    jest.resetModules();
+  });
+  afterEach(() => { for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+
+  test.each([['ur', false], ['ur', true], ['en', false], ['en', true]])('%s (coach-led %s): cell 6 on show, the screen names no count', async (lang, manual) => {
+    const c = require('../sa/sa-core');
+    const ui = require('../sa/sa-ui');
+    let t = 0;
+    const battery = { battery_id: 'b', tasks: [{ ...task(), lang }] };
+    const runner = c.createRunner({ battery, now: () => t, mic: () => 'ok', one_at_a_time: true, manual, ceiling: true });
+    const el = document.getElementById('m');
+    const view = ui.mount(el, { runner, battery, lang, mode: 'proctored', manual, speak: () => Promise.resolve(), r28: { ceiling: true } });
+    runner.start(); runner.instructionDone(); runner.begin();
+    for (let k = 0; k < 5; k += 1) { t += 1000; runner.nextCell('tap'); }
+    view.render();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(runner.view().cell_index).toBe(5);
+    const text = el.textContent;
+    expect(text).toContain('word6');
+    expect(text).not.toMatch(/\d+\s*of\s*\d+/i);
+    expect(text).not.toMatch(/میں سے/);
+    expect(text).not.toMatch(/[0-9۰-۹]+\s*\/\s*[0-9۰-۹]+/);
+    view.destroy();
+  });
+});

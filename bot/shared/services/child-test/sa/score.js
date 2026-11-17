@@ -270,6 +270,25 @@ function ranCounts(battery, t, row) {
 }
 
 /**
+ * sa_r28_ceiling (C-2, C-10): the committed task keeps today's items, grid and stop and carries the extension beside
+ * them (base_n, ext_items, ext_stop); the route serves items + ext_items only with the switch ON. A run whose cells go
+ * past base_n (and past the counts form's own N, sa_r8_counts) ran the extended list: the task as it ran (items + ext_items, the grid rebuilt, ext_stop as its stop).
+ * Any other run (every OFF run, an ON run that stopped inside today's items) is today's task, byte for byte. null: not
+ * extended.
+ */
+function extendedOf(t, row, ran = 0) {
+  const base = Number(t.base_n);
+  if (!(base > 0) || !Array.isArray(t.ext_items) || !t.ext_items.length) return null;
+  const res = resultOf(row) || {};
+  if (!(Array.isArray(res.cells) && res.cells.length > Math.max(base, ran))) return null;
+  const items = (t.items || []).concat(t.ext_items);
+  const out = { ...t, items };
+  if (Array.isArray(t.grid)) out.grid = items.map((x) => x.show);
+  if (t.ext_stop) out.stop = t.ext_stop;
+  return out;
+}
+
+/**
  * A task as the phone ran it (the W3 forms: letters / words / numbers / sums one at a time, the passage with its own
  * punctuation), in the bank's shape so the scorers below read one shape. The variant is the phone's rotation: the one
  * whose questions were asked in this session, else hash(the phone's session id) mod n (sa-page.js rotate).
@@ -280,7 +299,10 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
   const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
   let t = tasks.find((x) => x && x.id === row.block);
   if (!t) return null;
-  t = ranCounts(b, t, row);
+  // the counts form (sa_r8_counts) first: a run of exactly its N cells is that form, not the extension
+  const asRun = ranCounts(b, t, row);
+  const extended = extendedOf(t, row, asRun.items.length);
+  t = extended ? ranCounts(b, extended, row) : asRun;
   let variant = null;
   const base = shown && shown.from !== 'guess' && shown.id == null; // the phone showed the passage without rotation
   if (!base && Array.isArray(t.variants) && t.variants.length) {
@@ -308,8 +330,9 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
     questions: t.kind === 'questions' || t.kind === 'listen_questions' ? items : undefined,
     items,
     time_limit_s: t.time_limit_s || null,
-    // sa_r28_ceiling: the first N items are today's; the rest (ext: true) run on past them until the clock ends
-    ...(Number(t.base_n) > 0 ? { base_n: Number(t.base_n) } : {}),
+    // sa_r28_ceiling: a run past today's N items is scored on the extended list (base_n marks today's N)
+    ...(extended ? { base_n: Number(t.base_n) } : {}),
+    ...(Array.isArray(t.ext_items) || extended ? { extends: true } : {}),
   };
   return { spec: { task: t.id, kind: t.kind, subtask: t.subtask, lang: t.lang || row.lang || lang, present: t.present || null, record }, variant };
 }
@@ -564,22 +587,21 @@ function shownOf(rec, list, reached) {
 }
 
 /**
- * sa_r28_ceiling (C.4, C-8): what an extended task's marks add beside today's numbers. of_all: items reached;
- * of_base / correct_base: today's first N, the fixed anchor the Results ladder reads; correct_cycle1: correct among
- * items of the first pass (no cycle key). seconds_assumed (OFF) / rate_pending (ON): the phone left no clock.
- * null for a task without base_n (its marks keep today's keys).
+ * sa_r28_ceiling (C.4, C-8): what an extended run's marks add beside today's numbers. of_all: items reached;
+ * of_base / correct_base: today's first N, the fixed anchor the Results ladder reads; seconds_assumed: the phone left
+ * no clock and the minute was assumed. rate_pending (switch ON, C-5): no clock, so no rate. A run that did not go past
+ * today's N gets no new key unless its rate is pending (its marks are today's).
  */
-function ceilingDetail(rec, items, rows, numbers, { stopped, pending, res }) {
+function ceilingDetail(rec, rows, numbers, { stopped, pending, res }) {
   const base = Number(rec.base_n);
-  if (!(base > 0)) return null;
+  const extra = pending ? { rate_pending: true } : {};
+  if (!(base > 0)) return pending ? extra : null;
   const right = (r) => !stopped && r.i <= numbers.attempted && r.verdict === 'correct';
-  const meta = (r) => (Array.isArray(items) ? items[r.i - 1] : null) || {};
   return {
     of_all: numbers.attempted,
     of_base: base,
     correct_base: rows.filter((r) => r.i <= base && right(r)).length,
-    correct_cycle1: rows.filter((r) => right(r) && meta(r).cycle == null).length,
-    ...(pending ? { rate_pending: true } : noClock(res) ? { seconds_assumed: true } : {}),
+    ...(pending ? extra : noClock(res) ? { seconds_assumed: true } : {}),
   };
 }
 
@@ -603,9 +625,9 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade) {
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
-  const pending = Number(rec.base_n) > 0 && deps.ceiling === true && noClock(res);
+  const pending = rec.extends === true && deps.ceiling === true && noClock(res);
   const numbers = timedNumbers(rows, res, { stopped, attemptedTo: reached == null ? null : Math.min(reached, items.length), pending });
-  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rec.items, rows, numbers, { stopped, pending, res }) };
+  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rows, numbers, { stopped, pending, res }) };
 }
 
 // sa_r28_ceiling (C-7, red team C9): a final cell on show for less than this at time up was presented, not attempted
@@ -670,10 +692,10 @@ async function scoreOral(task, rec, row, res, deps, calls) {
   rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
   const timed = Number(rec.time_limit_s) > 0;
   const attemptedTo = reached == null ? null : Math.min(reached, items.length);
-  const pending = timed && Number(rec.base_n) > 0 && deps.ceiling === true && noClock(res);
+  const pending = timed && rec.extends === true && deps.ceiling === true && noClock(res);
   const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo, pending })
     : { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length };
-  const ceiling = timed ? ceilingDetail(rec, items, rows, numbers, { stopped: false, pending, res }) : null;
+  const ceiling = timed ? ceilingDetail(rec, rows, numbers, { stopped: false, pending, res }) : null;
   return { numbers, rows, stopped: false, durationSec, section: Boolean(section), ceiling };
 }
 
@@ -938,11 +960,7 @@ async function scoreRow(row, session, deps = {}) {
   if (!found) return { ok: false, reason: 'task_not_in_bank', retry: true };
   const { spec: task, variant } = found;
   const stops = d.stopRules === true;
-  // sa_r28_ceiling (C-12): an extended task's first-line stop (built for the longer grid) counts only with the switch
-  // ON; OFF, the task is read as today's N items, where no first-line stop applies
-  const asToday = Number((task.record || {}).base_n) > 0 && d.ceiling !== true;
-  const recIn = asToday && ((task.record || {}).stop || {}).type ? { ...task.record, stop: {} } : (task.record || {});
-  const rec = stops && !asToday ? withFirstRow(task, recIn) : recIn;
+  const rec = stops ? withFirstRow(task, task.record || {}) : (task.record || {});
   const passage = stops && Array.isArray(rec.questions) && session.passages ? session.passages.get(passageOf(row.block)) : null;
   const calls = [];
   const started = Date.now();
@@ -1300,5 +1318,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, reachedOf, shownOf, lettersPrompt, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, reachedOf, shownOf, extendedOf, lettersPrompt, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps },
 };
