@@ -123,3 +123,15 @@ describe('the words', () => {
     }
   });
 });
+
+describe('renderBusyPage on a fresh profile (a phone that never opened the app: no cookie, no device id, nothing stored)', () => {
+  test.each([['h', 'en'], ['hur', 'ur'], ['q', 'en']])('%s: the whole busy page, a plain Try again link, no cookie set, no storage read', async (site, l) => {
+    // the portal learned the switch from another phone's hub answer; this phone sends nothing of its own
+    const r = await H.runCase(site, 'throw', { busy_page: true });
+    expect(r.status).toBe(503);
+    expect(r.headers['set-cookie']).toBeUndefined();
+    expect(r.body).toContain(`<h1>${COPY[l].title}</h1>`);
+    expect(r.body).toContain(`<a class="wq-btn wq-go" href="${esc(H.SITES[site].path)}">${COPY[l].go}</a>`);
+    expect(r.body).not.toMatch(/localStorage|sessionStorage|indexedDB|document\.cookie|serviceWorker/);
+  });
+});

@@ -419,14 +419,6 @@
       "teacher-training-flow-v1.json"
     ]
   },
-  "tests/setup/fresh-profile-pages.test.js": {
-    "failing": [
-      "the tree every navigable page has a fresh-profile test, or is listed; every listed page exists"
-    ],
-    "offenders": [
-      "NEW: renderBusyPage has no fresh-profile test. Add one (a test that names the page and says \\"
-    ]
-  },
   "tests/setup/language-single-source.test.js": {
     "failing": [
       "language conformance — one clamp has no inline en/ur clamp left in bot/"
