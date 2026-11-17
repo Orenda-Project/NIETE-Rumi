@@ -1404,3 +1404,49 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When an item of the letter-sound picker shows
     Then Jugnu plays the sound from the phone, the coach does not say it
     And the coach's screen shows the sound and its letter folded away, not in the open
+  @e2e @wip @draft @config-gated @P1 @CT194 @no-mock-driver
+  # No mock driver: the story's questions run on the child's assessment page, not in the chat.
+  # Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, Jugnu reads the question and then each of the four answers with its card lit
+    Given sa_r28_mcq is on and a child has read the story
+    When a story question shows
+    Then Jugnu reads the question while the four answer cards are dimmed and taps do nothing
+    And Jugnu then reads the four answers in order, each card lit only while its own recording plays
+    And after the last answer every card is ready, no card is lit and the replay button works
+    And with sa_r28_mcq off the story's questions are asked aloud and answered aloud as before
+
+  @e2e @wip @draft @config-gated @P1 @CT195 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, a tap while the answers are read is held and the reading goes on
+    Given sa_r28_mcq is on and a story question is being read
+    When the child taps an answer card while Jugnu is reading the answers
+    Then that card stays chosen and Jugnu still reads every remaining answer
+    And a tap on another card before the choice stands moves the choice and is counted as a change
+    And the choice stands 600 ms after the last answer has been read, and only then is it scored
+    And a child who has not tapped by then can tap a card, which stands 600 ms later
+
+  @e2e @wip @draft @config-gated @P1 @CT196 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, the replay reads the question and all four answers again and keeps the choice
+    Given sa_r28_mcq is on and Jugnu has finished reading a question and its answers
+    When the child presses the replay button or taps Jugnu
+    Then Jugnu reads the question and the four answers again, each card lit in turn
+    And the replay button cannot be pressed while that reading runs
+    And a card the child had chosen stays chosen
+
+  @e2e @wip @draft @config-gated @P1 @CT197 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, the phone scores each answer and asks the same questions as before
+    Given sa_r28_mcq is on
+    When the child's story reading allows some of its questions
+    Then the same questions are asked as the spoken questions would have been
+    And each answer is scored on the phone as right or wrong, with which answer was playing at the first tap, how many times the choice changed and how many replays there were
+    And a question the child does not answer offers Next after the wait, and Next counts it as wrong
+
+  @e2e @wip @draft @config-gated @P2 @CT198 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, a coach-led test still has Jugnu read the questions and answers
+    Given sa_r28_mcq is on and the test is coach-led
+    When a story question shows
+    Then Jugnu reads the question and the four answers from the phone
+    And the coach's screen shows the question and the answers folded away, without marking the right one
