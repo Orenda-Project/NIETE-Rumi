@@ -83,11 +83,10 @@ describe('round 28 rows and headline', () => {
     expect(summariseTask([unrated], specOf('ur.story_mcq_w3') as never).n).toBe(0);
   });
 
-  it('the MCQ share divides by score.of, else asked.length, else 6', () => {
+  it('the MCQ share divides by 6 (never asked.length)', () => {
     const spec = specOf('ur.story_mcq_w3') as never;
-    expect(comprehensionShare(tap('ur.story_mcq_w3', 3, 4, 4, { asked: ['q1', 'q2', 'q3', 'q4'] }), spec)).toBeCloseTo(0.75);
+    expect(comprehensionShare(tap('ur.story_mcq_w3', 3, 4, 4, { asked: ['q1', 'q2', 'q3', 'q4'] }), spec)).toBeCloseTo(0.5);
     expect(comprehensionShare(tap('ur.story_mcq_w3', 3, 6, 4), spec)).toBeCloseTo(0.5);
-    expect(comprehensionShare({ ...tap('ur.story_mcq_w3', 3, 6, 4, { asked: ['q1', 'q2', 'q3', 'q4'] }), score: { correct: 3, of: 5 } }, spec)).toBeCloseTo(0.6);
   });
 
   it('the picker row with 8 of 10 reads meanShare 0.8; an unrated picker is left out', () => {
@@ -104,5 +103,24 @@ describe('round 28: today\'s spoken comprehension is read as before', () => {
     const spec = specOf('ur.story_comp_w3') as never;
     const row = { ...oral('ur.story_comp_w3', 2, 4), score: { correct: 2 }, asked: ['q1', 'q2'] };
     expect(comprehensionShare(row, spec)).toBeCloseTo(0.5);
+  });
+});
+
+describe('round 28 follow-up: MCQ of = 6 − lost clips; picker of = presented', () => {
+  const spec = () => specOf('ur.story_mcq_w3') as never;
+  it('6 asked, 1 lost, 4 right → share 0.8', () => {
+    const r = tap('ur.story_mcq_w3', 4, 5, 4, { asked: ['q1', 'q2', 'q3', 'q4', 'q6'], unavailable: 1, presented: 5 });
+    expect(comprehensionShare(r, spec())).toBeCloseTo(0.8);
+  });
+  it('3 asked, 0 lost, 2 right → 2/6 (a gate-unasked question counts as wrong)', () => {
+    const r = tap('ur.story_mcq_w3', 2, 3, 4, { asked: ['q1', 'q2', 'q3'], presented: 3 });
+    expect(comprehensionShare(r, spec())).toBeCloseTo(2 / 6);
+  });
+  it('the picker card divides by presented: 6 right of 8 presented reads 0.75', () => {
+    const s = summariseTask([one('p', [tap('ur.letter_pick10', 6, 8, 5, { presented: 8, unavailable: 2 })])], specOf('ur.letter_pick10') as never);
+    expect(s.meanShare).toBeCloseTo(0.75);
+  });
+  it('an unrated MCQ stays unscored', () => {
+    expect(comprehensionShare(tap('ur.story_mcq_w3', 3, 3, 4, { unrated: true, presented: 3, unavailable: 3 }), spec())).toBeNull();
   });
 });

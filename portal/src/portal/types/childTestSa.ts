@@ -142,6 +142,10 @@ export type SaTaskResult = {
   firstN?: { correct: number; of: number };
   /** round 28 (MCQ): the question ids the gate allowed */
   asked?: string[];
+  /** round 28 (tap): items whose clips were lost (out of every denominator) */
+  unavailable?: number;
+  /** round 28 (voice check 'r28'): the other voice was an adult helping, another child, or neither */
+  secondVoiceKind?: 'help' | 'other_child' | 'other_voice' | (string & {});
 };
 
 /** Round 20 level vocabulary (as sent for review): reading and maths ladders, plus Beginner. */
