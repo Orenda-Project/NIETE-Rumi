@@ -492,6 +492,34 @@ describe('lesson plans: the RDF lp_use, a same-day repeat of one plan counted on
     expect(plans.map((p) => p.grade).sort()).toEqual(['3', '8']);
   });
 
+  // Review of #4906 (bd-17v39c.4.18). On prod about 200 'g612' viewer opens carry a K-5 catalogue id
+  // (grade_7_english_ch3_seg2) rather than a segment id: they count, and the grade comes from the id they carry.
+  test('a g612 open that carries a K-5 catalogue id counts, in the grade its id names', () => {
+    const plans = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_7_english_ch3_seg2', plan_kind: 'g612' }]);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ grade: '7', subject: 'English' });
+  });
+
+  // A 6-12 segment id's subject is the corpus slug, medium and all (pak_studies_urdu). The list's grade·subject tile
+  // reads a NAME by pattern, so the raw slug drew Pakistan Studies as "Urdu" or "Eng". A g612 open's subject is the
+  // dashboard's one subject vocabulary's name for it. K-5 opens keep the catalogue token they always had.
+  test.each([
+    ['grade_9_pak_studies_urdu.c03.p041-042', '9', 'Pakistan Studies'],
+    ['grade_10_pak_studies_english.c01.p001-002', '10', 'Pakistan Studies'],
+    ['grade_8_mathematics.c05.p071-073', '8', 'Mathematics'],
+    ['grade_7_general_science.c02.p020-021', '7', 'General Science'],
+    ['grade_9_10_chemistry_experiment.c01.s001', '9', 'Chemistry Experiment'],
+    ['nbf_snc_grade_4_urdu.c09.s001', '4', 'Urdu'],
+  ])('a g612 open of %s reads Grade %s, %s', (ref, grade, subject) => {
+    const [p] = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: ref, plan_kind: 'g612' }]);
+    expect(p).toMatchObject({ grade, subject });
+  });
+
+  test('a K-5 open keeps its catalogue subject token, as before', () => {
+    const [p] = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_4_social_studies_en_ch5_seg2', plan_kind: 'k5' }]);
+    expect(p).toMatchObject({ grade: '4', subject: 'social_studies_en' });
+  });
+
   test('the school card counts 6: five for her (2 Mon, 2 Tue, 1 Wed), one typed plan for another; test accounts out', async () => {
     const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
     const lp = out.tiles.find((t) => t.feature === 'lp');
