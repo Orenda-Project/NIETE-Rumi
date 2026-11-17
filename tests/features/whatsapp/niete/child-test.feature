@@ -1476,6 +1476,18 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a cohort with only one form shows that one number in today's tile
     And a tapped task the child heard too few items of counts in neither number
 
+  @e2e @wip @draft @config-gated @P1 @CT244 @no-mock-driver
+  # No mock driver: as @CT243. Asserted in portal/src/portal/lib/assess/guessFloor.test.ts,
+  # portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx, portal/src/portal/pages/LeaderAssessResults.r28.test.tsx
+  # and bot/tests/child-test/sa-r28-results-detail.test.js.
+  Scenario: every tapped score says how many children reach it by guessing alone, and the picker says how often children tapped before the sound
+    Given sa_r28_letter_pick and sa_r28_mcq are on and at least 5 children in view took the tapped tasks
+    When a coach opens the results dashboard or a child's Results
+    Then the story-questions card says "By guessing alone, 3.8% of children reach 4 of 6."
+    And the letter-sounds card says how many reach 8 of 10 and 6 of 10 by guessing alone
+    And the dashboard's letter-sounds card shows the share of taps made before the sound, and "read with care" above 10%
+    And a child's Results shows that child's own count, as "Taps before the sound: 1 of 10"
+    And no score, band or level changes, and a card hidden for fewer than 5 children shows neither line
 
   @e2e @wip @draft @config-gated @P1 @CT214 @no-mock-driver
   # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.

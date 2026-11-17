@@ -112,3 +112,46 @@ describe("LeaderAssessResults: round 28 voice kind", () => {
     expect(Array.from(other.querySelectorAll("dt")).map((d) => d.textContent)).not.toContain("Another voice heard");
   });
 });
+
+// Round 28 (SPEC F): beside a tapped score, the share of children who reach its rung by guessing alone, and the
+// child's own taps before the sound. Text only; today's tap and spoken rows get neither.
+describe("LeaderAssessResults: round 28 guessing floor and tap-before-sound", () => {
+  const pick10 = { ...pick, attempted: 10, correct: 8 };
+  const mcq = { ...pick, taskId: "ur.story_mcq_w3", attempted: 6, correct: 5, optionsN: 4 };
+
+  it("the picker card: the floor line for 8 and 6 of 10, and 'Taps before the sound: 1 of 10'", async () => {
+    api.getResults.mockResolvedValue(RESULTS([{ ...pick10, tapBeforeSound: { n: 1, of: 10 } }]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.letter_pick10");
+    expect(within(card).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 0.008% of children reach 8 of 10 (0.6% reach 6 of 10).");
+    expect(pairs(card)).toContain("Taps before the sound: 1 of 10");
+  });
+
+  it("the MCQ card: 3.8% reach 4 of 6; no tap count when the row has none", async () => {
+    api.getResults.mockResolvedValue(RESULTS([mcq]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(card).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 3.8% of children reach 4 of 6.");
+    expect(pairs(card).some((p) => p.startsWith("Taps before"))).toBe(false);
+  });
+
+  it("Urdu: the floor line and the tap count in Urdu", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue(RESULTS([{ ...mcq, tapBeforeSound: { n: 2, of: 6 } }]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(card).getByTestId("result-guess-floor").textContent).toBe("صرف اندازے سے ⁦۳.۸%⁩ بچے ⁦۶⁩ میں سے ⁦۴⁩ تک پہنچتے ہیں۔");
+    expect(pairs(card)).toContain("آواز سے پہلے ٹیپ: ⁦۶⁩ میں سے ⁦۲⁩");
+  });
+
+  it("an unrated tapped row, today's tap row and a spoken row have no floor line", async () => {
+    api.getResults.mockResolvedValue(RESULTS([
+      { ...pick, unrated: true, presented: 4 },
+      { ...pick, taskId: "ur.letter_names5", attempted: 5, correct: 4 },
+      words,
+    ]));
+    renderAt();
+    await screen.findByTestId("result-task-ur.letter_pick10");
+    expect(screen.queryByTestId("result-guess-floor")).toBeNull();
+  });
+});

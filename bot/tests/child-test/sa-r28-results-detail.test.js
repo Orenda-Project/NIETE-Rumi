@@ -116,3 +116,35 @@ describe('round 28 follow-up: unavailable on tap tasks, the voice kind', () => {
     expect('secondVoiceKind' in old.tasks[0]).toBe(false);
   });
 });
+
+describe('round 28: the tap-before-sound count on a tapped task (Results and the dashboard)', () => {
+  const pick = (answers, extra = {}) => [{
+    block: 'ur.letter_pick10', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:02:00Z', ai_status: 'scored',
+    ai_marks: { tap_correct: 8, tap_attempted: 10, options_n: 5, stop_reason: 'complete' },
+    responses: [{ kind: 'result', mode: 'tap', correct: 8, attempted: 10, answers, ...extra }],
+  }];
+  const a = (tapMs, before) => ({ item_id: 'x', value: 'ب', ok: true, ...(tapMs === undefined ? {} : { tap_ms: tapMs }), ...(before === undefined ? {} : { tap_before_sound: before }) });
+
+  test('counts answers flagged tap_before_sound over answers that carry a tap_ms', async () => {
+    const answers = [a(-120, true), a(340, false), a(510, false), a(-40, true), a(undefined, undefined), a(220)];
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(pick(answers)));
+    expect(out.tasks[0].tapBeforeSound).toEqual({ n: 2, of: 5 });
+  });
+
+  test('a tap task whose answers carry no tap_ms (today) has no tapBeforeSound key', async () => {
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(pick([a(undefined, undefined), a(undefined, undefined)])));
+    expect('tapBeforeSound' in out.tasks[0]).toBe(false);
+    const none = await sa.saResults({ userId: COACH, sessionId: SID }, world(pick(undefined)));
+    expect('tapBeforeSound' in none.tasks[0]).toBe(false);
+  });
+
+  test('a spoken task whose result answers carry the fields gets nothing (byte-identical)', async () => {
+    const blocks = [{
+      block: 'ur.story_comp_w3', response_mode: 'oral', lang: 'ur', created_at: '2026-10-21T05:03:00Z', ai_status: 'scored',
+      audio_r2_key: 'k', ai_marks: { correct: 2, of: 4 },
+      responses: [{ kind: 'result', mode: 'oral', answers: [a(-10, true), a(300, false)] }],
+    }];
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(blocks));
+    expect(Object.keys(out.tasks[0]).sort()).toEqual(['attempted', 'chanceCorrected', 'correct', 'itemsPerMin', 'mode', 'optionsN', 'recording', 'score', 'stopReason', 'taskId', 'title']);
+  });
+});

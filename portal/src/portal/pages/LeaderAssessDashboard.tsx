@@ -7,7 +7,8 @@ import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY, DASH_CWPM } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
-import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents, withPractice } from '../lib/assess/realCohort';
+import { masked, NO_SECTOR, pktWhen, secondVoiceCount, tapBeforeSoundOf, toDashStudents, withPractice } from '../lib/assess/realCohort';
+import { fmtFloor, tapFloors, TAP_CARE_ABOVE } from '../lib/assess/guessFloor';
 import type { SaDashboardSession } from '../types/childTestSa';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type ComprehensionByForm, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
@@ -277,6 +278,22 @@ export default function LeaderAssessDashboard() {
     </div>
   );
 
+  // round 28 (SPEC F): beside a tapped share, the share of children who reach its rung by guessing alone; on the picker
+  // card also the cohort's taps before the sound, with a warning above 10%. Text only: no score reads them.
+  const tappedLines = (spec: TaskSpec) => {
+    const optionsN = rows.map((st) => st.results.tasks.find((t) => t.taskId === spec.taskId)?.optionsN).find((x) => typeof x === 'number');
+    const floors = tapFloors(spec.taskId, optionsN);
+    if (!floors) return null;
+    const before = /\.letter_pick10$/.test(spec.taskId) ? tapBeforeSoundOf(rows, spec.taskId) : null;
+    return (
+      <>
+        <p data-testid="dash-guess-floor" className="mt-2 text-xs text-slate-600">{c.guessFloor(floors.map((f) => ({ pct: num(fmtFloor(f.share)), k: num(f.k), n: num(f.n) })))}</p>
+        {before ? <p data-testid="dash-tap-before" className="text-xs text-slate-600">{c.tapBefore(pct(before.n / before.of))}</p> : null}
+        {before && before.n / before.of > TAP_CARE_ABOVE ? <p data-testid="dash-tap-care" role="note" className="text-xs font-semibold text-amber-800">{c.tapCare}</p> : null}
+      </>
+    );
+  };
+
   const taskCard = (spec: TaskSpec) => {
     const s = summariseTask(rows, spec);
     const rate = spec.kind === 'passage' || spec.kind === 'fluency';
@@ -291,6 +308,7 @@ export default function LeaderAssessDashboard() {
           {s.benchmarkShare === null ? null : <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>}
         </dl>
         {distribution(spec, s.distribution, s.n)}
+        {tappedLines(spec)}
         </>)}
         {spec.kind === 'passage' ? rwpReference(spec.domain as ReadLang) : null}
         <p data-testid="dash-rule" className="mt-2 text-xs text-slate-500">{c.rules[ruleOf(spec)]}</p>
