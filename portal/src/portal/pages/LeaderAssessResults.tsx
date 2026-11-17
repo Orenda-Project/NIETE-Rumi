@@ -144,7 +144,10 @@ export default function LeaderAssessResults() {
           {spoken && scored && firstN && <Row label={r.firstN(firstN.of)} value={r.ofN(firstN.correct, firstN.of)} />}
           {/* no score yet is "kept, scored later" — never a 0 or an empty score (no scorer, or scoring off) */}
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
-          {spoken && scored && t.secondVoice && <Row label={r.secondVoice} value={r.secondVoiceYes} />}
+          {/* round 28: with the voice check's kind, say what was heard ('other_voice': no line); without it, today's line */}
+          {spoken && scored && (t.secondVoiceKind
+            ? (r.voiceKinds[t.secondVoiceKind] ? <Row label={r.secondVoice} value={r.voiceKinds[t.secondVoiceKind]} /> : null)
+            : (t.secondVoice ? <Row label={r.secondVoice} value={r.secondVoiceYes} /> : null))}
           </>}
           {stop && <Row label={r.stopReason} value={stop} />}
           {stop && t.stopWhy && r.whys[t.stopWhy] && <Row label={r.why} value={r.whys[t.stopWhy]} />}

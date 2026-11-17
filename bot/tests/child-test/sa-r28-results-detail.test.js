@@ -88,3 +88,31 @@ describe("round 28 Results detail: today's spoken questions", () => {
     expect(Object.keys(out.tasks[0]).sort()).toEqual(['attempted', 'chanceCorrected', 'correct', 'itemsPerMin', 'mode', 'optionsN', 'recording', 'score', 'stopReason', 'taskId', 'title']);
   });
 });
+
+describe('round 28 follow-up: unavailable on tap tasks, the voice kind', () => {
+  const mcq = (res) => [{
+    block: 'ur.story_mcq_w3', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:02:00Z', ai_status: 'scored',
+    ai_marks: { tap_correct: 4, tap_attempted: 5, options_n: 4, stop_reason: 'complete' },
+    responses: [{ kind: 'result', mode: 'tap', correct: 4, attempted: 5, ...res }],
+  }];
+  const story = (detail) => [{
+    block: 'ur.story_w3', response_mode: 'record', lang: 'ur', created_at: '2026-10-21T05:01:00Z', ai_status: 'scored',
+    audio_r2_key: 'k', ai_marks: { correct: 20, per_minute: 20, detail },
+    responses: [{ kind: 'result', mode: 'record', stop_reason: 'time_up' }],
+  }];
+
+  test('a tap result with unavailable (lost clips, a count) passes it through', async () => {
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(mcq({ unavailable: 1, presented: 5, of_all: 6 })));
+    expect(out.tasks[0]).toMatchObject({ unavailable: 1, presented: 5 });
+  });
+
+  test("the voice check's kind is passed only when detail.voice_check is 'r28'", async () => {
+    const r28 = await sa.saResults({ userId: COACH, sessionId: SID }, world(story({ second_voice: true, second_voice_kind: 'help', voice_check: 'r28' })));
+    expect(r28.tasks[0]).toMatchObject({ secondVoice: true, secondVoiceKind: 'help' });
+    const child = await sa.saResults({ userId: COACH, sessionId: SID }, world(story({ second_voice: true, second_voice_kind: 'other_child', voice_check: 'r28' })));
+    expect(child.tasks[0].secondVoiceKind).toBe('other_child');
+    const old = await sa.saResults({ userId: COACH, sessionId: SID }, world(story({ second_voice: true, second_voice_kind: 'help' })));
+    expect(old.tasks[0]).toMatchObject({ secondVoice: true });
+    expect('secondVoiceKind' in old.tasks[0]).toBe(false);
+  });
+});
