@@ -132,6 +132,62 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     expect(rw('coach.G5.A').length).toBeGreaterThan(0);
   });
 
+  test('number identification: Core 20, then the Jordan 2021 page A grid in printed order, never a numeral twice in one run', () => {
+    const jordanA = ['3', '9', '7', '0', '20', '77', '29', '61', '54', '58', '91', '70', '45', '89', '33', '104', '368', '740', '500', '898'];
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const t = byId(runtime(form, lang))['ma.number_id8'];
+      const shown = [...t.items, ...t.ext_items].map((x) => String(x.show));
+      expect([form, lang, shown.filter((n, i) => shown.indexOf(n) !== i)]).toEqual([form, lang, []]);
+      const jo = t.ext_items.filter((x) => /^jordan_egma_2021:stimulus p\.A/.test(x.src));
+      const core = new Set(v3.sets.A.maths['3'].number_id.items);
+      expect(jo.map((x) => String(x.show))).toEqual(jordanA.filter((n) => !core.has(n)));
+      const grades45 = /G[45]\./.test(form);
+      expect([form, shown.length]).toEqual([form, grades45 ? 50 : 42]);
+    }
+  });
+
+  test('letter_pick10: b and m (ب and م) are never in one row (a pre-voiced /ba/ reads near /m/ on a phone speaker)', () => {
+    for (const form of COACH_FORMS) for (const [l, pair] of [['en', ['b', 'm']], ['ur', ['ب', 'م']]]) {
+      const t = byId(runtime(form, l))[`${l}.letter_pick10`];
+      for (const it of [...t.items, ...t.practice]) expect([it.id, pair.every((x) => it.options.includes(x))]).toEqual([it.id, false]);
+    }
+  });
+
+  test('letter_pick10: a vowel row never offers the vowel these children merge with it (a with e, o with u)', () => {
+    const merged = { a: 'e', o: 'u' };
+    for (const form of COACH_FORMS) {
+      const t = byId(runtime(form, 'en'))['en.letter_pick10'];
+      for (const it of t.items) if (merged[it.target]) expect([it.id, it.options.includes(merged[it.target])]).toEqual([it.id, false]);
+    }
+  });
+
+  test('letter_pick10: a distractor is never the previous or the next item\'s target', () => {
+    for (const form of COACH_FORMS) for (const l of ['ur', 'en']) {
+      const items = byId(runtime(form, l))[`${l}.letter_pick10`].items;
+      items.forEach((it, i) => {
+        const near = [items[i - 1], items[i + 1]].filter(Boolean).map((x) => x.target);
+        expect([it.id, it.options.filter((o) => o !== it.target && near.includes(o))]).toEqual([it.id, []]);
+      });
+    }
+  });
+
+  test('story_mcq_w3: no option is a second right answer by the passage (water is put in the plant; bathing and toys are care too)', () => {
+    const opts = (id) => r28.mcq.questions[id].options;
+    expect(opts('en.story_w3.q4')).not.toContain('Some water');
+    expect(opts('en.story_w3.q2')).not.toContain('The teacher');
+    expect(opts('ur.story2.q5').filter((o) => /نہلا|کھلونے/.test(o))).toEqual([]);
+  });
+
+  test('the tap tasks are titled «(سن کر چُنیں)» (listen and choose) in Urdu, never «ٹیپ»', () => {
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const b = byId(runtime(form, lang));
+      for (const l of ['ur', 'en']) {
+        expect(b[`${l}.letter_pick10`].title.ur).toBe('حروف کی آوازیں (سن کر چُنیں)');
+        expect(b[`${l}.story_mcq_w3`].title.ur).toBe('کہانی کے سوال (سن کر چُنیں)');
+      }
+    }
+  });
+
   test('served OFF: no r28 task, no r28_tasks, no ext_items, base_n or ext_stop anywhere', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       for (const on of [{}, { rdfW3Forms: true }]) {
