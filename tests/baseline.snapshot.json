@@ -305,12 +305,6 @@
       "UP: bot/shared/config/ux-strings.js has 7 «واٹس ایپ» without U+00A0, copy-whatsapp-joiner-files.allowlist.json allows 5."
     ]
   },
-  "tests/setup/edge-mounts.test.js": {
-    "failing": [
-      "dashboard edge mounts each router holds routes only (no middleware for every path), and no two share a path prefix"
-    ],
-    "offenders": []
-  },
   "tests/setup/env-template-completeness.test.js": {
     "failing": [
       ".env.template completeness every env var used in bot/ code should be documented in .env.template (or explicitly allowed)"
