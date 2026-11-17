@@ -1572,19 +1572,6 @@
     ],
     "offenders": []
   },
-  "tests/setup/virtual-mock-of-existing-module.test.js": {
-    "failing": [
-      "the tree no new virtual doMock of a module that exists; no directory above its doMock entry",
-      "the tree no new virtual mock of a module that exists; no directory above its entry (below or gone: a warning)"
-    ],
-    "offenders": [
-      "NEW: bot/tests/coaching/weekly-report has 2 virtual mock(s) of a module that exists. Drop { virtual: true }.",
-      "NEW: bot/tests/howto has 1 virtual jest.doMock(s) of a module that exists. Drop { virtual: true }.",
-      "NEW: tests/portal has 1 virtual jest.doMock(s) of a module that exists. Drop { virtual: true }.",
-      "UP: tests/llm has 11 virtual mock(s) of a module that exists. Drop { virtual: true }, virtual-mock-of-existing-module.allowlist.json allows 9.",
-      "UP: tests/portal has 4 virtual mock(s) of a module that exists. Drop { virtual: true }, virtual-mock-of-existing-module.allowlist.json allows 3."
-    ]
-  },
   "tests/student-videos/student-videos-flow.test.js": {
     "failing": [
       "student-videos-endpoint INIT lists grades sorted, excluding rows without a video_url",

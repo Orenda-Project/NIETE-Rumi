@@ -44,7 +44,7 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: () => {} }));
 jest.mock('../../bot/shared/services/e2e-cassette', () => ({
   mode: () => 'off', wrapChatCompletions: () => {},
-}), { virtual: true });
+}));
 
 const OLD_ENV = { ...process.env };
 

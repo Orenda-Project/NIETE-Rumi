@@ -36,7 +36,7 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: () => {}, logWarn: () => {} }));
 jest.mock('../../bot/shared/services/e2e-cassette', () => ({
   mode: () => 'off', wrapChatCompletions: () => {},
-}), { virtual: true });
+}));
 
 const OLD_ENV = { ...process.env };
 const TRANSCRIPT = 'آج ہم کسر پڑھیں گے۔ بچے، ایک روٹی کے دو برابر حصے کریں۔';

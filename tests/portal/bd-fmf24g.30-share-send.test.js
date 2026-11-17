@@ -20,9 +20,9 @@ jest.mock('../../bot/shared/config/supabase', () => ({ from: (...a) => { mockSup
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendTemplate: jest.fn() }));
-jest.mock('../../bot/shared/services/portal-ready-templates', () => { throw new Error('portal-ready-templates is not on this branch'); }, { virtual: true });
-jest.mock('../../bot/shared/services/portal-ready-whatsapp.service', () => { throw new Error('portal-ready-whatsapp is not on this branch'); }, { virtual: true });
-jest.mock('../../bot/shared/services/portal-link-token', () => { throw new Error('portal-link-token is not on this branch'); }, { virtual: true });
+jest.mock('../../bot/shared/services/portal-ready-templates', () => { throw new Error('portal-ready-templates is not on this branch'); });
+jest.mock('../../bot/shared/services/portal-ready-whatsapp.service', () => { throw new Error('portal-ready-whatsapp is not on this branch'); });
+jest.mock('../../bot/shared/services/portal-link-token', () => { throw new Error('portal-link-token is not on this branch'); });
 jest.mock('../../bot/shared/services/assessment/assessment-browse.service', () => ({ listChapters: jest.fn(async () => []) }));
 
 const fs = require('fs');

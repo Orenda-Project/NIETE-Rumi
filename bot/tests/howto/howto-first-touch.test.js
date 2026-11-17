@@ -166,7 +166,7 @@ describe('howto first touch — the door never breaks a message', () => {
     let maybeSendHowtoFirstTouch;
     jest.isolateModules(() => {
       // virtual: the path need not exist (main has no such file), so the same test runs on every tier.
-      jest.doMock('../../shared/config/app-settings-ttl', () => { throw new Error("Cannot find module '../config/app-settings-ttl'"); }, { virtual: true });
+      jest.doMock('../../shared/config/app-settings-ttl', () => { throw new Error("Cannot find module '../config/app-settings-ttl'"); });
       jest.doMock('../../shared/config/supabase', () => ({
         from: () => ({ select: () => ({ in: async () => ({ data: [], error: null }) }) }),
       }));

@@ -24,7 +24,7 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: (...a) =
 const mockLog = jest.fn();
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: (...a) => mockLog(...a) }));
 const mockCheck = jest.fn();
-jest.mock('../../../shared/services/coaching/thing-to-try-pick', () => ({ checkThing: (...a) => mockCheck(...a) }), { virtual: true });
+jest.mock('../../../shared/services/coaching/thing-to-try-pick', () => ({ checkThing: (...a) => mockCheck(...a) }));
 
 const job = require('../../../shared/services/coaching/weekly-report/job');
 

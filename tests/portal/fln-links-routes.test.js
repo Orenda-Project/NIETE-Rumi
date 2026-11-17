@@ -42,7 +42,7 @@ jest.mock('../../dashboard/config/supabase', () => ({
 // for a branch where the real file does not exist yet (the router file requires it at load).
 const HAS_ACCESS = require('fs').existsSync(require('path').join(__dirname, '../../dashboard/lib/fln-access.js'));
 if (!HAS_ACCESS) {
-  jest.mock('../../dashboard/lib/fln-access', () => require('./_fln-access-stub')((...a) => mockAccess(...a)), { virtual: true });
+  jest.mock('../../dashboard/lib/fln-access', () => require('./_fln-access-stub')((...a) => mockAccess(...a)));
 }
 const accessStub = require('./_fln-access-stub')((...a) => mockAccess(...a));
 

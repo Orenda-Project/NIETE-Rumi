@@ -115,7 +115,7 @@ describe('the user rides on every queued job (bd-b0qwk)', () => {
       },
     }), { virtual: true });
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: () => {} }));
-    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({ get: async () => null, set: async () => {} }), { virtual: true });
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({ get: async () => null, set: async () => {} }));
     process.env.SQS_QUEUE_URL = 'https://sqs/main.fifo';
     process.env.SQS_VIDEO_QUEUE_URL = 'https://sqs/video.fifo';
     return {
@@ -151,7 +151,7 @@ describe('the user rides on every queued job (bd-b0qwk)', () => {
   test('BullMQ: the same three envelopes carry it (driver parity)', async () => {
     jest.resetModules();
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: () => {} }));
-    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({ set: async () => {} }), { virtual: true });
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({ set: async () => {} }));
     const bull = require('../../bot/shared/services/queue/bullmq-queue.service');
     const sl = require('../../bot/shared/utils/structured-logger');
     const added = [];
