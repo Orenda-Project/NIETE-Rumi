@@ -572,3 +572,34 @@ button{font:inherit;color:inherit}
    down so the taller pill covers no more of the screen than it must. */
 @media (max-width:699px){.sae.is-r10-urfit.is-r9-scroll[lang=ur] .sae-r9-scroll{font-size:16px}}
 /* end round 10 layout 1 */
+
+/* ---- round 28: letter-sound picker (.sae-pick) ---- */
+/* Five cards of ONE size: phone 2 + 3 on a six-column grid (no card spans a row), tablet one row of five. The letter
+   only; the replay is a pill of its own colour under the cards, never in the grid. */
+.sae-screen.sae-pick .sae-body{justify-content:flex-start;gap:10px}
+.sae-pick-cards{width:100%}
+.sae-pick-head{gap:12px;flex-wrap:nowrap}
+.sae-pick-head .sae-task-tag{margin:0}
+.sae-pick .sae-fb.is-empty{display:none}
+.sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;width:100%}
+.sae .sae-pick-cards .sae-opts .sae-opt,.sae .sae-pick-cards .sae-opts.is-five .sae-opt:last-child{grid-column:span 2;min-height:0;height:clamp(104px,30vw,132px);padding:0;font-size:clamp(48px,14vw,60px);line-height:1.2;font-weight:700;overflow:visible}
+.sae .sae-pick-cards .sae-opts .sae-opt[lang=ur],.sae .sae-pick-cards .sae-opts .sae-opt.is-short[lang=ur]{font-size:clamp(56px,16vw,64px);font-weight:400;line-height:1.2;padding:0}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(1){grid-row:1;grid-column:2 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(2){grid-row:1;grid-column:4 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(3){grid-row:2;grid-column:1 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(4){grid-row:2;grid-column:3 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(5){grid-row:2;grid-column:5 / span 2}
+.sae .sae-pick-cards .sae-opt.is-model{position:relative;border-color:var(--sae-accent);box-shadow:0 0 0 6px var(--sae-accent-l),0 0 22px 4px var(--sae-accent);color:var(--sae-ink)}
+.sae .sae-pick-cards .sae-opt.is-model::after{content:"👆";position:absolute;bottom:-18px;inset-inline-end:-8px;font-size:30px;line-height:1;font-family:var(--sae-f)}
+.sae .sae-pick-cards .sae-opt.is-dim{opacity:.35;box-shadow:none}
+.sae-pick-replay{display:grid;place-items:center;width:50%;min-width:168px;max-width:280px;min-height:72px;margin:6px auto 0;border-radius:999px;border:3px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:36px;line-height:1;cursor:pointer;box-shadow:0 4px 0 var(--sae-accent-d);font-family:var(--sae-f)}
+.sae-pick-replay:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-accent-d)}
+.sae-pick-replay:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+@media (min-width:700px){
+  .sae-screen.sae-pick{max-width:min(94vw,760px)}
+  .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+  .sae .sae-pick-cards .sae-opts .sae-opt,.sae .sae-pick-cards .sae-opts.is-five .sae-opt:last-child,
+  .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(n){grid-row:1;grid-column:auto;height:clamp(120px,17vw,150px);font-size:64px}
+  .sae .sae-pick-cards .sae-opts .sae-opt[lang=ur],.sae .sae-pick-cards .sae-opts .sae-opt.is-short[lang=ur]{font-size:68px}
+  .sae-pick-replay{min-height:88px;font-size:44px}
+}
