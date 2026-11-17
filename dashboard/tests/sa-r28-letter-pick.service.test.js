@@ -106,8 +106,9 @@ describe('core: a pick task runs as an untimed tap task', () => {
     const { r } = runner({ practice: false });
     toItems(r); r.begin();
     const items = r.view().task.items;
-    r.answer(items[0].target, { replays: 0, tap_ms: -900, tap_before_sound: true, tap_ms_src: 'timings' });
-    expect(r.snapshot().current.answers[0]).toEqual({ item_id: items[0].id, value: items[0].target, ok: true, replays: 0, tap_ms: -900, tap_before_sound: true, tap_ms_src: 'timings' });
+    // a tap during the speech (after its start): scored, its meta kept. A tap_before_sound: true is never scored (below).
+    r.answer(items[0].target, { replays: 0, tap_ms: -300, tap_before_sound: false, tap_ms_src: 'timings' });
+    expect(r.snapshot().current.answers[0]).toEqual({ item_id: items[0].id, value: items[0].target, ok: true, replays: 0, tap_ms: -300, tap_before_sound: false, tap_ms_src: 'timings' });
   });
 
   test('tick() says replay once at 10 s; RDF auto offers Next at 30 s (ruling: 15 s coach-led, 30 s auto)', () => {
@@ -828,5 +829,31 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(m.r.view().item_index).toBe(1);
       expect(fold().open).toBe(false);
     });
+  });
+});
+
+// Psychometrics (P1-3a): the pre-sound rule holds in the engine too, not only in the screens. A direct
+// runner.answer(v, { tap_before_sound: true }) is logged (the event the screens write) and never scored.
+describe('core: answer() with meta.tap_before_sound is logged, never scored', () => {
+  test('a direct answer(0, { tap_before_sound: true }) on a pick item: answers unchanged, the item stays open, one log event', () => {
+    const { r, events } = runner({ practice: false });
+    toItems(r); r.begin();
+    const items = r.view().task.items;
+    expect(r.answer(items[0].target, { tap_before_sound: true, tap_ms: -400, replays: 0, tap_ms_src: 'timings' })).toBeUndefined();
+    expect(r.snapshot().current.answers).toEqual([]);
+    expect(r.view().item_index).toBe(0);
+    expect(events.filter((e) => e.type === 'tap' || /^item_/.test(e.type))).toHaveLength(0);
+    const logged = events.filter((e) => e.type === 'tap_before_sound');
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toMatchObject({ task_id: items[0].id.replace(/\.\d+$/, ''), item_id: items[0].id, value: items[0].target, tap_ms: -400 });
+  });
+  test('without the flag (or with it false) it answers as today', () => {
+    const { r } = runner({ practice: false });
+    toItems(r); r.begin();
+    const items = r.view().task.items;
+    expect(r.answer(items[0].target, { tap_before_sound: false, tap_ms: 300 })).toBe(true);
+    expect(r.answer(items[1].target)).toBe(true);
+    expect(r.view().item_index).toBe(2);
+    expect(r.snapshot().current.answers).toHaveLength(2);
   });
 });
