@@ -529,7 +529,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(o1.audioObj).toBe('sa/v5/ur/syn_q1_o1.mp3');
   }, 20000);
 
-  test('?probe=1: console.debug(\'hl\', option, currentTime) on every light-on and light-off; without it nothing', async () => {
+  test('?probe=1: console.debug(\'hl\', option, currentTime) on every light-on and light-off, the stem as option 0; without it nothing', async () => {
     setup('https://portal.test/sa/run.html?form=x&probe=1');
     const dbg = jest.spyOn(console, 'debug').mockImplementation(() => {});
     const { voice } = mountMcq();
@@ -537,7 +537,8 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     await voice.speakNext(40);
     await voice.speakNext(40);
     const hl = dbg.mock.calls.filter((c) => c[0] === 'hl');
-    expect(hl).toEqual([['hl', 1, 0.01], ['hl', 1, 1.5]]);
+    expect(hl).toEqual([['hl', 0, 0.01], ['hl', 0, 1.5], ['hl', 1, 0.01], ['hl', 1, 1.5]]);
+    expect(lit(document.getElementById('m'))).toEqual([]); // the stem has no card: nothing lights for it
     views.forEach((v) => v.destroy()); views = [];
     for (const k of Object.keys(keep)) global[k] = keep[k];
     dom.window.close();
@@ -593,7 +594,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(voice.lines.every((l) => l.vo && l.vo.clip_only === true)).toBe(true);
     const hl = dbg.mock.calls.filter((c) => c[0] === 'hl').map((c) => c[1]);
     // q1: 4 options on+off; q2: options 1 and 2 only (never 3: its clip never played); q3: 4 options on+off
-    expect(hl).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 1, 1, 2, 2, 1, 1, 2, 2, 3, 3, 4, 4]);
+    expect(hl).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]); // 0 = the stem
   }, 30000);
 
   test('B-17: a card never lights when its clip did not reach playing', async () => {
@@ -808,6 +809,267 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(runner.view().offer_next).toBe(false);
     c.add(1500);
     expect(runner.view().offer_next).toBe(true);
+  }, 20000);
+
+  // ---------------- B.3 (lead ruling, round 5): the open coach fold is MODAL, and its opening/closing is logged ----------------
+  const fold = (el) => el.querySelector('details.sae-mcq-coach');
+  const setFold = (el, open) => { const d = fold(el); d.open = open; d.dispatchEvent(new dom.window.Event('toggle')); };
+  const foldEvents = (events) => events.filter((e) => e.type === 'fold_open' || e.type === 'fold_close')
+    .map((e) => Object.assign({ type: e.type, task_id: e.task_id, item_id: e.item_id }, e.type === 'fold_close' ? { by: e.by, card: e.card } : {}));
+
+  test('modal fold (coach-led): after the read-out, fold open → a tap on card 4 only closes it (no answer, no choice); the next tap answers; fold_open / fold_close logged once each', async () => {
+    setup();
+    const { el, voice, answers, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    setFold(el, true);
+    await wait(20);
+    expect(fold(el).open).toBe(true);
+    cards(el)[3].click();
+    expect(answers).toHaveLength(0);
+    expect(has(el, 'is-chosen')).toEqual([false, false, false, false]);
+    expect(fold(el).open).toBe(false);
+    await wait(1100);
+    expect(answers).toHaveLength(0); // nothing was held: nothing stands
+    expect(foldEvents(events)).toEqual([
+      { type: 'fold_open', task_id: 'ur.story_mcq_w3', item_id: 'ur.story_w3.q1' },
+      { type: 'fold_close', task_id: 'ur.story_mcq_w3', item_id: 'ur.story_w3.q1', by: 'tap', card: 3 },
+    ]);
+    cards(el)[3].click();
+    expect(has(el, 'is-chosen')).toEqual([false, false, false, true]);
+    await wait(1100);
+    expect(answers).toHaveLength(1);
+    expect(answers[0].v).toBe(3);
+    expect(foldEvents(events)).toHaveLength(2); // a tap with the fold closed logs nothing
+  }, 20000);
+
+  test('modal fold during the read-out (option 2 lit): a tap closes the fold only, the read-out goes on, no choice held; a fold left open stays open (and modal) across the redraw at the read-out\'s end', async () => {
+    setup();
+    const { el, voice, answers, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    await voice.speakNext(40); // the question
+    await wait(650); // the swallow
+    await voice.speakNext(40); // option 1
+    await voice.speakNext(80, async () => {
+      expect(lit(el)).toEqual([1]);
+      setFold(el, true);
+      cards(el)[0].click();
+      expect(fold(el).open).toBe(false);
+      expect(has(el, 'is-chosen')).toEqual([false, false, false, false]);
+    });
+    const o3 = await voice.speakNext(80, async () => { expect(lit(el)).toEqual([2]); setFold(el, true); }); // the next card still lights
+    expect(o3.audioObj).toBe('sa/v5/ur/syn_q1_o3.mp3');
+    const o4 = await voice.speakNext(60);
+    expect(o4.audioObj).toBe('sa/v5/ur/syn_q1_o4.mp3');
+    await wait(100); // the read-out's end redraws the screen
+    expect(fold(el).open).toBe(true);
+    cards(el)[1].click();
+    expect(fold(el).open).toBe(false);
+    expect(has(el, 'is-chosen')).toEqual([false, false, false, false]);
+    await wait(1100);
+    expect(answers).toHaveLength(0);
+    expect(foldEvents(events).map((e) => [e.type, e.by, e.card])).toEqual([['fold_open', undefined, undefined], ['fold_close', 'tap', 0], ['fold_open', undefined, undefined], ['fold_close', 'tap', 1]]);
+  }, 20000);
+
+  test('modal fold: a tap on the replay (or Jugnu) with the fold open only closes it (no replay); the next tap replays', async () => {
+    setup();
+    const { el, voice, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    const n0 = voice.lines.length;
+    setFold(el, true);
+    el.querySelector('.sae-mcq-jugnu').click();
+    expect(fold(el).open).toBe(false);
+    setFold(el, true);
+    el.querySelector('.sae-mcq-replay').click();
+    expect(fold(el).open).toBe(false);
+    await wait(50);
+    expect(events.filter((e) => e.type === 'replay')).toHaveLength(0);
+    expect(voice.lines.length).toBe(n0);
+    expect(foldEvents(events).filter((e) => e.type === 'fold_close').map((e) => [e.by, e.card])).toEqual([['tap', null], ['tap', null]]);
+    await wait(350); // past the ghost-click guard
+    el.querySelector('.sae-mcq-replay').click();
+    await wait(50);
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'child')).toHaveLength(1);
+    expect(voice.lines.length).toBe(n0 + 1);
+  }, 20000);
+
+  test('modal fold: the offered Next (15 s, coach-led) with the fold open: the first tap closes it and the item stays; the second skips', async () => {
+    setup();
+    let T = 0;
+    const now = () => T;
+    const m = mountMcq({ task: { replay_at_s: null }, runner: { manual: true, now }, ui: { manual: true } });
+    for (let i = 0; i < 5; i++) await m.voice.speakNext(30);
+    await wait(700);
+    T += 15500;
+    m.view.render();
+    await wait(20);
+    setFold(m.el, true);
+    m.el.querySelector('.sae-mcq-head .sa-next').click();
+    expect(fold(m.el).open).toBe(false);
+    expect(m.runner.view().item_index).toBe(0);
+    await wait(350); // past the ghost-click guard
+    m.el.querySelector('.sae-mcq-head .sa-next').click();
+    expect(m.runner.view().item_index).toBe(1);
+  }, 20000);
+
+  test('modal fold on the practice item too: the first tap closes the fold (logged with the practice id), the next tap answers', async () => {
+    setup();
+    const p = { id: 'ur.story_mcq_w3.p1', passage: { text: 'practice story' }, prompt: { text: 'practice q', audio: 'sa/v5/ur/syn_pq.mp3' },
+      options: ['w', 'x', 'y', 'z'], option_audio: [1, 2, 3, 4].map((k) => `sa/v5/ur/syn_p_o${k}.mp3`), target_index: 1, key: 2 };
+    const { el, voice, runner, events } = mountMcq({ practice: true, task: { practice: [p] }, runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    expect(runner.view().phase).toBe('practice');
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    setFold(el, true);
+    cards(el)[3].click();
+    expect(fold(el).open).toBe(false);
+    expect(has(el, 'is-chosen')).toEqual([false, false, false, false]);
+    await wait(1100);
+    expect(cards(el)[3].classList.contains('is-tried')).toBe(false);
+    cards(el)[3].click();
+    await wait(1100);
+    expect(cards(el)[3].classList.contains('is-tried')).toBe(true);
+    expect(foldEvents(events)).toEqual([
+      { type: 'fold_open', task_id: 'ur.story_mcq_w3', item_id: 'ur.story_mcq_w3.p1' },
+      { type: 'fold_close', task_id: 'ur.story_mcq_w3', item_id: 'ur.story_mcq_w3.p1', by: 'tap', card: 3 },
+    ]);
+  }, 30000);
+
+  test('modal fold: a double tap cannot close and answer in one go (a tap within 300 ms of the close is ignored, logged ghost_tap, never scored); the summary closes it as by: summary', async () => {
+    setup();
+    const { el, voice, answers, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    setFold(el, true);
+    cards(el)[2].click();
+    await wait(120);
+    cards(el)[2].click(); // the second half of a double tap, +120 ms
+    expect(has(el, 'is-chosen')).toEqual([false, false, false, false]);
+    const ghosts = events.filter((e) => e.type === 'ghost_tap');
+    expect(ghosts.map((e) => ({ task_id: e.task_id, item_id: e.item_id, card: e.card }))).toEqual([{ task_id: 'ur.story_mcq_w3', item_id: 'ur.story_w3.q1', card: 2 }]);
+    expect(ghosts[0].ms_after_close).toBeGreaterThanOrEqual(100);
+    expect(ghosts[0].ms_after_close).toBeLessThan(300);
+    expect(events.filter((e) => e.type === 'tap')).toHaveLength(0); // never scored
+    await wait(1100);
+    expect(answers).toHaveLength(0);
+    // the coach folds it with the summary: by summary, and the summary's own tap is not swallowed
+    setFold(el, true);
+    const sum = fold(el).querySelector('summary');
+    sum.click();
+    if (fold(el).open) setFold(el, false); // a DOM without the summary's activation: the toggle the browser would fire
+    expect(fold(el).open).toBe(false);
+    await wait(350);
+    cards(el)[2].click();
+    await wait(1100);
+    expect(answers).toHaveLength(1);
+    expect(answers[0].v).toBe(2);
+    expect(events.filter((e) => e.type === 'ghost_tap')).toHaveLength(1); // the tap at +350 ms answered: no ghost
+    expect(foldEvents(events).filter((e) => e.type === 'fold_close').map((e) => [e.by, e.card])).toEqual([['tap', 2], ['summary', undefined]]);
+  }, 20000);
+
+  test('modal fold: a fold opened in the 400 ms press window is closed by the item change: one fold_close by item for the old item, the next item drawn folded', async () => {
+    setup();
+    const { el, voice, answers, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    cards(el)[1].click();
+    await wait(700); // the settle (600 ms) has ended: the card is pressed, the next item is 400 ms away
+    expect(answers).toHaveLength(1);
+    setFold(el, true);
+    await wait(600);
+    expect(el.querySelector('.sae-mcq-q').textContent).toBe('question 2');
+    expect(fold(el).open).toBe(false);
+    expect(foldEvents(events)).toEqual([
+      { type: 'fold_open', task_id: 'ur.story_mcq_w3', item_id: 'ur.story_w3.q1' },
+      { type: 'fold_close', task_id: 'ur.story_mcq_w3', item_id: 'ur.story_w3.q1', by: 'item', card: null },
+    ]);
+    // the new item is not under an orphaned modal: its first tap after the read-out answers
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    cards(el)[2].click();
+    await wait(1100);
+    expect(answers).toHaveLength(2);
+  }, 30000);
+
+  test('chosen_at_option 0 = the stem: a tap during a replayed stem, and a tap after the swallow before option 1 lights; the first read\'s grey stem still ignores taps', async () => {
+    setup();
+    // (1) the first read's stem: ignored
+    let m = mountMcq();
+    await wait(20);
+    await m.voice.speakNext(80, async () => { cards(m.el)[1].click(); });
+    expect(has(m.el, 'is-chosen')).toEqual([false, false, false, false]);
+    // (2) after the swallow, option 1's clip asked but not yet playing: the choice is held at option 0
+    await wait(800);
+    cards(m.el)[1].click();
+    expect(has(m.el, 'is-chosen')).toEqual([false, true, false, false]);
+    for (let k = 0; k < 4; k++) await m.voice.speakNext(40);
+    await wait(1100);
+    expect(m.answers).toHaveLength(1);
+    expect(m.answers[0].meta.chosen_at_option).toBe(0);
+    views.forEach((v) => v.destroy()); views = [];
+    // (3) a replayed stem: the tap counts and is held at option 0
+    m = mountMcq();
+    await wait(20);
+    for (let k = 0; k < 5; k++) await m.voice.speakNext(40);
+    await wait(100);
+    m.el.querySelector('.sae-mcq-replay').click();
+    await m.voice.speakNext(80, async () => { cards(m.el)[3].click(); });
+    expect(has(m.el, 'is-chosen')).toEqual([false, false, false, true]);
+    for (let k = 0; k < 4; k++) await m.voice.speakNext(40);
+    await wait(1100);
+    expect(m.answers).toHaveLength(1);
+    expect(m.answers[0].meta.chosen_at_option).toBe(0);
+    expect(m.answers[0].meta.replays).toBe(1);
+  }, 30000);
+
+  test('RDF auto (no manual): no fold on the screen, and a card tap after the read-out answers at once (unchanged)', async () => {
+    setup();
+    const { el, voice, answers, events } = mountMcq();
+    await wait(20);
+    expect(fold(el)).toBeNull();
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    cards(el)[3].click();
+    expect(has(el, 'is-chosen')).toEqual([false, false, false, true]);
+    await wait(1100);
+    expect(answers).toHaveLength(1);
+    expect(answers[0].v).toBe(3);
+    expect(foldEvents(events)).toHaveLength(0);
+  }, 20000);
+
+  test('the picker\'s coach fold logs fold_open / fold_close too (once each, kept across a redraw), with the task and item ids', async () => {
+    setup();
+    const core2 = require('../sa/sa-core');
+    const ui = require('../sa/sa-ui');
+    const opts5 = ['ت', 'ب', 'پ', 'ٹ', 'ن'];
+    const items = [1, 2].map((n) => ({ id: `ur.letter_pick10.0${n}`, options: opts5, target: 'ب', prompt_audio: `sa/v5/ur/ls_${n}.mp3`, prompt_text: 'بَ', src: 'synthetic' }));
+    const task = { id: 'ur.letter_pick10', w3: true, r28: 'letter_pick', replaces: 'ur.letter_sounds5', kind: 'pick', response: 'tap',
+      subtask: 'letter_sound_identification', lang: 'ur', title: { en: 'Listen and pick', ur: 'سنیں اور چنیں' }, time_limit_s: null, stop: {},
+      replay_at_s: 10, next_at_s: 15, instruction: { text: 'instruction', audio: 'sa/v5/ur/lp_intro.mp3' }, script: {}, items, practice: [] };
+    const battery = { battery_id: 'b', ui: { r28_letter_pick: true }, tasks: [task] };
+    const events = [];
+    const runner = core2.createRunner({ battery, manual: true, onEvent: (e) => events.push(e) });
+    const el = document.getElementById('m');
+    const view = ui.mount(el, { runner, battery, lang: 'ur', mode: 'proctored', manual: true, speak: () => new Promise(() => {}), r28: { letter_pick: true } });
+    views.push(view);
+    runner.start(); runner.instructionDone(); runner.begin(); view.render();
+    const pf = () => el.querySelector('details.sae-pick-coach');
+    pf().open = true; pf().dispatchEvent(new dom.window.Event('toggle'));
+    view.render();
+    await wait(20);
+    expect(pf().open).toBe(true);
+    pf().open = false; pf().dispatchEvent(new dom.window.Event('toggle'));
+    await wait(20);
+    expect(foldEvents(events)).toEqual([
+      { type: 'fold_open', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.01' },
+      { type: 'fold_close', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.01', by: 'summary', card: undefined },
+    ]);
   }, 20000);
 
   test('OFF (no r28_mcq on the mount): the task draws as today\'s tap screen, no MCQ cards', async () => {
@@ -1186,6 +1448,214 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
   }
 });
 
+// ------------------------------------------------------------------------------------------------------------------
+// B.3 round 5, coach-led on a 360×640 phone with the production layout switches and the house Nastaliq: whole glyphs
+// on every served question and answer set (the sweep), the coach's line clear of the fold, the coach's Next in the
+// coach's register and away from the child's replay, and the modal fold's close at once. Ink is measured from pixels:
+// one element shown at a time, a pixel is ink when its luminance < 120, at 2× DPR.
+// ------------------------------------------------------------------------------------------------------------------
+/** Every served question of a language and its own four answers (the bank's story questions with a prompt). */
+function servedOf(lang) {
+  const fs = require('fs');
+  const dir = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test');
+  const qs = JSON.parse(fs.readFileSync(path.join(dir, 'item-bank.sa-r28.v1.json'), 'utf8')).mcq.questions;
+  const prompts = {};
+  (function walk(o) {
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (!o || typeof o !== 'object') return;
+    if (typeof o.id === 'string' && qs[o.id] && o.prompt != null && !(o.id in prompts)) prompts[o.id] = typeof o.prompt === 'string' ? o.prompt : String(o.prompt.text || '');
+    Object.keys(o).forEach((k) => walk(o[k]));
+  })(JSON.parse(fs.readFileSync(path.join(dir, 'item-bank.sa.v1.json'), 'utf8')));
+  return Object.keys(qs).filter((k) => k.startsWith(lang + '.') && prompts[k]).map((k) => ({ id: k, q: prompts[k], options: qs[k].options }));
+}
+
+maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on every served question and answer set; the coach\'s Next; the fold closes at once (B.3)', () => {
+  const fs = require('fs');
+  const SA = path.join(__dirname, '..', 'sa');
+  const PUB = path.join(__dirname, '..', 'public', 'wq');
+  let browser;
+  beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
+  afterAll(async () => { if (browser) await browser.close(); });
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  const sizes = {};
+  afterAll(() => { if (process.env.SA_FIT_SIZES) fs.writeFileSync(process.env.SA_FIT_SIZES, JSON.stringify(sizes, null, 1)); });
+
+  function page(lang, qText, options) {
+    const item = (n) => ({ id: `${lang}.story_w3.q${n}`, prompt: { text: qText, audio: `sa/v5/${lang}/syn_q${n}.mp3` }, options,
+      option_audio: [1, 2, 3, 4].map((k) => `sa/v5/${lang}/syn_q${n}_o${k}.mp3`), target_index: 1, key: 2, src: 'synthetic' });
+    const task = mcqTask([item(1), item(2)], { id: `${lang}.story_mcq_w3`, lang, depends_on: null });
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
+<script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
+<script>${fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8')}</script>
+<script>
+  window.__T = 0; window.__ev = []; var cur = null;
+  function speak() { var a = new EventTarget(); a.paused = false; a.ended = false; a.currentTime = 0.5; var line = { a: a }; cur = line;
+    return new Promise(function (res) { line.end = function () { a.paused = true; a.ended = true; a.dispatchEvent(new Event('ended')); if (cur === line) cur = null; res(); }; }); }
+  speak.audio = function () { return cur ? cur.a : null; };
+  window.__end = function () { if (!cur) return false; cur.end(); return true; };
+  var battery = { battery_id: 'b', ui: ${JSON.stringify(Object.assign({ r28_mcq: true }, LAYOUT))}, tasks: [${JSON.stringify(task)}] };
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, onEvent: function (e) { window.__ev.push(e); } });
+  var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
+    r28: { letter_pick: false, mcq: true, ceiling: false }, speak: speak });
+  runner.start(); runner.instructionDone(); runner.begin(); view.render(); window.__view = view;
+</script></body></html>`;
+  }
+  async function open(lang, qText, options) {
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    const html = page(lang, qText, options);
+    await p.route('**/*', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+      if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+      if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await p.goto('http://sa.test/');
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(400);
+    return { ctx, p };
+  }
+  /** Ink rows (CSS px from the page top) of a clip of the page: luminance < 120 at 2× DPR. */
+  async function ink(p, y0, y1, x0, x1) {
+    y0 = Math.max(0, Math.floor(y0)); y1 = Math.min(640, Math.ceil(y1));
+    const png = await p.screenshot({ clip: { x: x0 || 0, y: y0, width: (x1 || 360) - (x0 || 0), height: y1 - y0 } });
+    return p.evaluate(async ([b64, top]) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data; const rows = [];
+      for (let y = 0; y < c.height; y++) { for (let x = 0; x < c.width; x++) { const i = (y * c.width + x) * 4; if (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] < 120) { rows.push(top + y / 2); break; } } }
+      return rows;
+    }, [png.toString('base64'), y0]);
+  }
+  const hide = (p, sels, on) => p.evaluate(([s, v]) => s.forEach((x) => document.querySelectorAll(x).forEach((e) => { e.style.visibility = v ? 'hidden' : ''; })), [sels, on]);
+  /** The question card's ink against its clip box (overflow made visible, everything near it hidden), its line boxes,
+   *  the coach's line's last ink against the fold's top, the cards, and the fit. */
+  async function stemAndFit(p) {
+    const g = await p.evaluate(() => {
+      const q = document.querySelector('.sae-mcq-q'); const cs = getComputedStyle(q); const r = q.getBoundingClientRect();
+      const rg = document.createRange(); rg.selectNodeContents(q);
+      const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+      const line = document.querySelector('.sae-mcq-coach-line').getBoundingClientRect();
+      return { top: r.top + parseFloat(cs.borderTopWidth), bottom: r.bottom - parseFloat(cs.borderBottomWidth),
+        lines: new Set(Array.from(rg.getClientRects()).filter((x) => x.width || x.height).map((x) => Math.round(x.top))).size,
+        line_top: line.top, line_bottom: line.bottom, fold_top: document.querySelector('details.sae-mcq-coach').getBoundingClientRect().top,
+        cards: Array.from(document.querySelectorAll('.sae-mcq-opt')).map((c) => { const b = c.getBoundingClientRect(); return { h: Math.round(b.height), ring_bottom: Math.round(b.bottom + 7) }; }),
+        page_h: document.documentElement.scrollHeight, inner_scroll: over(document.querySelector('.sae-screen')) + over(document.querySelector('.sae-mcq .sae-body')) };
+    });
+    await hide(p, ['.sae-mcq-opts', 'details.sae-mcq-coach', '.sae-mcq-coach-line'], true);
+    await p.evaluate(() => { document.querySelector('.sae-mcq-q').style.overflow = 'visible'; });
+    const rows = await ink(p, g.top - 30, g.bottom + 30);
+    await p.evaluate(() => { document.querySelector('.sae-mcq-q').style.overflow = ''; });
+    await hide(p, ['.sae-mcq-q'], true);
+    await hide(p, ['.sae-mcq-coach-line'], false);
+    const lr = await ink(p, g.line_top - 4, g.line_bottom + 14);
+    await hide(p, ['.sae-mcq-opts', 'details.sae-mcq-coach', '.sae-mcq-coach-line', '.sae-mcq-q'], false);
+    return { lines: g.lines, ink_above_top: rows.length ? +Math.max(0, g.top - rows[0]).toFixed(1) : null, ink_below_bottom: rows.length ? +Math.max(0, rows[rows.length - 1] - g.bottom).toFixed(1) : null,
+      coach_line_room: lr.length ? +(g.fold_top - lr[lr.length - 1]).toFixed(1) : null, card_h: g.cards.map((c) => c.h), ring_bottom: Math.max(...g.cards.map((c) => c.ring_bottom)),
+      page_h: g.page_h, inner_scroll: g.inner_scroll };
+  }
+  /** The open fold's answer list: each line shown alone (the fold's question and summary hidden), inside the overlay. */
+  async function foldList(p) {
+    await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = true; d.dispatchEvent(new Event('toggle')); });
+    await p.waitForTimeout(150);
+    const g = await p.evaluate(() => { const b = document.querySelector('.sae-mcq-coach-body').getBoundingClientRect(); const ol = document.querySelector('.sae-mcq-coach-opts');
+      return { top: b.top, bottom: b.bottom, n: ol.children.length, lh: getComputedStyle(ol).lineHeight, fs: getComputedStyle(ol).fontSize }; });
+    await hide(p, ['.sae-mcq-coach-body>p', 'details.sae-mcq-coach>summary'], true);
+    const lines = [];
+    for (let k = 0; k < g.n; k++) {
+      await p.evaluate((k) => document.querySelectorAll('.sae-mcq-coach-opts li').forEach((li, i) => { li.style.visibility = i === k ? '' : 'hidden'; }), k);
+      const rows = await ink(p, g.top + 1, g.bottom - 4, 8, 352);
+      lines.push(rows.length ? { top: rows[0], bottom: rows[rows.length - 1] } : null);
+    }
+    await p.evaluate(() => document.querySelectorAll('.sae-mcq-coach-opts li').forEach((li) => { li.style.visibility = ''; }));
+    await hide(p, ['.sae-mcq-coach-body>p', 'details.sae-mcq-coach>summary'], false);
+    await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = false; d.dispatchEvent(new Event('toggle')); });
+    const gaps = lines.slice(1).map((x, i) => +(x.top - lines[i].bottom).toFixed(1));
+    return { line_height: g.lh, font: g.fs, gaps, min_gap: Math.min(...gaps), overlay_bottom: +g.bottom.toFixed(1) };
+  }
+
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}: every served question and answer set — the stem's ink inside both clip edges and at most ${lang === 'ur' ? 2 : 3} lines, the fold list's lines ≥ 2 px apart with the overlay on screen, the coach's line clear of the fold, every card 56 px and on screen`, async () => {
+      const served = servedOf(lang);
+      expect(served.length).toBeGreaterThanOrEqual(12);
+      const rows = {};
+      for (const it of served) {
+        const { ctx, p } = await open(lang, it.q, it.options);
+        const nastaliq = lang !== 'ur' || await p.evaluate(() => { const q = document.querySelector('.sae-mcq-q'); return document.fonts.check(getComputedStyle(q).font, q.textContent); });
+        rows[it.id] = Object.assign({ nastaliq }, await stemAndFit(p), { fold: await foldList(p) });
+        await ctx.close();
+      }
+      // the overlay on the bank's longest question with each set: the tallest
+      const w = longestOf(lang);
+      const { ctx, p } = await open(lang, w.q, w.options);
+      const longest = await foldList(p);
+      await ctx.close();
+      sizes[lang] = { longest_question_with_longest_set: longest, per_question: rows };
+      for (const [id, m] of Object.entries(rows)) {
+        const r = m;
+        expect({ id, nastaliq: r.nastaliq, page_h: r.page_h, inner_scroll: r.inner_scroll, ring_ok: r.ring_bottom <= 640, cards: r.card_h })
+          .toEqual({ id, nastaliq: true, page_h: 640, inner_scroll: 0, ring_ok: true, cards: [56, 56, 56, 56] });
+        expect({ id, lines_ok: r.lines >= 1 && r.lines <= (lang === 'ur' ? 2 : 3), below: r.ink_below_bottom }).toEqual({ id, lines_ok: true, below: 0 });
+        // the first line's ascender: whole on every one-line question and in Latin; a two-line Urdu question has the
+        // room the 640 px budget leaves (B5 report: ≤ 11 px of the tallest stroke still above the edge)
+        expect({ id, above_ok: r.ink_above_top <= (lang === 'ur' && r.lines === 2 ? 11 : 0) }).toEqual({ id, above_ok: true });
+        expect({ id, coach_line_room_ok: r.coach_line_room >= 0 }).toEqual({ id, coach_line_room_ok: true });
+        expect({ id, fold_min_gap_ok: r.fold.min_gap >= 2, overlay_ok: r.fold.overlay_bottom <= 640 }).toEqual({ id, fold_min_gap_ok: true, overlay_ok: true });
+      }
+      expect(longest.overlay_bottom).toBeLessThanOrEqual(640);
+      expect(longest.min_gap).toBeGreaterThanOrEqual(2);
+      // the Latin list keeps its own line height (the Urdu rules are scoped [lang=ur])
+      if (lang === 'en') expect(longest.line_height).toBe('normal');
+      else expect(parseFloat(longest.font)).toBeGreaterThanOrEqual(15);
+    }, 600000);
+
+    test(`${lang}: the coach's Next is in the coach's register (a dashed box, no fill, no pill) and ≥ 48 px from the child's replay; the fold's close by a tap shows the cards at once (< 150 ms, no transition)`, async () => {
+      const w = longestOf(lang);
+      const { ctx, p } = await open(lang, w.q, w.options);
+      for (let k = 0; k < 5; k++) { await p.evaluate(() => window.__end()); await p.waitForTimeout(k === 0 ? 900 : 600); }
+      for (let k = 0; k < 6; k++) {
+        await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+        await p.waitForTimeout(300);
+        while (await p.evaluate(() => window.__end())) await p.waitForTimeout(700);
+        if (await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); })) break;
+      }
+      const nx = await p.evaluate(() => {
+        const n = document.querySelector('.sae-mcq-head .sa-next'); const rb = document.querySelector('.sae-mcq-replay');
+        const a = n.getBoundingClientRect(); const b = rb.getBoundingClientRect(); const cs = getComputedStyle(n);
+        const gap = a.right <= b.left ? b.left - a.right : a.left - b.right;
+        return { gap: +gap.toFixed(1), border: cs.borderTopStyle, bg: cs.backgroundColor, shadow: cs.boxShadow, clipped: n.scrollWidth > n.clientWidth + 1,
+          next: { left: Math.round(a.left), right: Math.round(a.right) }, replay: { left: Math.round(b.left), right: Math.round(b.right) } };
+      });
+      // the close: a real tap on card 1 with the fold open
+      await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = true; d.dispatchEvent(new Event('toggle')); });
+      await p.waitForTimeout(200);
+      // a tap at card 4's centre: the overlay may lie over it (then the tap is on the overlay: card null)
+      const c1 = await p.evaluate(() => { const c = document.querySelectorAll('.sae-mcq-opt')[3]; const b = c.getBoundingClientRect(); const x = b.left + b.width / 2, y = b.top + b.height / 2;
+        const hit = document.elementFromPoint(x, y); return { x, y, card: hit && c.contains(hit) ? 3 : null }; });
+      await p.evaluate(() => { window.__t0 = null; document.addEventListener('pointerdown', () => { window.__t0 = performance.now(); }, { capture: true, once: true }); });
+      await p.mouse.click(c1.x, c1.y);
+      const close = await p.evaluate(() => new Promise((res) => {
+        const all = () => Array.from(document.querySelectorAll('.sae-mcq-opt')).every((c) => { const b = c.getBoundingClientRect(); const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return hit && c.contains(hit); });
+        const tick = () => { if (all()) { const body = document.querySelector('.sae-mcq-coach-body'); const tr = (e) => (e ? getComputedStyle(e).transitionDuration.split(',').map((x) => parseFloat(x) * 1000) : [0]);
+          res({ ms: +(performance.now() - window.__t0).toFixed(1), fold_open: document.querySelector('details.sae-mcq-coach').open, max_transition_ms: Math.max(...tr(body), ...tr(document.querySelector('details.sae-mcq-coach'))),
+            chosen: document.querySelectorAll('.sae-mcq-opt.is-chosen').length,
+            close: window.__ev.filter((e) => e.type === 'fold_close').map((e) => ({ by: e.by, card: e.card })) }); } else requestAnimationFrame(tick); };
+        tick();
+      }));
+      await ctx.close();
+      sizes[`${lang}_next_and_close`] = { next: nx, close };
+      expect({ border: nx.border, bg: nx.bg, shadow: nx.shadow, clipped: nx.clipped }).toEqual({ border: 'dashed', bg: 'rgba(0, 0, 0, 0)', shadow: 'none', clipped: false });
+      expect(nx.gap).toBeGreaterThanOrEqual(48);
+      expect({ fold_open: close.fold_open, chosen: close.chosen, close: close.close }).toEqual({ fold_open: false, chosen: 0, close: [{ by: 'tap', card: c1.card }] });
+      sizes[`${lang}_next_and_close`].tap_on_card = c1.card;
+      expect(close.ms).toBeLessThan(150);
+      expect(close.max_transition_ms).toBeLessThanOrEqual(150);
+    }, 120000);
+  }
+});
+
 // RDF auto and the tablet keep their layout: every coach-fit rule sits in the one phone @media block and only matches
 // the coach-led MCQ screen (the one that carries the coach's fold, which RDF auto never draws).
 describe('sa_r28_mcq CSS: the coach-led phone fit leaves RDF auto and the tablet as they were (B.3, coach-led fit)', () => {
@@ -1223,6 +1693,24 @@ describe('sa_r28_mcq CSS: the coach-led phone fit leaves RDF auto and the tablet
     expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q')['-webkit-line-clamp']).toBe('2');
     // no rule of the fit touches a card's height
     fit.filter((r) => /sae-mcq-opt\b/.test(r.sel)).forEach((r) => expect(r.body).not.toMatch(/height/));
+  });
+  test('round 5: the Urdu glyph rules are coach-led, phone-only and [lang=ur]; the Latin list keeps its line height; the coach\'s Next is a dashed box at every width', () => {
+    const all = rules();
+    const phone = all.filter((r) => r.media === '@media (max-width:699px)');
+    const ur = all.filter((r) => /(coach-opts|sae-mcq-q|coach-line)\[lang=ur\]|\[lang=ur\] \.sae-mcq(\.sae-screen)?:has/.test(r.sel) && /:has\(\.sae-mcq-coach\)/.test(r.sel));
+    expect(ur.length).toBeGreaterThanOrEqual(6);
+    ur.forEach((r) => expect({ sel: r.sel, media: r.media }).toEqual({ sel: r.sel, media: '@media (max-width:699px)' }));
+    const decl = (sel) => { const r = phone.filter((x) => x.sel === sel).pop(); return r ? Object.fromEntries(r.body.split(';').filter((d) => d.includes(':')).map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()])) : null; };
+    expect(parseFloat(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]')['line-height'])).toBeGreaterThanOrEqual(3.3);
+    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur]')['padding-bottom']).toBe('13px');
+    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts').gap).toBe('4px');
+    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]').margin).toBe('0 0 2px');
+    // no rule gives the Latin (or an unscoped) fold list a line height
+    all.filter((r) => /sae-mcq-coach-opts/.test(r.sel) && !/\[lang=ur\]/.test(r.sel)).forEach((r) => expect(r.body).not.toMatch(/line-height/));
+    const nx = all.filter((r) => r.media === '' && /\.sae-mcq-head>\.sae-mcq-next$/.test(r.sel)).map((r) => r.body).join(';');
+    expect(nx).toMatch(/border:2px dashed/);
+    expect(nx).toMatch(/background:transparent/);
+    expect(nx).toMatch(/box-shadow:none/);
   });
 });
 

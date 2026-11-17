@@ -1491,6 +1491,45 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the child meets the comprehension rung and counts in the 80%+ share
     And Results reads the guessing floor on 4 of 5
     And the 5-question variant is never padded to 6
+  @e2e @wip @draft @config-gated @P1 @CT255 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("modal fold …").
+  Scenario: With sa_r28_mcq on, coach-led, the open coach fold is modal and every opening has its close
+    Given sa_r28_mcq is on, the run is coach-led and the coach has opened the fold on a story question
+    When the child taps a card, the replay, Jugnu, the Next or anywhere else on the screen
+    Then that first tap only closes the fold and the four cards show at once; no answer, no replay, no skip
+    And a second tap within 300 ms of the close is ignored and logged as a ghost tap, never scored
+    And the next tap after that answers as usual, and the read-out is never interrupted by the fold
+    And the screen logs fold_open and fold_close with the task and question, the close saying whether the summary, a tap (and on which card) or the question changing closed it
+    And RDF auto never shows the fold, and a card tap there answers at once
+  @e2e @wip @draft @config-gated @P1 @CT256 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (the round 5 browser rows).
+  Scenario: With sa_r28_mcq on, coach-led on a 360x640 phone, the coach's Urdu answer list keeps every line whole
+    Given sa_r28_mcq is on and a coach-led phone shows any served Urdu story question
+    When the coach opens the fold
+    Then no line of the answer list touches the next, at least 2 px of clear space between their ink on every served set
+    And the open fold stays on the screen, and the English list keeps its own line height
+  @e2e @wip @draft @config-gated @P1 @CT257 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (the round 5 browser rows).
+  Scenario: With sa_r28_mcq on, coach-led on a 360x640 phone, the question card keeps its descenders and the coach's line stays whole
+    Given sa_r28_mcq is on and a coach-led phone shows any served question
+    Then the question card's last line keeps its descenders inside the card and no Urdu question runs past two lines
+    And a one-line question keeps its first line's ascenders inside the card
+    And the coach's line ends above the fold's box
+    And the four answer cards stay 56 px tall and on the screen, nothing scrolls
+  @e2e @wip @draft @config-gated @P1 @CT258 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("the coach's Next is in the coach's register …").
+  Scenario: With sa_r28_mcq on, coach-led, the coach's Next looks like the coach's and stands away from the child's replay
+    Given sa_r28_mcq is on, the run is coach-led and the Next is offered
+    Then the Next is a dashed box with no fill, never a pill like the child's replay
+    And it stands at least 48 px from the replay on a 360 px phone
+  @e2e @wip @draft @config-gated @P1 @CT259 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("?probe=1 …", "chosen_at_option 0 …").
+  Scenario: With sa_r28_mcq on, the question itself counts as option 0
+    Given sa_r28_mcq is on and the debug probe is on
+    When Jugnu reads the question
+    Then the probe logs hl 0 when the question's clip starts and ends, and no card lights for it
+    And a choice made while a replayed question is read, or before the first answer lights, records chosen_at_option 0
+    And a tap during the first reading of the question is still ignored
   @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
   Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had

@@ -706,3 +706,28 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q:not([lang=ur]){padding-bottom:0;border-bottom:10px solid var(--sae-accent-l)}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:5px}
 }
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 5 (B.3: whole Nastaliq glyphs; the coach's Next) ----
+   Coach-led only (the screen that carries the coach's fold), below 700 px, Urdu only but for the card gap and the
+   Next. (1) The open fold's Urdu answer list: a line pitch that keeps one line's ink off the next on every served set
+   (Nastaliq ink runs ~3x its size), paid for inside the overlay by a smaller question line above it. (2) The Urdu
+   question card: room inside its clip box (padding, not a border) for the descender of its second line and as much of
+   the first line's ascender as the 640 px budget leaves (all of it on a one-line question, .is-one-line from sa-ui.js),
+   paid for by the body's gaps and the card gap; a Latin question shows up to three lines (never clipped). (3) The coach's
+   line ends above the fold's box. (4) Every width: the coach's Next in the coach's register (a dashed box, never the
+   child's pill), at the row's end edge over the body's side padding, at least 48 px from the child's replay. */
+.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{inset-inline-end:-8px;max-width:calc(50% - 98px);background:transparent;border:2px dashed var(--sae-line);border-radius:10px;box-shadow:none;color:var(--sae-ink)}
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{padding-inline:6px;font-size:18px}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{font-size:16px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:4px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body>p.sae-coach-line[lang=ur]{font-size:18px;line-height:1.9;padding-top:0;padding-bottom:0;margin:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]{line-height:3.5}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur]{padding-top:14px;padding-bottom:13px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur].is-one-line{padding-top:24px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q:not([lang=ur]){-webkit-line-clamp:3}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{margin:0 0 2px}
+  .sae[lang=ur] .sae-mcq.sae-screen:has(.sae-mcq-coach){gap:0}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{gap:1px}
+  .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{padding-bottom:3px}
+}
+/* end round 28, round 5 */
