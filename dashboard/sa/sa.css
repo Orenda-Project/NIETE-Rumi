@@ -779,3 +779,13 @@ button{font:inherit;color:inherit}
   .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{padding-bottom:3px}
 }
 /* end round 28, round 5 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 7 (B.3: the Urdu coach's line keeps its lines apart) ----
+   Coach-led only, below 700 px, Urdu only. At 13 px a Nastaliq line's ink runs ~3x its size, so the coach's three
+   lines need a pitch of ~2.8 em to keep >= 2 px of ink between them (measured one line at a time). Its side padding
+   sets the line breaks so that no tall stroke of a line sits under a deep descender of the line above; the extra
+   half-leading below the last line keeps that line's ink inside the box, and the fold's row meets it there (the
+   negative bottom margin lands on that empty leading, never on ink). The cards keep >= 8 px under the lowest ring. */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{line-height:2.81;padding:0 22px;margin:-1px 0 -2px}
+}
+/* end round 28, round 7 */

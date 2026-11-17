@@ -1364,12 +1364,57 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
       title_display: (() => { const t = document.querySelector('.sae-mcq .sae-task-tag'); return t ? getComputedStyle(t).display : null; })(),
     };
   });
+  /** Round 7: the coach's line, one line at a time (A6's per-line ink method). Its text is split at its line breaks
+   *  into spans laid out exactly as before, every other element on the screen hidden, one line's text drawn at a time;
+   *  a pixel is ink when its luminance < 120 with the line drawn and >= 120 with no text drawn (2x DPR). Returns the
+   *  lines, the ink gap between each pair of consecutive lines, and how far the last line's ink runs below the
+   *  element's padding box (> 0 = outside). The page is put back as it was. */
+  async function coachLineInk(p) {
+    const geo = await p.evaluate(() => {
+      const el = document.querySelector('.sae-mcq-coach-line'); const tn = el.firstChild; const s = tn.textContent;
+      const before = el.getBoundingClientRect();
+      const r = document.createRange(); const tops = []; const starts = [];
+      for (let i = 0; i < s.length; i++) { r.setStart(tn, i); r.setEnd(tn, i + 1); const rc = r.getClientRects()[0]; if (!rc || !rc.width) continue;
+        const t = Math.round(rc.top); if (!tops.length || Math.abs(t - tops[tops.length - 1]) > 4) { tops.push(t); starts.push(i); } }
+      el.textContent = '';
+      starts.forEach((st, k) => { const sp = document.createElement('span'); sp.className = 'b7-line'; sp.textContent = s.slice(st, k + 1 < starts.length ? starts[k + 1] : s.length); el.appendChild(sp); });
+      const after = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+      const keep = new Set(); let n = el; while (n) { keep.add(n); n = n.parentElement; }
+      window.__b7 = { el, s, hidden: [] };
+      document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !el.contains(x) && x.style.visibility !== 'hidden') { x.style.visibility = 'hidden'; window.__b7.hidden.push(x); } });
+      return { lines: starts.length, same_layout: Math.abs(before.height - after.height) < 0.5 && Math.abs(before.top - after.top) < 0.5,
+        top: after.top, bottom: after.bottom, clip_bottom: after.bottom - parseFloat(cs.borderBottomWidth), clip_top: after.top + parseFloat(cs.borderTopWidth),
+        font: cs.fontSize + '/' + cs.lineHeight, padding: cs.padding, margin: cs.margin };
+    });
+    const clip = { x: 0, y: Math.max(0, Math.floor(geo.top) - 30), width: 360 };
+    clip.height = Math.min(640, Math.ceil(geo.bottom) + 40) - clip.y;
+    const pixels = async () => p.evaluate(async (b64) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      return { w: c.width, h: c.height, d: Array.from(g.getImageData(0, 0, c.width, c.height).data) };
+    }, (await p.screenshot({ clip })).toString('base64'));
+    const show = (k) => p.evaluate((k) => document.querySelectorAll('.b7-line').forEach((sp, i) => { sp.style.color = k === i ? '' : 'transparent'; }), k);
+    const L = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    await show(-1); const none = await pixels();
+    const ink = [];
+    for (let k = 0; k < geo.lines; k++) {
+      await show(k); const A = await pixels(); let top = null, bottom = null;
+      for (let y = 0; y < A.h; y++) for (let x = 0; x < A.w; x++) { const i = (y * A.w + x) * 4; if (L(A.d, i) < 120 && L(none.d, i) >= 120) { const cy = clip.y + y / 2; if (top == null) top = cy; bottom = cy; } }
+      ink.push({ top, bottom });
+    }
+    await p.evaluate(() => { const b = window.__b7; b.hidden.forEach((x) => { x.style.visibility = ''; }); b.el.textContent = b.s; delete window.__b7; });
+    const gaps = ink.slice(1).map((x, i) => +(x.top - ink[i].bottom).toFixed(1));
+    const last = ink[ink.length - 1];
+    return { lines: geo.lines, same_layout: geo.same_layout, font: geo.font, padding: geo.padding, margin: geo.margin, ink, gaps,
+      gaps_min: gaps.length ? Math.min(...gaps) : null, below_box: +(last.bottom + 0.5 - geo.clip_bottom).toFixed(1),
+      first_ink_above_box: +(geo.clip_top - ink[0].top).toFixed(1) };
+  }
   /** Every coach state of one question: listening (the question being read), speaking (answer 2 lit), chosen (answer 4
    *  held while answer 3 is read), then on a fresh page the offered Next and the coach's fold open over it. */
-  async function states(lang, ui, urFit, shots) {
+  async function states(lang, ui, urFit, shots, inkLine) {
     const out = {};
     const open = async () => {
-      const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: shots ? 2 : 1 });
+      const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: shots || inkLine ? 2 : 1 });
       const p = await ctx.newPage();
       const html = page(lang, ui, urFit);
       await p.route('**/*', (route) => {
@@ -1387,6 +1432,7 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
     const snap = async (p, name) => {
       await p.waitForTimeout(250);
       out[name] = await p.evaluate(measure);
+      if (inkLine) out[name].coach_ink = await coachLineInk(p);
       if (shots) await p.screenshot({ path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
     };
     const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
@@ -1454,6 +1500,27 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
           .toEqual({ in_head: true, foot: false, shown: true, inside: true });
       }, 120000);
     }
+  }
+  // round 7: the coach's line on the coach-led phone with the production layout switches and the house Nastaliq, read
+  // one line at a time in every coach state: ≥ 2 px of ink between every pair of consecutive lines, and the last line's
+  // ink inside the element's padding box (the top edge is outside the bar; its number is reported, not asserted).
+  // Every served question shows the same line, so one question per language is enough. Latin passes as it was.
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines and its last line's ink inside its box, in every coach state`, async () => {
+      const r = await states(lang, LAYOUT, true, null, true);
+      const rows = Object.entries(r).map(([state, m]) => ({ state, lines: m.coach_ink.lines, same_layout: m.coach_ink.same_layout, gaps: m.coach_ink.gaps,
+        gaps_min: m.coach_ink.gaps_min, below_box: m.coach_ink.below_box, above_box: m.coach_ink.first_ink_above_box, font: m.coach_ink.font,
+        ring_margin: m.vh - Math.max(...m.cards.map((c) => c.ring_bottom)) }));
+      if (process.env.SA_FIT_DEBUG) process.stdout.write(`MCQCOACHINK ${lang} ${JSON.stringify(rows)}\n`);
+      expect(Object.keys(r)).toEqual(['listening', 'speaking', 'chosen', 'offernext', 'foldopen']);
+      for (const x of rows) {
+        expect({ state: x.state, same_layout: x.same_layout, lines_ok: x.lines >= 2 }).toEqual({ state: x.state, same_layout: true, lines_ok: true });
+        expect({ state: x.state, gaps: x.gaps, gaps_min_ok: x.gaps_min >= 2, below_box: x.below_box, inside_box: x.below_box <= 0 })
+          .toEqual({ state: x.state, gaps: x.gaps, gaps_min_ok: true, below_box: x.below_box, inside_box: true });
+        expect(parseFloat(x.font)).toBeGreaterThanOrEqual(13); // never below the coach's 13 px
+        expect({ state: x.state, ring_margin_ok: x.ring_margin >= 8 }).toEqual({ state: x.state, ring_margin_ok: true });
+      }
+    }, 180000);
   }
 });
 
@@ -1781,7 +1848,10 @@ describe('sa_r28_mcq CSS: the coach-led phone fit leaves RDF auto and the tablet
     expect(parseFloat(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]')['line-height'])).toBeGreaterThanOrEqual(3.3);
     expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur]')['padding-bottom']).toBe('13px');
     expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts').gap).toBe('4px');
-    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]').margin).toBe('0 0 2px');
+    // round 7: the Urdu coach's line takes a 2.81 line pitch and 22 px sides (its lines apart, its ink inside its box);
+    // the fold's row meets it on the empty leading below its last line
+    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]').margin).toBe('-1px 0 -2px');
+    expect(decl('.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]')['line-height']).toBe('2.81');
     // no rule gives the Latin (or an unscoped) fold list a line height
     all.filter((r) => /sae-mcq-coach-opts/.test(r.sel) && !/\[lang=ur\]/.test(r.sel)).forEach((r) => expect(r.body).not.toMatch(/line-height/));
     const nx = all.filter((r) => r.media === '' && /\.sae-mcq-head>\.sae-mcq-next$/.test(r.sel)).map((r) => r.body).join(';');

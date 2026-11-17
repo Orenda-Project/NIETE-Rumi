@@ -1603,6 +1603,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the lowest answer card's ring ends at least 8 px above the bottom of the screen in every coach state
     And in RDF auto, and on a tablet in either mode, the task title is still shown
     And closing the coach's fold with its own label logs fold_close with card null
+  @e2e @wip @draft @config-gated @P1 @CT267 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("ur, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines …",
+  # "en, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines …").
+  Scenario: With sa_r28_mcq on, the coach's Urdu line on the coach-led phone question screen keeps its lines apart and inside its box
+    Given sa_r28_mcq is on and a coach runs the battery on a 360x640 phone with the Urdu layout switches
+    When a story question is on screen, in any coach state (listening, an answer read, an answer chosen, Next offered, the fold open)
+    Then every line of the coach's Urdu line is at least 2 px of ink away from the next one
+    And the last line's ink stays inside the coach's line box
+    And the coach's line keeps its 13 px size, and the lowest answer card's ring still ends at least 8 px above the bottom of the screen
+    And the English coach's line is as it was
   @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
   Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had
