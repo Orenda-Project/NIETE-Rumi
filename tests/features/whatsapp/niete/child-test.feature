@@ -1098,7 +1098,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When Jugnu says "The answer is:"
     Then the answer clip is already loaded and starts as soon as "The answer is:" ends
 
-  @e2e @wip @draft @config-gated @P1 @CT172 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT174 @no-mock-driver
   Scenario: With sa_r10_bigger_audio and sa_r10_practice_gap off, every clip plays on a new element as today
     Given sa_r10_bigger_audio and sa_r10_practice_gap are off
     Then the served battery has neither r10_bigger_audio nor r10_practice_gap
