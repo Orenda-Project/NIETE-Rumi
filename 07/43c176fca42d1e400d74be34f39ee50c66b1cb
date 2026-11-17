@@ -1,3 +1,4 @@
 {"ts":"2026-11-17T17:07:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
 {"ts":"2026-11-17T17:07:23Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.1.1","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
 {"ts":"2026-11-17T17:07:24Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.1.1","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
+{"ts":"2026-11-17T17:09:20Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-gfc5zv-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
