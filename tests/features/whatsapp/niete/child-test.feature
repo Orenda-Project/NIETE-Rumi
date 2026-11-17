@@ -1465,6 +1465,18 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a tapped task the child heard too few items of says "not rated (too few items heard)" and shows no score
     And a timed task that ran past its first items shows "First N correct" beside its rate
 
+  @e2e @wip @draft @config-gated @P1 @CT243 @no-mock-driver
+  # No mock driver: the portal reads the server's results. Asserted in portal/src/portal/lib/assess/cohortStats.r28.test.ts
+  # and portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx.
+  Scenario: the dashboard's "reading with comprehension" is reported per form, spoken and tapped, never one pooled share
+    Given sa_r28_mcq is on and some children in view answered the spoken story questions and others the tapped ones
+    When a coach opens the results dashboard
+    Then the headline shows two numbers side by side, labelled "spoken" and "listen and tap" (Urdu «بول کر» and «سن کر ٹیپ»)
+    And each sub-region or school row shows the same two numbers, never one merged number
+    And a cohort with only one form shows that one number in today's tile
+    And a tapped task the child heard too few items of counts in neither number
+
+
   @e2e @wip @draft @config-gated @P1 @CT214 @no-mock-driver
   # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
   Scenario: With sa_r28_mcq on, the story questions picked from four are judged out of six, less the questions whose sound was lost
