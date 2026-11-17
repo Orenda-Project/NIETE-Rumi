@@ -18,24 +18,6 @@
     ],
     "offenders": []
   },
-  "tests/coachip/coachip-golden.test.js": {
-    "failing": [
-      "B7 golden route shapes, no COACHIP row in app_settings (API §13) the shapes equal tests/coachip/__golden__/routes.golden.json (written on the first run; UPDATE_GOLDEN=1 rewrites)"
-    ],
-    "offenders": [
-      "coachFullApp",
-      "coachReportsApp",
-      "helpVideos",
-      "lpMakeOwn",
-      "lpOwnReviewer",
-      "lpOwnShelf",
-      "observeOnPortal",
-      "principalApp",
-      "roleSwitch",
-      "roleSwitchRoles",
-      "schoolCard"
-    ]
-  },
   "tests/config/ux-strings.test.js": {
     "failing": [
       "catalog completeness — every key exists in every offered language keeps Urdu strings in Urdu script, not Roman transliteration"
