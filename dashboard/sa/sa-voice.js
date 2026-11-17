@@ -18,6 +18,8 @@
  * Round 28 (the letter-sound picker), opts.clip_only: the line is the clip or nothing. No clip, a clip that fails twice
  * or gives up, or no audio element: the promise REJECTS and the phone's voice is never used (it would say the letter's
  * name). Muted, a line cut by the next one and a page hidden mid-line behave as without it.
+ * preload([audioObj…], ms) → Promise<{ ready, of }> (round 28): loads the clips in elements of their own (the offline copy
+ * warms with them) and resolves when every one is ready to play through (or failed), or after ms, whichever is first.
  * A new speak() or stop() cuts the one before it and resolves its promise.
  * The page hidden mid-line (another tab, another app, the screen off; the tester, 28 Oct):
  *   - a clip refused, failing or not started while the page is hidden is held, never handed to the phone's voice;
@@ -350,6 +352,32 @@
       });
     }
 
+    /** Round 28: load these clips now; resolves when all can play through (or failed), or after ms. Never rejects. */
+    function preload(list, ms) {
+      return new Promise(function (resolve) {
+        var urls = [];
+        try { (list || []).forEach(function (x) { var c = pick(x, lang); if (c && urls.indexOf(base + c) < 0) urls.push(base + c); }); } catch (e) { urls = []; }
+        var A = AudioCtor();
+        var ready = 0, settled = 0, done = false;
+        var end = function () { if (done) return; done = true; resolve({ ready: ready, of: urls.length }); };
+        if (!urls.length || !A) { end(); return; }
+        setTimeout(end, ms != null ? ms : 5000);
+        urls.forEach(function (u) {
+          var fin = function (ok) { if (ok) ready++; settled++; if (settled >= urls.length) end(); };
+          try {
+            var a = new A();
+            var once = false;
+            var hit = function (ok) { if (once) return; once = true; fin(ok); };
+            a.preload = 'auto';
+            a.oncanplaythrough = function () { hit(true); };
+            a.onerror = function () { hit(false); };
+            a.src = u;
+            if (a.load) a.load();
+          } catch (e) { fin(false); }
+        });
+      });
+    }
+
     /** The page is visible again: a held line plays on (the paused clip, or Jugnu's clip again). Never throws. */
     function resume() {
       var c = cur;
@@ -367,6 +395,7 @@
       speak: speak,
       resume: resume,
       warm: warm,
+      preload: preload,
       stop: function () { try { stopCur(); } catch (e) { cur = null; } },
       setMuted: function (b) { muted = !!b; if (muted) { try { stopCur(); } catch (e) { cur = null; } } },
       get muted() { return muted; },
