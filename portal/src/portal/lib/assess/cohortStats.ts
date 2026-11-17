@@ -72,25 +72,59 @@ function taskIn(s: DashStudent, taskId: string): SaTaskResult | undefined {
 }
 
 /**
+ * The items a round-28 tapped task is read on (null for every other row): the MCQ (a tapped comprehension task) is
+ * of 6 − the questions whose clips were lost (`unavailable`), a question the reading gate did not ask counting as
+ * wrong (so never `asked.length`); the picker (a live-only tapped spec) is of the items `presented`. The share and the
+ * guessing floor both divide by this, never a second formula.
+ */
+export function tapOf(t: SaTaskResult | undefined, spec: TaskSpec): number | null {
+  if (t?.mode !== 'tap') return null;
+  if (spec.kind === 'comprehension') {
+    const lost = typeof t.unavailable === 'number' && t.unavailable > 0 ? t.unavailable : 0;
+    return spec.max - lost > 0 ? spec.max - lost : null;
+  }
+  if (spec.example === false && typeof t.presented === 'number' && t.presented > 0) return t.presented;
+  return null;
+}
+
+/**
  * The share of a comprehension task's questions answered right: its own `of`, else the spec's. Round 28's tapped MCQ:
- * of = 6 − the questions whose clips were lost (`unavailable`); a question the reading gate did not ask counts as wrong,
- * so it is never `asked.length`. An unrated task has no share (correctOf is null).
+ * of tapOf (6 − lost). An unrated task has no share (correctOf is null).
  */
 export function comprehensionShare(t: SaTaskResult | undefined, spec: TaskSpec): number | null {
   const c = correctOf(t);
   if (c === null) return null;
   if (t?.mode === 'tap') {
-    const lost = typeof t.unavailable === 'number' && t.unavailable > 0 ? t.unavailable : 0;
-    return spec.max - lost > 0 ? c / (spec.max - lost) : null;
+    const of = tapOf(t, spec);
+    return of ? c / of : null;
   }
   const of = t?.score && typeof t.score.of === 'number' && t.score.of > 0 ? t.score.of : spec.max;
   return c / of;
 }
 
-/** Round 28's picker: correct of the items presented (lost clips are out of the denominator); every other task: of its max. */
+/** Round 28's picker: correct of the items presented (tapOf; lost clips are out of the denominator); every other task: of its max. */
 function itemsShare(t: SaTaskResult | undefined, c: number, spec: TaskSpec): number {
-  if (t?.mode === 'tap' && spec.example === false && typeof t.presented === 'number' && t.presented > 0) return c / t.presented;
-  return c / spec.max;
+  return c / (tapOf(t, spec) ?? spec.max);
+}
+
+/**
+ * The guessing floor's `of` for a cohort card: the most common tapOf among the rated children (ties: the larger), and
+ * how many rated children had a shorter one. Null when no rated child carries one.
+ */
+export function cohortTapOf(students: DashStudent[], spec: TaskSpec): { of: number; fewer: number } | null {
+  const ofs: number[] = [];
+  for (const s of students) {
+    const t = taskIn(s, spec.taskId);
+    if (correctOf(t) === null) continue;
+    const of = tapOf(t, spec);
+    if (of !== null) ofs.push(of);
+  }
+  if (!ofs.length) return null;
+  const count = new Map<number, number>();
+  for (const x of ofs) count.set(x, (count.get(x) || 0) + 1);
+  let mode = ofs[0];
+  for (const [x, k] of count) if (k > (count.get(mode) as number) || (k === count.get(mode) && x > mode)) mode = x;
+  return { of: mode, fewer: ofs.filter((x) => x < mode).length };
 }
 
 export type TaskSummary = {

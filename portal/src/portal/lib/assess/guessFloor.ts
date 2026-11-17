@@ -24,20 +24,37 @@ export function fmtFloor(x: number): string {
   return `${Number(pct.toPrecision(1))}%`;
 }
 
-/** The rungs each tapped task is read at (the level ladder's), with its item count and default options. */
-const TAP_RUNGS: { re: RegExp; n: number; options: number; rungs: number[] }[] = [
-  { re: /^(ur|en)\.story_mcq_w3$/, n: 6, options: 4, rungs: [4] },
-  { re: /^(ur|en)\.letter_pick10$/, n: 10, options: 5, rungs: [8, 6] },
+/**
+ * A rung as a count on `of` items: the least k with k / of ≥ share, i.e. ceil(share × of). The MCQ's 0.67 is the
+ * ladder's shorthand for two thirds (4 of 6) and is read as 2/3 exactly, as the level ladder compares it.
+ */
+export function rungK(share: number, of: number): number {
+  const s = share === 0.67 ? 2 / 3 : share;
+  return Math.ceil(s * of - 1e-9);
+}
+
+/** The rungs each tapped task is read at (the level ladder's shares), with its full item count and default options. */
+const TAP_RUNGS: { re: RegExp; n: number; options: number; shares: number[] }[] = [
+  { re: /^(ur|en)\.story_mcq_w3$/, n: 6, options: 4, shares: [0.67] },
+  { re: /^(ur|en)\.letter_pick10$/, n: 10, options: 5, shares: [0.8, 0.6] },
 ];
 
 export type Floor = { k: number; n: number; share: number };
 
-/** The guessing floors of a tapped task, highest rung first; null for every other task. `optionsN` from the result. */
-export function tapFloors(taskId: string, optionsN: number | null | undefined): Floor[] | null {
+/**
+ * The guessing floors of a tapped task, highest rung first; null for every other task. `optionsN` from the result.
+ * `of` is the items the rung is read on (the picker's presented, the MCQ's 6 − lost: cohortStats.tapOf, the same
+ * denominator the share divides by); absent or not positive, the task's full count.
+ */
+export function tapFloors(taskId: string, optionsN: number | null | undefined, of?: number | null): Floor[] | null {
   const t = TAP_RUNGS.find((x) => x.re.test(taskId));
   if (!t) return null;
   const options = typeof optionsN === 'number' && optionsN >= 2 ? optionsN : t.options;
-  return t.rungs.map((k) => ({ k, n: t.n, share: guessFloor(1 / options, t.n, k) }));
+  const n = typeof of === 'number' && of > 0 ? of : t.n;
+  return t.shares.map((sh) => {
+    const k = rungK(sh, n);
+    return { k, n, share: guessFloor(1 / options, n, k) };
+  });
 }
 
 /** The picker's tap-before-sound rate above which the card says "read with care". */

@@ -5,6 +5,7 @@ import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
 import { fmtFloor, tapFloors } from '../lib/assess/guessFloor';
+import { specOf, tapOf } from '../lib/assess/cohortStats';
 import { isWordsTask } from '../lib/assess/cwpm';
 import { useUrFit } from '../lib/assess/urFit';
 import type { SaResults, SaSubjectLevel, SaTaskResult } from '../types/childTestSa';
@@ -122,7 +123,9 @@ export default function LeaderAssessResults() {
     const unrated = t.mode === 'tap' && t.unrated === true;
     const firstN = t.firstN && typeof t.firstN.correct === 'number' && typeof t.firstN.of === 'number' ? t.firstN : null;
     // round 28 (SPEC F): a rated tapped picker / MCQ says how many children reach its rung by guessing alone (text only)
-    const floors = t.mode === 'tap' && !unrated && !skipped ? tapFloors(t.taskId, t.optionsN) : null;
+    // on the items this child actually had (presented / 6 − lost): the same tapOf the share divides by
+    const tapSpec = t.mode === 'tap' ? specOf(t.taskId) : undefined;
+    const floors = t.mode === 'tap' && !unrated && !skipped ? tapFloors(t.taskId, t.optionsN, tapSpec ? tapOf(t, tapSpec) : null) : null;
     return (
       <li key={t.taskId} data-testid={`result-task-${t.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
         {t.title?.[lang] ? (

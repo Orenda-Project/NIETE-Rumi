@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fmtFloor, guessFloor, tapFloors, TAP_CARE_ABOVE } from './guessFloor';
+import { fmtFloor, guessFloor, rungK, tapFloors, TAP_CARE_ABOVE } from './guessFloor';
 import { tapBeforeSoundOf } from './realCohort';
-import { headline, specOf, summariseTask } from './cohortStats';
+import { cohortTapOf, headline, specOf, summariseTask, tapOf } from './cohortStats';
 import type { DashStudent } from './exampleCohort';
 import type { SaTaskResult } from '../../types/childTestSa';
 
@@ -68,5 +68,55 @@ describe('tapBeforeSoundOf: the cohort sum for one task', () => {
     const spec = specOf('ur.letter_pick10') as never;
     expect(summariseTask(withIt, spec)).toEqual(summariseTask(bare, spec));
     expect(headline(withIt)).toEqual(headline(bare));
+  });
+});
+
+// Round 28 (lead ruling): the floor is read on the items the child actually had: the picker's `presented`, the MCQ's
+// 6 − lost. k is the rung as a count on that `of`: ceil(share × of), the MCQ's 0.67 read as two thirds as the ladder does.
+describe('the floor on the denominator the rung uses', () => {
+  it('rungK: ceil(share × of); 0.67 is two thirds (4 of 6, never 5)', () => {
+    expect(rungK(0.67, 4)).toBe(3);
+    expect(rungK(0.8, 9)).toBe(8);
+    expect(rungK(0.6, 9)).toBe(6);
+    expect(rungK(0.67, 6)).toBe(4);
+    expect(rungK(0.67, 5)).toBe(4);
+    expect(rungK(0.8, 10)).toBe(8);
+    expect(rungK(0.6, 10)).toBe(6);
+  });
+  it('MCQ, 2 clips lost (of 4): 5.1% reach 3 of 4', () => {
+    expect(guessFloor(0.25, 4, 3)).toBeCloseTo(0.0508, 4);
+    expect(tapFloors('ur.story_mcq_w3', 4, 4)).toEqual([{ k: 3, n: 4, share: guessFloor(0.25, 4, 3) }]);
+    expect(fmtFloor(tapFloors('ur.story_mcq_w3', 4, 4)![0].share)).toBe('5.1%');
+  });
+  it('picker, 9 presented: the 0.8 rung is 8 of 9 (7 of 9 is 0.78, below it), the 0.6 rung 6 of 9', () => {
+    expect(tapFloors('en.letter_pick10', 5, 9)).toEqual([
+      { k: 8, n: 9, share: guessFloor(0.2, 9, 8) },
+      { k: 6, n: 9, share: guessFloor(0.2, 9, 6) },
+    ]);
+    expect(guessFloor(0.2, 9, 8)).toBeCloseTo(0.0000189, 7);
+    expect(fmtFloor(guessFloor(0.2, 9, 8))).toBe('0.002%');
+    expect(fmtFloor(guessFloor(0.2, 9, 6))).toBe('0.3%');
+  });
+  it('no of (or a non-positive one): the task\'s full count, as before', () => {
+    expect(tapFloors('ur.story_mcq_w3', 4, null)).toEqual(tapFloors('ur.story_mcq_w3', 4));
+    expect(tapFloors('ur.letter_pick10', 5, 0)).toEqual(tapFloors('ur.letter_pick10', 5));
+  });
+  it('tapOf is the denominator the share divides by: presented for the picker, 6 − lost for the MCQ', () => {
+    const p = specOf('ur.letter_pick10') as never;
+    const m = specOf('ur.story_mcq_w3') as never;
+    expect(tapOf(pick(7, { presented: 9 }), p)).toBe(9);
+    expect(tapOf(pick(7), p)).toBeNull();
+    expect(tapOf({ ...pick(3), taskId: 'ur.story_mcq_w3', optionsN: 4, unavailable: 2 }, m)).toBe(4);
+    expect(tapOf({ ...pick(3), taskId: 'ur.story_mcq_w3', optionsN: 4 }, m)).toBe(6);
+    expect(tapOf({ ...pick(3), mode: 'record' }, p)).toBeNull();
+  });
+  it('cohortTapOf: the modal of among rated children and how many had a shorter one', () => {
+    const spec = specOf('ur.letter_pick10') as never;
+    const five = [10, 10, 10, 9, 9].map((of, i) => one(String(i), [pick(8, { presented: of })]));
+    expect(cohortTapOf(five, spec)).toEqual({ of: 10, fewer: 2 });
+    const full = [10, 10, 10, 10, 10].map((of, i) => one(String(i), [pick(8, { presented: of })]));
+    expect(cohortTapOf(full, spec)).toEqual({ of: 10, fewer: 0 });
+    const unrated = [...five, one('u', [pick(2, { presented: 3, unrated: true })])];
+    expect(cohortTapOf(unrated, spec)).toEqual({ of: 10, fewer: 2 });
   });
 });
