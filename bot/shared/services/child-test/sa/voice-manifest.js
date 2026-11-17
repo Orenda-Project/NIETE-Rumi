@@ -33,6 +33,8 @@ function voiceManifest(bank) {
   // A rotating passage's other texts (RULING #39) are voiced like the task's own.
   const all = Object.values(bank.tasks || {}).flatMap((t) => [t, ...(t.variants || []).map((v) => v.task)]);
   for (const t of all) {
+    // Round 28's tasks are voiced as their own set (sa/v5, listed with their clips), not by this sa/v1 recorder.
+    if (t.r28) continue;
     const ear = EAR[(t.task || '').split('.')[1]];
     const sc = t.script || {};
     for (const [k, line] of Object.entries(sc)) {
