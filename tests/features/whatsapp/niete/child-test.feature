@@ -1443,6 +1443,44 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When an item of the letter-sound picker shows
     Then Jugnu plays the sound from the phone, the coach does not say it
     And the coach's screen shows the sound and its letter folded away, not in the open
+
+  @e2e @wip @draft @config-gated @P1 @CT247 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js
+  # ("a tap at speech_start + 100 ms is logged …", "two pre-sound taps …", "no timing entry …", "practice (P2) …").
+  Scenario: With sa_r28_letter_pick on, a tap before the sound starts is logged and never scored
+    Given sa_r28_letter_pick is on and the sound's timing is known
+    When the child taps a card before the sound has started
+    Then that tap is not the child's answer and the item stays on screen while the sound plays on
+    And the next tap after the sound has started is the answer, with the early taps counted beside it
+    And in practice the early tap gets no feedback; without the sound's timing every tap answers as before
+
+  @e2e @wip @draft @config-gated @P1 @CT248 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js and
+  # dashboard/tests/sa-r28-mcq.service.test.js ("Next per mode …", "r9 ON, coach-led …", "r9 ON, RDF auto …").
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, Next comes after 15 s coach-led and 30 s on the child's own
+    Given the picker or the story questions are on, with longer question time on
+    When an item waits for the child's tap
+    Then coach-led Next is offered 15 s after the sound ends, and on the child's own 30 s after
+    And the older maths tap parts keep their own waits
+
+  @e2e @wip @draft @config-gated @P1 @CT249 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js
+  # ("a child replay at 8 s …", "a child replay 8 s after the first play …").
+  Scenario: With sa_r28_letter_pick on, a replay restarts the wait for the auto replay and Next
+    Given sa_r28_letter_pick is on
+    When the child presses the sound button 8 s after the sound ended
+    Then neither the auto replay nor Next comes while that sound plays
+    And both count again from the end of that replay
+
+  @e2e @wip @draft @config-gated @P1 @CT250 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js
+  # ("coach-led: the coach line …", "coach line: English …", "the folded target …", "sa.css: the replay pill …").
+  Scenario: With sa_r28_letter_pick on, coach-led, the coach is told not to say the sound
+    Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
+    When any picker screen shows, practice included
+    Then a line above the folded answer asks the coach not to say the sound and to press the sound button instead
+    And the folded answer opens only when the coach taps it and is folded again on the next item
+    And on the child's own run there is no such line
   @e2e @wip @draft @config-gated @P1 @CT194 @no-mock-driver
   # No mock driver: the story's questions run on the child's assessment page, not in the chat.
   # Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
