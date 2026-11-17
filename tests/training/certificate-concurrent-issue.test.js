@@ -145,5 +145,88 @@ describe('certificate issued by a concurrent request', () => {
     });
     const out = await svc.maybeIssueQuizScoreCertificate(sb, { userId: 'u-1', levelId: 31, attemptId: null, programId: 'p-1' });
     expect(out.issued).toBe(false);
+    // ...but it does say she holds it, so a screen can show the level certified.
+    expect(out.already_issued).toBe(true);
+  });
+});
+
+// ─── the level list that LOST the race still reads "certified" ───────────────────────────────────────────────────
+// The real endpoint and the real guard, against a PostgREST-shaped stub whose insert behaves like the race: the
+// other request's row lands first and this insert gets the duplicate key. Same harness as the certify-on-view suite.
+describe('the level list that lost the race', () => {
+  let tables;
+  function from(table) {
+    const eqs = {}; const ins = {};
+    let order = null;
+    const run = () => {
+      let out = tables[table] || [];
+      for (const [c, v] of Object.entries(eqs)) out = out.filter(r => r[c] === v);
+      for (const [c, v] of Object.entries(ins)) out = out.filter(r => v.includes(r[c]));
+      if (order) out = [...out].sort((a, b) => (a[order] < b[order] ? -1 : a[order] > b[order] ? 1 : 0));
+      return out;
+    };
+    const q = {
+      select() { return q; },
+      eq(c, v) { eqs[c] = v; return q; },
+      in(c, v) { ins[c] = v; return q; },
+      order(c) { order = c; return q; },
+      limit() { return q; },
+      maybeSingle() { return Promise.resolve({ data: run()[0] || null, error: null }); },
+      single() { return Promise.resolve({ data: run()[0] || null, error: null }); },
+      insert(row) {
+        if (table === 'training_certificates') {
+          // The other request's row lands first; this one is the duplicate.
+          tables.training_certificates.push({ ...row, certificate_code: WINNER.certificate_code, issued_at: WINNER.issued_at });
+          return Promise.resolve({ error: DUPLICATE });
+        }
+        return Promise.resolve({ error: null });
+      },
+      then(res, rej) { return Promise.resolve({ data: run(), error: null }).then(res, rej); },
+    };
+    return q;
+  }
+
+  function loadEndpoint() {
+    jest.resetModules();
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+    jest.doMock('../../bot/shared/utils/structured-logger', () => ({
+      logEvent: jest.fn(), getCurrentCorrelationId: () => null,
+      logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+    }));
+    jest.doMock('../../bot/shared/config/supabase', () => ({ from: (t) => from(t), rpc: jest.fn() }));
+    jest.doMock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: jest.fn() }));
+    jest.doMock('../../bot/shared/services/training/certificate-pdf.service', () => ({
+      generateAndStoreCertificatePdf: jest.fn().mockResolvedValue(null),
+    }));
+    return require('../../bot/shared/routes/teacher-training-endpoint');
+  }
+
+  test('a level another request just certified reads certified, not open', async () => {
+    const exams = []; const passes = [];
+    for (let i = 1; i <= 9; i += 1) {
+      exams.push({ id: 100 + i, level_id: 27, quiz_type: 'grand_quiz', is_active: true, source_quiz_id: 900 + i });
+      passes.push({ user_id: 'u1', level_id: 27, quiz_kind: 'grand', grand_quiz_id: 100 + i, is_passed: true, status: 'passed' });
+    }
+    tables = {
+      teacher_training_assignments: [{ user_id: 'u1', program_id: 'p-mh', is_active: true }],
+      training_program_scopes: [{ program_id: 'p-mh', vendor_id: 'is', level_ids: null }],
+      training_vendors: [{ id: 'is', key: 'ISAPS', name: 'I-SAPS', unlock_logic: 'all_modules', level_unlock_logic: 'parallel' }],
+      training_levels: [
+        { id: 27, name: 'Level 1: Novice', vendor_id: 'is', order_index: 0, is_active: true },
+        { id: 28, name: 'Level 2: Intermediate', vendor_id: 'is', order_index: 1, is_active: true },
+      ],
+      training_courses: [{ id: 270, level_id: 27, is_active: true }, { id: 280, level_id: 28, is_active: true }],
+      training_modules: [{ id: 2701, course_id: 270, is_active: true }, { id: 2801, course_id: 280, is_active: true }],
+      teacher_training_progress: [{ user_id: 'u1', module_id: 2701 }],
+      training_assessment_attempts: passes,
+      training_grand_quizzes: exams,
+      training_certificates: [],
+      training_questions: [],
+      app_settings: [{ key: 'isaps_crq_results_released', value: true }],
+      users: [{ id: 'u1', name: 'Sana' }],
+    };
+    const levels = await loadEndpoint().loadVisibleLevelsWithProgress('u1');
+    expect(tables.training_certificates).toHaveLength(1);
+    expect(levels.find(l => l.id === 27).state).toBe('certified');
   });
 });
