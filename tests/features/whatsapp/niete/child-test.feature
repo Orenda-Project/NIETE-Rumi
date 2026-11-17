@@ -1879,3 +1879,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then no Back button is drawn on that screen
     And all five letter cards and the replay button can be tapped without scrolling, on every item from the first to the tenth
     And every other task keeps its Back, and with both switches off the Back is drawn as before
+
+  @e2e @wip @draft @config-gated @P1 @CT245 @no-mock-driver
+  # No mock driver: the prompt is sent in the scoring sweep to a model, not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt on, a familiar-words recording is marked as a list of words shown one at a time, with the accent rule
+    Given sa_r28_words_prompt is on
+    When a familiar-words recording is scored
+    Then the model is shown the words as a numbered list, one per line, shown one at a time, not as a story
+    And it is told that a local accent that keeps the same word is correct, and any accepted forms of a word are listed beside it
+    And the speech gate, the marks, the words per minute and the first-row stop work as before
+    And with sa_r28_words_prompt off the prompt and the marks are exactly as before
