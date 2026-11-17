@@ -1239,3 +1239,15 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the check says another person spoke and part of their words were heard
     Then the flag stands when at least that share of their words was heard, and is cleared otherwise
     And a value of true uses the default share, and any other value turns the stricter check off
+
+  @e2e @wip @draft @config-gated @P1 @CT207 @no-mock-driver
+  # No mock driver: the gate runs in the scoring sweep against a model and speech-to-text, not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-letter-gate.test.js.
+  Scenario: With sa_r28_letter_gate on, a letter recording is not muted because speech-to-text heard no word
+    Given sa_r28_letter_gate is on and the speech gate is on
+    And a child says bare letter sounds in a letter-sound or letter-name recording, with no whole word
+    When the recording is scored
+    Then speech-to-text is not asked about that recording and the model marks the letters it hears
+    And a recording shorter than the minimum speech length, or one the model finds holds no letters, is still not reached
+    And word, passage and question recordings are muted as before when speech-to-text hears no word
+    And with sa_r28_letter_gate off a letter recording with no word heard is not reached, exactly as before
