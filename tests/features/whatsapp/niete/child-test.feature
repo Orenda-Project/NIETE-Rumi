@@ -1464,3 +1464,28 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the old spoken tasks keep their titles and their own rows, and a tapped task's card shows only when a child in view has a score for it
     And a tapped task the child heard too few items of says "not rated (too few items heard)" and shows no score
     And a timed task that ran past its first items shows "First N correct" beside its rate
+
+  @e2e @wip @draft @config-gated @P1 @CT214 @no-mock-driver
+  # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_mcq on, the story questions picked from four are judged out of six, less the questions whose sound was lost
+    Given sa_r20_level and sa_r28_mcq are on
+    When a child answered the story questions picked from four
+    Then the comprehension level is met at two thirds of 6 questions, less any question whose sound could not be played
+    And a question the reading gate did not ask counts as not right
+    And a child asked 3 questions who got 2 right does not meet it, and a child asked 6 with 1 lost who got 4 right does
+
+  @e2e @wip @draft @config-gated @P1 @CT215 @no-mock-driver
+  # No mock driver: as @CT214. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: A part with too few items presented is left out of the level, never shown as waiting
+    Given sa_r20_level is on
+    When a child's letter picker presented too few letters to be rated, and the letter names were 2 of 5
+    Then the letters level is not met and the line is not waiting for a score
+    And a subject whose level parts were all too short to rate says so, with no level and nothing waiting
+
+  @e2e @wip @draft @config-gated @P1 @CT216 @no-mock-driver
+  # No mock driver: the scoring sweep runs against a model. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_ceiling on, a timed task without the phone's clock gets no rate until the clock is known
+    Given sa_r28_ceiling is on
+    When a timed task's result arrives without the time used, whether or not it went past today's items
+    Then the task is scored but its rate is left waiting, never worked out on an assumed minute
+    And with sa_r28_ceiling off the rate uses the minute as today and the marks say the minute was assumed

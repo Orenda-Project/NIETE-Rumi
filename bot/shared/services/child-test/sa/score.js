@@ -627,6 +627,16 @@ const LETTER_GATE_SUBTASK = 'letter_sound_identification';
 const noClock = (res) => { const ms = Number(res && res.time_used_ms); return !Number.isFinite(ms) || ms <= 0; };
 
 /**
+ * sa_r28_ceiling (C-5, SPEC v2.1: every timed task): ON, no clock → no rate (rate_pending); OFF, the minute is assumed
+ * as today and the marks say so (seconds_assumed). A result with its clock gets no key.
+ */
+const clockPending = (deps, res) => deps.ceiling === true && noClock(res);
+function clockDetail(pending, res) {
+  if (pending) return { rate_pending: true };
+  return noClock(res) ? { seconds_assumed: true } : null;
+}
+
+/**
  * sa_r28_ceiling (C-7): a task built with base_n carries the whole published grid; the model is given the items the
  * child reached, never fewer than today's N (a run that stopped inside today's items is prompted exactly as before).
  * A task without base_n: the whole list, as today.
@@ -646,7 +656,7 @@ function shownOf(rec, list, reached) {
 function ceilingDetail(rec, rows, numbers, { stopped, pending, res }) {
   const base = Number(rec.base_n);
   const extra = pending ? { rate_pending: true } : {};
-  if (!(base > 0)) return pending ? extra : null;
+  if (!(base > 0)) return clockDetail(pending, res);
   const right = (r) => !stopped && r.i <= numbers.attempted && r.verdict === 'correct';
   return {
     of_all: numbers.attempted,
@@ -684,7 +694,7 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
-  const pending = rec.extends === true && deps.ceiling === true && noClock(res);
+  const pending = clockPending(deps, res);
   const numbers = timedNumbers(rows, res, { stopped, attemptedTo: reached == null ? null : Math.min(reached, items.length), pending });
   return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rec.items, rows, numbers, { stopped, pending, res }), ...(r28 ? { letterGate: true } : {}) };
   return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rows, numbers, { stopped, pending, res }) };
@@ -752,7 +762,7 @@ async function scoreOral(task, rec, row, res, deps, calls) {
   rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
   const timed = Number(rec.time_limit_s) > 0;
   const attemptedTo = reached == null ? null : Math.min(reached, items.length);
-  const pending = timed && rec.extends === true && deps.ceiling === true && noClock(res);
+  const pending = timed && clockPending(deps, res);
   const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo, pending })
     : { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length };
   const ceiling = timed ? ceilingDetail(rec, rows, numbers, { stopped: false, pending, res }) : null;
@@ -786,7 +796,8 @@ async function scorePassage(task, rec, row, res, deps, calls) {
   const tapper = res && typeof res.last_word_how === 'string' ? 'coach' : fromRecording ? 'child' : null;
   const lastWord = tapper ? lastWordOf(rows, tapped, p.lines, tapper) : null;
   const attemptedTo = lastWord ? lastWord.attempted : tapped;
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord };
+  const pending = clockPending(deps, res);
+  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo, pending }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord, ceiling: clockDetail(pending, res) };
 }
 
 /**
