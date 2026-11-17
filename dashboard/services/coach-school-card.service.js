@@ -41,6 +41,9 @@ const { getOverall } = require('./coaching-frameworks.service');
 const { portalSummary } = require('../../bot/shared/services/observe/obs612/view');
 const { createScoreMemo } = require('./schools-analytics.service');
 const { parseLessonRef } = require('../../bot/shared/utils/lesson-ref');
+// A 6-12 open's corpus subject slug → the one subject vocabulary's key (medium dropped) → its name.
+const { lpSubjectKey } = require('./lp-engagement.service');
+const { subjectName } = require('./subject-vocabulary.service');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
 const { displayNameOf } = require('../../bot/shared/services/observe/patch-resolver.service');
 const { teacherLevelOf, VALID_LEVELS } = require('../../bot/shared/utils/teacher-level');
@@ -336,10 +339,15 @@ function lessonPlansOf(rows = [], opens = []) {
     if (!day || !o.user_id || have.has(`${o.user_id}|${day}`)) continue;
     // A K-5 plan key — ICT's grade_<n>_…, GB's gb_g<n>_… or GB's v10 segment id (bd-97daxo.16, lesson-ref) — or, for a
     // 'g612' open, the Grade 6-12 segment id. A row with no kind is a K-5 one, as before.
-    const p = parseLessonRef(String(o.plan_ref || ''), { kind: o.plan_kind === 'g612' ? 'g612' : 'k5' });
+    const g612 = o.plan_kind === 'g612';
+    const ref = String(o.plan_ref || '');
+    // bd-17v39c.4.18 — some 'g612' opens carry a catalogue id (prod 17 Nov: ~200), so a 6-12 open reads either shape.
+    const p = g612 ? parseLessonRef(ref) : parseLessonRef(ref, { kind: 'k5' });
+    // A 6-12 subject is the corpus slug (pak_studies_urdu): give the tile the vocabulary's name, or it reads "Urdu".
+    const subject = p && g612 ? subjectName(lpSubjectKey(p.subject)) || p.subject : p ? p.subject : null;
     add(`app|${o.user_id}|${day}|${o.plan_ref}`, {
       id: `open:${o.id}`, userId: o.user_id, day, at: o.at, ref: o.plan_ref,
-      grade: p ? String(p.grade) : null, subject: p ? p.subject : null, title: null,
+      grade: p ? String(p.grade) : null, subject, title: null,
     });
   }
   return out;
