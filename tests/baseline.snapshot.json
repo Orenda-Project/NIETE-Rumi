@@ -587,15 +587,6 @@
       "UP: bot/tests/quiz has 299 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 288."
     ]
   },
-  "tests/setup/repo-seam-tests.test.js": {
-    "failing": [
-      "the tree every repo seam has a seam test, or is listed (missing / pure); both lists match today exactly"
-    ],
-    "offenders": [
-      "NEW: nudges/topic-end-nudge.service.js > topics.repo has no <module>-seam.test.js that loads the real repo.",
-      "NEW: quiz/web-quiz.service.js > child-language.repo has no <module>-seam.test.js that loads the real repo."
-    ]
-  },
   "tests/setup/schema-completeness.test.js": {
     "failing": [
       "Schema Completeness all code-referenced RPCs exist in schema should have a CREATE [OR REPLACE] FUNCTION for every .rpc() in production bot code",
