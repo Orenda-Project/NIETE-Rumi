@@ -9,3 +9,4 @@
 {"ts":"2026-11-17T17:10:21Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.1.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
 {"ts":"2026-11-17T17:10:30Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-gfc5zv-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
 {"ts":"2026-11-17T17:10:36Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.1.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
+{"ts":"2026-11-17T17:35:02Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"0743c176fca4","branch":"bd-gfc5zv-main","user":""}
