@@ -967,6 +967,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.48 (shelf reviewer 5D: success criteria + self-prediction). Unit: tests/lp612/own-close.test.js,
     # tests/lp612/own-worker-close.test.js.
 
+  @e2e @slow @P1
+  Scenario: A ready-made Grades 6-12 plan ends with the same "Before they write" step
+    Given a Grades 6-12 lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then above the board question and exit ticket the plan shows "Before they write"
+    And it tells me to read the success criteria aloud and have pupils show thumbs up, sideways or down
+    And in Urdu the same step reads "لکھنے سے پہلے" with the Urdu success criteria
+    And the plan stays within its page limit whenever it fitted without the step
+    # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
+
   @e2e @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson
