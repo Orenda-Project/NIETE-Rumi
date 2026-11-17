@@ -197,6 +197,8 @@ export const COACHING_V2_COPY = {
   classNoAnswerNote: "Not carried forward: this recording didn't sound like a class being taught and we didn't get your answer within 24 hours, so no report was made.",
   classRecordAgainNote: 'Not carried forward: you chose to record this class again, so no report was made.',
   stoppedChip: 'Stopped',
+  /* bd-sy4kcv — her list while the report is made (the ontology's word for a thing in progress, never "Preparing"). */
+  beingMade: 'Being made',
   notFound: 'DC observation not found',
   loading: 'Loading',
   retry: 'Try again',
@@ -377,6 +379,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   classNoAnswerNote: 'آگے نہیں بڑھایا گیا: یہ ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگی اور 24 گھنٹے میں آپ کا جواب نہیں ملا، اس لیے رپورٹ نہیں بنی۔',
   classRecordAgainNote: 'آگے نہیں بڑھایا گیا: آپ نے یہ کلاس دوبارہ ریکارڈ کرنے کا انتخاب کیا، اس لیے رپورٹ نہیں بنی۔',
   stoppedChip: 'روک دیا گیا',
+  beingMade: 'تیار ہو رہا ہے',
   notFound: 'ڈیجیٹل کوچنگ مشاہدہ نہیں ملا',
   loading: 'لوڈ ہو رہا ہے',
   retry: 'دوبارہ کوشش کریں',
