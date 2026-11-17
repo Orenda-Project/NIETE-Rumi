@@ -509,7 +509,7 @@ async function silent(deps, calls, clip, lang, heard = null, { vad = false } = {
     try {
       const pcm = await bounded('vad', limitOf(deps, 'vad'), (signal) => deps.pcmOf(clip, signal));
       const a = voiceActivity(pcm.samples, pcm.rate);
-      calls.push({ job: 'child_test.sa_speech_gate', model: 'skipped_r28', cost: 0, seconds: round1((Date.now() - t0) / 1000), error: null, ...clipS, vad_voiced_ms: a.voiced_ms, vad_share: a.share, vad_floor_db: a.floor_db, vad_pass: a.pass });
+      calls.push({ job: 'child_test.sa_speech_gate', model: 'skipped_r28', cost: 0, seconds: round1((Date.now() - t0) / 1000), error: null, ...clipS, vad_voiced_ms: a.voiced_ms, vad_share: a.share, vad_floor_db: a.floor_db, vad_margin_db: a.margin_db, vad_pass: a.pass });
       if (heard) heard.vad = a;
       return a.pass ? false : 'no_voice';
     } catch (e) {
@@ -604,7 +604,7 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
   const mute = await silent(deps, calls, clip, task.lang, heard, { vad: r28 });
   const gate = r28 ? {
     ...(Number.isFinite(Number(clip.durationSec)) ? { clip_s: round1(Number(clip.durationSec)) } : {}),
-    ...(heard.vad ? { vad_voiced_ms: heard.vad.voiced_ms, vad_share: heard.vad.share, vad_floor_db: heard.vad.floor_db, vad_pass: heard.vad.pass } : {}),
+    ...(heard.vad ? { vad_voiced_ms: heard.vad.voiced_ms, vad_share: heard.vad.share, vad_floor_db: heard.vad.floor_db, vad_margin_db: heard.vad.margin_db, vad_pass: heard.vad.pass } : {}),
   } : null;
   // E-11 (sa_r28_letter_gate ON, every other grid task): a mute keeps its reason, the clip's length and STT's words
   const note = letterGate === true && !r28 ? sttNote(heard, clip) : null;
