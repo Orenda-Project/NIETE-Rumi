@@ -67,12 +67,6 @@
     ],
     "offenders": []
   },
-  "tests/portal/bd-5gyspy.9-10-db-client-timeouts.test.js": {
-    "failing": [
-      "bd-5gyspy.9: the DB-context budget follows the route budget a coaching-session reflection still waiting at 31 s gets no 504 from the DB context"
-    ],
-    "offenders": []
-  },
   "tests/quiz/lp-shelf.test.js": {
     "failing": [
       "flushShelf deletes the shelf key"
