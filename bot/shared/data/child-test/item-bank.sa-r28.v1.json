@@ -7,7 +7,8 @@
   "core_egma": "RTI Core EGMA (2013/2014), Student Stimuli Booklet: Sheet 1 number ID; Sheets 8-9 addition L1; Sheets 11-12 subtraction L1",
   "prpkp2020": "Pakistan Reading Project 2020 KP endline, EGRA Urdu Form 1 (NORC report USAID DEC PA00Z7MW, form pages as page images)",
   "rti_rwanda2011": "RTI Rwanda 2011 EGMA, P6 number identification (bank item-bank.sa-extra.v1.json maths.number_id_upper)",
-  "tangerine_gh_sa": "Tangerine SA-EGRMA Ghana form definitions (letters form: letter sounds; numbers form: number ID)"
+  "tangerine_gh_sa": "Tangerine SA-EGRMA Ghana form definitions (letters form: letter sounds; numbers form: number ID)",
+  "jordan_egma_2021": "Jordan Ministry of Education, EGMA 2021 Stimulus Sheets (RTI SharEd, PDF 11 May 2022), page A: Task 1 number identification, the child-facing grid (the 2021 Assessor Protocol p.1 prints a different, all 1-2 digit grid; the stimulus page is used)"
  },
  "letter_pick": {
   "ur": {
@@ -29,7 +30,7 @@
     {
      "target": "م",
      "options": [
-      "ب",
+      "ت",
       "ف",
       "ق",
       "م",
@@ -60,7 +61,7 @@
       "ش",
       "ب",
       "د",
-      "ر",
+      "ل",
       "س"
      ],
      "say": "سَ",
@@ -209,7 +210,7 @@
       "z",
       "w",
       "y",
-      "r"
+      "h"
      ],
      "say": "za",
      "ipa": "/z/",
@@ -219,7 +220,7 @@
     {
      "target": "r",
      "options": [
-      "n",
+      "h",
       "l",
       "u",
       "r",
@@ -235,7 +236,7 @@
      "options": [
       "n",
       "u",
-      "r",
+      "y",
       "w",
       "h"
      ],
@@ -279,18 +280,19 @@
       "b",
       "q",
       "d",
-      "m"
+      "h"
      ],
      "say": "ba",
      "ipa": "/b/",
-     "src": "rwp2026:letterid_eng position 33 (target); options tangerine_gh_sa:letters form.html:524"
+     "src": "rwp2026:letterid_eng position 33 (target); options tangerine_gh_sa:letters form.html:524",
+     "authored": true
     },
     {
      "target": "a",
      "options": [
       "d",
       "c",
-      "e",
+      "q",
       "g",
       "a"
      ],
@@ -320,7 +322,7 @@
       "q",
       "d",
       "o",
-      "u"
+      "g"
      ],
      "say": "o",
      "ipa": "/ɒ/",
@@ -347,7 +349,7 @@
     {
      "target": "m",
      "options": [
-      "b",
+      "r",
       "u",
       "m",
       "h",
@@ -356,7 +358,7 @@
      "role": "practice",
      "say": "ma",
      "ipa": "/m/",
-     "src": "egra_tk2016:Annex H p.187 practice letter M; options tangerine_gh_sa:letters form.html:289 with n replaced by h (A-4: m+n)",
+     "src": "egra_tk2016:Annex H p.187 practice letter M; options tangerine_gh_sa:letters form.html:289 with n replaced by h (A-4: m+n) and b by r (no /b/ beside /m/)",
      "authored": true
     }
    ]
@@ -542,10 +544,10 @@
    },
    "ur.story2.q5": {
     "options": [
-     "انھیں نہلا کر",
+     "انھیں بھوکا رکھ کر",
      "وقت پر دانہ پانی دے کر",
      "انھیں پنجرے سے باہر چھوڑ کر",
-     "انھیں کھلونے دے کر"
+     "ان پر شور مچا کر"
     ],
     "target_index": 1,
     "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
@@ -576,7 +578,7 @@
    "en.story_w3.q2": {
     "options": [
      "Flowers",
-     "The teacher",
+     "Grass",
      "Trees",
      "Vegetables"
     ],
@@ -587,7 +589,7 @@
    "en.story.q2": {
     "options": [
      "Flowers",
-     "The teacher",
+     "Grass",
      "Trees",
      "Vegetables"
     ],
@@ -621,7 +623,7 @@
     "options": [
      "Some seeds",
      "The plant",
-     "Some water",
+     "Some stones",
      "His school bag"
     ],
     "target_index": 1,
@@ -632,7 +634,7 @@
     "options": [
      "Some seeds",
      "The plant",
-     "Some water",
+     "Some stones",
      "His school bag"
     ],
     "target_index": 1,
@@ -2434,6 +2436,66 @@
      "src": "v3:sets.A.maths.3.number_id.items[19]"
     },
     {
+     "item": "3",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 1"
+    },
+    {
+     "item": "7",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 3"
+    },
+    {
+     "item": "20",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 5"
+    },
+    {
+     "item": "77",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 6"
+    },
+    {
+     "item": "29",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 7"
+    },
+    {
+     "item": "61",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 8"
+    },
+    {
+     "item": "54",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 9"
+    },
+    {
+     "item": "58",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 10"
+    },
+    {
+     "item": "70",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 12"
+    },
+    {
+     "item": "89",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 14"
+    },
+    {
+     "item": "104",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 16"
+    },
+    {
+     "item": "368",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 17"
+    },
+    {
+     "item": "740",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 18"
+    },
+    {
+     "item": "500",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 19"
+    },
+    {
+     "item": "898",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 20"
+    },
+    {
      "item": "4",
      "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 1"
     },
@@ -2446,16 +2508,8 @@
      "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 3"
     },
     {
-     "item": "58",
-     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 4"
-    },
-    {
      "item": "94",
      "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 5"
-    },
-    {
-     "item": "368",
-     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 6"
     },
     {
      "item": "106",
@@ -2520,14 +2574,6 @@
     {
      "item": "3900",
      "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_10)",
-     "grades": [
-      4,
-      5
-     ]
-    },
-    {
-     "item": "104",
-     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_11)",
      "grades": [
       4,
       5
