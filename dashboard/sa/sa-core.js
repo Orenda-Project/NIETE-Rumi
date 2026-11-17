@@ -119,6 +119,13 @@
  * 120 s); the cell pace no longer moves such a sum on early. Next or an answer still moves on at once. A part with its
  * own clock (the one-minute reads and sums) is the measure and keeps every timing it has. Coach-led: as before.
  *
+ * Round 28 (battery.ui.r28_letter_pick; the served battery carries a task of kind 'pick' only when it is ON): the
+ * letter-sound picker is an untimed tap task (five letter cards, Jugnu's clip, replay_at_s 10, next_at_s 15). Its task
+ * keeps kind 'pick' for the page. answer(value, meta) keeps meta.replays (the child's replays of the clip) and
+ * meta.tap_ms (0 for a tap during the clip, else ms since it ended) on the answer; without meta the answer is as before.
+ * practiceModelled(): an example practice item (role 'example') is modelled, not answered: one practice_model event, no
+ * score. imageUnavailable(task, item, why): why ('clip') goes on the image_unavailable event as value { why }.
+ *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -217,6 +224,8 @@
     if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
     // The item screen's chip (W3-12 4c: a mental sum says "Say the answer"), else the page's own "Read aloud".
     if (t.chip) r.chip = t.chip;
+    // Round 28 (r28_letter_pick): the letter-sound picker keeps its kind for the page (its own screen)
+    if (t.kind === 'pick') r.kind = 'pick';
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
     } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {
@@ -682,11 +691,16 @@
       if (ok && t.stop.first_line_n && st.attempted <= t.stop.first_line_n) st.first_line_correct++;
     }
 
-    function score(it, value) {
+    function score(it, value, meta) {
       var t = task();
       var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
       var a = { item_id: it.id, value: value, ok: ok };
+      // round 28 (the letter-sound picker): the child's replays of the clip and the tap's time after it, when the page gives them
+      if (meta && typeof meta === 'object') {
+        if (typeof meta.replays === 'number' && meta.replays >= 0) a.replays = Math.floor(meta.replays);
+        if (typeof meta.tap_ms === 'number' && isFinite(meta.tap_ms)) a.tap_ms = Math.max(0, Math.round(meta.tap_ms));
+      }
       if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
       if (st.rec_marks) {
         var at = function (x) { return Math.max(0, Math.round(x - st.rec_t0)); };
@@ -837,6 +851,21 @@
         return { ok: ok, retry: retry, shown: !ok && !retry ? p.target : null, feedback: p.feedback || null };
       },
       /**
+       * Round 28 (the letter-sound picker): the practice item on show is an example (role 'example'), modelled by Jugnu
+       * with the right card lit; the child does not answer it. One practice_model event, no score; the next practice item
+       * (or ready). → true when it acted, false otherwise (not in practice, or not an example).
+       */
+      practiceModelled: function () {
+        if (st.phase !== 'practice') return false;
+        var p = task().practice[st.practice_i];
+        if (!p || p.role !== 'example') return false;
+        ev('practice_model', { task_id: st.task_id, item_id: p.id });
+        st.practice_i++;
+        st.practice_tries = 0;
+        if (st.practice_i >= task().practice.length) st.phase = 'ready';
+        return true;
+      },
+      /**
        * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach skips the part's instruction and practice. It lands
        * on the part's Ready screen, never past it: Go still starts the clock and the first item is still asked (a timed
        * part's clock must not start before the child holds the phone). A session gate (mic check, oral practice, keypad
@@ -861,14 +890,15 @@
         if (cellTask(task())) { st.cells = []; st.cell = { i: 0, at: st.started }; }
         ev('task_start', { task_id: st.task_id, value: { time_limit_s: task().time_limit_s || null, mode: task().mode, items: st.items.length } });
       },
-      /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null. */
-      answer: function (value) {
+      /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null.
+       *  meta (round 28, optional): { replays, tap_ms } kept on the answer. */
+      answer: function (value, meta) {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         var it = st.items[st.item_i];
         st.oral_run = 0; // round 13b: an answered question starts the count again
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
-        return score(it, value);
+        return score(it, value, meta);
       },
       /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
       promptDone: function () {
@@ -998,11 +1028,14 @@
         return true;
       },
       /** A picture of this task would not load (the page's <img> error): image_unavailable, the task ends as
-       *  assets_unavailable. A late error from another task's picture is ignored. */
-      imageUnavailable: function (taskId, itemId) {
+       *  assets_unavailable. A late error from another task's picture is ignored. why (round 28, optional): what would not
+       *  load ('clip': the letter-sound picker's sound), as the event's value { why }. */
+      imageUnavailable: function (taskId, itemId, why) {
         if (taskId !== st.task_id || ['running', 'instruction', 'practice', 'ready'].indexOf(st.phase) < 0) return;
         if (st.started == null) st.started = now();
-        ev('image_unavailable', { task_id: st.task_id, item_id: itemId == null ? null : itemId });
+        var e = { task_id: st.task_id, item_id: itemId == null ? null : itemId };
+        if (why) e.value = { why: String(why) };
+        ev('image_unavailable', e);
         finish(STOP.ASSETS);
       },
       /** After the task-end screen: the next task (after any a round 7b skip passed over). */
