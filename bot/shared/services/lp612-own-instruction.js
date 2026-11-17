@@ -16,6 +16,7 @@ const {
 const { pagesLine612 } = require('./lp612-own-pages');
 const { sloMix, sloCodes } = require('./lp612-own-slo');
 const { loadLine } = require('./lp-own-period');
+const { isScience, SCIENCE_GLOSS_LINE } = require('./lp612-own-gloss');
 
 const NOTE_MAX = 200;
 const FOCI = ['summative', 'formative'];
@@ -82,7 +83,7 @@ function secondaryBand(ctx) {
 }
 
 /**
- * @param ctx {{grade?:number, segmentId?:string, sloMap?:object}} — grades 6–12 check the way against their band's
+ * @param ctx {{grade?:number, segmentId?:string, subject?:string, sloMap?:object}} — grades 6–12 check the way against their band's
  *   set and also take `purpose` (what the lesson is for) and `focus` (Summative or Formative SLOs first; kept only
  *   when the segment's SLOs are mixed).
  * @returns {{ok:true, answers:object} | {ok:false, error:string}}
@@ -171,6 +172,7 @@ function buildOwnInstruction(answers, ctx) {
   ];
   if (secondary) lines.push(...secondaryLines(a, ctx || {}));
   if (secondary && a.pages) lines.push(pagesLine612(a.pages)); // item 14
+  if (secondary && isScience(ctx)) lines.push(SCIENCE_GLOSS_LINE); // bd-snkn32.48: the reviewer's 9B
   const book = bookLine(ctx && ctx.bookText);
   if (book) lines.push(book);
   if (a.note) lines.push(`Her own note: "${a.note}"`);
