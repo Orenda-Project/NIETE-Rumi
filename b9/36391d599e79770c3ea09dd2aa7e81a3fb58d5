@@ -1,1 +1,2 @@
 {"ts":"2026-11-17T16:01:02Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"b936391d599e","branch":"HEAD","user":""}
+{"ts":"2026-11-17T16:28:23Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (scenario committed in db408b922; mock lane HEALTHY 12/12 on a5fc401)","sha":"b936391d599e","branch":"bd-snkn32.50-29391","user":""}
