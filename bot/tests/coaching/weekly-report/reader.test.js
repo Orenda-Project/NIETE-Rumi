@@ -15,7 +15,7 @@ const mockGroups = jest.fn();
 jest.mock('../../../shared/services/coaching/ab-v10-arms', () => ({
   TABLE: 'niete_coaching_ab_assignment',
   groupsForUsers: (...a) => mockGroups(...a),
-}), { virtual: true });
+}));
 
 const reader = require('../../../shared/services/coaching/weekly-report/reader');
 

@@ -250,7 +250,7 @@ describe('POST /fln/send', () => {
 });
 
 test('the default requireFln comes from dashboard/lib/fln-access.js (virtual stub here: the file lands with PR-C)', async () => {
-  jest.doMock('../../dashboard/lib/fln-access', () => flnAccessStub(), { virtual: true });
+  jest.doMock('../../dashboard/lib/fln-access', () => flnAccessStub());
   const b = await bot();
   const a = express();
   a.use((rq, _res, next) => { rq.session = { portalUserId: LEADER }; next(); });

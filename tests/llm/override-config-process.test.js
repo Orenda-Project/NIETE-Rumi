@@ -22,7 +22,7 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({
   getCurrentCorrelationId: () => 'corr-1',
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: () => {} }));
-jest.mock('../../bot/shared/services/e2e-cassette', () => ({ mode: () => 'off', wrapChatCompletions: () => {} }), { virtual: true });
+jest.mock('../../bot/shared/services/e2e-cassette', () => ({ mode: () => 'off', wrapChatCompletions: () => {} }));
 
 const OLD_ENV = { ...process.env };
 const RAILWAY = ['RAILWAY_SERVICE_NAME', 'RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_DEPLOYMENT_ID', 'RAILWAY_REPLICA_ID'];
