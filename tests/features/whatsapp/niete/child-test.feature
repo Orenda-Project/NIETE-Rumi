@@ -1239,3 +1239,50 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the check says another person spoke and part of their words were heard
     Then the flag stands when at least that share of their words was heard, and is cleared otherwise
     And a value of true uses the default share, and any other value turns the stricter check off
+
+  @e2e @wip @draft @config-gated @P1 @CT199 @no-mock-driver
+  # No mock driver: the extension is the phone's battery engine and the scoring sweep, not the chat.
+  # Asserted in dashboard/tests/sa-r28-ceiling-core.service.test.js.
+  Scenario: With sa_r28_ceiling on, a fast child keeps getting new words until the minute ends
+    Given sa_r28_ceiling is on
+    And a child has read all of today's words before the minute is over
+    When the child moves on from the last of today's words
+    Then the next word of the longer published list is shown
+    And the task ends only when the minute ends, or when the whole list has been read
+    And with sa_r28_ceiling off the task has today's words only
+
+  @e2e @wip @draft @config-gated @P1 @CT200 @no-mock-driver
+  # No mock driver: as @CT199. Asserted in dashboard/tests/sa-r28-ceiling-core.service.test.js and
+  # bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_ceiling on, an item shown for under half a second at the end of the minute is not counted as tried
+    Given sa_r28_ceiling is on
+    When the minute ends less than half a second after an item came up
+    Then that item is still listed as shown, with how long it was on show
+    And it is not counted among the items the child tried
+    And an item on show for longer than half a second is marked from the recording as today
+
+  @e2e @wip @draft @config-gated @P1 @CT201 @no-mock-driver
+  # No mock driver: the scoring sweep runs against a model. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: The scorer marks only the items the child reached, and keeps today's first items as a fixed anchor
+    Given a child reached 12 words of a 50-word list whose first 4 are today's words
+    When the recording is scored
+    Then the scorer is given the 12 words reached, never the whole list
+    And the marks say how many were reached, how many of today's first 4 were right, and the rate over the time used
+    And a child who reached fewer than today's 4 is scored on today's 4 exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT202 @no-mock-driver
+  # No mock driver: as @CT201. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_ceiling on, the first-line rule and the missing clock are applied when the recording is scored
+    Given sa_r28_ceiling is on
+    When a child got none of the first 10 letters right and some later ones right
+    Then the letters score is 0, with the items tried and the time used kept as they were
+    And a result without the time used gets no rate until the time is known
+    And with sa_r28_ceiling off the same run is scored as today
+
+  @e2e @wip @draft @config-gated @P1 @CT203 @no-mock-driver
+  # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: The Results level reads today's first items of a longer list
+    Given sa_r20_level is on and a child reached 12 letters, 5 of them today's first 5
+    When the coach opens Results
+    Then the letters level is decided on today's first 5 letters, all right, so it is met
+    And a child with 3 of today's first 5 right does not meet it however many later letters were right
