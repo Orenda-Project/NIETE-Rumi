@@ -244,20 +244,22 @@ function withoutW3(battery) {
  *                       (`<lang>.letter_sounds5`) in `tasks` and in the RDF lists (rdf_auto / rdf_manual); OFF: dropped.
  *   sa_r28_mcq          a task `r28: 'mcq'` (kind 'mcq': the story questions as four spoken options to tap). ON: in the
  *                       place of `<lang>.story_comp_w3`; OFF: dropped.
- *   sa_r28_ceiling      a timed task's items past today's first N (`ext: true`, the task's `base_n`), so the child
- *                       keeps getting items until the clock ends. OFF: the `ext` items are sliced away, `grid` is
- *                       rebuilt from what is left and `base_n` goes.
+ *   sa_r28_ceiling      a timed task's items past today's first N: the committed task keeps `items` / `grid` / `stop`
+ *                       as today and adds `base_n: N`, `ext_items: [...]` (each `ext: true`, `src`) and `ext_stop` (the
+ *                       scorer's first-row rule past N). ON: the served task's `items` are `items.concat(ext_items)`,
+ *                       `grid` is rebuilt from them, `base_n` stays (the screens read it); OFF: `ext_items`, `ext_stop`
+ *                       and `base_n` go and `items` / `grid` are exactly today's.
+ *   r28_tasks           the builder's list of the round's task ids (how they reach `tasks[]`): never served.
  *   lines_r28           the round's own lines, each `{ text, audio, r28: <kind> }`: a line joins `lines` (without the
  *                       `r28` key) when its kind's switch is ON; the `lines_r28` key never reaches a phone.
  *   Each ON adds battery.ui.r28_<x> = true for the engine (UI). A battery with nothing of round 28 comes back as it is.
  */
 const R28_KINDS = { r28LetterPick: 'letter_pick', r28Mcq: 'mcq' };
-const isExt = (it) => Boolean(it && it.ext === true);
+const hasExt = (t) => Boolean(t && (t.base_n != null || Array.isArray(t.ext_items) || t.ext_stop != null));
 function withR28(battery, on) {
   const tasks = battery.tasks;
   const hasTask = tasks.some((t) => t && t.r28);
-  const hasExt = tasks.some((t) => t && (t.base_n != null || (Array.isArray(t.items) && t.items.some(isExt))));
-  if (!hasTask && !hasExt && !battery.lines_r28) return battery;
+  if (!hasTask && !tasks.some(hasExt) && !battery.lines_r28 && !battery.r28_tasks) return battery;
   const kinds = new Set(Object.entries(R28_KINDS).filter(([k]) => on[k] === true).map(([, kind]) => kind));
   // ON: the new task sits where the task it replaces sat; OFF: it is dropped.
   const byOld = new Map(tasks.filter((t) => t && t.r28 && kinds.has(t.r28) && t.replaces).map((t) => [t.replaces, t]));
@@ -271,16 +273,15 @@ function withR28(battery, on) {
   }
   // a replacement whose old task is not in this battery still runs when ON (appended, as the lists name it)
   for (const by of byOld.values()) if (!placed.has(by.id)) out.push(by);
-  if (!on.r28Ceiling) {
-    out = out.map((t) => {
-      if (!t || (t.base_n == null && !(Array.isArray(t.items) && t.items.some(isExt)))) return t;
-      const { base_n: _n, ...rest } = t;
-      const items = Array.isArray(t.items) ? t.items.filter((it) => !isExt(it)) : t.items;
-      return { ...rest, items, ...(Array.isArray(t.grid) ? { grid: items.map((it) => (it.show != null ? it.show : it.target)) } : {}) };
-    });
-  }
+  out = out.map((t) => {
+    if (!hasExt(t)) return t;
+    const { base_n, ext_items: ext, ext_stop: _s, ...rest } = t;
+    if (!on.r28Ceiling || !Array.isArray(ext) || !ext.length) return rest;
+    const items = (Array.isArray(t.items) ? t.items : []).concat(ext);
+    return { ...rest, ...(base_n != null ? { base_n } : {}), items, ...(Array.isArray(t.grid) ? { grid: items.map((it) => (it.show != null ? it.show : it.target)) } : {}) };
+  });
   const swap = (list) => (Array.isArray(list) ? list.map((id) => (byOld.has(id) ? byOld.get(id).id : id)) : list);
-  const { lines_r28: extraLines, ...rest } = battery;
+  const { lines_r28: extraLines, r28_tasks: _ids, ...rest } = battery;
   const lines = { ...(battery.lines || {}) };
   for (const [k, l] of Object.entries(extraLines || {})) {
     if (!l || !kinds.has(l.r28)) continue;
