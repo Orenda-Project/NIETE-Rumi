@@ -679,7 +679,7 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
     const d = deps({ supabase: leaderSupabase(), rubric: { decideV6: jest.fn(async () => { order.push('decide'); return 'fico17_v6'; }) } });
     d.queue.queueTranscription.mockImplementation(async () => { order.push('queue'); });
     await start({}, d);
-    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1' });
     expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6', framework_selection_reason: 'coach_rubric_switch' });
     expect(order).toEqual(['decide', 'queue']);
   });
@@ -687,8 +687,9 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
   test('FDE on and the coach named grades 1-5: v6 is decided by her answer (lessonIsPrimary), no FDE form', async () => {
     const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') } });
     await start({ lesson: { primary: true } }, d);
-    expect(d.rubric.fdeOn).toHaveBeenCalledWith(expect.objectContaining({ id: COACH, region: 'sihala' }));
-    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, lessonIsPrimary: true });
+    // bd-hk2jm3: the visit (teacher + school picked) rides along, for its region (FDE is ICT's only).
+    expect(d.rubric.fdeOn).toHaveBeenCalledWith(expect.objectContaining({ id: COACH, region: 'sihala' }), { teacherUserId: TEACHER_UID, schoolExtId: 'sch-1' });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1', lessonIsPrimary: true });
     expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
     expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
   });
@@ -730,7 +731,7 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
   test.each([[{ grade: 10 }], [{ grade: 12, subject: 'maths' }]])('FDE on and grade 9-12 %j: FICO, decided as a named FICO class', async (lesson) => {
     const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') } });
     expect(await start({ lesson }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
-    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, lessonIsPrimary: true });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1', lessonIsPrimary: true });
     expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
     expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
   });
@@ -754,7 +755,7 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
     const d = deps({ supabase: leaderSupabase(), rubric: { decideV6: jest.fn().mockResolvedValue(null) } });
     await start({ lesson: { grade: 7, subject: 'maths' } }, d);
     expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
-    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1' });
     expect(sessionInsert(d)).not.toHaveProperty('framework');
   });
 
@@ -843,14 +844,14 @@ describe('a principal ON the principal app: the coach HITL rubric on the portal,
   test('the switch names her: a v6 stamp, decided by the coach switch exactly as for a coach', async () => {
     const d = deps({ supabase: onApp(JSON.stringify([OTHER_PRINCIPAL, COACH])), rubric: switchesOn() });
     expect(await start({}, d)).toEqual({ status: 'ok', coachingSessionId: SID });
-    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1' });
     expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6', framework_selection_reason: 'coach_rubric_switch' });
   });
 
   test('a grades 1-5 lesson named: v6, decided as a named FICO class', async () => {
     const d = deps({ supabase: onApp([COACH]), rubric: switchesOn() });
     await start({ lesson: { primary: true } }, d);
-    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, lessonIsPrimary: true });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1', lessonIsPrimary: true });
     expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
   });
 

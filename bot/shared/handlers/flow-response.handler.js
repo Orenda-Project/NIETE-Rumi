@@ -898,9 +898,12 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     const teacherName = result && result.boundTeacher && result.boundTeacher.teacher_name;
     // bd-pni007: with FDE's grade 6-12 tools on for this coach (obs612_coach), the lesson's class (and subject) is
     // asked first; the capture prompt follows the answer. Off (the default): today's capture prompt, unchanged.
+    // bd-hk2jm3: never for a GB visit (FDE is ICT's only): the visit's school and teacher decide, else the coach.
     try {
       const Obs612 = require('../services/observe/obs612/visit');
-      if (user && await Obs612.asksClass(user) && await Obs612.askForObserve(user, phoneNumber, { teacherName })) return true;
+      const bound = (result && result.boundTeacher) || {};
+      const visit = { teacherUserId: bound.user_id || null, schoolExtId: bound.school_ext_id || responseJson.school_ext_id || null };
+      if (user && await Obs612.asksClass(user, visit) && await Obs612.askForObserve(user, phoneNumber, { teacherName })) return true;
     } catch (_) { /* today's capture prompt */ }
     await WhatsAppService.sendMessage(
       phoneNumber,
