@@ -155,3 +155,22 @@ describe("LeaderAssessResults: round 28 guessing floor and tap-before-sound", ()
     expect(screen.queryByTestId("result-guess-floor")).toBeNull();
   });
 });
+
+// Round 28 (lead ruling): the floor is read on the items this child actually had (presented / 6 − lost), the same
+// denominator the share divides by.
+describe("LeaderAssessResults: the floor on the items the child had", () => {
+  it("a picker row with 9 presented reads 8 of 9 (and 6 of 9), never 8 of 10", async () => {
+    api.getResults.mockResolvedValue(RESULTS([{ ...pick, attempted: 9, correct: 8, presented: 9 }]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.letter_pick10");
+    expect(within(card).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 0.002% of children reach 8 of 9 (0.3% reach 6 of 9).");
+  });
+  it("an MCQ row with 2 lost clips reads 3 of 4 (5.1%); with 1 lost, 4 of 5 (1.6%)", async () => {
+    const mcq = { ...pick, taskId: "ur.story_mcq_w3", attempted: 4, correct: 3, optionsN: 4 };
+    api.getResults.mockResolvedValue(RESULTS([{ ...mcq, unavailable: 2 }, { ...mcq, taskId: "en.story_mcq_w3", unavailable: 1 }]));
+    renderAt();
+    const two = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(two).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 5.1% of children reach 3 of 4.");
+    expect(within(screen.getByTestId("result-task-en.story_mcq_w3")).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 1.6% of children reach 4 of 5.");
+  });
+});
