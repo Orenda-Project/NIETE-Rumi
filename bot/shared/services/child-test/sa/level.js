@@ -31,6 +31,8 @@ const STORY_FLOOR_WORDS = 20;
 const LETTERS_SHARE = 0.8; // 4 of 5 letters (names or sounds)
 const WORDS_SHARE = 0.75; // 3 of 4 words
 const COMPREHENSION_SHARE = 0.5; // half the story questions
+const MCQ_SHARE = 0.67; // round 28 B (sa_r28_mcq): 4 of the 6 questions picked from four (a guesser reaches it 3.8% of the time)
+const LETTER_PICK_SHARE = 0.8; // round 28 A (sa_r28_letter_pick): 8 of 10 letters picked by their sound
 const NUMBERS_SHARE = 0.75; // 6 of 8 numbers
 const COMPARING_SHARE = 0.75; // which is bigger + missing number, together
 const ADD_SHARE = 0.5; // half the addition sums
@@ -45,10 +47,10 @@ const SUB_MUL_SHARE = 0.5; // half the subtraction and multiplication sums, toge
  */
 const LADDERS = {
   reading: [
-    { level: 'letters', parts: ['letter_names5', 'letter_sounds5'], rule: 'any', share: LETTERS_SHARE },
+    { level: 'letters', parts: ['letter_names5', 'letter_sounds5', 'letter_pick10'], rule: 'any', share: LETTERS_SHARE, shares: { letter_pick10: LETTER_PICK_SHARE } },
     { level: 'words', parts: ['words4'], rule: 'pooled', share: WORDS_SHARE },
     { level: 'story', parts: ['story_w3'], rule: 'floor', min: STORY_FLOOR_WORDS },
-    { level: 'comprehension', parts: ['story_comp_w3'], rule: 'pooled', share: COMPREHENSION_SHARE },
+    { level: 'comprehension', parts: ['story_comp_w3', 'story_mcq_w3'], rule: 'pooled', share: COMPREHENSION_SHARE, shares: { story_mcq_w3: MCQ_SHARE } },
   ],
   maths: [
     { level: 'numbers', parts: ['number_id8'], rule: 'pooled', share: NUMBERS_SHARE },
@@ -57,6 +59,18 @@ const LADDERS = {
     { level: 'sub_mul', parts: ['sub2i', 'mul2i'], rule: 'pooled', share: SUB_MUL_SHARE },
   ],
 };
+
+/**
+ * Whether `correct` of `of` reaches `share`. The MCQ share 0.67 is the reviewed shorthand for two thirds (4 of 6), and
+ * 4 / 6 = 0.6666… is below 0.67 in floating point, so it is compared exactly as correct × 3 ≥ of × 2.
+ */
+function meets(correct, of, share) {
+  if (!(of > 0)) return false;
+  if (share === MCQ_SHARE) return correct * 3 >= of * 2;
+  return correct / of >= share;
+}
+/** A part's own share on its rung (rung.shares, by task-id suffix), else the rung's. */
+const shareOf = (rung, part) => (rung.shares && rung.shares[part] != null ? rung.shares[part] : rung.share);
 
 const ladderOf = (subject) => (subject === 'ma' ? LADDERS.maths : LADDERS.reading);
 const num = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null);
@@ -95,28 +109,36 @@ function partOf(r, itemsOf) {
   const scored = m && r.ai_status === 'scored' && num(m.correct) !== null;
   if (!scored) return { state: 'pending' };
   const detail = m.detail || {};
+  // sa_r28_ceiling (C-8): an extended timed task is judged on today's first N items (the scorer's fixed anchor)
+  if (num(detail.of_base) !== null && num(detail.correct_base) !== null) return { state: 'scored', correct: detail.correct_base, of: detail.of_base };
   const of = num(detail.of_all) ?? num(m.of) ?? (Array.isArray(detail.items) && detail.items.length ? detail.items.length : null) ?? items;
   return { state: 'scored', correct: m.correct, of };
 }
 
 /** 'met' | 'unmet' | 'pending' for one rung, given the subject's parts by task id. */
 function rungOf(rung, subject, parts) {
-  const got = rung.parts.map((p) => parts.get(`${subject}.${p}`)).filter(Boolean);
+  const named = rung.parts.map((p) => [p, parts.get(`${subject}.${p}`)]).filter(([, x]) => x);
+  const got = named.map(([, x]) => x);
   if (!got.length) return 'unmet';
   if (rung.rule === 'any') {
-    if (got.some((p) => p.state === 'scored' && p.of && p.correct / p.of >= rung.share)) return 'met';
+    if (named.some(([n, p]) => p.state === 'scored' && p.of && meets(p.correct, p.of, shareOf(rung, n)))) return 'met';
     return got.some((p) => p.state === 'pending') ? 'pending' : 'unmet';
   }
   if (got.some((p) => p.state === 'pending')) return 'pending';
   if (rung.rule === 'floor') return got.every((p) => p.state === 'scored' && p.correct >= rung.min) ? 'met' : 'unmet';
   let correct = 0;
   let of = 0;
-  for (const p of got) {
+  // pooled over the parts present (the oral and the picked-from-four questions never run in one session); a part with
+  // its own share sets the bar, the strictest when more than one is present
+  let share = null;
+  for (const [n, p] of named) {
     if (p.state !== 'scored') continue;
     correct += p.correct;
     of += p.of || 0;
+    const s = shareOf(rung, n);
+    if (share === null || s > share) share = s;
   }
-  return of > 0 && correct / of >= rung.share ? 'met' : 'unmet';
+  return of > 0 && meets(correct, of, share === null ? rung.share : share) ? 'met' : 'unmet';
 }
 
 function stopLine(subject, rows, events) {
@@ -158,4 +180,4 @@ function levelsOf(rows, events, { itemsOf = null, titleOf = null } = {}) {
   return out;
 }
 
-module.exports = { levelsOf, LADDERS, BEGINNER, STORY_FLOOR_WORDS, SUBJECTS };
+module.exports = { levelsOf, LADDERS, BEGINNER, STORY_FLOOR_WORDS, SUBJECTS, MCQ_SHARE };
