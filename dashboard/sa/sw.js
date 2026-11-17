@@ -91,7 +91,9 @@ var CORE = 'sa-core-' + VERSION;
 // trimmed and levelled like the other v4 clips, under their keys.
 // v22: round 28's battery files (the letter-sound picker, story options and timed-task extension built in, stripped on serve
 // while their switches are OFF), so a phone takes the new files.
-var SESSION = 'sa-session-v22';
+// v23: round 28's letter-sound prompts re-picked under their keys (each sound heard right on repeated listens and
+// through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
+var SESSION = 'sa-session-v23';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
