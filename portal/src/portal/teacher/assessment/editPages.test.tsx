@@ -226,6 +226,26 @@ describe('a plain paper is unchanged', () => {
     expect(portal.getAssessmentOptions).not.toHaveBeenCalled();
   });
 
+  // bd-5icld3.3 — English G1 offers 18 kinds; the drawer's card used to shrink to fit 88% of the screen and hide most
+  // of them. Now it opens tall and only its list scrolls, every kind inside it.
+  it('the New question drawer opens tall and scrolls its list, with every kind in it', async () => {
+    const ids = ['MCQs', 'MSQs', 'Fill in the Blanks', 'Missing Letters', 'True/False', 'Match the Column',
+      'Circle the Correct Answer', 'Rewrite Sentences', 'Brief Answers', 'Listening', 'Speaking', 'Reading',
+      'Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Rewriting', 'Story Completion', 'Simple Writing'];
+    portal.getAssessmentAddKinds.mockResolvedValue({ slotCap: 6, kinds: ids.map((id, i) => ({
+      kind: id, label: id, layout: 'options', section: i < 12 ? 'objective' : 'subjective', marks: 1, lines: 0 })) });
+    portal.getAssessmentEditQuestions.mockResolvedValue(PLAIN);
+    at(editPath('p-1'), `${B}/paper/:paperId/edit`, <EditPaperPage />);
+    await screen.findByRole('checkbox', { name: 'Remove question 1' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add question' }));
+    const tray = await screen.findByTestId('new-question-tray');
+    expect(tray.className).toContain('max-h-[calc(100dvh');
+    const list = await within(tray).findByTestId('new-question-list');
+    for (const c of ['min-h-0', 'flex-1', 'overflow-y-auto']) expect(list.className.split(' ')).toContain(c);
+    const links = await within(list).findAllByRole('link');
+    expect(links.map((a) => a.textContent)).toEqual(ids);
+  });
+
   it('golden: the plain editor renders byte-identical to the branch point', async () => {
     portal.getAssessmentEditQuestions.mockResolvedValue(PLAIN);
     const { container } = at(editPath('p-1'), `${B}/paper/:paperId/edit`, <EditPaperPage />);
