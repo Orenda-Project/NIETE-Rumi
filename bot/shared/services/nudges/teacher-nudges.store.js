@@ -262,24 +262,43 @@ async function markFailed(id, error) {
 }
 
 /**
+ * The sweeper is about to hand this row to its handler (bd-pw1ccr.41.1). From
+ * here on the teacher may have the message, so a stuck row stamped like this is
+ * a failure, never a retry. Guarded on `status = 'sending'`.
+ */
+async function markStarted(id) {
+  return patchRow(id, {}, { send_started_at: nowIso() }, ['status', STATUS.SENDING]);
+}
+
+/**
  * Rows claimed by a tick that then died mid-send sit in `sending` for ever,
- * invisible to the next claim (it only takes `pending`). After the ceiling they
- * are called what they are — failures — so the counts stay honest and a row
- * cannot silently disappear from every report.
+ * invisible to the next claim (it only takes `pending`). After the ceiling:
+ *   - a row of a kind the sweeper claims (`requeueKinds`, passed by the sweeper)
+ *     that its handler never started (no `send_started_at`) cannot have reached
+ *     the teacher, so it goes back to `pending`, once (`requeued_at`), and the
+ *     next tick sends it. 16 Nov: a deploy restarted the worker at 14:35 mid-batch
+ *     and 188 such rows were called failed, none of them sent (bd-pw1ccr.41.1).
+ *     Other kinds (coach_weekly_report) are written into `sending` by their own
+ *     sender right before it calls Meta, unstamped, so for them it proves nothing.
+ *   - anything else is called what it is — a failure — so the counts stay honest
+ *     and a row cannot silently disappear from every report.
+ *
+ * @returns {Promise<number>} how many rows were flipped to failed (requeued rows
+ *   are not counted; they are logged).
  *
  * Selected first and then written per row, rather than in one bulk UPDATE,
  * because `context` must be merged rather than replaced (see patchRow). Each
  * write keeps `status = 'sending'` as a guard so a row that finished between the
  * select and the update is not clobbered.
- *
- * @returns {Promise<number>} how many rows were actually flipped.
  */
-async function expireStuck({ olderThanMinutes = STUCK_MINUTES, now = new Date(), limit = DEFAULT_CLAIM_LIMIT } = {}) {
+async function expireStuck({
+  olderThanMinutes = STUCK_MINUTES, now = new Date(), limit = DEFAULT_CLAIM_LIMIT, requeueKinds = [],
+} = {}) {
   const at = now instanceof Date ? now : new Date(now);
   const cutoff = new Date(at.getTime() - olderThanMinutes * 60 * 1000).toISOString();
 
   const { data: stuck, error } = await supabase.from(TABLE)
-    .select('id')
+    .select('id, kind, context')
     .eq('status', STATUS.SENDING)
     .lt('updated_at', cutoff)
     .order('updated_at', { ascending: true })
@@ -291,7 +310,14 @@ async function expireStuck({ olderThanMinutes = STUCK_MINUTES, now = new Date(),
   }
 
   let expired = 0;
+  let requeued = 0;
   for (const row of stuck || []) {
+    const ctx = row.context || {};
+    if (requeueKinds.includes(row.kind) && !ctx.send_started_at && !ctx.requeued_at) {
+      if (await patchRow(row.id, { status: STATUS.PENDING }, { requeued_at: at.toISOString() },
+        ['status', STATUS.SENDING])) requeued += 1;
+      continue;
+    }
     const ok = await patchRow(
       row.id,
       { status: STATUS.FAILED },
@@ -300,6 +326,7 @@ async function expireStuck({ olderThanMinutes = STUCK_MINUTES, now = new Date(),
     );
     if (ok) expired += 1;
   }
+  if (requeued) logToFile('teacher_nudges: stuck rows never started, back to pending', { requeued });
   return expired;
 }
 
@@ -410,6 +437,7 @@ module.exports = {
   markSkipped,
   markFailed,
   defer,
+  markStarted,
   expireStuck,
   recordAnswer,
   rowsFor,

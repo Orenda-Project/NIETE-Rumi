@@ -414,6 +414,58 @@ describe('expireStuck — a row nobody finished must not sit in sending for ever
     expect(after.context).toEqual({ lessons: ['l1'], error: 'stuck_sending' });
   });
 
+  // bd-pw1ccr.41.1: on 16 Nov a deploy restarted the worker at 14:35 mid-batch; 188 claimed topic nudges had
+  // never reached their handler, sat in sending, and were called failed at 14:45. None had been sent. A row the
+  // handler never started cannot have reached WhatsApp, so it goes back to pending (once) for the next tick.
+  test('a stamped row of a requeue kind is still failed — the teacher may have it', async () => {
+    const stuck = seed({ status: 'sending', context: { send_started_at: '2026-09-23T09:40:00.000Z' },
+      updated_at: '2026-09-23T09:40:00.000Z' });
+    const res = await store.expireStuck({ olderThanMinutes: 10, now: new Date(NOW_ISO), requeueKinds: [KIND] });
+    expect(res).toBe(1);
+    expect(db.rows.find((r) => r.id === stuck.id).status).toBe('failed');
+  });
+
+  test('a stuck row whose send never started goes back to pending, not failed, and is not counted expired', async () => {
+    const stuck = seed({
+      status: 'sending', context: { topic_id: 't1' }, scheduled_at: '2026-09-23T09:30:00.000Z',
+      updated_at: '2026-09-23T09:40:00.000Z',
+    });
+    const res = await store.expireStuck({ olderThanMinutes: 10, now: new Date(NOW_ISO), requeueKinds: [KIND] });
+
+    expect(res).toBe(0);
+    const after = db.rows.find((r) => r.id === stuck.id);
+    expect(after.status).toBe('pending');
+    expect(after.scheduled_at).toBe('2026-09-23T09:30:00.000Z');
+    expect(after.context).toEqual({ topic_id: 't1', requeued_at: NOW_ISO });
+  });
+
+  // coach_weekly_report rows are written straight into sending by their own sender just before it calls Meta,
+  // with no start stamp: for such a kind "unstamped" does NOT mean "never tried". Only kinds the sweeper claims requeue.
+  test('an unstamped stuck row of a kind not in requeueKinds is failed as before', async () => {
+    const stuck = seed({ kind: 'coach_weekly_report', status: 'sending', updated_at: '2026-09-23T09:40:00.000Z' });
+    const res = await store.expireStuck({ olderThanMinutes: 10, now: new Date(NOW_ISO), requeueKinds: [KIND] });
+    expect(res).toBe(1);
+    expect(db.rows.find((r) => r.id === stuck.id).status).toBe('failed');
+  });
+
+  test('a row already requeued once is failed the second time it is stuck — no endless loop', async () => {
+    const stuck = seed({
+      status: 'sending', context: { requeued_at: '2026-09-23T09:00:00.000Z' },
+      updated_at: '2026-09-23T09:40:00.000Z',
+    });
+    const res = await store.expireStuck({ olderThanMinutes: 10, now: new Date(NOW_ISO), requeueKinds: [KIND] });
+    expect(res).toBe(1);
+    expect(db.rows.find((r) => r.id === stuck.id).status).toBe('failed');
+  });
+
+  test('the requeue is guarded on status = sending too', async () => {
+    seed({ status: 'sending', updated_at: '2026-09-23T09:00:00.000Z' });
+    await store.expireStuck({ olderThanMinutes: 10, now: new Date(NOW_ISO), requeueKinds: [KIND] });
+    const update = findCall((c) => c.op === 'update');
+    expect(update.patch.status).toBe('pending');
+    expect(update.filters).toEqual(expect.arrayContaining([['eq', 'status', 'sending']]));
+  });
+
   test('a young sending row and a pending row are both left alone', async () => {
     seed({ status: 'sending', updated_at: '2026-09-23T09:58:00.000Z' });   // 2 minutes old
     seed({ status: 'pending', updated_at: '2026-09-23T08:00:00.000Z' });
@@ -440,6 +492,25 @@ describe('expireStuck — a row nobody finished must not sit in sending for ever
     db.failures.push({ op: 'select', error: { message: 'timeout' } });
     await expect(store.expireStuck({ now: new Date(NOW_ISO) })).resolves.toBe(0);
     expect(errorLogs().length).toBeGreaterThan(0);
+  });
+});
+
+describe('markStarted — the line between "claimed" and "maybe sent" (bd-pw1ccr.41.1)', () => {
+  test('stamps context.send_started_at, keeps the rest of context, guarded on sending', async () => {
+    const row = seed({ status: 'sending', context: { topic_id: 't1' } });
+    const ok = await store.markStarted(row.id);
+    expect(ok).toBe(true);
+    const after = db.rows.find((r) => r.id === row.id);
+    expect(after.status).toBe('sending');
+    expect(after.context.topic_id).toBe('t1');
+    expect(typeof after.context.send_started_at).toBe('string');
+    const update = findCall((c) => c.op === 'update');
+    expect(update.filters).toEqual(expect.arrayContaining([['eq', 'status', 'sending']]));
+  });
+
+  test('a row that is no longer sending is not touched', async () => {
+    const row = seed({ status: 'sent' });
+    expect(await store.markStarted(row.id)).toBe(false);
   });
 });
 
