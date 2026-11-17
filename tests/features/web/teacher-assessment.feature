@@ -139,6 +139,19 @@ Feature: Teacher assessment
     When she types 24 in Total marks
     Then Next goes on to Check and make, and the line above it ends "24 marks"
 
+  # The Question types drawer (bd-5icld3): on a phone its cards used to shrink to fit 88% of the screen and hide their
+  # rows (Grade 1 English: 4 of 18 shown, nothing scrolled). It now opens up to 24px from the top, only its list
+  # scrolls under sticky Objective / Written names, and the count and Done stay on one row below. Test ids:
+  # types-tray, types-list, types-foot.
+  @TA19
+  Scenario: On a phone, every question type in the drawer can be reached and Done never scrolls away
+    Given a Grade 1 English teacher is on Questions on a 360 x 640 phone, offered 12 objective and 6 written types
+    When she taps Add a type
+    Then the drawer shows Objective and Written, and its list scrolls while the title, close, count and Done stay on screen
+    And every one of the 18 types can be scrolled into view inside the list and ticked
+    When she scrolls to the end, ticks Simple Writing and taps Done
+    Then the drawer closes and Simple Writing is on the page at 1
+
   @TA15
   Scenario: The old Question types and Marks and lines links land on Questions
     Given a plain New paper is under way for a Grade 4 Science class
