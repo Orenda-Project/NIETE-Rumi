@@ -294,6 +294,8 @@
         }
         var view = ui.mount(opts.mount, {
           runner: runner, battery: battery, lang: lang, mode: mode, speak: voice.speak,
+          // round 28 (A-13, B-17): the picker and the MCQ warm their clips at task entry through the voice's preload
+          preload: typeof voice.preload === 'function' ? voice.preload : null,
           check_words: battery.check_words || null,
           onState: function (v) { fire('state', v); },
           onFeedback: function (f) { fire('practice_feedback', f); },
