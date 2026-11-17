@@ -126,3 +126,36 @@ describe('addCloseStep', () => {
     expect(addCloseStep(null)).toBe(null);
   });
 });
+
+// bd-snkn32.50 — the page guard takes the close back out of a lesson it would push over the cap.
+describe('removeCloseStep', () => {
+  const { removeCloseStep } = require('../../bot/shared/services/lp612-own-close');
+  test('takes the box and its Urdu toggle entries back out, nothing else', () => {
+    const before = doc({ ur_overlay: { '/objectives/items/0/text': 'آپ', '/objectives/items/1/text': 'آپ' } });
+    const out = removeCloseStep(addCloseStep(before));
+    expect(out).toEqual(before);
+  });
+  test('an Urdu-medium box is found by its Urdu title', () => {
+    const before = doc({ provenance: { medium: 'ur' } });
+    expect(removeCloseStep(addCloseStep(before))).toEqual(before);
+  });
+  test('null when there is no box to take out; the given doc is never changed', () => {
+    const d = doc();
+    expect(removeCloseStep(d)).toBeNull();
+    const withBox = addCloseStep(d);
+    const copy = JSON.parse(JSON.stringify(withBox));
+    removeCloseStep(withBox);
+    expect(withBox).toEqual(copy);
+  });
+});
+
+// bd-snkn32.50 — the one-line form names all three things 5D asks for: before the exit ticket is collected, the
+// success criteria read aloud, a self-prediction. With "self-predict" + "exit ticket" in the line the shelf reviewer
+// rated 5D >=3 on 11/14 ready-made anchor reviews, against 9/14 with the older line (bd-snkn32.50 results/score-5d-*).
+test('the one-line close names the exit ticket, the success criteria and the self-prediction (EN + UR)', () => {
+  expect(SHORT_LINE).toMatch(/exit ticket/);
+  expect(SHORT_LINE).toMatch(/success criteria aloud/);
+  expect(SHORT_LINE).toMatch(/self-predict/);
+  expect(SHORT_LINE_UR).toMatch(/اختتامی پرچی/);
+  expect(SHORT_LINE_UR).toMatch(/اندازہ/);
+});

@@ -24,8 +24,10 @@ const READ_UR = 'کامیابی کے معیار بلند آواز سے پڑھی�
 const THUMBS_LINE = 'Before handing in the exit ticket, pupils show thumbs up (sure), sideways (unsure) or down (stuck).';
 const THUMBS_LINE_UR = 'اختتامی پرچی دینے سے پہلے بچے انگوٹھا اوپر (پکا)، سیدھا (کچھ شک) یا نیچے (سمجھ نہیں آیا) دکھائیں۔';
 /** One line, for a conclusion with no room for the criteria themselves. */
-const SHORT_LINE = 'Read the success criteria aloud; pupils show thumbs up, sideways or down.';
-const SHORT_LINE_UR = 'کامیابی کے معیار بلند آواز سے پڑھیں؛ بچے انگوٹھا اوپر، سیدھا یا نیچے دکھائیں۔';
+// bd-snkn32.50: names all three things 5D asks for (exit ticket, criteria aloud, self-prediction); the older line
+// without "exit ticket"/"self-predict" got 5D>=3 on 9/14 anchor reviews, this one 11/14.
+const SHORT_LINE = 'Before collecting the exit ticket, read the success criteria aloud; pupils self-predict: thumbs up, sideways or down.';
+const SHORT_LINE_UR = 'اختتامی پرچی لینے سے پہلے کامیابی کے معیار بلند آواز سے پڑھیں؛ بچے انگوٹھا اوپر، سیدھا یا نیچے دکھا کر اپنا اندازہ بتائیں۔';
 /** lint_lp SECTION_BUDGET_V9.conclusion (128) +30%: over it, lint fails the conclusion as "will not fit the page". */
 const CONCLUSION_MAX_WORDS = 166;
 
@@ -80,6 +82,24 @@ function addCloseStep(doc) {
 }
 
 /**
+ * bd-snkn32.50 — the close taken back out (box + its Urdu toggle entries), for a lesson it would push over the page cap.
+ * The box is always last in the conclusion's blocks, so no other pointer moves. `null` when there is no box. Pure.
+ */
+function removeCloseStep(doc) {
+  const si = doc && Array.isArray(doc.sections) ? doc.sections.findIndex((s) => s && s.id === 'conclusion') : -1;
+  const blocks = si >= 0 && Array.isArray(doc.sections[si].blocks) ? doc.sections[si].blocks : [];
+  const bi = blocks.findIndex((b) => b && b.type === 'key_points' && [CLOSE_TITLE, CLOSE_TITLE_UR].includes(b.title));
+  if (bi < 0 || bi !== blocks.length - 1) return null;   // not last: taking it out would move later pointers
+  const out = JSON.parse(JSON.stringify(doc));
+  out.sections[si].blocks.splice(bi, 1);
+  const ov = out.ur_overlay;
+  if (ov && typeof ov === 'object' && !Array.isArray(ov)) {
+    for (const k of Object.keys(ov)) if (k.startsWith(`/sections/${si}/blocks/${bi}/`)) delete ov[k];
+  }
+  return out;
+}
+
+/**
  * The worker's one call after the gates accept her 6–12 rewrite: the close step, and for Science a count of key words
  * the model left without Urdu (bd-snkn32.48's counter; logged, never fails her plan).
  */
@@ -93,6 +113,6 @@ function finishOwnDoc(doc, segment, log) {
 }
 
 module.exports = {
-  addCloseStep, finishOwnDoc, conclusionWords, CLOSE_TITLE, CLOSE_TITLE_UR, THUMBS_LINE, THUMBS_LINE_UR, SHORT_LINE, SHORT_LINE_UR,
+  addCloseStep, removeCloseStep, finishOwnDoc, conclusionWords, CLOSE_TITLE, CLOSE_TITLE_UR, THUMBS_LINE, THUMBS_LINE_UR, SHORT_LINE, SHORT_LINE_UR,
   CONCLUSION_MAX_WORDS,
 };
