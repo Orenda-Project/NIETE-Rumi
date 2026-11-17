@@ -1331,6 +1331,36 @@ brief and each flash sibling (red 4/4 before, green after).
 DIVERGENCE` comments mark all four sites. Offer the same rule upstream at the next re-sync and
 regenerate the flash briefs there with `build_flash_brief.py`.
 
+### 3.39 Still over the TEACH cap after §3.37: homework prints only in Reference — `lib/template.js`, `lib/overlay.js`, `lib/questions.js`, `render_lp.js` `renderDoc` (2026-11-17, bd-xkkw9.2)
+
+Builds on §3.37 (NIETE-only). Every lesson already prints its homework questions in full, with the
+answers, in Reference "Homework, in full" (from `page2.homework_key`), so the teach-flow copy is a
+duplicate.
+
+- `buildHtml(doc, { hwRefOnly: true })` leaves the homework section out of the teach flow whole
+  (bar, notes, items) and prints one pointer line where it was (`L.hwPointer`, en + ur, naming the
+  `L.p2Hw` heading; reuses `.cite`, so no CSS changes). The section's own notes print at the top of
+  Reference "Homework, in full", and each card there also carries the item's book source, which
+  used to print only in the flow (`questions.js` now passes `source` on homework entries). It only
+  takes effect when `homeworkMovable(doc)`: every homework item's ref (authored or derived, via
+  `allQuestions`) has an answered `homework_key` entry. `buildHtml` returns `homeworkMovable` and
+  `homeworkMoved`. (A first cut swapped only the ITEMS for the pointer and kept the bar and notes;
+  on real Chrome it brought 2 of 40 over-cap stored lessons within the caps, so the whole section
+  moves.)
+- `renderDoc`: after §3.37, if TEACH is still over and `homeworkMovable`, ONE more paint with BOTH
+  moves (the §3.37 groups in Reference when the lesson had them in the flow, plus `hwRefOnly`),
+  whether or not §3.37's own paint was kept: the box move alone frees under a page and is often
+  refused, while the two together fit. Kept only if over the caps by fewer pages in total, else the
+  previous layout is painted again. Report `homework_moved` (and `flow_groups_moved` when the groups
+  went with it), return `homeworkMoved`.
+- A lesson that fits never takes this paint, so its files are byte-identical to before.
+- Why: queue #112 (bd-xkkw9.1): ~3 in 10 lessons still over after §3.37. Measured on this change,
+  real Chrome, the 183 stored English lessons of 11-17 Nov: 143 fitting lessons byte-identical;
+  of the 40 over a cap, 29 now fit both caps and none pushes Reference past 3 pages.
+- Test: `tests/lp612/over-cap-homework-reference.test.js`.
+
+**LOCAL-ONLY divergence**: `VENDOR DIVERGENCE` comments mark the template (flow loop) and renderer sites.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
