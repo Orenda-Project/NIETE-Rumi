@@ -169,6 +169,8 @@
           // Round 28 (battery.ui.r28_ceiling): a timed grid runs past today's first N items until the clock ends; the
           // runner's final-cell rule (a cell shown under 500 ms at time-up is presented, not attempted) rides it.
           ceiling: w3.r28_ceiling === true,
+          // Round 28, E-3 (battery.ui.r28_story_clock): the passage's time used ends at Done, not at the last-word tap.
+          story_clock: w3.r28_story_clock === true,
           silence_repeat: silenceRepeat });
         var vo = { lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
           // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)

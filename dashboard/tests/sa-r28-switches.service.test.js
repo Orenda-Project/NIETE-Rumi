@@ -20,6 +20,7 @@ const R28 = {
   r28LetterPick: ['sa_r28_letter_pick', 'r28_letter_pick'],
   r28Mcq: ['sa_r28_mcq', 'r28_mcq'],
   r28Ceiling: ['sa_r28_ceiling', 'r28_ceiling'],
+  r28StoryClock: ['sa_r28_story_clock', 'r28_story_clock'],
 };
 // The r28 tasks are W3 tasks (the RDF forms), so the fixtures run with sa_rdf_w3_forms ON, as sandbox and prod do.
 const OFF = { rdfW3Forms: true, ...Object.fromEntries(Object.keys(R28).map((k) => [k, false])) };
@@ -74,7 +75,7 @@ describe('round 28 battery switches (sa-battery-switches.js)', () => {
   test('all OFF on a battery with nothing of round 28: the battery as before (the round adds no key)', () => {
     const plain = { battery_id: 'b', tasks: [sounds, story], rdf_auto: ['ur.letter_sounds5'], lines: { welcome: { text: 'hi' } } };
     expect(applySwitches(plain, OFF)).toEqual(plain);
-    expect(applySwitches(plain, { ...OFF, r28LetterPick: true, r28Mcq: true, r28Ceiling: true })).toEqual({ ...plain, ui: { r28_letter_pick: true, r28_mcq: true, r28_ceiling: true } });
+    expect(applySwitches(plain, { ...OFF, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true })).toEqual({ ...plain, ui: { r28_letter_pick: true, r28_mcq: true, r28_ceiling: true, r28_story_clock: true } });
   });
 
   test('sa_r28_letter_pick ON: the picker takes the place of the read-aloud letter sounds in both RDF lists; its line comes along', () => {
@@ -118,6 +119,7 @@ describe('round 28 battery switches (sa-battery-switches.js)', () => {
     expect(ids(out, 'rdf_auto')).toEqual(['ur.letter_pick10', 'ur.words4', 'ur.story_w3', 'ur.story_mcq_w3']);
     expect(out.tasks.find((t) => t.id === 'ur.words4').items).toHaveLength(4);
     expect(out.ui).toEqual({ r28_letter_pick: true, r28_mcq: true, r28_ceiling: true });
+    expect(applySwitches(BUILT, { ...OFF, r28StoryClock: true }).ui).toEqual({ r28_story_clock: true });
     expect(Object.keys(out.lines).sort()).toEqual(['lp_intro', 'mcq_intro', 'welcome']);
   });
 
