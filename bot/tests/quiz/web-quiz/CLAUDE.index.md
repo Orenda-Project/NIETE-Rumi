@@ -196,7 +196,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-challenge.test.js` | Main Challenge suite: kind-c token, 'Which is bigger?' tap and 'Read aloud' mic runs with faked Supabase/R2/speech |
 | `web-quiz-child-lang-bind-links.test.js` | Pins that the keep-my-place bind replies and way-back link open the child's home in the child's kept language |
 | `web-quiz-child-lang-chosen.test.js` | Pins web_quiz_return_lang: a grown-up's language tap in the home corner is kept (keep=1) and wins over class quiz |
-| `web-quiz-child-lang-door.test.js` | Pins web_quiz_share_link_lang: a friend joining through an Urdu share card keeps the door's language (?lang=ur) |
+| `web-quiz.service-door-lang-seam.test.js` | Pins web_quiz_share_link_lang: a friend joining through an Urdu share card keeps the door's language (?lang=ur) |
 | `web-quiz-child-lang-every-reader.test.js` | Pins that one hub open speaks one language across page, teacher pick and library lists when web_quiz_return_lang is on |
 | `web-quiz-child-lang-hub-waves.test.js` | Pins that reading the child's kept language adds no serial wave to the kid hub's data fetch |
 | `web-quiz-child-lang-join.test.js` | Pins that a self-joining child's join-link language (en|ur) is stored on their own row (child_language, source join) |

@@ -7,6 +7,9 @@
  * An English card's link carries no ?lang=, so nothing is kept and the friend's home is today's. Switch off: nothing is
  * written and the Home link is byte-identical to today's. Supabase and Redis are the boundaries and are faked; every
  * first-party module on the path runs for real.
+ *
+ * The seam test of web-quiz.service.js > child-language.repo (tests/setup/repo-seam-tests): the start keeps the door's
+ * language through the REAL repo's doorKept, never a mock of it (renamed from web-quiz-child-lang-door.test.js).
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) }));
@@ -40,6 +43,7 @@ const Switch = require('../../../shared/services/quiz/web-quiz-card-switch');
 const Door = require('../../../shared/services/quiz/web-quiz-hub-door');
 const Hub = require('../../../shared/services/quiz/web-quiz-hub');
 const CL = require('../../../shared/services/quiz/web-quiz-child-lang');
+const Repo = require('../../../shared/services/quiz/child-language.repo'); // the real repo: this file is its seam test
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const QUIZ = '22222222-2222-4222-8222-222222222222';
@@ -100,16 +104,17 @@ const SAVED = { ...process.env };
 beforeEach(() => {
   process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key', WEB_QUIZ_TOKEN_SECRET: 'door-lang-test-secret', PORTAL_URL: 'https://portal.example.test' };
   jest.clearAllMocks();
-  jest.spyOn(Date, 'now').mockReturnValue(NOW_MS);
+  // the clock is 19 Oct for Date.now() AND new Date() (the share code's expiry reads new Date()); only Date is faked
+  jest.useFakeTimers({ now: NOW_MS, doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask', 'hrtime', 'performance'] });
 });
-afterEach(() => { jest.restoreAllMocks(); });
+afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 afterAll(() => { process.env = SAVED; });
 
 describe('switch on: a friend who joins through an Urdu card stays in Urdu', () => {
   test('the stored child language is ur, the Home link carries ur, the hub\'s first answer is ur', async () => {
     const fake = seed();
     const { st, kid } = await friendJoins(fake, 'ur');
-    expect(fake.db.child_language).toEqual([expect.objectContaining({ canonical_id: kid, language: 'ur', source: 'chosen' })]);
+    expect(fake.db[Repo.TABLE]).toEqual([expect.objectContaining({ canonical_id: kid, language: 'ur', source: 'chosen' })]);
     expect(await CL.childLang(kid)).toBe('ur');
     const href = (await Door.door({ st }, WQ.WqError)).href;
     expect(tokOf(href)).toMatchObject({ k: 'h', ids: [kid], l: 'ur' });
