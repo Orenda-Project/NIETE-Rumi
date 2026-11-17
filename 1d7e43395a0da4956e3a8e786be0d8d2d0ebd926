@@ -1,0 +1,2 @@
+{"ts":"2026-11-17T16:37:55Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"1d7e43395a0d","branch":"bd-5icld3.3-33236","user":"Fatima"}
+{"ts":"2026-11-17T16:38:08Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-assessment,fde-board-pattern=none-needed (operator asked to ship fast; web scenario deferred; drawer covered by red-first unit test; fde papers cannot open this drawer)","sha":"1d7e43395a0d","branch":"bd-5icld3.3-33236","user":"Fatima"}
