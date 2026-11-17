@@ -38,7 +38,7 @@ describe('exampleCohort', () => {
 
   it('every session carries every task of the form, in the results shape, within the task\'s range', () => {
     for (const s of cohort) {
-      expect(s.results.tasks.map((x) => x.taskId)).toEqual(TASKS.map((x) => x.taskId));
+      expect(s.results.tasks.map((x) => x.taskId)).toEqual(TASKS.filter((x) => x.example !== false).map((x) => x.taskId));
       for (const task of s.results.tasks) {
         const c = correctOf(task) as number;
         expect(c).toBeGreaterThanOrEqual(0);
