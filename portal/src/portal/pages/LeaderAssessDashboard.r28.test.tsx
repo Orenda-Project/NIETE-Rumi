@@ -78,3 +78,50 @@ describe("LeaderAssessDashboard: round 28 tasks", () => {
     expect(within(screen.getByTestId("dash-task-ur.letter_pick10")).getByRole("heading").textContent).toBe("حروف کی آوازیں (سن کر ٹیپ)");
   });
 });
+
+// Round 28 (SPEC F): the headline "reading with comprehension" per form. One form: one number, today's tile. Both:
+// two labelled numbers side by side, never one pooled share.
+const comp = (correct: number) => spoken("ur.story_comp_w3", { correct, of: 4 });
+const mcq = (correct: number) => ({ ...tap("ur.story_mcq_w3", correct), attempted: 6, optionsN: 4 });
+
+describe("LeaderAssessDashboard: round 28 headline split", () => {
+  it("a mixed cohort shows spoken and tapped apart with their labels, and no pooled number", async () => {
+    // spoken: 2 of 3 at 80%+ (67%); tapped: 3 of 3 (100%); a pooled share would read 83%
+    api.getSessions.mockResolvedValue({ sessions: [row([comp(4)]), row([comp(4)]), row([comp(1)]), row([mcq(5)]), row([mcq(6)]), row([mcq(5)])] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const tile = screen.getByTestId("dash-rwc");
+    expect(within(tile).getByTestId("dash-rwc-spoken").textContent).toBe("spoken67%");
+    expect(within(tile).getByTestId("dash-rwc-tapped").textContent).toBe("listen and tap100%");
+    expect(tile.textContent).not.toContain("83%");
+    const cell = within(screen.getAllByTestId("dash-group-row")[0]).getByTestId("dash-group-rwc");
+    expect(cell.textContent).toBe("spoken 67% · listen and tap 100%");
+  });
+
+  it("Urdu: the two labels are «بول کر» and «سن کر ٹیپ»", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getSessions.mockResolvedValue({ sessions: [row([comp(4)]), row([comp(4)]), row([comp(1)]), row([mcq(5)]), row([mcq(6)]), row([mcq(5)])] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.getByTestId("dash-rwc-spoken").textContent).toContain("بول کر");
+    expect(screen.getByTestId("dash-rwc-tapped").textContent).toContain("سن کر ٹیپ");
+  });
+
+  it("an old-form-only cohort renders today's tile: one number, no split", async () => {
+    api.getSessions.mockResolvedValue({ sessions: [row([comp(4)]), row([comp(4)]), row([comp(1)]), row([comp(4)]), row([comp(2)])] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.queryByTestId("dash-rwc-spoken")).toBeNull();
+    expect(screen.queryByTestId("dash-rwc-tapped")).toBeNull();
+    expect(screen.getByTestId("dash-rwc").textContent).toBe("Read with comprehension · Urdu60%80% or more of the passage questions right");
+  });
+
+  it("a tapped-only cohort shows one number, named as the tapped form", async () => {
+    api.getSessions.mockResolvedValue({ sessions: [row([mcq(5)]), row([mcq(6)]), row([mcq(2)]), row([mcq(5)]), row([mcq(5)])] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.queryByTestId("dash-rwc-spoken")).toBeNull();
+    expect(screen.getByTestId("dash-rwc").textContent).toContain("80%");
+    expect(screen.getByTestId("dash-rwc").textContent).toContain("listen and tap");
+  });
+});

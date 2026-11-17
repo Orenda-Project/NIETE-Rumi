@@ -6,7 +6,7 @@ import type { DashStudent } from './exampleCohort';
 import type { SaTaskResult } from '../../types/childTestSa';
 
 // Round 28: the new tapped tasks (letter_pick10, story_mcq_w3) have their own specs and their own rows, never merged
-// with the old spoken ones; the headline's "reading with comprehension" reads whichever comprehension task a child has.
+// with the old spoken ones; the headline's "reading with comprehension" is reported per form (spoken, tapped), never one pooled share.
 
 function one(id: string, tasks: SaTaskResult[]): DashStudent {
   return {
@@ -73,13 +73,26 @@ describe('round 28 rows and headline', () => {
     expect(mcq.benchmarkShare).toBe(1);
   });
 
-  it('the headline pools whichever comprehension task each child has: 1 of 2 at 80%+', () => {
-    expect(headline([oldOne, newOne]).readingWithComprehension.ur).toBeCloseTo(0.5);
+  it('a cohort of 2 spoken + 2 tapped students yields two headline shares, never one pooled share', () => {
+    const cohort = [
+      one('s1', [oral('ur.story_comp_w3', 5, 6)]),
+      one('s2', [oral('ur.story_comp_w3', 3, 6)]),
+      one('t1', [tap('ur.story_mcq_w3', 5, 6, 4)]),
+      one('t2', [tap('ur.story_mcq_w3', 6, 6, 4)]),
+    ];
+    expect(headline(cohort).readingWithComprehension.ur).toEqual({ spoken: 0.5, tapped: 1 });
+    expect(headline(cohort).readingWithComprehension.en).toEqual({ spoken: null, tapped: null });
   });
 
-  it('an unrated MCQ (too few heard) is not counted', () => {
+  it('only the old form: tapped is null; only the new form: spoken is null', () => {
+    expect(headline([oldOne, one('a2', [oral('ur.story_comp_w3', 6, 6)])]).readingWithComprehension.ur).toEqual({ spoken: 0.5, tapped: null });
+    expect(headline([newOne]).readingWithComprehension.ur).toEqual({ spoken: null, tapped: 1 });
+  });
+
+  it('an unrated MCQ (too few heard) is counted in neither form', () => {
     const unrated = one('c', [tap('ur.story_mcq_w3', 3, 3, 4, { unrated: true, presented: 3 })]);
-    expect(headline([oldOne, newOne, unrated]).readingWithComprehension.ur).toBeCloseTo(0.5);
+    expect(headline([oldOne, newOne, unrated]).readingWithComprehension.ur).toEqual({ spoken: 0, tapped: 1 });
+    expect(headline([oldOne, unrated]).readingWithComprehension.ur).toEqual({ spoken: 0, tapped: null });
     expect(summariseTask([unrated], specOf('ur.story_mcq_w3') as never).n).toBe(0);
   });
 

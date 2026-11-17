@@ -100,8 +100,8 @@ describe('cohortStats', () => {
       one([t('ur.story_w3', { correct: 10 }), t('ur.story_comp_w3', { correct: 3, of: 4 })]),
     ];
     const h = headline(students);
-    expect(h.readingWithComprehension.ur).toBeCloseTo(0.5);
-    expect(h.readingWithComprehension.en).toBeNull();
+    expect(h.readingWithComprehension.ur).toEqual({ spoken: 0.5, tapped: null });
+    expect(h.readingWithComprehension.en).toEqual({ spoken: null, tapped: null });
     expect(h.orfMedian.ur).toBe(20);
     expect(h.minutesMedian).toBe(8);
   });
