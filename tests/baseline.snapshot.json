@@ -497,23 +497,6 @@
       "UP: bot/whatsapp-bot.js has 125 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 124."
     ]
   },
-  "tests/setup/mock-lane-baseline-migrations.test.js": {
-    "failing": [
-      "mock lane baseline carries the migrations since its dump (bd-4hyyp2) every column a migration since the dump adds is in the baseline and in schema.objects.txt"
-    ],
-    "offenders": [
-      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_decided_at",
-      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_decided_by",
-      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_decision",
-      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_reject_reason",
-      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.library_eligible",
-      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_items",
-      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_model",
-      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_pass",
-      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_score",
-      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.reviewed_at"
-    ]
-  },
   "tests/setup/no-hardcoded-bot-name.test.js": {
     "failing": [
       "Bot self-name hygiene — no hardcoded \"Rumi\" in teacher-facing source every user-facing self-reference routes through botName / the deployment name"
