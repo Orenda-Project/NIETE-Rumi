@@ -776,6 +776,26 @@ describe('sa_r28_mcq CSS: the chosen card is the brightest state (B.3 amended)',
       return parseFloat(lens[2] || '0');
     });
   }
+  /** How many blocks (an @media, …) are open where the rule with exactly this selector starts; 0 = applies everywhere. */
+  function depthOf(sel) {
+    let depth = 0; let i = 0;
+    while (i < css.length) {
+      const ch = css[i];
+      if (ch === '{') {
+        const head = css.slice(0, i).split(/[{};]/).pop().trim();
+        if (head === sel) return depth;
+        depth += 1;
+      } else if (ch === '}') depth -= 1;
+      i += 1;
+    }
+    return null;
+  }
+  test('sa.css closes every block, and the MCQ card rules apply at every width (not inside a tablet @media)', () => {
+    expect((css.match(/{/g) || []).length - (css.match(/}/g) || []).length).toBe(0);
+    for (const sel of ['.sae-mcq-opt', '.sae-mcq-q', '.sae-mcq-opt.is-speaking', '.sae-mcq-opt.is-chosen', '.sae-mcq-opt.is-chosen.is-speaking', '.sae-mcq-opt.is-waiting']) {
+      expect({ sel, depth: depthOf(sel) }).toEqual({ sel, depth: 0 });
+    }
+  });
   test('speaking = an outline ring only: accent border and a 3 px accent ring, no fill, no glow', () => {
     const s = decls('.sae-mcq-opt.is-speaking');
     expect(s).not.toBeNull();
