@@ -843,6 +843,14 @@ function shapeTask(r, stops = false) {
     score: recording === 'scored' ? numbersOf(m) : null,
     // the scorer heard another person in the recording (CHILD_TEST_SA_SECOND_VOICE): Results caveats the score
     ...(recording === 'scored' && m.detail && m.detail.second_voice === true ? { secondVoice: true } : {}),
+    // round 28 (ceiling): an extended timed task's scorer reports the first N items too; Results shows it beside the rate
+    ...(recording === 'scored' && m.detail && typeof m.detail.of_base === 'number' && typeof m.detail.correct_base === 'number'
+      ? { firstN: { correct: m.detail.correct_base, of: m.detail.of_base } } : {}),
+    // round 28 (tap picker / MCQ): too few items heard to rate, how many were heard, and the questions the gate allowed.
+    // Tap only: today's spoken questions already keep `asked` in their result, and their Results row stays as it was.
+    ...(tap && ((m && m.unrated === true) || res.unrated === true) ? { unrated: true } : {}),
+    ...(tap && typeof res.presented === 'number' ? { presented: res.presented } : {}),
+    ...(tap && Array.isArray(res.asked) ? { asked: res.asked.filter((q) => typeof q === 'string') } : {}),
   };
 }
 
