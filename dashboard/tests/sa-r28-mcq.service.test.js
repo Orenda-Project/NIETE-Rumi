@@ -145,7 +145,7 @@ describe('sa_r28_mcq core: a lost clip never scores a question (B-17)', () => {
     expect(res.incorrect).toBe(0);
     expect(res.asked).not.toContain('ur.story_w3.q2');
     expect(res.asked).toHaveLength(5);
-    expect(res.presented).toEqual(res.asked);
+    expect(res.presented).toBe(res.asked.length);
     expect(res.answers[1]).toEqual({ item_id: 'ur.story_w3.q2', value: null, unavailable: 'clip' });
     expect(res.unrated).toBeUndefined();
     expect(events.filter((e) => e.type === 'item_unavailable')).toHaveLength(1);
@@ -159,7 +159,8 @@ describe('sa_r28_mcq core: a lost clip never scores a question (B-17)', () => {
     ans(r, 2);
     const res = r.results()[0];
     expect(res.stop_reason).toBe('complete');
-    expect(res.presented).toEqual(['ur.story_w3.q1', 'ur.story_w3.q4', 'ur.story_w3.q6']);
+    expect(res.asked).toEqual(['ur.story_w3.q1', 'ur.story_w3.q4', 'ur.story_w3.q6']);
+    expect(res.presented).toBe(3);
     expect(res.unrated).toBe(true);
     expect(res.answers.filter((a) => a.unavailable)).toHaveLength(3);
   });
