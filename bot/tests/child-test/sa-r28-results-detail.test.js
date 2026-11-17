@@ -131,6 +131,12 @@ describe('round 28: the tap-before-sound count on a tapped task (Results and the
     expect(out.tasks[0].tapBeforeSound).toEqual({ n: 2, of: 5 });
   });
 
+  test('round 28 A3: n sums pre_taps (taps before the sound, never scored) over the answered items', async () => {
+    const answers = [{ ...a(-700), pre_taps: 2 }, a(340), { ...a(510), pre_taps: 1 }, a(undefined, undefined)];
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(pick(answers)));
+    expect(out.tasks[0].tapBeforeSound).toEqual({ n: 3, of: 3 });
+  });
+
   test('a tap task whose answers carry no tap_ms (today) has no tapBeforeSound key', async () => {
     const out = await sa.saResults({ userId: COACH, sessionId: SID }, world(pick([a(undefined, undefined), a(undefined, undefined)])));
     expect('tapBeforeSound' in out.tasks[0]).toBe(false);

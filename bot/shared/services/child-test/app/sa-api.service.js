@@ -860,11 +860,17 @@ function shapeTask(r, stops = false) {
   };
 }
 
-/** { tapBeforeSound: { n, of } } when some answer carries a numeric tap_ms; else nothing (today's tap tasks). */
+/**
+ * { tapBeforeSound: { n, of } } when some answer carries a numeric tap_ms; else nothing (today's tap tasks). n counts
+ * the taps made before the prompt's sound: an answer's pre_taps (taps the picker logged and never scored, the item
+ * staying open) summed, plus an answer itself flagged tap_before_sound (results recorded before that rule). of = the
+ * answered items the phone timed, so n can exceed of when a child taps early more than once.
+ */
 function tapBeforeOf(res) {
   const timed = (Array.isArray(res.answers) ? res.answers : []).filter((a) => a && typeof a.tap_ms === 'number');
   if (!timed.length) return {};
-  return { tapBeforeSound: { n: timed.filter((a) => a.tap_before_sound === true).length, of: timed.length } };
+  const pre = (a) => (Number.isInteger(a.pre_taps) && a.pre_taps > 0 ? a.pre_taps : 0) + (a.tap_before_sound === true ? 1 : 0);
+  return { tapBeforeSound: { n: timed.reduce((sum, a) => sum + pre(a), 0), of: timed.length } };
 }
 
 const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.block).localeCompare(String(b.block));
