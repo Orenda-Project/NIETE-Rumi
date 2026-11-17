@@ -522,7 +522,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     const m = mount({ practice: false });
     toRunning(m);
     const it = m.r.view().item;
-    await wait(360); // the clip is playing (never ended)
+    await wait(360 + 500); // the clip is playing (never ended), past the no-map lead-in window (300 + 150 ms)
     const cards = m.el.querySelectorAll('.sae-pick-cards .sae-opt');
     cards[0].click();
     cards[1].click();
@@ -563,7 +563,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     dom.window.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 404 }));
     const m = mount({ practice: false });
     toRunning(m);
-    await wait(360);
+    await wait(360 + 600); // past the A.4 lead-in window (300 + 150 ms) the no-map rule keeps for the pre-sound tap
     m.el.querySelector('.sae-pick-cards .sae-opt').click();
     const a = m.r.snapshot().current.answers[0];
     expect(a).toMatchObject({ tap_ms: 0, tap_ms_src: 'file' });
@@ -592,6 +592,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(clipCalls(m)).toHaveLength(2);
     expect(clipCalls(m)[1].slice(0, 2)).toEqual([null, it.prompt_audio]);
     expect(m.events.filter((e) => e.type === 'replay')).toEqual([expect.objectContaining({ item_id: it.id, value: 'child' })]);
+    await wait(500); // into the replay, past the no-map lead-in window (300 + 150 ms)
     m.el.querySelector('.sae-pick-cards .sae-opt').click();
     expect(m.r.snapshot().current.answers[0]).toMatchObject({ replays: 1, tap_ms: 0 });
   });
@@ -676,11 +677,12 @@ maybe('sa-ui: the letter-sound picker screens', () => {
   });
 
   test('P2: retry once, then the right card shown', async () => {
-    const m = mount();
+    const m = mount({ instant: true }); // each play ends at once: no tap here falls inside a sound's lead-in
     m.r.start(); m.r.instructionDone(); m.r.practiceModelled();
     m.view.render();
     const p2 = m.r.view().practice;
     expect(m.el.querySelectorAll('.sae-pick-replay')).toHaveLength(1);
+    await wait(360);
     const wrong = () => Array.from(m.el.querySelectorAll('.sae-pick-cards .sae-opt')).find((b) => b.getAttribute('data-value') !== p2.target);
     wrong().click();
     await wait(1300);
@@ -782,19 +784,39 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(m.events.filter((e) => e.type === 'tap_before_sound')).toHaveLength(2);
     });
 
-    test('no timing entry (tap_ms_src file): no pre-sound window, the first tap answers as today', async () => {
-      // Without speech_start_ms there is nothing to measure a lead-in against: the clip-end rule applies.
+    test('no timing map (offline, tap_ms_src file): speech start is the 0.30 s lead-in; + 200 ms is logged, never scored; + 600 ms answers', async () => {
+      // Lead ruling (P3-1 ii): every v5 prompt is cut with a 0.30 s lead-in, so without the map a tap before 300 + 150 ms
+      // is a tap before the sound. tap_ms stays the clip-end rule (0 while the clip plays), tap_ms_src 'file'.
+      dom.window.fetch = jest.fn(() => Promise.reject(new Error('offline')));
+      const m = mount({ practice: false });
+      fake = F;
+      toRunning(m);
+      await wait(360);
+      expect(clipCalls(m)).toHaveLength(1);
+      const it = m.r.view().item;
+      fake = F + 200;
+      cards(m)[0].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(m.r.view().item.id).toBe(it.id);
+      expect(m.events.filter((e) => e.type === 'tap_before_sound')).toEqual([expect.objectContaining({ item_id: it.id, value: it.options[0], tap_ms: 0 })]);
+      expect(cards(m)[0].classList.contains('is-pressed')).toBe(false);
+      fake = F + 600;
+      cards(m)[1].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ item_id: it.id, value: it.options[1], tap_ms: 0, tap_ms_src: 'file', pre_taps: 1 });
+      expect(a[0]).not.toHaveProperty('tap_before_sound');
+    });
+
+    test('no timing map: at exactly 300 + 150 ms the tap answers (the window is strict)', async () => {
       dom.window.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 404 }));
       const m = mount({ practice: false });
       fake = F;
       toRunning(m);
       await wait(360);
-      fake = F + 50;
+      fake = F + 450;
       cards(m)[0].click();
-      const a = m.r.snapshot().current.answers;
-      expect(a).toHaveLength(1);
-      expect(a[0]).toMatchObject({ tap_ms: 0, tap_ms_src: 'file' });
-      expect(a[0]).not.toHaveProperty('pre_taps');
+      expect(m.r.snapshot().current.answers).toHaveLength(1);
       expect(m.events.filter((e) => e.type === 'tap_before_sound')).toHaveLength(0);
     });
 
@@ -879,6 +901,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       fold().dispatchEvent(new dom.window.Event('toggle'));
       m.view.render();
       expect(fold().open).toBe(true);
+      await wait(360 + 500); // the clip asked for, then past the no-map lead-in window (300 + 150 ms)
       cards(m)[0].click();
       await wait(450);
       expect(m.r.view().item_index).toBe(1);

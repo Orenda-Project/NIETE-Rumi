@@ -92,7 +92,7 @@
  *                     not: runner.answer(value, { replays, tap_ms, tap_ms_src[, pre_taps] }), tap_ms against the
  *                     prompt's speech end from v5/prompt_timings.json when it has the clip. A tap before the speech
  *                     starts (+ TAP_LEAD_IN_MS) is not an answer: logged tap_before_sound, counted on the answer as
- *                     pre_taps, the item stays open (no window without a timing entry). Every play of the sound tells
+ *                     pre_taps, the item stays open (no timing entry: the 300 ms lead-in is the speech start). Every play of the sound tells
  *                     the runner (clipPlaying): the auto replay and Next count from the end of the last play. No
  *                     feedback on a scored item.
  *   practice          P1 (role 'example') is modelled: the cards disabled, the right one lit, the clip then the model
@@ -585,6 +585,7 @@
     var pickWarm = {};       // task id → the promise of its clips loaded (or the PICK_WARM_MS cap)
     var pickTimes = {};      // task id → the prompt timing map (null: none), once fetched
     var TAP_LEAD_IN_MS = 150; // a tap before speech_start_ms + this is a tap into the clip's lead-in (tap_before_sound)
+    var PROMPT_LEAD_IN_MS = 300; // A.4: every v5 prompt clip opens with 0.30 s of lead-in (the speech start when there is no timing map)
     var pickFold = null;     // coach-led: the item whose folded target the coach opened (it re-folds on the next item)
     // Round 28 (sa_r28_mcq; opts.r28.mcq from sa-engine.js, or battery.ui.r28_mcq): a kind 'mcq' tap task is the spoken
     // multiple choice (sRunMcq)
@@ -888,20 +889,27 @@
     /**
      * A tap's replays and its time. With the prompt's timings (SPEC A.5): tap_ms = the tap's place in the clip minus the
      * end of the speech (negative while the sound plays), tap_before_sound when it came before speech start + 150 ms,
-     * tap_ms_src 'timings'. Without them: 0 while the clip plays or before it began, else ms since it ended; 'file'.
+     * tap_ms_src 'timings'. Without them: 0 while the clip plays or before it began, else ms since it ended; 'file';
+     * the speech start is then the 300 ms lead-in, so tap_before_sound before 300 + 150 ms.
      * The place in the clip: the playing element's time, else the time since the clip was asked for (0 before it was).
      */
     function pickMeta(it, t) {
       var ps = pickOf(it), now = Date.now();
       var tm = t ? pickTimesFor(t) : null;
       var e = tm && it.prompt_audio ? tm[it.prompt_audio] : null;
-      // No timing entry: nothing to measure a lead-in against (no speech_start_ms), so no pre-sound window either; the
-      // clip-end rule stands and every tap answers.
-      if (!e) return { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(now - ps.end_at)), tap_ms_src: 'file' };
       var pos;
       if (ps.call_at == null) pos = 0;
       else if (ps.playing || ps.end_at == null) pos = ps.el && Number(ps.el.currentTime) > 0 ? Number(ps.el.currentTime) * 1000 : now - ps.call_at;
       else pos = (ps.dur_ms != null ? ps.dur_ms : ps.end_at - ps.call_at) + (now - ps.end_at);
+      // No timing entry (the map absent, e.g. offline before it was cached): the clip-end rule for tap_ms, and the speech
+      // start is the A.4 lead-in every v5 prompt is cut with (lead ruling), so the pre-sound window still holds.
+      if (!e) {
+        var f = { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(now - ps.end_at)), tap_ms_src: 'file' };
+        // only before the clip is asked for or while it plays (one that ended was heard; one that failed never sounded)
+        if (pos < PROMPT_LEAD_IN_MS + TAP_LEAD_IN_MS && (ps.call_at == null || ps.playing)) f.tap_before_sound = true;
+        if (ps.pre_taps > 0) f.pre_taps = ps.pre_taps;
+        return f;
+      }
       var m = { replays: ps.replays, tap_ms: Math.round(pos - e.e), tap_ms_src: 'timings' };
       if (pos < e.s + TAP_LEAD_IN_MS) m.tap_before_sound = true;
       if (ps.pre_taps > 0) m.pre_taps = ps.pre_taps;
@@ -911,7 +919,7 @@
      * Lead ruling (SPEC A.5 amended): a tap before speech_start_ms + TAP_LEAD_IN_MS is not a response to the sound. It is
      * logged (tap_before_sound, counted on the item's answer as pre_taps), never scored: no answer, no feedback, no
      * pressed lock (the real tap a moment later must land), the sound plays on and the item stays open. → true when
-     * the tap was such a tap. Without a timing entry there is no window and this is always false.
+     * the tap was such a tap. Without a timing entry the window is the 300 ms lead-in + 150 ms.
      */
     function pickPreSound(it, t, value) {
       var m = pickMeta(it, t);
