@@ -212,6 +212,8 @@
     };
     // A passage keeps the rotation variant it was given (sa-page.js rotate; null without rotation), for its result.
     if (t.kind === 'passage') r.variant_id = t.variant && t.variant.id ? t.variant.id : null;
+    // Round 28 (sa_r28_mcq): the story's questions as a spoken multiple choice (a tap task the runner gates on promptDone)
+    if (t.kind === 'mcq') r.kind = 'mcq';
     // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
     if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
     // The item screen's chip (W3-12 4c: a mental sum says "Say the answer"), else the page's own "Read aloud".
@@ -338,6 +340,11 @@
     var oralRun = incompleteOn && typeof opts.oral_in_a_row === 'number' && opts.oral_in_a_row >= 2 ? opts.oral_in_a_row : null;
     // Round 20 (opts.silence_in_a_row): how many silent letter/word parts in a row end the subject (null: OFF)
     var silenceRun = incompleteOn && [1, 2, 3].indexOf(opts.silence_in_a_row) >= 0 ? opts.silence_in_a_row : null;
+    // Round 28 (opts.r28_mcq / battery.ui.r28_mcq): a kind 'mcq' task takes no answer, skip, replay or Next until Jugnu has
+    // read the question and all four options (promptDone()); the item's clock starts there
+    var mcqOn = !!opts.r28_mcq || !!(opts.r28 && opts.r28.mcq === true) || !!(battery.ui && battery.ui.r28_mcq === true);
+    /** sa_r28_mcq: the spoken multiple choice, its answer window not open yet (the read-out is still going). */
+    function mcqReading(t) { return mcqOn && !!t && t.kind === 'mcq' && st.answer_at == null; }
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -513,7 +520,7 @@
         }
       }
       if (st.cells) r.cells = st.cells.slice();
-      if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
+      if (t.mode === 'oral' || (mcqOn && t.kind === 'mcq')) r.asked = st.items.map(function (q) { return q.id; });
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
       // the server waits for audio only where a recording exists.
@@ -669,11 +676,18 @@
       if (ok && t.stop.first_line_n && st.attempted <= t.stop.first_line_n) st.first_line_correct++;
     }
 
-    function score(it, value) {
+    /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
+    function answerMeta(a, meta) {
+      if (!meta || typeof meta !== 'object') return a;
+      ['replays', 'tap_ms', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      return a;
+    }
+
+    function score(it, value, meta) {
       var t = task();
       var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
-      var a = { item_id: it.id, value: value, ok: ok };
+      var a = answerMeta({ item_id: it.id, value: value, ok: ok }, meta);
       if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
       if (st.rec_marks) {
         var at = function (x) { return Math.max(0, Math.round(x - st.rec_t0)); };
@@ -849,13 +863,14 @@
         ev('task_start', { task_id: st.task_id, value: { time_limit_s: task().time_limit_s || null, mode: task().mode, items: st.items.length } });
       },
       /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null. */
-      answer: function (value) {
+      answer: function (value, meta) {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
+        if (mcqReading(t)) return undefined; // sa_r28_mcq: a tap before the read-out ended is not an answer
         var it = st.items[st.item_i];
         st.oral_run = 0; // round 13b: an answered question starts the count again
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
-        return score(it, value);
+        return score(it, value, meta);
       },
       /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
       promptDone: function () {
@@ -867,6 +882,7 @@
       skip: function () {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
+        if (mcqReading(t)) return undefined;
         st.oral_run = 0; // round 13b: Next pressed is not a question left to run out
         return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped');
       },
@@ -923,6 +939,7 @@
           return st.phase === 'running' ? 'go_on' : null;
         }
         if (t.mode === 'record') return null;
+        if (mcqReading(t)) return null; // sa_r28_mcq: no replay, Next or timeout while the read-out runs
         var waited = now() - st.item_started;
         var tmo = itemTimeoutS(t);
         if (tmo && waited >= tmo * 1000) {
@@ -1040,7 +1057,7 @@
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
             v.item_wait_ms = waited;
-            v.offer_next = !!(t.next_at_s && waited >= t.next_at_s * 1000);
+            v.offer_next = !!(t.next_at_s && waited >= t.next_at_s * 1000) && !mcqReading(t);
           }
         }
         if (st.phase === 'task_end') v.result = st.result;
