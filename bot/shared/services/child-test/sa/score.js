@@ -73,6 +73,15 @@
  * was. The gate and the check share one speech-to-text call per clip. The quoted words are never kept (they can hold a name);
  * the call record says why the flag stood or went (voice_check). Still a flag, never a change of mark.
  *
+ * Help, not support (app_settings sa_r28_voice_help, OFF by default; read by the sweep; sa/voice-help.js): a coach
+ * saying "louder" or "press next" is another voice, and the flag went up on most real tests while hand checks found
+ * someone helping in a few. ON (in place of the audio check and of sa_r26_voice_strict), each clip gets one plain
+ * speech-to-text pass split by speaker; no word heard is none. Else a text model reads the transcript beside the task's
+ * items and answers and labels it help / other_child / support / unclear / none, and only help and other_child flag,
+ * when the other person's quoted words are in the transcript (else unclear). The detail adds second_voice_kind,
+ * second_voice_reason (only the quoted words that are the task's own items, answers or passage), other_voice
+ * ('support' | 'unclear' | null: logged, never a flag) and voice_check: 'r28'. Still a flag, never a change of mark.
+ *
  * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
  * once, from Begin to its end, so an answer given early or late is never cut. Its row has one audio_r2_key, and the
  * result says rec_section: true with rec_marks [{ item_id, ask_ms, answer_ms, end_ms }] (ms from the recording's start).
@@ -96,6 +105,8 @@ const stopRulesSwitch = require('../app/stop-rules-switch');
 const coachLastWord = require('../app/coach-last-word-switch');
 const variantWaitSwitch = require('../app/variant-wait-switch');
 const voiceStrictSwitch = require('../app/voice-strict-switch');
+const voiceHelpSwitch = require('../app/voice-help-switch');
+const VH = require('./voice-help');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -387,6 +398,15 @@ function defaultDeps() {
       fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
       try {
         return await require('../scoring/stt').transcribePlain(file, clip.durationSec, { signal });
+      } finally { media.cleanup(file); }
+    },
+    // sa_r28_voice_help: the plain pass with the speaker split, as turns the help check reads
+    speechTurnsOf: async (clip, signal) => {
+      const fs = require('fs');
+      const file = media.tmpFile('mp3');
+      fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
+      try {
+        return await require('../scoring/stt').transcribePlain(file, clip.durationSec, { signal, diarize: true });
       } finally { media.cleanup(file); }
     },
     // one recording per section: download once, cut each item's stretch
@@ -738,6 +758,9 @@ Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none",
 // second pass, 0.4 kept no false alarm and 14-16 of 16 real adults; 0.35 kept 15-16 with no false alarm but only 0.03
 // above the highest; 0.3 kept all 16 and let one false alarm back.
 const QUOTE_MIN = 0.4;
+// sa_r28_voice_help: the model copies its quote from the transcript it was given, so it must be there almost whole
+// (replays over 311 hand-labelled transcripts: the true help quotes all matched at 0.6 and above)
+const HELP_QUOTE_MIN = 0.6;
 
 /**
  * sa_r26_voice_strict: do the other person's words, as the model gave them, stand in what speech-to-text heard in the
@@ -805,6 +828,46 @@ async function voiceOf(deps, calls, clip, key, { strict = false, speech = null, 
   return { key, heard: rec.second_voice };
 }
 
+/**
+ * sa_r28_voice_help: did anyone but the child HELP in this clip? { key, heard: true | false | null (not checked),
+ * label, kind, reason }. One plain diarized transcript; no word heard: none, no model call. Else a text model labels
+ * the transcript beside the task (sa/voice-help.js); help / other_child stand only when their quote is in the
+ * transcript. The call record keeps the label, kind and why, never the quote.
+ */
+async function voiceHelpOf(deps, calls, clip, key, { task, turns } = {}) {
+  const dur = Number(clip && clip.durationSec);
+  if (Number.isFinite(dur) && dur < minSpeechS()) return { key, heard: false, label: 'none' };
+  const model = deps.model();
+  const rec = { job: 'child_test.sa_second_voice', model, cost: null, seconds: 0, error: null, voice_check: null, label: null };
+  let tx;
+  try {
+    tx = await turns();
+  } catch (e) {
+    calls.push({ ...rec, error: (e && e.reason) || 'stt_failed' });
+    return { key, heard: null };
+  }
+  rec.stt_words = tx && Number.isInteger(tx.words) ? tx.words : null;
+  if (tx && Number.isFinite(tx.cost)) rec.stt_cost = tx.cost;
+  if (!tx || !tx.words) {
+    calls.push({ ...rec, label: 'none', second_voice: false, voice_check: 'no_words' });
+    return { key, heard: false, label: 'none' };
+  }
+  let r;
+  try {
+    r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: VH.promptOf(task, tx.turns || tx.text), schema: VH.SCHEMA, job: 'child_test.sa_second_voice', maxTokens: VOICE_MAX_TOKENS, signal }));
+  } catch (e) {
+    calls.push({ ...rec, error: (e && e.reason) || 'model_failed' });
+    return { key, heard: null };
+  }
+  const heardText = [tx.turns, tx.text].filter((t) => typeof t === 'string' && t).map((t) => ensureNoDevanagari(t));
+  const quoteHeard = (q) => bare(ensureNoDevanagari(q)).length >= 2 && heardText.some((h) => within(ensureNoDevanagari(q), h) >= HELP_QUOTE_MIN);
+  const d = VH.decide(r.json, quoteHeard);
+  Object.assign(rec, { cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, ...(r.detail ? { detail: r.detail } : {}), label: d.label, kind: d.kind || null, who: (r.json && r.json.who) || null, second_voice: d.flag, voice_check: d.why });
+  calls.push(rec);
+  if (d.flag === null) return { key, heard: null };
+  return { key, heard: d.flag, label: d.label, kind: d.kind, reason: d.flag ? VH.matchedWords(r.json.evidence, task) : '' };
+}
+
 let LETTERS_SCHEMA_CACHE = null;
 function LETTERS_SCHEMA() {
   if (!LETTERS_SCHEMA_CACHE) {
@@ -862,6 +925,20 @@ function gateMul(out) {
 }
 
 /**
+ * sa_r28_voice_help's fields beside second_voice: the first flagged clip's kind ('help' | 'other_child') and its matched
+ * item words; other_voice the strongest non-flag label heard ('unclear' over 'support'; null when none); voice_check.
+ */
+function helpDetail(heard) {
+  const flagged = heard.find((v) => v.heard === true);
+  const rest = heard.filter((v) => v.heard === false).map((v) => v.label);
+  return {
+    ...(flagged ? { second_voice_kind: flagged.label === 'other_child' ? 'other_child' : 'help', second_voice_reason: flagged.reason || '' } : {}),
+    other_voice: rest.includes('unclear') ? 'unclear' : rest.includes('support') ? 'support' : null,
+    voice_check: 'r28',
+  };
+}
+
+/**
  * One SA task's row → marks. { ok: true, marks } | { ok: false, reason, retry }.
  * `wait` (not an error): a questions task whose clips are still arriving.
  */
@@ -886,7 +963,9 @@ async function scoreRow(row, session, deps = {}) {
   // check share one speech-to-text call per clip (the gate's, when it ran; else the check makes its own).
   // the switch's value: true (the default bar) or a number from 0.2 to 0.9 (that bar)
   const strictValue = voiceStrictSwitch.valueOf(d.voiceStrict);
-  const strict = Boolean(voices) && strictValue !== false;
+  // sa_r28_voice_help: help, not support; it takes the place of the audio check and of the stricter one
+  const help = Boolean(voices) && voiceHelpSwitch.valueOf(d.voiceHelp) && Boolean(d.speechTurnsOf);
+  const strict = Boolean(voices) && !help && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
     const stt = d.speechOf;
@@ -902,13 +981,16 @@ async function scoreRow(row, session, deps = {}) {
     : {});
   if (voices) {
     const fetch = d.clipOf;
-    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(voiceOf(d, calls, clip, key, voiceOpts(clip))); return clip; };
+    const check = (clip, key) => (help
+      ? voiceHelpOf(d, calls, clip, key, { task, turns: () => bounded('stt', limitOf(d, 'stt'), (signal) => d.speechTurnsOf(clip, signal)) })
+      : voiceOf(d, calls, clip, key, voiceOpts(clip)));
+    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(check(clip, key)); return clip; };
     // a section recording is cut per item for the marks; the voice check hears it whole, once
     const cut = d.sliceOf;
     if (cut) {
       d.sliceOf = async (key, windows, signal) => {
         const clips = await cut(key, windows, signal);
-        voices.push(fetch(key, signal).then((clip) => voiceOf(d, calls, clip, key, voiceOpts(clip)), () => ({ key, heard: null })));
+        voices.push(fetch(key, signal).then((clip) => check(clip, key), () => ({ key, heard: null })));
         return clips;
       };
     }
@@ -955,6 +1037,7 @@ async function scoreRow(row, session, deps = {}) {
           ...(out.section ? { section: true } : {}),
           confidence,
           ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
+          ...(heard && help ? helpDetail(heard) : {}),
           ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
           items: out.rows,
         },
@@ -1160,6 +1243,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const stopRules = await stopRulesSwitch.enabled(deps);
   const variantWait = await variantWaitSwitch.enabled(deps);
   const voiceStrict = await voiceStrictSwitch.enabled(deps);
+  const voiceHelp = await voiceHelpSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1196,7 +1280,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, lastWordFromRecording: session.lastWordFromRecording === true });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1232,5 +1316,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps },
 };
