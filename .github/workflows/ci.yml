@@ -82,6 +82,21 @@ jobs:
       - name: E2E engine bridge
         run: bash scripts/qa/engine-bridge.test.sh
 
+      # bot/ and dashboard/ deps go in BEFORE the gate (bd-nij2nd). Root suites that load the real
+      # express/pg/aws-sdk/bcryptjs from dashboard/node_modules, or @supabase/supabase-js and dotenv from
+      # bot/node_modules (coachip, coachip-media, portal assets, fflp seams, cert scripts), died at
+      # require() here when these ran after it: 17 suites red on a harness gap, not on a behaviour.
+      - name: Install canvas system dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev
+
+      - name: Install bot dependencies
+        working-directory: bot
+        run: npm ci
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
       # `npm test` IS the baseline gate — it runs every suite via tests/run.js and
       # then judges the delta against tests/baseline.snapshot.json. Use
       # `npm run test:raw` for unfiltered jest output when debugging a failure.
@@ -126,13 +141,6 @@ jobs:
           else
             npm run test:baseline:growth
           fi
-
-      - name: Install canvas system dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev
-
-      - name: Install bot dependencies
-        working-directory: bot
-        run: npm ci
 
       - name: Verify no hardcoded credentials
         run: |
