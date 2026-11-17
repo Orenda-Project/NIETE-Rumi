@@ -207,6 +207,8 @@ const en = {
     firstN: (n: number) => `First ${n} correct`,
     ofN: (x: number, n: number) => `${x} of ${n}`,
     unrated: "not rated (too few items heard)",
+    // round 28 (voice check): what the other voice was
+    voiceKinds: { help: "An adult said an answer", other_child: "Another child was reading too" } as Record<string, string>,
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "CWPM (correct words per minute)",
     cwpmHow: "CWPM, correct words per minute (familiar words and the passage) = correct words × 60 ÷ the seconds the child read (60 at most).",
@@ -425,6 +427,7 @@ const ur: Copy = {
     firstN: (n: number) => `پہلے ⁦${urDigits(n)}⁩ درست`,
     ofN: (x: number, n: number) => `⁦${urDigits(n)}⁩ میں سے ⁦${urDigits(x)}⁩`,
     unrated: "درجہ نہیں (بہت کم سنے گئے)",
+    voiceKinds: { help: "ایک بڑے نے جواب بتایا", other_child: "ایک اور بچہ بھی پڑھ رہا تھا" },
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "⁨CWPM⁩ (فی منٹ درست الفاظ)",
     cwpmHow: "⁨CWPM⁩، فی منٹ درست الفاظ (جانے پہچانے الفاظ اور عبارت) = درست الفاظ × ⁦۶۰⁩ ÷ بچے کے پڑھنے کے سیکنڈ (زیادہ سے زیادہ ⁦۶۰⁩)۔",

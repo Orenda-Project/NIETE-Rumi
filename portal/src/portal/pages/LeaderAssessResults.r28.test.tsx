@@ -81,3 +81,34 @@ describe("LeaderAssessResults: round 28", () => {
     expect(within(card).queryByText("not rated (too few items heard)")).toBeNull();
   });
 });
+
+describe("LeaderAssessResults: round 28 voice kind", () => {
+  const story = { taskId: "ur.story_w3", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "time_up", recording: "scored", score: { correct: 20 }, secondVoice: true };
+  it("help: 'An adult said an answer'; other_child: 'Another child was reading too'", async () => {
+    api.getResults.mockResolvedValue(RESULTS([{ ...story, secondVoiceKind: "help" }]));
+    const { unmount } = renderAt();
+    let card = await screen.findByTestId("result-task-ur.story_w3");
+    expect(within(card).getByText("An adult said an answer")).toBeTruthy();
+    unmount();
+    api.getResults.mockResolvedValue(RESULTS([{ ...story, secondVoiceKind: "other_child" }]));
+    renderAt();
+    card = await screen.findByTestId("result-task-ur.story_w3");
+    expect(within(card).getByText("Another child was reading too")).toBeTruthy();
+  });
+  it("Urdu copy for both kinds", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue(RESULTS([{ ...story, secondVoiceKind: "help" }, { ...story, taskId: "en.story_w3", secondVoiceKind: "other_child" }]));
+    renderAt();
+    expect(within(await screen.findByTestId("result-task-ur.story_w3")).getByText("ایک بڑے نے جواب بتایا")).toBeTruthy();
+    expect(within(screen.getByTestId("result-task-en.story_w3")).getByText("ایک اور بچہ بھی پڑھ رہا تھا")).toBeTruthy();
+  });
+  it("no kind: today's copy; other_voice: no voice line", async () => {
+    api.getResults.mockResolvedValue(RESULTS([story, { ...story, taskId: "en.story_w3", secondVoiceKind: "other_voice" }]));
+    renderAt();
+    const today = await screen.findByTestId("result-task-ur.story_w3");
+    expect(within(today).getByText("Yes: listen before relying on this score")).toBeTruthy();
+    const other = screen.getByTestId("result-task-en.story_w3");
+    expect(within(other).queryByText("Yes: listen before relying on this score")).toBeNull();
+    expect(Array.from(other.querySelectorAll("dt")).map((d) => d.textContent)).not.toContain("Another voice heard");
+  });
+});
