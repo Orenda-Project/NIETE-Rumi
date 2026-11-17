@@ -20,6 +20,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { teacherLanguageFor } = require('../quiz/transcript-quiz-language');
+const { clampLanguage } = require('../../config/ux-strings');
 const WindowTemplate = require('./window-closed-template');
 
 const RECENT_DAYS = 7;
@@ -62,7 +63,7 @@ async function handleReminderStop({ user, text, to, now = Date.now() } = {}) {
     if (!(await WindowTemplate.templateName())) return false;
     if (!(await receivedRecently(user.id, now))) return false;
     if (!(await WindowTemplate.optOut(user.id))) return false;
-    const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';
+    const lang = clampLanguage(teacherLanguageFor({ preferredLanguage: user.preferred_language }));
     await WhatsAppService.sendMessage(to || user.phone_number, CONFIRM[lang]);
     logEvent('lp_quiz_offer.template_stop', { userId: user.id, lang });
     return true;

@@ -27,6 +27,7 @@
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const V = 1;                      // bump on purpose when the welcome's content changes: every child sees it once more
 const SHOW_MAX = 2;
@@ -63,7 +64,7 @@ async function field({ chosenId, lang = 'en' } = {}) {
     if (!chosenId || !(await on())) return {};
     const st = await stateOf(chosenId);
     if (!st) return {};
-    const voice = VOICE[lang === 'ur' ? 'ur' : 'en'];
+    const voice = VOICE[clampLanguage(lang)];
     if (st.s || st.n >= SHOW_MAX) return { welcome: { v: V, replay: 1, ...voice } };
     return { welcome: { v: V, attempt: st.n + 1, ...voice } };
   } catch (err) {

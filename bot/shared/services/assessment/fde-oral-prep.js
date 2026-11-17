@@ -6,10 +6,12 @@
  * Pure: the oral part in, the notes (strings) out.
  */
 
+const { clampLanguage } = require('../../config/ux-strings');
+
 /** The prep notes of an oral part's tasks, in task order, in `lang` ('ur' or 'en'). */
 function prepLines(oral, lang) {
   const tasks = oral && Array.isArray(oral.tasks) ? oral.tasks : [];
-  return tasks.map((t) => t && t[`prep_${lang === 'ur' ? 'ur' : 'en'}`]).filter((l) => typeof l === 'string' && l.trim());
+  return tasks.map((t) => t && t[`prep_${clampLanguage(lang)}`]).filter((l) => typeof l === 'string' && l.trim());
 }
 
 module.exports = { prepLines };

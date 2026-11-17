@@ -21,6 +21,7 @@
  */
 
 const { LISTEN_LABEL, scriptLabel } = require('./fde-render-v37'); // v37 G1 English key: a listening story box is not «Read aloud»
+const { clampLanguage } = require('../../config/ux-strings');
 
 const GRID_ROWS = 12;
 
@@ -96,7 +97,7 @@ function gridBlock(oral, lang, t, w) {
 /** The sheet's HTML, or '' for a paper with no oral part. */
 function oralSheet(oral, ctx) {
   if (!oral) return '';
-  const lang = ctx.medium === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(ctx.medium);
   const t = ctx.text;
   const w = COPY[lang];
   const tasks = oral.tasks.map((task) => taskBlock(oral, task, lang, t, w)).join('');
@@ -113,7 +114,7 @@ function childCard(oral, ctx) {
   if (!oral) return '';
   const tasks = (oral.tasks || []).filter((task) => task && task.kind === 'read_aloud');
   if (!tasks.length) return '';
-  const lang = ctx.medium === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(ctx.medium);
   const t = ctx.text;
   const blocks = tasks.map((task) => {
     const c = (oral.content || []).find((x) => x && x.id === task.id) || {};

@@ -22,6 +22,7 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 
 const { makeFake } = require('./fake-supabase');
 const F = require('./web-quiz-identity-fixture');
+const { clampLanguage } = require('../../../shared/config/ux-strings');
 
 const READ_MS = 8;
 // production's switches (read-only snapshot from the replica, 19 Oct): values only, no ids but the fixture rule's
@@ -150,7 +151,7 @@ describe('page_warm on: every kind of code draws its real door, byte for byte th
     const on = await cold(true, kind);
     expect(on.first.ans).not.toMatch(/^ERR/);
     expect(JSON.parse(on.first.ans).quiz.code).toBe('AB12CD');
-    expect(JSON.parse(on.first.ans).quiz.lang).toBe(kind === 'ur' ? 'ur' : 'en');
+    expect(JSON.parse(on.first.ans).quiz.lang).toBe(clampLanguage(kind));
     expect(on.first.ans).toEqual(off.again.ans);
     expect(on.again.ans).toEqual(off.again.ans);
   });

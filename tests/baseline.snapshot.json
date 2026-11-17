@@ -427,23 +427,6 @@
       "NEW: renderBusyPage has no fresh-profile test. Add one (a test that names the page and says \\"
     ]
   },
-  "tests/setup/language-single-source.test.js": {
-    "failing": [
-      "language conformance — one clamp has no inline en/ur clamp left in bot/"
-    ],
-    "offenders": [
-      "bot/shared/services/assessment/fde-oral-prep.js :: return tasks.map((t) => t && t[`prep_${lang === 'ur' ? 'ur' : 'en'}`]).filter((l) => typeof l === 'string' && l.trim());",
-      "bot/shared/services/assessment/fde-oral-sheet.js #2 :: const lang = ctx.medium === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/assessment/fde-oral-sheet.js :: const lang = ctx.medium === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/nudges/reminder-stop.js :: const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/nudges/window-closed-template.js :: const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/nudges/window-closed-template.js :: return lang === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/quiz/sa-game-door.js :: const l = lang === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/quiz/web-quiz-card-data.js :: const l = lang === 'ur' ? 'ur' : 'en';",
-      "bot/shared/services/quiz/web-quiz-child-welcome.js :: const voice = VOICE[lang === 'ur' ? 'ur' : 'en'];",
-      "bot/tests/quiz/web-quiz/web-quiz-page-warm.test.js :: expect(JSON.parse(on.first.ans).quiz.lang).toBe(kind === 'ur' ? 'ur' : 'en');"
-    ]
-  },
   "tests/setup/link-integrity.test.js": {
     "failing": [
       "Link Integrity (agent-native progressive-disclosure web) every relative markdown link resolves to a real file or directory"
