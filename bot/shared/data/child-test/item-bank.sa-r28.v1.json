@@ -576,7 +576,7 @@
    "en.story_w3.q2": {
     "options": [
      "Flowers",
-     "Grass",
+     "The teacher",
      "Trees",
      "Vegetables"
     ],
@@ -587,7 +587,7 @@
    "en.story.q2": {
     "options": [
      "Flowers",
-     "Grass",
+     "The teacher",
      "Trees",
      "Vegetables"
     ],
@@ -621,7 +621,7 @@
     "options": [
      "Some seeds",
      "The plant",
-     "A big stone",
+     "Some water",
      "His school bag"
     ],
     "target_index": 1,
@@ -632,7 +632,7 @@
     "options": [
      "Some seeds",
      "The plant",
-     "A big stone",
+     "Some water",
      "His school bag"
     ],
     "target_index": 1,
@@ -666,7 +666,7 @@
      "It was his birthday",
      "He did a good job",
      "He won a race",
-     "He sang a song"
+     "Imran asked them to clap"
     ],
     "target_index": 1,
     "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
@@ -677,7 +677,7 @@
      "It was his birthday",
      "He did a good job",
      "He won a race",
-     "He sang a song"
+     "Imran asked them to clap"
     ],
     "target_index": 1,
     "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
