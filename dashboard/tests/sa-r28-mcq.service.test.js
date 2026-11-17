@@ -1068,7 +1068,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     await wait(20);
     expect(foldEvents(events)).toEqual([
       { type: 'fold_open', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.01' },
-      { type: 'fold_close', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.01', by: 'summary', card: undefined },
+      { type: 'fold_close', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.01', by: 'summary', card: null },
     ]);
   }, 20000);
 
