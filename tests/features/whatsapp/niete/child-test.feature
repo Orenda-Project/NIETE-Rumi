@@ -1301,8 +1301,11 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given sa_r28_child_only_answer is on
     And in a spoken sum the child says a wrong number and then another person says the right one
     When the recording is scored
-    Then the scoring instructions say to mark only the child's own final answer and to ignore any other speaker
+    Then the scoring instructions say to mark only the child's own answer and to ignore any other speaker
+    And a number another person said is never the child's answer, nor a change the child makes to it afterwards
+    And such an item is marked from what the child said before the other person spoke
     And the child's own self-correction still counts
+    And another person's instructions or encouragement do not change the mark
     And with sa_r28_child_only_answer off the scoring instructions are exactly as before
 
   @e2e @wip @draft @config-gated @P2 @CT213 @no-mock-driver
@@ -1310,7 +1313,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With the r28 switches on, a recording a gate overrode keeps what the model and speech-to-text said
     Given sa_r28_letter_gate is on, or sa_r28_no_echo_ur is on for the echo check
     When a gate mutes a recording, or overrides the model's marks for it
-    Then each item keeps why it was muted, the recording's length and the words speech-to-text heard, cut to 80 characters
+    Then each item keeps why it was overridden, the recording's length and how many words speech-to-text heard
+    And the model's own "no child heard" is its own reason, apart from a short or a silent recording
     And when the model was asked, each item keeps the model's own verdict and what it heard
+    And the transcript itself, cut to 80 characters, is kept only on the echo check, never on a muted recording
     And the child's marks are the same as without the switch
     And with the switches off nothing new is stored
