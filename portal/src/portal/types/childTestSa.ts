@@ -146,6 +146,8 @@ export type SaTaskResult = {
   unavailable?: number;
   /** round 28 (voice check 'r28'): the other voice was an adult helping, another child, or neither */
   secondVoiceKind?: 'help' | 'other_child' | 'other_voice' | (string & {});
+  /** round 28 (tap): answers tapped before the prompt's sound ended (n), of the answers the phone timed (of) */
+  tapBeforeSound?: { n: number; of: number };
 };
 
 /** Round 20 level vocabulary (as sent for review): reading and maths ladders, plus Beginner. */
