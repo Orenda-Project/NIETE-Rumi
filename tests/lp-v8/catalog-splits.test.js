@@ -20,6 +20,13 @@ const SPLITS = ['grade_4_urdu_ch10_seg2', 'grade_4_urdu_ch9_seg4', 'grade_4_math
   'grade_1_urdu_ch3_seg4', 'grade_1_urdu_ch3_seg8', 'grade_1_urdu_ch4_seg6', 'grade_1_urdu_ch4_seg7',
   'grade_1_english_ch5_seg4', 'grade_1_english_ch5_seg8', 'grade_1_urdu_ch6_seg6',
   'grade_1_english_ch8_seg7'];  // bd-5o0ay.15: 9 pages > the G1 cap of 8
+// bd-zrdvmi.1.2 (#4871, 14 Nov): eight G3-5 ch12-13 days that taught two book topics, one topic per part. These are
+// object entries { id, parts } in the file; bot/tests/lp-v8/catalog-splits.test.js pins their parts' shape.
+const TOPIC_SPLITS = ['grade_3_english_ch12_seg5', 'grade_3_math_ch12_seg3', 'grade_4_english_ch12_seg3',
+  'grade_4_english_ch12_seg5', 'grade_4_english_ch12_seg6', 'grade_4_english_ch12_seg7', 'grade_5_english_ch12_seg3',
+  'grade_5_english_ch13_seg5'];
+const ENTRIES = JSON.parse(fs.readFileSync(path.join(DATA, 'lp_splits.json'), 'utf8'));
+const idOf = (e) => (typeof e === 'string' ? e : e.id);
 const cps = (s) => [...String(s)].length;
 
 function lesson(seg, extra = {}) {
@@ -72,21 +79,22 @@ describe('applySplits', () => {
 });
 
 describe('the committed catalog', () => {
-  test('data/lp_splits.json lists exactly the eleven splits', () => {
-    expect(JSON.parse(fs.readFileSync(path.join(DATA, 'lp_splits.json'), 'utf8'))).toEqual(SPLITS);
+  test('data/lp_splits.json lists exactly the eleven plain splits, then the eight one-topic splits', () => {
+    expect(ENTRIES.slice(0, SPLITS.length)).toEqual(SPLITS);
+    expect(ENTRIES.map(idOf)).toEqual([...SPLITS, ...TOPIC_SPLITS]);
   });
 
   test('carries both parts of every split, within the row caps', () => {
-    // 2049 core lessons; the G1-5 elective books (bd-6640j.1.8) carry no split and are counted separately.
+    // 2057 core lessons (2049 + the eight one-topic part 2s); the G1-5 elective books (bd-6640j.1.8) carry no split and are counted separately.
     const ELECTIVE = ['general_knowledge', 'general_knowledge_ur', 'social_studies_en', 'social_studies_ur', 'islamiat'];
     // The ICT list: GB's NBF books are opt_in (bd-97daxo.5) and are counted by tests/books, not here.
     const ict = catalog.books.filter((b) => !b.opt_in);
     const lessonsIn = (books) => books.reduce((n, b) => n + b.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0);
     const core = ict.filter((b) => !ELECTIVE.includes(b.subject_key));
-    expect(lessonsIn(core)).toBe(2049);
-    expect(lessonsIn(ict)).toBe(3290);
+    expect(lessonsIn(core)).toBe(2057);
+    expect(lessonsIn(ict)).toBe(3298);
     expect(catalog.counts.lessons).toBe(lessonsIn(catalog.books));
-    for (const id of SPLITS) {
+    for (const id of ENTRIES.map(idOf)) {
       const [p1, p2] = [find(catalog, id), find(catalog, `${id}b`)];
       expect([p1 && p1.part, p2 && p2.part]).toEqual([1, 2]);
       for (const l of [p1, p2]) {
@@ -98,7 +106,7 @@ describe('the committed catalog', () => {
   });
 
   test('is exactly what applySplits gives, so the CLI and the builder agree', () => {
-    expect(S.applySplits(catalog, SPLITS, B)).toEqual(catalog);
+    expect(S.applySplits(catalog, ENTRIES, B)).toEqual(catalog);
   });
 
   test('apply-lp-splits.js --check agrees the committed catalog is up to date', () => {
