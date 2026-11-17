@@ -565,8 +565,9 @@
         // round 28 (B-17): a question whose clips were lost is not asked; presented = the questions whose clips all played
         var lostIds = st.answers.filter(function (a) { return a.unavailable; }).map(function (a) { return a.item_id; });
         r.asked = st.items.map(function (q) { return q.id; }).filter(function (id) { return lostIds.indexOf(id) < 0; });
-        r.presented = st.answers.filter(function (a) { return !a.unavailable; }).map(function (a) { return a.item_id; });
-        if (lostIds.length) { r.unavailable = lostIds.length; if (r.presented.length < MCQ_MIN_PRESENTED) r.unrated = true; }
+        // presented is a COUNT (as the picker's): the ids of the presented questions are asked[]
+        r.presented = st.answers.filter(function (a) { return !a.unavailable; }).length;
+        if (lostIds.length) { r.unavailable = lostIds.length; if (r.presented < MCQ_MIN_PRESENTED) r.unrated = true; }
       }
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
@@ -900,32 +901,6 @@
         return true;
       },
       /**
-       * Round 28 (the letter-sound picker): the clip of the item on show could not be played. stage 'prompt' (its first
-       * play): the item is unavailable, never scored, and the next item shows (the task ends complete after the last).
-       * stage 'replay': logged, the item stays open, no auto replay for it. A late call for another item is ignored.
-       * → true when it acted.
-       */
-      clipLost: function (itemId, stage) {
-        var t = task();
-        if (st.phase !== 'running' || !t || t.kind !== 'pick') return false;
-        var it = st.items[st.item_i];
-        if (!it || it.id !== itemId) return false;
-        if (stage === 'replay') {
-          st.replayed = true;
-          ev('replay', { task_id: t.id, item_id: it.id, value: 'lost' });
-          return true;
-        }
-        st.answers.push({ item_id: it.id, value: null, unavailable: 'clip' });
-        ev('item_unavailable', { task_id: t.id, item_id: it.id, value: { why: 'clip' } });
-        st.item_i++;
-        st.item_started = now();
-        st.ask_at = st.item_started;
-        st.answer_at = null;
-        st.replayed = false;
-        if (st.item_i >= st.items.length) finish(STOP.COMPLETE);
-        return true;
-      },
-      /**
        * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach skips the part's instruction and practice. It lands
        * on the part's Ready screen, never past it: Go still starts the clock and the first item is still asked (a timed
        * part's clock must not start before the child holds the phone). A session gate (mic check, oral practice, keypad
@@ -962,7 +937,7 @@
         return score(it, value, meta);
       },
       /**
-       * Round 28 (the spoken MCQ, B-17; the letter picker's A-13 twin): a clip of the item on show could not be played
+       * Round 28 (the letter picker, A-13, and the spoken MCQ, B-17): a clip of the item on show could not be played
        * (after the voice's one retry). stage 'prompt' (its first read-out): the item is unavailable (not asked, not
        * attempted, not wrong), answers[] gets { item_id, value: null, unavailable: 'clip' }, one item_unavailable event,
        * and the next item shows; the task never ends on it (complete after the last). stage 'replay': logged (replay,
@@ -970,7 +945,7 @@
        */
       clipLost: function (itemId, stage) {
         var t = task();
-        if (st.phase !== 'running' || !t || !(mcqOn && t.kind === 'mcq')) return false;
+        if (st.phase !== 'running' || !t || !(t.kind === 'pick' || (mcqOn && t.kind === 'mcq'))) return false;
         var it = st.items[st.item_i];
         if (!it || it.id !== itemId) return false;
         if (stage === 'replay') {
