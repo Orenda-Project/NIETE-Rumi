@@ -480,6 +480,9 @@ def run_refusal(env, *, fake, commit, confirm_ref=None, go=None):
         return f"--env {env} needs --fake-phones: a non-production bot must never hold a real teacher's number."
     if env == "prod" and fake:
         return "--fake-phones is for sandbox/staging; production gets the real numbers."
+    if env == "sandbox" and commit:
+        return ("the sandbox holds dummy people only (outside developers share it): this move carries real names, "
+                "transcripts and recordings. Dry runs are fine; write to staging or production.")
     if env == "prod" and commit and (confirm_ref != TARGET_REFS["prod"] or go != "yes"):
         return ("a production write needs --confirm-ref <prod ref> AND GB_MIGRATION_PROD_GO=yes "
                 "(after reviewing a dry run).")

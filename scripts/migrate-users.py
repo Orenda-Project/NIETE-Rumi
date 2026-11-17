@@ -34,6 +34,7 @@ Usage:
   python3 scripts/migrate-users.py --commit   # actually writes to Supabase
 """
 from __future__ import annotations
+import os
 import argparse
 import json
 import re
@@ -74,6 +75,9 @@ def taleemabad_conn():
 
 def niete_conn():
     supa_url = env("SUPABASE_URL")
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+    from sandbox_scrub import refuse_real_data_into_sandbox  # noqa: E402  (sandbox = dummy people only)
+    refuse_real_data_into_sandbox(supa_url)
     m = re.match(r"https://([a-z0-9]+)\.supabase\.co", supa_url)
     if not m:
         raise SystemExit(f"Unrecognized SUPABASE_URL format: {supa_url}")

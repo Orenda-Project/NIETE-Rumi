@@ -50,6 +50,9 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 
 def sb_conn():
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+    from sandbox_scrub import refuse_real_data_into_sandbox  # noqa: E402  (sandbox = dummy people only)
+    refuse_real_data_into_sandbox(os.environ["SUPABASE_URL"])
     proj_ref = os.environ["SUPABASE_URL"].split("//")[1].split(".")[0]
     return psycopg2.connect(
         host=f"db.{proj_ref}.supabase.co",
