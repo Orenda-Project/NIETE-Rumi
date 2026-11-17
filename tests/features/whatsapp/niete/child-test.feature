@@ -1478,9 +1478,36 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With sa_r28_letter_pick on, coach-led, the coach is told not to say the sound
     Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
     When any picker screen shows, practice included
-    Then a line above the folded answer asks the coach not to say the sound and to press the sound button instead
-    And the folded answer opens only when the coach taps it and is folded again on the next item
+    Then a line above the coach's fold asks the coach not to say the sound and to press the sound button instead
+    And the fold opens only when the coach taps it and is folded again on the next item
     And on the child's own run there is no such line
+  @e2e @wip @draft @config-gated @P1 @CT260 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A5: …": "ur/en:
+  # the open fold on every live item …", "served batteries …", "practice P2: the glyph may show …").
+  Scenario: With sa_r28_letter_pick on, coach-led, the open fold never shows the letter being asked for
+    Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
+    When the coach opens the fold on a scored letter-sound item
+    Then the fold shows the sound button and no letter, so the child never sees the answer's shape before choosing
+    And on the practice item the fold still shows the sound and its letter
+  @e2e @wip @draft @config-gated @P1 @CT261 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A5: modal: …",
+  # "the item's sound never starts while the fold is open …", "the fold's own replay button …", "RDF auto: no fold …").
+  Scenario: With sa_r28_letter_pick on, coach-led, the open fold takes the next tap and is logged
+    Given sa_r28_letter_pick is on, the battery is coach-led and the coach has opened the fold on an item
+    When anyone taps a letter card, the big sound button or the coach's Next
+    Then that tap only closes the fold: no answer is recorded, no sound plays and the item stays
+    And the next tap answers, plays the sound or moves on as usual
+    And the item's sound never starts while the fold is open; it starts once the fold is closed
+    And the run logs one fold_open and one fold_close for the item, the close saying whether the coach folded it or a tap closed it and which card was under that tap
+    And the child's own run has no fold and logs neither
+  @e2e @wip @draft @config-gated @P1 @CT262 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("the picker, coach-led on a
+  # 360×640 phone: …"; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick on, coach-led, the letter-sound screen fits a small phone in every state
+    Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual Urdu layout settings
+    When the item is playing, has played, has a card chosen, offers Next, or has the fold open
+    Then the five letter cards and the big sound button are whole on screen without scrolling and never move
+    And every letter's ink sits inside its card
   @e2e @wip @draft @config-gated @P1 @CT251 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("every rotated variant …"),
   # bot/tests/child-test/sa-r28-mcq-of-all.test.js, portal cohortStats.r28.test.ts and LeaderAssessResults.r28.test.tsx.

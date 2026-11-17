@@ -482,7 +482,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     o = o || {};
     const c = require('../sa/sa-core');
     const ui = require('../sa/sa-ui');
-    const b = battery(o);
+    const b = o.battery || battery(o);
     const events = [];
     const r = c.createRunner(Object.assign({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual }, o.now ? { now: o.now } : {}));
     const pending = [];
@@ -692,7 +692,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(right.classList.contains('is-shown')).toBe(true);
   });
 
-  test('coach-led: the clip is still played by the app; the coach screen folds the target', async () => {
+  test('coach-led: the clip is still played by the app; the coach screen has the fold, never the target (lead ruling: no glyph on a live item)', async () => {
     const m = mount({ manual: true, practice: false });
     toRunning(m);
     const it = m.r.view().item;
@@ -700,7 +700,8 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(clipCalls(m).map((x) => x[1])).toEqual([it.prompt_audio]);
     const fold = m.el.querySelector('details.sae-coach-says');
     expect(fold).not.toBeNull();
-    expect(fold.textContent).toContain(`${it.prompt_text} → ${it.target}`);
+    expect(fold.textContent).not.toContain(it.target);
+    expect(fold.textContent).not.toContain(it.prompt_text);
     expect(m.el.querySelectorAll('.sae-pick-replay')).toHaveLength(1);
   });
 
@@ -902,6 +903,11 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       m.view.render();
       expect(fold().open).toBe(true);
       await wait(360 + 500); // the clip asked for, then past the no-map lead-in window (300 + 150 ms)
+      expect(clipCalls(m)).toHaveLength(0); // opened before the autoplay: the sound waits for the close
+      cards(m)[0].click(); // the open fold is modal: this tap only closes it
+      expect(m.r.view().item_index).toBe(0);
+      await wait(500); // the sound starts after the close; then past its pre-sound window
+      expect(clipCalls(m)).toHaveLength(1);
       cards(m)[0].click();
       await wait(450);
       expect(m.r.view().item_index).toBe(1);
@@ -955,6 +961,201 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       }
     });
   });
+  describe('round 28 A5: the coach fold on a live item never shows the target letter, is modal, and is logged (SPEC A.5, A.6)', () => {
+    const cards = (m) => m.el.querySelectorAll('.sae-pick-cards .sae-opt');
+    const fold = (m) => m.el.querySelector('details.sae-pick-coach');
+    const ev = (m, type) => m.events.filter((e) => e.type === type);
+    const open = (m) => { fold(m).open = true; fold(m).dispatchEvent(new dom.window.Event('toggle')); };
+    const shut = (m) => { fold(m).open = false; fold(m).dispatchEvent(new dom.window.Event('toggle')); };
+    /** Coach-led, the item on show, its first sound played and ended (instant clips), past the pre-sound window. */
+    async function live(o) {
+      const m = mount(Object.assign({ manual: true, practice: false, instant: true }, o || {}));
+      toRunning(m);
+      await wait(360 + 500);
+      return m;
+    }
+
+    for (const lang of ['ur', 'en']) {
+      test(`${lang}: the open fold on every live item carries no element and no text with the target letter; it carries a replay button`, async () => {
+        const m = await live({ lang });
+        const n = m.r.view().task.items.length;
+        for (let i = 0; i < n; i++) {
+          const it = m.r.view().item;
+          open(m);
+          m.view.render();
+          const d = fold(m);
+          expect(d.open).toBe(true);
+          // the summary is the fold's constant label («کوچ» / "Coach", the same on every item, shown folded too): a word,
+          // not a cue for the item. Everything else the open fold renders carries no target letter at all.
+          const label = d.querySelector('summary');
+          expect(label.textContent).toBe(lang === 'ur' ? 'کوچ' : 'Coach');
+          const body = Array.from(d.querySelectorAll('*')).filter((x) => x !== label && !label.contains(x));
+          expect(body.filter((x) => x.textContent.includes(it.target) || String(x.getAttribute('aria-label') || '').split(/\s+/).includes(it.target))).toEqual([]);
+          expect(d.textContent.replace(label.textContent, '').includes(it.target)).toBe(false);
+          expect(d.querySelector('button.sae-pick-coach-replay')).not.toBeNull();
+          shut(m);
+          await wait(20);
+          cards(m)[0].click();
+          await wait(450);
+          m.view.render();
+        }
+      });
+    }
+
+    /** The served coach-led batteries (sa.coach.G3.A, UR and EN) through the route's applySwitches, r28 ON: each picker
+     *  task alone, its practice set aside (the items are what is live). */
+    function servedPick() {
+      const { applySwitches } = require('../routes/sa-battery-switches');
+      const on = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true };
+      const out = [];
+      for (const lang of ['ur', 'en']) {
+        const raw = JSON.parse(require('fs').readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${lang}.json`), 'utf8'));
+        const b = applySwitches(raw, on);
+        b.tasks.filter((t) => t.kind === 'pick').forEach((t) => out.push({ lang, battery: Object.assign({}, b, { tasks: [Object.assign({}, t, { practice: [] })] }) }));
+      }
+      return out;
+    }
+    test('served batteries (UR and EN, both picker tasks each): the open fold on every live item has no target letter', async () => {
+      const served = servedPick();
+      expect(served.length).toBeGreaterThanOrEqual(2);
+      let seen = 0;
+      for (const s of served) {
+        const m = await live({ lang: s.lang, battery: s.battery });
+        const n = s.battery.tasks[0].items.length;
+        expect(n).toBe(10);
+        for (let i = 0; i < n; i++) {
+          const it = m.r.view().item;
+          expect(it.id).toBe(s.battery.tasks[0].items[i].id);
+          open(m);
+          m.view.render();
+          const d = fold(m);
+          const label = d.querySelector('summary');
+          const body = Array.from(d.querySelectorAll('*')).filter((x) => x !== label && !label.contains(x));
+          expect({ item: it.id, hits: body.filter((x) => x.textContent.includes(it.target)).length, text: d.textContent.replace(label.textContent, '').includes(it.target) })
+            .toEqual({ item: it.id, hits: 0, text: false });
+          seen++;
+          shut(m);
+          await wait(20);
+          m.r.answer(it.options[0]);
+          m.view.render();
+        }
+        m.view.destroy(); // the next battery mounts on the same element
+        m.el.innerHTML = '';
+      }
+      expect(seen).toBe(served.length * 10);
+    }, 30000);
+
+    test('practice P2: the glyph may show (the fold keeps the sound and the letter)', () => {
+      const m = mount({ manual: true });
+      m.r.start(); m.r.instructionDone(); m.r.practiceModelled();
+      m.view.render();
+      const p2 = m.r.view().practice;
+      expect(fold(m).textContent.includes(p2.target)).toBe(true);
+    });
+
+    test('modal: fold open, a tap on card 4 only closes it (no answer, no pressed card); the next tap answers; fold_open / fold_close {by: tap, card: 3} once each', async () => {
+      const m = await live();
+      const it = m.r.view().item;
+      open(m);
+      m.view.render(); // a redraw of the same item keeps it open and logs nothing more
+      expect(ev(m, 'fold_open')).toEqual([expect.objectContaining({ task_id: 'ur.letter_pick10', item_id: it.id })]);
+      cards(m)[3].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(cards(m)[3].classList.contains('is-pressed')).toBe(false);
+      expect(fold(m).open).toBe(false);
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ task_id: 'ur.letter_pick10', item_id: it.id, by: 'tap', card: 3 })]);
+      cards(m)[3].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ item_id: it.id, value: it.options[3] });
+      expect(ev(m, 'fold_open')).toHaveLength(1);
+      expect(ev(m, 'fold_close')).toHaveLength(1);
+    });
+
+    test('modal: the coach folds it with the summary → fold_close {by: summary, card: null}', async () => {
+      const m = await live();
+      const it = m.r.view().item;
+      open(m);
+      shut(m);
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ item_id: it.id, by: 'summary', card: null })]);
+    });
+
+    test('modal: a tap on the replay pill with the fold open only closes it (no sound, no replay event); the next tap replays', async () => {
+      const m = await live();
+      const before = clipCalls(m).length;
+      open(m);
+      m.el.querySelector('.sae-pick-replay').click();
+      expect(fold(m).open).toBe(false);
+      expect(clipCalls(m)).toHaveLength(before);
+      expect(ev(m, 'replay')).toHaveLength(0);
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ by: 'tap', card: null })]);
+      m.el.querySelector('.sae-pick-replay').click();
+      expect(clipCalls(m)).toHaveLength(before + 1);
+      expect(ev(m, 'replay')).toEqual([expect.objectContaining({ value: 'child' })]);
+    });
+
+    test('the fold\'s own replay button: the fold closes first (by tap, card null), then the sound plays', async () => {
+      const m = await live();
+      const before = clipCalls(m).length;
+      open(m);
+      fold(m).querySelector('button.sae-pick-coach-replay').click();
+      expect(fold(m).open).toBe(false);
+      expect(ev(m, 'fold_close')).toEqual([expect.objectContaining({ by: 'tap', card: null })]);
+      expect(clipCalls(m)).toHaveLength(before + 1);
+      expect(ev(m, 'replay')).toEqual([expect.objectContaining({ value: 'coach' })]);
+    });
+
+    test('the item\'s sound never starts while the fold is open: opened before the autoplay, the sound waits for the close', async () => {
+      const m = mount({ manual: true, practice: false, instant: true });
+      toRunning(m);
+      open(m);
+      await wait(500);
+      expect(clipCalls(m)).toHaveLength(0);
+      shut(m);
+      await wait(20);
+      expect(clipCalls(m)).toHaveLength(1);
+    });
+
+    test('modal: the offered Next with the fold open: the first tap closes it, the item stays; the second skips', async () => {
+      let clock = 1000;
+      const m = mount({ manual: true, practice: false, instant: true, now: () => clock });
+      toRunning(m);
+      await wait(30);
+      clock += 31000; m.r.tick(); await wait(30); clock += 31000;
+      m.view.render();
+      expect(m.r.view().offer_next).toBe(true);
+      open(m);
+      m.el.querySelector('.sa-next').click();
+      expect(m.r.view().item_index).toBe(0);
+      expect(fold(m).open).toBe(false);
+      m.el.querySelector('.sa-next').click();
+      expect(m.r.view().item_index).toBe(1);
+    });
+
+    test('practice P2: modal too (the first tap closes the fold, no practice answer; the second answers)', async () => {
+      const m = mount({ manual: true, instant: true });
+      m.r.start(); m.r.instructionDone(); m.r.practiceModelled();
+      m.view.render();
+      await wait(360 + 500);
+      const pa = jest.spyOn(m.r, 'practiceAnswer');
+      open(m);
+      cards(m)[0].click();
+      expect(pa).not.toHaveBeenCalled();
+      expect(fold(m).open).toBe(false);
+      cards(m)[0].click();
+      expect(pa).toHaveBeenCalledTimes(1);
+    });
+
+    test('RDF auto: no fold, no fold events; a card tap answers at once', async () => {
+      const m = mount({ practice: false, instant: true });
+      toRunning(m);
+      await wait(360 + 500);
+      expect(fold(m)).toBeNull();
+      cards(m)[2].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(1);
+      expect(ev(m, 'fold_open').concat(ev(m, 'fold_close'))).toEqual([]);
+    });
+  });
 });
 
 // Psychometrics (P1-3a): the pre-sound rule holds in the engine too, not only in the screens. A direct
@@ -981,4 +1182,237 @@ describe('core: answer() with meta.tap_before_sound is logged, never scored', ()
     expect(r.view().item_index).toBe(2);
     expect(r.snapshot().current.answers).toHaveLength(2);
   });
+});
+
+// ------------------------------------------------------------------------------------------------------------------
+// Coach-led fit on a 360×640 phone (SPEC A.3, A.6; the MCQ's layout-height test, for the picker): the SERVED coach
+// batteries (sa.coach.G3.A, UR and EN) through the route's applySwitches with the r28 switches ON, the production layout
+// switches, the house Nastaliq. Every coach state — listening, after the sound, chosen, Next offered (≥ 15 s), fold
+// open — fits without scrolling, the five cards whole and hit-testable, the cards and the replay pill never move; the
+// open fold carries no target letter; each letter's ink lies inside its card (U2, the ink-row method: luminance < 120
+// at 2× DPR, the card's ink shown vs hidden). A real browser lays the screen out (jsdom has none): skipped, never red,
+// where there is no playwright-core (PWCORE=<path>) or no chromium.
+// ------------------------------------------------------------------------------------------------------------------
+let pwChromium = null;
+try { ({ chromium: pwChromium } = require(process.env.PWCORE || 'playwright-core')); } catch (_) { /* no browser here */ }
+const PW_EXE = process.env.PWCHROME_EXE || (pwChromium ? (() => { try { return pwChromium.executablePath(); } catch (_) { return null; } })() : null);
+const maybePickBrowser = pwChromium && PW_EXE && require('fs').existsSync(PW_EXE) ? describe : describe.skip;
+
+maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state fits, nothing moves, no target letter in the open fold, each letter\'s ink inside its card (SPEC A.3, A.6, U2)', () => {
+  const fs = require('fs');
+  const SA = path.join(__dirname, '..', 'sa');
+  const PUB = path.join(__dirname, '..', 'public', 'wq');
+  // the layout switches the coach-led battery runs with in production (as the MCQ's fit test)
+  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  let browser;
+  beforeAll(async () => { browser = await pwChromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
+  afterAll(async () => { if (browser) await browser.close(); });
+
+  /** The served battery of `lang`, its own picker task alone (practice set aside: the items are what is measured). */
+  function served(lang) {
+    const { applySwitches } = require('../routes/sa-battery-switches');
+    const on = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true };
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${lang}.json`), 'utf8'));
+    const b = applySwitches(raw, on);
+    const t = b.tasks.find((x) => x.id === `${lang}.letter_pick10`);
+    const bat = Object.assign({}, b, { ui: Object.assign({}, b.ui, LAYOUT), tasks: [Object.assign({}, t, { practice: [] })] });
+    delete bat.rdf_auto; delete bat.rdf_manual;
+    return bat;
+  }
+  /** The page: coach-led, a voice whose clip lines end only when the test says (window.__end()), a clock it moves. */
+  function page(lang) {
+    const bat = served(lang);
+    return { bat, html: `<!doctype html><html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
+<script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
+<script>${fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8')}</script>
+<script>
+  window.__T = 0;
+  var cur = null;
+  function speak(text, audio, vo) {
+    if (!(vo && vo.clip_only)) return Promise.resolve();
+    var a = new EventTarget(); a.paused = false; a.ended = false; a.currentTime = 0.5; a.duration = 1;
+    var line = { a: a };
+    cur = line;
+    return new Promise(function (res) { line.end = function () { a.paused = true; a.ended = true; a.dispatchEvent(new Event('ended')); if (cur === line) cur = null; res(); }; });
+  }
+  speak.audio = function () { return cur ? cur.a : null; };
+  window.__end = function () { if (!cur) return false; cur.end(); return true; };
+  window.__events = [];
+  var battery = ${JSON.stringify(bat)};
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
+  var el = document.getElementById('m');
+  var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
+    r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak });
+  runner.start(); runner.instructionDone(); runner.begin(); view.render();
+  window.__view = view; window.__runner = runner;
+</script></body></html>` };
+  }
+  const measure = () => document.fonts.ready.then(() => {
+    const vh = window.innerHeight;
+    const R = (e) => { const b = e.getBoundingClientRect(); return { top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1), left: +b.left.toFixed(1), right: +b.right.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
+    // a card is whole and hit-testable when it is inside the viewport and five points well inside it hit it
+    const cards = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map((c) => {
+      const b = c.getBoundingClientRect();
+      const pts = [[0.5, 0.5], [0.25, 0.25], [0.75, 0.25], [0.25, 0.8], [0.75, 0.8]].map(([fx, fy]) => document.elementFromPoint(b.left + b.width * fx, b.top + b.height * fy));
+      return Object.assign(R(c), { hit: pts.every((e) => !!e && e.closest('.sae-opt') === c), cls: c.className });
+    });
+    const pill = document.querySelector('.sae-pick-replay');
+    const next = document.querySelector('.sa-next');
+    const title = document.querySelector('.sae-pick-head .sae-task-tag');
+    const d = document.querySelector('details.sae-pick-coach');
+    const sm = d && d.querySelector('summary');
+    const it = window.__runner.view().item;
+    const body = document.querySelector('.sae-pick .sae-body');
+    const screen = document.querySelector('.sae-screen');
+    const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+    const range = document.createRange(); if (title) range.selectNodeContents(title);
+    const foldReplay = d && d.querySelector('.sae-pick-coach-replay');
+    return {
+      vh, page_h: document.documentElement.scrollHeight, inner_scroll: over(screen) + over(body), item: it && it.id,
+      nastaliq: document.documentElement.lang !== 'ur' || document.fonts.check(getComputedStyle(document.querySelector('.sae-pick-cards .sae-opt')).font, 'ب'),
+      title: title && { text: title.textContent, lines: new Set(Array.from(range.getClientRects()).map((x) => Math.round(x.top))).size, h: +title.getBoundingClientRect().height.toFixed(1) },
+      cards, pill: pill && R(pill), cards_bottom: Math.max.apply(null, cards.map((c) => c.bottom)),
+      next: next ? Object.assign(R(next), { in_head: !!next.closest('.sae-pick-head'), foot: !!next.closest('.sae-foot') }) : null,
+      fold: d ? Object.assign(R(d), { open: d.open, target_in_fold: !!it && Array.from(d.querySelectorAll('*')).some((x) => x !== sm && !sm.contains(x) && x.textContent.includes(it.target)),
+        replay: foldReplay && d.open ? Object.assign(R(foldReplay), { hit: document.elementFromPoint((foldReplay.getBoundingClientRect().left + foldReplay.getBoundingClientRect().right) / 2, (foldReplay.getBoundingClientRect().top + foldReplay.getBoundingClientRect().bottom) / 2) === foldReplay || foldReplay.contains(document.elementFromPoint((foldReplay.getBoundingClientRect().left + foldReplay.getBoundingClientRect().right) / 2, (foldReplay.getBoundingClientRect().top + foldReplay.getBoundingClientRect().bottom) / 2)) }) : null }) : null,
+      coach_line: !!document.querySelector('.sae-pick-coach-line'),
+    };
+  });
+  /** U2: each card's letter ink (pixels dark with its ink shown, not dark with it hidden), against the card's clip box. */
+  async function inkOf(p) {
+    const n = await p.evaluate(() => document.querySelectorAll('.sae-pick-cards .sae-opt').length);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const box = await p.evaluate((k) => {
+        const c = document.querySelectorAll('.sae-pick-cards .sae-opt')[k]; const b = c.getBoundingClientRect(); const cs = getComputedStyle(c);
+        return { top: b.top + parseFloat(cs.borderTopWidth), bottom: b.bottom - parseFloat(cs.borderBottomWidth), left: b.left + parseFloat(cs.borderLeftWidth), right: b.right - parseFloat(cs.borderRightWidth), text: c.textContent };
+      }, i);
+      const clip = { x: Math.max(0, Math.floor(box.left) - 24), y: Math.max(0, Math.floor(box.top) - 24), width: 0, height: 0 };
+      clip.width = Math.min(360, Math.ceil(box.right) + 24) - clip.x; clip.height = Math.min(640, Math.ceil(box.bottom) + 24) - clip.y;
+      const shown = await p.screenshot({ clip });
+      await p.evaluate((k) => { const s = document.querySelectorAll('.sae-pick-cards .sae-opt')[k].querySelector('.sae-ink') || document.querySelectorAll('.sae-pick-cards .sae-opt')[k]; s.style.color = 'transparent'; }, i);
+      const hidden = await p.screenshot({ clip });
+      await p.evaluate((k) => { const s = document.querySelectorAll('.sae-pick-cards .sae-opt')[k].querySelector('.sae-ink') || document.querySelectorAll('.sae-pick-cards .sae-opt')[k]; s.style.color = ''; }, i);
+      const ink = await p.evaluate(async ([a, b, x0, y0]) => {
+        const px = async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0); return { w: c.width, h: c.height, d: g.getImageData(0, 0, c.width, c.height).data }; };
+        const A = await px(a), B = await px(b);
+        const L = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        let top = null, bottom = null, left = null, right = null;
+        for (let y = 0; y < A.h; y++) for (let x = 0; x < A.w; x++) {
+          const i = (y * A.w + x) * 4;
+          if (L(A.d, i) < 120 && L(B.d, i) >= 120) { const cx = x0 + x / 2, cy = y0 + y / 2; top = top == null ? cy : Math.min(top, cy); bottom = bottom == null ? cy : Math.max(bottom, cy); left = left == null ? cx : Math.min(left, cx); right = right == null ? cx : Math.max(right, cx); }
+        }
+        return { top, bottom, left, right };
+      }, [shown.toString('base64'), hidden.toString('base64'), clip.x, clip.y]);
+      out.push({ card: i, letter: box.text, clip_box: { top: +box.top.toFixed(1), bottom: +box.bottom.toFixed(1), left: +box.left.toFixed(1), right: +box.right.toFixed(1) }, ink,
+        inside: ink.top != null && ink.top >= box.top && ink.bottom <= box.bottom && ink.left >= box.left && ink.right <= box.right,
+        room: ink.top == null ? null : +Math.min(ink.top - box.top, box.bottom - ink.bottom - 0.5, ink.left - box.left, box.right - ink.right - 0.5).toFixed(1) });
+    }
+    return out;
+  }
+  async function states(lang, shots) {
+    const out = {};
+    const { bat, html } = page(lang);
+    const open = async () => {
+      const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+      const p = await ctx.newPage();
+      await p.route('**/*', (route) => {
+        const u = new URL(route.request().url());
+        if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+        if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+        if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+        return route.fulfill({ status: 404, body: '' });
+      });
+      await p.goto('http://sa.test/');
+      await p.evaluate(() => document.fonts.ready);
+      await p.waitForTimeout(500); // the item's sound starts 300 ms after it shows
+      return { ctx, p };
+    };
+    const snap = async (p, name, wait) => {
+      if (wait !== 0) await p.waitForTimeout(wait || 250);
+      out[name] = await p.evaluate(measure);
+      if (shots) await p.screenshot({ path: path.join(shots, `a5_${name}_${lang}_phone_coach.png`) });
+    };
+    let { ctx, p } = await open();
+    await snap(p, 'listening');
+    await p.evaluate(() => window.__end());
+    await snap(p, 'aftersound');
+    out.ink = { [out.aftersound.item]: await inkOf(p) };
+    // every served item: the letters' ink (the item answered through the runner, the next drawn, its sound ended)
+    for (let k = 1; k < bat.tasks[0].items.length; k++) {
+      await p.evaluate(() => { const v = window.__runner.view(); window.__runner.answer(v.item.options[0]); window.__view.render(); });
+      await p.waitForTimeout(450);
+      await p.evaluate(() => window.__end());
+      await p.waitForTimeout(150);
+      const id = await p.evaluate(() => window.__runner.view().item.id);
+      out.ink[id] = await inkOf(p);
+    }
+    await ctx.close();
+    ({ ctx, p } = await open());
+    await p.evaluate(() => window.__end());
+    await p.waitForTimeout(250);
+    await p.evaluate(() => { const b = document.querySelectorAll('.sae-pick-cards .sae-opt')[3]; const r = b.getBoundingClientRect(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); });
+    await snap(p, 'chosen', 0); // the pressed card, before the next item (400 ms)
+    await ctx.close();
+    ({ ctx, p } = await open());
+    await p.evaluate(() => window.__end());
+    for (let k = 0; k < 6; k++) { // past the coach-led wait (15 s); the auto replay at 10 s restarts it at its end
+      await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+      await p.waitForTimeout(300);
+      while (await p.evaluate(() => window.__end())) await p.waitForTimeout(400);
+      const drawn = await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); });
+      if (drawn) break;
+    }
+    await snap(p, 'offernext');
+    const s = out.offernext.fold;
+    await p.mouse.click(lang === 'ur' ? s.right - 30 : s.left + 30, (s.top + s.bottom) / 2); // the coach's finger on the label
+    await snap(p, 'foldopen', 350);
+    out.foldopen_events = await p.evaluate(() => window.__events.filter((e) => /^fold_/.test(e.type)));
+    await ctx.close();
+    return out;
+  }
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}, the served battery: listening, after the sound, chosen, Next offered, fold open — nothing scrolls, nothing moves; the letters' ink inside their cards`, async () => {
+      const r = await states(lang, process.env.SA_PICK_SHOTS || null);
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `a5_sizes_${lang}.json`), JSON.stringify(r, null, 1));
+      const at = r.listening;
+      expect(/is-pressed/.test(r.chosen.cards[3].cls)).toBe(true);
+      expect(r.offernext.next).not.toBeNull();
+      expect(r.foldopen.fold.open).toBe(true);
+      expect(r.foldopen_events.map((e) => e.type)).toEqual(['fold_open']);
+      for (const state of ['listening', 'aftersound', 'chosen', 'offernext', 'foldopen']) {
+        const m = r[state];
+        expect({ state, coach_line: m.coach_line, nastaliq: m.nastaliq }).toEqual({ state, coach_line: true, nastaliq: true });
+        expect({ state, page_h: m.page_h, inner_scroll: m.inner_scroll }).toEqual({ state, page_h: m.vh, inner_scroll: 0 });
+        expect(m.cards).toHaveLength(5);
+        m.cards.forEach((c, i) => {
+          expect({ state, card: i + 1, whole: c.top >= 0 && c.bottom <= m.vh, hit: c.hit }).toEqual({ state, card: i + 1, whole: true, hit: true });
+          expect(Math.min(c.w, c.h)).toBeGreaterThanOrEqual(96); // A.3
+          // the cards stay where they are (the pressed card's own 3 px press is a transform, not a move)
+          const press = state === 'chosen' && i === 3 ? 3 : 0;
+          // (sub-pixel: ≤ 0.5 px, the body's centring rounds differently once Next is in the head)
+          expect({ state, card: i + 1, moved: Math.abs(c.top - press - at.cards[i].top) > 0.5 || Math.abs(c.left - at.cards[i].left) > 0.5 }).toEqual({ state, card: i + 1, moved: false });
+        });
+        // the replay pill (A.3: ≥ 64 px tall, ≥ 32 px below the cards) on screen and where it was
+        expect({ state, pill_moved: ['top', 'left', 'w', 'h'].some((k) => Math.abs(m.pill[k] - at.pill[k]) > 0.5) }).toEqual({ state, pill_moved: false });
+        expect(m.pill.h).toBeGreaterThanOrEqual(64);
+        expect(m.pill.top - m.cards_bottom).toBeGreaterThanOrEqual(32);
+        expect(m.pill.bottom).toBeLessThanOrEqual(m.vh);
+        // no target letter in the fold, open or folded (lead ruling: never on the screen while the item is live)
+        expect({ state, target_in_fold: m.fold.target_in_fold }).toEqual({ state, target_in_fold: false });
+      }
+      // the coach's Next: in the head row, never in the foot, on screen
+      const n = r.offernext.next;
+      expect({ in_head: n.in_head, foot: n.foot, inside: n.top >= 0 && n.bottom <= r.offernext.vh }).toEqual({ in_head: true, foot: false, inside: true });
+      // the open fold: its replay on screen and hit-testable; the fold itself on screen
+      expect(r.foldopen.fold.replay).not.toBeNull();
+      expect(r.foldopen.fold.replay.hit).toBe(true);
+      expect(r.foldopen.fold.bottom).toBeLessThanOrEqual(r.foldopen.cards[0].top);
+      // U2: every letter's ink inside its card's clip box, on every served item
+      const ink = Object.entries(r.ink);
+      expect(ink).toHaveLength(10);
+      ink.forEach(([item, cs]) => cs.forEach((c) => expect({ item, card: c.card, letter: c.letter, inside: c.inside }).toEqual({ item, card: c.card, letter: c.letter, inside: true })));
+    }, 180000);
+  }
 });

@@ -621,6 +621,22 @@ button{font:inherit;color:inherit}
   .sae-pick.is-coach-led details.sae-pick-coach{margin-bottom:24px}
 }
 /* end round 28, A4 */
+/* round 28, A5 (r28_letter_pick, coach-led; lead ruling A.6): on a live item the open fold never shows the target
+   letter; it carries the coach's replay, laid on the fold's own row like the practice item's sound -> letter, so
+   opening it moves nothing. The open fold is modal (sa-ui.js): this button closes it, then the sound plays. */
+.sae-pick.is-coach-led details.sae-pick-coach>.sae-pick-coach-replay{position:absolute;top:0;bottom:0;inset-inline-end:12px;box-sizing:border-box;width:64px;height:44px;margin:auto 0;padding:0;display:grid;place-items:center;border-radius:999px;border:2px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:22px;line-height:1;cursor:pointer;font-family:var(--sae-f)}
+/* The phone with the production Urdu layout switches (ur_fit: line-height 3 + ink padding on the title, the coach line
+   and the fold's label; r9's scroll cue once the body overflows): measured on the served title, the five cards and the
+   replay pill fell below a 360x640 screen behind the scroll cue. Tighter line boxes on those three (the ink padding
+   r10_urdu_fit adds stays, so no ink is cut) and 6 px gaps make every coach state fit. Coach-led Urdu phone only. */
+@media (max-width:699px){
+  .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led .sae-body{gap:6px}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-head .sae-task-tag{line-height:2;padding-top:.35em;padding-bottom:0}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-coach-line{padding:0 calc(10px + .6em)}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach{padding:0 calc(12px + .6em)}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach>summary{line-height:1.8;padding-top:.25em;padding-bottom:0}
+}
+/* end round 28, A5 */
 @media (min-width:700px){
   .sae-screen.sae-pick{max-width:min(94vw,760px)}
   .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
