@@ -32,6 +32,7 @@ const LETTERS_SHARE = 0.8; // 4 of 5 letters (names or sounds)
 const WORDS_SHARE = 0.75; // 3 of 4 words
 const COMPREHENSION_SHARE = 0.5; // half the story questions
 const MCQ_SHARE = 0.67; // round 28 B (sa_r28_mcq): 4 of the 6 questions picked from four (a guesser reaches it 3.8% of the time)
+const MCQ_QUESTIONS = 6; // the story questions picked from four: of 6, less the questions whose clip was lost (B.5)
 const LETTER_PICK_SHARE = 0.8; // round 28 A (sa_r28_letter_pick): 8 of 10 letters picked by their sound
 const NUMBERS_SHARE = 0.75; // 6 of 8 numbers
 const COMPARING_SHARE = 0.75; // which is bigger + missing number, together
@@ -89,7 +90,8 @@ function stopOf(r) {
 }
 
 /**
- * One part's state: { state: 'scored', correct, of } | { state: 'pending' } | { state: 'unmet' }.
+ * One part's state: { state: 'scored', correct, of } | { state: 'pending' } | { state: 'unmet' } | null (unrated,
+ * round 28: a picker / picked-from-four part with too few items presented is ABSENT from the ladder, never pending).
  * Spoken parts count from the scorer's marks; tap / keypad parts from the phone's own count.
  */
 function partOf(r, itemsOf) {
@@ -101,12 +103,17 @@ function partOf(r, itemsOf) {
   const phone = mode === 'tap' || mode === 'keypad' || mode === 'keyboard';
   const items = itemsOf ? num(itemsOf(r.block)) : null;
   if (phone) {
-    // round 28: a picker / picked-from-four part with too few items presented is not rated (it never decides a rung)
-    if (res.unrated === true) return { state: 'pending' };
+    if (res.unrated === true) return null;
     const correct = num(m && (m.tap_correct ?? m.keypad_correct)) ?? num(res.correct);
     const attempted = num(m && (m.tap_attempted ?? m.keypad_attempted)) ?? num(res.attempted);
     if (correct === null) return { state: 'unmet' };
-    // round 28: a part that says what it presented is read as correct of presented
+    // round 28 B (SPEC v2.1, B.5): the questions picked from four are read out of 6 less the questions whose clip was
+    // lost; a question the reading gate did not ask counts as not right, as the oral part today
+    if (/\.story_mcq_w3$/.test(String(r.block || ''))) {
+      const all = num(res.of_all) ?? items ?? MCQ_QUESTIONS;
+      return { state: 'scored', correct, of: Math.max(0, all - (num(res.unavailable) || 0)) || null };
+    }
+    // round 28 A: the picker is read as correct of presented
     const presented = Array.isArray(res.presented) ? res.presented.length : num(res.presented);
     if (presented !== null && presented > 0) return { state: 'scored', correct, of: presented };
     return { state: 'scored', correct, of: Math.max(items || 0, attempted || 0) || null };
@@ -163,7 +170,10 @@ function levelsOf(rows, events, { itemsOf = null, titleOf = null } = {}) {
     const ladder = ladderOf(subject);
     const ids = new Set(ladder.flatMap((g) => g.parts.map((p) => `${subject}.${p}`)));
     if (!mine.some((r) => ids.has(r.block))) continue;
-    const parts = new Map(mine.filter((r) => ids.has(r.block)).map((r) => [r.block, partOf(r, itemsOf)]));
+    const graded = mine.filter((r) => ids.has(r.block)).map((r) => [r.block, partOf(r, itemsOf)]);
+    // round 28: an unrated part is absent; a subject whose ladder parts are all unrated has no level and waits for none
+    const allUnrated = graded.every(([, p]) => p === null);
+    const parts = new Map(graded.filter(([, p]) => p !== null));
     const done = mine.filter((r) => !NOT_DONE.test(stopOf(r)));
     const last = done.length ? done[done.length - 1].block : null;
     let level = BEGINNER;
@@ -177,9 +187,10 @@ function levelsOf(rows, events, { itemsOf = null, titleOf = null } = {}) {
     out.push({
       subject,
       reached: last ? { taskId: last, title: (titleOf && titleOf(last)) || null } : null,
-      level,
-      pending,
+      level: allUnrated ? null : level,
+      pending: allUnrated ? false : pending,
       stop: stopLine(subject, mine, events),
+      ...(allUnrated ? { unrated: true } : {}),
     });
   }
   return out;
