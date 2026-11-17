@@ -1,2 +1,3 @@
 {"ts":"2026-11-17T07:15:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-coaching spec_sync=true","sha":"41bab8a195f5","branch":"bd-sy4kcv.1-98582","user":"Fatima"}
 {"ts":"2026-11-17T07:16:00Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-coaching=none-needed (chip wording only; operator-approved deferral as for bd-sy4kcv: the web lane cannot reach an unfinished DC lesson until bd-dlatno seeds one; unit tests pin the words)","sha":"41bab8a195f5","branch":"bd-sy4kcv.1-98582","user":"Fatima"}
+{"ts":"2026-11-17T07:16:25Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"189fe5e6-534d-40f7-a663-da44526dd5db","sha":"41bab8a195f5","branch":"bd-sy4kcv.1-98582","user":"Fatima"}
