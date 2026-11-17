@@ -124,14 +124,17 @@ const SQL = Object.freeze({
      WHERE u.school_id = ANY($1::uuid[]) AND ${ROSTER}`,
 
   // bd-33wxxi.2 — a PRINCIPAL's own school: her users.school_id (the dashboard's rule for a principal), never a request
-  // value. viewer_test: she is a test account, so her roster keeps the test accounts at her school (rosterWithTest).
+  // value. viewer_test: she is a test account, OR her school is a test school (schools.is_probable_test, whose teachers
+  // are all test accounts; bd-0r97p6), so her roster keeps the test accounts at her school (rosterWithTest). A real
+  // principal at a real school reads SQL.roster, as before. Her own is_test_user stays as it is.
   principalSchool: `/* sc:principal-school */
-    SELECT sch.id, sch.name, sch.emis, NULL::text AS school_name, (me.is_test_user IS TRUE) AS viewer_test
+    SELECT sch.id, sch.name, sch.emis, NULL::text AS school_name,
+           (me.is_test_user IS TRUE OR sch.is_probable_test IS TRUE) AS viewer_test
       FROM users me JOIN schools sch ON sch.id = me.school_id
      WHERE me.id = $1::uuid AND me.role = 'principal' AND me.deleted_at IS NULL`,
 
-  // The roster with the test accounts kept: only ever for a principal who is a test account herself (the operator's
-  // test school, whose teachers are all test accounts). A real principal, and every coach, reads SQL.roster.
+  // The roster with the test accounts kept: only ever for a principal who is a test account herself or who heads a test
+  // school (whose teachers are all test accounts). A principal at a real school, and every coach, reads SQL.roster.
   rosterWithTest: `/* sc:roster-with-test */
     SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.teacher_level
       FROM users u
@@ -710,7 +713,7 @@ async function schoolContext(query, coachId, emis, rawLevel) {
 /**
  * bd-33wxxi.2 — the same context for a PRINCIPAL: her own school (users.school_id), or null when she is not a principal
  * or her row names no school. Her teachers are the school's teachers, as on the coach card (she is never one of them);
- * a principal who is a test account keeps the test accounts at her school (SQL.rosterWithTest).
+ * a principal who is a test account, or who heads a test school, keeps the test accounts at her school (SQL.rosterWithTest).
  */
 async function principalContext(query, principalId, rawLevel) {
   if (!principalId) return null;
