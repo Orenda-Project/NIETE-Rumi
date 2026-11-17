@@ -203,17 +203,17 @@
      "authored": true
     },
     {
-     "target": "h",
+     "target": "z",
      "options": [
-      "n",
-      "h",
-      "d",
-      "b",
-      "l"
+      "v",
+      "z",
+      "w",
+      "y",
+      "r"
      ],
-     "say": "ha",
-     "ipa": "/h/",
-     "src": "rwp2026:letterid_eng position 3 (target); today's en.letter_sounds5 item",
+     "say": "za",
+     "ipa": "/z/",
+     "src": "rwp2026:letterid_eng position 72 (target)",
      "authored": true
     },
     {
@@ -294,7 +294,7 @@
       "g",
       "a"
      ],
-     "say": "a (short /æ/, alone)",
+     "say": "a",
      "ipa": "/æ/",
      "src": "rwp2026:letterid_eng position 15 (target); options tangerine_gh_sa:letters form.html:408",
      "authored": true
@@ -322,7 +322,7 @@
       "o",
       "u"
      ],
-     "say": "o (short /ɒ/, alone)",
+     "say": "o",
      "ipa": "/ɒ/",
      "src": "rwp2026:letterid_eng position 8 (target); options tangerine_gh_sa:letters form.html:553",
      "authored": true
@@ -742,15 +742,15 @@
    },
    "en.story2.q6r": {
     "options": [
-     "Father",
-     "Pat",
-     "Grandmother",
-     "Mother"
+     "Some water",
+     "Some seeds from the field",
+     "Wet cloths and leaves",
+     "Some mud from the farm"
     ],
-    "target_index": 3,
+    "target_index": 2,
     "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
     "authored": true,
-    "question": "Who put wet cloths on Sam's leg?",
+    "question": "What did Mother put on Sam's leg?",
     "replaces_question": "en.story2.q6"
    }
   },

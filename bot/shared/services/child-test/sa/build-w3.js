@@ -455,8 +455,8 @@ function runtimeW3Task(t, lang, H) {
 //                          ending there (complete, scored on the time used); items, grid and stop stay today's, so the
 //                          scorer's grid is unchanged; ext_stop is the first-row stop the scorer applies to an extended run
 const R28_LINES = {
-  lp_intro: L('Now a listening game. Jugnu will make a sound. Tap the letter that makes that sound. Tap the speaker to hear it again.',
-    'اب ایک سننے کا کھیل۔ جگنو ایک آواز نکالے گا۔ جو حرف وہ آواز بناتا ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap)'),
+  lp_intro: L('Now a listening game. Jugnu will say a sound like /ba/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
+    'اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the sound as a CV syllable)'),
   mcq_intro: L('Now some questions about the story. Jugnu will ask a question and read four answers. Each answer lights up as Jugnu reads it. When Jugnu has finished, tap the answer you think is right.',
     'اب کہانی کے بارے میں کچھ سوال۔ جگنو ایک سوال پوچھے گا اور چار جواب پڑھے گا۔ ہر جواب پڑھتے وقت روشن ہوگا۔ جب جگنو پڑھ چکے تو جو جواب ٹھیک لگے اُس پر ٹیپ کریں۔', 'r28 spoken MCQ (Tangerine SA read-aloud options)'),
 };
@@ -499,6 +499,8 @@ function r28Tasks(f, { r28 }, w3List, H) {
     if (t.items.length !== spec.base_n) throw new Error(`${id}: ${t.items.length} items, the r28 bank extends ${spec.base_n}`);
     const forForm = spec.ext.filter((x) => !x.grades || x.grades.some((g) => f.grades.includes(g)));
     const ext = forForm.map((x, i) => ({ id: `${id}.${pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
+    // base_n and ext_stop only ever ride an extension: the route strips them with ext_items (withoutR28).
+    if (!ext.length) throw new Error(`${id}: the r28 bank lists no extension for this form`);
     Object.assign(t, { base_n: spec.base_n, ext_items: ext, ...(spec.ext_stop ? { ext_stop: spec.ext_stop } : {}) });
   }
 
@@ -510,7 +512,7 @@ function r28Tasks(f, { r28 }, w3List, H) {
       const row = (x, rid) => ({ id: rid, show: x.target, target: x.target, options: x.options, prompt_text: x.say, prompt_audio: v5(said, lang, x.say), src: x.src });
       out.push({
         task: id, lang, w3: true, r28: 'letter_pick', replaces: `${lang}.letter_sounds5`, kind: 'pick', legacy_block: null, family: 'egra',
-        subtask: 'letter_sound_identification', title: R28_TITLE.letter_pick, response: 'tap', present: 'one_at_a_time', replay_at_s: 10, next_at_s: 15, stop: null,
+        subtask: 'letter_sound_identification', title: R28_TITLE.letter_pick, response: 'tap', replay_at_s: 10, next_at_s: 15, stop: null,
         items: lp.items.map((x, i) => row(x, `${id}.${pad(i + 1)}`)),
         practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role,
           model: [spoken(MODEL.letter_sounds), { text: x.say, lang, audio: v5(said, lang, x.say) }] })),
@@ -551,7 +553,7 @@ function runtimeR28Task(t, lang, H) {
     title: t.title, kind: t.kind, response: 'tap', replay_at_s: t.replay_at_s, next_at_s: t.next_at_s, item_timeout_s: null, stop: {},
     script: runtimeScript(t, lang), instruction: inLang(t.script.intro, lang), coach_text: coach, source: t.source };
   if (t.kind === 'pick') {
-    return { ...head, present: t.present, deviation: t.deviation, direction: t.lang === 'ur' ? 'rtl' : 'ltr',
+    return { ...head, deviation: t.deviation, direction: t.lang === 'ur' ? 'rtl' : 'ltr',
       items: t.items, practice: t.practice.map(({ model, ...p }) => ({ ...p, model: chainIn(model, lang) })) };
   }
   const r = runtimeTask({ ...t, kind: 'questions' }, lang);
