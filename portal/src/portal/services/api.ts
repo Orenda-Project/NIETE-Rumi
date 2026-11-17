@@ -1570,6 +1570,18 @@ export const trainingLevelsAnalytics = {
 // bd-97x22y.5 — the schools analytics Observations tab's numbers (PLAN v7, her FICO section breakdown for Human and
 // Digital Coach observations): its own endpoint, same window and region as the schools read (the server 403s anyone
 // but an analytics-only account).
+/** bd-97daxo.33 — a non-FDE view's observations by who observed whom (FDE's view: 404). */
+export const observersAnalytics = {
+  get: async (q: { from: string | null; to: string | null; region: string | null }): Promise<import('../types/portal').ObserverAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/observers', { params });
+    return response.data;
+  },
+};
+
 export const observationsAnalytics = {
   get: async (q: { from: string | null; to: string | null; region: string | null }): Promise<import('../types/portal').ObservationsAnalyticsResponse> => {
     const params: Record<string, string> = {};
