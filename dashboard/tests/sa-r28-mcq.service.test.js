@@ -610,6 +610,41 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(events.filter((e) => e.type === 'replay' && e.value === 'lost')).toHaveLength(1);
   }, 20000);
 
+  test('coach line (coach-led only, text only): shown above the fold in Urdu and English, never spoken; not in RDF auto', async () => {
+    const UR = 'جگنو سوال خود پڑھے گا۔ بچے کو جواب نہ بتائیں، سوال دوبارہ نہ پوچھیں، صرف \'آگے\' دبائیں۔';
+    const EN = 'Jugnu reads the question. Do not tell the child the answer, do not repeat the question; just press Next.';
+    setup();
+    const said = (v) => v.lines.map((l) => JSON.stringify([l.textObj, l.audioObj])).join('|');
+    const ur = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    const line = ur.el.querySelector('.sae-mcq-coach-line');
+    expect(line).not.toBeNull();
+    expect(line.textContent).toBe(UR);
+    expect(line.classList.contains('sae-coach-says')).toBe(true);
+    expect(line.compareDocumentPosition(ur.el.querySelector('details.sae-mcq-coach')) & 4).toBeTruthy(); // the fold after it
+    for (let i = 0; i < 5; i++) await ur.voice.speakNext(30);
+    expect(said(ur.voice)).not.toContain('Jugnu reads the question');
+    expect(said(ur.voice)).not.toContain('جگنو سوال خود');
+    views.forEach((v) => v.destroy()); views = [];
+    const en = mountMcq({ runner: { manual: true }, ui: { manual: true, lang: 'en' } });
+    await wait(20);
+    expect(en.el.querySelector('.sae-mcq-coach-line').textContent).toBe(EN);
+    views.forEach((v) => v.destroy()); views = [];
+    const auto = mountMcq();
+    await wait(20);
+    expect(auto.el.querySelector('.sae-mcq-coach-line')).toBeNull();
+  }, 20000);
+
+  test('coach line on the practice screen too (coach-led)', async () => {
+    setup();
+    const p = { id: 'ur.story_mcq_w3.p1', passage: { text: 'practice story' }, prompt: { text: 'practice q', audio: 'sa/v5/ur/syn_pq.mp3' },
+      options: ['w', 'x', 'y', 'z'], option_audio: [1, 2, 3, 4].map((k) => `sa/v5/ur/syn_p_o${k}.mp3`), target_index: 1, key: 2 };
+    const { el, runner } = mountMcq({ practice: true, task: { practice: [p] }, runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    expect(runner.view().phase).toBe('practice');
+    expect(el.querySelector('.sae-mcq-coach-line')).not.toBeNull();
+  }, 20000);
+
   test('B-18: the old oral keys (accept, reject, rubric, accept_rule, card_src) are never on any screen', async () => {
     setup();
     const leaky = QS.slice(0, 1).map((x) => Object.assign({}, x, { accept: ['secret-a'], reject: ['secret-r'], rubric: 'secret-rubric', accept_rule: 'secret-rule', card_src: 'secret-src' }));
