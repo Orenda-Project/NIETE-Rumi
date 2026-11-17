@@ -871,7 +871,8 @@ async function levelReader(deps) {
       const g = session.grade;
       if (!cache.has(g)) {
         const b = load(g, 'A', 'ur');
-        cache.set(g, new Map(((b && Array.isArray(b.tasks)) ? b.tasks : []).filter((t) => t && t.id).map((t) => [t.id, Array.isArray(t.items) ? t.items.length : null])));
+        // sa_r28_ceiling: an extended task counts its base items only (base_n, else the items without ext)
+        cache.set(g, new Map(((b && Array.isArray(b.tasks)) ? b.tasks : []).filter((t) => t && t.id).map((t) => [t.id, Array.isArray(t.items) ? (Number(t.base_n) > 0 ? Number(t.base_n) : t.items.filter((x) => !(x && x.ext)).length) : null])));
       }
       return (taskId) => cache.get(g).get(taskId) ?? null;
     },
