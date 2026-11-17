@@ -597,6 +597,10 @@
     // ?probe=1 (sandbox/staging QA): console.debug('hl', option, audio.currentTime) on every light-on and light-off
     var mcqProbe = r28Mcq && typeof location !== 'undefined' && /[?&]probe=1(&|$)/.test(String(location.search || ''));
     var mcq = null; // the read-out of the MCQ item on show: { item, phase, lit, chosen, … } (readOut)
+    var mcqFold = null; // coach-led: { item, task } whose fold the coach opened (modal while open; kept across a redraw)
+    var mcqFoldBy = null; // the closing tap's facets for fold_close ({ by: 'tap', card }); else the summary closed it
+    var mcqFoldShut = -1e9; // when the fold last closed: a tap within MCQ_GHOST_MS of it is the double tap's second half
+    var mcqFoldShutOf = null; // { item, task } of that fold (the ghost_tap's ids)
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -2507,7 +2511,7 @@
     // promptDone() (the item's clock starts), every card ready, and 600 ms on the held choice stands (is-pressed 400 ms,
     // then runner.answer(index, meta)). No choice yet: the first tap selects and stands 600 ms later. Replay re-reads it
     // all and keeps the choice. Coach-led: Jugnu still reads; the coach sees the words folded.
-    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400, MCQ_WARM_MS = 5000;
+    var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400, MCQ_WARM_MS = 5000, MCQ_GHOST_MS = 300;
     function isMcq(t) { return r28Mcq && !!t && t.kind === 'mcq'; }
     function mcqNow() { return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now(); }
     function mcqState(it, practice) {
@@ -2546,14 +2550,16 @@
     function mcqLine(S, k, textObj, clip, live) {
       if (!clip) return Promise.reject(new Error('no clip'));
       var p = say(null, clip, true, { clip_only: true });
-      if (k < 0) return p;
+      if (k < 0 && !mcqProbe) return p; // the stem has no card: it is followed only for the probe's hl 0 line
       var seen = null, on = false, fr = null, done = false;
       function light(a, b) {
         if (on === b || !live()) return;
         on = b;
-        S.lit = b ? k : -1;
-        if (b) S.last_lit = k;
-        mcqPaint();
+        if (k >= 0) {
+          S.lit = b ? k : -1;
+          if (b) S.last_lit = k;
+          mcqPaint();
+        }
         // eslint-disable-next-line no-console
         if (mcqProbe) { try { console.debug('hl', k + 1, a ? (+a.currentTime || 0) : null); } catch (e) { /* no console */ } }
       }
@@ -2651,9 +2657,11 @@
       // the first read of the question ignores taps; after the first full read-out a tap always counts (lead ruling, B.3)
       var canTap = !!S && (S.phase === 'options' || S.phase === 'open' || (S.phase === 'listening' && S.read_end != null));
       if (!alive || busy || !S || !canTap || S.chosen === i) return;
+      if (mcqFoldOpen(S.item) || mcqGhost()) return; // B.3: the open coach fold is modal: no answer while it is open
       if (S.chosen == null) {
         S.first_at = mcqNow();
-        S.at_option = S.phase === 'options' ? Math.max(0, S.last_lit) + 1 : null;
+        // 0 = the stem (a replayed question, or the swallow before option 1 lights); 1–4 = the option last lit
+        S.at_option = S.phase === 'options' ? (S.last_lit < 0 ? 0 : S.last_lit + 1) : S.phase === 'listening' ? 0 : null;
         if (S.phase === 'open') S.tap_ms = Math.round(S.first_at - S.read_end);
       } else S.changes++;
       S.chosen = i;
@@ -2686,6 +2694,7 @@
     function mcqReplay() {
       var S = mcq;
       if (!alive || busy || !S || S.phase !== 'open') return;
+      if (mcqFoldOpen(S.item) || mcqGhost()) return; // B.3: the open coach fold is modal: no replay while it is open
       var v = runner.view();
       var it = S.practice ? v.practice : v.item;
       if (!it || it.id !== S.item) return;
@@ -2698,10 +2707,18 @@
       if (!manual) return null;
       return h('p', { class: 'sae-coach-says is-coach sae-mcq-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.mcq_coach_line });
     }
+    function mcqFoldOpen(itemId) { return manual && !!mcqFold && mcqFold.item === itemId; }
+    function mcqGhost() { return manual && mcqNow() - mcqFoldShut < MCQ_GHOST_MS; }
+    /** B.3 (lead ruling): the coach's fold, modal while open. fold_open / fold_close are logged once per open and once
+     *  per close (a redraw keeps it open and logs nothing; an item that ends under an open fold logs its close). */
     function mcqCoach(it, t) {
       if (!manual) return null;
       var tl = taskLang(t), d = dirOf(t);
-      return h('details', { class: 'sae-coach-says is-coach is-app sae-mcq-coach' }, [
+      if (mcqFold && mcqFold.item !== it.id) {
+        runner.log('fold_close', { task_id: mcqFold.task, item_id: mcqFold.item, by: 'item', card: null }); // every open has its close
+        mcqFold = null;
+      }
+      var fd = h('details', { class: 'sae-coach-says is-coach is-app sae-mcq-coach', open: mcqFoldOpen(it.id) }, [
         h('summary', { text: C.coach_app }),
         // one box under the summary: on a coach-led phone it opens over the screen (sa.css), never pushing the cards
         h('div', { class: 'sae-mcq-coach-body' }, [
@@ -2709,10 +2726,59 @@
           h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', { text: String(x) }); })),
         ]),
       ]);
+      fd.addEventListener('toggle', function () {
+        if (fd.open === mcqFoldOpen(it.id)) return; // a redraw's own toggle, or the same state again: nothing changed
+        mcqFold = fd.open ? { item: it.id, task: t.id } : null;
+        if (fd.open) { runner.log('fold_open', { task_id: t.id, item_id: it.id }); return; }
+        mcqFoldShut = mcqNow();
+        mcqFoldShutOf = { item: it.id, task: t.id };
+        var by = mcqFoldBy || { by: 'summary' };
+        mcqFoldBy = null;
+        runner.log('fold_close', { task_id: t.id, item_id: it.id, by: by.by, card: by.card });
+      });
+      return fd;
+    }
+    /** B.3: with the fold open, the first tap anywhere on the screen (a card, the question, the overlay, the replay,
+     *  Jugnu, the Next, blank space) only closes it; the summary keeps its own toggle. The read-out goes on. */
+    function mcqModal(s) {
+      s.addEventListener('click', function (e) {
+        var fd = s.querySelector('details.sae-mcq-coach');
+        var sum = fd ? fd.querySelector('summary') : null;
+        var onSum = !!(sum && e.target && sum.contains(e.target));
+        // the double tap's second half (within MCQ_GHOST_MS of the close) is swallowed: it never answers or skips
+        if (!onSum && !(fd && fd.open) && mcqGhost()) {
+          var gc = e.target && e.target.closest ? e.target.closest('.sae-mcq-opt') : null;
+          if (mcqFoldShutOf) runner.log('ghost_tap', { task_id: mcqFoldShutOf.task, item_id: mcqFoldShutOf.item, ms_after_close: Math.round(mcqNow() - mcqFoldShut), card: gc ? Number(gc.getAttribute('data-index')) : null });
+          e.stopImmediatePropagation(); e.preventDefault(); return; // never scored
+        }
+        if (!fd || !fd.open || onSum) return;
+        var card = e.target && e.target.closest ? e.target.closest('.sae-mcq-opt') : null;
+        mcqFoldBy = { by: 'tap', card: card ? Number(card.getAttribute('data-index')) : null };
+        fd.open = false;
+        var ev = document.createEvent('Event');
+        ev.initEvent('toggle', false, false);
+        fd.dispatchEvent(ev);
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }, true);
     }
     /** A screen whose four cards and question do not fit: the question card clamps to two lines first (B.3). */
     function mcqFit(s) {
       if (!s || !s.isConnected || typeof window === 'undefined') return;
+      // coach-led phone (sa.css round 5): a one-line Urdu question has the room for its first line's whole ascender
+      var q = manual ? s.querySelector('.sae-mcq-q[lang=ur]') : null;
+      if (q && typeof document.createRange === 'function') {
+        var rg = document.createRange();
+        rg.selectNodeContents(q);
+        var tops = {};
+        Array.prototype.forEach.call(rg.getClientRects ? rg.getClientRects() : [], function (r) { if (r.width || r.height) tops[Math.round(r.top)] = 1; });
+        q.classList.toggle('is-one-line', Object.keys(tops).length === 1);
+        // the lines are counted in the Nastaliq face: a draw before it has loaded counts again once it has
+        if (document.fonts && document.fonts.status !== 'loaded' && document.fonts.ready && !s.__mcqFontWait) {
+          s.__mcqFontWait = true;
+          document.fonts.ready.then(function () { if (alive) mcqFit(s); }, function () {});
+        }
+      }
       var doc = document.documentElement;
       if (doc && window.innerHeight && doc.scrollHeight > window.innerHeight + 1) s.classList.add('is-clamp');
     }
@@ -2757,6 +2823,7 @@
         practice ? feedbackLine(fb) : null,
       ], practice ? null : itemFoot(v, [headNext ? null : next]));
       s.setAttribute('data-item', it.id);
+      if (manual) mcqModal(s);
       Promise.resolve().then(function () { mcqFit(s); });
       return s;
     }
@@ -3444,7 +3511,11 @@
       if (v.phase !== 'keypad_warmup' && kpw) { clearTimeout(kpw.timer); kpw = null; }
       starEl = null;
       var entered = key !== lastKey && !hold && !listening && showPhase !== 'handover' && showPhase !== 'refused';
-      if (entered) { gen++; typed = ''; mcq = null; }
+      if (entered) {
+        gen++; typed = ''; mcq = null;
+        if (mcqFold) runner.log('fold_close', { task_id: mcqFold.task, item_id: mcqFold.item, by: 'item', card: null });
+        mcqFold = null;
+      }
       recorderHooks(v);
       clockEls = null;
       displayEl = null;
