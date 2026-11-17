@@ -8,7 +8,9 @@
   "prpkp2020": "Pakistan Reading Project 2020 KP endline, EGRA Urdu Form 1 (NORC report USAID DEC PA00Z7MW, form pages as page images)",
   "rti_rwanda2011": "RTI Rwanda 2011 EGMA, P6 number identification (bank item-bank.sa-extra.v1.json maths.number_id_upper)",
   "tangerine_gh_sa": "Tangerine SA-EGRMA Ghana form definitions (letters form: letter sounds; numbers form: number ID)",
-  "jordan_egma_2021": "Jordan Ministry of Education, EGMA 2021 Stimulus Sheets (RTI SharEd, PDF 11 May 2022), page A: Task 1 number identification, the child-facing grid (the 2021 Assessor Protocol p.1 prints a different, all 1-2 digit grid; the stimulus page is used)"
+  "jordan_egma_2021": "Jordan Ministry of Education, EGMA 2021 Stimulus Sheets (RTI SharEd, PDF 11 May 2022), page A: Task 1 number identification, the child-facing grid (the 2021 Assessor Protocol p.1 prints a different, all 1-2 digit grid; the stimulus page is used)",
+  "egra_tk2016": "RTI EGRA Toolkit, 2nd edition (2016): the assessor rule that a regional or dialectal pronunciation of the word is correct",
+  "pk_english": "Mahboob & Ahmar (2004), \"Pakistani English: phonology\", in Schneider et al. (eds), A Handbook of Varieties of English, vol. 1; Rahman (1990), Pakistani English (the vowel and consonant patterns behind each accepted form)"
  },
  "letter_pick": {
   "ur": {
@@ -392,7 +394,7 @@
     "options": [
      "ریت",
      "برف",
-     "بڑا پہاڑ",
+     "پہاڑ",
      "پانی"
     ],
     "target_index": 3,
@@ -403,7 +405,7 @@
     "options": [
      "ریت",
      "برف",
-     "بڑا پہاڑ",
+     "پہاڑ",
      "پانی"
     ],
     "target_index": 3,
@@ -534,7 +536,7 @@
    "ur.story2.q4": {
     "options": [
      "کیونکہ اسے شور اچھا لگتا تھا",
-     "کیونکہ اسے اسکول جانا تھا",
+     "کیونکہ اسے سکول جانا تھا",
      "کیونکہ امی نے اسے کہا تھا",
      "کیونکہ اسے مٹھو سے محبت ہے"
     ],
@@ -2778,6 +2780,297 @@
      "answer": 8
     }
    ]
+  }
+ },
+ "word_accept": {
+  "en.words4": {
+   "rule": "A local accent or regional pronunciation that keeps it the same word is correct; a change that makes a different word is not (come said as some, up as cup, find as fan stay wrong). The forms below are such local pronunciations, ruled word by word from the vowel and consonant patterns of English as spoken in Pakistan, each spelled as a speech-to-text engine writes it. Read by the scorer only; never shown or served.",
+   "src": "egra_tk2016 (the accent rule); pk_english (the patterns each form follows)",
+   "forms": {
+    "sad": [
+     "said",
+     "sed",
+     "set"
+    ],
+    "up": [
+     "ap"
+    ],
+    "find": [
+     "fine",
+     "fain",
+     "fide"
+    ],
+    "come": [
+     "kam",
+     "cam"
+    ],
+    "help": [
+     "hep"
+    ],
+    "run": [
+     "ran"
+    ],
+    "down": [
+     "daun"
+    ],
+    "and": [
+     "end",
+     "an",
+     "en"
+    ],
+    "play": [
+     "ple",
+     "pley"
+    ],
+    "at": [
+     "et"
+    ],
+    "chair": [
+     "cheyar",
+     "chare"
+    ],
+    "man": [
+     "men"
+    ],
+    "when": [
+     "ven",
+     "wen"
+    ],
+    "now": [
+     "nao"
+    ],
+    "under": [
+     "andar",
+     "undar"
+    ],
+    "please": [
+     "plees",
+     "pleej",
+     "pliz"
+    ],
+    "like": [
+     "laik"
+    ],
+    "they": [
+     "de",
+     "dey"
+    ],
+    "good": [
+     "gud"
+    ],
+    "thank": [
+     "tank",
+     "thenk",
+     "thang",
+     "tenk"
+    ],
+    "going": [
+     "goin"
+    ],
+    "are": [
+     "aar"
+    ],
+    "him": [
+     "heem"
+    ],
+    "jump": [
+     "jamp",
+     "jum"
+    ],
+    "once": [
+     "vans",
+     "wans",
+     "wance"
+    ],
+    "ask": [
+     "aask",
+     "aas"
+    ],
+    "fly": [
+     "flai"
+    ],
+    "want": [
+     "vant",
+     "vont",
+     "wan"
+    ],
+    "must": [
+     "mast",
+     "mus"
+    ],
+    "green": [
+     "grin"
+    ],
+    "sing": [
+     "seeng"
+    ],
+    "those": [
+     "dose",
+     "doz",
+     "thos"
+    ],
+    "always": [
+     "alvays",
+     "olvez"
+    ],
+    "which": [
+     "vich",
+     "wich",
+     "veech"
+    ],
+    "upon": [
+     "apon"
+    ],
+    "sit": [
+     "seat"
+    ],
+    "clean": [
+     "klin"
+    ],
+    "stop": [
+     "istop",
+     "estop"
+    ],
+    "big": [
+     "beeg"
+    ],
+    "house": [
+     "haus"
+    ],
+    "girl": [
+     "gurl",
+     "garl"
+    ],
+    "boy": [
+     "boi"
+    ],
+    "school": [
+     "iskool",
+     "sakool",
+     "skool"
+    ],
+    "book": [
+     "buk"
+    ],
+    "bag": [
+     "beg"
+    ],
+    "teacher": [
+     "teachar",
+     "ticher"
+    ],
+    "student": [
+     "istudent",
+     "stoodent"
+    ],
+    "class": [
+     "klaas",
+     "claas"
+    ],
+    "read": [
+     "red"
+    ],
+    "write": [
+     "rite"
+    ],
+    "stand": [
+     "stan",
+     "istand",
+     "stend"
+    ],
+    "walk": [
+     "valk",
+     "vaak",
+     "waak"
+    ],
+    "friend": [
+     "fren",
+     "frend"
+    ],
+    "happy": [
+     "heppy",
+     "hapi"
+    ],
+    "home": [
+     "hom"
+    ],
+    "mother": [
+     "mudder",
+     "mader",
+     "mothar"
+    ],
+    "father": [
+     "fader",
+     "fadar"
+    ],
+    "sister": [
+     "sistar"
+    ],
+    "brother": [
+     "brader",
+     "bruder",
+     "brothar"
+    ],
+    "water": [
+     "vater",
+     "vaater",
+     "watar"
+    ],
+    "food": [
+     "fud"
+    ],
+    "eat": [
+     "it"
+    ],
+    "drink": [
+     "dreenk",
+     "dring"
+    ],
+    "day": [
+     "de"
+    ],
+    "night": [
+     "nait"
+    ],
+    "sun": [
+     "san"
+    ],
+    "rain": [
+     "ren"
+    ],
+    "road": [
+     "rod"
+    ],
+    "market": [
+     "markit"
+    ],
+    "bus": [
+     "bas"
+    ],
+    "open": [
+     "opan"
+    ],
+    "close": [
+     "klos",
+     "cloj",
+     "kloz"
+    ],
+    "look": [
+     "luk"
+    ],
+    "small": [
+     "ismall",
+     "smol"
+    ],
+    "child": [
+     "chail",
+     "chile"
+    ],
+    "family": [
+     "femily",
+     "femli"
+    ]
+   }
   }
  }
 }
