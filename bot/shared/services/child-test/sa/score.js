@@ -98,6 +98,7 @@ const variantWaitSwitch = require('../app/variant-wait-switch');
 const voiceStrictSwitch = require('../app/voice-strict-switch');
 const letterGateSwitch = require('../app/letter-gate-switch');
 const { voiceActivity } = require('./voice-activity');
+const noEchoUrSwitch = require('../app/no-echo-ur-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -336,7 +337,10 @@ For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s
 Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
 }
 
-function questionsPrompt({ lang, task, questions, passage, single }) {
+// sa_r28_no_echo_ur: the one sentence an Urdu questions prompt gains with the switch ON (OFF, the prompt is unchanged)
+const NO_ECHO_UR = 'A repetition of the question, or of the phone\'s own words, is not an answer: if that is all the child says, mark it NO_ANSWER.';
+/** `noEcho` (sa_r28_no_echo_ur ON) adds NO_ECHO_UR to an Urdu prompt; English is unchanged. */
+function questionsPrompt({ lang, task, questions, passage, single, noEcho = false }) {
   const L = lang === 'ur' ? 'Urdu' : 'English';
   const what = task.subtask === 'phoneme_segmentation'
     ? 'says the separate SOUNDS of a word it heard (each sound on its own; the whole word is WRONG)'
@@ -344,7 +348,7 @@ function questionsPrompt({ lang, task, questions, passage, single }) {
       : 'answers questions about a passage the child has just read on the phone';
   const ctx = passage ? `The ${task.kind === 'listen_questions' ? 'story the child heard' : 'passage'}:\n${passage}\n` : '';
   const list = questions.map((q, i) => `${i + 1}. [${q.id}] ${(q.prompt && q.prompt.text) || q.word || ''}\n   accept: ${(q.accept || []).join(' | ') || '-'}\n   reject: ${(q.reject || []).join(' | ') || '-'}\n   rubric: ${q.rubric || (q.phonemes ? `the sounds ${q.phonemes.join(' ')}` : '-')}`).join('\n');
-  return `A child in a Pakistani government school (grade 1-5), alone with a phone and wearing headphones, ${what}, in an ${L} EGRA task. ${single ? 'The clip holds the child\'s answers to the questions below, in order.' : 'The clip holds the child\'s spoken answer to ONE question, the one listed.'} Judge the meaning, in any language or wording: CORRECT if it gives the right information, WRONG if it is incorrect or the child says they do not know, NO_ANSWER if nothing audible is said. Use each item's accepted and rejected answers and rubric.
+  return `A child in a Pakistani government school (grade 1-5), alone with a phone and wearing headphones, ${what}, in an ${L} EGRA task. ${single ? 'The clip holds the child\'s answers to the questions below, in order.' : 'The clip holds the child\'s spoken answer to ONE question, the one listed.'} Judge the meaning, in any language or wording: CORRECT if it gives the right information, WRONG if it is incorrect or the child says they do not know, NO_ANSWER if nothing audible is said. Use each item's accepted and rejected answers and rubric.${noEcho && lang === 'ur' ? ` ${NO_ECHO_UR}` : ''}
 ${ctx}ITEMS:
 ${list}
 Return ONLY JSON: {"questions":[{"id":"<id>","answer":"<the child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}]}`;
@@ -704,7 +708,10 @@ function lastWordOf(rows, tapped, lines, tapper = 'coach') {
   return { attempted: useCoach ? tapped : heard, heard, source: useCoach ? tapper : 'recording', check: tapped == null ? null : differ ? 'differ' : 'agree' };
 }
 
-async function scoreQuestions(task, rec, row, res, deps, calls) {
+async function scoreQuestions(task, rec, row, res, deps, calls, { noEchoUr = false } = {}) {
+  // sa_r28_no_echo_ur ON, an Urdu task: no echo check (the prompt asks the model to judge a repeated question)
+  const noEcho = noEchoUr === true && task.lang === 'ur';
+  const echo = (q, g, text) => !noEcho && echoed(q, g, text);
   const all = rec.questions || [];
   const asked = res && Array.isArray(res.asked) && res.asked.length ? res.asked : all.map((q) => q.id);
   const qs = asked.map((id) => all.find((q) => q.id === id)).filter(Boolean);
@@ -719,19 +726,19 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
       const clip = section ? section.get(q.id) : await clipOf(deps, k.key);
       const stt = {};
       if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
-      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
+      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false, noEcho }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       const got = (json.questions || [])[0];
-      if (got) marked.set(q.id, echoed(q, got, stt.text) ? { mute: true, echo: true } : got);
+      if (got) marked.set(q.id, echo(q, got, stt.text) ? { mute: true, echo: true } : got);
     }
   } else if (row.audio_r2_key) {
     const clip = await clipOf(deps, row.audio_r2_key);
     const stt = {};
     if (await silent(deps, calls, clip, task.lang, stt)) qs.forEach((q) => marked.set(q.id, { mute: true }));
     else {
-      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
+      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true, noEcho }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       for (const g of json.questions || []) {
         const q = qs.find((x) => x.id === g.id);
-        marked.set(g.id, q && echoed(q, g, stt.text) ? { mute: true, echo: true } : g);
+        marked.set(g.id, q && echo(q, g, stt.text) ? { mute: true, echo: true } : g);
       }
     }
   }
@@ -927,6 +934,8 @@ async function scoreRow(row, session, deps = {}) {
   const strictValue = voiceStrictSwitch.valueOf(d.voiceStrict);
   // sa_r28_letter_gate (the sweep reads the setting; true only)
   const letterGate = letterGateSwitch.valueOf(d.letterGate);
+  // sa_r28_no_echo_ur (the sweep reads the setting; true only)
+  const noEchoUr = noEchoUrSwitch.valueOf(d.noEchoUr);
   const strict = Boolean(voices) && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
@@ -961,7 +970,7 @@ async function scoreRow(row, session, deps = {}) {
     else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate });
     else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
     else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls);
-    else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls);
+    else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr });
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
     if (stops && row.block === MUL && session.sums && session.sums.known && !session.sums.right) out = gateMul(out);
     const confidence = mean(out.rows.map((r) => r.conf));
@@ -1203,6 +1212,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const variantWait = await variantWaitSwitch.enabled(deps);
   const voiceStrict = await voiceStrictSwitch.enabled(deps);
   const letterGate = await letterGateSwitch.enabled(deps);
+  const noEchoUr = await noEchoUrSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1239,7 +1249,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, lastWordFromRecording: session.lastWordFromRecording === true });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, noEchoUr, lastWordFromRecording: session.lastWordFromRecording === true });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1275,5 +1285,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps, BARE_PHONEMES, NO_ECHO_UR },
 };

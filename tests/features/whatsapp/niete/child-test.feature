@@ -1253,3 +1253,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a recording shorter than the minimum speech length, or one the model finds holds no letters, is still not reached
     And letter-name, word, passage, question and spoken-maths recordings are muted as before when speech-to-text hears no word
     And with sa_r28_letter_gate off a letter-sound recording with no word heard is not reached, exactly as before
+    And word, passage and question recordings are muted as before when speech-to-text hears no word
+    And with sa_r28_letter_gate off a letter recording with no word heard is not reached, exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT208 @no-mock-driver
+  # No mock driver: as @CT207. Asserted in bot/tests/child-test/sa-r28-no-echo-ur.test.js.
+  Scenario: With sa_r28_no_echo_ur on, a quiet Urdu answer is not zeroed because speech-to-text heard only the question
+    Given sa_r28_no_echo_ur is on and the speech gate is on
+    And in an Urdu comprehension question speech-to-text hears the phone's question but not the child's short answer
+    When the model marks the child's answer correct
+    Then the answer counts as correct
+    And the Urdu questions prompt tells the model that repeating the question is not an answer
+    And English questions keep the echo check
+    And with sa_r28_no_echo_ur off the answer is not counted, exactly as before
