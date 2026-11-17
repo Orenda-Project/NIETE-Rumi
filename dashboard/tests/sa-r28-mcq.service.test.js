@@ -122,6 +122,62 @@ describe('sa_r28_mcq core: the answer meta and asked[]', () => {
   });
 });
 
+describe('sa_r28_mcq core: a lost clip never scores a question (B-17)', () => {
+  function six() {
+    const c = clock();
+    const battery = { battery_id: 'b', tasks: [mcqTask(QS, { depends_on: null })], ui: { r28_mcq: true } };
+    const events = [];
+    const r = core.createRunner({ battery, now: c.now, onEvent: (e) => events.push(e) });
+    r.start(); r.instructionDone(); r.begin();
+    return { r, events };
+  }
+  const ans = (r, v) => { r.promptDone(); return r.answer(v); };
+  test('clipLost(q2, prompt): q2 unavailable (not asked, not wrong), the next question shows, the rest scored', () => {
+    const { r, events } = six();
+    ans(r, 1); // q1 right
+    expect(r.clipLost('ur.story_w3.q2', 'prompt')).toBe(true);
+    expect(r.view().item.id).toBe('ur.story_w3.q3');
+    ans(r, 0); ans(r, 3); ans(r, 1); ans(r, 2);
+    const res = r.results()[0];
+    expect(res.stop_reason).toBe('complete');
+    expect(res.attempted).toBe(5);
+    expect(res.correct).toBe(5);
+    expect(res.incorrect).toBe(0);
+    expect(res.asked).not.toContain('ur.story_w3.q2');
+    expect(res.asked).toHaveLength(5);
+    expect(res.presented).toEqual(res.asked);
+    expect(res.answers[1]).toEqual({ item_id: 'ur.story_w3.q2', value: null, unavailable: 'clip' });
+    expect(res.unrated).toBeUndefined();
+    expect(events.filter((e) => e.type === 'item_unavailable')).toHaveLength(1);
+  });
+  test('three questions lost: the task still runs to the end, answers kept, unrated', () => {
+    const { r } = six();
+    ans(r, 1);
+    r.clipLost('ur.story_w3.q2', 'prompt'); r.clipLost('ur.story_w3.q3', 'prompt');
+    ans(r, 3);
+    r.clipLost('ur.story_w3.q5', 'prompt');
+    ans(r, 2);
+    const res = r.results()[0];
+    expect(res.stop_reason).toBe('complete');
+    expect(res.presented).toEqual(['ur.story_w3.q1', 'ur.story_w3.q4', 'ur.story_w3.q6']);
+    expect(res.unrated).toBe(true);
+    expect(res.answers.filter((a) => a.unavailable)).toHaveLength(3);
+  });
+  test('a lost replay keeps the question open and stops its auto replay', () => {
+    const { r, events } = six();
+    r.promptDone();
+    expect(r.clipLost('ur.story_w3.q1', 'replay')).toBe(true);
+    expect(r.view().item.id).toBe('ur.story_w3.q1');
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'lost')).toHaveLength(1);
+  });
+  test('OFF: clipLost does nothing to an mcq task without the switch', () => {
+    const c = clock();
+    const r = core.createRunner({ battery: { battery_id: 'b', tasks: [mcqTask(QS, { depends_on: null })] }, now: c.now });
+    r.start(); r.instructionDone(); r.begin();
+    expect(r.clipLost ? r.clipLost('ur.story_w3.q1', 'prompt') : false).toBe(false);
+  });
+});
+
 describe('sa_r28_mcq core: the gate is the oral task\'s (B.7 #4)', () => {
   /** The MCQ task (or its oral twin) after a story result; → { stop_reason, asked }. */
   function after(storyRes, task, opts) {
@@ -149,6 +205,32 @@ describe('sa_r28_mcq core: the gate is the oral task\'s (B.7 #4)', () => {
     const o = after(story12, oralTwin(), { comp_all_questions: true });
     expect(m.asked).toEqual(ids);
     expect(m.asked).toEqual(o.asked);
+  });
+  // SPEC E-6: the RWP gate holds on the MCQ in RDF auto and coach-led, with and without comp_all_questions
+  const nineWords = { stop_reason: 'complete', last_word_index: 8, last_word_line: 1 };
+  const lineOneStop = { stop_reason: 'early_stop_first_line', last_word_index: 3, last_word_line: 1 };
+  [false, true].forEach((manual) => {
+    const who = manual ? 'coach-led' : 'RDF auto';
+    test(`E-6 ${who}, comp_all_questions: 9 words read → no MCQ question (as the oral task)`, () => {
+      const m = after(nineWords, mcqTask(), { comp_all_questions: true, manual });
+      expect(m.stop_reason).toBe('skipped_no_first_line');
+      expect(m.asked).toEqual([]);
+      expect(after(nineWords, oralTwin(), { comp_all_questions: true, manual }).asked).toEqual([]);
+    });
+    test(`E-6 ${who}: a line-1 stop → no MCQ question, with or without comp_all_questions`, () => {
+      [true, false].forEach((comp) => {
+        const m = after(lineOneStop, mcqTask(), { comp_all_questions: comp, manual });
+        expect(m.asked).toEqual([]);
+      });
+      expect(after({ last_word_skipped: true, stop_reason: 'early_stop_first_line' }, mcqTask(), { manual }).asked).toEqual([]);
+    });
+    test(`E-6 ${who}, per-question gate (no comp_all): 9 words read → no MCQ question (the oral task would ask q1)`, () => {
+      const m = after(nineWords, mcqTask(), { manual });
+      expect(m.stop_reason).toBe('skipped_no_first_line');
+      expect(m.asked).toEqual([]);
+      // the path that asks: today's per-question gate (needs_line 1) on the oral task, left as it is
+      expect(after(nineWords, oralTwin(), { manual }).asked).toEqual(['ur.story_w3.q1']);
+    });
   });
   test('per-question gate (no comp_all): 12 words read → the same subset as the oral task', () => {
     const story12 = { stop_reason: 'complete', last_word_index: 11, last_word_line: 2 };
@@ -186,12 +268,18 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
   function fakeVoice() {
     const lines = [];
     let cur = null;
-    const speak = (textObj, audioObj) => {
+    const lost = new Set();
+    const speak = (textObj, audioObj, vo) => {
       if (cur) cur.resolve();
+      if (lost.has(audioObj)) {
+        const l = { textObj, audioObj, vo, a: null, done: true, lost: true };
+        lines.push(l); cur = null;
+        return new Promise((_, rej) => setTimeout(() => rej(new Error('clip_unavailable')), 30));
+      }
       const a = new dom.window.EventTarget();
       a.paused = true; a.currentTime = 0; a.ended = false;
       a.src = typeof audioObj === 'string' ? audioObj : (textObj && textObj.audio) || '';
-      const line = { textObj, audioObj, a, resolve: null, done: false };
+      const line = { textObj, audioObj, vo, a, resolve: null, done: false };
       const p = new Promise((res) => { line.resolve = () => { if (!line.done) { line.done = true; if (cur === line) cur = null; res(); } }; });
       lines.push(line); cur = line;
       return p;
@@ -211,7 +299,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
       end(l);
       return l;
     }
-    return { speak, lines, play, end, speakNext };
+    return { speak, lines, play, end, speakNext, lost };
   }
 
   function mountMcq(extra) {
@@ -223,6 +311,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     const battery = { battery_id: 'b', tasks, ui: { r28_mcq: true } }; // as the served battery carries it
     const runner = core2.createRunner(Object.assign({ battery, onEvent: (e) => events.push(e) }, extra.runner || {})); // the flag from battery.ui
     const voice = fakeVoice();
+    (extra.lost || []).forEach((k) => voice.lost.add(k));
     const el = document.getElementById('m');
     const answers = [];
     const ans0 = runner.answer;
@@ -455,6 +544,84 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(cards(el)[1].classList.contains('is-right')).toBe(true);
     expect(cards(el)[1].classList.contains('is-shown')).toBe(true);
   }, 30000);
+
+  test('B-17: o3 of question 2 lost → question 2 unavailable, the others scored; answers, asked and the hl log agree', async () => {
+    setup('https://portal.test/sa/run.html?probe=1');
+    const dbg = jest.spyOn(console, 'debug').mockImplementation(() => {});
+    const { el, voice, runner } = mountMcq({ items: QS.slice(0, 3), lost: ['sa/v5/ur/syn_q2_o3.mp3'] });
+    await wait(20);
+    const answerAll = async (k) => {
+      for (let i = 0; i < 5; i++) await voice.speakNext(30);
+      await wait(30); cards(el)[k].click(); await wait(1100);
+    };
+    await answerAll(1); // q1 right
+    await voice.speakNext(30); await voice.speakNext(30); await voice.speakNext(30); // q2: question, o1, o2
+    for (let i = 0; i < 100 && el.querySelector('.sae-mcq-q').textContent !== 'question 3'; i++) await wait(20);
+    expect(el.querySelector('.sae-mcq-q').textContent).toBe('question 3');
+    await answerAll(0); // q3 right
+    const res = runner.results()[0];
+    expect(res.asked).toEqual(['ur.story_w3.q1', 'ur.story_w3.q3']);
+    expect(res.answers.map((a) => a.unavailable || a.ok)).toEqual([true, 'clip', true]);
+    expect(voice.lines.every((l) => l.vo && l.vo.clip_only === true)).toBe(true);
+    const hl = dbg.mock.calls.filter((c) => c[0] === 'hl').map((c) => c[1]);
+    // q1: 4 options on+off; q2: options 1 and 2 only (never 3: its clip never played); q3: 4 options on+off
+    expect(hl).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 1, 1, 2, 2, 1, 1, 2, 2, 3, 3, 4, 4]);
+  }, 30000);
+
+  test('B-17: a card never lights when its clip did not reach playing', async () => {
+    setup();
+    const { el, voice } = mountMcq({ lost: ['sa/v5/ur/syn_q1_o1.mp3'] });
+    await wait(20);
+    const seen = [];
+    new dom.window.MutationObserver(() => { seen.push(...lit(el)); }).observe(el, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    await voice.speakNext(30);
+    await wait(800);
+    expect(seen).toEqual([]);
+  }, 20000);
+
+  test('B-17: the five clips are warmed (preload) before the read-out begins, at most 5 s', async () => {
+    setup();
+    let release;
+    const asked = [];
+    const preload = (list, ms) => { asked.push({ list, ms }); return new Promise((r) => { release = r; }); };
+    const { voice } = mountMcq({ ui: { preload } });
+    await wait(200);
+    expect(asked).toHaveLength(1);
+    expect(asked[0].list).toEqual(['sa/v5/ur/syn_q1.mp3', 'sa/v5/ur/syn_q1_o1.mp3', 'sa/v5/ur/syn_q1_o2.mp3', 'sa/v5/ur/syn_q1_o3.mp3', 'sa/v5/ur/syn_q1_o4.mp3']);
+    expect(asked[0].ms).toBe(5000);
+    expect(voice.lines).toHaveLength(0); // not before the clips are ready
+    release({ ready: 5, of: 5 });
+    await wait(50);
+    expect(voice.lines).toHaveLength(1);
+  }, 20000);
+
+  test('B-17: a lost replay keeps the question open (cards ready, the replay logged lost)', async () => {
+    setup();
+    const { el, voice, events } = mountMcq();
+    await wait(20);
+    for (let i = 0; i < 5; i++) await voice.speakNext(30);
+    await wait(50);
+    voice.lost.add('sa/v5/ur/syn_q1.mp3');
+    el.querySelector('.sae-mcq-replay').click();
+    await wait(200);
+    expect(el.querySelector('.sae-mcq-q').textContent).toBe('question 1');
+    expect(has(el, 'is-ready')).toEqual([true, true, true, true]);
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'lost')).toHaveLength(1);
+  }, 20000);
+
+  test('B-18: the old oral keys (accept, reject, rubric, accept_rule, card_src) are never on any screen', async () => {
+    setup();
+    const leaky = QS.slice(0, 1).map((x) => Object.assign({}, x, { accept: ['secret-a'], reject: ['secret-r'], rubric: 'secret-rubric', accept_rule: 'secret-rule', card_src: 'secret-src' }));
+    const auto = mountMcq({ items: leaky });
+    await wait(20);
+    expect(auto.el.innerHTML).not.toMatch(/secret/);
+    views.forEach((v) => v.destroy()); views = [];
+    const coach = mountMcq({ items: leaky, runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    coach.el.querySelectorAll('details').forEach((d) => { d.open = true; });
+    expect(coach.el.innerHTML).not.toMatch(/secret/);
+    expect(coach.el.textContent).toContain('a1');
+  }, 20000);
 
   test('OFF (no r28_mcq on the mount): the task draws as today\'s tap screen, no MCQ cards', async () => {
     setup();
