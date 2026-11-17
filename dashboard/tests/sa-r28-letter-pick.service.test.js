@@ -58,7 +58,7 @@ function runner(o) {
   o = o || {};
   const events = [];
   let clock = 0;
-  const r = createRunner({ battery: battery(o), now: () => clock, onEvent: (e) => events.push(e) });
+  const r = createRunner({ battery: battery(o), now: () => clock, onEvent: (e) => events.push(e), manual: !!o.manual });
   return { r, events, at: (ms) => { clock = ms; } };
 }
 function toItems(r) { r.start(); r.instructionDone(); }
@@ -109,24 +109,17 @@ describe('core: a pick task runs as an untimed tap task', () => {
     expect(r.snapshot().current.answers[0]).toEqual({ item_id: items[0].id, value: items[0].target, ok: true, replays: 0, tap_ms: -900, tap_before_sound: true, tap_ms_src: 'timings' });
   });
 
-  test('tick() says replay once at 10 s; Next is offered at next_at_s (15 s)', () => {
+  test('tick() says replay once at 10 s; RDF auto offers Next at 30 s (ruling: 15 s coach-led, 30 s auto)', () => {
     const { r, at, events } = runner({ practice: false });
     toItems(r); r.begin();
     at(9999); expect(r.tick()).toBeNull();
     at(10000); expect(r.tick()).toBe('replay');
     at(12000); expect(r.tick()).toBeNull();
     expect(events.filter((e) => e.type === 'replay')).toEqual([expect.objectContaining({ value: 'auto', item_id: 'ur.letter_pick10.01' })]);
-    at(14999); expect(r.view().offer_next).toBe(false);
-    at(15000); expect(r.view().offer_next).toBe(true);
+    at(29999); expect(r.view().offer_next).toBe(false);
+    at(30000); expect(r.view().offer_next).toBe(true);
     at(60000); expect(r.tick()).toBeNull();
     expect(r.view().phase).toBe('running'); // no time-out on an item (A-11)
-  });
-
-  test('r9_question_time: offer_next stays at next_at_s for an untimed tap item (the engine as it is; not changed here)', () => {
-    const { r, at } = runner({ practice: false, ui: { r9_question_time: true } });
-    toItems(r); r.begin();
-    at(15000);
-    expect(r.view().offer_next).toBe(true);
   });
 
   test('practiceModelled(): the example is modelled (one practice_model event, no score); P2 is retry-once-then-show', () => {
@@ -245,6 +238,112 @@ function voiceWith(behaviour, log) {
   jest.resetModules();
   return require(VOICE).create({ lang: 'ur', base: '/', retry_ms: 5, load_ms: 50, pause_ms: 5, Audio: behaviour ? fakeAudio(behaviour, log) : null, speechSynthesis: sp.synth, SpeechSynthesisUtterance: sp.Utter });
 }
+
+describe('core: Next per mode and the clocks from the end of the last play (lead ruling: A.4, A-11, P3 Q4)', () => {
+  test('r9 ON, coach-led: Next at 15 s (never doubled)', () => {
+    const { r, at } = runner({ practice: false, manual: true, ui: { r9_question_time: true } });
+    toItems(r); r.begin();
+    at(14999); expect(r.view().offer_next).toBe(false);
+    at(15000); expect(r.view().offer_next).toBe(true);
+  });
+  test('r9 ON, RDF auto: Next at 30 s (one number, not 60)', () => {
+    const { r, at } = runner({ practice: false, ui: { r9_question_time: true } });
+    toItems(r); r.begin();
+    at(29999); expect(r.view().offer_next).toBe(false);
+    at(30000); expect(r.view().offer_next).toBe(true);
+  });
+  test('a pick task is exempt from the r9 doubling of its waits (an item_timeout_s of 20 s stays 20 s)', () => {
+    const b = battery({ practice: false, ui: { r9_question_time: true } });
+    b.tasks[0].item_timeout_s = 20;
+    let clock = 0;
+    const r = createRunner({ battery: b, now: () => clock, onEvent: () => {} });
+    toItems(r); r.begin();
+    clock = 20000; r.tick();
+    expect(r.view().item_index).toBe(1);
+  });
+  test('today\'s maths tap task is unchanged under r9: its Next at its next_at_s, a word problem\'s timeout doubled', () => {
+    const run = (task) => {
+      let clock = 0;
+      const r = createRunner({ battery: { battery_id: 'm', ui: { r9_question_time: true, r28_letter_pick: true }, tasks: [task] }, now: () => clock, onEvent: () => {} });
+      r.start(); r.instructionDone(); r.begin();
+      return { r, at: (ms) => { clock = ms; } };
+    };
+    const a = run(JSON.parse(JSON.stringify(AFTER)));
+    a.at(14999); expect(a.r.view().offer_next).toBe(false);
+    a.at(15000); expect(a.r.view().offer_next).toBe(true);
+    const wp = run({ id: 'ma.wp', mode: 'tap', subtask: 'word_problems', items: [{ id: 'w1', target: '1', options: ['1', '2'] }, { id: 'w2', target: '1', options: ['1', '2'] }] });
+    wp.at(60000); wp.r.tick(); expect(wp.r.view().item_index).toBe(0);
+    wp.at(120000); wp.r.tick(); expect(wp.r.view().item_index).toBe(1);
+  });
+  test('a child replay at 8 s: the auto replay and Next count from the END of that play', () => {
+    const { r, at, events } = runner({ practice: false });
+    toItems(r); r.begin();
+    const id = r.view().item.id;
+    at(1000); r.promptDone();          // the first play ended at 1 s
+    at(9000); r.clipPlaying(id, true); // the child's replay, 8 s later
+    at(11000); expect(r.tick()).toBeNull(); // the old clock's 10 s: nothing while the sound plays
+    at(12000); r.clipPlaying(id, false);  // it ended (3 s clip)
+    at(21999); expect(r.tick()).toBeNull();
+    at(22000); expect(r.tick()).toBe('replay');
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'auto')).toHaveLength(1);
+    r.clipPlaying(id, true);
+    at(25000); r.clipPlaying(id, false); // the auto replay ended at 25 s
+    at(54999); expect(r.view().offer_next).toBe(false);
+    at(55000); expect(r.view().offer_next).toBe(true);
+  });
+  test('coach-led: no Next while the sound plays; Next 15 s after its end', () => {
+    const { r, at } = runner({ practice: false, manual: true });
+    toItems(r); r.begin();
+    const id = r.view().item.id;
+    at(1000); r.promptDone();
+    at(15500); r.clipPlaying(id, true);
+    at(16100); expect(r.view().offer_next).toBe(false);
+    at(17000); r.clipPlaying(id, false);
+    at(31999); expect(r.view().offer_next).toBe(false);
+    at(32000); expect(r.view().offer_next).toBe(true);
+  });
+  test('clipPlaying for another item, or a non-pick task, changes nothing', () => {
+    const { r, at } = runner({ practice: false, manual: true });
+    toItems(r); r.begin();
+    at(1000); r.promptDone();
+    at(5000); r.clipPlaying('not.this.one', true);
+    at(16000); expect(r.view().offer_next).toBe(true);
+  });
+  test('answer meta keeps pre_taps (taps before the sound, ignored)', () => {
+    const { r } = runner({ practice: false });
+    toItems(r); r.begin();
+    const items = r.view().task.items;
+    r.answer(items[0].target, { replays: 0, tap_ms: -700, tap_ms_src: 'timings', pre_taps: 2 });
+    expect(r.snapshot().current.answers[0]).toEqual({ item_id: items[0].id, value: items[0].target, ok: true, replays: 0, tap_ms: -700, tap_ms_src: 'timings', pre_taps: 2 });
+  });
+});
+
+describe('sa.css: the replay pill sits at least 32 px below the bottom card row (lead 170131Z item 5)', () => {
+  test('every .sae-pick-replay rule that sets a margin puts ≥ 32 px above the pill', () => {
+    const css = require('fs').readFileSync(path.join(__dirname, '..', 'sa', 'sa.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [];
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      const sels = m[1].split(',').map((x) => x.trim());
+      if (sels.includes('.sae-pick-replay')) rules.push(m[2]);
+    }
+    expect(rules.length).toBeGreaterThan(0);
+    const tops = [];
+    rules.forEach((body) => {
+      body.split(';').forEach((decl) => {
+        const [k, v] = decl.split(':').map((x) => (x || '').trim());
+        if (k === 'margin') tops.push(v.split(/\s+/)[0]);
+        if (k === 'margin-top') tops.push(v);
+      });
+    });
+    expect(tops.length).toBeGreaterThan(0);
+    tops.forEach((v) => {
+      expect(v).toMatch(/^\d+px$/);
+      expect(parseInt(v, 10)).toBeGreaterThanOrEqual(32);
+    });
+  });
+});
 
 describe('sa-voice speak(text, audio, { clip_only })', () => {
   test('a clip that fails twice rejects; the phone voice is never used', async () => {
@@ -383,22 +482,6 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     return f;
   }
 
-  test('timings: a tap 200 ms into the clip, speech starting at 300 ms: tap_before_sound, tap_ms negative (from speech end)', async () => {
-    const it0 = battery({ practice: false }).tasks[0].items[0];
-    const f = timingsFetch({ [it0.prompt_audio]: { speech_start_ms: 300, speech_end_ms: 1200 } });
-    const m = mount({ practice: false });
-    toRunning(m);
-    await wait(300 + 200); // the clip starts 300 ms after the item shows; 200 ms into it
-    m.el.querySelector('.sae-pick-cards .sae-opt').click();
-    const a = m.r.snapshot().current.answers[0];
-    expect(a).toMatchObject({ tap_before_sound: true, tap_ms_src: 'timings' });
-    expect(a.tap_ms).toBeLessThan(-800);
-    expect(a.tap_ms).toBeGreaterThan(-1150);
-    expect(f).toHaveBeenCalledTimes(1);
-    expect(f.mock.calls[0][0]).toBe('v5/prompt_timings.json');
-    expect(f.mock.calls[0][1]).toEqual({ credentials: 'same-origin' });
-  });
-
   test('timings: a tap 2 s after the clip began, speech ending at 1.2 s: tap_ms 800, src timings; the map is fetched once per task', async () => {
     const its = battery({ practice: false }).tasks[0].items;
     const map = {};
@@ -413,7 +496,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(a).not.toHaveProperty('tap_before_sound');
     expect(a.tap_ms).toBeGreaterThanOrEqual(760);
     expect(a.tap_ms).toBeLessThan(900);
-    await wait(450 + 350);
+    await wait(450 + 300 + 600); // the next item, 600 ms into its clip (past the pre-sound window)
     m.el.querySelector('.sae-pick-cards .sae-opt').click();
     expect(m.r.snapshot().current.answers[1].tap_ms_src).toBe('timings');
     expect(f).toHaveBeenCalledTimes(1);
@@ -584,5 +667,165 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     await wait(10 * 420 + 400);
     expect(log.filter((x) => x[0] === 'tts')).toHaveLength(0);
     expect(r.results()[0]).toMatchObject({ stop_reason: 'complete', attempted: 0, presented: 0, unrated: true });
+  });
+  // ---------- round 28, A3: a tap before the sound; Next per mode; the clocks; the coach line; the fold ----------
+  describe('A3 (lead 165028Z item 1, 170131Z items 2, 4, 5)', () => {
+    let fake = null;
+    let spy = null;
+    const realNow = Date.now.bind(Date);
+    beforeEach(() => { fake = null; spy = jest.spyOn(Date, 'now').mockImplementation(() => (fake == null ? realNow() : fake)); });
+    afterEach(() => { spy.mockRestore(); });
+    const F = 5000000;
+    const UR_LINE = 'آواز جگنو بولے گا۔ آپ آواز نہ بولیں۔ بچہ نہ سنے تو آواز والا بٹن دبائیں۔';
+    const EN_LINE = 'Jugnu says the sound. Please do not say it. If the child did not hear it, press the sound button.';
+    function allTimed(t) {
+      const map = {};
+      t.items.concat(t.practice || []).forEach((x) => { map[x.prompt_audio] = { speech_start_ms: 300, speech_end_ms: 1200 }; });
+      return timingsFetch(map);
+    }
+    /** The item on show with its clip asked for at F (frozen clock), the timing map loaded. */
+    async function atClip(o) {
+      allTimed(battery(o).tasks[0]);
+      const m = mount(o);
+      fake = F;
+      toRunning(m);
+      await wait(360);
+      expect(clipCalls(m)).toHaveLength(1);
+      return m;
+    }
+    const cards = (m) => m.el.querySelectorAll('.sae-pick-cards .sae-opt');
+
+    test('a tap at speech_start + 100 ms is logged (tap_before_sound), never scored; the item stays open and the sound plays on; + 200 ms answers with pre_taps 1', async () => {
+      const m = await atClip({ practice: false });
+      const it = m.r.view().item;
+      fake = F + 400; // speech starts at 300 ms: + 100 ms
+      cards(m)[0].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(m.r.view().item.id).toBe(it.id);
+      expect(m.events.filter((e) => e.type === 'tap_before_sound')).toEqual([expect.objectContaining({ task_id: it.id.replace(/\.\d+$/, ''), item_id: it.id, value: it.options[0] })]);
+      expect(cards(m)[0].classList.contains('is-pressed')).toBe(false); // no pressed lock to eat the real tap
+      expect(clipCalls(m)).toHaveLength(1); // the clip is neither cut nor restarted
+      fake = F + 500; // + 200 ms
+      cards(m)[1].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ item_id: it.id, value: it.options[1], tap_ms: -700, tap_ms_src: 'timings', pre_taps: 1, replays: 0 });
+      expect(a[0]).not.toHaveProperty('tap_before_sound');
+    });
+
+    test('two pre-sound taps then a real one: pre_taps 2, one answer', async () => {
+      const m = await atClip({ practice: false });
+      fake = F + 50; cards(m)[0].click();
+      fake = F + 440; cards(m)[2].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      fake = F + 450; cards(m)[3].click(); // at speech_start + 150 ms exactly: the answer
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ pre_taps: 2, tap_ms: -750 });
+      expect(m.events.filter((e) => e.type === 'tap_before_sound')).toHaveLength(2);
+    });
+
+    test('no timing entry (tap_ms_src file): no pre-sound window, the first tap answers as today', async () => {
+      // Without speech_start_ms there is nothing to measure a lead-in against: the clip-end rule applies.
+      dom.window.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 404 }));
+      const m = mount({ practice: false });
+      fake = F;
+      toRunning(m);
+      await wait(360);
+      fake = F + 50;
+      cards(m)[0].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ tap_ms: 0, tap_ms_src: 'file' });
+      expect(a[0]).not.toHaveProperty('pre_taps');
+      expect(m.events.filter((e) => e.type === 'tap_before_sound')).toHaveLength(0);
+    });
+
+    test('practice (P2): a pre-sound tap gives no feedback; the tap after the window does', async () => {
+      allTimed(battery({}).tasks[0]);
+      const m = mount();
+      fake = F;
+      m.r.start(); m.r.instructionDone(); m.r.practiceModelled();
+      m.view.render();
+      await wait(60);
+      const p2 = m.r.view().practice;
+      expect(p2.role).toBe('practice');
+      const pa = jest.spyOn(m.r, 'practiceAnswer');
+      fake = F + 400;
+      cards(m)[0].click();
+      expect(pa).not.toHaveBeenCalled();
+      expect(m.events.filter((e) => e.type === 'tap_before_sound')).toEqual([expect.objectContaining({ item_id: p2.id })]);
+      fake = F + 500;
+      cards(m)[0].click();
+      expect(pa).toHaveBeenCalledTimes(1);
+    });
+
+    test('a child replay 8 s after the first play: the auto replay counts from the END of that replay', async () => {
+      const m = await atClip({ practice: false });
+      const it = m.r.view().item;
+      m.end(); // the first play ends at F
+      await wait(20);
+      fake = F + 8000;
+      m.el.querySelector('.sae-pick-replay').click();
+      fake = F + 11000; // the old clock's 10 s, the replay still playing
+      await wait(320);
+      const autos = () => m.events.filter((e) => e.type === 'replay' && e.value === 'auto' && e.item_id === it.id);
+      expect(autos()).toHaveLength(0);
+      fake = F + 12000;
+      m.end(); // the replay ends at F + 12 s
+      await wait(20);
+      fake = F + 21900;
+      await wait(320);
+      expect(autos()).toHaveLength(0);
+      fake = F + 22100;
+      await wait(320);
+      expect(autos()).toHaveLength(1);
+    });
+
+    test('coach-led: the coach line above the folded target on items, P1 and P2 (text only, no clip)', async () => {
+      const m = mount({ manual: true });
+      m.r.start(); m.r.instructionDone();
+      m.view.render();
+      const check = () => {
+        const line = m.el.querySelector('.sae-pick-coach-line');
+        expect(line).not.toBeNull();
+        expect(line.textContent).toBe(UR_LINE);
+        const fold = m.el.querySelector('details.sae-pick-coach');
+        expect(fold).not.toBeNull();
+        expect(line.compareDocumentPosition(fold) & 4).toBe(4); // the line comes before the fold
+      };
+      check(); // P1
+      m.r.practiceModelled(); m.view.render(); check(); // P2
+      m.r.practiceAnswer(m.r.view().practice.target);
+      m.r.begin(); m.view.render(); check(); // item 1
+      expect(m.speak.mock.calls.some((c) => c[0] && (c[0] === UR_LINE || c[0].text === UR_LINE || c[0].ur === UR_LINE))).toBe(false);
+    });
+
+    test('coach line: English in an English run; RDF auto shows none; switch OFF shows none', () => {
+      const en = mount({ manual: true, practice: false, lang: 'en' });
+      toRunning(en);
+      expect(en.el.querySelector('.sae-pick-coach-line').textContent).toBe(EN_LINE);
+      const auto = mount({ practice: false });
+      toRunning(auto);
+      expect(auto.el.querySelector('.sae-pick-coach-line')).toBeNull();
+      const off = mount({ manual: true, practice: false, flag: false });
+      toRunning(off);
+      expect(off.el.querySelector('.sae-pick-coach-line')).toBeNull();
+    });
+
+    test('the folded target: folded by default, stays open across a redraw once the coach opens it, folded again on the next item', async () => {
+      const m = mount({ manual: true, practice: false });
+      toRunning(m);
+      const fold = () => m.el.querySelector('details.sae-pick-coach');
+      expect(fold().open).toBe(false);
+      fold().open = true;
+      fold().dispatchEvent(new dom.window.Event('toggle'));
+      m.view.render();
+      expect(fold().open).toBe(true);
+      cards(m)[0].click();
+      await wait(450);
+      expect(m.r.view().item_index).toBe(1);
+      expect(fold().open).toBe(false);
+    });
   });
 });

@@ -89,8 +89,12 @@
  *   sRunPick          Jugnu's sound clip plays 300 ms after the item shows (coach-led too: the coach never voices it),
  *                     five letter cards of one size (phone 2 + 3, tablet one row), one big replay under them (the clip
  *                     only, logged replay { value: 'child' }, counted). A tap counts at any time, the clip playing or
- *                     not: runner.answer(value, { replays, tap_ms, tap_ms_src[, tap_before_sound] }), tap_ms against
- *                     the prompt's speech end from v5/prompt_timings.json when it has the clip. No feedback on a scored item.
+ *                     not: runner.answer(value, { replays, tap_ms, tap_ms_src[, pre_taps] }), tap_ms against the
+ *                     prompt's speech end from v5/prompt_timings.json when it has the clip. A tap before the speech
+ *                     starts (+ TAP_LEAD_IN_MS) is not an answer: logged tap_before_sound, counted on the answer as
+ *                     pre_taps, the item stays open (no window without a timing entry). Every play of the sound tells
+ *                     the runner (clipPlaying): the auto replay and Next count from the end of the last play. No
+ *                     feedback on a scored item.
  *   practice          P1 (role 'example') is modelled: the cards disabled, the right one lit, the clip then the model
  *                     line, then Next (RDF auto: also on by itself 2 s later) → runner.practiceModelled(). P2 is the tap
  *                     practice as for every tap task, with the clip and the replay. At the task's entry every clip of
@@ -99,7 +103,9 @@
  *   the clip          speak(…, { clip_only: true }): a clip that cannot play is never said by the phone's voice. The
  *                     item's first play lost → runner.clipLost(item, 'prompt'): that item is unavailable and the next one
  *                     shows (the task never ends on it); a replay lost → clipLost(item, 'replay'): the item stays open.
- *   coach-led         the coach's fold shows the sound and the letter («بَ → ب»), never in the open.
+ *   coach-led         the coach's line (C.pick_coach_line, text only) above the fold; the fold shows the sound and
+ *                     the letter («بَ → ب»), never in the open: folded on every item, kept open across a redraw once the
+ *                     coach opens it, folded again on the next item.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -128,6 +134,8 @@
       replay_sound: 'Hear it again',
       replay_question: 'Hear the question again',
       mcq_coach_line: 'Jugnu reads the question. Do not tell the child the answer, do not repeat the question; just press Next.',
+      // round 28 (sa_r28_letter_pick, lead ruling A.6): the coach's line on every picker screen, coach-led only, text only
+      pick_coach_line: 'Jugnu says the sound. Please do not say it. If the child did not hear it, press the sound button.',
       next: 'Next',
       practice: 'Practice',
       right: 'That’s right!',
@@ -231,6 +239,7 @@
       replay_sound: 'دوبارہ سنیں',
       replay_question: 'سوال دوبارہ سنیں',
       mcq_coach_line: 'جگنو سوال خود پڑھے گا۔ بچے کو جواب نہ بتائیں، سوال دوبارہ نہ پوچھیں، صرف \'آگے\' دبائیں۔',
+      pick_coach_line: 'آواز جگنو بولے گا۔ آپ آواز نہ بولیں۔ بچہ نہ سنے تو آواز والا بٹن دبائیں۔',
       next: 'آگے',
       practice: 'مشق',
       right: 'بالکل ٹھیک!',
@@ -576,6 +585,7 @@
     var pickWarm = {};       // task id → the promise of its clips loaded (or the PICK_WARM_MS cap)
     var pickTimes = {};      // task id → the prompt timing map (null: none), once fetched
     var TAP_LEAD_IN_MS = 150; // a tap before speech_start_ms + this is a tap into the clip's lead-in (tap_before_sound)
+    var pickFold = null;     // coach-led: the item whose folded target the coach opened (it re-folds on the next item)
     // Round 28 (sa_r28_mcq; opts.r28.mcq from sa-engine.js, or battery.ui.r28_mcq): a kind 'mcq' tap task is the spoken
     // multiple choice (sRunMcq)
     var r28Mcq = !!(opts.r28 && opts.r28.mcq === true) || opts.r28_mcq === true || r7.r28_mcq === true;
@@ -810,7 +820,7 @@
     function isPick(t) { return r28Pick && !!t && t.kind === 'pick' && t.mode === 'tap'; }
     /** The clip state of the item (or practice item) on show; a new item starts afresh. */
     function pickOf(it) {
-      if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0, call_at: null, el: null, dur_ms: null };
+      if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0, call_at: null, el: null, dur_ms: null, pre_taps: 0 };
       return pickSt;
     }
     /** The item's sound, clip only (never the phone's voice), in coach-led too. → Promise<true> when it played, false
@@ -822,18 +832,23 @@
       var tok = ++ps.tok;
       ps.playing = true;
       ps.call_at = Date.now(); ps.end_at = null; ps.dur_ms = null;
+      // round 28 (P3 Q4): the runner holds the auto replay and Next while the sound plays and restarts the item's clock at
+      // its end, whoever asked for it (the runner ignores this off the item on show: practice, another item)
+      var sounding = function (on) { if (typeof runner.clipPlaying === 'function') runner.clipPlaying(it.id, on); };
+      sounding(true);
       var p = it.prompt_audio ? say(null, it.prompt_audio, true, { clip_only: true }) : Promise.reject(new Error('no clip'));
       // the voice's element for this clip (for where in the clip a tap lands), when the voice exposes it
       try { ps.el = typeof speakFn.audio === 'function' ? speakFn.audio() : null; } catch (e) { ps.el = null; }
       return p.then(function () {
         if (ps === pickSt && tok === ps.tok) {
+          sounding(false);
           ps.playing = false; ps.end_at = Date.now();
           var d = ps.el && Number(ps.el.duration);
           ps.dur_ms = d && isFinite(d) && d > 0 ? d * 1000 : null;
         }
         return true;
       }, function () {
-        if (ps === pickSt && tok === ps.tok) ps.playing = false;
+        if (ps === pickSt && tok === ps.tok) { ps.playing = false; sounding(false); }
         if (!alive) return false;
         var v = runner.view();
         if (v.phase === 'running' && v.item && v.item.id === it.id && typeof runner.clipLost === 'function') {
@@ -880,6 +895,8 @@
       var ps = pickOf(it), now = Date.now();
       var tm = t ? pickTimesFor(t) : null;
       var e = tm && it.prompt_audio ? tm[it.prompt_audio] : null;
+      // No timing entry: nothing to measure a lead-in against (no speech_start_ms), so no pre-sound window either; the
+      // clip-end rule stands and every tap answers.
       if (!e) return { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(now - ps.end_at)), tap_ms_src: 'file' };
       var pos;
       if (ps.call_at == null) pos = 0;
@@ -887,7 +904,26 @@
       else pos = (ps.dur_ms != null ? ps.dur_ms : ps.end_at - ps.call_at) + (now - ps.end_at);
       var m = { replays: ps.replays, tap_ms: Math.round(pos - e.e), tap_ms_src: 'timings' };
       if (pos < e.s + TAP_LEAD_IN_MS) m.tap_before_sound = true;
+      if (ps.pre_taps > 0) m.pre_taps = ps.pre_taps;
       return m;
+    }
+    /**
+     * Lead ruling (SPEC A.5 amended): a tap before speech_start_ms + TAP_LEAD_IN_MS is not a response to the sound. It is
+     * logged (tap_before_sound, counted on the item's answer as pre_taps), never scored: no answer, no feedback, no
+     * pressed lock (the real tap a moment later must land), the sound plays on and the item stays open. → true when
+     * the tap was such a tap. Without a timing entry there is no window and this is always false.
+     */
+    function pickPreSound(it, t, value) {
+      var m = pickMeta(it, t);
+      if (!m.tap_before_sound) return false;
+      pickOf(it).pre_taps++;
+      runner.log('tap_before_sound', { task_id: t.id, item_id: it.id, value: value, tap_ms: m.tap_ms });
+      return true;
+    }
+    /** Coach-led only, the switch's own line above the folded target on every picker screen. Text only: never spoken. */
+    function pickCoachLine(t) {
+      if (!manual || !isPick(t)) return null;
+      return h('p', { class: 'sae-coach-says is-coach sae-pick-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.pick_coach_line });
     }
     /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer).
      *  Round 28: a letter-sound item folds its sound and the letter («بَ → ب»). */
@@ -895,10 +931,13 @@
       if (isPick(t)) {
         if (!manual || !it) return null;
         var pw = (it.prompt_text != null ? String(it.prompt_text) : '') + ' → ' + String(it.target);
-        return h('details', { class: 'sae-coach-says is-coach sae-pick-coach' }, [
+        // folded on every item; opened only by the coach, kept open across a redraw of the same item, folded on the next
+        var d = h('details', { class: 'sae-coach-says is-coach sae-pick-coach', open: pickFold === it.id }, [
           h('summary', { text: C.coach }),
           h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: pw }),
         ]);
+        d.addEventListener('toggle', function () { pickFold = d.open ? it.id : (pickFold === it.id ? null : pickFold); });
+        return d;
       }
       if (!manual || !itemWords(it)) return null;
       var said = h('p', { class: 'sae-say sae-coach-line', text: itemWords(it) });
@@ -1741,8 +1780,10 @@
         clock(v),
         // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
         h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), replayBtn(function () { pickAgain(it, t); })]),
+        pickCoachLine(t),
         coachSays(it, true, t),
         pickCards(it.options, function (o, b) {
+          if (pickPreSound(it, t, o)) return; // before the sound: logged, never scored; the item stays open
           busy = true;
           b.classList.add('is-pressed');
           runner.answer(o, pickMeta(it, t));
@@ -1774,7 +1815,7 @@
       var p = hold ? hold.item : v.practice, t = v.task, fb = hold;
       var model = p.role === 'example' && !fb;
       var k = keyOf(v);
-      var cards = pickCards(p.options, model ? null : function (o) { practicePick(p, t, o); }, function (o, b) {
+      var cards = pickCards(p.options, model ? null : function (o) { if (!pickPreSound(p, t, o)) practicePick(p, t, o); }, function (o, b) {
         if (model) { b.disabled = true; b.classList.add(String(o) === String(p.target) ? 'is-model' : 'is-dim'); return; }
         if (!fb) return;
         b.disabled = true;
@@ -1788,6 +1829,7 @@
           replayBtn(function () { gen++; if (model) pickModel(p, t, keyOf(runner.view())); else pickAgain(p, t); }),
           skipInstrBtn(v),
         ]),
+        pickCoachLine(t),
         coachSays(p, true, t),
         cards,
         model ? null : pickReplay(p, t),

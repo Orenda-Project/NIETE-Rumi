@@ -170,6 +170,9 @@
   var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
   var SHORT_CELL_MS = 500; // sa_r28_ceiling (C-7): a final cell on show for less than this at time up is not attempted
   var R9_WAIT_MIN_S = 30; // r9_question_time: no question in an untimed part moves on by itself before this
+  // Round 28 (picker, MCQ): Next is one number per mode, from the end of the last play of the sound (never doubled)
+  var R28_NEXT_COACH_S = 15;
+  var R28_NEXT_AUTO_S = 30;
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
   // Round 8 (r8_reading_position): under this many voiced seconds on the passage, the child read nothing. 1.0 s, not 2.0:
   // a reader of 3 words measured 1.6-1.8 s; silent and noisy rooms 0.0-0.4 s.
@@ -355,7 +358,7 @@
     // Round 9 item 4 (battery.ui.r9_question_time): the untimed parts' per-question waits, doubled, at least 30 s.
     var longerWaits = !!(battery.ui && battery.ui.r9_question_time === true);
     /** r9_question_time: a part's wait in seconds as the child gets it (a timed part, the measure, keeps its own). */
-    function waitS(t, s) { return longerWaits && s && !t.time_limit_s ? Math.max(2 * s, R9_WAIT_MIN_S) : s; }
+    function waitS(t, s) { return longerWaits && s && !t.time_limit_s && !r28Sound(t) ? Math.max(2 * s, R9_WAIT_MIN_S) : s; }
     // Round 9 item 3 (battery.ui.r9_skip_instructions): coach-led only, the coach may skip a part's instructions.
     var skipInstrOn = manual && !!(battery.ui && battery.ui.r9_skip_instructions === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
@@ -372,6 +375,17 @@
     var mcqOn = !!opts.r28_mcq || !!(opts.r28 && opts.r28.mcq === true) || !!(battery.ui && battery.ui.r28_mcq === true);
     /** sa_r28_mcq: the spoken multiple choice, its answer window not open yet (the read-out is still going). */
     function mcqReading(t) { return mcqOn && !!t && t.kind === 'mcq' && st.answer_at == null; }
+    // Round 28 (opts.r28_letter_pick / battery.ui.r28_letter_pick): the letter-sound picker's engine rules below
+    var pickOn = !!opts.r28_letter_pick || !!(opts.r28 && opts.r28.letter_pick === true) || !!(battery.ui && battery.ui.r28_letter_pick === true);
+    /**
+     * A round-28 task whose item is a sound the child listens to (the picker, the spoken MCQ), its switch ON. Its waits
+     * are exempt from the r9_question_time doubling; Next is R28_NEXT_COACH_S coach-led and R28_NEXT_AUTO_S in RDF
+     * auto (the lead's ruling: one number per mode, set when the task is read, not by a doubling); the auto replay and
+     * Next count from the end of the last play of the sound, and neither comes while it plays (clipPlaying()).
+     */
+    function r28Sound(t) { return !!t && ((pickOn && t.kind === 'pick') || (mcqOn && t.kind === 'mcq')); }
+    /** The wait before Next is offered on an untimed item, in seconds (null: none). */
+    function nextAtS(t) { return r28Sound(t) ? (manual ? R28_NEXT_COACH_S : R28_NEXT_AUTO_S) : t.next_at_s; }
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -472,7 +486,7 @@
       st = {
         phase: 'instruction', task_id: t.id, resumed: !!resumed, plays: 0, items: g.items || [],
         practice_i: 0, practice_tries: 0,
-        item_i: 0, item_started: null, replayed: false, correct: 0, incorrect: 0, attempted: 0, streak: 0, first_line_correct: 0,
+        item_i: 0, item_started: null, replayed: false, sounding: false, correct: 0, incorrect: 0, attempted: 0, streak: 0, first_line_correct: 0,
         started: null, last_item_index: null, answers: [],
       };
       if (from && from.answers) {
@@ -733,7 +747,7 @@
     /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
     function answerMeta(a, meta) {
       if (!meta || typeof meta !== 'object') return a;
-      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
       return a;
     }
 
@@ -754,6 +768,7 @@
       st.ask_at = st.item_started;
       st.answer_at = null;
       st.replayed = false;
+      st.sounding = false;
       var stop = stopRule(t);
       if (stop) finish(stop);
       return ok;
@@ -966,7 +981,23 @@
         st.ask_at = st.item_started;
         st.answer_at = null;
         st.replayed = false;
+        st.sounding = false;
         if (st.item_i >= st.items.length) finish(STOP.COMPLETE);
+        return true;
+      },
+      /**
+       * Round 28 (picker, MCQ; lead ruling P3 Q4): the item's sound started (on: true) or ended (false), whoever asked
+       * for it (the first play, the child's replay, the auto replay). While it plays there is no auto replay and no
+       * Next; at its end the item's clock starts again, so both count from the end of the last play. Only for the item
+       * on show of such a task (anything else is ignored). → true when it acted.
+       */
+      clipPlaying: function (itemId, on) {
+        var t = task();
+        if (st.phase !== 'running' || !r28Sound(t)) return false;
+        var it = st.items[st.item_i];
+        if (!it || it.id !== itemId) return false;
+        st.sounding = !!on;
+        if (!on) st.item_started = now();
         return true;
       },
       /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
@@ -1049,6 +1080,7 @@
         }
         if (t.mode === 'record') return null;
         if (mcqReading(t)) return null; // sa_r28_mcq: no replay, Next or timeout while the read-out runs
+        if (st.sounding && r28Sound(t)) return null; // round 28: nothing moves while the item's sound plays
         var waited = now() - st.item_started;
         var tmo = itemTimeoutS(t);
         if (tmo && waited >= tmo * 1000) {
@@ -1106,6 +1138,7 @@
         st.ask_at = st.item_started;
         st.answer_at = null;
         st.replayed = false;
+        st.sounding = false;
         ev('back', { task_id: t.id, item_id: st.items[st.item_i] ? st.items[st.item_i].id : undefined, value: { by: who, from: from, to: st.item_i } });
         return true;
       },
@@ -1166,7 +1199,8 @@
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
             v.item_wait_ms = waited;
-            v.offer_next = !!(t.next_at_s && waited >= t.next_at_s * 1000) && !mcqReading(t);
+            var nx = nextAtS(t);
+            v.offer_next = !!(nx && waited >= nx * 1000) && !mcqReading(t) && !(st.sounding && r28Sound(t));
           }
         }
         if (st.phase === 'task_end') v.result = st.result;

@@ -96,6 +96,33 @@ describe('sa_r28_mcq core: the answer window opens at promptDone()', () => {
     c.add(9900); expect(r.tick()).toBeNull();
     c.add(200); expect(r.tick()).toBe('replay');
     c.add(5000); r.tick();
+    expect(r.view().offer_next).toBe(false); // RDF auto: Next at 30 s (lead 170131Z item 4)
+    c.add(14900); expect(r.view().offer_next).toBe(true);
+  });
+  test('Next per mode, r9_question_time ON: 15 s coach-led, 30 s RDF auto (lead 170131Z item 4; never doubled)', () => {
+    const ui = { r9_question_time: true };
+    const coach = (() => {
+      const c = clock();
+      const r = core.createRunner({ battery: { battery_id: 'b', ui, tasks: [mcqTask(QS.slice(0, 2))] }, now: c.now, onEvent: () => {}, r28_mcq: true, manual: true });
+      r.start(); r.instructionDone(); r.begin();
+      return { r, c };
+    })();
+    coach.r.promptDone();
+    coach.c.add(14999); expect(coach.r.view().offer_next).toBe(false);
+    coach.c.add(1); expect(coach.r.view().offer_next).toBe(true);
+    const auto = (() => {
+      const c = clock();
+      const r = core.createRunner({ battery: { battery_id: 'b', ui, tasks: [mcqTask(QS.slice(0, 2))] }, now: c.now, onEvent: () => {}, r28_mcq: true });
+      r.start(); r.instructionDone(); r.begin();
+      return { r, c };
+    })();
+    auto.r.promptDone();
+    auto.c.add(29999); expect(auto.r.view().offer_next).toBe(false);
+    auto.c.add(1); expect(auto.r.view().offer_next).toBe(true);
+  });
+  test('OFF (no r28_mcq): the same task keeps its next_at_s in RDF auto (15 s), as any untimed tap does today', () => {
+    const { r, c } = solo({}, { r28_mcq: false });
+    c.add(15000);
     expect(r.view().offer_next).toBe(true);
   });
   test('OFF (no r28_mcq): the same task answers before promptDone() as any untimed tap does today', () => {
