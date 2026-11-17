@@ -148,3 +148,14 @@ describe('removeCloseStep', () => {
     expect(withBox).toEqual(copy);
   });
 });
+
+// bd-snkn32.50 — the one-line form names all three things 5D asks for: before the exit ticket is collected, the
+// success criteria read aloud, a self-prediction. With "self-predict" + "exit ticket" in the line the shelf reviewer
+// rated 5D >=3 on 11/14 ready-made anchor reviews, against 9/14 with the older line (bd-snkn32.50 results/score-5d-*).
+test('the one-line close names the exit ticket, the success criteria and the self-prediction (EN + UR)', () => {
+  expect(SHORT_LINE).toMatch(/exit ticket/);
+  expect(SHORT_LINE).toMatch(/success criteria aloud/);
+  expect(SHORT_LINE).toMatch(/self-predict/);
+  expect(SHORT_LINE_UR).toMatch(/اختتامی پرچی/);
+  expect(SHORT_LINE_UR).toMatch(/اندازہ/);
+});
