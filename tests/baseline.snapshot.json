@@ -563,16 +563,6 @@
       "bot/tests/observe/bd-calops-scope-telemetry.test.js :: * creating, patching and deleting a real event on rumi@hellorumi.ai."
     ]
   },
-  "tests/setup/orphan-modules.test.js": {
-    "failing": [
-      "Orphan-module audit every audited .js file is reachable from an entry point (or allowlisted)"
-    ],
-    "offenders": [
-      "bot/shared/services/assessment/slo-map/build-chapters.js",
-      "bot/shared/services/first-touch/sa-game.mount.js",
-      "bot/shared/services/first-touch/teacher-home.portal.mount.js"
-    ]
-  },
   "tests/setup/phone-shaped-fixtures.test.js": {
     "failing": [
       "the tree (bot/tests, dashboard/tests) against the allowlist no new phone-shaped fixtures; no directory above its entry (below or gone: a warning)"
