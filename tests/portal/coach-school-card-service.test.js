@@ -238,7 +238,9 @@ function fakeDb(t) {
       case 'principal-school': {
         const me = t.users.find((u) => u.id === params[0] && u.role === 'principal' && !u.deleted_at);
         const sch = me && t.schools.find((x) => x.id === me.school_id);
-        return { rows: sch ? [{ id: sch.id, name: sch.name, emis: sch.emis, school_name: null, viewer_test: me.is_test_user === true }] : [] };
+        // viewer_test as the SQL decides it (pinned by the SQL test below): her own flag, or her school's (bd-0r97p6)
+        const viewerTest = me && (me.is_test_user === true || (/\bsch\.is_probable_test IS TRUE\b/.test(sql) && sch && sch.is_probable_test === true));
+        return { rows: sch ? [{ id: sch.id, name: sch.name, emis: sch.emis, school_name: null, viewer_test: viewerTest }] : [] };
       }
       case 'roster-with-test':
         return { rows: t.users.filter((u) => params[0].includes(u.school_id) && ['teacher', 'principal'].includes(u.role) && !u.deleted_at) };
@@ -1499,6 +1501,30 @@ describe('getPrincipalSchoolCard — a principal on the principal app sees her o
     expect(test.teachers.map((t) => t.teacherExtId)).toContain(PHONE.tt);
     expect(test.school.teachers).toBe(real.school.teachers + 1);
     // the coach card is unchanged by it
+    const coach = await Card.getSchoolCard(fakeDb(tables), 'coach-1', '901', opts());
+    expect(coach.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+  });
+
+  // bd-0r97p6 — a REAL principal (is_test_user false: her real observations must keep counting on real schools' cards)
+  // whose school is a TEST school (schools.is_probable_test) saw "No teachers yet" on Pick the teacher, because only
+  // her own flag opened the test roster and a test school's teachers are all test accounts.
+  test('the principal-school read opens the test roster for a test account OR a test school (schools.is_probable_test)', () => {
+    const sql = Card.SQL.principalSchool.replace(/\s+/g, ' ');
+    const viewerTest = (sql.match(/SELECT .*?\((.*?)\) AS viewer_test/) || [])[1] || '';
+    expect(viewerTest).toMatch(/\bme\.is_test_user IS TRUE\b/);
+    expect(viewerTest).toMatch(/\bsch\.is_probable_test IS TRUE\b/);
+    expect(viewerTest).toMatch(/ OR /);
+  });
+
+  test('a REAL principal at a TEST school sees its test teachers; at a real school she never does', async () => {
+    const real = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(real.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+    tables.schools.find((s) => s.id === 's1').is_probable_test = true;
+    const atTest = await Card.getPrincipalSchoolCard(fakeDb(tables), 'up', opts());
+    expect(atTest.teachers.map((t) => t.teacherExtId)).toContain(PHONE.tt);
+    expect(atTest.school.teachers).toBe(real.school.teachers + 1);
+    // her own account stays real, and the coach card of that school is unchanged by it
+    expect(tables.users.find((u) => u.id === 'up').is_test_user).toBe(false);
     const coach = await Card.getSchoolCard(fakeDb(tables), 'coach-1', '901', opts());
     expect(coach.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
   });
