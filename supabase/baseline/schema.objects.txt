@@ -1717,6 +1717,7 @@ schema_versions.applied_at:timestamp without time zone
 schema_versions.description:text
 schema_versions.version:character varying
 schools.created_at:timestamp with time zone
+schools.district:text
 schools.emis:text
 schools.id:uuid
 schools.is_active:boolean
