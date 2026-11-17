@@ -1098,7 +1098,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When Jugnu says "The answer is:"
     Then the answer clip is already loaded and starts as soon as "The answer is:" ends
 
-  @e2e @wip @draft @config-gated @P1 @CT172 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT174 @no-mock-driver
   Scenario: With sa_r10_bigger_audio and sa_r10_practice_gap off, every clip plays on a new element as today
     Given sa_r10_bigger_audio and sa_r10_practice_gap are off
     Then the served battery has neither r10_bigger_audio nor r10_practice_gap
@@ -1239,3 +1239,45 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the check says another person spoke and part of their words were heard
     Then the flag stands when at least that share of their words was heard, and is cleared otherwise
     And a value of true uses the default share, and any other value turns the stricter check off
+
+  @e2e @wip @draft @config-gated @P1 @CT240 @no-mock-driver
+  # No mock driver: the check runs in the scoring sweep against speech-to-text and a model, not in the chat.
+  # Asserted in bot/tests/child-test/sa-score-voice-help.test.js.
+  Scenario: With sa_r28_voice_help on, an adult only encouraging the child is not flagged
+    Given sa_r28_voice_help is on and the another-voice check is on
+    And an adult speaks to the child during a recorded part only to instruct or encourage, for example "speak louder", "press next" or "well done"
+    When the recording is scored
+    Then the coach's Results for that task do not say another voice was heard
+    And the task's detail logs the adult's speech as support, never as a flag
+    And the child's marks are the same as without the check
+
+  @e2e @wip @draft @config-gated @P1 @CT241 @no-mock-driver
+  # No mock driver: as @CT240. Asserted in bot/tests/child-test/sa-score-voice-help.test.js.
+  Scenario: With sa_r28_voice_help on, an adult saying the answer is flagged as help
+    Given sa_r28_voice_help is on and the another-voice check is on
+    And an adult says an item or the answer before the child does, corrects the child, or asks again after a wrong answer and the child changes it
+    When the adult's words are among the words heard in that recording
+    Then the task is flagged, with the kind of help and only the words that are the task's own items or answers
+    And the child's marks are the same as without the check
+
+  @e2e @wip @draft @config-gated @P1 @CT242 @no-mock-driver
+  # No mock driver: as @CT240. Asserted in bot/tests/child-test/sa-score-voice-help.test.js and sa-stt-plain.test.js.
+  Scenario: With sa_r28_voice_help on, a recording with no word heard is never flagged, and off changes nothing
+    Given sa_r28_voice_help is on and the another-voice check is on
+    When no word is heard in a recording (noise or silence)
+    Then the task is not flagged and no model is asked
+    And with sa_r28_voice_help off the check and the Results are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT207 @no-mock-driver
+  # No mock driver: the gate runs in the scoring sweep against a model and speech-to-text, not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-letter-gate.test.js.
+  Scenario: With sa_r28_letter_gate on, a letter-sound recording is judged by whether a voice is heard, not by words heard
+    Given sa_r28_letter_gate is on and the speech gate is on
+    And a child says bare letter sounds in a letter-sound recording, with no whole word
+    When the recording is scored
+    Then speech-to-text is not asked about that recording, a voice check on the recording passes and the model marks the letters it hears
+    And the model is not shown the expected answers for the letters
+    And a silent recording, or one holding only steady noise, is not reached and the model is not asked
+    And a recording shorter than the minimum speech length, or one the model finds holds no letters, is still not reached
+    And letter-name, word, passage, question and spoken-maths recordings are muted as before when speech-to-text hears no word
+    And with sa_r28_letter_gate off a letter-sound recording with no word heard is not reached, exactly as before

@@ -42,6 +42,12 @@ describe('PR template', () => {
   it('ends with a "ready for review" checkbox', () => {
     expect(read(rel)).toMatch(/^- \[ \] .*ready for review/im);
   });
+
+  it('hands over by a direct message to the product owner, not a channel', () => {
+    const t = read(rel);
+    expect(t).toMatch(/direct message/i);
+    expect(t).not.toMatch(/review channel/i);
+  });
 });
 
 describe('Contributing with your agent', () => {
@@ -68,8 +74,17 @@ describe('Contributing with your agent', () => {
     expect(s).toMatch(/never/i);
   });
 
-  it('names the review handoff', () => {
-    expect(section()).toMatch(/ready for review/i);
+  it('names the review handoff: a direct message to the product owner, no channel', () => {
+    const s = section();
+    expect(s).toMatch(/ready for review/i);
+    expect(s).toMatch(/direct message/i);
+    expect(s).not.toMatch(/review channel/i);
+  });
+
+  it('asks to extend existing tables instead of adding a parallel one', () => {
+    const s = section();
+    expect(s).toMatch(/parallel/i);
+    expect(s).toMatch(/lesson-plan-data-model-debt\.md/);
   });
 });
 
