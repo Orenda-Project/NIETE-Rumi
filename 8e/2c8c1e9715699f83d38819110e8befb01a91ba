@@ -1,3 +1,4 @@
 {"ts":"2026-11-17T15:24:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=child-test spec_sync=true","sha":"8e2c8c1e9715","branch":"bd-aizbxs-sandbox","user":""}
 {"ts":"2026-11-17T15:24:36Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=child-test spec_sync=true","sha":"8e2c8c1e9715","branch":"bd-aizbxs-sandbox","user":""}
 {"ts":"2026-11-17T15:43:55Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (the commit is itself a spec edit: duplicate id @CT172 renamed @CT174 on a @no-mock-driver scenario; no behaviour changed)","sha":"8e2c8c1e9715","branch":"bd-aizbxs-sandbox","user":""}
+{"ts":"2026-11-17T15:43:56Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"2c6ea437-c850-45cb-a39c-eb17803d4989","sha":"8e2c8c1e9715","branch":"bd-aizbxs-sandbox","user":""}
