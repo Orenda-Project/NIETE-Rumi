@@ -345,6 +345,61 @@ describe('sa.css: the replay pill sits at least 32 px below the bottom card row 
   });
 });
 
+// ---------- round 28, A4: the coach-led picker: the fold never sits under a card; the phone fits with the real font ----------
+/** sa.css as [{ media, sels: [...], decls: {prop: value} }], comments removed; one level of @media. */
+function cssRules() {
+  const css = require('fs').readFileSync(path.join(__dirname, '..', 'sa', 'sa.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const out = [];
+  let i = 0, media = null, depth = 0, buf = '';
+  while (i < css.length) {
+    const ch = css[i++];
+    if (ch === '{') {
+      const head = buf.trim(); buf = '';
+      if (head.startsWith('@media')) { media = head; depth = 1; continue; }
+      const end = css.indexOf('}', i);
+      const decls = {};
+      css.slice(i, end).split(';').forEach((d) => { const k = d.indexOf(':'); if (k > 0) decls[d.slice(0, k).trim()] = d.slice(k + 1).trim(); });
+      out.push({ media: depth ? media : null, sels: head.split(',').map((x) => x.trim()), decls });
+      i = end + 1;
+    } else if (ch === '}') { buf = ''; if (depth) { depth = 0; media = null; } } else buf += ch;
+  }
+  return out;
+}
+const PHONE_ONLY = /max-width:\s*699px/;
+describe('sa.css: the coach-led picker (SPEC A.3, A.6)', () => {
+  const rules = cssRules();
+  test('a letter card\'s ink never takes a tap: Nastaliq\'s text box runs past the card (over the fold), so taps go to the card box only', () => {
+    const r = rules.filter((x) => !x.media && x.sels.some((s) => /\.sae-pick-cards\b.*\.sae-opt\b.*\.sae-ink$/.test(s)));
+    expect(r.some((x) => x.decls['pointer-events'] === 'none')).toBe(true);
+  });
+  test('tablet, coach-led: the fold keeps clear of the cards\' Nastaliq ink box (≥ 24 px below it)', () => {
+    const r = rules.filter((x) => x.media && /min-width:\s*700px/.test(x.media) && x.sels.some((s) => /\.is-coach-led\b.*details\.sae-pick-coach$/.test(s)));
+    expect(r.length).toBeGreaterThan(0);
+    r.forEach((x) => expect(parseInt(x.decls['margin-bottom'], 10)).toBeGreaterThanOrEqual(24));
+  });
+  test('coach-led: the open fold never moves the cards: its revealed line is laid over the fold\'s own row (absolute), and passes a tap to the summary', () => {
+    const r = rules.filter((x) => !x.media && x.sels.some((s) => /\.is-coach-led\b.*details\.sae-pick-coach\s*>\s*\.sae-coach-line$/.test(s)));
+    expect(r.some((x) => x.decls.position === 'absolute' && x.decls['pointer-events'] === 'none')).toBe(true);
+    const d = rules.filter((x) => !x.media && x.sels.some((s) => /\.is-coach-led\b.*details\.sae-pick-coach$/.test(s)));
+    expect(d.some((x) => x.decls.position === 'relative')).toBe(true);
+  });
+  test('coach-led keeps the RDF auto letter cards and replay pill (A.3): no .is-coach-led rule sizes a card, its glyph or the pill', () => {
+    rules.filter((x) => x.sels.some((s) => /\.is-coach-led\b.*\.sae-opt\b/.test(s))).forEach((x) => {
+      ['height', 'min-height', 'width', 'font-size', 'padding'].forEach((k) => expect(x.decls[k]).toBeUndefined());
+    });
+    rules.filter((x) => x.sels.some((s) => /\.is-coach-led\b.*\.sae-pick-replay$/.test(s))).forEach((x) => {
+      ['height', 'min-height', 'margin', 'margin-top', 'font-size'].forEach((k) => expect(x.decls[k]).toBeUndefined());
+    });
+  });
+  test('phone, coach-led: the room comes from the head row and the gaps (Jugnu ≥ 64 px), never from the cards', () => {
+    const j = rules.filter((x) => x.media && PHONE_ONLY.test(x.media) && x.sels.some((s) => /\.is-coach-led\b.*\.sae-jugnu-s$/.test(s)));
+    expect(j.length).toBeGreaterThan(0);
+    j.forEach((x) => expect(parseInt(x.decls.height, 10)).toBeGreaterThanOrEqual(64));
+    const g = rules.filter((x) => x.media && PHONE_ONLY.test(x.media) && x.sels.some((s) => /\.is-coach-led\b.*\.sae-body$/.test(s)));
+    expect(g.some((x) => parseInt(x.decls.gap, 10) >= 8)).toBe(true);
+  });
+});
+
 describe('sa-voice speak(text, audio, { clip_only })', () => {
   test('a clip that fails twice rejects; the phone voice is never used', async () => {
     const log = [];
@@ -427,7 +482,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     const ui = require('../sa/sa-ui');
     const b = battery(o);
     const events = [];
-    const r = c.createRunner({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual });
+    const r = c.createRunner(Object.assign({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual }, o.now ? { now: o.now } : {}));
     const pending = [];
     const speak = jest.fn((text, audio, vo) => {
       if (vo && vo.clip_only) {
@@ -826,6 +881,53 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       await wait(450);
       expect(m.r.view().item_index).toBe(1);
       expect(fold().open).toBe(false);
+    });
+  });
+  describe('round 28 A4: the coach-led screen is marked for its own fit (SPEC A.3, A.6)', () => {
+    test('coach-led: P1, P2 and the items carry .is-coach-led; RDF auto never does', () => {
+      const m = mount({ manual: true });
+      m.r.start(); m.r.instructionDone();
+      m.view.render();
+      const scr = () => m.el.querySelector('.sae-screen.sae-pick');
+      expect(scr().classList.contains('is-coach-led')).toBe(true); // P1
+      m.r.practiceModelled(); m.view.render();
+      expect(scr().classList.contains('is-coach-led')).toBe(true); // P2
+      m.r.practiceAnswer(m.r.view().practice.target);
+      m.r.begin(); m.view.render();
+      expect(scr().classList.contains('is-coach-led')).toBe(true); // item 1
+      const auto = mount({ practice: false });
+      toRunning(auto);
+      expect(auto.el.querySelector('.sae-screen.sae-pick')).not.toBeNull();
+      expect(auto.el.querySelector('.is-coach-led')).toBeNull();
+    });
+    test('coach-led: the coach\'s Next sits in the head row (its place held before it is offered), never at the foot; RDF auto keeps it at the foot', async () => {
+      const at = (m) => m.el.querySelector('.sa-next');
+      for (const manual of [true, false]) {
+        let clock = 1000;
+        const m = mount({ manual, practice: false, instant: true, now: () => clock });
+        toRunning(m);
+        await wait(30); // the item's clip ended: the item clock starts
+        m.view.render();
+        expect(at(m)).toBeNull();
+        if (manual) expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).not.toBeNull();
+        clock += 31000; // past Next in both modes (15 s coach-led, 30 s RDF auto); the auto replay already played
+        m.r.tick();
+        await wait(30);
+        clock += 31000;
+        m.view.render();
+        expect(m.r.view().offer_next).toBe(true);
+        expect(at(m)).not.toBeNull();
+        if (manual) {
+          expect(at(m).closest('.sae-pick-head')).not.toBeNull();
+          expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
+          expect(m.el.querySelector('.sae-foot')).toBeNull();
+          at(m).click();
+          expect(m.r.view().item_index).toBe(1);
+        } else {
+          expect(at(m).closest('.sae-foot')).not.toBeNull();
+          expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
+        }
+      }
     });
   });
 });
