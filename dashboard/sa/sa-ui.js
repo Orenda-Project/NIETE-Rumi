@@ -126,6 +126,7 @@
       replay: 'Hear again',
       replay_sound: 'Hear it again',
       replay_question: 'Hear the question again',
+      mcq_coach_line: 'Jugnu reads the question. Do not tell the child the answer, do not repeat the question; just press Next.',
       next: 'Next',
       practice: 'Practice',
       right: 'That’s right!',
@@ -228,6 +229,7 @@
       replay: 'دوبارہ سنیں',
       replay_sound: 'دوبارہ سنیں',
       replay_question: 'سوال دوبارہ سنیں',
+      mcq_coach_line: 'جگنو سوال خود پڑھے گا۔ بچے کو جواب نہ بتائیں، سوال دوبارہ نہ پوچھیں، صرف \'آگے\' دبائیں۔',
       next: 'آگے',
       practice: 'مشق',
       right: 'بالکل ٹھیک!',
@@ -2528,6 +2530,11 @@
       readOut(it, v.task, { replay: true, child: true });
     }
     /** Coach-led: what Jugnu reads, folded (the coach never reads it out; the key is not marked). */
+    /** SPEC B-14 (extended), coach-led only: the coach's own line above the fold. Text only: never spoken, no clip. */
+    function mcqCoachLine() {
+      if (!manual) return null;
+      return h('p', { class: 'sae-coach-says is-coach sae-mcq-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.mcq_coach_line });
+    }
     function mcqCoach(it, t) {
       if (!manual) return null;
       var tl = taskLang(t), d = dirOf(t);
@@ -2573,6 +2580,7 @@
       var s = screen(v, 'sae-run sae-mcq' + (practice ? ' sae-mcq-practice' : '') + (S.phase === 'listening' && !fb ? ' sae-mcq-listening' : ''), [
         t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row sae-mcq-head' }, [j, practice ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, practice ? skipInstrBtn(v) : null]),
+        mcqCoachLine(),
         mcqCoach(it, t),
         practice && it.passage ? h('p', { class: 'sae-mcq-passage', lang: tl, dir: d, text: tx(it.passage) }) : null,
         h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
