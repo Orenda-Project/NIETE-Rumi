@@ -138,8 +138,9 @@ function createSaGameRouter(opts = {}) {
     return res.status(200).type('html').send(renderGamePage({ token, kid, lang: b.lang, form: b.form, grade: b.grade }));
   });
 
-  router.use(['/sa-game/a', '/sa-game/b'], on.warm());
-  router.get('/sa-game/a/:file', (req, res, next) => {
+  // one warm-up for both file routes, on the routes themselves: an edge router holds routes only (tests/setup/edge-mounts)
+  const warm = on.warm();
+  router.get('/sa-game/a/:file', warm, (req, res, next) => {
     const type = Object.prototype.hasOwnProperty.call(FILES, req.params.file) ? FILES[req.params.file] : null;
     if (!type || !on()) return next();
     res.set({ 'Content-Type': type, 'Cache-Control': req.query.v ? 'public, max-age=31536000, immutable' : 'no-cache' });
@@ -166,7 +167,7 @@ function createSaGameRouter(opts = {}) {
   router.post('/api/sa-game/s/:audio(audio)/:op', json, sink);
   router.get('/api/sa-game/s/status', sink);
 
-  router.get('/sa-game/b/:form/:lang', (req, res, next) => {
+  router.get('/sa-game/b/:form/:lang', warm, (req, res, next) => {
     const { form, lang } = req.params;
     if (!FORM_RX.test(form) || (lang !== 'en' && lang !== 'ur') || !on()) return next();
     res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
