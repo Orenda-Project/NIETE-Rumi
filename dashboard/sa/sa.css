@@ -635,6 +635,8 @@ button{font:inherit;color:inherit}
 .sae-mcq-opt:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
 .sae-mcq.sae-mcq-listening .sae-mcq-opt{opacity:.55;border-color:transparent;box-shadow:none}
 .sae-mcq-coach{width:100%;text-align:start}
+.sae-mcq-coach-line{width:100%;margin:0;padding:4px 10px;font-size:14px;line-height:1.4;text-align:start}
+.sae-mcq-coach-line[lang=ur]{font-family:var(--sae-fu);font-size:14px;line-height:1.9}
 .sae-mcq-coach-opts{margin:4px 0 0;padding-inline-start:22px}
 @media (min-width:700px){
   .sae-mcq-q{font-size:26px}
