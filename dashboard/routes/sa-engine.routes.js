@@ -67,7 +67,7 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 20 (silent letter/word parts: N in a row end the subject): one row, three readers (MATCH); End this section in RDF auto
   'r20SilenceStop1', 'r20SilenceStop2', 'r20SilenceStop3', 'r20AutoEndSection',
   // round 28 (the 17 Nov evaluation meeting): the listen-and-tap letter sounds, the spoken MCQ, the ceiling extension
-  'r28LetterPick', 'r28Mcq', 'r28Ceiling'];
+  'r28LetterPick', 'r28Mcq', 'r28Ceiling', 'r28StoryClock'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
