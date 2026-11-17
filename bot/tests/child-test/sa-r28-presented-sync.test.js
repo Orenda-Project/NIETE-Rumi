@@ -4,9 +4,8 @@
  * reads from the served battery. Its two steps, re-done here in a few lines (read only, nothing written):
  *   norm_items(task.items)            → [{ idx: position, item_id: item.id, show }]
  *   presented_of('timed', res, index) → [{ idx: index[cell.item_id] ?? cell.i, item_id, at_ms, ms, how }]
- * Over an extended battery (sa_r28_ceiling ON: base items, then ext items) every cell of a 30-cell run resolves by
- * its own id to a unique, strictly increasing idx; a second-pass id (the contract's `.c2.`) resolves to its own idx.
- * Synthetic battery.
+ * Over the battery served with sa_r28_ceiling ON (today's items, then ext_items, as the route serves them) every cell
+ * of a 30-cell run resolves by its own id to a unique, strictly increasing idx; no id appears twice. Synthetic battery.
  */
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -16,18 +15,25 @@ const presentedOf = (res, index) => (res.cells || []).map((c) => ({
 }));
 
 const LETTERS = Array.from({ length: 100 }, (_, k) => `L${k + 1}`);
-/** letter names as built with C: 5 base items then 95 ext items; optionally a second pass after them. */
-function battery({ second = 0 } = {}) {
-  const items = LETTERS.map((s, k) => ({ id: `ur.letter_names5.${pad(k + 1)}`, show: s, target: s, answer: s, src: `fixture:letters[${k}]`, ...(k >= 5 ? { ext: true } : {}) }));
-  for (let k = 0; k < second; k += 1) items.push({ id: `ur.letter_names5.c2.${pad(k + 1)}`, repeat_of: items[k].id, show: items[k].show, target: items[k].target, answer: items[k].answer, src: items[k].src, ext: true, cycle: 2 });
-  return { tasks: [{ id: 'ur.letter_names5', base_n: 5, present: 'one_at_a_time', items, grid: items.map((x) => x.show) }] };
+/** letter names as committed with C: today's 5 items, then 95 ext_items beside them. */
+function committed() {
+  const all = LETTERS.map((s, k) => ({ id: `ur.letter_names5.${pad(k + 1)}`, show: s, target: s, answer: s, src: `fixture:letters[${k}]`, ...(k >= 5 ? { ext: true } : {}) }));
+  const items = all.slice(0, 5);
+  return { id: 'ur.letter_names5', present: 'one_at_a_time', items, grid: items.map((x) => x.show), base_n: 5, ext_items: all.slice(5), ext_stop: { type: 'first_row', n: 10 } };
+}
+/** As the route serves it: ON items + ext_items (grid rebuilt); OFF today's task, the extension keys stripped. */
+function served(on) {
+  const t = committed();
+  if (!on) return { id: t.id, present: t.present, items: t.items, grid: t.grid };
+  const items = t.items.concat(t.ext_items);
+  return { id: t.id, present: t.present, items, grid: items.map((x) => x.show) };
 }
 /** The phone's cells (sa-core closeCell): i, item_id from task.items[i], at_ms, ms, how. */
 const run = (task, n) => Array.from({ length: n }, (_, i) => ({ i, item_id: task.items[i].id, at_ms: i * 2000, ms: i === n - 1 ? 1000 : 2000, how: i === n - 1 ? 'time_up' : 'tap' }));
 
-describe('the grading sync over the extended battery', () => {
-  test('a 30-cell run: every cell resolves by id, idx unique and strictly increasing, the ext cells past the base', () => {
-    const t = battery().tasks[0];
+describe('the grading sync over the served battery', () => {
+  test('ON, a 30-cell run: every cell resolves by id, idx unique and strictly increasing, the ext cells past the base', () => {
+    const t = served(true);
     const index = new Map(normItems(t.items).map((x) => [x.item_id, x.idx]));
     const presented = presentedOf({ cells: run(t, 30) }, index);
     expect(presented).toHaveLength(30);
@@ -38,22 +44,19 @@ describe('the grading sync over the extended battery', () => {
     expect(presented[29]).toEqual({ idx: 29, item_id: 'ur.letter_names5.30', at_ms: 58000, ms: 1000, how: 'time_up' });
   });
 
-  test('a second-pass cell (the contract\'s .c2. id) resolves to its own idx, never the original\'s', () => {
-    const t = battery({ second: 5 }).tasks[0];
-    const index = new Map(normItems(t.items).map((x) => [x.item_id, x.idx]));
-    const cells = run(t, 102);
-    const presented = presentedOf({ cells }, index);
-    const c2 = presented.find((p) => p.item_id === 'ur.letter_names5.c2.01');
-    expect(c2.idx).toBe(100);
-    expect(presented.find((p) => p.item_id === 'ur.letter_names5.01').idx).toBe(0);
-    expect(new Set(presented.map((p) => p.idx)).size).toBe(102);
+  test('ON, the whole list: 100 ids, none twice, no second-pass id', () => {
+    const t = served(true);
+    const ids = normItems(t.items).map((x) => x.item_id);
+    expect(ids).toHaveLength(100);
+    expect(new Set(ids).size).toBe(100);
+    expect(ids.some((id) => /\.c2\./.test(id))).toBe(false);
+    expect(ids.slice(0, 5)).toEqual(committed().items.map((x) => x.id));
   });
 
-  test('the OFF battery (ext items stripped by the route): a run on it resolves as today', () => {
-    const t = battery().tasks[0];
-    const off = t.items.filter((x) => !x.ext);
-    const index = new Map(normItems(off).map((x) => [x.item_id, x.idx]));
-    const presented = presentedOf({ cells: run({ items: off }, 5) }, index);
-    expect(presented.map((p) => [p.idx, p.item_id])).toEqual(off.map((x, i) => [i, x.id]));
+  test('OFF: a run on today\'s 5 resolves as today', () => {
+    const t = served(false);
+    const index = new Map(normItems(t.items).map((x) => [x.item_id, x.idx]));
+    const presented = presentedOf({ cells: run(t, 5) }, index);
+    expect(presented.map((p) => [p.idx, p.item_id])).toEqual(t.items.map((x, i) => [i, x.id]));
   });
 });
