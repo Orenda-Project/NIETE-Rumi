@@ -1473,6 +1473,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then Jugnu reads the question and the four answers again, each card lit in turn
     And the replay button cannot be pressed while that reading runs
     And a card the child had chosen stays chosen
+    And the cards are never greyed out during the replay: a tap, even while the question is read again, is a choice that stands 600 ms after the reading ends
+    And only the first reading of a question keeps the cards grey and ignores taps
+    And neither Next nor the automatic replay comes during the replay: both wait their full time again from the end of the replay
 
   @e2e @wip @draft @config-gated @P1 @CT197 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.

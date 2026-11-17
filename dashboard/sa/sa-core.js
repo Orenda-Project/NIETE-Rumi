@@ -975,6 +975,17 @@
         st.item_started = now();
         st.answer_at = st.item_started;
       },
+      /**
+       * Round 28 (sa_r28_mcq, lead ruling: a replay resets both clocks): a replay of the read-out begins (the child's or
+       * the auto one). The auto replay, the Next and the answer window wait for its promptDone(), so both clocks count
+       * from the end of the last play, whoever started it. → true when it acted (the MCQ with the switch on only).
+       */
+      replayStart: function () {
+        var t = task();
+        if (st.phase !== 'running' || !mcqOn || !t || t.kind !== 'mcq') return false;
+        st.answer_at = null;
+        return true;
+      },
       /** "Next" on an untimed item the child cannot answer (offered after next_at_s): no response = wrong. */
       skip: function () {
         var t = task();

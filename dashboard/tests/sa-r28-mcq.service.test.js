@@ -659,6 +659,75 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(coach.el.textContent).toContain('a1');
   }, 20000);
 
+  // SPEC B.3 (lead ruling, round 28): after the first full read-out the cards never lock. Only the FIRST read of the
+  // question (before option 1 starts) keeps them grey; during a replay the highlight follows the reading, the held
+  // choice stays and can be changed, and a tap during the replay's question is a provisional choice like any other.
+  test('replay: a tap 1 s into the replayed question is recorded (held, stands 600 ms after the re-read); the cards are never grey', async () => {
+    setup();
+    const { el, voice, answers, events } = mountMcq();
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40); // the first full read-out, no choice
+    await wait(100);
+    el.querySelector('.sae-mcq-replay').click();
+    const stem = await voice.speakNext(2200, async () => { // 1.1 s into the replayed question
+      cards(el)[2].click();
+      expect(has(el, 'is-chosen')).toEqual([false, false, true, false]);
+      expect(el.querySelector('.sae-mcq').classList.contains('sae-mcq-listening')).toBe(false);
+      expect(has(el, 'is-waiting')).toEqual([false, false, false, false]);
+    });
+    expect(stem.audioObj).toBe('sa/v5/ur/syn_q1.mp3');
+    await wait(200); // the swallow after the question: a tap moves the choice
+    cards(el)[0].click();
+    expect(has(el, 'is-chosen')).toEqual([true, false, false, false]);
+    for (let k = 0; k < 4; k++) {
+      await voice.speakNext(40, async () => { expect(lit(el)).toEqual([k]); expect(has(el, 'is-chosen')[0]).toBe(true); });
+    }
+    expect(answers).toHaveLength(0); // the choice stands only after the re-read
+    await wait(750);
+    expect(answers).toHaveLength(1);
+    expect(answers[0].v).toBe(0);
+    expect(answers[0].meta.replays).toBe(1);
+    expect(answers[0].meta.changes).toBe(1);
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'child')).toHaveLength(1);
+  }, 20000);
+
+  test('the first read of the question still keeps the cards grey and ignores taps (only the first)', async () => {
+    setup();
+    const { el, voice } = mountMcq();
+    await wait(20);
+    await voice.speakNext(200, async () => {
+      expect(el.querySelector('.sae-mcq').classList.contains('sae-mcq-listening')).toBe(true);
+      cards(el)[1].click();
+      expect(has(el, 'is-chosen')).toEqual([false, false, false, false]);
+    });
+  }, 20000);
+
+  test('replay resets both clocks: no Next and no auto replay while the question is re-read; Next comes next_at_s after the re-read ends', async () => {
+    setup();
+    const c = clock();
+    const { el, voice, runner, events } = mountMcq({ runner: { now: c.now } });
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(30); // promptDone() at c = 0
+    await wait(100);
+    const nextMs = runner.view().task.next_at_s * 1000;
+    expect(nextMs).toBeGreaterThan(0);
+    c.add(nextMs - 6000);
+    expect(runner.view().offer_next).toBe(false);
+    el.querySelector('.sae-mcq-replay').click();
+    await voice.speakNext(200, async () => { // the replay runs past the first read-out's Next time
+      c.add(9000);
+      expect(runner.view().offer_next).toBe(false);
+      expect(runner.tick()).toBeNull();
+    });
+    for (let k = 0; k < 4; k++) await voice.speakNext(30); // the re-read ends: both clocks start again here
+    await wait(100);
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'auto')).toHaveLength(0);
+    c.add(nextMs - 1000);
+    expect(runner.view().offer_next).toBe(false);
+    c.add(1500);
+    expect(runner.view().offer_next).toBe(true);
+  }, 20000);
+
   test('OFF (no r28_mcq on the mount): the task draws as today\'s tap screen, no MCQ cards', async () => {
     setup();
     const core2 = require('../sa/sa-core');
@@ -801,5 +870,31 @@ describe('sa_r28_mcq: every story and MCQ result records its variant', () => {
     const b = rotate(Object.assign(rotating(), { ui: {} }), 'seed-1');
     const m = runMcq(b);
     expect(m).not.toHaveProperty('variant');
+  });
+});
+
+describe('sa_r28_mcq core: a replay pauses both clocks until its read-out ends (lead ruling: count from the end of the last play)', () => {
+  test('replayStart(): no Next, no auto replay, no answer while the re-read runs; the clocks restart at its promptDone()', () => {
+    const { r, c, events } = solo();
+    r.promptDone();
+    const nextMs = r.view().task.next_at_s * 1000;
+    c.add(nextMs - 6000);
+    expect(r.replayStart()).toBe(true);
+    c.add(9000);
+    expect(r.tick()).toBeNull();
+    expect(r.view().offer_next).toBe(false);
+    r.promptDone();
+    c.add(nextMs - 1000);
+    expect(r.view().offer_next).toBe(false);
+    c.add(1500);
+    expect(r.view().offer_next).toBe(true);
+    expect(events.filter((e) => e.type === 'replay' && e.value === 'auto')).toHaveLength(0);
+  });
+  test('OFF (no r28_mcq) or another task kind: replayStart() does nothing', () => {
+    const { r, c } = solo({}, { r28_mcq: false });
+    r.promptDone();
+    c.add(16000);
+    expect(r.replayStart()).toBe(false);
+    expect(r.view().offer_next).toBe(true);
   });
 });
