@@ -28,6 +28,7 @@ const mockStore = {
   markSkipped: jest.fn().mockResolvedValue(true),
   markFailed: jest.fn().mockResolvedValue(true),
   expireStuck: jest.fn().mockResolvedValue(0),
+  markStarted: jest.fn().mockResolvedValue(true),
   KINDS: { COACHING_AFTER_LP: 'coaching_after_lp', LP_QUIZ_OFFER: 'lp_quiz_offer' },
   STATUS: { PENDING: 'pending', SENDING: 'sending', SENT: 'sent', FAILED: 'failed', SKIPPED: 'skipped', EXPIRED: 'expired' },
   SKIP_REASONS: ['weekly_cap', 'window_closed', 'no_lesson'],
@@ -65,6 +66,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockStore.claimDue.mockResolvedValue([]);
   mockStore.expireStuck.mockResolvedValue(0);
+  mockStore.markStarted.mockResolvedValue(true);
   mockStore.markSent.mockResolvedValue(true);
   mockStore.markSkipped.mockResolvedValue(true);
   mockStore.markFailed.mockResolvedValue(true);
@@ -144,6 +146,40 @@ describe('runSweep — the tick', () => {
 
     expect(order).toEqual(['expire', 'claim']);
     expect(out.expired).toBe(3);
+  });
+
+  test('expireStuck is told which kinds this sweeper claims — only those may be requeued (bd-pw1ccr.41.1)', async () => {
+    const s = freshSweeper();
+    s.register('lp_quiz_offer', async () => ({ sent: true }));
+    await s.runSweep({ now: NOW });
+    expect(mockStore.expireStuck).toHaveBeenCalledWith(expect.objectContaining({ requeueKinds: ['lp_quiz_offer'] }));
+  });
+
+  // bd-pw1ccr.41.1: the stamp is what lets expireStuck tell "claimed, never tried" (safe to requeue) from
+  // "maybe sent" (failed). It must land before the handler can reach WhatsApp.
+  test('each claimed row is marked started BEFORE its handler runs', async () => {
+    const order = [];
+    mockStore.claimDue.mockResolvedValue([row('a')]);
+    mockStore.markStarted.mockImplementation(async (id) => { order.push(`start:${id}`); return true; });
+    const s = freshSweeper();
+    s.register('lp_quiz_offer', async (r) => { order.push(`send:${r.id}`); return { sent: true }; });
+    await s.runSweep({ now: NOW });
+    expect(order).toEqual(['start:a', 'send:a']);
+  });
+
+  // false = the row is no longer ours in `sending` (another replica's expireStuck handed it back) or the write
+  // failed. Sending then risks a second copy; not sending leaves it unstamped, so it is requeued once and retried.
+  test('a failed start stamp stops the send — counted deferred, logged at error level', async () => {
+    mockStore.claimDue.mockResolvedValue([row('a')]);
+    mockStore.markStarted.mockResolvedValue(false);
+    const handler = jest.fn(async () => ({ sent: true }));
+    const s = freshSweeper();
+    s.register('lp_quiz_offer', handler);
+    const out = await s.runSweep({ now: NOW });
+    expect(handler).not.toHaveBeenCalled();
+    expect(mockStore.markSent).not.toHaveBeenCalled();
+    expect(out).toEqual(expect.objectContaining({ sent: 0, deferred: 1 }));
+    expect(mockLog.mock.calls.some((c) => c[2] === 'error' && /start/i.test(c[0]))).toBe(true);
   });
 
   test('prepare({now}) runs BEFORE claimDue for its kind — the cohort exists before it is claimed', async () => {
