@@ -22,6 +22,10 @@ const GRADES = [1, 2, 3, 4, 5] as const;
 export function secondVoiceCount(students: DashStudent[]): number {
   return (students || []).filter((s) => s.results.tasks.some((t) => t.secondVoice === true)).length;
 }
+/** Round 28: sessions whose voice row carries the check's KIND (help / other_child), i.e. scored with the round-28 check. */
+export function secondVoiceKindCount(students: DashStudent[]): number {
+  return (students || []).filter((s) => s.results.tasks.some((t) => t.secondVoiceKind === 'help' || t.secondVoiceKind === 'other_child')).length;
+}
 
 /** Round 28 (picker): a task's taps before the prompt's sound, summed over the cohort; null when no session carries it. */
 export function tapBeforeSoundOf(students: DashStudent[], taskId: string): { n: number; of: number } | null {

@@ -213,7 +213,9 @@ const en = {
       : `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n}.`),
     tapBefore: "Taps before the sound",
     // round 28 (voice check): what the other voice was
-    voiceKinds: { help: "An adult said an answer", other_child: "Another child was reading too" } as Record<string, string>,
+    voiceKinds: { help: "An adult helped with the answer", other_child: "Another child was reading too" } as Record<string, string>,
+    // the one footnote under the voice row (what the check does not yet catch)
+    voiceNote: "A second child reading along is not yet caught.",
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "CWPM (correct words per minute)",
     cwpmHow: "CWPM, correct words per minute (familiar words and the passage) = correct words × 60 ÷ the seconds the child read (60 at most).",
@@ -436,7 +438,8 @@ const ur: Copy = {
       ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
       : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),
     tapBefore: "آواز سے پہلے ٹیپ",
-    voiceKinds: { help: "ایک بڑے نے جواب بتایا", other_child: "ایک اور بچہ بھی پڑھ رہا تھا" },
+    voiceKinds: { help: "کسی بڑے نے جواب میں مدد کی", other_child: "ایک اور بچہ بھی پڑھ رہا تھا" },
+    voiceNote: "ساتھ پڑھنے والا دوسرا بچہ ابھی پکڑا نہیں جاتا۔",
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "⁨CWPM⁩ (فی منٹ درست الفاظ)",
     cwpmHow: "⁨CWPM⁩، فی منٹ درست الفاظ (جانے پہچانے الفاظ اور عبارت) = درست الفاظ × ⁦۶۰⁩ ÷ بچے کے پڑھنے کے سیکنڈ (زیادہ سے زیادہ ⁦۶۰⁩)۔",

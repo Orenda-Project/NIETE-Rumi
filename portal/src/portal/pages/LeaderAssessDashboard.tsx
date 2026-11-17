@@ -7,7 +7,7 @@ import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY, DASH_CWPM } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
-import { masked, NO_SECTOR, pktWhen, secondVoiceCount, tapBeforeSoundOf, toDashStudents, withPractice } from '../lib/assess/realCohort';
+import { masked, NO_SECTOR, pktWhen, secondVoiceCount, secondVoiceKindCount, tapBeforeSoundOf, toDashStudents, withPractice } from '../lib/assess/realCohort';
 import { fmtFloor, tapFloors, TAP_CARE_ABOVE } from '../lib/assess/guessFloor';
 import type { SaDashboardSession } from '../types/childTestSa';
 import { applyFilter, cohortTapOf, groupBy, headline, ORF_BANDS, summariseTask, type ComprehensionByForm, type Filter } from '../lib/assess/cohortStats';
@@ -114,6 +114,8 @@ export default function LeaderAssessDashboard() {
   const h = useMemo(() => headline(rows), [rows]);
   const groups = useMemo(() => groupBy(rows, filter.sector ? 'school' : 'sector'), [rows, filter.sector]);
   const voices = useMemo(() => (isLive ? secondVoiceCount(rows) : 0), [isLive, rows]);
+  // round 28: the footnote rides only rows the round-28 check scored (the kind is set), never today's boolean flag
+  const voiceKinds = useMemo(() => (isLive ? secondVoiceKindCount(rows) : 0), [isLive, rows]);
   // round 20 (server switch sa_r20_level): a Level column per subject, only when the sessions carry level lines
   const levelSubjects = useMemo(() => (isLive && hasLevels(cohort.map((s) => s.results)) ? subjectsIn(cohort.map((s) => s.results)) : []), [isLive, cohort]);
   const levelWords = COPY[lang].results.level.words;
@@ -463,7 +465,7 @@ export default function LeaderAssessDashboard() {
           ? <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(cohort.length))}</p>
           : <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>}
         {isLive ? practiceToggle : null}
-        {voices > 0 && <p data-testid="dash-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.secondVoice(count(voices), count(rows.length))}</p>}
+        {voices > 0 && <p data-testid="dash-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.secondVoice(count(voices), count(rows.length))}{voiceKinds > 0 && <span data-testid="dash-voice-note" className="mt-1 block text-xs">{c.voiceNote}</span>}</p>}
 
         <section aria-label={c.filters} className="space-y-2">
           <div className="flex flex-wrap gap-2">

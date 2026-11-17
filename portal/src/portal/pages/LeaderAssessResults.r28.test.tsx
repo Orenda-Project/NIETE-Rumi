@@ -84,22 +84,27 @@ describe("LeaderAssessResults: round 28", () => {
 
 describe("LeaderAssessResults: round 28 voice kind", () => {
   const story = { taskId: "ur.story_w3", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "time_up", recording: "scored", score: { correct: 20 }, secondVoice: true };
-  it("help: 'An adult said an answer'; other_child: 'Another child was reading too'", async () => {
+  it("help: 'An adult helped with the answer' with the footnote; other_child: 'Another child was reading too' with the footnote", async () => {
     api.getResults.mockResolvedValue(RESULTS([{ ...story, secondVoiceKind: "help" }]));
     const { unmount } = renderAt();
     let card = await screen.findByTestId("result-task-ur.story_w3");
-    expect(within(card).getByText("An adult said an answer")).toBeTruthy();
+    expect(within(card).getByText("An adult helped with the answer")).toBeTruthy();
+    expect(within(card).queryByText("An adult said an answer")).toBeNull();
+    expect(within(card).getByTestId("result-voice-note")).toHaveTextContent("A second child reading along is not yet caught.");
     unmount();
     api.getResults.mockResolvedValue(RESULTS([{ ...story, secondVoiceKind: "other_child" }]));
     renderAt();
     card = await screen.findByTestId("result-task-ur.story_w3");
     expect(within(card).getByText("Another child was reading too")).toBeTruthy();
+    expect(within(card).getByTestId("result-voice-note")).toHaveTextContent("A second child reading along is not yet caught.");
   });
-  it("Urdu copy for both kinds", async () => {
+  it("Urdu copy for both kinds, with the footnote", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     api.getResults.mockResolvedValue(RESULTS([{ ...story, secondVoiceKind: "help" }, { ...story, taskId: "en.story_w3", secondVoiceKind: "other_child" }]));
     renderAt();
-    expect(within(await screen.findByTestId("result-task-ur.story_w3")).getByText("ایک بڑے نے جواب بتایا")).toBeTruthy();
+    const ur = await screen.findByTestId("result-task-ur.story_w3");
+    expect(within(ur).getByText("کسی بڑے نے جواب میں مدد کی")).toBeTruthy();
+    expect(within(ur).getByTestId("result-voice-note")).toHaveTextContent("ساتھ پڑھنے والا دوسرا بچہ ابھی پکڑا نہیں جاتا۔");
     expect(within(screen.getByTestId("result-task-en.story_w3")).getByText("ایک اور بچہ بھی پڑھ رہا تھا")).toBeTruthy();
   });
   it("no kind: today's copy; other_voice: no voice line", async () => {
@@ -110,6 +115,7 @@ describe("LeaderAssessResults: round 28 voice kind", () => {
     const other = screen.getByTestId("result-task-en.story_w3");
     expect(within(other).queryByText("Yes: listen before relying on this score")).toBeNull();
     expect(Array.from(other.querySelectorAll("dt")).map((d) => d.textContent)).not.toContain("Another voice heard");
+    expect(screen.queryByTestId("result-voice-note")).toBeNull();
   });
 });
 

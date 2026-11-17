@@ -202,3 +202,22 @@ describe("LeaderAssessDashboard: the floor at the cohort's modal count", () => {
     expect(within(card).getByTestId("dash-floor-fewer").textContent).toBe("⁦۱⁩ بچے نے کم آئٹمز سنے");
   });
 });
+
+describe("round 28: the voice banner's footnote", () => {
+  it("a cohort with a round-28 voice kind shows 'A second child reading along is not yet caught.'; today's boolean flag alone shows no footnote", async () => {
+    const kind = Array.from({ length: 6 }, () => row(today()));
+    kind[0].results.tasks[1] = { ...kind[0].results.tasks[1], secondVoice: true, secondVoiceKind: "help" } as any;
+    api.getSessions.mockResolvedValue({ sessions: kind });
+    const { unmount } = renderPage();
+    const banner = await screen.findByTestId("dash-second-voice");
+    expect(banner).toHaveTextContent(/1 of 6 sessions/);
+    expect(within(banner).getByTestId("dash-voice-note")).toHaveTextContent("A second child reading along is not yet caught.");
+    unmount();
+    const plain = Array.from({ length: 6 }, () => row(today()));
+    plain[0].results.tasks[1] = { ...plain[0].results.tasks[1], secondVoice: true } as any;
+    api.getSessions.mockResolvedValue({ sessions: plain });
+    renderPage();
+    const banner2 = await screen.findByTestId("dash-second-voice");
+    expect(within(banner2).queryByTestId("dash-voice-note")).toBeNull();
+  });
+});
