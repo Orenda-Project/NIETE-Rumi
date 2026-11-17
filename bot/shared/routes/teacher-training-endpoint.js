@@ -1195,6 +1195,10 @@ async function settleCertificates(userId, facts) {
     const res = await maybeIssueQuizScoreCertificate(supabase, {
       userId, levelId: lv.id, programId: programOf(lv), attemptId: null, moduleId: null,
     });
+    // A screen loading at the same moment may have issued it a few ms earlier
+    // (the guard says already_issued): she holds it, so the level reads
+    // certified here too instead of offering the exam again.
+    if (res && res.already_issued) certifiedLevelIds.add(lv.id);
     if (res && res.issued) {
       certifiedLevelIds.add(lv.id);
       let tk = null;
