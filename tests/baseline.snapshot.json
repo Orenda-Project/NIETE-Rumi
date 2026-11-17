@@ -48,18 +48,6 @@
     ],
     "offenders": []
   },
-  "tests/lp-v8/catalog-splits.test.js": {
-    "failing": [
-      "the committed catalog carries both parts of every split, within the row caps",
-      "the committed catalog data/lp_splits.json lists exactly the eleven splits"
-    ],
-    "offenders": [
-      "id",
-      "pages",
-      "parts",
-      "topic"
-    ]
-  },
   "tests/observe/bd-5n1a2-resolve-teacher-empty-school.test.js": {
     "failing": [
       "resolveTeacher survives bad school values (bd-5n1a2) school_ext_id '' → treated as no filter, teacher binds",
