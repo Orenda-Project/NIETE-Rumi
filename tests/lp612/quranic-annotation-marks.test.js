@@ -23,12 +23,14 @@ const path = require('path');
  */
 
 // The root suite maps `playwright-core` to a stub (tests/jest.config.js), so the REAL package is
-// required by path. CI installs bot/ deps after the root suite and has no browser: the browser
-// layer skips there, and the cmap layer above it is the guard that always runs.
+// required by path. CI installs bot/ deps but downloads no browser (Playwright has no build for its
+// ubuntu): the browser layer skips there, and the cmap layer above it is the guard that always runs.
+// The package alone is not a browser, so the skip checks the executable too (bd-nij2nd).
 let chromium = null;
 try {
   chromium = require(path.join(__dirname, '..', '..', 'bot', 'node_modules', 'playwright-core')).chromium;
-} catch (_) { /* no browser */ }
+  if (!fs.existsSync(chromium.executablePath())) chromium = null;
+} catch (_) { chromium = null; /* no browser */ }
 
 const VENDOR = path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9');
 const { buildHtml } = require(path.join(VENDOR, 'lib', 'template'));

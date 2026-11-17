@@ -1,7 +1,7 @@
 {
-  "tests/coaching/fico-framework-ict.test.js": {
+  "tests/books/catalog-shelf.test.js": {
     "failing": [
-      "All 4 dispatch touchpoints wire fico (bd-2039 audit) renderer-registry: fico → hero renderer (not the pdfkit fallback)"
+      "the real catalog an ICT teacher's menus are byte-identical to origin/sandbox 49416a018"
     ],
     "offenders": []
   },
@@ -24,10 +24,34 @@
     ],
     "offenders": []
   },
+  "tests/language/language-ratchet.test.js": {
+    "failing": [
+      "language ratchet (bd-3lhh9.2) no bot/shared file carries more language debt than the snapshot, and no string is over its cap"
+    ],
+    "offenders": []
+  },
+  "tests/lp-v8/catalog-splits.test.js": {
+    "failing": [
+      "the committed catalog carries both parts of every split, within the row caps",
+      "the committed catalog data/lp_splits.json lists exactly the eleven splits"
+    ],
+    "offenders": [
+      "id",
+      "pages",
+      "parts",
+      "topic"
+    ]
+  },
   "tests/observe/bd-5n1a2-resolve-teacher-empty-school.test.js": {
     "failing": [
       "resolveTeacher survives bad school values (bd-5n1a2) school_ext_id '' → treated as no filter, teacher binds",
       "resolveTeacher survives bad school values (bd-5n1a2) wrong school value → unfiltered retry still binds"
+    ],
+    "offenders": []
+  },
+  "tests/portal/bd-5gyspy.9-10-db-client-timeouts.test.js": {
+    "failing": [
+      "bd-5gyspy.9: the DB-context budget follows the route budget a coaching-session reflection still waiting at 31 s gets no 504 from the DB context"
     ],
     "offenders": []
   },
@@ -37,18 +61,149 @@
     ],
     "offenders": []
   },
+  "tests/setup/added-lines-hygiene.test.js": {
+    "failing": [
+      "this tree no file above its entry, no new file, no new token (below or gone: a warning; tracker ids: NOTE lines, one per file)"
+    ],
+    "offenders": [
+      "[withheld 0f30569af728]",
+      "[withheld e5eaad2377b4]",
+      "[withheld 83c725000c27]",
+      "[withheld 9722c4497180]",
+      "[withheld f2a61670aea4]",
+      "[withheld 413f0254b745]",
+      "[withheld c2b249a6061e]",
+      "[withheld 140fcfa3d1dd]",
+      "[withheld e03612e8f41d]",
+      "[withheld 07c3ab804a43]",
+      "[withheld bfa184af67c4]",
+      "[withheld 7a15861d388f]",
+      "[withheld 2a9527bf0084]",
+      "[withheld 9d1d7ba6173a]",
+      "[withheld 564b5ace2bab]",
+      "[withheld c156d64fb4f9]",
+      "[withheld 773383ea7d61]",
+      "[withheld 3d4456859066]",
+      "[withheld 1d06a1460942]",
+      "[withheld 5c5457d3b6bf]",
+      "[withheld b15a2ff033c5]",
+      "[withheld 0ced2c551e04]",
+      "[withheld c885daf98441]",
+      "[withheld 8cffb78ddb39]",
+      "[withheld 7f81a9aba4aa]",
+      "[withheld c36b1ed1b783]",
+      "[withheld 03c213456820]",
+      "[withheld 50f8511a0eb1]",
+      "[withheld c951c8b75d9f]",
+      "[withheld a5be97274a4f]",
+      "[withheld 3479ff367ac8]",
+      "[withheld f26d30906733]",
+      "[withheld c20c89558249]",
+      "[withheld 762a87da7ca6]",
+      "[withheld b4a927dda337]",
+      "[withheld c0d7d65fd064]",
+      "[withheld 2adc5f6b20d6]",
+      "[withheld 4ba6e3557b89]",
+      "[withheld 870d129bbb8e]",
+      "[withheld cf48f6954c98]",
+      "[withheld 328d0f45cd81]",
+      "[withheld 0fed0999176d]",
+      "[withheld 08525160a9db]",
+      "[withheld ac80daaab0e7]",
+      "[withheld 0b71ff7ec925]",
+      "[withheld b3df27147dce]",
+      "[withheld 0a64cbd9c69d]",
+      "[withheld 62d4cb398918]",
+      "[withheld bd937b257591]",
+      "[withheld 562cb5170c53]",
+      "[withheld c9aefa42015a]",
+      "[withheld ee4893061f3b]",
+      "[withheld 31b887343a92]",
+      "[withheld 93fc60d06fa7]",
+      "[withheld 709801a7fc3b]",
+      "[withheld 6e258c2f9467]",
+      "[withheld 08bcc6fbdcf1]",
+      "[withheld c789ba5de8a3]",
+      "[withheld 9afb6122d4d5]",
+      "[withheld 53fc219590e2]",
+      "[withheld 8ddebb7e2a65]",
+      "[withheld d0240de89f9a]",
+      "[withheld 9b0a43db694e]",
+      "[withheld 1cd06e8808c4]",
+      "[withheld a2924d32dfd3]",
+      "[withheld 5236bb5ed3e5]",
+      "[withheld f5a72dbf87dd]",
+      "[withheld 4248f7c589fa]",
+      "[withheld 5a3c46d5e733]",
+      "[withheld 93f00bbb9e15]",
+      "[withheld c4fc0e84e310]",
+      "[withheld ce392cd30bf5]",
+      "[withheld 6f5ce45206f8]",
+      "[withheld 782355e7ce24]",
+      "[withheld ba1325220c82]",
+      "[withheld 44791ad05345]",
+      "[withheld 12b07a464b43]",
+      "[withheld 0d4c74e37248]",
+      "[withheld 51a25d0e2f7f]",
+      "[withheld 77631b60d499]",
+      "[withheld 7da2460a7bfd]",
+      "[withheld 3ddfe81332d7]",
+      "[withheld 68ac65be6aaa]",
+      "[withheld 690cbb746218]",
+      "[withheld 2f50bc2b0ff5]",
+      "[withheld 99ee2b7767bb]",
+      "[withheld f27a6280a4b9]",
+      "[withheld 7189ada2672f]",
+      "[withheld 7231b6fadac4]",
+      "[withheld 7b3153c4d340]",
+      "[withheld 453203977e73]",
+      "[withheld 1e93fcb668c8]",
+      "[withheld a01852052de9]",
+      "[withheld d3349f183a73]",
+      "[withheld 2c3d856fd592]",
+      "[withheld 39f589c1c51f]",
+      "[withheld 751bb7262b05]",
+      "[withheld a347bc6d9731]",
+      "[withheld ab39236cd795]",
+      "[withheld 214bad9031f5]",
+      "[withheld 1ee70ddaa663]",
+      "[withheld 489785455182]",
+      "[withheld a52f967914a3]"
+    ]
+  },
   "tests/setup/circular-deps.test.js": {
     "failing": [
+      "Circular-dependency audit every allowlist entry is still actually a live cycle",
       "Circular-dependency audit no circular requires (or every cycle is allowlisted with a reason)"
     ],
     "offenders": [
+      "bot/shared/services/assessment/assessment-paper.renderer.js",
+      "bot/shared/services/assessment/topic-key.renderer.js",
+      "bot/shared/services/coaching/video-reco/clip-button.js",
+      "bot/shared/services/coaching/video-reco/strip.js",
+      "bot/shared/services/gb-lp-serving.service.js",
+      "bot/shared/services/lp612-feedback-taps.service.js",
+      "bot/shared/services/lp612-feedback.service.js",
+      "bot/shared/services/lp612-serving.service.js",
       "bot/shared/services/observe/observe-coach-card.js",
       "bot/shared/services/observe/observe-coach-feedback.js",
-      "bot/shared/services/quiz/transcript-quiz-generate.service.js",
-      "bot/shared/services/quiz/transcript-quiz-handoff.service.js",
+      "bot/shared/services/observe/observe2/moments.js",
+      "bot/shared/services/observe/observe2/shadow-v6.js",
       "bot/shared/services/quiz/video-quiz-invite.service.js",
       "bot/shared/services/quiz/video-quiz-share.service.js",
-      "bot/shared/services/quiz/video-quiz.service.js"
+      "bot/shared/services/quiz/video-quiz.service.js",
+      "bot/shared/services/quiz/web-quiz-card-a.js",
+      "bot/shared/services/quiz/web-quiz-card-image.js",
+      "bot/shared/services/quiz/web-quiz-card.js",
+      "bot/shared/services/quiz/web-quiz-card.js ↔ bot/shared/services/quiz/web-quiz-challenge.js ↔ bot/shared/services/quiz/web-quiz.service.js",
+      "bot/shared/services/quiz/web-quiz-challenge.js",
+      "bot/shared/services/quiz/web-quiz-class-pic.js",
+      "bot/shared/services/quiz/web-quiz-fast.js",
+      "bot/shared/services/quiz/web-quiz-hub-flags.js",
+      "bot/shared/services/quiz/web-quiz-one-hop.js",
+      "bot/shared/services/quiz/web-quiz-quiz-lang.js",
+      "bot/shared/services/quiz/web-quiz-videos.js",
+      "bot/shared/services/quiz/web-quiz.service.js"
     ]
   },
   "tests/setup/column-completeness.test.js": {
@@ -56,6 +211,7 @@
       "Column Completeness every column the bot code writes/reads exists in the schema (or is allowlisted)"
     ],
     "offenders": [
+      "child_test_blocks.error",
       "coaching_sessions.error",
       "coaching_sessions.name",
       "curriculum_lp_ast.ignoreduplicates",
@@ -71,6 +227,8 @@
       "quiz_sessions.student_name",
       "quiz_sessions.user_id",
       "quizzes.video_id",
+      "schools.block",
+      "schools.session_id",
       "student_video_feedback.delivery_id",
       "student_video_feedback.quiz_session_id",
       "student_video_feedback.quiz_useful",
@@ -79,43 +237,110 @@
       "student_videos.migration_status",
       "student_videos.r2_url",
       "student_videos.superseded_by",
+      "students.algo_version",
+      "students.class_id",
+      "students.cycle_id",
+      "students.draw_rank",
       "students.enrolled_by_user_id",
+      "students.form",
+      "students.frame_size",
+      "students.history",
       "students.phone",
+      "students.region",
+      "students.sample_role",
+      "students.seed_digest",
+      "students.student_id",
+      "students.tested_at",
+      "students.visit_key",
       "teacher_attendance_records.onconflict",
       "textbook_toc.curriculum_key",
-      "training_questions.option_images",
-      "training_vendors.capstone_points_per_question",
       "training_vendors.level_unlock_logic",
       "training_vendors.module_unlock_logic",
       "user_feature_first_use.onconflict",
+      "users.ab_group",
+      "users.academic_year",
+      "users.action",
+      "users.answers",
+      "users.class_id",
+      "users.class_name",
+      "users.created",
+      "users.from",
+      "users.nudge_date",
       "users.ok",
+      "users.person",
       "users.reason",
-      "users.schoolextid",
+      "users.saved",
+      "users.sealed_at",
+      "users.shellid",
+      "users.spec",
+      "users.to",
+      "users.true",
       "users.user_id",
       "users.userid"
     ]
+  },
+  "tests/setup/copy-deck-urdu-joiners.test.js": {
+    "failing": [
+      "the scripts no script gains a «واٹس ایپ» without U+00A0"
+    ],
+    "offenders": [
+      "UP: bot/shared/config/ux-strings.js has 7 «واٹس ایپ» without U+00A0, copy-whatsapp-joiner-files.allowlist.json allows 5."
+    ]
+  },
+  "tests/setup/edge-mounts.test.js": {
+    "failing": [
+      "dashboard edge mounts each router holds routes only (no middleware for every path), and no two share a path prefix"
+    ],
+    "offenders": []
   },
   "tests/setup/env-template-completeness.test.js": {
     "failing": [
       ".env.template completeness every env var used in bot/ code should be documented in .env.template (or explicitly allowed)"
     ],
     "offenders": [
+      "ALLOW_LIVE_SERVICES_IN_TESTS",
+      "ALLOW_MISSING_CANVAS",
+      "APP_SETTINGS_FLAG_TTL_MS",
+      "ASSESSMENT_REVIEW_MODEL",
+      "CHILD_TEST_SA_CLIP_WAIT_S",
+      "CHILD_TEST_SA_LINK_ONE_PHONE",
+      "CHILD_TEST_SA_MIN_SPEECH_S",
+      "CHILD_TEST_SA_SCORER",
+      "CHILD_TEST_SA_SCORER_SINCE_H",
+      "CHILD_TEST_SA_SCORE_LATER",
+      "CHILD_TEST_SA_SECOND_VOICE",
+      "CHILD_TEST_SA_SPEECH_GATE",
       "CLASS_CARD_ENABLED",
       "DISPLAY_TIMEZONE",
+      "DOTENV_CONFIG_PATH",
       "E2E_CASSETTE_MISS_DUMP",
+      "E2E_CASSETTE_TRACE_LOG",
       "ELEVENLABS_FALLBACK_API_KEY",
       "ELEVENLABS_VOICE_ID_UR",
+      "FIRST_REPLY_ENGLISH_EVIDENCE",
       "FLOW_ENDPOINT_BASE",
       "GOOGLE_SERVICE_ACCOUNT_JSON",
       "HCP_FEEDBACK_MODEL",
+      "INK_DEBUG",
       "LANGUAGE_AUDIO_AUTOFLIP",
       "LLM_FALLBACK_OFF",
+      "LOCAL_DB_TIMING_LOG",
       "LP612_CHECKPOINT_OFF",
       "LP612_DRAIN_TIMEOUT_MS",
       "LP612_WIDE_SEGMENTS",
       "LP_CONTEXT_V2_ENABLED",
       "LP_EXTRACTION_VISION_MODEL",
+      "LP_GB_AUTHOR_ENABLED",
+      "LP_GB_STRANDED_MS",
+      "LP_GB_TEMPLATE_VERSION",
+      "LP_GB_V10_CARD_DEADLINE_MS",
+      "LP_GB_V10_CARD_ENABLED",
+      "MENU_KEYWORD_ROUTING",
+      "NEW_VENDOR_ENDPOINT",
       "NIETE_ENV_PATH",
+      "OBS612_LESSON_FLOW_ID",
+      "OBSERVE2_CHECK_V6_FLOW_ID",
+      "OBSERVE_FICO17_V6_FLOW_ID",
       "OBSERVE_FICO_FLOW_HAS_FIDELITY",
       "OBSERVE_FRAMEWORK",
       "OBSERVE_MEWAKA_FLOW_ID",
@@ -124,23 +349,37 @@
       "OBSERVE_REPORT_TEMPLATE_LANG",
       "OBSERVE_REVIEW_MODE",
       "OBSERVE_REVIEW_NUMBER",
+      "OBSERVE_RUBRIC",
       "OBSERVE_SCHEDULING_UI",
       "OBSERVE_STAGE_SCREENS",
       "OBSERVE_VISIT_FLOW_ID",
+      "PGHOST",
       "PHOTO_GATE_SWEEP_MAX_AGE_DAYS",
       "PHOTO_GATE_SWEEP_MAX_PER_TICK",
+      "PROBE_DEPTH",
+      "PROBE_EMB",
+      "PROBE_OUT",
+      "PROBE_TABLE",
+      "PROBE_W3",
+      "PROBE_WRAP",
+      "PUBLIC_SITE_BASE_URL",
+      "RECORD_OFF_GOLDEN",
       "REFERRAL_BOT_NUMBER",
       "REGION",
       "REGION_TIME_ZONE",
+      "REGISTRATION_AFTER_PLAN",
       "REMARK_RETRY_BATCH",
       "SONIOX_BACKUP_MODEL",
       "SONIOX_PRIMARY_MODEL",
       "TEST_PHONE",
       "TEST_TOPIC",
+      "TRANSCRIPT_QUIZ_OFFER_DELAY_SECS",
       "VIDEO_QUIZ_FLOW_ID",
+      "VIDEO_RECO_REPORT_VIA",
       "WHATSAPP_API_VERSION",
       "WHATSAPP_BOT_NUMBER",
-      "WORKER_QUEUES"
+      "WORKER_QUEUES",
+      "WRITE_STORIES_CSP_GOLDEN"
     ]
   },
   "tests/setup/flow-config-conformance.test.js": {
@@ -149,18 +388,25 @@
       "flow-config conformance every Flow JSON on disk is registered (or explicitly allowlisted as an orphan)"
     ],
     "offenders": [
+      "OBSERVE_FICO17_V6_FLOW_ID",
       "OBSERVE_MEWAKA_FLOW_ID",
       "OBSERVE_VISIT_FLOW_ID",
       "REMARK_FLOW_ID",
-      "STUDENT_JOIN_FLOW_ID",
       "STUDENT_QUIZ_FLOW_ID",
       "TEACHER_TRAINING_FLOW_ID",
       "VIDEO_QUIZ_FLOW_ID",
       "observe-visit-v2.json",
       "remark-flow.json",
-      "student-join-flow.json",
       "student-quiz-flow.json",
       "teacher-training-flow-v1.json"
+    ]
+  },
+  "tests/setup/fresh-profile-pages.test.js": {
+    "failing": [
+      "the tree every navigable page has a fresh-profile test, or is listed; every listed page exists"
+    ],
+    "offenders": [
+      "NEW: renderBusyPage has no fresh-profile test. Add one (a test that names the page and says \\"
     ]
   },
   "tests/setup/language-single-source.test.js": {
@@ -168,9 +414,16 @@
       "language conformance — one clamp has no inline en/ur clamp left in bot/"
     ],
     "offenders": [
-      "bot/shared/routes/internal-api.routes.js :: const lang = body.lang === 'ur' ? 'ur' : 'en';",
-      "bot/shared/routes/internal-api.routes.js :: lang: body.lang === 'ur' ? 'ur' : 'en',",
-      "bot/shared/services/menu.service.js :: const refusal = (kind, language) => ROLE_REFUSAL[kind][language === 'ur' ? 'ur' : 'en'];"
+      "bot/shared/services/assessment/fde-oral-prep.js :: return tasks.map((t) => t && t[`prep_${lang === 'ur' ? 'ur' : 'en'}`]).filter((l) => typeof l === 'string' && l.trim());",
+      "bot/shared/services/assessment/fde-oral-sheet.js #2 :: const lang = ctx.medium === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/assessment/fde-oral-sheet.js :: const lang = ctx.medium === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/nudges/reminder-stop.js :: const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/nudges/window-closed-template.js :: const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/nudges/window-closed-template.js :: return lang === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/quiz/sa-game-door.js :: const l = lang === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/quiz/web-quiz-card-data.js :: const l = lang === 'ur' ? 'ur' : 'en';",
+      "bot/shared/services/quiz/web-quiz-child-welcome.js :: const voice = VOICE[lang === 'ur' ? 'ur' : 'en'];",
+      "bot/tests/quiz/web-quiz/web-quiz-page-warm.test.js :: expect(JSON.parse(on.first.ans).quiz.lang).toBe(kind === 'ur' ? 'ur' : 'en');"
     ]
   },
   "tests/setup/link-integrity.test.js": {
@@ -178,6 +431,70 @@
       "Link Integrity (agent-native progressive-disclosure web) every relative markdown link resolves to a real file or directory"
     ],
     "offenders": []
+  },
+  "tests/setup/log-raw-ids.test.js": {
+    "failing": [
+      "raw person ids on log lines no new raw id on a log line, and no file above its count"
+    ],
+    "offenders": [
+      "NEW: bot/shared/services/book-curriculum.service.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/ab-v10-arms.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/coaching-inflight-guard.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/report-tracking.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/report-window-send.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/slim-report.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/thing-to-try-pick.js has 4 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/coaching/thing-to-try.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/howto-first-touch.service.js has 4 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/inbound-media-failed.service.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/lp-v10-card.service.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/nudges/reminder-stop.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/nudges/topic-end-arm.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/nudges/topic-end-nudge.service.js has 4 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/nudges/window-closed-template.js has 3 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/observe/obs612/visit.js has 8 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/quiz/web-quiz-grade-change.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/shared/services/teacher-books.service.js has 3 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: bot/workers/gb-lp-author.worker.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: dashboard/routes/portal-role-switch.routes.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: dashboard/routes/portal-teacher-thing-to-try.routes.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: dashboard/services/fln-corpus.service.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "NEW: dashboard/services/lp-reader.service.js has 1 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone).",
+      "UP: bot/shared/handlers/flow-response.handler.js has 37 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 36.",
+      "UP: bot/shared/handlers/text-message.handler.js has 103 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 95.",
+      "UP: bot/shared/routes/assessment-gen-endpoint.js has 7 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 6.",
+      "UP: bot/shared/routes/internal-api.routes.js has 25 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 23.",
+      "UP: bot/shared/services/app-redirect.service.js has 17 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 14.",
+      "UP: bot/shared/services/assessment-entry.service.js has 3 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 2.",
+      "UP: bot/shared/services/assessment/assessment-browse.service.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 1.",
+      "UP: bot/shared/services/classes/class.service.js has 8 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 7.",
+      "UP: bot/shared/services/coaching/coaching-feedback.service.js has 8 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 6.",
+      "UP: bot/shared/services/lesson-plan-queue.service.js has 2 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 1.",
+      "UP: bot/shared/services/lp-v8-delivery.service.js has 11 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 10.",
+      "UP: bot/shared/services/nudges/lp-quiz-offer.service.js has 10 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 9.",
+      "UP: bot/shared/services/observe/observe-capture.service.js has 5 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 4.",
+      "UP: bot/shared/services/observe/observe2/start.js has 9 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 8.",
+      "UP: bot/shared/services/share-send.service.js has 3 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 2.",
+      "UP: bot/shared/services/student-ingress.js has 5 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 4.",
+      "UP: bot/whatsapp-bot.js has 125 raw person id(s) or phone(s) on a log line (log tk()/kid() or a masked phone), log-raw-ids.allowlist.json allows 124."
+    ]
+  },
+  "tests/setup/mock-lane-baseline-migrations.test.js": {
+    "failing": [
+      "mock lane baseline carries the migrations since its dump (bd-4hyyp2) every column a migration since the dump adds is in the baseline and in schema.objects.txt"
+    ],
+    "offenders": [
+      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_decided_at",
+      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_decided_by",
+      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_decision",
+      "V1.10.1__own_plans_library_decision.sql: niete_lp612_own_plans.library_reject_reason",
+      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.library_eligible",
+      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_items",
+      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_model",
+      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_pass",
+      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.review_score",
+      "V1.9.9__own_plans_review.sql: niete_lp612_own_plans.reviewed_at"
+    ]
   },
   "tests/setup/no-hardcoded-bot-name.test.js": {
     "failing": [
@@ -187,9 +504,27 @@
       "bot/shared/services/observe/observe-brief-card.js :: en: 'First visit with this teacher on Rumi. Start by getting to know the class — say hello, watch a lesson, and use the moves above to open the conversation.',",
       "bot/shared/services/observe/observe-brief-card.js :: sw: 'Ziara ya kwanza na mwalimu huyu kwenye Rumi. Anza kwa kufahamiana na darasa — salimia, tazama somo, na tumia hatua zilizo hapo juu kuanzisha mazungumzo.',",
       "bot/shared/services/observe/observe-brief-card.js :: ur: 'رومی پر اس استاد کے ساتھ پہلا دورہ۔ کلاس کو جاننے سے آغاز کریں — سلام کریں، ایک سبق دیکھیں، اور بات چیت شروع کرنے کے لیے اوپر دیے گئے طریقے استعمال کریں۔',",
+      "bot/shared/services/observe/observe-fico17-v6.js :: v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',",
       "bot/shared/services/observe/observe-strings.js :: send_waiting_tap_info: '📨 Ripoti iko tayari — mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; Rumi anamkumbusha, na ripoti itafika mara tu atakapobonyeza.',",
       "bot/shared/services/observe/observe-strings.js :: send_waiting_tap_info: '📨 The report is ready — the invitation went to {name} ({date}). No tap yet; Rumi keeps reminding, and the report is delivered automatically the moment the invitation is tapped.',",
       "bot/shared/services/observe/observe-strings.js :: send_waiting_tap_info: '📨 رپورٹ تیار ہے — {name} کو دعوت ({date}) بھیجی جا چکی ہے۔ ابھی دعوت پر ٹیپ نہیں ہوا؛ رومی یاد دہانی بھیجتی رہتی ہے، اور ٹیپ ہوتے ہی رپورٹ خود بخود پہنچ جائے گی۔',",
+      "bot/shared/services/observe/observe-strings.js :: v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',",
+      "bot/shared/services/observe/observe-strings.js :: v6_change_why: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم 20 حروف)۔',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_change_help: \"Only if you changed Rumi's level (20+ characters).\",",
+      "bot/shared/services/observe/observe-strings.js :: v6f_change_help: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_evidence_help: 'Rumi نے کیا سنا؛ ضرورت ہو تو بدلیں',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_evidence_help: 'What Rumi heard; edit if needed',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_intro_rumi: 'Rumi has set the level for {k} of them from the recording: check each one.',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_intro_rumi: 'ان میں سے {k} کا لیول Rumi نے ریکارڈنگ سے چنا ہے: ہر ایک کو دیکھیں۔',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_rumi_chose: 'Rumi chose {level} from the recording. Change it if you saw something different.',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_rumi_chose: 'Rumi نے ریکارڈنگ سے {level} چنا۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_rumi_none: 'Rumi could not set a level from the recording. Choose the level you saw.',",
+      "bot/shared/services/observe/observe-strings.js :: v6f_rumi_none: 'Rumi ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔',",
+      "bot/shared/services/observe/observe2/evidence-check.flow.js :: const kids = [{ type: 'TextCaption', text: \"Rumi's level for each, from your answers and the moments you confirmed. Change any you saw differently, and say why below.\" }];",
+      "bot/shared/services/observe/observe2/evidence-check.flow.js :: id: 'ADDED_DC_ONE', title: \"Rumi's levels (1 of 2)\", codes: dcOnly([...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes]),",
+      "bot/shared/services/observe/observe2/evidence-check.flow.js :: id: 'ADDED_DC_TWO', title: \"Rumi's levels (2 of 2)\", codes: dcOnly([...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes]),",
+      "bot/shared/services/observe/observe2/strings.js :: missed_intro: 'A moment you saw that Rumi did not list? Add up to two: what happened, the minute, and the words. It counts like a moment you confirmed. Leave empty if none.',",
+      "bot/shared/services/observe/observe2/strings.js :: missed_title: 'Add one Rumi missed',",
       "bot/shared/templates/weekly-usage.template.js :: 'Assalam o Alaikum {{1}}!\\n\\nHere is your week with Rumi ({{2}}):\\n\\n'",
       "bot/shared/templates/weekly-usage.template.js :: 'Assalam o Alaikum {{1}}!\\n\\nThis is your weekly Rumi update for {{2}}. We did not receive a lesson plan '",
       "bot/shared/templates/weekly-usage.template.js :: 'السلام علیکم {{1}}!\\n\\nیہ {{2}} کے لیے آپ کی ہفتہ وار Rumi اپڈیٹ ہے۔ اس ہفتے ہمیں آپ کی طرف سے سبق کے '",
@@ -208,6 +543,39 @@
       "bot/tests/observe/bd-calkey-env.test.js :: const base = { GOOGLE_CALENDAR_SUBJECT: 'rumi@hellorumi.ai', GOOGLE_CALENDAR_ID: 'primary' };",
       "bot/tests/observe/bd-calkey-env.test.js :: const c = load({ GOOGLE_CALENDAR_SUBJECT: 'rumi@hellorumi.ai', GOOGLE_CALENDAR_ID: 'primary',",
       "bot/tests/observe/bd-calops-scope-telemetry.test.js :: * creating, patching and deleting a real event on rumi@hellorumi.ai."
+    ]
+  },
+  "tests/setup/orphan-modules.test.js": {
+    "failing": [
+      "Orphan-module audit every audited .js file is reachable from an entry point (or allowlisted)"
+    ],
+    "offenders": [
+      "bot/shared/services/assessment/slo-map/build-chapters.js",
+      "bot/shared/services/first-touch/sa-game.mount.js",
+      "bot/shared/services/first-touch/teacher-home.portal.mount.js"
+    ]
+  },
+  "tests/setup/phone-shaped-fixtures.test.js": {
+    "failing": [
+      "the tree (bot/tests, dashboard/tests) against the allowlist no new phone-shaped fixtures; no directory above its entry (below or gone: a warning)"
+    ],
+    "offenders": [
+      "NEW: bot/tests/howto has 18 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts.",
+      "NEW: bot/tests/onboarding has 9 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts.",
+      "UP: bot/tests/coaching has 14 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 3.",
+      "UP: bot/tests/handlers has 17 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 10.",
+      "UP: bot/tests/lp-v8 has 53 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 52.",
+      "UP: bot/tests/observe has 289 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 251.",
+      "UP: bot/tests/quiz has 299 phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts, phone-shaped-fixtures.allowlist.json allows 288."
+    ]
+  },
+  "tests/setup/repo-seam-tests.test.js": {
+    "failing": [
+      "the tree every repo seam has a seam test, or is listed (missing / pure); both lists match today exactly"
+    ],
+    "offenders": [
+      "NEW: nudges/topic-end-nudge.service.js > topics.repo has no <module>-seam.test.js that loads the real repo.",
+      "NEW: quiz/web-quiz.service.js > child-language.repo has no <module>-seam.test.js that loads the real repo."
     ]
   },
   "tests/setup/schema-completeness.test.js": {
@@ -233,9 +601,12 @@
       "Source Hygiene no internal ticket references in shipped source docs/flows/*.json carry no internal ticket refs or authoring metadata (_bead/_changelog)"
     ],
     "offenders": [
+      ".github/workflows/CLAUDE.md :: | `android*` | 3 files; most used `android-release.yml`: Builds, signs and ships the NIETE Android app to Play on android-v* tags or manual dispatch (bd-2553) |",
       "CLAUDE.md :: > - `taleemabad-core/` — Django source app (read-only migration source)",
       "CLAUDE.md :: [withheld 8bb81688bfe6]",
       "CLAUDE.md :: | **Active work: regional fork migration** (Taleemabad → new region) | [docs/migration/README.md](docs/migration/README.md) |",
+      "bot/database/migrations/CLAUDE.md :: | `016_curriculum_lp_ast.sql` | Creates curriculum_lp_ast, structured lesson-plan content imported from the Taleemabad core DB, with lookup/FTS indexes |",
+      "bot/database/migrations/CLAUDE.md :: | `create*` | 4 files; most used `create_video_quiz_tables.sql`: Ports the main bot's video-quiz schema to NIETE: quiz_questions changes, share codes, invites, identity (bd-2482) |",
       "bot/database/migrations/create_video_quiz_tables.sql :: -- (PK 046 §5 + 049; also folds in the bd-2305 'in_progress' status fix,",
       "bot/database/migrations/create_video_quiz_tables.sql :: -- Port of PK's video-quiz feature (bd-2482, sister to PK bd-2303/2305/2313/",
       "bot/database/migrations/set-vendor-module-quiz-passing-pct.sql :: -- bd-2390 — per-vendor pass marks, split by quiz kind.",
@@ -243,6 +614,8 @@
       "bot/database/migrations/split-vendor-unlock-logic-axes.sql :: -- 2. are MODULES sequential? annotateModuleLocks (bd-43477)",
       "bot/database/migrations/split-vendor-unlock-logic-axes.sql :: -- bd-43482 — unlock_logic was one column answering three questions.",
       "bot/database/migrations/split-vendor-unlock-logic-axes.sql :: -- creative writing). bd-43477 bound both axes to the single flag and so",
+      "bot/scripts/deployment/CLAUDE.md :: # deployment — Reference Meta Graph API scripts from the original Taleemabad WABA; ids are WABA-bound",
+      "bot/scripts/deployment/CLAUDE.md :: | `README.md` | Warns deployment scripts are Taleemabad-WABA reference code with hardcoded IDs that clones must replace |",
       "bot/scripts/generate-observe-flow-json.js :: * - Pure data_exchange flow (registration precedent, bd-720): INIT returns the",
       "bot/scripts/generate-observe-flow-json.js :: * FEAT-053 bd-18 — generate docs/flows/observe-mewaka-flow.json from the",
       "bot/scripts/generate-observe-flow-json.js :: * next screen's prefill. Forward-only routing (bd-1248).",
@@ -250,6 +623,8 @@
       "bot/scripts/generate-observe-flow-json.js :: // FEAT-102 — ICT/NIETE FICO, English officer-facing, 1-4 scale (from the pack).",
       "bot/scripts/generate-observe-flow-json.js :: // bd-61: titles/footers/SUCCESS were mewaka hardcodes — PK's live flow",
       "bot/scripts/generate-observe-flow-json.js :: // forward-only routing model (bd-1248)",
+      "bot/scripts/migration/CLAUDE.md :: | `import-tbcore-lps.js` | Imports NBF and Taleemabad lesson plans from Taleemabad prod Postgres into curriculum_lp_ast; dry-run supported |",
+      "bot/scripts/migration/CLAUDE.md :: | `survey-lp-inventory.js` | One-shot inventory of lesson-plan corpora in NIETE Supabase and taleemabad-core prod, to plan the next import wave |",
       "bot/scripts/register-observe-report-template.js :: * FEAT-053 bd-25 — register the observation_report_sw UTILITY template.",
       "bot/scripts/seed-feat059-feat080-pakistan-lps.js :: * FEAT-080 (method-comparison corpus) rows for the NIETE deployment.",
       "bot/scripts/seed-feat059-feat080-pakistan-lps.js :: * Seed `pre_generated_lps` with the FEAT-059 (primary Pakistan corpus) and",
@@ -261,11 +636,11 @@
       "bot/shared/config/branding.js :: // NIETE fork defaults (OPS-114, bd-2381). Amena confirmed the Rumi→NIETE rename is",
       "bot/shared/config/branding.js :: // variableUpsert), so — exactly like RUMI_LOGO_R2_KEY (bd-2374) — the code DEFAULT",
       "bot/shared/config/coaching-voice.js :: return `- OPEN-ENDEDNESS (per PROJ-056 — this is the WHOLE POINT of reflection). The teacher must form and voice HER OWN interpretation. Three hard rules:",
-      "bot/shared/config/gender-neutral-address.js :: * which is always (bd-2453, bd-1hae7.19).",
       "bot/shared/config/region-config.js :: // NIETE fork default (OPS-114, bd-2381) — this label is the teacher-facing",
       "bot/shared/config/ux-strings.js :: * against the old attendance flow (\"Section (optional) (Optional)\", bd-2532).",
       "bot/shared/config/ux-strings.js :: * bd-2712 — the /remark Supervisor Remark FLOW (docs/flows/remark-flow.json).",
       "bot/shared/config/voice-language-rules.js :: * bd-2651 — shared language rules for ANY text that will be spoken aloud by TTS.",
+      "bot/shared/handlers/CLAUDE.md :: | `observe-visit-flow.handler.js` | Observe-visit Flow endpoint: school/teacher picker and scheduling UI behind OBSERVE_SCHEDULING_UI (bd-2430/2431/2443) |",
       "bot/shared/handlers/audio-document-router.js :: // Substrings that mark a document as audio. bd-2134: 'mp4' added — WhatsApp",
       "bot/shared/handlers/audio-document-router.js :: // Whisper's 25 MB. bd-2134 (Riffat, 2026-07-20): a 27 MB classroom recording",
       "bot/shared/handlers/audio-document-router.js :: // bd-2134: audio if EITHER the MIME or the filename extension says so (Meta",
@@ -320,19 +695,15 @@
       "bot/shared/handlers/text-message.handler.js :: // bd-2482 (NIETE port of PK bd-2314/2315): Video-quiz share links.",
       "bot/shared/handlers/text-message.handler.js :: // bd-2482/bd-2486 (ported from PK): a bare \"video\" (no slash) also opens",
       "bot/shared/handlers/text-message.handler.js :: // bd-2540 retired freeform generation here and replaced it with a \"not in",
-      "bot/shared/handlers/text-message.handler.js :: // bd-2540: freeform presentation generation via Gamma is retired.",
       "bot/shared/handlers/text-message.handler.js :: // catalogue Flow — the isVideoCommand shape (bd-2486).",
       "bot/shared/handlers/text-message.handler.js :: // oxbridge_picker — FEAT-080 grade 6-12 Oxbridge match, picker sent;",
       "bot/shared/handlers/text-message.handler.js :: const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 (ported from PK)",
-      "bot/shared/handlers/text-message.handler.js :: logToFile('\\ud83d\\udcca Freeform presentation request \\u2192 replied not-supported (bd-2540)', {",
       "bot/shared/handlers/text-message.handler.js :: logToFile('\\ud83d\\udcd6 Freeform LP request \\u2192 replied not-in-catalog (bd-2540)', {",
       "bot/shared/handlers/voice-message.handler.js :: // Check if user said a language switch command. bd-2413 (row 11): only a",
       "bot/shared/handlers/voice-message.handler.js :: // FEAT-102 bd-2131: a school leader's voice note routes to /observe FIRST —",
       "bot/shared/handlers/voice-message.handler.js :: // bd-2376: if an analysis is ALREADY running for her, a second",
       "bot/shared/handlers/voice-message.handler.js :: // bd-2540 retired freeform generation; bd-hgwfo routes the ask to the",
-      "bot/shared/handlers/voice-message.handler.js :: // bd-2540: freeform presentation via Gamma is retired.",
       "bot/shared/handlers/voice-message.handler.js :: logToFile('\\ud83c\\udf99\\ufe0f Voice freeform LP \\u2192 replied not-in-catalog (bd-2540)', {",
-      "bot/shared/handlers/voice-message.handler.js :: logToFile('\\ud83c\\udf99\\ufe0f Voice freeform presentation \\u2192 replied not-supported (bd-2540)', {",
       "bot/shared/routes/attendance-marking-endpoint.js :: * CheckboxGroup can render neither a MISSING data-source nor an EMPTY one. bd-2713",
       "bot/shared/routes/attendance-marking-endpoint.js :: * before. (bd-2724)",
       "bot/shared/routes/attendance-marking-endpoint.js :: * boilerplate and ignored (bd-2730).",
@@ -474,6 +845,7 @@
       "bot/shared/routes/teacher-training-endpoint.js :: // bd-60119 — fetch the level's exam rows and pick the LEVEL one in JS.",
       "bot/shared/routes/teacher-training-endpoint.js :: // bd-60119 — the LEVEL exam is the row that is not a per-module quiz. A NULL",
       "bot/shared/routes/teacher-training-endpoint.js :: // certification accepted an attempt OR a certificate (bd-2503), while the",
+      "bot/shared/routes/teacher-training-endpoint.js :: // level page already draws this line (bd-60119, loadGrandQuizState); the two",
       "bot/shared/routes/teacher-training-endpoint.js :: // module-completion path is wired\" — bd-2390 wired it. A",
       "bot/shared/routes/teacher-training-endpoint.js :: // off completed modules with no exam attempt at all, and the bd-43811",
       "bot/shared/routes/teacher-training-endpoint.js :: // point (BUG-144), so this is the one link every teacher is guaranteed to",
@@ -490,6 +862,8 @@
       "bot/shared/services/attendance/bigquery-sync.service.js :: * scripts/bigquery-steps-attendance-ddl.sql (per Hasnat's review on TASK-133).",
       "bot/shared/services/audio.service.js :: * bd-2377: Whisper is the LAST resort in the cascade and caps uploads at 25MB.",
       "bot/shared/services/audio.service.js :: * bd-2377: the \"advanced\" gate keys off the configured primary model, not a",
+      "bot/shared/services/authz/CLAUDE.md :: - `capability.js` — the one capability question for users-table roles (bd-2531)",
+      "bot/shared/services/authz/CLAUDE.md :: | `capability.js` | Capability gate answering 'may this user do X' from feature_permissions data (bd-2531) |",
       "bot/shared/services/authz/capability.js :: * bd-2531 — capability gating for `users`-table roles (teachers, principals).",
       "bot/shared/services/cache/railway-redis.service.js :: * Ported from the main bot (bd-1263). Feature-state services call THIS rather",
       "bot/shared/services/cache/railway-redis.service.js :: * bd-2135: Set a key with TTL, enforcing a 24-hour ceiling.",
@@ -513,11 +887,13 @@
       "bot/shared/services/coaching/reflective-acknowledgement.js :: // bd-2651: this line is spoken aloud (closing voice note), so it must obey the",
       "bot/shared/services/coaching/reflective-conversation.service.js :: // Language name for the acknowledgement prompt (bd-2374).",
       "bot/shared/services/coaching/reflective-conversation.service.js :: // bd-2374 + bd-2414: the closing VOICE note is the contextual",
+      "bot/shared/services/coaching/report-renderers/CLAUDE.md :: - `bot/tests/observe/bd-2453-niete-brand.test.js` (renderer-registry.js)",
+      "bot/shared/services/coaching/report-renderers/CLAUDE.md :: - `bot/tests/unit/bd-2452-niete-hero-brand.test.js` (renderer-registry.js)",
       "bot/shared/services/coaching/report-renderers/renderer-registry.js :: * NIETE brand (Green #47BA7D + Charcoal #32373C, bd-2452) instead of the",
       "bot/shared/services/coaching/report-renderers/renderer-registry.js :: * bd-2453: HERO_BRANDS is the single source of truth for framework → brand.",
       "bot/shared/services/coaching/report-v2/hero-report.service.js :: * bd-1t1wz (ports the main bot's bd-43483): attach the per-domain one-line",
       "bot/shared/services/coaching/report-v2/hero-report.service.js :: * injected by renderer-registry; omitted = default palette). bd-2452.",
-      "bot/shared/services/coaching/report-v2/hero-report.template.js :: * Brand palettes (bd-2452). `vm.brand` selects one; default keeps the original",
+      "bot/shared/services/coaching/report-v2/hero-report.style.js :: * Brand palettes (bd-2452). `vm.brand` selects one; default keeps the original",
       "bot/shared/services/coaching/report-v2/hero-report.template.js :: // Same fix bd-2644 applied to the coach card.",
       "bot/shared/services/coaching/report-v2/hero-report.template.js :: // bd-1t1wz (ports the main bot's bd-43483): each scored domain carries a",
       "bot/shared/services/coaching/report-v2/hero-report.template.js :: every branch. This is the bd-2362 class: the small-print element nobody",
@@ -534,17 +910,22 @@
       "bot/shared/services/elevenlabs.service.js :: // bd-2375: Sara (Urdu) reads best at the LP-voicenotes V20 settings —",
       "bot/shared/services/feature-keyword-detector.service.js :: // retired in bd-2540. The lesson-plan door is the catalogue Flow",
       "bot/shared/services/feature-registration.service.js :: // bd-60092: never shorten a name we already hold. This path asks \"what",
+      "bot/shared/services/feedback/app-feedback.service.js :: * answer; she may also write, and add up to three screenshots. bd-370733 (12 Nov): the teacher's More has it too",
+      "bot/shared/services/feedback/app-feedback.service.js :: * bd-370733 — who sent it: coaches, and since 12 Nov teachers and principals (operator: \"Should be for teacher as",
       "bot/shared/services/flow-encryption.service.js :: // BUG-144 — when the WhatsApp client fails to render a screen it re-POSTs",
       "bot/shared/services/gpt5-mini.service.js :: * FEAT-053 bd-22 / bd-2342: ported from the main bot. Consumers are the",
       "bot/shared/services/gpt5-mini.service.js :: const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651",
       "bot/shared/services/helper-agent.service.js :: // bd-2508 — coaching's reflective conversation is a waiting state like any",
-      "bot/shared/services/lesson-plan-queue.service.js :: // bd-2540 (Option A partial Gamma strip). The only remaining teacher-facing",
       "bot/shared/services/lp-browse-entry.service.js :: * bd-2540) a \"not in our catalogue\" reply. Production ran ~200 generations a",
       "bot/shared/services/lp-delivery-marker.service.js :: * when it lacks the body, which is the grounding-drift pattern (bd-1581 on the",
       "bot/shared/services/menu.service.js :: * FEAT-109 (2026-07-31): When PAKISTAN_LP_FLOW_ID is configured, send the",
       "bot/shared/services/menu.service.js :: // (bd-1565 L1b); quiz/coaching/video carry the same defensive flush.",
       "bot/shared/services/menu.service.js :: // and otherwise replies not-in-catalog (bd-2540).",
       "bot/shared/services/menu.service.js :: logToFile('LP menu → Pakistan LP Flow sent (FEAT-109)', { userId, sessionId });",
+      "bot/shared/services/observe/CLAUDE.md :: | `observe-debrief.service.js` | Guided debrief for leader observations: entry choice, pending list, recording intake, coach feedback (bd-21/22) |",
+      "bot/shared/services/observe/CLAUDE.md :: | `observe-strings.js` | All /observe user-facing strings per language, one function returning the full set (FEAT-053 bd-12/14) |",
+      "bot/shared/services/observe/assignment/CLAUDE.md :: | `leader-source.js` | Reads leader_schools and coaching_sessions and feeds the visit Flow its teacher shapes (FEAT-116 bd-2298) |",
+      "bot/shared/services/observe/assignment/CLAUDE.md :: | `prioritise.js` | Orders the /observe visit picker by combined recency and support-need weight (bd-2302, bd-2329) |",
       "bot/shared/services/observe/assignment/leader-source.js :: * FEAT-116 (bd-2298) — the leader assignment source.",
       "bot/shared/services/observe/assignment/leader-source.js :: * bd-2329 — the teacher's overall AI-coaching score as a 0..1 ratio, used as the",
       "bot/shared/services/observe/assignment/leader-source.js :: // FEAT-116 (bd-2300): the teacher's AI-coaching analysis_data comes in TWO shapes.",
@@ -712,6 +1093,7 @@
       "bot/shared/services/openai.service.js :: ? `\\n\\nVOICE FORMAT: Keep responses SHORT (max 60 seconds). Complete thoughts, never end mid-sentence.\\n${voiceLanguageRules(language)}` // bd-2651: spoken aloud — enforce Nastaliq/anti-Hindi (ur) or pure English",
       "bot/shared/services/openai.service.js :: const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651",
       "bot/shared/services/oxbridge-lp.service.js :: * Oxbridge Lesson-Plan service — FEAT-080 (bd-2016).",
+      "bot/shared/services/queue/CLAUDE.md :: - Dedup id must include the phase (bd-2652, `bot/shared/services/queue/sqs-queue.service.js:38`)",
       "bot/shared/services/queue/sqs-queue.service.js :: * bd-2652: must include the phase — the observe teacher-report flow queues",
       "bot/shared/services/queue/sqs-queue.service.js :: * bd-yd2kb (ports main-bot bd-1541): release an in-flight message back to its",
       "bot/shared/services/queue/sqs-queue.service.js :: * since bd-56 and nothing read it, so that mechanism was inert.",
@@ -758,6 +1140,7 @@
       "bot/shared/services/reading/vocabulary-image.service.js :: * the bd-2540 Gamma/AI-media strip — reading assessment now uses the text",
       "bot/shared/services/reading/voice-feedback.service.js :: // bd-2651: this feedback script is spoken aloud, so enforce the shared",
       "bot/shared/services/reading/voice-feedback.service.js :: const { voiceLanguageRules } = require('../../config/voice-language-rules'); // bd-2651",
+      "bot/shared/services/remark/CLAUDE.md :: | `remark*` | 10 files; most used `remark-rubric.js`: Single source of truth for the Supervisor Remark rubric: indicators, anchors, scoring math, export columns (bd-2531) |",
       "bot/shared/services/remark/remark-cycle.repository.js :: * bd-2531 — evaluation cycles + a principal's roster and progress.",
       "bot/shared/services/remark/remark-delivery.deps.js :: * bd-2712 — the live wiring for remark-delivery.service :: submitRemark().",
       "bot/shared/services/remark/remark-delivery.deps.js :: * bd-43519 — the out-of-window fallback.",
@@ -772,11 +1155,14 @@
       "bot/shared/services/remark/remark-score.repository.js :: * bd-2531 — STEPS \"S\" score reads. THE documented entry point for s_pct.",
       "bot/shared/services/remark/remark-screens.js :: * bd-2531 — the screens a principal reads while walking the rubric.",
       "bot/shared/services/remark/remark-write.repository.js :: * bd-2531 — the write path. THIS is what makes the flow session-free.",
+      "bot/shared/services/schools/CLAUDE.md :: - `tests/database/bd-2533-school-migration.test.js` (school-migration.transform.js)",
+      "bot/shared/services/schools/CLAUDE.md :: - `tests/database/bd-2533-school-resolver.test.js` (school-resolver.service.js)",
       "bot/shared/services/soniox-cleanup.service.js :: * FEAT-106 (bd-2378) — Soniox storage cleanup.",
       "bot/shared/services/student-video-feedback.service.js :: * Student Video Feedback Service — bd-1598 follow-on",
       "bot/shared/services/student-video-feedback.service.js :: // bd-2312: link the row to the delivery and the quiz session so this feedback",
       "bot/shared/services/student-video-feedback.service.js :: // bd-2312: the optional `__vq` suffix marks a survey that covered the video AND",
       "bot/shared/services/student-video-feedback.service.js :: // bd-2312: the survey asks about whatever the teacher actually RECEIVED.",
+      "bot/shared/services/training/CLAUDE.md :: - Teachers must never see model_answer or rubric of an I-SAPS CRQ (isaps-crq.rules.js:9, bd-60113)",
       "bot/shared/services/training/capstone-delivery.service.js :: * @param {number} [maxPoints] top of the scale for this vendor — bd-60113.",
       "bot/shared/services/training/capstone-delivery.service.js :: * Beacon House open-ended capstone (\"Grand Quiz\") delivery — bd-2233.",
       "bot/shared/services/training/capstone-delivery.service.js :: * Carries the bd-2478 refusal: if fewer answer rows came back than the attempt",
@@ -800,6 +1186,8 @@
       "bot/shared/services/training/certificate-pdf.service.js :: // bd-60113 — I-SAPS must NOT fall through to the NIETE template. That",
       "bot/shared/services/training/certificate.service.js :: * bd-2234 — quiz-score certificate for all_modules vendors WITHOUT a",
       "bot/shared/services/training/certificate.service.js :: * bd-43811 — \"each\" means each module that WAS quizzed. A module with no",
+      "bot/shared/services/training/certificate.service.js :: * but it is a placement check, not the exam (bd-43491, the same rule as",
+      "bot/shared/services/training/certificate.service.js :: * had no quiz, bd-2390), so \"every unit has a row\" is \"every unit done\".",
       "bot/shared/services/training/certificate.service.js :: // Idempotency is per (user, level) — NOT per attempt. bd-2670: this used to",
       "bot/shared/services/training/certificate.service.js :: // One certificate per (user, level). bd-2670: this was a `.maybeSingle()`,",
       "bot/shared/services/training/certificate.service.js :: // PASSED, or the module had no quiz at all — bd-2390). An ATTEMPTED module",
@@ -823,6 +1211,9 @@
       "bot/shared/services/training/isaps-import.rules.js :: * bd-60113 — pure parsing rules for the I-SAPS Level 1 content import.",
       "bot/shared/services/training/isaps-import.rules.js :: * bd-60116 — convert a workbook answer key to the CANONICAL 1-BASED OPTION",
       "bot/shared/services/training/isaps-listing.rules.js :: * bd-60119 — I-SAPS lists MODULES first, then the units inside one.",
+      "bot/shared/services/training/isaps-score-sheet.rules.js :: * have none (I-SAPS did not provide them); such a unit is done once watched (a progress row, bd-2390), so",
+      "bot/shared/services/training/level-label.rules.js :: * (bd-2235). The My Certificates list, the typed /certificates reply and the level-exam",
+      "bot/shared/services/training/level-label.rules.js :: * the level name only, as the training Flow does (bd-2137). I-SAPS keeps its own number",
       "bot/shared/services/training/paper-marking.service.js :: * House teachers on work that passed on WhatsApp (bd-2483).",
       "bot/shared/services/training/paper-marking.service.js :: * a process that carries a different aws-sdk major (bd-2461).",
       "bot/shared/services/training/paper-marking.service.js :: * bd-2673.",
@@ -914,6 +1305,14 @@
       "bot/shared/utils/person-name.js :: * bd-60092 — the ONE place a person's name is resolved.",
       "bot/shared/utils/text-format.js :: * Ported from the main bot (bd-2610/2611/2612) as a prerequisite for the",
       "bot/shared/utils/text-format.js :: * bd-2611 — take markdown emphasis out of LLM prose before a teacher reads it.",
+      "bot/tests/CLAUDE.md :: | `bug*` | 3 files; most used `bug-014-video-language.test.js`: Pins that video script prompts give Punjabi explicit vocabulary guidance so narration is not Urdu (BUG-014) |",
+      "bot/tests/CLAUDE.md :: | `student-video-feedback.test.js` | Tests StudentVideoFeedbackService thumbs-up/down button handling, snapshot insert and reason flag (bd-1598) |",
+      "bot/tests/lp-v8/CLAUDE.md :: | `delivery.test.js` | Tests deliverV8Lesson: presigned R2 URL, sent/failed rows, filename; Supabase, R2, WhatsApp mocked (bd-2054, bd-2407) |",
+      "bot/tests/lp-v8/CLAUDE.md :: | `endpoint-dispatch.test.js` | Tests Pakistan LP endpoint dispatch: INIT grade picker, v8 grades 1-5 path, Oxbridge 6-10 unchanged (FEAT-059, bd-fg3p4) |",
+      "bot/tests/observe/CLAUDE.md :: - Flow endpoint responses carry no `version` field (observe-endpoint.test.js:4, bd-215)",
+      "bot/tests/observe/CLAUDE.md :: | `observe-endpoint-hots.test.js` | Pins the observe endpoint working for the HOTS pack and pack-driven score labels (bd-59, bd-60) |",
+      "bot/tests/observe/CLAUDE.md :: | `observe-pipeline-fork.test.js` | Pins the /observe fork points inside the shared coaching pipeline: analysis to FICO draft (bd-2138) |",
+      "bot/tests/observe/CLAUDE.md :: | `visit*` | 9 files; most used `visit-scheduling-wiring.test.js`: Pins scheduling wiring: detector discriminator, completion 3-way, flag-gated entry (bd-2444/2445) |",
       "bot/whatsapp-bot.js #2 :: // bd-2482 (NIETE port of PK bd-1598): video-library broadcast",
       "bot/whatsapp-bot.js :: * bd-2482 (NIETE port of PK bd-1598): video-library broadcast \"Select Video\"",
       "bot/whatsapp-bot.js :: // (already learned on bd-2482), so the visible label is the reliable signal.",
@@ -965,6 +1364,7 @@
       "bot/workers/stale-session.worker.js :: // bd-2700: these were hardcoded, which made the reflection-timeout path",
       "bot/workers/stale-session.worker.js :: error_message: `Confirmation gate: ${decision.reason} (bd-2417)`,",
       "dashboard/index.js :: // bd-2467: ON THE PORTAL HOSTNAME \"/\" BELONGS TO THE PORTAL. Once",
+      "dashboard/lib/CLAUDE.md :: | `feature-flags.js` | Fail-closed feature flags backed by app_settings, shared by bot and dashboard so both surfaces give one answer; bd-2460. |",
       "dashboard/lib/feature-flags.js :: * bd-2460 — shared, fail-closed feature flags backed by `app_settings`.",
       "dashboard/lib/leader-role.js :: * NIETE port of the upstream bd-2385 work.",
       "dashboard/lib/leader-role.js :: * bd-2434 — Leader Portal (school-leader family) role gate for the portal API.",
@@ -997,6 +1397,7 @@
       "dashboard/routes/portal.routes.js :: * reason `pass_mark_pct` is (bd-2489): a number duplicated in the client is",
       "dashboard/routes/portal.routes.js :: * the key never leaves this file, as on WhatsApp (bd-2523).",
       "dashboard/routes/portal.routes.js :: // 'ready' again. The interim 'whatsapp_only' state (bd-2490) is gone along",
+      "dashboard/routes/portal.routes.js :: // (bd-2390), so the sheet needs to know which units HAVE a check (the same stem rule the unit list and",
       "dashboard/routes/portal.routes.js :: // - eligibility used the \">=1 module per course\" proxy bd-2447 replaced.",
       "dashboard/routes/portal.routes.js :: // 8. Progress row — ONLY on a pass. bd-2450.",
       "dashboard/routes/portal.routes.js :: // LEADER PORTAL (bd-2434, NIETE port of upstream bd-2385+) — school-leader",
@@ -1041,6 +1442,7 @@
       "dashboard/routes/portal.routes.js :: // observations) — bd-2455.",
       "dashboard/routes/portal.routes.js :: // trimmed string equality, multi by normalised set equality per bd-2138),",
       "dashboard/routes/portal.routes.js :: // vendor_id is joined so the frontend's Vendor filter (bd-2031 vendor",
+      "dashboard/services/CLAUDE.md :: | `leader*` | 6 files; most used `leader-patch.service.js`: Resolves a leader's patch teachers (joined to Rumi users, coaching/LP counts, latest score); bd-2387. |",
       "dashboard/services/certificates.service.js :: * @param {'attachment'|'inline'} [disposition] - bd-2676. 'inline' returns a url",
       "dashboard/services/coaching-frameworks.service.js :: * bd-2434 — Framework-agnostic overall coaching score (NIETE port).",
       "dashboard/services/leader-assignment.service.js :: * Move an upcoming visit. A 'done' row is refused outright: since bd-2668 those",
@@ -1072,6 +1474,17 @@
       "dashboard/services/training-rules.service.js :: /** May this teacher open this module right now? (bd-2448 sequencing.) */",
       "dashboard/supabase/migrations/20260807_001_create_training_sync_runs.sql :: 'bd-2528 — one row per delta-sync run from the legacy FDE Django DB. Exists to make the sync retireable: when source_rows_after_cutoff stays 0, the old app is quiet and the job can be switched off with evidence.';",
       "dashboard/supabase/migrations/20260807_001_create_training_sync_runs.sql :: -- bd-2528 — the ledger that tells us when the legacy FDE app has gone quiet.",
+      "dashboard/supabase/migrations/CLAUDE.md :: | `20260807_001_create_training_sync_runs.sql` | Creates the training_sync_runs ledger recording each FDE delta-sync run so the sync can be retired on evidence; bd-2528. |",
+      "dashboard/views/partials/CLAUDE.md :: - `navigation.ejs` — the NIETE-styled top bar every admin view includes with currentPage/username/userRole (bd-2458)",
+      "docs/migration/CLAUDE.md :: # migration — Taleemabad to NIETE fork migration plan, tracks, and before-image snapshots",
+      "docs/migration/CLAUDE.md :: | `00-scope-and-decisions.md` | Load-bearing scope and architecture decisions for the Taleemabad-to-NIETE fork migration (D-001 onward) |",
+      "docs/migration/CLAUDE.md :: | `04-data-migration.md` | Migration track 04: one-time ETL plan from Taleemabad production stores into the fork's Supabase and R2 |",
+      "docs/migration/CLAUDE.md :: | `09-play-store-launch.md` | Play Store launch plan for the NIETE Android app (bd-2343..2352), decisions locked 2026-07-29 |",
+      "docs/migration/CLAUDE.md :: | `README.md` | Index of the Taleemabad-to-Rumi fork migration working docs; become history of decisions after launch |",
+      "docs/reports/CLAUDE.md :: # reports — Finished BUG-131 phase reports for portal training quiz parity",
+      "docs/reports/CLAUDE.md :: | `bug131-phase2-portal-quiz-ui.md` | Report, BUG-131 phase 2: portal training page quiz-taking UI with server-side grading in parity with WhatsApp |",
+      "docs/reports/CLAUDE.md :: | `bug131-phase3-grand-quiz.md` | Report, BUG-131 phase 3 (PR #33): portal grand quiz level exam and certificate writing the same tables as the bot |",
+      "docs/reports/CLAUDE.md :: | `bug131-phase4-media-complete.md` | Report, BUG-131 phase 4: portal Training media rendering audit across 384 modules and mark-complete |",
       "infrastructure/supabase/migrations/V1.0.10__observation_schedules.sql :: -- V1.0.10 — Observation schedules for the /observe scheduling UI (bd-2439 epic, bd-2441).",
       "infrastructure/supabase/migrations/V1.0.5__coaching_observations_migrated.sql :: -- as `nietemigrated_*` tables. Powers the FEAT-061 HITL / leader-dashboard",
       "infrastructure/supabase/migrations/V1.0.8__coaching_framework_provenance.sql :: -- (see the pre-seed SQL in the FEAT-060 ship notes).",
@@ -1081,6 +1494,35 @@
       "infrastructure/supabase/migrations/V1.1.2__one_certificate_per_user_level.sql :: -- V1.1.2 — bd-2670. ONE certificate per (user_id, level_id).",
       "infrastructure/supabase/migrations/V1.4.3__backfill_name_from_split_columns.sql :: -- bd-60092 · Backfill `users.name` from the split columns, before they are dropped.",
       "infrastructure/supabase/migrations/V1.4.4__drop_first_last_name_columns.sql :: -- bd-60092 · Drop `users.first_name` and `users.last_name`.",
+      "portal/public/v9h-b17a6a909a0664e9/g1_ch11/CLAUDE.md :: | `g1_ch11_English_seg5.v9.html` | Hosted v9 lesson page G1 English ch11 seg5 (en): Taleemabad's Favourite News, Mystery Chats & Finish the Sentence |",
+      "portal/public/v9h-b17a6a909a0664e9/g1_ch9/CLAUDE.md :: | `g1_ch9_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch9 seg1 (en): Predicting 'Eid in Taleemabad' + Use the Words (Memory Lane) |",
+      "portal/public/v9h-b17a6a909a0664e9/g1_ch9/CLAUDE.md :: | `g1_ch9_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch9 seg2 (en): Reading 'Eid in Taleemabad' (Festival Manners) |",
+      "portal/public/v9h-b17a6a909a0664e9/g2_ch6/CLAUDE.md :: | `g2_ch6_English_seg2.v9.html` | Hosted v9 lesson page G2 English ch6 seg2 (en): Reading: Taleemabad Kids' News & the Rocket |",
+      "portal/public/v9h-b17a6a909a0664e9/g3_ch7/CLAUDE.md :: | `g3_ch7_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch7 seg2 (en): Journey: The Whacky Jobs Fair in Taleemabad! |",
+      "portal/public/v9h-b17a6a909a0664e9/g4_ch10/CLAUDE.md :: | `g4_ch10_Maths_seg10.v9.html` | Hosted v9 lesson page G4 Math ch10 seg10 (en): Connect and Create: architect's model of Taleemabad |",
+      "portal/public/v9h-b17a6a909a0664e9/g4_ch5/CLAUDE.md :: | `g4_ch5_English_seg8.v9.html` | Hosted v9 lesson page G4 English ch5 seg8 (en): Write: Taleemabad's Clean Sweep (process creative writing) |",
+      "portal/public/v9h-b17a6a909a0664e9/g4_ch6/CLAUDE.md :: | `g4_ch6_English_seg2.v9.html` | Hosted v9 lesson page G4 English ch6 seg2 (en): Reading the play 'Allama Iqbal's visit to Taleemabad' (+ more topics) |",
+      "portal/src/portal/newui/training/CLAUDE.md :: | `certificateFile.ts` | bd-5rz1v.25: opens/saves a certificate PDF through a real anchor, outcome saved or failed (bd-2397) |",
+      "portal/src/test/CLAUDE.md :: | `brand-tokens.test.ts` | Pins NIETE brand book navy #333748 in index.css, hero gradient, theme-color and favicon (bd-2457) |",
+      "portal/src/test/CLAUDE.md :: | `portal-audience.test.ts` | Asserts shared chrome (login, title, 404) says 'NIETE Portal', never 'Teacher Portal' (bd-2468) |",
+      "scripts/CLAUDE.md :: - Write to a DB without asserting its project ref first: a worktree .env can point at another DB (migrate-schools.py:72, bd-2536)",
+      "scripts/lib/CLAUDE.md :: | `legacy_taleemabad_import.py` | Pure decision logic (question filters, ordering, insert vs update plan) behind import-legacy-taleemabad.py (bd-s42dye.4) |",
+      "scripts/lib/CLAUDE.md :: | `test_textbook_import.py` | Red-first unittest for textbook_import normalisation, one case per defect found in 27 ICT books (bd-60012) |",
+      "scripts/lib/CLAUDE.md :: | `training-band-derivation.js` | Derives a teacher's grade band(s) and training programs from users.training_bands, levels and grades (bd-2672) |",
+      "scripts/migrations/CLAUDE.md :: | `2026-07-21-capstone-import.sql` | Adds capstone answer columns and four Beacon House capstone quizzes with open-ended questions (bd-2233) |",
+      "tests/attendance/CLAUDE.md :: - An empty roster must never dead-end the Flow (bd-2713, tests/attendance/empty-roster-dead-end.test.js:2)",
+      "tests/attendance/CLAUDE.md :: | `absent-then-leave.test.js` | bd-2727: attendance Flow routes MARK to a separate LEAVE page so a student cannot be both absent and on leave |",
+      "tests/attendance/CLAUDE.md :: | `empty-roster-dead-end.test.js` | bd-2713: an empty roster never dead-ends the attendance Flow; routing model has one entry screen per way in |",
+      "tests/attendance/CLAUDE.md :: | `empty-roster-renders.test.js` | bd-2732: MARK never sends an empty data-source for a class with nobody in it, so the CheckboxGroup renders |",
+      "tests/attendance/CLAUDE.md :: | `principal-teachers-only.test.js` | bd-43520: /attendance for a principal is staff attendance only, starting with the tap-or-voice chat question |",
+      "tests/attendance/CLAUDE.md :: | `student-flow-four-asks.test.js` | bd-43523: student attendance reuses the principal path (picker, voice, REVIEW, register); radios to five classes |",
+      "tests/coaching/CLAUDE.md :: | `coaching*` | 7 files; most used `coaching-flow-integration.test.js`: bd-622/bd-618 wiring: LP selection list vs buttons in the coaching flow and the coaching card in the report flow |",
+      "tests/portal/CLAUDE.md :: - Portal routes hold no grading logic; the bot decides (tests/portal/no-local-grading-in-portal-routes.test.js:2, bd-2673)",
+      "tests/routes/CLAUDE.md :: - `internal-training-api.test.js` — the training decision API the portal delegates to (bd-2479)",
+      "tests/routes/CLAUDE.md :: | `pakistan-lp-endpoint.test.js` | Pins the Pakistan LP Flow endpoint (FEAT-059/109): INIT grades and subject, chapter, topic dropdown rows |",
+      "tests/training/CLAUDE.md :: | `bd-43478-band-selection.test.js` | bd-43478: bandsToPrograms mapping and the 48-hour band-change cooldown in band-selection.service |",
+      "tests/training/CLAUDE.md :: | `capstone*` | 4 files; most used `capstone-reachable.test.js`: bd-2472/2473/2474: the capstone is offered after the last quizzed module of a Beacon House level; no dead end |",
+      "tests/training/CLAUDE.md :: | `quiz*` | 6 files; most used `quiz-multi-select-flow.test.js`: bd-2501: multi-answer quiz questions go out as a Flow CheckboxGroup (token has attempt and index); single stays a list |",
       "training-msq-flow.json: ticket ref"
     ]
   },
@@ -1089,7 +1531,6 @@
       "Table-Usage Conformance every schema table is referenced somewhere in the codebase (or allowlisted)"
     ],
     "offenders": [
-      "pic_lp_sessions",
       "training_content_change_events"
     ]
   },
@@ -1112,6 +1553,19 @@
       "validateSetup valid setup returns valid=true when all flows are PUBLISHED and encryption is configured"
     ],
     "offenders": []
+  },
+  "tests/setup/virtual-mock-of-existing-module.test.js": {
+    "failing": [
+      "the tree no new virtual doMock of a module that exists; no directory above its doMock entry",
+      "the tree no new virtual mock of a module that exists; no directory above its entry (below or gone: a warning)"
+    ],
+    "offenders": [
+      "NEW: bot/tests/coaching/weekly-report has 2 virtual mock(s) of a module that exists. Drop { virtual: true }.",
+      "NEW: bot/tests/howto has 1 virtual jest.doMock(s) of a module that exists. Drop { virtual: true }.",
+      "NEW: tests/portal has 1 virtual jest.doMock(s) of a module that exists. Drop { virtual: true }.",
+      "UP: tests/llm has 11 virtual mock(s) of a module that exists. Drop { virtual: true }, virtual-mock-of-existing-module.allowlist.json allows 9.",
+      "UP: tests/portal has 4 virtual mock(s) of a module that exists. Drop { virtual: true }, virtual-mock-of-existing-module.allowlist.json allows 3."
+    ]
   },
   "tests/student-videos/student-videos-flow.test.js": {
     "failing": [
@@ -1149,6 +1603,13 @@
     ],
     "offenders": []
   },
+  "tests/unit/sprint-0/security-scan.test.js": {
+    "failing": [
+      "Security Scan No Hardcoded Credentials no hardcoded API keys in dashboard/ source files",
+      "Security Scan exec_sql Removal no exec_sql RPC calls in any source file (except safe placeholder comment)"
+    ],
+    "offenders": []
+  },
   "tests/unit/sprint-1/taleemabad-strip.test.js": {
     "failing": [
       "Taleemabad Content Stripping no Taleemabad references in bot source code no hardcoded \"Taleemabad\" in bot/shared/**/*.js (except config/branding)",
@@ -1159,6 +1620,7 @@
       "bot/shared/handlers/lesson-plan-v2.handler.js",
       "bot/shared/handlers/text-message.handler.js",
       "bot/shared/routes/teacher-training-endpoint.js",
+      "bot/shared/services/assessment/fde-stem-repeats.js",
       "bot/shared/services/coaching/fidelity/fidelity-orchestrator.js",
       "bot/shared/services/coaching/fidelity/upload-extractor-prompt.js",
       "bot/shared/services/curriculum-lp-ast.service.js",
@@ -1166,6 +1628,21 @@
       "bot/shared/services/training/quiz-delivery.service.js",
       "file",
       "pattern"
+    ]
+  },
+  "tests/users/bd-60092-one-name-column.test.js": {
+    "failing": [
+      "bd-60092 · no shipped code references the dropped columns no executable line references first_name or last_name",
+      "bd-60092 · no shipped code references the dropped columns no insert/update writes a first_name or last_name key"
+    ],
+    "offenders": [
+      "dashboard/sa/sa-page.js :: child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,",
+      "dashboard/sa/sa-page.js :: first_name: name || null,",
+      "dashboard/sa/sa-page.js :: root.parent.postMessage({ type: 'sa:drained', sessions: sessions }, root.location.origin);",
+      "dashboard/sa/sa-page.js :: var back = q.get('back') || '';",
+      "dashboard/sa/sa-run.js :: child: q.get('name') ? { first_name: q.get('name') } : null,",
+      "dashboard/sa/sa-run.js :: onEvent: function (e) { events.push(e); },",
+      "dashboard/sa/sa-ui.js :: if (k === 'class') el.className = attrs[k];"
     ]
   },
   "tests/whatsapp/send-image-from-url.test.js": {
