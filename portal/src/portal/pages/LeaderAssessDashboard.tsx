@@ -9,7 +9,7 @@ import { DASH_COPY, DASH_CWPM } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
 import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents, withPractice } from '../lib/assess/realCohort';
 import type { SaDashboardSession } from '../types/childTestSa';
-import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
+import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type ComprehensionByForm, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 import { COPY } from '../lib/assess/copy';
 import { hasLevels, subjectsIn, typicalLevel } from '../lib/assess/levels';
@@ -429,6 +429,10 @@ export default function LeaderAssessDashboard() {
     );
   } else {
     const hideAll = hide(h.n);
+    // round 28 (SPEC F): reading with comprehension per form; both forms in view → both numbers, labelled, never pooled
+    const rwcH = h.readingWithComprehension[read];
+    const rwcBoth = rwcH.spoken !== null && rwcH.tapped !== null;
+    const rwcOne = (x: ComprehensionByForm) => (x.spoken !== null ? x.spoken : x.tapped);
     // round 28: a live-only task (example: false) has a card only when some session in view has a score for it
     const readTasks = TASKS.filter((t) => t.domain === read && (t.example !== false || summariseTask(rows, t).n > 0));
     const mathsTasks = TASKS.filter((t) => t.domain === 'ma');
@@ -488,7 +492,16 @@ export default function LeaderAssessDashboard() {
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {tile('dash-total', c.students, hideAll ? c.fewer : count(h.n))}
-          {tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : pct(h.readingWithComprehension[read]), hideAll ? c.masked : c.rwcHint)}
+          {rwcBoth && !hideAll ? (
+            <div data-testid="dash-rwc" className="rounded-2xl border border-slate-200 bg-white p-3">
+              <p className="text-xs text-slate-600">{`${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`}</p>
+              <div className="flex flex-wrap gap-x-4">
+                <p data-testid="dash-rwc-spoken"><span className="block text-xs text-slate-600">{c.rwcSpoken}</span><span className="text-2xl font-bold text-slate-900">{pct(rwcH.spoken)}</span></p>
+                <p data-testid="dash-rwc-tapped"><span className="block text-xs text-slate-600">{c.rwcTapped}</span><span className="text-2xl font-bold text-slate-900">{pct(rwcH.tapped)}</span></p>
+              </div>
+              <p className="text-xs text-slate-500">{c.rwcHint}</p>
+            </div>
+          ) : tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : pct(rwcOne(rwcH)), hideAll ? c.masked : (rwcH.spoken === null && rwcH.tapped !== null ? `${c.rwcHint} · ${c.rwcTapped}` : c.rwcHint))}
           {tile('dash-orf', `${c.orf} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : one(h.orfMedian[read]), hideAll ? undefined : c.orfZero(pct(h.orfZero[read])))}
           {tile('dash-maths', c.maths, hideAll ? '–' : pct(h.mathsAllMet), hideAll ? undefined : c.mathsHint)}
           {tile('dash-minutes', c.minutes, hideAll ? '–' : one(h.minutesMedian))}
@@ -526,7 +539,7 @@ export default function LeaderAssessDashboard() {
                   >
                     <td className="py-2 pe-1 text-slate-900">{filter.sector ? g.label.replace('Example school ', '') : sectorName(g.label)}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? c.fewer : count(g.n)}</td>
-                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.readingWithComprehension[read])}</td>
+                    <td data-testid="dash-group-rwc" className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : rwcBoth ? `${c.rwcSpoken} ${pct(g.h.readingWithComprehension[read].spoken)} · ${c.rwcTapped} ${pct(g.h.readingWithComprehension[read].tapped)}` : pct(rwcOne(g.h.readingWithComprehension[read]))}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : one(g.h.orfMedian[read])}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.orfZero[read])}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.mathsAllMet)}</td>

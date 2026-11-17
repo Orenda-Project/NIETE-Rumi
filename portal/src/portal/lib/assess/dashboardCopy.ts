@@ -20,6 +20,9 @@ const en = {
   students: 'Students',
   rwc: 'Read with comprehension',
   rwcHint: '80% or more of the passage questions right',
+  // round 28 (SPEC F): the headline per form when a cohort has both; never one pooled share
+  rwcSpoken: 'spoken',
+  rwcTapped: 'listen and tap',
   orf: 'Words per minute (median)',
   orfZero: (pct: string) => `${pct} read no word`,
   maths: 'Maths: every subtask met',
@@ -149,6 +152,8 @@ const ur: DashCopy = {
   students: 'طلبہ',
   rwc: 'سمجھ کر پڑھنے والے',
   rwcHint: 'عبارت کے ⁦۸۰⁩٪ یا زیادہ سوال درست',
+  rwcSpoken: 'بول کر',
+  rwcTapped: 'سن کر ٹیپ',
   orf: 'فی منٹ الفاظ (درمیانی)',
   orfZero: (pct: string) => `${pct} ایک لفظ بھی نہ پڑھ سکے`,
   maths: 'ریاضی: ہر حصے میں معیار پورا',

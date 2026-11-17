@@ -141,10 +141,17 @@ export function summariseTask(students: DashStudent[], spec: TaskSpec): TaskSumm
   };
 }
 
+/**
+ * Reading with comprehension per FORM (SPEC F): today's spoken questions (`*.story_comp_w3`) and round 28's tapped MCQ
+ * (`*.story_mcq_w3`). Each is null when no child in view has a rated share for that form. Never pooled: the MCQ's 25%
+ * guess floor lifts its 80%+ share by construction, so one number would move with the switch date, not with reading.
+ */
+export type ComprehensionByForm = { spoken: number | null; tapped: number | null };
+
 export type Headline = {
   n: number;
-  /** reading with comprehension (≥80% of the questions), per language */
-  readingWithComprehension: Record<ReadLang, number | null>;
+  /** reading with comprehension (≥80% of the questions), per language, per form */
+  readingWithComprehension: Record<ReadLang, ComprehensionByForm>;
   /** median correct words per minute, per language */
   orfMedian: Record<ReadLang, number | null>;
   /** zero score on the passage, per language */
@@ -165,21 +172,19 @@ function median(xs: number[]): number | null {
 export function headline(students: DashStudent[]): Headline {
   const per = (lang: ReadLang) => {
     const passage = TASKS.find((t) => t.domain === lang && t.kind === 'passage') as TaskSpec;
-    // every comprehension task of the language (today's spoken one and round 28's tapped MCQ). A session has at most
-    // one, so per student the share is that of whichever it has. The headline's "reading with comprehension" is ONE
-    // share and so pools the two forms; the task-by-task cards keep them as two rows, never merged (SPEC F).
-    const comps = TASKS.filter((t) => t.domain === lang && t.kind === 'comprehension');
-    const compShare = (s: DashStudent): number | null => {
-      for (const spec of comps) {
-        const share = comprehensionShare(taskIn(s, spec.taskId), spec);
-        if (share !== null) return share;
-      }
-      return null;
+    // The rule (SPEC F): "reading with comprehension" is reported per form, spoken and tapped, never one pooled share;
+    // the dashboard shows one number when the cohort has one form and both, labelled, when it has both. An unrated
+    // tapped task has no share, so it counts in neither.
+    const rwcOf = (mode: 'spoken' | 'tapped'): number | null => {
+      const specs = TASKS.filter((t) => t.domain === lang && t.kind === 'comprehension' && (t.mode === 'tap') === (mode === 'tapped'));
+      const shares = students
+        .map((s) => specs.map((spec) => comprehensionShare(taskIn(s, spec.taskId), spec)).find((x) => x !== null) ?? null)
+        .filter((v): v is number => v !== null);
+      return shares.length ? shares.filter((x) => x >= COMPREHENSION_BENCHMARK).length / shares.length : null;
     };
     const wcpm = students.map((s) => wcpmOf(taskIn(s, passage.taskId))).filter((v): v is number => v !== null);
-    const shares = students.map(compShare).filter((v): v is number => v !== null);
     return {
-      rwc: shares.length ? shares.filter((x) => x >= COMPREHENSION_BENCHMARK).length / shares.length : null,
+      rwc: { spoken: rwcOf('spoken'), tapped: rwcOf('tapped') },
       median: median(wcpm),
       zero: wcpm.length ? wcpm.filter((v) => v === 0).length / wcpm.length : null,
     };
