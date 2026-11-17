@@ -2,7 +2,41 @@
 
 Thank you for your interest in contributing to Rumi!
 
-## Getting Started
+## Contributing with your agent
+
+For team members who change this repo (mostly the portal) with their own coding agent, such as Claude Code.
+Point your agent at this section first; the principles behind it are in the team skill pack's `niete-portal-v2`
+skill (reuse, design system, WhatsApp vs page, switches, scoping, tracking, testing).
+
+**Set up once**
+
+1. Node 22. Clone this repo, then `npm ci` at the root and `npm ci --prefix portal`.
+2. Save the sandbox contributor env file you were given as `.env.sandbox` in the clone's root (it is gitignored;
+   keep it private, `chmod 600`). It holds the sandbox database and file store only. Use it and nothing else:
+   **never** use, create or ask for `.env`, `.env.prod` or `.env.stage`. Those are staging and production, and a
+   contributor's agent never reads them. A script that asks for an environment gets `--env sandbox`.
+3. To see the portal on your laptop: `bash scripts/dev-portal.sh up` (macOS or Linux; on Windows use WSL2). It runs
+   on a local database of made-up data; add `DATA=demo` if you have no sandbox copy. It never reads your env files.
+
+**Every change**
+
+1. Branch from sandbox: `git fetch origin && git switch -c <you>/<topic> origin/sandbox`. One change per branch.
+2. Write the failing test first, then the change. New behaviour starts OFF behind an `app_settings` switch.
+3. Open a PR into `sandbox` and fill in the template. When CI is green, merge it into `sandbox` and try it on the
+   sandbox portal and bot with your test account.
+4. Tick **Ready for review** in the PR and post its link in the team's review channel. The core team carries it to
+   `staging` and production with the product owner's go; never push to or open a PR into `staging` or `main`.
+
+**Data and privacy**
+
+- Sandbox only, and test accounts only ("<Name> Testwala" in the synthetic test schools).
+- The sandbox database also holds copies of real teachers' records. Read only what the task needs, never copy
+  records out, and never put a real name, phone number or key in code, tests, screenshots, commits or PRs. This
+  repo is public, and CI checks for them.
+
+## Contributing from outside the team
+
+### Getting Started
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/rumi-platform.git`
