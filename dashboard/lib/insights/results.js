@@ -13,10 +13,12 @@ const BAR_SHARE = 0.5; // "below bar when correct share <= 50%" (W-LN, W-LS, W-F
 // Task id → EGRA/EGMA code (x-data C_student_results §1; the RDF set and the full battery's task ids).
 const TASKS = [
   { code: 'E3', re: /^(ur|en)\.letter_names/ },
-  { code: 'E4', re: /^(ur|en)\.letter_sounds/ },
+  // round 28: the listen-and-tap letter sounds (letter_pick10) and the tapped story questions (story_mcq_w3) are the
+  // same measures (a share of items correct; chance 20% / 25% sits under the 50% bar), under their own ids.
+  { code: 'E4', re: /^(ur|en)\.(letter_sounds|letter_pick)/ },
   { code: 'E8', re: /^(ur|en)\.words/ },
   { code: 'E9', re: /^(ur|en)\.nonwords/ },
-  { code: 'E11', re: /^(ur|en)\.story_comp/ },
+  { code: 'E11', re: /^(ur|en)\.(story_comp|story_mcq)/ },
   { code: 'E10', re: /^(ur|en)\.story(_w\d+)?$/ },
   { code: 'E14', re: /^(ur|en)\.(spelling|dictation)/ },
   { code: 'M', re: /^ma\./ },
