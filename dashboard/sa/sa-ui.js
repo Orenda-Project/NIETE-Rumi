@@ -6,7 +6,7 @@
  *   onState(view), onFeedback({kind:'practice', ok}), onRecordStart(task[, item]), onRecordStop(task[, item]),
  *   onMute(b)|null (game only), muted, back (url for the end screen), handback:'coach'|'teacher', onHandback(),
  *   art_base (Jugnu's pictures, default '/wq/'), check_words (the audio check's words, with clips),
- *   child: { first_name } (proctored handover), onUnlock() (the coach's hold on the hand-back screen),
+ *   child: { name } (proctored handover), onUnlock() (the coach's hold on the hand-back screen),
  *   onCoachMenu(open) (the coach's hold during the run),
  *   micProbe() → Promise<{ok, rms, url}> (game mic check: a 2-s probe, url = a blob to play back),
  *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question),
@@ -464,7 +464,7 @@
     var backWaiting = false;  // backWait(): game, the map not reachable yet; the end screen says the island waits here
     var starEl = null;
     var starSpeech = null;
-    var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
+    var childName = opts.child && typeof opts.child.name === 'string' ? opts.child.name.trim().slice(0, 40) : '';
     var manual = !!opts.manual;
     var appAsks = manual && !!opts.app_asks; // sa_app_asks (round 6, R6-2)
     var sectionRec = !!opts.section_recording; // an oral task is one recording from Begin (sa_section_recording)

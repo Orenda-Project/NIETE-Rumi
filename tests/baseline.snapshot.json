@@ -1648,21 +1648,6 @@
       "pattern"
     ]
   },
-  "tests/users/bd-60092-one-name-column.test.js": {
-    "failing": [
-      "bd-60092 · no shipped code references the dropped columns no executable line references first_name or last_name",
-      "bd-60092 · no shipped code references the dropped columns no insert/update writes a first_name or last_name key"
-    ],
-    "offenders": [
-      "dashboard/sa/sa-page.js :: child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,",
-      "dashboard/sa/sa-page.js :: first_name: name || null,",
-      "dashboard/sa/sa-page.js :: root.parent.postMessage({ type: 'sa:drained', sessions: sessions }, root.location.origin);",
-      "dashboard/sa/sa-page.js :: var back = q.get('back') || '';",
-      "dashboard/sa/sa-run.js :: child: q.get('name') ? { first_name: q.get('name') } : null,",
-      "dashboard/sa/sa-run.js :: onEvent: function (e) { events.push(e); },",
-      "dashboard/sa/sa-ui.js :: if (k === 'class') el.className = attrs[k];"
-    ]
-  },
   "tests/whatsapp/send-image-from-url.test.js": {
     "failing": [
       "WhatsAppService.sendImageFromUrl cleans up the temp file after sending",
