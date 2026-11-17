@@ -760,6 +760,7 @@
       var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
       var a = answerMeta({ item_id: it.id, value: value, ok: ok }, meta);
+      if (value === 'skipped' && meta && typeof meta.wait_ms === 'number') a.wait_ms = meta.wait_ms;
       if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
       if (st.rec_marks) {
         var at = function (x) { return Math.max(0, Math.round(x - st.rec_t0)); };
@@ -1027,7 +1028,10 @@
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         if (mcqReading(t)) return undefined;
         st.oral_run = 0; // round 13b: Next pressed is not a question left to run out
-        return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped');
+        // round 28 (picker, MCQ; O-10): the skipped answer says how long the child had, from the end of the last play of
+        // the sound (the picker) or of the fourth option (the MCQ) to the skip; the mode on the block tells whose Next it was
+        var waited = r28Sound(t) && st.item_started != null ? { wait_ms: Math.max(0, Math.round(now() - st.item_started)) } : undefined;
+        return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped', waited);
       },
       /** One at a time: the cell on show is passed (how: 'tap', or 'auto' when the page moves it on). */
       nextCell: function (how) { nextCell(how === 'auto' ? 'auto' : 'tap'); },

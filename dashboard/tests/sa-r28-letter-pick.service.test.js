@@ -85,7 +85,8 @@ describe('core: a pick task runs as an untimed tap task', () => {
     for (let i = 3; i < 10; i++) r.answer(items[i].target);
     const res = r.results()[0];
     expect(res).toMatchObject({ task_id: 'ur.letter_pick10', stop_reason: 'complete', attempted: 10, correct: 8, options_n: 5, scored_on: 'phone', per_minute: null });
-    expect(res.answers[2]).toEqual({ item_id: items[2].id, value: 'skipped', ok: false });
+    // round 28 (O-10): the skipped answer says how long the child had (the clock never moved here: 0)
+    expect(res.answers[2]).toEqual({ item_id: items[2].id, value: 'skipped', ok: false, wait_ms: 0 });
   });
 
   test('answer(value, meta) keeps replays and tap_ms on the answer; answer(value) keeps today\'s shape', () => {

@@ -1491,6 +1491,15 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the child meets the comprehension rung and counts in the 80%+ share
     And Results reads the guessing floor on 4 of 5
     And the 5-question variant is never padded to 6
+  @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had
+    Given sa_r28_letter_pick or sa_r28_mcq is on and an item's sound (or the fourth option) has finished playing
+    When the item is skipped with Next, the child's own run or the coach's
+    Then the answer is recorded as skipped, not right
+    And it carries wait_ms, the time from the end of the last play to the skip
+    And a stuck child on the child's own run reads 30 seconds or more, a coach's quick Next a few seconds
+    And every other tapped task records a skipped item exactly as today
   @e2e @wip @draft @config-gated @P1 @CT194 @no-mock-driver
   # No mock driver: the story's questions run on the child's assessment page, not in the chat.
   # Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
