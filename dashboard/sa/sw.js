@@ -61,7 +61,11 @@
 //   picker and the spoken MCQ, so nothing moves when it is offered and a phone keeps every card and option in reach).
 // sa-31: round 28 follow-up: sa-ui.js (the coach's hold menu says End this task in Urdu apart from the portal's End this
 //   section, under sa_r28_end_task_copy).
-var VERSION = 'sa-31';
+// sa-32: round 28 follow-up, one bump for the engine files of several changes: sa-ui.js and sa.css (Jugnu says the letter
+//   picker's and the spoken MCQ's instruction and practice feedback in coach-led; the picker practice's named line wraps in
+//   the coach-led head row in place of the chip and the Skip), sa-offline.js (the offline timing sweep asks only for files
+//   that exist, prompt_timings.json first).
+var VERSION = 'sa-32';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -99,7 +103,9 @@ var CORE = 'sa-core-' + VERSION;
 // through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
 // v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
 // familiar words' accept forms (scorer only; never served).
-var SESSION = 'sa-session-v26';
+// v27: round 28's battery files re-made with the letter-sound picker's practice feedback naming the sound (the
+// letter-sounds lines, then the item's own clip; no new clip).
+var SESSION = 'sa-session-v27';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
