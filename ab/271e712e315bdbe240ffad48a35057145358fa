@@ -8,3 +8,4 @@
 {"ts":"2026-11-15T11:46:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.1.1","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
 {"ts":"2026-11-16T04:02:54Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.1.1","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
 {"ts":"2026-11-17T10:23:23Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.1.1","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
+{"ts":"2026-11-18T00:52:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.1.1","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
