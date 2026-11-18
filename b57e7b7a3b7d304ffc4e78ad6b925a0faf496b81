@@ -1,0 +1,2 @@
+{"ts":"2026-11-18T07:18:16Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login spec_sync=true","sha":"b57e7b7a3b7d","branch":"bd-j7czk9.1-84975","user":"Mah Noor"}
+{"ts":"2026-11-18T07:18:18Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-login spec_sync=true","sha":"b57e7b7a3b7d","branch":"bd-j7czk9.1-84975","user":"Mah Noor"}
