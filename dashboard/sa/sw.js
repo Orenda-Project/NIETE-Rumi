@@ -70,7 +70,9 @@
 // sa-34: round 28, sa-core.js, sa-ui.js and sink-coach.js (the session row keeps the child's practice taps, the answer
 //   cards' reach at each item and again when Next is offered, a story question's first choice, and which engine served
 //   the page; no screen changes).
-var VERSION = 'sa-34';
+// sa-35: round 28, sa-ui.js (the spoken MCQ keeps a few listed Urdu word runs, names and paired words, on one line in the
+//   question and its answers, so a phone never breaks them across two lines).
+var VERSION = 'sa-35';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
