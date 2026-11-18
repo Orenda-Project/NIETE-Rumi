@@ -25,7 +25,7 @@ const { rich, esc, display, displayChem, setRtlProse, setUrduInline } = require(
 const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
-const { questionIndex } = require("./questions");
+const { questionIndex, allQuestions } = require("./questions");
 const { fbiseRow, noBoardExam } = require("./fbise_chips");
 
 // ── diagram-type badge: the enum is OURS, the badge is the TEACHER'S ─────────
@@ -1913,9 +1913,15 @@ function page1(doc, ctx, secIndex) {
   // consecutive layout:"half" sections share one two-column band. Each keeps its own
   // lettered bar, so the closed heading vocabulary survives; only the stacking goes away.
   // A band is ONE atom: two columns cannot straddle a page break.
-  for (let i = 0; i < doc.sections.length; i++) {
-    const s = doc.sections[i];
-    const n = doc.sections[i + 1];
+  // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
+  // bd-xkkw9.2). Still over the TEACH cap after the two-box move: the homework section leaves the
+  // flow whole (bar, notes, items) and prints in Reference "Homework, in full", where every item
+  // already has its answer (homeworkMovable). One pointer line stands where it was; it reuses
+  // `.cite`, so no CSS changes for any lesson. Off, `flowSecs` IS doc.sections.
+  const flowSecs = ctx.hwRefOnly ? doc.sections.filter((s) => s.id !== "homework") : doc.sections;
+  for (let i = 0; i < flowSecs.length; i++) {
+    const s = flowSecs[i];
+    const n = flowSecs[i + 1];
     if (!PAGE.oneColumn && s.layout === "half" && n && n.layout === "half") {
       A.push(atom(`<div class="secrow">${whole(s, HALF_COL)}${whole(n, HALF_COL)}</div>`, { sp: 4 }));
       i++;
@@ -1923,6 +1929,7 @@ function page1(doc, ctx, secIndex) {
       A.push(...sectionAtoms(s, FULL_COL));
     }
   }
+  if (ctx.hwRefOnly) A.push(atom(`<div class="blk hwptr"><span class="cite">${esc(L.hwPointer(L.p2Hw))}</span></div>`, { sp: 3 }));
 
   // The materials and the pacing moved UP into the resources card; what stays here is the one
   // sentence that is only true at the end of the teach part — the next sheet is planning material.
@@ -2325,13 +2332,17 @@ function page2(doc, ctx, secIndex) {
   // two pages side by side. F is the tallest structure on the support page — median 496px, max
   // 853px across the study's 24 lessons — and therefore the single biggest source of stranded
   // space. It splits by row, and when `homework_key` is absent (bd-s19g8) it is not painted.
-  S(L.p2Hw, gridRows("grid2", (P.homework_key || [])
+  // bd-xkkw9.2 — with the homework section out of the flow, its own notes (how it is checked, what
+  // to bring) print here, above the questions, so nothing the section said is lost.
+  const hwSec = ctx.hwRefOnly ? (doc.sections || []).find((x) => x.id === "homework") : null;
+  const hwBlk = hwSec ? makeBlockRenderer(ctx) : null;
+  S(L.p2Hw, [...(hwSec ? (hwSec.blocks || []).map((b) => ({ html: hwBlk(b, FULL_COL), sp: 1 })) : []), ...gridRows("grid2", (P.homework_key || [])
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
-      <span class="refq">${it ? rich(it.q) : (h.item ? rich(h.item) : esc(L.refMissing))}</span>
+      <span class="refq">${it ? rich(it.q) + (ctx.hwRefOnly ? hwSourceHtml(it.source, L) : "") : (h.item ? rich(h.item) : esc(L.refMissing))}</span>
       <p class="a">${rich(h.answer)}</p></div>`;
-    })));
+    }))]);
 
   // bd-a8veu.20 — NEXT PERIOD / NOT GOING TODAY IS NO LONGER PAINTED. Operator, on a grade-6
   // English plan: "inside Reference, A is not at all needed since on Page 1 it is already
@@ -2467,6 +2478,8 @@ function buildHtml(input, opts = {}) {
     rasterFigure: false,
     vectorFigure: false,
     noFlowHosts: !!opts.noFlowHosts,
+    // bd-xkkw9.2 — only ever true for a lesson whose every homework item has its answer in F.
+    hwRefOnly: !!opts.hwRefOnly && homeworkMovable(doc),
   };
 
   const fonts = fontCss({ urdu: rtl || urduScript, quranic: true });
@@ -2528,8 +2541,29 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
       const P2 = doc.page2 || {};
       return !!((h.mistakes && (P2.mistakes || []).length) || (h.differentiation && P2.differentiation));
     })(),
+    // bd-xkkw9.2 — may the homework print only in Reference? (renderDoc's third paint)
+    homeworkMovable: homeworkMovable(doc),
+    homeworkMoved: ctx.hwRefOnly,
     pageContentHeight: PAGE_CONTENT_H,
   };
+}
+
+/**
+ * bd-xkkw9.2 — true when every homework item the flow prints has an answered entry in
+ * `page2.homework_key`, so printing the items only in Reference loses nothing. Refs are read
+ * through allQuestions, so derived refs (H1, H2 …) count exactly as F resolves them.
+ */
+function homeworkMovable(doc) {
+  const hw = allQuestions(doc).filter((q) => q.kind === "homework");
+  if (!hw.length) return false;
+  const keyed = new Set(((doc.page2 && doc.page2.homework_key) || []).filter((h) => h && h.ref && h.answer).map((h) => h.ref));
+  return hw.every((q) => keyed.has(q.ref));
+}
+
+/** The book source a homework item carried in the flow, for its Reference card (bd-xkkw9.2). */
+function hwSourceHtml(src, L) {
+  if (!src || !(src.page || src.questions || src.paper)) return "";
+  return ` <span class="src">(${[src.paper, src.questions, src.page ? `${L.page}${src.page}` : null].filter(Boolean).map((x) => rich(x)).join(", ")})</span>`;
 }
 
 module.exports = { buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,
