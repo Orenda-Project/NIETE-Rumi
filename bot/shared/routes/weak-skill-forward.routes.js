@@ -13,6 +13,7 @@
  */
 const { logEvent } = require('../utils/structured-logger');
 const { WORDS } = require('../templates/weak-skill-jugnu.template');
+const { clampLanguage } = require('../config/ux-strings');
 
 const LINES = {
   en: (game) => `Our class has a Jugnu game to practise: ${game}. Children can play it on this phone. Tap to start:`,
@@ -37,9 +38,10 @@ function attach(router, { authorise, handle, notFound, noStore }) {
     const url = m && m.ok ? Link.linkUrl(m.code) : null;
     if (!url) { notFound(req, res, v); return; }
 
-    const lang = req.query.lang === 'ur' ? 'ur' : 'en';
+    const lang = clampLanguage(req.query.lang);
     const text = `${LINES[lang](WORDS[game][lang].game)}\n${url}?ex=${game}`;
-    logEvent('weak_skill_jugnu.forwarded', { teacherId: v.teacherId, game, grade: list.grade });
+    const { tk } = require('../services/quiz/web-quiz-kid'); // eslint-disable-line global-require
+    logEvent('weak_skill_jugnu.forwarded', { tk: tk(v.teacherId), game, grade: list.grade });
     noStore(res);
     res.redirect(302, `https://wa.me/?text=${encodeURIComponent(text)}`);
   }));

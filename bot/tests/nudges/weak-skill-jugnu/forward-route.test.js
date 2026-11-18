@@ -17,6 +17,7 @@ const mockLists = jest.fn();
 jest.mock('../../../shared/services/nudges/weak-skill-jugnu/reader', () => ({ listsOf: (...a) => mockLists(...a) }));
 const mockEvent = jest.fn();
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: (...a) => mockEvent(...a) }));
+jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ tk: (id) => `tk:${id}` }));
 
 const Route = require('../../../shared/routes/weak-skill-forward.routes');
 
@@ -50,7 +51,7 @@ test('302 to wa.me: the fixed line and the class link opening that game', async 
   expect(text).toMatch(/https:\/\/kids\.example\/j\/ABCDEFGH\?ex=missing$/);
   expect(text.replace(/https:\S+/, '')).not.toMatch(/[0-9۰-۹]/);
   expect(mockMint).toHaveBeenCalledWith({ teacherId: 'u1', classId: 'c3' });
-  expect(mockEvent).toHaveBeenCalledWith('weak_skill_jugnu.forwarded', { teacherId: 'u1', game: 'missing', grade: 3 });
+  expect(mockEvent).toHaveBeenCalledWith('weak_skill_jugnu.forwarded', { tk: 'tk:u1', game: 'missing', grade: 3 });
 });
 
 test('Urdu line on lang=ur', async () => {

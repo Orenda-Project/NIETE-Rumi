@@ -5,16 +5,19 @@
  * the grade and words only: never a count, a rate or a child's name.
  */
 
-const { clampLanguage } = require('../../../config/ux-strings');
+const { clampLanguage, UX_STRINGS } = require('../../../config/ux-strings');
 const { templateCodeFor } = require('../../../config/languages');
 const { TEMPLATE, WORDS } = require('../../../templates/weak-skill-jugnu.template');
 
 const urDigits = (s) => String(s).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d)));
+/** How a number is written in each language's message: Urdu digits on the Urdu one. */
+const DIGITS = { en: String, ur: urDigits };
 const text = (v) => ({ type: 'text', text: String(v) });
 
 function firstName(name, lang) {
   const first = String(name || '').trim().split(/\s+/)[0];
-  return first || (lang === 'ur' ? 'استاد' : 'Teacher');
+  const none = UX_STRINGS.weakSkillJugnuNoName;
+  return first || none[lang] || none.en;
 }
 
 /**
@@ -33,7 +36,7 @@ function buildMessage({ picked, grade, token, listId, teacher = {} } = {}) {
     language,
     game,
     components: [
-      { type: 'body', parameters: [firstName(teacher.name, language), language === 'ur' ? urDigits(grade) : grade, w.skill, w.game].map(text) },
+      { type: 'body', parameters: [firstName(teacher.name, language), (DIGITS[language] || String)(grade), w.skill, w.game].map(text) },
       { type: 'button', sub_type: 'url', index: '0', parameters: [text(suffix)] },
     ],
   };

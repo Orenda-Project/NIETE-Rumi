@@ -41,7 +41,7 @@ const TEMPLATE = {
   },
 };
 
-/** The skill in words, and the game's own name as the child's page shows it (ux-strings wqCh*Name, jg.warmup.title). */
+/** The skill in words, and the game's own name as the child's page shows it (ux-strings wqCh*Name; the trail's warm-up title). */
 const WORDS = {
   missing: {
     en: { skill: 'finding the missing number', game: 'Missing number' },
