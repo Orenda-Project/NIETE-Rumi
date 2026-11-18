@@ -46,6 +46,15 @@ function certCodePrefix() {
 }
 
 /**
+ * A Postgres unique-constraint violation, as PostgREST reports it. On
+ * training_certificates the one that matters is
+ * training_certificates_user_level_uniq: someone else already holds the row.
+ */
+function isUniqueViolation(error) {
+  return !!error && (error.code === '23505' || /duplicate key value violates unique constraint/i.test(error.message || ''));
+}
+
+/**
  * Generate a certificate code: <PREFIX>-<YYYYMMDD>-<6 base36 chars>.
  * Same shape the WhatsApp path has always issued.
  * @param {Date} [now]
@@ -55,6 +64,27 @@ function generateCertificateCode(now = new Date()) {
   const datePart = now.toISOString().slice(0, 10).replaceAll('-', '');
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, '0');
   return `${certCodePrefix()}-${datePart}-${rand}`;
+}
+
+/**
+ * Did this issueCertificate call write the certificate? The guard below
+ * answers `issued: true` only then: its own pre-read of an existing row answers
+ * `issued: false`, and so must a failed insert or a race another request won
+ * (`already_issued`). Callers send the congratulation on `issued`, so a lost
+ * race reading as issued would send the teacher a second one.
+ */
+function mintedHere(cert) {
+  return !!cert && cert.issued !== false && cert.already_issued !== true;
+}
+
+/**
+ * The guard's answer when this call did not write the certificate. A race
+ * another request won still means the teacher HOLDS it, so that is said
+ * (`already_issued`): the level list shows the level certified instead of
+ * offering the exam again. `issued` stays false, so nobody congratulates twice.
+ */
+function notMintedHere(cert) {
+  return cert && cert.already_issued === true ? { issued: false, already_issued: true } : { issued: false };
 }
 
 /**
@@ -125,6 +155,37 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
     teacher_name_snapshot: teacherName,
     level_name_snapshot: levelName,
   });
+  if (error && isUniqueViolation(error)) {
+    // Another request certified this (user, level) between the read above and
+    // this insert: two screens loading the level list at once both
+    // fetch-or-issue, and the one-per-(user, level) constraint lets exactly one
+    // row land. Production logged 41 of these "insert failed" errors from 2 to
+    // 17 Nov for 32 teacher-levels, and every one of those certificates
+    // existed, written 0.1-0.3 s earlier. Read the row that won and return it,
+    // as the early-out above would have. Only if nothing can be read back is
+    // it a real failure.
+    const { data: wonRows } = await supabase
+      .from('training_certificates')
+      .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, pdf_r2_key')
+      .eq('user_id', userId)
+      .eq('level_id', levelId)
+      .order('issued_at', { ascending: true })
+      .limit(1);
+    const won = Array.isArray(wonRows) ? wonRows[0] : null;
+    if (won) {
+      let tk = null;
+      try { tk = require('../quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+      logToFile('🎓 Certificate already issued by a concurrent request — returning it', { tk, levelId });
+      return {
+        certificate_code: won.certificate_code,
+        teacher_name: won.teacher_name_snapshot,
+        level_name: won.level_name_snapshot,
+        issued_at: won.issued_at,
+        already_issued: true,
+        pdf_r2_key: won.pdf_r2_key || null,
+      };
+    }
+  }
   if (error) {
     // A failed insert must not be reported as an issued
     // certificate.
@@ -229,7 +290,7 @@ async function certifyOnLevelExam(supabase, { userId, level, programId }) {
   const cert = await issueCertificate(supabase, {
     userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
   });
-  if (cert.issued === false) return { issued: false };
+  if (!mintedHere(cert)) return notMintedHere(cert);
   return {
     issued: true,
     certificate_code: cert.certificate_code,
@@ -300,7 +361,7 @@ async function certifyOnCapstone(supabase, { userId, level, programId }) {
   const cert = await issueCertificate(supabase, {
     userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
   });
-  if (cert.issued === false) return { issued: false };
+  if (!mintedHere(cert)) return notMintedHere(cert);
   return {
     issued: true,
     certificate_code: cert.certificate_code,
@@ -475,7 +536,7 @@ async function maybeIssueQuizScoreCertificate(
         userId, programId, levelId: level.id, attemptId,
       });
       // A failed insert is not a certificate (see issueCertificate).
-      if (cert.issued === false) return { issued: false };
+      if (!mintedHere(cert)) return notMintedHere(cert);
       return {
         issued: true,
         certificate_code: cert.certificate_code,
@@ -520,6 +581,9 @@ async function maybeIssueQuizScoreCertificate(
     const cert = await issueCertificate(supabase, {
       userId, programId, levelId: level.id, attemptId,
     });
+    // Same rule as every other branch: a failed insert, or a race another
+    // request won, is not a certificate THIS call issued.
+    if (!mintedHere(cert)) return notMintedHere(cert);
     return {
       issued: true,
       certificate_code: cert.certificate_code,
