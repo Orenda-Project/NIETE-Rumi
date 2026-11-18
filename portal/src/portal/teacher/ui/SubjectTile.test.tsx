@@ -46,6 +46,16 @@ describe("subjectShort: the D6.5 lead's subject half (operator, 9 Oct: \"short f
     }
   });
 
+  // bd-wpw633 — a K-5 lesson id's own subject token reaches the coach's School card list tile as it is
+  // (general_knowledge, social_studies_en): an underscore reads as a space, so it is "GK", never "gene".
+  it.each([
+    ["general_knowledge", "GK", "bulb"], ["general_knowledge_ur", "GK", "bulb"], ["social_studies_en", "SST", "landmark"],
+    ["computer_science", "Comp", "monitor"], ["pak_studies_urdu", "Urdu", "ur"],
+  ])("a subject token %j → %j, icon %s", (subject, shown, icon) => {
+    expect(subjectShort(subject)).toBe(shown);
+    expect(subjectIcon(subject)).toBe(icon);
+  });
+
   it("Urdu: the short Urdu word; no Urdu form → the English 4 letters", () => {
     expect(subjectShort("General Science", "ur")).toBe("سائنس");
     expect(subjectShort("Maths", "ur")).toBe("ریاضی");
