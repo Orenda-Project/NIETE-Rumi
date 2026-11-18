@@ -44,7 +44,8 @@ describe('sa_r8_counts (sa-battery-switches.js)', () => {
     const before = load(n);
     const b = applySwitches(before, ON);
     for (const id of Object.keys(WANTED)) {
-      const was = task(before, id).items;
+      // round 28's EN word accept forms are the scorer's (the file carries them, a phone never does)
+      const was = task(before, id).items.map(({ accept: _a, ...x }) => x);
       expect(task(b, id).items.slice(0, was.length)).toEqual(was);
       // practice is dropped from the end only
       expect(task(b, id).practice).toEqual(task(before, id).practice.slice(0, WANTED[id][0]));
