@@ -59,7 +59,9 @@
 //   picker's practice example keeps room for its pointing hand in RDF auto; its last practice feedback keeps the 1.2 s floor).
 // sa-30: round 28 follow-up: sa-ui.js and sa.css (RDF auto's Next sits in the head row with its place held, on the letter
 //   picker and the spoken MCQ, so nothing moves when it is offered and a phone keeps every card and option in reach).
-var VERSION = 'sa-30';
+// sa-31: round 28 follow-up: sa-ui.js (the coach's hold menu says End this task in Urdu apart from the portal's End this
+//   section, under sa_r28_end_task_copy).
+var VERSION = 'sa-31';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

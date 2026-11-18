@@ -176,6 +176,7 @@
       handover_anon: 'Give the phone to the child',
       coach: 'Coach',
       end_task: 'End this task',
+      end_task_r28: 'End this task', // sa_r28_end_task_copy ON (sCoachMenu): the English is unchanged
       cont: 'Continue',
       sync: 'Saved',
       time: 'Time',
@@ -281,6 +282,7 @@
       handover_anon: 'اب فون بچے کو دیں',
       coach: 'کوچ',
       end_task: 'یہ حصہ ختم کریں',
+      end_task_r28: 'یہ کام ختم کریں', // sa_r28_end_task_copy ON (sCoachMenu)
       cont: 'جاری رکھیں',
       sync: 'محفوظ',
       time: 'وقت',
@@ -578,6 +580,9 @@
     // Round 28 (sa_r28_check_fit, battery.ui.r28_check_fit): the Urdu sound check sized for a phone-height frame, so both
     // picture tiles are whole and tappable without scrolling (sa.css "round 28, the check fit")
     var r28CheckFit = r7.r28_check_fit === true;
+    // Round 28 (sa_r28_end_task_copy, battery.ui.r28_end_task_copy): the hold menu's End this task (it ends the test) in
+    // Urdu reads «یہ کام ختم کریں», no longer the words of the portal's End this section; OFF: COPY.end_task as before
+    var r28EndTask = r7.r28_end_task_copy === true;
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
     // Round 10 layout 2 (r10_number_fit): a maths number as large as its box allows, whatever its digits (numFit)
     var r10Num = r7.r10_number_fit === true;
@@ -3320,7 +3325,7 @@
           v.task ? h('p', { class: 'sae-sub', text: tx(v.task.title) }) : null,
           r9Skip && (v.phase === 'instruction' || v.phase === 'practice')
             ? h('button', { class: 'sae-btn sae-secondary is-coach sae-r9-skip', type: 'button', onclick: function () { skipInstr(); closeCoach(); } }, [C.skip_instr]) : null,
-          canEnd ? btn(C.end_task, function () { hold = null; listening = null; runner.coachEnd(); closeCoach(); }, 'sae-secondary sae-danger') : null,
+          canEnd ? btn(r28EndTask ? C.end_task_r28 : C.end_task, function () { hold = null; listening = null; runner.coachEnd(); closeCoach(); }, 'sae-secondary sae-danger') : null,
           btn(C.cont, closeCoach, 'sae-primary'),
         ]),
       ]);

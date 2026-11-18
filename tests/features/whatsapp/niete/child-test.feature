@@ -2000,3 +2000,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a final cell on show under half a second at time up is still not counted as attempted
     And a recording with no speech at all leaves every cell unreached, never wrong
     And with sa_r28_ceiling off, or on a grid that does not extend, the marks are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT293 @no-mock-driver
+  # No mock driver: the coach's press-and-hold menu inside the engine page. Asserted in
+  # dashboard/tests/sa-r28-end-task-copy.service.test.js (the switch, the route's read and the menu's label).
+  Scenario: With sa_r28_end_task_copy on, the coach's hold menu says End this task in Urdu in words of its own
+    Given sa_r28_end_task_copy is on and a coach runs the test in Urdu
+    When the coach presses and holds the corner on any coach-led screen
+    Then the menu's button that ends the test reads «یہ کام ختم کریں»
+    And it no longer reads «یہ حصہ ختم کریں», the words of the portal's End this section button, which is unchanged
+    And in English the button reads "End this task", with the switch on or off
+    And with sa_r28_end_task_copy off, or its row holding anything but true, the Urdu button reads «یہ حصہ ختم کریں» as before
