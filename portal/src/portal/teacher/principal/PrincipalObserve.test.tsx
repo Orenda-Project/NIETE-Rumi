@@ -133,7 +133,8 @@ describe("the principal app's Observations", () => {
   });
 
   // bd-33wxxi.9.3 — a row opens that teacher's page (the coach's visit screen); its squares go on to her record / attach.
-  it("Pick the teacher: her school's teachers A to Z, last observed / not observed yet, each opening her visit screen", async () => {
+  // bd-31ziu8: principals book a visit first, as coaches do.
+  it("Pick the teacher: her school's teachers A to Z, last observed / not observed yet, each opening booking a visit for her", async () => {
     serve();
     open("/portal/teacher/principal/pick");
     await screen.findByText("Ayesha Sample", {}, T);
@@ -143,7 +144,7 @@ describe("the principal app's Observations", () => {
     expect(screen.getByText("Middle · last observed Today")).toBeTruthy();
     expect(screen.getByText("not observed yet")).toBeTruthy();
     const ayesha = screen.getAllByRole("link").find((a) => /Ayesha/.test(a.textContent || ""));
-    expect(ayesha?.getAttribute("href")).toBe("/portal/teacher/principal/visit/900001");
+    expect(ayesha?.getAttribute("href")).toBe("/portal/teacher/principal/new-visit?teacher=900001");
   });
 
   it("Check and send for a picked teacher: no visit is read or made; Start recording / Upload recording stay in her app", async () => {

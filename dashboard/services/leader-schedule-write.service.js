@@ -56,6 +56,25 @@ const PATCH_SQL = `
    AND u.role IN ('teacher', 'principal')
    AND u.deleted_at IS NULL
   WHERE ls.leader_user_id = $1 AND u.phone_number = $2
+  UNION ALL
+  -- bd-31ziu8 — a principal books a visit exactly as a coach does (operator 18 Nov ~16:40: "It has to be the same as
+  -- coach"), in their OWN school (users.school_id): keyed by its EMIS, else (a school with none, e.g. GB's test
+  -- schools) by the key a coach's holding of that school uses. Never themselves (their own lesson is the Digital Coach).
+  SELECT u.id                 AS teacher_user_id,
+         u.phone_number       AS teacher_ext_id,
+         NULLIF(btrim(u.name), '') AS teacher_name,
+         COALESCE('niete:' || s.emis,
+           (SELECT h.school_ext_id FROM leader_schools h WHERE h.school_id = s.id AND h.school_ext_id IS NOT NULL
+             ORDER BY h.school_ext_id LIMIT 1)) AS school_ext_id,
+         s.name               AS school_name
+  FROM users me
+  JOIN schools s
+    ON s.id = me.school_id
+  JOIN users u
+    ON u.school_id = s.id
+   AND u.role IN ('teacher', 'principal')
+   AND u.deleted_at IS NULL
+  WHERE me.id = $1 AND lower(btrim(me.role)) = 'principal' AND u.phone_number = $2 AND u.id <> me.id
   LIMIT 1
 `;
 

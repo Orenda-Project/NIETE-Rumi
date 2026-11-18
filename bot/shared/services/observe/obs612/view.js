@@ -21,15 +21,25 @@
  *     plan: [{area, n, short, text, current, goal, action}]       (msci development plan)
  *     feedback: { strengths, areas, recommendations, timeline } (enur) | { line } (gen) | {}
  *   }
+ *
+ * bd-31ziu8 — a FICO-S v1.1 visit (tool 'ficos'): label 'FICO-S v1.1', and
+ *     ficos: { total, max, pct, band, counted, na: [codes], sections: [{key, name, scored, average, pct}],
+ *              indicators: [{code, section, name, level, na, levelName, levelText, evidence}], checklistNo: [text] }
+ *     plan: [{code, name, level, action}] (the feedback's focus), feedback: { strengths, by_when }
+ * FICO-S's own arithmetic (frameworks/fico-s): section averages, overall %, band. Never a FICO17 v6 number.
  */
 
 const O = require('../../coaching/frameworks/obs612');
+const FicoS = require('../../coaching/frameworks/fico-s');
 
 const LABEL = O.LABEL;
 // The line under every FDE result (operator's wording). A constant, so the WhatsApp cap audit never reads it as a footer.
 const FDE_FOOTNOTE = "Scored by your coach on FDE's tool (Annexure G, 2026-27). Not a FICO score.";
 // The same line for an Urdu report (DRAFT for native review): an English line inside an RTL page loses its spacing.
 const FDE_FOOTNOTE_UR = 'آپ کے کوچ نے ایف ڈی ای کے ٹول (Annexure G، \u2066۲۰۲۶-۲۷\u2069) پر نمبر دیے۔ یہ FICO اسکور نہیں۔';
+// bd-31ziu8 — the FICO-S line (DRAFT Urdu for native review).
+const FICO_S_FOOTNOTE = 'Scored by your observer on FICO 6-12, the FICO rubric for grades 6-12. Not a FICO17 v6 score.';
+const FICO_S_FOOTNOTE_UR = 'آپ کے مشاہدہ کار نے \u2066FICO 6-12\u2069 پر لیول دیے، جماعت ۶ تا ۱۲ کا \u2066FICO\u2069۔ یہ \u2066FICO17 v6\u2069 اسکور نہیں۔';
 
 /**
  * A coach's hand-typed note, made safe to show (bd-ra8xu.51, Rifat 13 Nov: "repeated broken characters"). A run of more
@@ -159,6 +169,48 @@ function msciView(o, r) {
   };
 }
 
+function ficosView(o) {
+  const answers = o.answers || {};
+  const ev = o.evidence || {};
+  const r = FicoS.score(answers);
+  const indicators = FicoS.CODES.map((code) => {
+    const def = FicoS.indicator(code);
+    const v = FicoS.normLevel(answers[code], code);
+    const level = typeof v === 'number' ? v : null;
+    return {
+      code,
+      section: def.section,
+      name: def.name,
+      level,
+      na: v === 'NA',
+      levelName: level === null ? null : FicoS.levelName(level),
+      levelText: level === null ? null : def.levels[level - 1].text,
+      evidence: str(ev[code]) || null,
+    };
+  });
+  const checklist = o.checklist || {};
+  const plan = ((o.feedback || {}).focus || []).map((f) => {
+    const ind = indicators.find((i) => i.code === f.code);
+    return { code: f.code, name: ind ? ind.name : f.code, level: ind ? ind.level : null, action: str(f.action) };
+  });
+  return {
+    data: {
+      total: r.total,
+      max: r.max,
+      pct: r.pct,
+      band: r.band ? r.band.label : null,
+      counted: r.counted,
+      na: r.na,
+      sections: r.sections.map((s) => ({ key: s.key, name: s.name, scored: s.scored, total: s.total, max: s.max, average: s.average, pct: s.pct })),
+      indicators,
+      checklistNo: FicoS.RUBRIC.checklist.filter((c) => checklist[c.key] === 'no').map((c) => c.text),
+    },
+    ...extremes(indicators, (i) => i.level, 3),
+    plan,
+    feedback: Object.fromEntries([['strengths', str((o.feedback || {}).strengths)], ['by_when', str((o.feedback || {}).by_when)]].filter(([, v]) => v)),
+  };
+}
+
 /**
  * The visit's view, or null when the analysis is not an FDE visit.
  * @param {object} analysis  coaching_sessions.analysis_data (record.js buildAnalysis shape)
@@ -175,9 +227,9 @@ function obs612View(analysis) {
     rubricId: o.rubric_id,
     tool,
     sheet: tool === 'enur' ? (r.sheet || o.sheet || null) : null,
-    label: LABEL,
+    label: O.labelOf(o.rubric_id) || LABEL,
     toolName: O.SHORT.tools[tool],
-    toolTitle: tool === 'enur' ? `${def.title} ${def.subtitle}` : def.title,
+    toolTitle: tool === 'enur' || tool === 'ficos' ? `${def.title} ${def.subtitle}` : def.title,
     grade: O.normGrade(o.grade),
     subject: o.subject || null,
     subjectLabel: str(o.subject_label) || (subject ? subject.label : null),
@@ -185,9 +237,10 @@ function obs612View(analysis) {
     enur: null,
     gen: null,
     msci: null,
+    ficos: null,
     plan: [],
   };
-  const part = tool === 'enur' ? enurView(o, r) : tool === 'gen' ? genView(o, r) : msciView(o, r);
+  const part = tool === 'ficos' ? ficosView(o) : tool === 'enur' ? enurView(o, r) : tool === 'gen' ? genView(o, r) : msciView(o, r);
   return {
     ...base,
     [tool]: part.data,
@@ -211,6 +264,7 @@ function num(n) {
 function shortResult(analysis) {
   const v = obs612View(analysis);
   if (!v) return null;
+  if (v.tool === 'ficos') return v.ficos.pct === null ? '—' : `${num(v.ficos.pct)}%${v.ficos.band ? ` · ${v.ficos.band}` : ''}`;
   if (v.tool === 'enur') return `${num(v.enur.pct)}%${v.enur.band ? ` · ${v.enur.band}` : ''}`;
   if (v.tool === 'gen') return `${v.gen.yes}/${v.gen.of} Yes`;
   return `${v.msci.answered} levels`;
@@ -232,11 +286,33 @@ function portalSummary(analysis) {
     grade: v.grade,
     subject: v.subjectLabel,
     result: shortResult(analysis),
-    noTotal: v.tool !== 'enur',
-    footer: FDE_FOOTNOTE,
+    noTotal: v.tool !== 'enur' && v.tool !== 'ficos',
+    footer: v.tool === 'ficos' ? FICO_S_FOOTNOTE : FDE_FOOTNOTE,
     rows: [],
     feedback: [],
   };
+  if (v.tool === 'ficos') {
+    const f = v.ficos;
+    out.headline = f.pct === null ? '—' : `${f.total} / ${f.max} · ${num(f.pct)}%${f.band ? ` · ${f.band}` : ''}`;
+    out.rows = [
+      ...f.sections.map((s) => ({
+        name: `${s.key} · ${s.name}`, value: s.average === null ? '—' : `${s.average.toFixed(1)} / 4`, pct: s.pct,
+      })),
+      ...f.indicators.map((i) => ({
+        name: `${i.code} · ${i.name}`,
+        value: i.na ? 'N/A' : i.level === null ? '—' : `${i.level} · ${i.levelName}`,
+        pct: null,
+        full: [i.levelText, i.evidence ? `Evidence: ${i.evidence}` : null].filter(Boolean).join('\n') || undefined,
+      })),
+    ];
+    if (v.feedback.strengths) out.feedback.push({ label: 'Strengths', text: v.feedback.strengths });
+    for (const p of v.plan) {
+      out.feedback.push({ label: 'To work on', text: `${p.code} ${p.name}${p.level === null ? '' : ` (level ${p.level})`}: ${p.action}`.trim() });
+    }
+    if (v.feedback.by_when) out.feedback.push({ label: 'By when', text: v.feedback.by_when });
+    if (f.checklistNo.length) out.feedback.push({ label: 'Checklist: not yet', text: f.checklistNo.join('; ') });
+    return out;
+  }
   if (v.tool === 'enur') {
     out.headline = `${v.enur.total} / ${v.enur.max} · ${num(v.enur.score_108)} / 108${v.enur.band ? ` · ${v.enur.band}` : ''}`;
     out.rows = v.enur.sections.map((s) => ({ name: s.title, value: `${s.score}/${s.max}`, pct: s.pct }));
@@ -261,4 +337,4 @@ function portalSummary(analysis) {
   return out;
 }
 
-module.exports = { LABEL, FDE_FOOTNOTE, FDE_FOOTNOTE_UR, readableNote, obs612Of, isObs612Analysis, obs612View, shortResult, portalSummary, num, pctOf };
+module.exports = { LABEL, FDE_FOOTNOTE, FDE_FOOTNOTE_UR, FICO_S_FOOTNOTE, FICO_S_FOOTNOTE_UR, readableNote, obs612Of, isObs612Analysis, obs612View, shortResult, portalSummary, num, pctOf };

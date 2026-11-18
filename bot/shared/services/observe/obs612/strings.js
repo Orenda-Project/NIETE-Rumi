@@ -18,11 +18,13 @@ const TOOL_NAMES = {
     msci: "FDE's Observation Tool for Maths and Science (Grade VI-VII)",
     enur: "FDE's Classroom Observation Tool for English & Urdu (Grade VI-VIII)",
     gen: "FDE's Teacher Observation Form General",
+    ficos: 'FICO 6-12',
   },
   ur: {
     msci: 'ایف ڈی ای کا ریاضی اور سائنس کا مشاہداتی ٹول (Grade VI-VII)',
     enur: 'ایف ڈی ای کا انگریزی اور اردو کا مشاہداتی ٹول (Grade VI-VIII)',
     gen: 'ایف ڈی ای کا عمومی مشاہداتی فارم (General)',
+    ficos: '⁦FICO 6-12⁩',
   },
 };
 
@@ -31,11 +33,13 @@ const TOOL_HOW = {
     msci: '11 indicators at Level 0-3, then a quick check with 5 students and a development plan. About 10 minutes.',
     enur: 'Every item scored 1-4, then your written feedback (Section 8). About 10 minutes.',
     gen: "35 Yes/No items in 6 sections, then one line of feedback. About 5 minutes.",
+    ficos: '23 indicators in 5 sections, one a screen: choose a level 1-4 and write what you saw and heard. Then the checklist and your feedback. About 15 minutes.',
   },
   ur: {
     msci: '۱۱ نکات، ہر ایک کا لیول ۰ سے ۳، پھر ۵ طلبہ سے مختصر جانچ اور ترقیاتی منصوبہ۔ تقریباً ۱۰ منٹ۔',
     enur: 'ہر نکتے کو ۱ سے ۴ نمبر دیں، پھر اپنی تحریری رائے (سیکشن ۸)۔ تقریباً ۱۰ منٹ۔',
     gen: '۶ حصوں میں ۳۵ ہاں/نہیں سوال، پھر ایک سطر رائے۔ تقریباً ۵ منٹ۔',
+    ficos: '۵ حصوں میں ۲۳ اشاریے، ہر اسکرین پر ایک: ۱ سے ۴ تک لیول چنیں اور جو دیکھا اور سنا وہ لکھیں۔ پھر چیک لسٹ اور آپ کی رائے۔ تقریباً ۱۵ منٹ۔',
   },
 };
 
@@ -145,10 +149,58 @@ const STRINGS = {
   },
 };
 
-function obs612Strings(lang) {
+// bd-31ziu8 — the same lines when the observer's grade 6-12 rubric is FICO-S v1.1 (fico_s_coach on, an ICT visit):
+// operator 18 Nov, "For 1 to 5, remains the same FICO v6. For 6 onwards all the way to 12, it is going to be FICO-S
+// v1.1". Only what differs from the FDE wording; everything else is shared.
+const FICO_S = {
+  en: {
+    class_body: (name) => (name
+      ? `Which class is *${name}*'s lesson? The class chooses the observation form: grades 1-5 get the FICO form; grades 6-12 get the FICO 6-12 form.`
+      : 'Which class is this lesson? The class chooses the observation form: grades 1-5 get the FICO form; grades 6-12 get the FICO 6-12 form.'),
+    grade_primary_desc: 'FICO form, as today',
+    lf_class_note: 'The class chooses the observation form.',
+    lf_bands: {
+      primary: { title: 'Primary', description: 'Grades 1 to 5 · FICO form' },
+      middle: { title: 'Middle', description: 'Grades 6 to 8 · FICO 6-12' },
+      high: { title: 'High', description: 'Grades 9 to 12 · FICO 6-12' },
+    },
+    fde_record_hint: () => 'This lesson uses FICO 6-12. Record the lesson as usual and send me the recording: the FICO 6-12 form comes as soon as it lands, and you set every level.',
+    form_cta: 'Open FICO 6-12 form',
+    recording_saved: (submitted) => (submitted
+      ? '🎧 Recording received and kept with this visit. Your FICO 6-12 form is already submitted.'
+      : '🎧 Recording received and kept with this visit. Fill in the FICO 6-12 form when you are ready: tap *Open FICO 6-12 form*.'),
+    form_not_ready: "The FICO 6-12 form isn't switched on here yet, so I can't open it. Your recording is saved. Please tell your programme team.",
+    form_failed: "I couldn't open the FICO 6-12 form just now. Please send /observe again in a minute; your visit is saved.",
+  },
+  ur: {
+    class_body: (name) => (name
+      ? `*${name}* کا یہ سبق کس جماعت کا ہے؟ جماعت سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے ⁦FICO⁩ فارم؛ جماعت ۶ تا ۱۲ کے لیے ⁦FICO 6-12⁩۔`
+      : 'یہ سبق کس جماعت کا ہے؟ جماعت سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے ⁦FICO⁩ فارم؛ جماعت ۶ تا ۱۲ کے لیے ⁦FICO 6-12⁩۔'),
+    grade_primary_desc: '⁦FICO⁩ فارم، جیسے آج ہے',
+    lf_class_note: 'جماعت سے مشاہداتی فارم طے ہوتا ہے۔',
+    lf_bands: {
+      primary: { title: 'پرائمری', description: 'جماعت ۱ تا ۵ · ⁦FICO⁩ فارم' },
+      middle: { title: 'مڈل', description: 'جماعت ۶ تا ۸ · ⁦FICO 6-12⁩' },
+      high: { title: 'ہائی', description: 'جماعت ۹ تا ۱۲ · ⁦FICO 6-12⁩' },
+    },
+    fde_record_hint: () => 'اس سبق کے لیے ⁦FICO 6-12⁩ استعمال ہو گا۔ سبق معمول کے مطابق ریکارڈ کر کے یہاں بھیجیں: ریکارڈنگ آتے ہی ⁦FICO 6-12⁩ فارم آ جائے گا۔ ہر لیول خود طے کریں۔',
+    form_cta: '⁦FICO 6-12⁩ کھولیں',
+    recording_saved: (submitted) => (submitted
+      ? '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ ⁦FICO 6-12⁩ فارم پہلے ہی جمع ہو چکا ہے۔'
+      : '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ جب تیار ہوں ⁦FICO 6-12⁩ فارم بھریں: *⁦FICO 6-12⁩ کھولیں* دبائیں۔'),
+    form_not_ready: '⁦FICO 6-12⁩ فارم ابھی یہاں چالو نہیں، اس لیے نہیں کھل سکا۔ آپ کی ریکارڈنگ محفوظ ہے۔ براہِ کرم اپنی پروگرام ٹیم کو بتائیں۔',
+    form_failed: 'ابھی ⁦FICO 6-12⁩ فارم نہیں کھل سکا۔ ایک منٹ بعد دوبارہ ⁦/observe⁩ بھیجیں؛ آپ کا وزٹ محفوظ ہے۔',
+  },
+};
+
+/**
+ * The lines in a language. `ficoS` (bd-31ziu8): the observer's grade 6-12 rubric is FICO-S v1.1, so the class
+ * question and the form's messages name FICO-S, not FDE.
+ */
+function obs612Strings(lang, { ficoS = false } = {}) {
   const c = clampLanguage(lang);
   const l = STRINGS[c] ? c : 'en';
-  return { ...STRINGS[l], subjects: SUBJECT_LABELS[l], tools: TOOL_NAMES[l], lang: l };
+  return { ...STRINGS[l], ...(ficoS ? FICO_S[l] : {}), subjects: SUBJECT_LABELS[l], tools: TOOL_NAMES[l], lang: l };
 }
 
-module.exports = { obs612Strings, STRINGS, SUBJECT_LABELS, TOOL_NAMES, urDigits };
+module.exports = { obs612Strings, STRINGS, FICO_S, SUBJECT_LABELS, TOOL_NAMES, urDigits };

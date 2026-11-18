@@ -301,6 +301,18 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // bd-31ziu8 — FICO-S v1.1 ("FICO for Secondary"), ICT HITL grades 6-12 from 18 Nov: one indicator a screen, every
+    // word endpoint data in the observer's language (en | ur). Same endpoint as FDE's form (the token's ':fs' tells
+    // them apart). Regenerate the JSON with bot/scripts/generate-fico-s-flow-json.js.
+    // Shown name 'FICO 6-12' (operator 18 Nov ~17:00); code name FICO-S v1.1.
+    name: 'FICO 6-12 Form',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/fico-s-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/obs612',
+    envVar: 'FICO_S_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // bd-pni007 — FDE's grade 6-12 observation tools (Annexure G): ONE Flow for the three tools (Maths & Science,
     // English & Urdu, General form), for /observe and /observe2 alike. The endpoint's INIT picks the tool from the
     // visit's form row. Regenerate the JSON with bot/scripts/generate-obs612-flow-json.js.
