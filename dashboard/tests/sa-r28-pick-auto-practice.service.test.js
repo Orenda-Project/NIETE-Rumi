@@ -116,7 +116,7 @@ const measure = () => document.fonts.ready.then(() => {
     pad_top: scr ? parseFloat(getComputedStyle(scr).paddingTop) : null,
     body_mode: body ? getComputedStyle(body).overflowY : null, body_over: over(body), screen_over: over(scr), inner: over(scr) + over(body),
     page_over: Math.max(0, document.documentElement.scrollHeight - vh),
-    cards: Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map(box),
+    cards: Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map((k) => Object.assign(box(k), { shown: k.classList.contains('is-shown') })),
     pill: box(document.querySelector('.sae-pick-replay')), next: box(document.querySelector('.sae-pick-next')),
     fb: fb ? Object.assign(R(fb), { text: fb.textContent.trim(), whole: fb.scrollWidth <= fb.clientWidth + 0.5 && fb.scrollHeight <= fb.clientHeight + 0.5 }) : null,
     cue: cueEl ? R(cueEl) : null, toggle: !!document.querySelector('.sae-screen .sae-r8-lang'), fold: !!document.querySelector('details.sae-pick-coach'),
@@ -170,7 +170,10 @@ maybe('the letter picker\'s practice in RDF auto under the served switch set: th
     if (right) {
       await card(await wrong()); await p.waitForTimeout(1600); await endAll(); await p.waitForTimeout(250);
       await card(await rightIdx());
-      await snap('p2_feedback_right', 0); // RDF auto: the right tap ends the practice; the Ready screen follows at once
+      await snap('p2_feedback_right', 0); // the right tap: the picker held with its feedback (the 1.2 s floor under the line)
+      await endAll(); // Jugnu's line ends; the floor keeps the picker
+      await snap('p2_feedback_right_held', 900); // ≈ 1.0 s after the tap: still the picker
+      await snap('ready_after_right', 500); // ≈ 1.5 s: the Ready screen
       await ctx.close();
       if (process.env.SA_PRAC_LOG) fs.appendFileSync(process.env.SA_PRAC_LOG, JSON.stringify({ lang, frame: fr.name, set: set.name, walk: 'right', rows }) + '\n');
       return rows;
@@ -181,7 +184,10 @@ maybe('the letter picker\'s practice in RDF auto under the served switch set: th
     await endAll();
     await snap('p2_retry');
     await card(await wrong());
-    await snap('p2_feedback_shown', 0); // the second wrong tap: RDF auto ends the practice; the Ready screen follows at once
+    await snap('p2_feedback_shown', 0); // the second wrong tap: the right card shown, the picker held (the 1.2 s floor)
+    await endAll(); // Jugnu's line ends; the floor keeps the picker
+    await snap('p2_feedback_shown_held', 900); // ≈ 1.0 s after the tap: still the picker, the right card shown
+    await snap('ready_after_shown', 500); // ≈ 1.5 s: the Ready screen
     await ctx.close();
     if (process.env.SA_PRAC_LOG) fs.appendFileSync(process.env.SA_PRAC_LOG, JSON.stringify({ lang, frame: fr.name, set: set.name, walk: 'wrong', rows }) + '\n');
     return rows;
@@ -191,13 +197,16 @@ maybe('the letter picker\'s practice in RDF auto under the served switch set: th
    *  the child's under the coach page's corner hold. */
   const bar = (r) => ({
     state: r.state, phase: r.phase, inner: r.inner, true_over: r.true_over.body + r.true_over.screen, page_over: r.page_over, cards: r.cards.length, cards_whole: r.cards.filter((c) => c.whole).length, cards_hit: r.cards.filter((c) => c.hit).length,
-    pill: r.pill ? { hit: r.pill.hit, foot_ok: r.pill.bottom <= r.vh - 8 } : null, next: r.next ? { hit: r.next.hit, foot_ok: r.next.bottom <= r.vh - 8 } : null,
+    shown: r.cards.filter((c) => c.shown).length, pill: r.pill ? { hit: r.pill.hit, foot_ok: r.pill.bottom <= r.vh - 8 } : null, next: r.next ? { hit: r.next.hit, foot_ok: r.next.bottom <= r.vh - 8 } : null,
     fb: r.fb ? r.fb.whole : null, cue: !!r.cue, fold: r.fold, hold_hits: r.hold_hits,
   });
-  // a practice screen holds its five cards; the Ready screen that follows the practice (phase ready) holds none
+  // every practice state holds its five cards, the last feedback (the right card shown, or the right tap's feedback)
+  // included for its 1.2 s floor; only the Ready screen read after that floor (the `ready_after_*` states) holds none
+  const isReady = (r) => /^ready_after_/.test(r.state);
   const want = (r) => ({
-    state: r.state, phase: r.phase, inner: 0, true_over: 0, page_over: 0, cards: r.phase === 'ready' ? 0 : 5, cards_whole: r.phase === 'ready' ? 0 : 5, cards_hit: r.phase === 'ready' ? 0 : 5,
-    pill: r.pill ? { hit: true, foot_ok: true } : null, next: r.next ? { hit: true, foot_ok: true } : null,
+    state: r.state, phase: /^(p2_feedback_(shown|right)(_held)?|ready_after_.*)$/.test(r.state) ? 'ready' : r.phase, inner: 0, true_over: 0, page_over: 0,
+    cards: isReady(r) ? 0 : 5, cards_whole: isReady(r) ? 0 : 5, cards_hit: isReady(r) ? 0 : 5,
+    shown: /^p2_feedback_shown(_held)?$/.test(r.state) ? 1 : 0, pill: r.pill ? { hit: true, foot_ok: true } : null, next: r.next ? { hit: true, foot_ok: true } : null,
     fb: r.fb ? true : null, cue: false, fold: false, hold_hits: [],
   });
   const P2 = ['p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_feedback_shown'];
@@ -210,7 +219,8 @@ maybe('the letter picker\'s practice in RDF auto under the served switch set: th
       expect(rows.map((r) => ({ state: r.state, practice: r.practice || r.phase }))).toEqual(
         [{ state: 'load', practice: `${lang}.letter_pick10.p1` }, { state: 'p1_listening', practice: `${lang}.letter_pick10.p1` }, { state: 'model', practice: `${lang}.letter_pick10.p1` }]
           .concat(P2.map((s) => ({ state: s, practice: s === 'p2_feedback_shown' ? 'ready' : `${lang}.letter_pick10.p2` })))
-          .concat([{ state: 'p2_listening', practice: `${lang}.letter_pick10.p2` }, { state: 'p2_aftersound', practice: `${lang}.letter_pick10.p2` }, { state: 'p2_feedback_right', practice: 'ready' }]));
+          .concat([{ state: 'p2_feedback_shown_held', practice: 'ready' }, { state: 'ready_after_shown', practice: 'ready' }])
+          .concat([{ state: 'p2_listening', practice: `${lang}.letter_pick10.p2` }, { state: 'p2_aftersound', practice: `${lang}.letter_pick10.p2` }, { state: 'p2_feedback_right', practice: 'ready' }, { state: 'p2_feedback_right_held', practice: 'ready' }, { state: 'ready_after_right', practice: 'ready' }]));
       expect(rows.map(bar)).toEqual(rows.map(want));
       // the example is modelled on both P1 states (a card carries the hand), so the cards block's room for it is what is measured
       expect(rows.filter((r) => /^(p1_listening|model)$/.test(r.state)).map((r) => ({ state: r.state, modelled: !!r.grid && r.grid.model.length }))).toEqual([{ state: 'p1_listening', modelled: 1 }, { state: 'model', modelled: 1 }]);
