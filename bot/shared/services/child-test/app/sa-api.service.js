@@ -486,7 +486,11 @@ const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
 // the answer is shown: at most 2 per answerable practice item, 4 per part (the grid / keypad / choice parts have two; the
 // letter-sound picker and the story questions one). Not behind any switch.
 const PRACTICE_TYPES = ['practice_answer'];
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES];
+// Round 28: how many answer cards the child could reach at each picker item (cards_reach) and story question
+// (options_reach), { n, hit, vw, vh } with the item (sa-ui.js reachRead). One per item; the picker and the story questions
+// are only ever served under their own switches.
+const REACH_TYPES = ['cards_reach', 'options_reach'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 // a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
 const MAX_PRACTICE_PER_TASK = 4;

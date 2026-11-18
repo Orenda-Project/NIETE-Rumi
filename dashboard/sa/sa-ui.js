@@ -882,6 +882,37 @@
     function itemWords(it) { return !it ? '' : shownNums(it.id, typeof it.say === 'string' ? it.say : tx(it.say || it.prompt)); }
     // ---------- round 28 (r28_letter_pick): the letter-sound picker's sound ----------
     function isPick(t) { return r28Pick && !!t && t.kind === 'pick' && t.mode === 'tap'; }
+    /**
+     * Round 28 (data only): how many of an item's answer cards the child can reach. At a picker item or a story question,
+     * once drawn and settled (fonts ready, then two frames), a card counts when document.elementFromPoint at its centre
+     * is the card or inside it. One cards_reach (picker) / options_reach (story question) { n, hit, vw, vh } per item;
+     * nothing on a page that cannot hit-test, or when the item has gone before the read.
+     */
+    function reachRead(v, t) {
+      var type = isPick(t) ? 'cards_reach' : isMcq(t) ? 'options_reach' : null;
+      if (!type || !v.item || typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return;
+      var k = keyOf(v), itemId = v.item.id, taskId = t.id;
+      var sel = type === 'cards_reach' ? '.sae-pick-cards .sae-opt' : '.sae-mcq-opt';
+      var fonts = document.fonts && document.fonts.ready ? Promise.resolve(document.fonts.ready) : Promise.resolve();
+      fonts.then(null, function () {}).then(function () {
+        nextFrame(function () {
+          nextFrame(function () {
+            if (!alive || lastKey !== k) return;
+            var cards = el.querySelectorAll(sel);
+            if (!cards.length) return;
+            var hit = 0;
+            Array.prototype.forEach.call(cards, function (c) {
+              var b = c.getBoundingClientRect();
+              var at = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+              if (at && (at === c || c.contains(at))) hit++;
+            });
+            var w = typeof window !== 'undefined' ? window : {};
+            runner.log(type, { task_id: taskId, item_id: itemId,
+              value: { n: cards.length, hit: hit, vw: Math.round(Number(w.innerWidth)) || null, vh: Math.round(Number(w.innerHeight)) || null } });
+          });
+        });
+      });
+    }
     /** The clip state of the item (or practice item) on show; a new item starts afresh. */
     function pickOf(it) {
       if (pickSt.id !== it.id) pickSt = { id: it.id, tok: 0, playing: false, end_at: null, replays: 0, call_at: null, el: null, dur_ms: null, pre_taps: 0 };
@@ -3637,6 +3668,7 @@
         gateOn(keyOf(v), sayChain(manual && !ji ? [] : [intro ? [intro, undefined, ji] : null, s.begin ? [s.begin, undefined, ji] : null]));
       }
       else if (v.phase === 'running' && v.item) {
+        reachRead(v, t); // round 28: the picker's and the story question's cards a child can reach
         if (isPick(t)) {
           // round 28: the sound 300 ms after the item shows (coach-led too); the wait for replay / Next starts at its end
           var kp = keyOf(v), gp3 = gen, itp = v.item;
