@@ -36,6 +36,7 @@ const { buildEditInstruction } = require('../shared/services/lp-own-edit-instruc
 const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edit-guard');
 const Extend = require('../shared/services/lp612-own-extend');
 const { finishOwnDoc } = require('../shared/services/lp612-own-close');
+const { addK5Close } = require('../shared/services/lp-k5-own-close');
 
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
 const PARENT_WAIT_MS = 12 * 60 * 1000;
@@ -126,6 +127,7 @@ function createOwnWorker(deps) {
       script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, bookText, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
+    out.script = addK5Close(out.script, day.lang); // bd-snkn32.52 — "Before they write", after the gate, always
     let pdf;
     try {
       pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: (row.answers && row.answers.pages) || day.pages || null });
