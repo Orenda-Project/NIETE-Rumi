@@ -5311,6 +5311,14 @@ COMMENT ON COLUMN schools.emis IS
 COMMENT ON COLUMN schools.is_active IS
   'Soft delete. School search reads WHERE is_active IS NOT FALSE.';
 
+-- V1.10.2 (bd-97daxo.33): a school's district, so a region can be split into areas on the analytics dashboard
+-- (dashboard/config/gb-areas.json maps districts to areas). Access never reads it; schools.region does.
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS district TEXT;
+COMMENT ON COLUMN schools.district IS
+  '[Internal] The school''s district as its programme records it (e.g. Skardu, Gilgit). NULL = not on record. '
+  'The dashboard groups districts into areas from dashboard/config/gb-areas.json; access never reads it '
+  '(schools.region does). bd-97daxo.33.';
+
 -- ---------------------------------------------------------------------------
 -- 6-12 runtime lesson plans (V1.2.8).
 --

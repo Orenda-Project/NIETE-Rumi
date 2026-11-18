@@ -794,6 +794,54 @@ export interface AnalyticsScope {
   /** region_features.organization: 'niete' (FDE's six ICT sectors), 'moawin' (Gilgit-Baltistan), … */
   organization: string;
   regions: string[];
+  /** bd-97daxo.33: the view's areas (Gilgit, Baltistan) when its region is split by district; absent for FDE's view. */
+  areas?: string[];
+  /** bd-97daxo.33: each area's districts (dashboard/config/gb-areas.json), for the Information tab. */
+  areaDistricts?: Record<string, string[]>;
+}
+
+/** bd-97daxo.33 — GET /api/portal/analytics/observers: who observed whom, FICO17 v6 (a non-FDE view only). */
+export type ObserverKind = 'principal' | 'fmo' | 'other';
+export type ObservedRole = 'teacher' | 'principal';
+export type VisitRubric = 'v6' | 'v3' | 'hots' | 'fde612' | 'other';
+export interface ObserverMean { avg: number | null; n: number }
+export interface ObserverCounts {
+  observations: number;
+  byObserver: Record<ObserverKind, number>;
+  pairs: {
+    principalTeacher: number; principalPrincipal: number; fmoTeacher: number; fmoPrincipal: number;
+    otherTeacher: number; otherPrincipal: number;
+  };
+  /** Distinct observers of each kind. */
+  observers: { principal: number; fmo: number };
+  teachersObserved: number;
+  principalsObserved: number;
+  /** Today's roster at the counted schools. */
+  teachers: number;
+  principals: number;
+  v6: ObserverMean & { sections: { c: ObserverMean; d: ObserverMean; f: ObserverMean } };
+  v3: ObserverMean;
+  hots: number;
+  fde612: number;
+  unscored: number;
+  awaitingReview: Record<ObserverKind, number>;
+}
+export interface ObserverVisit {
+  /** Pakistan day, YYYY-MM-DD. */
+  date: string;
+  observer: ObserverKind;
+  /** The FMO's name; null for a principal (by role only) or another observer. */
+  observerName: string | null;
+  observed: ObservedRole;
+  rubric: VisitRubric;
+  pct: number | null;
+}
+export interface ObserverAnalyticsResponse {
+  success: boolean;
+  range: { from: string | null; to: string | null };
+  overview: ObserverCounts & { schools: number; areasActive: number };
+  regions: Array<ObserverCounts & { region: string; schools: number }>;
+  schools: Array<ObserverCounts & { schoolId: string; emis: string | null; name: string; region: string; district: string | null; visits: ObserverVisit[] }>;
 }
 
 export interface SchoolsAnalyticsResponse {
