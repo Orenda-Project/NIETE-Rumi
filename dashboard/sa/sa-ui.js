@@ -2654,6 +2654,39 @@
     // all and keeps the choice. Coach-led: Jugnu still reads; the coach sees the words folded.
     var MCQ_SWALLOW_MS = 600, MCQ_GAP_MS = 400, MCQ_SETTLE_MS = 600, MCQ_PRESS_MS = 400, MCQ_WARM_MS = 5000;
     function isMcq(t) { return r28Mcq && !!t && t.kind === 'mcq'; }
+    // Keep these word runs on one line: a teacher reads each as one unit (a name, an honorific, a paired or echo
+    // compound), and on a phone the MCQ text could wrap inside one. An explicit list, never a suffix rule (a word
+    // ending in «ئے» is also a verb such as «گئے»). The words, the shown text and so the clip key are unchanged.
+    var MCQ_NOWRAP_RUNS = [
+      ['دریائے', 'جہلم'],
+      ['مٹھو', 'میاں'],
+      ['ٹَیں', 'ٹَیں'],
+      ['دانہ', 'پانی'],
+      ['رنگ', 'برنگے'],
+      ['جانور', '/پرندوں'], // the slash token stays with the word before it, never at a line start
+    ];
+    /** An MCQ text as its nodes: each listed run in ONE white-space:nowrap span; the text content byte-identical. */
+    function mcqRuns(text) {
+      var parts = String(text).split(/(\s+)/); // words at even indexes, the whitespace between them at odd ones
+      var out = [], buf = '';
+      for (var i = 0; i < parts.length; i += 2) {
+        var n = 0;
+        for (var r = 0; r < MCQ_NOWRAP_RUNS.length && !n; r++) {
+          var run = MCQ_NOWRAP_RUNS[r], ok = true;
+          for (var k = 0; k < run.length && ok; k++) ok = parts[i + 2 * k] === run[k];
+          if (ok) n = run.length;
+        }
+        if (!n) { buf += parts[i] + (i + 1 < parts.length ? parts[i + 1] : ''); continue; }
+        if (buf) out.push(buf);
+        var w = h('span', { class: 'sae-nowrap', text: parts.slice(i, i + 2 * n - 1).join('') });
+        w.style.whiteSpace = 'nowrap';
+        out.push(w);
+        i += 2 * (n - 1);
+        buf = i + 1 < parts.length ? parts[i + 1] : '';
+      }
+      if (buf) out.push(buf);
+      return out;
+    }
     function mcqNow() { return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now(); }
     function mcqState(it, practice) {
       if (!mcq || mcq.item !== it.id) {
@@ -2940,8 +2973,8 @@
         h('summary', { text: C.coach_app }),
         // one box under the summary: on a coach-led phone it opens over the screen (sa.css), never pushing the cards
         h('div', { class: 'sae-mcq-coach-body' }, [
-          h('p', { class: 'sae-say sae-coach-line', lang: tl, dir: d, text: tx(it.prompt) }),
-          h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', { text: String(x) }); })),
+          h('p', { class: 'sae-say sae-coach-line', lang: tl, dir: d }, mcqRuns(tx(it.prompt))),
+          h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', null, mcqRuns(String(x))); })),
         ]),
       ]);
       fd.addEventListener('toggle', function () {
@@ -3001,7 +3034,7 @@
       var S = mcq && mcq.item === it.id ? mcq : { phase: 'listening', lit: -1, chosen: null };
       var reading = mcqReadingPhase(S);
       var cardsEl = h('div', { class: 'sae-mcq-opts', lang: tl, dir: d }, (it.options || []).map(function (o, i) {
-        var b = h('button', { class: 'sae-mcq-opt sa-tile', type: 'button', 'data-index': String(i), lang: tl, dir: d }, [h('span', { class: 'sae-mcq-ink', text: String(o) })]);
+        var b = h('button', { class: 'sae-mcq-opt sa-tile', type: 'button', 'data-index': String(i), lang: tl, dir: d }, [h('span', { class: 'sae-mcq-ink' }, mcqRuns(String(o)))]);
         if (fb) {
           b.disabled = true;
           if (Number(fb.value) === i) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
@@ -3036,7 +3069,7 @@
         h('div', { class: 'sae-row sae-mcq-head' }, [j, practice && !skipB ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, skipB, headNext]),
         mcqCoachLine(),
         mcqCoach(it, t),
-        h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
+        h('div', { class: 'sae-mcq-q', lang: tl, dir: d }, mcqRuns(tx(it.prompt))),
         cardsEl,
         practice ? feedbackLine(fb) : null,
       ], practice ? null : itemFoot(v, []));
