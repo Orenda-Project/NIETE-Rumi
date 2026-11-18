@@ -165,7 +165,7 @@ maybe('the letter picker under the served switch set (back_button ON), coach-led
       test(`[${set.name} set] ${lang} ${fr.name}: every item (before and after the tap, items 1–10): no Back, 5/5 cards hit, the replay hit and ≤ vh − 8, no inner scroll, no cue`, async () => {
         const rows = await walk(lang, fr, set);
         expect(rows.filter((r) => r.state === 'item').length).toBe(10);
-        // the sandbox-only "Jump to…" row (RULING #43) is not drawn on the picker's item screens
+        // the sandbox-only "Jump to…" dev row is not drawn on the picker's item screens (its row took item 1's replay below the fold on a phone)
         expect(rows.filter((r) => r.devjump).length).toBe(0);
         expect(bad(rows)).toEqual([]);
       }, 300000);
