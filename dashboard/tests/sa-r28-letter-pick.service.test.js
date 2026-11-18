@@ -2296,6 +2296,67 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
         top_h: 44, inner_scroll: 0, cards_hit: 5, bar: BAR })));
     }, 400000);
   }
+  // The practice names the sound (right tap, second wrong tap): in RDF auto the line is drawn below the cards, so the
+  // longer named line must sit whole inside the phone with the five cards hit-testable and unmoved.
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed, RDF auto], the practice's named line (second wrong tap, right tap): whole, inside the phone, below the cards; cards 5/5, where the try-again line puts them`, async () => {
+      const fr = { name: 'embed_auto', embed: true, toggle: true, auto: true };
+      const { html, bat } = page(lang, true, frMore(fr), fr);
+      const p2 = bat.tasks[0].practice[1];
+      const read = async (right) => {
+        const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 3 });
+        const p = await ctx.newPage();
+        await p.route('**/*', (route) => {
+          const u = new URL(route.request().url());
+          if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+          if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+          if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+          return route.fulfill({ status: 404, body: '' });
+        });
+        await p.goto('http://sa.test/');
+        await p.evaluate(() => document.fonts.ready);
+        await p.waitForTimeout(500);
+        const endAll = async () => { for (let k = 0; k < 8 && (await p.evaluate(() => window.__end())); k++) await p.waitForTimeout(150); };
+        for (let k = 0; k < 10 && (await p.evaluate(() => { const v = window.__runner.view(); return !(v.phase === 'practice' && v.practice && /\.p2$/.test(v.practice.id)); })); k++) {
+          await endAll();
+          await p.evaluate(() => { const v = window.__runner.view(); if (v.phase === 'practice' && v.practice && /\.p1$/.test(v.practice.id)) { window.__runner.practiceModelled(); window.__view.render(); } });
+          await p.waitForTimeout(300);
+        }
+        await endAll(); await p.waitForTimeout(250);
+        const cardsAt = () => p.evaluate(() => Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map((c) => { const b = c.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top)]; }));
+        const before = await cardsAt();
+        const tap = async (want) => { const c = await p.evaluate((want) => { const v = window.__runner.view(); const k = v.practice.options.findIndex((o) => (String(o) === String(v.practice.target)) === want); const b = document.querySelectorAll('.sae-pick-cards .sae-opt')[k].getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, want); await p.mouse.click(c.x, c.y); };
+        // today's try-again line already lifts the cards in RDF auto (the line is drawn below them): the named line may
+        // place them only where that line does
+        let ta = null;
+        if (right) await tap(true);
+        else { await tap(false); await p.waitForTimeout(150); ta = await cardsAt(); await p.waitForTimeout(1450); await endAll(); await p.waitForTimeout(250); await tap(false); }
+        await p.waitForTimeout(150);
+        const m = await p.evaluate(() => {
+          const f = document.querySelector('.sae-pick .sae-fb:not(.is-empty)');
+          const cards = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt'));
+          const hit = cards.filter((c) => { const b = c.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!e && e.closest('.sae-opt') === c && b.bottom <= innerHeight; }).length;
+          const cb = cards.reduce((a, c) => Math.max(a, c.getBoundingClientRect().bottom), 0);
+          if (!f) return { fb: null, hit };
+          const b = f.getBoundingClientRect();
+          return { text: f.textContent, inside: b.left >= 0 && b.right <= innerWidth && b.top >= 0 && b.bottom <= innerHeight, whole: f.scrollWidth <= f.clientWidth + 0.5 && f.scrollHeight <= f.clientHeight + 0.5,
+            below_cards: b.top >= cb - 0.5, in_head: !!f.closest('.sae-pick-head'), hit };
+        });
+        const after = await cardsAt();
+        if (process.env.SA_PICK_SHOTS) await p.screenshot({ path: path.join(process.env.SA_PICK_SHOTS, `o74_named_${right ? 'right' : 'wrong2'}_${lang}_phone_auto.png`) });
+        await ctx.close();
+        return Object.assign(m, { after, ta });
+      };
+      const fbText = (f) => f.map((x) => x.text).join(' ');
+      const wrong2 = await read(false);
+      const rightTap = await read(true);
+      for (const [right, m] of [[false, wrong2], [true, rightTap]]) {
+        const { after, ta, ...got } = m;
+        expect({ right, ...got, cards_as_try_again: JSON.stringify(after) === JSON.stringify(wrong2.ta) })
+          .toEqual({ right, text: fbText(right ? p2.feedback.correct : p2.feedback.wrong), inside: true, whole: true, below_cards: true, in_head: false, hit: 5, cards_as_try_again: true });
+      }
+    }, 120000);
+  }
   // A12 fixup (lead 053757Z): RDF auto (no coach-led marker) draws the toggle too whenever the other language's battery
   // is on the phone, and the coach page draws End this section there as well (sa_r20_auto_end_section): the picker's
   // practice and item screens draw no toggle inside the frame in either mode; its intro screen keeps it.
