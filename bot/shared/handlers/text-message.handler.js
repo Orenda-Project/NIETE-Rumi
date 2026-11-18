@@ -774,6 +774,18 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     return handled;
   };
 
+  // bd-9652yj (queue #166) — the coach app nudge's way back to WhatsApp, asked before every door below: "1" (or
+  // "whatsapp") right after the nudge or the report-ready line runs today's WhatsApp flow, and the app's typed line
+  // "Continue my visit on WhatsApp (code …)" resumes that visit here. A coach's message only; anyone else's, and any
+  // message that is neither, goes on exactly as before (coach-app-nudge.service).
+  if (user?.id) {
+    const CoachAppNudge = require('../services/coach-app-nudge.service');
+    if (await CoachAppNudge.handleInbound(user, from, messageBody, { language: responseLanguage, sessionId })) {
+      typingController.stop();
+      return;
+    }
+  }
+
   // Student Video feedback reason capture — if the teacher tapped "Not really"
   // on a recent video survey and is within the 10-min reason window, capture
   // this text as the reason and short-circuit. Slash commands bypass this
