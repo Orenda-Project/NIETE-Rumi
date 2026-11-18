@@ -1,7 +1,7 @@
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import TeacherPage from "../../teacher/TeacherPage";
-import { FeatureTile, HomeGreeting } from "../../teacher/ui";
+import { FeatureTile, HomeGreeting, tileGrid } from "../../teacher/ui";
 import { FeatureMotionProvider } from "../../teacher/icons";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy, useLang } from "../../teacher/i18n";
@@ -20,7 +20,7 @@ import { COACH_PROFILE } from "../profile/copy";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
- * three tiles, the Training Library, My schools and, wide below them, Coach Training (the kit's FeatureTile). Nothing else: the rest of the coach app stays
+ * three tiles, My schools, Coach Training and the Training Library (the kit's FeatureTile). Nothing else: the rest of the coach app stays
  * hidden. A tile's chip shows only once its number has loaded (never a 0 for a number that did not).
  *
  * bd-jjcofw — a tester with the full coach app on (portal_coach_full_app) also gets Schedule and Observe, first, as the full
@@ -29,8 +29,15 @@ import { COACH_PROFILE } from "../profile/copy";
  *
  * bd-zay62o (operator, 12 Nov 2026: "Learning Assessment needs to be a button on the main page for the coach") — a coach on
  * portal_child_test_sa also gets the Learning assessment tile, before Coach Training, with its own art and the More row's
- * word. The tiles then fill whole rows, so Coach Training is no longer the lone wide tile. Off, loading or unreadable:
- * exactly the Home above. The More row stays too, where these coaches learned to find it.
+ * word. Off, loading or unreadable: no tile. The More row stays too, where these coaches learned to find it.
+ *
+ * bd-39qx8x (operator, 18 Nov 2026: "the tiles on the coach home app screen are still huge, like the teacher app was before.
+ * make those tiles smaller ... order would be Schedule, Observe, Learning Assessment, My Schools, Coach Training and Lastly
+ * Teacher Training Library") — the tiles are the teacher Home's since 30 Oct: the kit's FeatureTile `compact` (104px, 44px
+ * art, 14px words) in the kit's `tileGrid(true)`, three per row, none wide. The order is hers; a tile behind a switch she
+ * does not have is simply absent and the rest keep their places (no switch: My schools, Coach Training, Training Library).
+ * My schools' chip is the school count alone ("6 schools"): with the teachers too it was wider than a compact tile at
+ * 360px and pushed the page sideways. The teacher count is on My schools itself.
  */
 
 export const courseCount = (lib: Library | null): number | null =>
@@ -75,22 +82,22 @@ export default function SlimHome() {
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
         <ReadyReportCard />
         <FeatureMotionProvider>
-          <nav aria-label={F.home.features} data-testid="feature-tiles" className="mt-2 [display:grid] grid-cols-2 gap-3">
+          <nav aria-label={F.home.features} data-testid="feature-tiles" className={`mt-2 ${tileGrid(true)}`}>
             {fullApp && (
               <>
-                <FeatureTile feature="schedule" label={W.tiles.schedule} to="/portal/coach/scheduling"
+                <FeatureTile feature="schedule" label={W.tiles.schedule} to="/portal/coach/scheduling" compact
                   chip={home ? { text: W.chips.thisWeek(home.counts.week), tone: "info" } : null} />
-                <FeatureTile feature="observations" label={W.tiles.observe} to="/portal/coach/observe"
+                <FeatureTile feature="observations" label={W.tiles.observe} to="/portal/coach/observe" compact
                   chip={home ? { text: W.chips.waiting(home.counts.waiting), tone: home.counts.waiting > 0 ? "waiting" : "info" } : null} />
               </>
             )}
-            <FeatureTile feature="training" label={F.coachNav.training} to="/portal/coach/training"
+            {assess && <FeatureTile feature="learningAssessment" label={P.assess} to="/portal/leader/assess" compact />}
+            {/* the school count alone (the More page's word): "6 schools · 38 teachers" spills out of a compact tile */}
+            <FeatureTile feature="schools" label={F.coachNav.schools} to="/portal/coach/people" compact
+              chip={p ? { text: P.schoolsN(p.schools.length), tone: "info" } : null} />
+            <FeatureTile feature="coachTraining" label={T.title} to={COACH_TRAINING_PATH} compact />
+            <FeatureTile feature="training" label={F.coachNav.training} to="/portal/coach/training" compact
               chip={courses != null ? { text: C.coursesN(courses), tone: "info" } : null} />
-            <FeatureTile feature="schools" label={F.coachNav.schools} to="/portal/coach/people"
-              chip={p ? { text: C.schoolsTeachers(p.schools.length, p.teachers.filter((t) => !t.isPrincipal).length), tone: "info" } : null} />
-            {assess && <FeatureTile feature="learningAssessment" label={P.assess} to="/portal/leader/assess" />}
-            {/* wide only when it would stand alone in its row (without the Learning assessment tile) */}
-            <FeatureTile feature="coachTraining" label={T.title} to={COACH_TRAINING_PATH} wide={!assess} />
           </nav>
         </FeatureMotionProvider>
       </TeacherPage>

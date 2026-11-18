@@ -46,6 +46,13 @@ export function tileShell({ wide = false, compact = false }: { wide?: boolean; c
 export const tileArtSize = (compact = false): number => (compact ? 44 : 80);
 export const tileWords = (compact = false): string =>
   cn('font-semibold leading-tight', compact ? 'text-[14px]' : 'text-[18px]');
+/**
+ * The grid the tiles sit in. Default: two per row, 12px apart. `compact`: the Home look's three per row, 10px apart. The
+ * teacher Home (home/look/FeatureTiles) and the coach Home (coach/card/SlimHome, bd-39qx8x) both draw this one, so their
+ * tiles are one size. `[display:grid]`, never `.grid` (index.css mirrors `.grid` to LTR under Urdu).
+ */
+export const tileGrid = (compact = false): string =>
+  compact ? '[display:grid] grid-cols-3 gap-2.5' : '[display:grid] grid-cols-2 gap-3';
 
 export function FeatureTile({ feature, label, to, chip, wide = false, motion = true, compact = false, className }: FeatureTileProps) {
   return (
