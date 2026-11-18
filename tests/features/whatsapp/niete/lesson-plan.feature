@@ -990,6 +990,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the plan stays within its page limit whenever it fitted without the step
     # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
 
+  @e2e @config-gated @P1
+  Scenario: My own Grades 1-5 plan ends with a "Before they write" step
+    Given "portal_lp_make_own" is on for me and I pick a Grades 1-5 day
+    When I make my own plan for my class
+    Then in the Check part, above the exit ticket, the plan shows "Before they write"
+    And it tells me to read the day's learning outcome aloud and have pupils show thumbs up, sideways or down
+    And a plan from an Urdu book shows the same step in Urdu, headed "لکھنے سے پہلے"
+    And the exit ticket asks about the outcome in a setting the children have not seen in I Do or We Do
+    # bd-snkn32.52, queue #134 B (shelf reviewer 5D: 146 of 276 grades 1-5 own plans scored 1-2). Unit:
+    # tests/lp612/own-k5-close.test.js.
+
   @e2e @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson

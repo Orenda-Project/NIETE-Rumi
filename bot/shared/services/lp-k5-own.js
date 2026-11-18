@@ -50,6 +50,8 @@ function system(lang) {
     'You get the day\'s plan as JSON. Reply with the rewritten plan as JSON only, in the same JSON shape: the same top-level keys and the same field names, so the same printer can print it.',
     'Never change: the learning outcome (`goal`, `sloFull`, `sloCode`), `meta` (the day, the topic, the pages), or the section order hook → iDo → weDo → youDo → wrap. Give all five sections a `minutes` number; together they fill exactly the day\'s period (`meta.minutes`), never more.',
     'Every section keeps a quick check for understanding. Keep it no longer than the plan you were given: one action line, then short steps of one sentence each.',
+    // bd-snkn32.52 — the reviewer's 5D: the exit ticket tests the outcome in a NEW context (the close step is added by code).
+    'The exit ticket (`wrap.exitOptions`) asks the outcome in a new everyday setting the children have not seen in iDo or weDo (different objects, a different place), one short question.',
     'Always keep all five parts, hook, iDo, weDo, youDo and wrap, each with real teaching in it: change how each part is taught, never drop or empty a part. Inside a part, a field with nothing to say may be left out; never write a placeholder such as "not ready".',
     GRR_LINE, // in the make and the change alike (k5EditMessages uses this system)
     ROTE_LINE,
