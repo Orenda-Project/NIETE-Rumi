@@ -77,7 +77,7 @@ describe("Check and send — her own Make my own plans (bd-snkn32.41)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Their recent plans/ }));
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Describing words")).toBeTruthy();
-    expect(within(dialog).getByText("Made by the teacher · Grade 3 · english · Ch 4")).toBeTruthy();
+    expect(within(dialog).getByText("Made by the teacher · Grade 3 · english · Ch 4 · 12 Nov 1:00 PM")).toBeTruthy();
     expect(within(dialog).getByText("Fractions")).toBeTruthy();
   });
 
@@ -98,5 +98,37 @@ describe("the own-plan label never assumes gender (bd-snkn32.45)", () => {
     expect(OBSERVE_COPY_UR.madeByTeacher).toBe("ٹیچر کا بنایا ہوا");
     expect(JSON.stringify(OBSERVE_COPY)).not.toMatch(/Made by her/);
     expect(JSON.stringify(OBSERVE_COPY_UR)).not.toContain("انہوں نے خود بنایا");
+  });
+});
+
+describe("two of her own plans for the same lesson can be told apart (bd-brv7rs)", () => {
+  const SAME_LESSON = { own: true, lessonId: "grade_3_english_ch4_seg1", topic: "Describing words", grade: 3, subject: "english", chapterNumber: "4" };
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-17T10:00:00Z")); // 3 pm in Pakistan
+    L.getObserveRecentPlans.mockResolvedValue({ plans: [
+      { ...SAME_LESSON, ownId: "own-early", madeAt: "2026-11-17T03:05:00Z" },
+      { ...SAME_LESSON, ownId: "own-late", madeAt: "2026-11-17T06:20:00Z" },
+    ] });
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("each row ends with the Pakistan time it was made", async () => {
+    renderCheck();
+    fireEvent.click(await screen.findByRole("button", { name: /Their recent plans/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("Made by the teacher · Grade 3 · english · Ch 4 · Today 8:05 AM")).toBeTruthy();
+    expect(within(dialog).getByText("Made by the teacher · Grade 3 · english · Ch 4 · Today 11:20 AM")).toBeTruthy();
+  });
+
+  it("the picked plan keeps its time, and sends that plan", async () => {
+    renderCheck();
+    fireEvent.click(await screen.findByRole("button", { name: /Their recent plans/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click((await within(dialog).findByText(/Today 11:20 AM/)).closest("button")!);
+    expect(await screen.findByText(/Today 11:20 AM/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    expect(send.mock.calls[0][0].plan).toEqual({ kind: "library", pick: { ownId: "own-late" } });
   });
 });
