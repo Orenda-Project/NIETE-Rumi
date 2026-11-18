@@ -72,7 +72,9 @@
 //   the page; no screen changes).
 // sa-35: round 28, sa-ui.js (the spoken MCQ keeps a few listed Urdu word runs, names and paired words, on one line in the
 //   question and its answers, so a phone never breaks them across two lines).
-var VERSION = 'sa-35';
+// sa-36: round 28, sa.css (the Urdu story question card on a phone in RDF auto keeps a two-line question's lines apart:
+//   18 px at a taller line pitch, the card's padding moved to the top; the four answers stay on the screen).
+var VERSION = 'sa-36';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
