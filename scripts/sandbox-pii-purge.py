@@ -462,6 +462,14 @@ def main():
         cur.execute(f'refresh materialized view "{sch}"."{m}"')
     run.count("matviews.refreshed", len(mvs))
 
+    # ── people who registered while this run was in progress (the sandbox bot stays live): they are using the
+    #    sandbox right now, like the keep-list's "active since 1 Nov" rule, so the checks treat them as kept ─────
+    cur.execute("select id::text from users where not (id::text = any(%s))", (list(uinfo),))
+    joined = [r[0] for r in cur.fetchall()]
+    for j in joined:
+        keep_ids[j] = ["joined_during_run"]
+    run.count("keep_list.joined_during_run", len(joined))
+
     # ── checks (inside the transaction) ──────────────────────────────────────────────────────────────────
     print("checks:", flush=True)
     ok = scan(cur, keep_ids, run)
