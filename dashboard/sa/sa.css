@@ -396,22 +396,6 @@ button{font:inherit;color:inherit}
 .sae.is-r8-layout .sae-check .sae-sub{font-size:18px}
 .sae.is-r8-layout .sae-check .sae-jugnu-s{width:64px;height:64px}
 .sae.is-r8-layout .sae-check .sae-replay{width:56px;height:56px}
-/* round 28, the check fit (sa_r28_check_fit, .is-r28-check-fit): the Urdu sound check on a phone-height frame. Under ur_fit every
-   Urdu heading and hint runs at line-height 3 (Nastaliq's ascenders); on a 360×640 phone in the coach page's frame (64 px
-   under its corner hold) that put the two picture tiles 80 px under the fold with the scroll cue drawn over them, so the
-   child had to scroll before tapping the picture Jugnu named. The silence screen's own phone numbers (line-height 2.4 at
-   .5em, the hint at 2.2) applied to the check, Jugnu at the replay's size, the tiles at their base size: the row, the
-   question, the hint and both tiles fit in 640 whole. The tablet (1280 tall) is outside the query. OFF: none of this. */
-@media (max-height:700px){
-  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-h1{line-height:2.4;padding-top:.5em}
-  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-sub{line-height:2.1;padding-top:.4em}
-  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-body{gap:6px}
-  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-foot{padding-top:0}
-  .sae.is-r28-check-fit[lang=ur] .sae-screen.sae-check{padding-bottom:8px}
-  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-jugnu-s{width:56px;height:56px}
-  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic{min-height:132px}
-  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic-e{font-size:56px}
-}
 /* picture options: the grid takes the rest of the screen, each picture fills its tile */
 .sae.is-r8-layout .sae-opts:has(.is-pic){flex:1 1 auto;grid-auto-rows:minmax(0,1fr);min-height:min(52vh,720px)}
 .sae.is-r8-layout .sae-opt.is-pic{position:relative;min-height:0;padding:0}
@@ -448,6 +432,23 @@ button{font:inherit;color:inherit}
   .sae.is-r8-layout .sae-task-tag{font-size:24px}
 }
 /* end round 8 layout */
+/* round 28, the check fit (sa_r28_check_fit, .is-r28-check-fit): the Urdu sound check on a phone-height frame. Under ur_fit every
+   Urdu heading and hint runs at line-height 3 (Nastaliq's ascenders); on a 360×640 phone in the coach page's frame (64 px
+   under its corner hold) that put the two picture tiles 80 px under the fold with the scroll cue drawn over them, so the
+   child had to scroll before tapping the picture Jugnu named. The silence screen's own phone numbers (line-height 2.4 at
+   .5em, the hint at 2.2) applied to the check, Jugnu at the replay's size, the tiles at their base size: the row, the
+   question, the hint and both tiles fit in 640 whole. The tablet (1280 tall) is outside the query. OFF: none of this. */
+@media (max-height:700px){
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-h1{line-height:2.4;padding-top:.5em}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-sub{line-height:2.1;padding-top:.4em}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-body{gap:6px}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-foot{padding-top:0}
+  .sae.is-r28-check-fit[lang=ur] .sae-screen.sae-check{padding-bottom:8px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-jugnu-s{width:56px;height:56px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic{min-height:132px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic-e{font-size:56px}
+}
+/* end round 28, the check fit */
 /* Round 8 (sa_r8_story_snap, item 15; the mount's .is-r8-snap; OFF = none of this): the story is its own scroll box,
    the screen's height, made of parts one box high (sa-ui snapPack). Mandatory snapping with snap-stop always: a scroll
    or a fling lands on the next part, never past it to the end, and the arrow moves one part. Larger type, normal
