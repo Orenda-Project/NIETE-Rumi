@@ -207,6 +207,8 @@ const en = {
     firstN: (n: number) => `First ${n} correct`,
     ofN: (x: number, n: number) => `${x} of ${n}`,
     unrated: "not rated (too few items heard)",
+    // O-46 (SPEC v2.80, §F): a picker the coach ended before every item was presented
+    unrated_ended: "not rated (ended early)",
     // round 28 (SPEC F): the guessing floor beside a tapped score (guessFloor.ts), and the child's taps before the sound
     guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
       ? `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n} (${f[1].pct} reach ${f[1].k} of ${f[1].n}).`
@@ -434,6 +436,7 @@ const ur: Copy = {
     firstN: (n: number) => `پہلے ⁦${urDigits(n)}⁩ درست`,
     ofN: (x: number, n: number) => `⁦${urDigits(n)}⁩ میں سے ⁦${urDigits(x)}⁩`,
     unrated: "درجہ نہیں (بہت کم سنے گئے)",
+    unrated_ended: "درجہ نہیں (جلد ختم کر دیا گیا)",
     guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
       ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
       : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),

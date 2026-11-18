@@ -143,7 +143,7 @@ export default function LeaderAssessResults() {
           {!spoken && !unrated && <Row label={r.correct} value={n(t.correct)} />}
           {t.mode === 'tap' && <Row label={r.optionsN} value={n(t.optionsN)} />}
           {t.mode === 'tap' && !unrated && <Row label={r.chanceCorrected} value={n(t.chanceCorrected)} />}
-          {unrated && <Row label={r.score} value={r.unrated} />}
+          {unrated && <Row label={r.score} value={t.unratedWhy === 'ended' ? r.unrated_ended : r.unrated} />}
           {/* round 28: the child's own taps before the prompt's sound ended, of the answers timed */}
           {t.mode === 'tap' && t.tapBeforeSound && typeof t.tapBeforeSound.n === 'number' && t.tapBeforeSound.of > 0
             && <Row label={r.tapBefore} value={r.ofN(t.tapBeforeSound.n, t.tapBeforeSound.of)} />}

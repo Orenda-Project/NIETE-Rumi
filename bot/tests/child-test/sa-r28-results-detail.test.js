@@ -66,6 +66,23 @@ describe('round 28 Results detail', () => {
     expect(out.tasks[0]).toMatchObject({ mode: 'tap', correct: 2, attempted: 3, unrated: true, presented: 3, asked: ['ur.story_w3.q1', 'ur.story_w3.q2', 'ur.story_w3.q3'] });
   });
 
+  test('O-46: a picker the coach ended early passes unratedWhy ended beside unrated; the marks are kept', async () => {
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world([{
+      block: 'ur.letter_pick10', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:01:00Z', ai_status: null, ai_marks: null,
+      responses: [{ kind: 'result', mode: 'tap', correct: 7, attempted: 7, presented: 7, unavailable: 0, of_all: 10, unrated: true, unrated_why: 'ended', stop_reason: 'end_section' }],
+    }]));
+    expect(out.tasks[0]).toMatchObject({ mode: 'tap', correct: 7, attempted: 7, unrated: true, unratedWhy: 'ended', presented: 7, ofAll: 10 });
+  });
+
+  test('an unrated picker without a cause (too few heard) gets no unratedWhy key', async () => {
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world([{
+      block: 'ur.letter_pick10', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:01:00Z', ai_status: null, ai_marks: null,
+      responses: [{ kind: 'result', mode: 'tap', correct: 3, attempted: 3, presented: 3, unavailable: 7, of_all: 10, unrated: true, stop_reason: 'complete' }],
+    }]));
+    expect(out.tasks[0]).toMatchObject({ unrated: true });
+    expect(out.tasks[0]).not.toHaveProperty('unratedWhy');
+  });
+
   test('a tap task without those fields has no unrated / presented / asked keys', async () => {
     const blocks = [{
       block: 'ur.letter_pick10', response_mode: 'tap', lang: 'ur', created_at: '2026-10-21T05:02:00Z', ai_status: 'scored',
