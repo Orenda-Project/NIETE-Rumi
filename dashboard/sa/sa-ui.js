@@ -1813,11 +1813,13 @@
       hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
+      // round 28: the picker's and the spoken MCQ's practice feedback is said by Jugnu in coach-led too, as their sounds are
+      // (a young child cannot read the line); today's tap practice in coach-led stays the coach's to read
+      var fbSaid = appAsks || (manual && (isPick(t) || isMcq(t)));
       // round 28: the letter picker's last feedback (the right card shown; the right tap) keeps the FEEDBACK_MS floor
-      // in both modes, under Jugnu's line: coach-led Jugnu says no line (the coach speaks), so without the floor the
-      // right card would be gone before a frame was painted and a child who tapped wrong twice would never see it
+      // in both modes, under Jugnu's line, so the right card is on screen for a painted frame however short the line
       var floor = !ended || isPick(t) ? delay(FEEDBACK_MS) : null;
-      Promise.all([floor, capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
+      Promise.all([floor, capped(sayChain(chain.map(function (x) { return [x, undefined, fbSaid]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;

@@ -574,6 +574,41 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(cards(el)[1].classList.contains('is-shown')).toBe(true);
   }, 30000);
 
+  // The practice feedback after a tap (try again; after the second wrong answer the shown line) is spoken by Jugnu in
+  // coach-led as in RDF auto: the question and its answers already play in both modes, and a young child cannot read
+  // the feedback line. The line still shows on the screen.
+  for (const manual of [true, false]) {
+    test(`practice (${manual ? 'coach-led' : 'RDF auto'}): Jugnu says the feedback after each wrong answer; the line is on the screen too`, async () => {
+      setup();
+      const p = { id: 'ur.story_mcq_w3.p1', passage: { text: 'practice story' }, prompt: { text: 'practice q', audio: 'sa/v5/ur/syn_pq.mp3' },
+        options: ['w', 'x', 'y', 'z'], option_audio: [1, 2, 3, 4].map((k) => `sa/v5/ur/syn_p_o${k}.mp3`), target_index: 1, key: 2,
+        feedback: { wrong: { text: 'the answer was x', audio: 'sa/v5/ur/syn_p_wrong.mp3', lang: 'ur' } } };
+      const extra = manual ? { runner: { manual: true }, ui: { manual: true } } : {};
+      const { el, voice, runner } = mountMcq(Object.assign({ practice: true, task: { practice: [p] } }, extra));
+      await wait(20);
+      expect(runner.view().phase).toBe('practice');
+      for (let k = 0; k < 5; k++) await voice.speakNext(40);
+      const before = voice.lines.length;
+      cards(el)[3].click();
+      await wait(1100);
+      const fbText = el.querySelector('.sae-fb').textContent;
+      expect(fbText).not.toBe(' ');
+      const tryAgain = voice.lines.slice(before).map((l) => l.textObj);
+      expect(tryAgain).toHaveLength(1);
+      expect(tryAgain[0] && (tryAgain[0].text || tryAgain[0].ur)).toBe(fbText);
+      await voice.speakNext(40); // the try-again line
+      await wait(1400);
+      for (let k = 0; k < 5; k++) await voice.speakNext(40);
+      const mid = voice.lines.length;
+      cards(el)[2].click();
+      await wait(1100);
+      expect(voice.lines.slice(mid).map((l) => l.textObj && l.textObj.text)).toEqual(['the answer was x']);
+      expect(el.querySelector('.sae-fb').textContent).toBe('the answer was x');
+      expect(cards(el)[1].classList.contains('is-shown')).toBe(true);
+      await voice.speakNext(40);
+    }, 30000);
+  }
+
   test('B-17: o3 of question 2 lost → question 2 unavailable, the others scored; answers, asked and the hl log agree', async () => {
     setup('https://portal.test/sa/run.html?probe=1');
     const dbg = jest.spyOn(console, 'debug').mockImplementation(() => {});
@@ -1167,7 +1202,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
       for (let k = 0; k < 5; k++) { const l = await voice.speakNext(40); expect(clipOf(l)).toBe(k === 0 ? 'sa/v5/ur/syn_pq.mp3' : `sa/v5/ur/syn_p_o${k}.mp3`); }
       cards(el)[3].click();
       await wait(1100);
-      if (mode !== 'coach-led') await voice.speakNext(40); // "try again" (coach-led: the feedback is text only)
+      await voice.speakNext(40); // "try again": Jugnu says it in both modes (coach-led too, as the question's clips)
       await wait(1400);
       // the retry re-reads the question, never the passage
       for (let k = 0; k < 5; k++) { const l = await voice.speakNext(40); expect(clipOf(l)).toBe(k === 0 ? 'sa/v5/ur/syn_pq.mp3' : `sa/v5/ur/syn_p_o${k}.mp3`); }
