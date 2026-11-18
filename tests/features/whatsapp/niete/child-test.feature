@@ -1940,11 +1940,11 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @config-gated @P1 @CT290 @no-mock-driver
   # No mock driver: the practice runs on the child's phone screen (the battery engine), not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-bank.test.js and dashboard/tests/sa-r28-letter-pick.service.test.js.
-  Scenario: With sa_r28_letter_pick on, the picker's practice names the sound on a right tap and after a second wrong tap
+  Scenario: With sa_r28_letter_pick on, the picker's practice names the sound after a second wrong tap
     Given sa_r28_letter_pick is on and a child is on the letter-sound picker's practice, coach-led or alone
     When the child taps a wrong card twice
     Then Jugnu says "The sound of this letter is:" and then the same sound the child just heard, and the right card is shown
-    And when the child taps the right card Jugnu says "Yes! The sound of this letter is:" and then that sound
     And the sound is never a letter's name
-    And in Urdu Jugnu says «اس حرف کی آواز ہے:» and «شاباش! اس حرف کی آواز ہے:» the same way
+    And in Urdu Jugnu says «اس حرف کی آواز ہے:» and then the sound the same way
+    And when the child taps the right card Jugnu says the right line as today, without repeating the sound
     And with sa_r28_letter_pick off the battery runs exactly as before

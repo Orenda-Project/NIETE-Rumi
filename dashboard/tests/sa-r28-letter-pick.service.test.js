@@ -2164,8 +2164,8 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
         top_h: 44, inner_scroll: 0, cards_hit: 5, bar: BAR })));
     }, 400000);
   }
-  // The practice names the sound (right tap, second wrong tap): in RDF auto the line is drawn below the cards, so the
-  // longer named line must sit whole inside the phone with the five cards hit-testable and unmoved.
+  // The practice names the sound on the second wrong tap: in RDF auto the line is drawn below the cards, so the longer
+  // named line (and the right tap's line) must sit whole inside the phone with the five cards hit-testable.
   for (const lang of ['ur', 'en']) {
     test(`${lang} [embed, RDF auto], the practice's named line (second wrong tap, right tap): whole, inside the phone, below the cards; cards 5/5, where the try-again line puts them`, async () => {
       const fr = { name: 'embed_auto', embed: true, toggle: true, auto: true };
@@ -2221,7 +2221,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       for (const [right, m] of [[false, wrong2], [true, rightTap]]) {
         const { after, ta, ...got } = m;
         expect({ right, ...got, cards_as_try_again: JSON.stringify(after) === JSON.stringify(wrong2.ta) })
-          .toEqual({ right, text: fbText(right ? p2.feedback.correct : p2.feedback.wrong), inside: true, whole: true, below_cards: true, in_head: false, hit: 5, cards_as_try_again: true });
+          .toEqual({ right, text: right ? got.text : fbText(p2.feedback.wrong), inside: true, whole: true, below_cards: true, in_head: false, hit: 5, cards_as_try_again: true });
       }
     }, 120000);
   }
@@ -2586,10 +2586,10 @@ maybe('sa-ui: the picker\'s instruction is spoken in coach-led', () => {
 });
 
 // ---------- the picker's practice feedback NAMES the sound (the built battery, both modes) ----------
-// SPEC: wrong twice → the right card is shown AND named. The built picker practice rows carry the letter-sounds lines
-// as chains: the carrier in the page's language, then the item's own sound clip (the one the child just heard), so the
-// second wrong tap says "The sound of this letter is: <sound>" and a right tap "Yes! The sound of this letter is: <sound>",
-// never the generic "This is the right one." Read from the committed battery files, not a fixture.
+// SPEC: wrong twice → the right card is shown AND named. The built picker practice rows carry the letter-sounds wrong
+// line as a chain: the carrier in the page's language, then the item's own sound clip (the one the child just heard), so
+// the second wrong tap says "The sound of this letter is: <sound>", never the generic "This is the right one."; a right
+// tap keeps the battery's right line, the sound not repeated. Read from the committed battery files, not a fixture.
 maybe('sa-ui: the built picker practice names the sound', () => {
   const fs = require('fs');
   const DATA = path.join(__dirname, '../../bot/shared/data/child-test/sa');
@@ -2651,7 +2651,7 @@ maybe('sa-ui: the built picker practice names the sound', () => {
       expect(shown && shown.classList.contains('is-right') && shown.getAttribute('data-value')).toBe(p2.target);
       expect(sound.audio).toBe(p2.prompt_audio);
     });
-    test(`${mode}, ${l} picker on the ${lang} page: a right tap says "Yes! The sound of this letter is:" then the item's sound`, async () => {
+    test(`${mode}, ${l} picker on the ${lang} page: a right tap says the battery's right line once, the sound not repeated`, async () => {
       const b = built(lang, l);
       const p2 = b.tasks[0].practice[1];
       const m = mount(b, lang, manual);
@@ -2659,8 +2659,10 @@ maybe('sa-ui: the built picker practice names the sound', () => {
       const before = m.speak.mock.calls.length;
       card(m, true).click();
       await wait(30);
-      expect(heard(m, before)).toEqual([[p2.feedback.correct[0].text, p2.feedback.correct[0].audio], [p2.prompt_text, p2.prompt_audio]]);
-      expect(heard(m, before)[0][0]).toMatch(/^(Yes! The sound of this letter is:|شاباش! اس حرف کی آواز ہے:)$/);
+      const said = heard(m, before);
+      expect(said).toHaveLength(1);
+      expect(said[0][0]).toBe(b.lines.right.text);
+      expect(said.some(([, a]) => a === p2.prompt_audio)).toBe(false);
     });
   }
 });
