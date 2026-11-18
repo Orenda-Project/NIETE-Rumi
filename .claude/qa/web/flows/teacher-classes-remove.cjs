@@ -157,7 +157,8 @@ module.exports = [
     const right = 'Fatima ' + tag;
     try {
       const seeded = await api(page, ctx, 'POST', '/classes/' + encodeURIComponent(classId) + '/students', { names: [wrong] });
-      expect(seeded.status === 200 && seeded.json && seeded.json.success, 'seeding the child failed: ' + seeded.status);
+      // POST /classes/:id/students answers 201 Created on success (dashboard/routes/portal.routes.js), like POST /classes.
+      expect(seeded.status === 201 && seeded.json && seeded.json.success, 'seeding the child failed: ' + seeded.status);
       const kids = (await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students')).json.students;
       expect(kids.length === 1 && kids[0].rollNumber === 1, 'seeded roster is not one child as roll 1: ' + JSON.stringify(kids));
       const childId = kids[0].studentId;
