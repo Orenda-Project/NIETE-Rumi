@@ -241,6 +241,8 @@ const STRINGS = {
     report_caption_teacher:
       'Ripoti yako ya somo 🌱 Imeandaliwa kutokana na uchunguzi wa {fo} — pamoja na kumbukumbu za mazungumzo yenu.',
     report_caption_teacher_obs612: 'Ripoti yako ya somo 🌱 Kutoka kwa ziara ya {fo}, kwenye zana ya uchunguzi ya FDE.',
+    // bd-31ziu8: a FICO 6-12 visit's report (ICT grades 6-12; code name FICO-S v1.1). It keeps its debrief (HITL).
+    report_caption_teacher_ficos: 'Ripoti yako ya somo 🌱 Kutoka kwa ziara ya {fo}, kwa FICO 6-12 — pamoja na kumbukumbu za mazungumzo yenu.',
     companion_from_label: 'Kutoka kwa',
     companion_commitment_label: 'Ahadi yako',
     companion_closing: 'Tunajivunia kazi yako. Tuko pamoja. 💛',
@@ -596,6 +598,8 @@ const STRINGS = {
     report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی آپ کی رپورٹ۔',
     // bd-pni007 (DRAFT for native review): an FDE visit's report, scored by the coach on FDE's own tool.
     report_caption_teacher_obs612: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، ایف ڈی ای کے مشاہداتی ٹول پر۔',
+    // bd-31ziu8 (DRAFT for native review): a FICO 6-12 visit's report; it keeps its debrief (HITL).
+    report_caption_teacher_ficos: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، \u2066FICO 6-12\u2069 پر، آپ کی گفتگو کے نوٹس کے ساتھ۔',
     companion_from_label: 'جانب سے',
     companion_commitment_label: 'آپ کا عزم',
     companion_closing: 'ہمیں آپ کے کام پر فخر ہے۔ ہم ساتھ ہیں۔ 💛',
@@ -1000,6 +1004,8 @@ const STRINGS = {
       'Your lesson report 🌱 Prepared from {fo}\'s visit — with notes from your conversation together.',
     // bd-pni007: an FDE visit's report. No debrief conversation is promised: the coach scored FDE's own tool.
     report_caption_teacher_obs612: 'Your lesson report 🌱 From {fo}\'s visit, on FDE\'s observation tool.',
+    // bd-31ziu8: a FICO 6-12 visit's report (ICT grades 6-12; code name FICO-S v1.1). It keeps its debrief (HITL).
+    report_caption_teacher_ficos: 'Your lesson report 🌱 From {fo}\'s visit, on FICO 6-12 — with notes from your conversation together.',
     companion_from_label: 'From',
     companion_commitment_label: 'Your commitment',
     // bd-2405: was 'We are proud of your work. Tuko pamoja. 💛' — the Swahili
