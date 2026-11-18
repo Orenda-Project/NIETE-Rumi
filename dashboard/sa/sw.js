@@ -55,7 +55,9 @@
 // sa-28: round 28 follow-up: sa-ui.js and sa-core.js (the letter picker and the spoken MCQ draw no Back button on their item and
 //   practice screens, so the cards and the replay stay in reach on a phone; the sandbox-only dev row stays off those screens;
 //   a scored answer records since_fold_ms).
-var VERSION = 'sa-28';
+// sa-29: round 28 follow-up: sa.css and sa-ui.js (the Urdu sound check fits a phone under sa_r28_check_fit; the letter
+//   picker's practice example keeps room for its pointing hand in RDF auto; its last practice feedback keeps the 1.2 s floor).
+var VERSION = 'sa-29';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

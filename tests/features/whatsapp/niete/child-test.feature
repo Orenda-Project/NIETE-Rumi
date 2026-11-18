@@ -1880,6 +1880,24 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And all five letter cards and the replay button can be tapped without scrolling, on every item from the first to the tenth
     And every other task keeps its Back, and with both switches off the Back is drawn as before
 
+  @e2e @wip @draft @config-gated @P1 @CT282 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-audio-check-fit.service.test.js.
+  Scenario: With sa_r28_check_fit on, the Urdu sound check fits a 360x640 phone, both pictures tappable without scrolling
+    Given sa_ur_fit and sa_r8_layout are on, with every switch the tier serves
+    And sa_r28_check_fit is on
+    When a child on a 360x640 phone in the coach page's frame reaches the Urdu sound check, coach-led or RDF auto
+    Then both picture tiles, the replay button and "I can't hear" are whole on screen and can be tapped without scrolling
+    And no scroll cue is drawn
+    And with sa_r28_check_fit off the screen is as today, and the English phone and the tablet are unchanged either way
+
+  @e2e @wip @draft @config-gated @P1 @CT283 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-auto-practice.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the letter-sound practice example in RDF auto fits a 360x640 phone without scrolling
+    Given sa_r28_letter_pick is on, with every switch the tier serves
+    When a child alone (RDF auto) on a 360x640 phone sees the letter-sound practice example, modelled with the pointing hand, and then tries one
+    Then nothing scrolls on any practice screen, all five letter cards are whole and can be tapped, and the replay and Next are in reach
+    And no scroll cue is drawn, and the tablet reads the same
+
   @e2e @wip @draft @config-gated @P1 @CT246 @no-mock-driver
   # No mock driver: the prompt is sent in the scoring sweep to a model, not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
