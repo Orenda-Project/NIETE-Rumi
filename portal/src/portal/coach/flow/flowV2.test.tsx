@@ -126,6 +126,15 @@ describe("Schedule, switch on: one open list, nothing folded", () => {
     expect(within(huma).getByRole("button", { name: /Cancel visit/ })).toBeInTheDocument();
   });
 
+  it("the row buttons leave room for two Nastaliq lines (Urdu Start recording wraps; it spilled out on sandbox)", async () => {
+    renderAt("/portal/coach/schedule");
+    await screen.findByTestId("visit-list");
+    const row = screen.getByTestId("visit-t2");
+    for (const el of [within(row).getByRole("link", { name: /Start recording/ }), within(row).getByRole("button", { name: /Cancel visit/ })]) {
+      expect(el.className.split(/\s+/)).toEqual(expect.arrayContaining(["min-h-[56px]", "py-2", "leading-tight", "rtl:leading-[1.8]"]));
+    }
+  });
+
   it("a done visit has no buttons and opens its observation", async () => {
     renderAt("/portal/coach/schedule");
     await screen.findByTestId("visit-list");
