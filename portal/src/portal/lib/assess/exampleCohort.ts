@@ -30,20 +30,31 @@ export type TaskSpec = {
   mode: 'tap' | 'keypad' | 'record' | 'oral';
   /** how hard the task is for the model below (higher = harder) */
   difficulty: number;
+  /**
+   * false: a live-data task only, never generated for the example cohort (round 28's tapped tasks: the example
+   * dashboard stays exactly as it was). The dashboard shows its card only when a session in view has a score for it.
+   */
+  example?: false;
 };
 
 /** The Wave 3 RDF form, as sandbox sessions record it (task ids from child_test_blocks.block). No blending task. */
 export const TASKS: TaskSpec[] = [
   { taskId: 'ur.letter_names5', domain: 'ur', kind: 'items', max: 5, mode: 'record', difficulty: -1.2 },
   { taskId: 'ur.letter_sounds5', domain: 'ur', kind: 'items', max: 5, mode: 'record', difficulty: -0.4 },
+  // round 28 (sa_r28_letter_pick): letter sounds, listen and tap one of five; a new id, its own row, never merged
+  { taskId: 'ur.letter_pick10', domain: 'ur', kind: 'items', max: 10, mode: 'tap', difficulty: -0.4, example: false },
   { taskId: 'ur.words4', domain: 'ur', kind: 'items', max: 4, mode: 'record', difficulty: 0.2 },
   { taskId: 'ur.story_w3', domain: 'ur', kind: 'passage', max: 60, mode: 'record', difficulty: 0.3 },
   { taskId: 'ur.story_comp_w3', domain: 'ur', kind: 'comprehension', max: 4, mode: 'oral', difficulty: 0.6 },
+  // round 28 (sa_r28_mcq): the story's questions, listen and tap one of four; a new id, its own row, never merged
+  { taskId: 'ur.story_mcq_w3', domain: 'ur', kind: 'comprehension', max: 6, mode: 'tap', difficulty: 0.6, example: false },
   { taskId: 'en.letter_names5', domain: 'en', kind: 'items', max: 5, mode: 'record', difficulty: -0.6 },
   { taskId: 'en.letter_sounds5', domain: 'en', kind: 'items', max: 5, mode: 'record', difficulty: 0.4 },
+  { taskId: 'en.letter_pick10', domain: 'en', kind: 'items', max: 10, mode: 'tap', difficulty: 0.4, example: false },
   { taskId: 'en.words4', domain: 'en', kind: 'items', max: 4, mode: 'record', difficulty: 0.8 },
   { taskId: 'en.story_w3', domain: 'en', kind: 'passage', max: 55, mode: 'record', difficulty: 1.0 },
   { taskId: 'en.story_comp_w3', domain: 'en', kind: 'comprehension', max: 3, mode: 'oral', difficulty: 1.3 },
+  { taskId: 'en.story_mcq_w3', domain: 'en', kind: 'comprehension', max: 6, mode: 'tap', difficulty: 1.3, example: false },
   { taskId: 'ma.number_id8', domain: 'ma', kind: 'items', max: 8, mode: 'record', difficulty: -1.0 },
   { taskId: 'ma.discrimination2', domain: 'ma', kind: 'items', max: 2, mode: 'tap', difficulty: -0.8 },
   { taskId: 'ma.missing4', domain: 'ma', kind: 'items', max: 4, mode: 'keypad', difficulty: 0.4 },
@@ -150,7 +161,7 @@ export function exampleCohort(n = 1000, seed = 20261022): DashStudent[] {
     const general = SECTOR_EFFECT[school.sector] + school.effect + GRADE_EFFECT[grade] + normal(rnd);
     const ability = { ur: general + normal(rnd) * 0.5, en: general - 0.4 + normal(rnd) * 0.6, ma: general + normal(rnd) * 0.6 };
     const orf = { ur: 0, en: 0 };
-    const tasks = TASKS.map((spec) => taskResult(spec, ability[spec.domain], rnd, orf));
+    const tasks = TASKS.filter((spec) => spec.example !== false).map((spec) => taskResult(spec, ability[spec.domain], rnd, orf));
     const started = EXAMPLE_DAY + Math.floor(rnd() * 5 * 3600) * 1000;
     const minutes = 6 + Math.round(rnd() * 5);
     const id = `EX-${String(i + 1).padStart(4, '0')}`;

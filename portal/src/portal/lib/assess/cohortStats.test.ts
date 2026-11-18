@@ -38,7 +38,7 @@ describe('exampleCohort', () => {
 
   it('every session carries every task of the form, in the results shape, within the task\'s range', () => {
     for (const s of cohort) {
-      expect(s.results.tasks.map((x) => x.taskId)).toEqual(TASKS.map((x) => x.taskId));
+      expect(s.results.tasks.map((x) => x.taskId)).toEqual(TASKS.filter((x) => x.example !== false).map((x) => x.taskId));
       for (const task of s.results.tasks) {
         const c = correctOf(task) as number;
         expect(c).toBeGreaterThanOrEqual(0);
@@ -100,8 +100,8 @@ describe('cohortStats', () => {
       one([t('ur.story_w3', { correct: 10 }), t('ur.story_comp_w3', { correct: 3, of: 4 })]),
     ];
     const h = headline(students);
-    expect(h.readingWithComprehension.ur).toBeCloseTo(0.5);
-    expect(h.readingWithComprehension.en).toBeNull();
+    expect(h.readingWithComprehension.ur).toEqual({ spoken: 0.5, tapped: null });
+    expect(h.readingWithComprehension.en).toEqual({ spoken: null, tapped: null });
     expect(h.orfMedian.ur).toBe(20);
     expect(h.minutesMedian).toBe(8);
   });

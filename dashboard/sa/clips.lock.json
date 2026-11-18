@@ -1,5 +1,5 @@
 {
- "session": "sa-session-v24",
+ "session": "sa-session-v25",
  "about": "dashboard/scripts/sa-clips-lock.js",
  "files": {
   "dashboard/sa/img/vocab/ur.vocabulary.01.webp": "eb46bb7ce7d5aabcd61bc6e2ed7736984ea700d9",
@@ -4626,16 +4626,16 @@
   "dashboard/sa/v4/ur/fef0d65e57b4.mp3": "af1fde32044d7185f7da14b5a1e5604a901b7337",
   "dashboard/sa/v4/ur/ff418757958a.mp3": "c8ec72bc5db8b1013a09346bbb18821969264431",
   "dashboard/sa/v4/ur/ff7cb293be6a.mp3": "46ee03ebc5a884114aac3e31ff916c86febad29b",
-  "bot/shared/data/child-test/sa/sa.coach.G1.A.en.json": "74bd70c6c6f05f28e65aa00125f5cbfda5ce0f7c",
-  "bot/shared/data/child-test/sa/sa.coach.G1.A.ur.json": "c190307d0e111384130791f68a7541ed5490e6ae",
-  "bot/shared/data/child-test/sa/sa.coach.G2.A.en.json": "5cb4a411dc2a00646ff1ab82af0952fa5a28f2f0",
-  "bot/shared/data/child-test/sa/sa.coach.G2.A.ur.json": "f5bcb823abe3ea3d5a7dfe547681e3b87461eebd",
-  "bot/shared/data/child-test/sa/sa.coach.G3.A.en.json": "ec4e6ecda5078f11ebcf30be4c48e8064b2e29ad",
-  "bot/shared/data/child-test/sa/sa.coach.G3.A.ur.json": "7442ee06f6d846aec835c01e4e3b7218c9a29bd2",
-  "bot/shared/data/child-test/sa/sa.coach.G4.A.en.json": "7d9cac43b0cddbdcf68075dec8f1bfdd91fd2cad",
-  "bot/shared/data/child-test/sa/sa.coach.G4.A.ur.json": "59719c41b871e0a615216439059243c23dfa7c22",
-  "bot/shared/data/child-test/sa/sa.coach.G5.A.en.json": "559f830554560c2788bee3b618ba239eba7c8207",
-  "bot/shared/data/child-test/sa/sa.coach.G5.A.ur.json": "5dc789a0183d0dee21b65a08e5f2aacb27c8dc7b",
+  "bot/shared/data/child-test/sa/sa.coach.G1.A.en.json": "d615fb24f463511f67f3dd904c651cbc8d1e0bb0",
+  "bot/shared/data/child-test/sa/sa.coach.G1.A.ur.json": "b5baebaa4a22f79e21a3944b53ea86ebb4df9b4f",
+  "bot/shared/data/child-test/sa/sa.coach.G2.A.en.json": "916b88958fec2ed7d5ae29055a7a3009130e1c9b",
+  "bot/shared/data/child-test/sa/sa.coach.G2.A.ur.json": "f0b855bbdd4222802a6132720c6e5a948381267b",
+  "bot/shared/data/child-test/sa/sa.coach.G3.A.en.json": "e8dd4043e84381b12e6931241f66d67cc1cf0dc9",
+  "bot/shared/data/child-test/sa/sa.coach.G3.A.ur.json": "0b33bb673c3cc41ca76e26710b57b37c5b2ffd93",
+  "bot/shared/data/child-test/sa/sa.coach.G4.A.en.json": "a0fb3180af8ed0c7708b4272a7c097a36c3c51d8",
+  "bot/shared/data/child-test/sa/sa.coach.G4.A.ur.json": "1baa3fdcd1f51e0ebed65b69648eba30b9ea468d",
+  "bot/shared/data/child-test/sa/sa.coach.G5.A.en.json": "3a6e8a21100bc6cc00bfc36405ae33266f6bcf9e",
+  "bot/shared/data/child-test/sa/sa.coach.G5.A.ur.json": "028f4edc9818c216be105ddcb015bfe767762a9e",
   "bot/shared/data/child-test/sa/sa.game.G1.en.json": "ddf80e82b70d93370a26a49ea0b201de8d2278e6",
   "bot/shared/data/child-test/sa/sa.game.G1.ur.json": "65782796a0e741178361f06c2552246687c92f99",
   "bot/shared/data/child-test/sa/sa.game.G23.en.json": "55242491e5dac7999b76087bd28867ff6ce50141",
@@ -4748,6 +4748,8 @@
   "dashboard/sa/v5/en/9f5867dbc26a.mp3": "56ed2026dff249983a1ccabd24e865b37c50e228",
   "dashboard/sa/v5/en/c25c603b41b1.mp3": "bd1eb11024b4ea7e1d996f62c4c80b70abc94399",
   "dashboard/sa/v5/ur/e61b11b2c6d2.mp3": "4eb18378b05f7dab387d7b1ef57253f987f8ed43",
-  "dashboard/sa/v5/ur/f6ef28cb45e0.mp3": "89f84c838fea44a8fef48a1460228106825a1e1d"
+  "dashboard/sa/v5/ur/f6ef28cb45e0.mp3": "89f84c838fea44a8fef48a1460228106825a1e1d",
+  "dashboard/sa/v5/en/6a1d9b5ad1c4.mp3": "d748b2ce1206b21010590dfdd9d9ee7dfa9e81bb",
+  "dashboard/sa/v5/ur/402c6898531d.mp3": "48a12e61fcb8aabb0f6a16222138a6f956cb8bea"
  }
 }
