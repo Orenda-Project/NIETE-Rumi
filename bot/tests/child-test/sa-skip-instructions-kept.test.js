@@ -45,8 +45,10 @@ test('the batch keeps skip_instructions with its task and values (a skip, in STO
   ];
   const out = await sa.saBatch({ userId: COACH, sessionId: SID, seqFrom: 1, seqTo: 3, events, results: [] }, deps);
   expect(out).toEqual({ status: 'ok', ackedTo: 3 });
-  // the practice tap after it is kept too (practice_answer), as the engine's own record of the part
+  // the practice tap after it is kept too (practice_answer), as the engine's own record of the part; the session's
+  // start is kept as well (one per session)
   expect(synced[0].events).toEqual([
+    { seq: 1, type: 'session_start', task_id: null, at: '2026-11-02T08:59:00Z', data: null },
     { seq: 2, type: 'skip_instructions', task_id: 'ur.letter_names5', at: '2026-11-02T08:59:40Z', data: SKIP },
     { seq: 3, type: 'practice_answer', task_id: 'ur.letter_names5', at: '2026-11-02T08:59:41Z', data: null },
   ]);

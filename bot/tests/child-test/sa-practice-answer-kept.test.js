@@ -53,6 +53,7 @@ describe.each(['rdf_auto', 'rdf_manual'])('%s: the batch keeps practice_answer',
     expect(out).toEqual({ status: 'ok', ackedTo: 4 });
     const kept = synced[0].events;
     expect(kept).toEqual([
+      { seq: 1, type: 'session_start', task_id: null, at: at(1), data: null },
       { seq: 2, type: 'practice_answer', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.p2', at: at(2), data: { value: 'پ', ok: false, try: 1 } },
       { seq: 3, type: 'practice_answer', task_id: 'ur.letter_pick10', item_id: 'ur.letter_pick10.p2', at: at(3), data: { value: 'ت', ok: false, try: 2 } },
       { seq: 4, type: 'practice_answer', task_id: 'en.story_mcq_w3', item_id: 'en.story_mcq_w3.p1', at: at(4), data: { value: 2, ok: true, try: 1 } },

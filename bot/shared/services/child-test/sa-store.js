@@ -29,11 +29,28 @@ const MAX_KEPT_EVENTS = 200;
 // (round 9 item 3: skip_instructions, the coach skipped a part's instructions)
 const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions']);
 
+// one row of each per attempt (sa-api.service.js ONCE_TYPES): the earliest session_start and the LATEST audio_check (one
+// per try, tries counting up, nothing after a pass). An event's attempt = the restart rows below its seq (restartAttempt
+// moves an ended attempt's rows below one `restart`), so every attempt keeps its own pair.
+const FIRST_ONLY = new Set(['session_start']);
+const LAST_ONLY = new Set(['audio_check']);
+
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];
   const seen = new Set(list.map((e) => e.seq));
   for (const e of events) if (!seen.has(e.seq)) { seen.add(e.seq); list.push(e); }
-  const sorted = list.sort((x, y) => x.seq - y.seq);
+  list.sort((x, y) => x.seq - y.seq);
+  const pick = new Map(); // `${attempt}|${type}` → the row that stays
+  let attempt = 0;
+  for (const e of list) {
+    if (e.type === 'restart') attempt += 1;
+    else if (FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) {
+      const k = `${attempt}|${e.type}`;
+      if (LAST_ONLY.has(e.type) || !pick.has(k)) pick.set(k, e);
+    }
+  }
+  const stays = new Set(pick.values());
+  const sorted = list.filter((e) => !(FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) || stays.has(e));
   const kept = new Set(sorted.filter((e) => !AUDIT.has(e.type)).slice(0, MAX_KEPT_EVENTS));
   return sorted.filter((e) => AUDIT.has(e.type) || kept.has(e));
 }

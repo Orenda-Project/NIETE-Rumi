@@ -490,7 +490,12 @@ const PRACTICE_TYPES = ['practice_answer'];
 // (options_reach), { n, hit, vw, vh } with the item (sa-ui.js reachRead). One per item; the picker and the story questions
 // are only ever served under their own switches.
 const REACH_TYPES = ['cards_reach', 'options_reach'];
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES];
+// The session's start and its sound check ({ heard, tries }): the sound check's pass, its wrong taps and its time can be
+// read from the row. One of each per attempt (sa-store.js keepEvents keeps it across batches): the earliest start and the
+// LATEST sound check (one per try, tries counting up, nothing after a pass: the last is the pass or the last miss).
+const ONCE_TYPES = ['session_start', 'audio_check'];
+const LATEST_ONCE = 'audio_check';
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 // a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
 const MAX_PRACTICE_PER_TASK = 4;
@@ -631,11 +636,20 @@ function keptEvent(e) {
   return out;
 }
 
-/** The events the session keeps, in batch order: KEPT types, a part's practice taps up to MAX_PRACTICE_PER_TASK. */
+/** The events the session keeps, in batch order: KEPT types, a part's practice taps up to MAX_PRACTICE_PER_TASK, the
+ *  first session_start and the last audio_check of the batch (ONCE_TYPES). */
 function keptEvents(events) {
   const practice = new Map();
+  const once = new Set();
+  const lastCheck = events.reduce((m, e) => (e && e.type === LATEST_ONCE ? e : m), null);
   return events.filter((e) => {
     if (!KEPT.includes(e.type)) return false;
+    if (e.type === LATEST_ONCE) return e === lastCheck;
+    if (ONCE_TYPES.includes(e.type)) {
+      if (once.has(e.type)) return false;
+      once.add(e.type);
+      return true;
+    }
     if (!PRACTICE_TYPES.includes(e.type)) return true;
     const n = (practice.get(e.task_id) || 0) + 1;
     practice.set(e.task_id, n);
