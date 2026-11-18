@@ -29,33 +29,36 @@ Feature: Teacher home, analytics, more and profile
     When she opens /portal/dashboard
     Then her dashboard greets her: "Salaam, Ayesha"
 
+  # 810b3bae2 (30 Oct 2026, mockup v6 option B): the look's header is the kit's HomeGreeting (the mark and NIETE, the
+  # small language pill, the greeting, today's date, her school), the features are the kit's tiles three per row, and
+  # there is no "All features" label and no question line (operator: "this is not a chat app").
   @TH04
-  Scenario: Teacher app v2, new Home look: on a card day the band, the lesson card, the progress strip and All features come in order
+  Scenario: Teacher app v2, new Home look: on a card day the band, the lesson card, the progress strip and the features come in order
     Given the teacher app v2 is on and the coach app v2 is off
     And the Home card is on, and the new Home look is on for demo teacher 03000000911 only
     And the demo teacher is named "Ayesha Testwala"
     And today's Home answer is a lesson card on "Fractions" and a coach score of 29/38
     And demo teacher 03000000911 is signed in on a 412 px phone
     When the teacher opens /portal/teacher
-    Then the navy band greets "Salaam, Ayesha Testwala!" on its own row under the date and school (the two-row band)
+    Then the navy band greets "Salaam, Ayesha Testwala!" over today's date and her school
     And the band's language pill reads "اردو"
-    And the lesson card shows "Quiz from your last lesson:" with the topic "Fractions" on its own line
-    And the card has one primary button "Quiz this" and "Open the plan" under it
+    And the lesson card shows "Quiz from your last lesson:" with the topic "Fractions"
+    And the card has one primary button "Quiz this" with "Open the plan" beside it
     And the progress strip shows "Your progress" and the chip "Coach 29/38"
-    And "All features" labels the 8 feature tiles, and "What would you like to do today?" is not shown
-    And the band, the card, the strip, "All features" and the tiles come in that order down the page
+    And the 8 feature tiles are drawn three per row, with no "All features" label and no question line
+    And the band, the card, the strip and the tiles come in that order down the page
     And no page error or 5xx happened
 
   @TH05
-  Scenario: Teacher app v2, new Home look: on a no-card day the two score chips come first, then the question and the features
+  Scenario: Teacher app v2, new Home look: on a no-card day the two score chips come straight after the band, then the features
     Given the teacher app v2 is on and the coach app v2 is off
     And the Home card is on, and the new Home look is on for demo teacher 03000000911 only
     And today's Home answer has no card, a coach score of 29/38 and an observation score of 31/40
     And demo teacher 03000000911 is signed in
     When the teacher opens /portal/teacher
-    Then no card is drawn and "All features" is not shown
+    Then no card is drawn
     And the progress strip shows both chips, "29/38" and "31/40", without the "Your progress" label
-    And the heading "What would you like to do today?" comes after the strip and before the 8 feature tiles
+    And the 8 feature tiles follow the strip, with no question line between them
     And no page error or 5xx happened
 
   @TH06
@@ -68,13 +71,13 @@ Feature: Teacher home, analytics, more and profile
     When the teacher opens /portal/teacher and taps the "اردو" pill in the band
     Then the band greets "السلام علیکم، Ayesha Testwala!" with the "!" inside the name's isolate, right after "Testwala"
     And the pill now reads "English"
-    And the heading reads "آج کیا کریں؟"
+    And today's date in the band is written in Urdu
     And the teacher's saved language is Urdu
     When the teacher taps the "English" pill
     Then the band greets "Salaam, …" again
     And no page error or 5xx happened
 
-  @TH07
+  @TH07 @obsolete
   Scenario: Teacher app v2, new Home look: on a 320 px phone the band is one row and drops the date line
     Given the teacher app v2 is on and the coach app v2 is off
     And the Home card is on, and the new Home look is on for demo teacher 03000000911 only
@@ -86,6 +89,9 @@ Feature: Teacher home, analytics, more and profile
     And the date and school line is not drawn
     And the page does not scroll sideways, and the lesson card is still shown
     And no page error or 5xx happened
+    # OBSOLETE 2026-11-18 (bd-j7czk9.1): 810b3bae2 (30 Oct 2026) removed the look's own band (HomeBand, bandShape): the
+    # header is the kit's HomeGreeting at every width, so there is no one-row band and the date line is never dropped.
+    # What still holds at 320 px is TH10.
 
   @TH08
   Scenario: Teacher app v2: with the new Home look off, or on without the Home card, the Home is the one before
@@ -122,3 +128,17 @@ Feature: Teacher home, analytics, more and profile
     # 1,353 ...; a quiz follows a lesson). app_settings portal_teacher_home_quiz_tile (true / "teachers" / a list; default
     # off). GET /me/home answers quizTile:true only with a quiz home (never a coach); the tap logs home_card.tap quiz_tile.
     # Unit: tests/portal/portal-teacher-home.quiz-tile.test.js, portal/src/portal/teacher/home/QuizTile.test.tsx.
+
+  # TH10 replaces TH07's narrow-phone check for the kit header (810b3bae2): nothing is dropped, nothing scrolls sideways.
+  @TH10
+  Scenario: Teacher app v2, new Home look: on a 320 px phone the whole header and the lesson card fit without sideways scroll
+    Given the teacher app v2 is on and the coach app v2 is off
+    And the Home card is on, and the new Home look is on for demo teacher 03000000911 only
+    And the demo teacher is named "Ayesha Testwala"
+    And today's Home answer is a lesson card on "Fractions"
+    And demo teacher 03000000911 is signed in on a 320 px phone
+    When the teacher opens /portal/teacher
+    Then the band greets "Salaam, Ayesha Testwala!" with the language pill, today's date and her school
+    And the lesson card is shown
+    And the page does not scroll sideways
+    And no page error or 5xx happened
