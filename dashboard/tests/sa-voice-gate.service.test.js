@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-29'); // sa-29: round 28, sa.css / sa-ui.js (the Urdu sound check's phone fit; the practice example's room for its hand)
+    expect(sw.CORE).toBe('sa-core-sa-30'); // sa-30: round 28, sa-ui.js / sa.css (RDF auto's Next in the head row, its place held, picker + MCQ)
   });
 });
 
