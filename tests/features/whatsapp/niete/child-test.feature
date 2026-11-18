@@ -2034,3 +2034,17 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And it no longer reads «یہ حصہ ختم کریں», the words of the portal's End this section button, which is unchanged
     And in English the button reads "End this task", with the switch on or off
     And with sa_r28_end_task_copy off, or its row holding anything but true, the Urdu button reads «یہ حصہ ختم کریں» as before
+
+  @e2e @wip @draft @config-gated @P2 @CT295 @no-mock-driver
+  # No mock driver: the spoken MCQ screen inside the engine page. Asserted in
+  # dashboard/tests/sa-r28-mcq-nowrap.service.test.js.
+  Scenario: With sa_r28_mcq on, a name or paired phrase in an Urdu story question or answer never splits across two lines
+    Given sa_r28_mcq is on and a child takes the Urdu story questions on a phone
+    When the question «بلال کس کے ساتھ دریائے جہلم گیا؟» is shown and Jugnu reads it
+    Then «دریائے جہلم» sits on one line, before Jugnu starts and after he has said «جہلم»
+    And an answer such as «رنگ برنگے پھول» keeps «رنگ برنگے» on one line
+    And the coach's folded copy of the question and answers keeps the same words together
+    And two words that are not on the list, such as «گئے» and the word after it, can still break as before
+    And the words shown, and so the clip Jugnu plays, are exactly the same as before
+    And the story passage the child reads is unchanged
+    And with sa_r28_mcq off the battery runs exactly as before
