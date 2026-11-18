@@ -72,7 +72,11 @@ export interface SendArgs {
 /** Where the Sending page for a visit is (the strip's tap, and the page the banner is quiet on). */
 export const sendingPath = (visitId: string) => `/portal/coach/visit/${visitId}/sending`;
 
-type Held = { job: SendJob; args: SendArgs };
+/**
+ * bd-tymy1n — `uploaded`: what already arrived, by the file the sender holds (coachingSend's map). Try again, and Send
+ * without it, send only the rest: a 33-minute recording that went up is not sent again because photo 1 would not open.
+ */
+type Held = { job: SendJob; args: SendArgs; uploaded: WeakMap<Blob, string> };
 
 const held = new Map<string, Held>();
 const listeners = new Set<() => void>();
@@ -92,7 +96,13 @@ function change(visitId: string, patch: Partial<SendJob>): SendJob | null {
 }
 
 const errorCodeOf = (err: unknown): string => {
-  if (err instanceof SendError) return err.message && err.message !== err.kind && err.kind === 'refused' ? err.message : err.kind;
+  if (err instanceof SendError) {
+    // bd-tymy1n (queue #179): this phone could not read a file she picked. Not the internet: say which part
+    // (format.ts unreadablePart) so the page can name it and offer the way on.
+    const part = err.kind === 'network' && err.detail?.unreadable ? err.detail.part : null;
+    if (part) return part.kind === 'photo' ? `unreadable_photo_${part.photo}` : `unreadable_${part.kind}`;
+    return err.message && err.message !== err.kind && err.kind === 'refused' ? err.message : err.kind;
+  }
   return 'network';
 };
 
@@ -115,7 +125,7 @@ function track(job: SendJob) {
 async function run(visitId: string): Promise<void> {
   const h = held.get(visitId);
   if (!h) return;
-  const { args } = h;
+  const { args, uploaded } = h;
   const id = itemId('observation', visitId);
   let last = -1;
   try {
@@ -123,6 +133,7 @@ async function run(visitId: string): Promise<void> {
       {
         teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, audio: args.audio, plan: args.plan, photos: args.photos,
         ...(args.lesson ? { lesson: args.lesson } : {}),
+        uploaded,
       },
       undefined, undefined,
       (pct) => {
@@ -165,17 +176,32 @@ export function startSend(args: SendArgs): SendJob {
     state: 'sending', pct: 0, observationId: null, errorCode: null,
     ...(args.waitHref ? { waitHref: args.waitHref } : {}),
   };
-  held.set(args.visitId, { job, args });
+  held.set(args.visitId, { job, args, uploaded: new WeakMap() });
   emit();
   track(job);
   void run(args.visitId);
   return job;
 }
 
-/** Send the same observation again (Try again): the same files, the same visit. */
-export function retrySend(visitId: string): boolean {
+/**
+ * bd-tymy1n — what Send without it leaves out: photo n (1-based, as in `unreadable_photo_<n>`) or her plan file. Only a
+ * part the phone could not read is ever left out, and only when she taps it.
+ */
+export type Without = { photo: number } | 'lesson_plan';
+
+/**
+ * Send the same observation again (Try again): the same files, the same visit; what already arrived is not sent again.
+ * `without` (bd-tymy1n, Send without it): the same, less the photo or plan this phone could not read.
+ */
+export function retrySend(visitId: string, without?: Without): boolean {
   const h = held.get(visitId);
   if (!h || h.job.state !== 'failed') return false;
+  if (without === 'lesson_plan') {
+    h.args = { ...h.args, plan: h.args.plan && h.args.plan.kind === 'file' ? null : h.args.plan };
+    h.job = { ...h.job, planKind: null };
+  } else if (without) {
+    h.args = { ...h.args, photos: h.args.photos.filter((_, i) => i !== without.photo - 1) };
+  }
   const job = change(visitId, { state: 'sending', pct: 0, errorCode: null });
   if (job) track(job);
   void run(visitId);

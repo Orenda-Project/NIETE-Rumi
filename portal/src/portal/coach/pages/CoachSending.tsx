@@ -1,11 +1,11 @@
 import { Link, Navigate, useParams } from "react-router-dom";
-import { AlertTriangle, Check, RotateCcw, Upload } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw, Send, Upload } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { NOTICES } from "../../teacher/notices/copy";
 import { LeaveNote } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { OBSERVE } from "../observe/copy";
-import { failureWords, lengthShort, planKindLabel } from "../observe/format";
+import { failureWords, lengthShort, planKindLabel, unreadablePart } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { retrySend, useSendJob } from "../observe/sender";
@@ -19,6 +19,10 @@ import { retrySend, useSendJob } from "../observe/sender";
  * It shows the job the SENDER holds, so it stays true when the notices have let go of the item (they are quiet on this
  * page). When the upload ends while she is here the page says so: sent → Open observation; failed → "Couldn't send",
  * the real reason and Try again (in the app only; nothing goes to WhatsApp). Nothing being sent for this visit → its page.
+ *
+ * bd-tymy1n (queue #179) — a file this phone could not read at Send is not "The internet stopped" (Try again would only
+ * fail again): a photo or her plan → its reason and Send without it (the rest goes; what already arrived is not sent
+ * again); an uploaded recording → its reason and Select file (Upload recording, to pick it again).
  */
 const CoachSending = () => {
   const C = useCopy(OBSERVE);
@@ -30,6 +34,7 @@ const CoachSending = () => {
 
   const failed = job.state === "failed";
   const sent = job.state === "sent";
+  const unread = failed ? unreadablePart(job.errorCode) : null;
   const hue = failed ? "#c8331f" : "#2f7a52";
   const length = lengthShort(job.durationMs, C);
   const caption = failed ? C.couldntSend : sent ? C.sent : C.sending;
@@ -39,6 +44,14 @@ const CoachSending = () => {
       dock={sent ? (
         <Link replace to={routes.observation(job.observationId || "")}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.openObservation}</Link>
+      ) : unread && unread.kind === "audio" ? (
+        <Link replace to={routes.attach(id)}
+          className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.chooseFile}</Link>
+      ) : unread ? (
+        <button type="button" onClick={() => retrySend(id, unread.kind === "photo" ? { photo: unread.photo } : "lesson_plan")}
+          className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
+          <Send className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />{C.sendWithoutIt}
+        </button>
       ) : failed ? (
         <button type="button" onClick={() => retrySend(id)}
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
