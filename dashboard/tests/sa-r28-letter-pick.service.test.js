@@ -1517,6 +1517,25 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
           font_px: parseFloat(getComputedStyle(k).fontSize), lines: new Set(Array.from((() => { const rg = document.createRange(); rg.selectNodeContents(k); return rg.getClientRects(); })()).map((x) => Math.round(x.top))).size, ellipsis: getComputedStyle(k).textOverflow === 'ellipsis',
           in_head: !!k.closest('.sae-pick-head'), foot: !!k.closest('.sae-foot'), clip: k.scrollWidth > k.clientWidth + 0.5 || k.scrollHeight > k.clientHeight + 0.5 });
       })(),
+      // A11 (sa_r28_toggle_fit): the toggle's hit rect (its button's box) against the top bar, every head-row tappable
+      // (Jugnu and the title are not tappables) and the first card row: edge-to-edge px, -1 = the rects share pixels
+      a11: (() => {
+        const t = document.querySelector('.sae-screen .sae-r8-lang'); const tb = document.querySelector('.sae-screen > .sae-top');
+        if (!t || !tb) return null;
+        const b = t.getBoundingClientRect(); const bb = tb.getBoundingClientRect();
+        const vis = (k) => { const st = getComputedStyle(k); const c = k.getBoundingClientRect(); return st.display !== 'none' && st.visibility !== 'hidden' && c.width > 0 && c.height > 0; };
+        const gap = (k) => { const c = k.getBoundingClientRect(); const ov = Math.min(b.right, c.right) > Math.max(b.left, c.left) && Math.min(b.bottom, c.bottom) > Math.max(b.top, c.top); if (ov) return -1; return +Math.hypot(Math.max(0, c.left - b.right, b.left - c.right), Math.max(0, c.top - b.bottom, b.top - c.bottom)).toFixed(1); };
+        const taps = Array.from(document.querySelectorAll('.sae-pick-head > *, .sae-pick-head .sa-next, .sae-pick-replay, .sae-pick-next, details.sae-pick-coach > summary'))
+          .filter((k, i, all) => all.indexOf(k) === i && vis(k) && !/sae-jugnu|sae-task-tag|sae-pick-next-slot/.test(String(k.className)))
+          .map((k) => ({ cls: String(k.className).split(' ')[0] || k.tagName.toLowerCase(), in_head: !!k.closest('.sae-pick-head'), top: +k.getBoundingClientRect().top.toFixed(1), gap: gap(k) }));
+        const cards = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).filter(vis);
+        return { top_h: +bb.height.toFixed(1), toggle: [+b.top.toFixed(1), +b.bottom.toFixed(1), +b.left.toFixed(1), +b.right.toFixed(1)], toggle_h: +b.height.toFixed(1),
+          over_below: +(b.bottom - bb.bottom).toFixed(1), over_above: +(bb.top - b.top).toFixed(1), taps,
+          min_head: taps.some((x) => x.in_head) ? Math.min.apply(null, taps.filter((x) => x.in_head).map((x) => x.gap)) : null,
+          min_tap: taps.length ? Math.min.apply(null, taps.map((x) => x.gap)) : null,
+          min_cards: cards.length ? Math.min.apply(null, cards.map(gap)) : null,
+          g: parseFloat(getComputedStyle(document.querySelector('.sae-screen')).getPropertyValue('--sae-a11-g')) || 0 };
+      })(),
       // the screen's blocks top to bottom (where the height goes)
       layout: screen ? [screen].concat(Array.from(screen.children), body ? Array.from(body.children) : []).map((n) => ({ cls: String(n.className).split(' ').slice(0, 3).join('.'), top: +n.getBoundingClientRect().top.toFixed(1), h: +n.getBoundingClientRect().height.toFixed(1) })) : null,
     };
@@ -1553,9 +1572,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     }
     return out;
   }
-  async function states(lang, shots, fr) {
+  async function states(lang, shots, fr, more) {
     const out = {};
-    const { bat, html } = page(lang, false, frMore(fr), fr);
+    const { bat, html } = page(lang, false, frMore(fr, more), fr);
     const open = async () => {
       const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
       const p = await ctx.newPage();
@@ -1998,6 +2017,29 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
         if (b.fb) expect({ s, text: m.fb && m.fb.text, font_ok: !!m.fb && m.fb.font_px >= 15 }).toEqual({ s, text: b.fb.text, font_ok: true });
       }
     }, 300000);
+  }
+  // A11 (sa_r28_toggle_fit, lead rulings 022259Z / 021932Z): online (the coach page's frame, the toggle drawn), the toggle's
+  // 56 px button in a 44 px top bar, 6 px over it above and below; every head-row tappable and the first card row clear
+  // of the toggle's hit rect by the measured gap (never sharing a pixel: ⛔), and every A9 bar unchanged (the pill and
+  // the practice Next whole and hit, nothing scrolls, five cards hit, no cue). The floors are the measured gaps at the
+  // chosen g (A11_FLOOR, px edge to edge); under 24 = ⚠ with the number (the fit bars hold no more room).
+  const A11_ON = { r28ToggleFit: true };
+  const A11_FLOOR = { ur: { scored: 11.5, practice: 22 }, en: { scored: 16, practice: 22 } }; // g: UR 1 / 16, EN 8 / 20 (⚠: 24 is past the bars)
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed + sa_r28_toggle_fit] (A11): the toggle in a 44 px bar, its 56 px hit centred; no head-row tappable meets it; the picker's bars hold`, async () => {
+      const fr = FRAMES[0];
+      const shots = process.env.SA_PICK_SHOTS || null;
+      const sc = await states(lang, shots, fr, A11_ON);
+      const pr = await practiceStates(lang, shots, false, A11_ON, null, fr);
+      Object.assign(pr, await practiceStates(lang, shots, true, A11_ON, null, fr));
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `a11_sizes_${lang}.json`), JSON.stringify({ scored: sc, practice: pr }, null, 1));
+      const cells = [].concat(['listening', 'aftersound', 'chosen', 'offernext', 'foldopen'].map((s) => ['scored', s, sc[s]]), A8_STATES.map((s) => ['practice', s, pr[s]]));
+      const row = ([cls, s, m]) => ({ s: cls + '.' + s, top_h: m.a11.top_h, toggle_h: m.a11.toggle_h, over_below: m.a11.over_below, over_above: m.a11.over_above,
+        overlap: m.a11.taps.filter((x) => x.gap < 0).map((x) => x.cls), cards_clear: m.a11.min_cards > 0, floor: m.a11.min_tap >= A11_FLOOR[lang][cls],
+        inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, bar: bar(m) });
+      expect(cells.map(row)).toEqual(cells.map(([cls, s]) => ({ s: cls + '.' + s, top_h: 44, toggle_h: 56, over_below: 6, over_above: 6, overlap: [], cards_clear: true, floor: true,
+        inner_scroll: 0, cards_hit: 5, bar: BAR })));
+    }, 400000);
   }
   test('ur and en, the tablet (800×1280), with the coach\'s Skip (A8): the practice feedback state holds the cards, nothing scrolls, the feedback line whole; the Skip served before it', async () => {
     const out = {};
