@@ -1449,15 +1449,28 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   const fs = require('fs');
   const SA = path.join(__dirname, '..', 'sa');
   const PUB = path.join(__dirname, '..', 'public', 'wq');
-  // the layout switches the coach-led battery runs with in production (as the MCQ's fit test)
-  const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  // the WHOLE switch set the coach-led battery runs with on the tier (fixtures/sa-served-ui.sandbox.json: the `ui` block a
+  // sandbox page was served, verbatim), never a hand-picked subset: a row that needs a switch OFF or ON says so in `more`
+  // (a switch key, as the route reads it), and the bare frame runs without the coach's Skip (its definition)
+  const LAYOUT = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'sa-served-ui.sandbox.json'), 'utf8'));
+  // the switch keys a row may lay over the served set, and the `ui` flag each one is (sa-battery-switches UI map)
+  const FLAG_OF = { r9SkipInstructions: 'r9_skip_instructions', r28ToggleFit: 'r28_toggle_fit', r28CueGuard: 'r28_cue_guard' };
+  /** The served set with the row's own switches laid over it (true adds the flag, false removes it); any other key throws. */
+  function servedUi(baseUi, more) {
+    const ui = Object.assign({}, baseUi, LAYOUT);
+    for (const [k, v] of Object.entries(more || {})) {
+      if (!FLAG_OF[k]) throw new Error('servedUi: no ui flag mapped for switch ' + k);
+      if (v === true) ui[FLAG_OF[k]] = true; else delete ui[FLAG_OF[k]];
+    }
+    return ui;
+  }
   // A9: the production frame of the coach-led phone is the coach page's iframe (embed=1 -> is-embed -> 64 px top room)
   // with the sync dot drawn, the seven layout switches ON (r9_skip_instructions among them); `bare` is the old harness
   // frame (no embed, no dot, no Skip) kept as the twin.
   // `embed` = online: the other language's battery is on the phone, so r8_lang_switch draws «اردو | English» in the top
   // bar (a [lang=ur] element: an English screen takes the 64 px too); `embed_offline` = the same frame without it.
   const FRAMES = [{ name: 'embed', embed: true, toggle: true }, { name: 'embed_offline', embed: true, toggle: false }, { name: 'bare', embed: false, toggle: false }];
-  const frMore = (fr, more) => Object.assign(fr && fr.embed ? { r9SkipInstructions: true } : {}, more || {});
+  const frMore = (fr, more) => Object.assign({ r9SkipInstructions: !!(fr && fr.embed) }, more || {});
   const frSuffix = (fr) => (!fr ? '' : !fr.embed ? '_noembed' : fr.toggle ? '' : '_offline');
   /** The child's gated tappables under the coach page's hold-end row (cards, the replay pill, the practice Next): ⛔ if any. */
   const gatedHits = (m) => m.hold_hits.filter((x) => /(^| )(sae-opt|sae-pick-replay|sae-pick-next)( |$)/.test(x.cls)).map((x) => x.cls);
@@ -1473,7 +1486,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const on = Object.assign({ rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true }, more || {});
     const o = lang === 'ur' ? 'en' : 'ur';
     const b = applySwitches(JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${o}.json`), 'utf8')), on);
-    return Object.assign({}, b, { ui: Object.assign({}, b.ui, LAYOUT) });
+    return Object.assign({}, b, { ui: servedUi(b.ui, more) });
   }
   let browser;
   beforeAll(async () => { browser = await pwChromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
@@ -1486,7 +1499,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${lang}.json`), 'utf8'));
     const b = applySwitches(raw, on);
     const t = b.tasks.find((x) => x.id === `${lang}.letter_pick10`);
-    const bat = Object.assign({}, b, { ui: Object.assign({}, b.ui, LAYOUT), tasks: [keepPractice ? t : Object.assign({}, t, { practice: [] })] });
+    const bat = Object.assign({}, b, { ui: servedUi(b.ui, more), tasks: [keepPractice ? t : Object.assign({}, t, { practice: [] })] });
     delete bat.rdf_auto; delete bat.rdf_manual;
     return bat;
   }
@@ -1501,8 +1514,11 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
 <script>
   window.__T = 0;
   var cur = null;
+  // Jugnu's clip lines end only when the test says (window.__end()); a spoken line is instant unless the test holds
+  // lines (window.__holdLines = true): then it ends on __end() too, as on a device, where the served r10_practice_next
+  // keeps the last practice feedback on screen exactly while Jugnu's line is said
   function speak(text, audio, vo) {
-    if (!(vo && vo.clip_only)) return Promise.resolve();
+    if (!(vo && vo.clip_only) && !window.__holdLines) return Promise.resolve();
     var a = new EventTarget(); a.paused = false; a.ended = false; a.currentTime = 0.5; a.duration = 1;
     var line = { a: a };
     cur = line;
@@ -1510,6 +1526,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   }
   speak.audio = function () { return cur ? cur.a : null; };
   window.__end = function () { if (!cur) return false; cur.end(); return true; };
+  window.__holdLines = false;
   window.__events = [];
   var battery = ${JSON.stringify(bat)};
   var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: ${!(fr && fr.auto)}, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
@@ -1552,7 +1569,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const foldReplay = d && d.querySelector('.sae-pick-coach-replay');
     return {
       vh, page_h: document.documentElement.scrollHeight, inner_scroll: over(screen) + over(body), item: it && it.id,
-      nastaliq: document.documentElement.lang !== 'ur' || document.fonts.check(getComputedStyle(document.querySelector('.sae-pick-cards .sae-opt')).font, 'ب'),
+      nastaliq: document.documentElement.lang !== 'ur' || !document.querySelector('.sae-pick-cards .sae-opt') || document.fonts.check(getComputedStyle(document.querySelector('.sae-pick-cards .sae-opt')).font, 'ب'),
       title: title && { text: title.textContent, lines: new Set(Array.from(range.getClientRects()).map((x) => Math.round(x.top))).size, h: +title.getBoundingClientRect().height.toFixed(1) },
       cards, pill: pill && R(pill), cards_bottom: Math.max.apply(null, cards.map((c) => c.bottom)),
       next: next ? Object.assign(R(next), { in_head: !!next.closest('.sae-pick-head'), foot: !!next.closest('.sae-foot') }) : null,
@@ -1960,9 +1977,13 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     }
     await p.click('.sae-pick-next');
     await p.waitForTimeout(500);
+    // the served r10_practice_next holds the LAST feedback only while Jugnu's line is said, then the Ready screen
+    // follows: the two last states are read with that line held open (window.__holdLines), as a child sees them
+    const holdLines = () => p.evaluate(() => { window.__holdLines = true; });
     if (right) {
       await endAll(); await p.waitForTimeout(250);
       await card(await wrong()); await p.waitForTimeout(1600); await endAll(); await p.waitForTimeout(250);
+      await holdLines();
       await card(await p.evaluate(() => { const v = window.__runner.view(); return v.practice.options.findIndex((o) => String(o) === String(v.practice.target)); }));
       await snap('p2_feedback_right', 150);
       await ctx.close();
@@ -1980,8 +2001,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     await snap('p2_foldopen', 350);
     await label();
     await snap('p2_foldclosed', 450);
+    await holdLines();
     await card(await wrong());
-    await snap('p2_feedback_shown', 150); // the second wrong tap: the right card shown
+    await snap('p2_feedback_shown', 150); // the second wrong tap: the right card shown, while Jugnu's line is said
     await ctx.close();
     return out;
   }
@@ -1992,24 +2014,32 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a7'}_practice_sizes${frSuffix(fr)}_${lang}.json`), JSON.stringify(r, null, 1));
       r.frame = frName(fr);
       expect({ embed: r.p1_listening.frame.embed, sync: r.p1_listening.frame.sync, toggle: r.p1_listening.frame.toggle }).toEqual({ embed: !!fr.embed, sync: !!fr.embed, toggle: !!fr.toggle });
+      // the last feedback (the right card shown; the right tap): under the served r10_practice_next the last answer waits
+      // for Jugnu's line only, and coach-led Jugnu says nothing, so the Ready screen follows at once and the picker is
+      // gone — that screen is read for its own fit; where the picker is held, it is read as every other state
+      const SHOWN = ['p2_feedback_shown', 'p2_feedback_right'];
+      const held = (s) => r[s].cards.length > 0;
+      const LIVE = ['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed'].concat(SHOWN.filter(held));
       // A9: the coach line above the fold on every practice frame; the picker's own top on every frame
-      const ALL9 = ['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
+      const ALL9 = LIVE;
       expect(ALL9.map((s) => ({ s, gated_under_hold: gatedHits(r[s]) }))).toEqual(ALL9.map((s) => ({ s, gated_under_hold: [] })));
       expect(ALL9.map((s) => Object.assign({ s }, bar(r[s])))).toEqual(ALL9.map((s) => Object.assign({ s }, BAR)));
       expect(ALL9.map((s) => ({ s, at: r[s].coach_line_at, pad_top_lt_64: r[s].frame.pad_top < 64 }))).toEqual(ALL9.map((s) => ({ s, at: 'above', pad_top_lt_64: true })));
       if (lang === 'ur') expect(ALL9.map((s) => ({ s, pad_top: r[s].frame.pad_top }))).toEqual(ALL9.map((s) => ({ s, pad_top: 6 })));
+      // the Ready screen that took the last feedback's place: the phone itself never scrolls, nothing of it under the hold
+      SHOWN.filter((s) => !held(s)).forEach((s) => expect({ s, phase: r[s].view.phase, page_h: r[s].page_h, inner_scroll: r[s].inner_scroll, hold_hits: r[s].hold_hits.map((x) => x.cls) }).toEqual({ s, phase: 'ready', page_h: 640, inner_scroll: 0, hold_hits: [] }));
       const P0 = ['p1_listening'];
       const P1 = ['model', 'model_foldopen', 'model_foldclosed'];
-      const P2 = ['p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
+      const P2 = ['p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed'].concat(SHOWN.filter(held));
       // the walk reached every state it names
       P0.concat(P1).forEach((s) => expect({ s, practice: r[s].view.practice }).toEqual({ s, practice: `${lang}.letter_pick10.p1` }));
       P2.forEach((s) => expect({ s, practice: r[s].view.practice || r[s].view.phase }).toEqual({ s, practice: /^p2_feedback_(shown|right)$/.test(s) ? 'ready' : `${lang}.letter_pick10.p2` }));
+      SHOWN.forEach((s) => expect({ s, phase: r[s].view.phase }).toEqual({ s, phase: 'ready' }));
       // the modelled example: its own Next pill (the practice's Next, in the child's register) present, in every fold state
       P1.forEach((s) => expect({ s, next_pill: !!r[s].next && r[s].next.foot }).toEqual({ s, next_pill: true }));
       expect({ p1: r.model_foldopen.fold.open, p2: r.p2_foldopen.fold.open, p1c: r.model_foldclosed.fold.open, p2c: r.p2_foldclosed.fold.open }).toEqual({ p1: true, p2: true, p1c: false, p2c: false });
       expect(r.p2_feedback.fb).not.toBeNull();
-      expect(r.p2_feedback_shown.fb).not.toBeNull();
-      expect(r.p2_feedback_right.fb).not.toBeNull();
+      SHOWN.filter(held).forEach((s) => expect({ s, fb: r[s].fb }).not.toEqual({ s, fb: null }));
       // the practice fold keeps the sound and the letter (ruled), readable
       for (const s of ['model_foldopen', 'p2_foldopen']) {
         const f = r[s].fold_line;
@@ -2019,6 +2049,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       // every state at a glance (S2's failing cell first: the modelled example, 73 px of inner scroll, 2 of 5 cards)
       const glance = (m) => ({ page_h: m.page_h, inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length });
       const all = P1.concat(P0, P2);
+      SHOWN.filter((s) => !held(s)).forEach((s) => expect({ s, page_h: r[s].page_h, inner_scroll: r[s].inner_scroll }).toEqual({ s, page_h: 640, inner_scroll: 0 }));
       expect(all.map((s) => Object.assign({ s }, glance(r[s])))).toEqual(all.map((s) => ({ s, page_h: 640, inner_scroll: 0, cards_hit: 5 })));
       for (const [set, at] of [[P1, r.model], [P0, r.p1_listening], [P2, r.p2_listening]]) {
         for (const state of set) {
@@ -2065,7 +2096,11 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       const base = await practiceStates(lang, null, false, { r9SkipInstructions: false }, null, fr);
       Object.assign(base, await practiceStates(lang, null, true, { r9SkipInstructions: false }, null, fr));
       if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_sizes${frSuffix(fr)}_${lang}.json`), JSON.stringify({ skip: r, no_skip: base }, null, 1));
-      const all = A8_STATES;
+      // the last feedback states: the picker where the served set holds it, else the Ready screen that follows at once
+      // (the served r10_practice_next, coach-led: no line to wait for), read for its own fit only
+      const heldA8 = (s) => r[s].cards.length > 0;
+      const all = A8_STATES.filter((s) => !/^p2_feedback_(shown|right)$/.test(s) || heldA8(s));
+      A8_STATES.filter((s) => !all.includes(s)).forEach((s) => expect({ s, phase: r[s].view.phase, page_h: r[s].page_h, inner_scroll: r[s].inner_scroll, hold_hits: r[s].hold_hits.map((x) => x.cls), skip: !!r[s].skip }).toEqual({ s, phase: 'ready', page_h: 640, inner_scroll: 0, hold_hits: [], skip: false }));
       // the Skip: drawn on every practice screen but the try-again window; never on the held last feedback (phase ready)
       const want = (m) => (m.view.phase === 'practice' && !a8TryAgain(m) ? 'drawn' : 'absent');
       const row = (m) => ({
@@ -2134,7 +2169,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       const pr = await practiceStates(lang, shots, false, A11_ON, null, fr);
       Object.assign(pr, await practiceStates(lang, shots, true, A11_ON, null, fr));
       if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `a11_sizes_${lang}.json`), JSON.stringify({ scored: sc, practice: pr }, null, 1));
-      const cells = [].concat(['listening', 'aftersound', 'chosen', 'offernext', 'foldopen'].map((s) => ['scored', s, sc[s]]), A8_STATES.map((s) => ['practice', s, pr[s]]));
+      const cells = [].concat(['listening', 'aftersound', 'chosen', 'offernext', 'foldopen'].map((s) => ['scored', s, sc[s]]), A8_STATES.filter((s) => pr[s].cards.length > 0).map((s) => ['practice', s, pr[s]]));
+      // the Ready screen that takes the last feedback's place (served r10_practice_next, coach-led) is not the picker's: read for its own fit
+      A8_STATES.filter((s) => !pr[s].cards.length).forEach((s) => expect({ s, phase: pr[s].view.phase, page_h: pr[s].page_h, inner_scroll: pr[s].inner_scroll }).toEqual({ s, phase: 'ready', page_h: 640, inner_scroll: 0 }));
       const row = ([cls, s, m]) => ({ s: cls + '.' + s, top_h: m.a11.top_h, toggle_h: m.a11.toggle_h, over_below: m.a11.over_below, over_above: m.a11.over_above,
         overlap: m.a11.taps.filter((x) => x.gap < 0).map((x) => x.cls), cards_clear: m.a11.min_cards > 0, floor: m.a11.min_tap >= A11_FLOOR[lang][cls],
         inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, bar: bar(m) });
