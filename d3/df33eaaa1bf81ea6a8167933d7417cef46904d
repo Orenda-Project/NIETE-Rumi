@@ -1,3 +1,4 @@
 {"ts":"2026-11-18T17:34:43Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"d3df33eaaa1b","branch":"bd-5wh4su-sandbox","user":""}
 {"ts":"2026-11-18T17:34:44Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"d3df33eaaa1b","branch":"bd-e1qvrf-quiz-grade","user":""}
 {"ts":"2026-11-18T17:34:47Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"d3df33eaaa1b","branch":"bd-zrdvmi.24-sb","user":""}
+{"ts":"2026-11-18T17:35:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"d3df33eaaa1b","branch":"HEAD","user":""}
