@@ -35,6 +35,7 @@ Usage:
   python3 scripts/migrate-coaching-observations.py --tables observations,answers   # subset
 """
 from __future__ import annotations
+import os
 import argparse, json, sys, time, urllib.request, urllib.error
 from datetime import date, time as dtime, timedelta, datetime
 from pathlib import Path
@@ -55,6 +56,9 @@ def env(k: str) -> str:
 
 
 SUPABASE_URL = env("SUPABASE_URL")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+from sandbox_scrub import refuse_real_data_into_sandbox  # noqa: E402  (sandbox = dummy people only)
+refuse_real_data_into_sandbox(SUPABASE_URL)
 SUPABASE_KEY = env("SUPABASE_SERVICE_ROLE_KEY")
 
 SRC_DSN = dict(
