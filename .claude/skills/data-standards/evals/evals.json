@@ -48,8 +48,8 @@
    "command": "python3 scripts/validate_schema.py --mode full --path <fixture-dir>",
    "expect_exit": 1,
    "expect_result": "fail",
-   "expect_standards": ["D1", "D3", "D4", "D5", "D8"],
-   "why_it_matters": "A migration with a SERIAL (not UUID) PK, an unclassified phone column, a bare TIMESTAMP, a dangling FK-shaped column, and no migration-tool marker must produce exactly these 5 confirmed findings with exact location evidence."
+   "expect_standards": ["D1", "D3", "D4", "D5", "D8", "D9", "D16"],
+   "why_it_matters": "A migration with a SERIAL (not UUID) PK, an unclassified phone column, a bare TIMESTAMP, a dangling FK-shaped column, and no migration-tool marker must produce exactly these 5 non-negotiable findings with exact location evidence, plus D9 (no deleted_at) and D16 (a teachers table with no is_test), which block since 2026-11."
   },
   {
    "id": "C3",
@@ -477,6 +477,22 @@
    "command": "export TALEEMABAD_DATA_STANDARDS_BYPASS=\"<a real reason, 15+ chars, not a generic placeholder>\"; then the same input as C50 into hooks/live-schema-edit-gate.py; separately, re-run with a generic reason like \"bypass\"",
    "expect": "a validated reason: exit 0, a record appended to .data-standards-bypass-log.jsonl with the correct bypassed standard (D3) and reason; a generic/rejected reason: falls through and still blocks (exit 2), matching the commit-time gate's own C14 behavior — no second, weaker bypass path introduced for the live hook",
    "why_it_matters": "This hook deliberately reuses the exact same bypass variable and validation (bypass_audit.py) as schema-change-gate.sh rather than inventing a separate, possibly-weaker escape hatch for live edits. Verified live: an accepted reason produced a correct audit record (bypassed_finding_standards: [\"D3\"]); a generic reason (\"bypass\") was rejected and fell through to blocking, exactly like C14."
+  },
+  {
+   "id": "C54",
+   "type": "REPO_ROOT_PREFERS_CALLER_CWD_NOT_SCRIPT_LOCATION",
+   "fixture": "a real scratch git repo OUTSIDE this pack entirely (e.g. /tmp/some-other-repo), with a real compliant migration staged",
+   "command": "from inside that scratch repo: python3 <path-to-this-pack>/skills/data-standards/scripts/detect_schema_changes.py --git-staged",
+   "expect": "relevant includes the staged migration file from the SCRATCH repo, not an empty result from agent-skills-taleemabad's own (unrelated, usually clean) working tree",
+   "why_it_matters": "CAUGHT A REAL REGRESSION (2026-10-06, introduced by a different commit on 2026-09-23 that was itself trying to fix a real edge case but overcorrected): repo_root() was anchoring EVERY git diff/show call on this script's OWN location inside agent-skills-taleemabad, unconditionally -- never the caller's actual repo. This meant --mode staged (and --mode diff, which shares the same functions) could never see a REAL target repo's real changes at all, in ANY repo other than agent-skills-taleemabad itself -- every real-world invocation of this skill's own gate hooks silently reported no_schema_change regardless of what was actually staged or diffed. Found while wiring data-gate-telemetry reporting into a vendored copy in a third repo (rumi-agent-home): every 'clean' test commit reported exit 3 no matter what, traced back to repo_root() via a direct call from inside the scratch repo printing agent-skills-taleemabad's own path instead. Fixed by trying the caller's own cwd FIRST (git rev-parse --show-toplevel with no cwd override, so it resolves naturally from wherever the script is actually invoked), falling back to the script's own location only when the caller's cwd isn't inside any git repo at all -- preserving the original 2026-09-23 fix's real intent (don't crash when an editor's cwd sits above or outside the repo) without breaking the overwhelmingly common correct case."
+  },
+  {
+   "id": "C55",
+   "type": "REPO_ROOT_STILL_FALLS_BACK_WHEN_CALLER_CWD_HAS_NO_REPO",
+   "fixture": "a plain, non-git directory (e.g. a fresh empty tmp folder with no .git anywhere above it)",
+   "command": "from inside that non-git directory: python3 <path-to-this-pack>/skills/data-standards/scripts/detect_schema_changes.py --git-staged",
+   "expect": "falls back to this pack's own repo root rather than crashing or silently returning garbage -- exit 2 with a clear git-not-available-style message is also acceptable, but it must never pretend success against the wrong repo silently",
+   "why_it_matters": "The original 2026-09-23 fix existed to handle exactly this case (an editor's cwd sitting above or outside any real repo) -- confirms the fallback this skill still needs is preserved, not just removed outright in fixing the regression above."
   }
  ],
  "orientation_cases": [
