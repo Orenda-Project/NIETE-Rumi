@@ -1201,6 +1201,38 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(ev(m, 'ghost_tap')).toHaveLength(1);
     });
 
+    test('since_fold_ms: fold opened and closed on the item, the scored tap at +400 ms → 400; the next item, no fold closed on it → null; the ghost writes no answer', async () => {
+      const m = await live();
+      const it = m.r.view().item;
+      open(m);
+      fold(m).open = false; fold(m).dispatchEvent(new dom.window.Event('toggle')); // closed by the summary
+      T += 200;
+      cards(m)[1].click(); // a ghost: no answer, so no field
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      T += 200;
+      cards(m)[1].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ item_id: it.id, since_fold_ms: 400 });
+      await wait(450 + 360 + 500); // the press, the next item, its sound
+      const it2 = m.r.view().item;
+      expect(it2.id).not.toBe(it.id);
+      T += 5000;
+      cards(m)[0].click();
+      const b = m.r.snapshot().current.answers;
+      expect(b).toHaveLength(2);
+      expect(b[1]).toMatchObject({ item_id: it2.id, since_fold_ms: null });
+      expect(Object.prototype.hasOwnProperty.call(b[1], 'since_fold_ms')).toBe(true);
+    });
+
+    test('since_fold_ms: RDF auto (no fold) → null on every scored answer', async () => {
+      const m = await live({ manual: false });
+      cards(m)[2].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0].since_fold_ms).toBeNull();
+    });
+
     test('the summary close arms the guard too; a tap at +299 ms is a ghost, at +300 ms it answers', async () => {
       const m = await live();
       open(m);
