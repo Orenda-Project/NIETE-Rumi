@@ -1639,7 +1639,10 @@
       later(function () { warm = null; runner.warmupDone(popped, ms); draw(); }, 250);
     }
 
-    function playIntro(t) { runner.instructionPlayed(); return say(introOf(t)); }
+    function playIntro(t) { runner.instructionPlayed(); return say(introOf(t), undefined, jugnuInstructs(t)); }
+    /** round 28: the picker's instruction carries a sound and the MCQ's says how the answers are read, so Jugnu says them
+     *  (and the ready lines) in coach-led as in RDF auto; every other task's instruction in coach-led is the coach's. */
+    function jugnuInstructs(t) { return manual && (isPick(t) || isMcq(t)); }
     /** The instruction, then the task's round-7b line (say then Next, the tick, the scroll), when there is one. */
     function playIntroAll(t) {
       var g = gen;
@@ -3594,7 +3597,8 @@
       } else if (v.phase === 'keypad_warmup') say(line('keypad_warmup') || { en: COPY.en.kp_warm, ur: COPY.ur.kp_warm });
       else if (v.phase === 'instruction' && manual) {
         runner.log('coach_brief', { task_id: t.id });
-        say(copyLine('coach_will_instruct'), null, true);
+        if (jugnuInstructs(t)) gateOn(keyOf(v), playIntroAll(t)); // round 28: Jugnu instructs the child (the sound)
+        else say(copyLine('coach_will_instruct'), null, true);
       } else if (v.phase === 'instruction') gateOn(keyOf(v), playIntroAll(t));
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
@@ -3621,8 +3625,9 @@
         if (t.mode === 'record') gateOn(k0, said); // the spoken practice's Next (a tap practice has none)
       } else if (v.phase === 'ready') {
         var intro = s.test_intro && !(r12IntroOnce && s.test_intro.once === true && introSaid) ? s.test_intro : null;
-        if (intro && intro.once === true && !manual) introSaid = true;
-        gateOn(keyOf(v), sayChain(manual ? [] : [intro ? [intro] : null, s.begin ? [s.begin] : null]));
+        var ji = jugnuInstructs(t);
+        if (intro && intro.once === true && (!manual || ji)) introSaid = true;
+        gateOn(keyOf(v), sayChain(manual && !ji ? [] : [intro ? [intro, undefined, ji] : null, s.begin ? [s.begin, undefined, ji] : null]));
       }
       else if (v.phase === 'running' && v.item) {
         if (isPick(t)) {

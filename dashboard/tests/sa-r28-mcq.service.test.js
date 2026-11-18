@@ -609,6 +609,35 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     }, 30000);
   }
 
+  // The MCQ's instruction (how the question and its four answers are read) is said by Jugnu in coach-led too, as in RDF
+  // auto, and the ready screen's lines with it; the coach's own line stays drawn on the coach's screen.
+  for (const manual of [true, false]) {
+    test(`instruction (${manual ? 'coach-led' : 'RDF auto'}): Jugnu says the MCQ's instruction, then the ready lines`, async () => {
+      setup();
+      const core2 = require('../sa/sa-core');
+      const ui = require('../sa/sa-ui');
+      const INTRO = { text: 'mcq instruction line', audio: 'sa/v5/ur/mcq_intro.mp3', lang: 'ur' };
+      const script = { intro: INTRO, test_intro: { text: 'your turn line', lang: 'ur' }, begin: { text: 'begin line', lang: 'ur' } };
+      const tasks = [mcqTask(QS.slice(0, 2), { depends_on: null, script, coach_text: { text: 'coach line' } })];
+      const battery = { battery_id: 'b', tasks, ui: { r28_mcq: true }, lines: { coach_will_instruct: { text: 'coach will instruct line', lang: 'ur' } } };
+      const runner = core2.createRunner({ battery, onEvent: () => {}, manual });
+      const speak = jest.fn(() => Promise.resolve());
+      const said = () => speak.mock.calls.map((x) => (x[0] && x[0].text) || x[1]);
+      const el = document.getElementById('m');
+      const view = ui.mount(el, { runner, battery, lang: 'ur', mode: 'proctored', handover: false, speak, manual, r28: { letter_pick: false, mcq: true, ceiling: false } });
+      views.push(view);
+      runner.start(); view.render();
+      await wait(60);
+      expect(runner.view().phase).toBe('instruction');
+      expect(said()).toContain('mcq instruction line');
+      if (manual) expect(el.querySelector('.sae-coach-brief .sae-coach-text').textContent).toBe('coach line');
+      runner.instructionDone(); view.render();
+      await wait(60);
+      expect(runner.view().phase).toBe('ready');
+      expect(said().filter((x) => x === 'your turn line' || x === 'begin line')).toEqual(['your turn line', 'begin line']);
+    });
+  }
+
   test('B-17: o3 of question 2 lost → question 2 unavailable, the others scored; answers, asked and the hl log agree', async () => {
     setup('https://portal.test/sa/run.html?probe=1');
     const dbg = jest.spyOn(console, 'debug').mockImplementation(() => {});

@@ -1964,6 +1964,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And today's tap practice in coach-led stays silent, its feedback read by the coach from the screen
     And with sa_r28_letter_pick and sa_r28_mcq off the battery runs exactly as before
 
+
   @e2e @wip @draft @P2 @CT288 @no-mock-driver
   # No mock driver: the service worker's offline copy runs on the phone (the battery engine), not in the chat.
   # Asserted in dashboard/tests/sa-r28-timings-index.service.test.js and sa-r28-prompt-timings-offline.service.test.js.
@@ -1974,3 +1975,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the v4 word-timing files asked for are exactly those dashboard/sa/timings.index.json lists, none beside a clip that has none
     And when the index cannot be read, no v4 word-timing file is asked for and prompt_timings.json still is
     And no screen and no score changes
+
+  @e2e @wip @draft @config-gated @P1 @CT289 @no-mock-driver
+  # No mock driver: the instruction is said on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js and sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_letter_pick on, Jugnu says the picker's instruction in coach-led as in RDF auto
+    Given sa_r28_letter_pick is on and a coach-led child reaches the letter-sound picker
+    When the coach's screen for the picker shows
+    Then Jugnu says the picker's instruction with its example sound, instead of saying that the coach will instruct
+    And the coach's own line is still drawn on the coach's screen
+    And on the ready screen Jugnu says the ready lines as in RDF auto
+    And with sa_r28_mcq on the spoken MCQ's instruction and ready lines are said by Jugnu in coach-led the same way
+    And every other task's instruction in coach-led stays the coach's to read, Jugnu saying only that the coach will instruct
+    And with sa_r28_letter_pick and sa_r28_mcq off the battery runs exactly as before
