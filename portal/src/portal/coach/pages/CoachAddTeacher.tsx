@@ -114,7 +114,9 @@ function AddToSchool({ emis }: { emis: string }) {
   const chip: ChipData | null = !plan ? null
     : plan.outcome === "new" ? { text: C.newTeacher, tone: "info" }
       : plan.outcome === "move" ? { text: C.changesSchool, tone: "waiting" }
-        : { text: C.alreadyHere, tone: "done" };
+        : { text: plan.isPrincipal ? C.alreadyPrincipal : C.alreadyHere, tone: "done" };
+  // Already at this school: one School row (where she is IS where she would go), never "Current school: No school".
+  const here = plan?.outcome === "already_here";
 
   const dock = !data ? undefined
     : step === "number" ? <BottomButton onClick={check} disabled={!phone.trim() || busy}>{C.checkNumber}</BottomButton>
@@ -159,16 +161,24 @@ function AddToSchool({ emis }: { emis: string }) {
               </span>
             </div>
             <dl className="m-0 border-t border-[#e5e7eb]">
-              {plan.outcome !== "new" && (
+              {here && (
+                <div className="flex min-h-[56px] items-center gap-3 px-3.5">
+                  <dt className="w-32 shrink-0 text-[14px] font-semibold text-[#6b7280]">{C.schoolLabel}</dt>
+                  <dd className="m-0 min-w-0 flex-1 text-[16px] font-semibold" dir="auto">{plan.toSchoolName || plan.fromSchoolName || schoolName}</dd>
+                </div>
+              )}
+              {!here && plan.outcome !== "new" && (
                 <div className="flex min-h-[56px] items-center gap-3 px-3.5">
                   <dt className="w-32 shrink-0 text-[14px] font-semibold text-[#6b7280]">{C.currentSchool}</dt>
                   <dd className="m-0 min-w-0 flex-1 text-[16px] font-semibold" dir="auto">{plan.fromSchoolName || C.noSchool}</dd>
                 </div>
               )}
-              <div className="flex min-h-[56px] items-center gap-3 border-t border-[#eef0f3] px-3.5 first:border-t-0">
-                <dt className="w-32 shrink-0 text-[14px] font-semibold text-[#6b7280]">{C.newSchool}</dt>
-                <dd className="m-0 min-w-0 flex-1 text-[16px] font-semibold" dir="auto">{plan.toSchoolName || schoolName}</dd>
-              </div>
+              {!here && (
+                <div className="flex min-h-[56px] items-center gap-3 border-t border-[#eef0f3] px-3.5 first:border-t-0">
+                  <dt className="w-32 shrink-0 text-[14px] font-semibold text-[#6b7280]">{C.newSchool}</dt>
+                  <dd className="m-0 min-w-0 flex-1 text-[16px] font-semibold" dir="auto">{plan.toSchoolName || schoolName}</dd>
+                </div>
+              )}
             </dl>
           </section>
           {chip && <div className="flex"><StatusChip text={chip.text} tone={chip.tone} /></div>}
