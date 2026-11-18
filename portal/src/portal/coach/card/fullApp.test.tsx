@@ -87,6 +87,8 @@ describe("the Home with the switch on (Rifat): Schedule and Observe tiles beside
     expect(Array.from(tiles.querySelectorAll("a")).map(words)).toEqual([
       "Schedule", "Observe", "Learning Assessment", "My schools", "Coach Training", "Training Library",
     ]);
+    // the compact tile's My schools chip is the school count alone (the long "· N teachers" spilled out of the tile)
+    await waitFor(() => expect(tiles.querySelector('a[href="/portal/coach/people"] [data-chip]')).toHaveTextContent(/^1 school$/));
   });
 
   // bd-39qx8x — operator: "the tiles on the coach home app screen are still huge, like the teacher app was before". The
