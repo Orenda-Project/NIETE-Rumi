@@ -70,6 +70,8 @@ function _item(q) {
     id: q.id, number: q.number, removed: q.removed, type: q.type, section,
     marks: q.marks, text: q.text, fields: Edit.fieldsFor(q.question, { type: q.type }),
   };
+  // Its Bloom's level, for the editor's tag and summary only (ICT sheet AG rows 6-7); never printed from here.
+  if (q.question && typeof q.question.blooms === 'string' && q.question.blooms.trim()) item.blooms = q.question.blooms.trim();
   // Which board-pattern slot the item fills; only pattern papers carry one.
   if (q.question && q.question.slot) item.slot = q.question.slot;
   if (Array.isArray(q.question?.questions)) {
