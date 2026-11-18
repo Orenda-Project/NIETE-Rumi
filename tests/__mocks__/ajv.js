@@ -98,7 +98,8 @@ function check(schema, data, at, root, errors) {
     for (const [k, v] of Object.entries(data)) {
       if (props[k]) check(props[k], v, `${at}/${k}`, root, errors);
       else if (schema.additionalProperties === false && !schema.patternProperties) {
-        errors.push({ instancePath: at, message: 'must NOT have additional properties', params: { additionalProperty: k } });
+        // keyword + parentSchema as real ajv gives them with verbose:true (lp612-key-repair reads both; bd-znzjqi).
+        errors.push({ instancePath: at, keyword: 'additionalProperties', parentSchema: schema, message: 'must NOT have additional properties', params: { additionalProperty: k } });
       }
     }
   }
