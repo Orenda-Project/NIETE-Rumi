@@ -20,6 +20,11 @@
  *
  * The FDE form of a visit is ONE observation_field_forms row: rubric_version = the obs612 id ('obs612-msci-v1' …),
  * visit_context.{grade, subject, sheet, via}. The Flow token is `<coachUserId>:obs612:<formId>`.
+ *
+ * bd-31ziu8 — FICO-S v1.1 (operator 18 Nov: ICT grades 6-12 on FICO-S, grades 1-5 on FICO17 v6). With fico_s_coach on
+ * for the observer (coaching/fico-s-switch.js) on an ICT visit, the class is asked as above and every grade 6-12 lesson
+ * (any subject) is stamped 'fico_s_v1_1' instead of an FDE tool or FICO: the same form row, the same token, its own
+ * Flow (FICO_S_FLOW_ID, obs612/fico-s-flow.js). It wins over obs612_coach; grades 1-5 are untouched.
  */
 
 const crypto = require('crypto');
@@ -32,8 +37,11 @@ const { observeLang } = require('../observe-strings');
 const { logToFile } = require('../../../utils/logger');
 
 const FLOW_ID_ENV = 'OBS612_FLOW_ID';
+const FICO_S_FLOW_ID_ENV = 'FICO_S_FLOW_ID';
 const TOKEN_MARKER = 'obs612';
-const formToken = (coachUserId, formId) => `${coachUserId}:${TOKEN_MARKER}:${formId}`;
+// bd-31ziu8: a FICO-S form's token ends ':fs', so the shared endpoint knows the FICO-S Flow is asking (even for a form
+// it refuses), while ':obs612:' still marks the completion for flow-type-detector.
+const formToken = (coachUserId, formId, tool = null) => `${coachUserId}:${TOKEN_MARKER}:${formId}${tool === 'ficos' ? ':fs' : ''}`;
 
 // List reply ids. kind 'o' = /observe (ref: a nonce kept in the observe state), 'f' = /observe2 (ref: the form id).
 //   o612:g:<kind>:<ref>:<p|6..12>             the class ('p' = grades 1-5)
@@ -41,7 +49,8 @@ const formToken = (coachUserId, formId) => `${coachUserId}:${TOKEN_MARKER}:${for
 const TAP_RX = /^o612:(g|s):([of]):([A-Za-z0-9-]{1,64}):(p|[0-9]{1,2})(?::([a-z_]{1,20}))?$/;
 const isLessonTap = (id) => String(id || '').startsWith('o612:');
 
-const S = (user) => obs612Strings(observeLang(user || {}));
+const S = (user, opts) => obs612Strings(observeLang(user || {}), opts);
+const ficoSSwitch = () => require('../../coaching/fico-s-switch');
 const cp = (s) => [...String(s || '')];
 const cap = (s, n) => cp(s).slice(0, n).join('');
 
@@ -61,11 +70,13 @@ function isObs612Form(form) {
 async function asksClass(user, visit = {}) {
   if (!user || !user.id) return false;
   try {
-    const on = await require('../../coaching/obs612-switch').isOn({
+    const who = {
       userId: user.id,
       region: user.region,
       role: user.role, // bd-9bppaz: "role:principal" needs no read (undefined: read only when a role key needs it)
-    });
+    };
+    // bd-31ziu8: FICO-S's switch asks the class too (its grades 6-12 lessons are named the same way).
+    const on = (await require('../../coaching/obs612-switch').isOn(who)) || (await ficoSSwitch().isOn(who));
     if (!on) return false;
     return await require('../../coaching/fde-region').fdeAllowed({ observer: user, ...(visit || {}) });
   } catch (_) {
@@ -74,16 +85,17 @@ async function asksClass(user, visit = {}) {
 }
 
 /**
- * The lesson the coach named: { primary: true } for grades 1-5, or
- * { primary: false, grade, subject, rubricId, tool, sheet } for grades 6-12.
+ * The lesson the coach named: { primary: true } for a FICO lesson, or
+ * { primary: false, grade, subject, rubricId, tool, sheet } for a grade 6-12 form lesson.
+ * `ficoS` (bd-31ziu8): FICO-S is on for this visit, so every grade 6-12 lesson is a FICO-S lesson.
  */
-function lessonFrom(grade, subject) {
+function lessonFrom(grade, subject, { ficoS = false } = {}) {
   const g = O.normGrade(grade);
   if (g === null || g <= O.PRIMARY_MAX_GRADE) return { primary: true, grade: null, subject: null };
-  // bd-ra8xu.40 (operator, 12 Nov ~11:00): grades 9-12 stay on FICO, as grades 1-5 (`primary` means a FICO-grade
-  // lesson; its grade is kept so /observe2 can record the band).
-  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null };
-  const t = O.toolFor(g, subject);
+  const t = O.toolFor(g, subject, { ficoS });
+  // bd-ra8xu.40 (operator, 12 Nov ~11:00): without FICO-S, grades 9-12 stay on FICO, as grades 1-5 (`primary` means a
+  // FICO-grade lesson; its grade is kept so /observe2 can record the band).
+  if (!t) return { primary: true, grade: g, subject: null };
   return { primary: false, grade: g, subject: O.normSubject(subject), rubricId: t.rubricId, tool: t.tool, sheet: t.sheet };
 }
 
@@ -108,8 +120,8 @@ function parseTap(id) {
 
 // ── the two questions ─────────────────────────────────────────────────────────
 
-async function askClass(user, to, { kind, ref, teacherName = null }) {
-  const s = S(user);
+async function askClass(user, to, { kind, ref, teacherName = null, ficoS = false }) {
+  const s = S(user, { ficoS });
   // bd-ra8xu.50 (operator 13 Nov): class → grade → subject on three Flow screens ("Plan my visit", lesson-flow.js)
   // once that Flow is published here; until then (or if it will not send), the two chat lists below.
   const flowId = process.env.OBS612_LESSON_FLOW_ID;
@@ -157,14 +169,18 @@ async function askSubject(user, to, { kind, ref, grade }) {
  * sending the capture prompt. The question carries a nonce kept in the observe state, so a tap from an older visit
  * finds nothing. @returns {Promise<boolean>} asked (false → the caller sends today's capture prompt).
  */
-async function askForObserve(user, to, { teacherName = null } = {}) {
+async function askForObserve(user, to, { teacherName = null, visit = null } = {}) {
   try {
     const st = await ObserveState.getState(user.id);
     if (!st || st.state !== 'awaiting_audio') return false;
     const nonce = crypto.randomBytes(6).toString('hex');
     const { state, ...data } = st;
-    await ObserveState.setState(user.id, state, { ...data, obs612Ask: nonce, obs612Teacher: teacherName || null });
-    return await askClass(user, to, { kind: 'o', ref: nonce, teacherName });
+    // bd-31ziu8: the visit (teacher, school) is kept so the tap decides FICO-S on the visit's region, not the coach's.
+    const v = visit && typeof visit === 'object'
+      ? { teacherUserId: visit.teacherUserId || null, schoolExtId: visit.schoolExtId || null } : null;
+    await ObserveState.setState(user.id, state, { ...data, obs612Ask: nonce, obs612Teacher: teacherName || null, obs612Visit: v });
+    const ficoS = await ficoSSwitch().forVisit(user, v || {});
+    return await askClass(user, to, { kind: 'o', ref: nonce, teacherName, ficoS });
   } catch (err) {
     logToFile('❌ obs612: asking the class in /observe failed — capture prompt instead', { userId: user && user.id, error: err.message }, 'error');
     return false;
@@ -180,9 +196,10 @@ async function sendObserveCapturePrompt(user, to, lesson, teacherName) {
     const framework = ((getObservePack().key) || 'fico').toUpperCase();
     return WhatsAppService.sendMessage(to, buildVisitCapturePrompt(lang, { teacherName, framework }));
   }
-  const s = S(user);
+  const s = S(user, { ficoS: lesson.tool === 'ficos' });
   const subjectLabel = s.subjects[lesson.subject] || '';
-  return WhatsAppService.sendMessage(to, `🎙️ ${s.lesson_line(lesson.grade, subjectLabel)}\n\n${s.fde_record_hint(lesson.tool)}\n\n${visitSendAsDocument(lang)}`);
+  const line = subjectLabel ? s.lesson_line(lesson.grade, subjectLabel) : s.grade_row(lesson.grade);
+  return WhatsAppService.sendMessage(to, `🎙️ ${line}\n\n${s.fde_record_hint(lesson.tool)}\n\n${visitSendAsDocument(lang)}`);
 }
 
 async function finishObserve(user, from, ref, lesson) {
@@ -205,6 +222,8 @@ function lessonOfState(st) {
   const l = st && st.obs612Lesson;
   if (!l || typeof l !== 'object') return null;
   if (l.primary) return { primary: true, grade: O.normGrade(l.grade), subject: null };
+  // bd-31ziu8: a FICO-S lesson stays one (observe-capture still checks the visit is ICT's before stamping it).
+  if (l.tool === 'ficos' || O.isFicoS(l.rubricId)) return lessonFrom(l.grade, l.subject, { ficoS: true });
   // Re-read under today's rule (bd-ra8xu.40: a grade 9-12 lesson named before 12 Nov is a FICO lesson now).
   return lessonFrom(l.grade, l.subject);
 }
@@ -216,7 +235,7 @@ function lessonOfState(st) {
  */
 async function startObserveVisit({ user, from, session, ownerUserId, boundTeacher, lesson }) {
   const { error: stampErr } = await supabase.from('coaching_sessions')
-    .update({ framework: lesson.rubricId, framework_selection_reason: 'obs612_lesson' })
+    .update({ framework: lesson.rubricId, framework_selection_reason: lesson.tool === 'ficos' ? 'fico_s_lesson' : 'obs612_lesson' })
     .eq('id', session.id);
   if (stampErr) {
     logToFile('❌ obs612: the session was not stamped — this visit goes on as /observe', { sessionId: session.id, error: stampErr.message }, 'error');
@@ -239,8 +258,8 @@ async function startObserveVisit({ user, from, session, ownerUserId, boundTeache
     },
   });
   if (!created.ok || !created.form) {
-    logToFile('❌ obs612: the FDE form row was not made for a stamped /observe visit', { sessionId: session.id }, 'error');
-    await WhatsAppService.sendMessage(from, S(user).form_failed);
+    logToFile('❌ obs612: the form row was not made for a stamped /observe visit', { sessionId: session.id, rubricId: lesson.rubricId }, 'error');
+    await WhatsAppService.sendMessage(from, S(user, { ficoS: lesson.tool === 'ficos' }).form_failed);
     return { ok: false };
   }
   logToFile('🔭 obs612: /observe visit stamped, FDE form made', { sessionId: session.id, formId: created.form.id, rubricId: lesson.rubricId });
@@ -304,6 +323,29 @@ async function finishObserve2(user, from, formId, lesson) {
 /**
  * A class or subject tap (list reply id 'o612:…'). @returns {Promise<boolean>} handled.
  */
+/**
+ * bd-31ziu8 — does this tap's visit get FICO-S? The observer's fico_s_coach switch and the visit's region (ICT only):
+ * /observe reads the visit kept in the observe state at the question, /observe2 the form's teacher and school. Never
+ * throws: false on any failure.
+ */
+async function ficoSForTap(user, t) {
+  try {
+    let visit = {};
+    if (t.kind === 'o') {
+      const st = await ObserveState.getState(user.id);
+      visit = (st && st.obs612Visit) || {};
+    } else {
+      const got = await require('../observe2/field-form.store').getForm(t.ref);
+      const form = got && got.ok ? got.form : null;
+      const vc = (form && form.visit_context) || {};
+      visit = { teacherUserId: (form && form.teacher_user_id) || null, schoolExtId: vc.school_ext_id || null };
+    }
+    return await ficoSSwitch().forVisit(user, visit);
+  } catch (_) {
+    return false;
+  }
+}
+
 async function handleTap(user, from, id) {
   if (!isLessonTap(id)) return false;
   const t = parseTap(id);
@@ -313,11 +355,16 @@ async function handleTap(user, from, id) {
     return true;
   }
   try {
-    if (t.step === 'g' && !t.primary) {
+    // bd-31ziu8: with FICO-S on, a grade 6-12 class is a FICO-S lesson; its subject is asked for the record.
+    const named = t.grade && t.grade > O.PRIMARY_MAX_GRADE;
+    const ficoS = named ? await ficoSForTap(user, t) : false;
+    if (t.step === 'g' && (!t.primary || (ficoS && O.isFicoSGrade(t.grade)))) {
       await askSubject(user, from, { kind: t.kind, ref: t.ref, grade: t.grade });
       return true;
     }
-    const lesson = t.primary ? { primary: true, grade: t.grade || null, subject: null } : lessonFrom(t.grade, t.subject);
+    const lesson = t.step === 'g' && t.primary
+      ? { primary: true, grade: t.grade || null, subject: null }
+      : lessonFrom(t.grade, t.subject, { ficoS });
     if (t.kind === 'o') await finishObserve(user, from, t.ref, lesson);
     else await finishObserve2(user, from, t.ref, lesson);
   } catch (err) {
@@ -334,12 +381,16 @@ async function handleTap(user, from, id) {
  * otherwise after it. Unset OBS612_FLOW_ID: the coach is told, never left waiting (logged at error).
  */
 async function sendForm(user, to, form, { live = false } = {}) {
-  const s = S(user);
   const vc = (form && form.visit_context) || {};
   const tool = O.toolOf(form && form.rubric_version);
-  const flowId = process.env.OBS612_FLOW_ID;
+  // bd-31ziu8: a FICO-S form is its own Flow (obs612/fico-s-flow.js), on the same endpoint and token.
+  const ficoS = tool === 'ficos';
+  const s = S(user, { ficoS });
+  const envName = ficoS ? FICO_S_FLOW_ID_ENV : FLOW_ID_ENV;
+  // Read by name (flow-config-conformance greps for each *_FLOW_ID the bot reads).
+  const flowId = ficoS ? process.env.FICO_S_FLOW_ID : process.env.OBS612_FLOW_ID;
   if (!flowId) {
-    logToFile('❌ obs612: OBS612_FLOW_ID is unset — the FDE form cannot be sent', { formId: form && form.id }, 'error');
+    logToFile(`❌ obs612: ${envName} is unset — the form cannot be sent`, { formId: form && form.id, tool }, 'error');
     await WhatsAppService.sendMessage(to, s.form_not_ready);
     return false;
   }
@@ -349,7 +400,7 @@ async function sendForm(user, to, form, { live = false } = {}) {
     flowId,
     body: cap(body, 1024),
     buttonText: cap(s.form_cta, 20),
-    flowToken: formToken(user.id, form.id),
+    flowToken: formToken(user.id, form.id, tool),
   });
   if (!sent) {
     logToFile('❌ obs612: the FDE form did not send', { userId: user.id, formId: form.id }, 'error');
@@ -389,6 +440,8 @@ async function afterTranscription(sessionId, session) {
 
 module.exports = {
   FLOW_ID_ENV,
+  FICO_S_FLOW_ID_ENV,
+  ficoSForTap,
   TOKEN_MARKER,
   formToken,
   isLessonTap,

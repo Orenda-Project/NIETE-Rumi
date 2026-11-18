@@ -771,7 +771,8 @@ describe('lessonQuestion — whether the portal asks the class (bd-ra8xu.40)', (
     const d = deps({ supabase: fakeSupabase({ users: () => coachRow({ region: 'sihala' }) }), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
     const out = await Svc.lessonQuestion({ userId: COACH }, d);
     expect(out).toEqual({
-      status: 'ok', ask: true, grades: [6, 7, 8, 9, 10, 11, 12], subjectGrades: [6, 7, 8],
+      // bd-31ziu8: `rubric` says which grade 6-12 rubric the question is for ('fde' here: FICO-S is off).
+      status: 'ok', ask: true, rubric: 'fde', grades: [6, 7, 8, 9, 10, 11, 12], subjectGrades: [6, 7, 8],
       subjects: ['english', 'urdu', 'maths', 'science', 'social_studies', 'islamiat', 'computer', 'other'],
     });
   });

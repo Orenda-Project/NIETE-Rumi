@@ -99,7 +99,7 @@ const ObserveState = require('../services/observe/observe-state.service');
 const { observeStrings, observeLang } = require('../services/observe/observe-strings');
 const { buildBriefViewModel } = require('../services/observe/observe-brief-card');
 const { getObserveArm } = require('../services/observe/observe-gate');
-const { canSelfCoach, canObserve, observesOwnSchoolAtOnce } = require('../config/role-features');
+const { canSelfCoach, canObserve, observesOwnSchool, observesAtOnce } = require('../config/role-features');
 const { logToFile } = require('../utils/logger');
 
 // bd-2443: read per-call — the flag flips alongside the Flow republish and
@@ -383,12 +383,12 @@ async function _leaderMe(userId, user) {
 }
 
 /**
- * Does this leader observe at once (a principal: config/role-features observesOwnSchoolAtOnce)? Operator,
- * 15 Nov: "principals never schedule; they observe whenever they want. Coaches unchanged." False for anyone else and on
- * a failed read, which keeps today's booking path: a coach is never sent past the date picker on a guess.
+ * Does this leader observe at once (config/role-features observesAtOnce)? Nobody since 18 Nov (bd-31ziu8, operator
+ * ~16:40: a principal schedules "the same as coach"), so every leader books a visit, as coaches always have. False on a
+ * failed read too: a leader is never sent past the date picker on a guess.
  */
 async function _observesAtOnce(userId, user) {
-  return observesOwnSchoolAtOnce(await _leaderMe(userId, user));
+  return observesAtOnce(await _leaderMe(userId, user));
 }
 
 /**
@@ -434,9 +434,10 @@ async function selfLessonStep(userId, user) {
 async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
-  // Who is asking, read once for the whole menu. A principal observes at once, in their own school.
+  // Who is asking, read once for the whole menu. A principal observes in their own school; since 18 Nov (bd-31ziu8) a
+  // principal schedules exactly as a coach does, so the menu is the coach's.
   const me = await _leaderMe(userId, opts.user);
-  const atOnce = observesOwnSchoolAtOnce(me);
+  const ownSchool = observesOwnSchool(me);
   // bd-0cxz6: how many schools she actually has. Zero is a real state now that
   // /observe opens for any coach, and the menu must not offer her a scheduling
   // path that can only dead-end on an empty school list.
@@ -450,7 +451,7 @@ async function menuScreen(userId, opts = {}) {
     } catch (_) { schoolCount = 1; }   // unknown -> behave as today
   }
   // A principal's own school (users.school_id) is one of theirs; the picker lists it (leader-source).
-  if (atOnce && !schoolCount && me && me.school_id) schoolCount = 1;
+  if (ownSchool && !schoolCount && me && me.school_id) schoolCount = 1;
   let nForm = 0; let nDebrief = 0; let nSend = 0;
   try {
     const Debrief = _debriefService();
@@ -521,16 +522,11 @@ async function menuScreen(userId, opts = {}) {
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
   ];
-  if (atOnce) {
-    // A principal observes at once, so the row says so, and an empty "My schedule" is not offered (visits
-    // a principal booked before this change stay reachable there). Manage teachers lists leader_schools holdings
-    // only, so a principal whose one school is their own would open an empty list: it is left out for them.
-    items = items
-      .filter((i) => !(i.id === 'schedule' && upcoming === 0))
-      .filter((i) => !(i.id === 'manage_teachers' && holdings === 0))
-      .map((i) => (i.id === 'new'
-        ? { ...i, 'main-content': { title: 'Observe a teacher', metadata: 'Pick a teacher and start now' } }
-        : i));
+  if (ownSchool) {
+    // Manage teachers lists leader_schools holdings only, so a principal whose one school is their own would open an
+    // empty list: it is left out for them (a school-link guard, not a flow difference). Scheduling rows are the
+    // coach's (bd-31ziu8: "It has to be the same as coach").
+    items = items.filter((i) => !(i.id === 'manage_teachers' && holdings === 0));
   }
   // bd-9bppaz: a principal's own lesson, after the observe rows and before the roster admin. It needs no school.
   // The profile is read once, above: a failed read (me null) shows no row and is never retried here.

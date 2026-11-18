@@ -2610,7 +2610,8 @@ router.get('/coach/pending', ...coachV2, async (req, res) => {
 });
 
 /** GET /api/portal/coach/schedule?from=&to= — her visits in the range (default this week) and the overdue ones. */
-router.get('/coach/schedule', ...coachV2, async (req, res) => {
+// bd-31ziu8 — a principal on the principal app reads her own booked visits too (principals schedule like coaches).
+router.get('/coach/schedule', ...observerReads, async (req, res) => {
   const { from, to } = req.query || {};
   if ((from != null && !isDay(from)) || (to != null && !isDay(to))) {
     return res.status(400).json({ success: false, error: 'Invalid date — expected YYYY-MM-DD' });

@@ -877,9 +877,9 @@ export type Obs612Part =
   | { type: 'levels'; label: string; rows: { key: string; n: number; name: string; level: string | null }[] }
   | { type: 'score'; total: number; max: number; pct: number; band: string | null }
   | Obs612Field;
-export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area';
+export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area' | 'evidence' | 'same_focus';
 export type Obs612Draft = {
-  kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur'; toolName: string; toolTitle: string;
+  kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur' | 'ficos'; toolName: string; toolTitle: string;
   sheet: string | null; grade: number | null; subject: string | null;
   sections: { id: string; parts: Obs612Part[] }[];
   values: Record<string, string>; errors: Record<string, Obs612ErrorCode>; missing: string[];
