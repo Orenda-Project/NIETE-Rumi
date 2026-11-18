@@ -346,9 +346,10 @@ nor `onPress` it is a plain `role="status"` note. Never stack it with the ready 
 Home's tile, now the kit's (teacher Home uses it). 176px, 80px art, 18px/600 label. `compact` (operator, 30 Oct 2026, mockup v6
 option B) is the Home look's size, three per row in `[display:grid] grid-cols-3 gap-2.5`, so all nine fit a phone's first screen.
 `tileShell()`, `tileArtSize()` and `tileWords()` are the shell, art size and words, shared with the Quizzes tile
-(`home/QuizTile.tsx`, a button with the `quiz` FeatureArt), so the two never drift. Lay tiles out in `[display:grid] grid-cols-2 gap-3`
-inside ONE `FeatureMotionProvider`, so they all move together, once on arrival and again at one random 30–60 s gap; nothing under
-reduced motion. Chips use status tones only.
+(`home/QuizTile.tsx`, a button with the `quiz` FeatureArt), so the two never drift. Lay tiles out in `tileGrid()`
+(`[display:grid] grid-cols-2 gap-3`; `tileGrid(true)` is the compact `grid-cols-3 gap-2.5`, drawn by the teacher Home and,
+since bd-39qx8x, the coach Home) inside ONE `FeatureMotionProvider`, so they all move together, once on arrival and again at one
+random 30–60 s gap; nothing under reduced motion. Chips use status tones only.
 
 ### The frame: role-aware menu and the header action
 - `TeacherNavigation` takes `role?: 'teacher' | 'coach'` (default `teacher`). `coach` shows **Home · Schedule · Observe · Schools ·

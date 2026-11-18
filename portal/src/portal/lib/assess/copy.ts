@@ -17,13 +17,13 @@ export function urDigits(s: string | number): string {
 }
 
 const en = {
-  title: "Learning assessment",
+  title: "Learning Assessment",
   lang: "اردو",
   back: "Back",
   loading: "Loading…",
   loadFailed: "Could not load. Check the internet and try again.",
   tryAgain: "Try again",
-  notAvailable: "Learning assessment is not on for your account yet.",
+  notAvailable: "Learning Assessment is not on for your account yet.",
   chooseSchool: "Which school?",
   findSchool: "Find a school",
   schoolCount: (n: number, of: number) => `${n} of ${of}`,

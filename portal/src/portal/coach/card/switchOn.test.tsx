@@ -69,7 +69,9 @@ describe("the gate and the menu", () => {
     expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training"]);
     expect(links[1]).toHaveTextContent("Coach Training");
     await waitFor(() => expect(tiles).toHaveTextContent("2 courses"));
-    await waitFor(() => expect(tiles).toHaveTextContent("1 school · 12 teachers"));
+    // bd-39qx8x — the compact tile's chip is the school count alone: "6 schools · 38 teachers" spilled out of a 104px tile
+    // at 360px. The teacher count stays on My schools itself.
+    await waitFor(() => expect(links[0].querySelector("[data-chip]")).toHaveTextContent(/^1 school$/));
     expect(container.textContent).toContain("Salaam, Test Coach!");
     expectOnlyOpenLinks(container);
   });
@@ -98,6 +100,9 @@ describe("the gate and the menu", () => {
     const tiles = await screen.findByTestId("feature-tiles");
     expect(tiles).toHaveTextContent("کوچ ٹریننگ");
     expect(tiles).toHaveTextContent("ٹریننگ لائبریری");
+    // bd-39qx8x — My schools' chip: the school count alone, the More page's word («اسکول»), no teacher count
+    await waitFor(() => expect(tiles.querySelector('a[href="/portal/coach/people"] [data-chip]')).toHaveTextContent("اسکول"));
+    expect(tiles.querySelector('a[href="/portal/coach/people"] [data-chip]')).not.toHaveTextContent("ٹیچرز");
   });
 
   it("My schools is reached from Home: its crumb says Home", async () => {

@@ -97,7 +97,7 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
     leaderNav.push({ title: 'Child test', path: '/portal/leader/child-test', icon: ClipboardCheck });
   }
   if (assessOn) {
-    leaderNav.push({ title: 'Learning assessment', path: '/portal/leader/assess', icon: ClipboardCheck });
+    leaderNav.push({ title: 'Learning Assessment', path: '/portal/leader/assess', icon: ClipboardCheck });
   }
   const isPrincipal = principalOf(user);
   if (isPrincipal) {
