@@ -13,7 +13,7 @@ const { MEANING_RULE, SCHEME_RULE } = require('./free-secondary-rules');
 
 const CHECKS = new Set(['cross-leak', 'longest-key', 'absolute-option', 'scheme', 'weak-distractor',
   'two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem', 'part-levels',
-  'level-split', 'level-off', 'self-answer', 'scheme-conflict', 'stated-type']);
+  'level-split', 'level-off', 'self-answer', 'scheme-conflict', 'stated-type', 'unprinted-ref', 'band-overlap']);
 const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept', 'reject', 'blooms', 'part_levels'];
 
 /** The issues a targeted rewrite fixes; the rest belong to the whole-paper revision. */
@@ -82,9 +82,14 @@ function merge(examJson, reply, ns) {
   return { exam, replaced };
 }
 
+const leaks = (list) => list.filter((i) => i.check === 'cross-leak').length;
+
+/** Fewer issues, or as many with fewer answer leaks: a leak is the worst fault, so clearing one is progress. */
+const improves = (next, left) => next.length < left.length || (next.length === left.length && leaks(next) < leaks(left));
+
 /**
  * Up to `max` targeted rounds. A round runs only while targets remain and is kept only when its paper
- * has fewer issues than the one before; the first round that does not improve ends the loop. `ask`
+ * has fewer issues than the one before (or as many with fewer leaks); the first round that does not improve ends the loop. `ask`
  * takes the request text and resolves to the parsed reply; `tidy` cleans a merged paper in place.
  */
 async function rounds({ examJson, issues, ask, check, tidy = () => {}, max = 2, onError = () => {} }) {
@@ -104,7 +109,7 @@ async function rounds({ examJson, issues, ask, check, tidy = () => {}, max = 2, 
     if (!merged.replaced.length) break;
     tidy(merged.exam);
     const next = check(merged.exam);
-    if (next.length >= left.length) break;
+    if (!improves(next, left)) break;
     exam = merged.exam;
     left = next;
     merged.replaced.forEach((n) => rewritten.add(n));

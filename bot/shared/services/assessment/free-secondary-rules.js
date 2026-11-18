@@ -34,7 +34,7 @@ const MEANING_RULE = 'When an MCQ asks for the meaning or a quality of a word, n
 
 // A7c on the a4 G8 Urdu key: written items carried points only. Every written item also gets a
 // holistic band, an accept line and a do-not-accept line; free-secondary-scheme checks them.
-const SCHEME_RULE = 'Every item that is not an MCQ also carries "mark_bands": 2 or 3 levels, full / partial / none, each with its marks and what an answer at that level does (for 3 marks: [{"marks": "3", "descriptor": "full: ..."}, {"marks": "1-2", "descriptor": "partial: ..."}, {"marks": "0", "descriptor": "none: ..."}]); "accept": one line of other correct answers to accept; and "reject": one line of a likely wrong or incomplete answer that earns no mark.';
+const SCHEME_RULE = 'Every item that is not an MCQ also carries "mark_bands": 2 or 3 levels, full / partial / none, each with its marks and what an answer at that level does (for 3 marks: [{"marks": "3", "descriptor": "full: ..."}, {"marks": "1-2", "descriptor": "partial: ..."}, {"marks": "0", "descriptor": "none: ..."}]); "accept": one line of other correct answers to accept; and "reject": one line of a likely wrong or incomplete answer that earns no mark. The bands never overlap: an answer fits exactly one band, 0 means nothing correct, and a correct answer that lacks its reasoning belongs only in the partial band.';
 
 function bandOf(grade) {
   const n = Number(grade);
