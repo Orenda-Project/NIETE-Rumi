@@ -78,7 +78,8 @@
  *   lpsUsed           "Lesson plans used" = the RDF's lp_use (routine-data-flow rdf_niete/lp_use.py
  *                     with_app_opens): every lesson_plans row sent on WhatsApp, plus — only on a
  *                     teacher-day (Pakistan day) with NO WhatsApp row — one per distinct plan she
- *                     opened in the app: a K-5 niete_lp_opens row (plan_kind 'k5') or a lesson_plans
+ *                     opened in the app: a K-5 niete_lp_opens row (plan_kind 'k5', or 'g612' of a Grade
+ *                     1-5 segment: k5AppOpen, bd-wpw633) or a lesson_plans
  *                     row with content.v8.surface = 'app', the two deduped on (teacher, day, plan). The
  *                     old key lpsOpened carries the same number for a portal still reading it.
  *   teachersUsedLp    distinct population teachers with one ("x of N"; also as teachersOpenedLp).
@@ -104,6 +105,20 @@ const SECTOR_BY_LOWER = new Map(SECTORS.map((s) => [s.toLowerCase(), s]));
 
 /** niete_lp_opens has rows from this Pakistan day on; earlier windows undercount opens. */
 const LP_OPENS_LOGGED_SINCE = '2026-10-04';
+
+/**
+ * The grades of a K-5 lesson — THE one copy (bd-wpw633): lp-engagement's Primary band reads it too.
+ * A curriculum's Grade 1-5 books on the segment lane (GB's NBF Grades 1-5, v10) are K-5 lessons, and the app records
+ * most of their opens as plan_kind 'g612' (prod 9-17 Nov: 98 of 99), so "a K-5 plan opened in the app" is a 'k5' open
+ * OR a 'g612' open of a segment in these grades. ICT's segments are all Grades 6-12, so for ICT it is 'k5' alone.
+ */
+const K5_GRADES = Object.freeze([1, 5]);
+
+/** SQL: niete_lp_opens row `o` is a K-5 plan opened in the app (K5_GRADES above). */
+const k5AppOpen = (o) => `(${o}.plan_kind = 'k5'
+            OR (${o}.plan_kind = 'g612' AND EXISTS (
+                 SELECT 1 FROM niete_lp612_segments seg
+                  WHERE seg.segment_id = ${o}.plan_ref AND seg.grade BETWEEN ${K5_GRADES[0]} AND ${K5_GRADES[1]})))`;
 
 /**
  * schools.region (or users.region, or an RDF sector) → the region of `regions` it names, in that list's spelling, or
@@ -532,7 +547,9 @@ const LP_SURFACE = "(l.content #>> '{v8,surface}')";
  *           UNION is the RDF's `seen` set, so a plan with both a row and an open is one;
  *   an app plan counts only on a teacher-day with NO wa row (NOT EXISTS), the RDF's `have` set.
  * Days are Pakistan days: lesson_plans.created_at is naive UTC (+5 h), niete_lp_opens.opened_at a timestamptz.
- * g612 opens are not lesson-plan rows in the RDF's lp_use, so they are not here either.
+ * A K-5 open is k5AppOpen (bd-wpw633): a 'k5' open, or a 'g612' open of a Grade 1-5 segment (a curriculum's K-5
+ * book on the segment lane). Any other g612 open is not a lesson-plan row in the RDF's lp_use, so it is not here
+ * either. ICT has no Grade 1-5 segment, so ICT's count is the RDF's exactly.
  * Training as v7: grouped per teacher over the window first (completed_at has no index), then joined.
  */
 function teachersSql(bounds, idsParam) {
@@ -554,7 +571,7 @@ function teachersSql(bounds, idsParam) {
     UNION
     SELECT o.user_id, (o.opened_at AT TIME ZONE 'Asia/Karachi')::date AS d, o.plan_ref AS ref
       FROM niete_lp_opens o JOIN pop ON pop.id = o.user_id
-     WHERE o.plan_kind = 'k5'
+     WHERE ${k5AppOpen('o')}
        AND ${windowClause('o.opened_at', ends)}
   ), lp AS (
     SELECT x.user_id, sum(x.n)::int AS lps_used FROM (
@@ -800,6 +817,8 @@ module.exports = {
   loadCountedSessions,
   // Shared with lp-engagement.service: one spelling of "a rostered teacher".
   ROSTER_TEACHER,
+  // bd-wpw633 — shared with lp-engagement.service: one spelling of "a K-5 lesson's grades".
+  K5_GRADES,
   // v8: the school rule (v7's + FDE's list), shared with the coaching and observations services.
   countedSchoolBucket,
 };
