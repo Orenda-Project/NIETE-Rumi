@@ -433,4 +433,28 @@ maybe('the screens: a stalled clip on the first play vs on a replay (real voice,
     pickCards(m.el)[0].click();
     expect(m.r.snapshot().current.answers[0]).toMatchObject({ item_id: it.id, value: it.options[0], replays: 1 });
   }, 15000);
+  test('the cards through a first-play stall: picker cards keep the look they have while the sound plays and take no press; MCQ cards stay waiting, none ready or chosen', async () => {
+    const L1 = 'sa/v5/ur/ls_1.mp3';
+    const p = mount(pickBattery(), (src) => (src === L1 ? stallClip : okClip), PICK);
+    expect(await until(() => madeFor(p, L1).length > 0 && madeFor(p, L1)[0].currentTime === 0.6, 2000)).toBe(true);
+    const look = (m) => pickCards(m.el).map((c) => [c.className, !!c.disabled, c.getAttribute('aria-disabled')]);
+    const playingLook = look(p); // the clip has started: the look the cards have while the sound plays
+    await wait(60); // now in the stall
+    expect(madeFor(p, L1)[0].ended).toBe(false);
+    expect(look(p)).toEqual(playingLook);
+    pickCards(p.el)[0].click();
+    expect(pickCards(p.el).some((c) => c.classList.contains('is-pressed'))).toBe(false); // no tappable feedback
+    expect(look(p)).toEqual(playingLook);
+    views.forEach((v) => v.destroy()); views = []; voices.forEach((v) => v.stop()); voices = [];
+    document.getElementById('m').innerHTML = '';
+
+    const O2 = 'sa/v5/ur/syn_q1_o2.mp3';
+    const m = mount(mcqBattery(), (src) => (src === O2 ? stallClip : okClip), MCQ);
+    expect(await until(() => madeFor(m, O2).length > 0 && madeFor(m, O2)[0].currentTime === 0.6, 3000)).toBe(true);
+    await wait(60);
+    const cls = (c) => ['is-waiting', 'is-speaking', 'is-ready', 'is-chosen'].filter((k) => c.classList.contains(k));
+    expect(mcqCards(m.el).map(cls)).toEqual([['is-waiting'], ['is-speaking'], ['is-waiting'], ['is-waiting']]);
+    mcqCards(m.el)[2].click();
+    expect(mcqCards(m.el).map(cls)).toEqual([['is-waiting'], ['is-speaking'], ['is-waiting'], ['is-waiting']]);
+  }, 15000);
 });
