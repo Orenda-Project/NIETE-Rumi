@@ -753,10 +753,11 @@
       if (ok && t.stop.first_line_n && st.attempted <= t.stop.first_line_n) st.first_line_correct++;
     }
 
-    /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
+    /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given (first_choice:
+     *  the story question's first card tapped; the value scored is the last). */
     function answerMeta(a, meta) {
       if (!meta || typeof meta !== 'object') return a;
-      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes', 'since_fold_ms'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes', 'since_fold_ms', 'first_choice'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
       return a;
     }
 
