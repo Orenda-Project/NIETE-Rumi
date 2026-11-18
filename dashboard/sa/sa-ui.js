@@ -2796,6 +2796,7 @@
       if (!alive || busy || !S || !canTap || S.chosen === i) return;
       if (mcqFoldOpen(S.item) || mcqGhost()) return; // B.3: the open coach fold is modal: no answer while it is open
       if (S.chosen == null) {
+        S.first_choice = i; // the first card tapped (data only; the choice that stands is scored)
         S.first_at = mcqNow();
         // 0 = the stem (a replayed question, or the swallow before option 1 lights); 1–4 = the option last lit
         S.at_option = S.phase === 'options' ? (S.last_lit < 0 ? 0 : S.last_lit + 1) : S.phase === 'listening' ? 0 : null;
@@ -2818,7 +2819,7 @@
       S.phase = 'pressed';
       busy = true; // the clock loop waits: the pressed card stays on screen
       mcqPaint();
-      if (!S.practice) runner.answer(S.chosen, { tap_ms: S.tap_ms, chosen_at_option: S.at_option, changes: S.changes, replays: S.replays, since_fold_ms: S.since_fold_ms == null ? null : S.since_fold_ms });
+      if (!S.practice) runner.answer(S.chosen, { tap_ms: S.tap_ms, chosen_at_option: S.at_option, changes: S.changes, replays: S.replays, since_fold_ms: S.since_fold_ms == null ? null : S.since_fold_ms, first_choice: S.first_choice });
       later(function () {
         busy = false;
         if (mcq !== S) return;
