@@ -162,6 +162,7 @@ describe('the app\'s "Continue on WhatsApp" line', () => {
     expect(nudge.parseHandoffLine('continue my visit on whatsapp (code v4kq7)')).toEqual({ code: 'V4KQ7' });
     expect(nudge.parseHandoffLine('Continue my visit on WhatsApp (code V4KQ7)')).toEqual({ code: 'V4KQ7' });
     expect(nudge.parseHandoffLine('میرا دورہ واٹس ایپ پر جاری رکھیں (کوڈ V4KQ7)')).toEqual({ code: 'V4KQ7' });
+    expect(nudge.parseHandoffLine('میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ V4KQ7)')).toEqual({ code: 'V4KQ7' }); // the app's own line
     expect(nudge.parseHandoffLine('Continue my visit on WhatsApp')).toEqual({ code: null });
     expect(nudge.parseHandoffLine('Continue my visit on WhatsApp (code 0O1IL)')).toEqual({ code: null });
     expect(nudge.parseHandoffLine('what is the code for wifi')).toBeNull();
@@ -191,7 +192,7 @@ describe('the app\'s "Continue on WhatsApp" line', () => {
     expect(await inbound('میرا دورہ واٹس ایپ پر جاری رکھیں (کوڈ V4KQ7)', {
       user: coach({ preferred_language: 'ur' }), ctx: { language: 'ur', sessionId: 'chat-1' },
     })).toBe(true);
-    expect(mockSend.mock.calls[0][1]).toMatch(/واٹس ایپ پر جاری/);
+    expect(mockSend.mock.calls[0][1]).toMatch(/واٹس\u00A0ایپ پر جاری/);
   });
 
   test('a visit already recorded: observe-resume at its own step', async () => {

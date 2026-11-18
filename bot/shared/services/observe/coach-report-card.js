@@ -15,11 +15,11 @@ const WhatsAppService = require('../whatsapp.service');
 async function sendCoachReportPicture(from, feedback, S, framework, lang = 'en') {
   const { renderCoachFeedbackMessages } = require('./observe-coach-feedback');
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
-  // bd-44: the celebration card ships as a rendered image (hero design,
+  // The celebration card ships as a rendered image (hero design,
   // value-anchored). renderCoachCard returns null for harmful debriefs and on
   // any render failure — both fall back to the text card, so an officer can
   // never lose their feedback to a Playwright hiccup. Harm gate unchanged.
-  // bd-2453: the card carries the framework's brand (fico → niete), same
+  // The card carries the framework's brand (fico → niete), same
   // routing as the hero report — one session, one brand, every surface.
   let sentCard = false;
   const { renderCoachCard } = require('./observe-coach-card');
@@ -27,7 +27,7 @@ async function sendCoachReportPicture(from, feedback, S, framework, lang = 'en')
   // bd-y7jr8: the language is PASSED now. It used to be reverse-engineered by
   // string-matching S.coach_card_wins_label against a hardcoded Urdu literal —
   // so re-labelling the card silently flipped Urdu coaches to the English one.
-  // Same failure shape as bd-2644 (tofu boxes), one layer up.
+  // Same failure shape as the tofu-box bug, one layer up.
   const png = await renderCoachCard(feedback, { lang, brand: heroBrandFor(framework) });
 
   // The praise line rides on the card: its caption is the praise, then the

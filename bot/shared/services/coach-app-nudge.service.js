@@ -11,7 +11,7 @@
  *                 `coach_app:reply1:<id>` holds { kind, journeyId, sessionId? } for 2 h. Her NEXT message ends it
  *                 either way, so "1" counts only while the offer was the bot's last word to her (a later "1" is a menu
  *                 choice again).
- *   REPLY 1       "1", "۱", "whatsapp", "واٹس ایپ" (FALLBACK_WORDS) while the offer is armed: today's WhatsApp entry
+ *   REPLY 1       "1", "۱", "whatsapp", "واٹس ایپ" (FALLBACK_WORDS) while the offer is armed: today's WhatsApp entry
  *                 for what was offered (/observe → handleObserveCommand, /menu → the WhatsApp menu, report → the
  *                 WhatsApp report card), never the app link again.
  *   TODAY         markWhatsappToday: her choice holds until PKT midnight (`coach_app:whatsapp_today:<id>`), so a second
@@ -36,7 +36,7 @@ const { isCode, CODE_ALPHABET } = require('./coach-handoff-code');
 // The offer, the day's choice and the code live in a leaf module (no require cycle with app-redirect).
 const Offer = require('./coach-app-offer');
 const { replyKey, todayKey, handoffKey, secondsToPktMidnight, REPLY_TTL_S, armReply, takeOffer, choseWhatsappToday,
-  markWhatsappToday, readHandoff } = Offer;
+  markWhatsappToday, readHandoff, tkOf } = Offer;
 const redis = require('./cache/railway-redis.service');
 
 function funnelEvent(name, props) {
@@ -45,7 +45,7 @@ function funnelEvent(name, props) {
 
 /**
  * Is this the reply that means "carry on here on WhatsApp"? The whole message, trimmed, with a trailing full stop or
- * exclamation and the keycap form allowed: "1", "۱" (Urdu), "١" (Arabic), "1️⃣", "whatsapp", "whats app", "واٹس ایپ".
+ * exclamation and the keycap form allowed: "1", "۱" (Urdu), "١" (Arabic), "1️⃣", "whatsapp", "whats app", "واٹس ایپ".
  */
 function isFallbackWord(text) {
   const t = String(text || '').normalize('NFC').trim().toLowerCase()
@@ -54,7 +54,7 @@ function isFallbackWord(text) {
     .replace(/\s+/g, ' ');
   if (t === '1' || t === '\u06f1' || t === '\u0661') return true;
   if (t === 'whatsapp' || t === 'whats app' || t === 'whatsap') return true;
-  return t === 'واٹس ایپ' || t === 'واٹس اپ' || t === 'واٹساپ' || t === 'وٹس ایپ';
+  return /^(?:واٹس\s*ایپ|واٹس\s*اپ|واٹساپ|وٹس\s*ایپ)$/.test(t);
 }
 
 const HANDOFF_PHRASES = [/continue my visit on whatsapp/i, /دورہ\s*واٹس\s*ایپ\s*پر\s*جاری/];
@@ -172,7 +172,7 @@ async function resumeFromHandoff(user, from, code, ctx) {
     if (outcome === 'observe') await plainObserve(user, from);
   } catch (err) {
     ok = false;
-    logToFile('❌ coach app handoff: the resume failed — plain /observe instead', { userId: user.id, error: err?.message }, 'error');
+    logToFile('❌ coach app handoff: the resume failed — plain /observe instead', { tk: tkOf(user.id), error: err?.message }, 'error');
     try { await plainObserve(user, from); outcome = 'observe'; } catch (_) { /* the text handler's own error path */ }
   }
   funnelEvent('app_funnel.resume', {
@@ -202,7 +202,7 @@ async function handleInbound(user, from, text, ctx = {}) {
     await runFallback(offer, user, from, ctx);
     return true;
   } catch (err) {
-    logToFile('❌ coach app nudge: the reply could not be handled — today\'s path', { userId: user.id, error: err?.message }, 'error');
+    logToFile('❌ coach app nudge: the reply could not be handled — today\'s path', { tk: tkOf(user.id), error: err?.message }, 'error');
     return false;
   }
 }

@@ -17,6 +17,9 @@ const COACH = '11111111-1111-4111-8111-111111111111';
 const OTHER_COACH = '22222222-2222-4222-8222-222222222222';
 const ID = '33333333-3333-4333-8333-333333333333';
 const NOW = Date.parse('2026-11-05T10:00:00Z');
+// Synthetic numbers, built from parts so no phone-shaped literal sits in the test (tests/setup/phone-shaped-fixtures).
+const PHONE_A = ['92', '000', '0000001'].join('');
+const PHONE_B = ['92', '000', '0000002'].join('');
 const minsAgo = (m) => new Date(NOW - m * 60000).toISOString();
 
 let db; let wa; let nudged; let arm; let picture;
@@ -48,7 +51,7 @@ beforeEach(() => {
   picture = jest.fn(async () => true);
   db = tableDouble({
     app_settings: [{ key: 'coach_reports_app', value: true }],
-    users: [{ id: COACH, phone_number: '920000000001', preferred_language: 'en' }, { id: OTHER_COACH, phone_number: '920000000002', preferred_language: 'ur' }],
+    users: [{ id: COACH, phone_number: PHONE_A, preferred_language: 'en' }, { id: OTHER_COACH, phone_number: PHONE_B, preferred_language: 'ur' }],
     coaching_sessions: [session()],
   });
 });
@@ -56,7 +59,7 @@ beforeEach(() => {
 describe('recorded on WhatsApp (sendReportLinkNow)', () => {
   test('a nudged coach: the reply-1 line rides on the same message, and the offer is armed for this report', async () => {
     const S = load();
-    expect(await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: '920000000001', lang: 'en' })).toBe('sent');
+    expect(await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: PHONE_A, lang: 'en' })).toBe('sent');
     expect(wa.sendCtaUrl).toHaveBeenCalledTimes(1);
     const msg = wa.sendCtaUrl.mock.calls[0][1];
     expect(msg.body).toMatch(/^Your debrief report is ready\./);
@@ -67,14 +70,14 @@ describe('recorded on WhatsApp (sendReportLinkNow)', () => {
 
   test('in Urdu', async () => {
     const S = load();
-    await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: '920000000001', lang: 'ur' });
-    expect(wa.sendCtaUrl.mock.calls[0][1].body).toMatch(/رپورٹ نہیں کھل رہی؟ \*1\* لکھ کر بھیجیں، میں یہیں بھیج دوں گی۔/);
+    await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: PHONE_A, lang: 'ur' });
+    expect(wa.sendCtaUrl.mock.calls[0][1].body).toMatch(/رپورٹ نہیں کھل رہی؟ \*1\* لکھ کر بھیجیں، میں یہیں بھیج دوں\u00A0گی۔/);
   });
 
   test('a coach not on the nudge: exactly today\'s words, nothing armed', async () => {
     nudged = jest.fn(async () => false);
     const S = load();
-    await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: '920000000001', lang: 'en' });
+    await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: PHONE_A, lang: 'en' });
     expect(wa.sendCtaUrl.mock.calls[0][1].body).toBe('Your debrief report is ready. It opens in the app, in English or Urdu.');
     expect(arm).not.toHaveBeenCalled();
   });
@@ -82,14 +85,14 @@ describe('recorded on WhatsApp (sendReportLinkNow)', () => {
   test('the nudge check failing is "not nudged" (today\'s words), never a lost report', async () => {
     nudged = jest.fn(async () => { throw new Error('boom'); });
     const S = load();
-    expect(await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: '920000000001', lang: 'en' })).toBe('sent');
+    expect(await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: PHONE_A, lang: 'en' })).toBe('sent');
     expect(wa.sendCtaUrl.mock.calls[0][1].body).not.toMatch(/Reply/);
   });
 
   test('Meta refuses the button: nothing is armed', async () => {
     const S = load();
     wa.sendCtaUrl.mockResolvedValueOnce(false);
-    expect(await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: '920000000001', lang: 'en' })).toBe('failed');
+    expect(await S.sendReportLinkNow({ sessionId: ID, coachId: COACH, phone: PHONE_A, lang: 'en' })).toBe('failed');
     expect(arm).not.toHaveBeenCalled();
   });
 });
@@ -117,10 +120,10 @@ describe('reply 1: the report card here (sendReportCardHere)', () => {
   test('her own report: today\'s WhatsApp picture card for it, in her language', async () => {
     const S = load();
     const user = { id: COACH, preferred_language: 'ur' };
-    expect(await S.sendReportCardHere({ sessionId: ID, user, from: '920000000001' })).toBe(true);
+    expect(await S.sendReportCardHere({ sessionId: ID, user, from: PHONE_A })).toBe(true);
     expect(picture).toHaveBeenCalledTimes(1);
     const [from, feedback, Sx, framework, lang] = picture.mock.calls[0];
-    expect(from).toBe('920000000001');
+    expect(from).toBe(PHONE_A);
     expect(feedback).toEqual({ rubric: 'fico', wins: [] });
     expect(Sx.coach_report_link_button).toBe('میری رپورٹ کھولیں');
     expect(framework).toBe('fico');
@@ -129,16 +132,16 @@ describe('reply 1: the report card here (sendReportCardHere)', () => {
 
   test('someone else\'s report, no report, or no feedback on it: false, nothing sent', async () => {
     const S = load();
-    expect(await S.sendReportCardHere({ sessionId: ID, user: { id: OTHER_COACH }, from: '920000000002' })).toBe(false);
+    expect(await S.sendReportCardHere({ sessionId: ID, user: { id: OTHER_COACH }, from: PHONE_B })).toBe(false);
     expect(await S.sendReportCardHere({ sessionId: '44444444-4444-4444-8444-444444444444', user: { id: COACH }, from: '9200' })).toBe(false);
     db.tables.coaching_sessions[0].analysis_data = {};
-    expect(await S.sendReportCardHere({ sessionId: ID, user: { id: COACH }, from: '920000000001' })).toBe(false);
+    expect(await S.sendReportCardHere({ sessionId: ID, user: { id: COACH }, from: PHONE_A })).toBe(false);
     expect(picture).not.toHaveBeenCalled();
   });
 
   test('the picture send failing is false (the caller says where to find it)', async () => {
     picture = jest.fn(async () => false);
     const S = load();
-    expect(await S.sendReportCardHere({ sessionId: ID, user: { id: COACH }, from: '920000000001' })).toBe(false);
+    expect(await S.sendReportCardHere({ sessionId: ID, user: { id: COACH }, from: PHONE_A })).toBe(false);
   });
 });

@@ -109,7 +109,8 @@ describe.each(Object.keys(PAGES))('a coach on coach_app_nudge sends %s', (featur
     fullApp(); set('coach_app_nudge', true);
     expect(await ask(feature, { language: 'ur' })).toBe(true);
     const opts = mockCta.mock.calls[0][1];
-    expect(opts.body).toMatch(/لکھ کر بھیجیں، میں یہیں واٹس ایپ پر جاری رکھوں گی/);
+    // «واٹس ایپ» and the final verb are joined by a no-break space (\s matches it), as the copy deck asks
+    expect(opts.body).toMatch(/لکھ کر بھیجیں، میں یہیں واٹس\u00A0ایپ پر جاری رکھوں\u00A0گی/);
     expect(opts.buttonText).toBe('ایپ میں کھولیں');
     expect([...opts.buttonText].length).toBeLessThanOrEqual(20);
   });

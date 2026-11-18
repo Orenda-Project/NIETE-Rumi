@@ -481,9 +481,9 @@ const STRINGS = {
     // bd-9652yj (queue #166) — for a coach on the coach app nudge: the report-ready message's way back (reply 1 sends
     // today's WhatsApp report card), the line when that card cannot be sent, and the line that opens a visit resumed
     // from the app's "Continue on WhatsApp". The "1" is what she types (the bot also takes ۱).
-    coach_report_reply1_line: 'رپورٹ نہیں کھل رہی؟ *1* لکھ کر بھیجیں، میں یہیں بھیج دوں گی۔',
+    coach_report_reply1_line: 'رپورٹ نہیں کھل رہی؟ *1* لکھ کر بھیجیں، میں یہیں بھیج دوں\u00A0گی۔',
     coach_report_here_failed: 'یہ رپورٹ ابھی یہاں نہیں کھل سکی۔ اپنے مشاہدے دیکھنے کے لیے /observe لکھیں۔',
-    handoff_resume_intro: 'آئیے آپ کا دورہ یہیں واٹس ایپ پر جاری رکھتے ہیں۔',
+    handoff_resume_intro: 'آئیے آپ کا دورہ یہیں واٹس\u00A0ایپ پر جاری رکھتے\u00A0ہیں۔',
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'آپ کی ہفتہ وار کوچنگ رپورٹ تیار ہے: آپ کا ہفتہ، اور اگلے ہفتے کا فوکس۔ یہ صرف آپ کے لیے ہے۔',
     coach_week_link_button: 'میرا ہفتہ کھولیں',

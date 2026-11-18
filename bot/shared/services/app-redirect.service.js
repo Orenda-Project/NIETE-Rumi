@@ -463,7 +463,7 @@ async function isCoachNudged(userId, { now = Date.now() } = {}) {
   try {
     return await nudgeCovers(await settingValues(now), userId);
   } catch (err) {
-    logToFile('⚠️ Coach app nudge: the check failed — treated as off', { userId, error: err?.message }, 'warn');
+    logToFile('⚠️ Coach app nudge: the check failed — treated as off', { tk: CoachAppOffer.tkOf(userId), error: err?.message }, 'warn');
     return false;
   }
 }
@@ -480,11 +480,11 @@ async function coachNudge(feature, userId, now) {
   const note = {};
   try {
     if (!(await nudgeCovers(values, userId, note))) {
-      logToFile('↩️ Coach app nudge: not for this user — today\'s path', { userId, feature, why: note.why });
+      logToFile('↩️ Coach app nudge: not for this user — today\'s path', { tk: CoachAppOffer.tkOf(userId), feature, why: note.why });
       return null;
     }
   } catch (err) {
-    logToFile('⚠️ Coach app nudge: the account could not be read — today\'s path', { userId, feature, error: err?.message }, 'warn');
+    logToFile('⚠️ Coach app nudge: the account could not be read — today\'s path', { tk: CoachAppOffer.tkOf(userId), feature, error: err?.message }, 'warn');
     return null;
   }
   if (await CoachAppOffer.choseWhatsappToday(userId)) return 'whatsapp_today';

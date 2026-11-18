@@ -20,6 +20,14 @@ const replyKey = (userId) => `coach_app:reply1:${userId}`;
 const todayKey = (userId) => `coach_app:whatsapp_today:${userId}`;
 const KINDS = Object.freeze(['observe', 'menu', 'report']);
 
+/**
+ * A person's keyed reference for a diagnostic log line (quiz/web-quiz-kid tk), never the raw users.id; null when this
+ * deployment has no key. The app_funnel rows keep users.id: it is the key the portal's own rows join on.
+ */
+function tkOf(userId) {
+  try { return require('./quiz/web-quiz-kid').tk(userId); } catch (_) { return null; }
+}
+
 const PKT_OFFSET_S = 5 * 60 * 60;
 const DAY_S = 24 * 60 * 60;
 
@@ -38,7 +46,7 @@ async function armReply(userId, kind, { journeyId = null, sessionId = null, now 
       kind, journeyId: journeyId || null, ...(sessionId ? { sessionId } : {}), at: new Date(now).toISOString(),
     }), REPLY_TTL_S);
   } catch (err) {
-    logToFile('⚠️ coach app nudge: the reply-1 offer could not be armed', { userId, kind, error: err?.message }, 'warn');
+    logToFile('⚠️ coach app nudge: the reply-1 offer could not be armed', { tk: tkOf(userId), kind, error: err?.message }, 'warn');
     return false;
   }
 }
@@ -74,6 +82,6 @@ async function takeOffer(userId) {
 }
 
 module.exports = {
-  REPLY_TTL_S, KINDS, replyKey, todayKey, handoffKey, secondsToPktMidnight,
+  REPLY_TTL_S, KINDS, replyKey, todayKey, handoffKey, secondsToPktMidnight, tkOf,
   armReply, takeOffer, choseWhatsappToday, markWhatsappToday, readHandoff,
 };
