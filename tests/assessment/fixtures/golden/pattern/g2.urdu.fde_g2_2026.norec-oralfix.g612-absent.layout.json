@@ -455,8 +455,7 @@
           "picture_optional": false,
           "sentence_box": false,
           "print_words": false,
-          "bubble": false,
-          "answer_ok": null
+          "bubble": false
         }
       ]
     }

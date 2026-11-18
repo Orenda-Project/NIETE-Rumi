@@ -20,6 +20,8 @@ const GOOD = {
   'g2.english.B.Q10': (i) => ({ question: `Thing ${i + 1} is ____ the box.`, answer: ['in', 'on', 'under', 'near', 'behind'][i] }),
   'g2.english.C.Q14': (i) => ({ question: `Is it hot ${i + 1}`, answer: `Is it hot ${i + 1}?` }),
   'g1.general_knowledge.B.Q10': (i) => ({ answer: i % 2 ? 'پانی' : 'خشکی' }),
+  'g2.urdu.B.Q9': () => ({ answer: 'پہلا دوست: کل پکنک پر چلیں؟ دوسرا دوست: ہاں، کہاں چلیں؟ پہلا دوست: باغ میں چلتے ہیں۔ دوسرا دوست: میں پھل لاؤں گا۔ پہلا دوست: میں پانی لاؤں گا۔',
+    scheme: { points: [1, 2, 3, 4, 5].map((n) => ({ kind: 'K', text: `نکتہ ${n}`, marks: 2 })) } }),
   'g1.maths.B.Q8': (i) => ({ question: `Which one is longer ${i + 1}?`, answer: ['the girl', 'the children', 'the park', 'girl', 'children'][i] }),
 };
 
@@ -28,8 +30,8 @@ function itemsFor(slot, { noPicture = false, names = [], keys = [] } = {}) {
   return Array.from({ length: slot.generate }, (_, i) => ({
     slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
     ...(slot.shape === 'mcq' ? { options: [`a) one${i}`, `b) two${i}`, `c) three${i}`], answer: `a) one${i}` } : { answer: String(i + 1) }),
-    ...(keys[i] || (GOOD[slot.slot] ? GOOD[slot.slot](i) : {})),
     scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
+    ...(keys[i] || (GOOD[slot.slot] ? GOOD[slot.slot](i) : {})),
     ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]],
       ...(slot.picture[0] === 'object' ? { name: names[i] || `${slot.slot} thing ${i}` } : {}) } } : {}),
   }));
