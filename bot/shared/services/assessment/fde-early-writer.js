@@ -28,7 +28,7 @@ const { noArrows } = require('./fde-no-arrows');
 const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
 const { keyShortfall } = require('./fde-key-checks');
-const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); const { urduOralFixes } = require('./fde-early-urdu-oral'); const { citePoemPage } = require('./fde-urdu-r4'); // bd-5jmnfj.4.58.4
+const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); const { urduOralFixes } = require('./fde-early-urdu-oral'); const { citePoemPage } = require('./fde-urdu-r4'); const { settleFlaggedOral } = require('./fde-oral-religious-block'); // bd-5jmnfj.4.58.4
 const { earlyKeyFixes } = require('./fde-early-key-fixes'); const { commonErrorNumbers } = require('./fde-common-error-numbers'); const { earlyEnglishFixes } = require('./fde-early-english-fixes'); const { earlyUrduFixes } = require('./fde-early-urdu-fixes'); const { acceptAlternatives } = require('./fde-accept-alternatives'); const { mendReadAloud } = require('./fde-read-aloud-grammar'); const { correctMisreads } = require('./fde-urdu-nonword'); const { keepMissing } = require('./fde-keep-missing'); // bd-5jmnfj.4.58.3/.4/.9.1/.9.2/.9.3
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
@@ -251,7 +251,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   if (finalShort.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: finalShort, examJson, model });
   }
-  if (oral && oral.flagged.length) d.logToFile('[assessment] oral task kept flagged', { requestId, pattern, flagged: oral.flagged }); // mended below by urduOralFixes: a flag never costs the teacher a paper
+  settleFlaggedOral(oral, d, { requestId, pattern, examJson, model }); // mended below by urduOralFixes: a flag never costs the teacher a paper
   if (oral && oral.missing.length) {
     throw d.fail('ORAL_SHORT', 'The oral part came back short.', { missing: oral.missing, examJson, model });
   }
