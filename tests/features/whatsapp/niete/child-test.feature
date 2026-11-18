@@ -1678,15 +1678,15 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the feedback line shows under the cards without pushing them
     And the coach's open fold stays on the screen
   @e2e @wip @draft @config-gated @P1 @CT277 @no-mock-driver
-  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 32 (coach-led): the coach's line is drawn above the fold on the passage step only …",
-  # the "[prod] ur …" browser rows of the coach-led phone (scored states, the per-question sweep, the coach's line ink, the practice frames)).
-  Scenario: With sa_r28_mcq on, the coach's Urdu line sits in the coach's fold on a phone's question screens
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 32 (coach-led, round 11): …",
+  # the "[prod] ur …" browser rows of the coach-led phone (scored states, the per-question sweep with the fold's scroll and summary, the practice frames)).
+  Scenario: With sa_r28_mcq on, the coach's fold on a phone's Urdu question screens holds the question and answers and never scrolls
     Given sa_r28_mcq and the production screen settings are on and a coach runs the story questions in Urdu on a 360x640 phone inside the coach page, with a session syncing
     When a practice or scored question is on screen
-    Then the coach's line «جگنو سوال اور چاروں جواب خود پڑھے گا۔ …» is the first line inside the coach's fold, above the question and the four answers
-    And the fold stays folded until the coach opens it, its title unchanged
-    And the coach's line shows above the fold, outside it, on the practice story's own step, before any question
-    And the open fold stays on the screen, its lines apart and inside their box
+    Then the coach's fold holds the question and the four answers, the question first
+    And its folded title «جگنو پوچھے گا — یہ آپ نہ پڑھیں:» is the coach's visible line, whole, with the fold closed and open
+    And the open fold's body never scrolls (its scroll height equals its height) and ends on the screen
+    And the coach's line «جگنو سوال اور چاروں جواب خود پڑھے گا۔ …» shows above the fold on the practice story's own step, before any question
     And on a tablet, or in English, the coach's line stays above the fold as before
   @e2e @wip @draft @config-gated @P1 @CT278 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (every "[prod] …" and "[prod_notoggle] …" browser row: the coach page's frame, the sync dot, the language switch drawn or not).
