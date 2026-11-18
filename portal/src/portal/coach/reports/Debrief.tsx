@@ -8,6 +8,7 @@ import type { TalkGuide, TalkGuideSection } from "../../services/api";
 import { cn } from "@/lib/utils";
 import CoachRecorder from "../../components/coaching/coach/CoachRecorder";
 import { acceptFor, checkFile } from "../../lib/coachingUpload";
+import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 import { SendError } from "../../lib/coachingSend";
 import { sendTalk } from "../../lib/coachObserve";
 import type { FinishedRecording } from "../../lib/lessonRecorder";
@@ -36,6 +37,9 @@ import { useBack } from "../../lib/useBack";
  *
  * Real routes: POST talk/guide (the first open can take a minute; 409 = the form is not saved yet), observe-upload/presign,
  * POST talk, POST talk/retry. Read back later (the step is past the talk) it shows the guide the observation kept.
+ *
+ * bd-tymy1n (queue #179) — an uploaded talk is read when she picks it, and what goes up (and what Try again sends again)
+ * is those bytes, never the picked file the Android app may no longer open. A file that will not open is refused here.
  *
  * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
  * English and Urdu; its other on-screen words are still English only (see the gap list).
@@ -164,12 +168,14 @@ export default function Debrief() {
   };
 
   const onRecorded = (out: FinishedRecording) => { void send({ blob: out.blob, filename: `Talk${out.type.ext}`, recordingId: out.id }); };
-  const onFile = (file: File | undefined) => {
+  const onFile = async (picked: File | undefined) => {
     setFileError(null);
-    if (!file) return;
-    const problem = checkFile(file, "audio");
+    if (!picked) return;
+    const problem = checkFile(picked, "audio");
     if (problem) { setFileError(problem === "too_large" ? C.tooLarge : C.notAudio); return; }
-    void send({ blob: file, filename: file.name, recordingId: null });
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick("audio", picked, out.errName); setFileError(C.fileWontOpen); return; }
+    void send({ blob: out.file, filename: picked.name, recordingId: null });
   };
 
   if (view && ["analysing"].includes(view.step)) return <Navigate to={home} replace />;
@@ -215,7 +221,7 @@ export default function Debrief() {
             <>
               <RecordUploadPair onRecord={() => setStage(canRecord ? "recording" : "micBlocked")} onUpload={() => input.current?.click()} />
               <input ref={input} data-testid="talk-input" type="file" accept={`${acceptFor("audio")},audio/*`} className="hidden"
-                onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
+                onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
               {fileError && <Note tone="amber">{fileError}</Note>}
             </>
           )}

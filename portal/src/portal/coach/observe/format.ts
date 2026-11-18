@@ -29,8 +29,25 @@ export function observationLine(
   return [dayShort(day, words), lengthShort(ms, words)].filter(Boolean).join(' · ');
 }
 
+/**
+ * bd-tymy1n — the part of an observation this phone could not read at Send, from `errorCode`: `unreadable_photo_<n>`
+ * (photo n, 1-based), `unreadable_lesson_plan`, `unreadable_audio`. Anything else: null.
+ */
+export type UnreadablePart = { kind: 'photo'; photo: number } | { kind: 'lesson_plan' } | { kind: 'audio' };
+export function unreadablePart(code: string | null | undefined): UnreadablePart | null {
+  const m = /^unreadable_(photo_(\d{1,2})|lesson_plan|audio)$/.exec(String(code || ''));
+  if (!m) return null;
+  if (m[2]) return { kind: 'photo', photo: Number(m[2]) };
+  return m[1] === 'audio' ? { kind: 'audio' } : { kind: 'lesson_plan' };
+}
+
 /** Which of the failure reasons a send error is, from `errorCode` (SendError's kind, or its reason for a refusal). */
 export function failureWords(code: string | null | undefined, words: Pick<ObserveCopy, 'failure'>): string {
+  const unread = unreadablePart(code);
+  if (unread) {
+    if (unread.kind === 'photo') return words.failure.photoUnreadable(unread.photo);
+    return unread.kind === 'audio' ? words.failure.recordingUnreadable : words.failure.planUnreadable;
+  }
   if (code === 'network') return words.failure.network;
   if (code === 'plan_not_ready' || code === 'plan_not_found') return words.failure.plan;
   if (code === 'not_your_teacher') return words.failure.notYourTeacher;

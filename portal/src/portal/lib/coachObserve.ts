@@ -127,13 +127,15 @@ export function sendObservation(
     photos: File[];
     /** bd-ra8xu.40 — the class she named on Check and send; absent when it was not asked. */
     lesson?: ObserveLesson | null;
+    /** bd-tymy1n — what already arrived, by file (coachingSend's map): a second send sends only the rest. */
+    uploaded?: WeakMap<Blob, string>;
   },
   api: ObserveApi = leader,
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
-  const { teacherExtId, schoolExtId, audio, plan, photos, lesson } = args;
-  return sendLesson({ audio, plan, photos }, {
+  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, uploaded } = args;
+  return sendLesson({ audio, plan, photos, ...(uploaded ? { uploaded } : {}) }, {
     presignCoachingUpload: (a) => api.presignObserveUpload(a),
     uploadToR2: (url, blob, type, cb) => upload.uploadToR2(url, blob, type, cb),
     startCoachingUpload: (start) => api.startObservation({ ...start, teacherExtId, schoolExtId: schoolExtId || null, ...(lesson ? { lesson } : {}) }),
