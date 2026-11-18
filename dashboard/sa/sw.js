@@ -74,7 +74,10 @@
 //   question and its answers, so a phone never breaks them across two lines).
 // sa-36: round 28, sa.css (the Urdu story question card on a phone in RDF auto keeps a two-line question's lines apart:
 //   18 px at a taller line pitch, the card's padding moved to the top; the four answers stay on the screen).
-var VERSION = 'sa-36';
+// sa-37: round 28, sa-voice.js and sa-ui.js (a spoken clip that starts and then stops mid-way is given up after a short
+//   wait and one retry, not counted as heard; the picker's and the MCQ's cards ignore a tap while it is stopped; the
+//   never-ended guard waits while the page is hidden).
+var VERSION = 'sa-37';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

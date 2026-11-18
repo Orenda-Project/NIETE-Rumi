@@ -2058,3 +2058,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the four answers, the replay and the Next offered later are all on the screen and tappable, with nothing to scroll
     And the coach-led phone and the tablet show the question exactly as before
     And with sa_r28_mcq off there is no story question screen and nothing changes
+
+  @e2e @wip @draft @config-gated @P1 @CT297 @no-mock-driver
+  # No mock driver: a weak link that starts a clip and then stops feeding it. Asserted in
+  # dashboard/tests/sa-r28-clip-stall.service.test.js (the real voice with a stub audio, and the picker and MCQ screens).
+  Scenario: A picker sound or a story question whose clip starts and then stalls is given up, not scored as heard
+    Given sa_r28_letter_pick or sa_r28_mcq is on and the phone's link is weak
+    When an item's sound or a question's read-out starts and then makes no progress for 5 seconds
+    Then Jugnu tries the clip once more from the start
+    And if it stalls again the item is set aside as unavailable within about 11 seconds: not asked, not counted, never wrong
+    And a tap the child makes while that first play is stalled is dropped, never held or scored
+    And a clip that plays slowly but keeps moving, or pauses for 3 seconds and then plays on, is heard as before
+    And a stall on a replay the child asked for only ends that replay: the item stays open and the next tap scores
+    And a line not marked clip-only still waits up to 60 seconds as before
