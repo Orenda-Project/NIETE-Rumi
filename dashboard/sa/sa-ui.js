@@ -633,6 +633,8 @@
       return {
         closed: function (item, task) { shut = mcqNow(); of = { item: item, task: task }; },
         on: on,
+        /** since_fold_ms: ms from this item's last fold close to now (the close this guard recorded), else null. */
+        since: function (item) { return of && of.item === item ? Math.round(mcqNow() - shut) : null; },
         swallow: function (e) {
           if (!on()) return false;
           if (of) runner.log('ghost_tap', { task_id: of.task, item_id: of.item, ms_after_close: Math.round(mcqNow() - shut), card: cardOf(e.target) });
@@ -687,9 +689,14 @@
       if (!hl) return null;
       return h('p', { class: (cls || 'sae-say') + ' sae-r7-hint' }, [hlText(tx(hl), hl), t.mode === 'keypad' ? h('span', { class: 'sae-r7-tick', 'aria-hidden': 'true', text: ' ✓' }) : null]);
     }
-    /** back_button: Back on an item screen after the first item (or cell); runner.back() shows the one before. */
+    /** back_button: Back on an item screen after the first item (or cell); runner.back() shows the one before.
+     *  Round 28: never on the letter picker (sa_r28_letter_pick) or the spoken MCQ (sa_r28_mcq), either mode. Their
+     *  items are taps scored on the first answer (a Back would open a second one), and on a 360×640 phone the foot row
+     *  Back makes would take the second card row and the replay pill out of reach; the coach keeps the corner hold, the fold
+     *  and its replay. Every other task keeps its Back. */
     function backBtn(v) {
       if (r7.back_button !== true || v.phase !== 'running' || !v.task) return null;
+      if (isPick(v.task) || isMcq(v.task)) return null;
       var first = v.cell != null ? !(v.cell_index > 0) : (v.task.mode === 'record' || !(v.item_index > 0));
       if (first) return null;
       return h('button', { class: 'sae-btn sae-secondary sae-back-item', type: 'button', onclick: function () {
@@ -957,13 +964,13 @@
       // No timing entry (the map absent, e.g. offline before it was cached): the clip-end rule for tap_ms, and the speech
       // start is the A.4 lead-in every v5 prompt is cut with (lead ruling), so the pre-sound window still holds.
       if (!e) {
-        var f = { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(now - ps.end_at)), tap_ms_src: 'file' };
+        var f = { replays: ps.replays, tap_ms: ps.playing || ps.end_at == null ? 0 : Math.max(0, Math.round(now - ps.end_at)), tap_ms_src: 'file', since_fold_ms: pickGG.since(it.id) };
         // only before the clip is asked for or while it plays (one that ended was heard; one that failed never sounded)
         if (pos < PROMPT_LEAD_IN_MS + TAP_LEAD_IN_MS && (ps.call_at == null || ps.playing)) f.tap_before_sound = true;
         if (ps.pre_taps > 0) f.pre_taps = ps.pre_taps;
         return f;
       }
-      var m = { replays: ps.replays, tap_ms: Math.round(pos - e.e), tap_ms_src: 'timings' };
+      var m = { replays: ps.replays, tap_ms: Math.round(pos - e.e), tap_ms_src: 'timings', since_fold_ms: pickGG.since(it.id) };
       if (pos < e.s + TAP_LEAD_IN_MS) m.tap_before_sound = true;
       if (ps.pre_taps > 0) m.pre_taps = ps.pre_taps;
       return m;
@@ -1240,6 +1247,9 @@
     }
     /** The jump list's own full-width row above the dots: a Whole battery's 33 dots can never push it off-screen. */
     function devJumpRow(v) {
+      // round 28: not on the letter picker's or the spoken MCQ's item and practice screens (on a phone its row took the
+      // first item's replay below the fold); every other screen keeps it, the instruction included
+      if (v.task && (v.phase === 'running' || v.phase === 'practice') && (isPick(v.task) || isMcq(v.task))) return null;
       var dj = devJumpEl(v);
       return dj ? h('div', { class: 'sae-devjump-row' }, [dj]) : null;
     }
@@ -2731,6 +2741,7 @@
         if (S.phase === 'open') S.tap_ms = Math.round(S.first_at - S.read_end);
       } else S.changes++;
       S.chosen = i;
+      S.since_fold_ms = mcqGG.since(S.item); // the tap that stands: ms since this question's fold closed, else null
       mcqPaint();
       if (S.phase === 'open') mcqSettle(S);
     }
@@ -2746,7 +2757,7 @@
       S.phase = 'pressed';
       busy = true; // the clock loop waits: the pressed card stays on screen
       mcqPaint();
-      if (!S.practice) runner.answer(S.chosen, { tap_ms: S.tap_ms, chosen_at_option: S.at_option, changes: S.changes, replays: S.replays });
+      if (!S.practice) runner.answer(S.chosen, { tap_ms: S.tap_ms, chosen_at_option: S.at_option, changes: S.changes, replays: S.replays, since_fold_ms: S.since_fold_ms == null ? null : S.since_fold_ms });
       later(function () {
         busy = false;
         if (mcq !== S) return;

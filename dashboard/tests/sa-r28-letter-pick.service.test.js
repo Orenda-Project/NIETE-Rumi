@@ -484,7 +484,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     const ui = require('../sa/sa-ui');
     const b = o.battery || battery(o);
     const events = [];
-    const r = c.createRunner(Object.assign({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual }, o.now ? { now: o.now } : {}));
+    const r = c.createRunner(Object.assign({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual }, o.now ? { now: o.now } : {}, o.runner || {}));
     const pending = [];
     const speak = jest.fn((text, audio, vo) => {
       if (vo && vo.clip_only) {
@@ -506,6 +506,23 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     m.view.render();
   }
   const clipCalls = (m) => m.speak.mock.calls.filter((x) => x[2] && x[2].clip_only === true);
+
+  test('the sandbox Jump row (dev tools on): not drawn on the picker\'s practice or item screens; drawn on a tap screen with the switch off', () => {
+    const dev = { runner: { dev_tools: true }, ui: { devJump: () => {} } };
+    const has = (m) => !!m.el.querySelector('.sae-devjump-row');
+    const a = mount(Object.assign({ manual: true, instant: true }, dev));
+    a.r.start(); a.r.instructionDone(); a.view.render();
+    expect(a.r.view().phase).toBe('practice');
+    expect(has(a)).toBe(false);
+    const b = mount(Object.assign({ manual: true, practice: false, instant: true }, dev));
+    toRunning(b);
+    expect(b.r.view().phase).toBe('running');
+    expect(has(b)).toBe(false);
+    const c = mount(Object.assign({ manual: true, practice: false, instant: true, flag: false }, dev));
+    toRunning(c);
+    expect(c.r.view().phase).toBe('running');
+    expect(has(c)).toBe(true);
+  });
 
   test('running: five cards in .sae-pick-cards, one big replay; the clip autoplays clip-only', async () => {
     const m = mount({ practice: false });
@@ -1201,6 +1218,38 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(ev(m, 'ghost_tap')).toHaveLength(1);
     });
 
+    test('since_fold_ms: fold opened and closed on the item, the scored tap at +400 ms → 400; the next item, no fold closed on it → null; the ghost writes no answer', async () => {
+      const m = await live();
+      const it = m.r.view().item;
+      open(m);
+      fold(m).open = false; fold(m).dispatchEvent(new dom.window.Event('toggle')); // closed by the summary
+      T += 200;
+      cards(m)[1].click(); // a ghost: no answer, so no field
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      T += 200;
+      cards(m)[1].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0]).toMatchObject({ item_id: it.id, since_fold_ms: 400 });
+      await wait(450 + 360 + 500); // the press, the next item, its sound
+      const it2 = m.r.view().item;
+      expect(it2.id).not.toBe(it.id);
+      T += 5000;
+      cards(m)[0].click();
+      const b = m.r.snapshot().current.answers;
+      expect(b).toHaveLength(2);
+      expect(b[1]).toMatchObject({ item_id: it2.id, since_fold_ms: null });
+      expect(Object.prototype.hasOwnProperty.call(b[1], 'since_fold_ms')).toBe(true);
+    });
+
+    test('since_fold_ms: RDF auto (no fold) → null on every scored answer', async () => {
+      const m = await live({ manual: false });
+      cards(m)[2].click();
+      const a = m.r.snapshot().current.answers;
+      expect(a).toHaveLength(1);
+      expect(a[0].since_fold_ms).toBeNull();
+    });
+
     test('the summary close arms the guard too; a tap at +299 ms is a ghost, at +300 ms it answers', async () => {
       const m = await live();
       open(m);
@@ -1230,6 +1279,56 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       T += 200;
       cards(m)[1].click();
       expect(pa).toHaveBeenCalledTimes(1);
+    });
+
+    /** Coach-led, the item's first clip played and ended; then the fold's own replay re-plays the clip (held playing). */
+    async function replayed() {
+      const m = mount({ manual: true, practice: false });
+      toRunning(m);
+      await wait(360);
+      m.end(); // the item's own clip ended
+      await wait(500);
+      T += 1000;
+      open(m);
+      fold(m).querySelector('button.sae-pick-coach-replay').click(); // fold_close by replay; the clip re-plays (still sounding)
+      T += 1000;
+      return m;
+    }
+    test('a tap within 300 ms of a fold close while a replayed clip still sounds is a ghost (ghost_tap, never tap_before_sound, no answer)', async () => {
+      const m = await replayed();
+      open(m);
+      cards(m)[3].click(); // the first tap: closes the fold only
+      expect(ev(m, 'fold_close').map((e) => e.by)).toEqual(['replay', 'tap']);
+      T += 200;
+      cards(m)[1].click(); // the double tap's second half, the clip sounding (in its pre-sound window)
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(Array.from(cards(m)).some((c) => c.classList.contains('is-pressed') || c.classList.contains('is-chosen'))).toBe(false);
+      expect(ev(m, 'ghost_tap')).toEqual([expect.objectContaining({ ms_after_close: 200, card: 1 })]);
+      expect(ev(m, 'tap_before_sound')).toEqual([]);
+      m.end();
+    });
+    test('control: the same sequence with no clip sounding: +200 ms is a ghost, no answer', async () => {
+      const m = await replayed();
+      m.end(); // the replayed clip ended
+      await wait(20);
+      open(m);
+      cards(m)[3].click();
+      T += 200;
+      cards(m)[1].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(ev(m, 'ghost_tap')).toHaveLength(1);
+      expect(ev(m, 'tap_before_sound')).toEqual([]);
+    });
+    test('outside the window (+400 ms) while the replayed clip is still in its lead-in: tap_before_sound (logged, never scored), no ghost_tap', async () => {
+      const m = await replayed();
+      open(m);
+      cards(m)[3].click();
+      T += 400;
+      cards(m)[1].click();
+      expect(ev(m, 'ghost_tap')).toEqual([]);
+      expect(ev(m, 'tap_before_sound')).toHaveLength(1);
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      m.end();
     });
 
     test('RDF auto (no fold): two fast taps never log ghost_tap', async () => {
