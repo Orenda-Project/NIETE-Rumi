@@ -94,7 +94,7 @@ function stopOf(r) {
  * round 28: a picker / picked-from-four part with too few items presented is ABSENT from the ladder, never pending).
  * Spoken parts count from the scorer's marks; tap / keypad parts from the phone's own count.
  */
-function partOf(r, itemsOf) {
+function partOf(r, itemsOf, mcqFloor = false) {
   const res = resultOf(r);
   const m = r.ai_marks || null;
   const stop = stopOf(r);
@@ -110,6 +110,8 @@ function partOf(r, itemsOf) {
     // round 28 B (SPEC v2.1, B.5): the questions picked from four are read out of 6 less the questions whose clip was
     // lost; a question the reading gate did not ask counts as not right, as the oral part today
     if (/\.story_mcq_w3$/.test(String(r.block || ''))) {
+      // sa_r28_mcq (the reading floor): pending until the scorer has applied the passage's gate to it
+      if (mcqFloor && !floorChecked(m)) return { state: 'pending' };
       const all = num(res.of_all) ?? items ?? MCQ_QUESTIONS;
       return { state: 'scored', correct, of: Math.max(0, all - (num(res.unavailable) || 0)) || null };
     }
@@ -125,6 +127,12 @@ function partOf(r, itemsOf) {
   if (num(detail.of_base) !== null && num(detail.correct_base) !== null) return { state: 'scored', correct: detail.correct_base, of: detail.of_base };
   const of = num(detail.of_all) ?? num(m.of) ?? (Array.isArray(detail.items) && detail.items.length ? detail.items.length : null) ?? items;
   return { state: 'scored', correct: m.correct, of };
+}
+
+/** sa_r28_mcq: the scorer has evaluated the MCQ's reading floor (gated, or checked and passed). */
+function floorChecked(m) {
+  const d = (m && m.detail) || {};
+  return typeof d.gate_checked === 'boolean' || typeof d.stop_why === 'string';
 }
 
 /** 'met' | 'unmet' | 'pending' for one rung, given the subject's parts by task id. */
@@ -163,14 +171,14 @@ function stopLine(subject, rows, events) {
 }
 
 /** One line per subject that has a ladder part, in the order Urdu, English, Maths. Rows in the order the child took them. */
-function levelsOf(rows, events, { itemsOf = null, titleOf = null } = {}) {
+function levelsOf(rows, events, { itemsOf = null, titleOf = null, mcqFloor = false } = {}) {
   const out = [];
   for (const subject of SUBJECTS) {
     const mine = (rows || []).filter((r) => r && subjectOf(r.block) === subject);
     const ladder = ladderOf(subject);
     const ids = new Set(ladder.flatMap((g) => g.parts.map((p) => `${subject}.${p}`)));
     if (!mine.some((r) => ids.has(r.block))) continue;
-    const graded = mine.filter((r) => ids.has(r.block)).map((r) => [r.block, partOf(r, itemsOf)]);
+    const graded = mine.filter((r) => ids.has(r.block)).map((r) => [r.block, partOf(r, itemsOf, mcqFloor)]);
     // round 28: an unrated part is absent; a subject whose ladder parts are all unrated has no level and waits for none
     const allUnrated = graded.every(([, p]) => p === null);
     const parts = new Map(graded.filter(([, p]) => p !== null));
