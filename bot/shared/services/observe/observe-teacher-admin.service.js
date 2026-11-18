@@ -49,34 +49,58 @@ function normaliseTeacherPhone(raw) {
 
 // ── the db port ────────────────────────────────────────────────────────
 
+/** A school's EMIS as text, or null when it has none (never the string 'null'). */
+function _emisOrNull(emis) {
+  if (emis === null || emis === undefined) return null;
+  const s = String(emis).trim();
+  return s || null;
+}
+
 function _supabaseDb() {
   const supabase = require('../../config/supabase');
   return {
-    /** The school, but ONLY if this coach holds it. Null is a refusal. */
+    /**
+     * The school, but ONLY if this coach holds it. Null is a refusal.
+     *
+     * Found by the holding's school_id, the foreign key every read path keys on (patch-resolver, leader-patch). A
+     * school with no EMIS (GB Deosai and Hoto, the Rumi QA test schools) is held under a key made from its name,
+     * 'niete:gb-deosai-community-school-dapa-kharmang', so reading the key's tail as an EMIS found nothing and every
+     * teacher change there was refused as "not your school". The EMIS reading stays only for a holding written
+     * without a school_id (production, 18 Nov: none outside the test:* fixtures; where both exist they agree).
+     */
     async myschool(leaderUserId, schoolExtId) {
       const { data: mine } = await supabase.from('leader_schools')
-        .select('school_ext_id').eq('leader_user_id', leaderUserId)
+        .select('school_ext_id, school_id').eq('leader_user_id', leaderUserId)
         .eq('school_ext_id', schoolExtId).limit(1);
       if (!mine || !mine[0]) return null;
-      const emis = String(schoolExtId).split(':').pop();
-      const { data: s } = await supabase.from('schools')
-        .select('id, name, emis, region, is_probable_test').eq('emis', emis).limit(1);
+      const cols = 'id, name, emis, region, is_probable_test';
+      const { data: s } = mine[0].school_id
+        ? await supabase.from('schools').select(cols).eq('id', mine[0].school_id).limit(1)
+        : await supabase.from('schools').select(cols).eq('emis', String(schoolExtId).split(':').pop()).limit(1);
       if (!s || !s[0]) return null;
       return {
         school_ext_id: schoolExtId, school_id: s[0].id,
-        school_name: s[0].name, emis: String(s[0].emis),
+        school_name: s[0].name, emis: _emisOrNull(s[0].emis),
         region: s[0].region || null, is_probable_test: s[0].is_probable_test === true,
       };
     },
 
+    /**
+     * Where a person is now, for the confirm and the audit. A school with no EMIS is named by the key a coach holds
+     * it under (the same rule as school-key.schoolKeyOf), never 'niete:null'; null when nobody holds it.
+     */
     async schoolOf(schoolId) {
       if (!schoolId) return null;
       const { data } = await supabase.from('schools').select('id, name, emis').eq('id', schoolId).limit(1);
       if (!data || !data[0]) return null;
-      return {
-        school_id: data[0].id, school_name: data[0].name,
-        emis: String(data[0].emis), school_ext_id: `niete:${data[0].emis}`,
-      };
+      const emis = _emisOrNull(data[0].emis);
+      let key = emis ? `niete:${emis}` : null;
+      if (!key) {
+        const { data: held } = await supabase.from('leader_schools')
+          .select('school_ext_id').eq('school_id', schoolId).limit(1);
+        key = (held && held[0] && held[0].school_ext_id) || null;
+      }
+      return { school_id: data[0].id, school_name: data[0].name, emis, school_ext_id: key };
     },
 
     async userByPhone(phone) {
