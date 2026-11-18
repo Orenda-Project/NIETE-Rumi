@@ -1017,7 +1017,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(auto.el.querySelector('.sae-screen.sae-pick')).not.toBeNull();
       expect(auto.el.querySelector('.is-coach-led')).toBeNull();
     });
-    test('coach-led: the coach\'s Next sits in the head row (its place held before it is offered), never at the foot; RDF auto keeps it at the foot', async () => {
+    test('both modes: Next sits in the head row (its place held before it is offered, nothing hit-testable there), never at the foot; the head carries no second replay', async () => {
       const at = (m) => m.el.querySelector('.sa-next');
       for (const manual of [true, false]) {
         let clock = 1000;
@@ -1026,7 +1026,11 @@ maybe('sa-ui: the letter-sound picker screens', () => {
         await wait(30); // the item's clip ended: the item clock starts
         m.view.render();
         expect(at(m)).toBeNull();
-        if (manual) expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).not.toBeNull();
+        expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).not.toBeNull();
+        expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot').tagName).toBe('SPAN'); // no button before the offer: nothing to mis-tap
+        expect(m.el.querySelector('.sae-pick-head .sae-replay')).toBeNull(); // the child's replay is the big pill under the cards
+        expect(m.el.querySelectorAll('.sae-pick-replay')).toHaveLength(1);
+        expect(m.el.querySelector('.sae-foot')).toBeNull();
         clock += 31000; // past Next in both modes (15 s coach-led, 30 s RDF auto); the auto replay already played
         m.r.tick();
         await wait(30);
@@ -1034,16 +1038,11 @@ maybe('sa-ui: the letter-sound picker screens', () => {
         m.view.render();
         expect(m.r.view().offer_next).toBe(true);
         expect(at(m)).not.toBeNull();
-        if (manual) {
-          expect(at(m).closest('.sae-pick-head')).not.toBeNull();
-          expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
-          expect(m.el.querySelector('.sae-foot')).toBeNull();
-          at(m).click();
-          expect(m.r.view().item_index).toBe(1);
-        } else {
-          expect(at(m).closest('.sae-foot')).not.toBeNull();
-          expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
-        }
+        expect(at(m).closest('.sae-pick-head')).not.toBeNull();
+        expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
+        expect(m.el.querySelector('.sae-foot')).toBeNull();
+        at(m).click();
+        expect(m.r.view().item_index).toBe(1); // Next moves on (a skip) in both modes
       }
     });
   });
