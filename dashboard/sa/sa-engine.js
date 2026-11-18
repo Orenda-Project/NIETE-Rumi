@@ -166,6 +166,11 @@
           silence_in_a_row: silenceStop,
           // Round 20 (battery.ui.r20_auto_end_section): the coach's End this section in RDF auto too
           auto_end_section: w3.r20_auto_end_section === true,
+          // Round 28 (battery.ui.r28_ceiling): a timed grid runs past today's first N items until the clock ends; the
+          // runner's final-cell rule (a cell shown under 500 ms at time-up is presented, not attempted) rides it.
+          ceiling: w3.r28_ceiling === true,
+          // Round 28, E-3 (battery.ui.r28_story_clock): the passage's time used ends at Done, not at the last-word tap.
+          story_clock: w3.r28_story_clock === true,
           silence_repeat: silenceRepeat });
         var vo = { lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
           // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)
@@ -289,6 +294,8 @@
         }
         var view = ui.mount(opts.mount, {
           runner: runner, battery: battery, lang: lang, mode: mode, speak: voice.speak,
+          // round 28 (A-13, B-17): the picker and the MCQ warm their clips at task entry through the voice's preload
+          preload: typeof voice.preload === 'function' ? voice.preload : null,
           check_words: battery.check_words || null,
           onState: function (v) { fire('state', v); },
           onFeedback: function (f) { fire('practice_feedback', f); },
@@ -320,6 +327,9 @@
           coach_last_word: w3.coach_last_word === true, lastWordHint: lastWordHint, auto_child_last_word: w3.auto_child_last_word === true,
           app_asks: manual && w3.app_asks === true,
           ur_fit: w3.ur_fit === true,
+          // Round 28 (battery.ui.r28_*): the listen-and-tap letter sounds, the spoken MCQ and the ceiling; a task of
+          // kind 'pick' or 'mcq' is only in a served battery while its switch is ON (sa-battery-switches.js).
+          r28: { letter_pick: w3.r28_letter_pick === true, mcq: w3.r28_mcq === true, ceiling: w3.r28_ceiling === true },
           embed: opts.embed === true,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];

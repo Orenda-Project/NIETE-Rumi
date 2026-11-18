@@ -7,9 +7,10 @@ import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY, DASH_CWPM } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
-import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents, withPractice } from '../lib/assess/realCohort';
+import { masked, NO_SECTOR, pktWhen, secondVoiceCount, secondVoiceKindCount, tapBeforeSoundOf, toDashStudents, withPractice } from '../lib/assess/realCohort';
+import { fmtFloor, tapFloors, TAP_CARE_ABOVE } from '../lib/assess/guessFloor';
 import type { SaDashboardSession } from '../types/childTestSa';
-import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
+import { applyFilter, cohortTapOf, groupBy, headline, ORF_BANDS, summariseTask, type ComprehensionByForm, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 import { COPY } from '../lib/assess/copy';
 import { hasLevels, subjectsIn, typicalLevel } from '../lib/assess/levels';
@@ -113,6 +114,8 @@ export default function LeaderAssessDashboard() {
   const h = useMemo(() => headline(rows), [rows]);
   const groups = useMemo(() => groupBy(rows, filter.sector ? 'school' : 'sector'), [rows, filter.sector]);
   const voices = useMemo(() => (isLive ? secondVoiceCount(rows) : 0), [isLive, rows]);
+  // round 28: the footnote rides only rows the round-28 check scored (the kind is set), never today's boolean flag
+  const voiceKinds = useMemo(() => (isLive ? secondVoiceKindCount(rows) : 0), [isLive, rows]);
   // round 20 (server switch sa_r20_level): a Level column per subject, only when the sessions carry level lines
   const levelSubjects = useMemo(() => (isLive && hasLevels(cohort.map((s) => s.results)) ? subjectsIn(cohort.map((s) => s.results)) : []), [isLive, cohort]);
   const levelWords = COPY[lang].results.level.words;
@@ -277,6 +280,25 @@ export default function LeaderAssessDashboard() {
     </div>
   );
 
+  // round 28 (SPEC F): beside a tapped share, the share of children who reach its rung by guessing alone; on the picker
+  // card also the cohort's taps before the sound, with a warning above 10%. Text only: no score reads them.
+  const tappedLines = (spec: TaskSpec) => {
+    const optionsN = rows.map((st) => st.results.tasks.find((t) => t.taskId === spec.taskId)?.optionsN).find((x) => typeof x === 'number');
+    // read at the cohort's modal `of` (the items most rated children had), with how many children had fewer
+    const co = cohortTapOf(rows, spec);
+    const floors = tapFloors(spec.taskId, optionsN, co ? co.of : null);
+    if (!floors) return null;
+    const before = /\.letter_pick10$/.test(spec.taskId) ? tapBeforeSoundOf(rows, spec.taskId) : null;
+    return (
+      <>
+        <p data-testid="dash-guess-floor" className="mt-2 text-xs text-slate-600">{c.guessFloor(floors.map((f) => ({ pct: num(fmtFloor(f.share)), k: num(f.k), n: num(f.n) })))}</p>
+        {co && co.fewer > 0 ? <p data-testid="dash-floor-fewer" className="text-xs text-slate-600">{c.floorFewer(co.fewer, num(co.fewer))}</p> : null}
+        {before ? <p data-testid="dash-tap-before" className="text-xs text-slate-600">{c.tapBefore(pct(before.n / before.of))}</p> : null}
+        {before && before.n / before.of > TAP_CARE_ABOVE ? <p data-testid="dash-tap-care" role="note" className="text-xs font-semibold text-amber-800">{c.tapCare}</p> : null}
+      </>
+    );
+  };
+
   const taskCard = (spec: TaskSpec) => {
     const s = summariseTask(rows, spec);
     const rate = spec.kind === 'passage' || spec.kind === 'fluency';
@@ -291,6 +313,7 @@ export default function LeaderAssessDashboard() {
           {s.benchmarkShare === null ? null : <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>}
         </dl>
         {distribution(spec, s.distribution, s.n)}
+        {tappedLines(spec)}
         </>)}
         {spec.kind === 'passage' ? rwpReference(spec.domain as ReadLang) : null}
         <p data-testid="dash-rule" className="mt-2 text-xs text-slate-500">{c.rules[ruleOf(spec)]}</p>
@@ -429,7 +452,12 @@ export default function LeaderAssessDashboard() {
     );
   } else {
     const hideAll = hide(h.n);
-    const readTasks = TASKS.filter((t) => t.domain === read);
+    // round 28 (SPEC F): reading with comprehension per form; both forms in view → both numbers, labelled, never pooled
+    const rwcH = h.readingWithComprehension[read];
+    const rwcBoth = rwcH.spoken !== null && rwcH.tapped !== null;
+    const rwcOne = (x: ComprehensionByForm) => (x.spoken !== null ? x.spoken : x.tapped);
+    // round 28: a live-only task (example: false) has a card only when some session in view has a score for it
+    const readTasks = TASKS.filter((t) => t.domain === read && (t.example !== false || summariseTask(rows, t).n > 0));
     const mathsTasks = TASKS.filter((t) => t.domain === 'ma');
     body = (
       <div className="space-y-5">
@@ -437,7 +465,7 @@ export default function LeaderAssessDashboard() {
           ? <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(cohort.length))}</p>
           : <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>}
         {isLive ? practiceToggle : null}
-        {voices > 0 && <p data-testid="dash-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.secondVoice(count(voices), count(rows.length))}</p>}
+        {voices > 0 && <p data-testid="dash-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.secondVoice(count(voices), count(rows.length))}{voiceKinds > 0 && <span data-testid="dash-voice-note" className="mt-1 block text-xs">{c.voiceNote}</span>}</p>}
 
         <section aria-label={c.filters} className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -487,7 +515,16 @@ export default function LeaderAssessDashboard() {
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {tile('dash-total', c.students, hideAll ? c.fewer : count(h.n))}
-          {tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : pct(h.readingWithComprehension[read]), hideAll ? c.masked : c.rwcHint)}
+          {rwcBoth && !hideAll ? (
+            <div data-testid="dash-rwc" className="rounded-2xl border border-slate-200 bg-white p-3">
+              <p className="text-xs text-slate-600">{`${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`}</p>
+              <div className="flex flex-wrap gap-x-4">
+                <p data-testid="dash-rwc-spoken"><span className="block text-xs text-slate-600">{c.rwcSpoken}</span><span className="text-2xl font-bold text-slate-900">{pct(rwcH.spoken)}</span></p>
+                <p data-testid="dash-rwc-tapped"><span className="block text-xs text-slate-600">{c.rwcTapped}</span><span className="text-2xl font-bold text-slate-900">{pct(rwcH.tapped)}</span></p>
+              </div>
+              <p className="text-xs text-slate-500">{c.rwcHint}</p>
+            </div>
+          ) : tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : pct(rwcOne(rwcH)), hideAll ? c.masked : (rwcH.spoken === null && rwcH.tapped !== null ? `${c.rwcHint} · ${c.rwcTapped}` : c.rwcHint))}
           {tile('dash-orf', `${c.orf} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : one(h.orfMedian[read]), hideAll ? undefined : c.orfZero(pct(h.orfZero[read])))}
           {tile('dash-maths', c.maths, hideAll ? '–' : pct(h.mathsAllMet), hideAll ? undefined : c.mathsHint)}
           {tile('dash-minutes', c.minutes, hideAll ? '–' : one(h.minutesMedian))}
@@ -525,7 +562,7 @@ export default function LeaderAssessDashboard() {
                   >
                     <td className="py-2 pe-1 text-slate-900">{filter.sector ? g.label.replace('Example school ', '') : sectorName(g.label)}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? c.fewer : count(g.n)}</td>
-                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.readingWithComprehension[read])}</td>
+                    <td data-testid="dash-group-rwc" className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : rwcBoth ? `${c.rwcSpoken} ${pct(g.h.readingWithComprehension[read].spoken)} · ${c.rwcTapped} ${pct(g.h.readingWithComprehension[read].tapped)}` : pct(rwcOne(g.h.readingWithComprehension[read]))}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : one(g.h.orfMedian[read])}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.orfZero[read])}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.mathsAllMet)}</td>

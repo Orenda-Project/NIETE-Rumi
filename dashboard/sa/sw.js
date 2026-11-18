@@ -85,7 +85,7 @@ var CORE = 'sa-core-' + VERSION;
 // while their switches are OFF), so a phone takes the new files.
 // v23: round 28's letter-sound prompts re-picked under their keys (each sound heard right on repeated listens and
 // through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
-var SESSION = 'sa-session-v24';
+var SESSION = 'sa-session-v25';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

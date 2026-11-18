@@ -317,10 +317,17 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-foot{position:static}
 .is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-passage.is-pick{max-height:none;overflow:visible}
 /* the sync dot (top corner, 8 + 12 px) sits over the page: the scrolling body starts below it, so a heading scrolled up never passes under it */
-.sae.is-ur-fit[lang=ur]:has(>.sae-sync) .sae-screen,.sae.is-ur-fit[lang=en]:has(>.sae-sync):has(.sae-screen [lang=ur]) .sae-screen{padding-top:24px}
+.sae.is-ur-fit[lang=ur]:has(>.sae-sync) .sae-screen:not(.sae-pick),.sae.is-ur-fit[lang=en]:has(>.sae-sync):has(.sae-screen [lang=ur]) .sae-screen:not(.sae-pick){padding-top:24px}
 /* in the coach page's frame (embed=1) the coach's corner hold, «جائزہ ختم (کوچ)», sits over the top of the frame (8 + 48 px):
-   the scrolling body starts below it, so a heading or a line of the coach's script scrolled up never runs under it */
-.sae.is-ur-fit.is-embed[lang=ur] .sae-screen,.sae.is-ur-fit.is-embed[lang=en]:has(.sae-screen [lang=ur]) .sae-screen{padding-top:64px}
+   the scrolling body starts below it, so a heading or a line of the coach's script scrolled up never runs under it
+   (round 28: this rule and the sync rule above are not on the letter picker, .sae-pick: its screens keep their own
+   measured top in every frame by rule, not by the order of the rules; the coach page's corner hold over the picker's
+   top bar is read in the picker's layout test) */
+.sae.is-ur-fit.is-embed[lang=ur] .sae-screen:not(.sae-pick),.sae.is-ur-fit.is-embed[lang=en]:has(.sae-screen [lang=ur]) .sae-screen:not(.sae-pick){padding-top:64px}
+/* round 28's coach-led screens (the spoken MCQ, the brief of a round-28 task, is-r28-brief) take the frame's room by the frame alone, in either
+   language: an English screen with no Urdu element on it (offline: no language toggle) is under the same corner hold */
+.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-mcq,.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-coach-brief.is-r28-brief{padding-top:24px}
+.sae.is-ur-fit.is-embed .sae-screen.sae-mcq,.sae.is-ur-fit.is-embed .sae-screen.sae-coach-brief.is-r28-brief{padding-top:64px}
 /* a passage's words as tiles (tap the word), a picture's caption, an Urdu sentence on a demo card */
 .is-ur-fit .sae-passage.is-pick[lang=ur] .sae-word{line-height:2;padding:1.3em .7em .4em}
 .is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}
@@ -572,3 +579,300 @@ button{font:inherit;color:inherit}
    down so the taller pill covers no more of the screen than it must. */
 @media (max-width:699px){.sae.is-r10-urfit.is-r9-scroll[lang=ur] .sae-r9-scroll{font-size:16px}}
 /* end round 10 layout 1 */
+
+/* ---- round 28: letter-sound picker (.sae-pick) ---- */
+/* Five cards of ONE size: phone 2 + 3 on a six-column grid (no card spans a row), tablet one row of five. The letter
+   only; the replay is a pill of its own colour under the cards, never in the grid. */
+.sae-screen.sae-pick .sae-body{justify-content:flex-start;gap:10px}
+.sae-pick-cards{width:100%}
+.sae-pick-head{gap:12px;flex-wrap:nowrap}
+.sae-pick-head .sae-task-tag{margin:0}
+.sae-pick .sae-fb.is-empty{display:none}
+.sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;width:100%}
+.sae .sae-pick-cards .sae-opts .sae-opt,.sae .sae-pick-cards .sae-opts.is-five .sae-opt:last-child{grid-column:span 2;min-height:0;height:clamp(104px,30vw,132px);padding:0;font-size:clamp(48px,14vw,60px);line-height:1.2;font-weight:700;overflow:visible}
+.sae .sae-pick-cards .sae-opts .sae-opt[lang=ur],.sae .sae-pick-cards .sae-opts .sae-opt.is-short[lang=ur]{font-size:clamp(56px,16vw,64px);font-weight:400;line-height:1.2;padding:0}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(1){grid-row:1;grid-column:2 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(2){grid-row:1;grid-column:4 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(3){grid-row:2;grid-column:1 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(4){grid-row:2;grid-column:3 / span 2}
+.sae .sae-pick-cards .sae-opts .sae-opt:nth-child(5){grid-row:2;grid-column:5 / span 2}
+.sae .sae-pick-cards .sae-opt.is-model{position:relative;border-color:var(--sae-accent);box-shadow:0 0 0 6px var(--sae-accent-l),0 0 22px 4px var(--sae-accent);color:var(--sae-ink)}
+.sae .sae-pick-cards .sae-opt.is-model::after{content:"👆";position:absolute;bottom:-18px;inset-inline-end:-8px;font-size:30px;line-height:1;font-family:var(--sae-f)}
+.sae .sae-pick-cards .sae-opt.is-dim{opacity:.35;box-shadow:none}
+.sae-pick-replay{display:grid;place-items:center;width:50%;min-width:168px;max-width:280px;min-height:72px;margin:32px auto 0;border-radius:999px;border:3px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:36px;line-height:1;cursor:pointer;box-shadow:0 4px 0 var(--sae-accent-d);font-family:var(--sae-f)}
+.sae-pick-replay:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-accent-d)}
+.sae-pick-replay:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+/* coach-led (lead ruling A.6): the coach's line sits tight on the fold, so the five cards and the replay pill (32 px
+   below them, A.3) still fit a 360x640 phone without scrolling */
+.sae-pick .sae-pick-coach-line{margin:0 0 -6px;padding:3px 10px;font-size:15px;line-height:1.6}
+.sae-pick details.sae-pick-coach{padding:4px 12px}
+/* round 28, A4 (r28_letter_pick; .is-coach-led = the coach-led picker screens). (1) A Nastaliq letter's text box runs
+   well past its card (fitInk moves the ink to the card's middle), so the letter never takes a tap: a tap lands on the
+   card's own box, never on the fold above it or on a card of the other row. (2) Every coach state keeps the five cards
+   and the replay pill where they are: the open fold shows the sound -> letter on its own row (laid over the fold, a tap
+   on it still folds it), and the coach's Next sits in the head row in a place held for it. (3) The phone fits with the
+   real font and the served two-line title: tighter gaps, a smaller Jugnu and title; the cards and the replay pill keep
+   RDF auto's sizes (A.3). The tablet keeps its sizes; its fold sits 24 px clear of the cards' ink. */
+.sae .sae-pick-cards .sae-opt .sae-ink{pointer-events:none}
+.sae-pick.is-coach-led details.sae-pick-coach{position:relative;min-height:44px;box-sizing:border-box}
+.sae-pick.is-coach-led details.sae-pick-coach>.sae-coach-line{position:absolute;top:0;bottom:0;inset-inline-end:16px;max-width:calc(100% - 120px);margin:0;padding:0;display:flex;align-items:center;font-size:22px;line-height:1.2;white-space:nowrap;pointer-events:none}
+.sae-pick.is-coach-led .sae-pick-head .sa-next,.sae-pick.is-coach-led .sae-pick-head .sae-pick-next-slot{flex:0 0 auto;box-sizing:border-box;width:96px;max-width:96px;min-height:56px;margin:0;padding:0 10px;font-size:20px}
+.sae-pick.is-coach-led .sae-pick-head .sae-pick-next-slot{display:block;visibility:hidden}
+@media (max-width:699px){
+  .sae-screen.sae-pick.is-coach-led .sae-body{gap:8px}
+  .sae-pick.is-coach-led .sae-pick-head{gap:8px}
+  .sae-pick.is-coach-led .sae-pick-head .sae-jugnu-s{width:64px;height:64px}
+  .sae-pick.is-coach-led .sae-pick-head .sae-task-tag{font-size:16px}
+}
+@media (min-width:700px){
+  .sae-pick.is-coach-led details.sae-pick-coach{margin-bottom:24px}
+}
+/* end round 28, A4 */
+/* round 28, A5 (r28_letter_pick, coach-led; lead ruling A.6): on a live item the open fold never shows the target
+   letter; it carries the coach's replay, laid on the fold's own row like the practice item's sound -> letter, so
+   opening it moves nothing. The open fold is modal (sa-ui.js): this button closes it, then the sound plays. */
+.sae-pick.is-coach-led details.sae-pick-coach>.sae-pick-coach-replay{position:absolute;top:0;bottom:0;inset-inline-end:12px;box-sizing:border-box;width:64px;height:44px;margin:auto 0;padding:0;display:grid;place-items:center;border-radius:999px;border:2px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:22px;line-height:1;cursor:pointer;font-family:var(--sae-f)}
+/* The phone with the production Urdu layout switches (ur_fit: line-height 3 + ink padding on the title, the coach line
+   and the fold's label; r9's scroll cue once the body overflows): measured on the served title, the five cards and the
+   replay pill fell below a 360x640 screen behind the scroll cue. Tighter line boxes on those three (the ink padding
+   r10_urdu_fit adds stays, so no ink is cut) and 6 px gaps make every coach state fit. Coach-led Urdu phone only. */
+@media (max-width:699px){
+  .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led .sae-body{gap:6px}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-head .sae-task-tag{line-height:2;padding-top:.35em;padding-bottom:0}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-coach-line{padding:0 calc(10px + .6em)}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach{padding:0 calc(12px + .6em)}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach>summary{line-height:1.8;padding-top:.25em;padding-bottom:0}
+}
+/* end round 28, A5 */
+/* round 28, A6 (r28_letter_pick, coach-led, the Urdu phone with the production layout switches): the coach's line
+   («آواز جگنو بولے گا۔ …», two lines at 15 px) keeps whole lines. Measured by ink (2x, luminance < 120): at line-height
+   1.6 the first line's descenders ran 10.5 px into the second line's ink and the last line's ink ran 7.4 px below the
+   line's box, 4.4 px of it under the fold. Line-height 2.5 gives the two lines 3.5 px of clear ink between them, 2 px of
+   padding keeps the last line inside the box, and the line no longer tucks under the fold (no negative margin). The
+   ~34 px this takes comes from the screen's own gaps (top/bottom padding, the top bar's gap, the body's padding and
+   gaps); the cards, the replay pill and its 32 px stay as they are. */
+@media (max-width:699px){
+  .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led{padding-top:6px;padding-bottom:8px;gap:4px}
+  .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led .sae-body{gap:5px;padding-top:4px;padding-bottom:4px}
+  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-coach-line{margin-bottom:0;line-height:2.5;padding:0 calc(10px + .6em) 2px}
+}
+/* end round 28, A6 */
+/* round 28, A7 (r28_letter_pick, coach-led practice on a phone): with the production layout switches the Urdu modelled
+   example (the model card lit, its own Next pill below) scrolled 73 px inside the screen behind r9's scroll cue, two of
+   the five cards reachable, and a practice answer's feedback line, laid under the replay pill, pushed every language past
+   the screen. The feedback line now sits in the head row beside the chip (sa-ui.js), one line, so it comes and goes
+   without moving the cards or the pill; the head keeps Jugnu's 64 px. The Urdu chip's line box and the practice
+   screen's gaps (the body's, the foot's top) give the modelled example its room. The cards, the replay pill and its
+   32 px, the Next pill and the fold («لَ → ل») are as they were. Coach-led practice screens only. */
+@media (max-width:699px){
+  .sae-practice.sae-pick.is-coach-led .sae-pick-head{height:64px;gap:4px}
+  .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-chip{padding-inline:10px}
+  .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-fb{flex:0 0 auto;min-height:0;max-height:64px;box-sizing:border-box;margin:0;padding:2px 8px;font-size:15px;line-height:1.3;white-space:nowrap}
+  .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-fb{line-height:2;padding-top:0;padding-bottom:0}
+  .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-chip{line-height:2;padding-top:.3em;padding-bottom:0}
+  .is-ur-fit[lang=ur] .sae-screen.sae-practice.sae-pick.is-coach-led .sae-body{gap:3px}
+  .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-foot{padding-top:2px}
+}
+/* end round 28, A7 */
+/* round 28, A8 (r28_letter_pick with r9_skip_instructions, coach-led practice on a phone): the coach's Skip («ہدایات
+   چھوڑیں» / "Skip instructions") is served on the practice screens, in the head row with Jugnu and the chip. In Urdu it
+   wrapped to two 20 px lines, a 97 px box spilling 17 px above and below the 64 px row onto the coach line, and Jugnu
+   was squeezed. The Skip is now one line (its served 20 px Urdu / 18 px English, its label as served, no ellipsis) in a 56 px box
+   inside the row, the chip's inline padding 8 px, Jugnu keeps 64 px; in the try-again window the
+   Skip is not drawn and the feedback line takes the chip's slot (sa-ui.js). The cards, the replay pill, the Next pill and
+   the fold are as A7 left them. */
+@media (max-width:699px){
+  .sae.is-r9-skip .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-jugnu-s{flex:none;width:64px;height:64px}
+  .sae.is-r9-skip .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-chip{padding-inline:8px}
+  .sae.is-r9-skip .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-r9-skip{flex:none;margin:0;box-sizing:border-box;width:auto;height:56px;min-height:0;padding:0 10px;line-height:1.25;white-space:nowrap}
+  .sae.is-r9-skip[lang=ur] .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-r9-skip{line-height:2}
+}
+/* end round 28, A8 */
+/* round 28, A9 (r28_letter_pick, coach-led phone, online): the coach page's frame rules (the sync dot's 24 px, the
+   corner hold's 64 px) are not on the picker (see those rules); and once the other language's battery is on the phone,
+   r8's language toggle (56 px) grew the top bar 44 -> 56, pushing the replay pill to the screen's edge and calling up
+   the round-9 scroll cue over it. Its layout box is 44 here (the 56 px button and its hit area kept, 6 px over the bar
+   above and below, clear of the head row), so the picker reads the same online as offline. */
+@media (max-width:699px){
+  .sae.is-r8-lang .sae-screen.sae-pick.is-coach-led>.sae-top>.sae-r8-lang{margin-block:-6px}
+}
+/* the toggle's Urdu label turns on the English body mode above (an English screen with Urdu on it): its 8 px of block
+   padding pushed the English picker 8 px down and gave its body 8 px of scroll. The picker's body keeps no block padding
+   in that mode, so the English picker reads the same online as offline. */
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-screen.sae-pick .sae-body{padding-block:0}
+/* end round 28, A9 */
+@media (min-width:700px){
+  .sae-screen.sae-pick{max-width:min(94vw,760px)}
+  .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+  .sae .sae-pick-cards .sae-opts .sae-opt,.sae .sae-pick-cards .sae-opts.is-five .sae-opt:last-child,
+  .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(n){grid-row:1;grid-column:auto;height:clamp(120px,17vw,150px);font-size:64px}
+  .sae .sae-pick-cards .sae-opts .sae-opt[lang=ur],.sae .sae-pick-cards .sae-opts .sae-opt.is-short[lang=ur]{font-size:68px}
+  .sae-pick-replay{min-height:88px;font-size:44px}
+}
+/* ---- round 28: spoken MCQ (.sae-mcq) ---- (sa_r28_mcq; sa-ui.js sMcq). Four stacked full-width answer cards, the one
+   Jugnu is reading lit (border + glow), the rest dimmed (.55) while he reads; a held choice lit steady; no letters. At
+   360×640 the question card clamps to two lines (is-clamp) before an answer card ever shrinks. */
+.sae-mcq.sae-screen{gap:6px;padding-top:8px}
+.sae-mcq .sae-body{justify-content:flex-start;gap:8px;align-items:stretch}
+.sae-mcq .sae-task-tag{text-align:center;line-height:1.4}
+.sae-mcq .sae-task-tag:lang(ur){font-size:17px;line-height:1.6}
+.sae-mcq-head{display:flex;align-items:center;justify-content:center;gap:14px}
+.sae-mcq-jugnu{cursor:pointer;transition:transform .2s;width:60px;height:60px;object-fit:contain}
+.sae-mcq-jugnu.is-talking{transform:scale(1.06)}
+.sae-mcq-replay{width:56px;height:56px;min-width:56px;min-height:56px}
+.sae-mcq-replay:disabled{opacity:.4;cursor:default}
+.sae-mcq-q{width:100%;margin:0;padding:10px 14px;border-radius:var(--sae-r);background:var(--sae-accent-l);color:var(--sae-ink);font-size:20px;font-weight:700;line-height:1.35;text-align:start}
+.sae-mcq-q[lang=ur]{font-family:var(--sae-fu);font-size:22px;font-weight:400;line-height:1.75;padding-top:4px;padding-bottom:4px}
+.sae-mcq.is-clamp .sae-mcq-q{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.sae-mcq-passage{width:100%;margin:0;padding:8px 12px;border-radius:14px;background:var(--sae-card);border:2px dashed var(--sae-line);font-size:17px;line-height:1.4;text-align:start}
+.sae-mcq-passage[lang=ur]{font-family:var(--sae-fu);line-height:2}
+.sae-mcq-opts{display:flex;flex-direction:column;gap:8px;width:100%}
+.sae-mcq-opt{display:flex;align-items:center;width:100%;min-height:56px;padding:6px 16px;border-radius:16px;border:3px solid var(--sae-line);background:var(--sae-card);color:var(--sae-ink);font-family:var(--sae-f);font-size:19px;font-weight:600;line-height:1.3;text-align:start;cursor:pointer;box-shadow:0 3px 0 var(--sae-line);transition:opacity .15s,border-color .15s,box-shadow .15s}
+.sae-mcq-opt[lang=ur]{font-family:var(--sae-fu);font-size:18px;font-weight:400;line-height:1.75;padding-top:0;padding-bottom:0}
+.sae-mcq-opt[dir=rtl]{text-align:right;justify-content:flex-start}
+.sae-mcq-ink{display:block;min-width:0;overflow-wrap:anywhere}
+.sae-mcq-opt.is-waiting{opacity:.55;border-color:transparent;box-shadow:none}
+/* B.3 amended: the held choice is the brightest state. speaking = an outline ring only (no fill, no glow); chosen = the
+   battery's accent fill; speaking + chosen = the fill with the ring. */
+.sae-mcq-opt.is-speaking{opacity:1;border-color:var(--sae-accent);box-shadow:0 0 0 3px var(--sae-accent)}
+.sae-mcq-opt.is-ready{opacity:1}
+.sae-mcq-opt.is-chosen{opacity:1;border-color:var(--sae-ink);background:var(--sae-accent);box-shadow:0 0 0 3px var(--sae-ink)}
+.sae-mcq-opt.is-chosen.is-speaking{background:var(--sae-accent);box-shadow:0 0 0 3px var(--sae-ink),0 0 0 7px var(--sae-accent)}
+.sae-mcq-opt.is-pressed{transform:scale(.97);background:var(--sae-accent)}
+.sae-mcq-opt.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg)}
+.sae-mcq-opt.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg)}
+.sae-mcq-opt:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+.sae-mcq.sae-mcq-listening .sae-mcq-opt{opacity:.55;border-color:transparent;box-shadow:none}
+.sae-mcq-coach{width:100%;text-align:start}
+.sae-mcq-coach-line{width:100%;margin:0;padding:4px 10px;font-size:14px;line-height:1.4;text-align:start}
+.sae-mcq-coach-line[lang=ur]{font-family:var(--sae-fu);font-size:14px;line-height:1.9}
+.sae-mcq-coach-opts{margin:4px 0 0;padding-inline-start:22px}
+@media (min-width:700px){
+  .sae-mcq-q{font-size:26px}
+  .sae-mcq-q[lang=ur]{font-size:30px}
+  .sae-mcq-opt{min-height:72px;font-size:24px}
+  .sae-mcq-opt[lang=ur]{font-size:28px}
+  .sae-mcq-opts{gap:12px}
+}
+/* ---- round 28: spoken MCQ, coach-led on a phone (B.3 coach-led fit, sa_r28_mcq) ----
+   Coach-led only (the screen that carries the coach's fold), so RDF auto is as before; below 700 px only, but for the
+   two rules that place the coach's Next (every width, so it never moves the cards on a tablet either). On a 360x640 phone the four cards (min 56 px, B.3) and the child's replay stay where they are in every coach
+   state on the bank's longest question: the coach's Next sits in the head row beside the replay (sa-ui.js), the fold
+   opens OVER the screen (never pushing the cards), the coach's line and the folded row read as one box in the coach's
+   smaller type (the Nastaliq keeps a line height that holds its ink), the task title keeps to one line, and the
+   question keeps to its two-line clamp from the first draw (Jugnu reads it whole; the fold has it). */
+/* coach-led, every width: the coach's Next at the head row's end edge, centred on it and out of the flow, so its
+   arrival moves neither Jugnu, the replay nor the row's height (so never the cards) */
+.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{position:relative}
+.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{position:absolute;top:50%;inset-inline-end:0;transform:translateY(-50%);box-sizing:border-box;width:auto;min-width:0;max-width:calc(50% - 72px);white-space:nowrap;overflow:hidden}
+@media (max-width:699px){
+  .sae .sae-mcq.sae-screen:has(.sae-mcq-coach){gap:4px;padding-top:4px;padding-bottom:2px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-body{gap:4px}
+  .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{padding-top:0;padding-bottom:8px}
+  .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body>:first-child{margin-top:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:15px;line-height:1.5}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag:lang(ur){line-height:1.9}
+  /* round 6: no task title on the coach-led phone screen (the coach's line names the task and Jugnu says it); its room
+     goes to the Urdu question's top edge and to clear space under the lowest card's ring. RDF auto and the tablet keep it. */
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag{display:none}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{gap:12px;flex-wrap:nowrap;min-height:56px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-jugnu{width:48px;height:48px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{min-height:56px;padding-inline:12px;font-size:20px;line-height:1.5}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line{margin:0 0 -6px;padding:2px 10px 0;font-size:13px;line-height:1.4;border-bottom-width:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{line-height:1.9}
+  .sae .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach{position:relative;padding:0 10px 2px;border-top-width:0;border-top-left-radius:0;border-top-right-radius:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach>summary{font-size:13px;line-height:1.6;padding-top:0}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach>summary{line-height:2.2}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body{position:absolute;top:100%;left:-3px;right:-3px;z-index:5;padding:4px 12px 8px;background:var(--sae-card);border:3px dashed var(--sae-line);border-top-width:0;border-radius:0 0 var(--sae-r) var(--sae-r);box-shadow:0 8px 16px rgba(0,0,0,.18)}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  /* a clamped Latin question: its bottom room is a border in the card's own colour, so a third line never shows through it */
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q:not([lang=ur]){padding-bottom:0;border-bottom:10px solid var(--sae-accent-l)}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:5px}
+}
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 5 (B.3: whole Nastaliq glyphs; the coach's Next) ----
+   Coach-led only (the screen that carries the coach's fold), below 700 px, Urdu only but for the card gap and the
+   Next. (1) The open fold's Urdu answer list: a line pitch that keeps one line's ink off the next on every served set
+   (Nastaliq ink runs ~3x its size), paid for inside the overlay by a smaller question line above it. (2) The Urdu
+   question card: room inside its clip box (padding, not a border) for the descender of its second line and as much of
+   the first line's ascender (round 6: all of it, one line or two, from the hidden task title's room),
+   paid for by the body's gaps and the card gap; a Latin question shows up to three lines (never clipped). (3) The coach's
+   line ends above the fold's box. (4) Every width: the coach's Next in the coach's register (a dashed box, never the
+   child's pill), at the row's end edge over the body's side padding, at least 48 px from the child's replay. */
+.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{inset-inline-end:-8px;max-width:calc(50% - 98px);background:transparent;border:2px dashed var(--sae-line);border-radius:10px;box-shadow:none;color:var(--sae-ink)}
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{padding-inline:6px;font-size:18px}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{font-size:16px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:4px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body>p.sae-coach-line[lang=ur]{font-size:18px;line-height:1.9;padding-top:0;padding-bottom:0;margin:0}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]{line-height:3.5}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q[lang=ur]{padding-top:25px;padding-bottom:13px}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-q:not([lang=ur]){-webkit-line-clamp:3}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{margin:0 0 2px}
+  .sae[lang=ur] .sae-mcq.sae-screen:has(.sae-mcq-coach){gap:0}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{gap:1px}
+  .is-ur-fit[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-body{padding-bottom:3px}
+}
+/* end round 28, round 5 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 7 (B.3: the Urdu coach's line keeps its lines apart) ----
+   Coach-led only, below 700 px, Urdu only. At 13 px a Nastaliq line's ink runs ~3x its size, so the coach's three
+   lines need a pitch of ~2.8 em to keep >= 2 px of ink between them (measured one line at a time). Its side padding
+   sets the line breaks so that no tall stroke of a line sits under a deep descender of the line above; the extra
+   half-leading below the last line keeps that line's ink inside the box, and the fold's row meets it there (the
+   negative bottom margin lands on that empty leading, never on ink). The cards keep >= 8 px under the lowest ring. */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{line-height:2.81;padding:0 22px;margin:-1px 0 -2px}
+}
+/* end round 28, round 7 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 8 (row 30: the coach's Skip instructions in the practice head) ----
+   Coach-led practice only (r9_skip_instructions draws the Skip there; sa-ui.js drops the practice chip when it is drawn),
+   below 700 px. The head row holds Jugnu 48 + the replay 56 + the Skip, which keeps one line at its served font (no
+   shrink, no wrap, the row's own 56 px, the picker head's 10 px sides) and sits >= 24 px from the child's replay
+   (gap 12 + margin 12). */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-r9-skip{flex:none;margin:0;margin-inline-start:12px;height:56px;min-height:56px;padding-inline:10px;white-space:nowrap}
+}
+/* end round 28, round 8 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 9 (row 31: the practice question fits as the scored one) ----
+   Coach-led, below 700 px. The practice passage has its own step (sa-ui.js), so the practice question screen draws as
+   the scored one; two things it carries more are held to the scored screen's bar here. (1) The «مشق» / "Practice" chip,
+   when the MCQ head draws it (no Skip: the frame that names the right card, or a battery without the Skip), takes the
+   row's own 56 px box instead of its 72 px Nastaliq one, so the stem and the cards never move between the practice
+   frames; its one line is centred in that box. (2) The feedback line under the cards (practice only; text only, coach-led): one fixed
+   40 px line, empty or not (nothing moves when it fills), 7 px clear of the lowest card's ring, at the coach-register
+   size the picker's head feedback uses. The Urdu fit's inline block padding is overridden on both (the box holds the ink). */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-chip{box-sizing:border-box;height:56px;max-height:56px;padding-top:0 !important;padding-bottom:0 !important;line-height:56px;flex:none}
+  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
+}
+/* end round 28, round 9 */
+/* round 28, A11 (sa_r28_toggle_fit, the page's .is-r28-toggle-fit; OFF: none of this applies). Once the other language's
+   battery is on the phone, r8's language toggle (a 56 px button) grew the 44 px top bar to 56 on every screen, pushing
+   each screen 12 px down (the missing-number keys past a 568 px phone's foot) and calling up the round-9 cue. (a) Its
+   layout box is 44 on every screen, its 56 px button and hit area kept, centred: 6 px over the bar above and below.
+   (b) A head row that holds a tappable keeps a measured top gap (--sae-a11-g) while the toggle is drawn, so the toggle's
+   hit area and that row's tappables never meet; the gap is per screen class and language, the largest the screen's
+   fit allows up to 24 px edge to edge. */
+.sae.is-r28-toggle-fit.is-r8-lang .sae-top>.sae-r8-lang{margin-block:-6px}
+@media (max-width:699px){
+  .sae.is-r28-toggle-fit .sae-screen.sae-pick:has(>.sae-top>.sae-r8-lang) .sae-pick-head{margin-top:var(--sae-a11-g,0px)}
+  .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-pick:not(.sae-practice):has(>.sae-top>.sae-r8-lang){--sae-a11-g:1px}
+  .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-pick:not(.sae-practice):has(>.sae-top>.sae-r8-lang){--sae-a11-g:8px}
+  .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:16px}
+  .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:20px}
+  .sae.is-r28-toggle-fit .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang) .sae-mcq-head{margin-top:var(--sae-a11-g,0px)}
+}
+/* end round 28, A11 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, rounds 10-11 (row 32: the coach's line on the question frames) ----
+   Coach-led, Urdu, below 700 px. In the coach page's frame (the corner hold's 64 px) with a syncing session's dot a
+   question frame does not hold the coach's three-line line above the fold AND four whole cards, and the open fold does
+   not hold it with the question and four answers without scrolling (round 11: the fold never scrolls; measured on the
+   practice question: 21 px over in the frame, 9 without the language switch). So on every QUESTION frame, practice and
+   scored (`.sae-mcq` but not `.sae-mcq-passage-step`), the full line is not drawn: the fold = question + answers, and its
+   summary «جگنو پوچھے گا — یہ آپ نہ پڑھیں» is the coach's visible line; the folded box gets its top border back. The
+   practice passage step (`.sae-mcq-passage-step`) keeps the full line above the fold, before every question.
+   Every other width and language: nothing changes. */
+@media (max-width:699px){
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach):not(.sae-mcq-passage-step) .sae-body>.sae-mcq-coach-line{display:none}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach):not(.sae-mcq-passage-step) details.sae-mcq-coach{border-top-width:3px;border-top-left-radius:var(--sae-r);border-top-right-radius:var(--sae-r)}
+}
+/* end round 28, rounds 10-11 */

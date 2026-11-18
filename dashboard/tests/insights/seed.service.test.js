@@ -7,9 +7,9 @@ const crosswalk = require('../../data/coachip/crosswalk.json');
 describe('buildSeedRows', () => {
   const rows = seed.buildSeedRows(library, crosswalk);
 
-  test('30 weaknesses, 77 interventions, crosswalk rows only for seeded Ws', () => {
-    expect(rows.weaknesses).toHaveLength(30);
-    expect(rows.interventions).toHaveLength(77);
+  test('32 weaknesses, 81 interventions (round 28: W-LS-T, W-RC-T and their mirrored interventions), crosswalk rows only for seeded Ws', () => {
+    expect(rows.weaknesses).toHaveLength(32);
+    expect(rows.interventions).toHaveLength(81);
     const seeded = new Set(rows.weaknesses.map((w) => w.w_id));
     expect(rows.signals.every((s) => seeded.has(s.w_id))).toBe(true);
     expect(rows.signals.some((s) => s.w_id === 'W-VOICE')).toBe(false);

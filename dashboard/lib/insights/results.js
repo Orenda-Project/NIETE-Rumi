@@ -14,9 +14,13 @@ const BAR_SHARE = 0.5; // "below bar when correct share <= 50%" (W-LN, W-LS, W-F
 const TASKS = [
   { code: 'E3', re: /^(ur|en)\.letter_names/ },
   { code: 'E4', re: /^(ur|en)\.letter_sounds/ },
+  // round 28: the listen-and-tap letter sounds (letter_pick10) and the tapped story questions (story_mcq_w3) are NEW
+  // measures with their own codes and rows (W-LS-T, W-RC-T): never pooled with the old spoken ones (SPEC F).
+  { code: 'E4T', re: /^(ur|en)\.letter_pick/ },
   { code: 'E8', re: /^(ur|en)\.words/ },
   { code: 'E9', re: /^(ur|en)\.nonwords/ },
   { code: 'E11', re: /^(ur|en)\.story_comp/ },
+  { code: 'E11T', re: /^(ur|en)\.story_mcq/ },
   { code: 'E10', re: /^(ur|en)\.story(_w\d+)?$/ },
   { code: 'E14', re: /^(ur|en)\.(spelling|dictation)/ },
   { code: 'M', re: /^ma\./ },
@@ -46,10 +50,12 @@ const below = (res) => res.share <= BAR_SHARE;
 const WS = [
   { w: 'W-LN', langs: ['ur', 'en'], needs: ['E3'], judge: (c) => below(c.E3) },
   { w: 'W-LS', langs: ['en'], gap: ['ur'], needs: ['E4'], judge: (c) => below(c.E4) },
+  { w: 'W-LS-T', langs: ['en'], gap: ['ur'], needs: ['E4T'], judge: (c) => below(c.E4T) }, // round 28: listen and tap
   { w: 'W-FW', langs: ['ur', 'en'], needs: ['E8'], judge: (c) => below(c.E8) },
   { w: 'W-DEC', langs: ['ur', 'en'], needs: ['E9', 'E8'], judge: (c) => below(c.E9) && !below(c.E8) },
   { w: 'W-ORF', langs: ['ur', 'en'], needs: ['E10'], judge: null },
   { w: 'W-RC', langs: ['ur', 'en'], needs: ['E11'], judge: null },
+  { w: 'W-RC-T', langs: ['ur', 'en'], needs: ['E11T'], judge: null }, // round 28: listen and tap
   { w: 'W-SPELL', langs: ['en'], gap: ['ur'], needs: ['E14'], judge: (c) => below(c.E14) },
   { w: 'W-NUM', langs: ['maths'], needs: ['M'], judge: null },
 ];
@@ -135,4 +141,7 @@ function buildResultCells({ sessions, blocks, testAccountIds, term, jobRunId, co
   return rows;
 }
 
-module.exports = { buildResultCells, codeOf };
+/** Every W id this stage can write: each needs a coachip_weaknesses seed row (coachip_result_cells.w_id is its FK). */
+const RESULT_WS = WS.map((s) => s.w);
+
+module.exports = { buildResultCells, codeOf, RESULT_WS };

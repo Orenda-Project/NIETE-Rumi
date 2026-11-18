@@ -522,6 +522,16 @@
    "crosswalk_version": "xw-1.0"
   },
   {
+   "w_id": "W-LS-T",
+   "source": "egra",
+   "indicator_id": "E4T",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "share correct <= 50% (EN only; UR not measured)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
    "w_id": "W-FW",
    "source": "egra",
    "indicator_id": "E8",
@@ -558,6 +568,16 @@
    "scale_min": null,
    "scale_max": null,
    "hit_rule": "E11 low AND E10 cwpm >= bar (once graded)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-RC-T",
+   "source": "egra",
+   "indicator_id": "E11T",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "E11T low AND E10 cwpm >= bar (once graded)",
    "role": "primary",
    "crosswalk_version": "xw-1.0"
   },

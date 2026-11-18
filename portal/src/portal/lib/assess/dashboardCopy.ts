@@ -11,6 +11,7 @@ const en = {
   banner: 'Example data: 1,000 made-up students, not real children. After the school visit, real results will show here in the same layout.',
   live: (n: string) => `Live data: ${n} sessions. A group of fewer than 5 children shows <5 and no numbers.`,
   secondVoice: (n: string, of: string) => `Another person's voice was heard in recordings of ${n} of ${of} sessions. Their scores may include help from someone else: check them on each child's Results before relying on these numbers.`,
+  voiceNote: "A second child reading along is not yet caught.",
   loadFailed: 'Could not load the results. Please try again.',
   empty: 'No child has finished an assessment yet. Results show here as soon as one does.',
   masked: 'Fewer than 5 children: the numbers are hidden.',
@@ -20,6 +21,17 @@ const en = {
   students: 'Students',
   rwc: 'Read with comprehension',
   rwcHint: '80% or more of the passage questions right',
+  // round 28 (SPEC F): the headline per form when a cohort has both; never one pooled share
+  rwcSpoken: 'spoken',
+  rwcTapped: 'listen and tap',
+  // round 28: the guessing floor beside a tapped share (binomial, computed in guessFloor.ts), text only
+  guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
+    ? `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n} (${f[1].pct} reach ${f[1].k} of ${f[1].n}).`
+    : `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n}.`),
+  // round 28: the cohort's floor is read at its modal count; how many rated children heard fewer items
+  floorFewer: (k: number, n: string) => (k === 1 ? `${n} child heard fewer items` : `${n} children heard fewer items`),
+  tapBefore: (pct: string) => `Taps before the sound: ${pct} of items`,
+  tapCare: 'read with care',
   orf: 'Words per minute (median)',
   orfZero: (pct: string) => `${pct} read no word`,
   maths: 'Maths: every subtask met',
@@ -72,6 +84,9 @@ const en = {
     'ur.story_w3': 'Passage reading', 'ur.story_comp_w3': 'Reading comprehension',
     'en.letter_names5': 'Letter names', 'en.letter_sounds5': 'Letter sounds', 'en.words4': 'Familiar words',
     'en.story_w3': 'Passage reading', 'en.story_comp_w3': 'Reading comprehension',
+    // round 28: the new tapped tasks carry the distinguishing title; the old titles above stay byte for byte
+    'ur.letter_pick10': 'Letter sounds (listen and tap)', 'en.letter_pick10': 'Letter sounds (listen and tap)',
+    'ur.story_mcq_w3': 'Story questions (listen and tap)', 'en.story_mcq_w3': 'Story questions (listen and tap)',
     'ma.number_id8': 'Number identification', 'ma.discrimination2': 'Quantity comparison', 'ma.missing4': 'Missing number',
     'ma.add2i': 'Addition', 'ma.sub2i': 'Subtraction', 'ma.mul2i': 'Multiplication', 'ma.fluency1m': 'Mental maths, 1 minute',
   } as Record<string, string>,
@@ -137,6 +152,7 @@ const ur: DashCopy = {
   banner: 'مثالی ڈیٹا: ⁦۱,۰۰۰⁩ فرضی طلبہ، اصل بچے نہیں۔ اسکول کے دورے کے بعد اصل نتائج اسی ترتیب میں یہاں نظر آئیں گے۔',
   live: (n: string) => `اصل ڈیٹا: ${n} سیشن۔ ⁦۵⁩ سے کم بچوں کے گروپ میں صرف ⁦<۵⁩ لکھا آتا ہے، نمبر نہیں۔`,
   secondVoice: (n: string, of: string) => `${of} میں سے ${n} سیشنز کی ریکارڈنگ میں کسی اور کی آواز بھی سنی گئی۔ ان کے نمبروں میں کسی اور کی مدد شامل ہو سکتی ہے: ان نمبروں پر بھروسا کرنے سے پہلے ہر بچے کے نتائج میں دیکھیں۔`,
+  voiceNote: "ساتھ پڑھنے والا دوسرا بچہ ابھی پکڑا نہیں جاتا۔",
   loadFailed: 'نتائج لوڈ نہیں ہو سکے۔ دوبارہ کوشش کریں۔',
   empty: 'ابھی کسی بچے نے جائزہ مکمل نہیں کیا۔ جیسے ہی کوئی مکمل کرے گا، نتائج یہاں نظر آئیں گے۔',
   masked: '⁦۵⁩ سے کم بچے: نمبر چھپا دیے گئے ہیں۔',
@@ -146,6 +162,14 @@ const ur: DashCopy = {
   students: 'طلبہ',
   rwc: 'سمجھ کر پڑھنے والے',
   rwcHint: 'عبارت کے ⁦۸۰⁩٪ یا زیادہ سوال درست',
+  rwcSpoken: 'بول کر',
+  rwcTapped: 'سن کر چُنیں',
+  guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
+    ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
+    : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),
+  floorFewer: (k: number, n: string) => (k === 1 ? `${n} بچے نے کم آئٹمز سنے` : `${n} بچوں نے کم آئٹمز سنے`),
+  tapBefore: (pct: string) => `آواز سے پہلے ٹیپ: ${pct} آئٹمز`,
+  tapCare: 'احتیاط سے پڑھیں',
   orf: 'فی منٹ الفاظ (درمیانی)',
   orfZero: (pct: string) => `${pct} ایک لفظ بھی نہ پڑھ سکے`,
   maths: 'ریاضی: ہر حصے میں معیار پورا',
@@ -197,6 +221,8 @@ const ur: DashCopy = {
     'ur.story_w3': 'عبارت پڑھنا', 'ur.story_comp_w3': 'عبارت کی سمجھ',
     'en.letter_names5': 'حروف کے نام', 'en.letter_sounds5': 'حروف کی آوازیں', 'en.words4': 'جانے پہچانے الفاظ',
     'en.story_w3': 'عبارت پڑھنا', 'en.story_comp_w3': 'عبارت کی سمجھ',
+    'ur.letter_pick10': 'حروف کی آوازیں (سن کر چُنیں)', 'en.letter_pick10': 'حروف کی آوازیں (سن کر چُنیں)',
+    'ur.story_mcq_w3': 'کہانی کے سوال (سن کر چُنیں)', 'en.story_mcq_w3': 'کہانی کے سوال (سن کر چُنیں)',
     'ma.number_id8': 'اعداد کی پہچان', 'ma.discrimination2': 'مقدار کا موازنہ', 'ma.missing4': 'غائب عدد',
     'ma.add2i': 'جمع', 'ma.sub2i': 'تفریق', 'ma.mul2i': 'ضرب', 'ma.fluency1m': 'زبانی حساب، ایک منٹ',
   },
