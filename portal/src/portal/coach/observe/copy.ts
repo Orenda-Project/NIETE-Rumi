@@ -327,9 +327,11 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
 
   troubleAsk: 'کوئی مسئلہ؟',
-  // 4 words, the kit's limit: option A's Urdu for the same action in the mockups (the 5-word «… جاری رکھیں» is too long).
-  continueOnWhatsApp: 'واٹس ایپ پر کریں',
-  handoffLine: (code = '') => (code ? `میرا دورہ واٹس ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس ایپ پر جاری رکھیں'),
+  // 4 words, the kit's limit: option A's Urdu for the same action in the mockups (the 5-word «… جاری رکھیں» is too long);
+  // WhatsApp's two Urdu words are joined by U+00A0 so a narrow strip never splits them.
+  continueOnWhatsApp: 'واٹس\u00A0ایپ پر کریں',
+  // «واٹس ایپ» is one unit (U+00A0), as in the bot's copy; the bot reads the line with either space.
+  handoffLine: (code = '') => (code ? `میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں'),
 };
 
 /** The Observe screens' words in both languages. */

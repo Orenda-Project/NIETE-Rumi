@@ -88,8 +88,10 @@ router.post('/coach/handoff', requirePortalAuth, requireCoachApp, async (req, re
   } catch (_) {
     code = null;
   }
+  // A funnel row: users.id is the key the bot's and the portal's app_funnel rows join on (app-funnel.routes.js who()).
+  const row = { userId, journeyId, feature: 'observe', screen, visit: Boolean(visit), code: Boolean(code) };
   try {
-    telemetry.logEvent('app_funnel.handoff_code', { userId, journeyId, feature: 'observe', screen, visit: Boolean(visit), code: Boolean(code) });
+    telemetry.logEvent('app_funnel.handoff_code', row);
   } catch (_) { /* logging never decides the response */ }
   return res.json({ success: true, code });
 });

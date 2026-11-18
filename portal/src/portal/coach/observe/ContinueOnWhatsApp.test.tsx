@@ -98,10 +98,10 @@ describe("the slim strip", () => {
   it("in Urdu, the line is Urdu", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderAt(`/portal/coach/visit/${VISIT}`);
-    expect(screen.getByTestId("continue-on-whatsapp")).toHaveTextContent("واٹس ایپ پر کریں");
+    expect(screen.getByTestId("continue-on-whatsapp")).toHaveTextContent(/واٹس\sایپ پر کریں/);
     fireEvent.click(screen.getByTestId("continue-on-whatsapp"));
     await waitFor(() => expect(opened).toHaveLength(1));
-    expect(decodeURIComponent(opened[0].split("?text=")[1])).toBe("میرا دورہ واٹس ایپ پر جاری رکھیں (کوڈ V4KQ7)");
+    expect(decodeURIComponent(opened[0].split("?text=")[1])).toBe("میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ V4KQ7)");
   });
 
   it("no code from the server: the line without one, still the chat", async () => {
