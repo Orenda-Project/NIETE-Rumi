@@ -58,3 +58,13 @@ describe('OwnSections on the viewer', () => {
     expect(screen.queryByTestId('own-sec-hook')).toBeNull();
   });
 });
+
+// bd-snkn32.11 (queue #134 C) — the rating card sits under her own plan, whether or not the section cards load.
+describe('the rating card', () => {
+  it('shows under her plan while the cards cannot load', async () => {
+    http.get.mockRejectedValue(new Error('net'));
+    show();
+    expect(await screen.findByTestId('own-rate')).toBeTruthy();
+    expect(screen.getByTestId('own-change-entry')).toBeTruthy();
+  });
+});
