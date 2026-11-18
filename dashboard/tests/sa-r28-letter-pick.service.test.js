@@ -2439,3 +2439,87 @@ maybe('sa-ui: the picker\'s practice feedback is spoken in coach-led', () => {
     });
   }
 });
+
+// ---------- the picker's instruction is spoken by Jugnu in coach-led too ----------
+// The picker's instruction carries a sound (the coach never says a sound) and the coach's own line instructs the coach,
+// not the child; so Jugnu says the instruction in coach-led as in RDF auto, and the ready screen's lines with it. Every
+// other task's instruction in coach-led stays the coach's to read (Jugnu says only that the coach will instruct).
+maybe('sa-ui: the picker\'s instruction is spoken in coach-led', () => {
+  let dom;
+  const keep = {};
+  let views = [];
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
+    for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+      keep[k] = global[k];
+      global[k] = k === 'window' ? dom.window : dom.window[k];
+    }
+    jest.resetModules();
+  });
+  afterEach(() => { views.forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } }); views = []; for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const INTRO = { text: 'listen and tap: a sound like /ba/', audio: 'sa/v5/ur/lp_intro.mp3', lang: 'ur' };
+  const SCRIPT = { intro: INTRO, test_intro: { text: 'your turn line', audio: 'sa/v1/ur/turn.mp3', lang: 'ur' }, begin: { text: 'begin line', audio: 'sa/v1/ur/begin.mp3', lang: 'ur' } };
+  const COACH_WILL = { text: 'coach will instruct line', audio: 'sa/v1/ur/cwi.mp3', lang: 'ur' };
+  const json = (x) => JSON.parse(JSON.stringify(x));
+  /** The served shape: the instruction in script.intro, the coach's own line in coach_text. */
+  function pickBattery(practice) {
+    const b = battery({ practice });
+    delete b.tasks[0].instruction;
+    b.tasks[0].script = json(SCRIPT);
+    b.lines = { coach_will_instruct: json(COACH_WILL) };
+    return b;
+  }
+  function tapBattery(practice) {
+    return {
+      battery_id: 'tap0', lines: { coach_will_instruct: json(COACH_WILL) },
+      tasks: [{ id: 'ma.tap_p', mode: 'tap', title: { en: 'Which is bigger', ur: 'کون سا بڑا ہے' }, script: json(SCRIPT), coach_text: { text: 'coach reads this' },
+        items: [{ id: 'i1', target: '1', options: ['1', '2'] }], practice: practice === false ? [] : [{ id: 'ma.tap_p.p1', target: '2', options: ['1', '2'] }] }],
+    };
+  }
+  function mount(o) {
+    const c = require('../sa/sa-core');
+    const ui = require('../sa/sa-ui');
+    const b = o.battery;
+    const r = c.createRunner({ battery: b, onEvent: () => {}, manual: !!o.manual });
+    const speak = jest.fn(() => Promise.resolve());
+    const el = document.getElementById('m');
+    const view = ui.mount(el, { runner: r, battery: b, lang: 'ur', mode: 'proctored', handover: false, speak, manual: !!o.manual, r28: { letter_pick: o.flag !== false } });
+    views.push(view);
+    return { r, el, view, speak };
+  }
+  const said = (m) => m.speak.mock.calls.map((x) => (x[0] && x[0].text) || x[1]);
+  async function atInstruction(m) { m.r.start(); m.view.render(); await wait(60); expect(m.r.view().phase).toBe('instruction'); }
+  async function atReady(m) { m.r.start(); m.r.instructionDone(); m.view.render(); await wait(60); expect(m.r.view().phase).toBe('ready'); }
+
+  test('coach-led: on the picker\'s instruction Jugnu says its instruction (the sound), the coach\'s line still drawn', async () => {
+    const m = mount({ battery: pickBattery(), manual: true });
+    await atInstruction(m);
+    expect(said(m)).toContain(INTRO.text);
+    expect(m.speak.mock.calls.find((x) => x[0] && x[0].text === INTRO.text)[0].audio).toBe('sa/v5/ur/lp_intro.mp3');
+    expect(m.el.querySelector('.sae-coach-brief .sae-coach-text').textContent).toBe('coach');
+  });
+  test('RDF auto: on the picker\'s instruction Jugnu says its instruction, as today', async () => {
+    const m = mount({ battery: pickBattery(), manual: false });
+    await atInstruction(m);
+    expect(said(m)).toContain(INTRO.text);
+  });
+  for (const manual of [true, false]) {
+    test(`${manual ? 'coach-led' : 'RDF auto'}: on the picker's ready screen Jugnu says the ready lines`, async () => {
+      const m = mount({ battery: pickBattery(false), manual });
+      await atReady(m);
+      expect(said(m).filter((x) => x === 'your turn line' || x === 'begin line')).toEqual(['your turn line', 'begin line']);
+    });
+  }
+  for (const flag of [true, false]) {
+    test(`coach-led, today's tap task (letter-pick switch ${flag ? 'on' : 'off'}): its instruction and ready lines stay silent; Jugnu says only that the coach will instruct`, async () => {
+      const a = mount({ battery: tapBattery(), manual: true, flag });
+      await atInstruction(a);
+      expect(said(a)).toEqual([COACH_WILL.text]);
+      const b = mount({ battery: tapBattery(false), manual: true, flag });
+      await atReady(b);
+      expect(said(b)).toEqual([]);
+    });
+  }
+});
