@@ -27,7 +27,8 @@ beforeEach(() => { mockOwnStatus.mockReset(); mockShelfStatus.mockReset(); });
 test('not hers: the shelf answers an approved plan by id', async () => {
   mockOwnStatus.mockResolvedValue(null);
   mockShelfStatus.mockResolvedValue(SHELF);
-  expect(await Browse.renderStatus('own-9', 'u2')).toEqual(SHELF);
+  // bd-snkn32.51 — marked as a shelf open, so the portal can log another teacher reusing it.
+  expect(await Browse.renderStatus('own-9', 'u2')).toEqual({ ...SHELF, shelf: true });
   expect(mockShelfStatus).toHaveBeenCalledWith('own-9');
 });
 

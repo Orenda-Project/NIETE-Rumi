@@ -132,9 +132,9 @@ test('her own plan: whose mine, the plan id and band', async () => {
 });
 
 test('a shelf plan opened by another teacher: whose shelf', async () => {
-  requestStatus.mockResolvedValue({ state: 'ready', url: SIGNED_612, segmentId: 'seg', lang: 'en', shelf: true, ownBand: 'g612' });
+  requestStatus.mockResolvedValue({ state: 'ready', url: SIGNED_612, segmentId: 'seg', lang: 'en', shelf: true });
   await invoke(ROUTE, { params: { render_id: 'own-7' } });
-  expect(opened()).toEqual([expect.objectContaining({ whose: 'shelf', ownId: 'own-7', band: 'g612' })]);
+  expect(opened()).toEqual([expect.objectContaining({ whose: 'shelf', ownId: 'own-7', band: null })]);
 });
 
 test('a ready-made plan is not an own plan: no row', async () => {

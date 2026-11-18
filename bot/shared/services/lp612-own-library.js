@@ -99,7 +99,6 @@ function createOwnLibrary(deps) {
       id: data.id, segment_id: data.segment_id || data.lesson_id, status: data.status, r2_key: data.r2_key,
       one_screen: null, error_code: data.error_code, lang: data.lang, started_at: data.started_at,
       completed_at: data.completed_at,
-      shelf: true, own_band: data.lesson_id ? 'k5' : 'g612', // bd-snkn32.51: a shelf open, logged as reuse
     };
   }
 

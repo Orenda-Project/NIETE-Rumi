@@ -310,8 +310,11 @@ async function renderStatus(renderId, userId) {
     const gb = await require('./gb-lp-serving.service').renderStatus(renderId, userId);
     if (gb) return gb;
     // bd-snkn32.42 — not hers: an approved "Made by a teacher" plan opens for any teacher, without the author's id.
-    return (await require('./lp612-own.service').ownStatus(renderId, userId))
-      || require('./lp612-own-library').shelfStatus(renderId);
+    const mine = await require('./lp612-own.service').ownStatus(renderId, userId);
+    if (mine) return mine;
+    // bd-snkn32.51 — marked, so the portal logs shelf reuse (another teacher opening it). No Change controls: not hers.
+    const shelf = await require('./lp612-own-library').shelfStatus(renderId);
+    return shelf ? { ...shelf, shelf: true } : shelf;
   }
   // Filtered in JS rather than in the query on purpose — see `claims()`. The waiter list is
   // EMPTIED the moment the render completes, so a `.contains('waiters', …)` predicate would
