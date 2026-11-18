@@ -9,12 +9,14 @@
 //   WEB_SHARD     optional k/n: run only the k-th of n contiguous slices of the (picked) scenarios, in run order — a long
 //                 feature runs as n stacks side by side (e2e-web.sh E2E_WEB_SHARDS, bd-a7upa5)
 //   WEB_HEADED=1 / WEB_SLOWMO=<ms>   watch it: a visible browser, every action slowed down
+//   WEB_AUDIO=1   let a hidden run play sound (it is muted by default; a headed run always has sound)
 //   WEB_MOCK_URL  this run's mock WhatsApp (Graph API stand-in): POST /inject, GET /outbox — WhatsApp → portal scenarios
 // Exit 0 when every scenario passed, 1 otherwise; results.json is written either way.
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { launchOptions, silenceSpeech } = require('./launch-options.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 
@@ -85,12 +87,15 @@ async function main() {
   process.on('uncaughtException', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   process.on('unhandledRejection', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   // --headed (e2e-web.sh) → a visible window, each action slowed by WEB_SLOWMO ms so a person can follow it.
+  // A hidden run is muted (WEB_AUDIO=1 to hear it) — launch-options.cjs.
   await runBefore(mod, ctx);
-  const browser = await loadChromium().launch({ headless: env.WEB_HEADED !== '1', slowMo: Number(env.WEB_SLOWMO || 0) });
+  const browser = await loadChromium().launch(launchOptions(env));
+  const hush = silenceSpeech(env);
   try {
     for (const s of picked) {
       const t0 = Date.now();
       const context = await browser.newContext({ viewport: { width: 412, height: 915 } }); // a phone, like the teachers'
+      if (hush) await context.addInitScript(hush);
       const page = await context.newPage();
       const row = { id: s.id, title: s.title };
       try {

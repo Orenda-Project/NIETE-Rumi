@@ -92,13 +92,14 @@ describe('the model', () => {
     });
   });
 
-  it('says why Questions cannot go on: nothing, past the cap, too many types, marks out of range or under the count', () => {
+  it('says why Questions cannot go on: nothing, past the cap, marks out of range or under the count', () => {
     const base = picks({ typesSeeded: true, seen: 5, typeCounts: { MCQs: 4 } });
     expect(stepWhy('questions', base, 50)).toBeNull();
     expect(stepWhy('questions', { ...base, seen: 0, typeCounts: {} }, 50)).toEqual({ code: 'none' });
     expect(stepWhy('questions', { ...base, seen: 45, typeCounts: { MCQs: 10 } }, 50)).toEqual({ code: 'count', max: 50 });
     const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`T${i}`, 1]));
-    expect(stepWhy('questions', { ...base, typeCounts: nine }, 50)).toEqual({ code: 'typesMax', max: 8 });
+    // bd-5icld3.4 — the portal takes as many types as the subject offers: nine is not a reason to stop.
+    expect(stepWhy('questions', { ...base, typeCounts: nine }, 50)).toBeNull();
     expect(stepWhy('questions', { ...base, marks: 5 }, 50)).toEqual({ code: 'marksLow', total: 9 });
     expect(stepWhy('questions', { ...base, marks: 1500 }, 50)).toEqual({ code: 'marks', max: 1000 });
     expect(stepWhy('questions', { ...base, marks: 9 }, 50)).toBeNull();
@@ -173,8 +174,28 @@ describe('Questions', () => {
     const foot = within(tray).getByTestId('types-foot');
     expect(foot.className.split(' ')).toContain('shrink-0');
     expect(list.contains(foot)).toBe(false);
-    expect(within(foot).getByText(C.typesCap(1, 8))).toBeTruthy();
+    expect(within(foot).getByText(C.typesCap(1, 4))).toBeTruthy(); // 1 of the 4 types this subject offers
     expect(within(foot).getByRole('button', { name: C.done })).toBeTruthy();
+  });
+
+  // bd-5icld3.4 — the 8-type cap was the WhatsApp Flow's (8 fixed count boxes); the portal takes every type the
+  // subject offers, and the line under the list counts against that number.
+  it('the types drawer lets her tick more than 8 types, and counts against the subject\'s own number', async () => {
+    const ids = ['MCQs', 'MSQs', 'True/False', 'Fill in the Blanks', 'Match the Column', 'Missing Letters',
+      'Brief Answers', 'Word Meanings', 'Word Sentences', 'Simple Writing'];
+    portal.getAssessmentOptions.mockImplementation(async (grade?: number, subject?: string) => (grade && subject
+      ? { success: true, grades: [4], maxQuestions: 50, defaultQuestions: 15,
+        types: ids.map((id, i) => ({ id, category: i < 7 ? 'objective' : 'subjective' })) }
+      : { success: true, grades: [4], maxQuestions: 50, defaultQuestions: 15, subjects: [{ subject_key: 'science', subject: 'Science' }] }));
+    setPicks(picks({ typesSeeded: true, seen: 0, typeCounts: { MCQs: 1 } }));
+    at(newPaperPath('questions'), newPaperPath('questions'), <QuestionsStep />);
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.addType) }));
+    const tray = await screen.findByTestId('types-tray');
+    for (const id of ids.slice(1, 9)) fireEvent.click(await within(tray).findByRole('checkbox', { name: id }));
+    await waitFor(() => expect(within(tray).getByRole('checkbox', { name: ids[8] }).getAttribute('aria-checked')).toBe('true'));
+    const last = within(tray).getByRole('checkbox', { name: ids[9] });
+    expect((last as HTMLButtonElement).disabled).toBe(false);
+    expect(within(within(tray).getByTestId('types-foot')).getByText(C.typesCap(9, 10))).toBeTruthy();
   });
 
   it('at 1 the minus is a bin: one more tap takes the type off the page', async () => {

@@ -73,6 +73,25 @@ describe("LeaderAssessResults: round 28", () => {
     expect(labels).not.toContain("Chance-corrected score");
   });
 
+  it("O-46: a picker the coach ended early says 'not rated (ended early)', no score, no too-few line", async () => {
+    api.getResults.mockResolvedValue(RESULTS([{ ...pick, attempted: 7, correct: 7, stopReason: "end_section", unrated: true, unratedWhy: "ended", presented: 7, ofAll: 10 }]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.letter_pick10");
+    expect(pairs(card)).toContain("Score: not rated (ended early)");
+    expect(within(card).queryByText("not rated (too few items heard)")).toBeNull();
+    const labels = Array.from(card.querySelectorAll("dt")).map((dt) => dt.textContent);
+    expect(labels).not.toContain("Correct");
+    expect(labels).not.toContain("Chance-corrected score");
+  });
+
+  it("O-46 Urdu: the ended line in Urdu", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue(RESULTS([{ ...pick, stopReason: "coach_end", unrated: true, unratedWhy: "ended", presented: 9, ofAll: 10 }]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.letter_pick10");
+    expect(within(card).getByText("درجہ نہیں (جلد ختم کر دیا گیا)")).toBeTruthy();
+  });
+
   it("a rated tap row keeps its correct and chance-corrected rows, and no not-rated line", async () => {
     api.getResults.mockResolvedValue(RESULTS([pick]));
     renderAt();

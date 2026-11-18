@@ -244,6 +244,13 @@ DATA="${DATA:-demo}"
 # A test stack needs a handful of portal DB connections, not the production pool of 20 (dashboard/config/database.js):
 # four parallel stacks at 20 exhausted the local Postgres (max_connections 100, "sorry, too many clients already").
 export DB_POOL_SIZE="${DB_POOL_SIZE:-5}" DB_POOL_MIN="${DB_POOL_MIN:-1}"
+# What the test portal (and only the portal: dev-portal.sh start_portal reads PORTAL_ENV_OVERRIDES) runs with on top of
+# its own .env, whatever the caller's shell says:
+#   FLAG_CACHE_TTL_MS=0 — the dashboard caches each app_settings switch 30 s in-process (dashboard/lib/feature-flags.js);
+#     a driver sets a switch by SQL and acts at once, so a cached portal served the switch's previous value.
+#   WHATSAPP_BOT_NUMBER — "Register on WhatsApp" on the login needs this deployment's bot number (app-login.routes.js
+#     botNumber, 10+ digits); a test stack has none, so it gets a fictional 555-01xx one that opens nothing real.
+export PORTAL_ENV_OVERRIDES="FLAG_CACHE_TTL_MS=0 WHATSAPP_BOT_NUMBER=15550100000"
 RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)-$FEATURE}"   # a parallel parent passes <its id>-<feature>
 RUN_DIR="$HOME/.cache/niete-e2e-web/$RUN_ID"
 EVIDENCE_REL=".claude/qa/results/web/niete/$RUN_ID"
@@ -261,7 +268,7 @@ export WEB_HEADED="$HEADED"
 if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "SHARD=$SHARD"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"; echo "LEDGER_COMMIT=$([ -n "${E2E_NO_COMMIT:-}" ] && echo off || echo on)"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "SHARD=$SHARD"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"; printf '%s\n' $PORTAL_ENV_OVERRIDES; echo "LEDGER_COMMIT=$([ -n "${E2E_NO_COMMIT:-}" ] && echo off || echo on)"
   exit 0
 fi
 

@@ -216,3 +216,96 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     }
   });
 });
+
+/**
+ * The EN familiar-word accept lists (the accent rule: a local form that keeps the same word is that word): forms ruled per
+ * word, in the scorer's battery file only. The words prompt reads them from `record.items[k].accept` (its switch); a phone
+ * never receives them, OFF or ON.
+ */
+describe('round 28 bank: EN familiar-word accept lists', () => {
+  const { phoneSpecFor } = require('../../shared/services/child-test/sa/score');
+  const lists = () => ((r28.word_accept || {})['en.words4'] || {}).forms || {};
+  const WORDS = () => { const t = byId(runtime('coach.G3.A', 'en'))['en.words4']; return [...t.items, ...(t.ext_items || [])].map((x) => String(x.target)); };
+
+  test('the bank rules forms for 76 of the 87 grid words, 131 forms, at most 4 a word, never the word itself', () => {
+    const f = lists();
+    expect(Object.keys(f).length).toBe(76);
+    expect(Object.values(f).reduce((n, a) => n + a.length, 0)).toBe(131);
+    const grid = WORDS().map((w) => w.toLowerCase());
+    expect(grid.length).toBe(87);
+    for (const [w, forms] of Object.entries(f)) {
+      expect([w, grid.includes(w)]).toEqual([w, true]);
+      expect(forms.length).toBeLessThanOrEqual(4);
+      expect(forms.map((x) => x.toLowerCase())).not.toContain(w);
+      expect(new Set(forms).size).toBe(forms.length);
+    }
+    // decoding errors stay wrong (come → some, up → cup, find → fan, sad → shed); go carries no form
+    expect(f.come).not.toContain('some');
+    expect(f.up).not.toContain('cup');
+    expect(f.find).not.toContain('fan');
+    expect(f.sad).not.toContain('shed');
+    expect(f.go).toBeUndefined();
+  });
+
+  test('the battery files carry them on the EN words items and their extension, and the scorer\'s record reads them', () => {
+    for (const form of COACH_FORMS) {
+      const t = byId(runtime(form, 'en'))['en.words4'];
+      expect(t.r28_accept).toBe(true);
+      expect(t.items.map((x) => x.accept || null)).toEqual([null, ['said', 'sed', 'set'], ['ap'], ['fine', 'fain', 'fide']]);
+      const come = t.ext_items.find((x) => x.target === 'come');
+      expect(come.accept).toEqual(['kam', 'cam']);
+      for (const x of [...t.items, ...t.ext_items]) expect(x.accept || null).toEqual(lists()[String(x.target).toLowerCase()] || null);
+      for (const lang of ['ur', 'en']) {
+        const ur = byId(runtime(form, lang))['ur.words4'];
+        expect([ur.r28_accept, [...ur.items, ...(ur.ext_items || [])].some((x) => x.accept)]).toEqual([undefined, false]);
+      }
+    }
+    // what the words prompt is handed: the phone's battery as the scorer loads it
+    const load = (g, f, l) => runtime(`coach.G${g}.${f}`, l);
+    const { spec } = phoneSpecFor({ grade: 3, form: 'A' }, { block: 'en.words4', lang: 'en' }, load);
+    expect(spec.record.items.map((x) => x.accept || null)).toEqual([null, ['said', 'sed', 'set'], ['ap'], ['fine', 'fain', 'fide']]);
+  });
+
+  test('the counts source carries them too (sa_r8_counts serves today\'s 5th word from it), so the 5th word has its forms', () => {
+    const { PLAN } = require('../../shared/services/child-test/sa/counts');
+    const from = PLAN['en.words4'].add.from;
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const src = byId(runtime(form, lang))[from];
+      expect([form, lang, src.r28_accept]).toEqual([form, lang, true]);
+      for (const x of src.items) expect([form, lang, x.target, x.accept || null]).toEqual([form, lang, x.target, lists()[String(x.target).toLowerCase()] || null]);
+      const fifth = src.items.find((x) => /\.items\[4\]$/.test(String(x.src)));
+      expect([fifth.target, fifth.accept]).toEqual(['come', ['kam', 'cam']]);
+    }
+  });
+
+  test('a phone never receives them: no accept on a words item and no r28_accept, OFF and with every round-28 switch ON', () => {
+    const ALL = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true };
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      for (const on of [{}, { rdfW3Forms: true }, ALL]) {
+        const s = applySwitches(runtime(form, lang), on);
+        for (const t of s.tasks.filter((x) => x && /words/.test(x.id))) {
+          expect([form, lang, t.id, 'r28_accept' in t]).toEqual([form, lang, t.id, false]);
+          expect([form, lang, t.id, [...(t.items || []), ...(t.ext_items || [])].filter((x) => 'accept' in x).length]).toEqual([form, lang, t.id, 0]);
+        }
+      }
+    }
+  });
+});
+
+describe('round 28 bank: the carried MCQ lures', () => {
+  test('Bilal q2 offers «پہاڑ», not «بڑا پہاڑ» (the key is never STRICTLY the longest option; a tie is allowed)', () => {
+    for (const id of ['ur.story_w3.q2', 'ur.story.q2']) expect(r28.mcq.questions[id].options).toEqual(['ریت', 'برف', 'پہاڑ', 'پانی']);
+    for (const [id, q] of Object.entries(r28.mcq.questions)) {
+      const key = q.options[q.target_index];
+      const longest = Math.max(...q.options.filter((_, i) => i !== q.target_index).map((o) => [...o].length));
+      expect([id, [...key].length <= longest]).toEqual([id, true]);
+    }
+  });
+
+  test('«سکول» is spelled as the Urdu practice passage spells it, in every Urdu option', () => {
+    expect(r28.mcq.questions['ur.story2.q4'].options).toContain('کیونکہ اسے سکول جانا تھا');
+    expect(r28.mcq.practice.ur.passage).toMatch(/سکول/);
+    const ur = Object.entries(r28.mcq.questions).filter(([id]) => id.startsWith('ur.')).flatMap(([, q]) => q.options);
+    expect(ur.filter((o) => /اسکول/.test(o))).toEqual([]);
+  });
+});

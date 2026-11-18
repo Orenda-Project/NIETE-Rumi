@@ -19,6 +19,7 @@
  */
 
 const { COMMON, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { PLAN: COUNTS_PLAN } = require('./counts');
 
 const W3_TASKS = [
   'ur.letter_names5', 'ur.letter_sounds5', 'ur.words4', 'ur.story_w3', 'ur.story_comp_w3',
@@ -443,6 +444,7 @@ function runtimeW3Task(t, lang, H) {
     ...(t.grid ? { grid: t.grid, direction: t.direction } : {}), ...(t.letter_rule ? { letter_rule: t.letter_rule } : {}), ...(t.chip ? { chip: t.chip[lang] } : {}),
     items: t.items.map(item), practice: t.practice.map(item),
     ...(t.ext_items ? { base_n: t.base_n, ext_items: t.ext_items.map(item), ...(t.ext_stop ? { ext_stop: t.ext_stop } : {}) } : {}),
+    ...(t.r28_accept ? { r28_accept: true } : {}),
   };
 }
 
@@ -454,6 +456,8 @@ function runtimeW3Task(t, lang, H) {
 //   ext_items              on the six timed tasks: the official grid after today's items, then the named published source,
 //                          ending there (complete, scored on the time used); items, grid and stop stay today's, so the
 //                          scorer's grid is unchanged; ext_stop is the first-row stop the scorer applies to an extended run
+//   accept (word_accept)   on the EN familiar words' items: the local forms that keep the same word, for the scorer only
+//                          (the task carries r28_accept; the route strips both from every served battery, OFF and ON)
 const R28_LINES = {
   lp_intro: L('Now a listening game. Jugnu will say a sound like /ba/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
     'اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the sound as a CV syllable)'),
@@ -471,7 +475,7 @@ const R28_TITLE = { letter_pick: { en: 'Letter sounds (listen and tap)', ur: 'ح
 /** r28 clips live under sa/v5 (the battery route rewrites sa/v1 paths on serve), keyed as every clip: sha1(lang|text). */
 const v5 = (said, lang, text) => said(lang, text).audio.replace(/^sa\/v1\//, 'sa/v5/');
 
-function r28Tasks(f, { r28 }, w3List, H) {
+function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
   if (!r28 || !w3List.length) return [];
   const { spoken, said, sayBoth, toUrDigits } = H;
   const byId = new Map(w3List.map((t) => [t.task, t]));
@@ -502,6 +506,18 @@ function r28Tasks(f, { r28 }, w3List, H) {
     // base_n and ext_stop only ever ride an extension: the route strips them with ext_items (withoutR28).
     if (!ext.length) throw new Error(`${id}: the r28 bank lists no extension for this form`);
     Object.assign(t, { base_n: spec.base_n, ext_items: ext, ...(spec.ext_stop ? { ext_stop: spec.ext_stop } : {}) });
+  }
+  // The EN familiar words' accept lists (the accent rule, forms ruled per word): on each item and extension item, for the
+  // words prompt that reads record.items[k].accept. Scorer only: r28_accept marks the task, the route strips both on serve.
+  for (const [id, wa] of Object.entries(r28.word_accept || {})) {
+    const t = byId.get(id);
+    if (!t) continue;
+    const withAccept = (x) => { const a = wa.forms[String(x.target).toLowerCase()]; return a ? { ...x, accept: a } : x; };
+    Object.assign(t, { r28_accept: true, items: t.items.map(withAccept), ...(t.ext_items ? { ext_items: t.ext_items.map(withAccept) } : {}) });
+    // sa_r8_counts serves today's 5th word from its source task (counts.js PLAN add.from): that task carries the forms too
+    const from = COUNTS_PLAN[id] && COUNTS_PLAN[id].add && COUNTS_PLAN[id].add.from;
+    const src = from && coreList.find((x) => x.task === from);
+    if (src && src.tap) Object.assign(src, { r28_accept: true, tap: { ...src.tap, items: src.tap.items.map(withAccept) } });
   }
 
   for (const lang of ['ur', 'en']) {
