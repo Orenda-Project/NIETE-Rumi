@@ -1,1 +1,2 @@
 {"ts":"2026-11-18T04:52:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"a228f0eb7f43","branch":"bd-ptl6x9.7-sb","user":""}
+{"ts":"2026-11-18T05:17:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (adds one redirect sub-route /r/:token/sfwd under the teacher report, off by default; no main page added or removed; covered by dashboard/tests/weak-skill-jugnu-edge.service.test.js)","sha":"a228f0eb7f43","branch":"bd-ptl6x9.7-sb","user":""}
