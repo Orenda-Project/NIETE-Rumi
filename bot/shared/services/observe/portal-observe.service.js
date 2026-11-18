@@ -88,6 +88,8 @@ function withDefaults(deps = {}) {
     rubric: () => ({
       decideV6: require('./observe-fico17-v6').decideVisitFramework,
       fdeOn: require('./obs612/visit').asksClass,
+      // bd-31ziu8: FICO-S v1.1 for this visit (ICT grades 6-12; the observer's fico_s_coach switch).
+      ficoSOn: require('../coaching/fico-s-switch').forVisit,
       createLessonForm: require('./observe2/field-form.store').createLessonForm,
     }),
     // Does the principal app's switch (portal_principal_app) name this principal? (the portal's rule)
@@ -207,7 +209,8 @@ function lessonOfArg(lesson) {
   const g = O.normGrade(lesson.grade);
   if (g === null || g <= O.PRIMARY_MAX_GRADE) return null;
   // bd-ra8xu.40 (operator, 12 Nov ~11:00): grades 9-12 stay on FICO, like grades 1-5: no subject, no FDE tool.
-  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null };
+  // bd-31ziu8: the subject named is kept aside (named_subject) for a FICO-S visit, which decideStamp reads.
+  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null, named_subject: O.normSubject(lesson.subject) };
   if (!O.normSubject(lesson.subject)) return null;
   // obs612/visit.js lessonFrom, from the pure rubric module (visit.js loads the database client at require time).
   const t = O.toolFor(g, lesson.subject);
@@ -233,6 +236,20 @@ async function decideStamp(d, coach, teacherUserId, lesson, schoolExtId = null) 
   const visit = { teacherUserId: teacherUserId || null, ...(schoolExtId ? { schoolExtId: String(schoolExtId) } : {}) };
   let fdeOn = false;
   try { fdeOn = !!(await d.rubric.fdeOn(coach, visit)); } catch (_) { fdeOn = false; }
+  // bd-31ziu8 (operator 18 Nov): FICO-S v1.1 is every ICT grade 6-12 lesson, ahead of FDE's tools and FICO17 v6.
+  let ficoS = false;
+  try { ficoS = !!(d.rubric.ficoSOn && (await d.rubric.ficoSOn(coach, visit))); } catch (_) { ficoS = false; }
+  if (ficoS && lesson && lesson.grade) {
+    const O = require('../coaching/frameworks/obs612');
+    const subject = lesson.subject || lesson.named_subject || null;
+    const t = O.toolFor(lesson.grade, subject, { ficoS: true });
+    if (t) {
+      return {
+        v6Stamp: null,
+        fdeLesson: { primary: false, grade: O.normGrade(lesson.grade), subject: O.normSubject(subject), rubricId: t.rubricId, tool: t.tool, sheet: null },
+      };
+    }
+  }
   const named = fdeOn && lesson ? lesson : null;
   if (named && !named.primary) return { v6Stamp: null, fdeLesson: named };
   let v6Stamp = null;
@@ -315,12 +332,16 @@ async function lessonQuestion({ userId }, deps) {
   try { ask = !!(await d.rubric.fdeOn(coach)); } catch (_) { ask = false; }
   if (!ask) return { status: 'ok', ask: false };
   const O = require('../coaching/frameworks/obs612');
+  // bd-31ziu8: FICO-S on → grades 6-12 are all FICO-S lessons, and each is asked its subject (for the record).
+  let ficoS = false;
+  try { ficoS = !!(d.rubric.ficoSOn && (await d.rubric.ficoSOn(coach))); } catch (_) { ficoS = false; }
   return {
     status: 'ok',
     ask: true,
+    rubric: ficoS ? 'fico_s' : 'fde',
     grades: O.GRADES.filter((g) => g > O.PRIMARY_MAX_GRADE),
-    // bd-ra8xu.40: only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons.
-    subjectGrades: O.FDE_GRADES.slice(),
+    // bd-ra8xu.40: only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons (FICO-S: all of 6-12).
+    subjectGrades: ficoS ? O.FICO_S_GRADES.slice() : O.FDE_GRADES.slice(),
     subjects: O.SUBJECTS.map((x) => x.key),
   };
 }
@@ -1044,4 +1065,6 @@ module.exports = {
   retryTalk,
   previewReport,
   sendReport,
+  // For tests (bd-31ziu8): the stamp a portal start decides, with the coach and the lesson she named.
+  _decideStamp: (deps, coach, teacherUserId, lesson, schoolExtId) => decideStamp(withDefaults(deps), coach, teacherUserId, lessonOfArg(lesson), schoolExtId),
 };

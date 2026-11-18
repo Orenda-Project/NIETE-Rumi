@@ -1,0 +1,5262 @@
+{
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "FS_START": [
+      "FS_INTRO_A",
+      "DONE"
+    ],
+    "FS_INTRO_A": [
+      "FS_A_ONE",
+      "DONE"
+    ],
+    "FS_A_ONE": [
+      "FS_A_TWO",
+      "DONE"
+    ],
+    "FS_A_TWO": [
+      "FS_A_THREE",
+      "DONE"
+    ],
+    "FS_A_THREE": [
+      "FS_INTRO_B",
+      "DONE"
+    ],
+    "FS_INTRO_B": [
+      "FS_B_ONE",
+      "DONE"
+    ],
+    "FS_B_ONE": [
+      "FS_B_TWO",
+      "DONE"
+    ],
+    "FS_B_TWO": [
+      "FS_B_THREE",
+      "DONE"
+    ],
+    "FS_B_THREE": [
+      "FS_B_FOUR",
+      "DONE"
+    ],
+    "FS_B_FOUR": [
+      "FS_B_FIVE",
+      "DONE"
+    ],
+    "FS_B_FIVE": [
+      "FS_INTRO_C",
+      "DONE"
+    ],
+    "FS_INTRO_C": [
+      "FS_C_ONE",
+      "DONE"
+    ],
+    "FS_C_ONE": [
+      "FS_C_TWO",
+      "DONE"
+    ],
+    "FS_C_TWO": [
+      "FS_C_THREE",
+      "DONE"
+    ],
+    "FS_C_THREE": [
+      "FS_C_FOUR",
+      "DONE"
+    ],
+    "FS_C_FOUR": [
+      "FS_C_FIVE",
+      "DONE"
+    ],
+    "FS_C_FIVE": [
+      "FS_C_SIX",
+      "DONE"
+    ],
+    "FS_C_SIX": [
+      "FS_C_SEVEN",
+      "DONE"
+    ],
+    "FS_C_SEVEN": [
+      "FS_C_EIGHT",
+      "DONE"
+    ],
+    "FS_C_EIGHT": [
+      "FS_INTRO_D",
+      "DONE"
+    ],
+    "FS_INTRO_D": [
+      "FS_D_ONE",
+      "DONE"
+    ],
+    "FS_D_ONE": [
+      "FS_D_TWO",
+      "DONE"
+    ],
+    "FS_D_TWO": [
+      "FS_D_THREE",
+      "DONE"
+    ],
+    "FS_D_THREE": [
+      "FS_D_FOUR",
+      "DONE"
+    ],
+    "FS_D_FOUR": [
+      "FS_INTRO_E",
+      "DONE"
+    ],
+    "FS_INTRO_E": [
+      "FS_E_ONE",
+      "DONE"
+    ],
+    "FS_E_ONE": [
+      "FS_E_TWO",
+      "DONE"
+    ],
+    "FS_E_TWO": [
+      "FS_E_THREE",
+      "DONE"
+    ],
+    "FS_E_THREE": [
+      "FS_CHECKLIST",
+      "DONE"
+    ],
+    "FS_CHECKLIST": [
+      "FS_FEEDBACK",
+      "DONE"
+    ],
+    "FS_FEEDBACK": [
+      "DONE"
+    ],
+    "NOTICE": [
+      "DONE"
+    ],
+    "DONE": []
+  },
+  "screens": [
+    {
+      "id": "FS_START",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "FICO-S v1.1 · Classroom observation"
+        },
+        "body": {
+          "type": "string",
+          "__example__": "FICO for grades 6-12: 23 indicators in 5 sections, one indicator a screen.\n\nScore each indicator 1-4 from what you see and hear in the room. Levels build on each other: level 4 = level 3 met + the extra step. If between two levels, give the lower one.\n\nFor each one, write what you saw and heard (at least 20 characters).\n\nAt the end of the lesson: ask 5 random students 1-2 short questions on today's objective (E2), and look at 3 random notebooks (E3). Then a short checklist and your feedback for the teacher."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.next_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "FS_START"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_INTRO_A",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Section A · Lesson planning & structure"
+        },
+        "question": {
+          "type": "string",
+          "__example__": "Is the lesson planned around a clear learning objective, opened well and closed well?"
+        },
+        "count_line": {
+          "type": "string",
+          "__example__": "3 indicators, one per screen."
+        },
+        "list": {
+          "type": "string",
+          "__example__": "A1  Lesson objective (SLO)\nA2  Opening & prior learning\nA3  Closure & homework"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start Section A"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.question}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.count_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.list}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.next_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "FS_INTRO_A"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_A_ONE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section A · 1 of 3"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "A1 · Lesson objective (SLO)"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher tells students what they will learn today, whether the lesson matches the SOW / syllabus breakdown for this week, and whether the activities serve that objective."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class + teacher's planner"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No objective is stated, and the lesson does not match the SOW / syllabus breakdown for this week."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The lesson matches the SOW, but the objective is not shared, or only the topic name is given."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "The teacher states the objective as what students will be able to do, and the main activities serve it."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher returns to the objective at the end and checks with students whether they achieved it."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_A1": "",
+            "ev_A1": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_a_one_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_A1",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_A1",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_A_ONE",
+                    "lv_A1": "${form.lv_A1}",
+                    "ev_A1": "${form.ev_A1}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_A_TWO",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section A · 2 of 3"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "A2 · Opening & prior learning"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "How the lesson begins: whether the teacher brings out what students already know and uses it to start the new topic, and whether the opening catches their interest."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The lesson goes straight into new content with no link to what students already know."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher mentions the previous lesson in general but does not check what students remember."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "The teacher asks students to recall what they need for today, and uses their answers to start the new topic."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the opening has a hook that students respond to: a puzzle, short story, real object, surprising fact or thought-provoking question."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_A2": "",
+            "ev_A2": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_a_two_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_A2",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_A2",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_A_TWO",
+                    "lv_A2": "${form.lv_A2}",
+                    "ev_A2": "${form.ev_A2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_A_THREE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section A · 3 of 3"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "A3 · Closure & homework"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "How the lesson ends: whether the key learning is pulled together, and whether homework is linked to the objective and asks for more than copying."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class + homework diary"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The lesson stops at the bell with no summary, and no homework is set, or homework is unrelated to the lesson."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher summarises the main points themself, or sets homework copied from the textbook exercise."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "Students answer a closing question or summarise the key learning, and homework linked to the objective is written on the board."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher links today's learning to the next lesson, and the homework includes at least one task that applies the learning beyond copying the book."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_A3": "",
+            "ev_A3": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_a_three_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_A3",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_A3",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_A_THREE",
+                    "lv_A3": "${form.lv_A3}",
+                    "ev_A3": "${form.ev_A3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_INTRO_B",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Section B · Subject knowledge & teaching"
+        },
+        "question": {
+          "type": "string",
+          "__example__": "Does the teacher know the subject and teach it so students understand why, not only how?"
+        },
+        "count_line": {
+          "type": "string",
+          "__example__": "5 indicators, one per screen."
+        },
+        "list": {
+          "type": "string",
+          "__example__": "B1  Accuracy & command of content\nB2  Explaining why\nB3  Subject language\nB4  Links to real life & other subjects\nB5  Resources & technology"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start Section B"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.question}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.count_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.list}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.next_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "FS_INTRO_B"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_B_ONE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section B · 1 of 5"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "B1 · Accuracy & command of content"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether what the teacher says about the subject is correct, whether they can answer students' content questions, and whether they go beyond the textbook accurately. Count something as wrong only when you are sure."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The teacher says something wrong and leaves it, so students are left with wrong information."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Mostly correct, but the teacher makes a slip and does not correct it, or cannot answer a student's content question."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "Everything the teacher says is correct, and they answer students' content questions correctly. When not sure, the teacher says so and checks."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher warns students about a common mistake before they make it, or brings in correct content that is not in the textbook."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_B1": "",
+            "ev_B1": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_b_one_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_B1",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_B1",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_B_ONE",
+                    "lv_B1": "${form.lv_B1}",
+                    "ev_B1": "${form.ev_B1}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_B_TWO",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section B · 2 of 5"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "B2 · Explaining why"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher explains why a rule, step or idea works, with a reason, example, diagram or demonstration, or only says what to do and asks students to remember it."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The teacher only says how to do it, and gives no reason."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher gives a reason now and then, but mostly asks students to memorise."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two times, the teacher explains why a rule or step works, with a reason, an example, a diagram or a demonstration."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, when students are still confused the teacher explains it a different way, or asks students to give the reason themselves."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_B2": "",
+            "ev_B2": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_b_two_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_B2",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_B2",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_B_TWO",
+                    "lv_B2": "${form.lv_B2}",
+                    "ev_B2": "${form.ev_B2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_B_THREE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section B · 3 of 5"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "B3 · Subject language"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher uses the subject's own terms correctly and explains them, and whether students are made to use them. In English / Urdu lessons, this also covers the teacher's own grammar, pronunciation and fluency (talaffuz, rawani, qawaid) in the language taught."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The teacher uses everyday words only and no subject terms. (Language lessons: frequent errors in the language being taught.)"
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher uses subject terms but does not explain them, or mixes them up."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two times, the teacher uses a subject term correctly and explains what it means. (Language lessons: the teacher's own grammar and pronunciation are correct.)"
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher makes students use the terms, and corrects loose words by giving the right one."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_B3": "",
+            "ev_B3": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_b_three_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_B3",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_B3",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_B_THREE",
+                    "lv_B3": "${form.lv_B3}",
+                    "ev_B3": "${form.ev_B3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_B_FOUR",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section B · 4 of 5"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "B4 · Links to real life & other subjects"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher links the lesson to students' daily life, local context, another subject or an earlier lesson, explains the link, and whether students take it further."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The teacher gives no real-life example, comparison or link to another subject."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher mentions a link and moves on without explaining it."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "The teacher gives at least one link from students' own context and explains how it fits the idea."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, students build on the link: they give their own example, ask about it, or explain it in their own words."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_B4": "",
+            "ev_B4": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_b_four_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_B4",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_B4",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_B_FOUR",
+                    "lv_B4": "${form.lv_B4}",
+                    "ev_B4": "${form.ev_B4}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_B_FIVE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section B · 5 of 5"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "B5 · Resources & technology"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether books, the board, charts, lab equipment, models, maps or technology (Chromebooks, IT lab, multimedia) are used for learning, and by whom: only shown by the teacher, or used by students."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "Only talk; no book, board, chart, object or device is used."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher uses the board, book or a device only to show or tell; students do not use it."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "Students use a resource themselves (textbook, lab equipment, map, model, Chromebook) for the task, and the teacher says how it connects to the idea."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, a student uses the resource to explain their thinking and the teacher builds on it, or students use technology to create or investigate something (not only to watch)."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_B5": "",
+            "ev_B5": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_b_five_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_B5",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_B5",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_B_FIVE",
+                    "lv_B5": "${form.lv_B5}",
+                    "ev_B5": "${form.ev_B5}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_INTRO_C",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Section C · Classroom practice"
+        },
+        "question": {
+          "type": "string",
+          "__example__": "What does the teacher do to get every student thinking, talking and working?"
+        },
+        "count_line": {
+          "type": "string",
+          "__example__": "8 indicators, one per screen."
+        },
+        "list": {
+          "type": "string",
+          "__example__": "C1  Quality of questions\nC2  Responding to wrong answers\nC3  Who gets to answer\nC4  Student voice & choice\nC5  Time & transitions\nC6  Respectful & safe climate\nC7  Pair & group work\nC8  Support for different learners"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start Section C"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.question}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.count_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.list}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.next_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "FS_INTRO_C"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_ONE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 1 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C1 · Quality of questions"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "What kinds of questions the teacher asks and whether they make students think. A closed question needs a one-word answer; an open question needs a longer answer; the strongest questions ask why / compare / apply, and are followed up."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No questions, or the teacher asks and answers the questions themself without waiting."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Only closed questions with yes/no or one-word answers."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two open questions, and the teacher waits for students to answer."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, at least one why / compare / apply question, followed up on the same student's answer."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C1": "",
+            "ev_C1": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_one_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C1",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C1",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_ONE",
+                    "lv_C1": "${form.lv_C1}",
+                    "ev_C1": "${form.ev_C1}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_TWO",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 2 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C2 · Responding to wrong answers"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "What the teacher does when a student's answer is wrong or incomplete: ignores it, says it is wrong, explains why, or helps the student fix it. Only applies when an answer was actually wrong."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "A student gives a wrong answer and the teacher ignores it, or only repeats the same explanation."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher says the answer is wrong, or gives the right answer, but gives the reason at most once."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two times, the teacher gives the reason for the correction and says what was right and what to change."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher asks the student or a classmate to fix the answer, and tries a new way if they are still stuck."
+            },
+            {
+              "id": "NA",
+              "title": "N/A · did not happen",
+              "description": "No answer was wrong in this lesson."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C2": "",
+            "ev_C2": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_two_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C2",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C2",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_TWO",
+                    "lv_C2": "${form.lv_C2}",
+                    "ev_C2": "${form.ev_C2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_THREE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 3 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C3 · Who gets to answer"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "How the teacher chooses who answers: only students who raise a hand or call out, or deliberate ways of bringing in others, such as naming or pointing to a student who did not raise a hand, pair talk, everyone writing an answer, or picking at random. Watch where the teacher looks and which part of the room answers."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The teacher takes answers only from students who raise a hand or call out; the same few hands answer all period."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher uses a way of choosing who answers once, then goes back to volunteers."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two times, the teacher uses a way of choosing who answers (naming or pointing to a student without a raised hand, \"tell your partner\", \"everyone write\", random pick)."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher deliberately brings in students who have not spoken, including back benches and (in co-ed classes) both boys and girls."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C3": "",
+            "ev_C3": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_three_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C3",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C3",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_THREE",
+                    "lv_C3": "${form.lv_C3}",
+                    "ev_C3": "${form.ev_C3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_FOUR",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 4 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C4 · Student voice & choice"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether students have a real say in how the lesson goes: a real choice about how to do or show the work, the teacher taking up a student's idea, or a part of the lesson handed to students. Small choices (who goes first, which colour) do not count."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "The teacher decides everything and asks students for no choice or idea."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Students choose only small things (who goes first, which pen)."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least one real choice about how to do or show the work, or the teacher takes up a student's idea."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, a student or group leads a part of the lesson: presents, explains a solution at the board, or leads a discussion while the teacher facilitates."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C4": "",
+            "ev_C4": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_four_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C4",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C4",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_FOUR",
+                    "lv_C4": "${form.lv_C4}",
+                    "ev_C4": "${form.ev_C4}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_FIVE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 5 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C5 · Time & transitions"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "How well lesson time is used: whether the lesson starts promptly, and how quickly and smoothly the class moves from one activity to the next after the teacher's signal."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class (note the clock at each change)"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "Changing activity takes more than 3 minutes with no clear signal, or more than 10 minutes of the period is lost (late start, waiting, off-task)."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher gives a signal, but changes still take 2–3 minutes."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "Learning starts within 3 minutes of the bell, and the class changes activity in under 2 minutes of the teacher's signal."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, students already know the routine and move to the next activity without being told; the whole period is used for learning."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C5": "",
+            "ev_C5": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_five_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C5",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C5",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_FIVE",
+                    "lv_C5": "${form.lv_C5}",
+                    "ev_C5": "${form.ev_C5}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_SIX",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 6 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C6 · Respectful & safe climate"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether students feel safe to try and be wrong: how the teacher responds to answers and behaviour, whether praise is for effort and thinking or only for right answers, and whether discipline is calm and respectful. Look at students as well as the teacher: do they raise hands freely, or hesitate, hide their work and look down? Any physical punishment, insult or humiliation is automatically level 1 (Prohibition of Corporal Punishment Act 2021, Annex-P)."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "Replies to students are harsh, dismissive or humiliating (words, tone or gestures), or there is any physical punishment or insult. Students look afraid to answer."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Replies are neutral; praise is only for right answers or for obeying, in general words."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two times, the teacher praises effort, an attempt or thinking, not just a right answer, and handles any misbehaviour calmly and respectfully."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher treats a wrong answer as useful and invites other views, and students try answers even when they are not sure (hands go up for hard questions, students try again after a wrong answer)."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C6": "",
+            "ev_C6": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_six_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C6",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C6",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_SIX",
+                    "lv_C6": "${form.lv_C6}",
+                    "ev_C6": "${form.ev_C6}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_SEVEN",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 7 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C7 · Pair & group work"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher sets real pair or group work: a task the group can only finish together, with something to produce, roles and a report back. Sitting together but working alone is not group work."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No pair or group task; everyone works alone or as one class."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Students sit in pairs or groups, but each does their own work."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "A task the group can only finish together, the teacher says what the group must produce, and walking around you see most groups actually working together (talking about the task, sharing one sheet), not working alone."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher gives roles or turns inside the group, every member is doing their part, and groups report back."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C7": "",
+            "ev_C7": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_seven_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C7",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C7",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_SEVEN",
+                    "lv_C7": "${form.lv_C7}",
+                    "ev_C7": "${form.ev_C7}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_C_EIGHT",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section C · 8 of 8"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "C8 · Support for different learners"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher notices that students are at different levels and adjusts: extra support for students who are behind, and a stretch for those who finish early or are ahead."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "Same task, same pace for everyone; students who are stuck (not writing, looking at a neighbour's copy, head down) are not noticed or helped."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher helps individual struggling students while others work, but the task is the same for everyone."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "The teacher uses at least two levels of task or support (a hint, a worked step, a simpler version, an extension question) and gives them to the right students."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher uses what they found in the lesson (answers, a quick check) to group or re-teach students, and high achievers get a task that stretches them."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_C8": "",
+            "ev_C8": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_c_eight_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_C8",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C8",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_C_EIGHT",
+                    "lv_C8": "${form.lv_C8}",
+                    "ev_C8": "${form.ev_C8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_INTRO_D",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Section D · Student learning & engagement"
+        },
+        "question": {
+          "type": "string",
+          "__example__": "What do the students themselves say and do?"
+        },
+        "count_line": {
+          "type": "string",
+          "__example__": "4 indicators, one per screen."
+        },
+        "list": {
+          "type": "string",
+          "__example__": "D1  Students' reasoning\nD2  Breadth of participation\nD3  Students talking to each other\nD4  Students' own questions"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start Section D"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.question}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.count_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.list}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.next_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "FS_INTRO_D"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_D_ONE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section D · 1 of 4"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "D1 · Students' reasoning"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "How deep students' answers are: one word, a longer answer that only repeats what was said, or an answer that shows reasoning in the student's own words (says why, compares, applies a rule to a new case, explains a choice, gives their own example)."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "Students give only one-word answers or repeat a fact."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "At least one longer answer, but it only repeats what was said or read, or finishes the teacher's sentence."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two answers show reasoning in the student's own words: why, compare, apply to a new case, or justify a choice."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, a student gives their own example or links the idea to something the teacher did not say first."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_D1": "",
+            "ev_D1": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_d_one_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_D1",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_D1",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_D_ONE",
+                    "lv_D1": "${form.lv_D1}",
+                    "ev_D1": "${form.ev_D1}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_D_TWO",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section D · 2 of 4"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "D2 · Breadth of participation"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "How many different students speak to the class during the lesson (answer, read out, present), and whether students silent early on speak later. Keep a tally of different students on a seating sketch as you observe."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class (tally on a seating sketch)"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No student speaks, or only the same one or two students speak."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Three to five different students speak."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "Six or more different students speak, spread across the lesson."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, at least two students who were silent in the first half speak in the second half."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_D2": "",
+            "ev_D2": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_d_two_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_D2",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_D2",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_D_TWO",
+                    "lv_D2": "${form.lv_D2}",
+                    "ev_D2": "${form.ev_D2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_D_THREE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section D · 3 of 4"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "D3 · Students talking to each other"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether students talk to each other about the task, not only to the teacher: one student answers, agrees with or adds to what another said. Count whole-class exchanges and what you hear when you stand near pairs and groups. At its strongest they give reasons to agree or disagree and reach one shared answer."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No student speaks to another student about the task."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Once, a student agrees with or responds to what another student said."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two times, a student answers, agrees with or adds to what another student just said."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, students give reasons to agree or disagree with each other and reach one shared answer."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_D3": "",
+            "ev_D3": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_d_three_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_D3",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_D3",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_D_THREE",
+                    "lv_D3": "${form.lv_D3}",
+                    "ev_D3": "${form.ev_D3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_D_FOUR",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section D · 4 of 4"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "D4 · Students' own questions"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether students ask questions of their own: only about the task (which page, is this homework), or about the idea itself (how or why something works, what if). Repeating the teacher's question or an unsure answer does not count."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No student asks a question of their own."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Students ask only questions about the task: which page, do we write this, is it homework, please repeat."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least one student asks a question about the idea itself: how or why something works, or what would happen in a different case."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, at least two questions about the idea, and one goes beyond what was taught in this lesson."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_D4": "",
+            "ev_D4": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_d_four_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_D4",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_D4",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_D_FOUR",
+                    "lv_D4": "${form.lv_D4}",
+                    "ev_D4": "${form.ev_D4}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_INTRO_E",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Section E · Checking learning"
+        },
+        "question": {
+          "type": "string",
+          "__example__": "Does the teacher (and the principal) know whether students learned?"
+        },
+        "count_line": {
+          "type": "string",
+          "__example__": "3 indicators, one per screen."
+        },
+        "list": {
+          "type": "string",
+          "__example__": "E1  Checking understanding during the lesson\nE2  Student learning check (5 students)\nE3  Notebooks & written feedback"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start Section E"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.question}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.count_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.list}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.next_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "FS_INTRO_E"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_E_ONE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section E · 1 of 3"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "E1 · Checking understanding during the lesson"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "Whether the teacher checks during the lesson if students are learning, gets answers from most of the class rather than a few volunteers, and changes what they do based on what they find."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: In class"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No check, or only \"Everyone understood?\" \"Yes!\""
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "The teacher checks understanding with a few students only (usually the same volunteers)."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least two checks that get answers from most of the class (everyone writes, fingers up 1–4, mini-whiteboards, quick written question), or the teacher walks around and looks at most students' work."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, the teacher changes what they do because of what the check showed (re-teaches, gives another example, regroups)."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_E1": "",
+            "ev_E1": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_e_one_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_E1",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_E1",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_E_ONE",
+                    "lv_E1": "${form.lv_E1}",
+                    "ev_E1": "${form.ev_E1}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_E_TWO",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section E · 2 of 3"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "E2 · Student learning check (5 students)"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "At the end of the lesson the principal picks 5 students at random (not volunteers, mixed seats) and asks each 1–2 short questions on today's objective. Count how many show good understanding."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: Principal asks 5 random students (last 5 minutes or right after)"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "0–1 of the 5 students show good understanding of the lesson taught."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "2 of the 5 students show good understanding."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "3–4 of the 5 students show good understanding."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "All 5 students show good understanding of the lesson taught."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_E2": "",
+            "ev_E2": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_e_two_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_E2",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_E2",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_E_TWO",
+                    "lv_E2": "${form.lv_E2}",
+                    "ev_E2": "${form.ev_E2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_E_THREE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Section E · 3 of 3"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "E3 · Notebooks & written feedback"
+        },
+        "look_for": {
+          "type": "string",
+          "__example__": "The principal looks at 3 random notebooks: whether written work for recent lessons is there and checked, whether the teacher's written feedback says what to improve, and whether students act on it."
+        },
+        "how_line": {
+          "type": "string",
+          "__example__": "How: Principal checks 3 random notebooks"
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_level": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Below standard",
+              "description": "No written work for most recent lessons, or work is not checked."
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing",
+              "description": "Work for most of the last 5 lessons is present and checked, but only with ticks / signature."
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient",
+              "description": "At least once in the last 5 lessons, the teacher's written feedback says what was right and what to improve."
+            },
+            {
+              "id": "4",
+              "title": "4 · Exemplary",
+              "description": "Beyond level 3, tasks include application questions beyond copying the book, and students have done their corrections (or peer checking is used)."
+            }
+          ]
+        },
+        "lbl_ev": {
+          "type": "string",
+          "__example__": "Evidence"
+        },
+        "help_ev": {
+          "type": "string",
+          "__example__": "What you saw and heard: at least 20 characters."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "lv_E3": "",
+            "ev_E3": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_e_three_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.look_for}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.how_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lv_E3",
+                "label": "${data.lbl_level}",
+                "required": true,
+                "data-source": "${data.opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_E3",
+                "label": "${data.lbl_ev}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_ev}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_E_THREE",
+                    "lv_E3": "${form.lv_E3}",
+                    "ev_E3": "${form.ev_E3}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_CHECKLIST",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Checklist (not scored)"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "Yes or No for each. These are not part of the score."
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "yes_no": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "yes",
+              "title": "Yes"
+            },
+            {
+              "id": "no",
+              "title": "No"
+            }
+          ]
+        },
+        "cl_1_lbl": {
+          "type": "string",
+          "__example__": "1. Classroom environment"
+        },
+        "cl_1_text": {
+          "type": "string",
+          "__example__": "Classroom is well lit and airy"
+        },
+        "cl_2_lbl": {
+          "type": "string",
+          "__example__": "2. Classroom environment"
+        },
+        "cl_2_text": {
+          "type": "string",
+          "__example__": "Student strength is appropriate for room size"
+        },
+        "cl_3_lbl": {
+          "type": "string",
+          "__example__": "3. Classroom environment"
+        },
+        "cl_3_text": {
+          "type": "string",
+          "__example__": "Seating allows students to see the board and work in pairs/groups"
+        },
+        "cl_4_lbl": {
+          "type": "string",
+          "__example__": "4. Classroom environment"
+        },
+        "cl_4_text": {
+          "type": "string",
+          "__example__": "Soft boards / displays are current and linked to concepts being taught"
+        },
+        "cl_5_lbl": {
+          "type": "string",
+          "__example__": "5. Classroom environment"
+        },
+        "cl_5_text": {
+          "type": "string",
+          "__example__": "Board is appropriate and used legibly"
+        },
+        "cl_6_lbl": {
+          "type": "string",
+          "__example__": "6. Teacher presence"
+        },
+        "cl_6_text": {
+          "type": "string",
+          "__example__": "Voice is clear and audible at the back of the room"
+        },
+        "cl_7_lbl": {
+          "type": "string",
+          "__example__": "7. Teacher presence"
+        },
+        "cl_7_text": {
+          "type": "string",
+          "__example__": "Teacher moves around the room and makes eye contact"
+        },
+        "cl_8_lbl": {
+          "type": "string",
+          "__example__": "8. Teacher presence"
+        },
+        "cl_8_text": {
+          "type": "string",
+          "__example__": "Instructions are clear and students know what to do"
+        },
+        "cl_9_lbl": {
+          "type": "string",
+          "__example__": "9. Medium of instruction"
+        },
+        "cl_9_text": {
+          "type": "string",
+          "__example__": "Medium of instruction is as per subject policy (English / Urdu)"
+        },
+        "cl_10_lbl": {
+          "type": "string",
+          "__example__": "10. Records"
+        },
+        "cl_10_text": {
+          "type": "string",
+          "__example__": "Teacher's Planner is available and up to date (profile, timetable, homework schedule)"
+        },
+        "cl_11_lbl": {
+          "type": "string",
+          "__example__": "11. Records"
+        },
+        "cl_11_text": {
+          "type": "string",
+          "__example__": "Lesson is at the point the syllabus breakdown says for this week"
+        },
+        "cl_12_lbl": {
+          "type": "string",
+          "__example__": "12. Records"
+        },
+        "cl_12_text": {
+          "type": "string",
+          "__example__": "Students' diaries carry homework and parent communication"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "cl_1": "",
+            "cl_2": "",
+            "cl_3": "",
+            "cl_4": "",
+            "cl_5": "",
+            "cl_6": "",
+            "cl_7": "",
+            "cl_8": "",
+            "cl_9": "",
+            "cl_10": "",
+            "cl_11": "",
+            "cl_12": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_checklist_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.note}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_1",
+                "label": "${data.cl_1_lbl}",
+                "description": "${data.cl_1_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_2",
+                "label": "${data.cl_2_lbl}",
+                "description": "${data.cl_2_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_3",
+                "label": "${data.cl_3_lbl}",
+                "description": "${data.cl_3_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_4",
+                "label": "${data.cl_4_lbl}",
+                "description": "${data.cl_4_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_5",
+                "label": "${data.cl_5_lbl}",
+                "description": "${data.cl_5_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_6",
+                "label": "${data.cl_6_lbl}",
+                "description": "${data.cl_6_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_7",
+                "label": "${data.cl_7_lbl}",
+                "description": "${data.cl_7_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_8",
+                "label": "${data.cl_8_lbl}",
+                "description": "${data.cl_8_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_9",
+                "label": "${data.cl_9_lbl}",
+                "description": "${data.cl_9_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_10",
+                "label": "${data.cl_10_lbl}",
+                "description": "${data.cl_10_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_11",
+                "label": "${data.cl_11_lbl}",
+                "description": "${data.cl_11_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cl_12",
+                "label": "${data.cl_12_lbl}",
+                "description": "${data.cl_12_text}",
+                "required": false,
+                "data-source": "${data.yes_no}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_CHECKLIST",
+                    "cl_1": "${form.cl_1}",
+                    "cl_2": "${form.cl_2}",
+                    "cl_3": "${form.cl_3}",
+                    "cl_4": "${form.cl_4}",
+                    "cl_5": "${form.cl_5}",
+                    "cl_6": "${form.cl_6}",
+                    "cl_7": "${form.cl_7}",
+                    "cl_8": "${form.cl_8}",
+                    "cl_9": "${form.cl_9}",
+                    "cl_10": "${form.cl_10}",
+                    "cl_11": "${form.cl_11}",
+                    "cl_12": "${form.cl_12}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FS_FEEDBACK",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Feedback for the teacher"
+        },
+        "score_lines": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rule": {
+          "type": "string",
+          "__example__": "Share 1-2 strengths and choose ONE indicator to work on (at most two), with a concrete action and a date. Give it within 2 working days."
+        },
+        "back_hint": {
+          "type": "string",
+          "__example__": "To change an earlier answer, tap ← at the top. Your answers stay."
+        },
+        "lbl_strengths": {
+          "type": "string",
+          "__example__": "Strengths"
+        },
+        "help_strengths": {
+          "type": "string",
+          "__example__": "1-2 things the teacher did well"
+        },
+        "lbl_focus": {
+          "type": "string",
+          "__example__": "Indicator to work on"
+        },
+        "focus_opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "A1",
+              "title": "A1 · Lesson objective (SLO)",
+              "description": "Lesson objective (SLO)"
+            },
+            {
+              "id": "A2",
+              "title": "A2 · Opening & prior learning",
+              "description": "Opening & prior learning"
+            },
+            {
+              "id": "A3",
+              "title": "A3 · Closure & homework",
+              "description": "Closure & homework"
+            },
+            {
+              "id": "B1",
+              "title": "B1 · Accuracy & command of…",
+              "description": "Accuracy & command of content"
+            },
+            {
+              "id": "B2",
+              "title": "B2 · Explaining why",
+              "description": "Explaining why"
+            },
+            {
+              "id": "B3",
+              "title": "B3 · Subject language",
+              "description": "Subject language"
+            },
+            {
+              "id": "B4",
+              "title": "B4 · Links to real life &…",
+              "description": "Links to real life & other subjects"
+            },
+            {
+              "id": "B5",
+              "title": "B5 · Resources & technology",
+              "description": "Resources & technology"
+            },
+            {
+              "id": "C1",
+              "title": "C1 · Quality of questions",
+              "description": "Quality of questions"
+            },
+            {
+              "id": "C2",
+              "title": "C2 · Responding to wrong…",
+              "description": "Responding to wrong answers"
+            },
+            {
+              "id": "C3",
+              "title": "C3 · Who gets to answer",
+              "description": "Who gets to answer"
+            },
+            {
+              "id": "C4",
+              "title": "C4 · Student voice & choice",
+              "description": "Student voice & choice"
+            },
+            {
+              "id": "C5",
+              "title": "C5 · Time & transitions",
+              "description": "Time & transitions"
+            },
+            {
+              "id": "C6",
+              "title": "C6 · Respectful & safe climate",
+              "description": "Respectful & safe climate"
+            },
+            {
+              "id": "C7",
+              "title": "C7 · Pair & group work",
+              "description": "Pair & group work"
+            },
+            {
+              "id": "C8",
+              "title": "C8 · Support for different…",
+              "description": "Support for different learners"
+            },
+            {
+              "id": "D1",
+              "title": "D1 · Students' reasoning",
+              "description": "Students' reasoning"
+            },
+            {
+              "id": "D2",
+              "title": "D2 · Breadth of participation",
+              "description": "Breadth of participation"
+            },
+            {
+              "id": "D3",
+              "title": "D3 · Students talking to…",
+              "description": "Students talking to each other"
+            },
+            {
+              "id": "D4",
+              "title": "D4 · Students' own questions",
+              "description": "Students' own questions"
+            },
+            {
+              "id": "E1",
+              "title": "E1 · Checking understanding…",
+              "description": "Checking understanding during the lesson"
+            },
+            {
+              "id": "E2",
+              "title": "E2 · Student learning check…",
+              "description": "Student learning check (5 students)"
+            },
+            {
+              "id": "E3",
+              "title": "E3 · Notebooks & written…",
+              "description": "Notebooks & written feedback"
+            }
+          ]
+        },
+        "lbl_action": {
+          "type": "string",
+          "__example__": "Action"
+        },
+        "help_action": {
+          "type": "string",
+          "__example__": "One concrete thing to do in the next lessons"
+        },
+        "lbl_by": {
+          "type": "string",
+          "__example__": "By when"
+        },
+        "help_by": {
+          "type": "string",
+          "__example__": "A date, e.g. 2 December"
+        },
+        "focus_two": {
+          "type": "string",
+          "__example__": "A second indicator (optional)"
+        },
+        "lbl_focus_2": {
+          "type": "string",
+          "__example__": "Second indicator"
+        },
+        "lbl_action_2": {
+          "type": "string",
+          "__example__": "Second action"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Submit"
+        },
+        "init": {
+          "type": "object",
+          "__example__": {
+            "fb_strengths": "",
+            "fs_focus": "",
+            "fs_action": "",
+            "fs_by": "",
+            "fs_focus_2": "",
+            "fs_action_2": ""
+          }
+        },
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fs_feedback_form",
+            "init-values": "${data.init}",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.rubric_label}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.score_lines}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rule}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fb_strengths",
+                "label": "${data.lbl_strengths}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_strengths}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "fs_focus",
+                "label": "${data.lbl_focus}",
+                "required": true,
+                "data-source": "${data.focus_opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fs_action",
+                "label": "${data.lbl_action}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.help_action}"
+              },
+              {
+                "type": "TextInput",
+                "name": "fs_by",
+                "label": "${data.lbl_by}",
+                "input-type": "text",
+                "required": false,
+                "helper-text": "${data.help_by}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.focus_two}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "fs_focus_2",
+                "label": "${data.lbl_focus_2}",
+                "required": false,
+                "data-source": "${data.focus_opts}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fs_action_2",
+                "label": "${data.lbl_action_2}",
+                "required": false,
+                "max-length": 600
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.back_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FS_FEEDBACK",
+                    "fb_strengths": "${form.fb_strengths}",
+                    "fs_focus": "${form.fs_focus}",
+                    "fs_action": "${form.fs_action}",
+                    "fs_by": "${form.fs_by}",
+                    "fs_focus_2": "${form.fs_focus_2}",
+                    "fs_action_2": "${form.fs_action_2}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "NOTICE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "notice_title": {
+          "type": "string",
+          "__example__": "Already submitted"
+        },
+        "notice_body": {
+          "type": "string",
+          "__example__": "This form was submitted before. Nothing was changed."
+        },
+        "close_label": {
+          "type": "string",
+          "__example__": "Close"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.notice_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.notice_body}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.close_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "NOTICE"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "DONE",
+      "title": "FICO-S v1.1 · مشاہدہ",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "rubric_label": {
+          "type": "string",
+          "__example__": "FICO-S v1.1"
+        },
+        "done_title": {
+          "type": "string",
+          "__example__": "Submitted"
+        },
+        "done_body": {
+          "type": "string",
+          "__example__": "Your FICO-S form is saved. Your summary follows in the chat."
+        },
+        "outcome": {
+          "type": "string",
+          "__example__": "submitted"
+        },
+        "form_id": {
+          "type": "string",
+          "__example__": "00000000-0000-4000-8000-000000000000"
+        },
+        "done_label": {
+          "type": "string",
+          "__example__": "Done"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.rubric_label}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.done_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.done_body}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.done_label}",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "obs612": "${data.outcome}",
+                "form_id": "${data.form_id}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

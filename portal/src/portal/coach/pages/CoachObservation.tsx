@@ -163,7 +163,8 @@ const CoachObservation = () => {
             if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
             // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
             // bd-ra8xu.40 — before Submit there is no result yet (the visit is FDE by its rubric): the lesson alone.
-            const fdeVisit = /^obs612-/.test(String(view?.rubric?.id || ""));
+            // bd-31ziu8: a FICO-S v1.1 visit (fico_s_v1_1) is filled and shown the same way.
+            const fdeVisit = /^(obs612-|fico_s_v)/.test(String(view?.rubric?.id || ""));
             if (data.obs612 || fdeVisit) {
               return (
                 <>

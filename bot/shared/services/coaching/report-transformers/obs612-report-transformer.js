@@ -11,13 +11,38 @@
  *     evidence; the 5-student check; the development plan. NO total: totalScore, maxScore and every goal score null.
  *   - gen:  one goal per section with yes / of; each item Yes or No, no score. totalScore and maxScore null.
  * Every criterion is setBy 'coach': the coach scored every item; nothing here is a model's.
+ *   - ficos (bd-31ziu8, FICO-S v1.1): one goal per section (its total / its max), each indicator 1-4 of 4 with the
+ *     level's name and the observer's evidence; total / max / % / band as FICO-S computes them; the strengths, the focus
+ *     and its action as feedbackSections and developmentPlan.
  */
 
 const O = require('../frameworks/obs612');
 const { obs612View, obs612Of } = require('../../observe/obs612/view');
 const { formatDate } = require('./_shared');
 
-const { FDE_FOOTNOTE: FOOTER } = require('../../observe/obs612/view');
+const { FDE_FOOTNOTE: FOOTER, FICO_S_FOOTNOTE } = require('../../observe/obs612/view');
+const FicoS = require('../frameworks/fico-s');
+
+function ficosGoals(v) {
+  return v.ficos.sections.map((s) => ({
+    title: `${s.key}. ${s.name}`,
+    section: s.key,
+    score: s.scored ? s.total : null,
+    maxScore: s.scored ? s.max : null,
+    comment: null,
+    criteria: v.ficos.indicators.filter((i) => i.section === s.key).map((i) => ({
+      key: i.code,
+      name: `${i.code} ${i.name}`,
+      score: i.level,
+      max: 4,
+      na: i.na,
+      evidence: [i.levelName, i.evidence].filter(Boolean).join(' · '),
+      photoEvidence: null,
+      timestamp: null,
+      setBy: 'coach',
+    })),
+  }));
+}
 
 function enurGoals(o, v) {
   const answers = o.answers || {};
@@ -140,6 +165,32 @@ function transformObs612ToReportData(session, teacherName, analysis) {
   if (!v) return base;
 
   const o = obs612Of(analysis);
+  if (v.tool === 'ficos') {
+    const f = v.ficos;
+    const fs = [];
+    if (v.feedback.strengths) fs.push({ key: 'strengths', label: 'Strengths', text: v.feedback.strengths });
+    const plan = v.plan.map((p) => `${p.code} ${p.name}${p.level === null ? '' : ` (Level ${p.level})`}: ${p.action}`.trim());
+    if (plan.length) fs.push({ key: 'focus', label: 'To work on', text: plan.join('\n') });
+    if (v.feedback.by_when) fs.push({ key: 'by_when', label: 'By when', text: v.feedback.by_when });
+    return {
+      ...base,
+      rubricLabel: FicoS.LABEL,
+      frameworkDisplayName: 'FICO-S',
+      totalScore: f.total,
+      maxScore: f.max,
+      percentage: f.pct,
+      band: f.band,
+      noTotal: false,
+      goals: ficosGoals(v),
+      feedbackSections: fs,
+      developmentPlan: plan,
+      feedback: fs.map((x) => `${x.label}: ${x.text}`).join('\n'),
+      footer: FICO_S_FOOTNOTE,
+      observerName: 'Your observer',
+      headerLabels: { eyebrow: 'CLASSROOM OBSERVATION · FICO-S v1.1', title: v.toolTitle, sub: FicoS.LABEL },
+      scaleLegend: { title: 'FICO-S SCALE', stops: [1, 2, 3, 4].map((n) => ({ n: String(n), label: FicoS.levelName(n) })) },
+    };
+  }
   if (v.tool === 'enur') {
     const fs = O.TOOLS.enur.feedback.filter((f) => v.feedback[f.key]).map((f) => ({ key: f.key, label: f.label, text: v.feedback[f.key] }));
     return {

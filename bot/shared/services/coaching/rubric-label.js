@@ -28,7 +28,11 @@ function v6Label() {
 // bd-pni007 — FDE's grade 6-12 observation tools: 'obs612-<tool>-v<n>' (msci, enur, gen), shown as 'FDE v<n>'. The id
 // (which tool) stays in the result for debugging; the label is framework + version only, like FICO's.
 const OBS612_RX = /^obs612-(gen|msci|enur)-v(\d+)$/;
+// bd-31ziu8 — FICO-S ('fico_s_v<major>_<minor>'), ICT's grade 6-12 rubric from 18 Nov, shown as 'FICO-S v1.1'.
+const FICO_S_RX = /^fico_s_v(\d+)_(\d+)$/;
 function obs612Label(id) {
+  const s = FICO_S_RX.exec(String(id || ''));
+  if (s) return { id, label: `FICO-S v${s[1]}.${s[2]}` };
   const m = OBS612_RX.exec(String(id || ''));
   return m ? { id, label: `FDE v${m[2]}` } : null;
 }

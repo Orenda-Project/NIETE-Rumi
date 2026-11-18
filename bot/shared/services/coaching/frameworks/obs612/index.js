@@ -22,30 +22,58 @@
  * The coach scores every item. An obs612 score is never a FICO number: it is stamped with its rubric id
  * (analysis_data.framework / .rubric / .scores.rubric), and frameworks/own-rubric.js keeps it out of every FICO
  * total and average.
+ *
+ * bd-31ziu8 — a fourth tool, FICO-S v1.1 ('fico_s_v1_1', tool 'ficos'): "FICO for Secondary", the ICT HITL rubric for
+ * grades 6-12 from 18 Nov (operator: "For 6 onwards all the way to 12, it is going to be FICO-S v1.1"), branched off
+ * FICO17 v6 with FDE's Annex G mapped into it. Its text and arithmetic live in frameworks/fico-s; this module only
+ * registers it, so the form row, the Flow endpoint, the record, the coach summary, the teacher report and the portal
+ * serve it through the same doors as FDE's tools. 'obs612' here names the family (observation, grades 6-12), not FDE.
+ * Which tool a lesson gets: toolFor(grade, subject, { ficoS }); FICO-S is on per observer behind fico_s_coach
+ * (coaching/fico-s-switch.js) and only for an ICT visit, exactly as FDE's tools (coaching/fde-region.js).
  */
 
 const fs = require('fs');
 const path = require('path');
 
+const FicoS = require('../fico-s');
+
 const RUBRIC_FILE = path.join(__dirname, 'obs612.rubric.json');
 const RUBRIC = JSON.parse(fs.readFileSync(RUBRIC_FILE, 'utf8'));
 
 const FAMILY = 'obs612';
-// The label every surface shows (operator 11 Nov ~18:45: framework + version only, no grade or subject).
+// The label every FDE surface shows (operator 11 Nov ~18:45: framework + version only, no grade or subject). A FICO-S
+// visit shows 'FICO-S v1.1': read a visit's label with labelOf(rubricId), never this constant.
 const LABEL = RUBRIC.label; // 'FDE v1'
-const TOOLS = RUBRIC.tools;
+const FICO_S_TOOL = {
+  id: FicoS.RUBRIC_KEY,
+  title: FicoS.LABEL,
+  subtitle: FicoS.RUBRIC.title,
+  label: FicoS.LABEL,
+  branched_from: FicoS.RUBRIC.branched_from,
+};
+const TOOLS = { ...RUBRIC.tools, ficos: FICO_S_TOOL };
 const IDS = Object.fromEntries(Object.entries(TOOLS).map(([k, t]) => [k, t.id]));
 const ID_RX = /^obs612-(gen|msci|enur)-v(\d+)$/;
 
-/** Is this string an obs612 rubric id (any version)? */
+/** Is this string an obs612 rubric id (any version), or FICO-S v1.1? */
 function isObs612Id(id) {
-  return typeof id === 'string' && ID_RX.test(id);
+  return typeof id === 'string' && (ID_RX.test(id) || FicoS.isFicoSId(id));
 }
 
-/** 'gen' | 'msci' | 'enur' for an obs612 rubric id, else null. */
+/** 'gen' | 'msci' | 'enur' | 'ficos' for a grade 6-12 rubric id, else null. */
 function toolOf(id) {
+  if (FicoS.isFicoSId(id)) return 'ficos';
   const m = ID_RX.exec(String(id || ''));
   return m ? m[1] : null;
+}
+
+/** Is this a FICO-S id (tool 'ficos')? */
+const isFicoS = (id) => FicoS.isFicoSId(id);
+
+/** The label a visit on this rubric shows: 'FICO-S v1.1' or 'FDE v1'; null for an id this module does not know. */
+function labelOf(id) {
+  if (FicoS.isFicoSId(id)) return FicoS.LABEL;
+  return ID_RX.test(String(id || '')) ? LABEL : null;
 }
 
 /** The tool definition for a rubric id (this version's), else null. */
@@ -64,6 +92,9 @@ const PRIMARY_MAX_GRADE = 5;
 // switch.
 const FDE_GRADES = [6, 7, 8];
 const isFdeGrade = (g) => FDE_GRADES.includes(Number(g));
+// bd-31ziu8 (operator 18 Nov): FICO-S v1.1 is every ICT grade from 6 to 12.
+const FICO_S_GRADES = FicoS.GRADES.slice();
+const isFicoSGrade = (g) => FICO_S_GRADES.includes(Number(g));
 
 // The subjects a coach can name for a grade 6-8 lesson (FDE's grades). Keys are stored in visit_context.subject.
 const SUBJECTS = [
@@ -107,12 +138,16 @@ const normSubject = (s) => {
 };
 
 /**
- * The obs612 tool for a lesson, or null when the lesson is not a grade 6-8 one (grades 1-5 and 9-12 stay on FICO, and
- * an unknown grade decides nothing).
- * @returns {{tool: 'gen'|'msci'|'enur', rubricId: string, sheet: 'en'|'ur'|null}|null}
+ * The grade 6-12 tool for a lesson, or null when the lesson stays on FICO (grades 1-5 always; grades 9-12 unless
+ * FICO-S is on; an unknown grade decides nothing).
+ *   ficoS on (the observer's fico_s_coach switch, ICT visit): grades 6-12 → FICO-S v1.1, whatever the subject.
+ *   ficoS off: grades 6-8 → FDE's tool for the subject (as before); grades 9-12 → null (FICO).
+ * @param {{ficoS?: boolean}} [opts]
+ * @returns {{tool: 'gen'|'msci'|'enur'|'ficos', rubricId: string, sheet: 'en'|'ur'|null}|null}
  */
-function toolFor(grade, subject) {
+function toolFor(grade, subject, { ficoS = false } = {}) {
   const g = normGrade(grade);
+  if (g !== null && ficoS && isFicoSGrade(g)) return { tool: 'ficos', rubricId: FICO_S_TOOL.id, sheet: null };
   if (g === null || !isFdeGrade(g)) return null;
   const s = normSubject(subject);
   const route = ROUTES.find((r) => r.grades.includes(g) && s && r.subjects.includes(s));
@@ -142,6 +177,7 @@ const SHORT = {
     gen: 'General form',
     msci: 'Maths & Science tool',
     enur: 'English & Urdu tool',
+    ficos: 'FICO-S v1.1',
   },
 };
 
@@ -162,6 +198,16 @@ function enurSections(sheet) {
  */
 function requiredItems(rubricId, sheet) {
   const tool = toolOf(rubricId);
+  if (tool === 'ficos') {
+    // Every indicator's level (C2 may be N/A) and its evidence line (frameworks/fico-s EVIDENCE_MIN).
+    return FicoS.CODES.flatMap((c) => {
+      const ind = FicoS.indicator(c);
+      return [
+        { key: c, section: ind.section, text: ind.name, kind: FicoS.NA_CODES.includes(c) ? 'fico_s_na' : 'fico_s' },
+        { key: `ev_${c}`, section: ind.section, text: ind.name, kind: 'evidence' },
+      ];
+    });
+  }
   if (tool === 'gen') {
     return TOOLS.gen.sections.flatMap((s) => s.items.map((i) => ({ key: i.key, section: s.key, text: i.text, kind: 'yes_no' })));
   }
@@ -181,13 +227,20 @@ const KIND_VALUES = {
   yes_no: ['yes', 'no'],
   level: ['0', '1', '2', '3'],
   points: ['1', '2', '3', '4'],
+  fico_s: ['1', '2', '3', '4'],
+  fico_s_na: ['1', '2', '3', '4', 'na'],
 };
 
-/** A stored answer in its canonical form ('yes'/'no', or the number as a string), else null. */
+/**
+ * A stored answer in its canonical form ('yes'/'no', the number as a string, FICO-S 'NA'), else null. kind 'evidence'
+ * is the observer's written evidence for a FICO-S level: the trimmed text when it counts (frameworks/fico-s).
+ */
 function normAnswer(kind, v) {
   if (v === undefined || v === null) return null;
+  if (kind === 'evidence') return FicoS.isEvidence(v) ? String(v).trim() : null;
   const s = String(v).trim().toLowerCase();
-  return KIND_VALUES[kind] && KIND_VALUES[kind].includes(s) ? s : null;
+  if (!(KIND_VALUES[kind] && KIND_VALUES[kind].includes(s))) return null;
+  return s === 'na' ? 'NA' : s;
 }
 
 /** The keys of required items with no valid answer. */
@@ -230,6 +283,12 @@ function score(rubricId, sheet, answers = {}) {
   const tool = toolOf(rubricId);
   const a = answers || {};
   const missing = missingItems(rubricId, sheet, a);
+  if (tool === 'ficos') {
+    // frameworks/fico-s: section averages, overall % and band (the sheet's arithmetic). `missing` names levels and
+    // evidence alike; the levels' own list is r.missing_levels.
+    const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, a[c]])));
+    return { ...r, tool, rubric_id: rubricId, sheet: null, missing, missing_levels: r.missing };
+  }
   if (tool === 'gen') {
     const sections = TOOLS.gen.sections.map((s) => {
       const vals = s.items.map((i) => normAnswer('yes_no', a[i.key]));
@@ -279,6 +338,11 @@ module.exports = {
   RUBRIC,
   FAMILY,
   LABEL,
+  labelOf,
+  isFicoS,
+  FICO_S_TOOL,
+  FICO_S_GRADES,
+  isFicoSGrade,
   TOOLS,
   IDS,
   GRADES,
