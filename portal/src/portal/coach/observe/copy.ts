@@ -46,7 +46,7 @@ export const OBSERVE_COPY = {
   next: 'Next',
   done: 'Done',
   overdueN: (n = 0) => `${n} overdue`,
-  daysLate: (n = 0) => `${n} days late`,
+  daysLate: (n = 0) => (n === 1 ? '1 day late' : `${n} days late`),
   scheduleFirst: 'Schedule a visit first',
   nothingYet: 'No visits yet',
 

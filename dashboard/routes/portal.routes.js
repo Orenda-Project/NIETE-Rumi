@@ -101,6 +101,7 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  PORTAL_COACH_FLOW_V2_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -9358,6 +9359,7 @@ router.get('/config', async (req, res) => {
       schoolCardRaw,
       roleSwitch,
       coachFullAppRaw,
+      coachFlowV2Raw,
       coachReportsAppRaw,
       principalApp,
       lpMakeOwnRaw,
@@ -9405,6 +9407,8 @@ router.get('/config', async (req, res) => {
       isRoleSwitchUser(supabase, userId),
       // bd-jjcofw — the full coach app (Schedule + Observe) for a listed tester; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
+      // bd-o15qnr.26 — the coach visit flow v2 (one open Schedule list, Observations); rides with v2 + the full app.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId),
       // Coach reports in the app: her debrief report as a page and its Home card; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
       // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
@@ -9458,6 +9462,7 @@ router.get('/config', async (req, res) => {
         coachipDecode: coachip && coachipDecodeRaw,
         schoolCard: coachV2 && schoolCardRaw,
         coachFullApp: coachV2 && coachFullAppRaw,
+        coachFlowV2: coachV2 && coachFullAppRaw && coachFlowV2Raw,
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
@@ -9495,6 +9500,7 @@ router.get('/config', async (req, res) => {
         coachipDecode: false,
         schoolCard: false,
         coachFullApp: false,
+        coachFlowV2: false,
         roleSwitch: false,
         principalApp: false,
         lpMakeOwn: false,

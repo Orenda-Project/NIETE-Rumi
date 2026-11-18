@@ -34,7 +34,7 @@ export const SCHEDULE_COPY = {
   done: 'Done',
   next: 'Next',
   noVisits: 'No visits',
-  daysLate: (n: number) => `${n} days late`,
+  daysLate: (n: number) => (n === 1 ? '1 day late' : `${n} days late`),
   week: 'Week',
   /** "Wed 7": a day's short name and its number. */
   dayShort: (weekday: string, n: number) => `${weekday} ${n}`,
@@ -54,6 +54,10 @@ export const SCHEDULE_COPY = {
   visitsN: (n: number) => `${n} visits`,
   showAllN: (n: number) => `Show all ${n}`,
   showFewer: 'Show fewer',
+
+  /* bd-o15qnr.26 — Schedule as the one open list (portal_coach_flow_v2): Overdue · Today · Coming up · Earlier */
+  comingUp: 'Coming up',
+  earlier: 'Earlier',
 
   /* New visit */
   crumb: 'Schedule',
@@ -134,6 +138,10 @@ export const SCHEDULE_COPY_UR: ScheduleCopy = {
   visitsN: (n: number) => `${n} دورے`,
   showAllN: (n: number) => `تمام ${n} دکھائیں`,
   showFewer: 'کم دکھائیں',
+
+  // NATIVE-CHECK (bd-o15qnr.26, machine-drafted): Coming up. Earlier is Observe's word (observe/copy.ts).
+  comingUp: 'آنے والے',
+  earlier: 'پہلے',
 
   crumb: 'شیڈول',
   reschedule: 'دوبارہ شیڈول کریں',
