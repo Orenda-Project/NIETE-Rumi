@@ -1919,6 +1919,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And every letter card, every option, the replay and Next can be tapped without scrolling, and no scroll cue is drawn
     And nothing else on the screen changes its place when Next appears, in Urdu and in English
 
+  @e2e @wip @draft @config-gated @P1 @CT291 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("RDF auto on a 360x640 Urdu phone").
+  Scenario: With sa_r28_mcq on, the Urdu story question's card holds both lines of a two-line question in RDF auto on a phone
+    Given sa_r28_mcq is on, with every switch the tier serves
+    When a child alone (RDF auto) on a 360x640 phone reaches an Urdu story question that runs to two lines
+    Then both lines of the question are drawn inside the question's card, while Jugnu reads it, after the read-out and once Next is offered
+    And no part of the question's writing runs into the gap above the first answer
+    And the four answer cards are whole and can be tapped without scrolling while the question is read and answered
+    And coach-led, English and the tablet are unchanged, and with sa_r28_mcq off the screen is as today
+
   @e2e @wip @draft @config-gated @P1 @CT246 @no-mock-driver
   # No mock driver: the prompt is sent in the scoring sweep to a model, not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.

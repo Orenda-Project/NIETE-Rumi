@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-32'); // sa-32: round 28, sa-ui.js / sa.css / sa-offline.js (coach-led picker + MCQ voice; the picker practice's named line in the head row; the offline timing sweep)
+    expect(sw.CORE).toBe('sa-core-sa-33'); // sa-33: round 28, sa.css (the Urdu RDF-auto story question card on a phone)
   });
 });
 
