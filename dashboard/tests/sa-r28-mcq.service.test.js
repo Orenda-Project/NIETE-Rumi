@@ -2947,6 +2947,96 @@ maybeBrowser('sa_r28_mcq RDF auto on a 360×640 Urdu phone: the two-line questio
       }
     }
   }
+  /** The question card's ink line by line: its text split at its line breaks into spans (the layout checked unchanged),
+   *  everything else hidden, overflow visible, one line drawn at a time; a pixel is ink when its luminance < 120 with
+   *  that line drawn and >= 120 with no text drawn. Per line its ink top and bottom (CSS px), and per pair of
+   *  consecutive lines the gap between line N's ink bottom and line N+1's ink top (< 0: the lines' ink overlaps). */
+  async function qLineInk(p, dpr) {
+    const geo = await p.evaluate(() => {
+      const q = document.querySelector('.sae-mcq-q'); const before = q.getBoundingClientRect();
+      const tw = document.createTreeWalker(q, NodeFilter.SHOW_TEXT); const nodes = []; let n; while ((n = tw.nextNode())) nodes.push(n);
+      const r = document.createRange(); const tops = []; const segs = [];
+      nodes.forEach((tn) => { const s = tn.textContent; let cur = null;
+        for (let i = 0; i < s.length; i++) { r.setStart(tn, i); r.setEnd(tn, i + 1); const rc = r.getClientRects()[0]; let line = cur ? cur.line : 0;
+          if (rc && rc.width) { const t = Math.round(rc.top); let k = tops.findIndex((x) => Math.abs(x - t) <= 4); if (k < 0) { tops.push(t); k = tops.length - 1; } line = k; }
+          if (!cur || cur.line !== line) { cur = { tn, start: i, end: i + 1, line }; segs.push(cur); } else cur.end = i + 1; } });
+      const order = tops.map((t, i) => [t, i]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+      window.__ql = { q, html: q.innerHTML, hidden: [], css: q.style.cssText };
+      for (let k = segs.length - 1; k >= 0; k--) { const sg = segs[k]; const sp = document.createElement('span'); sp.className = 'ql-line'; sp.dataset.l = String(order.indexOf(sg.line));
+        sp.textContent = sg.tn.textContent.slice(sg.start, sg.end); const after = sg.tn.splitText(sg.start); after.textContent = after.textContent.slice(sg.end - sg.start); sg.tn.parentNode.insertBefore(sp, after); }
+      q.style.overflow = 'visible'; q.style.webkitLineClamp = 'none'; q.style.display = 'block';
+      const aft = q.getBoundingClientRect(); const keep = new Set(); let e = q; while (e) { keep.add(e); e = e.parentElement; }
+      document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !q.contains(x) && x.style.visibility !== 'hidden') { x.style.visibility = 'hidden'; window.__ql.hidden.push(x); } });
+      return { lines: tops.length, same_layout: Math.abs(before.height - aft.height) < 0.5 && Math.abs(before.top - aft.top) < 0.5, top: aft.top, bottom: aft.bottom };
+    });
+    const y0 = Math.max(0, Math.floor(geo.top) - 60); const clip = { x: 0, y: y0, width: 360, height: Math.min(640, Math.ceil(geo.bottom) + 60) - y0 };
+    const mask = async () => p.evaluate(async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data; let s = '';
+      for (let i = 0; i < d.length; i += 4) s += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) < 120 ? '1' : '0';
+      return { w: c.width, m: s }; }, (await p.screenshot({ clip })).toString('base64'));
+    const show = (k) => p.evaluate((k) => document.querySelectorAll('.ql-line').forEach((sp) => { sp.style.color = String(k) === sp.dataset.l ? '' : 'transparent'; }), k);
+    await show(-1); const none = await mask();
+    const ink = [];
+    for (let k = 0; k < geo.lines; k++) {
+      await show(k); const A = await mask(); let top = null, bottom = null;
+      for (let i = 0; i < A.m.length; i++) if (A.m[i] === '1' && none.m[i] === '0') { const y = y0 + Math.floor(i / A.w) / dpr; if (top == null) top = y; bottom = y + 1 / dpr; }
+      ink.push({ top: +top.toFixed(2), bottom: +bottom.toFixed(2) });
+    }
+    await p.evaluate(() => { const o = window.__ql; o.hidden.forEach((x) => { x.style.visibility = ''; }); o.q.innerHTML = o.html; o.q.style.cssText = o.css; delete window.__ql; });
+    return { lines: geo.lines, same_layout: geo.same_layout, ink, gaps: ink.slice(1).map((x, i) => +(x.top - ink[i].bottom).toFixed(2)) };
+  }
+  /** Reach on the screen as drawn: every answer card whole and hit at its centre, the offered Next whole and hit at its
+   *  centre, the body's and the screen's scroll overflow, the page's, and a drawn scroll cue. */
+  const reach = (p) => p.evaluate(() => {
+    const vh = window.innerHeight; const vw = window.innerWidth;
+    const ok = (k) => { const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+      return b.top >= 0 && b.bottom <= vh && b.left >= 0 && b.right <= vw && !!e && (e === k || k.contains(e)); };
+    const over = (n) => (n ? Math.max(0, Math.round(n.scrollHeight - n.clientHeight)) : 0);
+    const scr = document.querySelector('.sae-screen'); const nx = document.querySelector('.sae-screen .sa-next');
+    return { options_ok: Array.from(document.querySelectorAll('.sae-mcq-opts .sae-mcq-opt')).filter(ok).length, next_ok: !!nx && ok(nx),
+      body_over: over(scr.querySelector('.sae-body')), screen_over: over(scr), page_over: Math.max(0, document.documentElement.scrollHeight - vh),
+      cue: Array.from(document.querySelectorAll('.sae-r9-scroll')).some((c) => !c.hidden && getComputedStyle(c).display !== 'none') };
+  });
+  // a two-line Urdu question in RDF auto on a 360×640 phone: line 2's ink starts below line 1's ink (they never draw
+  // into each other), and the card that holds them still leaves all four answers, the offered Next and the replay in
+  // reach with nothing scrolling — the served G2 Set A Q1 and the longest served Urdu question, both tiers' switches
+  const LONGEST_UR = 'ur.story2.q5'; // 43 characters; after Q1, the tallest ink of the served Urdu questions
+  for (const set of Object.keys(SERVED_UI)) for (const dpr of [3, 2]) {
+    test(`[prod] ${set}'s switches, DPR ${dpr}: Q1 and the longest Urdu question in RDF auto — the two lines' ink apart, four answers and the offered Next in reach, nothing scrolls`, async () => { MOUNT = MOUNTS.prod;
+      const longest = servedOf('ur').find((x) => x.id === LONGEST_UR);
+      expect(longest).toBeTruthy();
+      const rows = {};
+      for (const [id, swap] of [['q1', null], [LONGEST_UR, longest]]) {
+        const { ctx, p } = await open(set, dpr, false, 'ur', null, swap);
+        for (let k = 0; k < 5; k++) { await p.evaluate(() => window.__end()); await p.waitForTimeout(k === 0 ? 900 : 600); }
+        await p.waitForTimeout(250);
+        const read_ink = await qLineInk(p, dpr); const read_reach = await reach(p);
+        for (let k = 0; k < 8; k++) {
+          await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+          await p.waitForTimeout(300);
+          while (await p.evaluate(() => window.__end())) await p.waitForTimeout(700);
+          if (await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); })) break;
+        }
+        await p.waitForTimeout(250);
+        const offer_ink = await qLineInk(p, dpr); const offer_reach = await reach(p);
+        if (process.env.SA_RDF_Q_SHOTS) await p.screenshot({ path: path.join(process.env.SA_RDF_Q_SHOTS, `lines_${set}_${id}_dpr${dpr}_offernext.png`) });
+        await ctx.close();
+        rows[id] = { read_ink, read_reach, offer_ink, offer_reach };
+      }
+      RDF_Q_SIZES[`prod|${set}|ur|auto|dpr${dpr}|lines_apart`] = rows;
+      for (const [id, r] of Object.entries(rows)) {
+        for (const st of ['read', 'offer']) {
+          const i = r[`${st}_ink`];
+          expect({ id, st, lines: i.lines, same_layout: i.same_layout, apart: i.gaps.every((g) => g >= 0), gaps: i.gaps })
+            .toEqual({ id, st, lines: 2, same_layout: true, apart: true, gaps: i.gaps });
+        }
+        expect({ id, read: r.read_reach, offer: r.offer_reach }).toEqual({ id,
+          read: { options_ok: 4, next_ok: false, body_over: 0, screen_over: 0, page_over: 0, cue: false },
+          offer: { options_ok: 4, next_ok: true, body_over: 0, screen_over: 0, page_over: 0, cue: false } });
+      }
+    }, 240000);
+  }
   // every served Urdu question with its own answers, the question being read (sandbox's switches, DPR 2): the same
   // card rules hold one line or two, and the room the card takes never scrolls the cards
   test(`[${MOUNT_NAMES[0]}] every served Urdu question in RDF auto: its ink inside the card, nothing scrolls`, async () => { MOUNT = MOUNTS[MOUNT_NAMES[0]];
