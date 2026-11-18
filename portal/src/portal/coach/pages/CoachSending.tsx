@@ -36,6 +36,7 @@ const CoachSending = () => {
 
   return (
     <ObservePage banner={false} title={C.observationOf(job.teacherName)} crumb={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
+      trouble={failed ? "send" : null}
       dock={sent ? (
         <Link replace to={routes.observation(job.observationId || "")}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.openObservation}</Link>

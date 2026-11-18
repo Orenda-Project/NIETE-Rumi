@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useState } from "react";
+import { useSignalTrouble } from "./observe/trouble";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Clock, Search } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
@@ -397,6 +398,8 @@ export function Loading() {
 
 /** `message` and `retryLabel` carry a screen's own words (Urdu); left out, the coach app's English. */
 export function Failed({ onRetry, message, retryLabel }: { onRetry: () => void; message?: string; retryLabel?: string }) {
+  // bd-9652yj — on an Observe screen this load failure turns "Continue on WhatsApp" into a full button (ObservePage).
+  useSignalTrouble("load");
   return (
     <Card className="flex items-center gap-3 p-4">
       <span className="flex-1 text-[15px] font-semibold">{message ?? C.loadFailed}</span>

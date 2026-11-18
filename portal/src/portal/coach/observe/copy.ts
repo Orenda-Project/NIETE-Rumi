@@ -173,6 +173,12 @@ export const OBSERVE_COPY = {
   /** Short weekday and month names, for "Tue 6 Oct" (index 0 = Sunday / January). */
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+
+  /* bd-9652yj (queue #166) — the way back to WhatsApp: the strip on every Observe screen, and the line it types in the
+   * chat (the bot reads it: bot/shared/services/coach-app-nudge.service.js). The operator's words (mockups, option B). */
+  troubleAsk: 'Having trouble?',
+  continueOnWhatsApp: 'Continue on WhatsApp',
+  handoffLine: (code = '') => (code ? `Continue my visit on WhatsApp (code ${code})` : 'Continue my visit on WhatsApp'),
 };
 
 export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
@@ -319,13 +325,22 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
 
   weekdays: ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'],
   months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
+
+  troubleAsk: 'کوئی مسئلہ؟',
+  // 4 words, the kit's limit: option A's Urdu for the same action in the mockups (the 5-word «… جاری رکھیں» is too long).
+  continueOnWhatsApp: 'واٹس ایپ پر کریں',
+  handoffLine: (code = '') => (code ? `میرا دورہ واٹس ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس ایپ پر جاری رکھیں'),
 };
 
 /** The Observe screens' words in both languages. */
 export const OBSERVE = bilingual(OBSERVE_COPY, OBSERVE_COPY_UR);
 export type ObserveCopy = Words<typeof OBSERVE_COPY>;
 
-/** Paths that are rightly a sentence (more than 4 words) — the real reasons and the notes the design names. */
-export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure'] as const;
+/**
+ * Paths that are rightly a sentence (more than 4 words) — the real reasons and the notes the design names. bd-9652yj:
+ * the strip's question ("Having trouble?", the operator's words in the option B mockups) and the line typed into
+ * WhatsApp, which the bot reads.
+ */
+export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine'] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;
