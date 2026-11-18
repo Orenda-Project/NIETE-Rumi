@@ -854,6 +854,8 @@ function shapeTask(r, stops = false) {
     // round 28 (tap picker / MCQ): too few items heard to rate, how many were heard, and the questions the gate allowed.
     // Tap only: today's spoken questions already keep `asked` in their result, and their Results row stays as it was.
     ...(tap && ((m && m.unrated === true) || res.unrated === true) ? { unrated: true } : {}),
+    // O-46 (SPEC v2.80): why it is unrated when the cause is not too few heard: 'ended' = the coach ended it early
+    ...(tap && res.unrated === true && res.unrated_why === 'ended' ? { unratedWhy: 'ended' } : {}),
     ...(tap && typeof res.presented === 'number' ? { presented: res.presented } : {}),
     ...(tap && typeof res.unavailable === 'number' ? { unavailable: res.unavailable } : {}),
     // round 28 (MCQ, picker): the questions of the variant the phone served, before lost clips (the share's denominator)
