@@ -1,2 +1,3 @@
 {"ts":"2026-11-18T06:30:49Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"dfc0ee61b605","branch":"bd-snkn32.53-83169","user":""}
 {"ts":"2026-11-18T06:30:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"dfc0ee61b605","branch":"bd-snkn32.53-83169","user":""}
+{"ts":"2026-11-18T06:34:36Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (scenario \"My own plan shows real children\" was added in this same commit dfc0ee6; validated, count 98)","sha":"dfc0ee61b605","branch":"bd-snkn32.53-83169","user":""}
