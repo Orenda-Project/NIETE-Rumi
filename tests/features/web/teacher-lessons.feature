@@ -239,3 +239,22 @@ Feature: Teacher lesson plans
     When they tap View on a row
     Then /portal/fln/p/<that plan's id>?grade=3 opens
     And Send to teacher and Share link work as before
+
+  # bd-zrdvmi.21 (18 Nov) — ICT Feedback sheet, GB tab rows 2-3 (14 Nov, portal).
+  @GBS01 @draft @config-gated
+  Scenario: A GB teacher sends a Gilgit-Baltistan plan she opened in the app to her WhatsApp
+    Given the teacher app v2 is on, LP_GB_K5_ENABLED is on and a lesson-plan share template is set
+    And a GB teacher is signed in
+    When she opens a ready GB grade 1 Urdu plan from Lesson Plans
+    And she taps Send on WhatsApp
+    Then the button says the plan was sent, not "Not available yet"
+    And the bot logs share_send.sent with an itemRef naming the GB segment
+
+  @GBS02 @draft @negative
+  Scenario: When the reader cannot show a plan, it says which step failed in the logs
+    Given the teacher app v2 is on
+    And demo teacher 03000000911 is signed in
+    And the plan's file request fails or the plan cannot be drawn on her phone
+    When she opens a plan
+    Then the viewer shows "Can't show it here" with Open in another app
+    And the portal logs one lp_viewer.failed with the step, the lane and the file's size, and no plan name

@@ -421,3 +421,54 @@ describe('share_send events name the item that was shared', () => {
     expect(ev[1].itemRef).toBe('lesson:k5:g3_sci_ch01_d1:answer_key');
   });
 });
+
+describe('bd-zrdvmi.21 — a GB grades 1-5 plan (opened like a 6-12 one, by its GB render) is sendable', () => {
+  // GB's renders live in niete_gb_lp_renders, not ICT's lp612 cache, and the app gives no delivery row for them:
+  // the send looked only in ICT's tables, answered not_found, and the app showed "Not available yet" (ICT sheet, GB row 2).
+  const SEG = { subtopic_title: 'Lesson 7 part 1', menu_title: null, grade: 1, subject: 'Urdu' };
+  const db = (deliveries = []) => ({
+    from: (table) => {
+      const result = table === 'niete_lp612_deliveries' ? { data: deliveries, error: null } : { data: [SEG], error: null };
+      const c = { select: () => c, eq: () => c, limit: () => c, then: (res, rej) => Promise.resolve(result).then(res, rej) };
+      return c;
+    },
+  });
+  const presign = async (k) => `https://signed.example/${k}`;
+  const gb = (row) => {
+    const asked = [];
+    return { asked, renderStatus: async (renderId, userId) => { asked.push([renderId, userId]); return row; } };
+  };
+  const READY = { id: 'gb1', segment_id: 'nbf_snc_grade_1_urdu.c07.s001', status: 'ready', r2_key: 'gb-lp/gb_k5_v10/ur/x.pdf', lang: 'ur' };
+
+  it('g612:<GB render id> resolves to the GB plan PDF, asked for as HER (the GB render check decides who may open it)', async () => {
+    const dep = gb(READY);
+    const item = await Share.itemResolvers(db(), { presign, gb: dep }).lesson('u1', 'g612:gb1');
+    expect(item).toEqual({
+      kind: 'lesson', itemRef: 'lesson:nbf_snc_grade_1_urdu.c07.s001:ur', title: 'Lesson 7 part 1', grade: 1, subject: 'Urdu',
+      pdfUrl: 'https://signed.example/gb-lp/gb_k5_v10/ur/x.pdf',
+    });
+    expect(dep.asked).toEqual([['gb1', 'u1']]);
+  });
+
+  it('sendShare sends it (not "Not available yet")', async () => {
+    const d = deps({ item: (kind, id, userId) => Share.itemResolvers(db(), { presign, gb: gb(READY) }).lesson(userId, id) });
+    expect((await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'g612:gb1' }, d)).status).toBe('sent');
+    expect(d.calls).toHaveLength(1);
+  });
+
+  it('a GB render that is not ready, not hers to open, or not there is still not_found', async () => {
+    for (const row of [null, { ...READY, status: 'running' }, { ...READY, r2_key: null }]) {
+      const d = deps({ item: (kind, id, userId) => Share.itemResolvers(db(), { presign, gb: gb(row) }).lesson(userId, id) });
+      expect(await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'g612:gb1' }, d)).toEqual({ status: 'not_found' });
+      expect(d.calls).toHaveLength(0);
+    }
+  });
+
+  it('an ICT 6-12 delivery is found first; the GB lane is not asked', async () => {
+    const dep = gb(READY);
+    const rows = [{ render_id: 'r9', segment_id: 'seg1', lang: 'en', niete_lp612_renders: { status: 'ready', r2_key: 'lp/r9.pdf' } }];
+    const item = await Share.itemResolvers(db(rows), { presign, gb: dep }).lesson('u1', 'g612:r9');
+    expect(item.itemRef).toBe('lesson:seg1:en');
+    expect(dep.asked).toEqual([]);
+  });
+});

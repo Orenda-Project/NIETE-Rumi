@@ -91,7 +91,7 @@ async function chapterTitle(grade, subjectCode, chapter) {
  * bd-fmf24g.54 — a grades 1-5 (K5) plan is curriculum every teacher can open in the app, so it has no per-teacher row:
  * it is "hers" because the send goes only to HER number. `k5` is injectable for tests (the catalogue + the signed PDF).
  */
-function itemResolvers(supabase, { presign, k5 } = {}) {
+function itemResolvers(supabase, { presign, k5, gb } = {}) {
   const sign = presign || (async (urlOrKey) => {
     const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
     return getPresignedUrl(/^https?:/i.test(String(urlOrKey)) ? urlOrKey : buildR2PublicUrl(urlOrKey));
@@ -101,6 +101,9 @@ function itemResolvers(supabase, { presign, k5 } = {}) {
     // The same signed asset, in her A/B group, that the app's "Open" serves (lp-v8-browse.lessonPdfUrl).
     pdfUrl: (id, assetKind, userId) => require('./lp-v8-browse.service').lessonPdfUrl(id, assetKind, userId),
   };
+  // bd-zrdvmi.21 — a GB grades 1-5 plan opens like a 6-12 one (g612:<render id>) but its render is GB's own
+  // (niete_gb_lp_renders) and has no delivery row: GB's render check decides whether she may open it.
+  const gbLane = gb || { renderStatus: (renderId, userId) => require('./gb-lp-serving.service').renderStatus(renderId, userId) };
   async function k5Lesson(userId, lessonId, assetKind) {
     const hit = catalogue.lessonById(lessonId);
     if (!hit) return null;
@@ -112,6 +115,18 @@ function itemResolvers(supabase, { presign, k5 } = {}) {
       kind: 'lesson', itemRef: `lesson:k5:${lessonId}:${assetKind}`,
       title: lesson.topic || lesson.section || null, grade: book.grade == null ? null : Number(book.grade), subject: book.subject || null,
       answerKey: assetKind === 'answer_key', pdfUrl: pdf.url,
+    };
+  }
+  /** A segment's plan (ICT 6-12 or GB), named from its segment. */
+  async function segmentLesson(segmentId, lang, r2Key) {
+    const meta = await supabase.from('niete_lp612_segments').select('segment_id, subtopic_title, menu_title, grade, subject')
+      .eq('segment_id', segmentId).limit(1);
+    if (meta && meta.error) throw new Error(meta.error.message || 'lesson segment read failed'); // failed, not a nameless plan
+    const seg = (meta && Array.isArray(meta.data) && meta.data[0]) || {};
+    return {
+      kind: 'lesson', itemRef: `lesson:${segmentId}:${LANGS.includes(lang) ? lang : 'en'}`,
+      title: seg.subtopic_title || seg.menu_title || null, grade: seg.grade == null ? null : Number(seg.grade), subject: seg.subject || null,
+      pdfUrl: await sign(r2Key),
     };
   }
   return {
@@ -146,16 +161,10 @@ function itemResolvers(supabase, { presign, k5 } = {}) {
       if (error) throw new Error(error.message || 'lesson read failed');
       const row = Array.isArray(data) ? data[0] : null;
       const render = row && first(row.niete_lp612_renders);
-      if (!row || !render || !render.r2_key) return null;
-      const meta = await supabase.from('niete_lp612_segments').select('segment_id, subtopic_title, menu_title, grade, subject')
-        .eq('segment_id', row.segment_id).limit(1);
-      if (meta && meta.error) throw new Error(meta.error.message || 'lesson segment read failed'); // failed, not a nameless plan
-      const seg = (meta && Array.isArray(meta.data) && meta.data[0]) || {};
-      return {
-        kind: 'lesson', itemRef: `lesson:${row.segment_id}:${LANGS.includes(row.lang) ? row.lang : 'en'}`,
-        title: seg.subtopic_title || seg.menu_title || null, grade: seg.grade == null ? null : Number(seg.grade), subject: seg.subject || null,
-        pdfUrl: await sign(render.r2_key),
-      };
+      if (row && render && render.r2_key) return segmentLesson(row.segment_id, row.lang, render.r2_key);
+      const gbRender = await gbLane.renderStatus(m[1], userId);
+      if (!gbRender || gbRender.status !== 'ready' || !gbRender.r2_key) return null;
+      return segmentLesson(gbRender.segment_id, gbRender.lang, gbRender.r2_key);
     },
     async session(userId, id, wantObservation) {
       const { data, error } = await supabase.from('coaching_sessions')
