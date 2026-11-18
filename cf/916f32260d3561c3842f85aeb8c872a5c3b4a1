@@ -1,1 +1,3 @@
 {"ts":"2026-11-18T18:03:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"cf916f32260d","branch":"bd-znzjqi-24308","user":""}
+{"ts":"2026-11-18T18:03:33Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"cf916f32260d","branch":"bd-znzjqi-24308","user":""}
+{"ts":"2026-11-18T18:15:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (the ask-to-delivered flow is unchanged and already specified; this removes a rare AI misspelling failure that cannot be triggered on demand)","sha":"cf916f32260d","branch":"bd-znzjqi-24308","user":""}
