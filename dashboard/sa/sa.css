@@ -644,6 +644,8 @@ button{font:inherit;color:inherit}
    under the fold on a 360×640 phone when it was offered; with its place held in the head row nothing moves */
 .sae-pick .sae-pick-head .sa-next,.sae-pick .sae-pick-head .sae-pick-next-slot{flex:0 0 auto;box-sizing:border-box;width:96px;max-width:96px;min-height:56px;margin:0;padding:0 10px;font-size:20px}
 .sae-pick .sae-pick-head .sae-pick-next-slot{display:block;visibility:hidden}
+/* RDF auto: the pill (and the place held for it) is sized to its label, «آگے ←» / "Next →", so the arrow is never clipped */
+.sae-pick:not(.is-coach-led) .sae-pick-head .sa-next,.sae-pick:not(.is-coach-led) .sae-pick-head .sae-pick-next-slot{width:max-content;min-width:96px;max-width:none;padding:0 14px}
 @media (max-width:699px){
   .sae-screen.sae-pick.is-coach-led .sae-body{gap:8px}
   .sae-pick .sae-pick-head{gap:8px}
@@ -828,6 +830,8 @@ button{font:inherit;color:inherit}
 @media (max-width:699px){
   .sae .sae-mcq .sae-mcq-head>.sae-mcq-next{padding-inline:6px;font-size:18px}
   .sae[lang=ur] .sae-mcq .sae-mcq-head>.sae-mcq-next{font-size:16px}
+  /* RDF auto: the pill is sized to its label, «آگے ←» / "Next →", so the arrow is never clipped (the coach-led cap stays) */
+  .sae .sae-mcq .sae-mcq-head>.sae-mcq-next.sae-mcq-next-auto{width:max-content;max-width:none;padding-inline:12px;overflow:visible}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:4px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body>p.sae-coach-line[lang=ur]{font-size:18px;line-height:1.9;padding-top:0;padding-bottom:0;margin:0}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]{line-height:3.5}
@@ -890,6 +894,9 @@ button{font:inherit;color:inherit}
      hit rect to the replay / the coach's Next 24 px edge to edge in both languages, the ring under the last card >= 8 */
   .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:30px}
   .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:18px}
+  /* RDF auto: the story questions have no coach box and no fold, and the frame's own top clears the toggle, so the head row
+     takes no toggle-fit gap there (in Urdu it cost the first question 7 px on a 360×640 phone); coach-led keeps its gap */
+  .sae.is-r28-toggle-fit .sae-screen.sae-mcq:not(:has(.sae-mcq-coach)):has(>.sae-top>.sae-r8-lang){--sae-a11-g:0px}
 }
 /* end round 28, A11 */
 /* ---- round 28: spoken MCQ, coach-led on a phone, rounds 10-11 (row 32: the coach's line on the question frames) ----

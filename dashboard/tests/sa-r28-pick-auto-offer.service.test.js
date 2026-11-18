@@ -105,7 +105,9 @@ const measure = () => document.fonts.ready.then(() => {
     cards: Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map(box),
     head: (() => { const hd = document.querySelector('.sae-pick-head'); return hd ? Object.assign(R(hd), { kids: Array.from(hd.children).map((k) => ({ cls: String(k.className).split(' ')[0], w: +k.getBoundingClientRect().width.toFixed(1), h: +k.getBoundingClientRect().height.toFixed(1), vis: getComputedStyle(k).visibility })) }) : null; })(),
     pill: box(document.querySelector('.sae-pick-replay')),
-    next: (() => { const k = document.querySelector('.sae-screen .sa-next'); return k ? Object.assign(box(k), { text: k.textContent.trim(), cp: Array.from(k.textContent.trim()).length, in_head: !!k.closest('.sae-pick-head') }) : null; })(),
+    next: (() => { const k = document.querySelector('.sae-screen .sa-next'); return k ? Object.assign(box(k), { text: k.textContent.trim(), cp: Array.from(k.textContent.trim()).length, in_head: !!k.closest('.sae-pick-head'), clipped: k.scrollWidth > k.clientWidth + 0.5, sw: k.scrollWidth, cw: k.clientWidth, sh: k.scrollHeight, ch: k.clientHeight }) : null; })(),
+    fold: (() => { const d = document.querySelector('details.sae-pick-coach'); return d ? R(d) : null; })(),
+    jugnu: (() => { const j = document.querySelector('.sae-pick-head .sae-jugnu'); return j ? R(j) : null; })(),
     next_targets: document.querySelectorAll('.sae-screen .sa-next').length, head_replay: !!document.querySelector('.sae-pick-head .sae-replay'), cue: cue ? R(cue) : null,
     hold_hits: Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt, .sae-pick-replay, .sae-screen .sa-next')).filter(meets).map((k) => String(k.className).split(' ')[0]),
     layout: scr ? [scr].concat(Array.from(scr.children), body ? Array.from(body.children) : []).map((n) => ({ cls: String(n.className).split(' ').slice(0, 2).join('.') || n.tagName.toLowerCase(), top: +n.getBoundingClientRect().top.toFixed(1), h: +n.getBoundingClientRect().height.toFixed(1) })) : null,
@@ -174,8 +176,12 @@ maybe('the letter picker in RDF auto on a 360×640 phone under the served switch
       // the offered pill: in the head row, ≥ 56 tall and ≥ 48 wide, ≥ 16 px from the replay pill's hit rect, the word with its arrow (≤ 20 code points); before the offer no Next target, and no second replay in the head
       const gap = (a, b) => Math.max(0, a.left - b.right, b.left - a.right, a.top - b.bottom, b.top - a.bottom);
       const offered = rows.filter((r) => /offernext$/.test(r.state));
-      expect(offered.map((r) => ({ in_head: r.next.in_head, tall: r.next.h >= 56, wide: r.next.w >= 48, gap_ok: gap(r.next, r.pill) >= 16, text: r.next.text, cp_ok: r.next.cp <= 20 })))
-        .toEqual(offered.map(() => ({ in_head: true, tall: true, wide: true, gap_ok: true, text: lang === 'ur' ? 'آگے ←' : 'Next →', cp_ok: true })));
+      expect(offered.map((r) => ({ in_head: r.next.in_head, tall: r.next.h >= 56, wide: r.next.w >= 48, gap_ok: gap(r.next, r.pill) >= 16, text: r.next.text, cp_ok: r.next.cp <= 20, clipped: r.next.clipped })))
+        .toEqual(offered.map(() => ({ in_head: true, tall: true, wide: true, gap_ok: true, text: lang === 'ur' ? 'آگے ←' : 'Next →', cp_ok: true, clipped: false })));
+      // the offered pill shares no pixel with a card, the fold (none in RDF auto) or Jugnu
+      const overlap = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0;
+      expect(offered.map((r) => ({ over_cards: r.cards.filter((c) => overlap(r.next, c)).length, over_fold: !!r.fold && overlap(r.next, r.fold), over_jugnu: !!r.jugnu && overlap(r.next, r.jugnu) })))
+        .toEqual(offered.map(() => ({ over_cards: 0, over_fold: false, over_jugnu: false })));
       expect(rows.filter((r) => /_read$/.test(r.state)).map((r) => ({ state: r.state, targets: r.next_targets, head_replay: r.head_replay }))).toEqual(rows.filter((r) => /_read$/.test(r.state)).map((r) => ({ state: r.state, targets: 0, head_replay: false })));
       // nothing moves when Next is offered: the cards and the replay keep their boxes from the read state
       const at = (r) => ({ cards: r.cards.map((c) => [c.top, c.left, c.w, c.h].join()), pill: r.pill && [r.pill.top, r.pill.left].join() });

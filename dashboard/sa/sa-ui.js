@@ -1914,7 +1914,9 @@
       // both modes (lead rulings, every state): Next sits in the head row, never at the foot, and its place is held
       // (hidden) until it is offered, so the cards and the replay pill never move when it appears — in RDF auto the
       // Urdu foot button took the second card row and the replay under the fold on a 360×640 phone
-      var coachNext = nextBtn(v, !manual) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' });
+      var coachNext = nextBtn(v, !manual) || (manual ? h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' })
+        // RDF auto: the pill is sized to its label (the arrow is never clipped), so the held place carries the same label, unseen
+        : h('span', { class: 'sae-btn sae-secondary sae-pick-next-slot', 'aria-hidden': 'true', text: C.next_go }));
       return pickModal(screen(v, 'sae-run sae-run-tap sae-pick' + (manual ? ' is-coach-led' : ''), [
         clock(v),
         // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
@@ -2971,7 +2973,7 @@
       var next = null;
       if (!practice) {
         shownOffer = !!v.offer_next;
-        if (v.offer_next && !reading && S.chosen == null) next = btn(manual ? C.next : C.next_go, function () { runner.skip(); draw(); }, 'sae-secondary sa-next sae-mcq-next');
+        if (v.offer_next && !reading && S.chosen == null) next = btn(manual ? C.next : C.next_go, function () { runner.skip(); draw(); }, 'sae-secondary sa-next sae-mcq-next' + (manual ? '' : ' sae-mcq-next-auto'));
       }
       // B.3 fit, both modes: Next sits in the head row beside the replay (laid over the row's end, out of the flow),
       // never in the foot, so its arrival never moves the cards or the replay — in RDF auto the Urdu foot button put

@@ -106,8 +106,10 @@ const measure = () => document.fonts.ready.then(() => {
     body_mode: body ? getComputedStyle(body).overflowY : null, body_over: over(body), screen_over: over(scr), page_over: Math.max(0, document.documentElement.scrollHeight - vh), true_over: trueOver,
     opts: Array.from(document.querySelectorAll('.sae-mcq-opts .sae-mcq-opt')).map(box),
     q: box(document.querySelector('.sae-mcq-q')), replay: box(document.querySelector('.sae-screen .sae-replay, .sae-screen .sae-mcq-replay')),
-    next: (() => { const k = document.querySelector('.sae-screen .sa-next'); return k ? Object.assign(box(k), { text: k.textContent.trim(), cp: Array.from(k.textContent.trim()).length, in_head: !!k.closest('.sae-mcq-head') }) : null; })(),
+    next: (() => { const k = document.querySelector('.sae-screen .sa-next'); return k ? Object.assign(box(k), { text: k.textContent.trim(), cp: Array.from(k.textContent.trim()).length, in_head: !!k.closest('.sae-mcq-head'), clipped: k.scrollWidth > k.clientWidth + 0.5, sw: k.scrollWidth, cw: k.clientWidth, sh: k.scrollHeight, ch: k.clientHeight }) : null; })(),
     next_targets: document.querySelectorAll('.sae-screen .sa-next, .sae-screen button.sae-mcq-next').length,
+    toggle_rect: (() => { const t = document.querySelector('.sae-screen .sae-r8-lang'); return t ? R(t) : null; })(),
+    jugnu: (() => { const j = document.querySelector('.sae-mcq-head .sae-jugnu'); return j ? R(j) : null; })(),
     cue: cue ? R(cue) : null, toggle: !!document.querySelector('.sae-screen .sae-r8-lang'),
     hold_hits: Array.from(document.querySelectorAll('.sae-mcq-opts .sae-mcq-opt, .sae-screen .sae-replay, .sae-screen .sa-next')).filter(meets).map((k) => String(k.className).split(' ')[0]),
     layout: scr ? [scr].concat(Array.from(scr.children), body ? Array.from(body.children) : []).map((n) => ({ cls: String(n.className).split(' ').slice(0, 2).join('.') || n.tagName.toLowerCase(), top: +n.getBoundingClientRect().top.toFixed(1), h: +n.getBoundingClientRect().height.toFixed(1) })) : null,
@@ -182,9 +184,17 @@ maybe('the spoken story questions in RDF auto on a 360×640 phone under the serv
       // the offered pill: in the head row, ≥ 56 tall and ≥ 48 wide, its hit rect ≥ 16 px from the replay's, the word with its arrow (≤ 20 code points); before the offer no Next target exists
       const gap = (a, b) => Math.max(0, a.left - b.right, b.left - a.right, a.top - b.bottom, b.top - a.bottom);
       const offered = rows.filter((r) => r.state === 'q1_offernext');
-      expect(offered.map((r) => ({ in_head: r.next.in_head, tall: r.next.h >= 56, wide: r.next.w >= 48, gap_ok: gap(r.next, r.replay) >= 16, text: r.next.text, cp_ok: r.next.cp <= 20 })))
-        .toEqual(offered.map(() => ({ in_head: true, tall: true, wide: true, gap_ok: true, text: lang === 'ur' ? 'آگے ←' : 'Next →', cp_ok: true })));
+      expect(offered.map((r) => ({ in_head: r.next.in_head, tall: r.next.h >= 56, wide: r.next.w >= 48, gap_ok: gap(r.next, r.replay) >= 16, text: r.next.text, cp_ok: r.next.cp <= 20, clipped: r.next.clipped })))
+        .toEqual(offered.map(() => ({ in_head: true, tall: true, wide: true, gap_ok: true, text: lang === 'ur' ? 'آگے ←' : 'Next →', cp_ok: true, clipped: false })));
+      // the offered pill shares no pixel with the question or any option (a pill over the question is a wrong-tap target)
+      const overlap = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0;
+      expect(offered.map((r) => ({ over_q: !!r.q && overlap(r.next, r.q), over_opts: r.opts.filter((o) => overlap(r.next, o)).length, over_replay: !!r.replay && overlap(r.next, r.replay) })))
+        .toEqual(offered.map(() => ({ over_q: false, over_opts: 0, over_replay: false })));
       expect(rows.filter((r) => /^(q1_early|q1_read|q2_early|q2_read)$/.test(r.state)).map((r) => ({ state: r.state, targets: r.next_targets }))).toEqual(['q1_early', 'q1_read', 'q2_early', 'q2_read'].map((s) => ({ state: s, targets: 0 })));
+      // the language toggle (drawn in the top bar on this frame) shares no pixel with Jugnu, the replay or the offered pill, and keeps ≥ 8 px from each
+      const gapTo = (a, b) => (a && b ? gap(a, b) : null);
+      expect(offered.map((r) => ({ toggle: !!r.toggle_rect, jugnu: gapTo(r.toggle_rect, r.jugnu), replay: gapTo(r.toggle_rect, r.replay), next: gapTo(r.toggle_rect, r.next) })).map((g) => ({ toggle: g.toggle, ok: [g.jugnu, g.replay, g.next].every((x) => x == null || x >= 8) })))
+        .toEqual(offered.map(() => ({ toggle: true, ok: true })));
       // nothing moves when Next is offered: the four options and the replay keep their boxes from the read state
       const at = (r) => ({ opts: r.opts.map((o) => [o.top, o.left, o.w, o.h].join()), replay: r.replay && [r.replay.top, r.replay.left].join() });
       const read = rows.find((r) => r.state === 'q1_read'), off = rows.find((r) => r.state === 'q1_offernext');
