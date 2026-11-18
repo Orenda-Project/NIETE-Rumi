@@ -101,7 +101,8 @@ describe("CoachMore", () => {
     vi.mocked(useChildTestSa).mockReturnValue(true);
     const { unmount } = renderMore();
     expect(screen.getByTestId("more-row-assess")).toHaveAttribute("href", "/portal/leader/assess");
-    expect(screen.getByTestId("more-row-assess")).toHaveTextContent("Learning assessment");
+    // bd-39qx8x — operator, 18 Nov: "Learning Assessment, not Learning assessment (A capital)".
+    expect(screen.getByTestId("more-row-assess")).toHaveTextContent("Learning Assessment");
     unmount();
     vi.mocked(useChildTestSa).mockReturnValue(null);
     renderMore();
