@@ -953,8 +953,8 @@ async function renderDoc(a) {
   // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: in-flow groups go back to Reference",
   // bd-9mc3nz.2). One paint = build, write, measure, print. `noFlowHosts` turns bd-a8veu.10 off
   // for this paint: common mistakes and differentiation print in Reference, not in the flow.
-  const paint = async (noFlowHosts) => {
-    const built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw, noFlowHosts });
+  const paint = async (noFlowHosts, hwRefOnly = false) => {
+    const built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw, noFlowHosts, hwRefOnly });
     let figureProblems = built.figureProblems || [];
     // bd-oak77.14 — the figures the layout had to WIDEN to keep legible. Reported, never inferred:
     // a repair nobody can count is a fallback that masks itself (rule 24(b)).
@@ -965,7 +965,7 @@ async function renderDoc(a) {
       const repaginate = {
         capacity: built.pageContentHeight,
         atoms: built.atoms,
-        rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks, noFlowHosts }),
+        rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks, noFlowHosts, hwRefOnly }),
       };
       result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
       if (repaginate.warnings) { built.warnings.length = 0; built.warnings.push(...repaginate.warnings); }
@@ -992,11 +992,26 @@ async function renderDoc(a) {
   // layout is painted again so the files on disk are the ones reported. A lesson that fits
   // keeps the groups in the flow, exactly as bd-a8veu.10 placed them.
   let pass = await paint(false);
+  const groupsMovable = !!pass.built.flowHosted;
   let flowGroupsMoved = false;
   if (pass.built.flowHosted && teachOver(pass)) {
     const alt = await paint(true);
     if (overage(alt) < overage(pass)) { pass = alt; flowGroupsMoved = true; }
     else pass = await paint(false);
+  }
+  // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
+  // bd-xkkw9.2). Still over TEACH after that: ONE more paint with BOTH moves — the two groups
+  // in Reference (when the lesson has them in the flow) AND the homework section printed only in
+  // Reference "Homework, in full", a pointer line left in the flow. Both together, because the
+  // box move alone is often refused (it frees under a page) while the two together fit: that is
+  // the layout bd-xkkw9.1 measured. Same keep rule: fewer pages over in total, else the previous
+  // layout is painted again so the files on disk are the ones reported. Only a lesson whose
+  // every homework item has its answer in Reference is eligible (built.homeworkMovable).
+  let homeworkMoved = false;
+  if (pass.built.homeworkMovable && teachOver(pass)) {
+    const alt = await paint(groupsMovable || pass.noFlowHosts, true);
+    if (overage(alt) < overage(pass)) { pass = alt; homeworkMoved = true; flowGroupsMoved = alt.noFlowHosts && groupsMovable; }
+    else pass = await paint(pass.noFlowHosts, false);
   }
   const { built, result } = pass;
   const { warnings, fontReport, hasRasterFigure } = built;
@@ -1077,6 +1092,7 @@ async function renderDoc(a) {
     // bd-9mc3nz.2 — true when TEACH was over its cap and the mistakes/differentiation groups were
     // moved back to Reference to bring it down. Recorded so the count can be read off the reports.
     flow_groups_moved: flowGroupsMoved,
+    homework_moved: homeworkMoved,
     overflow_absorb_max_px: OVERFLOW_ABSORB_MAX_PX,
     html: path.relative(REPO_ROOT, htmlPath),
     pdf: pdfPath ? path.relative(REPO_ROOT, pdfPath) : null,
@@ -1105,7 +1121,7 @@ async function renderDoc(a) {
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
   return { report, reportPath, problems, warnings, htmlPath, pdfPath,
-           pagesByPart: byPart, probe, pdfPages: result.pdfPages, figureRepairs, flowGroupsMoved };
+           pagesByPart: byPart, probe, pdfPages: result.pdfPages, figureRepairs, flowGroupsMoved, homeworkMoved };
 }
 
 async function main() {

@@ -223,6 +223,9 @@ const LABELS = {
     checkpoint: "Board question", exitTicket: "Exit ticket", reteach: "Re-teach rule",
     markAbbr: "m", teacherNote: "Teacher note —", distractors: "what each wrong option catches",
     refMissing: "\u26a0 this answer names no question in the plan",
+    // bd-xkkw9.2 — printed in the teach flow IN PLACE OF the homework section when a lesson is still
+    // over its TEACH cap after the two-box move. Names the Reference heading it points at.
+    hwPointer: (h) => `Homework questions, with their answers: see “${h}” in the support pages.`,
     grade: "Grade", pp: "pp. ",
     pageOf: (n, m) => `page ${n} of ${m}`,
     // ── the coaching corner's standing offer (ported from the K-5 strip) ──
@@ -277,6 +280,8 @@ const LABELS = {
     checkpoint: "بورڈ کے انداز کا سوال", exitTicket: "اختتامی پرچی", reteach: "دوبارہ پڑھانے کا اصول",
     markAbbr: "نمبر", teacherNote: "استاد کے لیے نوٹ —", distractors: "ہر غلط جواب کس غلط فہمی کو پکڑتا ہے",
     refMissing: "\u26a0 اس جواب کا سوال منصوبے میں موجود نہیں",
+    // bd-xkkw9.2 — see the English note. Logical order; the heading is Urdu, so no isolate.
+    hwPointer: (h) => `گھر کے کام کے سوالات، جوابات کے ساتھ: معاون صفحات میں «${h}» دیکھیے۔`,
     grade: "جماعت", pp: "صفحات ",
     pageOf: (n, m) => `صفحہ ${n} از ${m}`,
     // The Urdu page reflects in Urdu — the ONE thing that stays as it is printed is the number

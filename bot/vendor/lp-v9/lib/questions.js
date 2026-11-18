@@ -55,7 +55,8 @@ function allQuestions(doc) {
     if (s.homework && Array.isArray(s.homework.items)) {
       for (const it of s.homework.items) {
         out.push({ ref: it.ref || `H${++nH}`, q: it.text, a: null, kind: "homework",
-          where: "homework", level: it.level, format: it.format, slo_code: it.slo_code });
+          where: "homework", level: it.level, format: it.format, slo_code: it.slo_code,
+          source: it.source });
         if (it.ref) nH++;
       }
     }

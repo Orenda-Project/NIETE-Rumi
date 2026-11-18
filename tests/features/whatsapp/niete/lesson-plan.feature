@@ -995,3 +995,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Product decision 11 Nov 2026 (bd-xxejb, bd-juo829, bd-hz6ez.12): K-5 v8 audio is not backfilled,
     # so every send and script lookup was failing. Code switch bot/shared/config/lp-v8-voicenote.js
     # (off; not an env flag). Unit: bot/tests/lp-v8/voicenote-off.test.js.
+
+  @e2e @content-driven @no-mock-driver @P2
+  Scenario: A long Grades 6-12 plan that is still over its teaching pages keeps its homework in the support pages
+    Given the NIETE bot chat is open
+    And I take an English Grades 6-12 lesson whose teaching part is still over 4 pages after common mistakes and differentiation move to the support pages
+    When the lesson-plan PDF is delivered to the chat
+    Then the teaching part has no homework section, only one line pointing to "Homework, in full" in the support pages
+    And every homework question is printed in "Homework, in full" with its answer and its textbook source, under the homework notes
+    And a lesson that fits within its teaching pages still prints its homework questions in the teaching part, unchanged
+    # bd-xkkw9.2 (queue #114, from bd-xkkw9.1): third paint in render_lp.js renderDoc, kept only when it
+    # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.
+    # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
+    # Unit: tests/lp612/over-cap-homework-reference.test.js.
