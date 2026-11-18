@@ -17,7 +17,8 @@
  * speak() never throws and its promise always resolves (when the words end, on any error, or on a guard timeout).
  * Round 28 (the letter-sound picker), opts.clip_only: the line is the clip or nothing. No clip, a clip that fails twice
  * or gives up, or no audio element: the promise REJECTS and the phone's voice is never used (it would say the letter's
- * name). Muted, a line cut by the next one and a page hidden mid-line behave as without it.
+ * name). Muted and a line cut by the next one behave as without it. A page hidden mid-line holds the line as without it,
+ * but only up to the 60 s guard, which does not count the hidden time: it starts a full 60 s again on show (resume()).
  * Under clip_only a clip that has started must reach its end: when its currentTime makes no progress for progress_ms
  * (default load_ms, 5 s; the clock is the progress itself, so a stall that fires no event is caught too, and a slow
  * clip that keeps moving is not), it is tried once more from the start at once; a second such stall, or the 60 s
