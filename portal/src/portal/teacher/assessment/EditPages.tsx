@@ -19,6 +19,8 @@ import { addedEdit, blankValues, existingEdit, valuesFromFields, type FormValues
 import { addQuestionPath, editPath, editQuestionPath, paperPath } from './paths';
 import { QuestionForm } from './QuestionForm';
 import { Chip, ListCard, LoadState, OFF, OUTLINE, PRIMARY } from './ui';
+import { bloomOf } from './editSummary';
+import { EditSummaryCard } from './EditSummaryCard';
 
 /**
  * bd-fmf24g.6 — editing a finished paper (v28 canvas AssessEdit / AssessEditQuestion), over today's routes
@@ -196,6 +198,7 @@ export function EditPaperPage() {
                     {draft.edits[it.id] && <Chip tone="warn">{C.edit}</Chip>}
                   </Link>
                 )}
+                {bloomOf(it.blooms) && <span data-testid="bloom-tag" className="shrink-0 text-[12px] text-[#6b7280]">{C.bloom(bloomOf(it.blooms)!)}</span>}
                 <span className="min-w-[22px] text-center text-[12px] font-bold text-[#6b7280]">{m}</span>
                 <button
                   type="button"
@@ -257,6 +260,7 @@ export function EditPaperPage() {
       dock={dock}
       testId="assessment-edit"
     >
+      <EditSummaryCard rows={[...kept.map((v) => v.it), ...draft.added.map((a) => ({ type: a.kind }))]} />
       {fde && <p data-testid="edit-both" className="mx-1.5 text-[15px] font-semibold text-[#33374a]">{C.editBoth}</p>}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       {bySection

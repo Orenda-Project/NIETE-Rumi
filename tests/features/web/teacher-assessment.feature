@@ -221,3 +221,15 @@ Feature: Teacher assessment
     When she starts a new paper from the paper maker's own door and makes it
     Then that request carries no report mark
     And a request whose grade has no such subject keeps her on Class, still marked as from the report
+
+  @sandbox @real-paper
+  # bd-zrdvmi.24 — ICT Feedback sheet, Assessment Generator rows 6-7 (an RM asked to see Bloom's levels while choosing).
+  Scenario: Edit paper shows each question's Bloom's level and a summary that follows Remove
+    Given a plain paper whose questions carry Bloom's levels is open in Edit paper
+    Then each question shows its level, such as "Remember" or "Apply", beside its marks
+    And above the questions a summary shows each level's share of the paper, such as "Remember 50%", and each question type's count, such as "MCQs 2"
+    When the teacher removes a question
+    Then the summary's shares and counts change to match the questions still on the paper
+    And in Urdu the levels and headings show in Urdu
+    And the printed paper and answer key show no levels and no summary
+    And a paper whose questions carry no level shows no summary, as before

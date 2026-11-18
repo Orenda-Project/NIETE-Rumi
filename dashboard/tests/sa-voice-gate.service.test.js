@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-33'); // sa-33: round 28, sa.css (the Urdu RDF-auto story question card on a phone)
+    expect(sw.CORE).toBe('sa-core-sa-34'); // sa-34: round 28, sa-core.js / sa-ui.js / sink-coach.js (the session row's data fields)
   });
 });
 

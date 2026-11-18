@@ -32,6 +32,7 @@
  *     exactly what cost that pilot its rounds.
  */
 
+const { repairNearMissKeys } = require('./lp612-key-repair');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -1678,6 +1679,16 @@ function sanitizeSequence(doc, segment = {}) {
   return notes;
 }
 
+/**
+ * bd-znzjqi — a misspelled field name (live: `page2.coaching_lookfer`, three rounds running) is renamed to the
+ * one schema key it is near, before the gate reads the document. See lp612-key-repair.js for the narrow rule.
+ */
+function repairKeys(doc) {
+  const renamed = repairNearMissKeys(doc);
+  if (renamed.length) logEvent('lp612.author.keys_repaired', { renamed });
+  return doc;
+}
+
 function sanitizeUnknownTopLevel(doc) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return doc;
   const allowed = (docSchema && docSchema.properties) ? Object.keys(docSchema.properties) : null;
@@ -2302,6 +2313,7 @@ async function authorLessonPlan({
   // rule stays fail-closed; see `lp612-latin-honorific.js` for the ruling and the adjacency guard.
   normalizeLatinHonorific(doc);
   sanitizeUnknownTopLevel(doc);
+  repairKeys(doc);
   sanitizeOverlay(doc);
   // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
   noteStrippedOverlay(stripOverlay(doc), 0);
@@ -2551,6 +2563,7 @@ async function authorLessonPlan({
     applyVideo(candidate, video);
     normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
+    repairKeys(candidate);
     sanitizeOverlay(candidate);
     noteStrippedOverlay(stripOverlay(candidate), spent);
     sanitizeSequence(candidate, segment);
@@ -3260,6 +3273,7 @@ async function reviseLessonPlan({
     applyVideo(candidate, video);
     normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
+    repairKeys(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
     sanitizeObjectiveCodes(candidate); // bd-oak77.32: dedupe placeholder O#-style objective codes.
