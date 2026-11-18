@@ -55,16 +55,25 @@ function _supabaseDb() {
     /** The school, but ONLY if this coach holds it. Null is a refusal. */
     async myschool(leaderUserId, schoolExtId) {
       const { data: mine } = await supabase.from('leader_schools')
-        .select('school_ext_id').eq('leader_user_id', leaderUserId)
+        .select('school_ext_id, school_id').eq('leader_user_id', leaderUserId)
         .eq('school_ext_id', schoolExtId).limit(1);
       if (!mine || !mine[0]) return null;
-      const emis = String(schoolExtId).split(':').pop();
-      const { data: s } = await supabase.from('schools')
-        .select('id, name, emis, region, is_probable_test').eq('emis', emis).limit(1);
+      // A school with no EMIS (the GB community schools) is keyed by its name in leader_schools, so the text after
+      // 'niete:' is a slug, not an EMIS, and `schools.emis = slug` matches nothing. The holding's own school_id is the
+      // exact key; the EMIS lookup stays for holdings written before school_id was filled in.
+      const cols = 'id, name, emis, region, is_probable_test';
+      let s = null;
+      if (mine[0].school_id) {
+        ({ data: s } = await supabase.from('schools').select(cols).eq('id', mine[0].school_id).limit(1));
+      }
+      if (!s || !s[0]) {
+        const emis = String(schoolExtId).split(':').pop();
+        ({ data: s } = await supabase.from('schools').select(cols).eq('emis', emis).limit(1));
+      }
       if (!s || !s[0]) return null;
       return {
         school_ext_id: schoolExtId, school_id: s[0].id,
-        school_name: s[0].name, emis: String(s[0].emis),
+        school_name: s[0].name, emis: s[0].emis == null ? null : String(s[0].emis),
         region: s[0].region || null, is_probable_test: s[0].is_probable_test === true,
       };
     },
@@ -75,7 +84,9 @@ function _supabaseDb() {
       if (!data || !data[0]) return null;
       return {
         school_id: data[0].id, school_name: data[0].name,
-        emis: String(data[0].emis), school_ext_id: `niete:${data[0].emis}`,
+        // No EMIS (a GB community school): null, never the strings 'null' and 'niete:null' in the audit trail.
+        emis: data[0].emis == null ? null : String(data[0].emis),
+        school_ext_id: data[0].emis == null ? null : `niete:${data[0].emis}`,
       };
     },
 
