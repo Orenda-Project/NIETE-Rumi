@@ -614,6 +614,12 @@ button{font:inherit;color:inherit}
 .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(5){grid-row:2;grid-column:5 / span 2}
 .sae .sae-pick-cards .sae-opt.is-model{position:relative;border-color:var(--sae-accent);box-shadow:0 0 0 6px var(--sae-accent-l),0 0 22px 4px var(--sae-accent);color:var(--sae-ink)}
 .sae .sae-pick-cards .sae-opt.is-model::after{content:"👆";position:absolute;bottom:-18px;inset-inline-end:-8px;font-size:30px;line-height:1;font-family:var(--sae-f)}
+/* round 28, O-50: the modelled card's hand hangs 18 px below its card and, absolute or not, counts toward the body's
+   scrollable overflow. In RDF auto the practice example's cards are the screen's last block and sit on the body's bottom
+   edge, so the hand read as 11 px (Urdu) / 17 px (English) of scroll on a 360×640 phone, 18 on the tablet, and drew the
+   round-9 cue over nothing. The cards block keeps the hand's room while a card is modelled; nothing else moves. Coach-led
+   the folded "Jugnu asks" sits below the cards and already holds that room (and the toggle-fit head margin needs it). */
+.sae .sae-pick:not(.is-coach-led) .sae-pick-cards:has(.sae-opt.is-model){padding-bottom:20px}
 .sae .sae-pick-cards .sae-opt.is-dim{opacity:.35;box-shadow:none}
 .sae-pick-replay{display:grid;place-items:center;width:50%;min-width:168px;max-width:280px;min-height:72px;margin:32px auto 0;border-radius:999px;border:3px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:36px;line-height:1;cursor:pointer;box-shadow:0 4px 0 var(--sae-accent-d);font-family:var(--sae-f)}
 .sae-pick-replay:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-accent-d)}
