@@ -43,6 +43,8 @@
 const O = require('../../coaching/frameworks/obs612');
 const F = require('./flow');
 const Record = require('./record');
+// bd-31ziu8 — a FICO-S v1.1 visit's form on the portal: the same fields, check and record as its Flow.
+const FS = require('./fico-s-flow');
 const Model = require('./form-model');
 const { rubricLabelOf } = require('../../coaching/rubric-label');
 const { isTerminalStatus } = require('../../coaching/session-terminal');
@@ -129,6 +131,7 @@ function bodyPart(key, ctx, draft) {
 }
 
 function sectionsOf(ctx, draft) {
+  if (ctx.tool === 'ficos') return FS.portalSections(draft, ctx.lang);
   return F.pathFor(ctx.tool, ctx.sheet).map((id) => {
     const s = F.screenById(id);
     const parts = [];
@@ -149,6 +152,7 @@ function sectionsOf(ctx, draft) {
 
 /** Every screen's check on the draft, as one { field: code }. */
 function errorsOf(ctx, draft) {
+  if (ctx.tool === 'ficos') return FS.errorsByKey(draft);
   return Object.assign({}, ...F.pathFor(ctx.tool, ctx.sheet).map((id) => Model.checkScreen(id, draft)));
 }
 
@@ -171,7 +175,9 @@ async function loadVisit(userId, row) {
   const lesson = Record.lessonOf(form);
   // record.js reads a sheet it does not know as English (frameworks/obs612 enurSections); so does the Flow, so does this.
   const sheet = lesson.tool === 'enur' ? O.normSheet(lesson.sheet) : null;
-  return { ctx: { form, lesson, tool: lesson.tool, sheet, people: [] } };
+  // bd-31ziu8: a FICO-S form speaks the observer's language (en | ur), as its Flow does.
+  const lang = lesson.tool === 'ficos' ? await require('../../../routes/fico-s-endpoint').observerLang(userId) : 'en';
+  return { ctx: { form, lesson, tool: lesson.tool, sheet, people: [], lang } };
 }
 
 async function viewOf(row, ctx) {
@@ -244,7 +250,7 @@ async function portalSave({ userId, row, edits, submit = false }) {
   if (isTerminalStatus(row.status)) return { status: 'not_ready', reason: 'visit_closed' };
 
   // 1. Save first, as the Flow does: nothing she wrote is lost to a check below.
-  const fields = F.pathFor(ctx.tool, ctx.sheet).flatMap((id) => F.fieldsOf(id));
+  const fields = ctx.tool === 'ficos' ? FS.portalFields(ctx.lang) : F.pathFor(ctx.tool, ctx.sheet).flatMap((id) => F.fieldsOf(id));
   const draft = Model.mergeDraft(Store().draftOf(ctx.form), fields, cleanPosted(fields, edits));
   const saved = await Store().saveDraft(ctx.form, draft);
   if (!saved.ok) {

@@ -305,6 +305,12 @@ router.post('/obs612-lesson', async (req, res) => {
             const st = await require('../services/observe/observe-state.service').getState(t.userId);
             return (st && st.obs612Ask === t.ref && st.obs612Teacher) || null;
           },
+          // bd-31ziu8: FICO-S on for this visit (grades 6-12 on FICO-S; the subject is asked for 9-12 too).
+          ficoS: async (t) => {
+            const { data: u } = await supabase.from('users').select('id, region, role').eq('id', t.userId).maybeSingle();
+            if (!u) return false;
+            return require('../services/observe/obs612/visit').ficoSForTap(u, t);
+          },
         });
       }
     );

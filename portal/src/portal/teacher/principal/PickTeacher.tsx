@@ -20,7 +20,7 @@ import { reportChip } from "../../coach/reports/ReportRows";
 import type { CoachReport } from "../../coach/types";
 import { getPrincipalSchoolCard } from "./api";
 import { PRINCIPAL } from "./copy";
-import { principalVisitPath } from "./observe";
+import { principalNewVisitPath } from "./observe";
 
 /**
  * bd-33wxxi.4 — "One of my teachers" → Pick the teacher (#55, Observations A): her own school's teachers (GET
@@ -68,8 +68,9 @@ export function PickTeacher() {
           title: t.name,
           extra: [levelNames(t.levels), seen].filter(Boolean).join(" · "),
           chip: last && last.step !== "sent" ? reportChip(last, R) : null,
-          // bd-33wxxi.9.3 — the coach's visit screen for her (Start recording / Upload recording, the Teacher card)
-          to: principalVisitPath(t.teacherExtId),
+          // bd-31ziu8 — book the visit first, as a coach does (operator 18 Nov: "It has to be the same as coach"); the
+          // visit screen (Start recording / Upload recording) opens from My schedule.
+          to: principalNewVisitPath(t.teacherExtId),
         };
       });
   }, [card, latest, q, P, R, days, today, levelNames]);
