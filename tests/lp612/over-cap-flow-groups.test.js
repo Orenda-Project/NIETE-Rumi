@@ -131,10 +131,21 @@ describe('over the TEACH cap: mistakes and differentiation go back to Reference'
     expect(pageCount(out)).toHaveLength(1);
   });
 
-  test('no better without them (Reference spills over its own cap): the flow layout is kept and is what is on disk', async () => {
+  // bd-xkkw9.4 — a tie on pages over goes to the shorter TEACH part (same PDF length, nothing dropped).
+  test('Reference spills over its own cap by as much as TEACH gains: the shorter TEACH is kept', async () => {
     mockTeachWithGroups = CAPS.max.teach + 1;
     mockTeachWithout = CAPS.max.teach;
     mockSupportWithout = CAPS.max.support + 1;
+    const out = await render();
+    expect(out.pagesByPart).toEqual({ teach: CAPS.max.teach, support: CAPS.max.support + 1 });
+    expect(out.flowGroupsMoved).toBe(true);
+    expect(groupsInFlowOnDisk(out)).toBe(false);
+  });
+
+  test('no better without them (Reference spills further than TEACH gains): the flow layout is kept and is what is on disk', async () => {
+    mockTeachWithGroups = CAPS.max.teach + 1;
+    mockTeachWithout = CAPS.max.teach;
+    mockSupportWithout = CAPS.max.support + 2;
     const out = await render();
     expect(out.pagesByPart).toEqual({ teach: CAPS.max.teach + 1, support: 2 });
     expect(out.flowGroupsMoved).toBe(false);
