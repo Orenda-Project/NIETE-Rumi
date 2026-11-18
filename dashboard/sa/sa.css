@@ -896,7 +896,7 @@ button{font:inherit;color:inherit}
   .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:18px}
   /* RDF auto: the story questions have no coach box and no fold, and the frame's own top clears the toggle, so the head row
      takes no toggle-fit gap there (in Urdu it cost the first question 7 px on a 360×640 phone); coach-led keeps its gap */
-  .sae.is-r28-toggle-fit .sae-screen.sae-mcq:not(:has(.sae-mcq-coach)):has(>.sae-top>.sae-r8-lang){--sae-a11-g:0px}
+  .sae.is-r28-toggle-fit .sae-screen.sae-mcq:not(:has(.sae-mcq-coach-body)):has(>.sae-top>.sae-r8-lang){--sae-a11-g:0px}
 }
 /* end round 28, A11 */
 /* ---- round 28: spoken MCQ, coach-led on a phone, rounds 10-11 (row 32: the coach's line on the question frames) ----
