@@ -175,7 +175,7 @@ function transformObs612ToReportData(session, teacherName, analysis) {
     return {
       ...base,
       rubricLabel: FicoS.LABEL,
-      frameworkDisplayName: 'FICO-S',
+      frameworkDisplayName: 'FICO 6-12',
       totalScore: f.total,
       maxScore: f.max,
       percentage: f.pct,
@@ -187,8 +187,8 @@ function transformObs612ToReportData(session, teacherName, analysis) {
       feedback: fs.map((x) => `${x.label}: ${x.text}`).join('\n'),
       footer: FICO_S_FOOTNOTE,
       observerName: 'Your observer',
-      headerLabels: { eyebrow: 'CLASSROOM OBSERVATION · FICO-S v1.1', title: v.toolTitle, sub: FicoS.LABEL },
-      scaleLegend: { title: 'FICO-S SCALE', stops: [1, 2, 3, 4].map((n) => ({ n: String(n), label: FicoS.levelName(n) })) },
+      headerLabels: { eyebrow: 'CLASSROOM OBSERVATION · FICO 6-12', title: v.toolTitle, sub: FicoS.LABEL },
+      scaleLegend: { title: 'FICO 6-12 SCALE', stops: [1, 2, 3, 4].map((n) => ({ n: String(n), label: FicoS.levelName(n) })) },
     };
   }
   if (v.tool === 'enur') {

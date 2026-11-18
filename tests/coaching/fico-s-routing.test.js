@@ -227,7 +227,7 @@ describe('/observe taps: with FICO-S a grade 6-12 class asks its subject and the
     mockState.value = askState();
     await Visit().handleTap(ict, '9230', 'o612:s:o:n1:10:science');
     expect(lastLesson()).toEqual(LESSON(10, 'science', 'ficos', 'fico_s_v1_1'));
-    expect(WA().sendMessage.mock.calls.map((c) => c[1]).join('\n')).toMatch(/FICO-S v1\.1/);
+    expect(WA().sendMessage.mock.calls.map((c) => c[1]).join('\n')).toMatch(/FICO 6-12/);
   });
 
   test('grade 7 Maths with FICO-S → FICO-S, not FDE\'s Maths & Science tool', async () => {
@@ -267,7 +267,7 @@ describe('/observe taps: with FICO-S a grade 6-12 class asks its subject and the
     await Visit().askForObserve(ict, '9230', { teacherName: 'Rabia', visit: { teacherUserId: T_ICT_MIDDLE, schoolExtId: 'niete:100' } });
     const st = ObserveState().setState.mock.calls[0][2];
     expect(st.obs612Visit).toEqual({ teacherUserId: T_ICT_MIDDLE, schoolExtId: 'niete:100' });
-    expect(WA().sendInteractiveMessage.mock.calls[0][1].body.text).toMatch(/FICO-S v1\.1/);
+    expect(WA().sendInteractiveMessage.mock.calls[0][1].body.text).toMatch(/FICO 6-12/);
   });
 });
 
@@ -294,7 +294,7 @@ describe('the capture: a FICO-S lesson stamps fico_s_v1_1 and gets its form row'
     const flow = require('../../bot/shared/services/whatsapp.service').sendFlow.mock.calls[0][1];
     expect(flow.flowId).toBe('F-FICOS');
     expect(flow.flowToken).toBe(`${ICT_COACH}:obs612:form-9:fs`);
-    expect(flow.buttonText).toBe('Open FICO-S form');
+    expect(flow.buttonText).toBe('Open FICO 6-12 form');
     delete process.env.FICO_S_FLOW_ID;
   });
 
@@ -319,7 +319,7 @@ describe('the capture: a FICO-S lesson stamps fico_s_v1_1 and gets its form row'
     await startFromAudio({ ...row(ICT_COACH), preferred_language: 'en' }, '9230', 'audio-1', 'chat-1', 1800);
     const WA = require('../../bot/shared/services/whatsapp.service');
     expect(WA.sendFlow).not.toHaveBeenCalled();
-    expect(WA.sendMessage.mock.calls.map((c) => c[1]).join('\n')).toMatch(/FICO-S form isn't switched on/);
+    expect(WA.sendMessage.mock.calls.map((c) => c[1]).join('\n')).toMatch(/FICO 6-12 form isn't switched on/);
   });
 });
 
@@ -365,7 +365,7 @@ describe('"Plan my visit" Flow: with FICO-S, High asks the subject and both band
 
   test('ficoS: High → SUBJECT; the subject closes with a subject tap; the bands say FICO-S', async () => {
     const init = await LF().handleRequest({ action: 'INIT', flow_token: token }, deps(true));
-    expect(init.data.options.find((o) => o.id === 'high').description).toMatch(/FICO-S/);
+    expect(init.data.options.find((o) => o.id === 'high').description).toMatch(/FICO 6-12/);
     const g = await LF().handleRequest({ action: 'data_exchange', flow_token: token, data: { step: 'grade', grade: '10' } }, deps(true));
     expect(g.screen).toBe('SUBJECT');
     const s = await LF().handleRequest({ action: 'data_exchange', flow_token: token, data: { step: 'subject', grade: '10', subject: 'science' } }, deps(true));

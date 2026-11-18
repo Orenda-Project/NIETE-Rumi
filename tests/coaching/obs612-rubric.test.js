@@ -39,7 +39,7 @@ describe('the rubric data', () => {
   test('three tools, one id each, labelled FDE v1 (and FICO-S v1.1 registered beside them, bd-31ziu8)', () => {
     expect(O.IDS).toEqual({ gen: 'obs612-gen-v1', msci: 'obs612-msci-v1', enur: 'obs612-enur-v1', ficos: 'fico_s_v1_1' });
     expect(O.labelOf('obs612-gen-v1')).toBe('FDE v1');
-    expect(O.labelOf('fico_s_v1_1')).toBe('FICO-S v1.1');
+    expect(O.labelOf('fico_s_v1_1')).toBe('FICO 6-12');
     expect(O.LABEL).toBe('FDE v1');
     expect(O.RUBRIC.source.letter).toBe('F.1-159/2010 (Academics)');
   });

@@ -146,8 +146,10 @@ function build(source) {
   return {
     rubric: RUBRIC_KEY,
     version: VERSION,
-    label: 'FICO-S v1.1',
-    title: oneLine(fw[0][0]),
+    // Operator 18 Nov ~17:00: people see 'FICO 6-12'; the code name stays FICO-S v1.1 (branched off FICO17 v6).
+    label: 'FICO 6-12',
+    code_name: 'FICO-S v1.1',
+    title: oneLine(fw[0][0]).replace(/^FICO-S v1\.1/, 'FICO 6-12'),
     intro: oneLine(fw[1][0]),
     branched_from: 'fico17_v6',
     grades: [6, 7, 8, 9, 10, 11, 12],

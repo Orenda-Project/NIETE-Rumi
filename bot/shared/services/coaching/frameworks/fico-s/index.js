@@ -30,7 +30,8 @@ const RUBRIC = JSON.parse(fs.readFileSync(RUBRIC_FILE, 'utf8'));
 const URDU = JSON.parse(fs.readFileSync(path.join(__dirname, 'fico_s_v1_1.ur.json'), 'utf8'));
 
 const RUBRIC_KEY = RUBRIC.rubric; // 'fico_s_v1_1'
-const LABEL = RUBRIC.label; // 'FICO-S v1.1'
+// Shown to people as 'FICO 6-12' (operator 18 Nov ~17:00); FICO-S v1.1 is its code name, branched off FICO17 v6.
+const LABEL = RUBRIC.label; // 'FICO 6-12'
 // Every FICO-S version's id: fico_s_v<major>_<minor>. Only this one is known to this code.
 const ID_RX = /^fico_s_v(\d+)_(\d+)$/;
 const isFicoSId = (id) => id === RUBRIC_KEY;

@@ -143,7 +143,7 @@ describe('the endpoint door', () => {
   test('INIT on a FICO-S token opens FS_START in the observer\'s language', async () => {
     const en = await Endpoint.handleObs612Init(fsToken('form-s'));
     expect(en.screen).toBe('FS_START');
-    expect(en.data.heading).toMatch(/FICO-S v1\.1/);
+    expect(en.data.heading).toMatch(/FICO 6-12/);
     const ur = await Endpoint.handleObs612Init(fsToken('form-s-ur', 'coach-ur'));
     expect(ur.data.next_label).toBe('شروع کریں');
   });
@@ -152,7 +152,7 @@ describe('the endpoint door', () => {
     expect((await Endpoint.handleObs612Init(fdeToken('form-s'))).screen).toBe('NOTICE');
     const r = await Endpoint.handleObs612Init(fsToken('form-fde'));
     expect(r.screen).toBe('NOTICE');
-    expect(r.data.notice_body).toMatch(/FICO-S/);
+    expect(r.data.notice_body).toMatch(/FICO 6-12/);
   });
 
   test('a screen saves first, then checks: no evidence keeps the observer on the screen', async () => {
@@ -179,7 +179,7 @@ describe('the endpoint door', () => {
     expect(form.sealed_at).toBeTruthy();
     const sess = mockFake.__tables.coaching_sessions.find((s) => s.id === 'sess-1');
     const a = sess.analysis_data;
-    expect(a).toMatchObject({ framework: 'fico_s_v1_1', rubric: 'fico_s_v1_1', rubric_label: 'FICO-S v1.1', scores: { rubric: 'fico_s_v1_1' } });
+    expect(a).toMatchObject({ framework: 'fico_s_v1_1', rubric: 'fico_s_v1_1', rubric_label: 'FICO 6-12', scores: { rubric: 'fico_s_v1_1' } });
     expect(a.obs612).toMatchObject({ tool: 'ficos', grade: 10, subject: 'science', scored_by: 'coach', branched_from: 'fico17_v6' });
     expect(Object.keys(a.obs612.answers)).toHaveLength(23);
     expect(a.obs612.answers.C2).toBe('NA');
@@ -228,22 +228,22 @@ describe('what the record shows', () => {
 
   test('the coach summary names FICO-S, the % and band, the section averages, the focus (en and ur)', () => {
     const en = Summary.buildCoachSummary(analysis(), { lang: 'en', teacherName: 'Rabia' });
-    expect(en).toMatch(/FICO-S v1\.1: \d+ \/ 88 · [\d.]+% · (Below standard|Developing|Proficient|Exemplary)/);
+    expect(en).toMatch(/FICO 6-12: \d+ \/ 88 · [\d.]+% · (Below standard|Developing|Proficient|Exemplary)/);
     expect(en).toMatch(/A \d\.\d · B \d\.\d · C \d\.\d · D \d\.\d · E \d\.\d/);
     expect(en).toMatch(/Work on: C3 Who gets to answer/);
-    expect(en).toMatch(/_FICO-S v1\.1_/);
+    expect(en).toMatch(/_FICO 6-12_/);
     const ur = Summary.buildCoachSummary(analysis(), { lang: 'ur', teacherName: 'Rabia' });
-    expect(ur).toMatch(/⁦FICO-S v1\.1⁩/);
+    expect(ur).toMatch(/⁦FICO 6-12⁩/);
     expect(ur).toMatch(/۸۸ میں سے/);
     // HITL parity (operator 18 Nov ~16:35): after the review comes the debrief, offered as after a FICO review.
     const msgs = Summary.buildSummaryMessages('sess-1', analysis(), { lang: 'en', teacherName: 'Rabia' });
     expect(msgs.buttons.buttons.map((b) => b.id)).toEqual(['observe_debrief_now_sess-1', 'observe_debrief_later_sess-1']);
-    expect(msgs.buttons.body).toMatch(/FICO-S v1\.1:/);
+    expect(msgs.buttons.body).toMatch(/FICO 6-12:/);
   });
 
   test('the portal block: headline, five section rows with bars, 23 indicator rows, the feedback', () => {
     const p = View.portalSummary(analysis());
-    expect(p).toMatchObject({ label: 'FICO-S v1.1', tool: 'ficos', rubric: 'fico_s_v1_1', noTotal: false });
+    expect(p).toMatchObject({ label: 'FICO 6-12', tool: 'ficos', rubric: 'fico_s_v1_1', noTotal: false });
     expect(p.rows).toHaveLength(28);
     expect(p.rows[0]).toMatchObject({ name: 'A · Lesson planning & structure', pct: expect.any(Number) });
     expect(p.rows.find((r) => r.name.startsWith('C2 ')).value).toBe('N/A');
@@ -256,15 +256,15 @@ describe('what the record shows', () => {
       'A. Lesson planning & structure', 'B. Subject knowledge & teaching', 'C. Classroom practice', 'D. Student learning & engagement', 'E. Checking learning',
     ]);
     expect(vm.score.max).toBe(88);
-    expect(vm.narrative.affirmation).toMatch(/FICO-S v1\.1/);
+    expect(vm.narrative.affirmation).toMatch(/FICO 6-12/);
     expect(vm.narrative.horizon_title).toMatch(/^C3\. Who gets to answer/);
     expect(vm.tryNext).toMatch(/Words for fs_action/);
-    expect(Report.caption(Report.buildObs612ReportVm({ created_at: '2026-11-18T10:00:00Z' }, analysis(), { language: 'en' }))).toMatch(/FICO-S v1\.1 · Grade 7 · Maths/);
+    expect(Report.caption(Report.buildObs612ReportVm({ created_at: '2026-11-18T10:00:00Z' }, analysis(), { language: 'en' }))).toMatch(/FICO 6-12 · Grade 7 · Maths/);
   });
 
   test('the report record (transformer): FICO-S totals, one goal a section, every indicator set by the observer', () => {
     const r = transformObs612ToReportData({ created_at: '2026-11-18T10:00:00Z' }, 'Rabia', analysis());
-    expect(r).toMatchObject({ rubric: 'fico_s_v1_1', rubricLabel: 'FICO-S v1.1', maxScore: 88, noTotal: false });
+    expect(r).toMatchObject({ rubric: 'fico_s_v1_1', rubricLabel: 'FICO 6-12', maxScore: 88, noTotal: false });
     expect(r.goals).toHaveLength(5);
     expect(r.goals.flatMap((g) => g.criteria)).toHaveLength(23);
     expect(r.goals.flatMap((g) => g.criteria).every((c) => c.setBy === 'coach')).toBe(true);
@@ -287,7 +287,7 @@ describe('the portal door (obs612/portal.js) fills the same form', () => {
   test('GET: one section a screen, levels with the sheet\'s words, every field named by its draft key', async () => {
     mockFake.__tables.observation_field_forms.find((f) => f.id === 'form-s').coaching_session_id = 'sess-1';
     const v = await Portal.portalDraft({ userId: 'coach-1', row });
-    expect(v).toMatchObject({ status: 'ok', kind: 'obs612', tool: 'ficos', label: 'FICO-S v1.1', editable: true });
+    expect(v).toMatchObject({ status: 'ok', kind: 'obs612', tool: 'ficos', label: 'FICO 6-12', editable: true });
     expect(v.sections).toHaveLength(FS.SCREENS.length);
     const a1 = v.sections.find((s) => s.id === 'FS_A_ONE').parts.find((p) => p.name === 'A1');
     expect(a1.options.map((o) => o.title)).toEqual(['1 · Below standard', '2 · Developing', '3 · Proficient', '4 · Exemplary']);

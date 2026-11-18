@@ -18,13 +18,13 @@ const TOOL_NAMES = {
     msci: "FDE's Observation Tool for Maths and Science (Grade VI-VII)",
     enur: "FDE's Classroom Observation Tool for English & Urdu (Grade VI-VIII)",
     gen: "FDE's Teacher Observation Form General",
-    ficos: 'FICO-S v1.1 (FICO for grades 6-12)',
+    ficos: 'FICO 6-12',
   },
   ur: {
     msci: 'ایف ڈی ای کا ریاضی اور سائنس کا مشاہداتی ٹول (Grade VI-VII)',
     enur: 'ایف ڈی ای کا انگریزی اور اردو کا مشاہداتی ٹول (Grade VI-VIII)',
     gen: 'ایف ڈی ای کا عمومی مشاہداتی فارم (General)',
-    ficos: '⁦FICO-S v1.1⁩ (جماعت ۶ تا ۱۲ کے لیے ⁦FICO⁩)',
+    ficos: '⁦FICO 6-12⁩',
   },
 };
 
@@ -155,41 +155,41 @@ const STRINGS = {
 const FICO_S = {
   en: {
     class_body: (name) => (name
-      ? `Which class is *${name}*'s lesson? The class chooses the observation form: grades 1-5 get the FICO form; grades 6-12 get FICO-S v1.1.`
-      : 'Which class is this lesson? The class chooses the observation form: grades 1-5 get the FICO form; grades 6-12 get FICO-S v1.1.'),
+      ? `Which class is *${name}*'s lesson? The class chooses the observation form: grades 1-5 get the FICO form; grades 6-12 get the FICO 6-12 form.`
+      : 'Which class is this lesson? The class chooses the observation form: grades 1-5 get the FICO form; grades 6-12 get the FICO 6-12 form.'),
     grade_primary_desc: 'FICO form, as today',
     lf_class_note: 'The class chooses the observation form.',
     lf_bands: {
       primary: { title: 'Primary', description: 'Grades 1 to 5 · FICO form' },
-      middle: { title: 'Middle', description: 'Grades 6 to 8 · FICO-S v1.1' },
-      high: { title: 'High', description: 'Grades 9 to 12 · FICO-S v1.1' },
+      middle: { title: 'Middle', description: 'Grades 6 to 8 · FICO 6-12' },
+      high: { title: 'High', description: 'Grades 9 to 12 · FICO 6-12' },
     },
-    fde_record_hint: () => 'This lesson uses FICO-S v1.1. Record the lesson as usual and send me the recording: the FICO-S form comes as soon as it lands, and you set every level.',
-    form_cta: 'Open FICO-S form',
+    fde_record_hint: () => 'This lesson uses FICO 6-12. Record the lesson as usual and send me the recording: the FICO 6-12 form comes as soon as it lands, and you set every level.',
+    form_cta: 'Open FICO 6-12 form',
     recording_saved: (submitted) => (submitted
-      ? '🎧 Recording received and kept with this visit. Your FICO-S form is already submitted.'
-      : '🎧 Recording received and kept with this visit. Fill in the FICO-S form when you are ready: tap *Open FICO-S form*.'),
-    form_not_ready: "The FICO-S form isn't switched on here yet, so I can't open it. Your recording is saved. Please tell your programme team.",
-    form_failed: "I couldn't open the FICO-S form just now. Please send /observe again in a minute; your visit is saved.",
+      ? '🎧 Recording received and kept with this visit. Your FICO 6-12 form is already submitted.'
+      : '🎧 Recording received and kept with this visit. Fill in the FICO 6-12 form when you are ready: tap *Open FICO 6-12 form*.'),
+    form_not_ready: "The FICO 6-12 form isn't switched on here yet, so I can't open it. Your recording is saved. Please tell your programme team.",
+    form_failed: "I couldn't open the FICO 6-12 form just now. Please send /observe again in a minute; your visit is saved.",
   },
   ur: {
     class_body: (name) => (name
-      ? `*${name}* کا یہ سبق کس جماعت کا ہے؟ جماعت سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے ⁦FICO⁩ فارم؛ جماعت ۶ تا ۱۲ کے لیے ⁦FICO-S v1.1⁩۔`
-      : 'یہ سبق کس جماعت کا ہے؟ جماعت سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے ⁦FICO⁩ فارم؛ جماعت ۶ تا ۱۲ کے لیے ⁦FICO-S v1.1⁩۔'),
+      ? `*${name}* کا یہ سبق کس جماعت کا ہے؟ جماعت سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے ⁦FICO⁩ فارم؛ جماعت ۶ تا ۱۲ کے لیے ⁦FICO 6-12⁩۔`
+      : 'یہ سبق کس جماعت کا ہے؟ جماعت سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے ⁦FICO⁩ فارم؛ جماعت ۶ تا ۱۲ کے لیے ⁦FICO 6-12⁩۔'),
     grade_primary_desc: '⁦FICO⁩ فارم، جیسے آج ہے',
     lf_class_note: 'جماعت سے مشاہداتی فارم طے ہوتا ہے۔',
     lf_bands: {
       primary: { title: 'پرائمری', description: 'جماعت ۱ تا ۵ · ⁦FICO⁩ فارم' },
-      middle: { title: 'مڈل', description: 'جماعت ۶ تا ۸ · ⁦FICO-S v1.1⁩' },
-      high: { title: 'ہائی', description: 'جماعت ۹ تا ۱۲ · ⁦FICO-S v1.1⁩' },
+      middle: { title: 'مڈل', description: 'جماعت ۶ تا ۸ · ⁦FICO 6-12⁩' },
+      high: { title: 'ہائی', description: 'جماعت ۹ تا ۱۲ · ⁦FICO 6-12⁩' },
     },
-    fde_record_hint: () => 'اس سبق کے لیے ⁦FICO-S v1.1⁩ استعمال ہو گا۔ سبق معمول کے مطابق ریکارڈ کر کے یہاں بھیجیں: ریکارڈنگ آتے ہی ⁦FICO-S⁩ فارم آ جائے گا۔ ہر لیول خود طے کریں۔',
-    form_cta: '⁦FICO-S⁩ فارم کھولیں',
+    fde_record_hint: () => 'اس سبق کے لیے ⁦FICO 6-12⁩ استعمال ہو گا۔ سبق معمول کے مطابق ریکارڈ کر کے یہاں بھیجیں: ریکارڈنگ آتے ہی ⁦FICO 6-12⁩ فارم آ جائے گا۔ ہر لیول خود طے کریں۔',
+    form_cta: '⁦FICO 6-12⁩ کھولیں',
     recording_saved: (submitted) => (submitted
-      ? '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ ⁦FICO-S⁩ فارم پہلے ہی جمع ہو چکا ہے۔'
-      : '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ جب تیار ہوں ⁦FICO-S⁩ فارم بھریں: *⁦FICO-S⁩ فارم کھولیں* دبائیں۔'),
-    form_not_ready: '⁦FICO-S⁩ فارم ابھی یہاں چالو نہیں، اس لیے نہیں کھل سکا۔ آپ کی ریکارڈنگ محفوظ ہے۔ براہِ کرم اپنی پروگرام ٹیم کو بتائیں۔',
-    form_failed: 'ابھی ⁦FICO-S⁩ فارم نہیں کھل سکا۔ ایک منٹ بعد دوبارہ ⁦/observe⁩ بھیجیں؛ آپ کا وزٹ محفوظ ہے۔',
+      ? '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ ⁦FICO 6-12⁩ فارم پہلے ہی جمع ہو چکا ہے۔'
+      : '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ جب تیار ہوں ⁦FICO 6-12⁩ فارم بھریں: *⁦FICO 6-12⁩ کھولیں* دبائیں۔'),
+    form_not_ready: '⁦FICO 6-12⁩ فارم ابھی یہاں چالو نہیں، اس لیے نہیں کھل سکا۔ آپ کی ریکارڈنگ محفوظ ہے۔ براہِ کرم اپنی پروگرام ٹیم کو بتائیں۔',
+    form_failed: 'ابھی ⁦FICO 6-12⁩ فارم نہیں کھل سکا۔ ایک منٹ بعد دوبارہ ⁦/observe⁩ بھیجیں؛ آپ کا وزٹ محفوظ ہے۔',
   },
 };
 

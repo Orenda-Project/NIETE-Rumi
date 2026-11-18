@@ -253,25 +253,25 @@ function buildObs612ReportHtml(vm) {
 // FICO hero template (hero-report.template.js); only its view model is FDE's.
 
 // Our own lines on the page, in the teacher's language (Urdu: DRAFT for native review; Urdu digits).
-// bd-31ziu8 — a FICO-S v1.1 visit's lines (Urdu: DRAFT for native review).
+// bd-31ziu8 — a FICO-S v1.1 visit's lines, named 'FICO 6-12' for people (Urdu: DRAFT for native review).
 const HERO_FICO_S = {
   en: {
-    affirm: (band) => (band ? `Your lesson, as your observer scored it on FICO-S v1.1: ${band}` : 'Your lesson, as your observer scored it on FICO-S v1.1'),
-    identity: (r) => `FICO-S v1.1: ${r.total} of ${r.max} (${num(r.pct)}%)${r.band ? ` · ${r.band}` : ''}.`,
+    affirm: (band) => (band ? `Your lesson, as your observer scored it on FICO 6-12: ${band}` : 'Your lesson, as your observer scored it on FICO 6-12'),
+    identity: (r) => `FICO 6-12: ${r.total} of ${r.max} (${num(r.pct)}%)${r.band ? ` · ${r.band}` : ''}.`,
     by: (t) => `By: ${t}`,
     level: (n) => `Level ${n} · ${FicoS.levelName(n)}`,
     footnote: FICO_S_FOOTNOTE,
-    caption: '📋 Your observation report · FICO-S v1.1',
+    caption: '📋 Your observation report · FICO 6-12',
     atom: (x) => x,
     band: (label) => label,
   },
   ur: {
-    affirm: (band) => (band ? `آپ کا سبق، مشاہدہ کار نے \u2066FICO-S v1.1\u2069 پر جانچا: ${band}` : 'آپ کا سبق، مشاہدہ کار نے \u2066FICO-S v1.1\u2069 پر جانچا'),
-    identity: (r) => `\u2066FICO-S v1.1\u2069: ${urDigitsOf(r.max)} میں سے ${urDigitsOf(r.total)} (${urDigitsOf(num(r.pct))}٪)${r.band ? ` · ${r.band}` : ''}۔`,
+    affirm: (band) => (band ? `آپ کا سبق، مشاہدہ کار نے \u2066FICO 6-12\u2069 پر جانچا: ${band}` : 'آپ کا سبق، مشاہدہ کار نے \u2066FICO 6-12\u2069 پر جانچا'),
+    identity: (r) => `\u2066FICO 6-12\u2069: ${urDigitsOf(r.max)} میں سے ${urDigitsOf(r.total)} (${urDigitsOf(num(r.pct))}٪)${r.band ? ` · ${r.band}` : ''}۔`,
     by: (t) => `کب تک: ${t}`,
     level: (n) => `لیول ${urDigitsOf(n)} · ${FicoS.levelName(n, 'ur')}`,
     footnote: FICO_S_FOOTNOTE_UR,
-    caption: '📋 آپ کی مشاہداتی رپورٹ · \u2066FICO-S v1.1\u2069',
+    caption: '📋 آپ کی مشاہداتی رپورٹ · \u2066FICO 6-12\u2069',
     atom: (x) => `\u2066${x}\u2069`,
     // A band shares its name with the level of the same rank (Exemplary = 4 … Below standard = 1).
     band: (label) => {

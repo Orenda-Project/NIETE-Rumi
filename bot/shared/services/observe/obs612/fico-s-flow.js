@@ -31,7 +31,8 @@ const FLOW_VERSION = '7.0';
 const DATA_API_VERSION = '3.0';
 const TEXTAREA_MAX = 600;
 const TEXTINPUT_MAX = 80;
-const TITLE = 'FICO-S v1.1 · مشاہدہ';
+// The name people see is 'FICO 6-12' (operator 18 Nov ~17:00); FICO-S v1.1 is its code name.
+const TITLE = 'FICO 6-12 · مشاہدہ';
 
 const LRI = '⁦';
 const PDI = '⁩';
@@ -50,7 +51,7 @@ const langOf = FicoS.langOf;
 
 const STR = {
   en: {
-    start_heading: 'FICO-S v1.1 · Classroom observation',
+    start_heading: 'FICO 6-12 · Classroom observation',
     start_body: [
       'FICO for grades 6-12: 23 indicators in 5 sections, one indicator a screen.',
       'Score each indicator 1-4 from what you see and hear in the room. Levels build on each other: level 4 = level 3 met + the extra step. If between two levels, give the lower one.',
@@ -105,12 +106,12 @@ const STR = {
     refused: {
       not_found: ['Not available', 'This form could not be found. Start the visit again from the chat.'],
       not_yours: ['Not available', "This form belongs to another observer's visit."],
-      not_obs612: ['Not available', 'This visit does not use the FICO-S form.'],
+      not_obs612: ['Not available', 'This visit does not use the FICO 6-12 form.'],
       sealed: ['Already submitted', 'This form was submitted before. Nothing was changed.'],
       error: ['Not available', 'Something went wrong. Close this and open the form again from the chat. Your answers so far are kept.'],
     },
     done: {
-      submitted: ['Submitted', 'Your FICO-S form is saved. Your summary follows in the chat.'],
+      submitted: ['Submitted', 'Your FICO 6-12 form is saved. Your summary follows in the chat.'],
       closed: ['Not submitted', 'This visit was cancelled, so the form was not submitted. Your answers are kept.'],
       error: ['Not saved', 'Something went wrong. Close this and open the form again from the chat. Your answers so far are kept.'],
     },
@@ -123,7 +124,7 @@ const STR = {
     group: (g) => g,
   },
   ur: {
-    start_heading: `${LRI}FICO-S v1.1${PDI} · کلاس روم مشاہدہ`,
+    start_heading: `${LRI}FICO 6-12${PDI} · کلاس روم مشاہدہ`,
     start_body: [
       `جماعت ۶ تا ۱۲ کے لیے ${LRI}FICO${PDI}: ۵ حصوں میں ۲۳ اشاریے، ہر اسکرین پر ایک اشاریہ۔`,
       'ہر اشاریے کو کمرے میں جو دیکھیں اور سنیں اس کی بنیاد پر ۱ سے ۴ تک لیول دیں۔ لیول ایک دوسرے پر بنتے ہیں: لیول ۴ = لیول ۳ پورا + اضافی قدم۔ دو لیولز کے درمیان ہوں تو کم والا دیں۔',
@@ -177,12 +178,12 @@ const STR = {
     refused: {
       not_found: ['دستیاب نہیں', 'یہ فارم نہیں ملا۔ چیٹ سے وزٹ دوبارہ شروع کریں۔'],
       not_yours: ['دستیاب نہیں', 'یہ فارم کسی اور مشاہدہ کار کے وزٹ کا ہے۔'],
-      not_obs612: ['دستیاب نہیں', `اس وزٹ میں ${LRI}FICO-S${PDI} فارم استعمال نہیں ہوتا۔`],
+      not_obs612: ['دستیاب نہیں', `اس وزٹ میں ${LRI}FICO 6-12${PDI} فارم استعمال نہیں ہوتا۔`],
       sealed: ['پہلے جمع ہو چکا', 'یہ فارم پہلے جمع ہو چکا ہے۔ کچھ نہیں بدلا۔'],
       error: ['دستیاب نہیں', 'کوئی مسئلہ ہوا۔ اسے بند کر کے چیٹ سے فارم دوبارہ کھولیں۔ اب تک کے جواب محفوظ ہیں۔'],
     },
     done: {
-      submitted: ['جمع ہو گیا', `آپ کا ${LRI}FICO-S${PDI} فارم محفوظ ہو گیا۔ خلاصہ چیٹ میں آ رہا ہے۔`],
+      submitted: ['جمع ہو گیا', `آپ کا ${LRI}FICO 6-12${PDI} فارم محفوظ ہو گیا۔ خلاصہ چیٹ میں آ رہا ہے۔`],
       closed: ['جمع نہیں ہوا', 'یہ وزٹ منسوخ ہو گیا تھا، اس لیے فارم جمع نہیں ہوا۔ آپ کے جواب محفوظ ہیں۔'],
       error: ['محفوظ نہیں ہوا', 'کوئی مسئلہ ہوا۔ اسے بند کر کے چیٹ سے فارم دوبارہ کھولیں۔ اب تک کے جواب محفوظ ہیں۔'],
     },

@@ -296,7 +296,8 @@ const FLOW_CONFIGS = [
     // bd-31ziu8 — FICO-S v1.1 ("FICO for Secondary"), ICT HITL grades 6-12 from 18 Nov: one indicator a screen, every
     // word endpoint data in the observer's language (en | ur). Same endpoint as FDE's form (the token's ':fs' tells
     // them apart). Regenerate the JSON with bot/scripts/generate-fico-s-flow-json.js.
-    name: 'Obs 6-12 FICO-S Form',
+    // Shown name 'FICO 6-12' (operator 18 Nov ~17:00); code name FICO-S v1.1.
+    name: 'FICO 6-12 Form',
     jsonPath: path.resolve(__dirname, '../../docs/flows/fico-s-flow.json'),
     type: 'endpoint',
     endpointPath: '/api/flows/obs612',

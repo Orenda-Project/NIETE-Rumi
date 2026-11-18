@@ -177,7 +177,7 @@ const SHORT = {
     gen: 'General form',
     msci: 'Maths & Science tool',
     enur: 'English & Urdu tool',
-    ficos: 'FICO-S v1.1',
+    ficos: 'FICO 6-12',
   },
 };
 

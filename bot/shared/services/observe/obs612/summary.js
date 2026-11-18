@@ -66,7 +66,7 @@ const STRINGS = {
     sep: ', ',
     saved: '✅ Saved.',
     grade: (g) => `Grade ${g}`,
-    tools: { msci: 'Maths & Science tool', enur: 'English & Urdu tool', gen: 'General form', ficos: 'FICO-S v1.1' },
+    tools: { msci: 'Maths & Science tool', enur: 'English & Urdu tool', gen: 'General form', ficos: 'FICO 6-12' },
     // bd-31ziu8 — a FICO-S visit's result: '66 / 88 · 75% · Proficient', the section averages, highest and lowest.
     ficos: (v) => `${v.total} / ${v.max} · ${num(v.pct)}%${v.band ? ` · ${v.band}` : ''}`,
     ficosSections: (secs) => secs.filter((s) => s.average !== null).map((s) => `${s.key} ${s.average.toFixed(1)}`).join(' · '),
@@ -105,7 +105,7 @@ const STRINGS = {
     sep: '، ',
     saved: '✅ محفوظ ہو گیا۔',
     grade: (g) => `جماعت ${urDigits(g)}`,
-    tools: { msci: 'ریاضی اور سائنس ٹول', enur: 'انگریزی اور اردو ٹول', gen: 'عمومی فارم', ficos: ltr('FICO-S v1.1') },
+    tools: { msci: 'ریاضی اور سائنس ٹول', enur: 'انگریزی اور اردو ٹول', gen: 'عمومی فارم', ficos: ltr('FICO 6-12') },
     ficos: (v) => `${urDigits(v.max)} میں سے ${urDigits(v.total)} · ${urDigits(num(v.pct))}٪${v.band ? ` · ${bandUr(v.band)}` : ''}`,
     ficosSections: (secs) => secs.filter((s) => s.average !== null).map((s) => `${ltr(s.key)} ${urDigits(s.average.toFixed(1))}`).join(' · '),
     ficosInd: (i) => `${ltr(i.code)} ${FicoS.indicatorText(i.code, 'ur').name}`,

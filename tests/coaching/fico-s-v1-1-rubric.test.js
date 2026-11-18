@@ -19,7 +19,10 @@ describe('FICO-S v1.1 — the rubric as data', () => {
 
   test('id, label, version and lineage', () => {
     expect(S.RUBRIC_KEY).toBe('fico_s_v1_1');
-    expect(S.LABEL).toBe('FICO-S v1.1');
+    // operator 18 Nov ~17:00: people see 'FICO 6-12'; the code name stays FICO-S v1.1
+    expect(S.LABEL).toBe('FICO 6-12');
+    expect(S.RUBRIC.code_name).toBe('FICO-S v1.1');
+    expect(S.RUBRIC.title).toMatch(/^FICO 6-12 · /);
     expect(S.RUBRIC.version).toBe('1.1');
     expect(S.RUBRIC.branched_from).toBe('fico17_v6');
     expect(S.RUBRIC.source.sheet_id).toBe('1HLMlVbvKZCw8CLuKSzWBd6xiQEPyFc5kRZq7HqqUobg');
@@ -144,7 +147,7 @@ describe('FICO-S v1.1 — one rubric of its own, never a FICO V3/v6 number', () 
     expect(O.isObs612Id('fico_s_v1_1')).toBe(true);
     expect(O.toolOf('fico_s_v1_1')).toBe('ficos');
     expect(O.toolById('fico_s_v1_1')).toBeTruthy();
-    expect(O.labelOf('fico_s_v1_1')).toBe('FICO-S v1.1');
+    expect(O.labelOf('fico_s_v1_1')).toBe('FICO 6-12');
     expect(O.labelOf('obs612-enur-v1')).toBe('FDE v1');
     // FDE's ids are unchanged
     expect(O.toolOf('obs612-msci-v1')).toBe('msci');
@@ -157,10 +160,10 @@ describe('FICO-S v1.1 — one rubric of its own, never a FICO V3/v6 number', () 
     expect(ownRubricOf({ scores: { rubric: 'fico_s_v1_1' } })).toBe('fico_s_v1_1');
   });
 
-  test('rubric label: FICO-S v1.1 on every surface', () => {
+  test('rubric label: FICO 6-12 on every surface', () => {
     const { rubricLabelOf } = require('../../bot/shared/services/coaching/rubric-label');
-    expect(rubricLabelOf({ form: { rubric_version: 'fico_s_v1_1' } })).toEqual({ id: 'fico_s_v1_1', label: 'FICO-S v1.1' });
-    expect(rubricLabelOf({ session: { framework: 'fico_s_v1_1' } })).toEqual({ id: 'fico_s_v1_1', label: 'FICO-S v1.1' });
+    expect(rubricLabelOf({ form: { rubric_version: 'fico_s_v1_1' } })).toEqual({ id: 'fico_s_v1_1', label: 'FICO 6-12' });
+    expect(rubricLabelOf({ session: { framework: 'fico_s_v1_1' } })).toEqual({ id: 'fico_s_v1_1', label: 'FICO 6-12' });
     expect(rubricLabelOf({ session: { framework: 'obs612-gen-v1' } })).toEqual({ id: 'obs612-gen-v1', label: 'FDE v1' });
   });
 

@@ -38,8 +38,8 @@ const FDE_FOOTNOTE = "Scored by your coach on FDE's tool (Annexure G, 2026-27). 
 // The same line for an Urdu report (DRAFT for native review): an English line inside an RTL page loses its spacing.
 const FDE_FOOTNOTE_UR = 'آپ کے کوچ نے ایف ڈی ای کے ٹول (Annexure G، \u2066۲۰۲۶-۲۷\u2069) پر نمبر دیے۔ یہ FICO اسکور نہیں۔';
 // bd-31ziu8 — the FICO-S line (DRAFT Urdu for native review).
-const FICO_S_FOOTNOTE = 'Scored by your observer on FICO-S v1.1, the FICO rubric for grades 6-12. Not a FICO17 v6 score.';
-const FICO_S_FOOTNOTE_UR = 'آپ کے مشاہدہ کار نے \u2066FICO-S v1.1\u2069 (جماعت ۶ تا ۱۲ کا \u2066FICO\u2069) پر لیول دیے۔ یہ \u2066FICO17 v6\u2069 اسکور نہیں۔';
+const FICO_S_FOOTNOTE = 'Scored by your observer on FICO 6-12, the FICO rubric for grades 6-12. Not a FICO17 v6 score.';
+const FICO_S_FOOTNOTE_UR = 'آپ کے مشاہدہ کار نے \u2066FICO 6-12\u2069 پر لیول دیے، جماعت ۶ تا ۱۲ کا \u2066FICO\u2069۔ یہ \u2066FICO17 v6\u2069 اسکور نہیں۔';
 
 /**
  * A coach's hand-typed note, made safe to show (bd-ra8xu.51, Rifat 13 Nov: "repeated broken characters"). A run of more

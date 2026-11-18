@@ -1,8 +1,9 @@
 {
   "rubric": "fico_s_v1_1",
   "version": "1.1",
-  "label": "FICO-S v1.1",
-  "title": "FICO-S v1.1 · Principal Classroom Observation Framework (Grades VI–XII)",
+  "label": "FICO 6-12",
+  "code_name": "FICO-S v1.1",
+  "title": "FICO 6-12 · Principal Classroom Observation Framework (Grades VI–XII)",
   "intro": "For principals / heads observing in person. Score each indicator 1–4 from what you see and hear in the room. Levels build on each other: level 4 = level 3 met + the extra step. If between two levels, give the lower one. Examples for every level are in the 'Examples' tab.",
   "branched_from": "fico17_v6",
   "grades": [
