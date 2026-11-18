@@ -18,6 +18,13 @@
  * Round 28 (the letter-sound picker), opts.clip_only: the line is the clip or nothing. No clip, a clip that fails twice
  * or gives up, or no audio element: the promise REJECTS and the phone's voice is never used (it would say the letter's
  * name). Muted, a line cut by the next one and a page hidden mid-line behave as without it.
+ * Under clip_only a clip that has started must reach its end: when its currentTime makes no progress for progress_ms
+ * (default load_ms, 5 s; the clock is the progress itself, so a stall that fires no event is caught too, and a slow
+ * clip that keeps moving is not), it is tried once more from the start at once; a second such stall, or the 60 s
+ * guard with no 'ended', REJECTS as a lost clip does (worst case about 2 x 5 s + the clip's start, under the 11.5 s
+ * of a clip that never loads). speak.stalled() is true while the clip on now is stalled ('waiting'/'stalled', or no
+ * progress for stale_ms, 1 s) until it moves again or the line ends, so a screen can drop a tap made meanwhile.
+ * Without clip_only none of this applies: the 60 s guard resolves as before.
  * preload([audioObj…], ms) → Promise<{ ready, of }> (round 28): loads the clips in elements of their own (the offline copy
  * warms with them) and resolves when every one is ready to play through (or failed), or after ms, whichever is first.
  * A new speak() or stop() cuts the one before it and resolves its promise.
@@ -98,6 +105,8 @@
     var onSilent = typeof o.onSilent === 'function' ? o.onSilent : null;
     var onHeld = typeof o.onHeld === 'function' ? o.onHeld : null;
     var stallMs = o.stall_ms != null ? o.stall_ms : 4000;
+    var progressMs = o.progress_ms != null ? o.progress_ms : loadMs; // clip_only: no progress this long = a stall
+    var staleMs = o.stale_ms != null ? o.stale_ms : 1000; // clip_only: no progress this long = stalled() for the screen
     var cur = null; // { done(), audio?, tts?, park? }
     function notify(on, text) { if (onSpeak) { try { onSpeak({ speaking: on, text: text || null }); } catch (e) { /* ignore */ } } }
     function held(kind) { if (onHeld) { try { onHeld({ kind: kind }); } catch (e) { /* ignore */ } } }
@@ -190,7 +199,7 @@
       var c = cur;
       cur = null;
       if (!c) return;
-      try { if (c.audio) { c.audio.onended = c.audio.onerror = c.audio.onplaying = c.audio.onpause = null; c.audio.pause(); } } catch (e) { /* ignore */ }
+      try { if (c.audio) { c.audio.onended = c.audio.onerror = c.audio.onplaying = c.audio.onpause = c.audio.ontimeupdate = c.audio.onwaiting = c.audio.onstalled = null; c.audio.pause(); } } catch (e) { /* ignore */ }
       try { if (c.tts) { var s = synth(); if (s && s.cancel) s.cancel(); } } catch (e) { /* ignore */ }
       c.done();
     }
@@ -209,6 +218,7 @@
         var tl = said0 ? said0.lang : lang;
         function start() { if (!said && !finished) { said = true; notify(true, text); } }
         var me = {
+          clipOnly: clipOnly,
           done: function () {
             if (finished) return;
             finished = true;
@@ -291,17 +301,18 @@
             var a = slot ? slot.a : new A(base + clip), playing = false, fell = false, t0 = null;
             me.audio = a;
             me.slot = slot;
-            var fallback = function (err) {
+            var fallback = function (err, wait) {
               if (fell || finished || cur !== me) return;
               fell = true;
               if (t0) clearTimeout(t0);
+              if (prog) clearTimeout(prog);
               if (unlockOn && err && err.name === 'NotAllowedError') held('refused');
-              try { a.onended = a.onerror = a.onplaying = a.onpause = null; a.pause(); } catch (e) { /* ignore */ }
+              try { a.onended = a.onerror = a.onplaying = a.onpause = a.ontimeupdate = a.onwaiting = a.onstalled = null; a.pause(); } catch (e) { /* ignore */ }
               me.audio = null;
               free(me.slot); me.slot = null;
               // The page is hidden: the line waits for it, in Jugnu's own clip (resume()), never the phone's voice.
               if (hidden()) { tries -= 1; me.park = play; held('parked'); return; }
-              if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, retryMs);
+              if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, wait != null ? wait : retryMs);
               else lost();
             };
             // Paused by the browser (the page hidden, the audio taken): held until resume(), or until stallMs on a visible page.
@@ -336,15 +347,45 @@
               if (q && typeof q.then === 'function') q.then(function () { if (me.held === a) me.held = null; }, function () { /* the stall below decides */ });
               stall();
             };
-            a.onplaying = function () { playing = true; start(); };
+            // clip_only: a started clip must reach its end. No currentTime progress for progressMs (paused by the browser
+            // or the page hidden: the paths above own it) = a stall: tried once more from 0 at once, then lost.
+            var prog = null, lastT = 0;
+            var arm = function () {
+              if (!clipOnly) return;
+              if (prog) clearTimeout(prog);
+              prog = setTimeout(noProgress, progressMs);
+              timers.push(prog);
+            };
+            var moved = function () {
+              var t = +a.currentTime || 0;
+              if (t <= lastT) return false;
+              lastT = t; me.prog_at = Date.now(); me.stalled = false;
+              return true;
+            };
+            var noProgress = function () {
+              prog = null;
+              if (fell || finished || cur !== me || a.ended) return;
+              if (moved() || me.held === a || hidden()) { arm(); return; }
+              me.stalled = true;
+              fallback(null, 0);
+            };
+            var began = function () {
+              if (!playing) { playing = true; me.prog_at = Date.now(); arm(); }
+              start();
+            };
+            if (clipOnly) {
+              a.ontimeupdate = function () { if (!fell && !finished && cur === me && moved()) arm(); };
+              a.onwaiting = a.onstalled = function () { if (!fell && !finished && cur === me && playing && !a.ended) me.stalled = true; };
+            }
+            a.onplaying = began;
             a.onended = function () { me.done(); };
             a.onerror = function () { fallback(); };
             t0 = setTimeout(function () { if (!playing) fallback(); }, loadMs); // never loaded
             timers.push(t0);
             var p = a.play();
-            if (p && typeof p.then === 'function') p.then(function () { playing = true; start(); }, fallback);
+            if (p && typeof p.then === 'function') p.then(began, fallback);
           };
-          later(me.done, 60000); // never ended
+          later(clipOnly ? me.fail : me.done, 60000); // never ended (clip_only: never heard whole, so lost)
           play();
         } catch (e) {
           if (clip) silent(); else tts();
@@ -390,6 +431,12 @@
 
     /** Round 8 (item 32): the <audio> playing now (a clip line), else null; the screens light its words. */
     speak.audio = function () { return cur && cur.audio ? cur.audio : null; };
+    /** clip_only: the clip on now has stalled (and not moved since), or its retry has not moved yet. */
+    speak.stalled = function () {
+      var c = cur;
+      if (!c || !c.audio) return !!(c && c.stalled);
+      return !!c.stalled || (c.prog_at != null && !c.audio.ended && !c.audio.paused && Date.now() - c.prog_at > staleMs && !!c.clipOnly);
+    };
 
     return {
       speak: speak,

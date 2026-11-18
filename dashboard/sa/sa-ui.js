@@ -103,6 +103,9 @@
  *   the clip          speak(…, { clip_only: true }): a clip that cannot play is never said by the phone's voice. The
  *                     item's first play lost → runner.clipLost(item, 'prompt'): that item is unavailable and the next one
  *                     shows (the task never ends on it); a replay lost → clipLost(item, 'replay'): the item stays open.
+ *                     A clip that starts and then stalls is given up by the voice (no progress for 5 s, one retry) as a
+ *                     lost clip; on the first play a tap made while it is stalled is dropped (speak.stalled()), on a
+ *                     replay the tap counts. The MCQ's first read-out drops such a tap the same way (never held).
  *   coach-led         the coach's line (C.pick_coach_line, text only) above the fold: folded on every item, kept open
  *                     across a redraw once the coach opens it, folded again on the next item. On a scored item the open
  *                     fold carries a replay only, never the target letter; on a practice item the sound and the letter
@@ -506,6 +509,8 @@
     var handback = opts.handback || (mode === 'proctored' ? 'coach' : 'teacher');
     var checkWords = Array.isArray(opts.check_words) && opts.check_words.length >= 2 ? opts.check_words : CHECK_WORDS;
     var speakFn = typeof opts.speak === 'function' ? opts.speak : function () { return delay(300); };
+    /** Round 28: the clip_only clip on now has stalled mid-play (the voice's speak.stalled(); false without it). */
+    function clipStalled() { try { return typeof speakFn.stalled === 'function' && !!speakFn.stalled(); } catch (e) { return false; } }
     var muted = !!opts.muted;
     var alive = true;
     var gen = 0;              // bumps on every new screen: a chained line from an old screen is dropped
@@ -937,6 +942,7 @@
       var ps = pickOf(it);
       var tok = ++ps.tok;
       ps.playing = true;
+      ps.stage = stage;
       ps.call_at = Date.now(); ps.end_at = null; ps.dur_ms = null;
       // round 28 (P3 Q4): the runner holds the auto replay and Next while the sound plays and restarts the item's clock at
       // its end, whoever asked for it (the runner ignores this off the item on show: practice, another item)
@@ -1972,6 +1978,9 @@
         pickFoldEl(it, t, true),
         pickCards(it.options, function (o, b) {
           if (pickPreSound(it, t, o)) return; // before the sound: logged, never scored; the item stays open
+          // the item's first play stalled mid-way: the cards are inert until it ends or is given up (a tap is dropped)
+          var ps0 = pickOf(it);
+          if (ps0.playing && ps0.stage === 'prompt' && clipStalled()) return;
           busy = true;
           b.classList.add('is-pressed');
           runner.answer(o, pickMeta(it, t));
@@ -2832,6 +2841,7 @@
       var canTap = !!S && (S.phase === 'options' || S.phase === 'open' || (S.phase === 'listening' && S.read_end != null));
       if (!alive || busy || !S || !canTap || S.chosen === i) return;
       if (mcqFoldOpen(S.item) || mcqGhost()) return; // B.3: the open coach fold is modal: no answer while it is open
+      if (mcqLocked(S) && clipStalled()) return; // the first read-out stalled mid-clip: the tap is dropped, never held
       if (S.chosen == null) {
         S.first_choice = i; // the first card tapped (data only; the choice that stands is scored)
         S.first_at = mcqNow();
