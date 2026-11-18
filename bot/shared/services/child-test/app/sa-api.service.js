@@ -482,8 +482,14 @@ const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repea
 // Try again, so a slow or refused start can be read afterwards. A few per session (offline / online are not kept: a
 // flapping network would fill the session's cap; device.offline already says it).
 const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES];
+// practice_answer { item_id, value: { value, ok, try } }: each practice tap (sa-core.js practiceAnswer). Retry once, then
+// the answer is shown: at most 2 per answerable practice item, 4 per part (the grid / keypad / choice parts have two; the
+// letter-sound picker and the story questions one). Not behind any switch.
+const PRACTICE_TYPES = ['practice_answer'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
+// a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
+const MAX_PRACTICE_PER_TASK = 4;
 
 function loadBank() {
   try {
@@ -613,7 +619,24 @@ function keptEvent(e) {
   } catch (_) {
     data = null;
   }
-  return { seq: e.seq, type: e.type, task_id: typeof e.task_id === 'string' ? e.task_id : null, at: typeof e.at === 'string' ? e.at : null, data };
+  const out = { seq: e.seq, type: e.type, task_id: typeof e.task_id === 'string' ? e.task_id : null };
+  // the item the event happened on, when it names one (a practice tap's item)
+  if (typeof e.item_id === 'string' && ITEM_RE.test(e.item_id)) out.item_id = e.item_id;
+  out.at = typeof e.at === 'string' ? e.at : null;
+  out.data = data;
+  return out;
+}
+
+/** The events the session keeps, in batch order: KEPT types, a part's practice taps up to MAX_PRACTICE_PER_TASK. */
+function keptEvents(events) {
+  const practice = new Map();
+  return events.filter((e) => {
+    if (!KEPT.includes(e.type)) return false;
+    if (!PRACTICE_TYPES.includes(e.type)) return true;
+    const n = (practice.get(e.task_id) || 0) + 1;
+    practice.set(e.task_id, n);
+    return n <= MAX_PRACTICE_PER_TASK;
+  }).map(keptEvent);
 }
 
 const whenOf = (e, d) => {
@@ -640,7 +663,7 @@ const saBatch = onSession('sa_batch', async ({ sessionId, seqTo, events, results
   }
   const start = clean.find((e) => e.type === 'session_start');
   const end = clean.find((e) => e.type === 'battery_end');
-  const kept = events.filter((e) => KEPT.includes(e.type)).map(keptEvent);
+  const kept = keptEvents(events);
   const synced = await sa.store.markSynced(sessionId, {
     ...(kept.length ? { events: kept } : {}),
     lastSeq: seqTo,
