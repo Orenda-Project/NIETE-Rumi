@@ -1264,6 +1264,56 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(pa).toHaveBeenCalledTimes(1);
     });
 
+    /** Coach-led, the item's first clip played and ended; then the fold's own replay re-plays the clip (held playing). */
+    async function replayed() {
+      const m = mount({ manual: true, practice: false });
+      toRunning(m);
+      await wait(360);
+      m.end(); // the item's own clip ended
+      await wait(500);
+      T += 1000;
+      open(m);
+      fold(m).querySelector('button.sae-pick-coach-replay').click(); // fold_close by replay; the clip re-plays (still sounding)
+      T += 1000;
+      return m;
+    }
+    test('a tap within 300 ms of a fold close while a replayed clip still sounds is a ghost (ghost_tap, never tap_before_sound, no answer)', async () => {
+      const m = await replayed();
+      open(m);
+      cards(m)[3].click(); // the first tap: closes the fold only
+      expect(ev(m, 'fold_close').map((e) => e.by)).toEqual(['replay', 'tap']);
+      T += 200;
+      cards(m)[1].click(); // the double tap's second half, the clip sounding (in its pre-sound window)
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(Array.from(cards(m)).some((c) => c.classList.contains('is-pressed') || c.classList.contains('is-chosen'))).toBe(false);
+      expect(ev(m, 'ghost_tap')).toEqual([expect.objectContaining({ ms_after_close: 200, card: 1 })]);
+      expect(ev(m, 'tap_before_sound')).toEqual([]);
+      m.end();
+    });
+    test('control: the same sequence with no clip sounding: +200 ms is a ghost, no answer', async () => {
+      const m = await replayed();
+      m.end(); // the replayed clip ended
+      await wait(20);
+      open(m);
+      cards(m)[3].click();
+      T += 200;
+      cards(m)[1].click();
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      expect(ev(m, 'ghost_tap')).toHaveLength(1);
+      expect(ev(m, 'tap_before_sound')).toEqual([]);
+    });
+    test('outside the window (+400 ms) while the replayed clip is still in its lead-in: tap_before_sound (logged, never scored), no ghost_tap', async () => {
+      const m = await replayed();
+      open(m);
+      cards(m)[3].click();
+      T += 400;
+      cards(m)[1].click();
+      expect(ev(m, 'ghost_tap')).toEqual([]);
+      expect(ev(m, 'tap_before_sound')).toHaveLength(1);
+      expect(m.r.snapshot().current.answers).toHaveLength(0);
+      m.end();
+    });
+
     test('RDF auto (no fold): two fast taps never log ghost_tap', async () => {
       const m = mount({ practice: false, instant: true });
       toRunning(m);
