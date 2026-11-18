@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T08:33:45Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"fb752d26dd49","branch":"bd-snkn32.59.4-main","user":""}
+{"ts":"2026-11-22T08:33:46Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"fb752d26dd49","branch":"bd-snkn32.59.4-main","user":""}
