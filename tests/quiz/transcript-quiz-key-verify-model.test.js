@@ -45,7 +45,7 @@ function agreeing(questions) {
       message: {
         content: JSON.stringify({
           answers: questions.map((q, i) => {
-            const it = KV.itemFor(q, i, 'q-1');
+            const it = KV.itemFor(q, i);   // the first look, as verifyKeys shows it (never seeded on the quiz id)
             return { index: i, correct: [it.order.indexOf(q.correct_index)], unsure: false, note: '' };
           }),
         }),

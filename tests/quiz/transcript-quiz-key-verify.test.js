@@ -456,7 +456,7 @@ describe('the solver\'s contract, asserted in code', () => {
   let KV;
   beforeEach(() => { KV = require('../../bot/shared/services/quiz/transcript-quiz-key-verify.service'); });
 
-  const items = () => F.AUTHORED.map((q, i) => KV.itemFor(q, i, QID));
+  const items = () => F.AUTHORED.map((q, i) => KV.itemFor(q, i));
 
   test('an answer is compared with the key through the shuffle the solver was shown', () => {
     const it = items();
@@ -510,7 +510,7 @@ describe('the solver\'s contract, asserted in code', () => {
       question: 'ان میں سے کون سے الفاظ «س» سے شروع ہوتے ہیں؟', options: ['سلام', 'سبق', 'حال', 'دعا'],
       answer_mode: 'multi', correct_indices: [0, 1],
     };
-    const it = [KV.itemFor(q, 0, QID)];
+    const it = [KV.itemFor(q, 0)];
     const shown = (text) => it[0].order.findIndex((a) => q.options[a] === text);
     expect(KV.parseAnswers({ answers: [{ index: 0, correct: [shown('سلام'), shown('سبق')] }] }, it)[0].verdict).toBe('agree');
     expect(KV.parseAnswers({ answers: [{ index: 0, correct: [shown('سلام')] }] }, it)[0].verdict).toBe('disagree');

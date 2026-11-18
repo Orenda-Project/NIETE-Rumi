@@ -23,14 +23,22 @@ cannot run on this lane: Flow screens are emulated rather than rendered, and COA
 larger than WhatsApp's own upload ceiling. Excused is not the same as absent — it is declared,
 listed on every run, and reviewable in the diff. Mirrors `Spec-Sync: <feature>=none-needed (<why>)`.
 
-    python3 check-scenario-coverage.py [--root <repo>] [--only coaching,menu] [--json]
+    python3 check-scenario-coverage.py [--root <repo>] [--only coaching,menu] [--json] [--base <rev> [--head <rev>]]
 
 Exit 0 when nothing is missing (including "nothing is enrolled"); 1 on any E-.
+
+THE RATCHET (--base, bd-jbj2w9). commit-e2e.sh and pre-push run this on every commit and every push, where a
+whole-repo verdict is the wrong question: NIETE sandbox carried 23 gaps on 2026-11-11 (child-test, registration)
+that nobody making a menu change can fix, and a gate that holds every run on them gets switched off. With --base
+only a finding the change ADDS (code, feature, id not present at <rev>) is an error; one already there is printed
+as `known` and does not fail. --head <rev> judges that commit (what a push sends); without it the working tree
+(what a run drives).
 """
 import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -71,10 +79,34 @@ def _finding(code, feature, sid, msg):
     return {"code": code, "feature": feature, "id": sid, "msg": msg}
 
 
+def _reader(root, rev=None):
+    """read(relpath) -> text, or None when the file is not there: the working tree, or the tree of <rev>."""
+    if not rev:
+        def read(rel):
+            p = os.path.join(root, rel)
+            if not os.path.isfile(p):
+                return None
+            try:
+                return open(p, encoding="utf-8").read()
+            except OSError:
+                return None
+        return read
+
+    def read_rev(rel):
+        r = subprocess.run(["git", "-C", root, "show", "%s:./%s" % (rev, rel.replace(os.sep, "/"))],
+                           capture_output=True)
+        return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else None
+    return read_rev
+
+
 def spec_scenarios(path, prefix_hint=""):
     """[(id, name, excused)] for every @e2e scenario carrying an id tag."""
+    return _spec_scenarios_text(open(path, encoding="utf-8").read(), prefix_hint)
+
+
+def _spec_scenarios_text(text, prefix_hint=""):
     out, tags = [], []
-    for ln in open(path, encoding="utf-8").read().splitlines():
+    for ln in text.splitlines():
         t = ln.strip()
         if t.startswith("@"):
             tags = t.split()
@@ -97,20 +129,25 @@ def driver_ids(path):
     return set(RECORDED_ID_RE.findall(open(path, encoding="utf-8").read()))
 
 
-def check_feature(root, feature):
+def check_feature(root, feature, read=None):
+    """Findings for one feature. `read` (from _reader) picks the tree: the working tree by default."""
+    read = read or _reader(root)
     spec_dir, driver_dir = _dirs(root)
-    spec = os.path.join(root, spec_dir, feature + ".feature")
-    driver = os.path.join(root, driver_dir, feature + ".cjs")
-    if not os.path.isfile(spec):
+    spec_rel = os.path.join(spec_dir, feature + ".feature")
+    driver_rel = os.path.join(driver_dir, feature + ".cjs")
+    driver = os.path.join(root, driver_rel)
+    spec_text = read(spec_rel)
+    if spec_text is None:
         return [_finding("I-NOSPEC", feature, None, "no .feature file")]
+    driver_text = read(driver_rel)
 
     # The prefix to SUGGEST comes from the driver's own ids where there are any: menu's driver uses
     # M09, not MEN09, so guessing from the feature name would hand someone the wrong instruction.
-    existing = driver_ids(driver)
+    existing = set(RECORDED_ID_RE.findall(driver_text)) if driver_text is not None else set()
     px = next((re.match(r"^([A-Za-z]{1,5})\d", i).group(1) for i in sorted(existing)
                if re.match(r"^([A-Za-z]{1,5})\d", i)), feature[:3].upper())
 
-    scen = spec_scenarios(spec, px)
+    scen = _spec_scenarios_text(spec_text, px)
     if not scen:
         return [_finding("I-NOTENROLLED", feature, None,
                          "no scenario carries an id tag — not enrolled in the coverage gate. "
@@ -127,7 +164,7 @@ def check_feature(root, feature):
                                 "%d scenarios carry @%s (%s) — a run records one result for the id, "
                                 "so the others are absent. Give each its own unused id."
                                 % (len(names), sid, "; ".join(repr(n) for n in names))))
-    if not os.path.isfile(driver):
+    if driver_text is None:
         return [_finding("E-NODRIVERFILE", feature, None,
                          "%d tagged scenario(s) but no driver at %s. Create one: "
                          "python3 .claude/qa/engine/bin/scaffold-driver.py %s"
@@ -157,14 +194,23 @@ def check_feature(root, feature):
     return out
 
 
-def features(root, only=None):
+def features(root, only=None, rev=None):
     spec_dir, _ = _dirs(root)
     if not spec_dir:
         return []
-    d = os.path.join(root, spec_dir)
-    names = sorted(f[:-len(".feature")] for f in os.listdir(d) if f.endswith(".feature")) \
-        if os.path.isdir(d) else []
+    if rev:
+        r = subprocess.run(["git", "-C", root, "ls-tree", "--name-only", rev, "./" + spec_dir.replace(os.sep, "/") + "/"],
+                           capture_output=True, text=True)
+        files = [os.path.basename(x) for x in r.stdout.split()] if r.returncode == 0 else []
+    else:
+        d = os.path.join(root, spec_dir)
+        files = os.listdir(d) if os.path.isdir(d) else []
+    names = sorted(f[:-len(".feature")] for f in files if f.endswith(".feature"))
     return [n for n in names if not only or n in only]
+
+
+def _key(f):
+    return (f["code"], f["feature"], f["id"])
 
 
 def main(argv=None):
@@ -172,22 +218,43 @@ def main(argv=None):
     ap.add_argument("--root", default=None, help="repo root (default: the guarded repo this runs in)")
     ap.add_argument("--only", default="", help="comma-separated feature names")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--base", default=None,
+                    help="only a finding not already present at this rev fails (the ratchet); the rest print as known")
+    ap.add_argument("--head", default=None, help="judge this rev's tree instead of the working tree (needs --base)")
     a = ap.parse_args(argv)
+    if a.head and not a.base:
+        ap.error("--head needs --base")
 
     only = {x.strip() for x in a.only.split(",") if x.strip()}
     found = []
     a.root = a.root or _default_root()
-    for f in features(a.root, only):
-        found.extend(check_feature(a.root, f))
+    head_read = _reader(a.root, a.head)
+    for f in features(a.root, only, a.head):
+        found.extend(check_feature(a.root, f, head_read))
+    if a.base:
+        base_read = _reader(a.root, a.base)
+        names = sorted({f["feature"] for f in found})
+        known = {_key(f) for n in names for f in check_feature(a.root, n, base_read) if f["code"].startswith("E-")}
+        for f in found:
+            if f["code"].startswith("E-") and _key(f) in known:
+                f["known"] = True
+
+    def new_err(f):
+        return f["code"].startswith("E-") and not f.get("known")
 
     if a.json:
         print(json.dumps(found, indent=1))
     else:
-        for f in sorted(found, key=lambda x: (not x["code"].startswith("E-"), x["feature"], x["id"] or "")):
-            print("  %-15s %-12s %s" % (f["code"], f["feature"], f["msg"]))
-        errs = [f for f in found if f["code"].startswith("E-")]
-        print("\n%d problem(s)%s" % (len(errs), "" if errs else " — every enrolled scenario has driver code"))
-    return 1 if any(f["code"].startswith("E-") for f in found) else 0
+        for f in sorted(found, key=lambda x: (not new_err(x), not x["code"].startswith("E-"), x["feature"], x["id"] or "")):
+            if f.get("known"):
+                print("  known %-15s %-12s %s" % (f["code"], f["feature"], f["msg"]))
+            else:
+                print("  %-15s %-12s %s" % (f["code"], f["feature"], f["msg"]))
+        errs = [f for f in found if new_err(f)]
+        nk = sum(1 for f in found if f.get("known"))
+        tail = " (%d known — already on %s, not this change's)" % (nk, a.base) if a.base and nk else ""
+        print("\n%d problem(s)%s%s" % (len(errs), "" if errs or nk else " — every enrolled scenario has driver code", tail))
+    return 1 if any(new_err(f) for f in found) else 0
 
 
 if __name__ == "__main__":

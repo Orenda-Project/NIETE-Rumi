@@ -51,6 +51,7 @@ WEB_DRIVER_DIR = ".claude/qa/web/features"
 WEB_MACHINERY = (".claude/qa/web/lib.cjs", ".claude/qa/web/web-runner.cjs", "scripts/qa/e2e-web.sh")
 WEB_COMMAND = "npm run e2e:web --"
 SPEC_SUFFIX = ".feature"
+DOC_SUFFIXES = (".md",)   # prose, never runtime behaviour — even inside a mapped folder
 
 # Features whose scenarios are drafts: `/niete-e2e` never picks them up by default
 # and `all` excludes them — they run only when named. Selecting one is still right
@@ -251,7 +252,12 @@ class FeatureMap(object):
         return any(glob_match(g, path) for g in self.scope)
 
     def uncovered_reason(self, path):
-        """The documented reason this path has no E2E, or None."""
+        """The documented reason this path has no E2E, or None.
+
+        Always None in a `coverage: strict` repo (bd-8x4vmn.1): there a not_covered path is a map gap like any
+        unclaimed file, so the sync gives it a feature and that feature its .feature file."""
+        if getattr(self.manifest, "coverage", "lenient") == "strict":
+            return None
         for pattern, reason in self.not_covered:
             if glob_match(pattern, path):
                 return reason
@@ -556,6 +562,12 @@ def select(paths, fmap, order, range_unknown=False):
             else:
                 # A spec with no agent is a real inconsistency, not a doc edit.
                 unmapped.append(path)
+            continue
+
+        # 1b. a doc beside feature code (a folder's CLAUDE.md) is not that feature's code, even under its `/**` glob:
+        #     whatsapp-ai-bot #2083 was marked "spec missed" for editing one (bd-8x4vmn.1)
+        if path.endswith(DOC_SUFFIXES):
+            ignored.append(path)
             continue
 
         # 2. mapped (explicit mapping beats `ignore:`)

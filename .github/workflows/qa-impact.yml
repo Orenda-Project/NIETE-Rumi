@@ -86,6 +86,14 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.txt"
 
+      - name: The authors' hook notes (why a run is missing)
+        if: steps.engine.outputs.have == '1'
+        # Each clone with the QA hooks pushes what they did to each commit as refs/qa-hooks/<clone> (qa-ledger.sh).
+        # impact.py reads them from refs/notes/qa-remote/* and puts the reason in the "E2E run recorded" cell, which
+        # otherwise says only "missing" (bd-9157r.13.7). None published, or the fetch fails: the cell says the
+        # author's machine never reported. Never fails the job.
+        run: git fetch --no-tags -q origin '+refs/qa-hooks/*:refs/notes/qa-remote/*' || echo "no qa-hooks notes fetched"
+
       - name: Analyse the PR range
         id: impact
         if: steps.engine.outputs.have == '1'
