@@ -1413,9 +1413,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   window.__end = function () { if (!cur) return false; cur.end(); return true; };
   window.__events = [];
   var battery = ${JSON.stringify(bat)};
-  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: ${!(fr && fr.auto)}, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
   var el = document.getElementById('m');
-  var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
+  var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: ${!(fr && fr.auto)}, handover: false, ur_fit: true,
     r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak, embed: ${embed} });
   runner.start(); ${fr && fr.brief ? '' : 'runner.instructionDone(); '}${keepPractice ? '' : 'runner.begin(); '}view.render();
   ${embed ? "view.setSync({ state: 'synced' });" : ''}
@@ -2064,6 +2064,51 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       expect(cells.map(row)).toEqual(cells.map(([cls, s]) => ({ s: cls + '.' + s, buttons: 2, toggle_drawn: false, toggle_under_buttons: [0, 0],
         top_h: 44, inner_scroll: 0, cards_hit: 5, bar: BAR })));
     }, 400000);
+  }
+  // A12 fixup (lead 053757Z): RDF auto (no coach-led marker) draws the toggle too whenever the other language's battery
+  // is on the phone, and the coach page draws End this section there as well (sa_r20_auto_end_section): the picker's
+  // practice and item screens draw no toggle inside the frame in either mode; its intro screen keeps it.
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed, RDF auto] (A12): the child's picker draws no language toggle under the coach page's two buttons on its practice and item screens; the intro screen keeps it`, async () => {
+      const over = (t, b) => { const x = Math.min(t.right, b.right) - Math.max(t.left, b.left), y = Math.min(t.bottom, b.bottom) - Math.max(t.top, b.top); return x > 0 && y > 0 ? +(x * y).toFixed(1) : 0; };
+      const read = async (keepPractice, brief) => {
+        const fr = { name: 'embed_auto', embed: true, toggle: true, auto: true, brief };
+        const { html } = page(lang, keepPractice, frMore(fr), fr);
+        const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+        const p = await ctx.newPage();
+        await p.route('**/*', (route) => {
+          const u = new URL(route.request().url());
+          if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+          if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+          if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+          return route.fulfill({ status: 404, body: '' });
+        });
+        await p.goto('http://sa.test/');
+        await p.evaluate(() => document.fonts.ready);
+        await p.waitForTimeout(500);
+        const m = await p.evaluate(() => {
+          const t = document.querySelector('.sae-screen .sae-r8-lang'); const hb = document.getElementById('a9-hold'); const scr = document.querySelector('.sae-screen');
+          const R = (e) => { const b = e.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width, h: b.height }; };
+          const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+          const cards = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map((c) => { const b = c.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!e && e.closest('.sae-opt') === c && b.bottom <= innerHeight; });
+          return { pick: !!document.querySelector('.sae-screen.sae-pick'), coach_led: !!document.querySelector('.sae-screen.is-coach-led'), toggle: t ? R(t) : null,
+            buttons: hb ? Array.from(hb.children).map(R) : [], inner: over(scr) + over(scr && scr.querySelector('.sae-body')), cards_hit: cards.filter(Boolean).length, cards: cards.length };
+        });
+        await ctx.close();
+        return { pick: m.pick, coach_led: m.coach_led, toggle_drawn: !!m.toggle && m.toggle.w > 0 && m.toggle.h > 0,
+          under: m.toggle ? m.buttons.map((b) => over(m.toggle, b)) : [], inner: m.inner, cards_hit: m.cards_hit + '/' + m.cards };
+      };
+      const item = await read(false, false);
+      const practice = await read(true, false);
+      const intro = await read(true, true);
+      // the RDF-auto practice screen's own fit (inner UR 11 / EN 17 px, the same with the toggle drawn) is not this row's:
+      // printed, not asserted
+      console.log('A12 RDF auto', lang, JSON.stringify({ item, practice, intro }));
+      delete practice.inner;
+      expect({ item, practice }).toEqual({ item: { pick: true, coach_led: false, toggle_drawn: false, under: [0, 0], inner: 0, cards_hit: '5/5' },
+        practice: { pick: true, coach_led: false, toggle_drawn: false, under: [0, 0], cards_hit: '5/5' } });
+      expect({ intro_pick: intro.pick, intro_toggle_drawn: intro.toggle_drawn }).toEqual({ intro_pick: false, intro_toggle_drawn: true });
+    }, 120000);
   }
   test('ur and en, the tablet (800×1280), with the coach\'s Skip (A8): the practice feedback state holds the cards, nothing scrolls, the feedback line whole; the Skip served before it', async () => {
     const out = {};

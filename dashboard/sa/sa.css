@@ -881,8 +881,9 @@ button{font:inherit;color:inherit}
 }
 /* end round 28, rounds 10-11 */
 /* round 28, A12 (r28_letter_pick; .sae-pick exists only with it): inside the coach page's frame the coach page draws two
-   buttons at its top start corner (End test + End this section, 8 + 48 px). The coach-led picker keeps its own top (A9),
-   and its top bar's end side is narrower than the language toggle, so the toggle sat under the second button. The
-   coach-led picker draws no language toggle inside the frame: the coach switches language before the task. */
-.sae.is-embed .sae-screen.sae-pick.is-coach-led>.sae-top>.sae-r8-lang{display:none}
+   buttons at its top start corner (End test + End this section, 8 + 48 px). The picker keeps its own top (A9), and its
+   top bar's end side is narrower than the language toggle, so the toggle sat under the second button. The
+   picker's practice and item screens draw no language toggle inside the frame, coach-led and RDF auto alike (the coach
+   page draws End this section in both): the language is switched before the task. */
+.sae.is-embed .sae-screen.sae-pick>.sae-top>.sae-r8-lang{display:none}
 /* end round 28, A12 */
