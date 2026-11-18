@@ -34,6 +34,49 @@ const toV4 = (it) => Object.assign(JSON.parse(JSON.stringify(it)), { prompt: { t
 const words = (s) => String(s).split(/\s+/).filter(Boolean);
 const clipKey = (lang, text) => crypto.createHash('sha1').update(lang + '|' + text).digest('hex').slice(0, 12);
 
+/** The no-break list as reviewed: one entry per run, its words in order (the item-bank sweep's list, run for run). */
+const REVIEWED_RUNS = [
+  ['دریائے', 'جہلم'],
+  ['مٹھو', 'میاں'],
+  ['ٹَیں', 'ٹَیں'],
+  ['دانہ', 'پانی'],
+  ['رنگ', 'برنگے'],
+  ['جانور', '/پرندوں'],
+];
+/** MCQ_NOWRAP_RUNS as the engine holds it, read from sa-ui.js's source (the constant is not exported). */
+function engineRuns() {
+  const src = fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8');
+  const m = /var MCQ_NOWRAP_RUNS = (\[[\s\S]*?\n\s*\]);/.exec(src);
+  if (!m) throw new Error('MCQ_NOWRAP_RUNS not found in sa-ui.js');
+  return new Function('return ' + m[1].replace(/\/\/[^\n]*/g, ''))(); // eslint-disable-line no-new-func
+}
+/** Every served Urdu battery with sa_r28_mcq on (the other switches on, as the sandbox of the day): its MCQ tasks. */
+function servedMcq() {
+  const { SWITCHES, applySwitches } = require('../routes/sa-battery-switches');
+  const on = Object.fromEntries(Object.keys(SWITCHES).map((k) => [k, !/^r28/.test(k) || k === 'r28Mcq']));
+  const dir = path.dirname(BATTERY);
+  const out = [];
+  fs.readdirSync(dir).filter((f) => /^sa\..*\.ur\.json$/.test(f)).sort().forEach((f) => {
+    const b = applySwitches(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')), on);
+    (b.tasks || []).filter((t) => t.kind === 'mcq' && t.lang === 'ur').forEach((t) => out.push({ file: f, task: t }));
+  });
+  return out;
+}
+/** The first served place a run occurs, as { file, task, item, where: 'q' | option index }; null if nowhere. */
+function firstServed(run, served) {
+  const has = (s) => { const p = String(s).split(/\s+/); for (let i = 0; i + run.length <= p.length; i++) if (run.every((w, k) => p[i + k] === w)) return true; return false; };
+  for (const { file, task } of served) {
+    const items = [].concat(task.items || [], ...(task.variants || []).map((v) => v.items || []));
+    for (const item of items) {
+      const q = item.prompt && typeof item.prompt === 'object' ? item.prompt.text : item.prompt;
+      if (has(q)) return { file, task, item, where: 'q' };
+      const k = (item.options || []).findIndex(has);
+      if (k >= 0) return { file, task, item, where: k };
+    }
+  }
+  return null;
+}
+
 maybe('sa_r28_mcq: listed Urdu word runs stay on one line on the MCQ screen', () => {
   let dom;
   const keep = {};
@@ -96,7 +139,7 @@ maybe('sa_r28_mcq: listed Urdu word runs stay on one line on the MCQ screen', ()
     o = o || {};
     const core = require('../sa/sa-core');
     const ui = require('../sa/sa-ui');
-    const task = Object.assign({}, mcqServed, { items, variants: undefined, practice: undefined, depends_on: null });
+    const task = Object.assign({}, o.task || mcqServed, { items, variants: undefined, practice: undefined, depends_on: null });
     const battery = { battery_id: 'b', lines: {}, tasks: [task], ui: Object.assign({ r28_mcq: o.on !== false, r8_highlight: true }, o.ui || {}) };
     const runner = core.createRunner(Object.assign({ battery, onEvent: () => {} }, o.manual ? { manual: true } : {}));
     const voice = fakeVoice();
@@ -244,5 +287,26 @@ maybe('sa_r28_mcq: listed Urdu word runs stay on one line on the MCQ screen', ()
     expect(storyServed.items.slice(6, 8).map((x) => x.target)).toEqual(['دریائے', 'جہلم']);
     expect(el.textContent).toContain('دریائے جہلم');
     expect(wraps(el)).toHaveLength(0);
+  }, 20000);
+
+  test('the engine\'s list is the reviewed list, run for run', () => {
+    expect(engineRuns()).toEqual(REVIEWED_RUNS);
+  });
+
+  test.each(REVIEWED_RUNS.map((r) => [r.join(' '), r]))('«%s» occurs in a served Urdu MCQ item (sa_r28_mcq on) and is drawn in exactly one nowrap wrapper there', async (label, run) => {
+    const served = servedMcq();
+    expect(served.length).toBeGreaterThan(0);
+    const hit = firstServed(run, served);
+    if (!hit) throw new Error('the run «' + label + '» matches no served Urdu MCQ question or option (a spelling drift?)');
+    setup();
+    fetcher();
+    const { el } = mount([toV4(hit.item)], { task: hit.task });
+    await wait(20);
+    const host = hit.where === 'q' ? el.querySelector('.sae-mcq-q') : el.querySelectorAll('.sae-mcq-opt .sae-mcq-ink')[hit.where];
+    expect(host).not.toBeNull();
+    const mine = wraps(host).filter((w) => w.textContent === run.join(' '));
+    expect(mine).toHaveLength(1);
+    expect(words(mine[0].textContent)).toEqual(run);
+    expect(isNowrap(mine[0])).toBe(true);
   }, 20000);
 });
