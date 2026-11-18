@@ -1,0 +1,2 @@
+{"ts":"2026-11-18T17:39:08Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"fbe2ce6e1b32","branch":"bd-zrdvmi.24-sb","user":""}
+{"ts":"2026-11-18T17:39:11Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-zrdvmi.24-sb: teacher-assessment web lane spec: NOT UPDATED e2e: missing;fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"fbe2ce6e1b32","branch":"bd-zrdvmi.24-sb","user":""}
