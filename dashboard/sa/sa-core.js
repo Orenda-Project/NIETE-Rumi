@@ -756,7 +756,7 @@
     /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
     function answerMeta(a, meta) {
       if (!meta || typeof meta !== 'object') return a;
-      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes', 'since_fold_ms'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
       return a;
     }
 
