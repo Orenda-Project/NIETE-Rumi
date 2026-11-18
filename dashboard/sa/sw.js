@@ -112,7 +112,9 @@ var CORE = 'sa-core-' + VERSION;
 // letter-sounds lines, then the item's own clip; no new clip).
 // v28: round 28's battery files re-made with their source notes (why a line or item is as it is) worded in product
 // words, not by decision numbers. Nothing a child sees or hears changes.
-var SESSION = 'sa-session-v28';
+// v29: round 28's battery files re-made with three Urdu "your turn" lines spelt right («آواز میں», «کا نام»,
+// «آواز بولیں»), each with its clip at the new text's key.
+var SESSION = 'sa-session-v29';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
