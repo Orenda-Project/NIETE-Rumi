@@ -860,6 +860,10 @@ button{font:inherit;color:inherit}
   .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:16px}
   .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:20px}
   .sae.is-r28-toggle-fit .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang) .sae-mcq-head{margin-top:var(--sae-a11-g,0px)}
+  /* A12: the spoken MCQ's g, measured on the coach page's frame (embed + syncing dot + toggle, 360x640): the toggle's
+     hit rect to the replay / the coach's Next 24 px edge to edge in both languages, the ring under the last card >= 8 */
+  .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:30px}
+  .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:18px}
 }
 /* end round 28, A11 */
 /* ---- round 28: spoken MCQ, coach-led on a phone, rounds 10-11 (row 32: the coach's line on the question frames) ----
@@ -876,3 +880,10 @@ button{font:inherit;color:inherit}
   .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach):not(.sae-mcq-passage-step) details.sae-mcq-coach{border-top-width:3px;border-top-left-radius:var(--sae-r);border-top-right-radius:var(--sae-r)}
 }
 /* end round 28, rounds 10-11 */
+/* round 28, A12 (r28_letter_pick; .sae-pick exists only with it): inside the coach page's frame the coach page draws two
+   buttons at its top start corner (End test + End this section, 8 + 48 px). The picker keeps its own top (A9), and its
+   top bar's end side is narrower than the language toggle, so the toggle sat under the second button. The
+   picker's practice and item screens draw no language toggle inside the frame, coach-led and RDF auto alike (the coach
+   page draws End this section in both): the language is switched before the task. */
+.sae.is-embed .sae-screen.sae-pick>.sae-top>.sae-r8-lang{display:none}
+/* end round 28, A12 */

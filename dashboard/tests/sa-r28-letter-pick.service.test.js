@@ -1413,9 +1413,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   window.__end = function () { if (!cur) return false; cur.end(); return true; };
   window.__events = [];
   var battery = ${JSON.stringify(bat)};
-  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: ${!(fr && fr.auto)}, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
   var el = document.getElementById('m');
-  var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
+  var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: ${!(fr && fr.auto)}, handover: false, ur_fit: true,
     r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak, embed: ${embed} });
   runner.start(); ${fr && fr.brief ? '' : 'runner.instructionDone(); '}${keepPractice ? '' : 'runner.begin(); '}view.render();
   ${embed ? "view.setSync({ state: 'synced' });" : ''}
@@ -2026,8 +2026,10 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   const A11_ON = { r28ToggleFit: true };
   const A11_FLOOR = { ur: { scored: 11.5, practice: 22 }, en: { scored: 16, practice: 22 } }; // g: UR 1 / 16, EN 8 / 20 (⚠: 24 is past the bars)
   for (const lang of ['ur', 'en']) {
-    test(`${lang} [embed + sa_r28_toggle_fit] (A11): the toggle in a 44 px bar, its 56 px hit centred; no head-row tappable meets it; the picker's bars hold`, async () => {
-      const fr = FRAMES[0];
+    test(`${lang} [toggle, no frame + sa_r28_toggle_fit] (A11): the toggle in a 44 px bar, its 56 px hit centred; no head-row tappable meets it; the picker's bars hold`, async () => {
+      // A12: inside the coach page's frame the coach-led picker draws no toggle, so the toggle's fit is read where it is
+      // drawn: the same screen with the other language's battery on the phone and no frame (the picker's own top, as A9)
+      const fr = { name: 'toggle_bare', embed: false, toggle: true };
       const shots = process.env.SA_PICK_SHOTS || null;
       const sc = await states(lang, shots, fr, A11_ON);
       const pr = await practiceStates(lang, shots, false, A11_ON, null, fr);
@@ -2040,6 +2042,73 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       expect(cells.map(row)).toEqual(cells.map(([cls, s]) => ({ s: cls + '.' + s, top_h: 44, toggle_h: 56, over_below: 6, over_above: 6, overlap: [], cards_clear: true, floor: true,
         inner_scroll: 0, cards_hit: 5, bar: BAR })));
     }, 400000);
+  }
+  // A12 (lead/panel 0508Z: form (b)): inside the coach page's frame the coach page draws TWO buttons at its top start
+  // corner (End test + End this section, 8 + 48 px); the picker keeps its own top (A9), so its language toggle sat under
+  // the second one (UR 48.8 × 48, EN 69 × 48 px, the real coach page). The toggle at the top bar's end side cannot clear
+  // the row's full width (UR 154.7 / EN 159.1 px wide; free beside the row ≈ 106 / 98), so the coach-led picker draws no
+  // toggle inside the frame (the coach switches language before the task); every A9 bar unchanged.
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed] (A12): the coach-led picker draws no language toggle under the coach page's two buttons, scored and practice; the picker's bars hold`, async () => {
+      const fr = FRAMES[0];
+      const sc = await states(lang, null, fr);
+      const pr = await practiceStates(lang, null, false, null, null, fr);
+      Object.assign(pr, await practiceStates(lang, null, true, null, null, fr));
+      const cells = [].concat(['listening', 'aftersound', 'chosen', 'offernext', 'foldopen'].map((s) => ['scored', s, sc[s]]), A8_STATES.map((s) => ['practice', s, pr[s]]));
+      // any-rect overlap of the toggle's box with each of the coach's buttons (the hold stand-in's children), px x px
+      const over = (t, b) => { const x = Math.min(t.right, b.right) - Math.max(t.left, b.left), y = Math.min(t.bottom, b.bottom) - Math.max(t.top, b.top); return x > 0 && y > 0 ? +(x * y).toFixed(1) : 0; };
+      const row = ([cls, s, m]) => ({ s: cls + '.' + s, buttons: m.hold ? m.hold.buttons.length : 0,
+        toggle_drawn: !!m.toggle && m.toggle.w > 0 && m.toggle.h > 0,
+        toggle_under_buttons: m.toggle && m.hold ? m.hold.buttons.map((b) => over(m.toggle, b)) : [0, 0],
+        top_h: m.top_h, inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, bar: bar(m) });
+      expect(cells.map(row)).toEqual(cells.map(([cls, s]) => ({ s: cls + '.' + s, buttons: 2, toggle_drawn: false, toggle_under_buttons: [0, 0],
+        top_h: 44, inner_scroll: 0, cards_hit: 5, bar: BAR })));
+    }, 400000);
+  }
+  // A12 fixup (lead 053757Z): RDF auto (no coach-led marker) draws the toggle too whenever the other language's battery
+  // is on the phone, and the coach page draws End this section there as well (sa_r20_auto_end_section): the picker's
+  // practice and item screens draw no toggle inside the frame in either mode; its intro screen keeps it.
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed, RDF auto] (A12): the child's picker draws no language toggle under the coach page's two buttons on its practice and item screens; the intro screen keeps it`, async () => {
+      const over = (t, b) => { const x = Math.min(t.right, b.right) - Math.max(t.left, b.left), y = Math.min(t.bottom, b.bottom) - Math.max(t.top, b.top); return x > 0 && y > 0 ? +(x * y).toFixed(1) : 0; };
+      const read = async (keepPractice, brief) => {
+        const fr = { name: 'embed_auto', embed: true, toggle: true, auto: true, brief };
+        const { html } = page(lang, keepPractice, frMore(fr), fr);
+        const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+        const p = await ctx.newPage();
+        await p.route('**/*', (route) => {
+          const u = new URL(route.request().url());
+          if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+          if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+          if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+          return route.fulfill({ status: 404, body: '' });
+        });
+        await p.goto('http://sa.test/');
+        await p.evaluate(() => document.fonts.ready);
+        await p.waitForTimeout(500);
+        const m = await p.evaluate(() => {
+          const t = document.querySelector('.sae-screen .sae-r8-lang'); const hb = document.getElementById('a9-hold'); const scr = document.querySelector('.sae-screen');
+          const R = (e) => { const b = e.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width, h: b.height }; };
+          const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+          const cards = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt')).map((c) => { const b = c.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!e && e.closest('.sae-opt') === c && b.bottom <= innerHeight; });
+          return { pick: !!document.querySelector('.sae-screen.sae-pick'), coach_led: !!document.querySelector('.sae-screen.is-coach-led'), toggle: t ? R(t) : null,
+            buttons: hb ? Array.from(hb.children).map(R) : [], inner: over(scr) + over(scr && scr.querySelector('.sae-body')), cards_hit: cards.filter(Boolean).length, cards: cards.length };
+        });
+        await ctx.close();
+        return { pick: m.pick, coach_led: m.coach_led, toggle_drawn: !!m.toggle && m.toggle.w > 0 && m.toggle.h > 0,
+          under: m.toggle ? m.buttons.map((b) => over(m.toggle, b)) : [], inner: m.inner, cards_hit: m.cards_hit + '/' + m.cards };
+      };
+      const item = await read(false, false);
+      const practice = await read(true, false);
+      const intro = await read(true, true);
+      // the RDF-auto practice screen's own fit (inner UR 11 / EN 17 px, the same with the toggle drawn) is not this row's:
+      // printed, not asserted
+      console.log('A12 RDF auto', lang, JSON.stringify({ item, practice, intro }));
+      delete practice.inner;
+      expect({ item, practice }).toEqual({ item: { pick: true, coach_led: false, toggle_drawn: false, under: [0, 0], inner: 0, cards_hit: '5/5' },
+        practice: { pick: true, coach_led: false, toggle_drawn: false, under: [0, 0], cards_hit: '5/5' } });
+      expect({ intro_pick: intro.pick, intro_toggle_drawn: intro.toggle_drawn }).toEqual({ intro_pick: false, intro_toggle_drawn: true });
+    }, 120000);
   }
   test('ur and en, the tablet (800×1280), with the coach\'s Skip (A8): the practice feedback state holds the cards, nothing scrolls, the feedback line whole; the Skip served before it', async () => {
     const out = {};
