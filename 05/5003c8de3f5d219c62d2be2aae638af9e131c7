@@ -1,0 +1,2 @@
+{"ts":"2026-11-18T18:14:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"055003c8de3f","branch":"bd-xkkw9.4-sandbox","user":""}
+{"ts":"2026-11-18T18:15:01Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-xkkw9.4-sandbox: training spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"055003c8de3f","branch":"bd-xkkw9.4-sandbox","user":""}
