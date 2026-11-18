@@ -272,7 +272,8 @@ describe("Upload recording (Blueprint: Coach_Upload)", () => {
     await screen.findByRole("dialog", { name: "Upload recording" });
     await act(async () => { fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [new File(["abc"], "lesson-0610.m4a", { type: "audio/mp4" })] } }); });
     expect(await screen.findByText("lesson-0610.m4a")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+    // bd-tymy1n: the file is read when she picks it; the bar is full once it has been
+    await waitFor(() => expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100"));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("button", { name: /Redo/ });
     expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
