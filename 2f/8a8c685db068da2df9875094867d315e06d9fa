@@ -1,0 +1,2 @@
+{"ts":"2026-11-18T12:14:51Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"2f8a8c685db0","branch":"bd-snkn32.11-82194","user":""}
+{"ts":"2026-11-18T12:15:17Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.11-82194: E-DUPID:child-test","sha":"2f8a8c685db0","branch":"bd-snkn32.11-82194","user":""}
