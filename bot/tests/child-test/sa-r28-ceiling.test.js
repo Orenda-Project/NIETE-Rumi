@@ -311,6 +311,12 @@ describe('level.js: the ladder on the first N (C-8), the new parts (A.7 #8, B.7 
     const tapU = (block) => ({ ...tap(block, 2, 2), responses: [{ kind: 'result', mode: 'tap', correct: 2, attempted: 2, presented: 2, unavailable: 8, unrated: true, stop_reason: 'complete' }] });
     expect(ur([tapU('ur.letter_pick10')])).toEqual({ subject: 'ur', reached: { taskId: 'ur.letter_pick10', title: null }, level: null, pending: false, stop: null, unrated: true });
   });
+  test('O-46: a picker the coach ended at 7 of 10 (7 right) is unrated, why ended: absent, the letters rung not met on it', () => {
+    const ended = { ...tap('ur.letter_pick10', 7, 7), responses: [{ kind: 'result', mode: 'tap', correct: 7, attempted: 7, presented: 7, unavailable: 0, of_all: 10, unrated: true, unrated_why: 'ended', stop_reason: 'end_section' }] };
+    const line = ur([spoken('ur.letter_names5', ext(2, 5, 2, 5)), ended]);
+    expect(line).toMatchObject({ level: 'beginner', pending: false });
+    expect(ur([ended])).toMatchObject({ level: null, pending: false, unrated: true });
+  });
   test('the oral comprehension part keeps its share of a half', () => {
     const upTo = (rows) => [spoken('ur.letter_names5', ext(5, 5, 5, 5)), spoken('ur.words4', ext(4, 4, 4, 4)), spoken('ur.story_w3', { correct: 30, attempted: 32 }), ...rows];
     expect(ur(upTo([spoken('ur.story_comp_w3', { correct: 3, of: 6, detail: { kind: 'questions' } })])).level).toBe('comprehension');

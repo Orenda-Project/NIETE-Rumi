@@ -49,7 +49,8 @@
 // row ran out unanswered).
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
-var VERSION = 'sa-25';
+// sa-26: round 28 follow-up: sa-core.js (a letter-sound task the coach ends before every item was presented is not rated).
+var VERSION = 'sa-26';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

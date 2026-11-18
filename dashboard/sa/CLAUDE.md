@@ -33,6 +33,9 @@ Full index: `CLAUDE.index.md`
 - sa-core.js stays pure: no DOM, storage or timers (sa-core.js:4)
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
+## Result fields (human)
+- A pick task's result (sa-core.js finish): presented, unavailable, of_all; unrated: true under 6 presented (lost clips); under sa_r28_letter_pick, unrated_why: 'ended' when the coach ended it (coach_end / end_section) with presented < of_all. unrated = absent from the ladder (level.js partOf), never pending, never 0; stored whole in responses[0] (bot sa-store.js putResults), passed to Results as unratedWhy (sa-api.service.js shapeTask), drawn with copy key unrated_ended
+
 ## Tests (generated)
 - `dashboard/tests/sa-r4-coach-last-word.service.test.js` (sa-core.js, sa-engine.js, sa-store.js, sa-ui.js, sink-coach.js)
 - `dashboard/tests/sa-r8-offline-hunks.service.test.js` (sa-core.js, sa-engine.js, sa-offline.js, sa-store.js, sa-voice.js)
