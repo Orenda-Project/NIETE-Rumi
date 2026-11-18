@@ -1987,3 +1987,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And with sa_r28_mcq on the spoken MCQ's instruction and ready lines are said by Jugnu in coach-led the same way
     And every other task's instruction in coach-led stays the coach's to read, Jugnu saying only that the coach will instruct
     And with sa_r28_letter_pick and sa_r28_mcq off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT292 @no-mock-driver
+  # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-ceiling-no-response.test.js.
+  Scenario: With sa_r28_ceiling on, a grid cell shown and passed in silence is marked wrong, not unreached
+    Given sa_r28_ceiling is on
+    And a child read 5 cells of a 100-cell letter grid, let 30 more pass in silence, and the clock ended before the other 65 were shown
+    When the letter-names recording is scored
+    Then 5 cells are correct, 35 are attempted and the 30 silent cells are wrong with the reason no response
+    And the 65 cells never shown are not counted as attempted
+    And the rate stays 5 a minute and today's first-5 score stays 5 of 5
+    And a final cell on show under half a second at time up is still not counted as attempted
+    And a recording with no speech at all leaves every cell unreached, never wrong
+    And with sa_r28_ceiling off, or on a grid that does not extend, the marks are exactly as before
