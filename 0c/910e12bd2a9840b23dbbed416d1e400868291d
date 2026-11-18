@@ -2,3 +2,4 @@
 {"ts":"2026-11-18T18:07:35Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,status,observe owe their Gherkin","sha":"0c910e12bd2a","branch":"bd-xuoj2p-25044","user":""}
 {"ts":"2026-11-18T18:07:37Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,status,observe spec_sync=true","sha":"0c910e12bd2a","branch":"bd-xuoj2p-25044","user":""}
 {"ts":"2026-11-18T18:11:27Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"0c910e12bd2a","branch":"bd-xuoj2p-25044","user":""}
+{"ts":"2026-11-18T18:15:36Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"5bf8af1f-5bff-4ddc-87d0-be3abce1b7eb","sha":"0c910e12bd2a","branch":"bd-xuoj2p-25044","user":""}
