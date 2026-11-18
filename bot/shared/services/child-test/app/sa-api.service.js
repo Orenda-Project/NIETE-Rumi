@@ -791,13 +791,16 @@ function numbersOf(marks) {
 
 /**
  * sa_stop_rules: the reason a scored task names on Results (panel G-12 §5): questions not asked after the passage (or,
- * when they were asked and recorded, voided because the recording shows the reading stopped early), × not asked after
+ * when they were asked and recorded, voided because the recording shows the reading stopped early; when they were
+ * tapped, not counted, the taps kept but none credited), × not asked after
  * no right + / −, else stopped early by EGRA's (reading) or EGMA's (maths) rule; null when none.
  */
 function ruleStop(r, m) {
   const d = (m && m.detail) || {};
   const block = r.block;
-  if (d.stop_detail === 'comprehension') return hasRecording(r) ? 'comprehension_voided' : 'comprehension_not_asked';
+  // a tapped MCQ under the reading floor: the phone asked its questions and the taps are kept, but none is credited
+  const tapped = (r.response_mode || resultOf(r).mode) === 'tap';
+  if (d.stop_detail === 'comprehension') return hasRecording(r) ? 'comprehension_voided' : tapped ? 'comprehension_not_counted' : 'comprehension_not_asked';
   if (d.stop_detail === 'multiplication') return 'multiplication_not_asked';
   if (d.stopped_by_rule !== true) return null;
   return String(block || '').startsWith('ma.') ? 'stopped_by_rule_egma' : 'stopped_by_rule';
