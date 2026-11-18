@@ -130,6 +130,8 @@
  *                           as the screen's own content is in view and never stays drawn over nothing (sa-ui.js scrollCheck).
  *   sa_r28_toggle_fit       round 8's language toggle keeps its 56 px button inside a 44 px top bar on every screen, and a
  *                           head row holding a tappable keeps its distance from the toggle's hit area (sa.css, round 28 A11).
+ *   sa_r28_check_fit        the Urdu sound check fits a phone-height frame: its question, hint, Jugnu row and the two picture
+ *                           tiles sized so both tiles are whole and tappable without scrolling (sa.css, round 28, the check fit).
  *
  * Pure: applySwitches(battery, on) never changes its input.
  */
@@ -178,6 +180,8 @@ const SWITCHES = {
   r28StoryClock: 'sa_r28_story_clock',
   // round 28, A11: the scroll cue never holds itself; the language toggle inside a 44 px top bar (sa-ui.js, sa.css)
   r28CueGuard: 'sa_r28_cue_guard', r28ToggleFit: 'sa_r28_toggle_fit',
+  // round 28, the check fit: the Urdu sound check fits a phone-height frame (sa.css)
+  r28CheckFit: 'sa_r28_check_fit',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
 const R13_ALL = (v) => v === true || v === 'all';
@@ -208,7 +212,7 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once',
   r20AutoEndSection: 'r20_auto_end_section',
   r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling', r28StoryClock: 'r28_story_clock',
-  r28CueGuard: 'r28_cue_guard', r28ToggleFit: 'r28_toggle_fit' };
+  r28CueGuard: 'r28_cue_guard', r28ToggleFit: 'r28_toggle_fit', r28CheckFit: 'r28_check_fit' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');
@@ -263,14 +267,23 @@ function withoutW3(battery) {
  *   r28_tasks           the builder's list of the round's task ids (how they reach `tasks[]`): never served.
  *   lines_r28           the round's own lines, each `{ text, audio, r28: <kind> }`: a line joins `lines` (without the
  *                       `r28` key) when its kind's switch is ON; the `lines_r28` key never reaches a phone.
+ *   r28_accept          on the EN familiar words: each item's `accept` holds the local forms that keep the same word,
+ *                       which the scorer reads from the battery file (the words prompt); a phone never receives them,
+ *                       OFF or ON, so the task goes out without `r28_accept` and its items (and ext_items) without `accept`.
  *   Each ON adds battery.ui.r28_<x> = true for the engine (UI). A battery with nothing of round 28 comes back as it is.
  */
 const R28_KINDS = { r28LetterPick: 'letter_pick', r28Mcq: 'mcq' };
 const hasExt = (t) => Boolean(t && (t.base_n != null || Array.isArray(t.ext_items) || t.ext_stop != null));
+const noAccept = (x) => { if (!x || !('accept' in x)) return x; const { accept: _a, ...rest } = x; return rest; };
+const withoutAccept = (t) => {
+  if (!t || !t.r28_accept) return t;
+  const { r28_accept: _r, ...rest } = t;
+  return { ...rest, items: t.items.map(noAccept), ...(Array.isArray(t.ext_items) ? { ext_items: t.ext_items.map(noAccept) } : {}) };
+};
 function withR28(battery, on) {
-  const tasks = battery.tasks;
+  const tasks = battery.tasks.map(withoutAccept);
   const hasTask = tasks.some((t) => t && t.r28);
-  if (!hasTask && !tasks.some(hasExt) && !battery.lines_r28 && !battery.r28_tasks) return battery;
+  if (!hasTask && !battery.tasks.some((t) => t && (hasExt(t) || t.r28_accept)) && !battery.lines_r28 && !battery.r28_tasks) return battery;
   const kinds = new Set(Object.entries(R28_KINDS).filter(([k]) => on[k] === true).map(([, kind]) => kind));
   // ON: the new task sits where the task it replaces sat; OFF: it is dropped.
   const byOld = new Map(tasks.filter((t) => t && t.r28 && kinds.has(t.r28) && t.replaces).map((t) => [t.replaces, t]));

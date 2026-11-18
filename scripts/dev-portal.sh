@@ -67,9 +67,12 @@ build_spa() {
   (cd "$REPO" && npm ci --prefix portal --no-audit --no-fund >&2 && npm run build --prefix portal >&2 \
     && rm -rf dashboard/portal-frontend/dist && cp -r portal/dist dashboard/portal-frontend/dist)
 }
+# PORTAL_ENV_OVERRIDES: space-separated KEY=value pairs the portal API runs with on top of its .env (the process env wins
+# over dotenv). Unset for a developer's own `up`; scripts/qa/e2e-web.sh sets it for a test stack (FLAG_CACHE_TTL_MS=0 …).
 start_portal() {
   local port; port=$(portal_port)
-  ( cd "$RUN/portal" && exec node "$REPO/dashboard/index.js" ) >>"$RUN/portal.log" 2>&1 &
+  local -a over=(); [ -n "${PORTAL_ENV_OVERRIDES:-}" ] && read -r -a over <<<"$PORTAL_ENV_OVERRIDES"
+  ( cd "$RUN/portal" && exec env ${over[@]+"${over[@]}"} node "$REPO/dashboard/index.js" ) >>"$RUN/portal.log" 2>&1 &
   echo $! > "$RUN/portal.pid"
   local i; for i in $(seq 1 60); do curl -sf -m 2 "http://127.0.0.1:$port/health" >/dev/null 2>&1 && break; sleep 0.5; done
   curl -sf -m 2 "http://127.0.0.1:$port/health" >/dev/null 2>&1 || { log "portal API did not come up — $RUN/portal.log"; tail -5 "$RUN/portal.log" >&2; return 7; }

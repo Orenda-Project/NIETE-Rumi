@@ -1849,3 +1849,81 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When a child reads past the fifth word before the minute ends
     Then the words rung, the first-words count and the first-line rule all read the first five words, as today's five
     And with sa_r8_counts off they read the first four words the child was served
+
+  @e2e @wip @draft @config-gated @P1 @CT279 @no-mock-driver
+  # No mock driver: the coach's fold and the picker run on the phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("since_fold_ms: ...").
+  Scenario: With sa_r28_letter_pick on, each scored letter answer says how long after the coach's fold closed it came
+    Given sa_r28_letter_pick is on and the test is coach-led
+    When the coach opens and closes the fold on an item and the child taps a letter 400 ms later
+    Then that answer keeps since_fold_ms 400
+    And a tap within the ghost window after the close writes no answer at all
+    And an answer on an item where no fold closed keeps since_fold_ms null, as does every answer in RDF auto
+    And practice answers do not carry it, and with sa_r28_letter_pick off the answer has no since_fold_ms
+
+  @e2e @wip @draft @config-gated @P1 @CT280 @no-mock-driver
+  # No mock driver: as @CT279. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("since_fold_ms: ...").
+  Scenario: With sa_r28_mcq on, each scored story-question answer says how long after the coach's fold closed it came
+    Given sa_r28_mcq is on and the test is coach-led
+    When the coach closes the fold on a question and the child's answer that stands is tapped about 400 ms later
+    Then that answer keeps since_fold_ms of about 400
+    And an answer on a question where no fold closed keeps since_fold_ms null
+    And with sa_r28_mcq off the answer has no since_fold_ms
+
+  @e2e @wip @draft @config-gated @P1 @CT281 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-back.service.test.js.
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, their item screens have no Back, so a phone keeps every card and the replay in reach
+    Given sa_back_button is on, with every switch the tier serves
+    And sa_r28_letter_pick and sa_r28_mcq are on
+    When a child on a 360x640 phone reaches the second letter-sound item, or the second story question, coach-led or RDF auto
+    Then no Back button is drawn on that screen
+    And all five letter cards and the replay button can be tapped without scrolling, on every item from the first to the tenth
+    And every other task keeps its Back, and with both switches off the Back is drawn as before
+
+  @e2e @wip @draft @config-gated @P1 @CT282 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-audio-check-fit.service.test.js.
+  Scenario: With sa_r28_check_fit on, the Urdu sound check fits a 360x640 phone, both pictures tappable without scrolling
+    Given sa_ur_fit and sa_r8_layout are on, with every switch the tier serves
+    And sa_r28_check_fit is on
+    When a child on a 360x640 phone in the coach page's frame reaches the Urdu sound check, coach-led or RDF auto
+    Then both picture tiles, the replay button and "I can't hear" are whole on screen and can be tapped without scrolling
+    And no scroll cue is drawn
+    And with sa_r28_check_fit off the screen is as today, and the English phone and the tablet are unchanged either way
+
+  @e2e @wip @draft @config-gated @P1 @CT283 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-auto-practice.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the letter-sound practice example in RDF auto fits a 360x640 phone without scrolling
+    Given sa_r28_letter_pick is on, with every switch the tier serves
+    When a child alone (RDF auto) on a 360x640 phone sees the letter-sound practice example, modelled with the pointing hand, and then tries one
+    Then nothing scrolls on any practice screen, all five letter cards are whole and can be tapped, and the replay and Next are in reach
+    And no scroll cue is drawn, and the tablet reads the same
+
+  @e2e @wip @draft @config-gated @P1 @CT246 @no-mock-driver
+  # No mock driver: the prompt is sent in the scoring sweep to a model, not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt on, a familiar-words recording is marked as a list of words shown one at a time, with the accent rule
+    Given sa_r28_words_prompt is on
+    When a familiar-words recording is scored
+    Then the model is shown the words as a numbered list, one per line, shown one at a time, not as a story
+    And it is told that a local accent that keeps the same word is correct, and any accepted forms of a word are listed beside it
+    And the speech gate, the marks, the words per minute and the first-row stop work as before
+    And with sa_r28_words_prompt off the prompt and the marks are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT284 @no-mock-driver
+  # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt and sa_r28_ceiling on, the model is given only the words the child reached
+    Given sa_r28_words_prompt and sa_r28_ceiling are on
+    And a child reached 7 words of a 20-word list whose first 4 are today's words
+    When the familiar-words recording is scored
+    Then the model is shown words 1 to 7 only, each with its own accepted forms beside it
+    And a child who reached fewer than today's 4 words is shown today's 4
+    And a word list without today's count is shown whole, as before
+
+  @e2e @wip @draft @config-gated @P1 @CT285 @no-mock-driver
+  # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt and sa_r8_counts on, the fifth word keeps its accepted forms
+    Given sa_r28_words_prompt and sa_r8_counts are on
+    And the spare word that becomes today's fifth word has accepted forms
+    When the familiar-words recording is scored
+    Then the model is shown the fifth word with its accepted forms beside it
+    And a spare word without accepted forms is served and listed exactly as before

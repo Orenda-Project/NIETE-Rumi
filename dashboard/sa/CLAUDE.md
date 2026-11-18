@@ -9,6 +9,9 @@ Full index: `CLAUDE.index.md`
 - `sw.js` — service worker keeping the battery and clips on the phone
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
+## Result fields (human)
+- A scored answer of the letter picker (`sa_r28_letter_pick`) or the spoken MCQ (`sa_r28_mcq`) carries, beside `tap_ms`, `replays`, `tap_ms_src`: `since_fold_ms` = integer ms from this item's last coach-fold close to the scored tap (the ghost guard's recorded close, sa-ui.js `ghostGuard`), or `null` when no fold closed on the item (RDF auto always `null`). Not on practice items; both switches OFF, the key is absent. It reaches `responses` with the answer (sa-store.js keeps answers whole).
+
 ## Children (generated)
 | path | purpose |
 |---|---|
@@ -32,6 +35,9 @@ Full index: `CLAUDE.index.md`
 - Engine files live here, not in public/, so nothing is served while sa_engine is off (routes/sa-engine.routes.js:5)
 - sa-core.js stays pure: no DOM, storage or timers (sa-core.js:4)
 <!-- read: map-read-niete-portal 2026-10-29 -->
+
+## Result fields (human)
+- A pick task's result (sa-core.js finish): presented, unavailable, of_all; unrated: true under 6 presented (lost clips); under sa_r28_letter_pick, unrated_why: 'ended' when the coach ended it (coach_end / end_section) with presented < of_all. unrated = absent from the ladder (level.js partOf), never pending, never 0; stored whole in responses[0] (bot sa-store.js putResults), passed to Results as unratedWhy (sa-api.service.js shapeTask), drawn with copy key unrated_ended
 
 ## Tests (generated)
 - `dashboard/tests/sa-r4-coach-last-word.service.test.js` (sa-core.js, sa-engine.js, sa-store.js, sa-ui.js, sink-coach.js)

@@ -35,9 +35,12 @@ skill (reuse, design system, WhatsApp vs page, switches, scoping, tracking, test
 **Data and privacy**
 
 - Sandbox only, and test accounts only ("<Name> Testwala" in the synthetic test schools).
-- The sandbox database also holds copies of real teachers' records. Read only what the task needs, never copy
-  records out, and never put a real name, phone number or key in code, tests, screenshots, commits or PRs. This
-  repo is public, and CI checks for them.
+- The sandbox holds dummy people only: names end in "Dummy" and four digits, phone numbers sit in Pakistan's
+  unallocated 0399 block, and personal recordings and photos are gone. Only the team's own test accounts keep real
+  numbers. Never import real people into it (the import scripts refuse the sandbox); if real data ever shows up,
+  `scripts/sandbox-pii-purge.py` scrubs it again.
+- Read only what the task needs, never copy records out, and never put a real name, phone number or key in code,
+  tests, screenshots, commits or PRs. This repo is public, and CI checks for them.
 
 ## Contributing from outside the team
 

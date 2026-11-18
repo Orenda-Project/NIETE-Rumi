@@ -49,7 +49,15 @@
 // row ran out unanswered).
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
-var VERSION = 'sa-25';
+// sa-26: round 28 follow-up: sa-core.js (a letter-sound task the coach ends before every item was presented is not rated).
+// sa-27: round 28 follow-up: sa.css (the letter picker draws no language toggle inside the coach page's frame; the spoken MCQ's head
+//   gap under the toggle fit).
+// sa-28: round 28 follow-up: sa-ui.js and sa-core.js (the letter picker and the spoken MCQ draw no Back button on their item and
+//   practice screens, so the cards and the replay stay in reach on a phone; the sandbox-only dev row stays off those screens;
+//   a scored answer records since_fold_ms).
+// sa-29: round 28 follow-up: sa.css and sa-ui.js (the Urdu sound check fits a phone under sa_r28_check_fit; the letter
+//   picker's practice example keeps room for its pointing hand in RDF auto; its last practice feedback keeps the 1.2 s floor).
+var VERSION = 'sa-29';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -85,7 +93,9 @@ var CORE = 'sa-core-' + VERSION;
 // while their switches are OFF), so a phone takes the new files.
 // v23: round 28's letter-sound prompts re-picked under their keys (each sound heard right on repeated listens and
 // through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
-var SESSION = 'sa-session-v25';
+// v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
+// familiar words' accept forms (scorer only; never served).
+var SESSION = 'sa-session-v26';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

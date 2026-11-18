@@ -379,4 +379,4 @@ for (const [id, why] of [
   ['WQ248', 'Story Time needs web_quiz_challenge_v2 + web_quiz_challenge_story and story rows with recorded clips: ' + CLIP],
 ]) on(id, 'off', async () => ({ blocked: why }));
 
-module.exports = { runs, modes };
+module.exports = { runs, modes, ensureProvenance };
