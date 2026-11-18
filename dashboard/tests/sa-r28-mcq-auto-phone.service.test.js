@@ -41,6 +41,16 @@ function battery(lang, ui) {
   delete bat.rdf_auto; delete bat.rdf_manual;
   return bat;
 }
+/** The same task with its practice kept (coach-led: the practice's passage step draws the coach box and the coach line). */
+function batteryWithPractice(lang, ui) {
+  const { applySwitches } = require('../routes/sa-battery-switches');
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G2.A.${lang}.json`), 'utf8'));
+  const b = applySwitches(raw, ON);
+  const t = b.tasks.find((x) => x.id === `${lang}.story_mcq_w3`);
+  const bat = Object.assign({}, b, { ui: Object.assign({}, ui), tasks: [Object.assign({}, t, { depends_on: null })] });
+  delete bat.rdf_auto; delete bat.rdf_manual;
+  return bat;
+}
 function other(lang, ui) {
   const { applySwitches } = require('../routes/sa-battery-switches');
   const o = lang === 'ur' ? 'en' : 'ur';
@@ -48,8 +58,8 @@ function other(lang, ui) {
   return Object.assign({}, b, { ui: Object.assign({}, ui) });
 }
 
-function html(lang, ui) {
-  const bat = battery(lang, ui);
+function html(lang, ui, coach) {
+  const bat = coach ? batteryWithPractice(lang, ui) : battery(lang, ui);
   const hold = [lang === 'ur' ? 'جائزہ ختم (کوچ)' : 'End test (coach)']; // RDF auto: the coach page's End test alone
   return `<!doctype html><html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
@@ -67,10 +77,10 @@ function html(lang, ui) {
   speak.audio = function () { return cur ? cur.a : null; };
   window.__end = function () { if (!cur) return false; cur.end(); return true; };
   var battery = ${JSON.stringify(bat)};
-  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: false, one_at_a_time: true${process.env.SA_MCQ_DEVJUMP ? ', dev_tools: true' : ''} });
-  var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: false, handover: false, ur_fit: true,
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: ${!!coach}, one_at_a_time: true${process.env.SA_MCQ_DEVJUMP ? ', dev_tools: true' : ''} });
+  var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: ${!!coach}, handover: false, ur_fit: true,
     r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak, embed: true${process.env.SA_MCQ_DEVJUMP ? ', devJump: function () {}' : ''} });
-  runner.start(); runner.instructionDone(); runner.begin(); view.render();
+  runner.start(); runner.instructionDone(); ${coach ? '' : 'runner.begin(); '}view.render();
   view.setSync({ state: 'synced' });
   view.langBattery('${lang === 'ur' ? 'en' : 'ur'}', SAE.core.normalize(${JSON.stringify(other(lang, ui))}), {});
   (function () {
@@ -175,6 +185,42 @@ maybe('the spoken story questions in RDF auto on a 360×640 phone under the serv
   const want = (r) => ({ state: r.state, ii: /^q2/.test(r.state) ? 1 : 0, opts: 4, opts_whole: 4, opts_hit: 4,
     replay: r.replay ? { whole: true, hit: true } : null, next: r.next ? { whole: true, hit: true } : null,
     body_over: 0, screen_over: 0, page_over: 0, true_over: 0, cue: false, hold_hits: [] });
+
+  /** The toggle-fit head gap stops at RDF auto: coach-led, the passage step (the coach line and the coach box drawn) and the
+   *  scored question keep the measured gap (UR 30 / EN 18); RDF auto's question takes 0. The staging set, a 360×640 phone. */
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}: the toggle-fit head gap is ${lang === 'ur' ? 30 : 18} px on the coach-led passage step and question, 0 on the RDF-auto question`, async () => {
+      const set = SETS[1];
+      const gapOf = async (coach, step) => {
+        const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 3 });
+        const p = await ctx.newPage();
+        const doc = html(lang, set.ui, coach);
+        await p.route('**/*', (route) => {
+          const u = new URL(route.request().url());
+          if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+          if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+          if (u.pathname === '/') return route.fulfill({ body: doc, contentType: 'text/html; charset=utf-8' });
+          return route.fulfill({ status: 404, body: '' });
+        });
+        await p.goto('http://sa.test/');
+        await p.evaluate(() => document.fonts.ready);
+        await p.waitForTimeout(500);
+        if (coach && step === 'question') { // past the practice: its passage step, then the practice question, then the scored one
+          await p.evaluate(() => { window.__runner.begin(); window.__view.render(); });
+          await p.waitForTimeout(300);
+        }
+        const r = await p.evaluate(() => { const hd = document.querySelector('.sae-mcq-head'); const scr = document.querySelector('.sae-screen'); return { cls: scr ? String(scr.className) : null, coach_box: !!document.querySelector('details.sae-mcq-coach'), coach_line: !!document.querySelector('.sae-mcq-coach-line'), gap: hd ? parseFloat(getComputedStyle(hd).marginTop) : null, g: scr ? getComputedStyle(scr).getPropertyValue('--sae-a11-g').trim() : null }; });
+        await ctx.close();
+        return r;
+      };
+      const passage = await gapOf(true, 'passage');
+      const question = await gapOf(true, 'question');
+      const auto = await gapOf(false, 'question');
+      const g = lang === 'ur' ? 30 : 18;
+      expect({ passage_step: /sae-mcq-passage-step/.test(passage.cls), passage_coach_line: passage.coach_line, passage_gap: passage.gap, question_coach_box: question.coach_box, question_gap: question.gap, auto_coach_box: auto.coach_box, auto_gap: auto.gap })
+        .toEqual({ passage_step: true, passage_coach_line: true, passage_gap: g, question_coach_box: true, question_gap: g, auto_coach_box: false, auto_gap: 0 });
+    }, 120000);
+  }
 
   for (const set of SETS) for (const fr of FRAMES) for (const lang of ['ur', 'en']) {
     test(`[${set.name}] ${lang} ${fr.name} (${fr.vp.width}×${fr.vp.height} dpr ${fr.dpr}): Q1 early, read, Next offered; Q2 early, read — four options, the replay and Next in reach, nothing scrolls`, async () => {
