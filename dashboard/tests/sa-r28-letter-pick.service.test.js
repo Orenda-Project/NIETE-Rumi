@@ -2030,6 +2030,28 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       .toEqual({ screen_over: 0, body_over: 0, screen_scrollTop: 0, body_scrollTop: 0, cue: false, foot_inside: true });
   }, 120000);
 
+  /** The practice feedback line's ink (pixels dark with its text shown, not dark with it hidden) against its own box. */
+  async function fbInk(p, dpr) {
+    const box = await p.evaluate(() => { const f = document.querySelector('.sae-pick .sae-fb:not(.is-empty)'); const b = f.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, vw: innerWidth, vh: innerHeight }; });
+    const clip = { x: Math.max(0, Math.floor(box.left) - 16), y: Math.max(0, Math.floor(box.top) - 16), width: 0, height: 0 };
+    clip.width = Math.min(box.vw, Math.ceil(box.right) + 16) - clip.x; clip.height = Math.min(box.vh, Math.ceil(box.bottom) + 16) - clip.y;
+    const shown = await p.screenshot({ clip });
+    await p.evaluate(() => { document.querySelector('.sae-pick .sae-fb:not(.is-empty)').style.color = 'transparent'; });
+    const hidden = await p.screenshot({ clip });
+    await p.evaluate(() => { document.querySelector('.sae-pick .sae-fb:not(.is-empty)').style.color = ''; });
+    const ink = await p.evaluate(async ([a, b, x0, y0, k]) => {
+      const px = async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0); return { w: c.width, h: c.height, d: g.getImageData(0, 0, c.width, c.height).data }; };
+      const A = await px(a), B = await px(b);
+      const L = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      let top = null, bottom = null, left = null, right = null;
+      for (let y = 0; y < A.h; y++) for (let x = 0; x < A.w; x++) {
+        const i = (y * A.w + x) * 4;
+        if (Math.abs(L(A.d, i) - L(B.d, i)) > 40) { const cx = x0 + x / k, cy = y0 + y / k; top = top == null ? cy : Math.min(top, cy); bottom = bottom == null ? cy : Math.max(bottom, cy); left = left == null ? cx : Math.min(left, cx); right = right == null ? cx : Math.max(right, cx); }
+      }
+      return { top, bottom, left, right };
+    }, [shown.toString('base64'), hidden.toString('base64'), clip.x, clip.y, dpr]);
+    return { ink, inside: ink.top != null && ink.top >= box.top - 0.5 && ink.bottom <= box.bottom + 0.5 && ink.left >= box.left - 0.5 && ink.right <= box.right + 0.5 };
+  }
   /**
    * A7: the practice screens, coach-led, with the production layout switches (S2: the Urdu example had 73 px of inner
    * scroll and 2 of 5 cards hit-testable, on the MODELLED example). P1 (role example): before the model (its sound
@@ -2043,7 +2065,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const out = {};
     more = frMore(fr, more);
     const { html } = page(lang, true, more, fr);
-    const ctx = await browser.newContext({ viewport: vp || { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const ctx = await browser.newContext({ viewport: vp ? { width: vp.width, height: vp.height } : { width: 360, height: 640 }, deviceScaleFactor: (vp && vp.dpr) || 2 });
     const p = await ctx.newPage();
     await p.route('**/*', (route) => {
       const u = new URL(route.request().url());
@@ -2059,7 +2081,8 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const snap = async (name, wait) => {
       if (wait !== 0) await p.waitForTimeout(wait || 250);
       out[name] = await p.evaluate(measure);
-      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}${more && more.r9SkipInstructions ? '_skip' : ''}${frSuffix(fr)}_${lang}_${vp ? 'tablet' : 'phone'}_coach.png`) });
+      if (vp && vp.ink && out[name].fb) out[name].fb_ink = await fbInk(p, (vp && vp.dpr) || 2);
+      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}${more && more.r9SkipInstructions ? '_skip' : ''}${frSuffix(fr)}_${lang}_${vp ? (vp.width >= 700 ? 'tablet' : `phone_dpr${vp.dpr || 2}`) : 'phone'}_coach.png`) });
     };
     const endAll = async () => { for (let k = 0; k < 8 && (await p.evaluate(() => window.__end())); k++) await p.waitForTimeout(150); };
     const label = async () => { const s = await p.evaluate(() => { const b = document.querySelector('details.sae-pick-coach > summary').getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; }); await p.mouse.click(lang === 'ur' ? s.r - 30 : s.l + 30, (s.t + s.b) / 2); };
@@ -2415,6 +2438,57 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     }
     if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_tablet.json`), JSON.stringify(out, null, 1));
   }, 300000);
+
+  /**
+   * The practice's feedback line in the coach-led head row, now that the second wrong tap names the sound (the line is
+   * the clip's own words, never shortened): per language, the try-again and the second-wrong line, with the coach's
+   * Skip served and not, on the phone at DPR 3 and 2 and on the tablet. In every cell the line's ink lies inside its box,
+   * its box inside the 64 px head row (whole: nothing clipped), Jugnu 64 × 64 inside the phone, the replay pill hit, the
+   * five cards hit, and the cards and the pill where the same screen without the line puts them. The right tap keeps
+   * today's right line: the same no-move row.
+   */
+  const NAMED_CELLS = [['try_again', 'p2_feedback'], ['second_wrong', 'p2_feedback_shown'], ['right', 'p2_feedback_right']];
+  const namedRow = (m, ref, phone) => {
+    const jug = m.head && m.head.kids.find((k) => /jugnu/.test(k.cls));
+    const moved = (a, b) => +Math.max.apply(null, ['top', 'left', 'w', 'h'].map((k) => Math.abs(a[k] - b[k]))).toFixed(1);
+    return {
+      fb_h: m.fb ? m.fb.h : null,
+      fb_inside: !!m.fb && m.fb.whole && m.fb.in_head && m.fb.left >= -0.5 && m.fb.right <= m.vw + 0.5 && m.fb.top >= m.head.top - 0.5 && m.fb.bottom <= m.head.bottom + 0.5,
+      ink_inside: !!m.fb_ink && m.fb_ink.inside,
+      head_h: phone ? Math.round(m.head.h) : 'n/a',
+      head_out: m.head.kids.filter((k) => k.left < -0.5 || k.right > m.vw + 0.5 || k.top < m.head.top - 0.5 || k.bottom > m.head.bottom + 0.5 || k.clip).map((k) => k.cls),
+      jugnu: jug && jug.left >= -0.5 && jug.right <= m.vw + 0.5 && jug.top >= 0 ? `${Math.round(jug.w)}x${Math.round(jug.h)}` : 'out',
+      pill_hit: m.pill_hit, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length,
+      cards_moved: Math.max.apply(null, m.cards.map((c, i) => moved(c, ref.cards[i]))), pill_moved: moved(m.pill, ref.pill),
+      inner_scroll: m.inner_scroll,
+    };
+  };
+  const NAMED_WANT = (phone) => ({ fb_inside: true, ink_inside: true, head_h: phone ? 64 : 'n/a', head_out: [], jugnu: phone ? '64x64' : '112x112', pill_hit: true, cards_hit: 5, cards_moved: 0, pill_moved: 0, inner_scroll: 0 });
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed], the practice's named line in the coach-led head row: try again, second wrong, right × the Skip served and not × phone DPR 3 / 2 and tablet: ink in its box, box in the head row, Jugnu whole, nothing moves`, async () => {
+      const fr = FRAMES[0];
+      const out = {};
+      const cells = [];
+      for (const skip of [true, false]) for (const vp of [{ width: 360, height: 640, dpr: 3, ink: true }, { width: 360, height: 640, dpr: 2, ink: true }, { width: 800, height: 1280, dpr: 2, ink: true }]) {
+        const more = { r9SkipInstructions: skip };
+        const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, more, vp, fr);
+        Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true, more, vp, fr));
+        const dev = vp.width >= 700 ? 'tablet' : `phone@${vp.dpr}`;
+        out[`${skip ? 'skip' : 'noskip'}_${dev}`] = r;
+        for (const [state, s] of NAMED_CELLS) {
+          // the reference: the same P2 screen with no line showing (after its sound; the retry for the shown/right states)
+          const ref = state === 'try_again' ? r.p2_aftersound : r.p2_retry;
+          r[s].vw = vp.width;
+          cells.push(Object.assign({ cell: `${lang}.${state}.${skip ? 'skip' : 'noskip'}.${dev}`, text: r[s].fb && r[s].fb.text }, namedRow(r[s], ref, vp.width < 700)));
+        }
+      }
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `o74fit_named_${lang}.json`), JSON.stringify({ cells, states: out }, null, 1));
+      console.log('named line cells', lang, JSON.stringify(cells.map(({ text, ...c }) => c)));
+      expect(cells.map(({ cell, text, fb_h, ...c }) => Object.assign({ cell }, c))).toEqual(cells.map(({ cell }) => Object.assign({ cell }, NAMED_WANT(!/tablet/.test(cell)))));
+      // the words are the clip's own: the second wrong line names the sound, never cut
+      cells.filter((c) => /second_wrong/.test(c.cell)).forEach((c) => expect({ cell: c.cell, named: !!c.text && c.text.length > (lang === 'ur' ? 15 : 25) }).toEqual({ cell: c.cell, named: true }));
+    }, 600000);
+  }
 
   /**
    * A9: the coach brief (the instruction screen, coach-led) on the phone: its body may scroll by design under ur_fit; its
