@@ -180,6 +180,80 @@ describe('clip_only: a clip that starts and then stalls (the real voice, a stub 
   });
 });
 
+/**
+ * A page hidden for longer than the 60 s line guard (a coach takes a call): the browser refuses play() while hidden and
+ * pauses a playing clip on hide; showing the page again calls resume(), as the engine does. Under clip_only the 60 s
+ * guard does not count the time a line is held for a hidden page: it starts a full 60 s again on show.
+ */
+function hiddenWorld(deadAfterShow) {
+  const w = { doc: { visibilityState: 'visible' }, els: [], shown: false };
+  class A {
+    constructor(src) { this.src = src; this.paused = true; this.ended = false; this.currentTime = 0; this.duration = 3; this.ls = {}; this.iv = null; w.els.push(this); }
+    addEventListener(t, f) { (this.ls[t] = this.ls[t] || []).push(f); }
+    removeEventListener() {}
+    fire(t) { if (this['on' + t]) this['on' + t]({ type: t }); (this.ls[t] || []).forEach((f) => f({ type: t })); }
+    pause() { if (!this.paused) { this.paused = true; if (this.iv) clearInterval(this.iv); this.iv = null; this.fire('pause'); } }
+    load() {}
+    play() {
+      if (w.doc.visibilityState === 'hidden') return Promise.reject(Object.assign(new Error('hidden'), { name: 'NotAllowedError' }));
+      this.paused = false;
+      const dead = deadAfterShow && w.shown;
+      setTimeout(() => {
+        if (this.paused) return;
+        this.fire('playing');
+        let n = 0;
+        this.iv = setInterval(() => {
+          if (dead && ++n > 1) return; // after the show: one step, then the network dies (no event, no progress)
+          this.currentTime = Math.min(this.duration, this.currentTime + 0.25); this.fire('timeupdate');
+          if (this.currentTime >= this.duration) { clearInterval(this.iv); this.iv = null; this.paused = true; this.ended = true; this.fire('ended'); }
+        }, 250);
+      }, 50);
+      return Promise.resolve();
+    }
+  }
+  w.A = A;
+  return w;
+}
+
+describe('clip_only and a page hidden for longer than the 60 s guard (the real voice, a stub Audio)', () => {
+  beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(0); });
+  afterEach(() => { jest.useRealTimers(); });
+  const CASES = [
+    // name, hide at ms (-1: before the line), show at ms, dead after the show, want, the clip ended, window [from, to] ms
+    ['hidden 1.2 s into the clip, shown at 20 s: heard to its end after the show', 1200, 20000, false, 'resolved', true, [20000, 25000]],
+    ['hidden 1.2 s into the clip, shown at 70 s: heard to its end after the show, not given up at 60 s', 1200, 70000, false, 'resolved', true, [70000, 75000]],
+    ['hidden before the line, shown at 30 s: the clip plays on show and is heard', -1, 30000, false, 'resolved', true, [30000, 36000]],
+    ['hidden before the line, shown at 90 s: the clip plays on show and is heard, not given up at 60 s', -1, 90000, false, 'resolved', true, [90000, 96000]],
+    ['hidden 1.2 s in, shown at 70 s, then the clip stalls dead: given up within about 11 s of the show', 1200, 70000, true, 'rejected', false, [70000, 83500]],
+  ];
+  test.each(CASES)('%s', async (name, hideAt, showAt, dead, want, ended, win) => {
+    const w = hiddenWorld(dead);
+    jest.resetModules();
+    const v = require(VOICE).create({ lang: 'ur', base: '/', Audio: w.A, document: w.doc });
+    const hide = () => { w.doc.visibilityState = 'hidden'; w.els.forEach((a) => a.pause()); };
+    if (hideAt < 0) hide(); else setTimeout(hide, hideAt);
+    setTimeout(() => { w.doc.visibilityState = 'visible'; w.shown = true; v.resume(); }, showAt);
+    const r = track(v.speak(null, CLIP, { clip_only: true }));
+    await jest.advanceTimersByTimeAsync(win[1] + 1000);
+    expect(r.st).toBe(want);
+    expect(r.at).toBeGreaterThanOrEqual(win[0]);
+    expect(r.at).toBeLessThanOrEqual(win[1]);
+    expect(w.els.some((a) => a.ended)).toBe(ended);
+    v.stop();
+  });
+
+  test('without clip_only the 60 s guard still counts hidden time, as today', async () => {
+    const w = hiddenWorld(false);
+    jest.resetModules();
+    const v = require(VOICE).create({ lang: 'ur', base: '/', Audio: w.A, document: w.doc });
+    setTimeout(() => { w.doc.visibilityState = 'hidden'; w.els.forEach((a) => a.pause()); }, 1200);
+    const r = track(v.speak(null, CLIP));
+    await jest.advanceTimersByTimeAsync(60000);
+    expect(r.st).toBe('resolved');
+    expect(r.at).toBe(60000);
+  });
+});
+
 // ---------- the screens (jsdom): the real voice under sa-ui.js ----------
 const core = require('../sa/sa-core');
 
