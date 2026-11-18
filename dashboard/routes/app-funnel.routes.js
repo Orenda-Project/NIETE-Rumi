@@ -391,8 +391,46 @@ function createAppFunnelRouter({ limiter } = {}) {
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
   );
 
+  /**
+   * bd-9652yj (queue #166) — the coach app's way back to WhatsApp (portal coach/observe/ContinueOnWhatsApp.tsx): where
+   * the app broke and where she left it. A tap on "Continue on WhatsApp" → app_funnel.trouble_tap { screen, kind } (kind
+   * 'strip' for the slim strip, else the failure that turned it into a button); a screen that failed to load, upload or
+   * send → app_funnel.page_error { screen, kind }. Coach and journey from the SESSION; only known values.
+   */
+  router.post(
+    '/funnel/coach-trouble',
+    requireSession,
+    express.text({ type: 'text/*', limit: '1kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.prototype.hasOwnProperty.call(COACH_TROUBLE_EVENTS, body.t)) {
+        return res.status(400).end();
+      }
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const pick = (v, allowed) => (allowed.includes(v) ? v : 'unknown');
+      const { journeyId, ...base } = who(req, now);
+      emit(COACH_TROUBLE_EVENTS[body.t], {
+        ...base,
+        journeyId,
+        feature: 'observe',
+        browser: browserClass(req, body.b),
+        screen: pick(body.screen, COACH_TROUBLE_SCREENS),
+        kind: pick(body.kind, COACH_TROUBLE_KINDS),
+        online: typeof body.online === 'boolean' ? body.online : null,
+      });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   return router;
 }
+
+const COACH_TROUBLE_EVENTS = { tap: 'app_funnel.trouble_tap', error: 'app_funnel.page_error' };
+const COACH_TROUBLE_SCREENS = require('../../bot/shared/services/coach-handoff-code').HANDOFF_SCREENS;
+const COACH_TROUBLE_KINDS = ['strip', 'load', 'upload', 'send', 'mic'];
 
 const SA_OFFLINE_KINDS = {
   prep: 'sa_prep.result', prep_waiting: 'sa_prep.still_waiting', list_failed: 'sa_list.failed', list_slow: 'sa_list.slow', list_late: 'sa_list.late',
