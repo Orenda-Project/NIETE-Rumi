@@ -1001,6 +1001,16 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(stored()[1]).toHaveProperty('since_fold_ms', null);
   }, 20000);
 
+  test('the sandbox Jump row (dev tools on): not drawn on the MCQ\'s question or practice screens', async () => {
+    setup();
+    const dev = { runner: { manual: true, dev_tools: true }, ui: { manual: true, devJump: () => {} } };
+    const q = mountMcq(dev);
+    await wait(20);
+    expect(q.runner.view().phase).toBe('running');
+    expect(!!q.el.querySelector('.sae-mcq')).toBe(true);
+    expect(q.el.querySelector('.sae-devjump-row')).toBeNull();
+  });
+
   test('modal fold: a fold opened in the 400 ms press window is closed by the item change: one fold_close by item for the old item, the next item drawn folded', async () => {
     setup();
     const { el, voice, answers, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });

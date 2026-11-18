@@ -484,7 +484,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     const ui = require('../sa/sa-ui');
     const b = o.battery || battery(o);
     const events = [];
-    const r = c.createRunner(Object.assign({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual }, o.now ? { now: o.now } : {}));
+    const r = c.createRunner(Object.assign({ battery: b, onEvent: (e) => events.push(e), manual: !!o.manual }, o.now ? { now: o.now } : {}, o.runner || {}));
     const pending = [];
     const speak = jest.fn((text, audio, vo) => {
       if (vo && vo.clip_only) {
@@ -506,6 +506,23 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     m.view.render();
   }
   const clipCalls = (m) => m.speak.mock.calls.filter((x) => x[2] && x[2].clip_only === true);
+
+  test('the sandbox Jump row (dev tools on): not drawn on the picker\'s practice or item screens; drawn on a tap screen with the switch off', () => {
+    const dev = { runner: { dev_tools: true }, ui: { devJump: () => {} } };
+    const has = (m) => !!m.el.querySelector('.sae-devjump-row');
+    const a = mount(Object.assign({ manual: true, instant: true }, dev));
+    a.r.start(); a.r.instructionDone(); a.view.render();
+    expect(a.r.view().phase).toBe('practice');
+    expect(has(a)).toBe(false);
+    const b = mount(Object.assign({ manual: true, practice: false, instant: true }, dev));
+    toRunning(b);
+    expect(b.r.view().phase).toBe('running');
+    expect(has(b)).toBe(false);
+    const c = mount(Object.assign({ manual: true, practice: false, instant: true, flag: false }, dev));
+    toRunning(c);
+    expect(c.r.view().phase).toBe('running');
+    expect(has(c)).toBe(true);
+  });
 
   test('running: five cards in .sae-pick-cards, one big replay; the clip autoplays clip-only', async () => {
     const m = mount({ practice: false });

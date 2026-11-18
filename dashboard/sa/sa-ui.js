@@ -692,7 +692,7 @@
     /** back_button: Back on an item screen after the first item (or cell); runner.back() shows the one before.
      *  Round 28: never on the letter picker (sa_r28_letter_pick) or the spoken MCQ (sa_r28_mcq), either mode. Their
      *  items are taps scored on the first answer (a Back would open a second one), and on a 360×640 phone the foot row
-     *  Back makes takes the second card row and the replay pill out of reach; the coach keeps the corner hold, the fold
+     *  Back makes would take the second card row and the replay pill out of reach; the coach keeps the corner hold, the fold
      *  and its replay. Every other task keeps its Back. */
     function backBtn(v) {
       if (r7.back_button !== true || v.phase !== 'running' || !v.task) return null;
@@ -1247,6 +1247,9 @@
     }
     /** The jump list's own full-width row above the dots: a Whole battery's 33 dots can never push it off-screen. */
     function devJumpRow(v) {
+      // round 28: not on the letter picker's or the spoken MCQ's item and practice screens (on a phone its row took the
+      // first item's replay below the fold); every other screen keeps it, the instruction included
+      if (v.task && (v.phase === 'running' || v.phase === 'practice') && (isPick(v.task) || isMcq(v.task))) return null;
       var dj = devJumpEl(v);
       return dj ? h('div', { class: 'sae-devjump-row' }, [dj]) : null;
     }
