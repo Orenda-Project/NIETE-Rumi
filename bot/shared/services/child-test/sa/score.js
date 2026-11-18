@@ -1357,7 +1357,7 @@ function db() { return require('../../../config/supabase'); } // eslint-disable-
 
 const COLS = 'id, session_id, block, response_mode, responses, audio_r2_key, audio_r2_keys, ai_status, ai_reason, ai_marks, updated_at';
 
-async function candidates({ sessionId = null, now = new Date(), supabase = db(), afterBoot = false, mcqFloor = false } = {}) {
+async function candidates({ sessionId = null, now = new Date(), supabase = db(), afterBoot = false } = {}) {
   let q = supabase.from('child_test_blocks').select(COLS).is('ai_marks', null).eq('ai_status', 'failed').like('ai_reason', 'final:sa_%')
     .gte('updated_at', new Date(now.getTime() - sinceHours() * 3600 * 1000).toISOString())
     .order('updated_at', { ascending: true }).limit(50);
@@ -1366,8 +1366,9 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
   if (error) { logError('child_test.sa_score.scan_failed', { error: error.message }); return []; }
   const nowMs = now.getTime();
   return (data || []).filter((r) => {
-    // sa_r28_mcq: the questions picked from four have no recording (a tap task); the store parks them for the floor
-    const tapMcq = mcqFloor && isMcq(r.block) && !hasAudio(r);
+    // sa_r28_mcq: the questions picked from four have no recording (a tap task); the store parks them for the floor only
+    // with the switch ON, so a parked one is admitted whatever the switch reads now (a flip to OFF never strands it)
+    const tapMcq = isMcq(r.block) && !hasAudio(r);
     if (!TASK_RE.test(String(r.block || '')) || !(hasAudio(r) || tapMcq)) return false;
     if (!tapMcq && envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
@@ -1521,7 +1522,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const ceiling = await ceilingSwitch.enabled(deps);
   const mcqFloor = await mcqSwitch.enabled(deps);
   at.stage = 'candidates';
-  const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept, mcqFloor });
+  const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
   const sessions = new Map();
   const claimed = [];
@@ -1536,8 +1537,10 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
       if (s) { s.askedBy = await askedByOf(row.session_id, supabase); s.asked = [...s.askedBy.values()].flat(); s.variantWait = variantWait; }
       if (s) s.lastWordFromRecording = await coachLastWord.enabled(deps, s.coach_user_id || null, supabase);
       if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
-      // sa_r28_mcq: the questions picked from four read their passage's marks (the reading floor), stop rules or not
-      if (s && mcqFloor) { s.mcqFloor = true; if (!s.passages) s.passages = await passagesOf(row.session_id, supabase); }
+      // sa_r28_mcq: the questions picked from four read their passage's marks (the reading floor), stop rules or not; a
+      // parked MCQ row in the queue is proof the switch was ON at its sync, so its session waits the same way
+      const parkedMcq = rows.some((r) => r.session_id === row.session_id && isMcq(r.block) && !hasAudio(r));
+      if (s && (mcqFloor || parkedMcq)) { s.mcqFloor = true; if (!s.passages) s.passages = await passagesOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
     }
     const session = sessions.get(row.session_id);

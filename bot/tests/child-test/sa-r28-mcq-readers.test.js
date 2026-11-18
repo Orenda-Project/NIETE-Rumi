@@ -19,7 +19,10 @@ const gated = () => ({ ...parked(6), ai_status: 'scored', ai_reason: null,
 const passed = (right) => ({ ...parked(right), ai_status: 'scored', ai_reason: null,
   ai_marks: { version: 'sa-marks-v1', task: 'ur.story_mcq_w3', correct: right, of: 6, tap_correct: right, tap_attempted: 6, options_n: 4,
     detail: { kind: 'mcq', stopped_by_rule: false, gate_checked: true, stop_why: null, of_all: 6, of_asked: 6 } } });
-const syncMarked = (right) => ({ ...parked(right), ai_status: 'scored', ai_reason: null, ai_marks: { tap_correct: right, tap_attempted: 6, options_n: 4, stop_reason: 'complete' } });
+// a legacy row: synced by the store before the floor (phone marks at sync, no detail; marks are written once)
+const syncMarked = (right) => ({ ...parked(right), ai_status: 'scored', ai_reason: null, ai_model_versions: { scorer: 'tap-v1' }, ai_marks: { tap_correct: right, tap_attempted: 6, options_n: 4, chance_corrected: right, stop_reason: 'complete' } });
+// being scored now (the sweep's claim): still awaiting the floor
+const claimed = (right) => ({ ...parked(right), ai_reason: 'final:sa_scoring:p1' });
 
 const spoken = (block, marks) => ({ block, response_mode: 'record', lang: 'ur', ai_status: 'scored', ai_marks: marks, responses: [{ kind: 'result', mode: 'record', stop_reason: 'complete' }] });
 const below = () => [spoken('ur.letter_names5', { correct: 5, attempted: 5 }), spoken('ur.words4', { correct: 4, attempted: 4 }), spoken('ur.story_w3', { correct: 30, attempted: 32 })];
@@ -30,8 +33,12 @@ describe('sa_r28_mcq ON: the ladder waits for the MCQ\'s reading floor (level.js
   test('(7) a parked MCQ (no marks yet, the phone said 6/6) → the comprehension part pending, the level not raised', () => {
     expect(ur(parked(6), { mcqFloor: true })).toMatchObject({ level: 'story', pending: true });
   });
-  test('(7) MCQ marks without gate_checked / stop_why (marked from the phone) → pending', () => {
-    expect(ur(syncMarked(6), { mcqFloor: true })).toMatchObject({ level: 'story', pending: true });
+  test('(7) a legacy row marked from the phone at sync (no detail, never checked) → banded from the phone, not pending', () => {
+    expect(ur(syncMarked(6), { mcqFloor: true })).toMatchObject({ level: 'comprehension', pending: false });
+    expect(ur(syncMarked(3), { mcqFloor: true })).toMatchObject({ level: 'story', pending: false });
+  });
+  test('(7) a parked row being scored (claimed) → still pending', () => {
+    expect(ur(claimed(6), { mcqFloor: true })).toMatchObject({ level: 'story', pending: true });
   });
   test('(7) the gated marks → unmet, the rung below, not pending', () => {
     expect(ur(gated(), { mcqFloor: true })).toMatchObject({ level: 'story', pending: false });
@@ -70,6 +77,9 @@ describe('sa_r28_mcq ON: Results reads the oral\'s pending row until the floor i
   test('the gated MCQ reads the comprehension stop row with the floor ON even when the stop rules are off', async () => {
     const t = await task(gated(), { mcq: true });
     expect(t).toMatchObject({ correct: 0, stopReason: 'comprehension_not_asked' });
+  });
+  test('a legacy row marked from the phone at sync → the scored row (the phone\'s count), not "scored later"', async () => {
+    expect(await task(syncMarked(5), { mcq: true })).toMatchObject({ correct: 5, chanceCorrected: 5, recording: 'none' });
   });
   test('checked and passed → the phone\'s count', async () => {
     expect(await task(passed(5), { mcq: true })).toMatchObject({ correct: 5, recording: 'none' });

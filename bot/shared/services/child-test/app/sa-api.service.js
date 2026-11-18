@@ -821,11 +821,11 @@ function shapeTask(r, stops = false, mcqFloor = false) {
   // sa_r28_mcq (the reading floor): a story MCQ is shown as the oral questions are until the scorer has applied its
   // passage's gate (scored later, no count); once applied, a gated one names the oral's comprehension stop
   const floor = mcqFloor && mode === 'tap' && MCQ_RE.test(String(r.block || '')) && !(res.unrated === true || (m && m.unrated === true));
-  if (floor && !mcqChecked(m)) {
+  if (floor && mcqParked(r)) {
     const stop0 = typeof res.stop_reason === 'string' ? res.stop_reason : '';
     return { ...shapeTask(r, stops), correct: null, chanceCorrected: null, itemsPerMin: null, stopReason: stop0 || null, recording: 'scored_later', score: null };
   }
-  if (floor && mcqChecked(m)) {
+  if (floor && m) {
     const out = shapeTask(r, stops);
     const rule = ruleStop(r, m);
     return rule ? { ...out, stopReason: rule } : out;
@@ -877,11 +877,12 @@ function shapeTask(r, stops = false, mcqFloor = false) {
   };
 }
 
-// sa_r28_mcq: the story's questions picked from four, and whether the scorer has applied their reading floor
+// sa_r28_mcq: the story's questions picked from four, and whether the row is parked for its reading floor (no marks
+// yet; parked or being scored). A row synced before the floor keeps the phone's marks (no detail: never checked).
 const MCQ_RE = /\.story_mcq_w3$/;
-function mcqChecked(m) {
-  const d = (m && m.detail) || {};
-  return typeof d.gate_checked === 'boolean' || typeof d.stop_why === 'string';
+function mcqParked(r) {
+  const reason = String(r.ai_reason || '');
+  return !r.ai_marks && reason.startsWith('final:sa_') && !reason.startsWith('final:sa_score_failed:');
 }
 
 /**

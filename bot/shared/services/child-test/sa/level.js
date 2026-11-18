@@ -111,7 +111,7 @@ function partOf(r, itemsOf, mcqFloor = false) {
     // lost; a question the reading gate did not ask counts as not right, as the oral part today
     if (/\.story_mcq_w3$/.test(String(r.block || ''))) {
       // sa_r28_mcq (the reading floor): pending until the scorer has applied the passage's gate to it
-      if (mcqFloor && !floorChecked(m)) return { state: 'pending' };
+      if (mcqFloor && awaitingFloor(r)) return { state: 'pending' };
       const all = num(res.of_all) ?? items ?? MCQ_QUESTIONS;
       return { state: 'scored', correct, of: Math.max(0, all - (num(res.unavailable) || 0)) || null };
     }
@@ -129,10 +129,14 @@ function partOf(r, itemsOf, mcqFloor = false) {
   return { state: 'scored', correct: m.correct, of };
 }
 
-/** sa_r28_mcq: the scorer has evaluated the MCQ's reading floor (gated, or checked and passed). */
-function floorChecked(m) {
-  const d = (m && m.detail) || {};
-  return typeof d.gate_checked === 'boolean' || typeof d.stop_why === 'string';
+/**
+ * sa_r28_mcq: the MCQ row is parked for its reading floor (no marks yet; parked or being scored). Any marks stand: the
+ * scorer's (gate applied, or gate_checked false) or, on a row synced before the floor, the phone's (no detail: never
+ * checked; marks are written once).
+ */
+function awaitingFloor(r) {
+  const reason = String(r.ai_reason || '');
+  return !r.ai_marks && reason.startsWith('final:sa_') && !reason.startsWith('final:sa_score_failed:');
 }
 
 /** 'met' | 'unmet' | 'pending' for one rung, given the subject's parts by task id. */

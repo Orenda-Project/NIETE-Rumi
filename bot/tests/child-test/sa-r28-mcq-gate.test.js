@@ -210,13 +210,28 @@ describe('sa_r28_mcq: order independence (the MCQ synced before vs after its pas
     expect(mB).toMatchObject({ ai_status: 'scored', ai_marks: { tap_correct: 0, detail: { stop_why: 'first_line' } } });
   });
 
-  test('(4c) candidates(): a parked MCQ row with no recording is admitted ON, not OFF', async () => {
+  test('(4c) candidates(): a parked MCQ row with no recording is admitted, the switch ON or OFF (the park is the proof it was ON at sync)', async () => {
     const m = mcqRow(6);
     const db = fakeDb({ child_test_blocks: [m] });
     const on = await score.__internals.candidates({ sessionId: SID, now: at, supabase: db, mcqFloor: true });
     const off = await score.__internals.candidates({ sessionId: SID, now: at, supabase: db });
     expect(on.map((r) => r.block)).toEqual(['ur.story_mcq_w3']);
-    expect(off).toEqual([]);
+    expect(off.map((r) => r.block)).toEqual(['ur.story_mcq_w3']);
+    // a phone-marked MCQ (synced OFF, or before the floor) is never a candidate: its marks stand
+    const marked = { ...mcqRow(6), ai_status: 'scored', ai_reason: null, ai_marks: { tap_correct: 6, tap_attempted: 6 } };
+    expect(await score.__internals.candidates({ sessionId: SID, now: at, supabase: fakeDb({ child_test_blocks: [marked] }), mcqFloor: true })).toEqual([]);
+  });
+
+  test('(a) parked ON, the switch flipped OFF before the sweep → still scored, behind its passage, through the floor', async () => {
+    const p = passageParked();
+    const m = mcqRow(6);
+    const db = fakeDb({ child_test_blocks: [p, m], child_test_sessions: [sess], app_settings: [] });
+    const first = await score.sweepOnce({ sessionId: SID, now: at, deps: { supabase: db, mcq: false } });
+    expect(first.waiting).toBe(1);
+    expect(m.ai_marks).toBeNull();
+    Object.assign(p, { ai_marks: passageMarks, ai_status: 'scored', ai_reason: null });
+    await score.sweepOnce({ sessionId: SID, now: at, deps: { supabase: db, mcq: false } });
+    expect(m).toMatchObject({ ai_status: 'scored', ai_marks: { tap_correct: 0, detail: { stop_why: 'first_line', gated: true } } });
   });
 });
 
@@ -238,6 +253,17 @@ describe('sa_r28_mcq OFF: nothing changes', () => {
     await store.putResults(SID, [mcqResult(5)], 'ur', { mcq: false });
     const r = memDb.rows.find((x) => x.block === 'ur.story_mcq_w3');
     expect(r).toMatchObject({ ai_status: 'scored', ai_marks: { tap_correct: 5, tap_attempted: 6, options_n: 4 } });
+  });
+  test('(b) synced in an OFF window → the phone\'s marks at sync; read as scored (gate unchecked) with the floor ON', async () => {
+    memDb.rows.length = 0;
+    await store.putResults(SID, [mcqResult(6)], 'ur', { mcq: false });
+    const r = memDb.rows.find((x) => x.block === 'ur.story_mcq_w3');
+    expect(r).toMatchObject({ ai_status: 'scored', ai_marks: { tap_correct: 6 } });
+    expect(r.ai_marks.detail).toBeUndefined();
+    const spoken = (block, marks) => ({ block, response_mode: 'record', lang: 'ur', ai_status: 'scored', ai_marks: marks, responses: [{ kind: 'result', mode: 'record', stop_reason: 'complete' }] });
+    const rows = [spoken('ur.letter_names5', { correct: 5, attempted: 5 }), spoken('ur.words4', { correct: 4, attempted: 4 }), spoken('ur.story_w3', { correct: 30, attempted: 32 }), { ...r }];
+    const ur = level.levelsOf(rows, [], { itemsOf: (id) => ({ 'ur.letter_names5': 5, 'ur.words4': 4, 'ur.story_mcq_w3': 6 })[id] ?? null, mcqFloor: true }).find((x) => x.subject === 'ur');
+    expect(ur).toMatchObject({ level: 'comprehension', pending: false });
   });
   test('(6) a session with no _mcq row: ready() for a _comp row and a passage row as today', () => {
     const now = Date.parse('2026-11-18T10:05:00Z');
