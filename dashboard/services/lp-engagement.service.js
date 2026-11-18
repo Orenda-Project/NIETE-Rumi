@@ -444,10 +444,11 @@ function lpActivitySql(bounds, band, ids) {
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range from analyticsRange (validated)
  * @param {'primary'|'midhigh'} band
- * @param {{lists?: object, regions?: readonly string[], bandRule?: 'level'|'derived'}} [opts] regions: the viewer's
- *   (the v7 population's); FDE's six when omitted. bandRule: how the v7 roster is banded (WHOSE BANDS above).
+ * @param {{lists?: object, regions?: readonly string[], bandRule?: 'level'|'derived', placeSchools?: Function}} [opts]
+ *   regions: the viewer's (the v7 population's); FDE's six when omitted. bandRule: how the v7 roster is banded (WHOSE
+ *   BANDS above). placeSchools (bd-97daxo.33): an area view's school rows → placed by area; none = as read (FDE).
  */
-async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {}, regions = REGION_BUCKETS, bandRule = 'level' } = {}) {
+async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {}, regions = REGION_BUCKETS, bandRule = 'level', placeSchools = null } = {}) {
   const b = BANDS.includes(band) ? band : 'primary';
   lists = lists || {};
   const rdf = !(lists.missing && lists.missing.teachers) && lists[BAND_RULES[b].list] ? lists[BAND_RULES[b].list] : null;
@@ -471,7 +472,8 @@ async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists
   }
 
   const [schoolRes, rosterRes] = await Promise.all([query(SCHOOLS_SQL, []), query(ROSTER_SQL, [])]);
-  const schools = schoolRes.rows || [];
+  // bd-97daxo.33: an area view places its schools by area (lib/analytics-areas) before the population is built from them.
+  const schools = placeSchools ? placeSchools(schoolRes.rows || []) : (schoolRes.rows || []);
   const roster = rosterRes.rows || [];
   const population = v7Population(roster, schools, b, regions, bandRule);
   const lp = lpActivitySql(bounds, b, [...population.keys()]);

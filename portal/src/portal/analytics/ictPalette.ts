@@ -28,6 +28,12 @@ export const ICT = {
   indigo: '#818CF8',
   indigoText: '#4F46E5',
   indigoTint: '#F0EFFE',
+  /** bd-97daxo.33 — principals as observers (the Moawin view's observer cards); FMOs are the coaches' indigo. */
+  teal: '#0D9488',
+  tealText: '#0F766E',
+  /** bd-97daxo.33 — an observer who is neither a principal nor an FMO. */
+  slate: '#94A3B8',
+  slateText: '#475569',
 } as const;
 
 /** Her ScoreCard: a score under 60 is drawn in amber, whatever its section (Observations.jsx ScoreCard isLow). */

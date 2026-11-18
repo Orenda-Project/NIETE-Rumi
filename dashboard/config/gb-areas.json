@@ -1,0 +1,7 @@
+{
+  "_about": "bd-97daxo.33: the areas an analytics view splits a region into, as data. Key = the region as schools.region and the region registry spell it; each area lists the districts (schools.district) it holds, in dashboard order. Source: Moawin's GB pilot workbook (Rumi_GB_Pilot_Data_Collection.xlsm), tab 'Schools & Contacts' (Region, District) and tab 'Lists' (Astore, Ghizer, Darel are Gilgit's). A district not listed here puts its school under 'Area not set'. Access never follows this file: it stays on schools.region.",
+  "Gilgit-Baltistan": [
+    { "area": "Gilgit", "districts": ["Gilgit", "Diamer", "Astore", "Ghizer", "Darel"] },
+    { "area": "Baltistan", "districts": ["Skardu", "Shigar", "Ghanche", "Kharmang"] }
+  ]
+}

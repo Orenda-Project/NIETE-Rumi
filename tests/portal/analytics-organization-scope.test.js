@@ -90,9 +90,17 @@ const FDE_SCHOOLS = [
   school('s4', 'Durbeen', null, 'Durbeen', { teachers: 11, lps_opened: 6, teachers_opened_lp: 2, training_modules: 7, teachers_trained: 3, coach_visits: 4 }),
 ];
 const GB_SCHOOLS = [
-  school('g1', 'GHS Gilgit', '9001', GB, { teachers: 5, lps_opened: 4, teachers_opened_lp: 2, training_modules: 6, teachers_trained: 2, coach_visits: 3 }),
-  school('g2', 'GGHS Skardu', '9002', GB, { teachers: 3, lps_opened: 0, teachers_opened_lp: 0, training_modules: 1, teachers_trained: 1, coach_visits: 0 }),
+  // bd-97daxo.33: each with its schools.district — Moawin's view counts GB by area (Gilgit / Baltistan, dashboard/config/gb-areas.json)
+  school('g1', 'GHS Gilgit', '9001', GB, { teachers: 5, lps_opened: 4, teachers_opened_lp: 2, training_modules: 6, teachers_trained: 2, coach_visits: 3 }, { district: 'Gilgit' }),
+  school('g2', 'GGHS Skardu', '9002', GB, { teachers: 3, lps_opened: 0, teachers_opened_lp: 0, training_modules: 1, teachers_trained: 1, coach_visits: 0 }, { district: 'Skardu' }),
 ];
+/** bd-97daxo.33: the buckets of Moawin's view — GB's areas, never one Gilgit-Baltistan card. */
+const GB_AREAS = ['Gilgit', 'Baltistan'];
+const COUNTS = ['schools', 'teachers', 'lpsOpened', 'teachersOpenedLp', 'trainingModules', 'teachersTrained', 'dcObservations', 'teachersWithDc', 'humanObservations', 'ficoN', 'hitlN'];
+/** The areas' counts add up to the overview's. */
+const sumsTo = (payload) => {
+  for (const k of COUNTS) expect([k, payload.regions.reduce((n, r) => n + r[k], 0)]).toEqual([k, payload.overview[k]]);
+};
 
 const session = (id, user_id, school_id, observation_type) => ({
   id, updated_at: '2026-10-02T00:00:00Z', user_id, school_id, is_test: false, observation_type,
@@ -446,13 +454,13 @@ describe('LEAK: an FDE account answers exactly the same with GB data in the data
   });
 });
 
-describe('a GB (Moawin) account sees only Gilgit-Baltistan', () => {
+describe('a GB (Moawin) account sees only Gilgit-Baltistan (by area since bd-97daxo.33)', () => {
   for (const [p, query] of ENDPOINTS) {
     it(`${p} ${JSON.stringify(query)}: GB only, counted from GB rows only, FDE's lists never applied`, async () => {
       const all = await answer(p, query, GB_VIEWER, { withLists: true });
       expect(all.statusCode).toBe(200);
       const regions = all.payload.regions || all.payload.dc.regions;
-      expect(regions.map((r) => r.region)).toEqual([GB]);
+      expect(regions.map((r) => r.region)).toEqual(GB_AREAS);
       expect(JSON.stringify(all.payload)).not.toMatch(FDE_NAMES);
       // Counted from GB rows only: the same answer with every FDE row gone, and with FDE's lists unloaded.
       const gbOnly = await answer(p, query, GB_VIEWER, { fde: false, withLists: true });
@@ -465,26 +473,31 @@ describe('a GB (Moawin) account sees only Gilgit-Baltistan', () => {
 
   it('/analytics/schools: the GB numbers', async () => {
     const { payload } = await answer('/analytics/schools', WINDOW, GB_VIEWER);
-    expect(payload.schools.map((s) => s.name)).toEqual(['GGHS Skardu', 'GHS Gilgit']);
+    // area order (Gilgit, then Baltistan), then name
+    expect(payload.schools.map((s) => s.name)).toEqual(['GHS Gilgit', 'GGHS Skardu']);
     expect(payload.overview).toMatchObject({
       schools: 2, teachers: 8, lpsOpened: 4, teachersOpenedLp: 2, trainingModules: 7, teachersTrained: 3,
       dcObservations: 2, teachersWithDc: 2, humanObservations: 1, avgFico: 40, ficoN: 2, avgHitl: 40, hitlN: 1,
     });
-    const { region, ...card } = payload.regions[0];
-    expect(payload.overview).toEqual(card);
+    expect(payload.schools.map((s) => s.region)).toEqual(['Gilgit', 'Baltistan']);
+    sumsTo(payload);
   });
 
   it('/analytics/coaching: its coach, its visits', async () => {
     const { payload } = await answer('/analytics/coaching', WINDOW, GB_VIEWER);
     expect(payload.overview).toEqual({ coaches: 1, coachVisits: 3, schoolsVisited: 1 });
-    expect(payload.regions).toEqual([{ region: GB, coaches: 1, coachVisits: 3, schoolsVisited: 1, schools: 2, coachNames: ['Gul Bano'] }]);
+    // one coach holding a school in each area is in both area cards, and once in the overview
+    expect(payload.regions).toEqual([
+      { region: 'Gilgit', coaches: 1, coachVisits: 3, schoolsVisited: 1, schools: 1, coachNames: ['Gul Bano'] },
+      { region: 'Baltistan', coaches: 1, coachVisits: 0, schoolsVisited: 0, schools: 1, coachNames: ['Gul Bano'] },
+    ]);
   });
 
   it('/analytics/training-levels: GB members (by school, else by users.region); FDE\'s unplaced members are not GB\'s', async () => {
     const { payload } = await answer('/analytics/training-levels', { band: 'primary' }, GB_VIEWER);
     // gm1 at a GB school; gm2 has no school but users.region GB (noSector of GB's view). p3/p4 are FDE's.
     expect(payload.overview.teachers).toBe(2);
-    expect(payload.regions[0]).toMatchObject({ region: GB, teachers: 1 });
+    expect(payload.regions[0]).toMatchObject({ region: 'Gilgit', teachers: 1 });
     expect(payload.noSector.teachers).toBe(1);
     expect(payload.schools.map((s) => s.name)).toEqual(['GHS Gilgit']);
   });
@@ -498,9 +511,10 @@ describe('a GB (Moawin) account sees only Gilgit-Baltistan', () => {
 
   it('/analytics/observations: GB sessions only', async () => {
     const { payload } = await answer('/analytics/observations', WINDOW, GB_VIEWER);
-    for (const kind of ['dc', 'human']) expect(payload[kind].regions.map((r) => r.region)).toEqual([GB]);
-    expect(payload.dc.schools.map((s) => s.name)).toEqual(['GGHS Skardu', 'GHS Gilgit']);
-    expect(payload.dc.overview).toMatchObject({ schools: 2, observations: 2, teachersObserved: 2, sectorsActive: 1 });
+    for (const kind of ['dc', 'human']) expect(payload[kind].regions.map((r) => r.region)).toEqual(GB_AREAS);
+    expect(payload.dc.schools.map((s) => s.name)).toEqual(['GHS Gilgit', 'GGHS Skardu']);
+    // both areas have a Digital Coach observation
+    expect(payload.dc.overview).toMatchObject({ schools: 2, observations: 2, teachersObserved: 2, sectorsActive: 2 });
     expect(payload.human.overview).toMatchObject({ observations: 1, teachersObserved: 1 });
   });
 });
@@ -542,11 +556,12 @@ describe('?region= is validated against the viewer\'s own regions', () => {
     }
   });
 
-  it('GB asking for its own region, in any case, is that region', async () => {
+  it('GB asking for its own region, in any case, is the whole region (its areas are the buckets since bd-97daxo.33)', async () => {
     const { statusCode, payload } = await answer('/analytics/schools', { ...WINDOW, region: ' GILGIT-BALTISTAN ' }, GB_VIEWER);
     expect(statusCode).toBe(200);
-    const { region, ...card } = payload.regions[0];
-    expect(payload.overview).toEqual(card);
+    const whole = await answer('/analytics/schools', WINDOW, GB_VIEWER);
+    expect(payload).toEqual(whole.payload);
+    sumsTo(payload);
   });
 });
 
@@ -586,7 +601,7 @@ describe('the registry decides, and it fails closed', () => {
       const gb = await call(p, { userId: GB_VIEWER, query });
       // eslint-disable-next-line no-await-in-loop
       const fdeAgain = await call(p, { userId: FDE_VIEWER, query });
-      expect((gb.payload.regions || gb.payload.dc.regions).map((r) => r.region)).toEqual([GB]);
+      expect((gb.payload.regions || gb.payload.dc.regions).map((r) => r.region)).toEqual(GB_AREAS);
       expect((fdeAgain.payload.regions || fdeAgain.payload.dc.regions).map((r) => r.region)).toEqual(SIX);
       expect(fdeAgain.payload).toEqual(fde.payload);
     }
@@ -655,7 +670,7 @@ describe('GET /analytics/scope: whose view this is', () => {
   it('a GB account: moawin and its regions', async () => {
     const { statusCode, payload } = await answer('/analytics/scope', {}, GB_VIEWER);
     expect(statusCode).toBe(200);
-    expect(payload).toEqual({ success: true, organization: 'moawin', regions: [GB] });
+    expect(payload).toEqual({ success: true, organization: 'moawin', regions: [GB], areas: GB_AREAS, areaDistricts: { Gilgit: ['Gilgit', 'Diamer', 'Astore', 'Ghizer', 'Darel'], Baltistan: ['Skardu', 'Shigar', 'Ghanche', 'Kharmang'] } });
     expect(queries).toHaveLength(0);
   });
 

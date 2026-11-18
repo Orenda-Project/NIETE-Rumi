@@ -19,6 +19,8 @@ import { InfoTab } from './views/InfoTab';
 import { LpTab } from './views/LpTab';
 import { ObservationKindToggle, ObservationsTab } from './views/ObservationsTab';
 import { OverviewTab } from './views/OverviewTab';
+import { ObserversHuman } from './views/ObserversView';
+import { useObserversRead } from './views/useObservers';
 import type { CoachingState, TabProps } from './views/shared';
 import { TrainingTab } from './views/TrainingTab';
 
@@ -143,6 +145,13 @@ const SchoolsAnalytics = () => {
     };
   }, [allowed, unknownTab, needsCoaching, coachingKey, coachingAttempt, view.from, view.to, region]);
   const retryCoaching = useCallback(() => setCoachingAttempt((n) => n + 1), []);
+
+  // bd-97daxo.33: the observers view (a non-FDE view, copy.ts observerView) reads who observed whom for the Overview and the
+  // Observations tab, once per window and area; FDE's view never reads it.
+  const observers = useObserversRead(
+    allowed && !unknownTab && c.observerView && (tab === 'overview' || (tab === 'observations' && view.obs === 'human')),
+    view.from, view.to, region,
+  );
   const coachingState: CoachingState = coaching && coaching.key === coachingKey
     ? { status: coaching.status, data: coaching.data, retry: retryCoaching }
     : { status: 'loading', data: null, retry: retryCoaching };
@@ -208,10 +217,12 @@ const SchoolsAnalytics = () => {
   };
 
   const body: Record<Exclude<SchoolsTab, 'info'>, ReactNode> = {
-    overview: <OverviewTab {...props} coaching={coachingState} />,
+    overview: <OverviewTab {...props} coaching={coachingState} observers={c.observerView ? observers : null} />,
     lp: <LpTab {...props} />,
     training: <TrainingTab {...props} />,
-    observations: <ObservationsTab {...props} kind={view.obs} />,
+    observations: c.observerView && view.obs === 'human'
+      ? <ObserversHuman {...props} read={observers} />
+      : <ObservationsTab {...props} kind={view.obs} />,
     coaching: <CoachingTab {...props} coaching={coachingState} />,
   };
 
