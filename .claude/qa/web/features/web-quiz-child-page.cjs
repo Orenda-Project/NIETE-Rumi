@@ -293,4 +293,10 @@ const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] ||
   .sort((a, b) => (MODE_RANK[modes[a.id] || 'off'] - MODE_RANK[modes[b.id] || 'off']) || (a._i - b._i))
   .map(({ id, title, run }) => ({ id, title, run }));
 
-module.exports = { feature: 'web-quiz-child-page', spec: 'tests/features/web/web-quiz-child-page.feature', scenarios };
+// Run-wide set-up, once per run before any scenario (web-runner.cjs runBefore). The challenge runs' provenance columns
+// used to be patched by the first challenge scenario only; a shard without one (e2e-web.sh E2E_WEB_SHARDS) then served
+// /c/ and /ch/ as 503. Every shard is its own database, so the patch belongs to the run.
+const { ensureProvenance } = require(path.join(PARTS_DIR, 'challenge.cjs'));
+async function before(ctx) { await ensureProvenance(ctx); }
+
+module.exports = { feature: 'web-quiz-child-page', spec: 'tests/features/web/web-quiz-child-page.feature', scenarios, before };

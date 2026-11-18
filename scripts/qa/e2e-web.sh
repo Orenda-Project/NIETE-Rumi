@@ -10,6 +10,8 @@
 #   npm run e2e:web -- portal-login,teacher-lessons,coach-portal --parallel   # several at once (E2E_WEB_PARALLEL, default 4)
 #   npm run e2e:web                                    # no feature: portal-smoke (every main page opens)
 #   npm run e2e:web -- all                             # every web feature, in parallel   (= /e2e-web all)
+#   npm run e2e:web -- web-quiz-child-page             # a SHARDED feature runs as n slices side by side (E2E_WEB_SHARDS)
+#   npm run e2e:web -- web-quiz-child-page --shard 2/4 # just one slice of it, in one slot
 #   bash scripts/qa/e2e-web.sh portal-login --print-plan   # what it would do; starts nothing
 #
 # What a run is, in order:
@@ -92,14 +94,15 @@ PY
 }
 
 # --- args ------------------------------------------------------------------------------------------------------
-FEATURE="" SLOT="" ONLY="" REQ_HEADED="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT="" PARALLEL=""
+FEATURE="" SLOT="" ONLY="" REQ_HEADED="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT="" PARALLEL="" SHARD=""
 while [ $# -gt 0 ]; do case "$1" in
   --slot) SLOT="$2"; shift 2;; --only) ONLY="$2"; shift 2;; --keep) KEEP=1; shift;;
   --headed) REQ_HEADED=1; shift;;
   --print-plan) PLAN=1; shift;;
   --parallel) PARALLEL=1; shift;;
+  --shard) SHARD="$2"; shift 2;;
   --row-from) ROW_FROM="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
-  -h|--help) sed -n '2,28p' "$0"; exit 0;;
+  -h|--help) sed -n '2,30p' "$0"; exit 0;;
   -*) log "unknown option $1"; exit 2;;
   *) FEATURE="$1"; shift;;
 esac; done
@@ -110,6 +113,23 @@ if [ -n "$ROW_FROM" ]; then row_from "$ROW_FROM" "${RUN_ID:-manual}" "${COMMIT:-
 # `all` → every web feature with a driver, side by side.
 [ -z "$FEATURE" ] && FEATURE="portal-smoke"
 if [ "$FEATURE" = all ]; then FEATURE="$(known_features | xargs | tr ' ' ',')"; PARALLEL=1; fi
+
+# --- SHARDS (bd-a7upa5): a long feature runs as n children side by side, each a contiguous slice of its scenarios
+# (web-runner.cjs WEB_SHARD=k/n). web-quiz-child-page — 261 scenarios — took 3h59m of a 4h03m `all` in one slot.
+# E2E_WEB_SHARDS="feature=n;feature=n" (default web-quiz-child-page=4; =1 turns a feature's sharding off). A run given
+# --only (a short run), --slot (one pinned stack) or --shard (already one slice) is never split again.
+case "$SHARD" in
+  '') ;;
+  */*) k="${SHARD%/*}"; n="${SHARD#*/}"
+       case "$k$n" in *[!0-9]*) log "--shard must be k/n (e.g. 2/4), got $SHARD"; exit 2;; esac
+       { [ "$k" -ge 1 ] && [ "$n" -ge 1 ] && [ "$k" -le "$n" ]; } 2>/dev/null || { log "--shard must be k/n with 1 <= k <= n, got $SHARD"; exit 2; };;
+  *) log "--shard must be k/n (e.g. 2/4), got $SHARD"; exit 2;;
+esac
+shards_for() {   # $1 feature → how many slices it runs as (1 = not sharded)
+  local n; n="$(printf '%s' "${E2E_WEB_SHARDS-web-quiz-child-page=4}" | tr ';,' '\n\n' | sed -n "s/^ *$1 *= *//p" | tail -1)"
+  case "$n" in ''|*[!0-9]*|0) echo 1;; *) echo "$n";; esac
+}
+if [ -z "$PARALLEL" ] && [ -z "$ONLY$SLOT$SHARD" ] && [ "$(shards_for "$FEATURE")" -gt 1 ]; then PARALLEL=1; fi
 
 # --- PARALLEL (bd-hnhlgn.13): several features at once, each a child run of THIS script in its own slot ----------------
 #   e2e-web.sh portal-login,teacher-lessons,coach-portal --parallel [--only "portal-login=PL01,PL02;teacher-lessons=TL02"]
@@ -131,6 +151,16 @@ if [ -n "$PARALLEL" ]; then
     esac
   }
   child_args() { local ids; ids="$(only_for "$1")"; printf '%s' "${ids:+--only $ids}"; }
+  # the children to start: one per feature, or one per shard of a sharded feature — shards first, since they are the
+  # longest work and a slot that frees up late would otherwise leave one shard running alone at the end
+  UF=(); UK=(); UN=(); RF=(); RK=(); RN=()
+  for f in "${FEATS[@]}"; do
+    n="$(shards_for "$f")"; [ -n "$(only_for "$f")" ] && n=1
+    if [ "$n" -gt 1 ]; then
+      for k in $(seq 1 "$n"); do UF+=("$f"); UK+=("$k/$n"); UN+=("$f-${k}of$n"); done
+    else RF+=("$f"); RK+=(""); RN+=("$f"); fi
+  done
+  UF+=(${RF[@]+"${RF[@]}"}); UK+=(${RK[@]+"${RK[@]}"}); UN+=(${RN[@]+"${RN[@]}"})
   passthru=""; [ -n "$REQ_HEADED" ] && passthru="--headed"; [ -n "$KEEP" ] && passthru="$passthru --keep"
   # ONE run: its children share one run id (<this>-<feature>, like run-suite.sh's BASE_ID-<feature>) and commit
   # nothing themselves (E2E_NO_COMMIT=1) — the parent commits every row once, after the last child finishes.
@@ -140,9 +170,10 @@ if [ -n "$PARALLEL" ]; then
     echo "PARALLEL=$NPAR"
     echo "PARALLEL_LEDGER_COMMIT=once"
     i=0
-    for f in "${FEATS[@]}"; do
+    for u in "${!UF[@]}"; do
+      f="${UF[$u]}"
       # shellcheck disable=SC2046
-      E2E_NO_COMMIT=1 bash "$0" "$f" --slot $((5 + i)) --run-id "$PRUN-$f" $(child_args "$f") $passthru --print-plan
+      E2E_NO_COMMIT=1 bash "$0" "$f" --slot $((5 + i)) --run-id "$PRUN-${UN[$u]}" $(child_args "$f") ${UK[$u]:+--shard ${UK[$u]}} $passthru --print-plan
       i=$((i + 1))
     done
     exit 0
@@ -171,18 +202,19 @@ if [ -n "$PARALLEL" ]; then
   slot_busy() { local i=0 x; for x in ${SLOTS[@]+"${SLOTS[@]}"}; do
     [ "$x" = "$1" ] && kill -0 "${PIDS[$i]}" 2>/dev/null && return 0; i=$((i + 1)); done; return 1; }
   running() { local n=0 pid; for pid in ${PIDS[@]+"${PIDS[@]}"}; do kill -0 "$pid" 2>/dev/null && n=$((n + 1)); done; echo "$n"; }
-  log "${#FEATS[@]} features, up to $NPAR at once"
-  for f in "${FEATS[@]}"; do
+  log "${#FEATS[@]} features as ${#UF[@]} runs, up to $NPAR at once"
+  for u in "${!UF[@]}"; do
+    f="${UF[$u]}"; name="${UN[$u]}"
     while [ "$(running)" -ge "$NPAR" ]; do sleep 1; done
     s=""; for n in 5 6 7 8 9 10 11 12 13 14 15 16; do
       slot_busy "$n" && continue
       slot_free "$n" && { s=$n; break; }
     done
-    [ -n "$s" ] || { log "no free port slot for $f"; continue; }
+    [ -n "$s" ] || { log "no free port slot for $name"; continue; }
     # shellcheck disable=SC2046
-    E2E_NO_COMMIT=1 bash "$0" "$f" --slot "$s" --run-id "$PRUN-$f" $(child_args "$f") $passthru >"$LOGDIR/$f.log" 2>&1 &
-    PIDS+=($!); NAMES+=("$f"); SLOTS+=("$s")
-    log "  started $f (slot $s, portal :$((4100 + s)))"
+    E2E_NO_COMMIT=1 bash "$0" "$f" --slot "$s" --run-id "$PRUN-$name" $(child_args "$f") ${UK[$u]:+--shard ${UK[$u]}} $passthru >"$LOGDIR/$name.log" 2>&1 &
+    PIDS+=($!); NAMES+=("$name"); SLOTS+=("$s")
+    log "  started $name (slot $s, portal :$((4100 + s)))"
     sleep 2   # stagger stack start-ups: each one clones a database from the same template
   done
   rc=0; i=0
@@ -229,7 +261,7 @@ export WEB_HEADED="$HEADED"
 if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"; echo "LEDGER_COMMIT=$([ -n "${E2E_NO_COMMIT:-}" ] && echo off || echo on)"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "SHARD=$SHARD"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"; echo "LEDGER_COMMIT=$([ -n "${E2E_NO_COMMIT:-}" ] && echo off || echo on)"
   exit 0
 fi
 
@@ -267,7 +299,7 @@ read -r RUN_MOCK_PORT _rest < "$RUN_DIR/ports" 2>/dev/null || RUN_MOCK_PORT="$MO
 read -r _m RUN_BOT_PORT _rest2 < "$RUN_DIR/ports" 2>/dev/null || RUN_BOT_PORT="$E2E_BOT_PORT"
 WEB_MOCK_URL="http://127.0.0.1:$RUN_MOCK_PORT" WEB_BOT_URL="http://127.0.0.1:$RUN_BOT_PORT" WEB_RUN_DIR="$RUN_DIR" \
 WEB_INTERNAL_KEY="$(cat "$RUN_DIR/internal-key" 2>/dev/null)" \
-WEB_FEATURE="$FEATURE" WEB_BASE_URL="$BASE_URL" WEB_EVIDENCE="$EVIDENCE" WEB_ONLY="$ONLY" \
+WEB_FEATURE="$FEATURE" WEB_BASE_URL="$BASE_URL" WEB_EVIDENCE="$EVIDENCE" WEB_ONLY="$ONLY" WEB_SHARD="$SHARD" \
 WEB_PSQL="${PGB:+$PGB/}psql" WEB_PG_PORT="${LOCAL_DB_PG_PORT:-54329}" WEB_DB_NAME="$(cat "$RUN_DIR/db/db.name" 2>/dev/null)" \
   node "$REPO/.claude/qa/web/web-runner.cjs"
 rc=$?
