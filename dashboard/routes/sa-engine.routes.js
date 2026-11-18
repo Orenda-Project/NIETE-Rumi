@@ -69,7 +69,7 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 28 (the 17 Nov evaluation meeting): the listen-and-tap letter sounds, the spoken MCQ, the ceiling extension
   'r28LetterPick', 'r28Mcq', 'r28Ceiling', 'r28StoryClock',
   // round 28, A11 (screen fit): the scroll cue's self-hold, the language toggle in a 44 px bar
-  'r28CueGuard', 'r28ToggleFit'];
+  'r28CueGuard', 'r28ToggleFit', 'r28CheckFit'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
