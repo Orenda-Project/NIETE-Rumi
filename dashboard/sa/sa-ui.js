@@ -573,6 +573,9 @@
     // Round 28 (sa_r28_toggle_fit, battery.ui.r28_toggle_fit): the language toggle's 56 px button inside a 44 px top bar
     // on every screen, and the head rows that hold a tappable kept clear of its hit area (sa.css "round 28, A11")
     var r28ToggleFit = r7.r28_toggle_fit === true;
+    // Round 28 (sa_r28_check_fit, battery.ui.r28_check_fit): the Urdu sound check sized for a phone-height frame, so both
+    // picture tiles are whole and tappable without scrolling (sa.css "round 28, the check fit")
+    var r28CheckFit = r7.r28_check_fit === true;
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
     // Round 10 layout 2 (r10_number_fit): a maths number as large as its box allows, whatever its digits (numFit)
     var r10Num = r7.r10_number_fit === true;
@@ -1200,6 +1203,7 @@
     // Round 9 item 7 (sa.css "Round 9 item 7": every rule under this class)
     if (r9Scroll) el.classList.add('is-r9-scroll');
     if (r28ToggleFit) el.classList.add('is-r28-toggle-fit'); // round 28 (sa.css "round 28, A11")
+    if (r28CheckFit) el.classList.add('is-r28-check-fit'); // round 28 (sa.css "round 28, the check fit")
     if (r10Num) el.classList.add('is-r10-numfit'); // round 10 layout 2 (sa.css "Round 10 layout 2")
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
@@ -1804,7 +1808,11 @@
       hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
-      Promise.all([ended ? null : delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
+      // round 28: the letter picker's last feedback (the right card shown; the right tap) keeps the FEEDBACK_MS floor
+      // in both modes, under Jugnu's line: coach-led Jugnu says no line (the coach speaks), so without the floor the
+      // right card would be gone before a frame was painted and a child who tapped wrong twice would never see it
+      var floor = !ended || isPick(t) ? delay(FEEDBACK_MS) : null;
+      Promise.all([floor, capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
