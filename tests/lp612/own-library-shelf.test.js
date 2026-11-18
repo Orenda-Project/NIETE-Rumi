@@ -73,7 +73,7 @@ test('an approved plan opens for anyone, in the render row shape, without her id
   expect(f.calls.select).not.toMatch(/user_id|answers/);
   expect(out).toEqual({
     id: 'o1', segment_id: 'L1', status: 'ready', r2_key: 'lp612/edits/x.pdf', one_screen: null, error_code: null,
-    lang: 'en', started_at: 't0', completed_at: 't1',
+    lang: 'en', started_at: 't0', completed_at: 't1', shelf: true, own_band: 'k5',
   });
 });
 
