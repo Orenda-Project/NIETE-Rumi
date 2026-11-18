@@ -709,6 +709,75 @@ maybe('sa-ui: the letter-sound picker screens', () => {
     expect(right.classList.contains('is-shown')).toBe(true);
   });
 
+  /**
+   * The last practice feedback (the right card shown after the second wrong tap; the feedback after a right tap) stays
+   * on screen for FEEDBACK_MS (1.2 s) in both modes, as the floor under Jugnu's line. Under the served r10_practice_next
+   * the last answer waited for the line alone, and coach-led Jugnu says no line (the coach speaks), so the right card was
+   * gone before a frame was painted: the child who tapped wrong twice never saw which card was right. Every other
+   * task's practice and the switch OFF are as before.
+   */
+  describe('the picker practice: the last feedback holds its 1.2 s floor in both modes (served r10_practice_next)', () => {
+    const SERVED = { r10_practice_next: true, r8_practice_autoplay: true, r9_skip_instructions: true };
+    const cards = (m) => Array.from(m.el.querySelectorAll('.sae-pick-cards .sae-opt'));
+    const toP2 = async (m) => { m.r.start(); m.r.instructionDone(); m.r.practiceModelled(); m.view.render(); await wait(360); return m.r.view().practice; };
+    const wrongOf = (m, p2) => cards(m).find((b) => b.getAttribute('data-value') !== p2.target);
+    const rightOf = (m, p2) => cards(m).find((b) => b.getAttribute('data-value') === p2.target);
+    const onScreen = (m) => ({ phase: m.r.view().phase, cards: cards(m).length, shown: cards(m).some((b) => b.classList.contains('is-shown')), ready: !!m.el.querySelector('.sae-ready') });
+
+    test('coach-led (Jugnu says no line): the right card shown after the second wrong tap stays ≥ 1.2 s, then Ready', async () => {
+      const m = mount({ manual: true, instant: true, battery: battery({ ui: SERVED }) });
+      const p2 = await toP2(m);
+      wrongOf(m, p2).click();
+      await wait(1300);
+      wrongOf(m, p2).click();
+      await wait(100);
+      expect(onScreen(m)).toEqual({ phase: 'ready', cards: 5, shown: true, ready: false }); // the engine is at ready; the child still sees the right card
+      await wait(900); // 1.0 s after the tap
+      expect(onScreen(m)).toEqual({ phase: 'ready', cards: 5, shown: true, ready: false });
+      await wait(400); // 1.4 s: past the floor
+      expect(onScreen(m)).toEqual({ phase: 'ready', cards: 0, shown: false, ready: true });
+    });
+
+    test('coach-led: the feedback after a right tap stays ≥ 1.2 s too', async () => {
+      const m = mount({ manual: true, instant: true, battery: battery({ ui: SERVED }) });
+      const p2 = await toP2(m);
+      wrongOf(m, p2).click();
+      await wait(1300);
+      rightOf(m, p2).click();
+      await wait(100);
+      expect(onScreen(m)).toEqual({ phase: 'ready', cards: 5, shown: false, ready: false });
+      expect(rightOf(m, p2).classList.contains('is-right')).toBe(true);
+      await wait(900);
+      expect(onScreen(m).cards).toBe(5);
+      await wait(400);
+      expect(onScreen(m)).toEqual({ phase: 'ready', cards: 0, shown: false, ready: true });
+    });
+
+    test('RDF auto with a line shorter than the floor: the right card still stays 1.2 s', async () => {
+      const m = mount({ manual: false, instant: true, battery: battery({ ui: SERVED }) }); // every line ends at once
+      const p2 = await toP2(m);
+      wrongOf(m, p2).click();
+      await wait(1300);
+      wrongOf(m, p2).click();
+      await wait(1000);
+      expect(onScreen(m)).toEqual({ phase: 'ready', cards: 5, shown: true, ready: false });
+      await wait(400);
+      expect(onScreen(m).ready).toBe(true);
+    });
+
+    test('switch OFF (a pick task drawn as today\'s tap screen) under r10_practice_next: the last feedback goes as today', async () => {
+      const m = mount({ manual: true, instant: true, flag: false, battery: battery({ flag: false, ui: SERVED }) });
+      m.r.start(); m.r.instructionDone(); m.r.practiceModelled(); m.view.render(); await wait(360);
+      const p2 = m.r.view().practice;
+      const opts = () => Array.from(m.el.querySelectorAll('.sae-opts .sae-opt'));
+      opts().find((b) => b.getAttribute('data-value') !== p2.target).click();
+      await wait(1300);
+      opts().find((b) => b.getAttribute('data-value') !== p2.target).click();
+      await wait(100);
+      expect({ phase: m.r.view().phase, ready: !!m.el.querySelector('.sae-ready') }).toEqual({ phase: 'ready', ready: true });
+    });
+  });
+
   test('coach-led: the clip is still played by the app; the coach screen has the fold, never the target (lead ruling: no glyph on a live item)', async () => {
     const m = mount({ manual: true, practice: false });
     toRunning(m);
