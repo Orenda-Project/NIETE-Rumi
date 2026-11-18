@@ -1,2 +1,3 @@
 {"ts":"2026-11-18T04:46:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"c75b3ae21a2c","branch":"bd-ptl6x9.7-sb","user":""}
 {"ts":"2026-11-18T04:46:34Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,coaching owe their Gherkin","sha":"c75b3ae21a2c","branch":"bd-ptl6x9.7-sb","user":""}
+{"ts":"2026-11-18T05:18:12Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,coaching=none-needed (only new off-by-default weak_skill_jugnu modules and the shared nudge kind list changed; no message, flow or screen of this feature changes; covered by bot/tests/nudges/weak-skill-jugnu)","sha":"c75b3ae21a2c","branch":"bd-ptl6x9.7-sb","user":""}
