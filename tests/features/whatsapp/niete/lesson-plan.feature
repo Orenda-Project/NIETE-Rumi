@@ -57,12 +57,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the feedback survey arrives and I tap 👍
     Then the bot asks whether I got to use it in class
     And it offers exactly three replies — "Taught it today", "Planning to", "Not yet"
-    And tapping one of them is acknowledged by a 👍 reaction on my tap, with no further message
+    And tapping one of them is acknowledged by the bot's own 🙏 reaction on my tap, with no further message
     # bd-b708h. Before this, 👍 ended the survey on a bare thank-you, so lp_feedback.used_in_class
     # was NULL on every 6-12 row — and it is the only signal this lane has that a PDF became a
     # lesson (a render row is a cache miss, not a delivery).
     # Meta bill cut NL1 (bd-w2daa.9): the "Thank you — that helps." text after the answer is gone —
     # the webhook's 👍 reaction on every inbound message is the receipt, and a reaction is not billed.
+    # Since FX1 (bd-w2daa.22) the receipt on a usage answer is the bot's OWN 🙏 on her tap
+    # (lp612-feedback.shared.js _thank), not the webhook's 👍 (bd-kbo9h0.7: the step said 👍).
 
   @e2e @P1
   Scenario: A survey answer that needs no follow-up is receipted by a reaction, not a message
