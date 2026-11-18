@@ -29,13 +29,15 @@ async function signIn(page, phone, password) {
 // Where she ENDS UP. Pages redirect onward (login → /portal/dashboard → /portal/leader → /portal/teacher), so the
 // first URL is not the answer: wait until the path has not changed for SETTLE_MS, then compare. Reading the first
 // stop passed headless by winning a race and failed the moment the browser was slowed down (--headed).
+// withQuery: settle on path + ?query, so a page that rewrites or drops its query is still moving (visit uses it).
 const SETTLE_MS = 1500;
-async function settledPath(page, notOn) {
+async function settledPath(page, notOn, withQuery) {
+  const at = () => { const u = new URL(page.url()); return withQuery ? u.pathname + u.search : u.pathname; };
   const deadline = Date.now() + 20000;
-  let last = new URL(page.url()).pathname, since = Date.now();
+  let last = at(), since = Date.now();
   while (Date.now() < deadline) {
     await page.waitForTimeout(100);
-    const now = new URL(page.url()).pathname;
+    const now = at();
     if (now !== last) { last = now; since = Date.now(); continue; }
     if (now !== notOn && Date.now() - since >= SETTLE_MS) break;
   }
@@ -49,8 +51,10 @@ async function landsOn(page, path) {
   return last;
 }
 
-// App switches live in app_settings and are read per request; a scenario sets the ones it depends on, on THIS
-// run's own database, so it never rides on whatever the seed copied.
+// App switches live in app_settings; a scenario sets the ones it depends on, on THIS run's own database, so it never
+// rides on whatever the seed copied. The portal caches each switch in-process (dashboard/lib/feature-flags.js,
+// FLAG_CACHE_TTL_MS, 30 s by default): scripts/qa/e2e-web.sh starts the test portal with FLAG_CACHE_TTL_MS=0, so a
+// switch set here is what the very next request reads. (The bot's own switch cache is 1 s on the mock lane.)
 async function setSetting(ctx, key, json) {
   await ctx.sql("insert into app_settings (key, value) values ('" + key + "', '" + json + "'::jsonb) "
     + "on conflict (key) do update set value = excluded.value, updated_at = now()");
@@ -79,6 +83,16 @@ function watch(page) {
   return w;
 }
 
+// Did a page settle where it was sent? The path must match exactly; every query parameter the expectation names must
+// still be there with its value (a dropped ?recording=whatsapp is a failure), and a parameter the page adds on its own
+// (a default ?period=week) is allowed. An expectation with no query compares the path only.
+function sameStop(got, want) {
+  const g = new URL(got, 'http://x'), w = new URL(want, 'http://x');
+  if (g.pathname !== w.pathname) return false;
+  for (const [k, v] of w.searchParams) if (!g.searchParams.getAll(k).includes(v)) return false;
+  return true;
+}
+
 const ERROR_SCREEN = /something went wrong|couldn.t load|error loading|unexpected error|page not found/i;
 
 // visit(page, ctx, path, { settle, heading }) — open `path` and require that it is HEALTHY:
@@ -92,8 +106,8 @@ async function visit(page, ctx, path, opts) {
   w.errors.length = 0; w.fivexx.length = 0;
   await page.goto(ctx.baseUrl + path, { waitUntil: 'domcontentloaded' });
   const want = o.settle || path;
-  const got = await settledPath(page, '__never__');
-  expect(got === want, path + ': expected to settle on ' + want + ', settled on ' + redact(got));
+  const got = await settledPath(page, '__never__', true);
+  expect(sameStop(got, want), path + ': expected to settle on ' + want + ', settled on ' + redact(got));
   let headings = [];
   if (o.heading) {
     const deadline = Date.now() + 15000;
@@ -130,8 +144,8 @@ async function mock(ctx, method, p, body) {
   return r.json();
 }
 // Send `text` from `phone` and wait for a reply whose text or button URL matches `re`. The bot caches its app
-// switches for 30 s (app-redirect.service.js FLAG_TTL_MS), so a switch just set may not be seen yet: re-send until
-// it is, for up to `forMs`. Returns { url, item, tries }.
+// switches (app-redirect.service.js FLAG_TTL_MS: 30 s, 1 s on the mock lane's APP_SETTINGS_FLAG_TTL_MS), so a switch
+// just set may not be seen yet: re-send until it is, for up to `forMs`. Returns { url, item, tries }.
 async function sendUntilLink(ctx, phone, text, re, forMs) {
   const deadline = Date.now() + forMs;
   let tries = 0;
