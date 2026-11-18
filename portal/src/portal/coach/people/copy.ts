@@ -133,6 +133,8 @@ export const PEOPLE_EN = {
   newTeacher: 'New teacher',
   changesSchool: 'Changes school',
   alreadyHere: 'Already here',
+  // This school's own principal: "Already here" alone reads as if the add failed, since principals are not counted as teachers.
+  alreadyPrincipal: 'Already principal here',
   currentSchool: 'Current school',
   newSchool: 'New school',
   noSchool: 'No school',
@@ -265,6 +267,7 @@ export const PEOPLE_UR: Words<typeof PEOPLE_EN> = {
   newTeacher: 'نیا ٹیچر',
   changesSchool: 'اسکول تبدیل',
   alreadyHere: 'پہلے سے یہاں',
+  alreadyPrincipal: 'پہلے سے ہیڈ ٹیچر',
   currentSchool: 'موجودہ اسکول',
   newSchool: 'نیا اسکول',
   noSchool: 'کوئی اسکول نہیں',
