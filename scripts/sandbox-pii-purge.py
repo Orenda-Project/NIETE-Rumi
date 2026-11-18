@@ -227,6 +227,7 @@ def main():
     ap.add_argument("--commit", action="store_true")
     ap.add_argument("--scan", action="store_true", help="read-only: count what is left outside the keep-list")
     ap.add_argument("--r2-delete", help="R2 plan JSONL from a committed run: back up then delete those objects")
+    ap.add_argument("--r2-workers", type=int, default=8, help="parallel downloads for the R2 backup (default 8)")
     a = ap.parse_args()
 
     env = read_env(a.env_file)
@@ -778,32 +779,39 @@ def r2_delete(a, env):
                       aws_secret_access_key=env["R2_SECRET_ACCESS_KEY"], region_name="auto",
                       config=Config(retries={"max_attempts": 5}, signature_version="s3v4"))
     plan = [json.loads(x) for x in open(a.r2_delete)]
-    backed, missing, deleted, errors = 0, 0, 0, 0
-    batch = []
-    for o in plan:
+    workers = max(1, int(getattr(a, "r2_workers", 8) or 8))
+
+    def backup_one(o):
+        """'ok' | 'missing'. Resumable: an object already backed up at its planned size is not fetched again."""
         k = o["k"]
         dest = bd / k
+        if dest.exists() and dest.stat().st_size == o.get("s"):
+            return "ok"
         dest.parent.mkdir(parents=True, exist_ok=True)
         try:
             s3.download_file(bucket, k, str(dest))
-            os.chmod(dest, 0o600)
-            backed += 1
         except Exception as e:  # noqa: BLE001
             if "404" in str(e) or "Not Found" in str(e):
-                missing += 1
-                continue
+                return "missing"
             raise
-        batch.append(k)
-        if len(batch) == 500:
-            r = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": x} for x in batch], "Quiet": True})
-            errors += len(r.get("Errors", []))
-            deleted += len(batch) - len(r.get("Errors", []))
-            batch = []
-            print(f"  deleted {deleted}", flush=True)
-    if batch:
-        r = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": x} for x in batch], "Quiet": True})
-        errors += len(r.get("Errors", []))
-        deleted += len(batch) - len(r.get("Errors", []))
+        os.chmod(dest, 0o600)
+        return "ok"
+
+    from concurrent.futures import ThreadPoolExecutor
+    backed, missing, deleted, errors = 0, 0, 0, 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for i in range(0, len(plan), 500):
+            chunk = plan[i:i + 500]
+            results = list(pool.map(backup_one, chunk))  # every object of the chunk is on disk before any delete
+            keys = [o["k"] for o, r in zip(chunk, results) if r == "ok"]
+            backed += len(keys)
+            missing += sum(1 for r in results if r == "missing")
+            if keys:
+                r = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": x} for x in keys], "Quiet": True})
+                errors += len(r.get("Errors", []))
+                deleted += len(keys) - len(r.get("Errors", []))
+            print(f"  {min(i + 500, len(plan))}/{len(plan)}: backed up {backed}, deleted {deleted}, missing {missing}",
+                  flush=True)
     print(json.dumps({"planned": len(plan), "backed_up": backed, "missing": missing, "deleted": deleted, "errors": errors}))
     return 0 if errors == 0 else 1
 
