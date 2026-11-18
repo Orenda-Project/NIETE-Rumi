@@ -1961,9 +1961,12 @@
       // together (the Urdu try-again line alone is 207 px). While a practice answer's feedback shows and the practice
       // goes on (the try-again window), the Skip is not drawn and the feedback line takes the chip's slot; on every other
       // practice screen the Skip sits in one place beside Jugnu and the chip.
-      var tryAgain = manual && r9Skip && !!fb && v.phase === 'practice';
-      var skip = tryAgain ? null : skipInstrBtn(v);
-      var chip = tryAgain ? null : h('span', { class: 'sae-chip', text: C.practice });
+      // The second wrong tap's line names the sound (the clip's own words, never cut), so while ANY practice feedback
+      // shows coach-led (try again, second wrong, right; the Skip served or not) the chip and the Skip are not drawn and
+      // the line, wrapping, takes their slots.
+      var fbShown = manual && !!fb;
+      var skip = fbShown ? null : skipInstrBtn(v);
+      var chip = fbShown ? null : h('span', { class: 'sae-chip', text: C.practice });
       return pickModal(screen(v, 'sae-practice sae-pick' + (model ? ' is-model' : '') + (manual ? ' is-coach-led' : '') + (skip ? ' has-r9-skip' : ''), [
         h('div', { class: 'sae-row sae-pick-head' }, [
           jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true),
