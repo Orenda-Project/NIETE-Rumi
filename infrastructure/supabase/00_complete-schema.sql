@@ -5804,6 +5804,15 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   library_decided_by UUID REFERENCES users(id),
   library_decided_at TIMESTAMPTZ,
   library_reject_reason TEXT,
+  -- V1.10.3: her own rating of her own plan (bd-snkn32.11)
+  teacher_rating    SMALLINT CONSTRAINT niete_lp612_own_plans_teacher_rating_range
+                      CHECK (teacher_rating IS NULL OR teacher_rating BETWEEN 1 AND 5),
+  teacher_confusing TEXT,
+  teacher_rated_at  TIMESTAMPTZ,
+  CONSTRAINT niete_lp612_own_plans_teacher_confusing CHECK (
+    teacher_confusing IS NULL OR (teacher_rating IS NOT NULL AND char_length(teacher_confusing) <= 300)
+  ),
+  CONSTRAINT niete_lp612_own_plans_teacher_rated_when CHECK ((teacher_rating IS NULL) = (teacher_rated_at IS NULL)),
   CONSTRAINT niete_lp612_own_plans_library_decision_who CHECK (
     (library_decision IS NULL) = (library_decided_at IS NULL) AND (library_decision IS NULL) = (library_decided_by IS NULL)
   ),

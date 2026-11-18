@@ -8,6 +8,8 @@
  *     → 202 { success, state: 'authoring', renderId }   her fork's id, polled on the SAME /lp612/status/:id and
  *                                                        /lp612/file/:id as any 6-12 lesson (the bot answers it)
  *
+ *   POST /api/portal/lp612/own/:ownId/rating  { rating 1-5, confusing? }   (bd-snkn32.11: her rating of her own plan)
+ *
  *   POST /api/portal/lp612/own/:ownId/change  { part, text }   (bd-snkn32.15: up to two changes per plan)
  *     → 202 { success, state: 'authoring', renderId }   the changed plan's id, polled the same way
  *     → 409 { success: false, outcome }                 a refusal she is told about (too_short, too_small, repeat,
@@ -122,6 +124,33 @@ router.post('/lp612/own/:ownId/change', requirePortalAuth, requireMakeOwn, async
     if (!res.headersSent && !/failed \(HTTP/.test(String(error && error.message))) logMake(req, change, 'unreachable', null);
     console.error('❌ Portal lp612/own change failed', { error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not change your plan' });
+  }
+});
+
+/**
+ * bd-snkn32.11 (queue #134 C) — POST /api/portal/lp612/own/:ownId/rating { rating, confusing? } → 200 { success }:
+ * her rating of her own plan, as the SESSION's user. The bot checks the plan is hers and ready (404 otherwise).
+ */
+router.post('/lp612/own/:ownId/rating', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const b = req.body || {};
+  const ownId = String(req.params.ownId || '');
+  const rating = Number(b.rating);
+  if (!ownId || ownId.length > 200 || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({ success: false, error: 'rating 1-5 is required' });
+  }
+  const confusing = typeof b.confusing === 'string' ? b.confusing.slice(0, 300) : '';
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.post(`${baseUrl}/api/internal/lp612/own/${encodeURIComponent(ownId)}/rating`, {
+      userId: req.session.portalUserId, rating, confusing,
+    }, { headers, timeout: 10000, validateStatus: () => true });
+    if (r.status === 200) return res.json({ success: true });
+    if (PASS_ON.has(r.status)) return res.status(r.status).json({ success: false, error: 'Could not save that rating' });
+    throw new Error(`lp612/own rating failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own rating failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not save your rating' });
   }
 });
 

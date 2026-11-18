@@ -146,3 +146,13 @@ export async function fetchRecentOwnPlans(): Promise<RecentOwnPlan[]> {
     return [];
   }
 }
+
+/** bd-snkn32.11 — her rating of her own plan (POST /lp612/own/:id/rating, the session's user). true when saved. */
+export async function rateOwnPlan(ownId: string, rating: number, confusing: string): Promise<boolean> {
+  try {
+    const { data } = await api.post(`/lp612/own/${encodeURIComponent(ownId)}/rating`, { rating, confusing });
+    return data?.success === true;
+  } catch {
+    return false;
+  }
+}

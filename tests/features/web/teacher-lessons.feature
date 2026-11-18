@@ -268,3 +268,20 @@ Feature: Teacher lesson plans
     When she opens a plan
     Then the viewer shows "Can't show it here" with Open in another app
     And the portal logs one lp_viewer.failed with the step, the lane and the file's size, and no plan name
+
+  # bd-snkn32.11, queue #134 C (18 Nov) — her rating of her own plan. Component proof: RateCard.test.tsx,
+  # OwnSections.test.tsx; server: tests/lp612/own-rating.test.js, tests/portal/lp612-own-rating-route.test.js.
+  @RATE01 @draft @config-gated
+  Scenario: Her own plan asks how good it was and saves her rating
+    Given the teacher app v2 and "portal_lp_make_own" are on for her
+    And her own plan has just opened from its waiting screen
+    Then under the plan she sees "How good was this plan?" with five choices, 1 to 5, and "What was confusing?" marked optional
+    When she taps 4, types what was confusing and taps Send
+    Then she sees "Thank you. Your rating is saved."
+    And her own plan's row holds rating 4, her words and when she rated it
+
+  @RATE02 @draft @config-gated @negative
+  Scenario: A shelf plan or a ready-made plan has no rating card
+    Given the teacher app v2 and "portal_lp_make_own" are on for her
+    When she opens a ready-made plan, or another teacher's plan from the shelf
+    Then no "How good was this plan?" card is shown
