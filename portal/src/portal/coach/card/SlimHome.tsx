@@ -17,6 +17,11 @@ import { useCoachFeatureReady } from "../training/useCoachFullApp";
 import { ReadyReportCard } from "../report/ReadyReportCard";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 import { COACH_PROFILE } from "../profile/copy";
+import { HistoryList } from "../../teacher/ui";
+import { SectionLabel } from "../ui";
+import { CurrentVisit, visitItem } from "../home/VisitCards";
+import { useFlowV2 } from "../flow/useCoachFlowV2";
+import { trackFlow } from "../flow/track";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
@@ -31,6 +36,11 @@ import { COACH_PROFILE } from "../profile/copy";
  * portal_child_test_sa also gets the Learning assessment tile, before Coach Training, with its own art and the More row's
  * word. The tiles then fill whole rows, so Coach Training is no longer the lone wide tile. Off, loading or unreadable:
  * exactly the Home above. The More row stays too, where these coaches learned to find it.
+ *
+ * bd-o15qnr.26 (queue #177, Option A) — with the visit flow v2 switch on (portal_coach_flow_v2, fail-closed, served only
+ * with the full coach app): a Today card above the tiles (her visits today with their count; the next one still to do
+ * carries Start recording, straight to its record step; the rest are rows opening their visit; no visits today, no
+ * card), and the first two tiles open the one Schedule list and her observations ("Observations", the menu's word).
  */
 
 export const courseCount = (lib: Library | null): number | null =>
@@ -55,6 +65,9 @@ export default function SlimHome() {
   // The Learning assessment tile: only for a literal true (fail-closed, as the guard and the More row read it).
   const assess = useChildTestSa() === true;
   const P = useCopy(COACH_PROFILE);
+  const flowV2 = useFlowV2() === true && fullApp;
+  const todays = flowV2 ? home?.today ?? [] : [];
+  const current = todays.find((v) => v.status === "upcoming") ?? null;
 
   return (
     <CoachGate>
@@ -74,13 +87,20 @@ export default function SlimHome() {
       >
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
         <ReadyReportCard />
+        {todays.length > 0 && (
+          <section data-testid="home-today" className="mt-1 flex flex-col gap-2.5">
+            <SectionLabel count={todays.length}>{W.todaysVisits}</SectionLabel>
+            {current && <CurrentVisit v={current} W={W} start={{ onPress: () => trackFlow("home.today_start") }} />}
+            <HistoryList showMore={false} groups={[{ day: "", items: todays.filter((v) => v !== current).map((v) => visitItem(v, W)) }]} />
+          </section>
+        )}
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className="mt-2 [display:grid] grid-cols-2 gap-3">
             {fullApp && (
               <>
-                <FeatureTile feature="schedule" label={W.tiles.schedule} to="/portal/coach/scheduling"
+                <FeatureTile feature="schedule" label={W.tiles.schedule} to={flowV2 ? "/portal/coach/schedule" : "/portal/coach/scheduling"}
                   chip={home ? { text: W.chips.thisWeek(home.counts.week), tone: "info" } : null} />
-                <FeatureTile feature="observations" label={W.tiles.observe} to="/portal/coach/observe"
+                <FeatureTile feature="observations" label={flowV2 ? W.tiles.observations : W.tiles.observe} to={flowV2 ? "/portal/coach/reports" : "/portal/coach/observe"}
                   chip={home ? { text: W.chips.waiting(home.counts.waiting), tone: home.counts.waiting > 0 ? "waiting" : "info" } : null} />
               </>
             )}
