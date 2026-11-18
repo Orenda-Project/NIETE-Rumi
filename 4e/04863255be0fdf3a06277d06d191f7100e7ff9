@@ -1,3 +1,4 @@
 {"ts":"2026-11-18T06:07:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"4e04863255be","branch":"bd-snkn32.52-81547","user":""}
 {"ts":"2026-11-18T06:07:39Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"4e04863255be","branch":"bd-snkn32.52-81547","user":""}
 {"ts":"2026-11-18T06:34:36Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (scenario \"My own Grades 1-5 plan ends with a Before they write step\" was added in this same commit 4e04863; validated, counts 6/6)","sha":"4e04863255be","branch":"bd-snkn32.52-81547","user":""}
+{"ts":"2026-11-18T06:34:46Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"7bb2f560-19ec-44fc-a08b-06c356f98202","sha":"4e04863255be","branch":"bd-snkn32.52-81547","user":""}
