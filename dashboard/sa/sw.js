@@ -49,7 +49,13 @@
 // row ran out unanswered).
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
-var VERSION = 'sa-25';
+// sa-26: round 28 follow-up: sa-core.js (a letter-sound task the coach ends before every item was presented is not rated).
+// sa-27: round 28 follow-up: sa.css (the letter picker draws no language toggle inside the coach page's frame; the spoken MCQ's head
+//   gap under the toggle fit).
+// sa-28: round 28 follow-up: sa-ui.js and sa-core.js (the letter picker and the spoken MCQ draw no Back button on their item and
+//   practice screens, so the cards and the replay stay in reach on a phone; the sandbox-only dev row stays off those screens;
+//   a scored answer records since_fold_ms).
+var VERSION = 'sa-28';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -81,7 +87,13 @@ var CORE = 'sa-core-' + VERSION;
 // re-made under their keys from a line fix each (UR_LINE_SAID), with the lines' word timings re-made.
 // v21: the letter name «تے» and the made-up word «جھیٹ» in the content owner's own recordings (no voice said them right),
 // trimmed and levelled like the other v4 clips, under their keys.
-var SESSION = 'sa-session-v21';
+// v22: round 28's battery files (the letter-sound picker, story options and timed-task extension built in, stripped on serve
+// while their switches are OFF), so a phone takes the new files.
+// v23: round 28's letter-sound prompts re-picked under their keys (each sound heard right on repeated listens and
+// through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
+// v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
+// familiar words' accept forms (scorer only; never served).
+var SESSION = 'sa-session-v26';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

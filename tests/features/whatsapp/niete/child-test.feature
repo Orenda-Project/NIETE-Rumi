@@ -1318,3 +1318,563 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the transcript itself, cut to 80 characters, is kept only on the echo check, never on a muted recording
     And the child's marks are the same as without the switch
     And with the switches off nothing new is stored
+
+  @e2e @wip @draft @config-gated @P1 @CT204 @no-mock-driver
+  # No mock driver: the battery route serves a JSON file to the child's page, not a chat. Asserted in
+  # dashboard/tests/sa-r28-off-identity.service.test.js and sa-r28-switches.service.test.js.
+  Scenario: With every sa_r28_* switch off, the battery a phone receives is exactly today's
+    Given the built battery carries the listen-and-tap letter sounds, the spoken MCQ and the extension items
+    And sa_r28_letter_pick, sa_r28_mcq and sa_r28_ceiling are all off
+    When a phone fetches any coach form battery
+    Then it receives today's battery byte for byte: no new task, no extension item, no round-28 line, no round-28 flag
+    And a scripted child through the Urdu and the English RDF auto forms produces today's events and results
+
+  @e2e @wip @draft @config-gated @P1 @CT205 @no-mock-driver
+  # No mock driver: as @CT204. Asserted in dashboard/tests/sa-r28-switches.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the listen-and-tap letter sounds take the place of the read-aloud ones
+    Given sa_r28_letter_pick is on
+    When a phone fetches a coach form battery
+    Then the RDF auto and RDF manual lists name the listen-and-tap letter-sound task where the read-aloud one was
+    And the read-aloud letter-sound task is not in the battery
+    And the battery carries the round-28 lines for that task and the flag the engine reads
+    And with sa_r28_mcq on, the spoken MCQ takes the place of the spoken story questions the same way, keeping its gate
+
+  @e2e @wip @draft @config-gated @P1 @CT206 @no-mock-driver
+  # No mock driver: as @CT204. Asserted in dashboard/tests/sa-r28-switches.service.test.js.
+  Scenario: With sa_r28_ceiling on, a timed task's grid runs past today's first items
+    Given sa_r28_ceiling is on
+    When a phone fetches a coach form battery
+    Then every timed letter, word, number and quick-sum task carries its extension items after today's first ones
+    And its grid lists every item in order, and the task says how many of them are today's
+    And with the switch off those items are sliced away and the task is exactly today's
+  @e2e @wip @draft @config-gated @P1 @CT199 @no-mock-driver
+  # No mock driver: the extension is the phone's battery engine and the scoring sweep, not the chat.
+  # Asserted in dashboard/tests/sa-r28-ceiling-core.service.test.js.
+  Scenario: With sa_r28_ceiling on, a fast child keeps getting new words until the minute ends
+    Given sa_r28_ceiling is on
+    And a child has read all of today's words before the minute is over
+    When the child moves on from the last of today's words
+    Then the next word of the longer published list is shown
+    And the task ends only when the minute ends, or when the whole list has been read
+    And with sa_r28_ceiling off the task has today's words only
+
+  @e2e @wip @draft @config-gated @P1 @CT200 @no-mock-driver
+  # No mock driver: as @CT199. Asserted in dashboard/tests/sa-r28-ceiling-core.service.test.js and
+  # bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_ceiling on, an item shown for under half a second at the end of the minute is not counted as tried
+    Given sa_r28_ceiling is on
+    When the minute ends less than half a second after an item came up
+    Then that item is still listed as shown, with how long it was on show
+    And it is not counted among the items the child tried
+    And an item on show for longer than half a second is marked from the recording as today
+
+  @e2e @wip @draft @config-gated @P1 @CT201 @no-mock-driver
+  # No mock driver: the scoring sweep runs against a model. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: The scorer marks only the items the child reached, and keeps today's first items as a fixed anchor
+    Given a child reached 12 words of a 50-word list whose first 4 are today's words
+    When the recording is scored
+    Then the scorer is given the 12 words reached, never the whole list
+    And the marks say how many were reached, how many of today's first 4 were right, and the rate over the time used
+    And a child who reached fewer than today's 4 is scored on today's 4 exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT202 @no-mock-driver
+  # No mock driver: as @CT201. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_ceiling on, the first-line rule and the missing clock are applied when the recording is scored
+    Given sa_r28_ceiling is on
+    When a child read past today's letters and got none of the first 10 right and some later ones right
+    Then the letters score is 0, with the items tried and the time used kept as they were
+    And with sa_r28_ceiling on a result without the time used gets no rate until the time is known
+    And a run that stayed inside today's letters (every run with sa_r28_ceiling off) is scored as today
+
+  @e2e @wip @draft @config-gated @P1 @CT203 @no-mock-driver
+  # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: The Results level reads today's first items of a longer list
+    Given sa_r20_level is on and a child reached 12 letters, 5 of them today's first 5
+    When the coach opens Results
+    Then the letters level is decided on today's first 5 letters, all right, so it is met
+    And a child with 3 of today's first 5 right does not meet it however many later letters were right
+  @e2e @wip @draft @config-gated @P1 @CT189 @no-mock-driver
+  # No mock driver: the picker runs on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the letter-sound picker plays a sound and is scored on the phone by the letter tapped
+    Given sa_r28_letter_pick is on and a child's battery has the letter-sound picker
+    When an item shows five letter cards and Jugnu plays its sound
+    And the child taps a card, during the sound or after it
+    Then the tap counts once for that item, right when it is the letter for the sound, wrong otherwise
+    And the answer keeps how many times the child played the sound again and how long after the sound the tap came
+    And no right or wrong is shown on a scored item
+    And with sa_r28_letter_pick off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT190 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the big speaker plays the sound again and a child who never taps is not stuck
+    Given sa_r28_letter_pick is on and an item of the letter-sound picker is on show
+    When the child taps the big speaker under the cards
+    Then only the item's sound plays again, never the instruction, and the replay is recorded
+    And with no tap 10 seconds after the sound ends Jugnu plays it once more by itself
+    And at 15 seconds Next is offered, and an item passed with Next is scored wrong
+
+  @e2e @wip @draft @config-gated @P1 @CT191 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the first practice is shown by Jugnu and the second is the child's try
+    Given sa_r28_letter_pick is on and the letter-sound picker's practice is on show
+    When the first practice item shows
+    Then the right card is lit, no card can be tapped, and once the part's sounds are loaded (or after 5 seconds) Jugnu plays the sound and says the model line
+    And Next then appears, and in RDF auto the practice moves on by itself 2 seconds later
+    When the child gets the second practice item wrong twice
+    Then the child is asked to try again once, and then the right card is shown
+
+  @e2e @wip @draft @config-gated @P1 @CT192 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, a sound that cannot play leaves out that item only and is never said by the phone's voice
+    Given sa_r28_letter_pick is on and the sound of one letter-sound item cannot play, even after one more try
+    When that item shows
+    Then that item is left out: not attempted, not wrong, and the next item shows
+    And the answers given before it are kept
+    And a replay that cannot play leaves the item open, and the cards still take a tap
+    And with fewer than 6 items whose sound played, the part runs to its end and is not rated
+    And the phone's own voice never says the letter
+
+  @e2e @wip @draft @config-gated @P1 @CT193 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, coach-led, Jugnu still plays the sound and the coach sees the answer folded
+    Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
+    When an item of the letter-sound picker shows
+    Then Jugnu plays the sound from the phone, the coach does not say it
+    And the coach's screen shows the sound and its letter folded away, not in the open
+
+  @e2e @wip @draft @config-gated @P1 @CT247 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js
+  # ("a tap at speech_start + 100 ms is logged …", "two pre-sound taps …", "no timing entry …", "practice (P2) …").
+  Scenario: With sa_r28_letter_pick on, a tap before the sound starts is logged and never scored
+    Given sa_r28_letter_pick is on and the sound's timing is known
+    When the child taps a card before the sound has started
+    Then that tap is not the child's answer and the item stays on screen while the sound plays on
+    And the next tap after the sound has started is the answer, with the early taps counted beside it
+    And in practice the early tap gets no feedback; without the sound's timing every tap answers as before
+
+  @e2e @wip @draft @config-gated @P1 @CT248 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js and
+  # dashboard/tests/sa-r28-mcq.service.test.js ("Next per mode …", "r9 ON, coach-led …", "r9 ON, RDF auto …").
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, Next comes after 15 s coach-led and 30 s on the child's own
+    Given the picker or the story questions are on, with longer question time on
+    When an item waits for the child's tap
+    Then coach-led Next is offered 15 s after the sound ends, and on the child's own 30 s after
+    And the older maths tap parts keep their own waits
+
+  @e2e @wip @draft @config-gated @P1 @CT249 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js
+  # ("a child replay at 8 s …", "a child replay 8 s after the first play …").
+  Scenario: With sa_r28_letter_pick on, a replay restarts the wait for the auto replay and Next
+    Given sa_r28_letter_pick is on
+    When the child presses the sound button 8 s after the sound ended
+    Then neither the auto replay nor Next comes while that sound plays
+    And both count again from the end of that replay
+
+  @e2e @wip @draft @config-gated @P1 @CT250 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js
+  # ("coach-led: the coach line …", "coach line: English …", "the folded target …", "sa.css: the replay pill …").
+  Scenario: With sa_r28_letter_pick on, coach-led, the coach is told not to say the sound
+    Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
+    When any picker screen shows, practice included
+    Then a line above the coach's fold asks the coach not to say the sound and to press the sound button instead
+    And the fold opens only when the coach taps it and is folded again on the next item
+    And on the child's own run there is no such line
+  @e2e @wip @draft @config-gated @P1 @CT260 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A5: …": "ur/en:
+  # the open fold on every live item …", "served batteries …", "practice P2: the glyph may show …").
+  Scenario: With sa_r28_letter_pick on, coach-led, the open fold never shows the letter being asked for
+    Given sa_r28_letter_pick is on and the battery is coach-led (RDF manual)
+    When the coach opens the fold on a scored letter-sound item
+    Then the fold shows the sound button and no letter, so the child never sees the answer's shape before choosing
+    And on the practice item the fold still shows the sound and its letter
+  @e2e @wip @draft @config-gated @P1 @CT261 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A5: modal: …",
+  # "the item's sound never starts while the fold is open …", "the fold's own replay button …", "RDF auto: no fold …").
+  Scenario: With sa_r28_letter_pick on, coach-led, the open fold takes the next tap and is logged
+    Given sa_r28_letter_pick is on, the battery is coach-led and the coach has opened the fold on an item
+    When anyone taps a letter card, the big sound button or the coach's Next
+    Then that tap only closes the fold: no answer is recorded, no sound plays and the item stays
+    And the next tap answers, plays the sound or moves on as usual
+    And the item's sound never starts while the fold is open; it starts once the fold is closed
+    And the run logs one fold_open and one fold_close for the item, the close saying whether the coach folded it or a tap closed it and which card was under that tap
+    And the child's own run has no fold and logs neither
+  @e2e @wip @draft @config-gated @P1 @CT262 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("the picker, coach-led on a
+  # 360×640 phone: …"; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick on, coach-led, the letter-sound screen fits a small phone in every state
+    Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual Urdu layout settings
+    When the item is playing, has played, has a card chosen, offers Next, or has the fold open
+    Then the five letter cards and the big sound button are whole on screen without scrolling and never move
+    And every letter's ink sits inside its card
+  @e2e @wip @draft @config-gated @P1 @CT263 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A6: scored item:
+  # fold open → …", "the summary close arms the guard too …", "practice P2: the same guard …", "RDF auto (no fold) …").
+  Scenario: With sa_r28_letter_pick on, coach-led, a double tap that closes the fold never also answers
+    Given sa_r28_letter_pick is on, the battery is coach-led and the coach has opened the fold on an item
+    When a tap closes the fold and a second tap lands on a letter card within 300 ms
+    Then the second tap records no answer and no card is pressed, and it is logged once as a ghost tap with its card
+    And a tap on a card after 300 ms answers as usual, on scored and practice items alike
+    And without the fold (RDF auto) no tap is ever logged as a ghost tap
+  @e2e @wip @draft @config-gated @P1 @CT264 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("round 28 A6: the fold's own
+  # replay …", "a fold opened in the 400 ms press window …", "the modal reads the fold's live state …", "a fold no longer
+  # on the screen …").
+  Scenario: With sa_r28_letter_pick on, coach-led, every opening of the fold has its closing in the log
+    Given sa_r28_letter_pick is on and the battery is coach-led
+    When the coach closes the fold with its own sound button
+    Then the log shows the fold closed by that button, then the replay
+    And when the coach opens the fold just after an answer, the next item logs the old fold's closing and starts folded
+    And a card tapped in the same instant as the fold is opened only closes it
+  @e2e @wip @draft @config-gated @P1 @CT265 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("ur/en, the coach line
+  # (A6): …"; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick on, coach-led, the coach's line keeps whole lines on a small phone
+    Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual Urdu layout settings
+    When the coach's line shows above the fold
+    Then its lines do not run into each other and its last line is whole, never under the fold
+  @e2e @wip @draft @config-gated @P1 @CT270 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("ur/en, the served
+  # practice (A7): …"; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick on, coach-led, every practice screen fits a small phone with all five cards reachable
+    Given sa_r28_letter_pick is on, the battery is coach-led and the phone is 360 by 640 with the usual layout settings
+    When the practice example is modelled with its Next showing, with the coach's fold open or closed
+    And the practice item is answered wrong, tried again, and answered, with the coach's fold open or closed
+    Then the screen never scrolls, all five letter cards can be tapped, and the replay button does not move
+    And the feedback line shows whole beside the practice label, and the fold still shows the sound and its letter
+  @e2e @wip @draft @config-gated @P1 @CT271 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("ur/en, the served
+  # practice with the coach's Skip (A8): …" and the tablet row; real browser, skipped where none is installed).
+  Scenario: With sa_r28_letter_pick and the coach's Skip instructions on, coach-led, the Skip shares the practice head row on a small phone
+    Given sa_r28_letter_pick and sa_r9_skip_instructions are on, the battery is coach-led and the phone is 360 by 640
+    When the practice example is modelled and the practice item is heard, answered and tried again, with the fold open or closed
+    Then the Skip instructions button shows on one line at its usual size, in the same place in the head row on every practice screen
+    And Jugnu, the practice label and the Skip button all sit whole on the screen and can each be tapped
+    And the cards, the replay button, the Next button and the fold are where they are without the Skip button
+  @e2e @wip @draft @config-gated @P1 @CT272 @no-mock-driver
+  # No mock driver: as @CT189. Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("… (A8): …").
+  Scenario: With sa_r28_letter_pick and the coach's Skip instructions on, coach-led, the try-again line takes the label's place
+    Given sa_r28_letter_pick and sa_r9_skip_instructions are on, the battery is coach-led and the phone is 360 by 640
+    When the child taps a wrong card on the practice item and Jugnu asks them to try again
+    Then the feedback line shows whole beside Jugnu in place of the practice label, and the Skip button is not drawn
+    And when the item is shown again the practice label and the Skip button come back in the same place
+    And on a tablet the same moment keeps all five cards on screen with nothing scrolling
+  @e2e @wip @draft @config-gated @P1 @CT251 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("every rotated variant …"),
+  # bot/tests/child-test/sa-r28-mcq-of-all.test.js, portal cohortStats.r28.test.ts and LeaderAssessResults.r28.test.tsx.
+  Scenario: With sa_r28_mcq on, a child served a 5-question story is read out of 5, never 6
+    Given sa_r28_mcq is on and the phone rotated the child to a story variant with 5 questions
+    When the child answers 4 of the 5 questions right
+    Then the result records of_all 5, the questions of the served variant before any lost clip
+    And the child meets the comprehension rung and counts in the 80%+ share
+    And Results reads the guessing floor on 4 of 5
+    And the 5-question variant is never padded to 6
+  @e2e @wip @draft @config-gated @P1 @CT255 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("modal fold …").
+  Scenario: With sa_r28_mcq on, coach-led, the open coach fold is modal and every opening has its close
+    Given sa_r28_mcq is on, the run is coach-led and the coach has opened the fold on a story question
+    When the child taps a card, the replay, Jugnu, the Next or anywhere else on the screen
+    Then that first tap only closes the fold and the four cards show at once; no answer, no replay, no skip
+    And a second tap within 300 ms of the close is ignored and logged as a ghost tap, never scored
+    And the next tap after that answers as usual, and the read-out is never interrupted by the fold
+    And the screen logs fold_open and fold_close with the task and question, the close saying whether the summary, a tap (and on which card) or the question changing closed it
+    And RDF auto never shows the fold, and a card tap there answers at once
+  @e2e @wip @draft @config-gated @P1 @CT256 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (the round 5 browser rows).
+  Scenario: With sa_r28_mcq on, coach-led on a 360x640 phone, the coach's Urdu answer list keeps every line whole
+    Given sa_r28_mcq is on and a coach-led phone shows any served Urdu story question
+    When the coach opens the fold
+    Then no line of the answer list touches the next, at least 2 px of clear space between their ink on every served set
+    And the open fold stays on the screen, and the English list keeps its own line height
+  @e2e @wip @draft @config-gated @P1 @CT257 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (the round 5 browser rows).
+  Scenario: With sa_r28_mcq on, coach-led on a 360x640 phone, the question card keeps its descenders and the coach's line stays whole
+    Given sa_r28_mcq is on and a coach-led phone shows any served question
+    Then the question card's last line keeps its descenders inside the card and no Urdu question runs past two lines
+    And a one-line question keeps its first line's ascenders inside the card
+    And the coach's line ends above the fold's box
+    And the four answer cards stay 56 px tall and on the screen, nothing scrolls
+  @e2e @wip @draft @config-gated @P1 @CT258 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("the coach's Next is in the coach's register …").
+  Scenario: With sa_r28_mcq on, coach-led, the coach's Next looks like the coach's and stands away from the child's replay
+    Given sa_r28_mcq is on, the run is coach-led and the Next is offered
+    Then the Next is a dashed box with no fill, never a pill like the child's replay
+    And it stands at least 48 px from the replay on a 360 px phone
+  @e2e @wip @draft @config-gated @P1 @CT259 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("?probe=1 …", "chosen_at_option 0 …").
+  Scenario: With sa_r28_mcq on, the question itself counts as option 0
+    Given sa_r28_mcq is on and the debug probe is on
+    When Jugnu reads the question
+    Then the probe logs hl 0 when the question's clip starts and ends, and no card lights for it
+    And a choice made while a replayed question is read, or before the first answer lights, records chosen_at_option 0
+    And a tap during the first reading of the question is still ignored
+  @e2e @wip @draft @config-gated @P1 @CT266 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("sa_r28_mcq round 6: the task title …",
+  # "ur: every served question and answer set …", "… listening, speaking, chosen, Next offered, fold open …", "modal fold: a double tap …").
+  Scenario: With sa_r28_mcq on, the coach-led phone question screen has no task title and every Urdu question is whole
+    Given sa_r28_mcq is on and a coach runs the battery on a 360x640 phone
+    When any story question is on screen
+    Then the task title is not shown (the coach's line names the task and Jugnu says it)
+    And no stroke of the Urdu question is cut at the top or bottom of its card, on every served question
+    And the lowest answer card's ring ends at least 8 px above the bottom of the screen in every coach state
+    And in RDF auto, and on a tablet in either mode, the task title is still shown
+    And closing the coach's fold with its own label logs fold_close with card null
+  @e2e @wip @draft @config-gated @P1 @CT267 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("ur, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines …",
+  # "en, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines …").
+  Scenario: With sa_r28_mcq on, the coach's Urdu line on the coach-led phone question screen keeps its lines apart and inside its box
+    Given sa_r28_mcq is on and a coach runs the battery on a 360x640 phone with the Urdu layout switches
+    When a story question is on screen, in any coach state (listening, an answer read, an answer chosen, Next offered, the fold open)
+    Then every line of the coach's Urdu line is at least 2 px of ink away from the next one
+    And the last line's ink stays inside the coach's line box
+    And the coach's line keeps its 13 px size, and the lowest answer card's ring still ends at least 8 px above the bottom of the screen
+    And the English coach's line is as it was
+  @e2e @wip @draft @config-gated @P1 @CT273 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("ur: every practice state — the head row whole on the phone with the Skip on one line …",
+  # "en: every practice state — the head row whole on the phone with the Skip on one line …").
+  Scenario: With sa_r28_mcq on, the coach's Skip instructions sits whole in the practice question's top row on a phone
+    Given sa_r28_mcq and the coach's Skip instructions are on and a coach runs the practice story question on a 360x640 phone
+    When the practice question is on screen, in any practice state (the question read, an answer lit, the answers over, an answer chosen, the feedback shown, the coach's fold open or closed)
+    Then Jugnu, the replay button and the Skip instructions button sit in one row inside the screen, each whole and tappable at its centre
+    And the Skip instructions button shows its label on one line at its usual size and stays in the same place in every practice state
+    And the Practice label gives its place to the Skip instructions button
+    And the replay button and the Skip instructions button are at least 24 px apart
+    And the question and the answer cards keep their distance from the top row
+    And with the coach's fold open, a tap on Skip instructions only closes the fold
+    And with the fold closed, a tap on Skip instructions goes to the part's Ready screen and nothing more is read or lit
+  @e2e @wip @draft @config-gated @P1 @CT274 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 31 (coach-led): the passage step …",
+  # "row 31 (RDF auto): the passage step …", "row 31: the child's replay in the passage step …", "row 31 (coach-led, no Skip drawn): the coach's Next …").
+  Scenario: With sa_r28_mcq on, the practice story is its own step before the practice question
+    Given sa_r28_mcq is on and the practice question has a practice story with its recording
+    When the practice question begins, coach-led or on the child's own run
+    Then Jugnu reads the practice story with the story on screen and no answer cards
+    And a tap on the story does not move on
+    And the child's replay button plays the story again and nothing else
+    And the question follows when the story's recording ends and a moment has passed, or when the coach taps Next
+    And the question screen then shows no story, and the coach's fold shows only the question and the four answers
+    And Jugnu reads the question and the four answers as in the scored questions
+    And a second try at the practice question does not read the story again
+    And the story step is logged once with how long it took
+  @e2e @wip @draft @config-gated @P1 @CT275 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 31 guard (coach-led): a passage with NO clip key …",
+  # "row 31 guard (RDF auto): …", "row 31 guard (…): the passage clip lost at play time …").
+  Scenario: With sa_r28_mcq on, a practice story without a recording never shows on its own
+    Given sa_r28_mcq is on and the practice story has no recording, or its recording fails to play
+    When the practice question begins, coach-led or on the child's own run
+    Then the practice question shows at once and Jugnu reads the question and its answers
+    And the story never shows with the answer cards and nothing waits for a tap
+    And the story step is logged once as having no recording
+  @e2e @wip @draft @config-gated @P1 @CT276 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("ur, with the Skip: the passage step whole with no cards, then all eleven practice question frames …",
+  # and the same for "ur, without the Skip", "en, with the Skip", "en, without the Skip").
+  Scenario: With sa_r28_mcq on, the practice question fits a coach's phone in Urdu and English
+    Given sa_r28_mcq and the production screen settings are on and a coach runs the practice story question on a 360x640 phone, with or without Skip instructions
+    When the practice story or the practice question is on screen, in any practice state (the story read, the question read, an answer lit, the answers over, an answer chosen, the feedback shown, the right answer shown, the coach's fold open or closed)
+    Then the screen does not scroll and the story shows whole on its own step
+    And all four answer cards are whole and tappable at their centres, the lowest card's ring at least 8 px above the bottom
+    And the top row is the same height in every state, so the question and the cards never move
+    And the feedback line shows under the cards without pushing them
+    And the coach's open fold stays on the screen
+  @e2e @wip @draft @config-gated @P1 @CT277 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 32 (coach-led, round 11): …",
+  # the "[prod] ur …" browser rows of the coach-led phone (scored states, the per-question sweep with the fold's scroll and summary, the practice frames)).
+  Scenario: With sa_r28_mcq on, the coach's fold on a phone's Urdu question screens holds the question and answers and never scrolls
+    Given sa_r28_mcq and the production screen settings are on and a coach runs the story questions in Urdu on a 360x640 phone inside the coach page, with a session syncing
+    When a practice or scored question is on screen
+    Then the coach's fold holds the question and the four answers, the question first
+    And its folded title «جگنو پوچھے گا — یہ آپ نہ پڑھیں:» is the coach's visible line, whole, with the fold closed and open
+    And the open fold's body never scrolls (its scroll height equals its height) and ends on the screen
+    And the coach's line «جگنو سوال اور چاروں جواب خود پڑھے گا۔ …» shows above the fold on the practice story's own step, before any question
+    And on a tablet, or in English, the coach's line stays above the fold as before
+  @e2e @wip @draft @config-gated @P1 @CT278 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (every "[prod] …" and "[prod_notoggle] …" browser row: the coach page's frame, the sync dot, the language switch drawn or not).
+  Scenario: With sa_r28_mcq on, the story questions fit a coach's phone inside the coach page while a session syncs
+    Given sa_r28_mcq and the production screen settings are on and a coach runs the story questions on a 360x640 phone inside the coach page, with a session syncing, with or without the other language ready
+    When a practice or scored question is on screen in any state, in Urdu or English
+    Then the screen does not scroll and no scroll cue shows
+    And all four answer cards are whole and tappable at their centres, the lowest card's ring at least 8 px above the bottom
+    And the practice feedback line shows on the screen under the cards
+    And nothing the child or the coach taps lies under the coach page's own buttons or the sync dot
+    And the same holds on the page without the coach page's frame
+  @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had
+    Given sa_r28_letter_pick or sa_r28_mcq is on and an item's sound (or the fourth option) has finished playing
+    When the item is skipped with Next, the child's own run or the coach's
+    Then the answer is recorded as skipped, not right
+    And it carries wait_ms, the time from the end of the last play to the skip
+    And a stuck child on the child's own run reads 30 seconds or more, a coach's quick Next a few seconds
+    And every other tapped task records a skipped item exactly as today
+  @e2e @wip @draft @config-gated @P1 @CT194 @no-mock-driver
+  # No mock driver: the story's questions run on the child's assessment page, not in the chat.
+  # Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, Jugnu reads the question and then each of the four answers with its card lit
+    Given sa_r28_mcq is on and a child has read the story
+    When a story question shows
+    Then Jugnu reads the question while the four answer cards are dimmed and taps do nothing
+    And Jugnu then reads the four answers in order, each card lit only while its own recording plays
+    And after the last answer every card is ready, no card is lit and the replay button works
+    And with sa_r28_mcq off the story's questions are asked aloud and answered aloud as before
+
+  @e2e @wip @draft @config-gated @P1 @CT195 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, a tap while the answers are read is held and the reading goes on
+    Given sa_r28_mcq is on and a story question is being read
+    When the child taps an answer card while Jugnu is reading the answers
+    Then that card stays chosen and Jugnu still reads every remaining answer
+    And the chosen card is filled in the battery's colour, the brightest card on the screen, while the card being read has only a ring around it
+    And a tap on another card before the choice stands moves the choice and is counted as a change
+    And the choice stands 600 ms after the last answer has been read, and only then is it scored
+    And a child who has not tapped by then can tap a card, which stands 600 ms later
+
+  @e2e @wip @draft @config-gated @P1 @CT196 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, the replay reads the question and all four answers again and keeps the choice
+    Given sa_r28_mcq is on and Jugnu has finished reading a question and its answers
+    When the child presses the replay button or taps Jugnu
+    Then Jugnu reads the question and the four answers again, each card lit in turn
+    And the replay button cannot be pressed while that reading runs
+    And a card the child had chosen stays chosen
+    And the cards are never greyed out during the replay: a tap, even while the question is read again, is a choice that stands 600 ms after the reading ends
+    And only the first reading of a question keeps the cards grey and ignores taps
+    And neither Next nor the automatic replay comes during the replay: both wait their full time again from the end of the replay
+
+  @e2e @wip @draft @config-gated @P1 @CT197 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, the phone scores each answer and asks the same questions as before
+    Given sa_r28_mcq is on
+    When the child's story reading allows some of its questions
+    Then the same questions are asked as the spoken questions would have been
+    And each answer is scored on the phone as right or wrong, with which answer was playing at the first tap, how many times the choice changed and how many replays there were
+    And a question the child does not answer offers Next after the wait, and Next counts it as wrong
+    And a child who read fewer than 10 words, or stopped on the story's first line, is asked no question, coach-led too
+    And a question whose recording cannot be played is left out: not asked, not wrong, and the next question shows
+    And when fewer than 4 questions could be played the part is kept but not rated
+
+  @e2e @wip @draft @config-gated @P2 @CT198 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, a coach-led test still has Jugnu read the questions and answers
+    Given sa_r28_mcq is on and the test is coach-led
+    When a story question shows
+    Then Jugnu reads the question and the four answers from the phone
+    And the coach's screen shows the question and the answers folded away, without marking the right one
+
+  @e2e @wip @draft @config-gated @P1 @CT253 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (the coach-led phone fit runs in a
+  # real browser when playwright-core is present).
+  Scenario: With sa_r28_mcq on, a coach-led story question fits a 360x640 phone in every coach state
+    Given sa_r28_mcq is on, the test is coach-led on a 360x640 phone and the question is the bank's longest
+    When Jugnu reads the question, then each answer, the child holds an answer, the Next is offered, and the coach opens the fold
+    Then the four answer cards and the replay are whole on the screen and stay in the same place in every one of those states, with nothing to scroll
+    And the coach's Next shows in the row with the replay, never below the cards, and the open fold lies over the screen without pushing the cards
+    And the coach's line reads "Jugnu reads the question and all four answers. Do not read, translate or give the answer. Let the child tap the answer." and in Urdu «جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔»
+    And with sa_r28_mcq off neither that line nor the old one shows
+
+  @e2e @wip @draft @config-gated @P1 @CT254 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_mcq on, every story and story-question result names the version of the story the child had
+    Given sa_r28_mcq is on and the battery rotates between versions of the story
+    When a child reads the story and answers its questions
+    Then the story's result and the questions' result both name the version this phone showed, the same one
+    And with no rotation both results say no version (null), never leave it out
+  @e2e @wip @draft @config-gated @P1 @CT208 @no-mock-driver
+  # No mock driver: the portal reads the server's results. Asserted in portal/src/portal/lib/assess/cohortStats.r28.test.ts,
+  # portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx, portal/src/portal/pages/LeaderAssessResults.r28.test.tsx
+  # and bot/tests/child-test/sa-r28-results-detail.test.js.
+  Scenario: the round-28 tapped tasks carry their own labels and rows on Results and the dashboard, never merged with the old ones
+    Given sa_r28_letter_pick and sa_r28_mcq are on and some children took the tapped letter-sounds and story-question tasks
+    When a coach opens the results dashboard and a child's Results
+    Then the tapped tasks show as "Letter sounds (listen and tap)" and "Story questions (listen and tap)" in English, and in Urdu «حروف کی آوازیں (سن کر ٹیپ)» and «کہانی کے سوال (سن کر ٹیپ)»
+    And the old spoken tasks keep their titles and their own rows, and a tapped task's card shows only when a child in view has a score for it
+    And a tapped task the child heard too few items of says "not rated (too few items heard)" and shows no score
+    And a timed task that ran past its first items shows "First N correct" beside its rate
+
+  @e2e @wip @draft @config-gated @P1 @CT243 @no-mock-driver
+  # No mock driver: the portal reads the server's results. Asserted in portal/src/portal/lib/assess/cohortStats.r28.test.ts
+  # and portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx.
+  Scenario: the dashboard's "reading with comprehension" is reported per form, spoken and tapped, never one pooled share
+    Given sa_r28_mcq is on and some children in view answered the spoken story questions and others the tapped ones
+    When a coach opens the results dashboard
+    Then the headline shows two numbers side by side, labelled "spoken" and "listen and tap" (Urdu «بول کر» and «سن کر ٹیپ»)
+    And each sub-region or school row shows the same two numbers, never one merged number
+    And a cohort with only one form shows that one number in today's tile
+    And a tapped task the child heard too few items of counts in neither number
+
+  @e2e @wip @draft @config-gated @P1 @CT244 @no-mock-driver
+  # No mock driver: as @CT243. Asserted in portal/src/portal/lib/assess/guessFloor.test.ts,
+  # portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx, portal/src/portal/pages/LeaderAssessResults.r28.test.tsx
+  # and bot/tests/child-test/sa-r28-results-detail.test.js.
+  Scenario: every tapped score says how many children reach it by guessing alone, and the picker says how often children tapped before the sound
+    Given sa_r28_letter_pick and sa_r28_mcq are on and at least 5 children in view took the tapped tasks
+    When a coach opens the results dashboard or a child's Results
+    Then the story-questions card says "By guessing alone, 3.8% of children reach 4 of 6."
+    And the letter-sounds card says how many reach 8 of 10 and 6 of 10 by guessing alone
+    And the dashboard's letter-sounds card shows the share of taps made before the sound, and "read with care" above 10%
+    And a child's Results shows that child's own count, as "Taps before the sound: 1 of 10"
+    And no score, band or level changes, and a card hidden for fewer than 5 children shows neither line
+
+  @e2e @wip @draft @config-gated @P1 @CT214 @no-mock-driver
+  # No mock driver: the Results level lines are computed on the server. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_mcq on, the story questions picked from four are judged out of six, less the questions whose sound was lost
+    Given sa_r20_level and sa_r28_mcq are on
+    When a child answered the story questions picked from four
+    Then the comprehension level is met at two thirds of 6 questions, less any question whose sound could not be played
+    And a question the reading gate did not ask counts as not right
+    And a child asked 3 questions who got 2 right does not meet it, and a child asked 6 with 1 lost who got 4 right does
+
+  @e2e @wip @draft @config-gated @P1 @CT215 @no-mock-driver
+  # No mock driver: as @CT214. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: A part with too few items presented is left out of the level, never shown as waiting
+    Given sa_r20_level is on
+    When a child's letter picker presented too few letters to be rated, and the letter names were 2 of 5
+    Then the letters level is not met and the line is not waiting for a score
+    And a subject whose level parts were all too short to rate says so, with no level and nothing waiting
+
+  @e2e @wip @draft @config-gated @P1 @CT216 @no-mock-driver
+  # No mock driver: the scoring sweep runs against a model. Asserted in bot/tests/child-test/sa-r28-ceiling.test.js.
+  Scenario: With sa_r28_ceiling on, a timed task without the phone's clock gets no rate until the clock is known
+    Given sa_r28_ceiling is on
+    When a timed task's result arrives without the time used, whether or not it went past today's items
+    Then the task is scored but its rate is left waiting, never worked out on an assumed minute
+    And with sa_r28_ceiling off the rate uses the minute as today and the marks say the minute was assumed
+
+  @e2e @wip @draft @config-gated @P1 @CT245 @no-mock-driver
+  # No mock driver: the scoring sweep runs against a model. Asserted in bot/tests/child-test/sa-r28-base-served.test.js
+  # and dashboard/tests/sa-r28-base-served.service.test.js.
+  Scenario: With sa_r28_ceiling on, the words task's first-words anchor is the five words the child was served
+    Given sa_r28_ceiling is on
+    And sa_r8_counts is on, so every child is served a fifth word
+    When a child reads past the fifth word before the minute ends
+    Then the words rung, the first-words count and the first-line rule all read the first five words, as today's five
+    And with sa_r8_counts off they read the first four words the child was served
+
+  @e2e @wip @draft @config-gated @P1 @CT279 @no-mock-driver
+  # No mock driver: the coach's fold and the picker run on the phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js ("since_fold_ms: ...").
+  Scenario: With sa_r28_letter_pick on, each scored letter answer says how long after the coach's fold closed it came
+    Given sa_r28_letter_pick is on and the test is coach-led
+    When the coach opens and closes the fold on an item and the child taps a letter 400 ms later
+    Then that answer keeps since_fold_ms 400
+    And a tap within the ghost window after the close writes no answer at all
+    And an answer on an item where no fold closed keeps since_fold_ms null, as does every answer in RDF auto
+    And practice answers do not carry it, and with sa_r28_letter_pick off the answer has no since_fold_ms
+
+  @e2e @wip @draft @config-gated @P1 @CT280 @no-mock-driver
+  # No mock driver: as @CT279. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("since_fold_ms: ...").
+  Scenario: With sa_r28_mcq on, each scored story-question answer says how long after the coach's fold closed it came
+    Given sa_r28_mcq is on and the test is coach-led
+    When the coach closes the fold on a question and the child's answer that stands is tapped about 400 ms later
+    Then that answer keeps since_fold_ms of about 400
+    And an answer on a question where no fold closed keeps since_fold_ms null
+    And with sa_r28_mcq off the answer has no since_fold_ms
+
+  @e2e @wip @draft @config-gated @P1 @CT281 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-back.service.test.js.
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, their item screens have no Back, so a phone keeps every card and the replay in reach
+    Given sa_back_button is on, with every switch the tier serves
+    And sa_r28_letter_pick and sa_r28_mcq are on
+    When a child on a 360x640 phone reaches the second letter-sound item, or the second story question, coach-led or RDF auto
+    Then no Back button is drawn on that screen
+    And all five letter cards and the replay button can be tapped without scrolling, on every item from the first to the tenth
+    And every other task keeps its Back, and with both switches off the Back is drawn as before

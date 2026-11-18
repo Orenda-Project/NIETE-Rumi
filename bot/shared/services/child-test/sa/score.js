@@ -111,6 +111,8 @@ const voiceHelpSwitch = require('../app/voice-help-switch');
 const VH = require('./voice-help');
 const noEchoUrSwitch = require('../app/no-echo-ur-switch');
 const childOnlySwitch = require('../app/child-only-answer-switch');
+const ceilingSwitch = require('../app/ceiling-switch');
+const mcqSwitch = require('../app/mcq-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -284,6 +286,36 @@ function ranCounts(battery, t, row) {
 }
 
 /**
+ * sa_r28_ceiling (C-2, C-8): the base the child was SERVED, which the phone records on its result (base_n: 5 words when
+ * sa_r8_counts served the spare, 4 when not); a result without it was served the committed task's base.
+ */
+function servedBase(t, row) {
+  const res = resultOf(row) || {};
+  return Number(res.base_n) > 0 ? Number(res.base_n) : Number(t.base_n);
+}
+
+/**
+ * sa_r28_ceiling (C-2, C-10): the committed task keeps today's items, grid and stop and carries the extension beside
+ * them (base_n, ext_items, ext_stop); the route serves items + ext_items only with the switch ON. A run whose cells go
+ * past base_n (and past the counts form's own N, sa_r8_counts) ran the extended list: the task as it ran (items + ext_items, the grid rebuilt, ext_stop as its stop).
+ * Any other run (every OFF run, an ON run that stopped inside today's items) is today's task, byte for byte. null: not
+ * extended.
+ */
+function extendedOf(t, row, ran = 0) {
+  const base = servedBase(t, row);
+  if (!(base > 0) || !Array.isArray(t.ext_items) || !t.ext_items.length) return null;
+  const res = resultOf(row) || {};
+  // the phone's own base says what was served (its counts form included); else the counts form's N is inferred
+  const served = Number(res.base_n) > 0;
+  if (!(Array.isArray(res.cells) && res.cells.length > (served ? base : Math.max(base, ran)))) return null;
+  const items = (t.items || []).concat(t.ext_items);
+  const out = { ...t, items, base_n: base };
+  if (Array.isArray(t.grid)) out.grid = items.map((x) => x.show);
+  if (t.ext_stop) out.stop = t.ext_stop;
+  return out;
+}
+
+/**
  * A task as the phone ran it (the W3 forms: letters / words / numbers / sums one at a time, the passage with its own
  * punctuation), in the bank's shape so the scorers below read one shape. The variant is the phone's rotation: the one
  * whose questions were asked in this session, else hash(the phone's session id) mod n (sa-page.js rotate).
@@ -294,7 +326,10 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
   const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
   let t = tasks.find((x) => x && x.id === row.block);
   if (!t) return null;
-  t = ranCounts(b, t, row);
+  // the counts form (sa_r8_counts) first: a run of exactly its N cells is that form, not the extension
+  const asRun = ranCounts(b, t, row);
+  const extended = extendedOf(t, row, asRun.items.length);
+  t = extended ? ranCounts(b, extended, row) : asRun;
   let variant = null;
   const base = shown && shown.from !== 'guess' && shown.id == null; // the phone showed the passage without rotation
   if (!base && Array.isArray(t.variants) && t.variants.length) {
@@ -322,6 +357,9 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
     questions: t.kind === 'questions' || t.kind === 'listen_questions' ? items : undefined,
     items,
     time_limit_s: t.time_limit_s || null,
+    // sa_r28_ceiling: a run past today's N items is scored on the extended list (base_n marks today's N)
+    ...(extended ? { base_n: Number(t.base_n) } : {}),
+    ...(Array.isArray(t.ext_items) || extended ? { extends: true } : {}),
   };
   return { spec: { task: t.id, kind: t.kind, subtask: t.subtask, lang: t.lang || row.lang || lang, present: t.present || null, record }, variant };
 }
@@ -600,11 +638,13 @@ function firstRowStopped(rows, n) {
   return rows.slice(0, n).every((r) => r.verdict !== 'correct');
 }
 
-function timedNumbers(rows, res, { stopped, attemptedTo = null }) {
+function timedNumbers(rows, res, { stopped, attemptedTo = null, pending = false }) {
   let attempted = 0;
   rows.forEach((r) => { if (r.verdict !== 'not_reached') attempted = r.i; });
   if (attemptedTo != null) attempted = attemptedTo;
   const correct = stopped ? 0 : rows.filter((r) => r.i <= attempted && r.verdict === 'correct').length;
+  // sa_r28_ceiling (C-5): no phone clock → no rate until it is known, never an assumed minute
+  if (pending) return { correct, attempted, per_minute: null, seconds_used: null };
   const used = usedSeconds(res);
   return { correct, attempted, per_minute: correct ? round1((correct / used) * SECONDS) : 0, seconds_used: round1(used) };
 }
@@ -613,8 +653,53 @@ function timedNumbers(rows, res, { stopped, attemptedTo = null }) {
 // letter_pick recording is not letters)
 const LETTER_GATE_SUBTASK = 'letter_sound_identification';
 
+/** The phone's clock is missing (or 0): usedSeconds would assume the minute. */
+const noClock = (res) => { const ms = Number(res && res.time_used_ms); return !Number.isFinite(ms) || ms <= 0; };
+
+/**
+ * sa_r28_ceiling (C-5, SPEC v2.1: every timed task): ON, no clock → no rate (rate_pending); OFF, the minute is assumed
+ * as today and the marks say so (seconds_assumed). A result with its clock gets no key.
+ */
+const clockPending = (deps, res) => deps.ceiling === true && noClock(res);
+function clockDetail(pending, res) {
+  if (pending) return { rate_pending: true };
+  return noClock(res) ? { seconds_assumed: true } : null;
+}
+
+/**
+ * sa_r28_ceiling (C-7): a task built with base_n carries the whole published grid; the model is given the items the
+ * child reached, never fewer than today's N (a run that stopped inside today's items is prompted exactly as before).
+ * A task without base_n: the whole list, as today.
+ */
+function shownOf(rec, list, reached) {
+  const base = Number(rec.base_n);
+  if (!(base > 0)) return list;
+  return list.slice(0, Math.max(reached == null ? list.length : reached, base));
+}
+
+/**
+ * sa_r28_ceiling (C.4, C-8): what an extended run's marks add beside today's numbers. of_all: items reached;
+ * of_base / correct_base: today's first N, the fixed anchor the Results ladder reads; seconds_assumed: the phone left
+ * no clock and the minute was assumed. rate_pending (switch ON, C-5): no clock, so no rate. A run that did not go past
+ * today's N gets no new key unless its rate is pending (its marks are today's).
+ */
+function ceilingDetail(rec, rows, numbers, { stopped, pending, res }) {
+  const base = Number(rec.base_n);
+  const extra = pending ? { rate_pending: true } : {};
+  if (!(base > 0)) return clockDetail(pending, res);
+  const right = (r) => !stopped && r.i <= numbers.attempted && r.verdict === 'correct';
+  return {
+    of_all: numbers.attempted,
+    of_base: base,
+    correct_base: rows.filter((r) => r.i <= base && right(r)).length,
+    ...(pending ? extra : noClock(res) ? { seconds_assumed: true } : {}),
+  };
+}
+
 async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate = false } = {}) {
-  const items = (rec.grid || []).map(String);
+  const grid = (rec.grid || []).map(String);
+  const reached = reachedOf(task, res, grid.length);
+  const items = shownOf(rec, grid, reached);
   const perRow = Number(rec.per_row) || 10;
   const clip = await clipOf(deps, row.audio_r2_key);
   const letters = /letter/.test(task.subtask || task.task);
@@ -644,13 +729,30 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo: reachedOf(task, res, items.length) }), rows, stopped, durationSec: clip.durationSec, ...(r28 ? { letterGate: true } : {}) };
+  const pending = clockPending(deps, res);
+  const numbers = timedNumbers(rows, res, { stopped, attemptedTo: reached == null ? null : Math.min(reached, items.length), pending });
+  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rows, numbers, { stopped, pending, res }), ...(r28 ? { letterGate: true } : {}) };
+}
+
+// sa_r28_ceiling (C-7, red team C9): a final cell on show for less than this at time up was presented, not attempted
+const SHORT_LAST_MS = 500;
+
+/**
+ * The phone left its final cell out of what was attempted (sa_r28_ceiling: closed by the clock under 500 ms, so its
+ * last_item_index names the cell before it, null when it was the first). The phone's own word decides, so the
+ * scorer's attempted always equals the phone's; a phone without the rule names the final cell, as today.
+ */
+function shortLast(res) {
+  const c = res.cells[res.cells.length - 1];
+  if (!c || c.how !== 'time_up' || !(Number(c.ms) < SHORT_LAST_MS)) return false;
+  if (!Object.prototype.hasOwnProperty.call(res, 'last_item_index')) return false;
+  return res.last_item_index !== c.i;
 }
 
 /** One item at a time: the phone knows the last cell the child reached (cells[] / last_item_index). */
 function reachedOf(task, res, n) {
   if (task.present !== 'one_at_a_time' || !res) return null;
-  if (Array.isArray(res.cells) && res.cells.length) return Math.min(n, res.cells.length);
+  if (Array.isArray(res.cells) && res.cells.length) return Math.min(n, res.cells.length - (shortLast(res) ? 1 : 0));
   return Number.isInteger(res.last_item_index) ? Math.min(n, res.last_item_index + 1) : null;
 }
 
@@ -674,7 +776,9 @@ Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <i
 
 /** Spoken maths (W3: number identification, mental + − ×, one-minute fluency): one clip for the task, or one per item. */
 async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = false, letterGate = false } = {}) {
-  const items = rec.items || [];
+  const list = rec.items || [];
+  const reached = reachedOf(task, res, list.length);
+  const items = shownOf(rec, list, reached);
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   const one = task.present === 'one_at_a_time';
   const got = new Map();
@@ -703,10 +807,12 @@ async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = f
   const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? (it.gate ? { ...MUTE, gate: it.gate } : MUTE) : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
   rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
   const timed = Number(rec.time_limit_s) > 0;
-  const attemptedTo = reachedOf(task, res, items.length);
-  const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo })
+  const attemptedTo = reached == null ? null : Math.min(reached, items.length);
+  const pending = timed && clockPending(deps, res);
+  const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo, pending })
     : { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length };
-  return { numbers, rows, stopped: false, durationSec, section: Boolean(section) };
+  const ceiling = timed ? ceilingDetail(rec, rows, numbers, { stopped: false, pending, res }) : null;
+  return { numbers, rows, stopped: false, durationSec, section: Boolean(section), ceiling };
 }
 
 async function storyRows(tokens, lang, clip, deps, calls, job) {
@@ -740,7 +846,8 @@ async function scorePassage(task, rec, row, res, deps, calls, { letterGate = fal
   const tapper = res && typeof res.last_word_how === 'string' ? 'coach' : fromRecording ? 'child' : null;
   const lastWord = tapper ? lastWordOf(rows, tapped, p.lines, tapper) : null;
   const attemptedTo = lastWord ? lastWord.attempted : tapped;
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord };
+  const pending = clockPending(deps, res);
+  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo, pending }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord, ceiling: clockDetail(pending, res) };
 }
 
 /**
@@ -963,8 +1070,13 @@ function LETTERS_SCHEMA() {
   return LETTERS_SCHEMA_CACHE;
 }
 
-/** The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story. */
-const passageOf = (block) => String(block || '').replace('_comp', '');
+/**
+ * The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story; sa_r28_mcq: the
+ * story's questions picked from four follow it too (ur.story_mcq_w3 → ur.story_w3).
+ */
+const passageOf = (block) => String(block || '').replace(/_(comp|mcq)/, '');
+/** sa_r28_mcq: the story's questions picked from four (a tap task the phone counts; only served with the switch ON). */
+const isMcq = (block) => /_mcq/.test(String(block || ''));
 
 /**
  * EGRA's first row (sa_stop_rules) for a letters / words grid that carries no stop of its own, only when the grid is
@@ -1011,6 +1123,54 @@ function gateMul(out) {
 }
 
 /**
+ * sa_r28_mcq: the story's questions picked from four take the oral questions' reading floor. Their marks are the
+ * phone's count (sa-store.js phoneMarks), written here once the passage's marks are known so the gate can be applied:
+ *   gated (compGate: 'first_line' | 'under_10_words'): not reached, 0 of the questions, as the oral questions; the
+ *     phone's answers kept whole in detail.raw and per question in raw_verdict ('correct' | 'wrong')
+ *   passed: the phone's marks stand, with gate_checked: true and stop_why: null (checked, not gated)
+ *   no passage marks (none recorded, or failed for good): the phone's marks stand, gate_checked: false
+ *   unrated (too few questions presented): the phone's marks, never gated (an unrated part is absent from the ladder)
+ */
+function mcqMarks(row, session) {
+  const res = resultOf(row) || {};
+  const phone = require('../sa-store').phoneMarks({ ...res, mode: 'tap' }); // eslint-disable-line global-require
+  const answers = (row.responses || []).filter((x) => x && x.kind === 'answer').map(({ kind, ...a }) => a); // eslint-disable-line no-unused-vars
+  const ofAll = Number.isFinite(res.of_all) ? res.of_all : null;
+  const of = ofAll === null ? null : Math.max(0, ofAll - (Number(res.unavailable) || 0));
+  const asked = Array.isArray(res.asked) ? res.asked.filter((q) => typeof q === 'string') : [];
+  const base = { version: VERSION, task: row.block };
+  if (res.unrated === true) return { ...base, ...phone, detail: { kind: 'mcq', unrated: true, of_all: ofAll } };
+  const passage = session.passages ? session.passages.get(passageOf(row.block)) : null;
+  const known = Boolean(passage) && !passage.pending;
+  const why = known ? compGate(passage) : null;
+  if (!why) {
+    return { ...base, correct: phone.tap_correct, of, ...phone, detail: { kind: 'mcq', stopped_by_rule: false, gate_checked: known, stop_why: null, of_all: ofAll, of_asked: asked.length } };
+  }
+  const verdictOf = (id) => { const a = answers.find((x) => x.item_id === id); return a ? (a.ok === true ? 'correct' : 'wrong') : null; };
+  return {
+    ...base,
+    correct: 0,
+    of,
+    tap_correct: 0,
+    tap_attempted: phone.tap_attempted,
+    options_n: phone.options_n,
+    chance_corrected: phone.chance_corrected === null ? null : 0,
+    stop_reason: phone.stop_reason,
+    detail: {
+      kind: 'mcq',
+      stopped_by_rule: true,
+      stop_detail: 'comprehension',
+      stop_why: why,
+      gated: true,
+      of_all: ofAll,
+      of_asked: 0,
+      items: asked.map((id, k) => ({ i: k + 1, id, verdict: 'not_reached', heard: '', conf: null, stop_rule: true, gated: true, raw_verdict: verdictOf(id) })),
+      raw: { tap_correct: phone.tap_correct, tap_attempted: phone.tap_attempted, answers },
+    },
+  };
+}
+
+/**
  * sa_r28_voice_help's fields beside second_voice: the first flagged clip's kind ('help' | 'other_child') and its matched
  * item words; other_voice the strongest non-flag label heard ('unclear' over 'support'; null when none); voice_check.
  */
@@ -1031,6 +1191,8 @@ function helpDetail(heard) {
 async function scoreRow(row, session, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const res = resultOf(row);
+  // sa_r28_mcq: the questions picked from four are the phone's count through the oral questions' reading floor
+  if (isMcq(row.block) && res && res.mode === 'tap') return { ok: true, marks: { ...mcqMarks(row, session), meta: { seconds: 0, cost_usd: 0, calls: [] } } };
   // A W3 task (w3: true in the bank) is scored from the battery the phone ran: its items carry show + answer.
   // sa_r8_variant_wait: the variant the phone showed, when it left word of it (null: the switch is off or no variants)
   const shown = session.variantWait === true ? shownVariant(session, row, d.phoneBattery) : null;
@@ -1128,6 +1290,7 @@ async function scoreRow(row, session, deps = {}) {
           ...(out.lastWord ? { last_word_source: out.lastWord.source, last_word_heard: out.lastWord.heard, ...(out.lastWord.check ? { last_word_check: out.lastWord.check } : {}) } : {}),
           ...(out.section ? { section: true } : {}),
           ...(out.letterGate ? { letter_gate: 'r28' } : {}),
+          ...(out.ceiling || {}),
           confidence,
           ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
           ...(heard && help ? helpDetail(heard) : {}),
@@ -1148,10 +1311,18 @@ function ready(row, session, nowMs) {
   const res = resultOf(row);
   if (!res) return false;
   // sa_stop_rules: questions wait for their passage's marks (a passage stopped on line 1 means they were not reached)
-  // a row never waits on itself: only a `_comp` names another block (its passage)
+  // a row never waits on itself: only a `_comp` (or, sa_r28_mcq, an `_mcq`) names another block (its passage)
   const own = passageOf(row.block) === row.block;
-  const passage = !own && session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
-  if (passage && passage.pending) return false;
+  // sa_r28_mcq: the questions picked from four wait for their passage's marks too (the reading floor is applied on them)
+  const waits = session.stopRules === true || (session.mcqFloor === true && isMcq(row.block));
+  const passage = !own && waits && session.passages ? session.passages.get(passageOf(row.block)) : null;
+  if (passage && passage.pending) {
+    // sa_r28_mcq: a passage whose recording never came (not parked) is awaited only until a while after the LATER of the
+    // session's end and this row's own arrival (an offline session synced hours later still waits from its sync)
+    const ended = Date.parse(session.finished_at || session.client_finished_at || '') || 0;
+    const anchor = ended > 0 ? Math.max(ended, Date.parse(row.updated_at || '') || 0) : 0;
+    if (!(passage.unparked && anchor > 0 && nowMs - anchor > WAIT_FOR_CLIPS_MS)) return false;
+  }
   // sa_r8_variant_wait: a rotated passage waits for its questions row (the variant the phone showed), not past the
   // session's end or VARIANT_WAIT_MS
   if (session.variantWait === true && own && shownVariant(session, row) === undefined) {
@@ -1195,8 +1366,11 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
   if (error) { logError('child_test.sa_score.scan_failed', { error: error.message }); return []; }
   const nowMs = now.getTime();
   return (data || []).filter((r) => {
-    if (!TASK_RE.test(String(r.block || '')) || !hasAudio(r)) return false;
-    if (envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
+    // sa_r28_mcq: the questions picked from four have no recording (a tap task); the store parks them for the floor only
+    // with the switch ON, so a parked one is admitted whatever the switch reads now (a flip to OFF never strands it)
+    const tapMcq = isMcq(r.block) && !hasAudio(r);
+    if (!TASK_RE.test(String(r.block || '')) || !(hasAudio(r) || tapMcq)) return false;
+    if (!tapMcq && envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
     if (r.ai_reason.startsWith(WAIT_BANK)) return nowMs - Date.parse(r.updated_at || 0) >= bankBackoffMs(attemptOf(r.ai_reason, WAIT_BANK));
     if (!r.ai_reason.startsWith(SCORING) || LIVE.has(r.ai_reason) || r.ai_reason === MINE) return false;
@@ -1232,13 +1406,18 @@ async function passagesOf(sessionId, supabase) {
   const { data } = await supabase.from('child_test_blocks').select('block, ai_marks, ai_status, ai_reason').eq('session_id', sessionId);
   const out = new Map();
   const followed = new Set((data || []).map((r) => r.block).filter((b) => passageOf(b) !== b).map(passageOf));
+  // sa_r28_mcq: the passages a questions-picked-from-four row follows
+  const byMcq = new Set((data || []).map((r) => r.block).filter(isMcq).map(passageOf));
   for (const r of data || []) {
     const m = r.ai_marks;
     const kind = m && m.detail ? m.detail.kind : null;
     if (m ? kind !== 'passage' : !followed.has(r.block)) continue;
     const reason = String(r.ai_reason || '');
     const pending = !m && reason.startsWith('final:sa_') && !reason.startsWith(FAILED);
-    if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null });
+    // sa_r28_mcq: an MCQ's passage is awaited before its recording has arrived too (not parked yet), so the MCQ is
+    // never marked ahead of the marks its floor reads; ready() bounds that wait by the session's end
+    const unparked = !m && !pending && byMcq.has(r.block) && !reason.startsWith(FAILED) && r.ai_status !== 'failed';
+    if (m || pending || unparked) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending: pending || unparked, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null, ...(unparked ? { unparked: true } : {}) });
   }
   return out;
 }
@@ -1340,6 +1519,8 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const voiceHelp = await voiceHelpSwitch.enabled(deps);
   const noEchoUr = await noEchoUrSwitch.enabled(deps);
   const childOnlyAnswer = await childOnlySwitch.enabled(deps);
+  const ceiling = await ceilingSwitch.enabled(deps);
+  const mcqFloor = await mcqSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1356,6 +1537,10 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
       if (s) { s.askedBy = await askedByOf(row.session_id, supabase); s.asked = [...s.askedBy.values()].flat(); s.variantWait = variantWait; }
       if (s) s.lastWordFromRecording = await coachLastWord.enabled(deps, s.coach_user_id || null, supabase);
       if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
+      // sa_r28_mcq: the questions picked from four read their passage's marks (the reading floor), stop rules or not; a
+      // parked MCQ row in the queue is proof the switch was ON at its sync, so its session waits the same way
+      const parkedMcq = rows.some((r) => r.session_id === row.session_id && isMcq(r.block) && !hasAudio(r));
+      if (s && (mcqFloor || parkedMcq)) { s.mcqFloor = true; if (!s.passages) s.passages = await passagesOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
     }
     const session = sessions.get(row.session_id);
@@ -1376,7 +1561,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer, ceiling });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1412,5 +1597,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks },
 };

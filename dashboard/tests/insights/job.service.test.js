@@ -56,7 +56,7 @@ describe('write mode on the sandbox tier', () => {
     const store = new MemoryStore();
     expect(await runJob(OPTS, writeDeps(tables, store))).toBe(0);
     const n = (t) => store.rows(t).length;
-    expect(n('coachip_weaknesses')).toBe(30);
+    expect(n('coachip_weaknesses')).toBe(32); // round 28: W-LS-T, W-RC-T
     expect(n('coachip_session_facts')).toBeGreaterThan(96);
     expect(n('coachip_session_signals')).toBeGreaterThan(0);
     expect(n('coachip_session_steps')).toBeGreaterThan(0);

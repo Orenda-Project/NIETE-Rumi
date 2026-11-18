@@ -4,6 +4,8 @@ import { ChevronDown, ChevronLeft, RefreshCw } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
+import { fmtFloor, tapFloors } from '../lib/assess/guessFloor';
+import { specOf, tapOf } from '../lib/assess/cohortStats';
 import { isWordsTask } from '../lib/assess/cwpm';
 import { useUrFit } from '../lib/assess/urFit';
 import type { SaResults, SaSubjectLevel, SaTaskResult } from '../types/childTestSa';
@@ -117,6 +119,15 @@ export default function LeaderAssessResults() {
     const stop = t.stopReason ? (r.stops as Record<string, string>)[t.stopReason] || t.stopReason : null;
     // a task the child never did (sandbox Jump, level 2 skipped, no microphone) has no counts: say how it ended only
     const skipped = !!t.stopReason && (t.stopReason.startsWith('skipped_') || t.stopReason === 'mic_unavailable') && !t.attempted;
+    // round 28: a tapped task heard too little is not rated (no score, never a low one); an extended timed task's first N
+    const unrated = t.mode === 'tap' && t.unrated === true;
+    const firstN = t.firstN && typeof t.firstN.correct === 'number' && typeof t.firstN.of === 'number' ? t.firstN : null;
+    // round 28: the voice check's kind renders its own line, and then the one footnote (never on today's rows)
+    const voiceKind = spoken && scored && t.secondVoiceKind && r.voiceKinds[t.secondVoiceKind] ? r.voiceKinds[t.secondVoiceKind] : null;
+    // round 28 (SPEC F): a rated tapped picker / MCQ says how many children reach its rung by guessing alone (text only)
+    // on the items this child actually had (presented / 6 − lost): the same tapOf the share divides by
+    const tapSpec = t.mode === 'tap' ? specOf(t.taskId) : undefined;
+    const floors = t.mode === 'tap' && !unrated && !skipped ? tapFloors(t.taskId, t.optionsN, tapSpec ? tapOf(t, tapSpec) : null) : null;
     return (
       <li key={t.taskId} data-testid={`result-task-${t.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
         {t.title?.[lang] ? (
@@ -129,21 +140,31 @@ export default function LeaderAssessResults() {
           <Row label={r.mode} value={mode} />
           {skipped ? null : <>
           {!spoken && <Row label={r.attempted} value={n(t.attempted)} />}
-          {!spoken && <Row label={r.correct} value={n(t.correct)} />}
+          {!spoken && !unrated && <Row label={r.correct} value={n(t.correct)} />}
           {t.mode === 'tap' && <Row label={r.optionsN} value={n(t.optionsN)} />}
-          {t.mode === 'tap' && <Row label={r.chanceCorrected} value={n(t.chanceCorrected)} />}
+          {t.mode === 'tap' && !unrated && <Row label={r.chanceCorrected} value={n(t.chanceCorrected)} />}
+          {unrated && <Row label={r.score} value={t.unratedWhy === 'ended' ? r.unrated_ended : r.unrated} />}
+          {/* round 28: the child's own taps before the prompt's sound ended, of the answers timed */}
+          {t.mode === 'tap' && t.tapBeforeSound && typeof t.tapBeforeSound.n === 'number' && t.tapBeforeSound.of > 0
+            && <Row label={r.tapBefore} value={r.ofN(t.tapBeforeSound.n, t.tapBeforeSound.of)} />}
           {!spoken && t.itemsPerMin !== null && <Row label={r.itemsPerMin} value={n(t.itemsPerMin)} />}
           {spoken && scored && <Row label={r.recording} value={r.scored} />}
           {spoken && scored && Object.entries(t.score as Record<string, number>).map(([k, v]) => (
             <Row key={k} label={scoreLabel(k, t.taskId)} value={n(v)} />
           ))}
+          {spoken && scored && firstN && <Row label={r.firstN(firstN.of)} value={r.ofN(firstN.correct, firstN.of)} />}
           {/* no score yet is "kept, scored later" — never a 0 or an empty score (no scorer, or scoring off) */}
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
-          {spoken && scored && t.secondVoice && <Row label={r.secondVoice} value={r.secondVoiceYes} />}
+          {/* round 28: with the voice check's kind, say what was heard ('other_voice': no line); without it, today's line */}
+          {spoken && scored && (t.secondVoiceKind
+            ? (voiceKind ? <Row label={r.secondVoice} value={voiceKind} /> : null)
+            : (t.secondVoice ? <Row label={r.secondVoice} value={r.secondVoiceYes} /> : null))}
           </>}
           {stop && <Row label={r.stopReason} value={stop} />}
           {stop && t.stopWhy && r.whys[t.stopWhy] && <Row label={r.why} value={r.whys[t.stopWhy]} />}
         </dl>
+        {voiceKind ? <p data-testid="result-voice-note" className="mt-1 text-xs text-slate-500">{r.voiceNote}</p> : null}
+        {floors ? <p data-testid="result-guess-floor" className="mt-2 text-xs text-slate-600">{r.guessFloor(floors.map((f) => ({ pct: numIn(lang, fmtFloor(f.share)), k: numIn(lang, f.k), n: numIn(lang, f.n) })))}</p> : null}
       </li>
     );
   };

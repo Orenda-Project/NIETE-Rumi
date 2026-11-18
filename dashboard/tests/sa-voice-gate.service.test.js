@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-25'); // sa-25: round 20, sa-engine.js / sa-core.js (N silent letter/word parts in a row)
+    expect(sw.CORE).toBe('sa-core-sa-28'); // sa-28: round 28 follow-up, sa-ui.js / sa-core.js (no Back on the picker and MCQ screens; since_fold_ms)
   });
 });
 
