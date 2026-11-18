@@ -9,13 +9,25 @@ import { resolve } from "path";
 const app = readFileSync(resolve(__dirname, "../../App.tsx"), "utf8");
 
 describe("coach v2 routes", () => {
+  // bd-o15qnr.26 — Schedule and Observe's four addresses go through the visit flow v2 switch (coach/flow/routes.tsx): each is
+  // its own lazy chunk of that module, which draws today's page with the switch off (and the new list or a redirect on).
   it.each([
-    ["/portal/coach/scheduling", "CoachScheduling"],
-    ["/portal/coach/schedule", "CoachSchedule"],
+    ["/portal/coach/scheduling", "CoachScheduling", "SchedulingRoute", "CoachScheduling"],
+    ["/portal/coach/schedule", "CoachSchedule", "ScheduleRoute", "CoachSchedule"],
+    ["/portal/coach/observe", "CoachObserve", "ObserveRoute", "CoachObserve"],
+    ["/portal/coach/observe/pick", "CoachObservePick", "ObservePickRoute", "CoachObservePick"],
+  ])("%s → %s, through the flow switch's %s (off: %s)", (path, component, route, page) => {
+    expect(app).toContain(`<Route path="${path}" element={<${component} />} />`);
+    expect(app).toContain(`const ${component} = flowRoute("${route}");`);
+    expect(app).toContain('import("./portal/coach/flow/routes")');
+    const flow = readFileSync(resolve(__dirname, "flow/routes.tsx"), "utf8");
+    expect(flow).toContain(`import ${page} from "../pages/${page}";`);
+    expect(flow).toMatch(new RegExp(`export const ${route} = pick\\(.*<${page} />\\);`));
+  });
+
+  it.each([
     ["/portal/coach/team", "CoachTeam"],
     ["/portal/coach/new-visit", "CoachNewVisit"],
-    ["/portal/coach/observe", "CoachObserve"],
-    ["/portal/coach/observe/pick", "CoachObservePick"],
     ["/portal/coach/visit/:id", "CoachVisit"],
     ["/portal/coach/visit/:id/record", "CoachRecord"],
     ["/portal/coach/visit/:id/attach", "CoachAttach"],
