@@ -164,6 +164,8 @@ describe('the status poll\'s change fields', () => {
     expect(G.statusFields({ changes_left: 1, own_band: 'k5' })).toEqual({ changesLeft: 1, ownBand: 'k5' });
     expect(G.statusFields({ changes_left: 0, own_band: 'g612' })).toEqual({ changesLeft: 0, ownBand: 'g612' });
     expect(G.statusFields({ id: 'render-1' })).toEqual({});
+    // bd-snkn32.51 — a shelf plan opened by another teacher says so (her changes are not hers to make).
+    expect(G.statusFields({ shelf: true })).toEqual({ shelf: true });
     expect(G.statusFields(null)).toEqual({});
   });
 });

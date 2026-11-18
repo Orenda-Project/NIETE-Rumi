@@ -36,12 +36,13 @@ top-level columns.
 | `app_funnel.page_leave` | portal | as above plus `dwellMs` (time she was actually looking; time hidden excluded) and `how` (`nav`, `hidden`, `pagehide`) |
 | `app_funnel.page_resume` | portal | she came back to the page (visible again / restored from the back-forward cache) |
 | `app_funnel.action` | portal | `journeyId`, `userId`, `appSessionId`, `action`, `feature`, `lane` (lesson plans), `status` |
+| `own_form.step` | portal | "Make my own" question screens (bd-snkn32.51): `step` (pages, purpose, focus, size, level, resources, way, check), `phase` (enter / leave), `grade`, `subject` (code), `band` (k5 / g612); a leave adds `dwellMs` and `how`. The form is one route, so page rows alone show only "opened" and "left" |
 
 Actions logged: `lesson_plan.opened` (lane k5, g612 or fln), `lesson_plan.requested`, `fln.sent` (a leader sent an FLN plan, lane fln_send), `paper.requested`, `paper.edited`,
 `attendance.saved`, `attendance.register_sent`, `training.module_opened`, `training.quiz_started`,
 `training.quiz_finished`, `training.module_completed`, `training.certificate_issued`, `class.created`,
 `class.students_added`, `coaching.recording_submitted`, `coaching.reflection_saved`, `share.whatsapp`,
-`observe.started`, `observe.report_sent`, `notice.opened`. The list is the `ACTIONS` table in `app-funnel.routes.js`;
+`observe.started`, `observe.report_sent`, `notice.opened`; and from the Make my own routes themselves (logAppAction, bd-snkn32.51): `own_plan.make` (`kind` make / change, `lane`, `lesson` or `ownId`, `part`, `outcome`: queued, a refusal code such as daily_limit / grr / rote, bad_request, bot_<status>, unreachable; `httpStatus`) and `own_plan.opened` (`whose` mine / shelf, `ownId`, `band`: several `mine` rows per ownId are re-opens; `shelf` is another teacher reusing an approved plan). The list is the `ACTIONS` table in `app-funnel.routes.js`;
 a new action is one row there.
 
 `browser` is classified by the server from the User-Agent / X-Requested-With: `whatsapp-iab`, `webview` (another app's),
