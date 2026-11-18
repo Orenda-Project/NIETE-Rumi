@@ -98,7 +98,10 @@ export default function SlimHome() {
           <section data-testid="home-today" className="mt-1 flex flex-col gap-2.5">
             <SectionLabel count={todays.length}>{W.todaysVisits}</SectionLabel>
             {current && <CurrentVisit v={current} W={W} start={{ onPress: () => trackFlow("home.today_start") }} />}
-            <HistoryList showMore={false} groups={[{ day: "", items: todays.filter((v) => v !== current).map((v) => visitItem(v, W)) }]} />
+            {/* the rest of today's visits, only when there are any (the kit's list draws an empty card for none) */}
+            {todays.length > (current ? 1 : 0) && (
+              <HistoryList showMore={false} groups={[{ day: "", items: todays.filter((v) => v !== current).map((v) => visitItem(v, W)) }]} />
+            )}
           </section>
         )}
         <FeatureMotionProvider>
