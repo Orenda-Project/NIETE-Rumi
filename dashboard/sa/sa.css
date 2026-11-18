@@ -396,7 +396,7 @@ button{font:inherit;color:inherit}
 .sae.is-r8-layout .sae-check .sae-sub{font-size:18px}
 .sae.is-r8-layout .sae-check .sae-jugnu-s{width:64px;height:64px}
 .sae.is-r8-layout .sae-check .sae-replay{width:56px;height:56px}
-/* round 28, O-49 (sa_r28_check_fit, .is-r28-check-fit): the Urdu sound check on a phone-height frame. Under ur_fit every
+/* round 28, the check fit (sa_r28_check_fit, .is-r28-check-fit): the Urdu sound check on a phone-height frame. Under ur_fit every
    Urdu heading and hint runs at line-height 3 (Nastaliq's ascenders); on a 360×640 phone in the coach page's frame (64 px
    under its corner hold) that put the two picture tiles 80 px under the fold with the scroll cue drawn over them, so the
    child had to scroll before tapping the picture Jugnu named. The silence screen's own phone numbers (line-height 2.4 at
@@ -614,7 +614,7 @@ button{font:inherit;color:inherit}
 .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(5){grid-row:2;grid-column:5 / span 2}
 .sae .sae-pick-cards .sae-opt.is-model{position:relative;border-color:var(--sae-accent);box-shadow:0 0 0 6px var(--sae-accent-l),0 0 22px 4px var(--sae-accent);color:var(--sae-ink)}
 .sae .sae-pick-cards .sae-opt.is-model::after{content:"👆";position:absolute;bottom:-18px;inset-inline-end:-8px;font-size:30px;line-height:1;font-family:var(--sae-f)}
-/* round 28, O-50: the modelled card's hand hangs 18 px below its card and, absolute or not, counts toward the body's
+/* round 28, the practice example's hand: the modelled card's hand hangs 18 px below its card and, absolute or not, counts toward the body's
    scrollable overflow. In RDF auto the practice example's cards are the screen's last block and sit on the body's bottom
    edge, so the hand read as 11 px (Urdu) / 17 px (English) of scroll on a 360×640 phone, 18 on the tablet, and drew the
    round-9 cue over nothing. The cards block keeps the hand's room while a card is modelled; nothing else moves. Coach-led

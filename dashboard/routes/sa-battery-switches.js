@@ -131,7 +131,7 @@
  *   sa_r28_toggle_fit       round 8's language toggle keeps its 56 px button inside a 44 px top bar on every screen, and a
  *                           head row holding a tappable keeps its distance from the toggle's hit area (sa.css, round 28 A11).
  *   sa_r28_check_fit        the Urdu sound check fits a phone-height frame: its question, hint, Jugnu row and the two picture
- *                           tiles sized so both tiles are whole and tappable without scrolling (sa.css, round 28 O-49).
+ *                           tiles sized so both tiles are whole and tappable without scrolling (sa.css, round 28, the check fit).
  *
  * Pure: applySwitches(battery, on) never changes its input.
  */
@@ -180,7 +180,7 @@ const SWITCHES = {
   r28StoryClock: 'sa_r28_story_clock',
   // round 28, A11: the scroll cue never holds itself; the language toggle inside a 44 px top bar (sa-ui.js, sa.css)
   r28CueGuard: 'sa_r28_cue_guard', r28ToggleFit: 'sa_r28_toggle_fit',
-  // round 28, O-49: the Urdu sound check fits a phone-height frame (sa.css)
+  // round 28, the check fit: the Urdu sound check fits a phone-height frame (sa.css)
   r28CheckFit: 'sa_r28_check_fit',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
