@@ -296,8 +296,12 @@ on('WQ064', 'off', async (page, ctx) => {
   expect(ranked.length >= 3, 'ranked schools: ' + ranked.length + ' ' + JSON.stringify(b).slice(0, 200));
   for (const r of ranked) {
     expect(r.name && r.points > 0 && r.kids >= 1 && r.place >= 1, 'a ranked row lacks place/points/children: ' + JSON.stringify(r));
-    expect(r.points >= 10 * r.kids && r.points <= 20 * r.kids, 'points outside 10–20 per child: ' + JSON.stringify(r));
+    // 10 per child's first finish OF A QUIZ plus up to 10 for its score: a child who first-finished two quizzes this week
+    // brings up to 40, so the board can only bound a school from below by its children (10 each)
+    expect(r.points >= 10 * r.kids, 'fewer than 10 points per child: ' + JSON.stringify(r));
   }
+  // the exact rule on the one finish this scenario knows: Lg5's first finish, all right, adds 10 + up to 10
+  expect(typeof b.added === 'number' && b.added >= 10 && b.added <= 20, 'this first finish added ' + b.added + ' (10 + up to 10 expected)');
   const names = JSON.stringify(b);
   expect(!/Sana Javed|Testwala|Lg1|Lg5|4-A|Grade 4/.test(names), 'a teacher, class or child is named on the league');
   // the page: every ranked school shows place, points, children
