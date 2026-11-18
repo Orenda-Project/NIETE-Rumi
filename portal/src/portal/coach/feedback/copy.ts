@@ -39,6 +39,8 @@ export const FEEDBACK_EN = {
   micBlocked: "Microphone blocked",
   micHint: "Allow the microphone for WhatsApp in your phone’s settings, or write instead.",
   notPicture: "Only a picture: JPG or PNG",
+  /* bd-tymy1n (queue #179) — a picture the phone will not open, refused when she picks it */
+  wontOpen: "Picture will not open",
   tooLarge: "That picture is too large",
   audio: { play: "Play", pause: "Pause", cantPlay: "Can’t play" },
 };
@@ -73,6 +75,7 @@ export const FEEDBACK_UR: Words<typeof FEEDBACK_EN> = {
   micBlocked: "مائیک کی اجازت نہیں",
   micHint: "فون کی سیٹنگز میں WhatsApp کو مائیک کی اجازت دیں، یا لکھ کر بھیجیں۔",
   notPicture: "صرف تصویر: JPG یا PNG",
+  wontOpen: "تصویر نہیں کھل رہی",
   tooLarge: "یہ تصویر بہت بڑی ہے",
   audio: { play: "چلائیں", pause: "روکیں", cantPlay: "نہیں چل سکا" },
 };
