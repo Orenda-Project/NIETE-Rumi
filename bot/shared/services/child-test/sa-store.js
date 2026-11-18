@@ -163,8 +163,17 @@ function phoneMarks(r) {
   return null;
 }
 
-/** One subtask's result from the phone: [{task_id, scored_on, answers[], ...}] */
-async function putResults(sessionId, results, lang) {
+// sa_r28_mcq: the story's questions picked from four (a tap task served only with the switch ON)
+const MCQ_RE = /\.story_mcq_w3$/;
+
+/**
+ * One subtask's result from the phone: [{task_id, scored_on, answers[], ...}]. sa_r28_mcq ON (`deps.mcq` in a test, else
+ * the setting, read only when an MCQ result is in the batch): the MCQ's count is not written as its marks here (marks
+ * are written once), the row is parked for the scorer, which applies the oral questions' reading floor (sa/score.js
+ * mcqMarks); an unrated MCQ (too few questions presented) is marked from the phone as today.
+ */
+async function putResults(sessionId, results, lang, deps = {}) {
+  let mcqFloor = null;
   for (const r of results) {
     // eslint-disable-next-line no-await-in-loop
     const got = await rowFor(sessionId, r.task_id);
@@ -174,6 +183,17 @@ async function putResults(sessionId, results, lang) {
     const responses = [{ kind: 'result', ...summary }, ...(Array.isArray(answers) ? answers : []).map((a) => ({ kind: 'answer', ...a }))];
     const patch = { responses, lang: lang || null, ...(MODES.includes(r.mode) ? { response_mode: r.mode } : {}) };
     const marks = r.scored_on === 'phone' ? phoneMarks(r) : null;
+    if (marks && r.mode === 'tap' && r.unrated !== true && MCQ_RE.test(String(r.task_id || ''))) {
+      // eslint-disable-next-line no-await-in-loop, global-require
+      if (mcqFloor === null) mcqFloor = await require('./app/mcq-switch').enabled(deps);
+      if (mcqFloor) {
+        Object.assign(patch, { ai_status: 'failed', ai_reason: PARKED });
+        // eslint-disable-next-line no-await-in-loop
+        const parked = await updateRow(got.row.id, patch, 'putResults');
+        if (!parked.ok) return parked;
+        continue; // eslint-disable-line no-continue
+      }
+    }
     if (marks) {
       Object.assign(patch, { ai_marks: marks, ai_status: 'scored', ai_model_versions: { scorer: PHONE_SCORER }, ai_scored_at: new Date().toISOString() });
     }
