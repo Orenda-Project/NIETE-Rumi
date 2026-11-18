@@ -3,7 +3,9 @@
 // Each run(page, ctx) gets a fresh browser context on ctx.baseUrl, throws on a broken expectation and
 // returns its evidence. ctx.sql(text) runs against THIS run's own local database (never a shared one).
 'use strict';
-const { PASSWORD, DEMO, MODES, expect, open, signIn, landsOn, setSetting, setFlags, sendUntilLink } = require('../lib.cjs');
+const fs = require('fs');
+const path = require('path');
+const { PASSWORD, DEMO, MODES, expect, open, signIn, landsOn, settledPath, setSetting, setFlags, sendUntilLink } = require('../lib.cjs');
 
 const TEACHER = DEMO.teacher;
 const PRINCIPAL = DEMO.principal;
@@ -113,6 +115,43 @@ const scenarios = [
   { id: 'PL12', title: 'A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password', run: async () => ({
     blocked: 'spec/code disagreement: bd-xxi78f took the WhatsApp-code sign-in off /portal/login (phone + password only); @PL12 is marked @obsolete in the spec as a deletion proposal',
   }) },
+  // PL13: the bot signs a Send to teacher link with its own token module (bot/shared/services/app-login-link.js) — the
+  // copy in THIS run's bot tree, keyed as the stack is (its INTERNAL_API_KEY and the portal's SUPABASE_URL), so the
+  // driver mints exactly what the bot would, never a copy of its crypto.
+  { id: 'PL13', title: 'One-tap sign-in from a Send to teacher message lands on the FLN plan, whatever the teacher-app switch says', run: async (page, ctx) => {
+    expect(ctx.runDir && ctx.internalKey, 'no run dir / internal key on ctx (e2e-web.sh passes WEB_RUN_DIR + WEB_INTERNAL_KEY)');
+    const portalEnv = fs.readFileSync(path.join(ctx.runDir, 'portal', '.env'), 'utf8');
+    const supabaseUrl = (portalEnv.match(/^SUPABASE_URL=(.*)$/m) || [])[1];
+    expect(supabaseUrl, "no SUPABASE_URL in this run's portal env");
+    await setFlags(ctx, CLASSIC);
+    const userId = (await ctx.sql("select id from users where phone_number = '92" + TEACHER.slice(1) + "' and deleted_at is null limit 1")).split('\n')[0].trim();
+    expect(userId, 'the demo teacher is not in this run\'s database');
+    const PLAN = '11156';
+    const saved = { k: process.env.INTERNAL_API_KEY, s: process.env.SUPABASE_URL };
+    let token;
+    try {
+      process.env.INTERNAL_API_KEY = ctx.internalKey; process.env.SUPABASE_URL = supabaseUrl;
+      token = require(path.join(ctx.runDir, 'src', 'bot', 'shared', 'services', 'app-login-link.js')).signAppLink(userId, 'fln:' + PLAN);
+    } finally {
+      for (const [k, v] of [['INTERNAL_API_KEY', saved.k], ['SUPABASE_URL', saved.s]]) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    }
+    expect(token, 'the bot would not sign a link for fln:' + PLAN);
+    await page.goto(ctx.baseUrl + '/go/' + token, { waitUntil: 'domcontentloaded' });
+    const landed = await settledPath(page, '/go/__never__');
+    expect(landed === '/portal/fln/p/' + PLAN, 'expected to settle on /portal/fln/p/' + PLAN + ', settled on ' + landed.replace(/\/go\/.+/, '/go/<token>'));
+    const me = await page.request.get(ctx.baseUrl + '/api/portal/me');
+    expect(me.status() === 200, 'not signed in after the link (GET /api/portal/me ' + me.status() + ')');
+    // One character changed, in a browser with no session: the "get a new link" page, and nobody signed in.
+    await page.context().clearCookies();
+    const i = Math.floor(token.length / 2);
+    const altered = token.slice(0, i) + (token[i] === 'A' ? 'B' : 'A') + token.slice(i + 1);
+    const res = await page.goto(ctx.baseUrl + '/go/' + altered, { waitUntil: 'domcontentloaded' });
+    const title = await page.title();
+    expect(/link has expired/i.test(title), 'the altered link did not open the "get a new link" page (title: ' + title + ', status ' + (res && res.status()) + ')');
+    const after = await page.request.get(ctx.baseUrl + '/api/portal/me');
+    expect(after.status() === 401 || after.status() === 403, 'someone is signed in after the altered link (GET /api/portal/me ' + after.status() + ')');
+    return { landed, signedIn: true, altered: { title, me: after.status() } };
+  } },
   { id: 'PL14', title: "The analytics accounts' own sign-in asks for an account name and a password only, and a refused name stays on it", run: async (page, ctx) => {
     await page.goto(ctx.baseUrl + '/portal/analytics/login', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 })

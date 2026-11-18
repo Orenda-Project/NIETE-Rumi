@@ -12,11 +12,11 @@ Feature: Coach app
     Then /portal/coach settles on /portal/coach/training, with "Training Library"
 
   @CP02
-  Scenario: Coach app v2: Schools & teachers, My schedule and Team schedule send her to the Training Library
+  Scenario: Coach app v2: My schools opens; My schedule and Team schedule send her to the Training Library
     Given the teacher app v2 is off and the coach app v2 is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach/people
-    Then /portal/coach/people settles on /portal/coach/training
+    Then My schools opens on "Schools & teachers"
     When she opens /portal/coach/schedule
     Then /portal/coach/schedule settles on /portal/coach/training
     When she opens /portal/coach/team
@@ -73,31 +73,36 @@ Feature: Coach app
 
   # The School card, with its switch (portal_coach_school_card) on and off. The driver waits for /config to agree
   # with the switch (the dashboard caches it 30 s) and puts it back OFF after every scenario.
+  # bd-rlxkkt.2 (3 Nov 2026): Coach Training joined the slim Home's tiles (card/switchOn.test.tsx).
   @CP07
   Scenario: Coach app v2 with the School card on: her home is the slim Coach Home, the menu is Home, Lesson Plans and More, and the hidden pages land on Home
     Given the teacher app v2 is off and the coach app v2 is on
     And the School card is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach
-    Then it is the slim Coach Home with exactly two tiles, Training Library and My schools
+    Then it is the slim Coach Home with exactly three tiles, Training Library, My schools and Coach Training
     And the menu is Home, Lesson Plans and More
     When she opens Schedule, My schedule, Team schedule, New visit, Observe, Reports, Analytics or Insights
     Then each settles on /portal/coach
     And no page error or 5xx happened
 
+  # bd-17v39c.4.13.4 (5 Nov 2026): the School card became the School view — an overview of five boxes and a teacher
+  # table; the score and Activity tiles left the card, and a box's details page leads with its chart. Since
+  # bd-dgfkgs.1 (30 Oct 2026) a by-teacher row opens her list of that feature, not her Teacher page.
   @CP08
-  Scenario: Coach app v2 with the School card on: a school opens as its School card; This month, a feature's grid and a teacher's page open from it
+  Scenario: Coach app v2 with the School card on: a school opens as its School view; This month, a feature's details, her list and a teacher's page open from it
     Given the teacher app v2 is off and the coach app v2 is on
     And the School card is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach/school/DEMO-001
-    Then it shows the period chips Today, This week and This month, the Digital Coaching and Coach observations tiles first, then Lesson plans, Assessments and Training parts, and the Manage group
+    Then it shows the period chips Today, This week and This month, the overview boxes Lesson plans, Training, Assessments, Digital Coaching and Coach observations, the teacher table, and the Manage group
     And there is no Share with principal and no Schedule a visit
     When she taps "This month"
-    Then the Lesson plans tile shows one bar per week, from "Wk 1"
-    When she taps the Lesson plans tile
-    Then "Lesson plans by teacher" opens for This month, with a row per teacher and the School row
+    And she taps the Lesson plans box
+    Then "Lesson plans by teacher" opens for This month, led by one bar per week from "Wk 1", with a row per teacher and the School row
     When she taps a teacher's row
+    Then that teacher's own Lesson plans list opens for This month
+    When she taps a teacher in the School view's teacher table
     Then her Teacher page opens with the Digital Coaching and Coach observations tiles first
     When she taps her Digital Coaching tile
     Then her Digital Coaching page opens for This month
