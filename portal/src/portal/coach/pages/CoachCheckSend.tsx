@@ -181,8 +181,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     const file = out.file;
     // A photo just taken has no useful name; a chosen file is shown by its own name and what it is.
     if (source === "camera") { setPlan({ kind: "file", file, title: C.planPhoto, sub: C.takenNow }); return; }
-    const kind = planKindLabel(planKindOf(file.name), C);
-    setPlan({ kind: "file", file, title: file.name, sub: [kind, formatSize(file.size)].filter(Boolean).join(" · ") });
+    const kind = planKindLabel(planKindOf(picked.name), C);
+    setPlan({ kind: "file", file, title: picked.name, sub: [kind, formatSize(picked.size)].filter(Boolean).join(" · ") });
   };
 
   const onLibraryPick = useCallback((p: PickedPlan) => {
