@@ -30,12 +30,12 @@ const SETS = [{ name: 'demo', ui: SERVED_UI }, { name: 'staging', ui: Object.ass
 const ON = { rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true };
 
 /** The coach battery of `lang` (grade 2, Set A) as the route serves it, with the tier's served `ui`; the picker alone. */
-function served(lang, ui) {
+function served(lang, ui, keepPractice) {
   const { applySwitches } = require('../routes/sa-battery-switches');
   const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G2.A.${lang}.json`), 'utf8'));
   const b = applySwitches(raw, ON);
   const t = b.tasks.find((x) => x.id === `${lang}.letter_pick10`);
-  const bat = Object.assign({}, b, { ui: Object.assign({}, ui), tasks: [Object.assign({}, t, { practice: [] })] });
+  const bat = Object.assign({}, b, { ui: Object.assign({}, ui), tasks: [keepPractice ? t : Object.assign({}, t, { practice: [] })] });
   delete bat.rdf_auto; delete bat.rdf_manual;
   return bat;
 }
@@ -47,7 +47,7 @@ function other(lang, ui) {
 }
 
 function html(lang, fr, ui) {
-  const bat = served(lang, ui);
+  const bat = served(lang, ui, !!fr.practice);
   const hold = lang === 'ur' ? ['جائزہ ختم (کوچ)', 'یہ حصہ ختم کریں'] : ['End test (coach)', 'End this section'];
   return `<!doctype html><html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
@@ -68,7 +68,7 @@ function html(lang, fr, ui) {
   var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: ${!fr.auto}, one_at_a_time: true, dev_tools: ${!!fr.devjump} });
   var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: ${!fr.auto}, handover: false, ur_fit: true,
     r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak, embed: true${fr.devjump ? ', devJump: function () {}' : ''} });
-  runner.start(); runner.instructionDone(); runner.begin(); view.render();
+  runner.start(); runner.instructionDone(); ${fr.practice ? '' : 'runner.begin(); '}view.render();
   view.setSync({ state: 'synced' });
   view.langBattery('${lang === 'ur' ? 'en' : 'ur'}', SAE.core.normalize(${JSON.stringify(other(lang, ui))}), {});
   (function () { // the coach page's hold buttons over the frame (AssessEngineSlot: fixed top-2 start-2, gap-2, min-h 48)
@@ -108,7 +108,7 @@ maybe('the letter picker under the served switch set (back_button ON), coach-led
   beforeAll(async () => { browser = await pwChromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
   afterAll(async () => { if (browser) await browser.close(); });
 
-  async function walk(lang, fr, set) {
+  async function walk(lang, fr, set, offerNext) {
     const ctx = await browser.newContext({ viewport: fr.vp, deviceScaleFactor: fr.dpr });
     const p = await ctx.newPage();
     const doc = html(lang, fr, set.ui);
@@ -127,6 +127,16 @@ maybe('the letter picker under the served switch set (back_button ON), coach-led
       await p.evaluate(() => window.__end());
       await p.waitForTimeout(200);
       rows.push(Object.assign({ state: 'item' }, await p.evaluate(measure)));
+      if (offerNext && k < 3) { // RDF auto: Next offered on the item (30 s, no answer), before any tap
+        for (let j = 0; j < 6; j++) {
+          await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+          await p.waitForTimeout(300);
+          while (await p.evaluate(() => window.__end())) await p.waitForTimeout(400);
+          if (await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sae-screen .sa-next, .sae-screen .sae-pick-next'); })) break;
+        }
+        await p.waitForTimeout(200);
+        rows.push(Object.assign({ state: 'offernext' }, await p.evaluate(measure), { next: await p.evaluate(() => !!document.querySelector('.sae-screen .sa-next, .sae-screen .sae-pick-next')) }));
+      }
       if (process.env.SA_PICK_SHOT_DIR && k === 1) await p.screenshot({ path: path.join(process.env.SA_PICK_SHOT_DIR, `a15_item2${fr.tag}_${set.name}_${lang}_${fr.dev}_${fr.auto ? 'auto' : 'coach'}.png`) });
       // the child's tap on card 3 (at its centre, as a finger): the pressed card, before the next item is drawn
       await p.evaluate(() => { const b = document.querySelectorAll('.sae-pick-cards .sae-opt')[2]; const r = b.getBoundingClientRect(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); });
@@ -155,14 +165,58 @@ maybe('the letter picker under the served switch set (back_button ON), coach-led
       test(`[${set.name} set] ${lang} ${fr.name}: every item (before and after the tap, items 1–10): no Back, 5/5 cards hit, the replay hit and ≤ vh − 8, no inner scroll, no cue`, async () => {
         const rows = await walk(lang, fr, set);
         expect(rows.filter((r) => r.state === 'item').length).toBe(10);
-        if (!fr.devjump) { expect(bad(rows)).toEqual([]); return; }
-        // with the sandbox-only row: the score bar on every item (the cards; Back never drawn) and nothing grows
-        // the sandbox-only "Jump to…" row (RULING #43) takes its own room above the top bar on every screen (read and
-        // reported, not this file's bar): what is held here is that no item screen draws more than the first one does
-        const first = rows[0];
-        expect(rows.filter((r) => r.back || r.cards_hit !== first.cards_hit || Math.abs(r.pill_bottom - first.pill_bottom) > 0.5 || r.inner_scroll !== first.inner_scroll)
-          .map((r) => `${r.state} ii=${r.ii}: cards ${r.cards_hit} pill @${r.pill_bottom} inner ${r.inner_scroll} back ${!!r.back}`)).toEqual([]);
+        // the sandbox-only "Jump to…" row (RULING #43) is not drawn on the picker's item screens
+        expect(rows.filter((r) => r.devjump).length).toBe(0);
+        expect(bad(rows)).toEqual([]);
       }, 300000);
+    }
+  }
+
+  // RDF auto, Next offered (30 s with no answer) on items 1–3, then the tap: the red team's state. Held here: no Back is
+  // drawn (Back was the suspect); read and logged: the cards, the replay and the scroll with the child's Next at the foot
+  for (const set of SETS) {
+    for (const lang of ['ur', 'en']) {
+      test(`[${set.name} set] ${lang} phone RDF auto, Next offered on items 1–3: no Back; read`, async () => {
+        const fr = { name: 'phone RDF auto offer-next', vp: { width: 360, height: 640 }, dpr: 3, dev: 'phone', tag: '_auto_offernext', auto: true };
+        const rows = await walk(lang, fr, set, true);
+        expect(rows.filter((r) => r.state === 'offernext' && r.next).length).toBe(3);
+        expect(rows.filter((r) => r.back).length).toBe(0);
+      }, 300000);
+    }
+  }
+
+  // O-50 (read): the RDF auto practice screens with the toggle drawn, P1 (modelled) and P2 (before and after a tap)
+  for (const set of SETS) {
+    for (const lang of ['ur', 'en']) {
+      test(`[${set.name} set] ${lang} phone RDF auto, practice P1 and P2: read`, async () => {
+        const fr = { name: 'phone RDF auto practice', vp: { width: 360, height: 640 }, dpr: 3, dev: 'phone', auto: true, practice: true };
+        const ctx = await browser.newContext({ viewport: fr.vp, deviceScaleFactor: fr.dpr });
+        const p = await ctx.newPage();
+        const doc = html(lang, fr, set.ui);
+        await p.route('**/*', (route) => {
+          const u = new URL(route.request().url());
+          if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+          if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+          if (u.pathname === '/') return route.fulfill({ body: doc, contentType: 'text/html; charset=utf-8' });
+          return route.fulfill({ status: 404, body: '' });
+        });
+        await p.goto('http://sa.test/');
+        await p.evaluate(() => document.fonts.ready);
+        await p.waitForTimeout(500);
+        const rows = [];
+        const read = async (state) => rows.push(Object.assign({ state, pr: await p.evaluate(() => { const v = window.__runner.view(); return v.practice ? v.practice.id : v.phase; }) }, await p.evaluate(measure)));
+        await read('p1');
+        await p.evaluate(() => window.__end()); await p.waitForTimeout(400);
+        await read('p1_modelled');
+        for (let j = 0; j < 10 && (await p.evaluate(() => { const v = window.__runner.view(); return !v.practice || v.practice.role === 'example'; })); j++) await p.waitForTimeout(500);
+        await p.evaluate(() => window.__end()); await p.waitForTimeout(400);
+        await read('p2');
+        await p.evaluate(() => { const b = document.querySelectorAll('.sae-pick-cards .sae-opt')[0]; if (b) b.click(); }); await p.waitForTimeout(300);
+        await read('p2_feedback');
+        await ctx.close();
+        if (process.env.SA_PICK_LOG) fs.appendFileSync(process.env.SA_PICK_LOG, JSON.stringify({ lang, frame: fr.name, set: set.name, rows }) + '\n');
+        expect(rows.filter((r) => r.cards_n === 5 && r.cards_hit !== 5).map((r) => r.state)).toEqual([]);
+      }, 120000);
     }
   }
 });
