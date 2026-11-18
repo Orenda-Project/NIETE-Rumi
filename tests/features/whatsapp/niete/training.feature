@@ -3030,3 +3030,14 @@ Feature: NIETE (ICT) Teacher Training
     And the English message is unchanged
     # ux-strings.js tqStudentMessage, tqStudentMessageWeb, vqClassMessage (ur). A quiz made earlier keeps the message
     # stored with it. Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-messages.test.js.
+
+  @e2e @quiz @wip @draft @P1 @T1184
+  Scenario: A class quiz is pitched at the grade the teacher saved on their profile
+    Given the NIETE bot chat is open and my profile says I teach grade 5
+    When I make a class quiz from one of my recorded lessons
+    Then the quiz is pitched at grade 5, and its record says the grade came from my profile
+    But a profile that names only a level, like "Primary", falls back to my lesson-plan download, then to the lesson itself
+    # bd-e1qvrf: users.grades_taught is VARCHAR, so the database returns '["grade_5"]' as text. resolveGrade
+    # checked Array.isArray and skipped every saved grade; it now reads text, arrays and lists (taughtOf).
+    # Observable as meta.grade_source = 'profile' on the quiz row. Unit: bot/tests/quiz/transcript-quiz-digest-grade.test.js.
+    # @wip: driving it needs a recorded lesson's transcript and digest call the mock cassettes do not hold.
