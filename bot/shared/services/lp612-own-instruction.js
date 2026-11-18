@@ -10,7 +10,7 @@
  */
 
 const {
-  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
+  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, CHILDREN_LINE, YOU_DO_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
   purposesOfGrade, purposeLine,
 } = require('./lp612-own-ways');
 const { pagesLine612 } = require('./lp612-own-pages');
@@ -169,6 +169,7 @@ function buildOwnInstruction(answers, ctx) {
     GRR_LINE,
     YOU_DO_LINE,
     ROTE_LINE,
+    CHILDREN_LINE, // bd-snkn32.53
   ];
   if (secondary) lines.push(...secondaryLines(a, ctx || {}));
   if (secondary && a.pages) lines.push(pagesLine612(a.pages)); // item 14
