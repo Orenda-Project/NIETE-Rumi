@@ -9,6 +9,9 @@ Full index: `CLAUDE.index.md`
 - `sw.js` — service worker keeping the battery and clips on the phone
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
+## Result fields (human)
+- A scored answer of the letter picker (`sa_r28_letter_pick`) or the spoken MCQ (`sa_r28_mcq`) carries, beside `tap_ms`, `replays`, `tap_ms_src`: `since_fold_ms` = integer ms from this item's last coach-fold close to the scored tap (the ghost guard's recorded close, sa-ui.js `ghostGuard`), or `null` when no fold closed on the item (RDF auto always `null`). Not on practice items; both switches OFF, the key is absent. It reaches `responses` with the answer (sa-store.js keeps answers whole).
+
 ## Children (generated)
 | path | purpose |
 |---|---|

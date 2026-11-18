@@ -975,6 +975,42 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(closes.map((e) => JSON.parse(JSON.stringify(e)).hasOwnProperty('card'))).toEqual([true, true]);
   }, 20000);
 
+  test('since_fold_ms: the fold closed on the question, the standing tap ~400 ms later → since_fold_ms ≈ 400 on the stored answer; the next question, no fold closed on it → null', async () => {
+    setup();
+    const { el, voice, answers, runner } = mountMcq({ runner: { manual: true }, ui: { manual: true } });
+    await wait(20);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    setFold(el, true);
+    cards(el)[2].click(); // closes the fold only
+    await wait(400);
+    cards(el)[2].click();
+    await wait(1100);
+    expect(answers).toHaveLength(1);
+    const s0 = answers[0].meta.since_fold_ms;
+    expect(s0).toBeGreaterThanOrEqual(390);
+    expect(s0).toBeLessThan(700);
+    const stored = () => { const sn = runner.snapshot(); return sn.current ? sn.current.answers : (sn.results[sn.results.length - 1] || {}).answers || []; };
+    expect(stored()[0].since_fold_ms).toBe(s0);
+    for (let k = 0; k < 5; k++) await voice.speakNext(40);
+    await wait(100);
+    cards(el)[1].click();
+    await wait(1100);
+    expect(answers).toHaveLength(2);
+    expect(answers[1].meta).toHaveProperty('since_fold_ms', null);
+    expect(stored()[1]).toHaveProperty('since_fold_ms', null);
+  }, 20000);
+
+  test('the sandbox Jump row (dev tools on): not drawn on the MCQ\'s question or practice screens', async () => {
+    setup();
+    const dev = { runner: { manual: true, dev_tools: true }, ui: { manual: true, devJump: () => {} } };
+    const q = mountMcq(dev);
+    await wait(20);
+    expect(q.runner.view().phase).toBe('running');
+    expect(!!q.el.querySelector('.sae-mcq')).toBe(true);
+    expect(q.el.querySelector('.sae-devjump-row')).toBeNull();
+  });
+
   test('modal fold: a fold opened in the 400 ms press window is closed by the item change: one fold_close by item for the old item, the next item drawn folded', async () => {
     setup();
     const { el, voice, answers, events } = mountMcq({ runner: { manual: true }, ui: { manual: true } });

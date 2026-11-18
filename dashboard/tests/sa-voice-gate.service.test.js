@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-27'); // sa-27: round 28 follow-up, sa.css (the picker's toggle inside the coach frame; the MCQ's head gap)
+    expect(sw.CORE).toBe('sa-core-sa-28'); // sa-28: round 28 follow-up, sa-ui.js / sa-core.js (no Back on the picker and MCQ screens; since_fold_ms)
   });
 });
 
