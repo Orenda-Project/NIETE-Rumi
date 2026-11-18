@@ -13,6 +13,8 @@ export const COACH_HOME_EN = {
   noVisits: "No visits",
   loadFailed: "Could not load",
   takeObservation: "Take observation",
+  /** bd-o15qnr.26 — the Today card's button (flow v2): straight to the next visit's recording. */
+  startRecording: "Start recording",
   done: "Done",
   now: "Now",
   inHours: (h: number) => `In ${h} h`,
@@ -20,6 +22,8 @@ export const COACH_HOME_EN = {
   tiles: {
     schedule: "Schedule",
     observe: "Observe",
+    /** bd-o15qnr.26 — the second tile with the visit flow v2 switch on: her observations (the menu's word). */
+    observations: "Observations",
     schools: "Schools & teachers",
     analytics: "Analytics",
   },
@@ -35,6 +39,7 @@ export const COACH_HOME_UR: Words<typeof COACH_HOME_EN> = {
   noVisits: "کوئی دورہ نہیں",
   loadFailed: "لوڈ نہیں ہو سکا",
   takeObservation: "مشاہدہ لیں",
+  startRecording: "ریکارڈنگ شروع کریں",
   done: "مکمل",
   now: "ابھی",
   inHours: (h: number) => `${h} گھنٹے میں`,
@@ -42,6 +47,7 @@ export const COACH_HOME_UR: Words<typeof COACH_HOME_EN> = {
   tiles: {
     schedule: "شیڈول",
     observe: "مشاہدہ",
+    observations: "مشاہدات",
     schools: "اسکول اور ٹیچرز",
     analytics: "تجزیہ",
   },
