@@ -686,7 +686,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     }
   }, 20000);
 
-  test('coach-led: the offered Next is in the head row beside the replay, never the foot; RDF auto keeps it in the foot (B.3 coach-led fit)', async () => {
+  test('both modes: the offered Next is in the head row beside the replay, never the foot (B.3 fit; RDF auto the same since the foot button hid the options on a phone)', async () => {
     setup();
     for (const coach of [true, false]) {
       let T = 0;
@@ -703,16 +703,14 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
       await wait(20);
       const head = m.el.querySelector('.sae-mcq-head .sa-next');
       const foot = m.el.querySelector('.sae-foot .sa-next');
-      expect({ coach, head: !!head, foot: !!foot }).toEqual({ coach, head: coach, foot: !coach });
-      if (coach) {
-        // after the replay, Jugnu and the replay keep their order; the Next is the row's last child
-        const row = Array.from(m.el.querySelector('.sae-mcq-head').children);
-        expect(row[row.length - 1]).toBe(head);
-        expect(row.indexOf(m.el.querySelector('.sae-mcq-replay'))).toBeLessThan(row.indexOf(head));
-        expect(m.el.querySelector('.sae-foot')).toBeNull(); // no foot at all: nothing below the cards to come and go
-        head.click();
-        expect(m.runner.view().item_index).toBe(1); // the coach's Next moves on (a skip), as the foot's did
-      }
+      expect({ coach, head: !!head, foot: !!foot }).toEqual({ coach, head: true, foot: false });
+      // after the replay, Jugnu and the replay keep their order; the Next is the row's last child, in both modes
+      const row = Array.from(m.el.querySelector('.sae-mcq-head').children);
+      expect(row[row.length - 1]).toBe(head);
+      expect(row.indexOf(m.el.querySelector('.sae-mcq-replay'))).toBeLessThan(row.indexOf(head));
+      expect(m.el.querySelector('.sae-foot')).toBeNull(); // no foot at all: nothing below the cards to come and go
+      head.click();
+      expect(m.runner.view().item_index).toBe(1); // Next moves on (a skip), as the foot's did
       views.forEach((v) => v.destroy()); views = [];
     }
   }, 20000);
