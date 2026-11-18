@@ -42,13 +42,7 @@ async function ensureBindings(ctx) {
   })();
   return bindingsReady;
 }
-async function idSwitchesOn(ctx, page) {
-  const on = await L.rows(ctx, "select key from app_settings where key in ('web_quiz_identity_canon', 'web_quiz_phone_bind') and value::text = 'true'");
-  L.idSwitches.on = true;
-  if (on.length === 2) return;
-  await L.base.setSetting(ctx, 'web_quiz_identity_canon', 'true');
-  await L.setFlag(ctx, page, 'web_quiz_phone_bind', 'true');   // the bot caches identity switches 30 s
-}
+const { idSwitchesOn } = L;   // web_quiz_identity_canon + web_quiz_phone_bind (lib.cjs)
 async function family(ctx, phone, names, page) {
   await ensureBindings(ctx);
   if (page) await idSwitchesOn(ctx, page);
@@ -61,6 +55,29 @@ async function family(ctx, phone, names, page) {
     await ctx.sql('update students set phone = ' + q(phone) + ' where id = ' + q(id));
     await ctx.sql("insert into child_phone_bindings (canonical_id, phone_norm, phone_tomb, via, confirmed_at, expires_at) values (" + q(id) + ', ' + q(phone) + ', ' + q(tomb) + ", 'teacher', now(), now() + interval '300 days')");
   }
+}
+// A hub link into a quiz carries the child's chip (?k=), and only identity v2's landing plays it as that child
+// (wq-identity.js: P.params.k → startSession via 'hub'); the roll-pad page ignores it. The hub scenarios set up in the
+// roster group (family phones, chip finishes), so a scenario that then TAPS a hub link into a quiz switches identity v2
+// on for that step (the 30 s cache waited out) and puts the roster mode back after.
+async function asV2(ctx, page) {
+  await L.setFlag(ctx, page, 'web_quiz_identity', '"v2"', (b) => Boolean(b && b.cls && b.cls.identity && b.cls.identity.mode === 'v2'));
+}
+const backToRoster = (ctx, page) => L.setMode(ctx, page, 'roster').catch(() => {});
+// A class-list child of 4-A that no other scenario has played as: Tooba, Yusra and the other named children collect
+// finishes, tries and an Urdu history across a shard (the shards run scenarios in sequence on one database), so a
+// scenario whose Given is "a child who has not finished X" or "finished it twice" gets its own child. The row is
+// Tooba's own class-list row and enrolment, copied under a new id, name, roll number and student code (a teacher adding
+// a child; the lane's students table keeps student_code unique).
+async function freshKid(ctx, name, roll) {
+  const full = name + ' Testwala';
+  const have = await L.studentNamed(ctx, full);
+  if (have) return have;
+  const tooba = await L.studentNamed(ctx, 'Tooba Testwala');
+  const id = await L.one(ctx, "insert into students select (json_populate_record(s, json_build_object('id', gen_random_uuid(), 'student_name', " + q(full) + ", 'roll_number', " + Number(roll) + ", 'phone', null, 'student_code', " + q('E2E-' + name + '-' + roll) + ")::json)).* from students s where s.id = " + q(tooba) + ' returning id');
+  await ctx.sql("insert into class_enrollments select (json_populate_record(e, json_build_object('id', gen_random_uuid(), 'student_id', " + q(id) + ", 'roll_number', " + Number(roll) + ")::json)).* from class_enrollments e where e.student_id = " + q(tooba) + ' and e.is_active');
+  expect(id && (await L.studentNamed(ctx, full)) === id, 'could not add ' + full + ' to 4-A');
+  return id;
 }
 // A class-list child's session on `code`, started by chip (the roll pad's way), answered and finished through the API.
 async function chipFinish(page, ctx, code, name, wrongAt, device) {
@@ -143,18 +160,36 @@ on('WQ150', 'roster', async (page, ctx) => {
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);      // English
   await chipFinish(page, ctx, CODES.UR, 'Yusra Testwala', -1);        // Urdu
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
-  await openHub(page, url.replace(/[?&]lang=[a-z]+/, '') + (url.includes('?') ? '&' : '?') + 'lang=en');
-  expect((await inner(page, '#wq h2')) === 'Who is playing?' && (await page.$eval('html', (e) => e.lang)) === 'en', 'the picker is not in the link\'s English');
-  await pick(page, 'Yusra');
-  const h = await page.$eval('html', (e) => ({ lang: e.lang, dir: e.dir }));
-  expect(h.lang === 'ur' && h.dir === 'rtl', 'Yusra\'s hub is ' + JSON.stringify(h));
-  expect(/السلام علیکم|خوش آمدید/.test(await text(page)), 'the greeting is not Urdu');
-  expect((await inner(page, '#wq-h-switch')).includes('کھلاڑی بدلیں'), '"Switch player" is not Urdu');
-  if (await page.$('#wq-h-ch')) expect(/چیلنج/.test(await inner(page, '#wq-h-ch')), 'the challenge tile is not Urdu');
-  await page.click('#wq-h-switch'); await page.waitForSelector(M('H1'), { state: 'attached', timeout: WAIT });
-  await pick(page, 'Tooba');
-  expect((await page.$eval('html', (e) => e.lang)) === 'en', 'Tooba\'s hub is not English');
-  return { yusra: h, tooba: 'en' };
+  // The hub link as the bot sent it. A ?lang= added to it is NOT the language "the link opens in": the hub honours a
+  // page's ?lang= only under web_quiz_challenge_v2 or web_quiz_return_lang (web-quiz-hub.js askedLang), and there it
+  // outranks the child's history after a pick too (web-quiz-child-lang.js ladder) — so the picker's language is read
+  // from the page, and the child of the OTHER language is picked first.
+  await openHub(page, url);
+  const lang0 = await page.$eval('html', (e) => e.lang);
+  const h2 = await inner(page, '#wq h2');
+  expect((lang0 === 'en' && h2 === 'Who is playing?') || (lang0 === 'ur' && /[؀-ۿ]/.test(h2) && !/[A-Za-z]/.test(h2)), 'the picker is not in the language the link opened in (' + lang0 + '): "' + h2 + '"');
+  const urduHub = async (who) => {
+    const h = await page.$eval('html', (e) => ({ lang: e.lang, dir: e.dir }));
+    expect(h.lang === 'ur' && h.dir === 'rtl', who + '\'s hub is ' + JSON.stringify(h));
+    expect(/السلام علیکم|خوش آمدید/.test(await text(page)), 'the greeting is not Urdu');
+    expect((await inner(page, '#wq-h-switch')).includes('کھلاڑی بدلیں'), '"Switch player" is not Urdu');
+    if (await page.$('#wq-h-ch')) expect(/چیلنج/.test(await inner(page, '#wq-h-ch')), 'the challenge tile is not Urdu');
+    return h;
+  };
+  const englishHub = async (who) => {
+    const h = await page.$eval('html', (e) => ({ lang: e.lang, dir: e.dir }));
+    expect(h.lang === 'en' && h.dir !== 'rtl', who + '\'s hub is ' + JSON.stringify(h));
+    expect(/Switch player/i.test(await inner(page, '#wq-h-switch')), '"Switch player" is not English');
+    return h;
+  };
+  const order = lang0 === 'ur' ? [['Tooba', englishHub], ['Yusra', urduHub]] : [['Yusra', urduHub], ['Tooba', englishHub]];
+  const out = { picker: lang0 };
+  for (const [k, [who, check]] of order.entries()) {
+    if (k) { await page.click('#wq-h-switch'); await page.waitForSelector(M('H1'), { state: 'attached', timeout: WAIT }); }
+    await pick(page, who);
+    out[who.toLowerCase()] = await check(who);
+  }
+  return out;
 });
 
 on('WQ151', 'roster', async (page, ctx) => {
@@ -163,12 +198,22 @@ on('WQ151', 'roster', async (page, ctx) => {
   await chipFinish(page, ctx, CODES.UR, 'Tooba Testwala', -1);         // played, but not the teacher's newest English one
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url);
-  expect((await inner(page, '.wq-hcard .wq-hlabel')) === 'From your teacher', 'no teacher card');
-  const card = await inner(page, '.wq-hcard');
-  expect(/Sent (today|yesterday|\d+ days ago)/.test(card), 'no "Sent …" line: ' + card);
-  await page.click('#wq-h-teacher');
-  await page.waitForSelector(M('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
-  expect(!/Whose turn/.test(await text(page)), '"Whose turn?" showed');
+  // The hub speaks the child's language from their history (Tooba's plays include the Urdu quiz, here and in earlier
+  // scenarios of the shard), so the card's words are checked in the language the hub is in (hub.js T.fromT / T.sent).
+  const COPY = { en: { from: ['From your teacher'], sent: /Sent (today|yesterday|\d+ days ago)/, none: /^No new quiz from your teacher right now\. Watch a video and try its quiz!$/ },
+    ur: { from: ['آپ کے ٹیچر کی طرف سے'], sent: /(آج|کل) بھیجا گیا|دن پہلے بھیجا گیا/, none: /^ابھی (ٹیچر کی طرف سے کوئی )?نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز (کریں|کھیلیں)!$/ } };
+  const lang = (await page.$eval('html', (e) => e.lang)) === 'ur' ? 'ur' : 'en';
+  // the teacher's card is the one holding #wq-h-teacher (a keep-my-place card may come first)
+  const label = await inner(page, '.wq-hcard:has(#wq-h-teacher) .wq-hlabel').catch(() => '');
+  expect(COPY[lang].from.includes(label), 'no teacher card (' + lang + '): "' + label + '"');
+  const card = await inner(page, '.wq-hcard:has(#wq-h-teacher)');
+  expect(COPY[lang].sent.test(card), 'no "Sent …" line (' + lang + '): ' + card);
+  await asV2(ctx, page);
+  try {
+    await page.click('#wq-h-teacher');
+    await L.waitOr(page, M('M6') + ' .wq-opt', 'Play on the teacher card did not start the quiz as the child');
+    expect(!/Whose turn/.test(await text(page)), '"Whose turn?" showed');
+  } finally { await backToRoster(ctx, page); }
   // a child whose teacher sent nothing in 7 days: the warm empty state
   await ctx.sql("update quiz_share_codes set created_at = now() - interval '10 days' where code = 'SC2ABC'");
   try {
@@ -180,37 +225,44 @@ on('WQ151', 'roster', async (page, ctx) => {
     await openHub(page, url2);
     if (await page.$(M('H1'))) await page.click('.wq-kid');
     await page.waitForSelector(M('H2'), { state: 'attached', timeout: WAIT });
-    expect((await inner(page, '.wq-hnone').catch(() => '')) === 'No new quiz from your teacher right now. Watch a video and try its quiz!', 'no warm empty state: ' + (await text(page)).slice(0, 160));
+    const lang2 = (await page.$eval('html', (e) => e.lang)) === 'ur' ? 'ur' : 'en';
+    // the empty card holds the line (p.wq-hnonesay) and its "Video library" button: the line is read on its own
+    expect(COPY[lang2].none.test(await inner(page, '.wq-hnonesay').catch(() => '')), 'no warm empty state (' + lang2 + '): ' + JSON.stringify(await L.showing(page)));
     expect(await page.$('#wq-h-lib2'), 'no video library button in the empty state');
   } finally { await ctx.sql("update quiz_share_codes set created_at = now() - interval '1 day' where code = 'SC2ABC'"); }
-  return { card: card.split('\n')[0], play: 'straight in', empty: 'warm' };
+  return { lang, card: card.split('\n')[0], play: 'straight in', empty: 'warm' };
 });
 
 on('WQ152', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await ctx.sql("update quiz_share_codes set created_at = now() where code = 'SM34EF'");  // the unbound one is newer
-  await family(ctx, PHONE, ['Tooba Testwala'], page); await family(ctx, PHONE2, ['Sara Testwala'], page);
-  await chipFinish(page, ctx, CODES.UR, 'Tooba Testwala', -1);
-  const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link for Tooba');
+  // a 4-A child who has NOT finished the quiz handed to 4-A (Tooba has, in WQ150 and others before this in the shard)
+  await freshKid(ctx, 'Mehak', 152);
+  await family(ctx, PHONE, ['Mehak Testwala'], page); await family(ctx, PHONE2, ['Sara Testwala'], page);
+  await chipFinish(page, ctx, CODES.UR, 'Mehak Testwala', -1);
+  const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link for Mehak');
   await openHub(page, url);
-  const topic = await inner(page, '.wq-hcard h2');
+  // the teacher's card is the one holding #wq-h-teacher (a keep-my-place card may come first)
+  const topic = await inner(page, '.wq-hcard:has(#wq-h-teacher) h2');
   expect(topic === 'Parts of a Plant', '4-A\'s child sees "' + topic + '" first, not the quiz handed to 4-A');
   const B = await L.newPhone(page);
   try {
     await chipFinish(B.page, ctx, CODES.UR, 'Sara Testwala', -1);
     const url2 = hubUrlOf(await whatsapp(ctx, PHONE2, '/quiz')); expect(url2, 'no hub link for Sara');
     await openHub(B.page, url2);
-    const t2 = await inner(B.page, '.wq-hcard h2').catch(() => '');
+    const t2 = await inner(B.page, '.wq-hcard:has(#wq-h-teacher) h2').catch(() => '');
     expect(t2 !== 'Parts of a Plant', '4-B\'s child sees the quiz handed to 4-A');
   } finally { await B.close(); }
-  return { tooba: topic, note: '"the same lesson in the other language" needs a twin lesson code (library), absent here' };
+  return { mehak: topic, note: '"the same lesson in the other language" needs a twin lesson code (library), absent here' };
 });
 
 on('WQ153', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala'], page);
-  const first = await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', 0);
-  await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1, first.device);
+  // a child who finished the quiz exactly twice: Tooba already has finishes of it from earlier scenarios of the shard
+  await freshKid(ctx, 'Laiba', 153);
+  await family(ctx, PHONE, ['Laiba Testwala'], page);
+  const first = await chipFinish(page, ctx, CODES.OPEN, 'Laiba Testwala', 0);
+  await chipFinish(page, ctx, CODES.OPEN, 'Laiba Testwala', -1, first.device);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url);
   const again = await page.$$eval('a.wq-vitem[data-again]', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
@@ -250,7 +302,7 @@ on('WQ156', 'roster', async (page, ctx) => {
     const scr = await openHub(B.page, url);
     expect(scr === 'H-lock', 'the second phone saw ' + scr);
     const body = await text(B.page);
-    expect(/This link was sent to another player/.test(body) && /Ask the child this link was sent to to open it\./.test(body), 'lock copy: ' + body.slice(0, 160));
+    expect(/This link was sent to another player/.test(body) && /Ask the child who got this link to open it\./.test(body), 'lock copy: ' + body.slice(0, 160));
     expect(!/Tooba|Yusra|Parts of a Plant/.test(body), 'a child or quiz shows on the locked page');
     expect((await inner(B.page, '#wq-h-new')) === 'Someone else / new player', 'no "Someone else / new player"');
     await B.page.click('#wq-h-new'); await B.page.waitForSelector(M('H-new'), { state: 'attached', timeout: WAIT });
@@ -259,9 +311,15 @@ on('WQ156', 'roster', async (page, ctx) => {
     const tooba = await L.chipFor(ctx, CODES.OPEN, 'Tooba Testwala');
     const T = L.tokens(ctx);
     await B.page.goto(ctx.baseUrl + '/c/' + tok + '?kid=' + T.chipId('h', tooba.studentId), { waitUntil: 'domcontentloaded' });
-    await sleep(1000);
+    // A neutral note, no name, nothing to play. Which note: with the family's phone binding on (web_quiz_identity_canon,
+    // which family() needs) a ?kid= on a link of two children must be the chip tapped on THIS phone, so the challenge
+    // answers pick_kid ("Open the challenge from your quiz page.") before it checks the device (web-quiz-challenge.js
+    // entryOf); otherwise other_device ("Ask the child this link was sent to to open it." — the Challenge edge's own
+    // pre-deck wording, web-quiz.routes.js). Either is the neutral note the spec asks for.
+    const NOTE = /Ask the child (who got this link|this link was sent to) to open it|Open the challenge from your quiz page\./;
+    await B.page.waitForFunction((src) => new RegExp(src).test(document.body.innerText), NOTE.source, { timeout: WAIT }).catch(() => {});
     const c = await text(B.page);
-    expect(/Ask the child this link was sent to to open it/.test(c) && !/Tooba/.test(c), 'the challenge on the second phone shows: ' + c.slice(0, 160));
+    expect(NOTE.test(c) && !/Tooba|Yusra/.test(c) && !(await B.page.$('#wqc-go, .wqc-tile, .wqc-stop')), 'the challenge on the second phone shows: ' + JSON.stringify(await L.showing(B.page)));
   } finally { await B.close(); }
   await openHub(page, url);
   expect(await page.$(M('H1') + ', ' + M('H2')), 'the family phone lost its hub');
@@ -278,9 +336,10 @@ on('WQ171', 'roster', async (page, ctx) => {
   const B = await L.newPhone(page);
   try {
     await B.page.goto(ctx.baseUrl + lib, { waitUntil: 'domcontentloaded' });
-    await B.page.waitForSelector(M('M15-lock'), { state: 'attached', timeout: WAIT });
+    // the library page marks its screen on its own section (wq-lib.js paint: <section data-m="M15-lock">), not on #wq
+    await L.waitOr(B.page, '[data-m="M15-lock"]', 'the library link on another phone is not locked');
     const body = await text(B.page);
-    expect(/This link was sent to another player/.test(body) && /Ask the child this link was sent to to open it\./.test(body), 'lock copy: ' + body.slice(0, 160));
+    expect(/This link was sent to another player/.test(body) && /Ask the child who got this link to open it\./.test(body), 'lock copy: ' + body.slice(0, 160));
     expect(/Is this your link\? Send \/quiz on WhatsApp again for a new one\./.test(body), 'no way for the family to get a new link');
     expect(!(await B.page.$('#wql-retry')) && await B.page.$('#wql-back'), 'the lock offers Try again, or no Back');
     expect(!/Tooba|Science|Maths/.test(body), 'subjects, lessons or a name show');
@@ -295,19 +354,23 @@ on('WQ172', 'roster', async (page, ctx) => {
   // more than 40 other children play the teacher's quizzes after her
   for (let i = 0; i < 41; i++) { const quiz = await api(page, ctx, 'GET', 'quiz/' + CODES.NEXT); const s = await api(page, ctx, 'POST', 'session', { code: CODES.NEXT, new: { name: 'Crowd' + i, force: true } }); if (s.status === 200) { await api(page, ctx, 'POST', 'answers', { st: s.json.st, a: quiz.json.quiz.questions.slice(0, 3).map((x) => ({ qid: x.qid, slot: x.correct_slot, ms: 500 })) }); await api(page, ctx, 'POST', 'finish', { st: s.json.st }); } }
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
+  await asV2(ctx, page);
+  try {
   await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
   const href = await page.$eval('#wq-h-teacher, a.wq-vitem[data-again]', (e) => e.getAttribute('href'));
   await page.click('#wq-h-teacher, a.wq-vitem[data-again]');
-  await page.waitForSelector(M('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
+  await L.waitOr(page, M('M6') + ' .wq-opt', 'the hub link ' + href + ' did not start the quiz');
   expect(!/Which class are you in|Whose turn/.test(await text(page)), 'the child was asked to pick');
   const B = await L.newPhone(page);
   try {
     await B.page.goto(ctx.baseUrl + href, { waitUntil: 'domcontentloaded' });
-    await B.page.waitForSelector('#wq-play, ' + M('M4-roll') + ', ' + M('M4-name') + ', ' + M('M6'), { state: 'attached', timeout: WAIT });
+    // names nobody and asks who is playing: today's Play, the roll pad, or (identity v2) the class or the name first
+    await L.waitOr(B.page, '#wq-play, #wq-name, #wq-someone, ' + M('M4-class') + ', ' + M('M4-roll') + ', ' + M('M4-name') + ', ' + M('M6'), 'the hub quiz link on another phone');
     expect(!(await B.page.$(M('M6'))), 'the same link played as Tooba on another phone');
     expect(!/Tooba/.test(await text(B.page)), 'the other phone saw Tooba\'s name');
   } finally { await B.close(); }
-  return { crowd: 41, family: 'straight in', other: 'asked' };
+  return { crowd: 41, family: 'straight in', other: 'asked', href: href.replace(/k=[0-9a-f]+/, 'k=<chip>') };
+  } finally { await backToRoster(ctx, page); }
 });
 
 on('WQ173', 'roster', async (page, ctx) => {
@@ -408,17 +471,21 @@ on('WQ200', 'roster', async (page, ctx) => {
 // ── polish, order, doors, install, Book ───────────────────────────────────────────────────────────────────────────
 on('WQ214', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
-  await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1); await chipFinish(page, ctx, CODES.UR, 'Yusra Testwala', -1);
-  const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
-  await openHub(page, url.replace(/[?&]lang=[a-z]+/, '') + (url.includes('?') ? '&' : '?') + 'lang=ur');
-  const cls = () => page.$eval('html', (e) => e.classList.contains('wq-ur2'));
-  expect(await cls(), 'the Urdu boot has no polish class');
-  await pick(page, 'Tooba');
-  expect(!(await cls()), 'the English child\'s hub keeps the Urdu polish class');
-  await page.click('#wq-h-switch'); await page.waitForSelector(M('H1'), { state: 'attached', timeout: WAIT }); await pick(page, 'Yusra');
-  expect(await cls(), 'the Urdu child\'s hub lost the polish class');
-  return { follows: 'the child\'s language' };
+  // Given web_quiz_ur_polish is "on": the lane seeds it off, so the scenario turns it on and removes it after
+  await L.urPolish(ctx, page, true);
+  try {
+    await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
+    await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1); await chipFinish(page, ctx, CODES.UR, 'Yusra Testwala', -1);
+    const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
+    await openHub(page, url.replace(/[?&]lang=[a-z]+/, '') + (url.includes('?') ? '&' : '?') + 'lang=ur');
+    const cls = () => page.$eval('html', (e) => e.classList.contains('wq-ur2'));
+    expect(await cls(), 'the Urdu boot has no polish class');
+    await pick(page, 'Tooba');
+    expect(!(await cls()), 'the English child\'s hub keeps the Urdu polish class');
+    await page.click('#wq-h-switch'); await page.waitForSelector(M('H1'), { state: 'attached', timeout: WAIT }); await pick(page, 'Yusra');
+    expect(await cls(), 'the Urdu child\'s hub lost the polish class');
+    return { follows: 'the child\'s language' };
+  } finally { await L.urPolish(ctx, page, false).catch(() => {}); }
 });
 
 on('WQ231', 'roster', async (page, ctx) => {
@@ -428,9 +495,12 @@ on('WQ231', 'roster', async (page, ctx) => {
     await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
     const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
     await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
-    const idx = await page.evaluate(() => { const all = [...document.querySelectorAll('#wq *')]; const at = (s) => { const e = document.querySelector(s); return e ? all.indexOf(e) : -1; }; return { ch: at('#wq-h-ch'), last: at('.wq-hlast, .wq-hcard, a.wq-vitem[data-again]'), tiles: document.querySelectorAll('#wq-h-ch').length }; });
+    // the Jugnu card's own wrapper carries wq-hcard too (hub-play.js top: 'wq-card wq-hcard wqp-jug'), and it encloses
+    // #wq-h-ch, so it comes before it in document order: the other cards are the ones that are not the Jugnu card
+    const idx = await page.evaluate(() => { const all = [...document.querySelectorAll('#wq *')]; const at = (s) => { const e = document.querySelector(s); return e ? all.indexOf(e) : -1; }; return { ch: at('#wq-h-ch'), last: at('.wq-hlast, .wq-hcard:not(.wqp-jug), a.wq-vitem[data-again]'), tiles: document.querySelectorAll('#wq-h-ch').length, jug: document.querySelectorAll('.wqp-jug').length }; });
     expect(idx.ch >= 0 && (idx.last === -1 || idx.ch < idx.last), 'the Jugnu card is not first: ' + JSON.stringify(idx));
     expect(idx.tiles === 1, 'the challenge tile is shown ' + idx.tiles + ' times');
+    expect(idx.jug === 1, 'no Jugnu card was drawn (the challenge-first order did not apply): ' + JSON.stringify(idx));
   } finally { await L.setFlag(ctx, page, 'web_quiz_hub_challenge_first', null); }
   return { first: 'Jugnu', note: 'the "still open → Continue first" branch is not driven' };
 });
@@ -441,32 +511,37 @@ on('WQ234', 'roster', async (page, ctx) => {
   try {
     await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
     const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
-    const ev = L.events(page);
+    // The hub sends its events by sendBeacon with a Blob body, which the browser-side request capture reads as empty, so
+    // the doors are read where they are counted: the bot's log (web_quiz.door_shown / door_tap), from this view on.
+    const doorLines = (n) => L.botLog(ctx).split('\n').filter((l) => new RegExp('"event":"web_quiz\\.' + n + '"').test(l));
+    const shown0 = doorLines('door_shown').length, tap0 = doorLines('door_tap').length;
     await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
-    await sleep(1500); await page.click('#wq-h-ch'); await sleep(1500); await ev.flush();
-    const shown = ev.of('door_shown'), tapped = ev.of('door_tap');
-    expect(shown.length >= 1 && shown.every((e) => e.door), 'no door_shown with a door: ' + JSON.stringify(shown));
-    expect(tapped.length >= 1 && tapped.every((e) => e.door), 'no door_tap: ' + JSON.stringify(tapped));
-    const dup = shown.map((e) => e.door + '|' + (e.slot || '')).filter((d, i, a) => a.indexOf(d) !== i);
+    await sleep(2500); await page.click('#wq-h-ch'); await sleep(2500);
+    const doorOf = (l) => (/"door":"([a-z_]+)"/.exec(l) || [])[1] || null;
+    const shown = doorLines('door_shown').slice(shown0).map(doorOf), tapped = doorLines('door_tap').slice(tap0).map(doorOf);
+    expect(shown.length >= 1 && shown.every(Boolean), 'no door_shown with a door in the bot log: ' + JSON.stringify(shown));
+    expect(shown.includes('hub_first'), 'no door_shown hub_first: ' + JSON.stringify(shown));
+    expect(tapped.includes('hub_first'), 'no door_tap hub_first: ' + JSON.stringify(tapped));
+    const dup = shown.filter((d, k, a) => a.indexOf(d) !== k);
     expect(!dup.length, 'a door was counted twice in one view: ' + dup.join(','));
-    return { shown: shown.map((e) => e.door), tapped: tapped.map((e) => e.door), note: 'the lantern and the shelf (next/tomorrow/shelf doors) are Trail v2 features, off on this lane' };
+    return { shown, tapped, note: 'the lantern and the shelf (next/tomorrow/shelf doors) are Trail v2 features, off on this lane' };
   } finally { await L.setFlag(ctx, page, 'web_quiz_events_v2', null); }
 });
-
 on('WQ235', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
-  const before = await (await page.request.get(L.local(ctx, url))).text();
-  expect(!/rel="manifest"/.test(before), 'a manifest link without the switch');
+  // Read on the phone that opened the link: a fetch with no device gets the locked hub (no `play`, so no manifest), and
+  // a flushed hub page links the manifest from its tail script — so the link is read from the page's own <head>.
+  const linked = async () => { await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba'); await sleep(1500); return page.$eval('link[rel="manifest"]', (e) => e.getAttribute('href')).catch(() => null); };
+  expect(!(await linked()), 'a manifest link without the switch');
   await L.setFlag(ctx, page, 'web_quiz_install_prompt', 'true');
   try {
-    const after = await (await page.request.get(L.local(ctx, url))).text();
-    const link = (after.match(/<link rel="manifest" href="([^"]+)"/) || [])[1];
-    expect(link && /\/manifest\.webmanifest$/.test(link), 'no manifest link with the switch on');
-    const m = await page.request.get(ctx.baseUrl + link);
+    const link = await linked();
+    expect(link && /\/manifest\.webmanifest(\?kid=[0-9a-f]{16})?$/.test(link), 'no manifest link with the switch on: ' + link);
+    const m = await page.request.get(ctx.baseUrl + link.replace(/^https?:\/\/[^/]+/, ''));
     expect(m.status() === 200 && /manifest/.test(m.headers()['content-type'] || ''), 'the manifest answered ' + m.status());
-    expect(!/install/i.test(after.replace(/manifest/g, '')) || !/<[^>]*class="[^"]*install/.test(after), 'an install card is drawn');
+    expect(!(await page.$('[class*="install"]')), 'an install card is drawn');
     return { manifest: link.replace(/\/h\/[^/]+/, '/h/<token>') };
   } finally { await L.setFlag(ctx, page, 'web_quiz_install_prompt', null); }
 });
