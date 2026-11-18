@@ -3,6 +3,15 @@ import type { CopyEntry } from '../copyRegistry';
 import type { Lang } from '../i18n';
 
 /**
+ * bd-wpw633 — a subject as words to match: lower case, and an underscore read as a space. A K-5 lesson id's own token
+ * (general_knowledge, social_studies_en) reaches some screens as it is — the coach's School card list tile drew
+ * "gene" for it — so "general_knowledge" must meet the same rule as "General Knowledge".
+ */
+function subjectWords(subject: string | null | undefined): string {
+  return String(subject ?? '').toLowerCase().replace(/_/g, ' ');
+}
+
+/**
  * bd-fmf24g.2.1 — what the kit draws for a subject, from its NAME (the API's subject string, as the WhatsApp
  * bot stores it). Ported from the v28 canvas (SubjectTile.dc.html, HistoryRow.dc.html); COMPONENTS.md has the
  * tables. First match wins, so "Computer Science" is a computer and "General Science" a flask.
@@ -13,7 +22,7 @@ export type SubjectIconKey =
   | 'bookmark' | 'scroll' | 'landmark' | 'book';
 
 export function subjectIcon(subject: string | null | undefined): SubjectIconKey {
-  const s = String(subject ?? '').toLowerCase();
+  const s = subjectWords(subject);
   if (/english/.test(s)) return 'en';
   if (/urdu|اردو/.test(s)) return 'ur';
   if (/math/.test(s)) return 'calc';
@@ -79,7 +88,7 @@ export const SUBJECT_SHORT: readonly SubjectShortForm[] = [
 ];
 
 function shortForm(subject: string | null | undefined): SubjectShortForm | undefined {
-  const s = String(subject ?? '').toLowerCase();
+  const s = subjectWords(subject);
   return SUBJECT_SHORT.find((r) => r.match.test(s));
 }
 
