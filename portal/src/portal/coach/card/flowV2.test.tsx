@@ -89,6 +89,15 @@ describe("the Home, switch on: Today card, then the tiles", () => {
     expect(within(card).getByText("Farah Naz").closest("a")).toHaveAttribute("href", "/portal/coach/visit/t1");
   });
 
+  it("only one visit today: the card holds it alone, never an empty 'Nothing yet' under it (seen live on sandbox)", async () => {
+    config(true);
+    home([visit("t2", "10:00", "upcoming", "Kiran Shahzadi")]);
+    await renderApp("/portal/coach");
+    const card = await screen.findByTestId("home-today");
+    expect(within(card).getByTestId("visit-current")).toHaveTextContent("Kiran Shahzadi");
+    expect(card.querySelector("[data-empty]")).toBeNull();
+  });
+
   it("the Schedule tile opens the list; the second tile is Observations and opens her observations", async () => {
     config(true);
     home([]);
