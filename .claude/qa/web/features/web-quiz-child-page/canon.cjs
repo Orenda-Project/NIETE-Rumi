@@ -8,18 +8,8 @@ const { expect, WAIT, CODES, text, inner, count, onScreen, openQuiz, startAsNew,
 const M = (m) => onScreen(m);
 const modes = {}, runs = {};
 const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
-// The polished Urdu look is one switch (app_settings web_quiz_ur_polish → payload ui.ur2 → the edge's wq-ur2 root class).
-// Off in the seed snapshot: switched on here for its scenarios, and removed again after.
-async function urPolish(ctx, page, on) {
-  await L.setFlag(ctx, page, 'web_quiz_ur_polish', on ? 'true' : null, null);
-  const deadline = Date.now() + 60000;
-  while (Date.now() < deadline) {
-    const html = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.UR)).text();
-    if (/class="wq-ur2"/.test(html) === on) return;
-    await L.sleep(2000);
-  }
-  throw new Error('the Urdu page does not reflect web_quiz_ur_polish=' + on + ' after 60 s');
-}
+// The polished Urdu look: lib.cjs urPolish (WQ122 and WQ214 in other parts switch it too).
+const { urPolish } = L;
 const BIND = 'the family phone binding card and its confirm sheet are not driven yet: the lane now has the bind salt (WQ_TOMB_SALT in local-lane.env) and the hub scenarios bind phones directly, but the JUGNU- code round trip through WhatsApp that these three walk has no driver code';
 // The hub answers a request that names no phone with a locked hub (web-quiz-hub deviceTrusted: a link is bound to the
 // first phone that opens it). Server-side hub reads here name one phone, the first to open each fresh link.
@@ -33,24 +23,32 @@ on('WQ213', 'off', async (page, ctx) => {
   const html = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.UR)).text();
   const root = (html.match(/<html[^>]*>/) || [''])[0];
   expect(/lang="ur"/.test(root) && /dir="rtl"/.test(root) && /class="wq-ur2"/.test(root), 'the Urdu root is ' + root);
-  expect(/<link rel="preload" href="\/wq\/fonts\/wq-nastaliq-2\.woff2" as="font"/.test(html), 'the second Urdu face is not preloaded');
-  const font = await page.request.get(ctx.baseUrl + '/wq/fonts/wq-nastaliq-2.woff2');
+  // The edge versions its face files (wq-nastaliq-<n>.woff2: /wq is cached a year, immutable), so the faces are read
+  // from the pages themselves — the polished page's preload must be a face the page with the switch off does not use.
+  const faceOf = (h) => (h.match(/<link rel="preload" href="(\/wq\/fonts\/wq-nastaliq-\d+\.woff2)" as="font"/) || [])[1] || null;
+  const face2 = faceOf(html);
+  expect(face2, 'the second Urdu face is not preloaded');
+  const font = await page.request.get(ctx.baseUrl + face2);
   const bytes = (await font.body()).length;
   expect(font.status() === 200 && bytes > 50000 && bytes < 200000, 'the face answered ' + font.status() + ' with ' + bytes + ' bytes');
   await openQuiz(page, ctx, CODES.UR);
   const styles = await page.evaluate(() => {
     const runs = [...document.querySelectorAll('h1, h2, p, button, .wq-say')].filter((e) => /[؀-ۿ]/.test(e.innerText)).slice(0, 12);
-    return runs.map((e) => { const cs = getComputedStyle(e); return { fam: cs.fontFamily.split(',')[0], weight: cs.fontWeight, lh: parseFloat(cs.lineHeight) / parseFloat(cs.fontSize), fsa: cs.fontSizeAdjust, ws: cs.wordSpacing, synth: cs.fontSynthesis }; });
+    return runs.map((e) => { const cs = getComputedStyle(e); return { fam: cs.fontFamily.split(',')[0], weight: cs.fontWeight, lh: parseFloat(cs.lineHeight) / parseFloat(cs.fontSize), fsa: cs.fontSizeAdjust, ws: cs.wordSpacing, wsEm: (parseFloat(cs.wordSpacing) || 0) / parseFloat(getComputedStyle(document.body).fontSize), synth: cs.fontSynthesis }; });
   });
   expect(styles.length && new Set(styles.map((s) => s.fam)).size === 1, 'Urdu runs use several faces: ' + [...new Set(styles.map((s) => s.fam))].join(' | '));
-  expect(styles.every((s) => s.fsa === 'none' && (s.ws === 'normal' || s.ws === '0px')), 'size-adjust or word spacing on an Urdu run: ' + JSON.stringify(styles[0]));
+  // 89f768b97: the polished body carries ONE small even word space, .12em (Nastaliq's own space is 0.132 em, so a Latin
+  // run sat glued to the Urdu word before it); never the old 0.2 em hack. word-spacing inherits as the BODY's computed
+  // length, so it is measured against the body's font size
+  expect(styles.every((s) => s.fsa === 'none' && Math.abs(s.wsEm - 0.12) < 0.01), 'size-adjust, or a word space other than .12em, on an Urdu run: ' + JSON.stringify(styles.find((s) => s.fsa !== 'none' || Math.abs(s.wsEm - 0.12) >= 0.01)));
   expect(styles.every((s) => s.lh >= 1.9), 'an Urdu run has a tight line height: ' + styles.map((s) => s.lh.toFixed(2)).join(','));
   const en = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.OPEN)).text();
   expect(!/wq-ur2/.test(en) && !/wq-nastaliq/.test(en), 'the English page carries the Urdu class or font');
   await urPolish(ctx, page, false);
   const off = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.UR)).text();
-  expect(!/wq-ur2/.test(off) && /wq-nastaliq-1\.woff2/.test(off), 'with the switch off the page is not today\'s');
-  return { root: root.slice(0, 60), face: styles[0] && styles[0].fam, bytes };
+  const face1 = faceOf(off);
+  expect(!/wq-ur2/.test(off) && face1 && face1 !== face2, 'with the switch off the page is not today\'s: class ' + /wq-ur2/.test(off) + ', face ' + face1 + ' (polished ' + face2 + ')');
+  return { root: root.slice(0, 60), face: styles[0] && styles[0].fam, face2, face1, bytes };
   } finally { await L.setFlag(ctx, page, 'web_quiz_ur_polish', null, null).catch(() => {}); }
 });
 
@@ -62,7 +60,8 @@ on('WQ215', 'off', async (page, ctx) => {
   const body = await text(page);
   expect(/السلام علیکم! کوئز کھیلیں؟/.test(body), 'the landing greeting is not the child\'s: ' + body.slice(0, 120));
   const meta = await inner(page, '#wq .wq-small');
-  expect(/6 سوال، 4 منٹ|\d سوال، \d منٹ/.test(meta), 'the meta line reads "' + meta + '" (Western digits expected)');
+  // Urdu digits on every Urdu child screen, the polished copy included (6a0982689); the share lines keep Western ones
+  expect(/[۰-۹]\u2069? سوال، \u2066?[۰-۹]/.test(meta) && !/[0-9]/.test(meta), 'the meta line reads "' + meta + '" (Urdu digits expected)');
   const bdi = await page.$$eval('#wq .wq-small bdi, #wq .wq-small [dir="ltr"], #wq .wq-small', (els) => els.map((e) => e.outerHTML).join(''));
   expect(/⁦|dir="ltr"|<bdi/.test(bdi), 'the numbers are not on their own left-to-right runs');
   const sub = await page.$$eval('#wq .wq-sub', (els) => els.map((e) => e.innerText.trim()));
@@ -71,7 +70,7 @@ on('WQ215', 'off', async (page, ctx) => {
   await page.fill('#wq-name', 'عائشہ'); await page.click('#wq-start');
   await page.waitForSelector(M('M6') + ' .wq-qof', { state: 'visible', timeout: WAIT });
   const qof = await inner(page, '.wq-qof');
-  expect(/6 میں سے سوال 1/.test(qof) && !/از/.test(qof), 'the counter reads "' + qof + '"');
+  expect(/۶\u2069? میں سے سوال \u2066?۱/.test(qof) && !/[0-9]/.test(qof) && !/از/.test(qof), 'the counter reads "' + qof + '"');
   const b = await L.boot(page); const qq = await L.current(page, b.quiz.questions);
   await page.click('.wq-opt[data-slot="' + L.wrongSlot(qq) + '"]'); await page.waitForSelector('#wq-fb .wq-no', { state: 'visible', timeout: WAIT });
   const fb = await inner(page, '#wq-fb');
@@ -123,7 +122,9 @@ on('WQ217', 'roster', async (page, ctx) => {
     await canonOn(true);
     // the hub for a link naming the class child and both loose records: the merged one folds, the double-merged one stops after one hop
     const tok = T.signHub([hina, looseA, looseB]);
-    const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': HUB_DEVICE });
+    // the hub names children only to the phone the link was first opened on (deviceTrusted): ask as THIS page's phone
+  const dev = await L.stored(page, 'wq_d');
+  const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': String(dev || HUB_DEVICE) });
     expect(hub.status === 200 && Array.isArray(hub.json.kids), 'hub → ' + hub.status + ' ' + JSON.stringify(hub.json).slice(0, 120));
     const chips = hub.json.kids.map((k) => k.chip);
     expect(chips.includes(T.chipId('h', hina)), 'the class-list child\'s chip is missing: ' + JSON.stringify(hub.json).slice(0, 300));
@@ -192,6 +193,9 @@ on('WQ223', 'roster', async (page, ctx) => {
 
 on('WQ224', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
+  // the picker's father line and homonym_in_list are written by web-quiz-bind-page hubExtras under phoneBind, which is
+  // web_quiz_phone_bind AND web_quiz_identity_canon: set here, not left to an earlier scenario (WQ223 removes canon)
+  await L.idSwitchesOn(ctx, page);
   const T = L.tokens(ctx);
   const zains = await L.rows(ctx, "select id from students where student_name = 'Zain Testwala' order by roll_number");
   const hina = await L.studentNamed(ctx, 'Hina Testwala');
@@ -200,8 +204,13 @@ on('WQ224', 'roster', async (page, ctx) => {
   const chips = await page.$$eval('.wq-kid', (els) => els.map((e) => ({ text: e.innerText.replace(/\s+/g, ' ').trim(), lines: e.innerText.trim().split('\n').length })));
   const zainChips = chips.filter((c) => /Zain/.test(c.text));
   expect(zainChips.length === 2 && zainChips.every((c) => /Khalid|Tahir/.test(c.text)), 'the two Zains are not told apart by the father\'s name: ' + JSON.stringify(zainChips));
-  expect(chips.find((c) => /Hina/.test(c.text)) && !/Imran/.test(chips.find((c) => /Hina/.test(c.text)).text), 'the unique child carries a father line');
-  const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': HUB_DEVICE });
+  // "the father's first name is the second line WHERE IT EXISTS": every chip whose child has a father on the list gets it
+  // (web-quiz-homonym.js: line2 for any row with father_first, except to a new device), the unique child included
+  const hinaChip = chips.find((c) => /Hina/.test(c.text));
+  expect(hinaChip, 'no Hina chip: ' + JSON.stringify(chips));
+  // the hub names children only to the phone the link was first opened on (deviceTrusted): ask as THIS page's phone
+  const dev = await L.stored(page, 'wq_d');
+  const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': String(dev || HUB_DEVICE) });
   const kids = hub.json.kids || [];
   const homonyms = kids.filter((k) => /Zain/.test(k.first));
   expect(homonyms.length === 2 && homonyms.every((k) => k.homonym_in_list === true), 'homonym_in_list is not true on both: ' + JSON.stringify(homonyms));
@@ -219,7 +228,11 @@ on('WQ225', 'roster', async (page, ctx) => {
   await page.goto(ctx.baseUrl + '/h/' + tok, { waitUntil: 'domcontentloaded' }); await page.waitForSelector(M('H1'), { state: 'attached', timeout: WAIT });
   await page.click('.wq-kid:has-text("Yusra")'); await page.waitForSelector(M('H2'), { state: 'attached', timeout: WAIT });
   const body = await text(page);
-  expect(/Hi Yusra!/.test(body) && !/Tooba|Omar/.test(await inner(page, '.wq-hcard, .wq-hlast, .wq-vitem').catch(() => '')), 'the hub is not Yusra\'s alone');
+  // the hub speaks the picked child's language (Yusra may have played the Urdu quiz earlier in this shard): the greeting
+  // names her in either language (hub.js T.hi: "Hi Yusra! …" / "السلام علیکم Yusra! …" / "Yusra، السلام علیکم! …")
+  const lang = await page.$eval('html', (e) => e.lang);
+  const greets = lang === 'ur' ? /Yusra.{0,3}، السلام علیکم|السلام علیکم Yusra/.test(body) : /Hi Yusra!/.test(body);
+  expect(greets && !/Tooba|Omar/.test(await inner(page, '.wq-hcard, .wq-hlast, .wq-vitem').catch(() => '')), 'the hub is not Yusra\'s alone (' + lang + '): ' + body.slice(0, 160));
   const ch = await page.$eval('#wq-h-ch', (e) => e.getAttribute('href')).catch(() => '');
   expect(new RegExp('kid=' + T.chipId('h', ids[1])).test(ch), 'the challenge link is not Yusra\'s: ' + ch);
   await ev.flush();

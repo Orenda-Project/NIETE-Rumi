@@ -36,20 +36,33 @@ on('WQ206', 'off', async (page, ctx) => {
   const ask = await inner(page, '#wq-sheet p');
   expect(/Go to your home page\?/.test(ask), 'the sheet asks "' + ask + '"');
   expect(/Your answers are saved\.|Saving your answers first\./.test(ask), 'the sheet does not say whether the answers are saved: "' + ask + '"');
+  // "counted as opened from Home" is the hub's hub_view event with src 'home' (hub.js boot), NOT the address: the hub
+  // reads from=home and strips it from the address on boot (history.replaceState), so a URL test raced the boot. The
+  // count is the bot's log line (web_quiz.hub_view): the page sends it by beacon during the navigation, which the
+  // browser-side capture does not reliably see.
+  const homeViews = () => L.botLog(ctx).split('\n').filter((l) => /"event":"web_quiz\.hub_view"/.test(l) && /"src":"home"/.test(l)).length;
+  const views0 = homeViews();
   await page.click('#wq-gohome');
   await page.waitForURL(/\/h\/[A-Za-z0-9_-]+/, { timeout: WAIT });
-  expect(/from=home/.test(page.url()), 'the hub was not counted as opened from Home: ' + page.url());
+  await page.waitForSelector(M('H1') + ', ' + M('H2') + ', ' + M('H0'), { state: 'attached', timeout: WAIT });
+  const viewBy = Date.now() + 12000;
+  while (Date.now() < viewBy && homeViews() === views0) await sleep(1000);
+  const views = homeViews() - views0;
+  expect(views === 1, 'the hub was not counted once as opened from Home: ' + views + ' hub_view src home lines');
   // no Home before a child is chosen, on a friend's run, or on the teacher's test run
   await openQuiz(page, ctx, CODES.NEXT);
   expect(!(await page.$('#wq-home')), 'Home shows on the landing before a child is chosen');
   const fin = (await L.stored(page, 'wq_s_AB12CD'));
   const T = L.tokens(ctx); const sc = await L.codeRow(ctx, CODES.OPEN), tid = await L.teacherOf(ctx, CODES.OPEN);
+  // the teacher's test run is on the TEACHER's phone: this page still holds Homer2's unfinished run of the same code,
+  // which opens on "Go on: question 2" instead of the preview, so the storage is cleared first
+  await page.evaluate(() => localStorage.clear());
   await page.goto(ctx.baseUrl + '/q/' + CODES.OPEN + '?p=' + encodeURIComponent(T.signPreview({ shareCodeId: sc, teacherUserId: tid })), { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#wq-preview', { state: 'visible', timeout: WAIT }); await page.click('#wq-preview');
   await page.waitForSelector(M('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
   expect(!(await page.$('#wq-home')), 'Home shows on the teacher\'s test run');
   void fin;
-  return { button: home, sheet: ask, hub: page.url().replace(/\/h\/[^?]+/, '/h/<token>') };
+  return { button: home, sheet: ask, hubViewsFromHome: views };
 });
 
 on('WQ207', 'off', async (page, ctx) => {
@@ -130,8 +143,9 @@ on('WQ210', 'off', async (page, ctx) => {
   await L.finishFast(page, ctx, CODES.OPEN, 'Zara', { wrongAt: 2 });   // 4 of 5: the card the ask sits on
   const head = await inner(page, '.wq-ask h2');
   expect(head === '🏆 Who can beat your 4/5?', 'the panel asks "' + head + '"');
-  const tiles = await page.$$eval('.wq-ask .wq-kid', (els) => els.map((e) => e.innerText.trim()));
-  expect(tiles.join('|') === 'Someone at home|A cousin|A friend in my street', 'tiles: ' + tiles.join('|'));
+  // each tile is an icon span (.wq-ani, an emoji line of its own) and the label span (wq.js askPanel): read the label
+  const tiles = await page.$$eval('.wq-ask .wq-kid', (els) => els.map((e) => (e.querySelector('span:not(.wq-ani)') || e).innerText.trim()));
+  expect(tiles.join('|') === 'Someone at home|A cousin|A friend in my street', 'tiles: ' + JSON.stringify(tiles));
   expect(!(await page.$('#wq-chal')), '"Challenge a friend" is still shown');
   const idx = await order(page, ['#wq-share', '.wq-ask', '#wq-hubdoor']);
   expect(idx[0] < idx[1] && (idx[2] === -1 || idx[1] < idx[2]), 'the panel is not right under Share (and before the door): ' + idx.join(','));
@@ -240,8 +254,10 @@ on('WQ182', 'off', async (page, ctx) => {
   expect(idx[0] < idx[1] && idx[1] < idx[2] && idx[2] < idx[3], 'first-screen order is ' + idx.join(','));
   expect(idx[4] === -1 || idx[4] > idx[3], 'a note comes before the door');
   expect((await inner(page, 'p.wq-small.wq-center')) === 'Only your first name goes on the card.', 'no name notice');
-  const topic = await page.$eval('.wq-ctopic', (e) => e.getBoundingClientRect().height <= parseFloat(getComputedStyle(e).lineHeight) * 1.4);
-  expect(topic, 'the topic wraps onto two lines');
+  // the line count from the text's own line boxes: .wq-ctopic's line-height is 'normal' (parseFloat → NaN), so a
+  // height ÷ line-height test could never pass
+  const lines = await page.$eval('.wq-ctopic', (e) => { const r = document.createRange(); r.selectNodeContents(e); const tops = [...r.getClientRects()].filter((x) => x.width > 0).map((x) => x.top).sort((a, b) => a - b); return tops.filter((t, i) => i === 0 || t - tops[i - 1] > 4).length; });
+  expect(lines === 1, 'the topic wraps onto ' + lines + ' lines');
   // with the door switched off the card is unchanged
   await L.setFlag(ctx, page, 'web_quiz_hub_door', 'false');
   await page.evaluate(() => localStorage.clear());
@@ -292,6 +308,9 @@ on('WQ227', 'off', async (page, ctx) => {
   await page.click('#wq-jc-back');
   await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
   expect(calls.length === 0, 'Go back asked the server');
+  // the card ignores a second tap within 1 s of the first (wq-card.js tap: a double-tap guard), and the two taps here
+  // are machine-fast: wait the guard out as a child's second tap would
+  await sleep(1100);
   await page.click('#wq-jc-go'); await page.waitForSelector('#wq-jc-play', { state: 'visible', timeout: WAIT });
   await page.click('#wq-jc-play');
   await page.waitForURL(/\/c\//, { timeout: WAIT });

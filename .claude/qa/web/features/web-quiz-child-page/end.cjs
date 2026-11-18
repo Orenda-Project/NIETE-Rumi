@@ -296,8 +296,12 @@ on('WQ064', 'off', async (page, ctx) => {
   expect(ranked.length >= 3, 'ranked schools: ' + ranked.length + ' ' + JSON.stringify(b).slice(0, 200));
   for (const r of ranked) {
     expect(r.name && r.points > 0 && r.kids >= 1 && r.place >= 1, 'a ranked row lacks place/points/children: ' + JSON.stringify(r));
-    expect(r.points >= 10 * r.kids && r.points <= 20 * r.kids, 'points outside 10–20 per child: ' + JSON.stringify(r));
+    // 10 per child's first finish OF A QUIZ plus up to 10 for its score: a child who first-finished two quizzes this week
+    // brings up to 40, so the board can only bound a school from below by its children (10 each)
+    expect(r.points >= 10 * r.kids, 'fewer than 10 points per child: ' + JSON.stringify(r));
   }
+  // the exact rule on the one finish this scenario knows: Lg5's first finish, all right, adds 10 + up to 10
+  expect(typeof b.added === 'number' && b.added >= 10 && b.added <= 20, 'this first finish added ' + b.added + ' (10 + up to 10 expected)');
   const names = JSON.stringify(b);
   expect(!/Sana Javed|Testwala|Lg1|Lg5|4-A|Grade 4/.test(names), 'a teacher, class or child is named on the league');
   // the page: every ranked school shows place, points, children
@@ -364,7 +368,7 @@ on('WQ067', 'off', async (page, ctx) => {
   expect(results.every((r) => r.score && r.score.correct >= 0), 'a sixth or seventh quiz did not show its score');
   const sts = [first.st, ...results.slice(1).map((r) => r._st)].filter(Boolean);
   let counted = 0;
-  for (const [i, c] of codes.entries()) { const bd = await api(page, ctx, 'GET', 'schools/' + c + '?st=' + encodeURIComponent(sts[i] || '')); if (bd.json && bd.json.mine && bd.json.mine.added > 0) counted += 1; }
+  for (const [i, c] of codes.entries()) { const bd = await api(page, ctx, 'GET', 'schools/' + c + '?st=' + encodeURIComponent(sts[i] || '')); if (bd.json && bd.json.added > 0) counted += 1; }
   expect(counted <= 5, counted + ' of 7 quizzes added school points (cap is 5)');
   // seven friends of one challenge: only five add points
   const chal = first.result.challenge_code;
@@ -375,7 +379,7 @@ on('WQ067', 'off', async (page, ctx) => {
       const r = await apiFinish(F.page, ctx, chal, 'Fr' + i, -1);
       expect(r.result.score, 'friend ' + i + ' saw no score');
       const bd = await api(F.page, ctx, 'GET', 'schools/' + CODES.OPEN + '?st=' + encodeURIComponent(r.st));
-      if (bd.json && bd.json.mine && bd.json.mine.added > 0) friendsAdded += 1;
+      if (bd.json && bd.json.added > 0) friendsAdded += 1;
     } finally { await F.close(); }
   }
   expect(friendsAdded <= 5, friendsAdded + ' of 7 friends added points (cap is 5)');
@@ -507,16 +511,28 @@ on('WQ147', 'off', async (page, ctx) => {
   await openQuiz(page, ctx, chal);
   const img = await page.$eval('.wq-chpic img, img.wq-chpic, .wq-banner ~ img, img[alt*="Can you beat"]', (i) => ({ src: i.getAttribute('src'), alt: i.getAttribute('alt'), shown: getComputedStyle(i).display !== 'none' && i.offsetParent !== null, loaded: i.complete && i.naturalWidth > 0 })).catch(() => null);
   expect(img, 'no picture above the challenge line');
-  expect(img.alt === ogAlt, 'alt "' + img.alt + '" differs from the preview\'s "' + ogAlt + '"');
-  if (!img.loaded) { await sleep(1500); const gone = await page.$eval('img[alt*="Can you beat"]', (i) => i.offsetParent === null || getComputedStyle(i).display === 'none').catch(() => true); expect(gone, 'a picture that cannot load is shown broken'); return { blocked: NO_RENDERER + '; the page removed the unloadable picture as the spec\'s last line says', alt: img.alt }; }
-  return { alt: img.alt, src: img.src.replace(/^.*\/art/, '…/art') };
+  // the same picture: the invite the link previewed as (its art id, ?a=)
+  const artOf = (u) => (/[?&]a=([^&]+)/.exec(String(u || '')) || [])[1] || null;
+  expect(artOf(img.src) && artOf(img.src) === artOf(ogImg), 'the page shows ' + img.src + ', the preview was ' + ogImg);
+  // its alt is the challenge line's own words (wq.js chPic; web-quiz-challenge-line-sent.service.test.js), so a screen
+  // reader hears what the line says; og:image:alt is the link title's wording, a different sentence on purpose
+  const line = (await page.$$eval('.wq-banner', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()).find((t) => /Amal2/.test(t)) || '')).trim();
+  expect(line && img.alt.replace(/\s+/g, ' ').trim() === line, 'alt "' + img.alt + '" differs from the challenge line "' + line + '"');
+  if (!img.loaded) {
+    // the bot draws the invite on first ask (seconds on this lane): wait for it to load, or for the page to drop it
+    const st = await page.waitForFunction(() => { const i = document.querySelector('img.wq-chpic, .wq-chpic img'); if (!i || i.offsetParent === null || getComputedStyle(i).display === 'none') return 'gone'; return i.complete && i.naturalWidth > 0 ? 'loaded' : (i.complete ? 'broken' : false); }, null, { timeout: 20000 }).then((h) => h.jsonValue()).catch(() => 'still loading');
+    expect(st === 'loaded' || st === 'gone', 'a picture that cannot load is shown broken (' + st + ')');
+    if (st === 'gone') return { blocked: NO_RENDERER + '; the page removed the unloadable picture as the spec\'s last line says', alt: img.alt };
+  }
+  return { alt: img.alt, line, ogAlt, src: img.src.replace(/^.*\/art/, '…/art') };
 });
 
 on('WQ145', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   const me = await apiFinish(page, ctx, CODES.OPEN, 'Sch1', -1);
   const board = await api(page, ctx, 'GET', 'schools/' + CODES.OPEN + '?st=' + encodeURIComponent(me.st));
-  expect(board.json && board.json.mine && typeof board.json.mine.added === 'number' && board.json.mine.added > 0, 'the league does not say what this play added: ' + JSON.stringify(board.json && board.json.mine));
+  // what this play added rides the answer's top level (`added`, web-quiz-schools.js; wq.js reads b.added), never mine.added
+  expect(board.json && board.json.mine && typeof board.json.added === 'number' && board.json.added > 0, 'the league does not say what this play added: added ' + JSON.stringify(board.json && board.json.added) + ', mine ' + JSON.stringify(board.json && board.json.mine));
   await page.goto(ctx.baseUrl + '/wq/probe.html', { waitUntil: 'domcontentloaded' });
   await page.evaluate(([c, token, res]) => localStorage.setItem('wq_s_' + c, JSON.stringify({ st: token, child: { first: 'Sch1' }, answers: {}, queue: [], seq: 0, wrong: [], result: res })), [CODES.OPEN, me.st, me.result]);
   await noShareSheet(page);
@@ -531,8 +547,8 @@ on('WQ145', 'off', async (page, ctx) => {
   const ogImg = L.og(html, 'og:image');
   expect(/\/art\/schools\.jpg\?a=.*&v=\d{10}/.test(ogImg), 'the preview is ' + ogImg);
   const pic = await picture(page, ogImg);
-  if (!pic.ok) return { blocked: NO_RENDERER + ' (the schools picture answered ' + pic.status + ')', link: url.replace(/^.*\/q\//, '/q/'), added: board.json.mine.added };
-  return { link: url.replace(/^.*\/q\//, '/q/'), picture: pic, added: board.json.mine.added, note: PIXELS };
+  if (!pic.ok) return { blocked: NO_RENDERER + ' (the schools picture answered ' + pic.status + ')', link: url.replace(/^.*\/q\//, '/q/'), added: board.json.added };
+  return { link: url.replace(/^.*\/q\//, '/q/'), picture: pic, added: board.json.added, note: PIXELS };
 });
 
 on('WQ143', 'off', async () => ({ blocked: 'a video quiz needs a quizzes.video_id → student_videos row with a lesson video the stack can serve (presigned from the run\'s file store); the demo seed carries no lesson videos' }));

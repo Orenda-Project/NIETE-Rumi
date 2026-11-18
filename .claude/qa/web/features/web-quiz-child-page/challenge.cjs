@@ -60,6 +60,10 @@ async function playBigger(page, right) {
   await page.waitForSelector(S('help-ask') + ', ' + S('intro'), { state: 'attached', timeout: WAIT });
   if (await page.$(S('help-ask'))) { await page.click('#wqc-help-no'); await page.waitForSelector(S('intro'), { state: 'attached', timeout: WAIT }); }
   await page.click('#wqc-go');
+  await biggerRun(page, right);
+}
+// From "Go" onwards (the intro already passed): practice pairs, then the run, through to the result screen.
+async function biggerRun(page, right) {
   // practice pairs, then the run: tap the bigger (or the smaller) number each time (a "go" screen between them waits).
   // Taps are forced and non-fatal: a card replaced by the next pair mid-tap must not hold the loop for 30 s.
   for (let i = 0; i < 40; i++) {
@@ -299,8 +303,8 @@ on('WQ119', 'off', async (page, ctx) => {
   await page.click('#wqc-help-yes');
   await page.waitForSelector(S('intro'), { state: 'attached', timeout: WAIT });
   await page.click('#wqc-go');
-  await playBigger(page, true).catch(() => {});
-  await page.waitForSelector(S('bigger-result'), { state: 'attached', timeout: 20000 });
+  // past Go already: play the run itself (playBigger would tap the menu's tile, which is not on this screen)
+  await biggerRun(page, true);
   await page.click('#wqc-menu'); await toMenu(page);
   await page.click('#wqc-ex-missing');
   await page.waitForSelector(S('intro') + ', ' + S('help-ask'), { state: 'attached', timeout: WAIT });
@@ -324,7 +328,9 @@ on('WQ120', 'off', async (page, ctx) => {
 
 on('WQ122', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  await L.setFlag(ctx, page, 'web_quiz_challenge_record', 'false');
+  // the old menu (record rule off) WITH the Urdu polish on (seeded off): both written, then one cache wait (urPolish)
+  await L.base.setSetting(ctx, 'web_quiz_challenge_record', 'false');
+  await L.urPolish(ctx, page, true);
   try {
     const st = await child(page, ctx, CODES.UR, 'Urdu122');
     const ex = await api(page, ctx, 'GET', 'ch/' + encodeURIComponent(st) + '/bigger?lang=ur');
@@ -335,7 +341,7 @@ on('WQ122', 'off', async (page, ctx) => {
     expect(/[0-9]/.test(badge) && !/[۰-۹]/.test(badge), 'the old menu\'s badge reads "' + badge + '"');
     expect((await page.$eval('html', (e) => e.className)).includes('wq-ur2'), 'the Urdu polish class is not on the page');
     return { badge };
-  } finally { await L.setFlag(ctx, page, 'web_quiz_challenge_record', 'true'); }
+  } finally { await L.base.setSetting(ctx, 'web_quiz_challenge_record', 'true'); await L.urPolish(ctx, page, false).catch(() => {}); }
 });
 
 on('WQ123', 'off', async (page, ctx) => {
