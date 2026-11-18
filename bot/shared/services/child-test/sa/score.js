@@ -1317,9 +1317,11 @@ function ready(row, session, nowMs) {
   const waits = session.stopRules === true || (session.mcqFloor === true && isMcq(row.block));
   const passage = !own && waits && session.passages ? session.passages.get(passageOf(row.block)) : null;
   if (passage && passage.pending) {
-    // sa_r28_mcq: a passage whose recording never came (not parked) is awaited only until the session ended a while ago
+    // sa_r28_mcq: a passage whose recording never came (not parked) is awaited only until a while after the LATER of the
+    // session's end and this row's own arrival (an offline session synced hours later still waits from its sync)
     const ended = Date.parse(session.finished_at || session.client_finished_at || '') || 0;
-    if (!(passage.unparked && ended > 0 && nowMs - ended > WAIT_FOR_CLIPS_MS)) return false;
+    const anchor = ended > 0 ? Math.max(ended, Date.parse(row.updated_at || '') || 0) : 0;
+    if (!(passage.unparked && anchor > 0 && nowMs - anchor > WAIT_FOR_CLIPS_MS)) return false;
   }
   // sa_r8_variant_wait: a rotated passage waits for its questions row (the variant the phone showed), not past the
   // session's end or VARIANT_WAIT_MS

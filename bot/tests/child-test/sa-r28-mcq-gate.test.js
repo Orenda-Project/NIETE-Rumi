@@ -129,9 +129,16 @@ describe('sa_r28_mcq: the MCQ takes the oral questions\' reading floor (score.js
     const db = { from: () => ({ select: () => ({ eq: async () => ({ data: rows, error: null }) }) }) };
     const got = await score.__internals.passagesOf(SID, db);
     expect(got.get('ur.story_w3')).toMatchObject({ pending: true, unparked: true });
-    const s = { ...session(), passages: got, mcqFloor: true };
-    expect(score.ready(mcqRow(6), s, Date.parse('2026-11-18T10:01:00Z'))).toBe(false);
-    expect(score.ready(mcqRow(6), s, Date.parse('2026-11-18T10:03:00Z'))).toBe(true);
+    const s = { ...session(), passages: got, mcqFloor: true };   // the session ended 10:00
+    const t = (iso) => Date.parse(`2026-11-18T${iso}Z`);
+    // the MCQ row arrived before the session's end: the wait runs to the end + 2 min
+    const early = { ...mcqRow(6), updated_at: '2026-11-18T09:50:00Z' };
+    expect(score.ready(early, s, t('10:01:00'))).toBe(false);
+    expect(score.ready(early, s, t('10:02:30'))).toBe(true);
+    // an offline session synced hours later: the wait runs from the row's arrival, not the long-past end
+    const late = { ...mcqRow(6), updated_at: '2026-11-18T15:00:00Z' };
+    expect(score.ready(late, s, t('15:01:00'))).toBe(false);
+    expect(score.ready(late, s, t('15:02:30'))).toBe(true);
   });
 
   test('(8) a lost-clip unrated MCQ + a gated passage → stays unrated: marked from the phone at sync, never gated', async () => {
