@@ -266,7 +266,12 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
     isTestOrDeleted: u.is_test_user === true || Boolean(u.deleted_at),
   };
   if (u.school_id && u.school_id === target.school_id) {
-    return { outcome: 'already_here', phone, person, toSchoolName: target.school_name, target };
+    // Where she is now is THIS school: said, so the confirm never reads "School: not set" beside "already here".
+    return {
+      outcome: 'already_here', phone, person,
+      fromSchoolExtId: target.school_ext_id, fromSchoolName: target.school_name,
+      toSchoolName: target.school_name, target,
+    };
   }
 
   // A teacher with no school at all takes the same path: she is being placed.
@@ -318,12 +323,15 @@ const ADD_TEMPLATES = {
     move_noschool: '*{name}*{who} is already on our records, with no school set.\n\nAdding {them} to *{to}*.',
     new: 'We do not know {phone} yet.\n\nAdding *{name}* to *{to}* as a new teacher.',
     already_here: '*{name}*{who} is already at *{to}*. Nothing to change.',
+    // A principal is not counted among the teachers, so "already at" alone reads as if the add failed.
+    already_principal: '*{name}* is already the principal at *{to}*. Nothing to add.',
   },
   ur: {
     move: '*{name}*{who} پہلے سے ہمارے ریکارڈ میں *{from}* پر موجود ہیں۔\n\nانہیں *{to}* میں شامل کیا جا رہا ہے۔',
     move_noschool: '*{name}*{who} پہلے سے ہمارے ریکارڈ میں ہیں، اسکول درج نہیں۔\n\nانہیں *{to}* میں شامل کیا جا رہا ہے۔',
     new: '{phone} ہمارے ریکارڈ میں نہیں ہے۔\n\n*{name}* کو نئی ٹیچر کے طور پر *{to}* میں شامل کیا جا رہا ہے۔',
     already_here: '*{name}*{who} پہلے ہی *{to}* میں موجود ہیں۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
+    already_principal: '*{name}* پہلے ہی *{to}* کے پرنسپل ہیں۔ شامل کرنے کو کچھ نہیں۔',
   },
 };
 
@@ -335,7 +343,9 @@ function addPlanAck(lang, plan = {}) {
   const l = clampLanguage(lang);
   const t = ADD_TEMPLATES[l] || ADD_TEMPLATES.en;
   const person = plan.person || {};
-  const key = (plan.outcome === 'move' && !plan.fromSchoolName) ? 'move_noschool' : plan.outcome;
+  const key = (plan.outcome === 'move' && !plan.fromSchoolName) ? 'move_noschool'
+    : (plan.outcome === 'already_here' && person.isPrincipal) ? 'already_principal'
+      : plan.outcome;
   const body = t[key] || t.move;
   const who = (WHO[l] || WHO.en)[person.isPrincipal ? 'principal' : 'teacher'];
   return body
@@ -690,6 +700,7 @@ const FOUND = {
     name: 'Name', school: 'School', no_school: 'not set',
     to: 'Adding them to *{to}*.',
     already: 'They are already at *{to}*. Nothing to change.',
+    already_principal: 'They are already the principal at *{to}*. Nothing to add.',
     confirm: 'Yes, go ahead', confirm_new: 'Add them',
   },
   ur: {
@@ -698,6 +709,7 @@ const FOUND = {
     name: 'نام', school: 'اسکول', no_school: 'درج نہیں',
     to: 'انہیں *{to}* میں شامل کیا جا رہا ہے۔',
     already: 'وہ پہلے ہی *{to}* میں ہیں۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
+    already_principal: 'وہ پہلے ہی *{to}* کے پرنسپل ہیں۔ شامل کرنے کو کچھ نہیں۔',
     confirm: 'جی، آگے بڑھیں', confirm_new: 'شامل کریں',
   },
 };
@@ -730,7 +742,7 @@ function foundAccountScreen(lang, plan = {}, schoolExtId = '') {
     : `${t.name}: ${name}${role}\n${t.school}: ${at}`;
 
   const tail = plan.outcome === 'already_here'
-    ? t.already.replace('{to}', String(plan.toSchoolName || ''))
+    ? (person.isPrincipal ? t.already_principal : t.already).replace('{to}', String(plan.toSchoolName || ''))
     : t.to.replace('{to}', String(plan.toSchoolName || ''));
 
   return {
