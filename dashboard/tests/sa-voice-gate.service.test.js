@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-30'); // sa-30: round 28, sa-ui.js / sa.css (RDF auto's Next in the head row, its place held, picker + MCQ)
+    expect(sw.CORE).toBe('sa-core-sa-31'); // sa-31: round 28, sa-ui.js (the hold menu's Urdu End this task)
   });
 });
 
