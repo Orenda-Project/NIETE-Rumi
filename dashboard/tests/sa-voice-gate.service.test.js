@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-28'); // sa-28: round 28 follow-up, sa-ui.js / sa-core.js (no Back on the picker and MCQ screens; since_fold_ms)
+    expect(sw.CORE).toBe('sa-core-sa-29'); // sa-29: round 28, sa.css / sa-ui.js (the Urdu sound check's phone fit; the practice example's room for its hand)
   });
 });
 
