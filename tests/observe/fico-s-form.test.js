@@ -187,6 +187,9 @@ describe('the endpoint door', () => {
     expect(a.obs612.result).toMatchObject({ counted: 22, max: 88, na: ['C2'] });
     expect(a.obs612.feedback).toMatchObject({ strengths: 'Words for fb_strengths', focus: [{ code: 'C3', action: 'Words for fs_action' }] });
     expect(a.scores.overall_percentage).toBeUndefined();
+    // HITL parity: the Submit is the review; the debrief is still to come (FDE marks it done at Submit).
+    expect(sess.status).toBe('observer_review_complete');
+    expect(sess.debrief_status == null || sess.debrief_status === 'pending').toBe(true);
     await flush();
     expect(mockSendCoachSummary).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'sess-1' }));
   });
@@ -232,8 +235,10 @@ describe('what the record shows', () => {
     const ur = Summary.buildCoachSummary(analysis(), { lang: 'ur', teacherName: 'Rabia' });
     expect(ur).toMatch(/⁦FICO-S v1\.1⁩/);
     expect(ur).toMatch(/۸۸ میں سے/);
+    // HITL parity (operator 18 Nov ~16:35): after the review comes the debrief, offered as after a FICO review.
     const msgs = Summary.buildSummaryMessages('sess-1', analysis(), { lang: 'en', teacherName: 'Rabia' });
-    expect(msgs.buttons.body).toMatch(/FICO-S report/);
+    expect(msgs.buttons.buttons.map((b) => b.id)).toEqual(['observe_debrief_now_sess-1', 'observe_debrief_later_sess-1']);
+    expect(msgs.buttons.body).toMatch(/FICO-S v1\.1:/);
   });
 
   test('the portal block: headline, five section rows with bars, 23 indicator rows, the feedback', () => {
@@ -298,5 +303,64 @@ describe('the portal door (obs612/portal.js) fills the same form', () => {
     expect(done).toMatchObject({ submitted: true, coachingSessionId: 'sess-1' });
     const a = mockFake.__tables.coaching_sessions.find((s) => s.id === 'sess-1').analysis_data;
     expect(a.obs612.result.counted).toBe(22);
+  });
+});
+
+describe('HITL parity: a principal and a coach get the same FICO-S flow (operator 18 Nov ~16:35)', () => {
+  const Svc = require('../../bot/shared/services/observe/portal-observe.service');
+  const draftAll = () => {
+    const d = {};
+    for (const s of FS.SCREENS) Object.assign(d, FS.mergeDraft({}, s.id, answersFor(s.id)));
+    return d;
+  };
+  const setup = (observerId, role) => {
+    mockFake.__tables.users.push({ id: observerId, name: `Obs ${role}`, role, phone_number: '923000000009', preferred_language: 'en' });
+    mockFake.__tables.coaching_sessions.push({
+      id: `sess-${role}`, status: 'obs612_form', user_id: 'teacher-1', observer_user_id: observerId,
+      observation_type: 'leader_observation', framework: 'fico_s_v1_1', analysis_data: {},
+    });
+    mockFake.__tables.observation_field_forms.push({
+      id: `form-${role}`, observer_user_id: observerId, teacher_user_id: 'teacher-1', coaching_session_id: `sess-${role}`,
+      rubric_version: 'fico_s_v1_1', visit_context: { grade: 7, subject: 'maths', via: 'portal' }, answers: { obs612: draftAll() },
+      photos: [], sealed_at: null, checked_at: null, final_levels: null,
+    });
+  };
+
+  test.each([['coach', 'obs-coach-1'], ['principal', 'obs-principal-1']])('%s: portal Submit seals, keeps the debrief open and starts the debrief notes at once', async (role, id) => {
+    setup(id, role);
+    const buildDebriefGuide = jest.fn(async () => ({ opener: 'notes' }));
+    const mergeObserverDebrief = jest.fn(async () => true);
+    const d = { supabase: require('../../bot/shared/config/supabase'), debrief: { buildDebriefGuide, mergeObserverDebrief }, log: jest.fn() };
+    const out = await Svc.saveDraft({ userId: id, coachingSessionId: `sess-${role}`, edits: {}, submit: true }, d);
+    expect(out).toMatchObject({ submitted: true, tool: 'ficos' });
+    const sess = mockFake.__tables.coaching_sessions.find((x) => x.id === `sess-${role}`);
+    expect(sess.status).toBe('observer_review_complete');
+    expect(sess.debrief_status == null || sess.debrief_status === 'pending').toBe(true);
+    await flush();
+    expect(buildDebriefGuide).toHaveBeenCalledTimes(1);
+    expect(mergeObserverDebrief).toHaveBeenCalledWith(`sess-${role}`, { guide_snapshot: { opener: 'notes' } });
+    // the portal's next step is the debrief ("talk"), as after a FICO review
+    const { stepOfRow } = require('../../bot/shared/services/observe/portal-observe-step');
+    expect(stepOfRow(sess).step).toBe('talk');
+  });
+
+  test('the debrief notes are the observer\'s own words (the guide builder takes a 6-12 form visit\'s talk guide)', () => {
+    // observe-debrief.buildDebriefGuide: an isObs612Scored analysis gets obs612/summary buildTalkGuide (no model).
+    const src = fs.readFileSync(require.resolve('../../bot/shared/services/observe/observe-debrief.service'), 'utf8');
+    expect(src).toMatch(/isObs612Scored\(v2\)\) \{\s*const \{ buildTalkGuide/);
+    const analysis = require('../../bot/shared/services/observe/obs612/record').buildAnalysis({
+      id: 'f1', rubric_version: 'fico_s_v1_1', observer_user_id: 'c1', teacher_user_id: 't1', visit_context: { grade: 10, subject: 'science', via: 'observe' },
+    }, draftAll());
+    expect(require('../../bot/shared/services/coaching/frameworks/own-rubric').isObs612Scored(analysis)).toBe(true);
+    const guide = require('../../bot/shared/services/observe/obs612/summary').buildTalkGuide(analysis, { lang: 'en' });
+    expect(guide).toMatch(/Words for fb_strengths/);
+    expect(guide).toMatch(/C3 Who gets to answer/);
+  });
+
+  test('FDE\'s tools are unchanged: their Submit still closes the debrief and offers Send', async () => {
+    const Summary = require('../../bot/shared/services/observe/obs612/summary');
+    const fde = { framework: 'obs612-gen-v1', rubric: 'obs612-gen-v1', obs612: { rubric_id: 'obs612-gen-v1', answers: {}, feedback: { line: 'ok' } } };
+    const msgs = Summary.buildSummaryMessages('sess-9', fde, { lang: 'en' });
+    expect(msgs.buttons.buttons.map((b) => b.id)[0]).toMatch(/^observe_send_start_/);
   });
 });

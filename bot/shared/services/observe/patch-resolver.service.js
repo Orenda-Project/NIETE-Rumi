@@ -311,7 +311,7 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
  * Operator, 15 Nov: "a principal linked to a school (users.school_id or any leader_schools row) sees ALL teachers of
  * that school". On prod that day 477 of 522 principals held no leader_schools row (287 of them with a users.school_id
  * that has teachers), so their /observe picker was empty. Only a principal (config/role-features
- * observesOwnSchoolAtOnce): a coach's own users.school_id is never added. Null when they already hold that school,
+ * observesOwnSchool): a coach's own users.school_id is never added. Null when they already hold that school,
  * when it has no schools row, and on any failed read: never a guess.
  *
  * Keyed the way a holding of that school would be: 'niete:' + EMIS, else the school's name, so the
@@ -320,9 +320,9 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
 async function ownSchoolHolding(supabase, leaderUserId, held = []) {
   if (!leaderUserId) return null;
   try {
-    const { observesOwnSchoolAtOnce } = require('../../config/role-features');
+    const { observesOwnSchool } = require('../../config/role-features');
     const { data: me, error } = await supabase.from('users').select('role, school_id').eq('id', leaderUserId).maybeSingle();
-    if (error || !me || !me.school_id || !observesOwnSchoolAtOnce(me)) return null;
+    if (error || !me || !me.school_id || !observesOwnSchool(me)) return null;
     if ((held || []).some((h) => h && h.school_id === me.school_id)) return null;
     const { data: school, error: sErr } = await supabase.from('schools').select('id, name, emis').eq('id', me.school_id).maybeSingle();
     if (sErr || !school) return null;

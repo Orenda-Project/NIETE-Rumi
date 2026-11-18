@@ -848,7 +848,12 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false }, d
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: save / Submit FDE's form, no WhatsApp
-  if (fde.isFdeSession(row)) return fde.portalSave({ userId, row, edits, submit: submit === true });
+  if (fde.isFdeSession(row)) {
+    const out = await fde.portalSave({ userId, row, edits, submit: submit === true });
+    // bd-31ziu8 — a FICO-S Submit is the HITL review save: the debrief notes start now (#147), as after a FICO save.
+    if (out && out.submitted && out.tool === 'ficos') writeNotesAfterSave(d, userId, coachingSessionId);
+    return out;
+  }
   if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
 
