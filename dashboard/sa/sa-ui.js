@@ -1543,11 +1543,13 @@
       clockEls.track.setAttribute('aria-valuenow', String(Math.round(p * 100)));
       clockEls.track.classList.toggle('is-low', p < 0.2);
     }
-    function nextBtn(v) {
+    /** The offered Next. `go`: the round-28 screens' RDF-auto label, the word with its arrow (a child alone reads the
+     *  arrow); every other screen, and coach-led, keeps «آگے» / "Next" — this helper is shared with the pre-round-28
+     *  tap, keypad and keyboard items, whose label never changes. */
+    function nextBtn(v, go) {
       shownOffer = !!v.offer_next;
       if (!v.offer_next) return null;
-      // RDF auto: the child alone reads the arrow before the word (the coach-led label, bytes and rects stay)
-      return btn(manual ? C.next : C.next_go, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
+      return btn(go ? C.next_go : C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
     }
 
     // ---------- screens ----------
@@ -1912,7 +1914,7 @@
       // both modes (lead rulings, every state): Next sits in the head row, never at the foot, and its place is held
       // (hidden) until it is offered, so the cards and the replay pill never move when it appears — in RDF auto the
       // Urdu foot button took the second card row and the replay under the fold on a 360×640 phone
-      var coachNext = nextBtn(v) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' });
+      var coachNext = nextBtn(v, !manual) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' });
       return pickModal(screen(v, 'sae-run sae-run-tap sae-pick' + (manual ? ' is-coach-led' : ''), [
         clock(v),
         // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
