@@ -956,9 +956,11 @@ async function voiceHelpOf(deps, calls, clip, key, { task, turns } = {}) {
   calls.push(rec);
   if (d.flag === null) return { key, heard: null };
   if (!d.flag) return { key, heard: false, label: d.label, kind: d.kind, reason: '' };
-  // the reason is the task's own word for what was said (in the task's spelling when the quote is in another script)
+  // the reason is the item's own word when the quote points at one (in the task's spelling, also from another
+  // script), else the task's words the quote holds
   const hit = VH.matchedItems(r.json.evidence, task);
-  return { key, heard: true, label: d.label, kind: d.kind, reason: VH.matchedWords(r.json.evidence, task) || hit.words, items: hit.items };
+  const reason = hit.items.length ? hit.words : (VH.matchedWords(r.json.evidence, task) || hit.words);
+  return { key, heard: true, label: d.label, kind: d.kind, reason: VH.tidy(reason), items: hit.items };
 }
 
 let LETTERS_SCHEMA_CACHE = null;

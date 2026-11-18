@@ -115,6 +115,21 @@ describe('sa_r28_voice_help: the flag names the item the help touched', () => {
     expect(s.jobs.filter((j) => j.schema === 'sa_voice_help')).toHaveLength(0);
   });
 
+  test('timed sums, the adult reads digits that are operands of the sheet: the flag stands, no item (never every sum whose answer it is)', async () => {
+    const turns = '[20s] spk2: 5 - 1?\n[22s] spk1: 4';
+    const s = standIns({ turns, judge: { label: 'help', kind: 'prompted', who: 'adult', evidence: '5 - 1?', confidence: 0.9 } });
+    const got = await score.scoreRow(row('ma.fluency1m'), session(), { ...s, voiceHelp: true });
+    expect(got.ok).toBe(true);
+    expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_kind: 'help', second_voice_items: [] });
+  });
+
+  test('letter sounds: the reason is the letter, without the sound\'s slashes', async () => {
+    const turns = '[3s] spk2: اس کی آواز کیا ہے؟ ب۔\n[5s] spk1: ب';
+    const s = standIns({ turns, judge: { label: 'help', kind: 'said_answer', who: 'adult', evidence: 'اس کی آواز کیا ہے؟ ب۔', confidence: 0.9 } });
+    const got = await score.scoreRow(row('ur.letter_sounds5'), session(), { ...s, voiceHelp: true });
+    expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_reason: 'ب', second_voice_items: ['ur.letter_sounds5.01'] });
+  });
+
   test('OFF: unchanged, no item fields', async () => {
     const s = standIns({ turns: STORY_URDU_SCRIPT, judge: null });
     const got = await score.scoreRow(row('en.story_w3'), session(), s);
@@ -143,6 +158,32 @@ describe('voice-help: matchedItems', () => {
   test('a letter task: one Urdu letter name is that letter', () => {
     const letters = { lang: 'en', subtask: 'letter_name', record: { items: [{ id: 'l.1', show: 'i', target: 'i', answer: 'i' }, { id: 'l.2', show: 'y', target: 'y', answer: 'y' }] } };
     expect(VH.matchedItems('وائی بولو', letters)).toEqual({ words: 'y', items: ['l.2'] });
+  });
+  test('one item or none: two items named is no item, and the reason keeps both words', () => {
+    const ur = { lang: 'ur', subtask: 'letter_name', record: { items: [{ id: 'n.1', show: 'د', target: 'د', answer: 'دال' }, { id: 'n.2', show: 'ج', target: 'ج', answer: 'جیم' }] } };
+    expect(VH.matchedItems('دال کہو، پھر جیم', ur)).toEqual({ words: 'دال جیم', items: [] });
+  });
+  test('questions: the whole accepted answer that is the longest run in the quote names one question; a tie names none', () => {
+    const qs = { lang: 'ur', record: { items: [
+      { id: 'q2', accept: ['اس نے پودا لگایا', 'پودا لگایا'] }, { id: 'q3', accept: ['پودا'] }, { id: 'q4', accept: ['پودا', 'مٹی'] },
+      { id: 'q5', accept: ['پانی ڈالا'] }, { id: 'q6', accept: ['پودا'] },
+    ] } };
+    expect(VH.matchedItems('اس نے پودا لگایا؟', qs).items).toEqual(['q2']);
+    expect(VH.matchedItems('پودا؟', qs)).toEqual({ words: 'پودا', items: [] });
+  });
+  test('timed sums: a number names a sum only when it is the answer of exactly one sum and an operand of none', () => {
+    const sheet = { lang: 'ur', record: { items: [
+      { id: 'f.01', show: '1 + 4', answer: 5 }, { id: 'f.02', show: '2 + 2', answer: 4 }, { id: 'f.03', show: '6 + 4', answer: 10 },
+      { id: 'f.10', show: '10 − 5', answer: 5 }, { id: 'f.12', show: '5 + 3', answer: 8 }, { id: 'f.14', show: '2 + 5', answer: 7 },
+      { id: 'f.17', show: '8 − 5', answer: 3 }, { id: 'f.18', show: '9 − 4', answer: 5 }, { id: 'f.19', show: '7 − 2', answer: 5 },
+    ] } };
+    // operands, and an answer of four sums
+    expect(VH.matchedItems('5 - 1?', sheet).items).toEqual([]);
+    // every number an operand somewhere on the sheet
+    expect(VH.matchedItems('اب 6 ہے، 6 کے ساتھ 4، ہم 7، 8، 9', sheet).items).toEqual([]);
+    // the answer of one sum, an operand of none
+    const one = { lang: 'ur', record: { items: [{ id: 'a.1', show: '13 + 6', answer: 19 }, { id: 'a.2', show: '18 + 7', answer: 25 }, { id: 'a.3', show: '2 + 2', answer: 4 }] } };
+    expect(VH.matchedItems('4', one)).toEqual({ words: '4', items: ['a.3'] });
   });
   test('sums: the result said is that item; reading the sum\'s numbers is not an item match on its own', () => {
     const sums = { lang: 'ur', record: { items: [{ id: 's.1', show: '13 + 6', answer: 19 }, { id: 's.2', show: '8 + 4', answer: 12 }] } };

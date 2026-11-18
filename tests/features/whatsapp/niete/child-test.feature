@@ -1276,6 +1276,8 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the task is flagged as help
     Then the task's detail gives the reason as the task's own word in English and the ids of the items the help touched
     And a passage word that appears more than once is given at the place a reader meets it first
+    And outside a passage the flag points at one item or none: words that fit more than one item give no item
+    And on timed sums a number read off a sum, or the answer of more than one sum, gives no item
     And a per-question recording gives its own question as the item
     And a help flag whose words name no item keeps an empty reason and no item, and still stands
     And a recording with no word heard records that no model was asked
