@@ -1909,3 +1909,17 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the familiar-words recording is scored
     Then the model is shown the fifth word with its accepted forms beside it
     And a spare word without accepted forms is served and listed exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT287 @no-mock-driver
+  # No mock driver: the practice runs on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js and sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_letter_pick on, Jugnu says the practice feedback in coach-led as in RDF auto
+    Given sa_r28_letter_pick is on and a coach-led child is on the letter-sound picker's practice
+    When the child taps a wrong card
+    Then Jugnu says "try again" and the line also shows on the screen
+    And after a second wrong tap Jugnu says the line naming the sound and the right card is shown
+    And after a right tap Jugnu says the right line
+    And the feedback stays on the screen until Jugnu's line ends, and never less than 1.2 seconds
+    And with sa_r28_mcq on the spoken MCQ's practice feedback is said by Jugnu in coach-led the same way
+    And today's tap practice in coach-led stays silent, its feedback read by the coach from the screen
+    And with sa_r28_letter_pick and sa_r28_mcq off the battery runs exactly as before

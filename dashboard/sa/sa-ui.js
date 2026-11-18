@@ -1804,7 +1804,10 @@
       hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
-      Promise.all([ended ? null : delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
+      // round 28: the picker's and the spoken MCQ's practice feedback is said by Jugnu in coach-led too, as their sounds are
+      // (a young child cannot read the line); today's tap practice in coach-led stays the coach's to read
+      var fbSaid = appAsks || (manual && (isPick(t) || isMcq(t)));
+      Promise.all([ended ? null : delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, fbSaid]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
