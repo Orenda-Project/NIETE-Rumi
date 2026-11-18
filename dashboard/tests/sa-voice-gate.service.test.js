@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-34'); // sa-34: round 28, sa-core.js / sa-ui.js / sink-coach.js (the session row's data fields)
+    expect(sw.CORE).toBe('sa-core-sa-35'); // sa-35: round 28, sa-ui.js (listed Urdu word runs kept on one line in the spoken MCQ)
   });
 });
 
