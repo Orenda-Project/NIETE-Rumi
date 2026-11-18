@@ -127,7 +127,11 @@ export default function LeaderAssessResults() {
     // round 28 (SPEC F): a rated tapped picker / MCQ says how many children reach its rung by guessing alone (text only)
     // on the items this child actually had (presented / 6 − lost): the same tapOf the share divides by
     const tapSpec = t.mode === 'tap' ? specOf(t.taskId) : undefined;
-    const floors = t.mode === 'tap' && !unrated && !skipped ? tapFloors(t.taskId, t.optionsN, tapSpec ? tapOf(t, tapSpec) : null) : null;
+    // a tapped task the reading floor withheld (taps kept, none credited) keeps its counts but has no guessing line:
+    // the 0 is the floor's, not the child's guesses. Gated on the stop reason, which is what the server marks it with
+    // (comprehension_not_counted; an older server still names a tapped one comprehension_not_asked).
+    const gated = t.stopReason === 'comprehension_not_counted' || t.stopReason === 'comprehension_not_asked';
+    const floors = t.mode === 'tap' && !unrated && !skipped && !gated ? tapFloors(t.taskId, t.optionsN, tapSpec ? tapOf(t, tapSpec) : null) : null;
     return (
       <li key={t.taskId} data-testid={`result-task-${t.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
         {t.title?.[lang] ? (

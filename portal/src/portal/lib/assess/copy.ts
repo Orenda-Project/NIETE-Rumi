@@ -177,6 +177,8 @@ const en = {
       stopped_by_rule: "Stopped early (EGRA rule)",
       stopped_by_rule_egma: "Stopped early (EGMA rule)",
       comprehension_not_asked: "Questions not asked: the reading stopped early. Scored 0.",
+      // the tapped questions under the same reading floor: asked on the phone, the taps not counted
+      comprehension_not_counted: "Not counted: the reading stopped early (EGRA's rule). Scored 0.",
       comprehension_voided: "Not scored: the recording shows the reading stopped early.",
       multiplication_not_asked: "Not asked: no addition or subtraction answer was right. Scored 0.",
       consecutive_errors: "Stopped: wrong answers in a row",
@@ -407,6 +409,7 @@ const ur: Copy = {
       stopped_by_rule: "EGRA کے اصول کے تحت پہلے ہی روک دیا گیا",
       stopped_by_rule_egma: "EGMA کے اصول کے تحت پہلے ہی روک دیا گیا",
       comprehension_not_asked: "سوال نہیں پوچھے گئے، کیونکہ پڑھائی پہلے ہی رک گئی تھی۔ نمبر: ۰",
+      comprehension_not_counted: "نمبر نہیں گنے گئے: پڑھائی پہلے ہی رک گئی تھی (EGRA کا اصول)۔ نمبر: ۰",
       comprehension_voided: "نمبر نہیں دیے گئے: ریکارڈنگ کے مطابق پڑھائی پہلے ہی رک گئی تھی۔",
       multiplication_not_asked: "سوال نہیں پوچھے گئے، کیونکہ جمع یا تفریق کا کوئی جواب درست نہیں تھا۔ نمبر: ۰",
       consecutive_errors: "رک گیا: لگاتار غلط جواب",
