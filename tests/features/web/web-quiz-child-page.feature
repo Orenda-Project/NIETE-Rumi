@@ -2036,3 +2036,13 @@ Feature: Web child quiz page on the portal
     When a storybook page voice is asked for as .mp3
     Then the portal serves it as audio/mpeg, made from the stored .ogg
     But with the switch off the .mp3 storage does not hold is not found, as before
+
+  @WQ262
+  Scenario: A class link that names one Jugnu game opens that game for the picked child
+    Given web_quiz_class_link, web_quiz_challenge_v2 and web_quiz_challenge are "on" and a teacher forwarded the weak-skill nudge's game link /j/<code>?ex=missing
+    When a child takes the class link's steps and is picked
+    Then the page goes to that child's hub carrying ex=missing and on to the challenge page at #missing, where "Missing number" opens by itself
+    And ex=numbers opens the number warm-up and ex=bigger opens "Which is bigger?"
+    But any other ex, a locked hub, a teacher's preview or a hub with no child picked shows the hub as today
+    And with the class link off, /j/<code>?ex=missing is exactly the page an unknown /q/ code shows
+
