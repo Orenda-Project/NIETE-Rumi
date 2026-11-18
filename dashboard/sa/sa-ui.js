@@ -1624,7 +1624,10 @@
     /** RDF manual: the coach's screen in front of each task (the words to read out), then the phone goes to the child. */
     function sCoachBrief(v) {
       var t = v.task;
-      return h('div', { class: 'sae-screen sae-coach-brief is-coach', 'data-task': t.id }, [
+      // round 28: the brief of a letter picker (r28_letter_pick) or a spoken MCQ (r28_mcq) carries is-r28-brief (the coach
+      // page's frame room in sa.css); never on with the switches OFF
+      var r28Brief = (r28Pick && t.kind === 'pick') || (r28Mcq && t.kind === 'mcq');
+      return h('div', { class: 'sae-screen sae-coach-brief is-coach' + (r28Brief ? ' is-r28-brief' : ''), 'data-task': t.id }, [
         h('div', { class: 'sae-body' }, [
           h('p', { class: 'sae-chip', text: C.coach }),
           h('h1', { class: 'sae-h1', text: tx(t.title) }),
