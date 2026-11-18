@@ -80,6 +80,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The same open also books the coaching ask a WhatsApp-delivered Grades 1–5 plan books (coaching.feature
     # @COA80/@COA81; tests/lp-v8/lp-coaching-ask-app-open.test.js).
 
+  @e2e @config-gated @no-mock-driver @slow @P1
+  Scenario: My own Grades 1–5 plan read in the teacher app gets the Grades 1–5 survey, and my answer is kept
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I messaged the bot within the last 24 hours
+    And I made my own version of a Grades 1–5 lesson plan in the teacher app
+    When I open that plan in the teacher app
+    Then about 30 seconds later the chat receives the Grades 1–5 "Was it useful?" survey with "👍 Yes, useful" and "👎 Not really"
+    And tapping 👍 stores my answer against that lesson plan, not lost
+    # bd-h7nsmx: the app's 6-12 routes also serve own and shelf Grades 1–5 plans and record those opens as 'g612'
+    # with a Grades 1–5 lesson id. The 6-12 survey's tap then broke a database link and the answer was lost
+    # (~17 a day on live, 18 Nov 2026). The lesson id now decides which survey is asked.
+    # Unit: tests/lp-v8/app-open-survey-k5-as-g612.test.js.
+
   # ─────────────────────── Business rules / valid variations ───────────────────────
 
   @e2e @i18n @P2
