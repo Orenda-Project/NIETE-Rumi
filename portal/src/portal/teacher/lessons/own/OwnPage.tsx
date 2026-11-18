@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { lessonPlans } from '../../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../../newui/lessons/shared';
@@ -11,7 +11,7 @@ import { LESSONS } from '../copy';
 import { lessonsUrl } from '../paths';
 import { OWN } from './copy';
 import {
-  FOCI, LEVELS, RESOURCES, SIZES, isComplete, purposesFor, suggestWay, waysFor, type Resource, type Way,
+  FOCI, LEVELS, RESOURCES, SIZES, isComplete, isSecondary, purposesFor, suggestWay, waysFor, type Resource, type Way,
 } from './rules';
 import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
 import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
@@ -23,6 +23,7 @@ import { MyOwnPlans } from './MyOwnPlans';
 import { RadioList, TickList } from './Options';
 import { bandWords } from './bandCopy';
 import { Check } from './Check';
+import { getAppFunnel } from '../../../lib/appFunnel';
 
 /**
  * "Make my own" lesson plan: one question per screen, one sticky OK (the WhatsApp-flow form pattern), every
@@ -82,6 +83,14 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const suggestion = suggestWay({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: ['textbook', ...s.res], level: s.level, way: null, purpose: s.purpose });
   // bd-snkn32.24 — she may tick several ways; untouched, the suggestion is ticked.
   const waysNow = s.ways ?? (s.way ? [s.way] : [suggestion.way]);
+
+  // bd-snkn32.51 (queue #134 A) — each screen tells the funnel she is on it (codes only), so a drop-off has a last screen.
+  const subjectCode = s.subject.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  useEffect(() => {
+    if (on !== true) return;
+    getAppFunnel().step({ step: s.step, grade: s.grade, subject: subjectCode, band: isSecondary(s.grade) ? 'g612' : 'k5' });
+  }, [on, s.step, s.grade, subjectCode]);
+  useEffect(() => () => getAppFunnel().stepEnd(), []);
 
   // Off is a real answer (back to the chapter); unknown is not, so the frame waits for /config.
   if (on === false) return <Navigate to={chapterUrl} replace />;

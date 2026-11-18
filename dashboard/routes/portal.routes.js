@@ -3417,6 +3417,12 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
     LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
       userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
     }, { renderId }));
+    // bd-snkn32.51 (queue #134 A) — an own plan: hers ('mine'; several per ownId = re-opens) or a shelf plan ('shelf').
+    if (out.shelf === true || typeof out.changesLeft === 'number') {
+      logAppAction(req, 'own_plan.opened', 'lesson_plan', {
+        whose: out.shelf === true ? 'shelf' : 'mine', ownId: renderId, band: ['k5', 'g612'].includes(out.ownBand) ? out.ownBand : null,
+      });
+    }
   }
   return undefined;
 });
