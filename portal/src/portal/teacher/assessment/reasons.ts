@@ -12,7 +12,6 @@ export function whyText(w: Why, C: AssessmentV2Copy): string {
     case 'ranges': return C.why.ranges;
     case 'none': return C.why.none;
     case 'count': return C.why.count(w.max);
-    case 'typesMax': return C.why.typesMax(w.max);
     case 'marks': return C.why.marks(w.max);
     case 'marksLow': return C.why.marksLow(w.total);
     case 'earlier': return C.why.earlier(C.steps[w.step]);

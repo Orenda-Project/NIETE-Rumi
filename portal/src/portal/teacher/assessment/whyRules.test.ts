@@ -59,11 +59,11 @@ describe('stepWhy', () => {
     expect(stepWhy('cover', base({ chapters: [] }), 50)).toEqual({ code: 'chapters' });
     expect(stepWhy('cover', base({ coverBy: 'pages' }), 50)).toEqual({ code: 'ranges' });
   });
-  it('questions: none at all, past the cap, more types than a paper takes', () => {
+  it('questions: none at all, past the cap; any number of types (bd-5icld3.4)', () => {
     expect(stepWhy('questions', base({ seen: 0, typeCounts: {} }), 50)).toEqual({ code: 'none' });
     expect(stepWhy('questions', base({ seen: 45, typeCounts: { MCQs: 10 } }), 50)).toEqual({ code: 'count', max: 50 });
     const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`T${i}`, 1]));
-    expect(stepWhy('questions', base({ typeCounts: nine }), 50)).toEqual({ code: 'typesMax', max: 8 });
+    expect(stepWhy('questions', base({ typeCounts: nine }), 50)).toBeNull();
   });
   it('marks: beyond the ceiling, or under the question count', () => {
     expect(stepWhy('questions', base({ marks: 1500 }), 50)).toEqual({ code: 'marks', max: 1000 });
