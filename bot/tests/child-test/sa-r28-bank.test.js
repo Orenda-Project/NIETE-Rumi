@@ -205,6 +205,24 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     }
   });
 
+  test('letter_pick10 practice: the second wrong tap NAMES the sound (the carrier, then the item\'s own clip); a right tap keeps the right line', () => {
+    const v1 = (l, text) => `sa/v1/${l}/${require('crypto').createHash('sha1').update(`${l}|${text}`).digest('hex').slice(0, 12)}.mp3`;
+    const CARRIER = { wrong: { en: 'The sound of this letter is:', ur: 'اس حرف کی آواز ہے:' } };
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const b = runtime(form, lang);
+      for (const l of ['ur', 'en']) {
+        const t = byId(b)[`${l}.letter_pick10`];
+        for (const p of t.practice) {
+          const sound = { text: p.prompt_text, audio: p.prompt_audio, lang: l };
+          const line = (k) => ({ text: CARRIER[k][lang], audio: v1(lang, CARRIER[k][lang]), lang });
+          expect([form, lang, p.id, p.feedback]).toEqual([form, lang, p.id, { wrong: [line('wrong'), sound] }]);
+          // the named sound is the one the child heard, never a letter name
+          expect(p.feedback.wrong[1].audio).toBe(p.prompt_audio);
+        }
+      }
+    }
+  });
+
   test('served OFF: no r28 task, no r28_tasks, no ext_items, base_n or ext_stop anywhere', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       for (const on of [{}, { rdfW3Forms: true }]) {

@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-31'); // sa-31: round 28, sa-ui.js (the hold menu's Urdu End this task)
+    expect(sw.CORE).toBe('sa-core-sa-32'); // sa-32: round 28, sa-ui.js / sa.css / sa-offline.js (coach-led picker + MCQ voice; the picker practice's named line in the head row; the offline timing sweep)
   });
 });
 

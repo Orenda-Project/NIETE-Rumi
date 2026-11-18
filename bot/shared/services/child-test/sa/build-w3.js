@@ -18,7 +18,7 @@
  * only lines.coach_will_instruct. Both lists are the same ids: the variant changes who instructs, never the measure.
  */
 
-const { COMMON, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { COMMON, CHAINS, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 const { PLAN: COUNTS_PLAN } = require('./counts');
 
 const W3_TASKS = [
@@ -525,13 +525,17 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     const lp = r28.letter_pick[lang];
     if (lp) {
       const id = `${lang}.letter_pick10`;
+      const sound = (x) => ({ text: x.say, lang, audio: v5(said, lang, x.say) });
+      const LS = CHAINS['en.letter_sounds'];
       const row = (x, rid) => ({ id: rid, show: x.target, target: x.target, options: x.options, prompt_text: x.say, prompt_audio: v5(said, lang, x.say), src: x.src });
       out.push({
         task: id, lang, w3: true, r28: 'letter_pick', replaces: `${lang}.letter_sounds5`, kind: 'pick', legacy_block: null, family: 'egra',
         subtask: 'letter_sound_identification', title: R28_TITLE.letter_pick, response: 'tap', replay_at_s: 10, next_at_s: 15, stop: null,
         items: lp.items.map((x, i) => row(x, `${id}.${pad(i + 1)}`)),
-        practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role,
-          model: [spoken(MODEL.letter_sounds), { text: x.say, lang, audio: v5(said, lang, x.say) }] })),
+        // The second wrong tap names the sound: the letter-sounds carrier, then the item's own clip. A right tap keeps the
+        // engine's right line (the child has linked sound and shape; repeating the sound only lengthens the practice).
+        practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role, model: [spoken(MODEL.letter_sounds), sound(x)],
+          feedback: { wrong: [spoken(LS.wrong[0]), sound(x)] } })),
         script: script(R28_LINES.lp_intro), coach_text: coach('letter_pick'),
         source: { items: 'r28:letter_pick', script: R28_LINES.lp_intro.from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
         deviation: 'recognition, not production: the published EGRA letter-sound task asks the child to say each sound',
@@ -570,7 +574,8 @@ function runtimeR28Task(t, lang, H) {
     script: runtimeScript(t, lang), instruction: inLang(t.script.intro, lang), coach_text: coach, source: t.source };
   if (t.kind === 'pick') {
     return { ...head, deviation: t.deviation, direction: t.lang === 'ur' ? 'rtl' : 'ltr',
-      items: t.items, practice: t.practice.map(({ model, ...p }) => ({ ...p, model: chainIn(model, lang) })) };
+      items: t.items, practice: t.practice.map(({ model, feedback, ...p }) => ({ ...p, model: chainIn(model, lang),
+        ...(feedback ? { feedback: { wrong: chainIn(feedback.wrong, lang) } } : {}) })) };
   }
   const r = runtimeTask({ ...t, kind: 'questions' }, lang);
   const withOpts = (items, src) => items.map((q, i) => {
