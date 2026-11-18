@@ -1,2 +1,4 @@
 {"ts":"2026-11-18T05:30:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"149c535e1b93","branch":"bd-l1xxi1-79767","user":""}
 {"ts":"2026-11-18T05:47:47Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"149c535e1b93","branch":"bd-snkn32.51-80596","user":""}
+{"ts":"2026-11-18T05:53:58Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=child-test,leader-portal,portal-smoke spec_sync=true","sha":"149c535e1b93","branch":"bd-snkn32.51-80596","user":""}
+{"ts":"2026-11-18T05:54:07Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: leader-portal,portal-smoke owe their Gherkin","sha":"149c535e1b93","branch":"bd-snkn32.51-80596","user":""}
