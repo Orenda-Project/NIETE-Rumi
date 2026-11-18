@@ -532,9 +532,10 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
         task: id, lang, w3: true, r28: 'letter_pick', replaces: `${lang}.letter_sounds5`, kind: 'pick', legacy_block: null, family: 'egra',
         subtask: 'letter_sound_identification', title: R28_TITLE.letter_pick, response: 'tap', replay_at_s: 10, next_at_s: 15, stop: null,
         items: lp.items.map((x, i) => row(x, `${id}.${pad(i + 1)}`)),
-        // A right tap and the second wrong tap name the sound: the letter-sounds carrier, then the item's own clip.
+        // The second wrong tap names the sound: the letter-sounds carrier, then the item's own clip. A right tap keeps the
+        // engine's right line (the child has linked sound and shape; repeating the sound only lengthens the practice).
         practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role, model: [spoken(MODEL.letter_sounds), sound(x)],
-          feedback: { correct: [spoken(LS.right[0]), sound(x)], wrong: [spoken(LS.wrong[0]), sound(x)] } })),
+          feedback: { wrong: [spoken(LS.wrong[0]), sound(x)] } })),
         script: script(R28_LINES.lp_intro), coach_text: coach('letter_pick'),
         source: { items: 'r28:letter_pick', script: R28_LINES.lp_intro.from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
         deviation: 'recognition, not production: the published EGRA letter-sound task asks the child to say each sound',
@@ -574,7 +575,7 @@ function runtimeR28Task(t, lang, H) {
   if (t.kind === 'pick') {
     return { ...head, deviation: t.deviation, direction: t.lang === 'ur' ? 'rtl' : 'ltr',
       items: t.items, practice: t.practice.map(({ model, feedback, ...p }) => ({ ...p, model: chainIn(model, lang),
-        ...(feedback ? { feedback: { correct: chainIn(feedback.correct, lang), wrong: chainIn(feedback.wrong, lang) } } : {}) })) };
+        ...(feedback ? { feedback: { wrong: chainIn(feedback.wrong, lang) } } : {}) })) };
   }
   const r = runtimeTask({ ...t, kind: 'questions' }, lang);
   const withOpts = (items, src) => items.map((q, i) => {
