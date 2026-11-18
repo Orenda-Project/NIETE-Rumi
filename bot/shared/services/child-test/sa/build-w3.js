@@ -130,7 +130,7 @@ const COACH = {
     'core_egma:p.6 Task 4A script (rwp2026 blfluency blfl1: + and −), one at a time'),
 };
 // "Then go on" models for a practice item: the carrier in the page's language, then the answer in the item's own
-// language (RULING #31a: no clip says an item of the other language inside a sentence).
+// language (no clip says an item of the other language inside a sentence).
 const MODEL = {
   letter_names: L('The name of this letter is:', 'اس حرف کا نام ہے:', 'egra_tk2016:Annex H p.189 practice ("The name of this letter is …")'),
   letter_sounds: L('The sound of this letter is:', 'اس حرف کی آواز ہے:', 'egra_tk2016:Annex H p.187 practice ("The sound of this letter is …")'),
@@ -351,7 +351,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     task: id, lang: null, w3: true, kind: 'oral', legacy_block: null, family: 'egma', subtask: extra2.subtask, title: TITLE[id.split('.')[1]],
     response: 'record', present: 'one_at_a_time', items, practice,
     time_limit_s: extra2.time_limit_s || null, advance_after_s: extra2.advance_after_s || null, ...(extra2.next_at_s ? { next_at_s: extra2.next_at_s } : {}),
-    // A sum is shown; Jugnu says it only on the replay tile (RULING #17), so reading it stays the child's.
+    // A sum is shown; Jugnu says it only on the replay tile, so reading it stays the child's.
     ...(items.some((it) => it.say) ? { say_on: 'replay' } : {}),
     stop: extra2.stop || null, ...(extra2.practice_note ? { practice_note: extra2.practice_note } : {}), ...(extra2.chip ? { chip: extra2.chip } : {}),
     script: mScript(kind), coach_text: coachText(kind, null),
