@@ -65,10 +65,12 @@ F = {
    # bd-s42dye.2 (PR #2780): a coach on the coach app v2 sees only the Training Library and her account; every other
    # coach page sends her to /portal/coach/training before it mounts (portal/src/portal/coach/training/appReady.ts,
    # COACH_APP_READY = ["training"]). When a feature is added back to COACH_APP_READY, its row here goes back to "opens".
+   # 0dedffdf5 (27 Oct 2026): "schools" is ready (COACH_APP_READY = training, lessons, schools), so My schools
+   # (/portal/coach/people, "Schools & teachers") opens; My schedule and Team schedule still land on the Training Library.
    ('CP01', 'Coach app v2: her home sends her to the Training Library', 'coach', 'coachV2',
      [('/portal/coach', r'^Training Library', '/portal/coach/training', '/portal/coach settles on /portal/coach/training, with "Training Library"')]),
-   ('CP02', 'Coach app v2: Schools & teachers, My schedule and Team schedule send her to the Training Library', 'coach', 'coachV2',
-     [('/portal/coach/people', r'^Training Library', '/portal/coach/training', '/portal/coach/people settles on /portal/coach/training'),
+   ('CP02', 'Coach app v2: My schools opens; My schedule and Team schedule send her to the Training Library', 'coach', 'coachV2',
+     [('/portal/coach/people', r'^Schools & teachers$', None, 'My schools opens on "Schools & teachers"'),
       ('/portal/coach/schedule', r'^Training Library', '/portal/coach/training', '/portal/coach/schedule settles on /portal/coach/training'),
       ('/portal/coach/team', r'^Training Library', '/portal/coach/training', '/portal/coach/team settles on /portal/coach/training')]),
    ('CP03', 'Coach app v2: Reports and Analytics send her to the Training Library', 'coach', 'coachV2',
@@ -108,11 +110,12 @@ F['portal-smoke'] = ('Portal-wide smoke — every main page, every role', 'the w
   ('PS02', 'Classic portal (teacher): every main page opens healthy', 'teacher', 'classic',
     [(p, ANY, st, None) for p, st in [('/portal/dashboard', None), ('/portal/curriculum', None), ('/portal/coaching', None), ('/portal/training', None),
                                        ('/portal/classes', None), ('/portal/assessment', None), ('/portal/account', None)]]),
-  # bd-s42dye.2 (PR #2780): the coach app v2 shows only the Training Library and her account; the other coach pages
+  # bd-s42dye.2 (PR #2780): the coach app v2 shows only its ready features and her account; the other coach pages
   # settle on /portal/coach/training (appReady.ts COACH_APP_READY). Each still has to land healthy.
-  ('PS03', 'Coach app v2: the Training Library and her account open healthy, every other coach page lands on the Training Library', 'coach', 'coachV2',
-    [('/portal/coach/training', ANY, None, None)]
-    + [('/portal/coach' + s, ANY, '/portal/coach/training', None) for s in ['', '/people', '/schedule', '/team', '/reports', '/analytics', '/observe']]
+  # 0dedffdf5 (27 Oct 2026): My schools (/portal/coach/people) is ready, so it opens instead of landing on Training.
+  ('PS03', 'Coach app v2: the Training Library, My schools and her account open healthy, every other coach page lands on the Training Library', 'coach', 'coachV2',
+    [('/portal/coach' + s, ANY, None, None) for s in ['/training', '/people']]
+    + [('/portal/coach' + s, ANY, '/portal/coach/training', None) for s in ['', '/schedule', '/team', '/reports', '/analytics', '/observe']]
     + [('/portal/coach' + s, ANY, None, None) for s in ['/more', '/profile']]),
   ('PS04', 'Leader portal: every main page opens healthy', 'principal', 'classic',
     [('/portal/leader' + s, ANY, None, None) for s in ['', '/teachers', '/observations', '/school-analytics', '/lessons', '/child-test']]),
@@ -308,32 +311,37 @@ EXTRA = {
 # them; a pair whose driver is None adds spec lines only. <COACH> is ROLE_TXT['coach'] (one place for the demo login).
 EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs', [
     "  # The School card, with its switch (portal_coach_school_card) on and off. The driver waits for /config to agree",
-    "  # with the switch (the dashboard caches it 30 s) and puts it back OFF after every scenario.",
+    "  # with the switch (the dashboard caches switches; a test stack runs it with FLAG_CACHE_TTL_MS=0) and puts it back OFF after every scenario.",
+    "  # bd-rlxkkt.2 (3 Nov 2026): Coach Training joined the slim Home's tiles (card/switchOn.test.tsx).",
     "  @CP07",
     "  Scenario: Coach app v2 with the School card on: her home is the slim Coach Home, the menu is Home, Lesson Plans and More, and the hidden pages land on Home",
     "    Given the teacher app v2 is off and the coach app v2 is on",
     "    And the School card is on",
     "    And <COACH> is signed in",
     "    When she opens /portal/coach",
-    "    Then it is the slim Coach Home with exactly two tiles, Training Library and My schools",
+    "    Then it is the slim Coach Home with exactly three tiles, Training Library, My schools and Coach Training",
     "    And the menu is Home, Lesson Plans and More",
     "    When she opens Schedule, My schedule, Team schedule, New visit, Observe, Reports, Analytics or Insights",
     "    Then each settles on /portal/coach",
     "    And no page error or 5xx happened",
     "",
+    "  # bd-17v39c.4.13.4 (5 Nov 2026): the School card became the School view — an overview of five boxes and a teacher",
+    "  # table; the score and Activity tiles left the card, and a box's details page leads with its chart. Since",
+    "  # bd-dgfkgs.1 (30 Oct 2026) a by-teacher row opens her list of that feature, not her Teacher page.",
     "  @CP08",
-    "  Scenario: Coach app v2 with the School card on: a school opens as its School card; This month, a feature's grid and a teacher's page open from it",
+    "  Scenario: Coach app v2 with the School card on: a school opens as its School view; This month, a feature's details, her list and a teacher's page open from it",
     "    Given the teacher app v2 is off and the coach app v2 is on",
     "    And the School card is on",
     "    And <COACH> is signed in",
     "    When she opens /portal/coach/school/DEMO-001",
-    "    Then it shows the period chips Today, This week and This month, the Digital Coaching and Coach observations tiles first, then Lesson plans, Assessments and Training parts, and the Manage group",
+    "    Then it shows the period chips Today, This week and This month, the overview boxes Lesson plans, Training, Assessments, Digital Coaching and Coach observations, the teacher table, and the Manage group",
     "    And there is no Share with principal and no Schedule a visit",
     "    When she taps \"This month\"",
-    "    Then the Lesson plans tile shows one bar per week, from \"Wk 1\"",
-    "    When she taps the Lesson plans tile",
-    "    Then \"Lesson plans by teacher\" opens for This month, with a row per teacher and the School row",
+    "    And she taps the Lesson plans box",
+    "    Then \"Lesson plans by teacher\" opens for This month, led by one bar per week from \"Wk 1\", with a row per teacher and the School row",
     "    When she taps a teacher's row",
+    "    Then that teacher's own Lesson plans list opens for This month",
+    "    When she taps a teacher in the School view's teacher table",
     "    Then her Teacher page opens with the Digital Coaching and Coach observations tiles first",
     "    When she taps her Digital Coaching tile",
     "    Then her Digital Coaching page opens for This month",
