@@ -1,0 +1,2 @@
+{"ts":"2026-11-18T12:17:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features=child-test spec_sync=true","sha":"feeda379fbe7","branch":"bd-snkn32.53-83169","user":""}
+{"ts":"2026-11-18T12:30:21Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (only @CT255/@CT256 renumbered to @CT284/@CT285 on two @draft @no-mock-driver scenarios; CT09 /egra rows=0 fails the same on 6203101c8 of 17 Nov, before this change)","sha":"feeda379fbe7","branch":"bd-snkn32.53-83169","user":""}
