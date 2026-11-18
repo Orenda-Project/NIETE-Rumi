@@ -119,9 +119,10 @@ describe('register-all-flows', () => {
     // same set of Flows (staging still has Pic-to-LP Confirm, which this tree
     // removed with the pic-to-LP feature). Read the count off the tree you are on
     // rather than copying it across a cherry-pick.
-    it('exports an array of all 28 registerable flow configurations (27th, 28th: Observe2 Check v6 Coach, Obs 6-12 Lesson Class)', () => {
+    // Re-armed at 29 on 2026-11-18: FICO 6-12 Form (bd-31ziu8, ICT grades 6-12; code name FICO-S v1.1).
+    it('exports an array of all 29 registerable flow configurations (29th: FICO 6-12 Form)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(28);
+      expect(FLOW_CONFIGS).toHaveLength(29);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
@@ -142,7 +143,9 @@ describe('register-all-flows', () => {
       const shared = FLOW_CONFIGS.filter((f) => f.endpointPath)
         .reduce((m, f) => m.set(f.endpointPath, (m.get(f.endpointPath) || 0) + 1), new Map());
       const overloaded = [...shared].filter(([, n]) => n > 1).map(([p]) => p);
-      expect(overloaded).toEqual(['/api/flows/assessment-gen', '/api/flows/observe2-check']);
+      // The third (bd-31ziu8): FDE's form and the FICO 6-12 form share /api/flows/obs612; the FICO 6-12 Flow's token
+      // ends ':fs' (routes/obs612-endpoint.js parseToken), so each Flow only ever opens its own forms.
+      expect([...overloaded].sort()).toEqual(['/api/flows/assessment-gen', '/api/flows/obs612', '/api/flows/observe2-check']);
     });
 
     it('includes Reading Assessment as a navigate type with no endpointPath', () => {
