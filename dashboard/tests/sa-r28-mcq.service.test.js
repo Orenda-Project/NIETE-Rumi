@@ -1216,7 +1216,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(pp(events)).toHaveLength(1);
   }, 20000);
 
-  test('row 32 (coach-led): the coach\'s line is drawn above the fold on the passage step only, and on every question frame (practice and scored) also as the first line of the fold\'s body; RDF auto draws neither', async () => {
+  test('row 32 (coach-led, round 11): the coach\'s line is drawn above the fold on the passage step and the question frames, never in the fold\'s body (sa.css hides it on the Urdu phone\'s question frames); RDF auto draws neither', async () => {
     setup();
     const UR = 'جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔';
     const where = (el) => Array.from(el.querySelectorAll('.sae-mcq-coach-line')).map((x) => ({ in_fold: !!x.closest('.sae-mcq-coach-body'),
@@ -1229,11 +1229,13 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     el.querySelector('.sae-mcq-head > .sae-mcq-next').click();
     await wait(30);
     expect(cards(el)).toHaveLength(4);
-    expect(where(el)).toEqual([{ in_fold: false, first: true, text: true }, { in_fold: true, first: true, text: true }]); // practice question
+    expect(where(el)).toEqual([{ in_fold: false, first: true, text: true }]); // practice question: above only (round 11)
+    expect(el.querySelector('.sae-mcq-coach-body').firstElementChild.matches('p.sae-say.sae-coach-line')).toBe(true); // the fold opens on the prompt
     views.forEach((v) => v.destroy()); views = [];
     const sc = mountMcq(coachLed);
     await wait(20);
-    expect(where(sc.el)).toEqual([{ in_fold: false, first: true, text: true }, { in_fold: true, first: true, text: true }]); // scored question
+    expect(where(sc.el)).toEqual([{ in_fold: false, first: true, text: true }]); // scored question: above only (round 11)
+    expect(sc.el.querySelector('.sae-mcq-coach-body').firstElementChild.matches('p.sae-say.sae-coach-line')).toBe(true); // the fold = prompt + options
     views.forEach((v) => v.destroy()); views = [];
     const auto = mountMcq();
     await wait(20);
@@ -1725,13 +1727,14 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
         for (const [state, m] of Object.entries(r)) {
           expect({ state, coach_line: m.coach_line, nastaliq: m.nastaliq }).toEqual({ state, coach_line: true, nastaliq: true });
           // round 10 (row 32): the mount is the one named; nothing tappable or in the head row under the coach page's
-          // band or the sync dot; the coach's line in the fold on the Urdu phone (seen when the fold is open), above in English
+          // band or the sync dot; round 11: the coach's line not drawn on the Urdu phone's question frame (the fold's
+          // summary carries "do not read this"), above in English
           const f = m.frame;
           expect({ state, embed: f.embed, sync: f.sync, lang_toggle: f.lang_toggle, hold_hits: f.hold_hits, dot_hits: f.dot_hits })
             .toEqual({ state, embed: MOUNT.embed && urFit, sync: MOUNT.sync, lang_toggle: MOUNT.lang_toggle && urFit, hold_hits: urFit && !offlineEn(mnt, lang) ? [] : f.hold_hits, dot_hits: [] });
           // the toggle never meets an answer card (a stray tap would switch the language mid-item) nor a head-row child
           if (f.toggle) expect({ state, cards_clear: f.toggle.vs_cards_px > 0, head_clear: Object.values(f.toggle.vs_head_px).every((g) => g >= 0) }).toEqual({ state, cards_clear: true, head_clear: true });
-          expect({ state, line: f.line }).toEqual({ state, line: lang === 'ur' ? (state === 'foldopen' ? ['fold'] : []) : ['above'] });
+          expect({ state, line: f.line }).toEqual({ state, line: lang === 'ur' ? [] : ['above'] });
           if (state === 'foldopen') expect({ state, overlay_bottom_ok: m.overlay_bottom != null && m.overlay_bottom <= m.vh }).toEqual({ state, overlay_bottom_ok: true });
           expect({ state, page_h: m.page_h, inner_scroll: m.inner_scroll }).toEqual({ state, page_h: m.vh, inner_scroll: 0 });
           expect(m.cards).toHaveLength(4);
@@ -1768,7 +1771,7 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
       // round 10: on the Urdu phone the line is read where it is drawn on a question frame, in the open fold's body
       // (folded away otherwise); English keeps it above the fold in every state
       expect(Object.entries(r).filter(([, m]) => m.coach_ink).map(([state, m]) => [state, m.frame.line[0]]))
-        .toEqual(lang === 'ur' ? [['foldopen', 'fold']] : ['listening', 'speaking', 'chosen', 'offernext', 'foldopen'].map((x) => [x, 'above']));
+        .toEqual(lang === 'ur' ? [] : ['listening', 'speaking', 'chosen', 'offernext', 'foldopen'].map((x) => [x, 'above']));
       B10[`coach_line_ink_${mnt}_${lang}`] = Object.fromEntries(Object.entries(r).filter(([, m]) => m.coach_ink).map(([state, m]) => [state, Object.assign({ where: m.frame.line[0] }, m.coach_ink)]));
       const rows = Object.entries(r).filter(([, m]) => m.coach_ink).map(([state, m]) => ({ state, lines: m.coach_ink.lines, same_layout: m.coach_ink.same_layout, gaps: m.coach_ink.gaps,
         gaps_min: m.coach_ink.gaps_min, below_box: m.coach_ink.below_box, above_box: m.coach_ink.first_ink_above_box, font: m.coach_ink.font,
@@ -1875,7 +1878,7 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       const q = document.querySelector('.sae-mcq-q'); const cs = getComputedStyle(q); const r = q.getBoundingClientRect();
       const rg = document.createRange(); rg.selectNodeContents(q);
       const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
-      // round 10: the line above the fold where it is drawn there (the Urdu phone draws it in the fold: no room to read)
+      // the line above the fold where it is drawn there (round 11: the Urdu phone's question frame does not draw it)
       const le = Array.from(document.querySelectorAll('.sae-mcq-coach-line')).find((e) => getComputedStyle(e).display !== 'none' && !e.closest('.sae-mcq-coach-body'));
       const line = le ? le.getBoundingClientRect() : null;
       return { top: r.top + parseFloat(cs.borderTopWidth), bottom: r.bottom - parseFloat(cs.borderBottomWidth),
@@ -1893,16 +1896,26 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
     const lr = g.line_top == null ? [] : await ink(p, g.line_top - 4, g.line_bottom + 14);
     await hide(p, ['.sae-mcq-opts', 'details.sae-mcq-coach', '.sae-mcq-coach-line', '.sae-mcq-q'], false);
     return { lines: g.lines, ink_above_top: rows.length ? +Math.max(0, g.top - rows[0]).toFixed(1) : null, ink_below_bottom: rows.length ? +Math.max(0, rows[rows.length - 1] - g.bottom).toFixed(1) : null,
-      coach_line_room: g.line_top == null ? 'in the fold' : lr.length ? +(g.fold_top - lr[lr.length - 1]).toFixed(1) : null, card_h: g.cards.map((c) => c.h), ring_bottom: Math.max(...g.cards.map((c) => c.ring_bottom)),
+      coach_line_room: g.line_top == null ? 'not drawn' : lr.length ? +(g.fold_top - lr[lr.length - 1]).toFixed(1) : null, card_h: g.cards.map((c) => c.h), ring_bottom: Math.max(...g.cards.map((c) => c.ring_bottom)),
       page_h: g.page_h, inner_scroll: g.inner_scroll };
   }
+  /** Round 11 (B26 ⛔ condition): the fold's summary, the coach's "do not read this" on a scored frame: its text, and
+   *  whether it is whole (no clipped width or height, inside the viewport, topmost at its centre). */
+  const summaryRead = (p) => p.evaluate(() => { const s = document.querySelector('details.sae-mcq-coach > summary'); const b = s.getBoundingClientRect();
+    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return { text: s.textContent, whole: s.scrollWidth <= s.clientWidth + 0.5 && s.scrollHeight <= s.clientHeight + 0.5 && b.top >= 0 && b.bottom <= innerHeight && b.left >= 0 && b.right <= innerWidth && !!hit && s.contains(hit),
+      rect: { top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1), left: +b.left.toFixed(1), right: +b.right.toFixed(1) } }; });
   /** The open fold's answer list: each line shown alone (the fold's question and summary hidden), inside the overlay. */
   async function foldList(p) {
     await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = true; d.dispatchEvent(new Event('toggle')); });
     await p.waitForTimeout(150);
+    const summary_open = await summaryRead(p);
     const g = await p.evaluate(() => { const b = document.querySelector('.sae-mcq-coach-body').getBoundingClientRect(); const ol = document.querySelector('.sae-mcq-coach-opts');
       const bd = document.querySelector('.sae-mcq-coach-body');
-      return { top: b.top, bottom: b.bottom, n: ol.children.length, lh: getComputedStyle(ol).lineHeight, fs: getComputedStyle(ol).fontSize, scrolls: bd.scrollHeight > bd.clientHeight + 0.5, sh: bd.scrollHeight, ch: bd.clientHeight }; });
+      // round 11: the first child the fold's body shows (the prompt on a scored frame) and any scroller set on it
+      const first = Array.from(bd.children).find((k) => getComputedStyle(k).display !== 'none');
+      return { top: b.top, bottom: b.bottom, n: ol.children.length, lh: getComputedStyle(ol).lineHeight, fs: getComputedStyle(ol).fontSize, scrolls: bd.scrollHeight > bd.clientHeight + 0.5, sh: bd.scrollHeight, ch: bd.clientHeight,
+        first_is_prompt: !!first && first.matches('p.sae-say.sae-coach-line'), max_height: bd.style.maxHeight || getComputedStyle(bd).maxHeight, overflow_y: getComputedStyle(bd).overflowY }; });
     await hide(p, ['.sae-mcq-coach-body>p', 'details.sae-mcq-coach>summary'], true);
     const lines = [];
     for (let k = 0; k < g.n; k++) {
@@ -1917,7 +1930,8 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
     await hide(p, ['.sae-mcq-coach-body>p', 'details.sae-mcq-coach>summary'], false);
     await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = false; d.dispatchEvent(new Event('toggle')); });
     const gaps = lines.slice(1).map((x, i) => +(x.top - lines[i].bottom).toFixed(1));
-    return { line_height: g.lh, font: g.fs, gaps, min_gap: Math.min(...gaps), overlay_bottom: +g.bottom.toFixed(1), body_scrolls: g.scrolls, body_sh: g.sh, body_ch: g.ch };
+    return { line_height: g.lh, font: g.fs, gaps, min_gap: Math.min(...gaps), overlay_bottom: +g.bottom.toFixed(1), body_scrolls: g.scrolls, body_sh: g.sh, body_ch: g.ch,
+      first_is_prompt: g.first_is_prompt, max_height: g.max_height, overflow_y: g.overflow_y, summary_open };
   }
 
   for (const [mnt, lang] of MOUNT_LANGS) {
@@ -1928,7 +1942,8 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       for (const it of served) {
         const { ctx, p } = await open(lang, it.q, it.options);
         const nastaliq = lang !== 'ur' || await p.evaluate(() => { const q = document.querySelector('.sae-mcq-q'); return document.fonts.check(getComputedStyle(q).font, q.textContent); });
-        rows[it.id] = Object.assign({ nastaliq }, await stemAndFit(p), { fold: await foldList(p) });
+        const summary_closed = await summaryRead(p);
+        rows[it.id] = Object.assign({ nastaliq }, await stemAndFit(p), { summary_closed, fold: await foldList(p) });
         await ctx.close();
       }
       // the overlay on the bank's longest question with each set: the tallest
@@ -1939,7 +1954,18 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       sizes[`${mnt}_${lang}`] = { longest_question_with_longest_set: longest, per_question: rows };
       B10[`sweep_${mnt}_${lang}`] = Object.assign({}, MOUNTS[mnt], { longest_question_with_longest_set: longest, per_question: Object.fromEntries(Object.entries(rows).map(([id, r]) => [id, {
         lines: r.lines, ink_above: r.ink_above_top, ink_below: r.ink_below_bottom, ring_bottom: r.ring_bottom, inner: r.inner_scroll, coach_line_room: r.coach_line_room,
-        overlay_bottom: r.fold.overlay_bottom, fold_body_scrolls: r.fold.body_scrolls, fold_list_min_gap: r.fold.min_gap }])) });
+        overlay_bottom: r.fold.overlay_bottom, fold_body_scrolls: r.fold.body_scrolls, fold_body_sh: r.fold.body_sh, fold_body_ch: r.fold.body_ch, fold_first_is_prompt: r.fold.first_is_prompt,
+        summary_closed: r.summary_closed, summary_open: r.fold.summary_open, fold_list_min_gap: r.fold.min_gap }])) });
+      // round 11 (RUBRIC B26 ⛔, lead ruling): the open fold never scrolls: on every served question its body's
+      // scrollHeight − clientHeight is 0, no max-height or scroller is set on it, its overlay ends on screen, and its
+      // first child is the prompt (the coach's line is not in the scored fold); the summary, the coach's "do not read
+      // this", is drawn whole with the fold closed and open
+      const SUMMARY = lang === 'ur' ? 'جگنو پوچھے گا — یہ آپ نہ پڑھیں:' : 'Jugnu asks — do not read these:';
+      expect(Object.entries(rows).map(([id, r]) => ({ id, body_over: r.fold.body_sh - r.fold.body_ch, max_height: r.fold.max_height, overflow_y: r.fold.overflow_y, overlay_ok: r.fold.overlay_bottom <= 640, first_is_prompt: r.fold.first_is_prompt })))
+        .toEqual(Object.keys(rows).map((id) => ({ id, body_over: 0, max_height: 'none', overflow_y: 'visible', overlay_ok: true, first_is_prompt: true })));
+      expect(Object.entries(rows).map(([id, r]) => ({ id, closed: [r.summary_closed.text, r.summary_closed.whole], open: [r.fold.summary_open.text, r.fold.summary_open.whole] })))
+        .toEqual(Object.keys(rows).map((id) => ({ id, closed: [SUMMARY, true], open: [SUMMARY, true] })));
+      expect({ longest_over: longest.body_sh - longest.body_ch, longest_first_is_prompt: longest.first_is_prompt }).toEqual({ longest_over: 0, longest_first_is_prompt: true });
       // round 6, all questions at once (so a failure lists every one): no ink above the stem card's clip top, and the
       // lowest card's ring ≥ 8 px above the screen's bottom edge
       expect(Object.entries(rows).map(([id, r]) => ({ id, lines: r.lines, above: r.ink_above_top, ring_margin: 640 - r.ring_bottom }))
@@ -1954,7 +1980,7 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
         // the first line's ascender: whole on every served question, one line or two, Urdu and Latin (round 6: the
         // task title's room pays for it on the coach-led phone)
         expect({ id, lines: r.lines, above: r.ink_above_top }).toEqual({ id, lines: r.lines, above: 0 });
-        expect({ id, coach_line_room_ok: lang === 'ur' ? r.coach_line_room === 'in the fold' : r.coach_line_room >= 0 }).toEqual({ id, coach_line_room_ok: true });
+        expect({ id, coach_line_room_ok: lang === 'ur' ? r.coach_line_room === 'not drawn' : r.coach_line_room >= 0 }).toEqual({ id, coach_line_room_ok: true });
         expect({ id, fold_min_gap_ok: r.fold.min_gap >= 2, overlay_ok: r.fold.overlay_bottom <= 640 }).toEqual({ id, fold_min_gap_ok: true, overlay_ok: true });
       }
       expect(longest.overlay_bottom).toBeLessThanOrEqual(640);
@@ -2350,22 +2376,26 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
         expect({ skip: out.feedback_shown.skip, chip: !!out.feedback_shown.chip }).toEqual({ skip: null, chip: true });
         // the fold = the scored fold (prompt + options, no passage), its overlay on screen
         const f = out.foldopen.fold_body;
-        // round 10 (row 32): on the Urdu phone the coach's line is the fold body's first line (EN: the fold as it was)
+        // round 11 (row 32): the fold = prompt + options in both languages (the coach's line is not in it)
         expect({ kids: f.kids, story: f.text.indexOf(practiceOf(lang).passage.text) >= 0, on_screen: f.bottom <= 640 })
-          .toEqual({ kids: (lang === 'ur' ? ['p.sae-mcq-coach-line'] : []).concat(['p.sae-coach-line', 'ol.sae-mcq-coach-opts']), story: false, on_screen: true });
+          .toEqual({ kids: ['p.sae-coach-line', 'ol.sae-mcq-coach-opts'], story: false, on_screen: true });
+        // round 11 (RUBRIC B26 ⛔): the open practice fold never scrolls either: its body's scrollHeight − clientHeight is 0
+        // and its overlay ends on screen
+        expect({ body_over: f.sh - f.ch, on_screen: f.bottom <= 640 }).toEqual({ body_over: 0, on_screen: true });
+        B10[`b11_fold_${tag}`] = { bottom: f.bottom, sh: f.sh, ch: f.ch, kids: f.kids };
         // the mount named; nothing tappable or in the head row under the coach page's band or the sync dot; the coach's
-        // line above on the passage step (both languages), in the fold on the Urdu question frames, above in English
+        // line above on the passage step (both languages), not drawn on the Urdu question frames (round 11), above in English
         const steps = ['passage', 'passage_next'].concat(FRAMES);
         for (const s of steps) {
           const fr = out[s].frame;
           expect({ s, embed: fr.embed, sync: fr.sync, lang_toggle: fr.lang_toggle, hold_hits: fr.hold_hits, dot_hits: fr.dot_hits })
             .toEqual({ s, embed: MOUNT.embed, sync: MOUNT.sync, lang_toggle: MOUNT.lang_toggle, hold_hits: offlineEn(mnt, lang) ? fr.hold_hits : [], dot_hits: [] });
           if (fr.toggle) expect({ s, cards_clear: fr.toggle.vs_cards_px == null || fr.toggle.vs_cards_px > 0, head_clear: Object.values(fr.toggle.vs_head_px).every((g) => g >= 0) }).toEqual({ s, cards_clear: true, head_clear: true });
-          const want = s.startsWith('passage') || lang === 'en' ? ['above'] : s === 'foldopen' ? ['fold'] : [];
+          const want = s.startsWith('passage') || lang === 'en' ? ['above'] : [];
           expect({ s, line: fr.line }).toEqual({ s, line: want });
         }
-        // B7's ink bar on the line wherever it is drawn: the passage step (above) and, Urdu, the open fold's body
-        for (const s of lang === 'ur' ? ['passage', 'foldopen'] : ['passage']) {
+        // B7's ink bar on the line wherever it is drawn: the passage step (above; round 11: no fold copy)
+        for (const s of ['passage']) {
           const k = out[s].coach_ink;
           expect({ s, lines_ok: k.lines >= 2, same_layout: k.same_layout, gaps_min_ok: k.gaps_min >= 2, inside_box: k.below_box <= 0, font_ok: parseFloat(k.font) >= 13 })
             .toEqual({ s, lines_ok: true, same_layout: true, gaps_min_ok: true, inside_box: true, font_ok: true });
