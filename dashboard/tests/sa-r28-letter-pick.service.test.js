@@ -1352,6 +1352,30 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   const PUB = path.join(__dirname, '..', 'public', 'wq');
   // the layout switches the coach-led battery runs with in production (as the MCQ's fit test)
   const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true };
+  // A9: the production frame of the coach-led phone is the coach page's iframe (embed=1 -> is-embed -> 64 px top room)
+  // with the sync dot drawn, the seven layout switches ON (r9_skip_instructions among them); `bare` is the old harness
+  // frame (no embed, no dot, no Skip) kept as the twin.
+  // `embed` = online: the other language's battery is on the phone, so r8_lang_switch draws «اردو | English» in the top
+  // bar (a [lang=ur] element: an English screen takes the 64 px too); `embed_offline` = the same frame without it.
+  const FRAMES = [{ name: 'embed', embed: true, toggle: true }, { name: 'embed_offline', embed: true, toggle: false }, { name: 'bare', embed: false, toggle: false }];
+  const frMore = (fr, more) => Object.assign(fr && fr.embed ? { r9SkipInstructions: true } : {}, more || {});
+  const frSuffix = (fr) => (!fr ? '' : !fr.embed ? '_noembed' : fr.toggle ? '' : '_offline');
+  /** The child's gated tappables under the coach page's hold-end row (cards, the replay pill, the practice Next): ⛔ if any. */
+  const gatedHits = (m) => m.hold_hits.filter((x) => /(^| )(sae-opt|sae-pick-replay|sae-pick-next)( |$)/.test(x.cls)).map((x) => x.cls);
+  /** The online bar (every frame): the replay pill and the practice Next hit at their centres, their feet ≤ 632 (8 px
+   *  clear of the edge), the round-9 scroll cue not drawn, the top bar's height as read. */
+  const bar = (m) => ({ pill_foot_ok: !m.pill || m.pill.bottom <= m.vh - 8, pill_hit: m.pill ? m.pill_hit : true,
+    next_foot_ok: !m.next || !m.next.foot || m.next.bottom <= m.vh - 8, next_hit: m.next_hit == null ? true : m.next_hit, cue: m.cue, toggle_over_cards: m.toggle ? m.toggle.over_cards : 0 });
+  const BAR = { pill_foot_ok: true, pill_hit: true, next_foot_ok: true, next_hit: true, cue: null, toggle_over_cards: 0 };
+  const frName = (fr) => (fr && fr.embed ? { frame: 'coach-iframe', embed: true, sync: true, lang_toggle: !!fr.toggle } : { frame: 'bare', embed: false, sync: false, lang_toggle: false });
+  /** The other language's served battery (the page's langAltLoad hands it to view.langBattery, normalised). */
+  function otherBattery(lang, more) {
+    const { applySwitches } = require('../routes/sa-battery-switches');
+    const on = Object.assign({ rdfW3Forms: true, r28LetterPick: true, r28Mcq: true, r28Ceiling: true, r28StoryClock: true, oneAtATime: true }, more || {});
+    const o = lang === 'ur' ? 'en' : 'ur';
+    const b = applySwitches(JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', `sa.coach.G3.A.${o}.json`), 'utf8')), on);
+    return Object.assign({}, b, { ui: Object.assign({}, b.ui, LAYOUT) });
+  }
   let browser;
   beforeAll(async () => { browser = await pwChromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
   afterAll(async () => { if (browser) await browser.close(); });
@@ -1368,8 +1392,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     return bat;
   }
   /** The page: coach-led, a voice whose clip lines end only when the test says (window.__end()), a clock it moves. */
-  function page(lang, keepPractice, more) {
+  function page(lang, keepPractice, more, fr) {
     const bat = served(lang, keepPractice, more);
+    const embed = !!(fr && fr.embed);
     return { bat, html: `<!doctype html><html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
 <script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
@@ -1391,8 +1416,18 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: true, one_at_a_time: true, onEvent: function (e) { window.__events.push(e); } });
   var el = document.getElementById('m');
   var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: true, handover: false, ur_fit: true,
-    r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak });
-  runner.start(); runner.instructionDone(); ${keepPractice ? '' : 'runner.begin(); '}view.render();
+    r28: { letter_pick: true, mcq: true, ceiling: true }, speak: speak, embed: ${embed} });
+  runner.start(); ${fr && fr.brief ? '' : 'runner.instructionDone(); '}${keepPractice ? '' : 'runner.begin(); '}view.render();
+  ${embed ? "view.setSync({ state: 'synced' });" : ''}
+  ${fr && fr.toggle ? `view.langBattery('${lang === 'ur' ? 'en' : 'ur'}', SAE.core.normalize(${JSON.stringify(otherBattery(lang, more))}), {});` : ''}
+  ${embed ? `(function () {
+    // the coach page's own hold-end buttons, drawn OVER the frame by the parent document (AssessEngineSlot: fixed top-2
+    // start-2, gap-2, min-h 48, px-3 py-1, text-xs semibold): a stand-in of the same box, End test + End this section
+    var hb = document.createElement('div'); hb.id = 'a9-hold'; hb.setAttribute('dir', '${lang === 'ur' ? 'rtl' : 'ltr'}');
+    hb.style.cssText = 'position:fixed;top:8px;inset-inline-start:8px;display:flex;gap:8px;z-index:1001;font:600 12px/16px system-ui,sans-serif';
+    ${JSON.stringify(lang === 'ur' ? ['جائزہ ختم (کوچ)', 'یہ حصہ ختم کریں'] : ['End test (coach)', 'End this section'])}.forEach(function (t) { var b = document.createElement('button'); b.textContent = t; b.style.cssText = 'min-height:48px;min-width:48px;padding:4px 12px;border:1px solid #cbd5e1;border-radius:12px;background:rgba(255,255,255,.9);font:inherit'; hb.appendChild(b); });
+    document.body.appendChild(hb);
+  }());` : ''}
   window.__view = view; window.__runner = runner;
 </script></body></html>` };
   }
@@ -1425,6 +1460,42 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       fold: d ? Object.assign(R(d), { open: d.open, target_in_fold: !!it && Array.from(d.querySelectorAll('*')).some((x) => x !== sm && !sm.contains(x) && x.textContent.includes(it.target)),
         replay: foldReplay && d.open ? Object.assign(R(foldReplay), { hit: document.elementFromPoint((foldReplay.getBoundingClientRect().left + foldReplay.getBoundingClientRect().right) / 2, (foldReplay.getBoundingClientRect().top + foldReplay.getBoundingClientRect().bottom) / 2) === foldReplay || foldReplay.contains(document.elementFromPoint((foldReplay.getBoundingClientRect().left + foldReplay.getBoundingClientRect().right) / 2, (foldReplay.getBoundingClientRect().top + foldReplay.getBoundingClientRect().bottom) / 2)) }) : null }) : null,
       coach_line: !!document.querySelector('.sae-pick-coach-line'),
+      // the coach page's hold-end stand-in, and every head-row child and every tappable that meets it
+      hold: (() => { const hb = document.getElementById('a9-hold'); return hb ? Object.assign(R(hb), { buttons: Array.from(hb.children).map(R) }) : null; })(),
+      // online frame reads: the pill's and the practice Next's centre hit, the r9 scroll cue, the top bar, what overflows
+      pill_hit: (() => { const k = document.querySelector('.sae-pick-replay'); if (!k) return null; const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2); return !!e && (e === k || k.contains(e)); })(),
+      next_hit: (() => { const k = document.querySelector('.sae-pick-next'); if (!k) return null; const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2); return !!e && (e === k || k.contains(e)); })(),
+      cue: (() => { const c = document.querySelector('.sae-r9-scroll'); if (!c) return null; const b = c.getBoundingClientRect(); if (!b.height || getComputedStyle(c).display === 'none' || getComputedStyle(c).visibility === 'hidden') return null; return R(c); })(),
+      top_h: (() => { const t = document.querySelector('.sae-screen > .sae-top'); return t ? +t.getBoundingClientRect().height.toFixed(1) : null; })(),
+      toggle: (() => {
+        const t = document.querySelector('.sae-screen .sae-r8-lang'); if (!t) return null;
+        const b = t.getBoundingClientRect();
+        const ov = (k) => { const c = k.getBoundingClientRect(); const x = Math.min(b.right, c.right) - Math.max(b.left, c.left), y = Math.min(b.bottom, c.bottom) - Math.max(b.top, c.top); return x > 0 && y > 0 ? { x: +x.toFixed(1), y: +y.toFixed(1) } : null; };
+        const cards = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt'));
+        const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+        return Object.assign(R(t), { hit: !!e && (e === t || t.contains(e)),
+          gap_to_cards: cards.length ? +(Math.min.apply(null, cards.map((c) => c.getBoundingClientRect().top)) - b.bottom).toFixed(1) : null,
+          over_cards: cards.filter(ov).length,
+          over_head: Array.from(document.querySelectorAll('.sae-pick-head > *')).map((k) => ({ k: String(k.className).split(' ')[0], o: ov(k) })).filter((x) => x.o),
+          gap_to_head: (() => { const hd = document.querySelector('.sae-pick-head'); return hd ? +(hd.getBoundingClientRect().top - b.bottom).toFixed(1) : null; })(),
+          over_sync: document.querySelector('.sae-sync') ? ov(document.querySelector('.sae-sync')) : null,
+          over_hold: document.getElementById('a9-hold') ? ov(document.getElementById('a9-hold')) : null });
+      })(),
+      boxes: (() => { const scr = document.querySelector('.sae-screen'); const bd = scr && scr.querySelector('.sae-body'); const ft = scr && scr.querySelector('.sae-foot'); const cs = scr && getComputedStyle(scr);
+        return scr ? { screen: { sh: scr.scrollHeight, ch: scr.clientHeight, pb: parseFloat(cs.paddingBottom), gap: parseFloat(cs.rowGap) }, body: bd ? { sh: bd.scrollHeight, ch: bd.clientHeight, top: +bd.getBoundingClientRect().top.toFixed(1), pt: parseFloat(getComputedStyle(bd).paddingTop), pb: parseFloat(getComputedStyle(bd).paddingBottom), gap: parseFloat(getComputedStyle(bd).rowGap) } : null, foot: ft ? R(ft) : null,
+          past: Array.from(scr.querySelectorAll('*')).filter((n) => { const b = n.getBoundingClientRect(); return b.height > 0 && b.bottom > window.innerHeight + 0.5; }).slice(0, 12).map((n) => ({ cls: String(n.className).split(' ').slice(0, 2).join('.'), top: +n.getBoundingClientRect().top.toFixed(1), bottom: +n.getBoundingClientRect().bottom.toFixed(1), h: +n.getBoundingClientRect().height.toFixed(1) })) } : null; })(),
+      sync_dot: (() => { const d = document.querySelector('.sae-sync'); return d ? R(d) : null; })(),
+      hold_hits: (() => {
+        const hb = document.getElementById('a9-hold'); if (!hb) return [];
+        const a = hb.getBoundingClientRect();
+        const els = Array.from(document.querySelectorAll('.sae-pick-head > *, .sae-pick-cards .sae-opt, .sae-pick-replay, .sa-next, .sae-pick-next, details.sae-pick-coach > summary, .sae-pick-coach-replay, .sae-r9-skip, .sae-r8-lang'))
+          .filter((k) => getComputedStyle(k).display !== 'none' && getComputedStyle(k).visibility !== 'hidden');
+        return els.filter((k) => { const b = k.getBoundingClientRect(); return b.width > 0 && b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top; })
+          .map((k) => { const b = k.getBoundingClientRect(); return { cls: String(k.className), px_x: +(Math.min(b.right, a.right) - Math.max(b.left, a.left)).toFixed(1), px_y: +(Math.min(b.bottom, a.bottom) - Math.max(b.top, a.top)).toFixed(1) }; });
+      })(),
+      frame: { toggle: !!document.querySelector('.sae-screen .sae-r8-lang'), embed: document.querySelector('.sae').classList.contains('is-embed'), sync: !!document.querySelector('.sae-sync'), pad_top: screen ? parseFloat(getComputedStyle(screen).paddingTop) : null, ur_el: !!document.querySelector('.sae-screen [lang=ur]') },
+      // A9: the coach line above the fold (or inside it)
+      coach_line_at: (() => { const cl = document.querySelector('.sae-pick-coach-line'); return cl ? (cl.closest('details.sae-pick-coach') ? 'fold' : 'above') : null; })(),
       fold_line: (() => { const fl = d && d.open ? d.querySelector('.sae-coach-line') : null; if (!fl) return null; const b = fl.getBoundingClientRect(); return { text: fl.textContent, font_px: parseFloat(getComputedStyle(fl).fontSize), visible: b.width > 0 && b.height > 0 }; })(),
       view: (() => { const v = window.__runner.view(); return { phase: v.phase, practice: v.practice ? v.practice.id : null }; })(),
       fb: (() => { const f = document.querySelector('.sae-pick .sae-fb:not(.is-empty)'); return f ? Object.assign(R(f), { text: f.textContent, whole: f.scrollWidth <= f.clientWidth + 0.5 && f.scrollHeight <= f.clientHeight + 0.5, font_px: parseFloat(getComputedStyle(f).fontSize), in_head: !!f.closest('.sae-pick-head') }) : null; })(),
@@ -1482,9 +1553,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     }
     return out;
   }
-  async function states(lang, shots) {
+  async function states(lang, shots, fr) {
     const out = {};
-    const { bat, html } = page(lang);
+    const { bat, html } = page(lang, false, frMore(fr), fr);
     const open = async () => {
       const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
       const p = await ctx.newPage();
@@ -1503,7 +1574,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const snap = async (p, name, wait) => {
       if (wait !== 0) await p.waitForTimeout(wait || 250);
       out[name] = await p.evaluate(measure);
-      if (shots) await p.screenshot({ path: path.join(shots, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_${name}_${lang}_phone_coach.png`) });
+      if (shots) await p.screenshot({ path: path.join(shots, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_${name}${frSuffix(fr)}_${lang}_phone_coach.png`) });
     };
     let { ctx, p } = await open();
     await snap(p, 'listening');
@@ -1550,8 +1621,8 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
    * line's ink rows, the gaps between them, and the last ink against the line's clip box (inside its border) and the
    * fold's box top.
    */
-  async function coachInk(lang) {
-    const { html } = page(lang);
+  async function coachInk(lang, fr) {
+    const { html } = page(lang, false, frMore(fr), fr);
     const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
     await p.route('**/*', (route) => {
@@ -1583,7 +1654,8 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       const keep = new Set(); let n = el; while (n) { keep.add(n); n = n.parentElement; }
       const fold = document.querySelector('details.sae-pick-coach').getBoundingClientRect();
       document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !el.contains(x)) x.style.visibility = 'hidden'; });
-      return { lines: starts.length, same_layout: Math.abs(b.height - h0) < 0.5, top: b.top, bottom: b.bottom,
+      return { in_fold: !!el.closest('details.sae-pick-coach'),
+        lines: starts.length, same_layout: Math.abs(b.height - h0) < 0.5, top: b.top, bottom: b.bottom,
         clip_bottom: b.bottom - parseFloat(cs.borderBottomWidth), clip_top: b.top + parseFloat(cs.borderTopWidth), fold_top: fold.top,
         nastaliq: document.documentElement.lang !== 'ur' || document.fonts.check(cs.font, s) };
     });
@@ -1613,24 +1685,38 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       first_ink_above_clip_px: +Math.max(0, geo.clip_top - ink[0].top).toFixed(1) });
   }
   const coachInkOf = {};
-  const coachInkFor = (lang) => (coachInkOf[lang] = coachInkOf[lang] || coachInk(lang));
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}, the coach line (A6): its last line's ink is inside its clip box and nothing of it lies under the fold's box`, async () => {
-      const c = await coachInkFor(lang);
-      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_coachline_${lang}.json`), JSON.stringify(c, null, 1));
+  const coachInkFor = (lang, fr) => (coachInkOf[lang + fr.name] = coachInkOf[lang + fr.name] || coachInk(lang, fr));
+  for (const fr of FRAMES) for (const lang of ['ur', 'en']) {
+    test(`${lang} [${fr.name}], the coach line (A6): its last line's ink is inside its clip box and nothing of it lies under the fold's box (above the fold, every frame)`, async () => {
+      const c = await coachInkFor(lang, fr);
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_coachline${frSuffix(fr)}_${lang}.json`), JSON.stringify(c, null, 1));
+      expect({ in_fold: c.in_fold }).toEqual({ in_fold: false });
       expect({ same_layout: c.same_layout, nastaliq: c.nastaliq, lines_ge_1: c.lines >= 1 }).toEqual({ same_layout: true, nastaliq: true, lines_ge_1: true });
       expect({ below_clip_px: c.below_clip_px, below_fold_top_px: c.below_fold_top_px }).toEqual({ below_clip_px: 0, below_fold_top_px: 0 });
     }, 120000);
-    test(`${lang}, the coach line (A6): at least 2 px of ink between each line and the next`, async () => {
-      const c = await coachInkFor(lang);
+    test(`${lang} [${fr.name}], the coach line (A6): at least 2 px of ink between each line and the next`, async () => {
+      const c = await coachInkFor(lang, fr);
       c.gaps.forEach((g, i) => expect({ between: [i + 1, i + 2], gap_ge_2: g >= 2, gap: g }).toEqual({ between: [i + 1, i + 2], gap_ge_2: true, gap: g }));
     }, 120000);
   }
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}, the served battery: listening, after the sound, chosen, Next offered, fold open — nothing scrolls, nothing moves; the letters' ink inside their cards`, async () => {
-      const r = await states(lang, process.env.SA_PICK_SHOTS || null);
-      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_sizes_${lang}.json`), JSON.stringify(r, null, 1));
+  for (const fr of FRAMES) for (const lang of ['ur', 'en']) {
+    test(`${lang} [${fr.name}], the served battery: listening, after the sound, chosen, Next offered, fold open — nothing scrolls, nothing moves; the letters' ink inside their cards; the coach page's hold-end row meets no tappable`, async () => {
+      const r = await states(lang, process.env.SA_PICK_SHOTS || null, fr);
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a5'}_sizes${frSuffix(fr)}_${lang}.json`), JSON.stringify(r, null, 1));
       const at = r.listening;
+      // the frame measured is the frame named (A9: the coach page's iframe, the sync dot drawn)
+      r.frame = frName(fr);
+      expect({ embed: at.frame.embed, sync: at.frame.sync, toggle: at.frame.toggle }).toEqual({ embed: !!fr.embed, sync: !!fr.embed, toggle: !!fr.toggle });
+      // the coach page's hold-end row (drawn over the frame) meets no head-row child and no tappable, in any state
+      for (const state of ['listening', 'aftersound', 'chosen', 'offernext', 'foldopen']) expect({ state, gated_under_hold: gatedHits(r[state]) }).toEqual({ state, gated_under_hold: [] });
+      for (const state of ['listening', 'aftersound', 'chosen', 'offernext', 'foldopen']) expect(Object.assign({ state }, bar(r[state]))).toEqual(Object.assign({ state }, BAR));
+      // the coach line stays above the fold on every scored frame; the picker keeps its own top in every frame (the coach
+      // page's 64 px rule is scoped off it), never the frame's 64
+      for (const state of ['listening', 'aftersound', 'chosen', 'offernext', 'foldopen']) {
+        expect({ state, coach_line_at: r[state].coach_line_at }).toEqual({ state, coach_line_at: 'above' });
+        expect({ state, pad_top_lt_64: r[state].frame.pad_top < 64 }).toEqual({ state, pad_top_lt_64: true });
+        if (lang === 'ur') expect({ state, pad_top: r[state].frame.pad_top }).toEqual({ state, pad_top: 6 });
+      }
       expect(/is-pressed/.test(r.chosen.cards[3].cls)).toBe(true);
       expect(r.offernext.next).not.toBeNull();
       expect(r.foldopen.fold.open).toBe(true);
@@ -1670,6 +1756,46 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     }, 180000);
   }
 
+  // A9: the English online scored picker (listening), one settled read (fonts ready, two animation frames) at the phone
+  // (360×640, dpr 2) and the small phone (320×568, dpr 3): the screen's and the body's own overflow, their scrollTop, the
+  // tallest tappable's foot and the scroll cue. The phone is the bar (0 and 0, the cue hidden, every foot inside); the
+  // small phone is printed.
+  test('en [embed], the scored picker listening: one settled read at 360×640 and 320×568', async () => {
+    const fr = FRAMES[0];
+    const { html } = page('en', false, frMore(fr), fr);
+    const reads = {};
+    for (const vp of [{ width: 360, height: 640, dpr: 2 }, { width: 320, height: 568, dpr: 3 }]) {
+      const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.dpr });
+      const p = await ctx.newPage();
+      await p.route('**/*', (route) => {
+        const u = new URL(route.request().url());
+        if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+        if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+        if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+        return route.fulfill({ status: 404, body: '' });
+      });
+      await p.goto('http://sa.test/');
+      await p.waitForTimeout(500);
+      reads[`${vp.width}x${vp.height}@${vp.dpr}`] = await p.evaluate(() => document.fonts.ready
+        .then(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok))))
+        .then(() => {
+          const scr = document.querySelector('.sae-screen'); const bd = scr.querySelector('.sae-body');
+          const taps = Array.from(document.querySelectorAll('.sae-pick-cards .sae-opt, .sae-pick-replay, .sae-pick-next, .sa-next, details.sae-pick-coach > summary, .sae-r8-lang'))
+            .filter((k) => k.getBoundingClientRect().height > 0);
+          const foot = Math.max.apply(null, taps.map((k) => k.getBoundingClientRect().bottom));
+          const c = document.querySelector('.sae-r9-scroll');
+          const cue = !!c && c.getBoundingClientRect().height > 0 && getComputedStyle(c).display !== 'none' && getComputedStyle(c).visibility !== 'hidden';
+          return { screen_over: scr.scrollHeight - scr.clientHeight, screen_scrollTop: scr.scrollTop, body_over: bd.scrollHeight - bd.clientHeight, body_scrollTop: bd.scrollTop,
+            foot: +foot.toFixed(1), innerHeight: window.innerHeight, cue };
+        }));
+      await ctx.close();
+    }
+    if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, 'a9_settled_en_online.json'), JSON.stringify(reads, null, 1));
+    const ph = reads['360x640@2'];
+    expect({ screen_over: ph.screen_over, body_over: ph.body_over, screen_scrollTop: ph.screen_scrollTop, body_scrollTop: ph.body_scrollTop, cue: ph.cue, foot_inside: ph.foot <= ph.innerHeight - 8 })
+      .toEqual({ screen_over: 0, body_over: 0, screen_scrollTop: 0, body_scrollTop: 0, cue: false, foot_inside: true });
+  }, 120000);
+
   /**
    * A7: the practice screens, coach-led, with the production layout switches (S2: the Urdu example had 73 px of inner
    * scroll and 2 of 5 cards hit-testable, on the MODELLED example). P1 (role example): before the model (its sound
@@ -1679,9 +1805,10 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
    * wrong tap's feedback (the right card shown); `right` (a second walk): wrong, the retry, then the right card.
    * The served practice of the served battery, as the coach meets it.
    */
-  async function practiceStates(lang, shots, right, more, vp) {
+  async function practiceStates(lang, shots, right, more, vp, fr) {
     const out = {};
-    const { html } = page(lang, true, more);
+    more = frMore(fr, more);
+    const { html } = page(lang, true, more, fr);
     const ctx = await browser.newContext({ viewport: vp || { width: 360, height: 640 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
     await p.route('**/*', (route) => {
@@ -1698,7 +1825,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const snap = async (name, wait) => {
       if (wait !== 0) await p.waitForTimeout(wait || 250);
       out[name] = await p.evaluate(measure);
-      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}${more && more.r9SkipInstructions ? '_skip' : ''}_${lang}_${vp ? 'tablet' : 'phone'}_coach.png`) });
+      if (shots) await p.screenshot({ path: path.join(shots, `${tag}_practice_${name}${more && more.r9SkipInstructions ? '_skip' : ''}${frSuffix(fr)}_${lang}_${vp ? 'tablet' : 'phone'}_coach.png`) });
     };
     const endAll = async () => { for (let k = 0; k < 8 && (await p.evaluate(() => window.__end())); k++) await p.waitForTimeout(150); };
     const label = async () => { const s = await p.evaluate(() => { const b = document.querySelector('details.sae-pick-coach > summary').getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; }); await p.mouse.click(lang === 'ur' ? s.r - 30 : s.l + 30, (s.t + s.b) / 2); };
@@ -1740,11 +1867,19 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     await ctx.close();
     return out;
   }
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}, the served practice (A7): P1 and P2, the feedback, the retry, the fold open and closed — nothing scrolls, all five cards hit-testable, nothing moves`, async () => {
-      const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null);
-      Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true));
-      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a7'}_practice_sizes_${lang}.json`), JSON.stringify(r, null, 1));
+  for (const fr of FRAMES) for (const lang of ['ur', 'en']) {
+    test(`${lang} [${fr.name}], the served practice (A7): P1 and P2, the feedback, the retry, the fold open and closed — nothing scrolls, all five cards hit-testable, nothing moves; the coach page's hold-end row meets no tappable`, async () => {
+      const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, null, null, fr);
+      Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true, null, null, fr));
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a7'}_practice_sizes${frSuffix(fr)}_${lang}.json`), JSON.stringify(r, null, 1));
+      r.frame = frName(fr);
+      expect({ embed: r.p1_listening.frame.embed, sync: r.p1_listening.frame.sync, toggle: r.p1_listening.frame.toggle }).toEqual({ embed: !!fr.embed, sync: !!fr.embed, toggle: !!fr.toggle });
+      // A9: the coach line above the fold on every practice frame; the picker's own top on every frame
+      const ALL9 = ['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
+      expect(ALL9.map((s) => ({ s, gated_under_hold: gatedHits(r[s]) }))).toEqual(ALL9.map((s) => ({ s, gated_under_hold: [] })));
+      expect(ALL9.map((s) => Object.assign({ s }, bar(r[s])))).toEqual(ALL9.map((s) => Object.assign({ s }, BAR)));
+      expect(ALL9.map((s) => ({ s, at: r[s].coach_line_at, pad_top_lt_64: r[s].frame.pad_top < 64 }))).toEqual(ALL9.map((s) => ({ s, at: 'above', pad_top_lt_64: true })));
+      if (lang === 'ur') expect(ALL9.map((s) => ({ s, pad_top: r[s].frame.pad_top }))).toEqual(ALL9.map((s) => ({ s, pad_top: 6 })));
       const P0 = ['p1_listening'];
       const P1 = ['model', 'model_foldopen', 'model_foldclosed'];
       const P2 = ['p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
@@ -1804,14 +1939,14 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
    */
   const A8_STATES = ['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_feedback', 'p2_retry', 'p2_foldopen', 'p2_foldclosed', 'p2_feedback_shown', 'p2_feedback_right'];
   const a8TryAgain = (m) => m.view.phase === 'practice' && !!m.fb;
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}, the served practice with the coach's Skip (A8): every head-row child inside the phone and hit-testable, the Skip in one place, the feedback line whole, nothing below moves`, async () => {
+  for (const fr of FRAMES) for (const lang of ['ur', 'en']) {
+    test(`${lang} [${fr.name}], the served practice with the coach's Skip (A8): every head-row child inside the phone and hit-testable, the Skip in one place, the feedback line whole, nothing below moves`, async () => {
       const more = { r9SkipInstructions: true };
-      const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, more);
-      Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true, more));
-      const base = await practiceStates(lang, null, false);
-      Object.assign(base, await practiceStates(lang, null, true));
-      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_sizes_${lang}.json`), JSON.stringify({ skip: r, no_skip: base }, null, 1));
+      const r = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, more, null, fr);
+      Object.assign(r, await practiceStates(lang, process.env.SA_PICK_SHOTS || null, true, more, null, fr));
+      const base = await practiceStates(lang, null, false, { r9SkipInstructions: false }, null, fr);
+      Object.assign(base, await practiceStates(lang, null, true, { r9SkipInstructions: false }, null, fr));
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_sizes${frSuffix(fr)}_${lang}.json`), JSON.stringify({ skip: r, no_skip: base }, null, 1));
       const all = A8_STATES;
       // the Skip: drawn on every practice screen but the try-again window; never on the held last feedback (phase ready)
       const want = (m) => (m.view.phase === 'practice' && !a8TryAgain(m) ? 'drawn' : 'absent');
@@ -1831,6 +1966,8 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       })));
       // the Skip at ONE rect on every screen it is drawn on (the coach's thumb learns it once)
       const drawn = all.filter((s) => want(r[s]) === 'drawn');
+      expect(all.map((s) => ({ s, gated_under_hold: gatedHits(r[s]) }))).toEqual(all.map((s) => ({ s, gated_under_hold: [] })));
+      expect(all.map((s) => Object.assign({ s }, bar(r[s])))).toEqual(all.map((s) => Object.assign({ s }, BAR)));
       expect(drawn).toEqual(['p1_listening', 'model', 'model_foldopen', 'model_foldclosed', 'p2_listening', 'p2_aftersound', 'p2_retry', 'p2_foldopen', 'p2_foldclosed']);
       // its place in the row (left, width, height, offset from the row's top) is one; the row itself moves only with the
       // body's ruled re-centring (the cards' own once-per-group shift, A7 / O-32), so within each group its rect is one
@@ -1868,9 +2005,97 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       const st = await practiceStates(lang, process.env.SA_PICK_SHOTS || null, false, { r9SkipInstructions: true }, { width: 800, height: 1280 });
       const m = st.p2_feedback, a = st.p2_aftersound;
       out[lang] = { p2_aftersound: a, p2_feedback: m };
+      // A9: the tablet keeps the coach line above the fold (means (a) is the coach-led PHONE's)
+      expect({ lang, coach_line_at: m.coach_line_at }).toEqual({ lang, coach_line_at: 'above' });
       expect({ lang, cards_bottom_ok: m.cards_bottom <= 1280, inner_scroll: m.inner_scroll, page_h: m.page_h, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, fb_whole: !!m.fb && m.fb.whole, skip_before: !!a.skip && a.skip.hit })
         .toEqual({ lang, cards_bottom_ok: true, inner_scroll: 0, page_h: 1280, cards_hit: 5, fb_whole: true, skip_before: true });
     }
     if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a8'}_practice_skip_tablet.json`), JSON.stringify(out, null, 1));
   }, 300000);
+
+  /**
+   * A9: the coach brief (the instruction screen, coach-led) on the phone: its body may scroll by design under ur_fit; its
+   * foot must not: both foot buttons (hand over, the coach's Skip) whole inside the phone and hit at their centre.
+   */
+  async function briefState(lang, fr) {
+    const { html } = page(lang, true, frMore(fr), Object.assign({}, fr, { brief: true }));
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    await p.route('**/*', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+      if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+      if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await p.goto('http://sa.test/');
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(500);
+    const m = await p.evaluate(() => {
+      const R = (e) => { const b = e.getBoundingClientRect(); return { top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1), left: +b.left.toFixed(1), right: +b.right.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
+      const scr = document.querySelector('.sae-coach-brief'); const body = scr && scr.querySelector('.sae-body');
+      const btns = Array.from(document.querySelectorAll('.sae-coach-brief .sae-foot button')).map((k) => {
+        const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+        return Object.assign(R(k), { text: k.textContent.trim(), hit: !!e && (e === k || k.contains(e)), whole: b.top >= 0 && b.bottom <= window.innerHeight && b.left >= 0 && b.right <= window.innerWidth });
+      });
+      const hb = document.getElementById('a9-hold'); const a = hb && hb.getBoundingClientRect();
+      const meets = (k) => { const b = k.getBoundingClientRect(); return !!a && b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top; };
+      return { vh: window.innerHeight, page_h: document.documentElement.scrollHeight, brief: !!scr, hold: hb ? R(hb) : null,
+        hold_hits: Array.from(document.querySelectorAll('.sae-coach-brief button, .sae-coach-brief .sae-chip, .sae-coach-brief .sae-h1')).filter(meets).map((k) => k.textContent.trim()),
+        foot_under_hold: Array.from(document.querySelectorAll('.sae-coach-brief .sae-foot button')).filter(meets).map((k) => k.textContent.trim()),
+        frame: { toggle: !!document.querySelector('.sae-screen .sae-r8-lang'), embed: document.querySelector('.sae').classList.contains('is-embed'), sync: !!document.querySelector('.sae-sync'), pad_top: scr ? parseFloat(getComputedStyle(scr).paddingTop) : null },
+        screen: scr && R(scr), body_scroll: body ? Math.max(0, body.scrollHeight - body.clientHeight) : null, foot: scr && scr.querySelector('.sae-foot') ? R(scr.querySelector('.sae-foot')) : null, buttons: btns };
+    });
+    if (process.env.SA_PICK_SHOTS) await p.screenshot({ path: path.join(process.env.SA_PICK_SHOTS, `${process.env.SA_PICK_SHOT_TAG || 'a9'}_brief${frSuffix(fr)}_${lang}_phone_coach.png`) });
+    await ctx.close();
+    return m;
+  }
+  for (const fr of FRAMES) for (const lang of ['ur', 'en']) {
+    test(`${lang} [${fr.name}], the coach brief (A9): both foot buttons whole inside the phone and hit at their centre; the page itself never scrolls`, async () => {
+      const m = await briefState(lang, fr);
+      if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a9'}_brief${frSuffix(fr)}_${lang}.json`), JSON.stringify(m, null, 1));
+      m.frame_name = frName(fr);
+      expect({ brief: m.brief, embed: m.frame.embed, sync: m.frame.sync, page_h: m.page_h, foot_under_hold: m.foot_under_hold }).toEqual({ brief: true, embed: !!fr.embed, sync: !!fr.embed, page_h: m.vh, foot_under_hold: [] });
+      if (lang === 'ur' && fr.embed) expect({ pad_top: m.frame.pad_top }).toEqual({ pad_top: 64 }); // the frame's room still reaches a screen that is not the picker
+      expect(m.buttons.length).toBe(fr.embed ? 2 : 1); // hand over (+ the coach's Skip, r9_skip_instructions, in the production set)
+      m.buttons.forEach((b) => expect({ text: b.text, whole: b.whole, hit: b.hit }).toEqual({ text: b.text, whole: true, hit: true }));
+    }, 120000);
+  }
+
+  /**
+   * A9: the coach page's frame room per screen class per frame (computed padding-top, 360 px wide): the letter picker
+   * keeps its own top in every frame; round 28's other coach-led screens (the spoken MCQ, the coach brief) take the
+   * frame's room by the frame alone, either language (24 under the sync dot, 64 in the iframe); the child's instruction
+   * screen stays under the language-keyed rules (its numbers are as today).
+   */
+  test('ur and en, every frame: the frame room per screen class (picker its own; MCQ and brief 24 / 64 by the frame; the instruction screen as before)', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
+    const p = await ctx.newPage();
+    await p.setContent(`<!doctype html><html><head><style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body></body></html>`);
+    const got = await p.evaluate(() => {
+      const SCREENS = { picker: 'sae-screen sae-run sae-run-tap sae-pick is-coach-led', picker_practice: 'sae-screen sae-practice sae-pick is-coach-led', mcq: 'sae-screen sae-mcq', brief: 'sae-screen sae-coach-brief is-coach', instr: 'sae-screen sae-instr' };
+      const FR = { online: { embed: true, sync: true, toggle: true }, offline: { embed: true, sync: true, toggle: false }, sync_only: { embed: false, sync: true, toggle: false }, bare: { embed: false, sync: false, toggle: false } };
+      const out = {};
+      for (const lang of ['ur', 'en']) for (const [f, o] of Object.entries(FR)) for (const [k, cls] of Object.entries(SCREENS)) {
+        const root = document.createElement('div');
+        root.className = 'sae is-ur-fit is-r8-lang' + (o.embed ? ' is-embed' : ''); root.setAttribute('lang', lang);
+        root.innerHTML = (o.sync ? '<span class="sae-sync"></span>' : '') + `<div class="${cls}"><div class="sae-top">${o.toggle ? '<button class="sae-r8-lang"><span lang="ur">اردو</span></button>' : ''}</div><div class="sae-body">${k === 'mcq' ? '<div class="sae-mcq-coach"></div>' : ''}</div></div>`;
+        document.body.appendChild(root);
+        out[`${lang}.${f}.${k}`] = parseFloat(getComputedStyle(root.querySelector('.sae-screen')).paddingTop);
+        root.remove();
+      }
+      return out;
+    });
+    await ctx.close();
+    if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a9'}_frame_room.json`), JSON.stringify(got, null, 1));
+    for (const lang of ['ur', 'en']) {
+      const own = got[`${lang}.bare.picker`], ownP = got[`${lang}.bare.picker_practice`];
+      for (const f of ['online', 'offline', 'sync_only']) {
+        expect({ lang, f, picker: got[`${lang}.${f}.picker`], picker_practice: got[`${lang}.${f}.picker_practice`] }).toEqual({ lang, f, picker: own, picker_practice: ownP });
+        const room = f === 'sync_only' ? 24 : 64;
+        expect({ lang, f, mcq: got[`${lang}.${f}.mcq`], brief: got[`${lang}.${f}.brief`] }).toEqual({ lang, f, mcq: room, brief: room });
+      }
+    }
+    if (got['ur.bare.picker'] !== 6) throw new Error('the Urdu picker keeps 6 px: ' + got['ur.bare.picker']);
+  }, 60000);
 });

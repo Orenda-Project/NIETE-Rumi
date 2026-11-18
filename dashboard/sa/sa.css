@@ -317,10 +317,17 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-foot{position:static}
 .is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-passage.is-pick{max-height:none;overflow:visible}
 /* the sync dot (top corner, 8 + 12 px) sits over the page: the scrolling body starts below it, so a heading scrolled up never passes under it */
-.sae.is-ur-fit[lang=ur]:has(>.sae-sync) .sae-screen,.sae.is-ur-fit[lang=en]:has(>.sae-sync):has(.sae-screen [lang=ur]) .sae-screen{padding-top:24px}
+.sae.is-ur-fit[lang=ur]:has(>.sae-sync) .sae-screen:not(.sae-pick),.sae.is-ur-fit[lang=en]:has(>.sae-sync):has(.sae-screen [lang=ur]) .sae-screen:not(.sae-pick){padding-top:24px}
 /* in the coach page's frame (embed=1) the coach's corner hold, «جائزہ ختم (کوچ)», sits over the top of the frame (8 + 48 px):
-   the scrolling body starts below it, so a heading or a line of the coach's script scrolled up never runs under it */
-.sae.is-ur-fit.is-embed[lang=ur] .sae-screen,.sae.is-ur-fit.is-embed[lang=en]:has(.sae-screen [lang=ur]) .sae-screen{padding-top:64px}
+   the scrolling body starts below it, so a heading or a line of the coach's script scrolled up never runs under it
+   (round 28: this rule and the sync rule above are not on the letter picker, .sae-pick: its screens keep their own
+   measured top in every frame by rule, not by the order of the rules; the coach page's corner hold over the picker's
+   top bar is read in the picker's layout test) */
+.sae.is-ur-fit.is-embed[lang=ur] .sae-screen:not(.sae-pick),.sae.is-ur-fit.is-embed[lang=en]:has(.sae-screen [lang=ur]) .sae-screen:not(.sae-pick){padding-top:64px}
+/* round 28's coach-led screens (the spoken MCQ, the coach brief) take the frame's room by the frame alone, in either
+   language: an English screen with no Urdu element on it (offline: no language toggle) is under the same corner hold */
+.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-mcq,.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-coach-brief{padding-top:24px}
+.sae.is-ur-fit.is-embed .sae-screen.sae-mcq,.sae.is-ur-fit.is-embed .sae-screen.sae-coach-brief{padding-top:64px}
 /* a passage's words as tiles (tap the word), a picture's caption, an Urdu sentence on a demo card */
 .is-ur-fit .sae-passage.is-pick[lang=ur] .sae-word{line-height:2;padding:1.3em .7em .4em}
 .is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}
@@ -681,6 +688,19 @@ button{font:inherit;color:inherit}
   .sae.is-r9-skip[lang=ur] .sae-practice.sae-pick.is-coach-led.has-r9-skip .sae-pick-head .sae-r9-skip{line-height:2}
 }
 /* end round 28, A8 */
+/* round 28, A9 (r28_letter_pick, coach-led phone, online): the coach page's frame rules (the sync dot's 24 px, the
+   corner hold's 64 px) are not on the picker (see those rules); and once the other language's battery is on the phone,
+   r8's language toggle (56 px) grew the top bar 44 -> 56, pushing the replay pill to the screen's edge and calling up
+   the round-9 scroll cue over it. Its layout box is 44 here (the 56 px button and its hit area kept, 6 px over the bar
+   above and below, clear of the head row), so the picker reads the same online as offline. */
+@media (max-width:699px){
+  .sae.is-r8-lang .sae-screen.sae-pick.is-coach-led>.sae-top>.sae-r8-lang{margin-block:-6px}
+}
+/* the toggle's Urdu label turns on the English body mode above (an English screen with Urdu on it): its 8 px of block
+   padding pushed the English picker 8 px down and gave its body 8 px of scroll. The picker's body keeps no block padding
+   in that mode, so the English picker reads the same online as offline. */
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-screen.sae-pick .sae-body{padding-block:0}
+/* end round 28, A9 */
 @media (min-width:700px){
   .sae-screen.sae-pick{max-width:min(94vw,760px)}
   .sae .sae-pick-cards .sae-opts{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
