@@ -487,7 +487,8 @@ const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
 // letter-sound picker and the story questions one). Not behind any switch.
 const PRACTICE_TYPES = ['practice_answer'];
 // Round 28: how many answer cards the child could reach at each picker item (cards_reach) and story question
-// (options_reach), { n, hit, vw, vh } with the item (sa-ui.js reachRead). One per item; the picker and the story questions
+// (options_reach), { n, hit, vw, vh, at, fold } with the item (sa-ui.js reachRead): at 'draw' once per item, and at 'offer'
+// once more when the item offers Next; fold: the coach's fold was open at the read. The picker and the story questions
 // are only ever served under their own switches.
 const REACH_TYPES = ['cards_reach', 'options_reach'];
 // The session's start and its sound check ({ heard, tries }): the sound check's pass, its wrong taps and its time can be

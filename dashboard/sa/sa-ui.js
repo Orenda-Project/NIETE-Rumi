@@ -520,6 +520,7 @@
     var heard = {};           // task ids whose hidden passage has been read
     var typed = '';           // the keypad's number
     var shownOffer = false;   // whether the "next" button is on screen
+    var reachOffered = null;  // round 28: the item (its key) whose reach was read at the offer of Next
     var clockEls = null, displayEl = null;
     var raf = null, iv = null, timers = [];
     var handedOver = mode !== 'proctored';  // proctored: the coach hands the phone over first
@@ -885,10 +886,12 @@
     /**
      * Round 28 (data only): how many of an item's answer cards the child can reach. At a picker item or a story question,
      * once drawn and settled (fonts ready, then two frames), a card counts when document.elementFromPoint at its centre
-     * is the card or inside it. One cards_reach (picker) / options_reach (story question) { n, hit, vw, vh } per item;
-     * nothing on a page that cannot hit-test, or when the item has gone before the read.
+     * is the card or inside it. cards_reach (picker) / options_reach (story question) { n, hit, vw, vh, at, fold }: at
+     * 'draw' once per item as it opens, and at 'offer' once more when the item first offers Next (reachOffered); fold:
+     * the coach's fold for this item was open over the screen at the read (coach-led only). Nothing on a page that
+     * cannot hit-test, or when the item has gone before the read.
      */
-    function reachRead(v, t) {
+    function reachRead(v, t, at) {
       var type = isPick(t) ? 'cards_reach' : isMcq(t) ? 'options_reach' : null;
       if (!type || !v.item || typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return;
       var k = keyOf(v), itemId = v.item.id, taskId = t.id;
@@ -907,8 +910,9 @@
               if (at && (at === c || c.contains(at))) hit++;
             });
             var w = typeof window !== 'undefined' ? window : {};
+            var fold = manual && (pickFold === itemId || mcqFoldOpen(itemId));
             runner.log(type, { task_id: taskId, item_id: itemId,
-              value: { n: cards.length, hit: hit, vw: Math.round(Number(w.innerWidth)) || null, vh: Math.round(Number(w.innerHeight)) || null } });
+              value: { n: cards.length, hit: hit, vw: Math.round(Number(w.innerWidth)) || null, vh: Math.round(Number(w.innerHeight)) || null, at: at, fold: !!fold } });
           });
         });
       });
@@ -3669,7 +3673,7 @@
         gateOn(keyOf(v), sayChain(manual && !ji ? [] : [intro ? [intro, undefined, ji] : null, s.begin ? [s.begin, undefined, ji] : null]));
       }
       else if (v.phase === 'running' && v.item) {
-        reachRead(v, t); // round 28: the picker's and the story question's cards a child can reach
+        reachRead(v, t, 'draw'); // round 28: the picker's and the story question's cards a child can reach
         if (isPick(t)) {
           // round 28: the sound 300 ms after the item shows (coach-led too); the wait for replay / Next starts at its end
           var kp = keyOf(v), gp3 = gen, itp = v.item;
@@ -3830,6 +3834,8 @@
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }
+      // round 28 (data only): the reach read again when the item first offers Next, once per item
+      if (showPhase === 'running' && v.item && v.offer_next && reachOffered !== key) { reachOffered = key; reachRead(v, v.task, 'offer'); }
       loop(v.phase === 'running' && !listening && !refused);
       try { if (opts.onState) opts.onState(v); } catch (e) { /* the page's hook never stops the test */ }
     }

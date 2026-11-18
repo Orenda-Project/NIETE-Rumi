@@ -88,6 +88,8 @@ maybe('the cards a child can reach, read at each item (jsdom: a laid-out stand-i
           const r = rectOf(i);
           if (x >= r.left && x <= r.left + r.width && y >= r.top && y <= r.top + r.height) {
             if (o.cover != null && i >= o.cover) return overlay;
+            // the coach's open fold, laid over the lower row (a fold box over the cards)
+            if (o.foldCover != null && i >= o.foldCover && dom.window.document.querySelector('#m details[open]')) return overlay;
             return all[i].firstElementChild || all[i];
           }
         }
@@ -96,13 +98,13 @@ maybe('the cards a child can reach, read at each item (jsdom: a laid-out stand-i
     }
     jest.resetModules();
   }
-  function mount(kind, lang, manual) {
+  function mount(kind, lang, manual, clock) {
     const k = KINDS[kind];
     const core = require('../sa/sa-core');
     const ui = require('../sa/sa-ui');
     const battery = { battery_id: 'b', ui: Object.assign({}, k.ui), tasks: [k.task(lang)] };
     const events = [];
-    const runner = core.createRunner({ battery, onEvent: (e) => events.push(e), manual });
+    const runner = core.createRunner(Object.assign({ battery, onEvent: (e) => events.push(e), manual }, clock ? { now: clock } : {}));
     const speak = (t, a, vo) => (vo && vo.clip_only ? new Promise(() => {}) : new Promise(() => {}));
     speak.audio = () => null;
     const el = document.getElementById('m');
@@ -142,6 +144,69 @@ maybe('the cards a child can reach, read at each item (jsdom: a laid-out stand-i
     await wait(120);
     const ids = m.of(KINDS[kind].type).map((e) => e.item_id);
     expect(ids).toEqual([KINDS[kind].task('ur').items[0].id, KINDS[kind].task('ur').items[1].id]);
+  });
+
+  /**
+   * The offer: a second read when the item first offers Next (value.at 'offer'; the first is 'draw'), at most one per
+   * item. Both rows say whether the coach's fold was open over the screen at the read (value.fold): the fold open at
+   * the offer, laid over the lower card row, reads hit < n with fold true, while the draw read hit = n with fold false.
+   */
+  /** The item's sound has ended (the picker: its first play and the one auto replay; the MCQ: the read-out), so the wait
+   *  for Next counts from now. `later` moves the clock past the picker's auto replay (10 s). */
+  async function quiet(m, kind, later) {
+    const it = m.runner.view().item;
+    if (kind !== 'pick') { m.runner.promptDone(); return; }
+    m.runner.clipPlaying(it.id, false);
+    later(); await wait(400);
+    m.runner.clipPlaying(it.id, false);
+  }
+  async function toOffer(kind, lang, manual, foldOpen) {
+    setup(kind, { foldCover: 3 });
+    let T = 1000000;
+    const m = mount(kind, lang, manual, () => T);
+    await wait(kind === 'pick' && !foldOpen ? 450 : 120); // the picker's sound starts 300 ms after the item shows
+    await quiet(m, kind, () => { T += 11000; });
+    if (foldOpen) {
+      const d = document.querySelector(kind === 'pick' ? 'details.sae-pick-coach' : 'details.sae-mcq-coach');
+      d.open = true;
+      await wait(60);
+    }
+    T += 31000; // past the round-28 wait for Next (15 s coach-led, 30 s RDF auto): the item offers Next
+    await wait(200);
+    return m;
+  }
+
+  test.each(CASES)('%s, %s, %s: the draw row and one offer row, each with at and fold', async (kind, lang, _, manual) => {
+    const m = await toOffer(kind, lang, manual, false);
+    const k = KINDS[kind];
+    const rows = m.of(k.type);
+    expect(rows.map((e) => e.value.at)).toEqual(['draw', 'offer']);
+    rows.forEach((e) => {
+      expect(e.item_id).toBe(k.task(lang).items[0].id);
+      expect(e.value).toEqual({ n: k.n, hit: k.n, vw: expect.any(Number), vh: expect.any(Number), at: e.value.at, fold: false });
+      expect(JSON.stringify(e.value).length).toBeLessThanOrEqual(300);
+    });
+  });
+
+  test.each(CASES.filter((c) => c[3]))('%s, %s, %s: the fold open over the lower row at the offer → offer {hit < n, fold: true}; draw {hit = n, fold: false}', async (kind, lang) => {
+    const m = await toOffer(kind, lang, true, true);
+    const k = KINDS[kind];
+    const rows = m.of(k.type);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].value).toMatchObject({ at: 'draw', n: k.n, hit: k.n, fold: false });
+    expect(rows[1].value).toMatchObject({ at: 'offer', n: k.n, hit: 3, fold: true });
+  });
+
+  test.each([['pick'], ['mcq']])('%s: one offer row per item, however long the offer stays', async (kind) => {
+    let T = 1000000;
+    setup(kind, {});
+    const m = mount(kind, 'ur', false, () => T);
+    await wait(kind === 'pick' ? 450 : 120);
+    await quiet(m, kind, () => { T += 11000; });
+    T += 31000; await wait(200);
+    T += 30000; await wait(200);
+    m.view.render(); await wait(120);
+    expect(m.of(KINDS[kind].type).map((e) => e.value.at)).toEqual(['draw', 'offer']);
   });
 
   test.each([['pick'], ['mcq']])('%s: a page that cannot hit-test logs nothing', async (kind) => {
