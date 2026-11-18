@@ -80,6 +80,18 @@ async function firstRow(query) {
 }
 
 /**
+ * bd-h7nsmx — the REF decides the band, not the stored kind. The portal's 6-12 routes also serve her own
+ * grades 1-5 plans and shelf plans and record those opens as 'g612' with a K-5 catalogue lesson id as the
+ * ref. Sent to the 6-12 survey, her tap wrote that id into lp_feedback.lp612_segment_id, which the foreign
+ * key to niete_lp612_segments refuses (~17 lost a day on live, 18 Nov 2026). Such an open is a 'k5' open.
+ */
+function withBand(row) {
+  if (row.plan_kind !== 'g612') return row;
+  if (!require('./lp-v8-catalog.service').lessonById(row.plan_ref)) return row;
+  return { ...row, plan_kind: 'k5', stored_kind: 'g612' };
+}
+
+/**
  * Has this plan already been asked about, or already reached her on WhatsApp?
  * @returns {Promise<'earlier_open'|'delivered_on_whatsapp'|null>}
  */
@@ -88,7 +100,8 @@ async function alreadyHadItsChance(row) {
   // concurrent first opens must leave exactly one of them standing, not both skipped.
   const earlier = await firstRow(supabase
     .from(OPENS).select('id')
-    .eq('user_id', row.user_id).eq('plan_kind', row.plan_kind).eq('plan_ref', row.plan_ref)
+    .eq('user_id', row.user_id).in('plan_kind', [...new Set([row.plan_kind, row.stored_kind || row.plan_kind])])
+    .eq('plan_ref', row.plan_ref)
     .neq('id', row.id)
     .lt('opened_at', row.opened_at));
   if (earlier) return 'earlier_open';
@@ -130,11 +143,12 @@ async function onViewerOpen({ openId } = {}) {
   try {
     if (!openId || typeof openId !== 'string') return skip('open_not_found', ids);
 
-    const { data: row, error: rowError } = await supabase
+    const { data: stored, error: rowError } = await supabase
       .from(OPENS).select('id, user_id, plan_kind, plan_ref, lang, source, opened_at')
       .eq('id', openId).maybeSingle();
     if (rowError) throw new Error(rowError.message);
-    if (!row) return skip('open_not_found', ids);
+    if (!stored) return skip('open_not_found', ids);
+    const row = withBand(stored);
 
     const at = { ...ids, userId: row.user_id, kind: row.plan_kind, ref: row.plan_ref };
     if (row.plan_kind === 'fln') return skip('fln_no_survey', at); // bd-t7zk3t.12: no FLN survey yet (SPEC_v2 §6 row 9)
