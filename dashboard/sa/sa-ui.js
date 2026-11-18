@@ -143,6 +143,7 @@
       // round 28 (sa_r28_letter_pick, lead ruling A.6): the coach's line on every picker screen, coach-led only, text only
       pick_coach_line: 'Jugnu says the sound. Please do not say it. If the child did not hear it, press the sound button.',
       next: 'Next',
+      next_go: 'Next →',
       practice: 'Practice',
       right: 'That’s right!',
       try_again: 'Try again.',
@@ -247,6 +248,7 @@
       mcq_coach_line: 'جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔',
       pick_coach_line: 'آواز جگنو بولے گا۔ آپ آواز نہ بولیں۔ بچہ نہ سنے تو آواز والا بٹن دبائیں۔',
       next: 'آگے',
+      next_go: 'آگے ←',
       practice: 'مشق',
       right: 'بالکل ٹھیک!',
       try_again: 'ایک بار پھر کوشش کریں۔',
@@ -1544,7 +1546,8 @@
     function nextBtn(v) {
       shownOffer = !!v.offer_next;
       if (!v.offer_next) return null;
-      return btn(C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
+      // RDF auto: the child alone reads the arrow before the word (the coach-led label, bytes and rects stay)
+      return btn(manual ? C.next : C.next_go, function () { runner.skip(); draw(); }, 'sae-secondary sa-next');
     }
 
     // ---------- screens ----------
@@ -1906,13 +1909,16 @@
     }
     function sRunPick(v) {
       var it = v.item, t = v.task;
-      // coach-led (lead ruling, every coach state): the coach's Next sits in the head row, never at the foot, and its
-      // place is held (hidden) until it is offered, so the cards and the replay pill never move when it appears
-      var coachNext = manual ? (nextBtn(v) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' })) : null;
+      // both modes (lead rulings, every state): Next sits in the head row, never at the foot, and its place is held
+      // (hidden) until it is offered, so the cards and the replay pill never move when it appears — in RDF auto the
+      // Urdu foot button took the second card row and the replay under the fold on a 360×640 phone
+      var coachNext = nextBtn(v) || h('span', { class: 'sae-pick-next-slot', 'aria-hidden': 'true' });
       return pickModal(screen(v, 'sae-run sae-run-tap sae-pick' + (manual ? ' is-coach-led' : ''), [
         clock(v),
         // one compact row (the phone holds the five cards, the replay and Next without scrolling, coach-led too)
-        h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), replayBtn(function () { pickAgain(it, t); }), coachNext]),
+        // one head row in both modes: Jugnu, the title, Next's held place; the child's replay is the big pill under the
+        // cards (A.3), so the head carries no second one — in RDF auto it had, and it left the Urdu title 88 px wide
+        h('div', { class: 'sae-row sae-pick-head' }, [jugnu('idle', true), h('p', { class: 'sae-task-tag', text: tx(t.title) }), coachNext]),
         pickCoachLine(t),
         pickFoldEl(it, t, true),
         pickCards(it.options, function (o, b) {
@@ -1923,7 +1929,7 @@
           later(function () { busy = false; draw(); }, PICK_PRESS_MS);
         }, null, t),
         pickReplay(it, t),
-      ], itemFoot(v, manual ? [] : [nextBtn(v)])), it, t);
+      ], itemFoot(v, [])), it, t);
     }
     /** The model line(s) of the example, said by Jugnu in both modes (the coach never voices the sound). */
     function pickModelOf(p) { return Array.isArray(p.model) ? p.model.map(function (m) { return [m, m && m.audio, true]; }) : []; }
@@ -2963,11 +2969,12 @@
       var next = null;
       if (!practice) {
         shownOffer = !!v.offer_next;
-        if (v.offer_next && !reading && S.chosen == null) next = btn(C.next, function () { runner.skip(); draw(); }, 'sae-secondary sa-next' + (manual ? ' sae-mcq-next' : ''));
+        if (v.offer_next && !reading && S.chosen == null) next = btn(manual ? C.next : C.next_go, function () { runner.skip(); draw(); }, 'sae-secondary sa-next sae-mcq-next');
       }
-      // B.3 coach-led fit: the coach's Next sits in the head row beside the replay, never in the foot, so its arrival
-      // never moves the cards or the replay (the head row is the replay's height either way)
-      var headNext = manual ? next : null;
+      // B.3 fit, both modes: Next sits in the head row beside the replay (laid over the row's end, out of the flow),
+      // never in the foot, so its arrival never moves the cards or the replay — in RDF auto the Urdu foot button put
+      // three of four options under the fold on a 360×640 phone
+      var headNext = next;
       // round 8 (row 30): the coach's Skip instructions (r9, coach-led practice) takes the practice chip's place in the
       // head row, so Jugnu, the replay and the Skip keep one row at the served font on a 360 px phone; the practice
       // coach line already tells the coach it is practice
@@ -2980,7 +2987,7 @@
         h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
         cardsEl,
         practice ? feedbackLine(fb) : null,
-      ], practice ? null : itemFoot(v, [headNext ? null : next]));
+      ], practice ? null : itemFoot(v, []));
       s.setAttribute('data-item', it.id);
       if (manual) mcqModal(s);
       Promise.resolve().then(function () { mcqFit(s); });
