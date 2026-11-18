@@ -1,0 +1,3 @@
+{"ts":"2026-11-18T07:18:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coach-portal,portal-smoke spec_sync=true","sha":"37a81f41c763","branch":"bd-j7czk9.1-84975","user":"Mah Noor"}
+{"ts":"2026-11-18T07:18:34Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=coach-portal,portal-smoke spec_sync=true","sha":"37a81f41c763","branch":"bd-j7czk9.1-84975","user":"Mah Noor"}
+{"ts":"2026-11-18T07:25:03Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"2f843383-41c4-4478-af0e-e41a0f9fdb56","sha":"37a81f41c763","branch":"bd-j7czk9.1-84975","user":"Mah Noor"}
