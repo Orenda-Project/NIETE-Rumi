@@ -17,7 +17,8 @@
  *
  * GRADE. Never stored on a coaching session, so it is resolved in code, in
  * this order (measured on prod, 2026-09-05): the teacher's profile
- * (users.grades_taught[0], set for 88%), then the grade on the same- or
+ * (users.grades_taught, JSON text; 7% hold a grade_N on 18 Nov 2026, the old
+ * "88%" was never true because the text was skipped), then the grade on the same- or
  * previous-day lesson-plan download whose subject matches (+15%), then the
  * digest's own inference from the transcript. The grade pitches difficulty
  * only — nothing a teacher or child reads ever names it, so the quiz can be
@@ -33,6 +34,7 @@ const { normalisePeople, peopleDigestRule } = require('./transcript-quiz-people'
 const { pupilTokens, scrubPupils, PUPILS_DIGEST_RULE } = require('./transcript-quiz-pupils');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const AppOpens = require('./lp-app-opens.store');
+const { taughtOf } = require('./web-quiz-grade-pick');
 
 /** The lesson hint reads at most this many rows per surface (downloads; app opens). */
 const LP_HINT_ROWS = 10;
@@ -250,8 +252,9 @@ function insideBand(grade, range) {
  */
 function resolveGrade({ user, lpHint, digest }) {
   const range = gradeBandRange(digest?.grade_band);
-  const taught = Array.isArray(user?.grades_taught) ? user.grades_taught.filter(Boolean) : [];
-  const profile = taught;   // users.grade no longer exists (V1.4.5, 15 Sep 2026)
+  // grades_taught is VARCHAR: the DB returns '["grade_5"]' as TEXT, not an array (bd-e1qvrf).
+  // taughtOf reads text, arrays and lists alike, and drops level words like 'PRIMARY'.
+  const profile = taughtOf(user?.grades_taught);   // users.grade no longer exists (V1.4.5, 15 Sep 2026)
   if (profile.length) {
     if (!range) return { grade: String(profile[0]), source: 'profile' };
     const hit = profile.find((g) => insideBand(g, range));
