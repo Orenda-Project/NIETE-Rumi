@@ -50,7 +50,9 @@
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
 // sa-26: round 28 follow-up: sa-core.js (a letter-sound task the coach ends before every item was presented is not rated).
-var VERSION = 'sa-26';
+// sa-27: round 28 follow-up: sa.css (the letter picker draws no language toggle inside the coach page's frame; the spoken MCQ's head
+//   gap under the toggle fit).
+var VERSION = 'sa-27';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
