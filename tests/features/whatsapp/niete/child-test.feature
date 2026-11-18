@@ -1570,6 +1570,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the child meets the comprehension rung and counts in the 80%+ share
     And Results reads the guessing floor on 4 of 5
     And the 5-question variant is never padded to 6
+  @e2e @wip @draft @config-gated @P1 @CT286 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in bot/tests/child-test/sa-r28-mcq-readers.test.js, sa-r28-mcq-gate.test.js,
+  # portal LeaderAssessResults.r28.test.tsx and copy.stops.test.ts.
+  Scenario: With sa_r28_mcq on, a tapped MCQ the reading floor withheld reads "Not counted" on Results, with no guessing line
+    Given sa_r28_mcq is on and the child's passage read stopped on its first line
+    And the child tapped all 6 story questions on the phone
+    When the coach opens Results for that child
+    Then the MCQ row keeps Attempted 6, Correct 0, Options 4 and Chance-corrected 0
+    And How it ended reads "Not counted: the reading stopped early (EGRA's rule). Scored 0." and in Urdu "نمبر نہیں گنے گئے: پڑھائی پہلے ہی رک گئی تھی (EGRA کا اصول)۔ نمبر: ۰"
+    And no "By guessing alone" line is shown beside it
+    And the spoken story questions withheld the same way still read "Questions not asked: the reading stopped early. Scored 0."
+    And the child's taps are kept by the server and never shown on the page
+    And with sa_r28_mcq off no tapped row ever carries the reading floor's stop
   @e2e @wip @draft @config-gated @P1 @CT255 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("modal fold …").
   Scenario: With sa_r28_mcq on, coach-led, the open coach fold is modal and every opening has its close

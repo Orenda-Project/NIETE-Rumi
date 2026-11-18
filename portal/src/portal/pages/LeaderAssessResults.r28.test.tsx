@@ -210,3 +210,58 @@ describe("LeaderAssessResults: the MCQ on the served variant's questions", () =>
     expect(within(card).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 1.6% of children reach 4 of 5.");
   });
 });
+
+// The spoken MCQ's reading floor: when the passage read is below the floor the scorer keeps the taps but credits none.
+// The count rows stay as scored (Correct 0 is the score under EGRA's rule, as on the oral questions' gated row); the
+// guessing-floor sentence is not printed beside it, and the stop row names it as not counted. The oral row is unchanged.
+describe("LeaderAssessResults: a tapped MCQ the reading floor did not count", () => {
+  const gatedTap = { taskId: "ur.story_mcq_w3", mode: "tap", attempted: 6, correct: 0, optionsN: 4, chanceCorrected: 0, itemsPerMin: null, stopReason: "comprehension_not_counted", recording: "none", score: null, presented: 6, ofAll: 6 };
+  const oralGated = { taskId: "ur.story_comp_w3", mode: "oral", attempted: 2, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "comprehension_not_asked", recording: "scored", score: { correct: 0, of: 2 } };
+
+  it("EN: the counts stay (Correct 0), no floor line, the stop row says not counted", async () => {
+    api.getResults.mockResolvedValue(RESULTS([gatedTap]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(card).queryByTestId("result-guess-floor")).toBeNull();
+    expect(pairs(card)).toEqual(expect.arrayContaining(["Attempted: 6", "Correct: 0", "Options per tile: 4", "Chance-corrected score: 0"]));
+    expect(pairs(card)).toContain("How it ended: Not counted: the reading stopped early (EGRA's rule). Scored 0.");
+    expect(pairs(card).some((p) => p.includes("not rated"))).toBe(false);
+  });
+
+  it("UR: the not-counted line in Urdu, Correct 0 kept, no floor line", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue(RESULTS([gatedTap]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(card).getByText("نمبر نہیں گنے گئے: پڑھائی پہلے ہی رک گئی تھی (EGRA کا اصول)۔ نمبر: ۰")).toBeTruthy();
+    expect(within(card).queryByTestId("result-guess-floor")).toBeNull();
+    expect(pairs(card)).toContain("درست: ⁦۰⁩");
+  });
+
+  it("a tapped row an older server still names comprehension_not_asked: no floor line either", async () => {
+    api.getResults.mockResolvedValue(RESULTS([{ ...gatedTap, stopReason: "comprehension_not_asked" }]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_mcq_w3");
+    expect(within(card).queryByTestId("result-guess-floor")).toBeNull();
+    expect(pairs(card)).toContain("Correct: 0");
+  });
+
+  it("the oral questions' gated row is unchanged: its 0 under the score, 'Questions not asked'", async () => {
+    api.getResults.mockResolvedValue(RESULTS([oralGated]));
+    renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_comp_w3");
+    expect(pairs(card)).toContain("How it ended: Questions not asked: the reading stopped early. Scored 0.");
+    expect(pairs(card)).toContain("Score · Correct: 0");
+  });
+
+  it("beside it, a rated MCQ keeps its floor line and an unrated picker its not-rated line", async () => {
+    const rated = { ...gatedTap, taskId: "en.story_mcq_w3", correct: 4, chanceCorrected: 3.33, stopReason: "complete" };
+    const unrated = { ...gatedTap, taskId: "ur.letter_pick10", attempted: 4, correct: 3, optionsN: 5, chanceCorrected: 2.75, stopReason: "complete", unrated: true, presented: 4, ofAll: undefined };
+    api.getResults.mockResolvedValue(RESULTS([gatedTap, rated, unrated]));
+    renderAt();
+    const r = await screen.findByTestId("result-task-en.story_mcq_w3");
+    expect(within(r).getByTestId("result-guess-floor").textContent).toBe("By guessing alone, 3.8% of children reach 4 of 6.");
+    expect(pairs(screen.getByTestId("result-task-ur.letter_pick10"))).toContain("Score: not rated (too few items heard)");
+    expect(screen.getAllByTestId("result-guess-floor")).toHaveLength(1);
+  });
+});
