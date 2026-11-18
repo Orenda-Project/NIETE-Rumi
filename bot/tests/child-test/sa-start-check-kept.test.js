@@ -113,6 +113,42 @@ describe.each(['rdf_auto', 'rdf_manual'])('%s: the session row keeps the start a
   });
 });
 
+test('(vi) past the cap after a restart: the current attempt is kept whole; the ended one keeps its earliest rows', async () => {
+  mockPatches.length = 0;
+  mockRow = { id: 's1', admin_mode: 'coach_present', device: { block: 'rdf_auto' }, client_started_at: null, client_finished_at: null };
+  // one attempt: a start, a miss and a pass, 147 more kept rows (voice), and one skip (an audit row, never capped)
+  const attemptRows = (tag) => [
+    START(0, '2026-11-18T08:58:00Z'),
+    AC(1, false, 1, '2026-11-18T08:58:09Z'),
+    AC(2, true, 2, '2026-11-18T08:58:21Z'),
+    ...Array.from({ length: 147 }, (_, i) => ({ seq: 3 + i, type: 'voice', at: '2026-11-18T08:59:00Z', value: { tag, i } })),
+    { seq: 150, type: 'skip_instructions', task_id: 'ur.letter_names5', at: '2026-11-18T09:00:00Z', value: { by: 'coach', tag } },
+  ];
+  // each attempt: 149 capped rows once the pick has run (its start, its latest check, 147 voice); two of them pass 200
+  await batch(attemptRows('a1'));
+  const r = await store.restartAttempt('s1', { clientSessionId: 'phone-2', at: '2026-11-18T09:01:00Z' });
+  expect(r).toEqual({ ok: true, attempt: 1 });
+  await batch(attemptRows('a2'));
+  const ev = mockRow.device.events;
+  const restartAt = ev.findIndex((e) => e.type === 'restart');
+  const a1 = ev.slice(0, restartAt);
+  const a2 = ev.slice(restartAt + 1);
+  const capped = (rows) => rows.filter((e) => e.type !== 'skip_instructions');
+  // the current attempt is whole: its start, its pass, all 147 voice rows and its skip
+  expect(capped(a2)).toHaveLength(149);
+  expect(a2.find((e) => e.type === 'session_start')).toBeTruthy();
+  expect(a2.filter((e) => e.type === 'audio_check').map((e) => e.data)).toEqual([{ heard: true, tries: 2 }]);
+  expect(a2.filter((e) => e.type === 'voice').map((e) => e.data.i)).toEqual(Array.from({ length: 147 }, (_, i) => i));
+  // the ended attempt fills what is left of the cap with its EARLIEST rows: its start, its pass, then voice 0..48
+  expect(capped(a1)).toHaveLength(200 - 149);
+  expect(capped(a1).slice(0, 2).map((e) => e.type)).toEqual(['session_start', 'audio_check']);
+  expect(a1.filter((e) => e.type === 'voice').map((e) => e.data.i)).toEqual(Array.from({ length: 49 }, (_, i) => i));
+  // every restart and audit row is kept, and the row stays in seq order
+  expect(ev.filter((e) => e.type === 'restart')).toHaveLength(1);
+  expect(ev.filter((e) => e.type === 'skip_instructions').map((e) => e.data.tag)).toEqual(['a1', 'a2']);
+  expect(ev.every((e, i) => i === 0 || ev[i - 1].seq < e.seq)).toBe(true);
+});
+
 test('the cap of kept events is unchanged: the start and the check are kept first, then 198 more', () => {
   const { keepEvents } = store.__internals;
   const many = [

@@ -23,7 +23,7 @@ const SA_SCORER_MARKS = 'sa-marks-v1'; // sa/score.js VERSION
 const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 // vw / vh / dpr: the phone's viewport (CSS px, whole; pixel ratio to 2 decimals), so a screen-fit read can be cut by phone
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice', 'vw', 'vh', 'dpr'];
-// the ruling events a session keeps (device.events); past the cap the oldest are kept
+// the ruling events a session keeps (device.events); past the cap the oldest are kept (the latest attempt's first)
 const MAX_KEPT_EVENTS = 200;
 // round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
 // (round 9 item 3: skip_instructions, the coach skipped a part's instructions)
@@ -41,17 +41,23 @@ function keepEvents(had, events) {
   for (const e of events) if (!seen.has(e.seq)) { seen.add(e.seq); list.push(e); }
   list.sort((x, y) => x.seq - y.seq);
   const pick = new Map(); // `${attempt}|${type}` → the row that stays
+  const attemptOfRow = new Map();
   let attempt = 0;
   for (const e of list) {
     if (e.type === 'restart') attempt += 1;
-    else if (FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) {
+    attemptOfRow.set(e, attempt);
+    if (FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) {
       const k = `${attempt}|${e.type}`;
       if (LAST_ONLY.has(e.type) || !pick.has(k)) pick.set(k, e);
     }
   }
   const stays = new Set(pick.values());
   const sorted = list.filter((e) => !(FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) || stays.has(e));
-  const kept = new Set(sorted.filter((e) => !AUDIT.has(e.type)).slice(0, MAX_KEPT_EVENTS));
+  // the cap (AUDIT rows never count): the latest attempt's rows first, oldest first within an attempt, so an ended
+  // attempt (below a restart) gives way to the one the coach is running; the row stays in seq order
+  const ranked = sorted.filter((e) => !AUDIT.has(e.type))
+    .sort((x, y) => (attemptOfRow.get(y) - attemptOfRow.get(x)) || (x.seq - y.seq));
+  const kept = new Set(ranked.slice(0, MAX_KEPT_EVENTS));
   return sorted.filter((e) => AUDIT.has(e.type) || kept.has(e));
 }
 
