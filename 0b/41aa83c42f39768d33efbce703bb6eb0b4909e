@@ -6,3 +6,5 @@
 {"ts":"2026-11-16T04:02:30Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.1.1","sha":"0b41aa83c42f","branch":"main","user":""}
 {"ts":"2026-11-17T10:23:14Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.1.1","sha":"0b41aa83c42f","branch":"main","user":""}
 {"ts":"2026-11-18T00:51:52Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.1.1","sha":"0b41aa83c42f","branch":"main","user":""}
+{"ts":"2026-11-18T01:21:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"0b41aa83c42f","branch":"main","user":""}
+{"ts":"2026-11-18T01:21:13Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"201d97dc-ef11-47a3-a979-d48396bacf05","sha":"0b41aa83c42f","branch":"main","user":""}
