@@ -324,10 +324,10 @@ button{font:inherit;color:inherit}
    measured top in every frame by rule, not by the order of the rules; the coach page's corner hold over the picker's
    top bar is read in the picker's layout test) */
 .sae.is-ur-fit.is-embed[lang=ur] .sae-screen:not(.sae-pick),.sae.is-ur-fit.is-embed[lang=en]:has(.sae-screen [lang=ur]) .sae-screen:not(.sae-pick){padding-top:64px}
-/* round 28's coach-led screens (the spoken MCQ, the coach brief) take the frame's room by the frame alone, in either
+/* round 28's coach-led screens (the spoken MCQ, the brief of a round-28 task, is-r28-brief) take the frame's room by the frame alone, in either
    language: an English screen with no Urdu element on it (offline: no language toggle) is under the same corner hold */
-.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-mcq,.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-coach-brief{padding-top:24px}
-.sae.is-ur-fit.is-embed .sae-screen.sae-mcq,.sae.is-ur-fit.is-embed .sae-screen.sae-coach-brief{padding-top:64px}
+.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-mcq,.sae.is-ur-fit:has(>.sae-sync) .sae-screen.sae-coach-brief.is-r28-brief{padding-top:24px}
+.sae.is-ur-fit.is-embed .sae-screen.sae-mcq,.sae.is-ur-fit.is-embed .sae-screen.sae-coach-brief.is-r28-brief{padding-top:64px}
 /* a passage's words as tiles (tap the word), a picture's caption, an Urdu sentence on a demo card */
 .is-ur-fit .sae-passage.is-pick[lang=ur] .sae-word{line-height:2;padding:1.3em .7em .4em}
 .is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}

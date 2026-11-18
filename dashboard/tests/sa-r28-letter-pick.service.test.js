@@ -2056,7 +2056,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       if (process.env.SA_PICK_SIZES) fs.writeFileSync(path.join(process.env.SA_PICK_SIZES, `${process.env.SA_PICK_SHOT_TAG || 'a9'}_brief${frSuffix(fr)}_${lang}.json`), JSON.stringify(m, null, 1));
       m.frame_name = frName(fr);
       expect({ brief: m.brief, embed: m.frame.embed, sync: m.frame.sync, page_h: m.page_h, foot_under_hold: m.foot_under_hold }).toEqual({ brief: true, embed: !!fr.embed, sync: !!fr.embed, page_h: m.vh, foot_under_hold: [] });
-      if (lang === 'ur' && fr.embed) expect({ pad_top: m.frame.pad_top }).toEqual({ pad_top: 64 }); // the frame's room still reaches a screen that is not the picker
+      if (fr.embed) expect({ lang, pad_top: m.frame.pad_top }).toEqual({ lang, pad_top: 64 }); // the frame's room reaches the picker's brief (its r28 marker), either language
       expect(m.buttons.length).toBe(fr.embed ? 2 : 1); // hand over (+ the coach's Skip, r9_skip_instructions, in the production set)
       m.buttons.forEach((b) => expect({ text: b.text, whole: b.whole, hit: b.hit }).toEqual({ text: b.text, whole: true, hit: true }));
     }, 120000);
@@ -2073,7 +2073,7 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
     const p = await ctx.newPage();
     await p.setContent(`<!doctype html><html><head><style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body></body></html>`);
     const got = await p.evaluate(() => {
-      const SCREENS = { picker: 'sae-screen sae-run sae-run-tap sae-pick is-coach-led', picker_practice: 'sae-screen sae-practice sae-pick is-coach-led', mcq: 'sae-screen sae-mcq', brief: 'sae-screen sae-coach-brief is-coach', instr: 'sae-screen sae-instr' };
+      const SCREENS = { picker: 'sae-screen sae-run sae-run-tap sae-pick is-coach-led', picker_practice: 'sae-screen sae-practice sae-pick is-coach-led', mcq: 'sae-screen sae-mcq', brief: 'sae-screen sae-coach-brief is-coach is-r28-brief', brief_pre: 'sae-screen sae-coach-brief is-coach', instr: 'sae-screen sae-instr' };
       const FR = { online: { embed: true, sync: true, toggle: true }, offline: { embed: true, sync: true, toggle: false }, sync_only: { embed: false, sync: true, toggle: false }, bare: { embed: false, sync: false, toggle: false } };
       const out = {};
       for (const lang of ['ur', 'en']) for (const [f, o] of Object.entries(FR)) for (const [k, cls] of Object.entries(SCREENS)) {
@@ -2097,5 +2097,9 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
       }
     }
     if (got['ur.bare.picker'] !== 6) throw new Error('the Urdu picker keeps 6 px: ' + got['ur.bare.picker']);
+    // the pre-round-28 coach brief (every coach-led task's brief, no r28 marker: the switches OFF) is not under round 28's
+    // frame room: an English brief with no Urdu on it keeps its own top (the bare frame's) in the coach page's frame and
+    // under the dot
+    for (const f of ['offline', 'sync_only']) expect({ f, en_brief_pre: got[`en.${f}.brief_pre`] }).toEqual({ f, en_brief_pre: got['en.bare.brief_pre'] });
   }, 60000);
 });
