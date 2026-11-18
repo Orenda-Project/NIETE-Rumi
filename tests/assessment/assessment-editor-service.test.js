@@ -167,6 +167,17 @@ describe('questions', () => {
     expect(out.items[2]).toMatchObject({ section: 'subjective', fields: { shape: 'standard', answer: 'Because.' } });
   });
 
+  test("each item carries its question's Bloom's level for the editor, and none when the question has none (ICT sheet AG rows 6-7)", async () => {
+    mockDb.tables.assessment_papers[0].exam_json = {
+      seen: { objective: { MCQs: [
+        { question: 'Q one', options: ['A) 1', 'B) 2'], answer: 'A) 1', marks: 1, blooms: 'Remember' },
+        { question: 'Q two', options: ['A) 3', 'B) 4'], answer: 'B) 4', marks: 1 },
+      ] }, subjective: { 'Short Questions': [{ question: 'Why?', answer: 'Because.', marks: 3, blooms: 'Apply' }] } },
+    };
+    const out = await Editor.questions({ userId: U, paperId: 'v1' });
+    expect(out.items.map((i) => i.blooms)).toEqual(['Remember', undefined, 'Apply']);
+  });
+
   test('an Urdu paper is rtl and its Urdu question text comes back unchanged', async () => {
     const urdu = 'پاکستان کا دارالحکومت کیا ہے؟';
     mockDb.tables.assessment_requests[0].subject_code = 'urdu';
