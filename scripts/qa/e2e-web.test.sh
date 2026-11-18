@@ -118,6 +118,16 @@ chk "W15 test runs cap the portal's DB pool" "$(bash "$SH" portal-login --print-
 grep -q "too many clients" "$ROOT/.claude/qa/web/web-runner.cjs" && ok "W15b set-up SQL retries a full connection table" \
   || no "W15b set-up SQL retries a full connection table"
 
+# W20 — a test stack's portal reads app switches fresh: the dashboard caches each app_settings row 30 s in-process
+#       (dashboard/lib/feature-flags.js FLAG_CACHE_TTL_MS), and a driver sets a switch by SQL then acts at once — a
+#       cached portal served the previous value (TH03-TH08, PS02, PL10, FB06 failed on it). 0 turns the cache off.
+chk "W20 test runs turn the portal's flag cache off" "$(bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^FLAG_CACHE_TTL_MS=//p')" "0"
+chk "W20b a developer's own FLAG_CACHE_TTL_MS does not leak into a test run" \
+    "$(FLAG_CACHE_TTL_MS=30000 bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^FLAG_CACHE_TTL_MS=//p')" "0"
+# W21 — the login's "Register on WhatsApp" needs this deployment's bot number (app-login.routes.js botNumber: 10+
+#       digits); a test stack gets a fictional 555-01xx number, never a real one.
+chk "W21 test runs give the portal a fictional bot number" "$(bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^WHATSAPP_BOT_NUMBER=//p')" "15550100000"
+
 # W13 — /e2e-web, the portal's /e2e-mock: no feature runs the fallback, `all` runs every web feature at once.
 chk "W13 no feature → portal-smoke (the fallback)" \
     "$(bash "$SH" --print-plan 2>&1 | sed -nE 's/^FEATURE=//p')" "portal-smoke"
