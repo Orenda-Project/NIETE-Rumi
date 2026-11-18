@@ -13,6 +13,7 @@
  */
 
 import { readBytes } from "./audioHash";
+import { reportSendFailure, type SendFailure } from "./dcUploadReport";
 
 /** Waits before each extra try of a failed read (ms). Two more tries, about 1.6 s in all. */
 export const READ_RETRY_MS = [400, 1200];
@@ -104,4 +105,53 @@ export async function holdPhoto(file: File, waits: number[] = READ_RETRY_MS): Pr
   const held = new File([bytes], file.name, { type, lastModified: file.lastModified });
   HELD.add(held);
   return { ok: true, file: held };
+}
+
+/**
+ * bd-tymy1n (queue #179) — the coach app had the same gap the teacher's photos had before bd-r2uzg1.9: production,
+ * 18 Nov, a coach in the Android app pressed Send observation 8 times and each send stopped on her first photo (a
+ * 163 KB JPEG, NotReadableError) before anything of it left the phone; the same day a teacher's picked recording
+ * stopped the same way 8 times. So EVERY file she picks to send later (a photo, her own lesson plan, an uploaded
+ * recording or talk, a screenshot) is read the moment she picks it, and the page keeps the bytes.
+ *
+ * Files above this size are kept as picked (Send sends a slice, coachingSend bodyOf): copying them could run a phone
+ * out of memory. A 45-minute m4a is about 40 MB.
+ */
+export const HOLD_MAX_BYTES = 64 * 1024 * 1024;
+
+export type FileTaken = { ok: true; file: File };
+export type FileRefused = { ok: false; problem: "wont_open"; errName: string | null };
+export type HeldFile = FileTaken | FileRefused;
+
+/** For a build without strictNullChecks: narrows a HeldFile to the refusal. */
+export function isFileRefused(out: HeldFile): out is FileRefused {
+  return out.ok === false;
+}
+
+/**
+ * Read any file she has just picked and keep its bytes, whatever kind it is (the caller has checked the kind): the File
+ * returned is a copy in memory (same name, type and bytes), sent as it is. Unreadable after every try: wont_open. Too
+ * large to copy, or no memory for the copy: the picked file is kept as it is (Send reads it, as before).
+ */
+export async function holdFile(file: File, waits: number[] = READ_RETRY_MS, maxBytes: number = HOLD_MAX_BYTES): Promise<HeldFile> {
+  if (isHeld(file) || file.size > maxBytes) return { ok: true, file };
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await readPicked(file, waits);
+  } catch (err) {
+    if (err instanceof RangeError) return { ok: true, file };
+    return { ok: false, problem: "wont_open", errName: err instanceof Unreadable ? err.errName : errNameOf(err) };
+  }
+  const held = new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
+  HELD.add(held);
+  return { ok: true, file: held };
+}
+
+/** A file refused at the pick, to the logs (dc_upload.failed, stage pick): what kind, its size and type, why. */
+export function tellUnreadablePick(kind: SendFailure["kind"], file: File, errName: string | null, item = 1, items = 1): void {
+  reportSendFailure({
+    stage: "pick", kind, item, items, status: null, reason: "unreadable",
+    sizeBytes: file.size, type: String(file.type || "").split(";")[0].trim(), elapsedMs: 0,
+    sentBytes: 0, online: typeof navigator === "undefined" || navigator.onLine !== false, sentAs: "none", errName,
+  });
 }

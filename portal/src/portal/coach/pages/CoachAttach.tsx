@@ -12,6 +12,7 @@ import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { setDraft, type DraftAudio } from "../observeDraft";
 import { acceptFor, checkFile, formatSize, readAudioDuration } from "../../lib/coachingUpload";
+import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 
 /**
  * bd-4404s7.4 — Upload recording, for one scheduled visit (Blueprint: Coach_Upload):
@@ -20,6 +21,10 @@ import { acceptFor, checkFile, formatSize, readAudioDuration } from "../../lib/c
  * (coachingUpload: a sound file, not too large) and its length read for the
  * short-recording warning; it is sent, with the plan and photos, from Check
  * and send.
+ *
+ * bd-tymy1n (queue #179) — the file is READ here, when she picks it, and the draft holds those bytes: in the Android app
+ * a picked file could no longer be opened by Send. The bar fills while it is read. A file that will not open is refused
+ * here (File will not open), with its reason in the logs.
  */
 
 const CoachAttach = () => {
@@ -34,13 +39,16 @@ const CoachAttach = () => {
   const [pct, setPct] = useState(0);
   const visit = data?.visit;
 
-  const onChosen = async (f: File | undefined) => {
+  const onChosen = async (picked: File | undefined) => {
     setError(null);
-    if (!f) return;
-    const problem = checkFile(f, "audio");
+    if (!picked) return;
+    const problem = checkFile(picked, "audio");
     if (problem) { setFile(null); setError(problem === "too_large" ? C.tooLarge : C.notAudio); return; }
     setPct(0);
-    setFile({ blob: f, filename: f.name, durationMs: null, recordingId: null, label: f.name, sub: formatSize(f.size) });
+    setFile({ blob: picked, filename: picked.name, durationMs: null, recordingId: null, label: picked.name, sub: formatSize(picked.size) });
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick("audio", picked, out.errName); setFile(null); setError(C.fileWontOpen); return; }
+    const f = out.file;
     const seconds = await readAudioDuration(f);
     const durationMs = seconds != null ? seconds * 1000 : null;
     setFile({

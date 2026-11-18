@@ -17,6 +17,7 @@ import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
 import { withDuration } from "../../lib/webmDuration";
+import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
 import { lengthShort, madeWhen, planKindLabel } from "../observe/format";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
@@ -46,6 +47,11 @@ import type { CoachVisit } from "../types";
  * PDF, Word file or photo. One sheet, Camera / Gallery / Files, each its own hidden input (outside the sheet, so a pick
  * is not lost when the sheet closes). The file is checked on arrival (.pdf .docx .jpg .jpeg .png, 25 MB; no .doc) and goes
  * up with the recording as the plan; the bot reads it and scores Section B from it.
+ *
+ * bd-tymy1n (queue #179) — every file she picks here is READ when she picks it and the page keeps the bytes: the photos
+ * (PhotoGrid readOnPick, as the teacher's Digital Coaching since bd-r2uzg1.9) and her own plan. In the Android app the
+ * picked file could no longer be opened by Send (production 18 Nov: 8 sends, each stopped on photo 1). A file that will
+ * not open is refused right here, with its reason in the logs.
  */
 
 type Plan =
@@ -101,7 +107,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [planError, setPlanError] = useState<"wrong_type" | "too_large" | null>(null);
+  const [planError, setPlanError] = useState<"wrong_type" | "too_large" | "wont_open" | null>(null);
   const [ownOpen, setOwnOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [recent, setRecent] = useState<ObserveRecentPlan[] | null>(null);
@@ -163,12 +169,16 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     }
   };
 
-  const onPlanFile = (file: File | undefined, source: PlanSource) => {
+  const onPlanFile = async (picked: File | undefined, source: PlanSource) => {
     setPlanError(null);
-    if (!file) return;
+    if (!picked) return;
     setOwnOpen(false);
-    const problem = checkPlanFile(file);
+    const problem = checkPlanFile(picked);
     if (problem) { setPlanError(problem); return; }
+    // bd-tymy1n: read now, while the phone still opens it; the plan that goes up is these bytes.
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick("lesson_plan", picked, out.errName); setPlanError("wont_open"); return; }
+    const file = out.file;
     // A photo just taken has no useful name; a chosen file is shown by its own name and what it is.
     if (source === "camera") { setPlan({ kind: "file", file, title: C.planPhoto, sub: C.takenNow }); return; }
     const kind = planKindLabel(planKindOf(file.name), C);
@@ -267,16 +277,17 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           Camera: accept must be exactly image/* (Capacitor opens the camera only then). Gallery: the same without capture.
           Files: the extensions. The type and size are checked on arrival either way. */}
       <input ref={planPhotoInput} data-testid="plan-photo-input" type="file" accept="image/*" capture="environment" className="hidden"
-        onChange={(e) => { onPlanFile(e.target.files?.[0], "camera"); e.target.value = ""; }} />
+        onChange={(e) => { void onPlanFile(e.target.files?.[0], "camera"); e.target.value = ""; }} />
       <input ref={planGalleryInput} data-testid="plan-gallery-input" type="file" accept="image/*" className="hidden"
-        onChange={(e) => { onPlanFile(e.target.files?.[0], "gallery"); e.target.value = ""; }} />
+        onChange={(e) => { void onPlanFile(e.target.files?.[0], "gallery"); e.target.value = ""; }} />
       <input ref={planFileInput} data-testid="plan-file-input" type="file" accept={PLAN_FILE_EXTENSIONS.join(",")} className="hidden"
-        onChange={(e) => { onPlanFile(e.target.files?.[0], "files"); e.target.value = ""; }} />
+        onChange={(e) => { void onPlanFile(e.target.files?.[0], "files"); e.target.value = ""; }} />
       {planError === "wrong_type" && <Alert chips={[C.kindPdf, C.kindWord, C.kindPhoto]}>{C.notPlanFile}</Alert>}
       {planError === "too_large" && <Alert chips={[C.upToMb(PLAN_MAX_MB)]}>{C.tooLarge}</Alert>}
+      {planError === "wont_open" && <Alert>{C.fileWontOpen}</Alert>}
 
       <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
-      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" />
+      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" readOnPick />
 
       <Tray open={ownOpen} title={C.ownPlan} onClose={() => setOwnOpen(false)}>
         <SheetRow icon={<Camera className="h-[22px] w-[22px]" />} label={C.camera} onClick={() => planPhotoInput.current?.click()} />
