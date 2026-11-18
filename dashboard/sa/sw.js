@@ -65,7 +65,9 @@
 //   picker's and the spoken MCQ's instruction and practice feedback in coach-led; the picker practice's named line wraps in
 //   the coach-led head row in place of the chip and the Skip), sa-offline.js (the offline timing sweep asks only for files
 //   that exist, prompt_timings.json first).
-var VERSION = 'sa-32';
+// sa-33: round 28, sa.css (the Urdu story question card on a phone in RDF auto holds a two-line question: more
+//   padding over and under, the gaps below it tightened so the four answers stay on the screen).
+var VERSION = 'sa-33';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
