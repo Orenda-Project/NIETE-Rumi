@@ -241,6 +241,20 @@
         };
         cur = me;
         function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+        // The 60 s never-ended guard. clip_only: suspended while the line is held for a hidden page (parked, or paused
+        // while hidden), and started again with a full 60 s when resume() plays that line on; off clip_only it never stops.
+        var guard = null;
+        me.guardOn = function () {
+          if (finished) return;
+          if (guard) clearTimeout(guard);
+          guard = setTimeout(clipOnly ? me.fail : me.done, 60000);
+          timers.push(guard);
+        };
+        me.hold = function () {
+          if (!clipOnly) return;
+          if (guard) { clearTimeout(guard); guard = null; }
+          me.hidHold = true;
+        };
 
         function pause() { later(me.done, text ? Math.min(2500, Math.max(pauseMs, text.length * 40)) : pauseMs); }
 
@@ -311,7 +325,7 @@
               me.audio = null;
               free(me.slot); me.slot = null;
               // The page is hidden: the line waits for it, in Jugnu's own clip (resume()), never the phone's voice.
-              if (hidden()) { tries -= 1; me.park = play; held('parked'); return; }
+              if (hidden()) { tries -= 1; me.park = play; me.hold(); held('parked'); return; }
               if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, wait != null ? wait : retryMs);
               else lost();
             };
@@ -337,7 +351,7 @@
               if (fell || finished || cur !== me || a.ended || !playing) return;
               me.held = a;
               held('paused');
-              if (!hidden()) stall();
+              if (!hidden()) stall(); else me.hold();
             };
             me.unhold = function () {
               if (me.held !== a) return;
@@ -385,7 +399,7 @@
             var p = a.play();
             if (p && typeof p.then === 'function') p.then(began, fallback);
           };
-          later(clipOnly ? me.fail : me.done, 60000); // never ended (clip_only: never heard whole, so lost)
+          me.guardOn(); // never ended (clip_only: never heard whole, so lost)
           play();
         } catch (e) {
           if (clip) silent(); else tts();
@@ -424,6 +438,8 @@
       var c = cur;
       if (!c || hidden()) return;
       try {
+        // clip_only: a line held for the hidden page gets its full 60 s again (only then: a line playing on is untouched)
+        if (c.hidHold && (c.park || c.held)) { c.hidHold = false; c.guardOn(); }
         if (c.park) { var f = c.park; c.park = null; held('resumed'); f(); }
         else if (c.held && c.unhold) c.unhold();
       } catch (e) { /* the line's own guards end it */ }
