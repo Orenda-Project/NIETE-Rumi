@@ -2026,8 +2026,10 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
   const A11_ON = { r28ToggleFit: true };
   const A11_FLOOR = { ur: { scored: 11.5, practice: 22 }, en: { scored: 16, practice: 22 } }; // g: UR 1 / 16, EN 8 / 20 (⚠: 24 is past the bars)
   for (const lang of ['ur', 'en']) {
-    test(`${lang} [embed + sa_r28_toggle_fit] (A11): the toggle in a 44 px bar, its 56 px hit centred; no head-row tappable meets it; the picker's bars hold`, async () => {
-      const fr = FRAMES[0];
+    test(`${lang} [toggle, no frame + sa_r28_toggle_fit] (A11): the toggle in a 44 px bar, its 56 px hit centred; no head-row tappable meets it; the picker's bars hold`, async () => {
+      // A12: inside the coach page's frame the coach-led picker draws no toggle, so the toggle's fit is read where it is
+      // drawn: the same screen with the other language's battery on the phone and no frame (the picker's own top, as A9)
+      const fr = { name: 'toggle_bare', embed: false, toggle: true };
       const shots = process.env.SA_PICK_SHOTS || null;
       const sc = await states(lang, shots, fr, A11_ON);
       const pr = await practiceStates(lang, shots, false, A11_ON, null, fr);
@@ -2039,6 +2041,28 @@ maybePickBrowser('the picker, coach-led on a 360×640 phone: every coach state f
         inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, bar: bar(m) });
       expect(cells.map(row)).toEqual(cells.map(([cls, s]) => ({ s: cls + '.' + s, top_h: 44, toggle_h: 56, over_below: 6, over_above: 6, overlap: [], cards_clear: true, floor: true,
         inner_scroll: 0, cards_hit: 5, bar: BAR })));
+    }, 400000);
+  }
+  // A12 (lead/panel 0508Z: form (b)): inside the coach page's frame the coach page draws TWO buttons at its top start
+  // corner (End test + End this section, 8 + 48 px); the picker keeps its own top (A9), so its language toggle sat under
+  // the second one (UR 48.8 × 48, EN 69 × 48 px, the real coach page). The toggle at the top bar's end side cannot clear
+  // the row's full width (UR 154.7 / EN 159.1 px wide; free beside the row ≈ 106 / 98), so the coach-led picker draws no
+  // toggle inside the frame (the coach switches language before the task); every A9 bar unchanged.
+  for (const lang of ['ur', 'en']) {
+    test(`${lang} [embed] (A12): the coach-led picker draws no language toggle under the coach page's two buttons, scored and practice; the picker's bars hold`, async () => {
+      const fr = FRAMES[0];
+      const sc = await states(lang, null, fr);
+      const pr = await practiceStates(lang, null, false, null, null, fr);
+      Object.assign(pr, await practiceStates(lang, null, true, null, null, fr));
+      const cells = [].concat(['listening', 'aftersound', 'chosen', 'offernext', 'foldopen'].map((s) => ['scored', s, sc[s]]), A8_STATES.map((s) => ['practice', s, pr[s]]));
+      // any-rect overlap of the toggle's box with each of the coach's buttons (the hold stand-in's children), px x px
+      const over = (t, b) => { const x = Math.min(t.right, b.right) - Math.max(t.left, b.left), y = Math.min(t.bottom, b.bottom) - Math.max(t.top, b.top); return x > 0 && y > 0 ? +(x * y).toFixed(1) : 0; };
+      const row = ([cls, s, m]) => ({ s: cls + '.' + s, buttons: m.hold ? m.hold.buttons.length : 0,
+        toggle_drawn: !!m.toggle && m.toggle.w > 0 && m.toggle.h > 0,
+        toggle_under_buttons: m.toggle && m.hold ? m.hold.buttons.map((b) => over(m.toggle, b)) : [0, 0],
+        top_h: m.top_h, inner_scroll: m.inner_scroll, cards_hit: m.cards.filter((c) => c.hit && c.top >= 0 && c.bottom <= m.vh).length, bar: bar(m) });
+      expect(cells.map(row)).toEqual(cells.map(([cls, s]) => ({ s: cls + '.' + s, buttons: 2, toggle_drawn: false, toggle_under_buttons: [0, 0],
+        top_h: 44, inner_scroll: 0, cards_hit: 5, bar: BAR })));
     }, 400000);
   }
   test('ur and en, the tablet (800×1280), with the coach\'s Skip (A8): the practice feedback state holds the cards, nothing scrolls, the feedback line whole; the Skip served before it', async () => {
