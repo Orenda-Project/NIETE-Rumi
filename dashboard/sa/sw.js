@@ -67,7 +67,10 @@
 //   that exist, prompt_timings.json first).
 // sa-33: round 28, sa.css (the Urdu story question card on a phone in RDF auto holds a two-line question: more
 //   padding over and under, the gaps below it tightened so the four answers stay on the screen).
-var VERSION = 'sa-33';
+// sa-34: round 28, sa-core.js, sa-ui.js and sink-coach.js (the session row keeps the child's practice taps, the answer
+//   cards' reach at each item and again when Next is offered, a story question's first choice, and which engine served
+//   the page; no screen changes).
+var VERSION = 'sa-34';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
