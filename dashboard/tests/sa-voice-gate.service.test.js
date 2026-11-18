@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-36'); // sa-36: round 28, sa.css (the Urdu RDF-auto question card keeps a two-line question's lines apart)
+    expect(sw.CORE).toBe('sa-core-sa-37'); // sa-37: round 28, sa-voice.js / sa-ui.js (a clip that stalls mid-play is given up, not heard)
   });
 });
 
