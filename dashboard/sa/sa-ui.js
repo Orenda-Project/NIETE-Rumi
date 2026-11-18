@@ -2843,16 +2843,33 @@
       mcqPassPlay(P);
     }
     /** Coach-led: what Jugnu reads, folded (the coach never reads it out; the key is not marked). */
-    /** SPEC B-14 (extended), coach-led only: the coach's own line above the fold. Text only: never spoken, no clip. */
-    function mcqCoachLine() {
+    /** SPEC B-14 (extended), coach-led only: the coach's own line above the fold. Text only: never spoken, no clip.
+     *  Round 10 (row 32): a question frame also draws it as the first line of the fold's body (`inFold`); sa.css shows
+     *  that copy, and not the one above, on the Urdu coach-led phone only (the passage step keeps it above). */
+    function mcqCoachLine(inFold) {
       if (!manual) return null;
-      return h('p', { class: 'sae-coach-says is-coach sae-mcq-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.mcq_coach_line });
+      return h('p', { class: 'sae-coach-says is-coach ' + (inFold ? 'is-in-fold ' : '') + 'sae-mcq-coach-line', lang: lang, dir: lang === 'ur' ? 'rtl' : 'ltr', text: C.mcq_coach_line });
+    }
+    /** Round 10 (row 32): the open fold's overlay ends on the screen. When the coach's line + the question + the answers
+     *  run past it, the fold's body (a coach-only modal surface) scrolls inside itself, its first line at the top. Only
+     *  where the line is drawn in the fold (sa.css); elsewhere nothing is set. */
+    function mcqFoldRoom(fd) {
+      if (!fd || typeof window === 'undefined' || !window.innerHeight) return;
+      var b = fd.querySelector('.sae-mcq-coach-body');
+      var ln = b ? b.querySelector('.sae-mcq-coach-line') : null;
+      if (!b || !ln) return;
+      b.style.maxHeight = '';
+      b.style.overflowY = '';
+      if (!fd.open || !window.getComputedStyle || window.getComputedStyle(ln).display === 'none') return;
+      var r = b.getBoundingClientRect();
+      var room = Math.floor(window.innerHeight - r.top - 8);
+      if (r.height > room && room > 0) { b.style.maxHeight = room + 'px'; b.style.overflowY = 'auto'; b.scrollTop = 0; }
     }
     function mcqFoldOpen(itemId) { return manual && !!mcqFold && mcqFold.item === itemId; }
     function mcqGhost() { return mcqGG.on(); }
     /** B.3 (lead ruling): the coach's fold, modal while open. fold_open / fold_close are logged once per open and once
      *  per close (a redraw keeps it open and logs nothing; an item that ends under an open fold logs its close). */
-    function mcqCoach(it, t) {
+    function mcqCoach(it, t, lineInFold) {
       if (!manual) return null;
       var tl = taskLang(t), d = dirOf(t);
       if (mcqFold && mcqFold.item !== it.id) {
@@ -2863,6 +2880,7 @@
         h('summary', { text: C.coach_app }),
         // one box under the summary: on a coach-led phone it opens over the screen (sa.css), never pushing the cards
         h('div', { class: 'sae-mcq-coach-body' }, [
+          lineInFold ? mcqCoachLine(true) : null,
           h('p', { class: 'sae-say sae-coach-line', lang: tl, dir: d, text: tx(it.prompt) }),
           h('ol', { class: 'sae-mcq-coach-opts', lang: tl, dir: d }, (it.options || []).map(function (x) { return h('li', { text: String(x) }); })),
         ]),
@@ -2870,6 +2888,7 @@
       fd.addEventListener('toggle', function () {
         if (fd.open === mcqFoldOpen(it.id)) return; // a redraw's own toggle, or the same state again: nothing changed
         mcqFold = fd.open ? { item: it.id, task: t.id } : null;
+        mcqFoldRoom(fd);
         if (fd.open) { runner.log('fold_open', { task_id: t.id, item_id: it.id }); return; }
         mcqGG.closed(it.id, t.id);
         var by = mcqFoldBy || { by: 'summary', card: null }; // the card key always present (null: no card under the close)
@@ -2957,14 +2976,14 @@
         t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row sae-mcq-head' }, [j, practice && !skipB ? h('span', { class: 'sae-chip', text: C.practice }) : null, rb, skipB, headNext]),
         mcqCoachLine(),
-        mcqCoach(it, t),
+        mcqCoach(it, t, true),
         h('div', { class: 'sae-mcq-q', lang: tl, dir: d, text: tx(it.prompt) }),
         cardsEl,
         practice ? feedbackLine(fb) : null,
       ], practice ? null : itemFoot(v, [headNext ? null : next]));
       s.setAttribute('data-item', it.id);
       if (manual) mcqModal(s);
-      Promise.resolve().then(function () { mcqFit(s); });
+      Promise.resolve().then(function () { mcqFit(s); if (manual && s.isConnected) mcqFoldRoom(s.querySelector('details.sae-mcq-coach')); });
       return s;
     }
     /** Round 9 (row 31): the practice passage's step: Jugnu, the passage whole, no answer cards. The head row as the

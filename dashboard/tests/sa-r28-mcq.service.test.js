@@ -1215,6 +1215,30 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     await wait(700); // the settle's own end does not log or draw again
     expect(pp(events)).toHaveLength(1);
   }, 20000);
+
+  test('row 32 (coach-led): the coach\'s line is drawn above the fold on the passage step only, and on every question frame (practice and scored) also as the first line of the fold\'s body; RDF auto draws neither', async () => {
+    setup();
+    const UR = 'جگنو سوال اور چاروں جواب خود پڑھے گا۔ آپ نہ پڑھیں، نہ ترجمہ کریں، نہ جواب بتائیں۔ بچے کو خود جواب دبانے دیں۔';
+    const where = (el) => Array.from(el.querySelectorAll('.sae-mcq-coach-line')).map((x) => ({ in_fold: !!x.closest('.sae-mcq-coach-body'),
+      first: !x.closest('.sae-mcq-coach-body') || x === x.parentNode.firstElementChild, text: x.textContent === UR }));
+    const { el, voice } = mountMcq(Object.assign({ practice: true, task: { practice: [pItem({ text: 'practice story', audio: PP_CLIP })] } }, coachLed));
+    await wait(30);
+    expect(passageOn(el)).toBe(true);
+    expect(where(el)).toEqual([{ in_fold: false, first: true, text: true }]); // the passage step: above only
+    voice.play(voice.lines[0]); await wait(20); voice.end(voice.lines[0]); await wait(50);
+    el.querySelector('.sae-mcq-head > .sae-mcq-next').click();
+    await wait(30);
+    expect(cards(el)).toHaveLength(4);
+    expect(where(el)).toEqual([{ in_fold: false, first: true, text: true }, { in_fold: true, first: true, text: true }]); // practice question
+    views.forEach((v) => v.destroy()); views = [];
+    const sc = mountMcq(coachLed);
+    await wait(20);
+    expect(where(sc.el)).toEqual([{ in_fold: false, first: true, text: true }, { in_fold: true, first: true, text: true }]); // scored question
+    views.forEach((v) => v.destroy()); views = [];
+    const auto = mountMcq();
+    await wait(20);
+    expect(auto.el.querySelector('.sae-mcq-coach-line')).toBeNull();
+  }, 20000);
 });
 
 // ------------------------------------------------------------------------------------------------------------------
@@ -1402,6 +1426,140 @@ let chromium = null;
 try { ({ chromium } = require(process.env.PWCORE || 'playwright-core')); } catch (_) { /* no browser here */ }
 const PWEXEC = process.env.PWCHROME_EXE || (chromium ? (() => { try { return chromium.executablePath(); } catch (_) { return null; } })() : null);
 const maybeBrowser = chromium && PWEXEC && require("fs").existsSync(PWEXEC) ? describe : describe.skip; // no browser here: skipped, never red
+// The production condition of a coach-led run (row 21 as amended, row 32): the coach page draws the run in its frame
+// (mount opt `embed: true`, so `is-embed` with ur_fit: the 64 px under the coach page's corner buttons), a syncing
+// session draws the sync dot (`.sae-sync`, as the engine's view.setSync does), and with r8_lang_switch the other
+// language's battery on the phone draws the «اردو | English» toggle in the top bar (view.langBattery, as the page does:
+// it holds a [lang=ur] span, so an English screen takes the 64 px too). Over the frame, during a task, the coach page
+// draws its own row at top 8 / inline-start 8 (flex, gap 8): the end button and, coach-led with the end-section switch,
+// a second one; each min 48 x 48, 12 px semibold labels, 12 px sides, 1 px border (the portal's assess slot). The
+// stand-in draws that row with the served labels in the page's language at BOTH top corners (the portal's direction
+// decides which is the start), on top of the frame, so a hit test under it fails and every rect is read against it.
+// Mounts: 'prod' = all of it; 'prod_notoggle' =
+// the frame without the other language; 'bare' = none (the page as rounds 4-9 read it). SA_MOUNTS picks others for a
+// read ('sync' = the dot alone).
+const MOUNTS = {
+  prod: { frame: 'coach-iframe', embed: true, sync: true, lang_toggle: true },
+  prod_notoggle: { frame: 'coach-iframe', embed: true, sync: true, lang_toggle: false },
+  sync: { frame: 'bare', embed: false, sync: true, lang_toggle: false },
+  bare: { frame: 'bare', embed: false, sync: false, lang_toggle: false },
+};
+const MOUNT_NAMES = (process.env.SA_MOUNTS || 'prod,prod_notoggle,bare').split(',').filter((k) => MOUNTS[k]);
+const MOUNT_LANGS = MOUNT_NAMES.flatMap((m) => ['ur', 'en'].map((l) => [m, l]));
+const COACH_HOLD = { top: 8, height: 48, inset: 8, gap: 8, font: '600 12px/16px sans-serif', padding: '4px 12px', border: 1,
+  labels: { en: ['End test (coach)', 'End this section'], ur: ['جائزہ ختم (کوچ)', 'یہ حصہ ختم کریں'] } };
+let MOUNT = MOUNTS.prod;
+/** The offline English twin (the frame, no other language on the phone): the frame's 64 px is keyed on a [lang=ur]
+ *  element on the screen (sa.css, the sync and frame padding rules, outside the MCQ blocks), so an English screen
+ *  without the toggle keeps 4 px and the coach page's row lies over its head row. Read and recorded, not asserted
+ *  here: the online frame ('prod') is the claim. */
+const offlineEn = (mnt, lang) => mnt === 'prod_notoggle' && lang === 'en';
+/** A test page under the current mount: the frame flag in the mount opts; once the run is on screen the other
+ *  language's battery (the toggle), the sync dot, and the coach page's stand-in band over the frame. */
+function mounted(html) {
+  const lang = (/lang: '(ur|en)', mode: 'proctored'/.exec(html) || [])[1];
+  const other = lang === 'ur' ? 'en' : 'ur';
+  const tail = [
+    MOUNT.lang_toggle ? `  view.langBattery('${other}', SAE.core.normalize(JSON.parse(JSON.stringify(battery))), {});` : '',
+    MOUNT.sync ? "  view.setSync({ state: 'syncing' });" : '',
+    MOUNT.embed ? `  (function () { var H = ${JSON.stringify(COACH_HOLD)}; ['left', 'right'].forEach(function (side) {
+    var row = document.createElement('div'); row.className = 'coach-hold-row'; row.dir = side === 'left' ? 'ltr' : 'rtl';
+    row.style.cssText = 'position:fixed;top:' + H.top + 'px;' + side + ':' + H.inset + 'px;display:flex;gap:' + H.gap + 'px;z-index:1001';
+    H.labels['${lang}'].forEach(function (t) { var b = document.createElement('button'); b.type = 'button'; b.className = 'coach-hold'; b.textContent = t;
+      b.style.cssText = 'box-sizing:border-box;min-height:' + H.height + 'px;min-width:48px;height:' + H.height + 'px;padding:' + H.padding + ';border:' + H.border + 'px solid #cbd5e1;border-radius:12px;background:rgba(255,255,255,.9);font:' + H.font + ';color:#0f172a;white-space:nowrap';
+      row.appendChild(b); });
+    document.body.appendChild(row); }); })();` : '',
+  ].filter(Boolean).join('\n');
+  const out = html.replace(/handover: false,/g, `handover: false, embed: ${MOUNT.embed},`)
+    .replace(/<\/script><\/body><\/html>$/, (tail ? tail + '\n' : '') + '</script></body></html>');
+  if ((MOUNT.sync || MOUNT.embed) && (out === html || !lang)) throw new Error('mount not applied');
+  return out;
+}
+
+/** Round 7: the coach's line, one line at a time (A6's per-line ink method). Its text is split at its line breaks
+ *  into spans laid out exactly as before, every other element on the screen hidden, one line's text drawn at a time;
+ *  a pixel is ink when its luminance < 120 with the line drawn and >= 120 with no text drawn (2x DPR). Returns the
+ *  lines, the ink gap between each pair of consecutive lines, and how far the last line's ink runs below the
+ *  element's padding box (> 0 = outside). The page is put back as it was. Round 10: the line as drawn (above, or in
+ *  the open fold's body). */
+async function coachLineInk(p) {
+  const geo = await p.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.sae-mcq-coach-line')).find((e) => e.checkVisibility({ visibilityProperty: true }) && e.getClientRects().length); const tn = el.firstChild; const s = tn.textContent;
+    const before = el.getBoundingClientRect();
+    const r = document.createRange(); const tops = []; const starts = [];
+    for (let i = 0; i < s.length; i++) { r.setStart(tn, i); r.setEnd(tn, i + 1); const rc = r.getClientRects()[0]; if (!rc || !rc.width) continue;
+      const t = Math.round(rc.top); if (!tops.length || Math.abs(t - tops[tops.length - 1]) > 4) { tops.push(t); starts.push(i); } }
+    el.textContent = '';
+    starts.forEach((st, k) => { const sp = document.createElement('span'); sp.className = 'b7-line'; sp.textContent = s.slice(st, k + 1 < starts.length ? starts[k + 1] : s.length); el.appendChild(sp); });
+    const after = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+    const keep = new Set(); let n = el; while (n) { keep.add(n); n = n.parentElement; }
+    window.__b7 = { el, s, hidden: [] };
+    document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !el.contains(x) && x.style.visibility !== 'hidden') { x.style.visibility = 'hidden'; window.__b7.hidden.push(x); } });
+    return { lines: starts.length, same_layout: Math.abs(before.height - after.height) < 0.5 && Math.abs(before.top - after.top) < 0.5,
+      top: after.top, bottom: after.bottom, clip_bottom: after.bottom - parseFloat(cs.borderBottomWidth), clip_top: after.top + parseFloat(cs.borderTopWidth),
+      font: cs.fontSize + '/' + cs.lineHeight, padding: cs.padding, margin: cs.margin };
+  });
+  const clip = { x: 0, y: Math.max(0, Math.floor(geo.top) - 30), width: 360 };
+  clip.height = Math.min(640, Math.ceil(geo.bottom) + 40) - clip.y;
+  const pixels = async () => p.evaluate(async (b64) => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    return { w: c.width, h: c.height, d: Array.from(g.getImageData(0, 0, c.width, c.height).data) };
+  }, (await p.screenshot({ clip })).toString('base64'));
+  const show = (k) => p.evaluate((k) => document.querySelectorAll('.b7-line').forEach((sp, i) => { sp.style.color = k === i ? '' : 'transparent'; }), k);
+  const L = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  await show(-1); const none = await pixels();
+  const ink = [];
+  for (let k = 0; k < geo.lines; k++) {
+    await show(k); const A = await pixels(); let top = null, bottom = null;
+    for (let y = 0; y < A.h; y++) for (let x = 0; x < A.w; x++) { const i = (y * A.w + x) * 4; if (L(A.d, i) < 120 && L(none.d, i) >= 120) { const cy = clip.y + y / 2; if (top == null) top = cy; bottom = cy; } }
+    ink.push({ top, bottom });
+  }
+  await p.evaluate(() => { const b = window.__b7; b.hidden.forEach((x) => { x.style.visibility = ''; }); b.el.textContent = b.s; delete window.__b7; });
+  const gaps = ink.slice(1).map((x, i) => +(x.top - ink[i].bottom).toFixed(1));
+  const last = ink[ink.length - 1];
+  return { lines: geo.lines, same_layout: geo.same_layout, font: geo.font, padding: geo.padding, margin: geo.margin, ink, gaps,
+    gaps_min: gaps.length ? Math.min(...gaps) : null, below_box: +(last.bottom + 0.5 - geo.clip_bottom).toFixed(1),
+    first_ink_above_box: +(geo.clip_top - ink[0].top).toFixed(1) };
+}
+
+/** Round 10: the frame as the page has it, and what the coach page's band and the sync dot overlap (any part of a rect,
+ *  not a centre point): every tappable (the cards, the replay, the coach's Next, the toggle) and every head-row child;
+ *  and where the coach's line is drawn ('above' the fold, in the open 'fold', or [] = folded away). */
+async function frameRead(p) {
+  return p.evaluate(() => {
+    const R = (e) => { const b = e.getBoundingClientRect(); return { left: +b.left.toFixed(1), right: +b.right.toFixed(1), top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1) }; };
+    // drawn = laid out and shown (a closed fold's body is not: checkVisibility reads content-visibility too)
+    const vis = (e) => { const b = e.getBoundingClientRect(); return e.checkVisibility({ visibilityProperty: true }) && b.width > 0 && b.height > 0; };
+    const ov = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const holds = Array.from(document.querySelectorAll('.coach-hold')).map(R); const dot = document.querySelector('.sae-sync'); const scr = document.querySelector('.sae-screen');
+    const taps = Array.from(document.querySelectorAll('.sae-mcq-opt, .sae-mcq-replay, .sae-mcq-head > *, .sae-mcq-next, .sae-top > *, .sae-r8-lang, .sae-mute, .sae-mcq .sae-fb, details.sae-mcq-coach > summary')).filter(vis);
+    const d = dot ? R(dot) : null;
+    const underHold = (e) => holds.some((h) => ov(R(e), h));
+    const name = (e) => String(e.className).split(' ').filter((c) => /^sae-/.test(c)).pop() || e.tagName.toLowerCase();
+    return { embed: !!document.querySelector('.sae.is-embed'), sync: !!dot, lang_toggle: !!document.querySelector('.sae-r8-lang'),
+      screen_pad_top: scr ? parseFloat(getComputedStyle(scr).paddingTop) : null, hold: holds, sync_dot: d,
+      hold_hits: taps.filter(underHold).map(name), dot_hits: d ? taps.filter((e) => ov(R(e), d)).map(name) : [],
+      dot_vs_hold: !!(d && holds.some((h) => ov(h, d))),
+      // the language toggle against the first answer card and every head-row child: the px gap (negative = overlap)
+      toggle: (() => {
+        const tg = document.querySelector('.sae-r8-lang'); if (!tg || !vis(tg)) return null; const t = R(tg);
+        const gap = (a, b) => +Math.max(Math.max(a.left, b.left) - Math.min(a.right, b.right), Math.max(a.top, b.top) - Math.min(a.bottom, b.bottom)).toFixed(1);
+        const first = document.querySelector('.sae-mcq-opt');
+        return { rect: t, vs_cards_px: first && vis(first) ? Math.min(...Array.from(document.querySelectorAll('.sae-mcq-opt')).map((c) => gap(t, R(c)))) : null,
+          vs_head_px: Object.fromEntries(Array.from(document.querySelectorAll('.sae-mcq-head > *, .sae-mcq .sae-fb')).filter(vis).map((e) => [name(e), gap(t, R(e))])) };
+      })(),
+      line: Array.from(document.querySelectorAll('.sae-mcq-coach-line')).filter(vis).map((e) => (e.closest('.sae-mcq-coach-body') ? 'fold' : 'above')) };
+  });
+}
+/** Round 10 sizes (SA_B10_SIZES): per describe, mount, language and frame. */
+const B10 = {};
+afterAll(() => { if (process.env.SA_B10_SIZES) require('fs').writeFileSync(process.env.SA_B10_SIZES, JSON.stringify({ mounts: MOUNTS, coach_hold_standin: COACH_HOLD, cells: B10 }, null, 1)); });
+/** The B10 shot of a frame under the production mount (SA_B10_SHOTS). */
+async function b10Shot(p, what, lang) {
+  if (!process.env.SA_B10_SHOTS || MOUNT !== MOUNTS.prod) return;
+  await p.screenshot({ path: require('path').join(process.env.SA_B10_SHOTS, `b10_${what}_${lang}_phone_coach.png`) });
+}
 
 /** The bank's longest question (code points) and longest four-answer set, per language: the worst case for the fit. */
 function longestOf(lang) {
@@ -1485,65 +1643,22 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
       cards, replay: rb ? R(rb) : null,
       next: next ? Object.assign(R(next), { shown: seen(next), in_head: !!next.closest('.sae-mcq-head') }) : null,
       foot_next: !!document.querySelector('.sae-foot .sa-next'),
+      overlay_bottom: (() => { const b = document.querySelector('details.sae-mcq-coach[open] .sae-mcq-coach-body'); return b ? +b.getBoundingClientRect().bottom.toFixed(1) : null; })(),
       fold_open: !!document.querySelector('details.sae-mcq-coach[open]'),
       coach_line: !!document.querySelector('.sae-mcq-coach-line'),
       q_font: qEl ? parseFloat(getComputedStyle(qEl).fontSize) : 0,
       title_display: (() => { const t = document.querySelector('.sae-mcq .sae-task-tag'); return t ? getComputedStyle(t).display : null; })(),
     };
   });
-  /** Round 7: the coach's line, one line at a time (A6's per-line ink method). Its text is split at its line breaks
-   *  into spans laid out exactly as before, every other element on the screen hidden, one line's text drawn at a time;
-   *  a pixel is ink when its luminance < 120 with the line drawn and >= 120 with no text drawn (2x DPR). Returns the
-   *  lines, the ink gap between each pair of consecutive lines, and how far the last line's ink runs below the
-   *  element's padding box (> 0 = outside). The page is put back as it was. */
-  async function coachLineInk(p) {
-    const geo = await p.evaluate(() => {
-      const el = document.querySelector('.sae-mcq-coach-line'); const tn = el.firstChild; const s = tn.textContent;
-      const before = el.getBoundingClientRect();
-      const r = document.createRange(); const tops = []; const starts = [];
-      for (let i = 0; i < s.length; i++) { r.setStart(tn, i); r.setEnd(tn, i + 1); const rc = r.getClientRects()[0]; if (!rc || !rc.width) continue;
-        const t = Math.round(rc.top); if (!tops.length || Math.abs(t - tops[tops.length - 1]) > 4) { tops.push(t); starts.push(i); } }
-      el.textContent = '';
-      starts.forEach((st, k) => { const sp = document.createElement('span'); sp.className = 'b7-line'; sp.textContent = s.slice(st, k + 1 < starts.length ? starts[k + 1] : s.length); el.appendChild(sp); });
-      const after = el.getBoundingClientRect(); const cs = getComputedStyle(el);
-      const keep = new Set(); let n = el; while (n) { keep.add(n); n = n.parentElement; }
-      window.__b7 = { el, s, hidden: [] };
-      document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !el.contains(x) && x.style.visibility !== 'hidden') { x.style.visibility = 'hidden'; window.__b7.hidden.push(x); } });
-      return { lines: starts.length, same_layout: Math.abs(before.height - after.height) < 0.5 && Math.abs(before.top - after.top) < 0.5,
-        top: after.top, bottom: after.bottom, clip_bottom: after.bottom - parseFloat(cs.borderBottomWidth), clip_top: after.top + parseFloat(cs.borderTopWidth),
-        font: cs.fontSize + '/' + cs.lineHeight, padding: cs.padding, margin: cs.margin };
-    });
-    const clip = { x: 0, y: Math.max(0, Math.floor(geo.top) - 30), width: 360 };
-    clip.height = Math.min(640, Math.ceil(geo.bottom) + 40) - clip.y;
-    const pixels = async () => p.evaluate(async (b64) => {
-      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
-      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
-      return { w: c.width, h: c.height, d: Array.from(g.getImageData(0, 0, c.width, c.height).data) };
-    }, (await p.screenshot({ clip })).toString('base64'));
-    const show = (k) => p.evaluate((k) => document.querySelectorAll('.b7-line').forEach((sp, i) => { sp.style.color = k === i ? '' : 'transparent'; }), k);
-    const L = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    await show(-1); const none = await pixels();
-    const ink = [];
-    for (let k = 0; k < geo.lines; k++) {
-      await show(k); const A = await pixels(); let top = null, bottom = null;
-      for (let y = 0; y < A.h; y++) for (let x = 0; x < A.w; x++) { const i = (y * A.w + x) * 4; if (L(A.d, i) < 120 && L(none.d, i) >= 120) { const cy = clip.y + y / 2; if (top == null) top = cy; bottom = cy; } }
-      ink.push({ top, bottom });
-    }
-    await p.evaluate(() => { const b = window.__b7; b.hidden.forEach((x) => { x.style.visibility = ''; }); b.el.textContent = b.s; delete window.__b7; });
-    const gaps = ink.slice(1).map((x, i) => +(x.top - ink[i].bottom).toFixed(1));
-    const last = ink[ink.length - 1];
-    return { lines: geo.lines, same_layout: geo.same_layout, font: geo.font, padding: geo.padding, margin: geo.margin, ink, gaps,
-      gaps_min: gaps.length ? Math.min(...gaps) : null, below_box: +(last.bottom + 0.5 - geo.clip_bottom).toFixed(1),
-      first_ink_above_box: +(geo.clip_top - ink[0].top).toFixed(1) };
-  }
   /** Every coach state of one question: listening (the question being read), speaking (answer 2 lit), chosen (answer 4
    *  held while answer 3 is read), then on a fresh page the offered Next and the coach's fold open over it. */
+  const B10SHOT = { listening: 'question', chosen: 'chosen', offernext: 'offernext', foldopen: 'foldopen' };
   async function states(lang, ui, urFit, shots, inkLine) {
     const out = {};
     const open = async () => {
       const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: shots || inkLine ? 2 : 1 });
       const p = await ctx.newPage();
-      const html = page(lang, ui, urFit);
+      const html = mounted(page(lang, ui, urFit));
       await p.route('**/*', (route) => {
         const u = new URL(route.request().url());
         if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
@@ -1559,8 +1674,10 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
     const snap = async (p, name) => {
       await p.waitForTimeout(250);
       out[name] = await p.evaluate(measure);
-      if (inkLine) out[name].coach_ink = await coachLineInk(p);
+      out[name].frame = await frameRead(p);
+      if (inkLine) out[name].coach_ink = out[name].frame.line.length ? await coachLineInk(p) : null;
       if (shots) await p.screenshot({ path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
+      if (urFit && !inkLine && B10SHOT[name]) await b10Shot(p, B10SHOT[name], lang);
     };
     const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
     let { ctx, p } = await open();
@@ -1591,11 +1708,15 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
   // the layout switches the coach-led battery carries (ur_fit, r8_layout, r8_lang_switch, r9_comp_text, r9_scroll_cue,
   // r10_urdu_fit): the Urdu body scrolls by itself there and the Urdu labels are padded to their ink
   const LAYOUT = { r8_layout: true, r8_lang_switch: true, r9_scroll_cue: true, r9_comp_text: true, r10_urdu_fit: true, r9_skip_instructions: true }; // + the Skip (row 21: the seven)
-  for (const lang of ['ur', 'en']) {
+  for (const [mnt, lang] of MOUNT_LANGS) {
     for (const [name, ui, urFit] of [['the plain page', {}, false], ['the layout switches on (ur_fit, r8, r9, r10)', LAYOUT, true]]) {
-      test(`${lang}, ${name}, the longest question and answers: listening, speaking, chosen, Next offered, fold open — nothing scrolls, nothing moves`, async () => {
+      test(`[${mnt}] ${lang}, ${name}, the longest question and answers: listening, speaking, chosen, Next offered, fold open — nothing scrolls, nothing moves`, async () => { MOUNT = MOUNTS[mnt];
         const shots = process.env.SA_FIT_SHOTS || null;
         const r = await states(lang, ui, urFit, shots);
+        B10[`scored_${mnt}_${lang}_${urFit ? 'layout' : 'plain'}`] = Object.assign({ frame: urFit ? MOUNTS[mnt].frame : 'bare (no ur_fit)' }, MOUNTS[mnt], { states: Object.fromEntries(Object.entries(r).map(([k, m]) => [k, {
+          inner: m.inner_scroll, page_h: m.page_h, cards_hit: m.cards.filter((c) => c.shown).length, cards_top: m.cards.map((c) => c.top), ring_bottom: Math.max(...m.cards.map((c) => c.ring_bottom)),
+          ring_margin: m.vh - Math.max(...m.cards.map((c) => c.ring_bottom)), replay: m.replay, next: m.next, overlay_bottom: m.overlay_bottom, screen_pad_top: m.frame.screen_pad_top,
+          coach_line: m.frame.line, toggle: m.frame.toggle, toggle_vs_cards_px: m.frame.toggle && m.frame.toggle.vs_cards_px, hold: m.frame.hold, sync_dot: m.frame.sync_dot, hold_hits: m.frame.hold_hits, dot_hits: m.frame.dot_hits, dot_vs_hold: m.frame.dot_vs_hold }])) });
         const at = r.listening;
         expect(r.speaking.cards.map((c) => /is-speaking/.test(c.cls))).toEqual([false, true, false, false]);
         expect(/is-chosen/.test(r.chosen.cards[3].cls)).toBe(true);
@@ -1603,6 +1724,15 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
         expect(r.foldopen.fold_open).toBe(true);
         for (const [state, m] of Object.entries(r)) {
           expect({ state, coach_line: m.coach_line, nastaliq: m.nastaliq }).toEqual({ state, coach_line: true, nastaliq: true });
+          // round 10 (row 32): the mount is the one named; nothing tappable or in the head row under the coach page's
+          // band or the sync dot; the coach's line in the fold on the Urdu phone (seen when the fold is open), above in English
+          const f = m.frame;
+          expect({ state, embed: f.embed, sync: f.sync, lang_toggle: f.lang_toggle, hold_hits: f.hold_hits, dot_hits: f.dot_hits })
+            .toEqual({ state, embed: MOUNT.embed && urFit, sync: MOUNT.sync, lang_toggle: MOUNT.lang_toggle && urFit, hold_hits: urFit && !offlineEn(mnt, lang) ? [] : f.hold_hits, dot_hits: [] });
+          // the toggle never meets an answer card (a stray tap would switch the language mid-item) nor a head-row child
+          if (f.toggle) expect({ state, cards_clear: f.toggle.vs_cards_px > 0, head_clear: Object.values(f.toggle.vs_head_px).every((g) => g >= 0) }).toEqual({ state, cards_clear: true, head_clear: true });
+          expect({ state, line: f.line }).toEqual({ state, line: lang === 'ur' ? (state === 'foldopen' ? ['fold'] : []) : ['above'] });
+          if (state === 'foldopen') expect({ state, overlay_bottom_ok: m.overlay_bottom != null && m.overlay_bottom <= m.vh }).toEqual({ state, overlay_bottom_ok: true });
           expect({ state, page_h: m.page_h, inner_scroll: m.inner_scroll }).toEqual({ state, page_h: m.vh, inner_scroll: 0 });
           expect(m.cards).toHaveLength(4);
           m.cards.forEach((c, i) => {
@@ -1632,10 +1762,15 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
   // one line at a time in every coach state: ≥ 2 px of ink between every pair of consecutive lines, and the last line's
   // ink inside the element's padding box (the top edge is outside the bar; its number is reported, not asserted).
   // Every served question shows the same line, so one question per language is enough. Latin passes as it was.
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines and its last line's ink inside its box, in every coach state`, async () => {
+  for (const [mnt, lang] of MOUNT_LANGS) {
+    test(`[${mnt}] ${lang}, the layout switches on: the coach's line keeps ≥ 2 px of ink between its lines and its last line's ink inside its box, in every coach state`, async () => { MOUNT = MOUNTS[mnt];
       const r = await states(lang, LAYOUT, true, null, true);
-      const rows = Object.entries(r).map(([state, m]) => ({ state, lines: m.coach_ink.lines, same_layout: m.coach_ink.same_layout, gaps: m.coach_ink.gaps,
+      // round 10: on the Urdu phone the line is read where it is drawn on a question frame, in the open fold's body
+      // (folded away otherwise); English keeps it above the fold in every state
+      expect(Object.entries(r).filter(([, m]) => m.coach_ink).map(([state, m]) => [state, m.frame.line[0]]))
+        .toEqual(lang === 'ur' ? [['foldopen', 'fold']] : ['listening', 'speaking', 'chosen', 'offernext', 'foldopen'].map((x) => [x, 'above']));
+      B10[`coach_line_ink_${mnt}_${lang}`] = Object.fromEntries(Object.entries(r).filter(([, m]) => m.coach_ink).map(([state, m]) => [state, Object.assign({ where: m.frame.line[0] }, m.coach_ink)]));
+      const rows = Object.entries(r).filter(([, m]) => m.coach_ink).map(([state, m]) => ({ state, lines: m.coach_ink.lines, same_layout: m.coach_ink.same_layout, gaps: m.coach_ink.gaps,
         gaps_min: m.coach_ink.gaps_min, below_box: m.coach_ink.below_box, above_box: m.coach_ink.first_ink_above_box, font: m.coach_ink.font,
         ring_margin: m.vh - Math.max(...m.cards.map((c) => c.ring_bottom)) }));
       if (process.env.SA_FIT_DEBUG) process.stdout.write(`MCQCOACHINK ${lang} ${JSON.stringify(rows)}\n`);
@@ -1707,7 +1842,7 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
   async function open(lang, qText, options) {
     const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
-    const html = page(lang, qText, options);
+    const html = mounted(page(lang, qText, options));
     await p.route('**/*', (route) => {
       const u = new URL(route.request().url());
       if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
@@ -1740,10 +1875,12 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       const q = document.querySelector('.sae-mcq-q'); const cs = getComputedStyle(q); const r = q.getBoundingClientRect();
       const rg = document.createRange(); rg.selectNodeContents(q);
       const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
-      const line = document.querySelector('.sae-mcq-coach-line').getBoundingClientRect();
+      // round 10: the line above the fold where it is drawn there (the Urdu phone draws it in the fold: no room to read)
+      const le = Array.from(document.querySelectorAll('.sae-mcq-coach-line')).find((e) => getComputedStyle(e).display !== 'none' && !e.closest('.sae-mcq-coach-body'));
+      const line = le ? le.getBoundingClientRect() : null;
       return { top: r.top + parseFloat(cs.borderTopWidth), bottom: r.bottom - parseFloat(cs.borderBottomWidth),
         lines: new Set(Array.from(rg.getClientRects()).filter((x) => x.width || x.height).map((x) => Math.round(x.top))).size,
-        line_top: line.top, line_bottom: line.bottom, fold_top: document.querySelector('details.sae-mcq-coach').getBoundingClientRect().top,
+        line_top: line ? line.top : null, line_bottom: line ? line.bottom : null, fold_top: document.querySelector('details.sae-mcq-coach').getBoundingClientRect().top,
         cards: Array.from(document.querySelectorAll('.sae-mcq-opt')).map((c) => { const b = c.getBoundingClientRect(); return { h: Math.round(b.height), ring_bottom: Math.round(b.bottom + 7) }; }),
         page_h: document.documentElement.scrollHeight, inner_scroll: over(document.querySelector('.sae-screen')) + over(document.querySelector('.sae-mcq .sae-body')) };
     });
@@ -1753,10 +1890,10 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
     await p.evaluate(() => { document.querySelector('.sae-mcq-q').style.overflow = ''; });
     await hide(p, ['.sae-mcq-q'], true);
     await hide(p, ['.sae-mcq-coach-line'], false);
-    const lr = await ink(p, g.line_top - 4, g.line_bottom + 14);
+    const lr = g.line_top == null ? [] : await ink(p, g.line_top - 4, g.line_bottom + 14);
     await hide(p, ['.sae-mcq-opts', 'details.sae-mcq-coach', '.sae-mcq-coach-line', '.sae-mcq-q'], false);
     return { lines: g.lines, ink_above_top: rows.length ? +Math.max(0, g.top - rows[0]).toFixed(1) : null, ink_below_bottom: rows.length ? +Math.max(0, rows[rows.length - 1] - g.bottom).toFixed(1) : null,
-      coach_line_room: lr.length ? +(g.fold_top - lr[lr.length - 1]).toFixed(1) : null, card_h: g.cards.map((c) => c.h), ring_bottom: Math.max(...g.cards.map((c) => c.ring_bottom)),
+      coach_line_room: g.line_top == null ? 'in the fold' : lr.length ? +(g.fold_top - lr[lr.length - 1]).toFixed(1) : null, card_h: g.cards.map((c) => c.h), ring_bottom: Math.max(...g.cards.map((c) => c.ring_bottom)),
       page_h: g.page_h, inner_scroll: g.inner_scroll };
   }
   /** The open fold's answer list: each line shown alone (the fold's question and summary hidden), inside the overlay. */
@@ -1764,23 +1901,27 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
     await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = true; d.dispatchEvent(new Event('toggle')); });
     await p.waitForTimeout(150);
     const g = await p.evaluate(() => { const b = document.querySelector('.sae-mcq-coach-body').getBoundingClientRect(); const ol = document.querySelector('.sae-mcq-coach-opts');
-      return { top: b.top, bottom: b.bottom, n: ol.children.length, lh: getComputedStyle(ol).lineHeight, fs: getComputedStyle(ol).fontSize }; });
+      const bd = document.querySelector('.sae-mcq-coach-body');
+      return { top: b.top, bottom: b.bottom, n: ol.children.length, lh: getComputedStyle(ol).lineHeight, fs: getComputedStyle(ol).fontSize, scrolls: bd.scrollHeight > bd.clientHeight + 0.5, sh: bd.scrollHeight, ch: bd.clientHeight }; });
     await hide(p, ['.sae-mcq-coach-body>p', 'details.sae-mcq-coach>summary'], true);
     const lines = [];
     for (let k = 0; k < g.n; k++) {
-      await p.evaluate((k) => document.querySelectorAll('.sae-mcq-coach-opts li').forEach((li, i) => { li.style.visibility = i === k ? '' : 'hidden'; }), k);
+      // round 10: where the fold's body scrolls inside itself, the line is brought into view first and its ink read in
+      // the body's own coordinates (+ its scrollTop), so lines read at different scroll offsets compare
+      const st = await p.evaluate((k) => { const lis = document.querySelectorAll('.sae-mcq-coach-opts li'); lis.forEach((li, i) => { li.style.visibility = i === k ? '' : 'hidden'; });
+        const bd = document.querySelector('.sae-mcq-coach-body'); if (bd.scrollHeight > bd.clientHeight + 0.5) lis[k].scrollIntoView({ block: 'nearest' }); return bd.scrollTop; }, k);
       const rows = await ink(p, g.top + 1, g.bottom - 4, 8, 352);
-      lines.push(rows.length ? { top: rows[0], bottom: rows[rows.length - 1] } : null);
+      lines.push(rows.length ? { top: rows[0] + st, bottom: rows[rows.length - 1] + st } : null);
     }
-    await p.evaluate(() => document.querySelectorAll('.sae-mcq-coach-opts li').forEach((li) => { li.style.visibility = ''; }));
+    await p.evaluate(() => { document.querySelectorAll('.sae-mcq-coach-opts li').forEach((li) => { li.style.visibility = ''; }); document.querySelector('.sae-mcq-coach-body').scrollTop = 0; });
     await hide(p, ['.sae-mcq-coach-body>p', 'details.sae-mcq-coach>summary'], false);
     await p.evaluate(() => { const d = document.querySelector('details.sae-mcq-coach'); d.open = false; d.dispatchEvent(new Event('toggle')); });
     const gaps = lines.slice(1).map((x, i) => +(x.top - lines[i].bottom).toFixed(1));
-    return { line_height: g.lh, font: g.fs, gaps, min_gap: Math.min(...gaps), overlay_bottom: +g.bottom.toFixed(1) };
+    return { line_height: g.lh, font: g.fs, gaps, min_gap: Math.min(...gaps), overlay_bottom: +g.bottom.toFixed(1), body_scrolls: g.scrolls, body_sh: g.sh, body_ch: g.ch };
   }
 
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}: every served question and answer set — the stem's ink inside both clip edges and at most ${lang === 'ur' ? 2 : 3} lines, the fold list's lines ≥ 2 px apart with the overlay on screen, the coach's line clear of the fold, every card 56 px and on screen`, async () => {
+  for (const [mnt, lang] of MOUNT_LANGS) {
+    test(`[${mnt}] ${lang}: every served question and answer set — the stem's ink inside both clip edges and at most ${lang === 'ur' ? 2 : 3} lines, the fold list's lines ≥ 2 px apart with the overlay on screen, the coach's line clear of the fold, every card 56 px and on screen`, async () => { MOUNT = MOUNTS[mnt];
       const served = servedOf(lang);
       expect(served.length).toBeGreaterThanOrEqual(12);
       const rows = {};
@@ -1795,7 +1936,10 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       const { ctx, p } = await open(lang, w.q, w.options);
       const longest = await foldList(p);
       await ctx.close();
-      sizes[lang] = { longest_question_with_longest_set: longest, per_question: rows };
+      sizes[`${mnt}_${lang}`] = { longest_question_with_longest_set: longest, per_question: rows };
+      B10[`sweep_${mnt}_${lang}`] = Object.assign({}, MOUNTS[mnt], { longest_question_with_longest_set: longest, per_question: Object.fromEntries(Object.entries(rows).map(([id, r]) => [id, {
+        lines: r.lines, ink_above: r.ink_above_top, ink_below: r.ink_below_bottom, ring_bottom: r.ring_bottom, inner: r.inner_scroll, coach_line_room: r.coach_line_room,
+        overlay_bottom: r.fold.overlay_bottom, fold_body_scrolls: r.fold.body_scrolls, fold_list_min_gap: r.fold.min_gap }])) });
       // round 6, all questions at once (so a failure lists every one): no ink above the stem card's clip top, and the
       // lowest card's ring ≥ 8 px above the screen's bottom edge
       expect(Object.entries(rows).map(([id, r]) => ({ id, lines: r.lines, above: r.ink_above_top, ring_margin: 640 - r.ring_bottom }))
@@ -1810,7 +1954,7 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
         // the first line's ascender: whole on every served question, one line or two, Urdu and Latin (round 6: the
         // task title's room pays for it on the coach-led phone)
         expect({ id, lines: r.lines, above: r.ink_above_top }).toEqual({ id, lines: r.lines, above: 0 });
-        expect({ id, coach_line_room_ok: r.coach_line_room >= 0 }).toEqual({ id, coach_line_room_ok: true });
+        expect({ id, coach_line_room_ok: lang === 'ur' ? r.coach_line_room === 'in the fold' : r.coach_line_room >= 0 }).toEqual({ id, coach_line_room_ok: true });
         expect({ id, fold_min_gap_ok: r.fold.min_gap >= 2, overlay_ok: r.fold.overlay_bottom <= 640 }).toEqual({ id, fold_min_gap_ok: true, overlay_ok: true });
       }
       expect(longest.overlay_bottom).toBeLessThanOrEqual(640);
@@ -1820,7 +1964,7 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
       else expect(parseFloat(longest.font)).toBeGreaterThanOrEqual(15);
     }, 600000);
 
-    test(`${lang}: the coach's Next is in the coach's register (a dashed box, no fill, no pill) and ≥ 48 px from the child's replay; the fold's close by a tap shows the cards at once (< 150 ms, no transition)`, async () => {
+    test(`[${mnt}] ${lang}: the coach's Next is in the coach's register (a dashed box, no fill, no pill) and ≥ 48 px from the child's replay; the fold's close by a tap shows the cards at once (< 150 ms, no transition)`, async () => { MOUNT = MOUNTS[mnt];
       const w = longestOf(lang);
       const { ctx, p } = await open(lang, w.q, w.options);
       for (let k = 0; k < 5; k++) { await p.evaluate(() => window.__end()); await p.waitForTimeout(k === 0 ? 900 : 600); }
@@ -1854,11 +1998,11 @@ maybeBrowser('sa_r28_mcq coach-led phone, round 5: whole Nastaliq glyphs on ever
         tick();
       }));
       await ctx.close();
-      sizes[`${lang}_next_and_close`] = { next: nx, close };
+      sizes[`${mnt}_${lang}_next_and_close`] = { next: nx, close };
       expect({ border: nx.border, bg: nx.bg, shadow: nx.shadow, clipped: nx.clipped }).toEqual({ border: 'dashed', bg: 'rgba(0, 0, 0, 0)', shadow: 'none', clipped: false });
       expect(nx.gap).toBeGreaterThanOrEqual(48);
       expect({ fold_open: close.fold_open, chosen: close.chosen, close: close.close }).toEqual({ fold_open: false, chosen: 0, close: [{ by: 'tap', card: c1.card }] });
-      sizes[`${lang}_next_and_close`].tap_on_card = c1.card;
+      sizes[`${mnt}_${lang}_next_and_close`].tap_on_card = c1.card;
       expect(close.ms).toBeLessThan(150);
       expect(close.max_transition_ms).toBeLessThanOrEqual(150);
     }, 120000);
@@ -1899,10 +2043,10 @@ maybeBrowser('sa_r28_mcq round 6: the task title on the MCQ screen per mode and 
   for (const lang of ['ur', 'en']) {
     for (const [name, vw, vh, manual, shown] of [['coach-led phone', 360, 640, true, false], ['RDF auto phone', 360, 640, false, true],
       ['coach-led tablet', 800, 1280, true, true], ['RDF auto tablet', 800, 1280, false, true]]) {
-      test(`${lang}, ${name}: the task title is ${shown ? 'shown' : 'hidden'}`, async () => {
+      test(`${lang}, ${name}: the task title is ${shown ? 'shown' : 'hidden'}`, async () => { MOUNT = MOUNTS.prod;
         const ctx = await browser.newContext({ viewport: { width: vw, height: vh } });
         const p = await ctx.newPage();
-        const html = page(lang, manual);
+        const html = mounted(page(lang, manual));
         await p.route('**/*', (route) => {
           const u = new URL(route.request().url());
           if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
@@ -1924,6 +2068,45 @@ maybeBrowser('sa_r28_mcq round 6: the task title on the MCQ screen per mode and 
         else expect({ display: t.display, h: t.h }).toEqual({ display: 'none', h: 0 });
       }, 60000);
     }
+  }
+  // round 10: the coach-led tablet re-read once under the production mount (the frame, the sync dot, the toggle):
+  // the coach's line stays above the fold (the fold's copy is a phone rule), the cards whole and hit with the fold
+  // closed, and again after it opens and closes
+  for (const lang of ['ur', 'en']) {
+    test(`${lang}, coach-led tablet under the production mount: the line above the fold, four cards hit before and after the fold`, async () => { MOUNT = MOUNTS.prod;
+      const ctx = await browser.newContext({ viewport: { width: 800, height: 1280 } });
+      const p = await ctx.newPage();
+      const html = mounted(page(lang, true));
+      await p.route('**/*', (route) => {
+        const u = new URL(route.request().url());
+        if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+        if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+        if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+        return route.fulfill({ status: 404, body: '' });
+      });
+      await p.goto('http://sa.test/');
+      await p.evaluate(() => document.fonts.ready);
+      await p.waitForTimeout(300);
+      const read = () => p.evaluate(() => {
+        const hit = (e) => { const b = e.getBoundingClientRect(); const x = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!x && e.contains(x); };
+        const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+        const cs = Array.from(document.querySelectorAll('.sae-mcq-opt'));
+        const ov = document.querySelector('details.sae-mcq-coach[open] .sae-mcq-coach-body');
+        return { page_h: document.documentElement.scrollHeight, vh: window.innerHeight, inner: over(document.querySelector('.sae-screen')) + over(document.querySelector('.sae-mcq .sae-body')),
+          hit: cs.filter(hit).length, cards_bottom: +Math.max(...cs.map((c) => c.getBoundingClientRect().bottom)).toFixed(1), overlay_bottom: ov ? +ov.getBoundingClientRect().bottom.toFixed(1) : null };
+      });
+      const toggle = (open) => p.evaluate((o) => { const d = document.querySelector('details.sae-mcq-coach'); d.open = o; d.dispatchEvent(new Event('toggle')); }, open);
+      const before = Object.assign(await read(), { frame: await frameRead(p) });
+      await toggle(true); await p.waitForTimeout(150);
+      const open = Object.assign(await read(), { frame: await frameRead(p) });
+      await toggle(false); await p.waitForTimeout(150);
+      const after = await read();
+      await ctx.close();
+      B10[`tablet_prod_${lang}`] = Object.assign({}, MOUNTS.prod, { before, fold_open: open, after_close: after });
+      expect({ embed: before.frame.embed, sync: before.frame.sync, toggle: before.frame.lang_toggle, line: before.frame.line, open_line: open.frame.line, hold_hits: before.frame.hold_hits })
+        .toEqual({ embed: true, sync: true, toggle: true, line: ['above'], open_line: ['above'], hold_hits: [] });
+      for (const [nm, m] of [['before', before], ['after', after]]) expect({ nm, inner: m.inner, hit: m.hit, inside: m.cards_bottom <= m.vh }).toEqual({ nm, inner: 0, hit: 4, inside: true });
+    }, 60000);
   }
 });
 
@@ -1974,7 +2157,7 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
   async function open(lang, ui) {
     const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
-    const html = page(lang, ui);
+    const html = mounted(page(lang, ui));
     await p.route('**/*', (route) => {
       const u = new URL(route.request().url());
       if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
@@ -2025,7 +2208,8 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
       jugnu_talking: !!document.querySelector('.sae-mcq-jugnu.is-talking'),
       fb: (() => { const f = document.querySelector('.sae-mcq .sae-fb'); if (!f) return null; const b = f.getBoundingClientRect(); return { top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1), h: +b.height.toFixed(1), text: f.textContent.trim(), sh: f.scrollHeight, ch: f.clientHeight, sw: f.scrollWidth, cw: f.clientWidth }; })(),
       scroll_cue: !!document.querySelector('.sae-r9-scroll:not([hidden])'),
-      fold_body: fb && fold && fold.open ? Object.assign(R(fb), { kids: Array.from(fb.children).map((k) => k.tagName.toLowerCase() + '.' + String(k.className).split(' ').pop()), text: fb.textContent }) : null,
+      // round 10: the children the fold's body draws (a copy sa.css does not show is not drawn)
+      fold_body: fb && fold && fold.open ? Object.assign(R(fb), { kids: Array.from(fb.children).filter((k) => getComputedStyle(k).display !== 'none').map((k) => k.tagName.toLowerCase() + '.' + String(k.className).split(' ').pop()), text: fb.textContent, sh: fb.scrollHeight, ch: fb.clientHeight }) : null,
     };
   });
   /** The stem's ink above its clip top (as round 8 measures it). */
@@ -2052,14 +2236,20 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
   }
   const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
   const SHOT = { passage: 'passage', passage_next: 'passagenext', listening: 'listening', option2: 'speaking', chosen: 'chosen', feedback: 'feedback', foldopen: 'foldopen', feedback_shown: 'feedbackshown' };
+  const B10SHOT = { passage: 'practice_passage', listening: 'practice_listening', foldopen: 'practice_foldopen', feedback: 'practice_feedback' };
   async function walk(lang, ui) {
     const out = {}; const step = {};
     const shots = process.env.SA_B9_SHOTS && ui.r9_skip_instructions ? process.env.SA_B9_SHOTS : null;
     const snap = async (p, name, wait) => {
       await p.waitForTimeout(wait == null ? 200 : wait);
       out[name] = await p.evaluate(measure);
+      out[name].frame = await frameRead(p);
       out[name].stem_above = await stemAbove(p);
       if (shots && SHOT[name]) await p.screenshot({ path: path.join(shots, `b9_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
+      if (ui.r9_skip_instructions && B10SHOT[name]) await b10Shot(p, B10SHOT[name], lang);
+      // round 10: the coach's line on the passage step (above, the step that precedes every question), one line at a time
+      if (name === 'passage' && out[name].frame.line.length) out[name].coach_ink = await coachLineInk(p);
+      if (name === 'foldopen' && out[name].frame.line.length) out[name].coach_ink = await coachLineInk(p);
       // the coach's Next exists only without the Skip: that frame is shot from the no-Skip walk
       if (process.env.SA_B9_SHOTS && !ui.r9_skip_instructions && name === 'passage_next') await p.screenshot({ path: path.join(process.env.SA_B9_SHOTS, `b9_practice_passagenext_noskip_${lang}_phone_coach.png`) });
     };
@@ -2107,12 +2297,12 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
   }
   const FRAMES = ['listening', 'option1', 'option2', 'option3', 'option4', 'open', 'foldopen', 'foldclosed', 'chosen', 'feedback', 'feedback_shown'];
 
-  for (const lang of ['ur', 'en']) {
+  for (const [mnt, lang] of MOUNT_LANGS) {
     for (const withSkip of [true, false]) {
-      test(`${lang}, ${withSkip ? 'with' : 'without'} the Skip: the passage step whole with no cards, then all eleven practice question frames at the scored bar (640 / inner 0 / 4 of 4 hit / ring ≥ 8 / stem above 0 / pitch 60 / no passage), the fold = prompt + options on screen, head 56 and nothing moving`, async () => {
+      test(`[${mnt}] ${lang}, ${withSkip ? 'with' : 'without'} the Skip: the passage step whole with no cards, then all eleven practice question frames at the scored bar (640 / inner 0 / 4 of 4 hit / ring ≥ 8 / stem above 0 / pitch 60 / no passage), the fold = prompt + options on screen, head 56 and nothing moving`, async () => { MOUNT = MOUNTS[mnt];
         const ui = Object.assign({}, SERVED, { r9_skip_instructions: withSkip });
         const { out, step } = await walk(lang, ui);
-        const tag = `${lang}_${withSkip ? 'skip' : 'noskip'}`;
+        const tag = `${mnt}_${lang}_${withSkip ? 'skip' : 'noskip'}`;
         sizes[tag] = { step, states: Object.fromEntries(Object.entries(out).map(([k, m]) => [k, { phase: m.phase, pstate: m.pstate, page_h: m.page_h, inner: m.inner_scroll, head_h: m.head && m.head.h,
           skip: m.skip, chip: m.chip, stem_top: m.stem && m.stem.top, stem_above: m.stem_above, cards_top: m.cards.map((c) => c.top), cards_hit: m.cards_hit, pitch: m.pitch, ring_margin: m.ring_margin,
           fb: m.fb, scroll_cue: m.scroll_cue, next: m.next, jugnu_talking: m.jugnu_talking, passage: m.passage, fold_overlay_bottom: m.fold_body ? m.fold_body.bottom : null, fold_kids: m.fold_body ? m.fold_body.kids : null }])) };
@@ -2160,8 +2350,33 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
         expect({ skip: out.feedback_shown.skip, chip: !!out.feedback_shown.chip }).toEqual({ skip: null, chip: true });
         // the fold = the scored fold (prompt + options, no passage), its overlay on screen
         const f = out.foldopen.fold_body;
+        // round 10 (row 32): on the Urdu phone the coach's line is the fold body's first line (EN: the fold as it was)
         expect({ kids: f.kids, story: f.text.indexOf(practiceOf(lang).passage.text) >= 0, on_screen: f.bottom <= 640 })
-          .toEqual({ kids: ['p.sae-coach-line', 'ol.sae-mcq-coach-opts'], story: false, on_screen: true });
+          .toEqual({ kids: (lang === 'ur' ? ['p.sae-mcq-coach-line'] : []).concat(['p.sae-coach-line', 'ol.sae-mcq-coach-opts']), story: false, on_screen: true });
+        // the mount named; nothing tappable or in the head row under the coach page's band or the sync dot; the coach's
+        // line above on the passage step (both languages), in the fold on the Urdu question frames, above in English
+        const steps = ['passage', 'passage_next'].concat(FRAMES);
+        for (const s of steps) {
+          const fr = out[s].frame;
+          expect({ s, embed: fr.embed, sync: fr.sync, lang_toggle: fr.lang_toggle, hold_hits: fr.hold_hits, dot_hits: fr.dot_hits })
+            .toEqual({ s, embed: MOUNT.embed, sync: MOUNT.sync, lang_toggle: MOUNT.lang_toggle, hold_hits: offlineEn(mnt, lang) ? fr.hold_hits : [], dot_hits: [] });
+          if (fr.toggle) expect({ s, cards_clear: fr.toggle.vs_cards_px == null || fr.toggle.vs_cards_px > 0, head_clear: Object.values(fr.toggle.vs_head_px).every((g) => g >= 0) }).toEqual({ s, cards_clear: true, head_clear: true });
+          const want = s.startsWith('passage') || lang === 'en' ? ['above'] : s === 'foldopen' ? ['fold'] : [];
+          expect({ s, line: fr.line }).toEqual({ s, line: want });
+        }
+        // B7's ink bar on the line wherever it is drawn: the passage step (above) and, Urdu, the open fold's body
+        for (const s of lang === 'ur' ? ['passage', 'foldopen'] : ['passage']) {
+          const k = out[s].coach_ink;
+          expect({ s, lines_ok: k.lines >= 2, same_layout: k.same_layout, gaps_min_ok: k.gaps_min >= 2, inside_box: k.below_box <= 0, font_ok: parseFloat(k.font) >= 13 })
+            .toEqual({ s, lines_ok: true, same_layout: true, gaps_min_ok: true, inside_box: true, font_ok: true });
+        }
+        B10[`practice_${tag}`] = Object.assign({ frame: MOUNTS[mnt].frame, skip: withSkip }, MOUNTS[mnt], { states: Object.fromEntries(Object.entries(out).map(([k, m]) => [k, {
+          pstate: m.pstate, inner: m.inner_scroll, page_h: m.page_h, cards_hit: m.cards_hit, cards_top: m.cards.map((c) => c.top), ring_margin: m.ring_margin,
+          ring_bottom: m.cards.length ? +(640 - m.ring_margin).toFixed(1) : null, head: m.head, skip: m.skip, chip: m.chip, next: m.next && { left: m.next.left, right: m.next.right, top: m.next.top, bottom: m.next.bottom, hit: m.next.hit },
+          fb: m.fb, scroll_cue: m.scroll_cue, stem_above: m.stem_above, jugnu_talking: m.jugnu_talking,
+          overlay: m.fold_body ? { bottom: m.fold_body.bottom, kids: m.fold_body.kids, scrolls: m.fold_body.sh > m.fold_body.ch + 0.5 } : null,
+          coach_line: m.frame && m.frame.line, toggle: m.frame && m.frame.toggle, toggle_vs_cards_px: m.frame && m.frame.toggle && m.frame.toggle.vs_cards_px, coach_ink: m.coach_ink || null, screen_pad_top: m.frame && m.frame.screen_pad_top,
+          hold: m.frame && m.frame.hold, sync_dot: m.frame && m.frame.sync_dot, hold_hits: m.frame && m.frame.hold_hits, dot_hits: m.frame && m.frame.dot_hits, dot_vs_hold: m.frame && m.frame.dot_vs_hold }])) });
         // the practice's key is the bank's
         expect(withClip(lang).target_index).toBe(1);
         expect(/is-right/.test(out.feedback_shown.cards[1].cls)).toBe(true);
@@ -2226,7 +2441,7 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
   async function open(lang, ui) {
     const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
-    const html = page(lang, ui);
+    const html = mounted(page(lang, ui));
     await p.route('**/*', (route) => {
       const u = new URL(route.request().url());
       if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
@@ -2359,13 +2574,13 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
     return { out, taps };
   }
 
-  for (const lang of ['ur', 'en']) {
-    test(`${lang}: every practice state — the head row whole on the phone with the Skip on one line at its served font, pinned, ≥ 24 px from the replay; the stem, the cards and the ring as without the Skip`, async () => {
+  for (const [mnt, lang] of MOUNT_LANGS) {
+    test(`[${mnt}] ${lang}: every practice state — the head row whole on the phone with the Skip on one line at its served font, pinned, ≥ 24 px from the replay; the stem, the cards and the ring as without the Skip`, async () => { MOUNT = MOUNTS[mnt];
       const base = (await walk(lang, Object.assign({}, SERVED, { r9_skip_instructions: false }))).out;
       const { out, taps } = await walk(lang, SERVED);
       const order = ['listening', 'option1', 'option2', 'option3', 'option4', 'open', 'foldopen', 'foldclosed', 'chosen', 'feedback'];
       expect(Object.keys(out).sort()).toEqual(order.concat('feedback_shown').sort());
-      sizes[lang] = { states: out, taps, without_skip: Object.fromEntries(Object.entries(base).map(([k, m]) => [k, { head_h: m.head.h, chip: m.chip, cards_top: m.cards.map((c) => c.top), ring_margin: m.ring_margin, stem_top: m.stem.top }])) };
+      sizes[`${mnt}_${lang}`] = { states: out, taps, without_skip: Object.fromEntries(Object.entries(base).map(([k, m]) => [k, { head_h: m.head.h, chip: m.chip, cards_top: m.cards.map((c) => c.top), ring_margin: m.ring_margin, stem_top: m.stem.top }])) };
       const label = lang === 'ur' ? 'ہدایات چھوڑیں' : 'Skip instructions';
       const at = out.listening;
       for (const s of order) {

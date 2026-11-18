@@ -1677,6 +1677,27 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the top row is the same height in every state, so the question and the cards never move
     And the feedback line shows under the cards without pushing them
     And the coach's open fold stays on the screen
+  @e2e @wip @draft @config-gated @P1 @CT277 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("row 32 (coach-led): the coach's line is drawn above the fold on the passage step only …",
+  # the "[prod] ur …" browser rows of the coach-led phone (scored states, the per-question sweep, the coach's line ink, the practice frames)).
+  Scenario: With sa_r28_mcq on, the coach's Urdu line sits in the coach's fold on a phone's question screens
+    Given sa_r28_mcq and the production screen settings are on and a coach runs the story questions in Urdu on a 360x640 phone inside the coach page, with a session syncing
+    When a practice or scored question is on screen
+    Then the coach's line «جگنو سوال اور چاروں جواب خود پڑھے گا۔ …» is the first line inside the coach's fold, above the question and the four answers
+    And the fold stays folded until the coach opens it, its title unchanged
+    And the coach's line shows above the fold, outside it, on the practice story's own step, before any question
+    And the open fold stays on the screen, its lines apart and inside their box
+    And on a tablet, or in English, the coach's line stays above the fold as before
+  @e2e @wip @draft @config-gated @P1 @CT278 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js (every "[prod] …" and "[prod_notoggle] …" browser row: the coach page's frame, the sync dot, the language switch drawn or not).
+  Scenario: With sa_r28_mcq on, the story questions fit a coach's phone inside the coach page while a session syncs
+    Given sa_r28_mcq and the production screen settings are on and a coach runs the story questions on a 360x640 phone inside the coach page, with a session syncing, with or without the other language ready
+    When a practice or scored question is on screen in any state, in Urdu or English
+    Then the screen does not scroll and no scroll cue shows
+    And all four answer cards are whole and tappable at their centres, the lowest card's ring at least 8 px above the bottom
+    And the practice feedback line shows on the screen under the cards
+    And nothing the child or the coach taps lies under the coach page's own buttons or the sync dot
+    And the same holds on the page without the coach page's frame
   @e2e @wip @draft @config-gated @P1 @CT252 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-skip-wait.service.test.js.
   Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a skipped item says how long the child had
