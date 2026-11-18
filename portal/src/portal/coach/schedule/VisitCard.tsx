@@ -36,7 +36,9 @@ export function reschedulePath(v: CoachVisit): string {
 /** Where a done visit opens: its observation, or (no session recorded) the visit page. */
 export const doneTo = (v: CoachVisit) => (v.sessionId ? `/portal/coach/observation/${v.sessionId}` : visitPath(v.id));
 
-const BUTTON = "flex min-h-[56px] items-center justify-center gap-2 rounded-2xl px-3 text-[15px] font-semibold";
+// Two lines in Urdu ("ریکارڈنگ شروع کریں" does not fit half a 390px row): room for Nastaliq's tall lines, so the second line
+// stays inside the button (seen spilling below it on sandbox, 19 Nov). As the kit's ShareActions: leading-tight, rtl taller.
+const BUTTON = "flex min-h-[56px] items-center justify-center gap-2 rounded-2xl px-3 py-2 text-center text-[15px] font-semibold leading-tight rtl:leading-[1.8]";
 
 export function VisitCard({ v, today, next = false, onCancel }: {
   v: CoachVisit; today: string; next?: boolean; onCancel: (v: CoachVisit) => void;
