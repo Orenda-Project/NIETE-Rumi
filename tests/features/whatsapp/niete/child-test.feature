@@ -1909,3 +1909,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the familiar-words recording is scored
     Then the model is shown the fifth word with its accepted forms beside it
     And a spare word without accepted forms is served and listed exactly as before
+  @e2e @wip @draft @P2 @CT288 @no-mock-driver
+  # No mock driver: the service worker's offline copy runs on the phone (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-timings-index.service.test.js and sa-r28-prompt-timings-offline.service.test.js.
+  Scenario: A session page asks only for the word-timing files that exist, and the letter picker's prompt timings first
+    Given the battery's clips are served from sa/v4 and its letter-sound prompts from sa/v5
+    When the child's page, or the coach's Get ready, prepares the session for offline
+    Then sa/v5/prompt_timings.json is asked for before any clip
+    And the v4 word-timing files asked for are exactly those dashboard/sa/timings.index.json lists, none beside a clip that has none
+    And when the index cannot be read, no v4 word-timing file is asked for and prompt_timings.json still is
+    And no screen and no score changes
