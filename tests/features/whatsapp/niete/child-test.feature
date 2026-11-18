@@ -1898,6 +1898,15 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then nothing scrolls on any practice screen, all five letter cards are whole and can be tapped, and the replay and Next are in reach
     And no scroll cue is drawn, and the tablet reads the same
 
+  @e2e @wip @draft @config-gated @P1 @CT284 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-auto-offer.service.test.js and sa-r28-mcq-auto-phone.service.test.js.
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a child alone (RDF auto) sees Next in the head row, and nothing on the screen moves when it is offered
+    Given sa_r28_letter_pick and sa_r28_mcq are on, with every switch the tier serves
+    When a child alone on a 360x640 phone leaves a letter-sound item, or a story question, unanswered until Next is offered
+    Then Next is drawn in the head row beside Jugnu, in a place held for it since the item opened, never at the foot
+    And every letter card, every option, the replay and Next can be tapped without scrolling, and no scroll cue is drawn
+    And nothing else on the screen changes its place when Next appears, in Urdu and in English
+
   @e2e @wip @draft @config-gated @P1 @CT246 @no-mock-driver
   # No mock driver: the prompt is sent in the scoring sweep to a model, not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
