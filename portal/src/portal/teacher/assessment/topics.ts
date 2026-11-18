@@ -1,4 +1,4 @@
-import { MAX_TYPES, defaultTypeCounts, isFde, newPicks, type Picks } from './model';
+import { defaultTypeCounts, isFde, newPicks, type Picks } from './model';
 
 /**
  * Task 8 (spec §4, §6) — the Topics step's rules, pure. After Chapters, when exactly one chapter is picked and it has
@@ -50,7 +50,10 @@ const BY_HEADING: Record<string, string[]> = {
 const MATHS = ['MCQs', 'Fill in the Blanks', 'Short Questions'];
 const SCIENCE = ['MCQs', 'Fill in the Blanks', 'Brief Answers', 'Label the Diagram'];
 
-/** The types the ticked topics suggest (§6), once each, in heading order; only those the subject offers, at most MAX_TYPES. */
+/** How many types a topic paper suggests: a starting point she can add to, not a cap (bd-5icld3.4). */
+const SUGGESTED_TYPES = 8;
+
+/** The types the ticked topics suggest (§6), once each, in heading order; only those the subject offers, at most SUGGESTED_TYPES. */
 export function suggestTypes(subject: string | null, ticked: readonly Topic[], offered: readonly OfferedType[]): string[] {
   const order = [...ticked].sort((a, b) => headingRank(a) - headingRank(b) || bookOrder(a, b));
   const wanted: string[] = [];
@@ -62,7 +65,7 @@ export function suggestTypes(subject: string | null, ticked: readonly Topic[], o
     wanted.push(...SCIENCE);
   }
   const ids = new Set(offered.map((o) => o.id));
-  return [...new Set(wanted)].filter((id) => ids.has(id)).slice(0, MAX_TYPES);
+  return [...new Set(wanted)].filter((id) => ids.has(id)).slice(0, SUGGESTED_TYPES);
 }
 
 /** bd-pw1ccr.6 — the marks FDE gives one writing item (bot/shared/services/assessment/patterns). G1 has no composition:
