@@ -35,8 +35,8 @@ const {
   normaliseMomentAnswer,
 } = require('./observe-debrief-guide');
 
-const BUTTON_NOW_PREFIX = 'observe_debrief_now_';
-const BUTTON_LATER_PREFIX = 'observe_debrief_later_';
+// The button ids and the Debrief now / Later choice live in a pure module (bd-31ziu8), re-exported below unchanged.
+const { BUTTON_NOW_PREFIX, BUTTON_LATER_PREFIX, buildDebriefChoiceButtons } = require('./observe-debrief-buttons');
 const LIST_ROW_PREFIX = 'observe_debrief_';
 const LIST_NEW_ID = 'observe_new';
 const MAX_PENDING_ROWS = 9; // + the new-observation sentinel = 10 (WhatsApp cap)
@@ -68,20 +68,6 @@ function parseDebriefListReplyId(listId) {
     return { action: 'debrief', sessionId: listId.slice(LIST_ROW_PREFIX.length) };
   }
   return null;
-}
-
-/**
- * The post-submit choice: debrief now or later.
- * Titles must fit WhatsApp's 20-char reply-button cap.
- */
-function buildDebriefChoiceButtons(sessionId, S) {
-  return {
-    body: S.debrief_choice_body,
-    buttons: [
-      { id: `${BUTTON_NOW_PREFIX}${sessionId}`, title: S.btn_debrief_now },
-      { id: `${BUTTON_LATER_PREFIX}${sessionId}`, title: S.btn_debrief_later },
-    ],
-  };
 }
 
 /**

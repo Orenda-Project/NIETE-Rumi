@@ -105,9 +105,18 @@ function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | unde
   );
 }
 
-function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
+/** bd-31ziu8 — where the booking screens link (the coach app's paths, or the principal app's: principals book alike). */
+export type NewVisitLinks = { changeSchool: string; changeTeacher: (schoolExt: string) => string; newVisit: string; schedule: string };
+const COACH_LINKS: NewVisitLinks = {
+  changeSchool: NEW_VISIT,
+  changeTeacher: (schoolExt) => `${NEW_VISIT}?school=${encodeURIComponent(schoolExt)}`,
+  newVisit: NEW_VISIT,
+  schedule: "/portal/coach/schedule",
+};
+
+export function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone, links = COACH_LINKS }: {
   teacher: CoachTeacher | undefined; schoolName: string | null; visitId: string | null; initialSlot: string | null;
-  onDone: (when: { date: string; slot: string }) => void;
+  onDone: (when: { date: string; slot: string }) => void; links?: NewVisitLinks;
 }) {
   const c = useCopy(SCHEDULE);
   const kit = useKitCopy();
@@ -146,8 +155,8 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
         </Card>
       ) : (
         <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }} items={[
-          { label: c.school, value: schoolName || c.dash, to: NEW_VISIT },
-          { label: c.teacher, value: teacher?.name || c.dash, sub: teacherPhone ?? undefined, to: `${NEW_VISIT}?school=${encodeURIComponent(teacher?.schoolExtId || "")}` },
+          { label: c.school, value: schoolName || c.dash, to: links.changeSchool },
+          { label: c.teacher, value: teacher?.name || c.dash, sub: teacherPhone ?? undefined, to: links.changeTeacher(teacher?.schoolExtId || "") },
         ]} />
       )}
       <SectionLabel>{c.pickDayTime}</SectionLabel>
@@ -165,7 +174,9 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
   );
 }
 
-function Done({ teacher, schoolName, when }: { teacher: CoachTeacher | undefined; schoolName: string | null; when: { date: string; slot: string } }) {
+export function Done({ teacher, schoolName, when, links = COACH_LINKS }: {
+  teacher: CoachTeacher | undefined; schoolName: string | null; when: { date: string; slot: string }; links?: NewVisitLinks;
+}) {
   const c = useCopy(SCHEDULE);
   return (
     <>
@@ -182,8 +193,8 @@ function Done({ teacher, schoolName, when }: { teacher: CoachTeacher | undefined
         </div>
       </Card>
       <div className="flex gap-2.5 pt-2">
-        <BottomLink to={NEW_VISIT} tone="outline"><Plus className="h-5 w-5" aria-hidden="true" />{c.newVisit}</BottomLink>
-        <BottomLink to="/portal/coach/schedule">{c.mySchedule}</BottomLink>
+        <BottomLink to={links.newVisit} tone="outline"><Plus className="h-5 w-5" aria-hidden="true" />{c.newVisit}</BottomLink>
+        <BottomLink to={links.schedule}>{c.mySchedule}</BottomLink>
       </div>
     </>
   );

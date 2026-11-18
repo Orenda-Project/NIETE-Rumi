@@ -141,6 +141,9 @@ export const REPORTS_EN = {
       number: "A whole number",
       row_two: "Fill this in too",
       same_area: "Pick another area",
+      // bd-31ziu8 — FICO-S v1.1: every level needs what the observer saw and heard (20+ characters; the box says so).
+      evidence: "Write what you saw",
+      same_focus: "Pick another indicator",
     },
   },
 
@@ -345,6 +348,8 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
       number: "پورا عدد لکھیں",
       row_two: "یہ بھی بھریں",
       same_area: "کوئی اور شعبہ چنیں",
+      evidence: "جو دیکھا وہ لکھیں",
+      same_focus: "کوئی اور اشاریہ چنیں",
     },
   },
 

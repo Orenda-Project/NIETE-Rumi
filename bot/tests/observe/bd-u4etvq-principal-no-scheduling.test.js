@@ -1,5 +1,11 @@
 /**
- * bd-u4etvq — a principal observes at once; only a coach books a visit first.
+ * bd-u4etvq, REVERSED by bd-31ziu8 (18 Nov): a principal books a visit exactly as a coach does.
+ *
+ * Operator, 18 Nov ~16:40: "I think there is one more difference that the principal does not do scheduling? If that is
+ * the case, drop it. It has to be the same as coach." What #141 added for principals and is KEPT: /observe opens the
+ * visit Flow for a principal (no leader_schools row needed), their own school (users.school_id) counts as one of theirs,
+ * no empty Manage teachers row, and "My own lesson" (the DC). What is DROPPED: "Observe a teacher" / start at once.
+ * The original (15 Nov) intent, for the record:
  *
  * Operator, 15 Nov: "for the principal, there is no need to schedule anything. You will just directly go and observe a
  * teacher, unlike a coach who has to schedule it first." Then: "principals never schedule; they observe whenever they
@@ -167,23 +173,22 @@ describe('/observe opens the visit Flow for a principal', () => {
 });
 
 describe('the /observe menu', () => {
-  test('a principal whose only school is their own: full menu, "Observe a teacher", no empty schedule, no Manage teachers', async () => {
+  test('a principal whose only school is their own: the coach\'s menu (My schedule, Schedule new observation), no Manage teachers', async () => {
     const res = await handler.handle(as('principal-own'), 'INIT', '', {}, 'principal-own');
     expect(res.screen).toBe('MENU');
-    expect(ids(res)).toEqual(['new', 'self_dc', 'manage']);
-    expect(row(res, 'new')['main-content'].title).toBe('Observe a teacher');
-    expect(row(res, 'new')['main-content'].title.length).toBeLessThanOrEqual(30);
-    expect(row(res, 'new')['main-content'].metadata.length).toBeLessThanOrEqual(80);
+    expect(ids(res)).toEqual(['schedule', 'new', 'self_dc', 'manage']);
+    expect(row(res, 'new')['main-content']).toEqual({ title: 'Schedule new observation', metadata: 'Pick a school and teacher' });
+    expect(row(res, 'schedule')['main-content'].title).toBe('My schedule');
     expect(row(res, 'new')['on-click-action']).toEqual({ name: 'data_exchange', payload: { step: 'schools' } });
   });
 
   test('a principal with holdings keeps Manage teachers', async () => {
     const res = await handler.handle(as('principal-held'), 'INIT', '', {}, 'principal-held');
-    expect(ids(res)).toEqual(['new', 'self_dc', 'manage', 'manage_teachers']);
+    expect(ids(res)).toEqual(['schedule', 'new', 'self_dc', 'manage', 'manage_teachers']);
   });
 
-  test('a principal with visits booked before this change can still reach them', async () => {
-    mockUpcoming.n = 2;
+  test('My schedule is there with no visits booked, as for a coach', async () => {
+    mockUpcoming.n = 0;
     const res = await handler.handle(as('principal-held'), 'INIT', '', {}, 'principal-held');
     expect(ids(res)).toContain('schedule');
   });
@@ -200,9 +205,9 @@ describe('picking a teacher', () => {
   const pick = (uid, extra = {}) => handler.handle(uid, 'data_exchange', 'SELECT_TEACHER',
     { step: 'teacher', picked: mockPh('3110000001'), school_ext_id: 'niete:501', ...extra }, uid);
 
-  test('a principal goes straight to the Start screen (BRIEF), no date picker', async () => {
+  test('a principal gets the brief with "Pick date & time", as a coach does (even when the Flow sends at_once)', async () => {
     const res = await pick(as('principal-own'), { at_once: '1' });
-    expect(res.screen).toBe('BRIEF');
+    expect(res.screen).toBe('BRIEF_SCHEDULE');
     expect(res.data).toMatchObject({ teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501' });
   });
 
@@ -210,7 +215,7 @@ describe('picking a teacher', () => {
     as('principal-own');
     const res = await handler.handle('principal-own', 'data_exchange', 'TEACHER_RESULTS',
       { step: 'teacher', picked: mockPh('3110000001'), school_ext_id: '', at_once: '1' }, 'principal-own');
-    expect(res.screen).toBe('BRIEF');
+    expect(res.screen).toBe('BRIEF_SCHEDULE');
     expect(res.data.school_ext_id).toBe('niete:501');
   });
 
@@ -239,12 +244,11 @@ describe('picking a teacher', () => {
   });
 });
 
-describe('a principal never books a visit', () => {
-  test('"Pick date & time" on an old Flow starts the observation instead (BRIEF)', async () => {
+describe('a principal books a visit, as a coach does (bd-31ziu8)', () => {
+  test('"Pick date & time" opens the date picker for a principal', async () => {
     const res = await handler.handle(as('principal-own'), 'data_exchange', 'BRIEF_SCHEDULE',
       { step: 'to_picker', teacher_ext_id: mockPh('3110000001'), school_ext_id: 'niete:501', school_week: '1' }, 'principal-own');
-    expect(res.screen).toBe('BRIEF');
-    expect(res.data.teacher_ext_id).toBe(mockPh('3110000001'));
+    expect(res.screen).toBe('SCHEDULE_PICKER');
   });
 
   test('a coach still gets the date picker', async () => {
