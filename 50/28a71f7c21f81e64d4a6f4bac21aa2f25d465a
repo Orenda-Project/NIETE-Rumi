@@ -1,0 +1,2 @@
+{"ts":"2026-11-18T18:23:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"5028a71f7c21","branch":"bd-snkn32.53-83169","user":""}
+{"ts":"2026-11-18T18:23:47Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,status,observe,teacher-home,coach-portal,leader-portal,portal-smoke owe their Gherkin","sha":"5028a71f7c21","branch":"bd-snkn32.53-83169","user":""}
