@@ -1017,7 +1017,7 @@ maybe('sa-ui: the letter-sound picker screens', () => {
       expect(auto.el.querySelector('.sae-screen.sae-pick')).not.toBeNull();
       expect(auto.el.querySelector('.is-coach-led')).toBeNull();
     });
-    test('coach-led: the coach\'s Next sits in the head row (its place held before it is offered), never at the foot; RDF auto keeps it at the foot', async () => {
+    test('both modes: Next sits in the head row (its place held before it is offered, nothing hit-testable there), never at the foot; the head carries no second replay', async () => {
       const at = (m) => m.el.querySelector('.sa-next');
       for (const manual of [true, false]) {
         let clock = 1000;
@@ -1026,7 +1026,11 @@ maybe('sa-ui: the letter-sound picker screens', () => {
         await wait(30); // the item's clip ended: the item clock starts
         m.view.render();
         expect(at(m)).toBeNull();
-        if (manual) expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).not.toBeNull();
+        expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).not.toBeNull();
+        expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot').tagName).toBe('SPAN'); // no button before the offer: nothing to mis-tap
+        expect(m.el.querySelector('.sae-pick-head .sae-replay')).toBeNull(); // the child's replay is the big pill under the cards
+        expect(m.el.querySelectorAll('.sae-pick-replay')).toHaveLength(1);
+        expect(m.el.querySelector('.sae-foot')).toBeNull();
         clock += 31000; // past Next in both modes (15 s coach-led, 30 s RDF auto); the auto replay already played
         m.r.tick();
         await wait(30);
@@ -1034,19 +1038,45 @@ maybe('sa-ui: the letter-sound picker screens', () => {
         m.view.render();
         expect(m.r.view().offer_next).toBe(true);
         expect(at(m)).not.toBeNull();
-        if (manual) {
-          expect(at(m).closest('.sae-pick-head')).not.toBeNull();
-          expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
-          expect(m.el.querySelector('.sae-foot')).toBeNull();
-          at(m).click();
-          expect(m.r.view().item_index).toBe(1);
-        } else {
-          expect(at(m).closest('.sae-foot')).not.toBeNull();
-          expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
-        }
+        expect(at(m).closest('.sae-pick-head')).not.toBeNull();
+        expect(m.el.querySelector('.sae-pick-head .sae-pick-next-slot')).toBeNull();
+        expect(m.el.querySelector('.sae-foot')).toBeNull();
+        at(m).click();
+        expect(m.r.view().item_index).toBe(1); // Next moves on (a skip) in both modes
       }
     });
   });
+  /**
+   * The arrow label («آگے ←» / "Next →") belongs to the two round-28 screens in RDF auto only. The Next helper is shared
+   * with the pre-round-28 tap, keypad and keyboard items, whose offered Next keeps «آگے» / "Next" in both modes with every
+   * round-28 switch off (nothing a phone shows changes outside a switch), and the picker keeps the arrow with its switch on.
+   */
+  describe('the offered Next\'s label: the arrow on the round-28 screens in RDF auto only; the pre-round-28 screens keep theirs with every switch off', () => {
+    const OFF = (lang, task) => ({ battery_id: 'off', lang, ui: {}, tasks: [task] });
+    const TAP = { id: 'ma.tap', mode: 'tap', items: [{ id: 't1', target: '1', options: ['1', '2'] }] };
+    const KEYPAD = { id: 'ma.add1', mode: 'keypad', items: [{ id: 'k1', target: '4', shown: '1 + 3 =' }] };
+    const KEYBOARD = { id: 'en.spell', mode: 'keyboard', items: [{ id: 's1', target: 'cat', shown: 'cat' }] };
+    /** RDF auto, the item left unanswered until Next is offered: the offered button's text. */
+    async function offeredText(o) {
+      let clock = 1000;
+      const m = mount(Object.assign({ manual: false, practice: false, instant: true, now: () => clock }, o));
+      toRunning(m);
+      await wait(30);
+      for (let k = 0; k < 4 && !m.r.view().offer_next; k++) { clock += 16000; m.r.tick(); await wait(30); m.view.render(); }
+      expect(m.r.view().offer_next).toBe(true);
+      const b = m.el.querySelector('.sa-next');
+      return b ? b.textContent.trim() : null;
+    }
+    for (const [lang, plain, arrow] of [['ur', 'آگے', 'آگے ←'], ['en', 'Next', 'Next →']]) {
+      test(`${lang}: a pre-round-28 tap, keypad and keyboard item with every switch off keep «${plain}»; the picker with its switch on reads «${arrow}»`, async () => {
+        const got = {};
+        for (const [name, task] of [['tap', TAP], ['keypad', KEYPAD], ['keyboard', KEYBOARD]]) got[name] = await offeredText({ lang, flag: false, battery: OFF(lang, task) });
+        got.picker = await offeredText({ lang });
+        expect(got).toEqual({ tap: plain, keypad: plain, keyboard: plain, picker: arrow });
+      }, 20000);
+    }
+  });
+
   describe('round 28 A5: the coach fold on a live item never shows the target letter, is modal, and is logged (SPEC A.5, A.6)', () => {
     const cards = (m) => m.el.querySelectorAll('.sae-pick-cards .sae-opt');
     const fold = (m) => m.el.querySelector('details.sae-pick-coach');
