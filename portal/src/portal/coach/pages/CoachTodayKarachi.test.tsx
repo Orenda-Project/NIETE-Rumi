@@ -77,7 +77,8 @@ describe("02:00 PKT, 8 Oct", () => {
     C.getSchedule.mockResolvedValue({ success: true, from: "2026-10-05", to: "2026-10-11", overdue: [visit("1", "Saima Khalid", "2026-10-07", "09:00", true)], visits: [] });
     renderAt("/portal/coach/schedule");
     const overdue = await screen.findByTestId("overdue");
-    expect(within(overdue).getByText("1 days late")).toBeInTheDocument();
+    expect(within(overdue).getByText("1 day late")).toBeInTheDocument(); // bd-o15qnr.26: was "1 days late"
+    expect(within(overdue).queryByText("1 days late")).toBeNull();
   });
 
   it("the visit page: a visit on the 8th is today, in 7 h", async () => {
