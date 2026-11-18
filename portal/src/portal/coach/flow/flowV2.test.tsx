@@ -142,12 +142,13 @@ describe("Schedule, switch on: one open list, nothing folded", () => {
     expect(trackFlow).toHaveBeenCalledWith("schedule.start");
   });
 
-  it("New visit in the dock; Team schedule as a row; the way back to WhatsApp on top", async () => {
+  // Staging adapt: the way back to WhatsApp (#166, ObservePage's strip) is not on staging yet; the list sits in ObservePage,
+  // so it gets the strip when #166 reaches staging (its own tests pin it there).
+  it("New visit in the dock; Team schedule as a row", async () => {
     renderAt("/portal/coach/schedule");
     await screen.findByTestId("visit-list");
     expect(screen.getByRole("link", { name: /New visit/ })).toHaveAttribute("href", "/portal/coach/new-visit");
     expect(screen.getByRole("link", { name: /Team schedule/ })).toHaveAttribute("href", "/portal/coach/team");
-    expect(screen.getByTestId("continue-on-whatsapp")).toBeInTheDocument();
   });
 
   it("no visits at all: one slim row, never an empty card", async () => {
