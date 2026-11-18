@@ -112,6 +112,7 @@ const VH = require('./voice-help');
 const noEchoUrSwitch = require('../app/no-echo-ur-switch');
 const childOnlySwitch = require('../app/child-only-answer-switch');
 const ceilingSwitch = require('../app/ceiling-switch');
+const mcqSwitch = require('../app/mcq-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -1069,8 +1070,13 @@ function LETTERS_SCHEMA() {
   return LETTERS_SCHEMA_CACHE;
 }
 
-/** The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story. */
-const passageOf = (block) => String(block || '').replace('_comp', '');
+/**
+ * The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story; sa_r28_mcq: the
+ * story's questions picked from four follow it too (ur.story_mcq_w3 → ur.story_w3).
+ */
+const passageOf = (block) => String(block || '').replace(/_(comp|mcq)/, '');
+/** sa_r28_mcq: the story's questions picked from four (a tap task the phone counts; only served with the switch ON). */
+const isMcq = (block) => /_mcq/.test(String(block || ''));
 
 /**
  * EGRA's first row (sa_stop_rules) for a letters / words grid that carries no stop of its own, only when the grid is
@@ -1117,6 +1123,54 @@ function gateMul(out) {
 }
 
 /**
+ * sa_r28_mcq: the story's questions picked from four take the oral questions' reading floor. Their marks are the
+ * phone's count (sa-store.js phoneMarks), written here once the passage's marks are known so the gate can be applied:
+ *   gated (compGate: 'first_line' | 'under_10_words'): not reached, 0 of the questions, as the oral questions; the
+ *     phone's answers kept whole in detail.raw and per question in raw_verdict ('correct' | 'wrong')
+ *   passed: the phone's marks stand, with gate_checked: true and stop_why: null (checked, not gated)
+ *   no passage marks (none recorded, or failed for good): the phone's marks stand, gate_checked: false
+ *   unrated (too few questions presented): the phone's marks, never gated (an unrated part is absent from the ladder)
+ */
+function mcqMarks(row, session) {
+  const res = resultOf(row) || {};
+  const phone = require('../sa-store').phoneMarks({ ...res, mode: 'tap' }); // eslint-disable-line global-require
+  const answers = (row.responses || []).filter((x) => x && x.kind === 'answer').map(({ kind, ...a }) => a); // eslint-disable-line no-unused-vars
+  const ofAll = Number.isFinite(res.of_all) ? res.of_all : null;
+  const of = ofAll === null ? null : Math.max(0, ofAll - (Number(res.unavailable) || 0));
+  const asked = Array.isArray(res.asked) ? res.asked.filter((q) => typeof q === 'string') : [];
+  const base = { version: VERSION, task: row.block };
+  if (res.unrated === true) return { ...base, ...phone, detail: { kind: 'mcq', unrated: true, of_all: ofAll } };
+  const passage = session.passages ? session.passages.get(passageOf(row.block)) : null;
+  const known = Boolean(passage) && !passage.pending;
+  const why = known ? compGate(passage) : null;
+  if (!why) {
+    return { ...base, correct: phone.tap_correct, of, ...phone, detail: { kind: 'mcq', stopped_by_rule: false, gate_checked: known, stop_why: null, of_all: ofAll, of_asked: asked.length } };
+  }
+  const verdictOf = (id) => { const a = answers.find((x) => x.item_id === id); return a ? (a.ok === true ? 'correct' : 'wrong') : null; };
+  return {
+    ...base,
+    correct: 0,
+    of,
+    tap_correct: 0,
+    tap_attempted: phone.tap_attempted,
+    options_n: phone.options_n,
+    chance_corrected: phone.chance_corrected === null ? null : 0,
+    stop_reason: phone.stop_reason,
+    detail: {
+      kind: 'mcq',
+      stopped_by_rule: true,
+      stop_detail: 'comprehension',
+      stop_why: why,
+      gated: true,
+      of_all: ofAll,
+      of_asked: 0,
+      items: asked.map((id, k) => ({ i: k + 1, id, verdict: 'not_reached', heard: '', conf: null, stop_rule: true, gated: true, raw_verdict: verdictOf(id) })),
+      raw: { tap_correct: phone.tap_correct, tap_attempted: phone.tap_attempted, answers },
+    },
+  };
+}
+
+/**
  * sa_r28_voice_help's fields beside second_voice: the first flagged clip's kind ('help' | 'other_child') and its matched
  * item words; other_voice the strongest non-flag label heard ('unclear' over 'support'; null when none); voice_check.
  */
@@ -1137,6 +1191,8 @@ function helpDetail(heard) {
 async function scoreRow(row, session, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const res = resultOf(row);
+  // sa_r28_mcq: the questions picked from four are the phone's count through the oral questions' reading floor
+  if (isMcq(row.block) && res && res.mode === 'tap') return { ok: true, marks: { ...mcqMarks(row, session), meta: { seconds: 0, cost_usd: 0, calls: [] } } };
   // A W3 task (w3: true in the bank) is scored from the battery the phone ran: its items carry show + answer.
   // sa_r8_variant_wait: the variant the phone showed, when it left word of it (null: the switch is off or no variants)
   const shown = session.variantWait === true ? shownVariant(session, row, d.phoneBattery) : null;
@@ -1255,10 +1311,16 @@ function ready(row, session, nowMs) {
   const res = resultOf(row);
   if (!res) return false;
   // sa_stop_rules: questions wait for their passage's marks (a passage stopped on line 1 means they were not reached)
-  // a row never waits on itself: only a `_comp` names another block (its passage)
+  // a row never waits on itself: only a `_comp` (or, sa_r28_mcq, an `_mcq`) names another block (its passage)
   const own = passageOf(row.block) === row.block;
-  const passage = !own && session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
-  if (passage && passage.pending) return false;
+  // sa_r28_mcq: the questions picked from four wait for their passage's marks too (the reading floor is applied on them)
+  const waits = session.stopRules === true || (session.mcqFloor === true && isMcq(row.block));
+  const passage = !own && waits && session.passages ? session.passages.get(passageOf(row.block)) : null;
+  if (passage && passage.pending) {
+    // sa_r28_mcq: a passage whose recording never came (not parked) is awaited only until the session ended a while ago
+    const ended = Date.parse(session.finished_at || session.client_finished_at || '') || 0;
+    if (!(passage.unparked && ended > 0 && nowMs - ended > WAIT_FOR_CLIPS_MS)) return false;
+  }
   // sa_r8_variant_wait: a rotated passage waits for its questions row (the variant the phone showed), not past the
   // session's end or VARIANT_WAIT_MS
   if (session.variantWait === true && own && shownVariant(session, row) === undefined) {
@@ -1293,7 +1355,7 @@ function db() { return require('../../../config/supabase'); } // eslint-disable-
 
 const COLS = 'id, session_id, block, response_mode, responses, audio_r2_key, audio_r2_keys, ai_status, ai_reason, ai_marks, updated_at';
 
-async function candidates({ sessionId = null, now = new Date(), supabase = db(), afterBoot = false } = {}) {
+async function candidates({ sessionId = null, now = new Date(), supabase = db(), afterBoot = false, mcqFloor = false } = {}) {
   let q = supabase.from('child_test_blocks').select(COLS).is('ai_marks', null).eq('ai_status', 'failed').like('ai_reason', 'final:sa_%')
     .gte('updated_at', new Date(now.getTime() - sinceHours() * 3600 * 1000).toISOString())
     .order('updated_at', { ascending: true }).limit(50);
@@ -1302,8 +1364,10 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
   if (error) { logError('child_test.sa_score.scan_failed', { error: error.message }); return []; }
   const nowMs = now.getTime();
   return (data || []).filter((r) => {
-    if (!TASK_RE.test(String(r.block || '')) || !hasAudio(r)) return false;
-    if (envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
+    // sa_r28_mcq: the questions picked from four have no recording (a tap task); the store parks them for the floor
+    const tapMcq = mcqFloor && isMcq(r.block) && !hasAudio(r);
+    if (!TASK_RE.test(String(r.block || '')) || !(hasAudio(r) || tapMcq)) return false;
+    if (!tapMcq && envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
     if (r.ai_reason.startsWith(WAIT_BANK)) return nowMs - Date.parse(r.updated_at || 0) >= bankBackoffMs(attemptOf(r.ai_reason, WAIT_BANK));
     if (!r.ai_reason.startsWith(SCORING) || LIVE.has(r.ai_reason) || r.ai_reason === MINE) return false;
@@ -1339,13 +1403,18 @@ async function passagesOf(sessionId, supabase) {
   const { data } = await supabase.from('child_test_blocks').select('block, ai_marks, ai_status, ai_reason').eq('session_id', sessionId);
   const out = new Map();
   const followed = new Set((data || []).map((r) => r.block).filter((b) => passageOf(b) !== b).map(passageOf));
+  // sa_r28_mcq: the passages a questions-picked-from-four row follows
+  const byMcq = new Set((data || []).map((r) => r.block).filter(isMcq).map(passageOf));
   for (const r of data || []) {
     const m = r.ai_marks;
     const kind = m && m.detail ? m.detail.kind : null;
     if (m ? kind !== 'passage' : !followed.has(r.block)) continue;
     const reason = String(r.ai_reason || '');
     const pending = !m && reason.startsWith('final:sa_') && !reason.startsWith(FAILED);
-    if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null });
+    // sa_r28_mcq: an MCQ's passage is awaited before its recording has arrived too (not parked yet), so the MCQ is
+    // never marked ahead of the marks its floor reads; ready() bounds that wait by the session's end
+    const unparked = !m && !pending && byMcq.has(r.block) && !reason.startsWith(FAILED) && r.ai_status !== 'failed';
+    if (m || pending || unparked) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending: pending || unparked, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null, ...(unparked ? { unparked: true } : {}) });
   }
   return out;
 }
@@ -1448,8 +1517,9 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const noEchoUr = await noEchoUrSwitch.enabled(deps);
   const childOnlyAnswer = await childOnlySwitch.enabled(deps);
   const ceiling = await ceilingSwitch.enabled(deps);
+  const mcqFloor = await mcqSwitch.enabled(deps);
   at.stage = 'candidates';
-  const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
+  const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept, mcqFloor });
   out.found = rows.length;
   const sessions = new Map();
   const claimed = [];
@@ -1464,6 +1534,8 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
       if (s) { s.askedBy = await askedByOf(row.session_id, supabase); s.asked = [...s.askedBy.values()].flat(); s.variantWait = variantWait; }
       if (s) s.lastWordFromRecording = await coachLastWord.enabled(deps, s.coach_user_id || null, supabase);
       if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
+      // sa_r28_mcq: the questions picked from four read their passage's marks (the reading floor), stop rules or not
+      if (s && mcqFloor) { s.mcqFloor = true; if (!s.passages) s.passages = await passagesOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
     }
     const session = sessions.get(row.session_id);
@@ -1520,5 +1592,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks },
 };
