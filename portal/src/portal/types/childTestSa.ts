@@ -134,6 +134,22 @@ export type SaTaskResult = {
   score: Record<string, number> | null;
   /** the scorer heard another person (an adult, another child) in the recording: the score may include their help */
   secondVoice?: boolean;
+  /** round 28 (tap picker / MCQ): too few items heard to rate; Results says "not rated", the dashboard leaves it out */
+  unrated?: boolean;
+  /** round 28: how many items the child heard (lost clips are not presented) */
+  presented?: number;
+  /** round 28 (ceiling): the scorer's first N items, today's scale, shown beside the rate */
+  firstN?: { correct: number; of: number };
+  /** round 28 (MCQ): the question ids the gate allowed */
+  asked?: string[];
+  /** round 28 (tap): items whose clips were lost (out of every denominator) */
+  unavailable?: number;
+  /** round 28 (MCQ, picker): the items of the variant the phone served, before lost clips (a 5-question story: 5) */
+  ofAll?: number;
+  /** round 28 (voice check 'r28'): the other voice was an adult helping, another child, or neither */
+  secondVoiceKind?: 'help' | 'other_child' | 'other_voice' | (string & {});
+  /** round 28 (tap): answers tapped before the prompt's sound ended (n), of the answers the phone timed (of) */
+  tapBeforeSound?: { n: number; of: number };
 };
 
 /** Round 20 level vocabulary (as sent for review): reading and maths ladders, plus Beginner. */

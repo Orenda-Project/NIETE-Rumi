@@ -65,10 +65,16 @@
 
   /**
    * timingUrls(clipUrls) → the word-timing file beside each v4 clip (sa/v4/<lang>/<key>.json, round 8 item 32: the screens
-   * light the words as Jugnu says them). Best effort: not every clip has one, and a missing one is never "not ready".
+   * light the words as Jugnu says them), and once, beside the v5 clips, sa/v5/prompt_timings.json (round 28: each picker
+   * prompt's speech end, which starts the tap clock). Best effort: not every clip has one, and a missing one is never
+   * "not ready". Both go into the session cache with the clips, so a SESSION bump renews them together.
    */
   function timingUrls(list) {
-    return (list || []).filter(function (u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }).map(function (u) { return u.replace(/\.mp3$/, '.json'); });
+    list = list || [];
+    var out = list.filter(function (u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }).map(function (u) { return u.replace(/\.mp3$/, '.json'); });
+    var v5 = list.filter(function (u) { return /\/sa\/v5\/(ur|en)\/[^/]+\.mp3$/.test(u); })[0];
+    if (v5) out.push(v5.replace(/\/(ur|en)\/[^/]+\.mp3$/, '/prompt_timings.json'));
+    return out;
   }
 
   /** The clip URLs of the engine's own lines (battery.lines) for this language. */
