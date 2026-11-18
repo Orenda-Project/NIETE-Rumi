@@ -574,6 +574,70 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     expect(cards(el)[1].classList.contains('is-shown')).toBe(true);
   }, 30000);
 
+  // The practice feedback after a tap (try again; after the second wrong answer the shown line) is spoken by Jugnu in
+  // coach-led as in RDF auto: the question and its answers already play in both modes, and a young child cannot read
+  // the feedback line. The line still shows on the screen.
+  for (const manual of [true, false]) {
+    test(`practice (${manual ? 'coach-led' : 'RDF auto'}): Jugnu says the feedback after each wrong answer; the line is on the screen too`, async () => {
+      setup();
+      const p = { id: 'ur.story_mcq_w3.p1', passage: { text: 'practice story' }, prompt: { text: 'practice q', audio: 'sa/v5/ur/syn_pq.mp3' },
+        options: ['w', 'x', 'y', 'z'], option_audio: [1, 2, 3, 4].map((k) => `sa/v5/ur/syn_p_o${k}.mp3`), target_index: 1, key: 2,
+        feedback: { wrong: { text: 'the answer was x', audio: 'sa/v5/ur/syn_p_wrong.mp3', lang: 'ur' } } };
+      const extra = manual ? { runner: { manual: true }, ui: { manual: true } } : {};
+      const { el, voice, runner } = mountMcq(Object.assign({ practice: true, task: { practice: [p] } }, extra));
+      await wait(20);
+      expect(runner.view().phase).toBe('practice');
+      for (let k = 0; k < 5; k++) await voice.speakNext(40);
+      const before = voice.lines.length;
+      cards(el)[3].click();
+      await wait(1100);
+      const fbText = el.querySelector('.sae-fb').textContent;
+      expect(fbText).not.toBe(' ');
+      const tryAgain = voice.lines.slice(before).map((l) => l.textObj);
+      expect(tryAgain).toHaveLength(1);
+      expect(tryAgain[0] && (tryAgain[0].text || tryAgain[0].ur)).toBe(fbText);
+      await voice.speakNext(40); // the try-again line
+      await wait(1400);
+      for (let k = 0; k < 5; k++) await voice.speakNext(40);
+      const mid = voice.lines.length;
+      cards(el)[2].click();
+      await wait(1100);
+      expect(voice.lines.slice(mid).map((l) => l.textObj && l.textObj.text)).toEqual(['the answer was x']);
+      expect(el.querySelector('.sae-fb').textContent).toBe('the answer was x');
+      expect(cards(el)[1].classList.contains('is-shown')).toBe(true);
+      await voice.speakNext(40);
+    }, 30000);
+  }
+
+  // The MCQ's instruction (how the question and its four answers are read) is said by Jugnu in coach-led too, as in RDF
+  // auto, and the ready screen's lines with it; the coach's own line stays drawn on the coach's screen.
+  for (const manual of [true, false]) {
+    test(`instruction (${manual ? 'coach-led' : 'RDF auto'}): Jugnu says the MCQ's instruction, then the ready lines`, async () => {
+      setup();
+      const core2 = require('../sa/sa-core');
+      const ui = require('../sa/sa-ui');
+      const INTRO = { text: 'mcq instruction line', audio: 'sa/v5/ur/mcq_intro.mp3', lang: 'ur' };
+      const script = { intro: INTRO, test_intro: { text: 'your turn line', lang: 'ur' }, begin: { text: 'begin line', lang: 'ur' } };
+      const tasks = [mcqTask(QS.slice(0, 2), { depends_on: null, script, coach_text: { text: 'coach line' } })];
+      const battery = { battery_id: 'b', tasks, ui: { r28_mcq: true }, lines: { coach_will_instruct: { text: 'coach will instruct line', lang: 'ur' } } };
+      const runner = core2.createRunner({ battery, onEvent: () => {}, manual });
+      const speak = jest.fn(() => Promise.resolve());
+      const said = () => speak.mock.calls.map((x) => (x[0] && x[0].text) || x[1]);
+      const el = document.getElementById('m');
+      const view = ui.mount(el, { runner, battery, lang: 'ur', mode: 'proctored', handover: false, speak, manual, r28: { letter_pick: false, mcq: true, ceiling: false } });
+      views.push(view);
+      runner.start(); view.render();
+      await wait(60);
+      expect(runner.view().phase).toBe('instruction');
+      expect(said()).toContain('mcq instruction line');
+      if (manual) expect(el.querySelector('.sae-coach-brief .sae-coach-text').textContent).toBe('coach line');
+      runner.instructionDone(); view.render();
+      await wait(60);
+      expect(runner.view().phase).toBe('ready');
+      expect(said().filter((x) => x === 'your turn line' || x === 'begin line')).toEqual(['your turn line', 'begin line']);
+    });
+  }
+
   test('B-17: o3 of question 2 lost → question 2 unavailable, the others scored; answers, asked and the hl log agree', async () => {
     setup('https://portal.test/sa/run.html?probe=1');
     const dbg = jest.spyOn(console, 'debug').mockImplementation(() => {});
@@ -686,7 +750,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
     }
   }, 20000);
 
-  test('coach-led: the offered Next is in the head row beside the replay, never the foot; RDF auto keeps it in the foot (B.3 coach-led fit)', async () => {
+  test('both modes: the offered Next is in the head row beside the replay, never the foot (B.3 fit; RDF auto the same since the foot button hid the options on a phone)', async () => {
     setup();
     for (const coach of [true, false]) {
       let T = 0;
@@ -703,16 +767,14 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
       await wait(20);
       const head = m.el.querySelector('.sae-mcq-head .sa-next');
       const foot = m.el.querySelector('.sae-foot .sa-next');
-      expect({ coach, head: !!head, foot: !!foot }).toEqual({ coach, head: coach, foot: !coach });
-      if (coach) {
-        // after the replay, Jugnu and the replay keep their order; the Next is the row's last child
-        const row = Array.from(m.el.querySelector('.sae-mcq-head').children);
-        expect(row[row.length - 1]).toBe(head);
-        expect(row.indexOf(m.el.querySelector('.sae-mcq-replay'))).toBeLessThan(row.indexOf(head));
-        expect(m.el.querySelector('.sae-foot')).toBeNull(); // no foot at all: nothing below the cards to come and go
-        head.click();
-        expect(m.runner.view().item_index).toBe(1); // the coach's Next moves on (a skip), as the foot's did
-      }
+      expect({ coach, head: !!head, foot: !!foot }).toEqual({ coach, head: true, foot: false });
+      // after the replay, Jugnu and the replay keep their order; the Next is the row's last child, in both modes
+      const row = Array.from(m.el.querySelector('.sae-mcq-head').children);
+      expect(row[row.length - 1]).toBe(head);
+      expect(row.indexOf(m.el.querySelector('.sae-mcq-replay'))).toBeLessThan(row.indexOf(head));
+      expect(m.el.querySelector('.sae-foot')).toBeNull(); // no foot at all: nothing below the cards to come and go
+      head.click();
+      expect(m.runner.view().item_index).toBe(1); // Next moves on (a skip), as the foot's did
       views.forEach((v) => v.destroy()); views = [];
     }
   }, 20000);
@@ -1169,7 +1231,7 @@ maybe('sa_r28_mcq UI: the read-out, the held choice, the settle, the replay', ()
       for (let k = 0; k < 5; k++) { const l = await voice.speakNext(40); expect(clipOf(l)).toBe(k === 0 ? 'sa/v5/ur/syn_pq.mp3' : `sa/v5/ur/syn_p_o${k}.mp3`); }
       cards(el)[3].click();
       await wait(1100);
-      if (mode !== 'coach-led') await voice.speakNext(40); // "try again" (coach-led: the feedback is text only)
+      await voice.speakNext(40); // "try again": Jugnu says it in both modes (coach-led too, as the question's clips)
       await wait(1400);
       // the retry re-reads the question, never the passage
       for (let k = 0; k < 5; k++) { const l = await voice.speakNext(40); expect(clipOf(l)).toBe(k === 0 ? 'sa/v5/ur/syn_pq.mp3' : `sa/v5/ur/syn_p_o${k}.mp3`); }
@@ -1513,6 +1575,22 @@ function mounted(html) {
   if ((MOUNT.sync || MOUNT.embed) && (out === html || !lang)) throw new Error('mount not applied');
   return out;
 }
+/** A frame captured for a person (the shot dirs). The stand-in hold row above is drawn at BOTH top corners so every hit
+ *  test reads against either; the served coach page draws one, at the portal's start. With SA_SHOT_ONE_HOLD=1 the
+ *  far-side row (the one whose direction is not the page's: an Urdu/RTL page keeps the right-hand row, an English/LTR
+ *  page the left) is hidden for the capture alone and put back at once, so no hit test ever runs without it. Without
+ *  the flag this is page.screenshot(opts), unchanged. */
+async function personShot(p, opts) {
+  if (process.env.SA_SHOT_ONE_HOLD !== '1') return p.screenshot(opts);
+  await p.evaluate(() => {
+    const root = document.querySelector('.sae') || document.body; const dir = getComputedStyle(root).direction;
+    document.querySelectorAll('.coach-hold-row').forEach((r) => { if (r.dir !== dir) { r.dataset.shotHidden = r.style.visibility || '-'; r.style.visibility = 'hidden'; } });
+  });
+  try { return await p.screenshot(opts); } finally {
+    await p.evaluate(() => document.querySelectorAll('.coach-hold-row[data-shot-hidden]').forEach((r) => {
+      r.style.visibility = r.dataset.shotHidden === '-' ? '' : r.dataset.shotHidden; delete r.dataset.shotHidden; }));
+  }
+}
 
 /** Round 7: the coach's line, one line at a time (A6's per-line ink method). Its text is split at its line breaks
  *  into spans laid out exactly as before, every other element on the screen hidden, one line's text drawn at a time;
@@ -1596,7 +1674,7 @@ afterAll(() => { if (process.env.SA_B10_SIZES) require('fs').writeFileSync(proce
 /** The B10 shot of a frame under the production mount (SA_B10_SHOTS). */
 async function b10Shot(p, what, lang) {
   if (!process.env.SA_B10_SHOTS || MOUNT !== MOUNTS.prod) return;
-  await p.screenshot({ path: require('path').join(process.env.SA_B10_SHOTS, `b10_${what}_${lang}_phone_coach.png`) });
+  await personShot(p, { path: require('path').join(process.env.SA_B10_SHOTS, `b10_${what}_${lang}_phone_coach.png`) });
 }
 
 /** The bank's longest question (code points) and longest four-answer set, per language: the worst case for the fit. */
@@ -1714,7 +1792,7 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
       out[name] = await p.evaluate(measure);
       out[name].frame = await frameRead(p);
       if (inkLine) out[name].coach_ink = out[name].frame.line.length ? await coachLineInk(p) : null;
-      if (shots) await p.screenshot({ path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
+      if (shots) await personShot(p, { path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
       if (urFit && !inkLine && B10SHOT[name]) await b10Shot(p, B10SHOT[name], lang);
     };
     const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
@@ -2307,13 +2385,13 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
       out[name] = await p.evaluate(measure);
       out[name].frame = await frameRead(p);
       out[name].stem_above = await stemAbove(p);
-      if (shots && SHOT[name]) await p.screenshot({ path: path.join(shots, `b9_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
+      if (shots && SHOT[name]) await personShot(p, { path: path.join(shots, `b9_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
       if (ui.r9_skip_instructions && B10SHOT[name]) await b10Shot(p, B10SHOT[name], lang);
       // round 10: the coach's line on the passage step (above, the step that precedes every question), one line at a time
       if (name === 'passage' && out[name].frame.line.length) out[name].coach_ink = await coachLineInk(p);
       if (name === 'foldopen' && out[name].frame.line.length) out[name].coach_ink = await coachLineInk(p);
       // the coach's Next exists only without the Skip: that frame is shot from the no-Skip walk
-      if (process.env.SA_B9_SHOTS && !ui.r9_skip_instructions && name === 'passage_next') await p.screenshot({ path: path.join(process.env.SA_B9_SHOTS, `b9_practice_passagenext_noskip_${lang}_phone_coach.png`) });
+      if (process.env.SA_B9_SHOTS && !ui.r9_skip_instructions && name === 'passage_next') await personShot(p, { path: path.join(process.env.SA_B9_SHOTS, `b9_practice_passagenext_noskip_${lang}_phone_coach.png`) });
     };
     const { ctx, p } = await open(lang, ui);
     // the passage step (the first clip asked is the passage's), then a tap on its text at +1 s: the step goes on
@@ -2583,7 +2661,7 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
       await p.waitForTimeout(200);
       out[name] = await p.evaluate(measure);
       out[name].stem_above = await stemAbove(p);
-      if (shots && SHOT[name] && ui.r9_skip_instructions) await p.screenshot({ path: path.join(shots, `b8_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
+      if (shots && SHOT[name] && ui.r9_skip_instructions) await personShot(p, { path: path.join(shots, `b8_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
     };
     let { ctx, p } = await open(lang, ui);
     await snap(p, 'listening');
@@ -2611,7 +2689,7 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
     await p.waitForTimeout(900); // settle + press: the practice's feedback
     out.feedback = await p.evaluate(measure);
     out.feedback.stem_above = await stemAbove(p);
-    if (shots && ui.r9_skip_instructions) await p.screenshot({ path: path.join(shots, `b8_practice_feedback_${lang}_phone_coach.png`) });
+    if (shots && ui.r9_skip_instructions) await personShot(p, { path: path.join(shots, `b8_practice_feedback_${lang}_phone_coach.png`) });
     await p.waitForTimeout(1600); // the retry: the same question read again
     for (let k = 0; k < 5; k++) await endLine(p, k === 0 ? 900 : 600);
     await p.waitForTimeout(300);
@@ -2696,6 +2774,314 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
         .toEqual({ lit_before: true, phase: 'ready', ready: true, skipped: true, speaks_after: [], lit: 0 });
     }, 240000);
   }
+});
+
+// ------------------------------------------------------------------------------------------------------------------
+// RDF auto (no coach box) on a 360×640 Urdu phone: the question card holds both lines of the served battery's two-line
+// question (G2 Set A Q1). Read at DPR 3 and 2, in three states (the question being read, the answers open after the
+// read-out, the Next offered), with the layout switches each tier serves on this battery, in every mount. Per state:
+// the card does not scroll inside itself, the last line box of a Range over its text ends inside its padding box, the
+// first answer card sits below it, and the question's ink (overflow made visible, everything else hidden) stays inside
+// the card: none above its top, none below its bottom, none in the gap over answer 1. Ink = luminance < 120.
+// ------------------------------------------------------------------------------------------------------------------
+/** The served battery's MCQ question 1 of a language (sa.coach.G2.A.ur, the RDF auto list) and its four answers. */
+function servedG2Q1(lang) {
+  const fs = require('fs');
+  const b = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa', 'sa.coach.G2.A.ur.json'), 'utf8'));
+  const t = b.tasks.find((x) => x.kind === 'mcq' && x.lang === (lang || 'ur') && (b.rdf_auto || []).includes(x.replaces));
+  return { task: t, item: t.items[0] };
+}
+/** The layout switches each tier serves on that battery (its battery.ui, read from /sa/batteries/), MCQ on. */
+const SERVED_UI = {
+  sandbox: ['audio_gated_next', 'auto_child_last_word', 'auto_no_last_word', 'back_button', 'cell_next_only', 'cell_pace', 'coach_last_word', 'comp_all_questions', 'end_section',
+    'end_test_restart', 'incomplete_move_on', 'one_at_a_time', 'passage_punct', 'r10_bigger_audio', 'r10_hint_once', 'r10_number_fit', 'r10_practice_gap', 'r10_practice_next',
+    'r10_urdu_fit', 'r12_intro_once', 'r28_ceiling', 'r28_letter_pick', 'r28_mcq', 'r28_story_clock', 'r8_comp_wait_next', 'r8_counts', 'r8_highlight', 'r8_lang_switch',
+    'r8_latin_digits', 'r8_layout', 'r8_missing_number', 'r8_nudges', 'r8_practice_autoplay', 'r8_reading_no_done', 'r8_reading_position', 'r8_story_snap', 'r8_timeup_continue',
+    'r9_audio', 'r9_comp_text', 'r9_question_time', 'r9_scroll_cue', 'r9_skip_instructions', 'rdf_manual', 'say_then_next', 'section_recording', 'silence_repeat', 'story_scroll',
+    't_sound_ta', 'tick_prompt', 'ur_fit', 'voice_gate_v2'],
+  staging: ['audio_gated_next', 'auto_child_last_word', 'auto_no_last_word', 'back_button', 'cell_next_only', 'cell_pace', 'coach_last_word', 'comp_all_questions', 'end_section',
+    'end_test_restart', 'incomplete_move_on', 'one_at_a_time', 'passage_punct', 'r10_bigger_audio', 'r10_hint_once', 'r10_number_fit', 'r10_practice_gap', 'r10_practice_next',
+    'r10_urdu_fit', 'r12_intro_once', 'r20_auto_end_section', 'r28_mcq', 'r8_comp_wait_next', 'r8_counts', 'r8_highlight', 'r8_ios_mic', 'r8_lang_switch', 'r8_latin_digits',
+    'r8_layout', 'r8_missing_number', 'r8_nudges', 'r8_practice_autoplay', 'r8_reading_no_done', 'r8_reading_position', 'r8_story_snap', 'r8_timeup_continue', 'r9_audio',
+    'r9_comp_text', 'r9_question_time', 'r9_scroll_cue', 'r9_skip_instructions', 'rdf_manual', 'say_then_next', 'section_recording', 'silence_repeat', 'story_scroll', 't_sound_ta',
+    'tick_prompt', 'ur_fit', 'voice_gate_v2'],
+};
+const RDF_Q_SIZES = {};
+afterAll(() => { if (process.env.SA_RDF_Q_SIZES) require('fs').writeFileSync(process.env.SA_RDF_Q_SIZES, JSON.stringify(RDF_Q_SIZES, null, 1)); });
+
+maybeBrowser('sa_r28_mcq RDF auto on a 360×640 Urdu phone: the two-line question card holds its ink (served G2 Set A Q1)', () => {
+  const fs = require('fs');
+  const SA = path.join(__dirname, '..', 'sa');
+  const PUB = path.join(__dirname, '..', 'public', 'wq');
+  let browser;
+  beforeAll(async () => { browser = await chromium.launch(process.env.PWCHROME_EXE ? { executablePath: process.env.PWCHROME_EXE } : {}); });
+  afterAll(async () => { if (browser) await browser.close(); });
+
+  function page(set, manual, lang, swap) {
+    const { task, item } = servedG2Q1(lang);
+    const ui = Object.fromEntries(SERVED_UI[set].map((k) => [k, true]));
+    // swap: another served question's text and answers in question 1's place (the sweep below)
+    const first = swap ? Object.assign({}, item, { prompt: Object.assign({}, item.prompt, { text: swap.q }), options: swap.options }) : item;
+    const t = Object.assign({}, task, { depends_on: null, items: [first, task.items[1]], practice: [] });
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${fs.readFileSync(path.join(SA, 'sa.css'), 'utf8')}</style></head><body style="margin:0"><main id="m"></main>
+<script>${fs.readFileSync(path.join(SA, 'sa-core.js'), 'utf8')}</script>
+<script>${fs.readFileSync(path.join(SA, 'sa-ui.js'), 'utf8')}</script>
+<script>
+  window.__T = 0; var cur = null;
+  function speak() { var a = new EventTarget(); a.paused = false; a.ended = false; a.currentTime = 0.5; var line = { a: a }; cur = line;
+    return new Promise(function (res) { line.end = function () { a.paused = true; a.ended = true; a.dispatchEvent(new Event('ended')); if (cur === line) cur = null; res(); }; }); }
+  speak.audio = function () { return cur ? cur.a : null; };
+  window.__end = function () { if (!cur) return false; cur.end(); return true; };
+  var battery = { battery_id: 'b', ui: ${JSON.stringify(ui)}, tasks: [${JSON.stringify(t)}] };
+  var runner = SAE.core.createRunner({ battery: battery, now: function () { return window.__T; }, manual: ${manual}, onEvent: function () {} });
+  var view = SAE.ui.mount(document.getElementById('m'), { runner: runner, battery: battery, lang: '${lang}', mode: 'proctored', manual: ${manual}, handover: false, ur_fit: true,
+    r28: { letter_pick: false, mcq: true, ceiling: false }, speak: speak });
+  runner.start(); runner.instructionDone(); runner.begin(); view.render(); window.__view = view;
+</script></body></html>`;
+  }
+  async function open(set, dpr, manual, lang, vw, swap) {
+    const ctx = await browser.newContext({ viewport: vw || { width: 360, height: 640 }, deviceScaleFactor: dpr });
+    const p = await ctx.newPage();
+    const html = mounted(page(set, manual, lang || 'ur', swap));
+    await p.route('**/*', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.startsWith('/wq/fonts/')) return route.fulfill({ path: path.join(PUB, 'fonts', path.basename(u.pathname)), contentType: 'font/woff2' });
+      if (/^\/wq\/jugnu_[a-z]+\.webp$/.test(u.pathname)) return route.fulfill({ path: path.join(PUB, path.basename(u.pathname)), contentType: 'image/webp' });
+      if (u.pathname === '/') return route.fulfill({ body: html, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await p.goto('http://sa.test/');
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(400);
+    return { ctx, p };
+  }
+  /** Rows of ink (CSS px) in a band of the page with only the question card's text drawn (its overflow visible). */
+  async function qInk(p, dpr, y0, y1, vh) {
+    await p.evaluate(() => {
+      const q = document.querySelector('.sae-mcq-q'); const keep = new Set(); let n = q; while (n) { keep.add(n); n = n.parentElement; }
+      window.__qi = { hidden: [], ov: q.style.overflow }; q.style.overflow = 'visible';
+      document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !q.contains(x) && x.style.visibility !== 'hidden') { x.style.visibility = 'hidden'; window.__qi.hidden.push(x); } });
+    });
+    y0 = Math.max(0, Math.floor(y0)); y1 = Math.min(vh ? vh.height : 640, Math.ceil(y1));
+    const png = await p.screenshot({ clip: { x: 0, y: y0, width: vh ? vh.width : 360, height: y1 - y0 } });
+    const rows = await p.evaluate(async ([b64, top, d]) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const px = g.getImageData(0, 0, c.width, c.height).data; const out = [];
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) { const i = (y * c.width + x) * 4; if (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2] < 120) { out.push(+(top + y / d).toFixed(2)); break; } }
+      return out;
+    }, [png.toString('base64'), y0, dpr]);
+    await p.evaluate(() => { const q = document.querySelector('.sae-mcq-q'); window.__qi.hidden.forEach((x) => { x.style.visibility = ''; }); q.style.overflow = window.__qi.ov; delete window.__qi; });
+    return rows;
+  }
+  async function read(p, dpr, vh) {
+    await p.waitForTimeout(250);
+    const g = await p.evaluate(() => {
+      const q = document.querySelector('.sae-mcq-q'); const cs = getComputedStyle(q); const r = q.getBoundingClientRect();
+      const rg = document.createRange(); rg.selectNodeContents(q); const rects = Array.from(rg.getClientRects()).filter((x) => x.width || x.height);
+      const o1 = document.querySelector('.sae-mcq-opt').getBoundingClientRect();
+      const over = (n) => (n ? Math.max(0, n.scrollHeight - n.clientHeight) : 0);
+      const cards = Array.from(document.querySelectorAll('.sae-mcq-opt')).map((c) => c.getBoundingClientRect());
+      return { top: r.top, bottom: r.bottom, h: +r.height.toFixed(2), pad_top: parseFloat(cs.paddingTop), pad_bottom: parseFloat(cs.paddingBottom), border_bottom: parseFloat(cs.borderBottomWidth), font: cs.fontSize + '/' + cs.lineHeight,
+        sh_minus_ch: q.scrollHeight - q.clientHeight, lines: new Set(rects.map((x) => Math.round(x.top))).size,
+        range_first_top: rects.length ? rects[0].top : null, range_last_bottom: rects.length ? rects[rects.length - 1].bottom : null,
+        opt1_top: o1.top, clamp: !!document.querySelector('.sae-mcq.is-clamp'), coach: !!document.querySelector('.sae-mcq-coach'),
+        nastaliq: document.fonts.check(cs.font, q.textContent), text: q.textContent,
+        cards_top: cards.map((c) => +c.top.toFixed(1)), cards_h: cards.map((c) => Math.round(c.height)), ring_bottom: +(Math.max(...cards.map((c) => c.bottom)) + 7).toFixed(1),
+        page_h: document.documentElement.scrollHeight, inner_scroll: over(document.querySelector('.sae-screen')) + over(document.querySelector('.sae-mcq .sae-body')),
+        next: !!document.querySelector('.sa-next'), listening: !!document.querySelector('.sae-mcq.sae-mcq-listening'),
+        // where the screen's room goes (top, bottom per part), for the record
+        layout: Object.fromEntries([['top_bar', '.sae-mcq > .sae-top'], ['body', '.sae-mcq .sae-body'], ['title', '.sae-mcq .sae-task-tag'], ['head', '.sae-mcq-head'], ['card', '.sae-mcq-q'],
+          ['opts', '.sae-mcq-opts'], ['foot', '.sae-mcq > .sae-foot'], ['next', '.sa-next']].map(([k, sel]) => { const e = document.querySelector(sel); if (!e) return [k, null];
+          const b = e.getBoundingClientRect(); return [k, [+b.top.toFixed(1), +b.bottom.toFixed(1)]]; })) };
+    });
+    const rows = await qInk(p, dpr, g.top - 40, g.opt1_top + 20, vh);
+    const R = (x) => +x.toFixed(2);
+    return Object.assign(g, {
+      top: R(g.top), bottom: R(g.bottom), opt1_top: R(g.opt1_top), range_first_top: R(g.range_first_top), range_last_bottom: R(g.range_last_bottom),
+      // the last line's box (the Range's last client rect: the face's ascent + descent) against the card's padding box
+      // (≤ 0: inside), and, for the record, against its content box (the line boxes alone)
+      range_last_vs_padbox: R(g.range_last_bottom - (g.bottom - g.border_bottom)), range_last_vs_content: R(g.range_last_bottom - (g.bottom - g.border_bottom - g.pad_bottom)),
+      gap_to_opt1: R(g.opt1_top - g.bottom),
+      ink_top: rows.length ? rows[0] : null, ink_bottom: rows.length ? rows[rows.length - 1] : null,
+      ink_above_card: rows.length ? R(Math.max(0, g.top - rows[0])) : null, ink_below_card: rows.length ? R(Math.max(0, rows[rows.length - 1] - (g.bottom - 1 / dpr))) : null,
+      ink_rows_in_gap: rows.filter((y) => y >= g.bottom && y < g.opt1_top).length,
+      // the room left between the ink and the card's edges (record)
+      ink_clear_top: rows.length ? R(rows[0] - g.top) : null, ink_clear_bottom: rows.length ? R(g.bottom - rows[rows.length - 1]) : null,
+    });
+  }
+  /** The three RDF auto states of question 1: listening (Jugnu reading the question), open (after the read-out), and
+   *  the Next offered (past the per-mode wait; an auto replay in between is read to its end). */
+  async function states(set, dpr, manual, lang, vw) {
+    const out = {};
+    const { ctx, p } = await open(set, dpr, manual, lang, vw);
+    out.listening = await read(p, dpr, vw);
+    for (let k = 0; k < 5; k++) { await p.evaluate(() => window.__end()); await p.waitForTimeout(k === 0 ? 900 : 600); }
+    out.open = await read(p, dpr, vw);
+    for (let k = 0; k < 8; k++) {
+      await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+      await p.waitForTimeout(300);
+      while (await p.evaluate(() => window.__end())) await p.waitForTimeout(700);
+      if (await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); })) break;
+    }
+    out.offernext = await read(p, dpr, vw);
+    if (process.env.SA_RDF_Q_SHOTS && MOUNT === MOUNTS.prod && !vw) await personShot(p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_offernext.png`) });
+    await ctx.close();
+    if (process.env.SA_RDF_Q_SHOTS && MOUNT === MOUNTS.prod && !vw) {
+      // the three states, shot again on a fresh page at this DPR (the read above restores the page after its ink read)
+      const s = await open(set, dpr, manual, lang);
+      await personShot(s.p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_listening.png`) });
+      for (let k = 0; k < 5; k++) { await s.p.evaluate(() => window.__end()); await s.p.waitForTimeout(k === 0 ? 900 : 600); }
+      await s.p.waitForTimeout(250);
+      await personShot(s.p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_open.png`) });
+      await s.ctx.close();
+    }
+    return out;
+  }
+
+  for (const mnt of MOUNT_NAMES) {
+    for (const set of Object.keys(SERVED_UI)) {
+      for (const dpr of [3, 2]) {
+        test(`[${mnt}] ${set}'s switches, DPR ${dpr}: question 1 in RDF auto — listening, open, Next offered: no scroll in the card, its last line inside the padding box, its ink inside the card and none over answer 1`, async () => { MOUNT = MOUNTS[mnt];
+          const r = await states(set, dpr, false);
+          RDF_Q_SIZES[`${mnt}|${set}|ur|auto|dpr${dpr}`] = r;
+          if (process.env.SA_FIT_DEBUG) process.stdout.write(`RDFQ ${mnt} ${set} dpr${dpr} ${JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, m]) => [k, { h: m.h, font: m.font, pad: [m.pad_top, m.pad_bottom], sh_ch: m.sh_minus_ch, range_last_vs_padbox: m.range_last_vs_padbox, range_last_vs_content: m.range_last_vs_content, gap: m.gap_to_opt1, ink_above: m.ink_above_card, ink_below: m.ink_below_card, ink_gap: m.ink_rows_in_gap, clamp: m.clamp, ring: m.ring_bottom, inner: m.inner_scroll, page_h: m.page_h }])))}\n`);
+          expect({ listening: r.listening.listening, open: r.open.listening, next: r.offernext.next }).toEqual({ listening: true, open: false, next: true });
+          for (const [state, m] of Object.entries(r)) {
+            expect({ state, text: m.text, coach: m.coach, nastaliq: m.nastaliq, lines: m.lines }).toEqual({ state, text: servedG2Q1('ur').item.prompt.text, coach: false, nastaliq: true, lines: 2 });
+            expect({ state, sh_minus_ch: m.sh_minus_ch, last_line_inside: m.range_last_vs_padbox <= 0, range_last_vs_padbox: m.range_last_vs_padbox, gap_ok: m.gap_to_opt1 >= 0, ink_rows_in_gap: m.ink_rows_in_gap,
+              ink_above_card: m.ink_above_card, ink_below_card: m.ink_below_card })
+              .toEqual({ state, sh_minus_ch: 0, last_line_inside: true, range_last_vs_padbox: m.range_last_vs_padbox, gap_ok: true, ink_rows_in_gap: 0, ink_above_card: 0, ink_below_card: 0 });
+            expect({ state, cards_h: m.cards_h }).toEqual({ state, cards_h: [56, 56, 56, 56] });
+            // the room the card takes never scrolls the cards: before the Next is offered nothing scrolls and the lowest
+            // card's ring ends inside the body (the Next offered in the foot is read, not asserted here)
+            if (state !== 'offernext') expect({ state, page_h: m.page_h, inner_scroll: m.inner_scroll, ring_in_body: m.ring_bottom <= m.layout.body[1] })
+              .toEqual({ state, page_h: 640, inner_scroll: 0, ring_in_body: true });
+          }
+        }, 180000);
+      }
+    }
+  }
+  /** The question card's ink line by line: its text split at its line breaks into spans (the layout checked unchanged),
+   *  everything else hidden, overflow visible, one line drawn at a time; a pixel is ink when its luminance < 120 with
+   *  that line drawn and >= 120 with no text drawn. Per line its ink top and bottom (CSS px), and per pair of
+   *  consecutive lines the gap between line N's ink bottom and line N+1's ink top (< 0: the lines' ink overlaps). */
+  async function qLineInk(p, dpr) {
+    const geo = await p.evaluate(() => {
+      const q = document.querySelector('.sae-mcq-q'); const before = q.getBoundingClientRect();
+      const tw = document.createTreeWalker(q, NodeFilter.SHOW_TEXT); const nodes = []; let n; while ((n = tw.nextNode())) nodes.push(n);
+      const r = document.createRange(); const tops = []; const segs = [];
+      nodes.forEach((tn) => { const s = tn.textContent; let cur = null;
+        for (let i = 0; i < s.length; i++) { r.setStart(tn, i); r.setEnd(tn, i + 1); const rc = r.getClientRects()[0]; let line = cur ? cur.line : 0;
+          if (rc && rc.width) { const t = Math.round(rc.top); let k = tops.findIndex((x) => Math.abs(x - t) <= 4); if (k < 0) { tops.push(t); k = tops.length - 1; } line = k; }
+          if (!cur || cur.line !== line) { cur = { tn, start: i, end: i + 1, line }; segs.push(cur); } else cur.end = i + 1; } });
+      const order = tops.map((t, i) => [t, i]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+      window.__ql = { q, html: q.innerHTML, hidden: [], css: q.style.cssText };
+      for (let k = segs.length - 1; k >= 0; k--) { const sg = segs[k]; const sp = document.createElement('span'); sp.className = 'ql-line'; sp.dataset.l = String(order.indexOf(sg.line));
+        sp.textContent = sg.tn.textContent.slice(sg.start, sg.end); const after = sg.tn.splitText(sg.start); after.textContent = after.textContent.slice(sg.end - sg.start); sg.tn.parentNode.insertBefore(sp, after); }
+      q.style.overflow = 'visible'; q.style.webkitLineClamp = 'none'; q.style.display = 'block';
+      const aft = q.getBoundingClientRect(); const keep = new Set(); let e = q; while (e) { keep.add(e); e = e.parentElement; }
+      document.querySelectorAll('body *').forEach((x) => { if (!keep.has(x) && !q.contains(x) && x.style.visibility !== 'hidden') { x.style.visibility = 'hidden'; window.__ql.hidden.push(x); } });
+      return { lines: tops.length, same_layout: Math.abs(before.height - aft.height) < 0.5 && Math.abs(before.top - aft.top) < 0.5, top: aft.top, bottom: aft.bottom };
+    });
+    const y0 = Math.max(0, Math.floor(geo.top) - 60); const clip = { x: 0, y: y0, width: 360, height: Math.min(640, Math.ceil(geo.bottom) + 60) - y0 };
+    const mask = async () => p.evaluate(async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data; let s = '';
+      for (let i = 0; i < d.length; i += 4) s += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) < 120 ? '1' : '0';
+      return { w: c.width, m: s }; }, (await p.screenshot({ clip })).toString('base64'));
+    const show = (k) => p.evaluate((k) => document.querySelectorAll('.ql-line').forEach((sp) => { sp.style.color = String(k) === sp.dataset.l ? '' : 'transparent'; }), k);
+    await show(-1); const none = await mask();
+    const ink = [];
+    for (let k = 0; k < geo.lines; k++) {
+      await show(k); const A = await mask(); let top = null, bottom = null;
+      for (let i = 0; i < A.m.length; i++) if (A.m[i] === '1' && none.m[i] === '0') { const y = y0 + Math.floor(i / A.w) / dpr; if (top == null) top = y; bottom = y + 1 / dpr; }
+      ink.push({ top: +top.toFixed(2), bottom: +bottom.toFixed(2) });
+    }
+    await p.evaluate(() => { const o = window.__ql; o.hidden.forEach((x) => { x.style.visibility = ''; }); o.q.innerHTML = o.html; o.q.style.cssText = o.css; delete window.__ql; });
+    return { lines: geo.lines, same_layout: geo.same_layout, ink, gaps: ink.slice(1).map((x, i) => +(x.top - ink[i].bottom).toFixed(2)) };
+  }
+  /** Reach on the screen as drawn: every answer card whole and hit at its centre, the offered Next whole and hit at its
+   *  centre, the body's and the screen's scroll overflow, the page's, and a drawn scroll cue. */
+  const reach = (p) => p.evaluate(() => {
+    const vh = window.innerHeight; const vw = window.innerWidth;
+    const ok = (k) => { const b = k.getBoundingClientRect(); const e = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+      return b.top >= 0 && b.bottom <= vh && b.left >= 0 && b.right <= vw && !!e && (e === k || k.contains(e)); };
+    const over = (n) => (n ? Math.max(0, Math.round(n.scrollHeight - n.clientHeight)) : 0);
+    const scr = document.querySelector('.sae-screen'); const nx = document.querySelector('.sae-screen .sa-next');
+    return { options_ok: Array.from(document.querySelectorAll('.sae-mcq-opts .sae-mcq-opt')).filter(ok).length, next_ok: !!nx && ok(nx),
+      body_over: over(scr.querySelector('.sae-body')), screen_over: over(scr), page_over: Math.max(0, document.documentElement.scrollHeight - vh),
+      cue: Array.from(document.querySelectorAll('.sae-r9-scroll')).some((c) => !c.hidden && getComputedStyle(c).display !== 'none') };
+  });
+  // a two-line Urdu question in RDF auto on a 360×640 phone: line 2's ink starts below line 1's ink (they never draw
+  // into each other), and the card that holds them still leaves all four answers, the offered Next and the replay in
+  // reach with nothing scrolling — the served G2 Set A Q1 and the longest served Urdu question, both tiers' switches
+  const LONGEST_UR = 'ur.story2.q5'; // 43 characters; after Q1, the tallest ink of the served Urdu questions
+  for (const set of Object.keys(SERVED_UI)) for (const dpr of [3, 2]) {
+    test(`[prod] ${set}'s switches, DPR ${dpr}: Q1 and the longest Urdu question in RDF auto — the two lines' ink apart, four answers and the offered Next in reach, nothing scrolls`, async () => { MOUNT = MOUNTS.prod;
+      const longest = servedOf('ur').find((x) => x.id === LONGEST_UR);
+      expect(longest).toBeTruthy();
+      const rows = {};
+      for (const [id, swap] of [['q1', null], [LONGEST_UR, longest]]) {
+        const { ctx, p } = await open(set, dpr, false, 'ur', null, swap);
+        for (let k = 0; k < 5; k++) { await p.evaluate(() => window.__end()); await p.waitForTimeout(k === 0 ? 900 : 600); }
+        await p.waitForTimeout(250);
+        const read_ink = await qLineInk(p, dpr); const read_reach = await reach(p);
+        for (let k = 0; k < 8; k++) {
+          await p.evaluate(() => { window.__T += 16000; window.__view.render(); });
+          await p.waitForTimeout(300);
+          while (await p.evaluate(() => window.__end())) await p.waitForTimeout(700);
+          if (await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); })) break;
+        }
+        await p.waitForTimeout(250);
+        const offer_ink = await qLineInk(p, dpr); const offer_reach = await reach(p);
+        if (process.env.SA_RDF_Q_SHOTS) await personShot(p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `lines_${set}_${id}_dpr${dpr}_offernext.png`) });
+        await ctx.close();
+        rows[id] = { read_ink, read_reach, offer_ink, offer_reach };
+      }
+      RDF_Q_SIZES[`prod|${set}|ur|auto|dpr${dpr}|lines_apart`] = rows;
+      for (const [id, r] of Object.entries(rows)) {
+        for (const st of ['read', 'offer']) {
+          const i = r[`${st}_ink`];
+          expect({ id, st, lines: i.lines, same_layout: i.same_layout, apart: i.gaps.every((g) => g >= 0), gaps: i.gaps })
+            .toEqual({ id, st, lines: 2, same_layout: true, apart: true, gaps: i.gaps });
+        }
+        expect({ id, read: r.read_reach, offer: r.offer_reach }).toEqual({ id,
+          read: { options_ok: 4, next_ok: false, body_over: 0, screen_over: 0, page_over: 0, cue: false },
+          offer: { options_ok: 4, next_ok: true, body_over: 0, screen_over: 0, page_over: 0, cue: false } });
+      }
+    }, 240000);
+  }
+  // every served Urdu question with its own answers, the question being read (sandbox's switches, DPR 2): the same
+  // card rules hold one line or two, and the room the card takes never scrolls the cards
+  test(`[${MOUNT_NAMES[0]}] every served Urdu question in RDF auto: its ink inside the card, nothing scrolls`, async () => { MOUNT = MOUNTS[MOUNT_NAMES[0]];
+    const rows = {};
+    for (const it of servedOf('ur')) {
+      const { ctx, p } = await open('sandbox', 2, false, 'ur', null, it);
+      const m = await read(p, 2);
+      await ctx.close();
+      rows[it.id] = { lines: m.lines, h: m.h, sh_minus_ch: m.sh_minus_ch, ink_above_card: m.ink_above_card, ink_below_card: m.ink_below_card, ink_rows_in_gap: m.ink_rows_in_gap,
+        ink_clear_top: m.ink_clear_top, ink_clear_bottom: m.ink_clear_bottom, ring_bottom: m.ring_bottom, body_bottom: m.layout.body[1], inner_scroll: m.inner_scroll, page_h: m.page_h };
+    }
+    RDF_Q_SIZES[`${MOUNT_NAMES[0]}|sandbox|ur|auto|dpr2|served_sweep`] = rows;
+    expect(Object.keys(rows).length).toBeGreaterThanOrEqual(12);
+    expect(Object.entries(rows).map(([id, r]) => ({ id, sh_minus_ch: r.sh_minus_ch, ink_above_card: r.ink_above_card, ink_below_card: r.ink_below_card, ink_rows_in_gap: r.ink_rows_in_gap, inner_scroll: r.inner_scroll, page_h: r.page_h, ring_in_body: r.ring_bottom <= r.body_bottom }))
+      .filter((x) => x.sh_minus_ch !== 0 || x.ink_above_card !== 0 || x.ink_below_card !== 0 || x.ink_rows_in_gap !== 0 || x.inner_scroll !== 0 || x.page_h !== 640 || !x.ring_in_body)).toEqual([]);
+  }, 600000);
+  // the frames this rule must leave as they are, read for the record (sizes only; the claim is the before/after
+  // compare): the coach-led phone (its own padding 25/13, asserted by the round-5 sweep), English RDF auto, the tablet
+  test('[prod] the coach-led phone, English RDF auto and the 800×1280 tablet, read for the record', async () => { MOUNT = MOUNTS.prod;
+    const TAB = { width: 800, height: 1280 };
+    for (const set of Object.keys(SERVED_UI)) for (const dpr of [3, 2]) {
+      RDF_Q_SIZES[`prod|${set}|ur|coach|dpr${dpr}`] = await states(set, dpr, true, 'ur');
+      RDF_Q_SIZES[`prod|${set}|en|auto|dpr${dpr}`] = await states(set, dpr, false, 'en');
+    }
+    for (const set of Object.keys(SERVED_UI)) for (const [lang, manual] of [['ur', false], ['ur', true], ['en', false]]) {
+      RDF_Q_SIZES[`prod|${set}|${lang}|${manual ? 'coach' : 'auto'}|tablet|dpr2`] = await states(set, 2, manual, lang, TAB);
+    }
+    expect(Object.keys(RDF_Q_SIZES).filter((k) => /^prod\|/.test(k) && /\|(coach|en\|auto|tablet)\|/.test(k)).length).toBeGreaterThanOrEqual(14);
+  }, 900000);
 });
 
 describe('sa_r28_mcq CSS: the coach-led phone fit leaves RDF auto and the tablet as they were (B.3, coach-led fit)', () => {

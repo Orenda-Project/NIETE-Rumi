@@ -29,6 +29,8 @@
  *   grid       letters / words, one 60-s clip: per item c / w / s (Gemini 3.8 Flash; words with the study's STORY
  *              prompt verbatim, letters with the R8 letters prompt, self-administered, sound OR name per subtask);
  *              EGRA's first-row stop; attempted to the last item reached; correct per minute on the time used
+ *              (app_settings sa_r28_words_prompt ON: familiar words get their own one-at-a-time word-list prompt with
+ *              EGRA's accent rule instead of STORY; the gate, rows and numbers are the same)
  *   passage    the 60-s reading: STORY prompt; attempted to the last word the child tapped (RULING #2), else the
  *              model's last word; words correct per minute on the time used
  *   questions  comprehension, listening, segmentation: one clip per asked item (or one clip for all), each marked
@@ -113,6 +115,7 @@ const noEchoUrSwitch = require('../app/no-echo-ur-switch');
 const childOnlySwitch = require('../app/child-only-answer-switch');
 const ceilingSwitch = require('../app/ceiling-switch');
 const mcqSwitch = require('../app/mcq-switch');
+const wordsPromptSwitch = require('../app/words-prompt-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -387,6 +390,23 @@ For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s
 Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
 }
 
+// sa_r28_words_prompt: the familiar-word tasks' own prompt ("prompt C"; OFF, words keep prompts.STORY). The phone shows the
+// words ONE AT A TIME, so the card is a numbered word list (the letters card shape, one word per line) and the model
+// answers per position (LETTERS_SCHEMA). WORDS_ACCENT is EGRA's accent rule as psychometrics signed it, word for word.
+const WORDS_SUBTASK = 'familiar_word_reading';
+const WORDS_ACCENT = 'A local accent or regional pronunciation that keeps it the same word is correct (the accepted forms listed with each word count as that word); a change that makes a different word, or a letter name, is wrong.';
+/** Prompt C. `accepts[k]` (an item's `accept` list, when the bank carries one) is shown beside its word as "(also: …)". */
+function wordsPrompt({ grade, lang, items, accepts = [] }) {
+  const also = (k) => (Array.isArray(accepts[k]) ? accepts[k].map((a) => String(a == null ? '' : a).trim()).filter(Boolean) : []);
+  const card = items.map((w, k) => `${k + 1}: ${w}${also(k).length ? ` (also: ${also(k).join(', ')})` : ''}`).join('\n');
+  return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${lang === 'ur' ? 'Urdu' : 'English'} FAMILIAR WORDS task of an EGRA reading test on a phone, wearing headphones. The phone showed ${items.length} separate words ONE AT A TIME, in this order, each for a few seconds (a word list, not a story), and recorded the child reading each word aloud. The phone's own voice may be faintly heard; ignore it.
+Marking rules: a word is correct if the child says that word. ${WORDS_ACCENT} A self-correction counts as correct. A different word, a sounded-out word never put together, or a word passed over while the child keeps going is WRONG. Every position after the last word the child reached is SKIPPED.
+The printed words in order (position: word):
+${card}
+For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s" (skipped / not reached), heard = what the child said for that word ("" if skipped), and conf = your confidence 0-1.
+Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
+}
+
 // sa_r28_no_echo_ur: the one sentence an Urdu questions prompt gains with the switch ON (OFF, the prompt is unchanged)
 const NO_ECHO_UR = 'A repetition of the question, or of the phone\'s own words, is not an answer: if that is all the child says, mark it NO_ANSWER.';
 /** `noEcho` (sa_r28_no_echo_ur ON) adds NO_ECHO_UR to an Urdu prompt; English is unchanged. */
@@ -531,16 +551,16 @@ function usedSeconds(res) {
   return Math.max(1, Math.min(SECONDS, ms / 1000));
 }
 
-async function call(deps, calls, { prompt, schema, clip, job }) {
+async function call(deps, calls, { prompt, schema, clip, job, name = null }) {
   const model = deps.model();
   let r;
   try {
     r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt, schema, audio: { data: clip.base64, format: 'mp3' }, job, maxTokens: 12000, signal }));
   } catch (e) {
-    calls.push({ job, model, cost: null, seconds: round1(limitOf(deps, 'model') / 1000), error: e.reason || 'model_failed' });
+    calls.push({ job, model, cost: null, seconds: round1(limitOf(deps, 'model') / 1000), error: e.reason || 'model_failed', ...(name ? { prompt: name } : {}) });
     throw e;
   }
-  calls.push({ job, model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null });
+  calls.push({ job, model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, ...(name ? { prompt: name } : {}) });
   if (!r.json) { const e = new Error('model_failed'); e.reason = 'model_failed'; throw e; }
   return r.json;
 }
@@ -625,12 +645,18 @@ const sttNote = (heard, clip, { text = false } = {}) => ({
   ...(heard && Number.isInteger(heard.words) ? { stt_words: heard.words, ...(text ? { stt_text: Array.from(String(heard.text || '')).slice(0, 80).join('') } : {}) } : {}),
 });
 
-/** Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect). */
-function timedRows(refs, verdictOf) {
+/**
+ * Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect).
+ * `presented` (sa_r28_ceiling, an extended grid): the cells the phone presented and counts attempted. A presented cell
+ * with no answer heard is attempted and wrong (EGRA's no-response), reason 'no_response', never not_reached; a no-voice
+ * mute (no_speech) stays not_reached. null (switch OFF, or a task that does not extend): today's rows.
+ */
+function timedRows(refs, verdictOf, { presented = null } = {}) {
   const v = refs.map((_, k) => verdictOf(k));
   let last = 0;
   v.forEach((x, k) => { if (x.verdict !== 'not_reached') last = k + 1; });
-  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: v[k].verdict === 'not_reached' && k < last ? 'wrong' : v[k].verdict, heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}), ...(v[k].gate || {}) }));
+  const silentPass = (x, k) => presented != null && k < presented && x.verdict === 'not_reached' && !x.no_speech;
+  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: (v[k].verdict === 'not_reached' && k < last) || silentPass(v[k], k) ? 'wrong' : v[k].verdict, ...(silentPass(v[k], k) ? { reason: 'no_response' } : {}), heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}), ...(v[k].gate || {}) }));
 }
 
 function firstRowStopped(rows, n) {
@@ -696,10 +722,12 @@ function ceilingDetail(rec, rows, numbers, { stopped, pending, res }) {
   };
 }
 
-async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate = false } = {}) {
+async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate = false, wordsC = false } = {}) {
   const grid = (rec.grid || []).map(String);
   const reached = reachedOf(task, res, grid.length);
   const items = shownOf(rec, grid, reached);
+  // sa_r28_ceiling ON, an extended grid: the cells presented (the 500 ms final-cell rule already applied by reachedOf)
+  const presented = deps.ceiling === true && Number(rec.base_n) > 0 && reached != null ? Math.min(reached, items.length) : null;
   const perRow = Number(rec.per_row) || 10;
   const clip = await clipOf(deps, row.audio_r2_key);
   const letters = /letter/.test(task.subtask || task.task);
@@ -724,9 +752,15 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
     // under its own reason ('found_false': the third mute cause beside 'duration' and 'no_voice' / 'no_words')
     const raw = (k) => { const it = by.get(k + 1) || {}; return { raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') }; };
     rows = gateOn() && json.found === false ? timedRows(items, (k) => (letterGate === true ? { ...MUTE, gate: { ...(gate || note), reason: 'found_false', ...raw(k) } } : MUTE))
-      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; });
+      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; }, { presented });
+  } else if (wordsC === true && task.subtask === WORDS_SUBTASK) {
+    // sa_r28_words_prompt ON: prompt C, per-position answers; the same job (cost / precision series), the prompt named
+    const accepts = items.map((_, k) => ((rec.items || [])[k] || {}).accept);
+    const json = await call(deps, calls, { prompt: wordsPrompt({ grade, lang: task.lang, items, accepts }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_words', name: 'words_c' });
+    const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
+    rows = timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; }, { presented });
   } else {
-    rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
+    rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words', { presented });
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
   const pending = clockPending(deps, res);
@@ -815,7 +849,7 @@ async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = f
   return { numbers, rows, stopped: false, durationSec, section: Boolean(section), ceiling };
 }
 
-async function storyRows(tokens, lang, clip, deps, calls, job) {
+async function storyRows(tokens, lang, clip, deps, calls, job, { presented = null } = {}) {
   /* eslint-disable global-require */
   const prompts = require('../scoring/prompts');
   const { verdictsFrom } = require('../scoring/story');
@@ -823,7 +857,7 @@ async function storyRows(tokens, lang, clip, deps, calls, job) {
   const json = await call(deps, calls, { prompt: prompts.STORY({ lang: lang === 'ur' ? 'urdu' : 'english', tokens }), schema: prompts.STORY_SCHEMA, clip, job });
   const v = verdictsFrom(json, tokens.length);
   const VV = { correct: 'correct', wrong: 'wrong', skipped: 'not_reached' };
-  return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }));
+  return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }), { presented });
 }
 
 async function scorePassage(task, rec, row, res, deps, calls, { letterGate = false } = {}) {
@@ -1219,6 +1253,8 @@ async function scoreRow(row, session, deps = {}) {
   const noEchoUr = noEchoUrSwitch.valueOf(d.noEchoUr);
   // sa_r28_child_only_answer (the sweep reads the setting; true only)
   const childOnlyAnswer = childOnlySwitch.valueOf(d.childOnlyAnswer);
+  // sa_r28_words_prompt (the sweep reads the setting; true only)
+  const wordsC = wordsPromptSwitch.valueOf(d.wordsPrompt);
   const strict = Boolean(voices) && !help && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
@@ -1253,7 +1289,7 @@ async function scoreRow(row, session, deps = {}) {
     let out;
     const gate = compGate(passage);   // null unless sa_stop_rules
     if (gate) out = notReached(rec, res, gate);
-    else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate });
+    else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate, wordsC });
     else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls, { letterGate });
     else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls, { childOnlyAnswer, letterGate });
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr, letterGate });
@@ -1521,6 +1557,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const childOnlyAnswer = await childOnlySwitch.enabled(deps);
   const ceiling = await ceilingSwitch.enabled(deps);
   const mcqFloor = await mcqSwitch.enabled(deps);
+  const wordsPromptOn = await wordsPromptSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1561,7 +1598,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer, ceiling });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer, ceiling, wordsPrompt: wordsPromptOn });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1597,5 +1634,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks, wordsPrompt, WORDS_ACCENT },
 };

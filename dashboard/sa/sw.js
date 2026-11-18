@@ -55,7 +55,29 @@
 // sa-28: round 28 follow-up: sa-ui.js and sa-core.js (the letter picker and the spoken MCQ draw no Back button on their item and
 //   practice screens, so the cards and the replay stay in reach on a phone; the sandbox-only dev row stays off those screens;
 //   a scored answer records since_fold_ms).
-var VERSION = 'sa-28';
+// sa-29: round 28 follow-up: sa.css and sa-ui.js (the Urdu sound check fits a phone under sa_r28_check_fit; the letter
+//   picker's practice example keeps room for its pointing hand in RDF auto; its last practice feedback keeps the 1.2 s floor).
+// sa-30: round 28 follow-up: sa-ui.js and sa.css (RDF auto's Next sits in the head row with its place held, on the letter
+//   picker and the spoken MCQ, so nothing moves when it is offered and a phone keeps every card and option in reach).
+// sa-31: round 28 follow-up: sa-ui.js (the coach's hold menu says End this task in Urdu apart from the portal's End this
+//   section, under sa_r28_end_task_copy).
+// sa-32: round 28 follow-up, one bump for the engine files of several changes: sa-ui.js and sa.css (Jugnu says the letter
+//   picker's and the spoken MCQ's instruction and practice feedback in coach-led; the picker practice's named line wraps in
+//   the coach-led head row in place of the chip and the Skip), sa-offline.js (the offline timing sweep asks only for files
+//   that exist, prompt_timings.json first).
+// sa-33: round 28, sa.css (the Urdu story question card on a phone in RDF auto holds a two-line question: more
+//   padding over and under, the gaps below it tightened so the four answers stay on the screen).
+// sa-34: round 28, sa-core.js, sa-ui.js and sink-coach.js (the session row keeps the child's practice taps, the answer
+//   cards' reach at each item and again when Next is offered, a story question's first choice, and which engine served
+//   the page; no screen changes).
+// sa-35: round 28, sa-ui.js (the spoken MCQ keeps a few listed Urdu word runs, names and paired words, on one line in the
+//   question and its answers, so a phone never breaks them across two lines).
+// sa-36: round 28, sa.css (the Urdu story question card on a phone in RDF auto keeps a two-line question's lines apart:
+//   18 px at a taller line pitch, the card's padding moved to the top; the four answers stay on the screen).
+// sa-37: round 28, sa-voice.js and sa-ui.js (a spoken clip that starts and then stops mid-way is given up after a short
+//   wait and one retry, not counted as heard; the picker's and the MCQ's cards ignore a tap while it is stopped; the
+//   never-ended guard waits while the page is hidden).
+var VERSION = 'sa-37';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -93,7 +115,13 @@ var CORE = 'sa-core-' + VERSION;
 // through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
 // v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
 // familiar words' accept forms (scorer only; never served).
-var SESSION = 'sa-session-v26';
+// v27: round 28's battery files re-made with the letter-sound picker's practice feedback naming the sound (the
+// letter-sounds lines, then the item's own clip; no new clip).
+// v28: round 28's battery files re-made with their source notes (why a line or item is as it is) worded in product
+// words, not by decision numbers. Nothing a child sees or hears changes.
+// v29: round 28's battery files re-made with three Urdu "your turn" lines spelt right («آواز میں», «کا نام»,
+// «آواز بولیں»), each with its clip at the new text's key.
+var SESSION = 'sa-session-v29';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

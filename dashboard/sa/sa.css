@@ -432,6 +432,23 @@ button{font:inherit;color:inherit}
   .sae.is-r8-layout .sae-task-tag{font-size:24px}
 }
 /* end round 8 layout */
+/* round 28, the check fit (sa_r28_check_fit, .is-r28-check-fit): the Urdu sound check on a phone-height frame. Under ur_fit every
+   Urdu heading and hint runs at line-height 3 (Nastaliq's ascenders); on a 360×640 phone in the coach page's frame (64 px
+   under its corner hold) that put the two picture tiles 80 px under the fold with the scroll cue drawn over them, so the
+   child had to scroll before tapping the picture Jugnu named. The silence screen's own phone numbers (line-height 2.4 at
+   .5em, the hint at 2.2) applied to the check, Jugnu at the replay's size, the tiles at their base size: the row, the
+   question, the hint and both tiles fit in 640 whole. The tablet (1280 tall) is outside the query. OFF: none of this. */
+@media (max-height:700px){
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-h1{line-height:2.4;padding-top:.5em}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-sub{line-height:2.1;padding-top:.4em}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-body{gap:6px}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-foot{padding-top:0}
+  .sae.is-r28-check-fit[lang=ur] .sae-screen.sae-check{padding-bottom:8px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-jugnu-s{width:56px;height:56px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic{min-height:132px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic-e{font-size:56px}
+}
+/* end round 28, the check fit */
 /* Round 8 (sa_r8_story_snap, item 15; the mount's .is-r8-snap; OFF = none of this): the story is its own scroll box,
    the screen's height, made of parts one box high (sa-ui snapPack). Mandatory snapping with snap-stop always: a scroll
    or a fling lands on the next part, never past it to the end, and the arrow moves one part. Larger type, normal
@@ -598,6 +615,12 @@ button{font:inherit;color:inherit}
 .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(5){grid-row:2;grid-column:5 / span 2}
 .sae .sae-pick-cards .sae-opt.is-model{position:relative;border-color:var(--sae-accent);box-shadow:0 0 0 6px var(--sae-accent-l),0 0 22px 4px var(--sae-accent);color:var(--sae-ink)}
 .sae .sae-pick-cards .sae-opt.is-model::after{content:"👆";position:absolute;bottom:-18px;inset-inline-end:-8px;font-size:30px;line-height:1;font-family:var(--sae-f)}
+/* round 28, the practice example's hand: the modelled card's hand hangs 18 px below its card and, absolute or not, counts toward the body's
+   scrollable overflow. In RDF auto the practice example's cards are the screen's last block and sit on the body's bottom
+   edge, so the hand read as 11 px (Urdu) / 17 px (English) of scroll on a 360×640 phone, 18 on the tablet, and drew the
+   round-9 cue over nothing. The cards block keeps the hand's room while a card is modelled; nothing else moves. Coach-led
+   the folded "Jugnu asks" sits below the cards and already holds that room (and the toggle-fit head margin needs it). */
+.sae .sae-pick:not(.is-coach-led) .sae-pick-cards:has(.sae-opt.is-model){padding-bottom:20px}
 .sae .sae-pick-cards .sae-opt.is-dim{opacity:.35;box-shadow:none}
 .sae-pick-replay{display:grid;place-items:center;width:50%;min-width:168px;max-width:280px;min-height:72px;margin:32px auto 0;border-radius:999px;border:3px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:36px;line-height:1;cursor:pointer;box-shadow:0 4px 0 var(--sae-accent-d);font-family:var(--sae-f)}
 .sae-pick-replay:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-accent-d)}
@@ -616,13 +639,18 @@ button{font:inherit;color:inherit}
 .sae .sae-pick-cards .sae-opt .sae-ink{pointer-events:none}
 .sae-pick.is-coach-led details.sae-pick-coach{position:relative;min-height:44px;box-sizing:border-box}
 .sae-pick.is-coach-led details.sae-pick-coach>.sae-coach-line{position:absolute;top:0;bottom:0;inset-inline-end:16px;max-width:calc(100% - 120px);margin:0;padding:0;display:flex;align-items:center;font-size:22px;line-height:1.2;white-space:nowrap;pointer-events:none}
-.sae-pick.is-coach-led .sae-pick-head .sa-next,.sae-pick.is-coach-led .sae-pick-head .sae-pick-next-slot{flex:0 0 auto;box-sizing:border-box;width:96px;max-width:96px;min-height:56px;margin:0;padding:0 10px;font-size:20px}
-.sae-pick.is-coach-led .sae-pick-head .sae-pick-next-slot{display:block;visibility:hidden}
+/* round 28 follow-up: the head row's Next and its held slot, the phone's tighter head (Jugnu 64, the title at 16 px),
+   in BOTH modes — RDF auto's Next lived at the foot, a 95 px Urdu button that took the second card row and the replay
+   under the fold on a 360×640 phone when it was offered; with its place held in the head row nothing moves */
+.sae-pick .sae-pick-head .sa-next,.sae-pick .sae-pick-head .sae-pick-next-slot{flex:0 0 auto;box-sizing:border-box;width:96px;max-width:96px;min-height:56px;margin:0;padding:0 10px;font-size:20px}
+.sae-pick .sae-pick-head .sae-pick-next-slot{display:block;visibility:hidden}
+/* RDF auto: the pill (and the place held for it) is sized to its label, «آگے ←» / "Next →", so the arrow is never clipped */
+.sae-pick:not(.is-coach-led) .sae-pick-head .sa-next,.sae-pick:not(.is-coach-led) .sae-pick-head .sae-pick-next-slot{width:max-content;min-width:96px;max-width:none;padding:0 14px}
 @media (max-width:699px){
   .sae-screen.sae-pick.is-coach-led .sae-body{gap:8px}
-  .sae-pick.is-coach-led .sae-pick-head{gap:8px}
-  .sae-pick.is-coach-led .sae-pick-head .sae-jugnu-s{width:64px;height:64px}
-  .sae-pick.is-coach-led .sae-pick-head .sae-task-tag{font-size:16px}
+  .sae-pick .sae-pick-head{gap:8px}
+  .sae-pick .sae-pick-head .sae-jugnu-s{width:64px;height:64px}
+  .sae-pick .sae-pick-head .sae-task-tag{font-size:16px}
 }
 @media (min-width:700px){
   .sae-pick.is-coach-led details.sae-pick-coach{margin-bottom:24px}
@@ -638,7 +666,7 @@ button{font:inherit;color:inherit}
    r10_urdu_fit adds stays, so no ink is cut) and 6 px gaps make every coach state fit. Coach-led Urdu phone only. */
 @media (max-width:699px){
   .is-ur-fit[lang=ur] .sae-screen.sae-pick.is-coach-led .sae-body{gap:6px}
-  .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-head .sae-task-tag{line-height:2;padding-top:.35em;padding-bottom:0}
+  .is-ur-fit[lang=ur] .sae-pick .sae-pick-head .sae-task-tag{line-height:2;padding-top:.35em;padding-bottom:0}
   .is-ur-fit[lang=ur] .sae-pick.is-coach-led .sae-pick-coach-line{padding:0 calc(10px + .6em)}
   .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach{padding:0 calc(12px + .6em)}
   .is-ur-fit[lang=ur] .sae-pick.is-coach-led details.sae-pick-coach>summary{line-height:1.8;padding-top:.25em;padding-bottom:0}
@@ -667,12 +695,14 @@ button{font:inherit;color:inherit}
 @media (max-width:699px){
   .sae-practice.sae-pick.is-coach-led .sae-pick-head{height:64px;gap:4px}
   .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-chip{padding-inline:10px}
-  .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-fb{flex:0 0 auto;min-height:0;max-height:64px;box-sizing:border-box;margin:0;padding:2px 8px;font-size:15px;line-height:1.3;white-space:nowrap}
+  .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-fb{flex:1 1 auto;min-width:0;min-height:0;max-height:64px;box-sizing:border-box;margin:0;padding:2px 8px;font-size:15px;line-height:1.3;white-space:normal}
   .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-fb{line-height:2;padding-top:0;padding-bottom:0}
   .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-pick-head .sae-chip{line-height:2;padding-top:.3em;padding-bottom:0}
   .is-ur-fit[lang=ur] .sae-screen.sae-practice.sae-pick.is-coach-led .sae-body{gap:3px}
   .is-ur-fit[lang=ur] .sae-practice.sae-pick.is-coach-led .sae-foot{padding-top:2px}
 }
+/* The second wrong tap's line names the sound (the clip's own words): the line wraps in the head row and, while it
+   shows, takes the chip's and the Skip's slots (sa-ui.js); the row stays 64 px, Jugnu 64 px. */
 /* end round 28, A7 */
 /* round 28, A8 (r28_letter_pick with r9_skip_instructions, coach-led practice on a phone): the coach's Skip («ہدایات
    چھوڑیں» / "Skip instructions") is served on the practice screens, in the head row with Jugnu and the chip. In Urdu it
@@ -763,8 +793,8 @@ button{font:inherit;color:inherit}
    question keeps to its two-line clamp from the first draw (Jugnu reads it whole; the fold has it). */
 /* coach-led, every width: the coach's Next at the head row's end edge, centred on it and out of the flow, so its
    arrival moves neither Jugnu, the replay nor the row's height (so never the cards) */
-.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{position:relative}
-.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{position:absolute;top:50%;inset-inline-end:0;transform:translateY(-50%);box-sizing:border-box;width:auto;min-width:0;max-width:calc(50% - 72px);white-space:nowrap;overflow:hidden}
+.sae .sae-mcq .sae-mcq-head{position:relative}
+.sae .sae-mcq .sae-mcq-head>.sae-mcq-next{position:absolute;top:50%;inset-inline-end:0;transform:translateY(-50%);box-sizing:border-box;width:auto;min-width:0;max-width:calc(50% - 72px);white-space:nowrap;overflow:hidden}
 @media (max-width:699px){
   .sae .sae-mcq.sae-screen:has(.sae-mcq-coach){gap:4px;padding-top:4px;padding-bottom:2px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-body{gap:4px}
@@ -777,7 +807,7 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-task-tag{display:none}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head{gap:12px;flex-wrap:nowrap;min-height:56px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-jugnu{width:48px;height:48px}
-  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{min-height:56px;padding-inline:12px;font-size:20px;line-height:1.5}
+  .sae .sae-mcq .sae-mcq-head>.sae-mcq-next{min-height:56px;padding-inline:12px;font-size:20px;line-height:1.5}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line{margin:0 0 -6px;padding:2px 10px 0;font-size:13px;line-height:1.4;border-bottom-width:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-line[lang=ur]{line-height:1.9}
   .sae .sae-mcq:has(.sae-mcq-coach) details.sae-mcq-coach{position:relative;padding:0 10px 2px;border-top-width:0;border-top-left-radius:0;border-top-right-radius:0}
@@ -798,10 +828,12 @@ button{font:inherit;color:inherit}
    paid for by the body's gaps and the card gap; a Latin question shows up to three lines (never clipped). (3) The coach's
    line ends above the fold's box. (4) Every width: the coach's Next in the coach's register (a dashed box, never the
    child's pill), at the row's end edge over the body's side padding, at least 48 px from the child's replay. */
-.sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{inset-inline-end:-8px;max-width:calc(50% - 98px);background:transparent;border:2px dashed var(--sae-line);border-radius:10px;box-shadow:none;color:var(--sae-ink)}
+.sae .sae-mcq .sae-mcq-head>.sae-mcq-next{inset-inline-end:-8px;max-width:calc(50% - 98px);background:transparent;border:2px dashed var(--sae-line);border-radius:10px;box-shadow:none;color:var(--sae-ink)}
 @media (max-width:699px){
-  .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{padding-inline:6px;font-size:18px}
-  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-mcq-head>.sae-mcq-next{font-size:16px}
+  .sae .sae-mcq .sae-mcq-head>.sae-mcq-next{padding-inline:6px;font-size:18px}
+  .sae[lang=ur] .sae-mcq .sae-mcq-head>.sae-mcq-next{font-size:16px}
+  /* RDF auto: the pill is sized to its label, «آگے ←» / "Next →", so the arrow is never clipped (the coach-led cap stays) */
+  .sae .sae-mcq .sae-mcq-head>.sae-mcq-next.sae-mcq-next-auto{width:max-content;max-width:none;padding-inline:12px;overflow:visible}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts{gap:4px}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body>p.sae-coach-line[lang=ur]{font-size:18px;line-height:1.9;padding-top:0;padding-bottom:0;margin:0}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-opts[lang=ur]{line-height:3.5}
@@ -845,6 +877,34 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
 }
 /* end round 28, round 9 */
+/* ---- round 28: spoken MCQ, RDF auto on a phone (the Urdu question card holds its ink) ----
+   RDF auto only: no coach box on the screen, so the question card comes straight after the head row (coach-led draws
+   the coach's line and fold between them and keeps its own padding, above). Below 700 px, Urdu only. A two-line Nastaliq
+   question at 22 px runs ~17 px of ink above its first line box and ~9 px below its second (the served G2 Set A Q1):
+   the card's padding holds both (27 px over, 15 px under: >= 2.5 px clear on every served Urdu question), at the same
+   line pitch. The ~34 px that costs comes out of the screen's gaps, so the four cards and the lowest one's ring stay
+   inside the body without scrolling: the body's gaps 4 (the card meets the head row; 7 px kept between the card and
+   the first answer, its widest ring) and the answers 4 apart (as coach-led). A taller line box (the Urdu fit's ~2.4)
+   also holds the ink but costs ~44 px. */
+@media (max-width:699px){
+  .sae .sae-mcq .sae-mcq-head+.sae-mcq-q[lang=ur]{padding-top:27px;padding-bottom:15px;margin:-4px 0 3px}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-body{gap:4px}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts{gap:4px}
+}
+/* end round 28, RDF auto question card */
+/* ---- round 28: spoken MCQ, RDF auto on a phone (a two-line Urdu question keeps its lines apart) ----
+   RDF auto only (the card straight after the head row, as above), below 700 px, Urdu only. At 22 px on a 1.75 pitch
+   a Nastaliq line's ink runs ~2.9x its size, so a two-line question drew its second line into its first (up to ~24 px
+   of shared ink rows). A taller line alone cannot pay for the pitch the ink needs and keep the four answers in reach
+   (the screen has ~2 px of room under the lowest card with the coach page's frame), so the question steps down to
+   18 px (the answers' size) on a 3.05 pitch: on every served Urdu question the second line's ink starts below the
+   first line's (>= 1.5 px), the card's padding moves to the top where the first line's ascenders reach (the larger
+   half-leading holds the last line's descenders), and the card grows < 1 px, so the cards, the replay and the
+   offered Next stay where they were. Coach-led and the tablet are not touched. */
+@media (max-width:699px){
+  .sae .sae-mcq .sae-mcq-head+.sae-mcq-q[lang=ur]{font-size:18px;line-height:3.05;padding-top:11px;padding-bottom:0}
+}
+/* end round 28, RDF auto two-line question */
 /* round 28, A11 (sa_r28_toggle_fit, the page's .is-r28-toggle-fit; OFF: none of this applies). Once the other language's
    battery is on the phone, r8's language toggle (a 56 px button) grew the 44 px top bar to 56 on every screen, pushing
    each screen 12 px down (the missing-number keys past a 568 px phone's foot) and calling up the round-9 cue. (a) Its
@@ -864,6 +924,9 @@ button{font:inherit;color:inherit}
      hit rect to the replay / the coach's Next 24 px edge to edge in both languages, the ring under the last card >= 8 */
   .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:30px}
   .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:18px}
+  /* RDF auto: the story questions have no coach box and no fold, and the frame's own top clears the toggle, so the head row
+     takes no toggle-fit gap there (in Urdu it cost the first question 7 px on a 360×640 phone); coach-led keeps its gap */
+  .sae.is-r28-toggle-fit .sae-screen.sae-mcq:not(:has(.sae-mcq-coach-body)):has(>.sae-top>.sae-r8-lang){--sae-a11-g:0px}
 }
 /* end round 28, A11 */
 /* ---- round 28: spoken MCQ, coach-led on a phone, rounds 10-11 (row 32: the coach's line on the question frames) ----

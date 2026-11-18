@@ -18,7 +18,7 @@
  * only lines.coach_will_instruct. Both lists are the same ids: the variant changes who instructs, never the measure.
  */
 
-const { COMMON, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { COMMON, CHAINS, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 const { PLAN: COUNTS_PLAN } = require('./counts');
 
 const W3_TASKS = [
@@ -130,7 +130,7 @@ const COACH = {
     'core_egma:p.6 Task 4A script (rwp2026 blfluency blfl1: + and −), one at a time'),
 };
 // "Then go on" models for a practice item: the carrier in the page's language, then the answer in the item's own
-// language (RULING #31a: no clip says an item of the other language inside a sentence).
+// language (no clip says an item of the other language inside a sentence).
 const MODEL = {
   letter_names: L('The name of this letter is:', 'اس حرف کا نام ہے:', 'egra_tk2016:Annex H p.189 practice ("The name of this letter is …")'),
   letter_sounds: L('The sound of this letter is:', 'اس حرف کی آواز ہے:', 'egra_tk2016:Annex H p.187 practice ("The sound of this letter is …")'),
@@ -351,7 +351,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     task: id, lang: null, w3: true, kind: 'oral', legacy_block: null, family: 'egma', subtask: extra2.subtask, title: TITLE[id.split('.')[1]],
     response: 'record', present: 'one_at_a_time', items, practice,
     time_limit_s: extra2.time_limit_s || null, advance_after_s: extra2.advance_after_s || null, ...(extra2.next_at_s ? { next_at_s: extra2.next_at_s } : {}),
-    // A sum is shown; Jugnu says it only on the replay tile (RULING #17), so reading it stays the child's.
+    // A sum is shown; Jugnu says it only on the replay tile, so reading it stays the child's.
     ...(items.some((it) => it.say) ? { say_on: 'replay' } : {}),
     stop: extra2.stop || null, ...(extra2.practice_note ? { practice_note: extra2.practice_note } : {}), ...(extra2.chip ? { chip: extra2.chip } : {}),
     script: mScript(kind), coach_text: coachText(kind, null),
@@ -525,13 +525,17 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     const lp = r28.letter_pick[lang];
     if (lp) {
       const id = `${lang}.letter_pick10`;
+      const sound = (x) => ({ text: x.say, lang, audio: v5(said, lang, x.say) });
+      const LS = CHAINS['en.letter_sounds'];
       const row = (x, rid) => ({ id: rid, show: x.target, target: x.target, options: x.options, prompt_text: x.say, prompt_audio: v5(said, lang, x.say), src: x.src });
       out.push({
         task: id, lang, w3: true, r28: 'letter_pick', replaces: `${lang}.letter_sounds5`, kind: 'pick', legacy_block: null, family: 'egra',
         subtask: 'letter_sound_identification', title: R28_TITLE.letter_pick, response: 'tap', replay_at_s: 10, next_at_s: 15, stop: null,
         items: lp.items.map((x, i) => row(x, `${id}.${pad(i + 1)}`)),
-        practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role,
-          model: [spoken(MODEL.letter_sounds), { text: x.say, lang, audio: v5(said, lang, x.say) }] })),
+        // The second wrong tap names the sound: the letter-sounds carrier, then the item's own clip. A right tap keeps the
+        // engine's right line (the child has linked sound and shape; repeating the sound only lengthens the practice).
+        practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role, model: [spoken(MODEL.letter_sounds), sound(x)],
+          feedback: { wrong: [spoken(LS.wrong[0]), sound(x)] } })),
         script: script(R28_LINES.lp_intro), coach_text: coach('letter_pick'),
         source: { items: 'r28:letter_pick', script: R28_LINES.lp_intro.from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
         deviation: 'recognition, not production: the published EGRA letter-sound task asks the child to say each sound',
@@ -570,7 +574,8 @@ function runtimeR28Task(t, lang, H) {
     script: runtimeScript(t, lang), instruction: inLang(t.script.intro, lang), coach_text: coach, source: t.source };
   if (t.kind === 'pick') {
     return { ...head, deviation: t.deviation, direction: t.lang === 'ur' ? 'rtl' : 'ltr',
-      items: t.items, practice: t.practice.map(({ model, ...p }) => ({ ...p, model: chainIn(model, lang) })) };
+      items: t.items, practice: t.practice.map(({ model, feedback, ...p }) => ({ ...p, model: chainIn(model, lang),
+        ...(feedback ? { feedback: { wrong: chainIn(feedback.wrong, lang) } } : {}) })) };
   }
   const r = runtimeTask({ ...t, kind: 'questions' }, lang);
   const withOpts = (items, src) => items.map((q, i) => {

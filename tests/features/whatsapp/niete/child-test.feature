@@ -1569,6 +1569,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the child meets the comprehension rung and counts in the 80%+ share
     And Results reads the guessing floor on 4 of 5
     And the 5-question variant is never padded to 6
+  @e2e @wip @draft @config-gated @P1 @CT286 @no-mock-driver
+  # No mock driver: as @CT194. Asserted in bot/tests/child-test/sa-r28-mcq-readers.test.js, sa-r28-mcq-gate.test.js,
+  # portal LeaderAssessResults.r28.test.tsx and copy.stops.test.ts.
+  Scenario: With sa_r28_mcq on, a tapped MCQ the reading floor withheld reads "Not counted" on Results, with no guessing line
+    Given sa_r28_mcq is on and the child's passage read stopped on its first line
+    And the child tapped all 6 story questions on the phone
+    When the coach opens Results for that child
+    Then the MCQ row keeps Attempted 6, Correct 0, Options 4 and Chance-corrected 0
+    And How it ended reads "Not counted: the reading stopped early (EGRA's rule). Scored 0." and in Urdu "نمبر نہیں گنے گئے: پڑھائی پہلے ہی رک گئی تھی (EGRA کا اصول)۔ نمبر: ۰"
+    And no "By guessing alone" line is shown beside it
+    And the spoken story questions withheld the same way still read "Questions not asked: the reading stopped early. Scored 0."
+    And the child's taps are kept by the server and never shown on the page
+    And with sa_r28_mcq off no tapped row ever carries the reading floor's stop
   @e2e @wip @draft @config-gated @P1 @CT255 @no-mock-driver
   # No mock driver: as @CT194. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("modal fold …").
   Scenario: With sa_r28_mcq on, coach-led, the open coach fold is modal and every opening has its close
@@ -1878,3 +1891,183 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then no Back button is drawn on that screen
     And all five letter cards and the replay button can be tapped without scrolling, on every item from the first to the tenth
     And every other task keeps its Back, and with both switches off the Back is drawn as before
+
+  @e2e @wip @draft @config-gated @P1 @CT282 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-audio-check-fit.service.test.js.
+  Scenario: With sa_r28_check_fit on, the Urdu sound check fits a 360x640 phone, both pictures tappable without scrolling
+    Given sa_ur_fit and sa_r8_layout are on, with every switch the tier serves
+    And sa_r28_check_fit is on
+    When a child on a 360x640 phone in the coach page's frame reaches the Urdu sound check, coach-led or RDF auto
+    Then both picture tiles, the replay button and "I can't hear" are whole on screen and can be tapped without scrolling
+    And no scroll cue is drawn
+    And with sa_r28_check_fit off the screen is as today, and the English phone and the tablet are unchanged either way
+
+  @e2e @wip @draft @config-gated @P1 @CT283 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-auto-practice.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the letter-sound practice example in RDF auto fits a 360x640 phone without scrolling
+    Given sa_r28_letter_pick is on, with every switch the tier serves
+    When a child alone (RDF auto) on a 360x640 phone sees the letter-sound practice example, modelled with the pointing hand, and then tries one
+    Then nothing scrolls on any practice screen, all five letter cards are whole and can be tapped, and the replay and Next are in reach
+    And no scroll cue is drawn, and the tablet reads the same
+
+  @e2e @wip @draft @config-gated @P1 @CT284 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-pick-auto-offer.service.test.js and sa-r28-mcq-auto-phone.service.test.js.
+  Scenario: With sa_r28_letter_pick or sa_r28_mcq on, a child alone (RDF auto) sees Next in the head row, and nothing on the screen moves when it is offered
+    Given sa_r28_letter_pick and sa_r28_mcq are on, with every switch the tier serves
+    When a child alone on a 360x640 phone leaves a letter-sound item, or a story question, unanswered until Next is offered
+    Then Next is drawn in the head row beside Jugnu, in a place held for it since the item opened, never at the foot
+    And every letter card, every option, the replay and Next can be tapped without scrolling, and no scroll cue is drawn
+    And nothing else on the screen changes its place when Next appears, in Urdu and in English
+
+  @e2e @wip @draft @config-gated @P1 @CT291 @no-mock-driver
+  # No mock driver: needs real pixels on a 360x640 phone. Asserted in dashboard/tests/sa-r28-mcq.service.test.js ("RDF auto on a 360x640 Urdu phone").
+  Scenario: With sa_r28_mcq on, the Urdu story question's card holds both lines of a two-line question in RDF auto on a phone
+    Given sa_r28_mcq is on, with every switch the tier serves
+    When a child alone (RDF auto) on a 360x640 phone reaches an Urdu story question that runs to two lines
+    Then both lines of the question are drawn inside the question's card, while Jugnu reads it, after the read-out and once Next is offered
+    And no part of the question's writing runs into the gap above the first answer
+    And the four answer cards are whole and can be tapped without scrolling while the question is read and answered
+    And coach-led, English and the tablet are unchanged, and with sa_r28_mcq off the screen is as today
+
+  @e2e @wip @draft @config-gated @P1 @CT246 @no-mock-driver
+  # No mock driver: the prompt is sent in the scoring sweep to a model, not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt on, a familiar-words recording is marked as a list of words shown one at a time, with the accent rule
+    Given sa_r28_words_prompt is on
+    When a familiar-words recording is scored
+    Then the model is shown the words as a numbered list, one per line, shown one at a time, not as a story
+    And it is told that a local accent that keeps the same word is correct, and any accepted forms of a word are listed beside it
+    And the speech gate, the marks, the words per minute and the first-row stop work as before
+    And with sa_r28_words_prompt off the prompt and the marks are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT255 @no-mock-driver
+  # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt and sa_r28_ceiling on, the model is given only the words the child reached
+    Given sa_r28_words_prompt and sa_r28_ceiling are on
+    And a child reached 7 words of a 20-word list whose first 4 are today's words
+    When the familiar-words recording is scored
+    Then the model is shown words 1 to 7 only, each with its own accepted forms beside it
+    And a child who reached fewer than today's 4 words is shown today's 4
+    And a word list without today's count is shown whole, as before
+
+  @e2e @wip @draft @config-gated @P1 @CT256 @no-mock-driver
+  # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
+  Scenario: With sa_r28_words_prompt and sa_r8_counts on, the fifth word keeps its accepted forms
+    Given sa_r28_words_prompt and sa_r8_counts are on
+    And the spare word that becomes today's fifth word has accepted forms
+    When the familiar-words recording is scored
+    Then the model is shown the fifth word with its accepted forms beside it
+    And a spare word without accepted forms is served and listed exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT287 @no-mock-driver
+  # No mock driver: the practice runs on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js and sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_letter_pick on, Jugnu says the practice feedback in coach-led as in RDF auto
+    Given sa_r28_letter_pick is on and a coach-led child is on the letter-sound picker's practice
+    When the child taps a wrong card
+    Then Jugnu says "try again" and the line also shows on the screen
+    And after a second wrong tap Jugnu says the line naming the sound and the right card is shown
+    And after a right tap Jugnu says the right line
+    And the feedback stays on the screen until Jugnu's line ends, and never less than 1.2 seconds
+    And with sa_r28_mcq on the spoken MCQ's practice feedback is said by Jugnu in coach-led the same way
+    And today's tap practice in coach-led stays silent, its feedback read by the coach from the screen
+    And with sa_r28_letter_pick and sa_r28_mcq off the battery runs exactly as before
+
+
+  @e2e @wip @draft @P2 @CT288 @no-mock-driver
+  # No mock driver: the service worker's offline copy runs on the phone (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-timings-index.service.test.js and sa-r28-prompt-timings-offline.service.test.js.
+  Scenario: A session page asks only for the word-timing files that exist, and the letter picker's prompt timings first
+    Given the battery's clips are served from sa/v4 and its letter-sound prompts from sa/v5
+    When the child's page, or the coach's Get ready, prepares the session for offline
+    Then sa/v5/prompt_timings.json is asked for before any clip
+    And the v4 word-timing files asked for are exactly those dashboard/sa/timings.index.json lists, none beside a clip that has none
+    And when the index cannot be read, no v4 word-timing file is asked for and prompt_timings.json still is
+    And no screen and no score changes
+
+  @e2e @wip @draft @config-gated @P1 @CT289 @no-mock-driver
+  # No mock driver: the instruction is said on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in dashboard/tests/sa-r28-letter-pick.service.test.js and sa-r28-mcq.service.test.js.
+  Scenario: With sa_r28_letter_pick on, Jugnu says the picker's instruction in coach-led as in RDF auto
+    Given sa_r28_letter_pick is on and a coach-led child reaches the letter-sound picker
+    When the coach's screen for the picker shows
+    Then Jugnu says the picker's instruction with its example sound, instead of saying that the coach will instruct
+    And the coach's own line is still drawn on the coach's screen
+    And on the ready screen Jugnu says the ready lines as in RDF auto
+    And with sa_r28_mcq on the spoken MCQ's instruction and ready lines are said by Jugnu in coach-led the same way
+    And every other task's instruction in coach-led stays the coach's to read, Jugnu saying only that the coach will instruct
+    And with sa_r28_letter_pick and sa_r28_mcq off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT290 @no-mock-driver
+  # No mock driver: the practice runs on the child's phone screen (the battery engine), not in the chat.
+  # Asserted in bot/tests/child-test/sa-r28-bank.test.js and dashboard/tests/sa-r28-letter-pick.service.test.js.
+  Scenario: With sa_r28_letter_pick on, the picker's practice names the sound after a second wrong tap
+    Given sa_r28_letter_pick is on and a child is on the letter-sound picker's practice, coach-led or alone
+    When the child taps a wrong card twice
+    Then Jugnu says "The sound of this letter is:" and then the same sound the child just heard, and the right card is shown
+    And the sound is never a letter's name
+    And in Urdu Jugnu says «اس حرف کی آواز ہے:» and then the sound the same way
+    And when the child taps the right card Jugnu says the right line as today, without repeating the sound
+    And with sa_r28_letter_pick off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT292 @no-mock-driver
+  # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-ceiling-no-response.test.js.
+  Scenario: With sa_r28_ceiling on, a grid cell shown and passed in silence is marked wrong, not unreached
+    Given sa_r28_ceiling is on
+    And a child read 5 cells of a 100-cell letter grid, let 30 more pass in silence, and the clock ended before the other 65 were shown
+    When the letter-names recording is scored
+    Then 5 cells are correct, 35 are attempted and the 30 silent cells are wrong with the reason no response
+    And the 65 cells never shown are not counted as attempted
+    And the rate stays 5 a minute and today's first-5 score stays 5 of 5
+    And a final cell on show under half a second at time up is still not counted as attempted
+    And a recording with no speech at all leaves every cell unreached, never wrong
+    And with sa_r28_ceiling off, or on a grid that does not extend, the marks are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT293 @no-mock-driver
+  # No mock driver: the coach's press-and-hold menu inside the engine page. Asserted in
+  # dashboard/tests/sa-r28-end-task-copy.service.test.js (the switch, the route's read and the menu's label).
+  Scenario: With sa_r28_end_task_copy on, the coach's hold menu says End this task in Urdu in words of its own
+    Given sa_r28_end_task_copy is on and a coach runs the test in Urdu
+    When the coach presses and holds the corner on any coach-led screen
+    Then the menu's button that ends the test reads «یہ کام ختم کریں»
+    And it no longer reads «یہ حصہ ختم کریں», the words of the portal's End this section button, which is unchanged
+    And in English the button reads "End this task", with the switch on or off
+    And with sa_r28_end_task_copy off, or its row holding anything but true, the Urdu button reads «یہ حصہ ختم کریں» as before
+
+  @e2e @wip @draft @config-gated @P2 @CT295 @no-mock-driver
+  # No mock driver: the spoken MCQ screen inside the engine page. Asserted in
+  # dashboard/tests/sa-r28-mcq-nowrap.service.test.js.
+  Scenario: With sa_r28_mcq on, a name or paired phrase in an Urdu story question or answer never splits across two lines
+    Given sa_r28_mcq is on and a child takes the Urdu story questions on a phone
+    When the question «بلال کس کے ساتھ دریائے جہلم گیا؟» is shown and Jugnu reads it
+    Then «دریائے جہلم» sits on one line, before Jugnu starts and after he has said «جہلم»
+    And an answer such as «رنگ برنگے پھول» keeps «رنگ برنگے» on one line
+    And the coach's folded copy of the question and answers keeps the same words together
+    And two words that are not on the list, such as «گئے» and the word after it, can still break as before
+    And the words shown, and so the clip Jugnu plays, are exactly the same as before
+    And the story passage the child reads is unchanged
+    And with sa_r28_mcq off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P2 @CT296 @no-mock-driver
+  # No mock driver: the engine page's layout on a phone. Asserted in dashboard/tests/sa-r28-mcq.service.test.js
+  # (real Chromium, 360×640 at DPR 3 and 2, the coach page's frame, both tiers' switches).
+  Scenario: With sa_r28_mcq on, a two-line Urdu story question in RDF auto keeps its two lines apart on a phone
+    Given sa_r28_mcq is on and a child answers the Urdu story questions alone (RDF auto) on a 360×640 phone
+    When a question that takes two lines is on the screen, such as «بلال کس کے ساتھ دریائے جہلم گیا؟»
+    Then the second line's letters start below the first line's and never run into them
+    And the four answers, the replay and the Next offered later are all on the screen and tappable, with nothing to scroll
+    And the coach-led phone and the tablet show the question exactly as before
+    And with sa_r28_mcq off there is no story question screen and nothing changes
+
+  @e2e @wip @draft @config-gated @P1 @CT297 @no-mock-driver
+  # No mock driver: a weak link that starts a clip and then stops feeding it. Asserted in
+  # dashboard/tests/sa-r28-clip-stall.service.test.js (the real voice with a stub audio, and the picker and MCQ screens).
+  Scenario: A picker sound or a story question whose clip starts and then stalls is given up, not scored as heard
+    Given sa_r28_letter_pick or sa_r28_mcq is on and the phone's link is weak
+    When an item's sound or a question's read-out starts and then makes no progress for 5 seconds
+    Then Jugnu tries the clip once more from the start
+    And if it stalls again the item is set aside as unavailable within about 11 seconds: not asked, not counted, never wrong
+    And a tap the child makes while that first play is stalled is dropped, never held or scored
+    And a clip that plays slowly but keeps moving, or pauses for 3 seconds and then plays on, is heard as before
+    And a stall on a replay the child asked for only ends that replay: the item stays open and the next tap scores
+    And a line not marked clip-only still waits up to 60 seconds as before

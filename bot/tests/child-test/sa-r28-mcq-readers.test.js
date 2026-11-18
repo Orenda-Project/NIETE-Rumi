@@ -70,13 +70,25 @@ describe('sa_r28_mcq ON: Results reads the oral\'s pending row until the floor i
     const t = await task(parked(6), { mcq: true });
     expect(t).toMatchObject({ correct: null, chanceCorrected: null, recording: 'scored_later', score: null });
   });
-  test('the gated MCQ → 0, the oral\'s comprehension stop row', async () => {
+  test('the gated MCQ → 0, its own comprehension stop: not counted (the phone asked the questions; the floor withheld them)', async () => {
     const t = await task(gated(), { mcq: true, stopRules: true });
-    expect(t).toMatchObject({ correct: 0, stopReason: 'comprehension_not_asked' });
+    expect(t).toMatchObject({ correct: 0, attempted: 6, chanceCorrected: 0, stopReason: 'comprehension_not_counted' });
   });
-  test('the gated MCQ reads the comprehension stop row with the floor ON even when the stop rules are off', async () => {
+  test('the gated MCQ reads the not-counted stop row with the floor ON even when the stop rules are off', async () => {
     const t = await task(gated(), { mcq: true });
-    expect(t).toMatchObject({ correct: 0, stopReason: 'comprehension_not_asked' });
+    expect(t).toMatchObject({ correct: 0, stopReason: 'comprehension_not_counted' });
+  });
+  test('the stop names the mode: the tapped row not counted, the oral questions in the same session not asked; the raw taps never leave the API', async () => {
+    const oral = { block: 'ur.story_comp_w3', response_mode: 'oral', lang: 'ur', ai_status: 'scored', ai_reason: null, created_at: '2026-11-18T05:05:00Z',
+      ai_marks: { version: 'sa-marks-v1', task: 'ur.story_comp_w3', correct: 0, of: 6, detail: { kind: 'questions', items: [], stopped_by_rule: true, stop_detail: 'comprehension', stop_why: 'first_line' } },
+      responses: [{ kind: 'result', mode: 'oral', stop_reason: 'complete' }] };
+    const tapped = gated();
+    tapped.ai_marks.detail.raw = { tap_correct: 6, tap_attempted: 6, answers: QS.map((id) => ({ item_id: id, value: 1, ok: true })) };
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, world([tapped, oral], { mcq: true, stopRules: true }));
+    const by = Object.fromEntries(out.tasks.map((t) => [t.taskId, t]));
+    expect(by['ur.story_mcq_w3']).toMatchObject({ mode: 'tap', correct: 0, attempted: 6, chanceCorrected: 0, stopReason: 'comprehension_not_counted' });
+    expect(by['ur.story_comp_w3']).toMatchObject({ mode: 'oral', stopReason: 'comprehension_not_asked' });
+    expect(JSON.stringify(by['ur.story_mcq_w3'])).not.toMatch(/answers|tap_correct|raw/);
   });
   test('a legacy row marked from the phone at sync → the scored row (the phone\'s count), not "scored later"', async () => {
     expect(await task(syncMarked(5), { mcq: true })).toMatchObject({ correct: 5, chanceCorrected: 5, recording: 'none' });
