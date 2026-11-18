@@ -201,3 +201,45 @@ describe('what is never sent', () => {
     expect(dump).not.toMatch(/8c1f0e3a|token|abc|userId|journey/i);
   });
 });
+
+/**
+ * bd-snkn32.51 (queue #134 A) — "Make my own" is one route; each question screen reports itself (k: 'step'), so a
+ * drop-off has a last screen. Entering a screen closes the one before with the time she spent on it.
+ */
+describe('Make my own form screens', () => {
+  const at = { grade: 7, subject: 'science', band: 'g612' as const };
+  it('entering a screen sends enter; the next screen closes it with its dwell', async () => {
+    const r = rig();
+    r.funnel.step({ step: 'pages', ...at });
+    r.advance(3000);
+    r.funnel.step({ step: 'purpose', ...at });
+    r.funnel.flush();
+    expect(await r.events()).toEqual([
+      expect.objectContaining({ k: 'step', r: '/portal/teacher/lessons/own', s: 'pages', ph: 'enter', g: 7, sub: 'science', bd: 'g612' }),
+      expect.objectContaining({ k: 'step', s: 'pages', ph: 'leave', d: 3000, why: 'nav' }),
+      expect.objectContaining({ k: 'step', s: 'purpose', ph: 'enter' }),
+    ]);
+  });
+  it('the same screen again (an answer changed the query) is not a new enter', async () => {
+    const r = rig();
+    r.funnel.step({ step: 'size', ...at });
+    r.funnel.step({ step: 'size', ...at });
+    r.funnel.flush();
+    expect((await r.events()).filter((e: any) => e.ph === 'enter')).toHaveLength(1);
+  });
+  it('leaving the form closes the screen; hiding the page closes it too, and coming back re-enters it', async () => {
+    const r = rig();
+    r.funnel.step({ step: 'way', ...at });
+    r.advance(1000);
+    r.funnel.hidden('hidden');
+    r.advance(9000);
+    r.funnel.visible();
+    r.advance(500);
+    r.funnel.stepEnd();
+    r.funnel.flush();
+    const steps = (await r.events()).filter((e: any) => e.k === 'step');
+    expect(steps.map((e: any) => [e.ph, e.d ?? null, e.why ?? null])).toEqual([
+      ['enter', null, null], ['leave', 1000, 'hidden'], ['enter', null, null], ['leave', 500, 'nav'],
+    ]);
+  });
+});
