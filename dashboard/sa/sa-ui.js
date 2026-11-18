@@ -1639,7 +1639,10 @@
       later(function () { warm = null; runner.warmupDone(popped, ms); draw(); }, 250);
     }
 
-    function playIntro(t) { runner.instructionPlayed(); return say(introOf(t)); }
+    function playIntro(t) { runner.instructionPlayed(); return say(introOf(t), undefined, jugnuInstructs(t)); }
+    /** round 28: the picker's instruction carries a sound and the MCQ's says how the answers are read, so Jugnu says them
+     *  (and the ready lines) in coach-led as in RDF auto; every other task's instruction in coach-led is the coach's. */
+    function jugnuInstructs(t) { return manual && (isPick(t) || isMcq(t)); }
     /** The instruction, then the task's round-7b line (say then Next, the tick, the scroll), when there is one. */
     function playIntroAll(t) {
       var g = gen;
@@ -1813,11 +1816,13 @@
       hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
+      // round 28: the picker's and the spoken MCQ's practice feedback is said by Jugnu in coach-led too, as their sounds are
+      // (a young child cannot read the line); today's tap practice in coach-led stays the coach's to read
+      var fbSaid = appAsks || (manual && (isPick(t) || isMcq(t)));
       // round 28: the letter picker's last feedback (the right card shown; the right tap) keeps the FEEDBACK_MS floor
-      // in both modes, under Jugnu's line: coach-led Jugnu says no line (the coach speaks), so without the floor the
-      // right card would be gone before a frame was painted and a child who tapped wrong twice would never see it
+      // in both modes, under Jugnu's line, so the right card is on screen for a painted frame however short the line
       var floor = !ended || isPick(t) ? delay(FEEDBACK_MS) : null;
-      Promise.all([floor, capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
+      Promise.all([floor, capped(sayChain(chain.map(function (x) { return [x, undefined, fbSaid]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
@@ -3592,7 +3597,8 @@
       } else if (v.phase === 'keypad_warmup') say(line('keypad_warmup') || { en: COPY.en.kp_warm, ur: COPY.ur.kp_warm });
       else if (v.phase === 'instruction' && manual) {
         runner.log('coach_brief', { task_id: t.id });
-        say(copyLine('coach_will_instruct'), null, true);
+        if (jugnuInstructs(t)) gateOn(keyOf(v), playIntroAll(t)); // round 28: Jugnu instructs the child (the sound)
+        else say(copyLine('coach_will_instruct'), null, true);
       } else if (v.phase === 'instruction') gateOn(keyOf(v), playIntroAll(t));
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
@@ -3619,8 +3625,9 @@
         if (t.mode === 'record') gateOn(k0, said); // the spoken practice's Next (a tap practice has none)
       } else if (v.phase === 'ready') {
         var intro = s.test_intro && !(r12IntroOnce && s.test_intro.once === true && introSaid) ? s.test_intro : null;
-        if (intro && intro.once === true && !manual) introSaid = true;
-        gateOn(keyOf(v), sayChain(manual ? [] : [intro ? [intro] : null, s.begin ? [s.begin] : null]));
+        var ji = jugnuInstructs(t);
+        if (intro && intro.once === true && (!manual || ji)) introSaid = true;
+        gateOn(keyOf(v), sayChain(manual && !ji ? [] : [intro ? [intro, undefined, ji] : null, s.begin ? [s.begin, undefined, ji] : null]));
       }
       else if (v.phase === 'running' && v.item) {
         if (isPick(t)) {
