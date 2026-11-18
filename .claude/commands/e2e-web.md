@@ -10,6 +10,9 @@ headless Chromium drives it. The first run on a machine installs the portal depe
 - one feature (`portal-login`, `teacher-lessons`, `coach-portal`, …) → every scenario in that feature
 - several features, comma-separated (`portal-login,teacher-home`) → those features at once, one slot each
 - `all` → every portal feature at once (at most `E2E_WEB_PARALLEL`, default 4, side by side; one portal build)
+- a long feature runs as **shards**, slices of its scenarios side by side, each its own stack: `web-quiz-child-page` is
+  split in 4 (`E2E_WEB_SHARDS="web-quiz-child-page=4"` is the default; `=1` turns it off, `feature=n` shards any feature).
+  Shards start first. `--shard k/n` runs one slice; `--only` or `--slot` runs are never split
 - extra options pass through to `e2e-web.sh`:
   - `--only PL01,PL03` (one feature) or `--only 'portal-login=PL01;teacher-home=TH02'` (several)
   - `--headed` — a visible, slowed-down browser to watch (ignored on commit-triggered runs and in CI)
