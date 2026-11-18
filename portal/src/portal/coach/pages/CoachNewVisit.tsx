@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarDays, Check, Plus, User } from "lucide-react";
 import { coach, leader } from "../../services/api";
@@ -13,6 +13,9 @@ import { useCopy } from "../../teacher/i18n";
 import { SCHEDULE } from "../schedule/copy";
 import { BookedList, ClashAlert } from "../schedule/BookedList";
 import { bookedOn, clashesAt, dayLong, sinceText, sinceTone, timeWords } from "../schedule/model";
+import { LevelChips, atLevel, levelCounts, useLevel, withLevel, type TeachingLevel } from "../people/level";
+import { useFlowV2 } from "../flow/useCoachFlowV2";
+import { trackFlow } from "../flow/track";
 
 /**
  * bd-o15qnr — New visit: 1 school → 2 teacher (her numbers, a Profile link,
@@ -46,10 +49,11 @@ function bySince<T extends { daysSinceVisit: number | null }>(a: T, b: T) {
 const NEW_VISIT = "/portal/coach/new-visit";
 const pct = (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`);
 
-function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string }) {
+function SchoolStep({ schools, onPick, chips }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string; chips?: ReactNode }) {
   const c = useCopy(SCHEDULE);
   return (
     <>
+      {chips}
       <StepBar total={3} current={1} label={c.stepOf(1)} />
       <SectionLabel>{c.pickSchool}</SectionLabel>
       <p className="mx-1 -mt-1.5 text-[13px] font-semibold text-[#6b7280]">{c.lastVisit}</p>
@@ -73,15 +77,20 @@ function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: C
   );
 }
 
-function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | undefined; teachers: CoachTeacher[]; linkFor: (t: CoachTeacher) => string }) {
+function TeacherStep({ school, teachers, linkFor, chips, changeTo = NEW_VISIT }: {
+  school: CoachSchool | undefined; teachers: CoachTeacher[]; linkFor: (t: CoachTeacher) => string;
+  /** bd-o15qnr.26 — the teaching-level chips (flow v2) and Change keeping the level */
+  chips?: ReactNode; changeTo?: string;
+}) {
   const c = useCopy(SCHEDULE);
   const [q, setQ] = useState("");
   const shown = teachers.filter((t) => personMatches(t.name, t.phone, q)).sort(bySince);
   return (
     <>
+      {chips}
       <StepBar total={3} current={2} label={c.stepOf(2)} />
       <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }}
-        items={[{ label: c.school, value: school?.name || c.dash, sub: school ? c.teachersCount(school.teachers) : undefined, to: NEW_VISIT }]} />
+        items={[{ label: c.school, value: school?.name || c.dash, sub: school ? c.teachersCount(school.teachers) : undefined, to: changeTo }]} />
       <SectionLabel>{c.pickTeacher}</SectionLabel>
       <SearchBox value={q} onChange={setQ} placeholder={c.searchPlaceholder} />
       <p className="mx-1 text-[13px] font-semibold text-[#6b7280]">{c.lastVisit}</p>
@@ -210,11 +219,32 @@ const CoachNewVisit = () => {
   const { data, failed, reload } = useLoad(() => coach.getPeople(), []);
   const [done, setDone] = useState<{ date: string; slot: string } | null>(null);
 
-  const school = useMemo(() => data?.schools.find((s) => s.schoolExtId === schoolExt), [data, schoolExt]);
-  const teachers = useMemo(() => (data?.teachers || []).filter((t) => t.schoolExtId === schoolExt), [data, schoolExt]);
-  const teacher = useMemo(() => (data?.teachers || []).find((t) => t.teacherExtId === teacherExt), [data, teacherExt]);
+  // bd-o15qnr.26 (queue #177, flow v2 only) — All · Primary · Middle · High over steps 1 and 2 (the My schools chips, the
+  // level in the address so Back keeps it). Shown only when nine in ten of her teachers have a level recorded: with
+  // fewer (GB today, 11 of 102) a chip would hide teachers who teach at it, so there are none and every school shows.
+  const flow = useFlowV2() === true;
+  const [pickedLevel] = useLevel();
+  const everyone = useMemo(() => data?.teachers || [], [data]);
+  const chipsOn = flow && everyone.length > 0 && everyone.filter((t) => (t.levels ?? []).length > 0).length >= 0.9 * everyone.length;
+  const level: TeachingLevel | null = chipsOn ? pickedLevel : null;
+  const chipsFor = (counts: Partial<Record<TeachingLevel, number>>) => (chipsOn
+    ? <LevelChips counts={counts} onPick={(l) => trackFlow("new_visit.level", l ? (l.toLowerCase() as "primary" | "middle" | "high") : "all")} />
+    : undefined);
 
-  const back = visitId ? `/portal/coach/visit/${visitId}` : teacherExt ? `${NEW_VISIT}?school=${encodeURIComponent(schoolExt || "")}` : schoolExt ? NEW_VISIT : "/portal/coach/scheduling";
+  const school = useMemo(() => data?.schools.find((s) => s.schoolExtId === schoolExt), [data, schoolExt]);
+  const schoolTeachers = useMemo(() => everyone.filter((t) => t.schoolExtId === schoolExt), [everyone, schoolExt]);
+  const teachers = useMemo(() => schoolTeachers.filter((t) => atLevel(t.levels, level)), [schoolTeachers, level]);
+  const teacher = useMemo(() => everyone.find((t) => t.teacherExtId === teacherExt), [everyone, teacherExt]);
+  // At a level: only schools with teachers at it, each counted at that level.
+  const schools = useMemo(() => {
+    if (!data || !level) return data?.schools || [];
+    return data.schools
+      .map((s) => ({ ...s, teachers: everyone.filter((t) => t.schoolExtId === s.schoolExtId && atLevel(t.levels, level)).length }))
+      .filter((s) => s.teachers > 0);
+  }, [data, everyone, level]);
+  const shownSchool = school && level ? { ...school, teachers: teachers.length } : school;
+
+  const back = visitId ? `/portal/coach/visit/${visitId}` : teacherExt ? withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt || "")}`, level) : schoolExt ? withLevel(NEW_VISIT, level) : "/portal/coach/scheduling";
   const crumb = visitId ? `${c.crumb} · ${c.reschedule}` : c.crumb;
 
   return (
@@ -223,11 +253,12 @@ const CoachNewVisit = () => {
       {!data && !failed && <Loading />}
       {data && done && <Done teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} when={done} />}
       {data && !done && !schoolExt && !teacherExt && (
-        <SchoolStep schools={data.schools} onPick={(s) => `${NEW_VISIT}?school=${encodeURIComponent(s.schoolExtId)}`} />
+        <SchoolStep schools={schools} chips={chipsFor(levelCounts(everyone))}
+          onPick={(s) => withLevel(`${NEW_VISIT}?school=${encodeURIComponent(s.schoolExtId)}`, level)} />
       )}
       {data && !done && schoolExt && !teacherExt && (
-        <TeacherStep school={school} teachers={teachers}
-          linkFor={(t) => `${NEW_VISIT}?school=${encodeURIComponent(schoolExt)}&teacher=${encodeURIComponent(t.teacherExtId || "")}`} />
+        <TeacherStep school={shownSchool} teachers={teachers} chips={chipsFor(levelCounts(schoolTeachers))} changeTo={withLevel(NEW_VISIT, level)}
+          linkFor={(t) => withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt)}&teacher=${encodeURIComponent(t.teacherExtId || "")}`, level)} />
       )}
       {data && !done && teacherExt && (
         <TimeStep teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} visitId={visitId} initialSlot={initialSlot} onDone={setDone} />

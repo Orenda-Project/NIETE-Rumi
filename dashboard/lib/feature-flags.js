@@ -297,6 +297,16 @@ const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
 const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
 
 /**
+ * bd-o15qnr.26 — the coach VISIT FLOW v2, per user (queue #177, Option A): Schedule becomes the one open list of her
+ * visits (Overdue · Today · Coming up · Earlier, Cancel visit on each row), the menu's Observe becomes Observations,
+ * New visit gets the teaching-level chips and the Home a Today card. Same shape and rule as the keys above: a list of
+ * users.id = those users, true = everyone, absent = off. /config sends it as features.coachFlowV2, only with
+ * portal_coach_v2 AND portal_coach_full_app on for her (it reworks the Schedule and Observe screens those open).
+ * A tester switch: everyone else's app is unchanged.
+ */
+const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
+
+/**
  * Coach reports in the app — the coach's debrief report as a page in the coach app (dashboard/services/coach-report.service.js),
  * the card on her Home that announces it, and, in the bot, the link that replaces today's WhatsApp report picture. Same
  * shape and rule as the keys above: a list of users.id = those coaches, true = every coach, absent = off. Its routes also
@@ -614,6 +624,7 @@ module.exports = {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  PORTAL_COACH_FLOW_V2_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,

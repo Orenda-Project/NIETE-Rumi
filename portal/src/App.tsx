@@ -113,12 +113,16 @@ const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportP
 // bd-17v39c.4.14 — Where to coach (a teacher) and Who to coach first (a school): coach only.
 const CoachWhereToCoach = page(() => import("./portal/coach/card/WhereToCoachPage"));
 const CoachFirst = page(() => import("./portal/coach/card/CoachFirstPage"));
-const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
-const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
+// bd-o15qnr.26 — Schedule and Observe's addresses go through the visit flow v2 switch (coach/flow/routes.tsx): on, the one
+// open Schedule list (old hub and pick addresses redirect); off or unread, today's pages exactly.
+const flowRoute = (name: "ScheduleRoute" | "SchedulingRoute" | "ObserveRoute" | "ObservePickRoute") =>
+  page(() => import("./portal/coach/flow/routes").then((m) => ({ default: m[name] })));
+const CoachScheduling = flowRoute("SchedulingRoute");
+const CoachSchedule = flowRoute("ScheduleRoute");
 const CoachTeam = page(() => import("./portal/coach/pages/CoachTeam"));
 const CoachNewVisit = page(() => import("./portal/coach/pages/CoachNewVisit"));
-const CoachObserve = page(() => import("./portal/coach/pages/CoachObserve"));
-const CoachObservePick = page(() => import("./portal/coach/pages/CoachObservePick"));
+const CoachObserve = flowRoute("ObserveRoute");
+const CoachObservePick = flowRoute("ObservePickRoute");
 const CoachVisit = page(() => import("./portal/coach/pages/CoachVisit"));
 const CoachReports = page(() => import("./portal/coach/pages/CoachReports"));
 const CoachDisagreements = page(() => import("./portal/coach/disagreements/DisagreementsPage"));
