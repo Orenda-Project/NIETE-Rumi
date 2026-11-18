@@ -432,6 +432,23 @@ button{font:inherit;color:inherit}
   .sae.is-r8-layout .sae-task-tag{font-size:24px}
 }
 /* end round 8 layout */
+/* round 28, the check fit (sa_r28_check_fit, .is-r28-check-fit): the Urdu sound check on a phone-height frame. Under ur_fit every
+   Urdu heading and hint runs at line-height 3 (Nastaliq's ascenders); on a 360×640 phone in the coach page's frame (64 px
+   under its corner hold) that put the two picture tiles 80 px under the fold with the scroll cue drawn over them, so the
+   child had to scroll before tapping the picture Jugnu named. The silence screen's own phone numbers (line-height 2.4 at
+   .5em, the hint at 2.2) applied to the check, Jugnu at the replay's size, the tiles at their base size: the row, the
+   question, the hint and both tiles fit in 640 whole. The tablet (1280 tall) is outside the query. OFF: none of this. */
+@media (max-height:700px){
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-h1{line-height:2.4;padding-top:.5em}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-sub{line-height:2.1;padding-top:.4em}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-body{gap:6px}
+  .sae.is-r28-check-fit[lang=ur] .sae-check .sae-foot{padding-top:0}
+  .sae.is-r28-check-fit[lang=ur] .sae-screen.sae-check{padding-bottom:8px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-jugnu-s{width:56px;height:56px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic{min-height:132px}
+  .sae.is-r8-layout.is-r28-check-fit[lang=ur] .sae-check .sae-pic-e{font-size:56px}
+}
+/* end round 28, the check fit */
 /* Round 8 (sa_r8_story_snap, item 15; the mount's .is-r8-snap; OFF = none of this): the story is its own scroll box,
    the screen's height, made of parts one box high (sa-ui snapPack). Mandatory snapping with snap-stop always: a scroll
    or a fling lands on the next part, never past it to the end, and the arrow moves one part. Larger type, normal
@@ -598,6 +615,12 @@ button{font:inherit;color:inherit}
 .sae .sae-pick-cards .sae-opts .sae-opt:nth-child(5){grid-row:2;grid-column:5 / span 2}
 .sae .sae-pick-cards .sae-opt.is-model{position:relative;border-color:var(--sae-accent);box-shadow:0 0 0 6px var(--sae-accent-l),0 0 22px 4px var(--sae-accent);color:var(--sae-ink)}
 .sae .sae-pick-cards .sae-opt.is-model::after{content:"👆";position:absolute;bottom:-18px;inset-inline-end:-8px;font-size:30px;line-height:1;font-family:var(--sae-f)}
+/* round 28, the practice example's hand: the modelled card's hand hangs 18 px below its card and, absolute or not, counts toward the body's
+   scrollable overflow. In RDF auto the practice example's cards are the screen's last block and sit on the body's bottom
+   edge, so the hand read as 11 px (Urdu) / 17 px (English) of scroll on a 360×640 phone, 18 on the tablet, and drew the
+   round-9 cue over nothing. The cards block keeps the hand's room while a card is modelled; nothing else moves. Coach-led
+   the folded "Jugnu asks" sits below the cards and already holds that room (and the toggle-fit head margin needs it). */
+.sae .sae-pick:not(.is-coach-led) .sae-pick-cards:has(.sae-opt.is-model){padding-bottom:20px}
 .sae .sae-pick-cards .sae-opt.is-dim{opacity:.35;box-shadow:none}
 .sae-pick-replay{display:grid;place-items:center;width:50%;min-width:168px;max-width:280px;min-height:72px;margin:32px auto 0;border-radius:999px;border:3px solid var(--sae-accent-d);background:var(--sae-accent-l);color:var(--sae-ink);font-size:36px;line-height:1;cursor:pointer;box-shadow:0 4px 0 var(--sae-accent-d);font-family:var(--sae-f)}
 .sae-pick-replay:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-accent-d)}
@@ -860,6 +883,10 @@ button{font:inherit;color:inherit}
   .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:16px}
   .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:20px}
   .sae.is-r28-toggle-fit .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang) .sae-mcq-head{margin-top:var(--sae-a11-g,0px)}
+  /* A12: the spoken MCQ's g, measured on the coach page's frame (embed + syncing dot + toggle, 360x640): the toggle's
+     hit rect to the replay / the coach's Next 24 px edge to edge in both languages, the ring under the last card >= 8 */
+  .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:30px}
+  .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang){--sae-a11-g:18px}
 }
 /* end round 28, A11 */
 /* ---- round 28: spoken MCQ, coach-led on a phone, rounds 10-11 (row 32: the coach's line on the question frames) ----
@@ -876,3 +903,10 @@ button{font:inherit;color:inherit}
   .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach):not(.sae-mcq-passage-step) details.sae-mcq-coach{border-top-width:3px;border-top-left-radius:var(--sae-r);border-top-right-radius:var(--sae-r)}
 }
 /* end round 28, rounds 10-11 */
+/* round 28, A12 (r28_letter_pick; .sae-pick exists only with it): inside the coach page's frame the coach page draws two
+   buttons at its top start corner (End test + End this section, 8 + 48 px). The picker keeps its own top (A9), and its
+   top bar's end side is narrower than the language toggle, so the toggle sat under the second button. The
+   picker's practice and item screens draw no language toggle inside the frame, coach-led and RDF auto alike (the coach
+   page draws End this section in both): the language is switched before the task. */
+.sae.is-embed .sae-screen.sae-pick>.sae-top>.sae-r8-lang{display:none}
+/* end round 28, A12 */

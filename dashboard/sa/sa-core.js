@@ -131,6 +131,8 @@
  * clipLost(itemId, 'replay'): a replay that could not play: logged (replay, value 'lost'), the item stays open and its
  * auto replay is not tried again. A pick task's result adds presented (items not unavailable), unavailable and of_all
  * (its items); with fewer than PICK_MIN_PRESENTED presented it is unrated: true (scored_on stays 'phone').
+ * Under the switch, a pick task the coach ends (coach_end, end_section) with presented < of_all is unrated: true,
+ * unrated_why: 'ended' (correct, presented, of_all, attempted kept).
  *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
@@ -565,6 +567,9 @@
         r.unavailable = lost;
         r.of_all = t.items.length;
         if (r.presented < PICK_MIN_PRESENTED) r.unrated = true;
+        // O-46 (SPEC v2.80): the coach ended it before every item was presented: the items not presented are not missing
+        // at random (a coach ends when a child is stuck), so correct of presented is not the score; absent from the ladder
+        if (pickOn && (reason === STOP.COACH_END || reason === STOP.END_SECTION) && r.presented < r.of_all) { r.unrated = true; r.unrated_why = 'ended'; }
       }
       if (t.mode === 'record') {
         r.mercy_offered = !!st.mercy;
@@ -751,7 +756,7 @@
     /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
     function answerMeta(a, meta) {
       if (!meta || typeof meta !== 'object') return a;
-      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes', 'since_fold_ms'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
       return a;
     }
 

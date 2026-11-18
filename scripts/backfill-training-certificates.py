@@ -48,6 +48,9 @@ def sb_conn():
     different region (the pooler hostname carries the region, and the old
     `aws-0-*` names have been retired in favour of `aws-1-*`).
     """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+    from sandbox_scrub import refuse_real_data_into_sandbox  # noqa: E402  (sandbox = dummy people only)
+    refuse_real_data_into_sandbox(os.environ["SUPABASE_URL"])
     proj_ref = os.environ["SUPABASE_URL"].split("//")[1].split(".")[0]
     host = os.environ.get("SUPABASE_DB_HOST", "aws-1-ap-south-1.pooler.supabase.com")
     user = os.environ.get("SUPABASE_DB_USER", f"postgres.{proj_ref}")

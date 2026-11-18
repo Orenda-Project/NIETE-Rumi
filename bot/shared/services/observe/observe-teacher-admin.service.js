@@ -49,34 +49,58 @@ function normaliseTeacherPhone(raw) {
 
 // ── the db port ────────────────────────────────────────────────────────
 
+/** A school's EMIS as text, or null when it has none (never the string 'null'). */
+function _emisOrNull(emis) {
+  if (emis === null || emis === undefined) return null;
+  const s = String(emis).trim();
+  return s || null;
+}
+
 function _supabaseDb() {
   const supabase = require('../../config/supabase');
   return {
-    /** The school, but ONLY if this coach holds it. Null is a refusal. */
+    /**
+     * The school, but ONLY if this coach holds it. Null is a refusal.
+     *
+     * Found by the holding's school_id, the foreign key every read path keys on (patch-resolver, leader-patch). A
+     * school with no EMIS (GB Deosai and Hoto, the Rumi QA test schools) is held under a key made from its name,
+     * 'niete:gb-deosai-community-school-dapa-kharmang', so reading the key's tail as an EMIS found nothing and every
+     * teacher change there was refused as "not your school". The EMIS reading stays only for a holding written
+     * without a school_id (production, 18 Nov: none outside the test:* fixtures; where both exist they agree).
+     */
     async myschool(leaderUserId, schoolExtId) {
       const { data: mine } = await supabase.from('leader_schools')
-        .select('school_ext_id').eq('leader_user_id', leaderUserId)
+        .select('school_ext_id, school_id').eq('leader_user_id', leaderUserId)
         .eq('school_ext_id', schoolExtId).limit(1);
       if (!mine || !mine[0]) return null;
-      const emis = String(schoolExtId).split(':').pop();
-      const { data: s } = await supabase.from('schools')
-        .select('id, name, emis, region, is_probable_test').eq('emis', emis).limit(1);
+      const cols = 'id, name, emis, region, is_probable_test';
+      const { data: s } = mine[0].school_id
+        ? await supabase.from('schools').select(cols).eq('id', mine[0].school_id).limit(1)
+        : await supabase.from('schools').select(cols).eq('emis', String(schoolExtId).split(':').pop()).limit(1);
       if (!s || !s[0]) return null;
       return {
         school_ext_id: schoolExtId, school_id: s[0].id,
-        school_name: s[0].name, emis: String(s[0].emis),
+        school_name: s[0].name, emis: _emisOrNull(s[0].emis),
         region: s[0].region || null, is_probable_test: s[0].is_probable_test === true,
       };
     },
 
+    /**
+     * Where a person is now, for the confirm and the audit. A school with no EMIS is named by the key a coach holds
+     * it under (the same rule as school-key.schoolKeyOf), never 'niete:null'; null when nobody holds it.
+     */
     async schoolOf(schoolId) {
       if (!schoolId) return null;
       const { data } = await supabase.from('schools').select('id, name, emis').eq('id', schoolId).limit(1);
       if (!data || !data[0]) return null;
-      return {
-        school_id: data[0].id, school_name: data[0].name,
-        emis: String(data[0].emis), school_ext_id: `niete:${data[0].emis}`,
-      };
+      const emis = _emisOrNull(data[0].emis);
+      let key = emis ? `niete:${emis}` : null;
+      if (!key) {
+        const { data: held } = await supabase.from('leader_schools')
+          .select('school_ext_id').eq('school_id', schoolId).limit(1);
+        key = (held && held[0] && held[0].school_ext_id) || null;
+      }
+      return { school_id: data[0].id, school_name: data[0].name, emis, school_ext_id: key };
     },
 
     async userByPhone(phone) {
@@ -242,7 +266,12 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
     isTestOrDeleted: u.is_test_user === true || Boolean(u.deleted_at),
   };
   if (u.school_id && u.school_id === target.school_id) {
-    return { outcome: 'already_here', phone, person, toSchoolName: target.school_name, target };
+    // Where she is now is THIS school: said, so the confirm never reads "School: not set" beside "already here".
+    return {
+      outcome: 'already_here', phone, person,
+      fromSchoolExtId: target.school_ext_id, fromSchoolName: target.school_name,
+      toSchoolName: target.school_name, target,
+    };
   }
 
   // A teacher with no school at all takes the same path: she is being placed.
@@ -294,12 +323,15 @@ const ADD_TEMPLATES = {
     move_noschool: '*{name}*{who} is already on our records, with no school set.\n\nAdding {them} to *{to}*.',
     new: 'We do not know {phone} yet.\n\nAdding *{name}* to *{to}* as a new teacher.',
     already_here: '*{name}*{who} is already at *{to}*. Nothing to change.',
+    // A principal is not counted among the teachers, so "already at" alone reads as if the add failed.
+    already_principal: '*{name}* is already the principal at *{to}*. Nothing to add.',
   },
   ur: {
     move: '*{name}*{who} پہلے سے ہمارے ریکارڈ میں *{from}* پر موجود ہیں۔\n\nانہیں *{to}* میں شامل کیا جا رہا ہے۔',
     move_noschool: '*{name}*{who} پہلے سے ہمارے ریکارڈ میں ہیں، اسکول درج نہیں۔\n\nانہیں *{to}* میں شامل کیا جا رہا ہے۔',
     new: '{phone} ہمارے ریکارڈ میں نہیں ہے۔\n\n*{name}* کو نئی ٹیچر کے طور پر *{to}* میں شامل کیا جا رہا ہے۔',
     already_here: '*{name}*{who} پہلے ہی *{to}* میں موجود ہیں۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
+    already_principal: '*{name}* پہلے ہی *{to}* کے پرنسپل ہیں۔ شامل کرنے کو کچھ نہیں۔',
   },
 };
 
@@ -311,7 +343,9 @@ function addPlanAck(lang, plan = {}) {
   const l = clampLanguage(lang);
   const t = ADD_TEMPLATES[l] || ADD_TEMPLATES.en;
   const person = plan.person || {};
-  const key = (plan.outcome === 'move' && !plan.fromSchoolName) ? 'move_noschool' : plan.outcome;
+  const key = (plan.outcome === 'move' && !plan.fromSchoolName) ? 'move_noschool'
+    : (plan.outcome === 'already_here' && person.isPrincipal) ? 'already_principal'
+      : plan.outcome;
   const body = t[key] || t.move;
   const who = (WHO[l] || WHO.en)[person.isPrincipal ? 'principal' : 'teacher'];
   return body
@@ -667,6 +701,7 @@ const FOUND = {
     name: 'Name', school: 'School', no_school: 'not set',
     to: 'Adding them to *{to}*.',
     already: 'They are already at *{to}*. Nothing to change.',
+    already_principal: 'They are already the principal at *{to}*. Nothing to add.',
     confirm: 'Yes, go ahead', confirm_new: 'Add them',
   },
   ur: {
@@ -676,6 +711,7 @@ const FOUND = {
     name: 'نام', school: 'اسکول', no_school: 'درج نہیں',
     to: 'انہیں *{to}* میں شامل کیا جا رہا ہے۔',
     already: 'وہ پہلے ہی *{to}* میں ہیں۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
+    already_principal: 'وہ پہلے ہی *{to}* کے پرنسپل ہیں۔ شامل کرنے کو کچھ نہیں۔',
     confirm: 'جی، آگے بڑھیں', confirm_new: 'شامل کریں',
   },
 };
@@ -708,7 +744,7 @@ function foundAccountScreen(lang, plan = {}, schoolExtId = '') {
     : `${t.name}: ${name}${role}\n${t.school}: ${at}`;
 
   const tail = plan.outcome === 'already_here'
-    ? t.already.replace('{to}', String(plan.toSchoolName || ''))
+    ? (person.isPrincipal ? t.already_principal : t.already).replace('{to}', String(plan.toSchoolName || ''))
     : t.to.replace('{to}', String(plan.toSchoolName || ''));
 
   // Name the move at the point of commitment. The old school is already on the

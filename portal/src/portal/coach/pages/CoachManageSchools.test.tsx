@@ -198,6 +198,42 @@ describe("Add a teacher", () => {
     await waitFor(() => expect(C.addTeacher).toHaveBeenCalledWith("110", "923001110003", ""));
   });
 
+  it("this school's own principal: says so, shows this school once, and offers nothing to add", async () => {
+    C.checkTeacher.mockResolvedValue({
+      success: true, outcome: "already_here", phone: "923001110009", name: "Head Sahib", isPrincipal: true,
+      fromSchoolName: "IMSG I-10/1", toSchoolName: "IMSG I-10/1",
+    });
+    at("/portal/coach/school/110/add-teacher");
+    await typeNumber("03001110009");
+    const card = await screen.findByTestId("teacher-plan");
+    expect(within(card).getByText("Head Sahib")).toBeInTheDocument();
+    expect(within(card).getAllByText("IMSG I-10/1")).toHaveLength(1);
+    expect(within(card).queryByText("No school")).not.toBeInTheDocument();
+    expect(within(card).queryByText("New school")).not.toBeInTheDocument();
+    expect(within(card).queryByText("Current school")).not.toBeInTheDocument();
+    expect(within(card).getByText("School")).toBeInTheDocument();
+    expect(screen.getByText("Already principal here")).toBeInTheDocument();
+    expect(screen.queryByText("Already here")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^add teacher$/i })).not.toBeInTheDocument();
+    expect(C.addTeacher).not.toHaveBeenCalled();
+  });
+
+  it("a teacher already at this school: Already here, this school once, nothing to add", async () => {
+    C.checkTeacher.mockResolvedValue({
+      success: true, outcome: "already_here", phone: "923001110010", name: "Nadia Akbar", isPrincipal: false,
+      fromSchoolName: "IMSG I-10/1", toSchoolName: "IMSG I-10/1",
+    });
+    at("/portal/coach/school/110/add-teacher");
+    await typeNumber("03001110010");
+    const card = await screen.findByTestId("teacher-plan");
+    expect(within(card).getAllByText("IMSG I-10/1")).toHaveLength(1);
+    expect(within(card).queryByText("No school")).not.toBeInTheDocument();
+    expect(within(card).getByText("School")).toBeInTheDocument();
+    expect(screen.getByText("Already here")).toBeInTheDocument();
+    expect(screen.queryByText("Already principal here")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^add teacher$/i })).not.toBeInTheDocument();
+  });
+
   it("refusals stay on the number: a bad number, a coach's number", async () => {
     C.checkTeacher.mockImplementationOnce(() => rejectWith(400, { success: false, reason: "invalid_phone" }));
     at("/portal/coach/school/110/add-teacher");

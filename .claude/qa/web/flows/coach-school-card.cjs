@@ -1,13 +1,13 @@
 // coach-school-card — the hand-written coach-portal scenarios for the School card (portal/src/portal/coach/card/**): with
-// portal_coach_school_card on, a v2 coach lands on the slim Coach Home (Training Library and My schools), the menu is
-// Home · Lesson Plans · More, a school opens as its School card (period chips, four feature tiles, the teachers), a tile
-// opens that feature by teacher, a row opens her Teacher page (Digital Coaching and Coach observations tiles first) and
+// portal_coach_school_card on, a v2 coach lands on the slim Coach Home (Training Library, My schools, Coach Training), the
+// menu is Home · Lesson Plans · More, a school opens as its School view (period chips, the overview's five boxes, the
+// teacher table — schoolView.tsx), a box opens that feature by teacher, a row opens her Teacher page (Digital Coaching and Coach observations tiles first) and
 // her Digital Coaching page (graph, practice averages, her reports); a DC report and a coach observation open in the
 // coach's report view with no transcript. With the switch off, nothing of it is there. Joined to the generated coach-portal
 // driver by .claude/qa/web/gen_page_features.py (EXTRA), so spec and driver still come from one place.
 //
-// The dashboard caches a switch for 30 s (feature-flags.js readFlagRow), so each scenario waits for /config to say what
-// it set before it looks, and every scenario puts the switch back OFF when it ends: the other coach-portal and
+// The dashboard caches a switch (feature-flags.js readFlagRow; e2e-web.sh turns that off with FLAG_CACHE_TTL_MS=0), and
+// each scenario still waits for /config to say what it set before it looks, and every scenario puts the switch back OFF when it ends: the other coach-portal and
 // portal-smoke scenarios expect today's coach app.
 'use strict';
 const { DEMO, MODES, expect, asRole, watch, visit, setSetting, setFlags } = require('../lib.cjs');
@@ -58,7 +58,8 @@ const scenarios = [
       const home = await visit(page, ctx, '/portal/coach');
       await shown(page, 'coach-home-slim', 'slim Coach Home');
       const tiles = await page.getByTestId('feature-tiles').locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-      expect(JSON.stringify(tiles) === JSON.stringify(['/portal/coach/training', '/portal/coach/people']), 'Home tiles are ' + JSON.stringify(tiles));
+      // Training Library, My schools, then Coach Training (bd-rlxkkt.2: the tile came to the slim Home, card/switchOn.test.tsx).
+      expect(JSON.stringify(tiles) === JSON.stringify(['/portal/coach/training', '/portal/coach/people', '/portal/coach/coach-training']), 'Home tiles are ' + JSON.stringify(tiles));
       const menu = await page.getByTestId('teacher-nav').locator('a').evaluateAll((as) => as.map((a) => a.textContent.trim()));
       expect(JSON.stringify(menu) === JSON.stringify(['Home', 'Lesson Plans', 'More']), 'the menu is ' + JSON.stringify(menu));
       const landed = [];
@@ -67,14 +68,16 @@ const scenarios = [
     } finally { await off(ctx); }
   } },
 
-  { id: 'CP08', title: "Coach app v2 with the School card on: a school opens as its School card; This month, a feature's grid and a teacher's page open from it", run: async (page, ctx) => {
+  { id: 'CP08', title: "Coach app v2 with the School card on: a school opens as its School view; This month, a feature's details, her list and a teacher's page open from it", run: async (page, ctx) => {
     try {
       await signedIn(page, ctx, true);
       const w = watch(page);
       await visit(page, ctx, '/portal/coach/school/' + SCHOOL);
-      for (const id of ['score-tile-dc', 'score-tile-coach', 'tile-lp', 'tile-papers', 'tile-training']) await shown(page, id, 'the ' + id + ' tile');
-      const order = await page.getByTestId('activity').evaluate((el) => [...el.children].map((c) => c.getAttribute('data-testid')));
-      expect(order[0] === 'score-tile-dc' && order[1] === 'score-tile-coach', 'the score tiles are not first: ' + JSON.stringify(order));
+      // bd-17v39c.4.13.4: the School view — the overview's five boxes (score tiles and Activity tiles left the card).
+      await shown(page, 'overview', 'overview card');
+      const boxes = await page.getByTestId('overview-boxes').evaluate((el) => [...el.children].map((c) => c.getAttribute('data-testid')));
+      expect(JSON.stringify(boxes) === JSON.stringify(['box-lp', 'box-training', 'box-papers', 'box-dc', 'box-coach']), 'the overview boxes are ' + JSON.stringify(boxes));
+      await shown(page, 'teacher-table', 'teacher table');
       const radios = await page.getByRole('radiogroup', { name: 'Period' }).getByRole('radio').evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-label')));
       expect(JSON.stringify(radios) === JSON.stringify(['Today', 'This week', 'This month']), 'the period chips are ' + JSON.stringify(radios));
       await shown(page, 'manage', 'Manage group');
@@ -83,16 +86,24 @@ const scenarios = [
       w.errors.length = 0; w.fivexx.length = 0;
       await page.getByRole('radio', { name: 'This month' }).click();
       await page.waitForURL(/period=month/, { timeout: 15000 });
+      await page.getByTestId('box-lp').click();
+      await page.waitForURL('**/portal/coach/school/' + SCHOOL + '/feature/lp?period=month', { timeout: 15000 });
+      // The details page leads with the box's chart: This month is one bar per week.
       const bars = await (await shown(page, 'bars-lp', 'Lesson plans bars')).innerText();
       expect(/Wk 1/.test(bars), 'This month has no week bars: ' + bars.slice(0, 80));
-      await page.getByTestId('tile-lp').click();
-      await page.waitForURL('**/portal/coach/school/' + SCHOOL + '/feature/lp?period=month', { timeout: 15000 });
       await shown(page, 'teacher-grid', 'Lesson plans by teacher grid');
       const school = await (await shown(page, 'grid-school', 'School row')).innerText();
       const rows = await page.getByTestId('grid-row').count();
       expect(rows > 0, 'the grid has no teacher rows');
+      // bd-dgfkgs.1: a by-teacher row opens HER list of that feature (her lesson plans), for the same period.
       await page.getByTestId('grid-row').first().click();
-      await page.waitForURL(/\/portal\/coach\/teacher\/[^/?]+(\?|$)/, { timeout: 15000 });
+      await page.waitForURL(/\/portal\/coach\/teacher\/[^/?]+\/items\/lp\?period=month/, { timeout: 15000 });
+      await shown(page, 'her-items', 'her Lesson plans list');
+      // Her Teacher page opens from the School view's teacher table.
+      await visit(page, ctx, '/portal/coach/school/' + SCHOOL + '?period=month');
+      w.errors.length = 0; w.fivexx.length = 0;
+      await (await shown(page, 'table-row', 'teacher table row')).click();
+      await page.waitForURL(/\/portal\/coach\/teacher\/[^/?]+\?period=month/, { timeout: 15000 });
       await shown(page, 'teacher-tiles', 'Teacher page tiles');
       const tiles = await page.getByTestId('teacher-tiles').evaluate((el) => [...el.children].map((c) => c.getAttribute('data-testid')));
       expect(tiles[0] === 't-dc' && tiles[1] === 't-coach', 'the Teacher page tiles are ' + JSON.stringify(tiles));
@@ -102,7 +113,7 @@ const scenarios = [
       const h1 = (await page.locator('h1').first().innerText()).trim();
       expect(/^Digital Coaching$/.test(h1), 'her Digital Coaching page did not open (h1: ' + h1 + ')');
       healthy(w, 'the School card journey');
-      return { school: SCHOOL, radios, gridRows: rows, schoolRow: school.replace(/\s+/g, ' '), teacherTiles: tiles, dc: h1 };
+      return { school: SCHOOL, boxes, radios, gridRows: rows, schoolRow: school.replace(/\s+/g, ' '), teacherTiles: tiles, dc: h1 };
     } finally { await off(ctx); }
   } },
 

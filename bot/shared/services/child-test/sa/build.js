@@ -908,7 +908,7 @@ function buildSaBank({ v3, extra, w3, r28 = loadR28(), reviewed = loadReviewed()
     // W3 (switch sa_rdf_w3_forms): the RDF auto / RDF manual forms' own tasks, after the rotation's variants exist.
     const w3Only = W3.w3Tasks(f, { v3, extra, w3 }, list, W3_HELPERS);
     // Round 28 (switches sa_r28_*): its own tasks and the timed tasks' ext_items; stripped on serve while OFF.
-    const r28Only = W3.r28Tasks(f, { r28 }, w3Only, W3_HELPERS);
+    const r28Only = W3.r28Tasks(f, { r28 }, w3Only, W3_HELPERS, list);
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
@@ -1062,7 +1062,7 @@ function runtimeTask(t, lang) {
       ...(tap.passage ? { passage: tap.passage, tap_on: 'passage' } : {}), ...(tap.option_images ? { option_images: tap.option_images } : {}),
       ...(t.rubric ? { rubric: t.rubric } : {}), ...(t.scoring ? { scoring: t.scoring } : {}),
       ...(t.record && t.record.grid ? { grid: t.record.grid, per_row: t.record.per_row, direction: t.record.direction } : {}),
-      ...(t.depends_on ? { depends_on: t.depends_on } : {}) };
+      ...(t.depends_on ? { depends_on: t.depends_on } : {}), ...(t.r28_accept ? { r28_accept: true } : {}) };
   }
   const r = t.record;
   if (r.grid) {

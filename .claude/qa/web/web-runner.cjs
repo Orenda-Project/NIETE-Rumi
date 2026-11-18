@@ -6,13 +6,17 @@
 //   WEB_EVIDENCE  directory for results.json + one PNG per failed scenario
 //   WEB_PSQL / WEB_PG_PORT / WEB_DB_NAME   this run's OWN local database, for scenario set-up (ctx.sql)
 //   WEB_ONLY      optional comma list of scenario ids
+//   WEB_SHARD     optional k/n: run only the k-th of n contiguous slices of the (picked) scenarios, in run order — a long
+//                 feature runs as n stacks side by side (e2e-web.sh E2E_WEB_SHARDS, bd-a7upa5)
 //   WEB_HEADED=1 / WEB_SLOWMO=<ms>   watch it: a visible browser, every action slowed down
+//   WEB_AUDIO=1   let a hidden run play sound (it is muted by default; a headed run always has sound)
 //   WEB_MOCK_URL  this run's mock WhatsApp (Graph API stand-in): POST /inject, GET /outbox — WhatsApp → portal scenarios
 // Exit 0 when every scenario passed, 1 otherwise; results.json is written either way.
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { launchOptions, silenceSpeech } = require('./launch-options.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 
@@ -23,13 +27,31 @@ function loadChromium() {
   throw new Error('playwright-core not found — run: npm ci --prefix portal');
 }
 
+// The scenarios this run drives: those named by --only (all when none), then the k-th of n contiguous slices of them.
+// Contiguous, not every n-th: a feature orders its scenarios so ones needing the same 30 s-cached switch sit together,
+// and a slice keeps that grouping (each scenario still sets its own switch, so any slice is correct on its own).
+function pick(scenarios, only, shard) {
+  const chosen = scenarios.filter((s) => !only.length || only.includes(s.id));
+  const m = /^([1-9][0-9]*)\/([1-9][0-9]*)$/.exec(shard || '');
+  if (!shard) return chosen;
+  if (!m || Number(m[1]) > Number(m[2])) throw new Error('WEB_SHARD must be k/n with 1 <= k <= n, got ' + shard);
+  const k = Number(m[1]), n = Number(m[2]);
+  return chosen.slice(Math.floor((k - 1) * chosen.length / n), Math.floor(k * chosen.length / n));
+}
+
+// A feature's run-wide set-up (module export `before(ctx)`): once per run, before any scenario — a schema patch or a
+// seed every scenario may rely on. It must not live inside one scenario: a shard without that scenario never gets it.
+async function runBefore(mod, ctx) {
+  if (mod && typeof mod.before === 'function') await mod.before(ctx);
+}
+
 async function main() {
   const env = process.env;
   const feature = env.WEB_FEATURE;
   const evidence = env.WEB_EVIDENCE;
   const mod = require(path.join(__dirname, 'features', feature + '.cjs'));
   const only = (env.WEB_ONLY || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const picked = mod.scenarios.filter((s) => !only.length || only.includes(s.id));
+  const picked = pick(mod.scenarios, only, env.WEB_SHARD);
   fs.mkdirSync(evidence, { recursive: true });
 
   const sql = async (text) => {
@@ -65,11 +87,15 @@ async function main() {
   process.on('uncaughtException', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   process.on('unhandledRejection', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   // --headed (e2e-web.sh) → a visible window, each action slowed by WEB_SLOWMO ms so a person can follow it.
-  const browser = await loadChromium().launch({ headless: env.WEB_HEADED !== '1', slowMo: Number(env.WEB_SLOWMO || 0) });
+  // A hidden run is muted (WEB_AUDIO=1 to hear it) — launch-options.cjs.
+  await runBefore(mod, ctx);
+  const browser = await loadChromium().launch(launchOptions(env));
+  const hush = silenceSpeech(env);
   try {
     for (const s of picked) {
       const t0 = Date.now();
       const context = await browser.newContext({ viewport: { width: 412, height: 915 } }); // a phone, like the teachers'
+      if (hush) await context.addInitScript(hush);
       const page = await context.newPage();
       const row = { id: s.id, title: s.title };
       try {
@@ -112,4 +138,5 @@ async function main() {
   process.exit(results.every((r) => r.status !== 'FAIL') ? 0 : 1);
 }
 
-main().catch((e) => { console.error('web-runner: ' + ((e && e.stack) || e)); process.exit(2); });
+module.exports = { pick, runBefore };
+if (require.main === module) main().catch((e) => { console.error('web-runner: ' + ((e && e.stack) || e)); process.exit(2); });

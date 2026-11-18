@@ -30,6 +30,9 @@ from psycopg2.extras import RealDictCursor
 load_dotenv(".env")
 
 SB_URL = os.environ["SUPABASE_URL"]
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+from sandbox_scrub import refuse_real_data_into_sandbox  # noqa: E402  (sandbox = dummy people only)
+refuse_real_data_into_sandbox(SB_URL)
 SB_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 SB_H = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
 

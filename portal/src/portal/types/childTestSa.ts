@@ -136,6 +136,8 @@ export type SaTaskResult = {
   secondVoice?: boolean;
   /** round 28 (tap picker / MCQ): too few items heard to rate; Results says "not rated", the dashboard leaves it out */
   unrated?: boolean;
+  /** round 28 (O-46): why it is unrated when not too few heard: 'ended' = the coach ended the picker early */
+  unratedWhy?: 'ended';
   /** round 28: how many items the child heard (lost clips are not presented) */
   presented?: number;
   /** round 28 (ceiling): the scorer's first N items, today's scale, shown beside the rate */

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 NIETE-Rumi Teacher Training migration — one-shot fork of TALEEMABAD content
+import os
 from the legacy Taleemabad platform (fde_production).
 
 What it does (all steps idempotent — ON CONFLICT DO NOTHING / UPSERT):
@@ -42,6 +43,9 @@ def env(k: str) -> str:
 
 
 SUPABASE_URL = env("SUPABASE_URL")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+from sandbox_scrub import refuse_real_data_into_sandbox  # noqa: E402  (sandbox = dummy people only)
+refuse_real_data_into_sandbox(SUPABASE_URL)
 SUPABASE_KEY = env("SUPABASE_SERVICE_ROLE_KEY")
 
 

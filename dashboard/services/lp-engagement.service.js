@@ -62,7 +62,7 @@
  * counted 10 of them. The rule never touches the RDF lists: when they are loaded they are the population.
  */
 
-const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER } = require('./schools-analytics.service');
+const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER, K5_GRADES } = require('./schools-analytics.service');
 const { subjectKey, subjectName, gradeOf } = require('./subject-vocabulary.service');
 const { noSchoolId } = require('../lib/analytics-lists');
 const { parseLessonRef } = require('../../bot/shared/utils/lesson-ref');
@@ -71,7 +71,8 @@ const BANDS = Object.freeze(['primary', 'midhigh']);
 
 /** Which analytics-lists population, which plan keys and which grades belong to each band. */
 const BAND_RULES = Object.freeze({
-  primary: Object.freeze({ list: 'primary', kind: 'k5', grades: [1, 5], levels: ['PRIMARY'] }),
+  // K5_GRADES: the one copy, shared with schools-analytics' K-5 app open (bd-wpw633).
+  primary: Object.freeze({ list: 'primary', kind: 'k5', grades: K5_GRADES, levels: ['PRIMARY'] }),
   midhigh: Object.freeze({ list: 'midHigh', kind: 'g612', grades: [6, 12], levels: ['MIDDLE', 'HIGH'] }),
 });
 
@@ -489,6 +490,7 @@ async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists
 
 module.exports = {
   BANDS,
+  BAND_RULES,
   parseBandFilter,
   parsePlanRef,
   lpSubjectKey,

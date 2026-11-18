@@ -18,8 +18,15 @@ import type { BrowserEnv } from '@/lib/runtime';
  */
 export { normaliseRoute, shouldTrack };
 
-type Kind = 'view' | 'leave' | 'resume';
-type Queued = { k: Kind; r: string; pr?: string | null; d?: number; why?: string; at: number };
+type Kind = 'view' | 'leave' | 'resume' | 'step';
+type Queued = {
+  k: Kind; r: string; pr?: string | null; d?: number; why?: string; at: number;
+  /** k 'step' only (bd-snkn32.51): the screen, enter/leave, grade, subject code, band. */
+  s?: string; ph?: 'enter' | 'leave'; g?: number; sub?: string; bd?: string;
+};
+/** bd-snkn32.51 (queue #134 A) — one "Make my own" question screen: codes only, nothing she typed. */
+export type OwnStepInfo = { step: string; grade: number; subject: string; band: 'k5' | 'g612' };
+const OWN_ROUTE = '/portal/teacher/lessons/own';
 
 export interface FunnelDeps {
   endpoint: string;
@@ -44,6 +51,7 @@ export function createAppFunnel(deps: FunnelDeps) {
   let pausedUntil = 0;
   let lastRoute: string | null = null;
   let current: { route: string; shownAt: number; hidden: boolean } | null = null;
+  let screen: { info: OwnStepInfo; shownAt: number; hidden: boolean } | null = null;
 
   const safe = <T,>(fn: () => T): T | undefined => { try { return fn(); } catch { return undefined; } };
 
@@ -93,7 +101,27 @@ export function createAppFunnel(deps: FunnelDeps) {
     lastRoute = current.route;
   }
 
+  const stepEv = (info: OwnStepInfo, ph: 'enter' | 'leave') => (
+    { k: 'step' as const, r: OWN_ROUTE, s: info.step, ph, g: info.grade, sub: info.subject, bd: info.band }
+  );
+  function closeScreen(why: 'nav' | 'hidden' | 'pagehide') {
+    if (screen && !screen.hidden) enqueue({ ...stepEv(screen.info, 'leave'), d: deps.now() - screen.shownAt, why });
+  }
+
   return {
+    /** bd-snkn32.51 — she is on this "Make my own" screen: closes the screen before it (with its time), enters this one. */
+    step(info: OwnStepInfo) {
+      safe(() => {
+        if (screen && !screen.hidden && screen.info.step === info.step) return;
+        closeScreen('nav');
+        enqueue(stepEv(info, 'enter'));
+        screen = { info, shownAt: deps.now(), hidden: false };
+      });
+    },
+    /** She left the form: the open screen is closed. */
+    stepEnd() {
+      safe(() => { closeScreen('nav'); screen = null; });
+    },
     /** The router moved (or the app opened on) `path`. */
     view(path: string) {
       safe(() => {
@@ -112,12 +140,14 @@ export function createAppFunnel(deps: FunnelDeps) {
           enqueue({ k: 'leave', r: current.route, d: deps.now() - current.shownAt, why });
           current.hidden = true;
         }
+        if (screen && !screen.hidden) { closeScreen(why); screen.hidden = true; }
         flush(true);
       });
     },
     /** She is back on the page (visible again, or restored from the back-forward cache). */
     visible() {
       safe(() => {
+        if (screen && screen.hidden) { screen.hidden = false; screen.shownAt = deps.now(); enqueue(stepEv(screen.info, 'enter')); }
         if (!current || !current.hidden) return;
         current.hidden = false;
         current.shownAt = deps.now();

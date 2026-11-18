@@ -308,6 +308,23 @@ async function resolveOrCreateSchool(supabase, schoolExtId) {
     }
   } catch (_) { /* fall through */ }
 
+  // A school with no EMIS (GB Deosai and Hoto, the Rumi QA test schools) is held under a key made from its name, so
+  // the EMIS lookup above cannot find it. Another coach's holding of the same key already names it by school_id:
+  // take that school. Without this the branch below inserted a SECOND copy of it into `schools`, and the new holding
+  // pointed at the empty copy, so none of the school's teachers ever reached her.
+  try {
+    const { data: held } = await supabase
+      .from('leader_schools').select('school_id').eq('school_ext_id', schoolExtId).limit(20);
+    const id = ((held || []).find((h) => h && h.school_id) || {}).school_id;
+    if (id) {
+      const { data: s } = await supabase.from('schools').select('id, name, emis').eq('id', id).limit(1);
+      if (s && s[0]) {
+        const own = s[0].emis == null || String(s[0].emis).trim() === '' ? null : String(s[0].emis).trim();
+        return { school_id: s[0].id, name: s[0].name, emis: own };
+      }
+    }
+  } catch (_) { /* fall through */ }
+
   // Only known to the assignment table — promote it.
   const { data: ls } = await supabase
     .from('leader_schools').select('school_name, emis').eq('school_ext_id', schoolExtId).limit(1);
@@ -430,7 +447,8 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
       leader_user_id: leaderUserId, school_ext_id: schoolExtId,
       // The real key, finally. Every join used to run on the text ext id.
       school_id: school.school_id,
-      school_name: school.name, emis: String(school.emis), source: ROW_SOURCE,
+      // A school with no EMIS stays NULL here, as every holding of it already is (never the text 'null').
+      school_name: school.name, emis: school.emis == null ? null : String(school.emis), source: ROW_SOURCE,
     });
   }
 
