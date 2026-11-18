@@ -645,12 +645,18 @@ const sttNote = (heard, clip, { text = false } = {}) => ({
   ...(heard && Number.isInteger(heard.words) ? { stt_words: heard.words, ...(text ? { stt_text: Array.from(String(heard.text || '')).slice(0, 80).join('') } : {}) } : {}),
 });
 
-/** Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect). */
-function timedRows(refs, verdictOf) {
+/**
+ * Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect).
+ * `presented` (sa_r28_ceiling, an extended grid): the cells the phone presented and counts attempted. A presented cell
+ * with no answer heard is attempted and wrong (EGRA's no-response), reason 'no_response', never not_reached; a no-voice
+ * mute (no_speech) stays not_reached. null (switch OFF, or a task that does not extend): today's rows.
+ */
+function timedRows(refs, verdictOf, { presented = null } = {}) {
   const v = refs.map((_, k) => verdictOf(k));
   let last = 0;
   v.forEach((x, k) => { if (x.verdict !== 'not_reached') last = k + 1; });
-  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: v[k].verdict === 'not_reached' && k < last ? 'wrong' : v[k].verdict, heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}), ...(v[k].gate || {}) }));
+  const silentPass = (x, k) => presented != null && k < presented && x.verdict === 'not_reached' && !x.no_speech;
+  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: (v[k].verdict === 'not_reached' && k < last) || silentPass(v[k], k) ? 'wrong' : v[k].verdict, ...(silentPass(v[k], k) ? { reason: 'no_response' } : {}), heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}), ...(v[k].gate || {}) }));
 }
 
 function firstRowStopped(rows, n) {
@@ -720,6 +726,8 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
   const grid = (rec.grid || []).map(String);
   const reached = reachedOf(task, res, grid.length);
   const items = shownOf(rec, grid, reached);
+  // sa_r28_ceiling ON, an extended grid: the cells presented (the 500 ms final-cell rule already applied by reachedOf)
+  const presented = deps.ceiling === true && Number(rec.base_n) > 0 && reached != null ? Math.min(reached, items.length) : null;
   const perRow = Number(rec.per_row) || 10;
   const clip = await clipOf(deps, row.audio_r2_key);
   const letters = /letter/.test(task.subtask || task.task);
@@ -744,15 +752,15 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
     // under its own reason ('found_false': the third mute cause beside 'duration' and 'no_voice' / 'no_words')
     const raw = (k) => { const it = by.get(k + 1) || {}; return { raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') }; };
     rows = gateOn() && json.found === false ? timedRows(items, (k) => (letterGate === true ? { ...MUTE, gate: { ...(gate || note), reason: 'found_false', ...raw(k) } } : MUTE))
-      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; });
+      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; }, { presented });
   } else if (wordsC === true && task.subtask === WORDS_SUBTASK) {
     // sa_r28_words_prompt ON: prompt C, per-position answers; the same job (cost / precision series), the prompt named
     const accepts = items.map((_, k) => ((rec.items || [])[k] || {}).accept);
     const json = await call(deps, calls, { prompt: wordsPrompt({ grade, lang: task.lang, items, accepts }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_words', name: 'words_c' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
-    rows = timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+    rows = timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; }, { presented });
   } else {
-    rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
+    rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words', { presented });
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
   const pending = clockPending(deps, res);
@@ -841,7 +849,7 @@ async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = f
   return { numbers, rows, stopped: false, durationSec, section: Boolean(section), ceiling };
 }
 
-async function storyRows(tokens, lang, clip, deps, calls, job) {
+async function storyRows(tokens, lang, clip, deps, calls, job, { presented = null } = {}) {
   /* eslint-disable global-require */
   const prompts = require('../scoring/prompts');
   const { verdictsFrom } = require('../scoring/story');
@@ -849,7 +857,7 @@ async function storyRows(tokens, lang, clip, deps, calls, job) {
   const json = await call(deps, calls, { prompt: prompts.STORY({ lang: lang === 'ur' ? 'urdu' : 'english', tokens }), schema: prompts.STORY_SCHEMA, clip, job });
   const v = verdictsFrom(json, tokens.length);
   const VV = { correct: 'correct', wrong: 'wrong', skipped: 'not_reached' };
-  return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }));
+  return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }), { presented });
 }
 
 async function scorePassage(task, rec, row, res, deps, calls, { letterGate = false } = {}) {
