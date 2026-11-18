@@ -2047,3 +2047,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the words shown, and so the clip Jugnu plays, are exactly the same as before
     And the story passage the child reads is unchanged
     And with sa_r28_mcq off the battery runs exactly as before
+
+  @e2e @wip @draft @config-gated @P2 @CT296 @no-mock-driver
+  # No mock driver: the engine page's layout on a phone. Asserted in dashboard/tests/sa-r28-mcq.service.test.js
+  # (real Chromium, 360×640 at DPR 3 and 2, the coach page's frame, both tiers' switches).
+  Scenario: With sa_r28_mcq on, a two-line Urdu story question in RDF auto keeps its two lines apart on a phone
+    Given sa_r28_mcq is on and a child answers the Urdu story questions alone (RDF auto) on a 360×640 phone
+    When a question that takes two lines is on the screen, such as «بلال کس کے ساتھ دریائے جہلم گیا؟»
+    Then the second line's letters start below the first line's and never run into them
+    And the four answers, the replay and the Next offered later are all on the screen and tappable, with nothing to scroll
+    And the coach-led phone and the tablet show the question exactly as before
+    And with sa_r28_mcq off there is no story question screen and nothing changes
