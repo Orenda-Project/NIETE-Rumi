@@ -150,7 +150,14 @@ async function computeLpFidelity(input = {}, deps = {}) {
       }
     }
 
-    if (!moves || !moves.length) return { status: 'lp_absent' };
+    if (!moves || !moves.length) {
+      // bd-ra8xu.53 — a library lesson IS linked but has no move list (no GB lesson has one): on a FICO17 v6 visit say
+      // it could not be measured, never "no lesson plan was provided". Every other caller keeps lp_absent.
+      if (input.distinguishUnscorable && input.corpusKey && input.corpusKey.lesson_id) {
+        return { status: 'fidelity_unavailable', reason: 'no_move_list', lesson_id: input.corpusKey.lesson_id };
+      }
+      return { status: 'lp_absent' };
+    }
 
     // 3) recording facts (bd-b3pop.5): telemetry on every graded blob. Nothing here changes a verdict — bd-b3pop.19
     // refuted a truncation rule built on them.

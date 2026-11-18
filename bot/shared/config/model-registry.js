@@ -454,6 +454,21 @@ const LABEL_REPLY_JOBS = Object.freeze({
 });
 
 /**
+ * bd-lk7e3f.6.3: the effort a job asks of a Claude model that thinks by default, when the switch sends it there.
+ * Every job not listed keeps what the switch decides from its output limit alone (llm-client adaptForTarget), and a
+ * call that says what it wants about thinking or effort keeps that. Haiku 4.5 does not think unless asked and
+ * rejects effort, and no OpenRouter model is sent the field, so an entry changes nothing until a row moves its job
+ * to such a model.
+ *
+ * coaching.reflectiveCorpus: at Haiku 5.5's default (medium) its thinking ran past the 6,000-token limit on 12 of 235
+ * calls in one morning, each handed back; on 30 real lessons and the 13 that had failed it was never cut off at low
+ * (86 calls), and no worse to two blind readers than the model it replaces.
+ */
+const JOB_EFFORT = Object.freeze({
+  'coaching.reflectiveCorpus': 'low',
+});
+
+/**
  * The label a reply to this job starts with, whether its marker follows (for a label that can carry
  * one), and the rest of the reply; or null. Case, leading spaces, quotes and markdown emphasis are
  * ignored; the label must end where a word ends, so "generally" is not "general".
@@ -592,6 +607,6 @@ function modelFor(job, ctx = {}) {
 
 module.exports = {
   modelFor,
-  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER, LABEL_REPLY_JOBS,
+  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER, LABEL_REPLY_JOBS, JOB_EFFORT,
   fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel, leadingLabel, labelDecisionComplete,
 };

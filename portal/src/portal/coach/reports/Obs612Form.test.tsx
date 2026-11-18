@@ -105,11 +105,11 @@ describe("FDE form on the portal", () => {
     expect(screen.queryByTestId("legend")).toBeNull();
   });
 
-  it("an item: Item n, FDE's wording, its Yes/No options; the comment box is the tool's, optional", async () => {
+  it("an item: FDE's number (no 'Item n'), FDE's wording, its Yes/No options; the comment box is the tool's, optional", async () => {
     renderPage();
     await screen.findByText("Well lit and airy classroom");
-    expect(screen.getByText("Item 1")).toBeInTheDocument();
-    const group = within(screen.getByRole("radiogroup", { name: "Item 1" }));
+    expect(screen.queryByText("Item 1")).toBeNull();
+    const group = within(screen.getByRole("radiogroup", { name: "Well lit and airy classroom" }));
     expect(group.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Yes", "No"]);
     expect(screen.getByLabelText(/Comments/)).toHaveAttribute("dir", "auto");
   });
@@ -121,7 +121,7 @@ describe("FDE form on the portal", () => {
     expect(screen.getByText("School")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Subject/ })).toHaveTextContent("English");
     expect(screen.getByLabelText(/Class Size/)).toHaveAttribute("inputmode", "numeric");
-    const points = within(screen.getByRole("radiogroup", { name: "Item 1" }));
+    const points = within(screen.getByRole("radiogroup", { name: "Clear lesson objectives communicated" }));
     expect(points.getAllByRole("radio").map((r) => r.textContent)).toEqual(["1", "2", "3", "4"]);
     const level = within(screen.getByRole("radiogroup", { name: "Written work checked" }));
     expect(level.getAllByRole("radio")).toHaveLength(4);
@@ -151,7 +151,7 @@ describe("FDE form on the portal", () => {
     L.saveObs612Form.mockImplementation(async (_id: string, values: Record<string, string>) => GEN({ values, errors: { work_1: "item", fb_line: "text" } }));
     renderPage();
     await screen.findByText("Well lit and airy classroom");
-    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Item 1" })).getByRole("radio", { name: "Yes" }));
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Well lit and airy classroom" })).getByRole("radio", { name: "Yes" }));
     fireEvent.click(button("Next part"));
     expect(await screen.findByText("Notebooks are checked")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Part 2 of 2" })).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe("FDE form on the portal", () => {
   it("Save draft saves part-way and says so; it never submits", async () => {
     renderPage();
     await screen.findByText("Well lit and airy classroom");
-    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Item 1" })).getByRole("radio", { name: "No" }));
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Well lit and airy classroom" })).getByRole("radio", { name: "No" }));
     fireEvent.click(button("Save draft"));
     expect(await screen.findByText("Saved")).toBeInTheDocument();
     expect(L.saveObs612Form).toHaveBeenCalledWith("cs-1", expect.objectContaining({ env_1: "no" }), false);

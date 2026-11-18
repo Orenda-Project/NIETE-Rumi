@@ -874,7 +874,8 @@
             "name": "confirm_form",
             "init-values": {
               "output_format": "pdf",
-              "answer_lines": true
+              "answer_lines": true,
+              "save_paper": false
             },
             "children": [
               {
@@ -898,6 +899,11 @@
                 "label": "Lines for the answers"
               },
               {
+                "type": "OptIn",
+                "name": "save_paper",
+                "label": "Save paper: smaller print, more questions on each page"
+              },
+              {
                 "type": "Footer",
                 "label": "Make my paper",
                 "on-click-action": {
@@ -905,6 +911,7 @@
                   "payload": {
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
+                    "save_paper": "${form.save_paper}",
                     "extension_message_response": "${data.extension_message_response}"
                   }
                 }

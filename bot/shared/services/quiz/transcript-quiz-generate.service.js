@@ -37,6 +37,7 @@ const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offe
 const {
   TRANSCRIPT, LP_V8, LP612, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
+const { digestFailureDetail } = require('./digest-failure-detail');
 const LpDigest = require('./lp-quiz-digest.service');
 const WebItems = require('./web-quiz-items');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
@@ -2420,7 +2421,7 @@ async function processQuiz(quizId, payload, flight) {
         : await Digest.run({ session, user });
     } catch (err) {
       const reason = digestFailureReason(err);
-      logToFile('❌ transcript quiz: digest failed in generate', { quizId, reason, code: err.code || null, error: err.message }, 'error');
+      logToFile('❌ transcript quiz: digest failed in generate', { quizId, reason, code: err.code || null, error: err.message, ...digestFailureDetail(err) }, 'error');
       await updateQuiz(quizId, {
         status: 'failed',
         meta: { ...meta, step: 'failed', error: reason, error_detail: `digest: ${err.message}` },

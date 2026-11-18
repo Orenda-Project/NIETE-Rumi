@@ -33,6 +33,10 @@ const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved, karachiToday } = require
 // stops a blank string from beating that fallback. Mirrors
 // patch-resolver.fullNameOf on the bot side; keep the two in step.
 // Live accounts only (bd-apnnh2.11): a retired account is in nobody's patch.
+// The school key: 'niete:' + EMIS, else the coach's holding key. A school with no EMIS (GB community schools, the
+// Rumi QA test schools) is keyed by its name in leader_schools; 'niete:' || NULL alone was NULL and the NOT NULL
+// school_ext_id refused the booking. Same rule as leader-patch COACH_SCHOOL_KEY and the bot's schoolKeyOf, so a
+// portal booking and a WhatsApp booking of one teacher land on the same key.
 const PATCH_SQL = `
   SELECT u.id                 AS teacher_user_id,
          u.phone_number       AS teacher_ext_id,
@@ -42,7 +46,7 @@ const PATCH_SQL = `
              NULLIF(btrim(u.name), ''),
              NULLIF(btrim(u.name), ''))), '')
          )                    AS teacher_name,
-         'niete:' || s.emis   AS school_ext_id,
+         COALESCE('niete:' || s.emis, ls.school_ext_id) AS school_ext_id,
          s.name               AS school_name
   FROM leader_schools ls
   JOIN schools s
@@ -119,6 +123,9 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
   if (!teacher) throw new Error('That teacher is not in your patch');
 
   const schoolExtId = teacher.school_ext_id;
+  // No EMIS and no holding key: nothing to book under. Say so plainly rather than let the database's not-null
+  // error reach the coach's screen.
+  if (!schoolExtId) throw new Error("This teacher's school has no EMIS or school code yet, so a visit cannot be booked");
   const { rows: active } = await query(ACTIVE_SQL, [leaderUserId, schoolExtId, teacherExtId]);
   if (active && active[0]) {
     const { rows } = await query(UPDATE_SQL, [

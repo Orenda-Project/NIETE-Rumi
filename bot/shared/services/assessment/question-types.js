@@ -93,7 +93,8 @@ function _sets(subject, grade) {
  * and Graphs & Geometric Problems stay offered: the child draws those from text on the answer
  * sheet, and the user prompt says so whenever one is asked for.
  */
-const NEEDS_PRINTED_PICTURE = new Set(['Label the Diagram', 'Picture Description']);
+// bd-ipoxhx.10: Label the Diagram is drawn now (paper-diagram.js FIGURES) and offered again.
+const NEEDS_PRINTED_PICTURE = new Set(['Picture Description']);
 
 /**
  * Types a subject keeps in its CATALOGUE (so older papers keep their category) but no longer

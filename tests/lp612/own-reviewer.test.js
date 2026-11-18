@@ -66,8 +66,9 @@ test('a check rated 1 is not library-eligible however high the rest', async () =
 });
 
 test('near the bar it is scored a second time and the mean decides', async () => {
-  // 42 checks: 18 at 4 and 24 at 3 = 144/168 = 85.7 (near); the second at 25 x 4 = 145/168 = 86.3.
-  const ids = CHECKS.map((c) => c.id).filter((id) => id !== '7B' && id !== '5D');
+  // bd-snkn32.46: 1D is null (no book text), so 41 rated: 18 at 4 + 23 at 3 = 141/164 = 86.0 (near); the second,
+  // 19 at 4 = 142/164 = 86.6; the mean is 86.3.
+  const ids = CHECKS.map((c) => c.id).filter((id) => !['7B', '5D', '1D'].includes(id));
   const at = (n) => Object.fromEntries(ids.slice(0, n).map((id) => [id, 4]));
   const create = jest.fn()
     .mockResolvedValueOnce(reply(3, { ...at(16), '7B': 4, '5D': 4 }))
@@ -76,7 +77,7 @@ test('near the bar it is scored a second time and the mean decides', async () =>
   await reviewer.review('own-1');
   expect(create).toHaveBeenCalledTimes(2);
   expect(patches[0].review_pass).toBe(true);
-  expect(patches[0].review_score).toBeCloseTo(86.0, 1);
+  expect(patches[0].review_score).toBeCloseTo(86.3, 1);
 });
 
 test('a row that is not ready, or not hers to find, is never scored', async () => {
@@ -100,4 +101,35 @@ test('a model failure, an unreadable reply or a missing plan leaves the score nu
     expect(patches).toHaveLength(0);
     expect(deps.log).toHaveBeenCalled();
   }
+});
+
+test('bd-snkn32.42: a grades 1-5 row is reviewed as G1-5: 2I and 1D stored null, the prompt names the script parts', async () => {
+  const k5 = { ...READY, segment_id: null, lesson_id: 'G3_eng_ch2_d1', r2_key: 'lp612/own-k5/en/g3/h.pdf' };
+  const { reviewer, patches, create } = harness({
+    selectRow: jest.fn(async () => k5),
+    create: jest.fn(async () => reply(4, { '2I': 1, '1D': 2 })),
+  });
+  await reviewer.review('own-1');
+  expect(create.mock.calls[0][0].messages[0].content).toMatch(/iDo/);
+  expect(patches[0].review_items).toMatchObject({ '2I': null, '1D': null });
+  expect(patches[0]).toMatchObject({ review_pass: true, review_score: 100 });
+});
+
+test('bd-snkn32.46: a 6-12 row keeps 2I as rated; 1D is null (no book text is given in either band)', async () => {
+  const { reviewer, patches } = harness({ create: jest.fn(async () => reply(4, { '1D': 2, '2I': 3 })) });
+  await reviewer.review('own-1');
+  expect(patches[0].review_items).toMatchObject({ '1D': null, '2I': 3 });
+});
+
+test('bd-snkn32.46: a Science plan needs 9B >= 3 (production SUBJECT_MUST), read from the plan subject', async () => {
+  const sci = '{"provenance":{"grade":9,"subject":"Physics"},"sections":[]}';
+  const withGloss = (r) => jest.fn(async () => ({ choices: [{ message: { content: JSON.stringify({
+    checks: [...CHECKS.map((c) => ({ id: c.id, rating: 4 })), { id: '9B', rating: r }] }) } }] }));
+  const low = harness({ create: withGloss(2), readPlan: jest.fn(async () => sci) });
+  await low.reviewer.review('own-1');
+  expect(low.create.mock.calls[0][0].messages[0].content).toMatch(/9B Bilingual Concept Glossary/);
+  expect(low.patches[0]).toMatchObject({ review_pass: false, library_eligible: false });
+  const ok = harness({ create: withGloss(3), readPlan: jest.fn(async () => sci) });
+  await ok.reviewer.review('own-1');
+  expect(ok.patches[0]).toMatchObject({ review_pass: true, library_eligible: true });
 });

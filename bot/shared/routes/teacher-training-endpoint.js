@@ -36,6 +36,7 @@ const {
   moduleSourceQuizId, buildModuleExamSlot,
   levelExamSlotHidden,
 } = require('../services/training/isaps-module-exam.rules');
+const LevelLabels = require('../services/training/level-label.rules');
 const supabase = require('../config/supabase');
 const {
   applyBandSelection,
@@ -1194,6 +1195,10 @@ async function settleCertificates(userId, facts) {
     const res = await maybeIssueQuizScoreCertificate(supabase, {
       userId, levelId: lv.id, programId: programOf(lv), attemptId: null, moduleId: null,
     });
+    // A screen loading at the same moment may have issued it a few ms earlier
+    // (the guard says already_issued): she holds it, so the level reads
+    // certified here too instead of offering the exam again.
+    if (res && res.already_issued) certifiedLevelIds.add(lv.id);
     if (res && res.issued) {
       certifiedLevelIds.add(lv.id);
       let tk = null;
@@ -1983,20 +1988,12 @@ function courseBadgeName(c) {
 // ─── Certificates (bd-2665 / sheet row R7) ────────────────────────────────
 
 /**
- * The label a teacher reads on a certificate row.
- *
- * Falls back to the certificate code when the level name snapshot is missing —
- * legacy imports do not all carry one, and "Level undefined · undefined" is
- * worse than a bare code the teacher can at least match against their records.
+ * The label a teacher reads on a certificate row: the number its PDF prints
+ * (level-label.rules.js). Falls back to the certificate code when the level
+ * name snapshot is missing — legacy imports do not all carry one.
  */
 function certificateOptionTitle(cert) {
-  if (!cert) return '';
-  const name = cert.level_name_snapshot;
-  if (!name) return cert.certificate_code || '';
-  const order = cert.training_levels && typeof cert.training_levels.order_index === 'number'
-    ? cert.training_levels.order_index
-    : null;
-  return order === null ? name : `Level ${order + 1} · ${name}`;
+  return LevelLabels.certificateTitle(cert);
 }
 
 /** Issue date + the code, on ONE line — Flow row descriptions do not wrap. */
@@ -2024,7 +2021,7 @@ function certificateOptionDescription(cert) {
 async function loadCertificates(userId) {
   const { data } = await supabase
     .from('training_certificates')
-    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, pdf_r2_key, training_levels(order_index)')
+    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, pdf_r2_key, ' + LevelLabels.CERTIFICATE_LEVEL_EMBED)
     .eq('user_id', userId)
     .order('level_id', { ascending: true });
   return data || [];

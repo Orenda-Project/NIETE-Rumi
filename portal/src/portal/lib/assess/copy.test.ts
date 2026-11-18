@@ -44,7 +44,12 @@ describe("assess copy", () => {
   it("numbers in Urdu copy are Urdu digits (the bar, the list, the summary); English keeps ASCII", () => {
     expect(COPY.ur.grade(5)).toBe("جماعت ۵");
     expect(COPY.ur.childrenDone(0, 5)).toBe("مکمل بچے ⁦۰/۵⁩");
-    expect(COPY.ur.timeUsed("02:13", "45:00")).toBe("وقت ⁦۰۲:۱۳ / ۴۵:۰۰⁩");
+    expect(COPY.ur.visitClock("02:13", "45:00")).toBe("⁦۰۲:۱۳ / ۴۵:۰۰⁩");
+    expect(COPY.ur.visitTime(3)).toBe("پورے دورے کا وقت (⁦۳⁩ بچوں کے لیے)");
+    expect(COPY.ur.visitTime(1)).toBe("پورے دورے کا وقت (ایک بچے کے لیے)");
+    expect(COPY.en.visitClock("02:13", "45:00")).toBe("02:13 / 45:00");
+    expect(COPY.en.visitTime(3)).toBe("Time for the whole visit (3 children)");
+    expect(COPY.en.visitTime(1)).toBe("Time for the whole visit (1 child)");
     expect(COPY.ur.totalTime("02:13")).toBe("کل وقت ⁦۰۲:۱۳⁩");
     expect(COPY.ur.notSentYet(3)).toBe("بھیجنا باقی: ۳");
     expect(COPY.ur.holdHint).toContain("۳");
@@ -86,6 +91,18 @@ describe("assess copy", () => {
     expect(COPY.ur.results.how4).toContain("⁦۶۰⁩");
     expect(COPY.ur.results.how5).toContain("⁨clpm, cwpm⁩");
     expect(COPY.en.results.scoredLater).toBe("Recording kept, scored later");
+  });
+
+  // Round 20: the level words and labels exactly as approved by the content owner on 13 Nov, with their three Urdu changes (Urdu in Urdu script).
+  it("results level: the words and labels as reviewed, English and Urdu", () => {
+    const en = COPY.en.results.level;
+    const ur = COPY.ur.results.level;
+    expect(en.words).toEqual({ beginner: "Beginner", letters: "Letters", words: "Words", story: "Story", comprehension: "Understands the story", numbers: "Numbers", comparing: "Compare numbers", add: "Add", sub_mul: "Subtract and multiply" });
+    expect(ur.words).toEqual({ beginner: "ابتدائی", letters: "حروف", words: "الفاظ", story: "کہانی", comprehension: "کہانی کی سمجھ", numbers: "اعداد کی پہچان", comparing: "نمبروں کا موازنہ", add: "جمع", sub_mul: "تفریق اور ضرب" });
+    expect([en.title, en.reached, en.level, en.more, en.stops.no_answer, en.stops.coach]).toEqual(
+      ["Level in each subject", "Reached", "Level", "more to come", "Stopped: no answer", "Stopped by the coach"]);
+    expect([ur.title, ur.reached, ur.level, ur.more, ur.stops.no_answer, ur.stops.coach]).toEqual(
+      ["ہر مضمون میں سطح", "ٹیسٹ کہاں تک پہنچا", "سطح", "مزید نمبر آنے ہیں", "ٹیسٹ رک گیا: کوئی جواب نہیں", "کوچ نے ختم کیا"]);
   });
 
   it("buttons stay short (≤ 24 code points)", () => {

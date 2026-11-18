@@ -5818,7 +5818,8 @@ CREATE TABLE public.schools (
     source_school_id bigint,
     source_system text,
     is_active boolean DEFAULT true NOT NULL,
-    is_probable_test boolean DEFAULT false NOT NULL
+    is_probable_test boolean DEFAULT false NOT NULL,
+    district text
 );
 
 

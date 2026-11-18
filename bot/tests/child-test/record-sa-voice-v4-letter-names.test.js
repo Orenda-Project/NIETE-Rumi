@@ -36,7 +36,8 @@ test('v4: the three «ثے» clips are sent to the voice as «سے», under thei
   const sent = await record(['--set', 'v4', '--lang', 'ur']);
   const said = sent.map((j) => j.text);
   expect(said).toContain('سے۔');
-  expect(said).toContain('یہ حرف سے ہے۔');
+  // the line «یہ حرف ثے ہے۔» itself was marked wrong on the listening list (16 Nov) and is now voiced from its line fix
+  expect(said).toContain('یہ حرف «سے» ہے۔');
   expect(said.some((t) => t.endsWith('شاباش! یہ حرف سے ہے۔'))).toBe(true);
   expect(said.filter((t) => t.includes('ثے'))).toEqual([]);
 });

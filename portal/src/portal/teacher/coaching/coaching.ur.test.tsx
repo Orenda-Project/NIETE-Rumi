@@ -200,9 +200,10 @@ describe("Digital Coaching in Urdu — the hub", () => {
     at(COACHING_NEW, <NewObservationPage />, COACHING_NEW, { keep: true });
     await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
     const input = screen.getByTestId("dc-photos-input") as HTMLInputElement;
-    const img = (n: string) => new File(["x"], n, { type: "image/jpeg" });
+    // bd-r2uzg1.9: real JPEG bytes (a photo is read when she picks it), and the grid shows them once read.
+    const img = (n: string) => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])], n, { type: "image/jpeg" });
     fireEvent.change(input, { target: { files: Array.from({ length: 10 }, (_, i) => img(`a${i}.jpg`)) } });
-    expect(screen.getByRole("button", { name: UR.removePhoto(1) })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: UR.removePhoto(1) })).toBeTruthy();
     fireEvent.change(input, { target: { files: [img("c.jpg")] } });
     expect(screen.getByRole("alert").textContent).toBe(U.upToPhotos(10));
     expect(englishLeft(["Up to 10 photos", "Add photo"])).toEqual([]);

@@ -28,6 +28,9 @@
 
 /** Only these two roles are ever in a patch. Not coaches, not unregistered. */
 const { teacherLevelOf, primaryBandOf } = require('../../utils/teacher-level');
+const { isOnPrincipalApp } = require('./principal-app-switch');
+// EMIS, else the holding key: the one rule every observation_schedules writer keys a school by.
+const { schoolKeyOf } = require('./school-key');
 
 const PATCH_ROLES = new Set(['teacher', 'principal']);
 
@@ -265,24 +268,16 @@ function schoolIdsForHoldings(holdings) {
   return out;
 }
 
-/** bd-33wxxi.4 — app_settings key of the principal app (dashboard/lib/feature-flags.js PORTAL_PRINCIPAL_APP_KEY). */
-const PRINCIPAL_APP_KEY = 'portal_principal_app';
-
 /**
  * bd-33wxxi.4 — the school of a principal ON THE PRINCIPAL APP, or null. The switch is read with the portal's rule
- * (true, "true", or a list of users.id naming her; anything else, no row or a failed read is off), and her own users row
- * must say principal with a school_id. Fail-closed: null means today's roster (her leader_schools holdings).
+ * (principal-app-switch: true, "true", or a list of users.id naming her; anything else, no row or a failed read is off),
+ * and her own users row must say principal with a school_id. Fail-closed: null means today's roster (her leader_schools
+ * holdings).
  */
 async function principalAppSchoolId(supabase, userId) {
   if (!userId) return null;
   try {
-    const { data: flag, error } = await supabase.from('app_settings').select('value').eq('key', PRINCIPAL_APP_KEY).maybeSingle();
-    if (error || !flag) return null;
-    let v = flag.value;
-    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* the raw string */ } }
-    const on = v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true')
-      || (Array.isArray(v) && v.some((id) => typeof id === 'string' && id === userId));
-    if (!on) return null;
+    if (!(await isOnPrincipalApp(supabase, userId))) return null;
     const { data: me, error: meErr } = await supabase.from('users').select('role, school_id').eq('id', userId).maybeSingle();
     if (meErr || !me || String(me.role || '').trim().toLowerCase() !== 'principal') return null;
     return me.school_id || null;
@@ -310,13 +305,56 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
     .map((u) => shapePatchRow({ ...u, user_id: u.id, school_name: school.name, emis: school.emis })));
 }
 
+/**
+ * A principal's own school (users.school_id) as one more holding, or null.
+ *
+ * Operator, 15 Nov: "a principal linked to a school (users.school_id or any leader_schools row) sees ALL teachers of
+ * that school". On prod that day 477 of 522 principals held no leader_schools row (287 of them with a users.school_id
+ * that has teachers), so their /observe picker was empty. Only a principal (config/role-features
+ * observesOwnSchoolAtOnce): a coach's own users.school_id is never added. Null when they already hold that school,
+ * when it has no schools row, and on any failed read: never a guess.
+ *
+ * Keyed the way a holding of that school would be: 'niete:' + EMIS, else the school's name, so the
+ * patch rows (toLeaderSourceRow) and the school list agree on the key.
+ */
+async function ownSchoolHolding(supabase, leaderUserId, held = []) {
+  if (!leaderUserId) return null;
+  try {
+    const { observesOwnSchoolAtOnce } = require('../../config/role-features');
+    const { data: me, error } = await supabase.from('users').select('role, school_id').eq('id', leaderUserId).maybeSingle();
+    if (error || !me || !me.school_id || !observesOwnSchoolAtOnce(me)) return null;
+    if ((held || []).some((h) => h && h.school_id === me.school_id)) return null;
+    const { data: school, error: sErr } = await supabase.from('schools').select('id, name, emis').eq('id', me.school_id).maybeSingle();
+    if (sErr || !school) return null;
+    const emis = school.emis == null || String(school.emis).trim() === '' ? null : String(school.emis).trim();
+    const key = emis ? `niete:${emis}` : (_norm(school.name) || null);
+    if (!key || (held || []).some((h) => h && h.school_ext_id === key)) return null;
+    return { school_ext_id: key, school_id: school.id, school_name: school.name || null, emis, own: true };
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The schools a leader observes in: their leader_schools holdings, then (a principal only) their own
+ * school. One rule for the picker's school list (leader-source) and its people (listPatchViaSupabase below), so the
+ * two cannot disagree. Rows: { school_ext_id, school_id, school_name, emis, own? }. A failed holdings read is [].
+ */
+async function leaderHoldings(supabase, leaderUserId) {
+  const { data, error } = await supabase
+    .from('leader_schools').select('school_ext_id, school_id, school_name, emis').eq('leader_user_id', leaderUserId);
+  const held = error ? [] : (data || []);
+  const own = await ownSchoolHolding(supabase, leaderUserId, held);
+  return own ? [...held, own] : held;
+}
+
 async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) {
   // bd-33wxxi.4 — a principal on the principal app: her own school, whatever she holds (one school, so no filter).
   const ownSchool = await principalAppSchoolId(supabase, leaderUserId);
   if (ownSchool) return ownSchoolPatch(supabase, leaderUserId, ownSchool);
 
-  const { data: mine } = await supabase
-    .from('leader_schools').select('school_ext_id, school_id').eq('leader_user_id', leaderUserId);
+  // Holdings, plus a principal's own school.
+  const mine = await leaderHoldings(supabase, leaderUserId);
 
   // bd-5n1a2: '' must mean "no filter". A schedule row carrying school_ext_id=''
   // once turned into a zero-row roster and silently unbound a picked teacher.
@@ -383,7 +421,7 @@ function toLeaderSourceRow(p = {}) {
     // bd-97daxo.29: the portal's rule (bd-97daxo.22, leader-patch): COALESCE('niete:' || emis, the coach's holding
     // key). 'niete:' + a null EMIS left an EMIS-less school's teachers under null, so the /observe school list said
     // "0 teachers" for GB Hoto and Deosai while tapping the school listed them.
-    school_ext_id: p.emis ? `niete:${p.emis}` : (p.schoolExtId || null),
+    school_ext_id: schoolKeyOf(p),
     level: p.band ? String(p.band).toUpperCase() : null,
     is_principal: !!p.isPrincipal,
   };
@@ -392,7 +430,9 @@ function toLeaderSourceRow(p = {}) {
 module.exports = {
   PATCH_ROLES,
   listPatchViaSupabase,
+  leaderHoldings,
   principalAppSchoolId,
+  schoolKeyOf,
   toLeaderSourceRow,
   PATCH_SQL,
   bandOf,

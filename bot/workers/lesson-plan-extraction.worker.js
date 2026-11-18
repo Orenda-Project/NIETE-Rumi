@@ -332,6 +332,15 @@ class LessonPlanExtractionWorker {
     }
   }
 
+  /**
+   * bd-ra8xu.53 — `lesson_id=GB_G4_URDU.C02.S003` (a v9 PDF's Subject) → `gb_g4_urdu_ch2_seg3`, the library's id;
+   * null when the Subject carries no dotted id. Checked against the library's own v9 PDFs (5 of 5).
+   */
+  static libraryIdFromV9(subject) {
+    const m = String(subject || '').match(/lesson_id=([A-Za-z0-9_]+)\.C(\d+)\.S(\d+)(?![\w.])/);
+    return m ? `${m[1].toLowerCase()}_ch${Number(m[2])}_seg${Number(m[3])}` : null;
+  }
+
   /** bd-0wws3e — the worker's one coaching_sessions writer: strips NUL bytes and logs a failed save. */
   static async saveSession(coachingSessionId, payload, step) {
     const { error } = await supabase
@@ -354,9 +363,15 @@ class LessonPlanExtractionWorker {
   static async corpusRefFromPdf(buffer, coachingSessionId) {
     try {
       const { info } = await pdf(buffer, { max: 1 });
-      const m = String((info && info.Subject) || '').match(/lesson_id=([A-Za-z0-9_]+)/);
+      const subject = String((info && info.Subject) || '');
+      const m = subject.match(/lesson_id=([A-Za-z0-9_]+)/);
       if (!m) return null;
-      const lessonId = m[1].toLowerCase();
+      // bd-ra8xu.53 — the v9 renderer (vendor/lp-v9/render_lp.js) writes the lesson's dotted id,
+      // GB_G4_URDU.C02.S003, which the library holds as gb_g4_urdu_ch2_seg3. Read on every visit since
+      // bd-ra8xu.56 (operator 14 Nov, decision 363); first it was FICO17 v6 visits only. A dotted id the
+      // library does not hold (the ICT grade 6-12 books) finds nothing and the file is read, as before.
+      const v9 = LessonPlanExtractionWorker.libraryIdFromV9(subject);
+      const lessonId = v9 || m[1].toLowerCase();
       const { data, error } = await supabase
         .from('niete_lp_assets')
         .select('id, lesson_id, version_stamp, content_hash')

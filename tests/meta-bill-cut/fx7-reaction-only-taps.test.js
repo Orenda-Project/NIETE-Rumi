@@ -339,9 +339,9 @@ describe('FX7-4 — every registry pattern matches the id its sender emits (an u
   // [registry name, sender file, the id template's prefix as written there, a sample tail]
   const SENDERS = [
     ['coaching_survey_yes', 'coaching/coaching-feedback.service.js', 'coaching_fb_yes_', SESSION],
-    ['commit_card', 'coaching/report-generator.service.js', 'card_yes_', SESSION],
-    ['commit_card', 'coaching/report-generator.service.js', 'card_later_', SESSION],
-    ['commit_card', 'coaching/report-generator.service.js', 'card_no_', SESSION],
+    ['commit_card', 'coaching/report-commit-prompt.js', 'card_yes_', SESSION],
+    ['commit_card', 'coaching/report-commit-prompt.js', 'card_later_', SESSION],
+    ['commit_card', 'coaching/report-commit-prompt.js', 'card_no_', SESSION],
     ['lp_usage', 'lp-feedback.service.js', 'lp_used_taught_', LP],
     ['lp_usage', 'lp-feedback.service.js', 'lp_used_planned_', LP],
     ['lp_usage', 'lp-feedback.service.js', 'lp_used_not_yet_', LP],

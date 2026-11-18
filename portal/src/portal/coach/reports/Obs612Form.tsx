@@ -189,6 +189,8 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
 
   const item = (f: Obs612Field) => {
     const label = labelOf(f);
+    // The group is named by FDE's words for the item; its chip shows only FDE's number (13 Nov: no "Item N").
+    const groupName = f.short || f.text || label;
     const v = values[f.name] || "";
     const bad = !!shown[f.name];
     const opts = f.options || [];
@@ -198,7 +200,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     } else if (f.kind === "points") {
       choices = (
         <>
-          <RatingScale name={label} value={v || null} options={opts.map((o) => ({ id: o.id, label: rungName(o.title) }))} onChange={(k) => set(f.name)(String(k))} />
+          <RatingScale name={groupName} value={v || null} options={opts.map((o) => ({ id: o.id, label: rungName(o.title) }))} onChange={(k) => set(f.name)(String(k))} />
           {v ? <span className="text-[14px] font-semibold text-[#4b5563]" dir="auto">{titleOf(f, v)}</span> : null}
         </>
       );
@@ -206,7 +208,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       // Yes/No side by side; Levels one under another, each with FDE's text of what the level looks like.
       const wide = f.kind === "level";
       choices = (
-        <div role="radiogroup" aria-label={label} aria-describedby={bad ? `err-${f.name}` : undefined}
+        <div role="radiogroup" aria-label={groupName} aria-describedby={bad ? `err-${f.name}` : undefined}
           className={cn(GRID, "gap-2", wide ? "grid-cols-1" : "grid-cols-2")}>
           {opts.map((o) => {
             const on = v === o.id;

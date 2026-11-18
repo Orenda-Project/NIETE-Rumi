@@ -102,9 +102,9 @@ describe('checkK5Rewrite — the gate before it is rendered', () => {
     expect(checkK5Rewrite(script('ur'), notReady, { lang: 'ur' }).join(' ')).toMatch(/not ready/);
   });
 
-  it('much longer than her day plan is refused (she reads it on a phone before class)', () => {
+  it('bd-snkn32.40: much longer than her day plan is a warning (lp-own-fit), not a refusal', () => {
     const long = script(); long.youDo.action = 'x'.repeat(5000);
-    expect(checkK5Rewrite(script(), long, { lang: 'en' }).join(' ')).toMatch(/long/);
+    expect(checkK5Rewrite(script(), long, { lang: 'en' })).toEqual([]);
   });
 });
 
@@ -165,12 +165,12 @@ describe('renderK5Own — the phone page', () => {
   });
 });
 
-/** bd-snkn32.24 — several ways: all named for We Do and You Do; TaRL grouping when TaRL is among them. */
+/** bd-snkn32.24 — several ways: all named for We Do (bd-snkn32.28: You Do is each child alone); TaRL grouping when TaRL is among them. */
 describe('k5Messages — several teaching ways', () => {
   it('names each chosen way and keeps the TaRL grouping when TaRL is one of them', () => {
     const answers = { ...ANSWERS, way: 'phonics', ways: ['phonics', 'tarl', 'games'] };
     const user = k5Messages({ script: script('ur'), answers, lang: 'ur', grade: 2, subject: 'urdu' })[1].content;
-    expect(user).toMatch(/Teaching ways, combined in We Do and You Do:/);
+    expect(user).toMatch(/Teaching ways, combined in We Do:/);
     expect(user).toMatch(/sound/i);
     expect(user).toMatch(/game/i);
     expect(user).toMatch(/Group the children by level/);

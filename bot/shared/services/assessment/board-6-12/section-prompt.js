@@ -116,6 +116,8 @@ function rewriteNote(rows, stems = [], used = [], phrases = [], figure = false, 
 const CHECK_FAULTS = {
   D18: 'the key stood out (longest option, or always/never); write all four options the same length and detail, the key no longer than the longest distractor',
   D22: 'its scheme had only a final-answer mark; list method/working step marks (formula, substitution, working) apart from the final-answer mark (value with unit)',
+  D17: 'it asked the same as another question in this section; ask about a different fact or idea from the pages', // bd-qyi45h.14
+  D13: 'its options broke the MCQ rules, or it had the same answer letter as the questions just before it; write four different options labelled A) to D) with the key one of them, and when the options are numbers (printed in ascending order) choose the values so the correct one sits at a different letter from the questions before it', // bd-qyi45h.16
 };
 const checkFaults = (gone) => gone.filter((x) => CHECK_FAULTS[x.check]).map((x) => `"${x.question}": ${CHECK_FAULTS[x.check]}`);
 

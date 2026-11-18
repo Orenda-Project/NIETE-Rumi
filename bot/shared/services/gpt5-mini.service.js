@@ -458,7 +458,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       }
 
       const duration = Date.now() - startTime;
-      const rawContent = response.choices[0].message.content;
+      // `let`: an unreadable first reply is replaced by the re-ask below.
+      let rawContent = response.choices[0].message.content;
 
       // Log if response was truncated
       if (response.choices[0].finish_reason === 'length') {
@@ -481,7 +482,36 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
           responseSuffix: rawContent?.substring(rawContent.length - 100),
           finishReason: response.choices[0].finish_reason
         });
-        throw new Error(`JSON parsing failed: ${parseError.message}. Response may be truncated.`);
+        // Ask once more, in this job, before failing the session.
+        //
+        // The model sometimes finishes normally (finish_reason 'stop', the JSON closed) yet writes one
+        // invalid character mid-body that jsonrepair cannot mend. Throwing here failed the session,
+        // sent the teacher "Sorry, there was an error analyzing your classroom. Please try again." and
+        // left SQS to redeliver ~15 minutes later, when the SAME request parsed: on ICT production,
+        // 10-17 Nov, 13 of 13 such sessions ended analysed on that redelivery. Re-asking here gets the
+        // same outcome without the error message or the wait. Still unreadable, or the re-ask errors:
+        // throw exactly as before and let SQS take over.
+        let again = null;
+        let againResult = null;
+        try {
+          again = await this.openai.chat.completions.create({ ...scoringRequest, messages: sentMessages });
+          againResult = this._safeJsonParse(again.choices[0].message.content);
+        } catch (retryError) {
+          logWarn('⚠️ Re-ask of an unreadable analysis reply did not give readable JSON either', {
+            error: retryError.message,
+            finishReason: again && again.choices && again.choices[0] ? again.choices[0].finish_reason : null,
+          });
+        }
+        if (!againResult) {
+          throw new Error(`JSON parsing failed: ${parseError.message}. Response may be truncated.`);
+        }
+        logToFile('✅ Unreadable analysis reply re-asked once — the second reply parsed', {
+          coachingSessionId: metadata.coachingSessionId || null,
+          firstError: parseError.message,
+        });
+        response = again;
+        rawContent = again.choices[0].message.content;
+        result = againResult;
       }
 
       // A reply can end normally yet carry only some of the framework's sections (ICT DC row 151,
@@ -2026,6 +2056,13 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     }
     const rubric = analysisData.scores && analysisData.scores.rubric;
     if (rubric !== undefined) enhancedAnalysis.scores = { ...(enhancedAnalysis.scores || {}), rubric };
+  }
+  // bd-ra8xu.52: a self-recording reported on FICO17 v6 (fico_dc_rubric 'v6') keeps its v6 record exactly as the first
+  // pass wrote it: the OECD-shaped enhance pass sees it and may echo or rewrite any of it. V3 analyses never have these.
+  if (analysisData && analysisData.framework === 'fico17_v6') {
+    for (const key of ['levels', 'combined_evidence', 'rubric', 'prompt_version', 'transcript_quality', 'v3_fico', 'dc', 'shadow']) {
+      if (analysisData[key] !== undefined) enhancedAnalysis[key] = analysisData[key];
+    }
   }
   return enhancedAnalysis;
 };

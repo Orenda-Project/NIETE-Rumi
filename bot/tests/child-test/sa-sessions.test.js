@@ -143,17 +143,21 @@ describe('saSessions', () => {
     const w = world();
     const asked = [];
     w.deps.practiceSwitch = true;
+    // the practice schools are read by their flag, never by a list of ids (sa-practice-lookup-size.test.js); a practice
+    // school with no session here (sch-9) is not marked on anything
     w.deps.supabase = {
       from: (table) => ({
         select: () => ({
-          in: (col, ids) => ({
-            eq: async (key, value) => { asked.push({ table, col, ids, key, value }); return { data: [{ id: 'sch-1' }], error: null }; },
-          }),
+          eq: async (key, value) => {
+            if (table !== 'schools') return { data: [], error: null }; // a switch read: no row, so off
+            asked.push({ table, key, value });
+            return { data: [{ id: 'sch-1', is_probable_test: true }, { id: 'sch-9', is_probable_test: true }], error: null };
+          },
         }),
       }),
     };
     const out = await sa.saSessions({ userId: COACH }, w.deps);
-    expect(asked).toEqual([{ table: 'schools', col: 'id', ids: ['sch-1', 'sch-3'], key: 'is_probable_test', value: true }]);
+    expect(asked).toEqual([{ table: 'schools', key: 'is_probable_test', value: true }]);
     expect(Object.fromEntries(out.sessions.map((s) => [s.schoolId, s.practice]))).toEqual({ 'sch-1': true, 'sch-3': false });
   });
 

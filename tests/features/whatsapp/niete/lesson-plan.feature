@@ -1227,6 +1227,55 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
     And a "Make my own" row left in my scrollback from before is refused and sends nothing
 
+  # bd-2zopnc — operator, 16 Nov: Make my own is not live for GB. "teachers" checks the role only, so the region is
+  # checked too (users.source / users.region / school region); a failed region read is off. Unit: bd-iceyyu-own-offer.test.js.
+  @e2e @config-gated @negative @flow @P1
+  Scenario: A GB teacher never sees Make my own, even with the switch on for teachers
+    Given "portal_lp_make_own" is "teachers" and I am a GB teacher on the teacher app
+    When I open the lesson-plan Flow and pick a Grade 6-12 chapter
+    Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
+    And an ICT teacher with the same switch still sees "Make my own" first
+
+  @e2e @config-gated @P1
+  Scenario: A Make my own plan for a class of more than 70 fits one period with less to do
+    Given "portal_lp_make_own" is on for me and my Grades 1-5 day plan states its period in minutes
+    When I make my own plan for a class of more than 70 with only the textbook
+    Then the opening, I Do, We Do, You Do and the check each have minutes that add up to exactly that period
+    And You Do is still each child working alone in the book, with at most 2 questions
+    And there is at most one exit check and one homework task, and every check is whole-class, never child by child
+    And the plan has no slates and no more words than my day plan, and keeps its diagrams
+    # bd-snkn32.30 (G3 English tester: "cannot be covered in one class … large number of students").
+    # Unit: tests/lp612/own-period.test.js, tests/lp612/own-fits-one-period.test.js.
+
+  @e2e @config-gated @P1
+  Scenario: My own Grades 6-12 plan ends with a "Before they write" step
+    Given "portal_lp_make_own" is on for me and I pick a Grades 6-12 lesson
+    When I make my own plan for my class
+    Then above the board question and exit ticket the plan shows "Before they write"
+    And it tells me to read the success criteria aloud and have pupils show thumbs up, sideways or down
+    And with the Urdu toggle the same step reads in Urdu
+    And the plan has no more pages than before the step was added
+    # bd-snkn32.48 (shelf reviewer 5D: success criteria + self-prediction). Unit: tests/lp612/own-close.test.js,
+    # tests/lp612/own-worker-close.test.js.
+
+  @e2e @slow @P1
+  Scenario: A ready-made Grades 6-12 plan ends with the same "Before they write" step
+    Given a Grades 6-12 lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then above the board question and exit ticket the plan shows "Before they write"
+    And it tells me to read the success criteria aloud and have pupils show thumbs up, sideways or down
+    And in Urdu the same step reads "لکھنے سے پہلے" with the Urdu success criteria
+    And the plan stays within its page limit whenever it fitted without the step
+    # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
+
+  @e2e @config-gated @P2
+  Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
+    Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson
+    When I make my own plan for my class
+    Then each key word shows its English word with its Urdu name in brackets
+    And a History lesson I make my own of shows no Urdu key-word names added
+    # bd-snkn32.48 (shelf reviewer 9B: bilingual concept glossary). Unit: tests/lp612/own-gloss.test.js.
+
   @e2e @draft @P1
   Scenario: A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup
     Given the NIETE bot chat is open
@@ -1237,3 +1286,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Product decision 11 Nov 2026 (bd-xxejb, bd-juo829, bd-hz6ez.12): K-5 v8 audio is not backfilled,
     # so every send and script lookup was failing. Code switch bot/shared/config/lp-v8-voicenote.js
     # (off; not an env flag). Unit: bot/tests/lp-v8/voicenote-off.test.js.
+
+  @e2e @content-driven @no-mock-driver @P2
+  Scenario: A long Grades 6-12 plan that is still over its teaching pages keeps its homework in the support pages
+    Given the NIETE bot chat is open
+    And I take an English Grades 6-12 lesson whose teaching part is still over 4 pages after common mistakes and differentiation move to the support pages
+    When the lesson-plan PDF is delivered to the chat
+    Then the teaching part has no homework section, only one line pointing to "Homework, in full" in the support pages
+    And every homework question is printed in "Homework, in full" with its answer and its textbook source, under the homework notes
+    And a lesson that fits within its teaching pages still prints its homework questions in the teaching part, unchanged
+    # bd-xkkw9.2 (queue #114, from bd-xkkw9.1): third paint in render_lp.js renderDoc, kept only when it
+    # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.
+    # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
+    # Unit: tests/lp612/over-cap-homework-reference.test.js.

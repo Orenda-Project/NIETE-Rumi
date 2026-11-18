@@ -10,11 +10,13 @@
  */
 
 const {
-  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
+  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
   purposesOfGrade, purposeLine,
 } = require('./lp612-own-ways');
 const { pagesLine612 } = require('./lp612-own-pages');
 const { sloMix, sloCodes } = require('./lp612-own-slo');
+const { loadLine } = require('./lp-own-period');
+const { isScience, SCIENCE_GLOSS_LINE } = require('./lp612-own-gloss');
 
 const NOTE_MAX = 200;
 const FOCI = ['summative', 'formative'];
@@ -81,7 +83,7 @@ function secondaryBand(ctx) {
 }
 
 /**
- * @param ctx {{grade?:number, segmentId?:string, sloMap?:object}} — grades 6–12 check the way against their band's
+ * @param ctx {{grade?:number, segmentId?:string, subject?:string, sloMap?:object}} — grades 6–12 check the way against their band's
  *   set and also take `purpose` (what the lesson is for) and `focus` (Summative or Formative SLOs first; kept only
  *   when the segment's SLOs are mixed).
  * @returns {{ok:true, answers:object} | {ok:false, error:string}}
@@ -154,18 +156,23 @@ function buildOwnInstruction(answers, ctx) {
   const secondary = secondaryBand(ctx);
   const have = a.resources.map((r) => (secondary ? RESOURCES_612 : RESOURCES)[r]).join(', ');
   const lines = [
-    'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout and length.',
+    'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout, and make it no longer than the lesson you were given.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
+    // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
+    'It must fit ONE class period: keep `period_minutes` as it is, and give the opening, I do, We do, You do and the check minutes that add up to exactly `period_minutes`.',
+    loadLine(a.size),
     `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
     MATERIALS_LINE,
     way.length > 1 ? `Teaching ways (combine them): ${way.join(' ')}` : `Teaching way: ${way[0]}`,
     'Every part still names the book page it uses. Every part has a quick check for understanding.',
     'Activities may go beyond the book but stay rooted in the page.',
     GRR_LINE,
+    YOU_DO_LINE,
     ROTE_LINE,
   ];
   if (secondary) lines.push(...secondaryLines(a, ctx || {}));
   if (secondary && a.pages) lines.push(pagesLine612(a.pages)); // item 14
+  if (secondary && isScience(ctx)) lines.push(SCIENCE_GLOSS_LINE); // bd-snkn32.48: the reviewer's 9B
   const book = bookLine(ctx && ctx.bookText);
   if (book) lines.push(book);
   if (a.note) lines.push(`Her own note: "${a.note}"`);

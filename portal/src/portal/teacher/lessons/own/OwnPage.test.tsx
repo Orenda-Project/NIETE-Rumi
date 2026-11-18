@@ -178,6 +178,10 @@ describe('Make my own', () => {
     fireEvent.click(ok());
 
     await screen.findByTestId('own-opt-mixed');
+    // bd-snkn32.32 — the level question was unclear: plain wording, and each answer says what it means
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('What level is your class at?');
+    expect(screen.getByTestId('own-opt-behind').textContent).toContain('Most children are not ready for these pages yet');
+    expect(screen.getByTestId('own-opt-mixed').textContent).toContain('Some behind, some on track, some ahead');
     fireEvent.click(screen.getByTestId('own-opt-mixed'));
     await waitFor(() => expect(where()).toContain('level=mixed'));
     fireEvent.click(ok());

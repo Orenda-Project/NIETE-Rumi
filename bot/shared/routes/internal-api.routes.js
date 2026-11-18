@@ -2202,6 +2202,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,
+    // bd-ipoxhx.5 — Save paper; only a tick sends it, so every other request is unchanged.
+    ...(body.compact === true ? { compact: true } : {}),
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
     ...(origin ? { origin } : {}),
@@ -2286,6 +2288,7 @@ router.use(require('./internal-attendance.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a portal screen (template only, the real result).
 router.use(require('./internal-share.routes'));
 router.use(require('./internal-lp612-own.routes')); // bd-snkn32 Make my own — its own file; see its header.
+router.use(require('./internal-lp612-shelf.routes')); // bd-snkn32.42 shelf + human check — see its header.
 router.use(require('./internal-fln-send.routes')); // FLN Send to teacher (PR-E) — its own file; see its header.
 
 // ─── coaching ───────────────────────────────────────────────────────────────

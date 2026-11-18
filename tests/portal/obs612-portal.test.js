@@ -89,7 +89,7 @@ describe('coach-v2 (GET /coach/reports, GET /coach/observation/:id)', () => {
     expect(out).toMatchObject({ score: null, dcScore: null });
     expect(out.obs612).toMatchObject({
       label: 'FDE v1', tool: 'enur', toolName: 'English & Urdu tool', result: '73.6% · Proficient',
-      headline: '109 / 148 · 73.6% · Proficient',
+      headline: '109 / 148 · 79.5 / 108 · Proficient',
     });
     expect(out.obs612.rows.find((r) => r.name === 'D. Interest & Motivation')).toMatchObject({ value: '8/8', pct: 100 });
     expect(out.obs612.feedback.map((f) => f.label)).toEqual(['Strengths', 'Areas for Improvement', 'Recommendations', 'Timeline']);
@@ -208,7 +208,7 @@ describe('GET /coaching-session/:id (the teacher)', () => {
     const { statusCode, payload } = await open('fde-1');
     expect(statusCode).toBe(200);
     const s = payload.session;
-    expect(s.obs612).toMatchObject({ label: 'FDE v1', tool: 'enur', headline: '109 / 148 · 73.6% · Proficient' });
+    expect(s.obs612).toMatchObject({ label: 'FDE v1', tool: 'enur', headline: '109 / 148 · 79.5 / 108 · Proficient' }); // Section 7 on FDE's 108 scale (bd-ra8xu.50)
     expect(s.breakdown).toBeNull();
     expect(breakdown).not.toHaveBeenCalled();
     expect(s.percentage).toBeNull();

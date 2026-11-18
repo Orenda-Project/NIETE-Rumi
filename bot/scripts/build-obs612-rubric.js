@@ -14,8 +14,8 @@
  *
  * The only changes to FDE's text are mechanical: the "[ ]" tick boxes are dropped, and the transcription's
  * "[O]ut ... [a]ssessed" letter brackets are read as plain letters. FDE's own slips are kept as printed and listed
- * in `fde_notes` (Section 4 B repeats 4 A's items; 4 D is titled Reading but its items are about writing; the
- * Section 7 bands fit neither total).
+ * in `fde_notes` (Section 4 B repeats 4 A's items; the Section 7 bands fit neither total). One title is corrected on
+ * the operator's word (13 Nov 2026): 4 D is "Writing Skills" (FDE printed "Reading Skills" twice).
  */
 
 const fs = require('fs');
@@ -268,9 +268,14 @@ function buildEnglishUrdu(lines) {
   }
   const d = findGroup('s4d');
   if (d && /Reading/.test(d.title)) {
-    fdeNotes.push('Section 4 D is titled "Reading Skills" (as 4 C is), but its items (grammar and structure; creativity and coherence) are about writing. Kept as printed.');
+    // Operator correction, 13 Nov 2026 (~14:10): "Section 4 D is writing, Reading as in the document is a typo". The
+    // one change to FDE's printed wording; the excerpt keeps FDE's text as printed.
+    d.title = d.title.replace(/Reading/, 'Writing');
+    fdeNotes.push('Section 4 D is printed as "Reading Skills" (as 4 C is), but its items (grammar and structure; creativity and coherence) are about writing. Shown as "D. Writing Skills" (operator correction, 13 Nov 2026).');
   }
-  fdeNotes.push('Section 7 prints score bands of 90-108, 70-89, 50-69 and below 50, which fit neither total (148 English, 156 Urdu). They are applied to the percentage.');
+  // Operator, 13 Nov 2026 (~14:15): Section 7 is computed and shown read-only; the band is read on FDE's own 108-point
+  // scale: the lesson's total scaled to 108 (total x 108 / the sheet's total, 148 English or 156 Urdu).
+  fdeNotes.push('Section 7 prints score bands of 90-108, 70-89, 50-69 and below 50, which fit neither total (148 English, 156 Urdu). The band is read on the total scaled to 108 (total x 108 / the sheet total).');
 
   return {
     id: `obs612-enur-v${VERSION}`,
@@ -286,7 +291,8 @@ function buildEnglishUrdu(lines) {
     sections,
     score_rule: 'Final Score (%age) = Score obtained x 100 / Total Score (148 English, 156 Urdu)',
     bands,
-    bands_apply_to: 'percentage',
+    bands_apply_to: 'score_on_108',
+    band_scale_max: 108,
     feedback,
     fde_notes: fdeNotes,
   };

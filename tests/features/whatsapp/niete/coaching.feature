@@ -233,18 +233,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # if the hero render throws. (The @wip rubric scenario above asserts CONTENT; this asserts FORM.)
 
   @e2e @wip @draft @P1 @COA61
-  Scenario: A recording of a different lesson from the selected plan is explained as a mismatch, not with the plan
+  Scenario: A recording the grader reads as a different lesson keeps its score and adds one soft line
     Given the NIETE bot chat is open
     And I selected a lesson plan for one lesson
     When I send a classroom recording of a clearly different lesson and the report arrives
-    Then the Lesson Plan Fidelity line says the classroom recording does not match the selected lesson plan, so it is 0%
-    And that line gives no other reason
-    And no line of the report names, lists or judges an activity or topic from the selected lesson plan
+    Then the Lesson Plan Fidelity row shows its score and its usual explanation
+    And the explanation is followed by "Perhaps the lesson plan you chose was for a different lesson? Next time, pick the plan for the lesson you are teaching." (in Urdu on an Urdu report)
     And the report's next horizon is not Lesson Plan Fidelity
-    # bd-5lrgh (ICT sheet DC row 142) — the grader sets moderators.note = lesson_mismatch and Section B = 0;
-    # fico-adapter.js isLessonMismatch → the code-written reportLpMismatch line (en/ur), narrative.service.js
-    # keeps the plan's moves and topic out of the prompt, the weakest-domain horizon skips Section B, and the
-    # header no longer falls back to the plan's topic. A flagged session whose Section B is above 0 is unchanged.
+    And a coach visit flagged the same way has no such line
+    # bd-r2uzg1.12 (ICT sheet DC row 142, plan #10) replaces bd-5lrgh's fixed "does not match ... 0%" line. The
+    # operator, 13 Nov: "I dont know how reliably we can tell if the lesson was mismatched. How about if we add both?"
+    # The grader sets moderators.note = lesson_mismatch; narrative.service.js explains Section B with the plan's
+    # moves as on production; lesson-mismatch-note.js appends the reportLpMismatchSoft catalogue line (en/ur) on the
+    # hero image and the portal report page, for the teacher's own recording only (observation_type empty).
 
   @e2e @wip @draft @P3 @COA08
   Scenario: Accepting the classroom-photo prompt folds photos into the analysis

@@ -1474,6 +1474,51 @@ teaching flow, not in Reference); upstream has no such function. This entry adds
   back in Reference 72 of the 109 over-by-one lessons fit both caps (queue #57, fault 1).
 - Test: `tests/lp612/over-cap-flow-groups.test.js`.
 
+### 3.38 `brief_author_v3.md` + all three flash briefs — rule 12: a poem lesson teaches a paraphrase (2026-11-16, bd-zrdvmi.6)
+
+ICT feedback sheet, Lesson Plan row 728: the G9 English plan for the poem "Travel" had no paraphrase
+("No paraphrasing there"). The SLO map names the skill ("use paraphrasing skills to paraphrase a
+poem", 9_english / 12_english) and §3's teacher quote already says a poem lesson should be built
+around exam skills, but no brief told the author to paraphrase the poem. Rule 12 under "what teachers
+rejected" now does: stanza by stanza (or two lines at a time), the poet's words then plain words, and
+pupils paraphrase one stanza themselves, in class. `tests/lp612/author-brief-poem-paraphrase.test.js`
+drives the real `authorLessonPlan()` and asserts the rule reaches the system prompt for the standard
+brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.28: written into this vendored copy, not upstream first. `VENDOR
+DIVERGENCE` comments mark all four sites. Offer the same rule upstream at the next re-sync and
+regenerate the flash briefs there with `build_flash_brief.py`.
+
+### 3.39 Still over the TEACH cap after §3.37: homework prints only in Reference — `lib/template.js`, `lib/overlay.js`, `lib/questions.js`, `render_lp.js` `renderDoc` (2026-11-17, bd-xkkw9.2)
+
+Builds on §3.37 (NIETE-only). Every lesson already prints its homework questions in full, with the
+answers, in Reference "Homework, in full" (from `page2.homework_key`), so the teach-flow copy is a
+duplicate.
+
+- `buildHtml(doc, { hwRefOnly: true })` leaves the homework section out of the teach flow whole
+  (bar, notes, items) and prints one pointer line where it was (`L.hwPointer`, en + ur, naming the
+  `L.p2Hw` heading; reuses `.cite`, so no CSS changes). The section's own notes print at the top of
+  Reference "Homework, in full", and each card there also carries the item's book source, which
+  used to print only in the flow (`questions.js` now passes `source` on homework entries). It only
+  takes effect when `homeworkMovable(doc)`: every homework item's ref (authored or derived, via
+  `allQuestions`) has an answered `homework_key` entry. `buildHtml` returns `homeworkMovable` and
+  `homeworkMoved`. (A first cut swapped only the ITEMS for the pointer and kept the bar and notes;
+  on real Chrome it brought 2 of 40 over-cap stored lessons within the caps, so the whole section
+  moves.)
+- `renderDoc`: after §3.37, if TEACH is still over and `homeworkMovable`, ONE more paint with BOTH
+  moves (the §3.37 groups in Reference when the lesson had them in the flow, plus `hwRefOnly`),
+  whether or not §3.37's own paint was kept: the box move alone frees under a page and is often
+  refused, while the two together fit. Kept only if over the caps by fewer pages in total, else the
+  previous layout is painted again. Report `homework_moved` (and `flow_groups_moved` when the groups
+  went with it), return `homeworkMoved`.
+- A lesson that fits never takes this paint, so its files are byte-identical to before.
+- Why: queue #112 (bd-xkkw9.1): ~3 in 10 lessons still over after §3.37. Measured on this change,
+  real Chrome, the 183 stored English lessons of 11-17 Nov: 143 fitting lessons byte-identical;
+  of the 40 over a cap, 29 now fit both caps and none pushes Reference past 3 pages.
+- Test: `tests/lp612/over-cap-homework-reference.test.js`.
+
+**LOCAL-ONLY divergence**: `VENDOR DIVERGENCE` comments mark the template (flow loop) and renderer sites.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

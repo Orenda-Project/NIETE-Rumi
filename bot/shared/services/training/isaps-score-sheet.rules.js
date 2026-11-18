@@ -34,13 +34,21 @@ const moduleNoOf = title => {
  * @param {Array<object>} input.examAttempts  {id, grand_quiz_id, is_passed, score, total_questions, status}
  * @param {Array<object>} input.examAnswers   {attempt_id, question_index, is_correct, answer_score}
  * @param {number} input.crqMax
+ * @param {Array<number>|null} [input.checkedUnitIds] units with a servable quick check. Ten I-SAPS units
+ *   have none (I-SAPS did not provide them); such a unit is done once watched (a progress row, bd-2390), so
+ *   its row says `has_check: false` and `done`, and the sheet never reads it as "Not taken". Left out, every
+ *   unit is treated as having a check (the old reading).
+ * @param {Array<number>} [input.doneUnitIds] units with a teacher_training_progress row for her
  * @returns {{modules: Array<object>}}
  */
 function buildIsapsScoreSheet({
   courses = [], units = [], exams = [], unitAttempts = [], examAttempts = [], examAnswers = [], crqMax = 10,
   // bd-hxm7a — written-answer results HELD: never return the CRQ mark.
   crqHeld = true,
+  checkedUnitIds = null, doneUnitIds = [],
 }) {
+  const checked = Array.isArray(checkedUnitIds) ? new Set(checkedUnitIds.map(Number)) : null;
+  const doneSet = new Set((doneUnitIds || []).map(Number));
   const bestPct = new Map();
   for (const a of unitAttempts || []) {
     const total = Number(a.total_questions) || 0;
@@ -99,7 +107,13 @@ function buildIsapsScoreSheet({
         title: c.title,
         units: (units || []).filter(u => u.course_id === c.id)
           .sort((a, b) => ((a.order_index || 0) - (b.order_index || 0)) || (a.id - b.id))
-          .map(u => ({ id: u.id, title: u.title, best_pct: bestPct.has(u.id) ? bestPct.get(u.id) : null })),
+          .map(u => ({
+            id: u.id,
+            title: u.title,
+            best_pct: bestPct.has(u.id) ? bestPct.get(u.id) : null,
+            has_check: checked ? checked.has(Number(u.id)) : true,
+            done: doneSet.has(Number(u.id)),
+          })),
         exam: quizId === undefined ? null : examFor(quizId),
       };
     }),

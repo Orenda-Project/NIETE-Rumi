@@ -7,9 +7,25 @@
  * calls the handler functions directly.
  *
  * Run: node scripts/smoke-test-training-flow.js
+ *
+ * INIT builds the level list, and the level list issues any certificate a teacher has earned
+ * (teacher-training-endpoint.js settleCertificates) — so against production this can mint a REAL
+ * teacher's certificate. It refuses unless NODE_ENV=production (bd-r2uzg1.16): the repo-root .env
+ * points at production with NODE_ENV=development, which stamps 'NOT A REAL CERTIFICATE'.
  */
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+// dotenv is a bot dependency; resolve it from bot/ as the other scripts here do.
+require(require.resolve('dotenv', { paths: [path.join(__dirname, '..', 'bot'), path.join(__dirname, '..')] }))
+  .config({ path: path.join(__dirname, '..', '.env'), quiet: true });
+
+try {
+  require('./lib/certificate-issuing-env').assertProductionCertificateEnv({
+    supabaseUrl: process.env.SUPABASE_URL, nodeEnv: process.env.NODE_ENV, script: 'smoke-test-training-flow.js',
+  });
+} catch (e) {
+  console.error(`[smoke-test-training-flow] ABORTED: ${e.message}`);
+  process.exit(1);
+}
 
 const {
   handleTeacherTrainingInit,

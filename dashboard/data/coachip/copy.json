@@ -161,6 +161,16 @@
     "ur": "جانچے گئے بچے زیادہ تر حروف کی آواز نہ بتا سکے۔"
    }
   },
+  "W-LS-T": {
+   "short_name": {
+    "en": "Letter sounds (listen and tap)",
+    "ur": "حروف کی آوازیں (سن کر چُنیں)"
+   },
+   "sentence": {
+    "en": "children tested could not give the sound of most letters.",
+    "ur": "جانچے گئے بچے زیادہ تر حروف کی آواز نہ بتا سکے۔"
+   }
+  },
   "W-LN": {
    "short_name": {
     "en": "Letter names low",
@@ -205,6 +215,16 @@
    "short_name": {
     "en": "Comprehension low",
     "ur": "سمجھ کم"
+   },
+   "sentence": {
+    "en": "children tested read the passage but could not answer most questions.",
+    "ur": "جانچے گئے بچوں نے عبارت پڑھی مگر زیادہ تر سوالوں کا جواب نہ دے سکے۔"
+   }
+  },
+  "W-RC-T": {
+   "short_name": {
+    "en": "Story questions (listen and tap)",
+    "ur": "کہانی کے سوال (سن کر چُنیں)"
    },
    "sentence": {
     "en": "children tested read the passage but could not answer most questions.",

@@ -32,12 +32,16 @@ const path = require('path');
 
 const RUBRIC_FILE = path.join(__dirname, 'fico17_v6.rubric.json');
 const RUBRIC = JSON.parse(fs.readFileSync(RUBRIC_FILE, 'utf8'));
+// The coach-facing Urdu (level names, indicator names, definitions, level texts, what the coach adds). The rubric sheet
+// is English only, so this is a reviewed DRAFT (status in the file); English is the fallback for any missing key.
+const URDU = JSON.parse(fs.readFileSync(path.join(__dirname, 'fico17_v6.ur.json'), 'utf8'));
 
 const RUBRIC_KEY = 'fico17_v6';
 const RUBRIC_SHA8 = crypto.createHash('sha256').update(fs.readFileSync(RUBRIC_FILE)).digest('hex').slice(0, 8);
 const DC_PROMPT_VERSION = `fico17-v6-dc-1+${RUBRIC_SHA8}`;
-// The coach's own scoring has no model; its stamp names the rubric data it was scored against.
-const COACH_PROMPT_VERSION = `fico17-v6-coach-1+${RUBRIC_SHA8}`;
+// The coach's own scoring has no model; its stamp names the rubric data it was scored against. coach-2 (13 Nov):
+// the coach chooses 1-4 only (no N/A, no Couldn't tell, no D2 counts), so a coach-2 review can be told from a coach-1.
+const COACH_PROMPT_VERSION = `fico17-v6-coach-2+${RUBRIC_SHA8}`;
 
 const CODES = RUBRIC.indicators.map((i) => i.code);
 const BY_CODE = Object.fromEntries(RUBRIC.indicators.map((i) => [i.code, i]));
@@ -121,6 +125,50 @@ function levelOptions(code, { couldntTell = false } = {}) {
   return out;
 }
 
+/** The coach's language for v6 text: 'ur' or 'en'. */
+const langOf = (lang) => (String(lang || '').toLowerCase().startsWith('ur') ? 'ur' : 'en');
+
+/** A level's name ('Proficient' / 'ماہر'), from the rubric's level labels. */
+function levelName(n, lang = 'en') {
+  const k = String(n);
+  if (langOf(lang) === 'ur' && URDU.level_labels[k]) return URDU.level_labels[k];
+  return LEVEL_LABELS[k] || null;
+}
+
+/** An indicator's coach-facing text in a language: { name, definition, levels[4], coach_adds }, English fallback. */
+function indicatorText(code, lang = 'en') {
+  const ind = BY_CODE[code];
+  if (!ind) return null;
+  const en = { name: ind.name, definition: ind.definition, levels: ind.levels.map((l) => l.text), coach_adds: ind.coach_adds || null };
+  if (langOf(lang) !== 'ur') return en;
+  const u = URDU.indicators[code] || {};
+  return {
+    name: u.name || en.name,
+    definition: u.definition || en.definition,
+    levels: en.levels.map((t, i) => (u.levels && u.levels[i]) || t),
+    coach_adds: u.coach_adds || en.coach_adds,
+  };
+}
+
+/** A section's name in a language ('What the teacher does' / 'استاد کیا کرتا ہے'). */
+function sectionName(letter, lang = 'en') {
+  const s = SECTIONS[letter];
+  if (!s) return null;
+  return (langOf(lang) === 'ur' && URDU.sections[letter]) || s.name;
+}
+
+/**
+ * The coach's (HITL) choices for one indicator, on every coach path (/observe, /observe2, portal), operator 13 Nov:
+ * ids 1-4, the title is the level's name (Not Observed / Developing / Proficient / Highly Effective), the description
+ * the rubric sheet's level text word for word. No N/A and no Couldn't tell: the coach was in the room. The Digital
+ * Coach keeps its own options (levelOptions). Per-indicator N/A is a later follow-up.
+ */
+function coachLevelOptions(code, lang = 'en') {
+  const t = indicatorText(code, lang);
+  if (!t) return [];
+  return t.levels.map((text, i) => ({ id: String(i + 1), title: clip(levelName(i + 1, lang), 30), description: clip(text, 300) }));
+}
+
 /** The stamp every stored v6 score carries. */
 function stamp(kind = 'dc') {
   return { rubric: RUBRIC_KEY, prompt_version: kind === 'coach' ? COACH_PROMPT_VERSION : DC_PROMPT_VERSION };
@@ -158,4 +206,5 @@ module.exports = {
   RUBRIC, RUBRIC_KEY, RUBRIC_SHA8, RUBRIC_FILE, DC_PROMPT_VERSION, COACH_PROMPT_VERSION,
   CODES, DC_CODES, COMBINED_CODES, LEVEL_LABELS, SECTIONS, DOMAIN_OF, TITLES, DRAFT_TITLE_CODES, NA_OPTIONS,
   JUSTIFICATION_MIN, cp, clip, indicator, isDc, isCombined, levelText, levelOptions, stamp, normLevel, isJustified, totals,
+  URDU, langOf, levelName, indicatorText, sectionName, coachLevelOptions,
 };

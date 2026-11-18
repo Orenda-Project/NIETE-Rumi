@@ -54,7 +54,8 @@ function world({ hide = true, guard = true, dash = true, names = { [COACH]: 'Coa
         select: () => chain,
         in: (_c, ids) => { q.ids = ids; return chain; },
         eq: (_c, v) => { q.test = v; return chain; },
-        then: (ok, ko) => Promise.resolve({ data: q.test === true && q.ids.includes(PRACTICE) ? [{ id: PRACTICE }] : [], error: null }).then(ok, ko),
+        // read by the flag (never by a list of ids): every practice school, matched to the sessions' schools in the service
+        then: (ok, ko) => Promise.resolve({ data: q.test === true ? [{ id: PRACTICE, is_probable_test: true }] : [], error: null }).then(ok, ko),
       };
       return chain;
     },

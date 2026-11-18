@@ -6,6 +6,7 @@
 
 const isObj = (x) => x && typeof x === 'object';
 // item-tag.schema.json: `kind` is an srq/erq item kind from this list, null elsewhere (board-checks tag-complete KIND_RULE).
+const { twins } = require('../board-checks/near-dup');
 const KINDS = require('../board-checks/item-tag.schema.json').$defs.leaf.properties.kind.enum.filter((k) => k !== null);
 const KIND_TYPES = ['srq', 'erq'];
 const isGroup = (q) => isObj(q) && isObj(q.stimulus) && Array.isArray(q.stimulus.items);
@@ -152,10 +153,13 @@ function stamp(tree, slots, stampSlo) {
 }
 
 /** A stimulus node as eg.format.secondary writes it ({stimulus: "<text>", items|parts}) in the tree's shape. */
-function groupOf(q) {
+function groupOf(q, slot) {
   if (typeof q.stimulus !== 'string') return q;
   const { stimulus, items, ...rest } = q;
-  return { ...rest, stimulus: Array.isArray(items) ? { text: stimulus, items } : { text: stimulus } };
+  if (Array.isArray(items)) return { ...rest, stimulus: { text: stimulus, items } };
+  // bd-qyi45h.14: in a stimulus slot the group's questions are its members, however the reply names them
+  if (slot && slot.stimulus && Array.isArray(rest.parts)) { const { parts, ...r } = rest; return { ...r, stimulus: { text: stimulus, items: parts } }; }
+  return { ...rest, stimulus: { text: stimulus } };
 }
 
 /**
@@ -171,7 +175,9 @@ function fromReply(reply, slots) {
     const list = reply[s.slot];
     if (!Array.isArray(list)) return;
     const cat = (unseen[s.category] = unseen[s.category] || {});
-    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q), slot: s.slot })));
+    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q, s), slot: s.slot }))
+          // bd-qyi45h.14: a loose question is not a passage; in a stimulus slot it would crowd real groups out of the trim
+          .filter((q) => !s.stimulus || isGroup(q)));
   });
   return { unseen };
 }
@@ -208,17 +214,25 @@ function topUp(first, second, slots) {
 
 /**
  * Round 9b: like topUp, but at most want.get(slot) plain (non-group) nodes per slot, lowest rank(node) first (ties
- * in order). Inputs are left as they were.
+ * in order). Inputs are left as they were. bd-qyi45h.15: a spare node that D17 would pair with a kept leaf, or with
+ * a spare already taken, is passed over.
  */
 function fill(first, second, want, rank = () => 0) {
   const left = new Map(want);
   const have = new Set();
   eachList(first || {}, (list) => list.forEach((q) => { if (isObj(q)) have.add(nodeKey(q)); }));
   const pick = JSON.parse(JSON.stringify(second || {}));
+  const kept = leavesOf(first || {});
+  const fresh = (q) => leavesOfNode(q).every((a) => !kept.some((b) => twins(a, b)));
   eachList(pick, (list, set) => {
     const ok = list.filter((q) => isObj(q) && !isGroup(q) && !have.has(nodeKey(q)));
     const chosen = new Set(ok.map((q, i) => [q, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([q]) => q)
-      .filter((q) => { if (!(left.get(q.slot) > 0)) return false; left.set(q.slot, left.get(q.slot) - 1); return true; }));
+      .filter((q) => {
+        if (!(left.get(q.slot) > 0) || !fresh(q)) return false;
+        left.set(q.slot, left.get(q.slot) - 1);
+        kept.push(...leavesOfNode(q));
+        return true;
+      }));
     set(list.filter((q) => chosen.has(q)));
   });
   // bd-qyi45h.8: a spare node keeps its old id, which a rewrite may have reused; clear it so stamp re-ids it

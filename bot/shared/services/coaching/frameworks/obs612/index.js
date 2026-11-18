@@ -10,7 +10,8 @@
  *   obs612-msci-v1   Maths & Science tool (FDE: Grade VI-VII)      11 indicators at Level 0-3, a 5-student check,
  *                                                                  a development plan. FDE gives no total.
  *   obs612-enur-v1   English & Urdu tool (FDE: Grade VI-VIII)      items scored 1-4; sheet 'en' /148, 'ur' /156;
- *                                                                  % and a band (Section 7's bands, on the %).
+ *                                                                  %, the total on FDE's 108-point scale, and
+ *                                                                  Section 7's band on that 108-point score.
  *   obs612-gen-v1    Teacher Observation Form General (any class)  35 Yes/No items in 6 sections. No score.
  *
  * The wording is data: obs612.rubric.json, generated from FDE_2026-27_annex-g.md by
@@ -198,10 +199,22 @@ function missingItems(rubricId, sheet, answers = {}) {
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
-/** Section 7's band for a percentage (FDE prints the bands on a score; the operator approved them on the %). */
-function bandFor(pct) {
-  if (typeof pct !== 'number' || !Number.isFinite(pct)) return null;
-  const b = TOOLS.enur.bands.find((x) => pct >= x.from && pct < x.below) || TOOLS.enur.bands[TOOLS.enur.bands.length - 1];
+// Section 7's own scale: FDE prints its bands on a 108-point score (90-108, 70-89, 50-69, below 50).
+const BAND_SCALE_MAX = TOOLS.enur.band_scale_max || 108;
+
+/** A lesson's total on FDE's 108-point scale: total × 108 ÷ the sheet's total (148 English, 156 Urdu), one decimal. */
+function scoreOn108(total, max) {
+  if (!Number.isFinite(total) || !Number.isFinite(max) || max <= 0) return null;
+  return round1((total * BAND_SCALE_MAX) / max);
+}
+
+/**
+ * Section 7's band for a score on FDE's 108-point scale (operator 13 Nov 2026: compute against the lesson's real total
+ * and scale it to 108). Read with the full decimal, so 89.9 is Proficient and 90.0 Excellent.
+ */
+function bandFor(score108) {
+  if (typeof score108 !== 'number' || !Number.isFinite(score108)) return null;
+  const b = TOOLS.enur.bands.find((x) => score108 >= x.from && score108 < x.below) || TOOLS.enur.bands[TOOLS.enur.bands.length - 1];
   return { label: b.label, rating: b.rating, printed_range: b.printed_range };
 }
 
@@ -211,7 +224,7 @@ function bandFor(pct) {
  *
  *   gen   sections [{key, title, yes, of}], yes, of            (FDE gives no score: counts only)
  *   msci  indicators [{key, n, stage, level}], students       (FDE gives no total: none is made)
- *   enur  sections [{key, title, score, max}], total, max, pct, band
+ *   enur  sections [{key, title, score, max}], total, max, pct, score_108 (Section 7's scale), band (on score_108)
  */
 function score(rubricId, sheet, answers = {}) {
   const tool = toolOf(rubricId);
@@ -245,7 +258,8 @@ function score(rubricId, sheet, answers = {}) {
     const total = sections.reduce((n, s) => n + s.score, 0);
     const max = TOOLS.enur.sheets[sh].max;
     const pct = round1((total * 100) / max);
-    return { tool, rubric_id: rubricId, sheet: sh, sections, missing, total, max, pct, band: bandFor(pct) };
+    const on108 = scoreOn108(total, max);
+    return { tool, rubric_id: rubricId, sheet: sh, sections, missing, total, max, pct, score_108: on108, band: bandFor(on108) };
   }
   return null;
 }
@@ -289,5 +303,7 @@ module.exports = {
   missingItems,
   score,
   bandFor,
+  scoreOn108,
+  BAND_SCALE_MAX,
   lowestIndicator,
 };

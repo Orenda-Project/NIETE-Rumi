@@ -4,7 +4,7 @@
  * D13 NUMERIC_ORDER / KEY_RUN / KEY_SHARE are met by the code and not left to the model's word.
  *   1. An item whose four options are all numbers is sorted ascending; the key follows its value.
  *   2. Per section, in D13's walk order, a non-numeric key is moved (its body swapped with another option's) when
- *      it would make a run of D13.keyRun, or take its letter past the soft share (35%) in a section of keyShareMinN+.
+ *      it would make a run of D13.keyRun (counting the fixed keys right after it), or take its letter past the soft share (35%) in a section of keyShareMinN+.
  * Only clean items move: 4 options labelled A) to D) in order, distinct bodies, a key that resolves, and no option
  * that names another letter ("Both A and B"). Everything else is counted but left as written. Mutates in place.
  * The G1-5 key spreader (fde-layout spreadKeys) rotates options and would undo the numeric order, so it is not reused.
@@ -42,23 +42,38 @@ function sortNumeric(item) {
   return true;
 }
 
+/** How many fixed keys right after index i (skipping unresolved ones, as D13 does) carry letter j. */
+function fixedAfter(list, i, j) {
+  let m = 0;
+  for (let x = i + 1; x < list.length; x += 1) {
+    const k = OT.keyIndex(list[x].item);
+    if (k < 0) continue;
+    if (list[x].movable || k !== j) break;
+    m += 1;
+  }
+  return m;
+}
+
 function settleGroup(list) {
   const n = list.length;
   const cap = n >= LIMITS.keyShareMinN ? Math.floor(n * LIMITS.keyShareSoft) : n;
   const counts = [0, 0, 0, 0];
   let prev = -1;
   let run = 0;
-  list.forEach(({ item, movable }) => {
+  // the run letter j would make here, counting the fixed keys after it that the walk cannot move (bd-qyi45h.11)
+  const runOf = (i, j) => (j === prev ? run : 0) + 1 + fixedAfter(list, i, j);
+  list.forEach(({ item, movable }, i) => {
     let k = OT.keyIndex(item);
     if (k < 0) return;
-    const wouldRun = k === prev ? run + 1 : 1;
-    if (movable && (wouldRun >= LIMITS.keyRun || counts[k] + 1 > cap)) {
-      const ok = [0, 1, 2, 3].filter((j) => j !== k && j !== (wouldRun >= LIMITS.keyRun ? prev : -1));
+    if (movable && (runOf(i, k) >= LIMITS.keyRun || counts[k] + 1 > cap)) {
+      const ok = [0, 1, 2, 3].filter((j) => j !== k && runOf(i, j) < LIMITS.keyRun);
       const target = ok.sort((a, b) => counts[a] - counts[b] || a - b)[0];
-      const bodies = item.options.map(OT.stripLabel);
-      [bodies[k], bodies[target]] = [bodies[target], bodies[k]];
-      rewrite(item, bodies, target);
-      k = target;
+      if (target !== undefined) {
+        const bodies = item.options.map(OT.stripLabel);
+        [bodies[k], bodies[target]] = [bodies[target], bodies[k]];
+        rewrite(item, bodies, target);
+        k = target;
+      }
     }
     run = k === prev ? run + 1 : 1;
     prev = k;

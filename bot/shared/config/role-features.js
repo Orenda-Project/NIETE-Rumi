@@ -70,6 +70,24 @@ function canObserve(user) {
 }
 
 /**
+ * Does this leader observe in THEIR OWN school, at once, with no booked visit?
+ *
+ * A principal: operator, 15 Nov, "for the principal, there is no need to schedule anything. You will just directly go
+ * and observe a teacher, unlike a coach who has to schedule it first", and "a principal linked to a school
+ * (users.school_id or any leader_schools row) sees ALL teachers of that school". Everyone else who observes (a coach,
+ * or anyone whose role was never set but who holds schools) books a visit first and sees only their leader_schools
+ * holdings, exactly as before. Pure, like the rest of this module.
+ */
+function observesOwnSchoolAtOnce(user) {
+  return isPrincipalRole(user && user.role);
+}
+
+/** Is this users.role value a principal? Case and spaces ignored; anything that is not a string is not. Pure. */
+function isPrincipalRole(role) {
+  return typeof role === 'string' && role.trim().toLowerCase() === 'principal';
+}
+
+/**
  * The main-menu rows: one layout per role shape, ordered by MEASURED demand.
  *
  * The menu used to offer five rows out of the deployment's fourteen live
@@ -214,6 +232,8 @@ module.exports = {
   featuresFor,
   canSelfCoach,
   canObserve,
+  observesOwnSchoolAtOnce,
+  isPrincipalRole,
   layoutFor,
   featureMenuRows,
   NOT_A_FEATURE_ROWS,

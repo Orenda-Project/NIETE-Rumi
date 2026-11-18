@@ -94,7 +94,7 @@ function baseTables() {
       { id: 'o1', user_id: 'u1', opened_at: pk('2026-10-27 08:01'), plan_kind: 'k5', source: 'viewer', plan_ref: 'grade_3_math_ch1_seg3' },
       { id: 'o2', user_id: 'u1', opened_at: '2026-10-27T18:59:59.000Z', plan_kind: 'k5', source: 'viewer', plan_ref: 'grade_2_urdu_ch5_seg2' },
       { id: 'o3', user_id: 'u1', opened_at: pk('2026-10-27 12:00'), plan_kind: 'k5', source: 'external', plan_ref: 'grade_3_math_ch7_seg1' },
-      { id: 'o4', user_id: 'u1', opened_at: pk('2026-10-27 12:00'), plan_kind: 'g612', source: 'viewer', plan_ref: 'grade_8_geo.c04' },
+      { id: 'o4', user_id: 'u1', opened_at: pk('2026-10-27 12:00'), plan_kind: 'g612', source: 'external', plan_ref: 'grade_8_geo.c04' },
     ],
     sessions: [
       // DC
@@ -238,7 +238,9 @@ function fakeDb(t) {
       case 'principal-school': {
         const me = t.users.find((u) => u.id === params[0] && u.role === 'principal' && !u.deleted_at);
         const sch = me && t.schools.find((x) => x.id === me.school_id);
-        return { rows: sch ? [{ id: sch.id, name: sch.name, emis: sch.emis, school_name: null, viewer_test: me.is_test_user === true }] : [] };
+        // viewer_test as the SQL decides it (pinned by the SQL test below): her own flag, or her school's (bd-0r97p6)
+        const viewerTest = me && (me.is_test_user === true || (/\bsch\.is_probable_test IS TRUE\b/.test(sql) && sch && sch.is_probable_test === true));
+        return { rows: sch ? [{ id: sch.id, name: sch.name, emis: sch.emis, school_name: null, viewer_test: viewerTest }] : [] };
       }
       case 'roster-with-test':
         return { rows: t.users.filter((u) => params[0].includes(u.school_id) && ['teacher', 'principal'].includes(u.role) && !u.deleted_at) };
@@ -264,7 +266,7 @@ function fakeDb(t) {
       }
       case 'opens': {
         const [ids, lo, hi] = params;
-        return { rows: t.opens.filter((o) => ids.includes(o.user_id) && o.plan_kind === 'k5' && o.source === 'viewer' && inWin(o.opened_at, lo, hi)).map((o) => ({ ...o, at: o.opened_at })) };
+        return { rows: t.opens.filter((o) => ids.includes(o.user_id) && ['k5', 'g612'].includes(o.plan_kind) && o.source === 'viewer' && inWin(o.opened_at, lo, hi)).map((o) => ({ ...o, at: o.opened_at })) };
       }
       case 'sessions': {
         const [ids, lo, hi] = params;
@@ -456,6 +458,68 @@ describe('lesson plans: the RDF lp_use, a same-day repeat of one plan counted on
     const byDay = plans.reduce((m, p) => ({ ...m, [p.day]: (m[p.day] || 0) + 1 }), {});
     expect(byDay).toEqual({ '2026-10-26': 3, '2026-10-27': 2 });
     expect(plans.find((p) => p.day === '2026-10-27' && p.ref === 'Z').id).toBe('e');
+  });
+
+  // A teacher who reads her plan in the app is a teacher who used NIETE, in any grade: a Grade 6-12 viewer open
+  // ('g612') counts like a K-5 one, with its grade read from the plan key.
+  const GRADE_OPENS = [];
+  for (let g = 1; g <= 5; g += 1) {
+    GRADE_OPENS.push([g, 'k5', `grade_${g}_math_ch1_seg1`, 'ICT K-5 catalogue id']);
+    GRADE_OPENS.push([g, 'k5', `gb_g${g}_english_ch1_seg1`, 'GB K-5 catalogue id']);
+  }
+  for (let g = 6; g <= 10; g += 1) {
+    GRADE_OPENS.push([g, 'g612', `grade_${g}_mathematics.c05.p071-073`, 'ICT 6-12 segment id']);
+    GRADE_OPENS.push([g, 'g612', `nbf_snc_grade_${g}_maths.c04.s002`, 'curriculum 6-12 segment id']);
+  }
+  test.each(GRADE_OPENS)('Grade %i: a %s viewer open of %s (%s) counts once, in its own grade', (grade, kind, ref) => {
+    const plans = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: ref, plan_kind: kind }]);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ userId: 'u', day: '2026-10-27', ref, grade: String(grade) });
+  });
+
+  test('an open with no plan_kind is read as K-5, as before; a 6-12 key under k5 is not a plan', () => {
+    const k5 = Card.lessonPlansOf([], [{ id: 'a', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_3_math_ch1_seg1' }]);
+    expect(k5).toHaveLength(1);
+    expect(k5[0].grade).toBe('3');
+    const wrongLane = Card.lessonPlansOf([], [{ id: 'b', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_8_mathematics.c05.p071-073', plan_kind: 'k5' }]);
+    expect(wrongLane[0].grade).toBeNull();
+  });
+
+  test('a 6-12 open and a K-5 open on one day are two plans; the same 6-12 plan opened twice that day is one', () => {
+    const plans = Card.lessonPlansOf([], [
+      { id: '1', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_8_mathematics.c05.p071-073', plan_kind: 'g612' },
+      { id: '2', user_id: 'u', at: pk('2026-10-27 09:30'), plan_ref: 'grade_8_mathematics.c05.p071-073', plan_kind: 'g612' },
+      { id: '3', user_id: 'u', at: pk('2026-10-27 10:00'), plan_ref: 'grade_3_math_ch1_seg1', plan_kind: 'k5' },
+    ]);
+    expect(plans.map((p) => p.grade).sort()).toEqual(['3', '8']);
+  });
+
+  // Review of #4906 (bd-17v39c.4.18). On prod about 200 'g612' viewer opens carry a K-5 catalogue id
+  // (grade_7_english_ch3_seg2) rather than a segment id: they count, and the grade comes from the id they carry.
+  test('a g612 open that carries a K-5 catalogue id counts, in the grade its id names', () => {
+    const plans = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_7_english_ch3_seg2', plan_kind: 'g612' }]);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ grade: '7', subject: 'English' });
+  });
+
+  // A 6-12 segment id's subject is the corpus slug, medium and all (pak_studies_urdu). The list's grade·subject tile
+  // reads a NAME by pattern, so the raw slug drew Pakistan Studies as "Urdu" or "Eng". A g612 open's subject is the
+  // dashboard's one subject vocabulary's name for it. K-5 opens keep the catalogue token they always had.
+  test.each([
+    ['grade_9_pak_studies_urdu.c03.p041-042', '9', 'Pakistan Studies'],
+    ['grade_10_pak_studies_english.c01.p001-002', '10', 'Pakistan Studies'],
+    ['grade_8_mathematics.c05.p071-073', '8', 'Mathematics'],
+    ['grade_7_general_science.c02.p020-021', '7', 'General Science'],
+    ['grade_9_10_chemistry_experiment.c01.s001', '9', 'Chemistry Experiment'],
+    ['nbf_snc_grade_4_urdu.c09.s001', '4', 'Urdu'],
+  ])('a g612 open of %s reads Grade %s, %s', (ref, grade, subject) => {
+    const [p] = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: ref, plan_kind: 'g612' }]);
+    expect(p).toMatchObject({ grade, subject });
+  });
+
+  test('a K-5 open keeps its catalogue subject token, as before', () => {
+    const [p] = Card.lessonPlansOf([], [{ id: 'o', user_id: 'u', at: pk('2026-10-27 09:00'), plan_ref: 'grade_4_social_studies_en_ch5_seg2', plan_kind: 'k5' }]);
+    expect(p).toMatchObject({ grade: '4', subject: 'social_studies_en' });
   });
 
   test('the school card counts 6: five for her (2 Mon, 2 Tue, 1 Wed), one typed plan for another; test accounts out', async () => {
@@ -1437,6 +1501,30 @@ describe('getPrincipalSchoolCard — a principal on the principal app sees her o
     expect(test.teachers.map((t) => t.teacherExtId)).toContain(PHONE.tt);
     expect(test.school.teachers).toBe(real.school.teachers + 1);
     // the coach card is unchanged by it
+    const coach = await Card.getSchoolCard(fakeDb(tables), 'coach-1', '901', opts());
+    expect(coach.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+  });
+
+  // bd-0r97p6 — a REAL principal (is_test_user false: her real observations must keep counting on real schools' cards)
+  // whose school is a TEST school (schools.is_probable_test) saw "No teachers yet" on Pick the teacher, because only
+  // her own flag opened the test roster and a test school's teachers are all test accounts.
+  test('the principal-school read opens the test roster for a test account OR a test school (schools.is_probable_test)', () => {
+    const sql = Card.SQL.principalSchool.replace(/\s+/g, ' ');
+    const viewerTest = (sql.match(/SELECT .*?\((.*?)\) AS viewer_test/) || [])[1] || '';
+    expect(viewerTest).toMatch(/\bme\.is_test_user IS TRUE\b/);
+    expect(viewerTest).toMatch(/\bsch\.is_probable_test IS TRUE\b/);
+    expect(viewerTest).toMatch(/ OR /);
+  });
+
+  test('a REAL principal at a TEST school sees its test teachers; at a real school she never does', async () => {
+    const real = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(real.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+    tables.schools.find((s) => s.id === 's1').is_probable_test = true;
+    const atTest = await Card.getPrincipalSchoolCard(fakeDb(tables), 'up', opts());
+    expect(atTest.teachers.map((t) => t.teacherExtId)).toContain(PHONE.tt);
+    expect(atTest.school.teachers).toBe(real.school.teachers + 1);
+    // her own account stays real, and the coach card of that school is unchanged by it
+    expect(tables.users.find((u) => u.id === 'up').is_test_user).toBe(false);
     const coach = await Card.getSchoolCard(fakeDb(tables), 'coach-1', '901', opts());
     expect(coach.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
   });

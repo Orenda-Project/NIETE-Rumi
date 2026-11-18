@@ -56,11 +56,16 @@ const PORTAL_KEY_RX = /\/classroom_audio\/[^/]+\/\d{4}-\d{2}\/portal_[A-Za-z0-9-
 // UTC (found live on a PKT machine: two 2026-10-05 visits counted on 10-04).
 
 const SQL = {
+  // bd-w0zbbe: whether each holding names a school — its school_id, or (a holding written before school_id existed) a
+  // school whose EMIS key is the holding's key. The August test fixtures 'test:9001'/'test:9002' name none; the bot
+  // already drops them (patch-resolver), and here they showed as two empty schools no visit could be booked at.
   LEADER_SCHOOLS: `
-    SELECT school_ext_id, school_name, emis
-    FROM leader_schools
-    WHERE leader_user_id = $1
-    ORDER BY school_name ASC NULLS LAST
+    SELECT ls.school_ext_id, ls.school_name, ls.emis,
+           (ls.school_id IS NOT NULL
+            OR EXISTS (SELECT 1 FROM schools s WHERE 'niete:' || s.emis = ls.school_ext_id)) AS names_a_school
+    FROM leader_schools ls
+    WHERE ls.leader_user_id = $1
+    ORDER BY ls.school_name ASC NULLS LAST
   `,
 
   // Every HITL visit of these teachers, by any coach; failed/cancelled never count.
@@ -440,6 +445,11 @@ function shapeReport(r, leaderUserId, teacherByUser) {
 // ── public API ───────────────────────────────────────────────────────────────
 
 /** The Teachers and Schools tabs. */
+/** bd-w0zbbe — her holdings that name a school (SQL.LEADER_SCHOOLS names_a_school); a row without the flag is kept. */
+function holdingsNamingASchool(res) {
+  return ((res && res.rows) || []).filter((s) => s.names_a_school !== false);
+}
+
 async function getCoachPeople(query, leaderUserId, opts = {}) {
   const today = opts.today || karachiToday();
   const [teachers, schoolsRes, sessionsRes] = await Promise.all([
@@ -460,7 +470,7 @@ async function getCoachPeople(query, leaderUserId, opts = {}) {
     visitsBySchool.get(key).push(r);
   }
 
-  const schools = (schoolsRes.rows || []).map((s) => {
+  const schools = holdingsNamingASchool(schoolsRes).map((s) => {
     const key = s.school_ext_id;
     const emis = s.emis || emisOf(key);
     const own = teachers.filter((t) => t.schoolExtId === key || (emis && t.emis === emis));
@@ -666,7 +676,7 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
       inProgress: steps.filter((s) => s === 'analysing').length,
       // bd-17v39c.4.16 — the same total as the Teachers tab's number: teachers only, never a principal.
       teachers: patch.filter((t) => !t.isPrincipal).length,
-      schools: (schoolsRes.rows || []).length,
+      schools: holdingsNamingASchool(schoolsRes).length,
     },
   };
 }

@@ -10,10 +10,18 @@ test('the font files it names are in the repo', () => {
   for (const f of Object.values(FILES)) expect(fs.existsSync(path.join(__dirname, '../../bot/shared/fonts', f))).toBe(true);
 });
 
-test('Urdu embeds Nastaliq; English does not need it; nothing is fetched', () => {
+test('Urdu embeds Nastaliq; nothing is fetched', () => {
   const ur = fontCss('ur');
   expect(ur).toMatch(/font-family:"Noto Nastaliq Urdu";src:url\(data:font\/ttf;base64,[A-Za-z0-9+/]{1000}/);
   expect(ur).toContain('font-family:"Lexend"');
-  expect(fontCss('en')).not.toContain('Nastaliq');
   expect(ur + fontCss('en')).not.toMatch(/https?:\/\//);
+});
+
+// bd-snkn32.37 — an English/Science/Maths plan carries Urdu glosses ("photosynthesis (ضیائی تالیف)"); with no
+// Urdu face embedded, Lexend has no Arabic-script glyphs and the Railway Chromium has no system fonts, so the
+// glosses printed as empty boxes. Every page embeds Nastaliq, limited to Arabic script, and the body falls back to it.
+test('an English page embeds Nastaliq for Arabic script only and falls back to it', () => {
+  const en = fontCss('en');
+  expect(en).toMatch(/font-family:"Noto Nastaliq Urdu";src:url\(data:font\/ttf;base64,[A-Za-z0-9+/]{1000}[^}]*unicode-range:U\+0600-06FF/);
+  expect(en).toMatch(/--body:"Lexend","Noto Nastaliq Urdu"/);
 });

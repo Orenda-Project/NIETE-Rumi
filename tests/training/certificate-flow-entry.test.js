@@ -52,15 +52,17 @@ const CERTS = [
     teacher_name_snapshot: 'Aisha Malik',
     issued_at: '2026-04-30T11:00:00.000Z',
     pdf_r2_key: null,
-    training_levels: { order_index: 2 },
+    // Oxbridge is a partner programme (unlock_logic all_modules): no ladder number.
+    training_levels: { order_index: 2, training_vendors: { unlock_logic: 'all_modules' } },
   },
 ];
 
 describe('bd-2665 — a tappable certificate route', () => {
   describe('row formatting', () => {
     test('the title names the level, so a teacher recognises what they earned', () => {
-      expect(certificateOptionTitle(CERTS[0])).toBe('Level 1 · Aspiring Teacher');
-      expect(certificateOptionTitle(CERTS[1])).toBe('Level 3 · Game-Based Teaching');
+      // bd-r2uzg1.10: the number the certificate PDF prints (NIETE ladder 0-3), not order_index + 1.
+      expect(certificateOptionTitle(CERTS[0])).toBe('Level 0 · Aspiring Teacher');
+      expect(certificateOptionTitle(CERTS[1])).toBe('Game-Based Teaching');
     });
 
     test('a missing level name degrades to the code rather than rendering "undefined"', () => {
@@ -78,7 +80,7 @@ describe('bd-2665 — a tappable certificate route', () => {
     // A certificate with no rendered PDF is still fully pickable — minting
     // happens after the tap, not before it.
     test('a certificate with no stored PDF is still offered', () => {
-      expect(certificateOptionTitle(CERTS[1])).toBe('Level 3 · Game-Based Teaching');
+      expect(certificateOptionTitle(CERTS[1])).toBe('Game-Based Teaching');
       expect(certificateOptionDescription(CERTS[1])).toContain('OXB-L3-20260430-1B2C3D');
     });
 

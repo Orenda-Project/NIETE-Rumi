@@ -78,6 +78,7 @@ const {
   storeLessonPlan
 } = require('../database/bot-helpers');
 const supabase = require('../config/supabase');
+const LevelLabels = require('../services/training/level-label.rules');
 // The one copy catalog + the one language clamp (see the language-protocol skill).
 const { resolveUx } = require('../config/ux-strings');
 const { isFeatureRunnable } = require('../config/feature-availability');
@@ -1428,7 +1429,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
 
     const { data: certs } = await supabase
       .from('training_certificates')
-      .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, training_levels(order_index)')
+      .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, ' + LevelLabels.CERTIFICATE_LEVEL_EMBED)
       .eq('user_id', user.id)
       .order('level_id', { ascending: true });
     typingController.stop();
@@ -1439,21 +1440,8 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       );
       return;
     }
-    const fmtDate = (iso) => {
-      const d = new Date(iso);
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    };
-    const lines = certs.map(c => {
-      const lvl = (c.training_levels?.order_index ?? 0) + 1;
-      return `✅ *Level ${lvl} · ${c.level_name_snapshot}*\n   Passed ${fmtDate(c.issued_at)}\n   Cert: \`${c.certificate_code}\``;
-    });
-    const teacherName = certs[0].teacher_name_snapshot || 'Teacher';
-    const body =
-      `🏆 *NIETE Certifications — ${teacherName}*\n\n` +
-      lines.join('\n\n') +
-      `\n\n_Send_ \`/certificate <code>\` _to get the PDF._` +
-      `\n_Type /training to continue with your next level._`;
-    await WhatsAppService.sendMessage(from, body);
+    // One level number: the one the certificate PDF prints (level-label.rules.js).
+    await WhatsAppService.sendMessage(from, LevelLabels.certificatesListText(certs));
     logToFile('🏆 Sent certificates list', { userId: user.id, count: certs.length });
     return;
   }

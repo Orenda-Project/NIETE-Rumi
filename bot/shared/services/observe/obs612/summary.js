@@ -41,7 +41,8 @@ const LRI = '⁦';
 const FSI = '⁨';
 const PDI = '⁩';
 const ltr = (s) => `${LRI}${s}${PDI}`;
-const own = (s) => `${FSI}${s}${PDI}`;
+// A coach's own words, first-strong isolated; a held-down-key run broken up so it cannot read as broken script.
+const own = (s) => `${FSI}${require('./view').readableNote(s)}${PDI}`;
 const asIs = (s) => String(s);
 
 // Coach-written text is quoted, never rewritten; a very long note is cut so the summary stays one readable message.
@@ -59,7 +60,7 @@ const STRINGS = {
     saved: '✅ Saved.',
     grade: (g) => `Grade ${g}`,
     tools: { msci: 'Maths & Science tool', enur: 'English & Urdu tool', gen: 'General form' },
-    enur: (v) => `${v.total} / ${v.max} · ${num(v.pct)}% · ${v.band}`,
+    enur: (v) => `${v.total} / ${v.max} · ${num(v.score_108)} / 108 · ${v.band}`,
     gen: (v) => `Yes on ${v.yes} of ${v.of}`,
     msci: (n) => `${n} indicators, Level 0-3. FDE gives no total.`,
     levels: 'Levels',
@@ -92,7 +93,7 @@ const STRINGS = {
     saved: '✅ محفوظ ہو گیا۔',
     grade: (g) => `جماعت ${urDigits(g)}`,
     tools: { msci: 'ریاضی اور سائنس ٹول', enur: 'انگریزی اور اردو ٹول', gen: 'عمومی فارم' },
-    enur: (v) => `${urDigits(v.total)} / ${urDigits(v.max)} · ${urDigits(num(v.pct))}٪ · ${ltr(v.band)}`,
+    enur: (v) => `${urDigits(v.total)} / ${urDigits(v.max)} · ${urDigits(num(v.score_108))} / ${urDigits(108)} · ${ltr(v.band)}`,
     gen: (v) => `${urDigits(v.of)} میں سے ${urDigits(v.yes)} پر ہاں`,
     msci: (n) => `${urDigits(n)} نکات، لیول ۰ تا ۳۔ ایف ڈی ای اس ٹول کا کوئی مجموعی اسکور نہیں دیتا۔`,
     levels: 'لیول',

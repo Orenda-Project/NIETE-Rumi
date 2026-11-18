@@ -253,6 +253,33 @@ Feature: Teacher lesson plans
     When she sets the pages back to a valid range, answers the rest and reaches the check screen
     Then the check screen shows the day with her pages, and the plan she gets names those pages in its header
 
+  # bd-snkn32.39 — testers (13 Nov): "the first screen should clearly separate ready-made lesson plans from Make my
+  # own". Written by hand like the blocks above; the web driver has no code for it yet (@draft): the demo stack cannot
+  # turn portal_lp_make_own on. Pinned by StartChoice.test.tsx (portal). Carry this block over on a regenerate.
+
+  @OWN02 @draft @config-gated
+  Scenario: The Lesson Plans first screen offers ready-made plans and Make my own as two separate choices
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens /portal/teacher/lessons
+    Then the first screen shows "Ready-made lesson plans" with "Open a plan already written for your chapter"
+    And below it a separate card "Make my own" with "Make a plan for your own class, in about 1 minute"
+    When she taps "Ready-made lesson plans"
+    Then the grade and subject steps open, as "New lesson plan" did before
+    When she goes back and taps "Make my own"
+    Then the Make my own steps open
+    And with portal_lp_make_own false, or for a coach, the screen shows the single "New lesson plan" card as before
+
+  # bd-2zopnc — operator, 16 Nov: Make my own and the "Made by a teacher" shelf are not live for GB. Pinned by
+  # tests/portal/lp612-own-route.test.js, lp612-shelf-route.test.js, lp612-own-shelf-config-flag.test.js.
+  @OWN03 @draft @config-gated @negative
+  Scenario: A GB teacher gets neither Make my own nor the shelf, even with both switches on for teachers
+    Given portal_teacher_v2 is on and portal_lp_make_own and portal_lp_own_shelf are "teachers"
+    And a GB teacher is signed in
+    When she opens /portal/teacher/lessons
+    Then the screen shows the single "New lesson plan" card as before, with no "Make my own" and no shelf
+    And a direct call to Make my own or the shelf answers 404
+
   # bd-snkn32.13 — "Make my own" for grades 6–12: what the lesson is for, the band's teaching ways, and (Grade 9–12, a
   # lesson whose FBISE SLOs mix Summative and Formative) which outcomes come first. Written by hand like the blocks
   # above; the web driver has no code for them yet (@draft): the demo stack carries no 6–12 catalogue to walk.
@@ -329,3 +356,63 @@ Feature: Teacher lesson plans
     And she has picked a lesson and "Cover more in one period"
     When she picks a different lesson
     Then "No, just these pages" is chosen again, so a choice made for one lesson never rides on another
+
+  # bd-snkn32.42 — "Made by a teacher": a teacher's own plan is listed for others when the AI reviewer passed it
+  # (bd-snkn32.46: app_settings `lp_own_library_rule`, default 'ai'; a person can still Reject, which takes it off;
+  # 'ai_and_person' brings back the approval step). Behind app_settings `portal_lp_own_shelf` (the shelf) and `portal_lp_own_reviewers` (a
+  # list of user ids who may approve). Hand-written like the blocks above (@draft: the demo stack cannot set either key).
+  # Proof: portal/src/portal/teacher/lessons/shelf/*.test.tsx, tests/lp612/own-approval.test.js,
+  # tests/portal/lp612-shelf-route.test.js, tests/lp612/own-library-rule.test.js. Carry this block over on a regenerate.
+
+  @SHF04 @draft @config-gated
+  Scenario: An AI-passed plan is listed with no person's approval
+    Given portal_lp_own_shelf is on for demo teacher 03000000939 and lp_own_library_rule is unset
+    And a teacher's own plan on a chapter's lesson passed the AI reviewer and nobody has approved or rejected it
+    When she opens that chapter's lesson plans
+    Then "Made by a teacher" lists the plan by its lesson, never by who made it
+
+  @SHF01 @draft @config-gated
+  Scenario: A reviewer approves an AI-passed plan, and it appears under "Made by a teacher"
+    Given portal_lp_own_reviewers lists demo teacher 03000000939 and portal_lp_own_shelf is on for her
+    And a teacher's own plan on a chapter's lesson passed the AI reviewer
+    When she opens /portal/teacher/lessons/check
+    Then the plan shows its lesson, its score, the checks rated below 3, the checks not assessed at its grade, and Open the PDF
+    When she taps Approve
+    Then the card reads "Approved"
+    When she opens that chapter's lesson plans
+    Then "Made by a teacher" follows the ready plans and lists the plan by its lesson, never by who made it
+    When she taps it
+    Then it opens on Preparing and then the viewer, as her own plans do
+
+  @SHF02 @draft @config-gated
+  Scenario: A rejection needs a reason, and a rejected plan is never listed
+    Given portal_lp_own_reviewers lists demo teacher 03000000939
+    When she opens /portal/teacher/lessons/check and taps Reject on a plan
+    Then "Reject this plan" is disabled until she writes a reason
+    When she writes a reason and sends it
+    Then the card reads "Rejected" and the plan does not appear under "Made by a teacher"
+
+  @SHF03 @draft @config-gated
+  Scenario: Someone not listed cannot reach the check
+    Given portal_lp_own_reviewers does not list demo teacher 03000000911
+    When she opens /portal/teacher/lessons/check
+    Then she lands on Lesson Plans, and the review API answers 404
+
+  # bd-zrdvmi.21 (18 Nov) — ICT Feedback sheet, GB tab rows 2-3 (14 Nov, portal).
+  @GBS01 @draft @config-gated
+  Scenario: A GB teacher sends a Gilgit-Baltistan plan she opened in the app to her WhatsApp
+    Given the teacher app v2 is on, LP_GB_K5_ENABLED is on and a lesson-plan share template is set
+    And a GB teacher is signed in
+    When she opens a ready GB grade 1 Urdu plan from Lesson Plans
+    And she taps Send on WhatsApp
+    Then the button says the plan was sent, not "Not available yet"
+    And the bot logs share_send.sent with an itemRef naming the GB segment
+
+  @GBS02 @draft @negative
+  Scenario: When the reader cannot show a plan, it says which step failed in the logs
+    Given the teacher app v2 is on
+    And demo teacher 03000000911 is signed in
+    And the plan's file request fails or the plan cannot be drawn on her phone
+    When she opens a plan
+    Then the viewer shows "Can't show it here" with Open in another app
+    And the portal logs one lp_viewer.failed with the step, the lane and the file's size, and no plan name

@@ -11,6 +11,7 @@
 
 const supabase = require('../../../config/supabase');
 const ports = require('./ports');
+const practiceFirst = require('../app/practice-first-switch');
 const { logError } = require('../../../utils/logger');
 
 const GRADE_OF = { grade_3: 3, grade_5: 5 };
@@ -134,7 +135,7 @@ async function todaysVisitId(coachUserId) {
   return (data && data[0] && data[0].id) || null;
 }
 
-/** The coach's assigned schools: [{ schoolId, name, emis }], one per school. */
+/** The coach's assigned schools: [{ schoolId, name, emis }], one per school, by name (sa_r19_practice_first ON: practice first). */
 async function coachSchools(coachUserId) {
   const { data, error } = await supabase.from('leader_schools').select('school_id, school_name, emis')
     .eq('leader_user_id', coachUserId);
@@ -146,7 +147,13 @@ async function coachSchools(coachUserId) {
     seen.add(r.school_id);
     out.push({ schoolId: r.school_id, name: r.school_name || String(r.emis || ''), emis: r.emis ? String(r.emis) : null });
   }
-  return out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  if (!out.length || !(await practiceFirst.on())) return out;
+  const { data: tests, error: testErr } = await supabase.from('schools').select('id, is_probable_test')
+    .in('id', out.map((s) => s.schoolId)).eq('is_probable_test', true);
+  if (testErr) { logError('child_test.context_practice_failed', { coachUserId, error: testErr.message }); return out; }
+  const practice = new Set((tests || []).filter((s) => s && s.is_probable_test === true).map((s) => s.id));
+  return out.sort((a, b) => practice.has(b.schoolId) - practice.has(a.schoolId));
 }
 
 /** A school picked outside a visit: no visit, so no observed class; the draw alternates the grade. */

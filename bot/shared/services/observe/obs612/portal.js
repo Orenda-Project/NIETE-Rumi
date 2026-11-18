@@ -120,9 +120,10 @@ function bodyPart(key, ctx, draft) {
       }),
     };
   }
-  if (key === 'score_line') {
+  // Section 7 (13 Nov: its own read-only screen) is the same score card; the band is read on FDE's 108-point scale.
+  if (key === 'score_line' || key === 'seven_lines') {
     const r = O.score(ctx.form.rubric_version, ctx.sheet, draft);
-    return { type: 'score', total: r.total, max: r.max, pct: r.pct, band: r.band ? r.band.label : null };
+    return { type: 'score', total: r.total, max: r.max, pct: r.pct, score108: r.score_108, band: r.band ? r.band.label : null };
   }
   return null;
 }

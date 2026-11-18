@@ -113,14 +113,15 @@ describe('register-all-flows', () => {
     // join Flow STUDENT_JOIN_FLOW_ID still serves, had only ever been published by hand;
     // staging registered it on 2026-09-06 and this tree now does too.
     // Re-armed at 26 on 2026-11-11: FDE's grade 6-12 observation form (Obs 6-12 FDE Form, bd-pni007).
+    // Re-armed at 28 on 2026-11-13: Observe2 Check v6 Coach and Obs 6-12 Lesson Class (bd-ra8xu.50).
     //
     // THE NUMBER DIFFERS BY BRANCH, deliberately. The branches do not carry the
     // same set of Flows (staging still has Pic-to-LP Confirm, which this tree
     // removed with the pic-to-LP feature). Read the count off the tree you are on
     // rather than copying it across a cherry-pick.
-    it('exports an array of all 26 registerable flow configurations (26th: Obs 6-12 FDE Form)', () => {
+    it('exports an array of all 28 registerable flow configurations (27th, 28th: Observe2 Check v6 Coach, Obs 6-12 Lesson Class)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(26);
+      expect(FLOW_CONFIGS).toHaveLength(28);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
@@ -136,11 +137,12 @@ describe('register-all-flows', () => {
       // apart by the flow token's `:assessment-review:` marker. What must stay
       // unique is the (endpointPath, envVar) pair — a copy-pasted entry reusing
       // an envVar is the failure this guard exists for, and that is covered
-      // above.
+      // above. The /observe2 check is the second: the shared check and the FICO17 v6 coach's own copy (bd-ra8xu.50)
+      // share its endpoint, which tells them apart by the check version the copy posts (v6c 4).
       const shared = FLOW_CONFIGS.filter((f) => f.endpointPath)
         .reduce((m, f) => m.set(f.endpointPath, (m.get(f.endpointPath) || 0) + 1), new Map());
       const overloaded = [...shared].filter(([, n]) => n > 1).map(([p]) => p);
-      expect(overloaded).toEqual(['/api/flows/assessment-gen']);
+      expect(overloaded).toEqual(['/api/flows/assessment-gen', '/api/flows/observe2-check']);
     });
 
     it('includes Reading Assessment as a navigate type with no endpointPath', () => {

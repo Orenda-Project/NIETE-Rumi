@@ -586,14 +586,20 @@ const isClaude = (m) => /(^|\/)claude-/.test(String(m || ''));
  * The request as the new model should receive it. The call site's own request is never edited.
  * `moved` is false when the model is the call site's own (a direct-lane id routed to the direct
  * lane): that limit was sized for that model already.
+ *
+ * Thinking, on a model that thinks by default and only when the call says nothing about it: under a
+ * small limit it is switched off (or held to low effort where it cannot be), as before; otherwise the
+ * job's own effort, if the registry gives it one (JOB_EFFORT, bd-lk7e3f.6.3), is asked for.
  */
-function adaptForTarget(model, params, moved = true) {
+function adaptForTarget(model, params, moved = true, job = null) {
   const p = { ...params };
   const limit = p.max_tokens != null ? p.max_tokens : p.max_completion_tokens;
   const hinted = p.reasoning !== undefined || p.thinking !== undefined || p.reasoning_effort !== undefined
     || (p.output_config && p.output_config.effort !== undefined);
-  if (thinksByDefault(model) && limit != null && limit < SMALL_OUTPUT_LIMIT && !hinted) {
-    p.reasoning = alwaysThinks(model) ? { effort: 'low' } : { enabled: false };
+  if (thinksByDefault(model) && !hinted) {
+    const jobEffort = job ? require('../config/model-registry').JOB_EFFORT[job] : undefined;
+    if (limit != null && limit < SMALL_OUTPUT_LIMIT) p.reasoning = alwaysThinks(model) ? { effort: 'low' } : { enabled: false };
+    else if (jobEffort) p.reasoning = { effort: jobEffort };
   }
   // OpenRouter reads `max_tokens` for non-OpenAI models; the facade reads either.
   if (!String(model).startsWith('openai/') && p.max_tokens == null && p.max_completion_tokens != null) {
@@ -621,7 +627,7 @@ function appliedOutputLimit(model, requested, moved = true) {
  * `options` are the per-call SDK options (timeout, retries), passed on to whichever lane it is.
  */
 async function callModel(model, params, options, job, moved = true) {
-  const p = adaptForTarget(model, params, moved);
+  const p = adaptForTarget(model, params, moved, job);
   if (isDirectModel(model)) {
     // Throws on a missing key or an unusable credit fallback, before a token is spent; the
     // caller treats that like any other failure and puts the job back on its own model.

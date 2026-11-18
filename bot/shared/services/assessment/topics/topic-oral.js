@@ -9,6 +9,7 @@ const { makeOral } = require('../patterns/early/chrome');
 const Prompt = require('../fde-early-prompt');
 const { ORAL_SYSTEM } = require('../fde-early-writer');
 const G35 = require('./oral-g35');
+const { pagesOnly } = require('./oral-pages-only');
 
 const EARLY = { 1: 'fde_g1_2026', 2: 'fde_g2_2026' };
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -26,7 +27,9 @@ function oralFor({ grade, subject }) {
 }
 
 async function writeTopicOral({ grade, subject, pageContent, requestId = null }, d) {
-  const oral = oralFor({ grade, subject });
+  const base0 = oralFor({ grade, subject });
+  // G1-2 carry the annual oral; a topic paper keeps only the tasks its pages can feed (bd-pw1ccr.38).
+  const oral = EARLY[Number(grade)] ? pagesOnly(base0, pageContent) : base0;
   if (!oral) return null;
   const key = Patterns.normalise(subject);
   const P = { medium: key === 'urdu' ? 'ur' : 'en', name_en: NAME[key] };

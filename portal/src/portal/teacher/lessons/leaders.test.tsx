@@ -159,6 +159,8 @@ describe("every way back to the lesson plans lands on a page a leader may open",
     expect(leaderPaths.sort()).toEqual([
       LESSONS_HOME, `${LESSONS_HOME}/chapters`, `${LESSONS_HOME}/lessons`, `${LESSONS_HOME}/new`,
       `${LESSONS_HOME}/open`, `${LESSONS_HOME}/plan`, `${LESSONS_HOME}/preparing`,
+      // bd-snkn32.42 — the staff check: open to any role, but it shows only for portal_lp_own_reviewers.
+      `${LESSONS_HOME}/check`,
     ].sort());
     expect(opensForLeaders(`${LESSONS_HOME}/all`)).toBe(false);
   });

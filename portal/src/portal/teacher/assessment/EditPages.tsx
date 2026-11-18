@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Check, ChevronRight, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { urduAttrs } from '@/lib/textDir';
 import { useToast } from '@/hooks/use-toast';
 import { portal, type EditFields, type EditItem } from '../../services/api';
 import {
@@ -180,18 +181,18 @@ export function EditPaperPage() {
                 {removed ? (
                   <div className="flex min-h-[60px] min-w-0 flex-1 items-center gap-2.5 ps-2.5">
                     <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[#f3f4f6] text-[13px] font-bold text-[#9ca3af]">{it.number ?? ''}</span>
-                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] text-[#9ca3af] line-through" dir={d.paper.rtl ? 'rtl' : 'ltr'}>{text}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] text-[#9ca3af] line-through" {...urduAttrs(!!d.paper.rtl)}>{text}</span>
                   </div>
                 ) : fde ? (
                   // A board-pattern question is removed or put back, never edited (PATTERN_NO_EDIT): no editor to open.
                   <div className="flex min-h-[60px] min-w-0 flex-1 items-center gap-2.5 ps-2.5">
                     <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{it.number ?? ''}</span>
-                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] font-medium leading-snug" dir={d.paper.rtl ? 'rtl' : 'ltr'}>{text}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] font-medium leading-snug" {...urduAttrs(!!d.paper.rtl)}>{text}</span>
                   </div>
                 ) : (
                   <Link to={editQuestionPath(paperId, it.id)} className={cn('flex min-h-[60px] min-w-0 flex-1 items-center gap-2.5 ps-2.5', FOCUS)}>
                     <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{it.number ?? ''}</span>
-                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] font-medium leading-snug" dir={d.paper.rtl ? 'rtl' : 'ltr'}>{text}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] font-medium leading-snug" {...urduAttrs(!!d.paper.rtl)}>{text}</span>
                     {draft.edits[it.id] && <Chip tone="warn">{C.edit}</Chip>}
                   </Link>
                 )}
@@ -272,7 +273,7 @@ export function EditPaperPage() {
           {draft.added.map((a, i) => (
             <div key={`added-${i}`} className={cn('flex items-center gap-2 ps-3', i > 0 && 'border-t border-[#f0f1f3]')}>
               <Chip tone="done">{C.newItem}</Chip>
-              <span className="line-clamp-2 min-w-0 flex-1 py-3 text-[14px] font-medium" dir={d.paper.rtl ? 'rtl' : 'ltr'}>{a.text}</span>
+              <span className="line-clamp-2 min-w-0 flex-1 py-3 text-[14px] font-medium" {...urduAttrs(!!d.paper.rtl)}>{a.text}</span>
               <span className="text-[12px] font-bold text-[#6b7280]">{a.marks}</span>
               <button type="button" aria-label={C.removeAdded(i + 1)} onClick={() => setDraft(dropAdded(draft, i))}
                 className={cn('flex h-14 w-14 shrink-0 items-center justify-center text-[#6b7280]', FOCUS)}>
@@ -293,20 +294,24 @@ export function EditPaperPage() {
         </button>
       )}
 
-      <Tray open={tray} title={C.newQuestion} onClose={() => setTray(false)} closeLabel={C.close}>
-        {kinds.status !== 'ok'
-          ? <LoadState status={kinds.status} onRetry={retryKinds} />
-          : (
-            <ListCard label={C.newQuestion}>
-              {(dataOf(kinds)?.kinds ?? []).map((k, i) => (
-                <Link key={k.kind} to={addQuestionPath(paperId, k.kind)}
-                  className={cn('flex min-h-[64px] items-center gap-3 px-3.5', i > 0 && 'border-t border-[#f0f1f3]', FOCUS)}>
-                  <span className="flex-1 text-[16px] font-semibold">{k.label}</span>
-                  <ChevronRight className="h-5 w-5 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
-                </Link>
-              ))}
-            </ListCard>
-          )}
+      {/* bd-5icld3.3 — 18-20 kinds: the card used to shrink to fit 88% of the screen and hide most of them. Now the
+          drawer opens tall and only its list scrolls; the close stays at the top. */}
+      <Tray open={tray} tall title={C.newQuestion} onClose={() => setTray(false)} closeLabel={C.close} testId="new-question-tray">
+        <div data-testid="new-question-list" className="-mx-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3.5 pb-1 [&>*]:shrink-0">
+          {kinds.status !== 'ok'
+            ? <LoadState status={kinds.status} onRetry={retryKinds} />
+            : (
+              <ListCard label={C.newQuestion}>
+                {(dataOf(kinds)?.kinds ?? []).map((k, i) => (
+                  <Link key={k.kind} to={addQuestionPath(paperId, k.kind)}
+                    className={cn('flex min-h-[64px] items-center gap-3 px-3.5', i > 0 && 'border-t border-[#f0f1f3]', FOCUS)}>
+                    <span className="flex-1 text-[16px] font-semibold">{k.label}</span>
+                    <ChevronRight className="h-5 w-5 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+                  </Link>
+                ))}
+              </ListCard>
+            )}
+        </div>
       </Tray>
     </TeacherPage>
   );

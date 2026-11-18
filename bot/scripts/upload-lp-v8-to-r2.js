@@ -27,6 +27,7 @@
  * not smaller → keep the original; page count changed → keep the original.
  */
 
+const { pdfProblem } = require('./lp-v8-pdf-guard');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -423,6 +424,9 @@ async function recordSlideScript({ pdfPath, lessonId, assetId, versionStamp, con
 async function persistAssetRow({ item, plan, hash, buffer, sourceBytes, pdfPath, commit, deps = {} }) {
   if (!commit) return { assetId: null, action: plan.action, source: { recorded: false, reason: 'dry_run' } };
 
+  const problem = pdfProblem(buffer, { minBytes: 1 });   // bd-c2iiq3: never make a broken render the current lesson
+  if (problem) throw new Error(`${item.lesson_id}: refusing to upload — ${problem}`);
+
   const supabase = deps.supabase || require('../shared/config/supabase');
   const r2 = deps.r2 || require('../shared/storage/r2');
   const key = plan.r2_key;
@@ -709,6 +713,13 @@ async function main() {
       }
 
       const source = fs.readFileSync(abs);
+      const bad = pdfProblem(source);
+      if (bad) {
+        summary.failed += 1;
+        outcomes.push({ ...item, action: 'failed', reason: bad });
+        console.log(`  ✗ ${item.lesson_id}: ${bad} — not uploaded`);
+        continue;
+      }
       const comp = compressPdf(source, { tmpDir });
       if (!comp.compressed) { summary.uncompressed += 1; console.log(`  ~ ${item.lesson_id}: uncompressed (${comp.reason})`); }
 

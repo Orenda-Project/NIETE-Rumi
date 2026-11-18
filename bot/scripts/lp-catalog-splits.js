@@ -8,7 +8,9 @@
  * consumer keys on lesson_id as a string and no table has a catalog foreign key, so a new
  * id needs no migration; a renumbered day would have broken every later lesson's id.
  *
- * The list lives in data/lp_splits.json. buildCatalog applies it, so a rebuild keeps the
+ * The list lives in data/lp_splits.json. An entry is a lesson_id (both parts repeat the lesson's topic and
+ * pages, for a day too long for one period) or { id, parts: [{ topic, pages }, { topic, pages }] } (a day
+ * that taught two book topics, split so each part shows its own topic and pages; bd-zrdvmi.1.2). buildCatalog applies it, so a rebuild keeps the
  * splits; scripts/apply-lp-splits.js applies it to the committed catalog when the ingestion
  * tree is not on this machine. The builder's row helpers are passed in (`B`), because the
  * builder requires this module and a require back would be a cycle.
@@ -24,8 +26,24 @@ function loadSplits(file = SPLITS_PATH) {
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
 }
 
+/** The lesson_id an lp_splits.json entry names. */
+function splitId(entry) {
+  return typeof entry === 'string' ? entry : entry.id;
+}
+
+/** The per-part { topic, pages } overrides of an entry; [] for a plain id. */
+function partSpecs(entry) {
+  if (typeof entry === 'string') return [];
+  const parts = entry.parts || [];
+  if (parts.length !== 2 || parts.some((p) => !p || !p.topic)) {
+    throw new Error(`lp_splits: ${entry.id} needs exactly two parts, each with a topic`);
+  }
+  return parts;
+}
+
 /** One part of a split lesson, its day label and row re-made for that part. */
-function partOf(lesson, part, rtl, B) {
+function partOf(lesson, part, rtl, B, spec = {}) {
+  lesson = { ...lesson, topic: spec.topic || lesson.topic, pages: spec.pages || lesson.pages };
   const base = B.dayLabelDisplay(lesson.segment_index, lesson.lp_type, rtl);
   const label = rtl ? `${base} · حصہ ${B.urDigits(part)}` : `${base} · part ${part}`;
   const row = B.buildRow(
@@ -46,16 +64,18 @@ function partOf(lesson, part, rtl, B) {
  * A new catalog with every listed lesson split in two. Pure; applying it twice changes nothing.
  * `B` is build-lp-catalog's exports (buildRow, dayLabelDisplay, dayLabelFor, urDigits).
  */
-function applySplits(catalog, ids, B) {
+function applySplits(catalog, entries, B) {
   const out = JSON.parse(JSON.stringify(catalog));
-  const todo = new Set(ids);
+  const specs = new Map(entries.map((e) => [splitId(e), partSpecs(e)]));
+  const todo = new Set(specs.keys());
   for (const book of out.books) {
     for (const ch of book.chapters) {
       ch.lessons = ch.lessons.flatMap((l) => {
         if (!todo.has(l.lesson_id)) return [l];
         todo.delete(l.lesson_id);
         if (l.part === 1) return [l];               // already split; part 2 follows as its own entry
-        return [partOf(l, 1, !!book.rtl, B), partOf(l, 2, !!book.rtl, B)];
+        const [a, b] = specs.get(l.lesson_id);
+        return [partOf(l, 1, !!book.rtl, B, a), partOf(l, 2, !!book.rtl, B, b)];
       });
     }
   }
@@ -64,4 +84,4 @@ function applySplits(catalog, ids, B) {
   return out;
 }
 
-module.exports = { applySplits, loadSplits, partOf, SPLITS_PATH };
+module.exports = { applySplits, loadSplits, partOf, splitId, SPLITS_PATH };

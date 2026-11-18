@@ -7,7 +7,8 @@ import { AudioCard, ListRow, SelectField } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { leader, type ObserveLesson, type ObserveLessonQuestion, type RecentLessonPlan } from "../../services/api";
+import { leader, type ObserveLesson, type ObserveLessonQuestion, type ObserveRecentPlan } from "../../services/api";
+import { downloadsOnly, isOwnPlan } from "../../lib/observeRecentPlans";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
@@ -17,7 +18,9 @@ import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
 import { withDuration } from "../../lib/webmDuration";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
-import { lengthShort, planKindLabel } from "../observe/format";
+import { lengthShort, madeWhen, planKindLabel } from "../observe/format";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
+import type { TeacherUiCopy } from "../../teacher/ui/copy";
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { startSend, useSendJob } from "../observe/sender";
@@ -82,18 +85,26 @@ function SheetRow({ icon, label, onClick }: { icon: ReactNode; label: string; on
   );
 }
 
-const planSub = (p: RecentLessonPlan, C: ObserveCopy) => [p.grade != null ? C.grade(Number(p.grade)) : null, p.subject].filter(Boolean).join(" · ");
+// bd-snkn32.41 — a plan she made herself says so, and names its chapter; bd-brv7rs — and when (Pakistan time), so two
+// of her plans for the same lesson read differently.
+const planSub = (p: ObserveRecentPlan, C: ObserveCopy, kit: Pick<TeacherUiCopy, "am" | "pm">) => {
+  const own = isOwnPlan(p);
+  return [own ? C.madeByTeacher : null, p.grade != null ? C.grade(Number(p.grade)) : null, p.subject,
+    own && p.chapterNumber != null ? C.chapterN(p.chapterNumber) : null,
+    own ? madeWhen(p.madeAt, { ...C, am: kit.am, pm: kit.pm }) : null].filter(Boolean).join(" · ");
+};
 
 function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
+  const kit = useKitCopy();
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planError, setPlanError] = useState<"wrong_type" | "too_large" | null>(null);
   const [ownOpen, setOwnOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
-  const [recent, setRecent] = useState<RecentLessonPlan[] | null>(null);
+  const [recent, setRecent] = useState<ObserveRecentPlan[] | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [libraryLevel, setLibraryLevel] = useState(0);
   const [libraryBack, setLibraryBack] = useState(0);
@@ -200,7 +211,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       <ObservePage banner={false} title={C.library} crumb={crumb}
         onBack={() => (libraryLevel > 0 ? setLibraryBack((n) => n + 1) : setStage("check"))}>
         <LibraryPicker onPick={onLibraryPick} onStepChange={setLibraryLevel} backSignal={libraryBack}
-          loadRecent={loadTheirRecent} recentTitle={C.theirRecentPlans} showUsed={false} />
+          loadRecent={() => loadTheirRecent().then(downloadsOnly)} recentTitle={C.theirRecentPlans} showUsed={false} />
       </ObservePage>
     );
   }
@@ -282,9 +293,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
         {recent && recent.length > 0 && (
           <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
             {recent.map((p, i) => (
-              <ListRow key={p.assetId} variant="row" first={i === 0} icon="file" label={p.topic || C.lessonPlan} subtitle={planSub(p, C) || undefined}
+              <ListRow key={isOwnPlan(p) ? p.ownId : p.assetId} variant="row" first={i === 0} icon="file" label={p.topic || C.lessonPlan} subtitle={planSub(p, C, kit) || undefined}
                 onPress={() => {
-                  setPlan({ kind: "library", pick: { assetId: p.assetId }, title: p.topic || C.lessonPlan, sub: planSub(p, C) });
+                  setPlan({ kind: "library", pick: isOwnPlan(p) ? { ownId: p.ownId } : { assetId: p.assetId }, title: p.topic || C.lessonPlan, sub: planSub(p, C, kit) });
                   setRecentOpen(false);
                 }} />
             ))}

@@ -34,6 +34,18 @@ describe('book-level', () => {
     expect(BL.isBook({ question: 'Solve 2x^2 + 3x - 8 = 0.' }, MATHS)).toBe(true);
     expect(BL.isBook({ question: 'The area of a garden is 84 m² and it is 5 m longer than it is wide. Find its width.' }, MATHS)).toBe(true);
   });
+  // bd-qyi45h.10 r2: prod G9 Maths 6-chapter papers (13 Nov) had 19 new items forced to K because their few small
+  // numbers (2, 3, 4, 5…) equal some run in one of 50 worked examples by chance: "log 2 + log 5" matched the Uranus
+  // mass example, "|2x - 1| = 5" a prime-sets example.
+  const SETS = 'Example 1: A set of Prime numbers which are also even i.e. {2}. A set of Pakistani currency i.e. {5, 10, 20, 50}. '
+    + 'Example 4: The speed of light is approximately 3 × 10⁵ km/s and the distance is approximately 1.5 × 10⁸ km. '
+    + 'Example 7: If P = {3, 5, 7}, Q = {1, 3, 5, 7, 9}, R = {0, 2, 5, 8}, then find P∪(Q∩R) using Venn diagram.';
+  test('a few small numbers that happen to sit in an unrelated worked example are not K', () => {
+    expect(BL.isBook({ question: 'The value of log 2 + log 5 is:' }, SETS)).toBe(false);
+    expect(BL.isBook({ question: 'If n(A) = 3 and n(B) = 4, then n(A x B) is:' }, SETS)).toBe(false);
+    expect(BL.isBook({ question: 'Solve the equation |2x - 1| = 5 and write the solution set.' }, SETS)).toBe(false);
+    expect(BL.isBook({ question: 'Shahid writes the power law of logarithms. Use it to write log 5^3.' }, SETS)).toBe(false);
+  });
   test('relevel sets tag.blooms K on book items (OR branches and groups too), returns the count, leaves others', () => {
     const t = tree(
       { question: 'A bus travels 150 km in 3 h. Its average speed is:', tag: tag('A') },

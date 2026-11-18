@@ -153,3 +153,55 @@ describe("Try again re-sends only what did not arrive (bd-bmc9a0.1)", () => {
     expect(a.startCoachingUpload).toHaveBeenCalledWith({ key: "audio/1-L.webm", photoKeys: ["photo/3-board.jpg"] });
   });
 });
+
+/**
+ * bd-r2uzg1.9 — ICT IAB row 29 (queue #116): 331 "File will not open" rejections in the app, 29 Oct–13 Nov, every one
+ * an ordinary JPEG that 12 times went through later; one teacher's same photo went through on the next Submit two
+ * minutes after. A failed read is tried again before it counts; a photo the page already holds as bytes (read when she
+ * picked it) is sent as it is; and the report carries the browser's own name for the error.
+ */
+describe("a photo the phone would not read (bd-r2uzg1.9)", () => {
+  /** A picked file whose reads fail `fails` times, then work (FileReader under the hood, as jsdom has no arrayBuffer). */
+  function flaky(name: string, type: string, fails: number) {
+    const f = new File(["\xff\xd8\xff-board"], name, { type });
+    let n = 0;
+    const read = vi.fn(() => {
+      n += 1;
+      if (n <= fails) return Promise.reject(Object.assign(new Error("could not be read"), { name: "NotReadableError" }));
+      return new Promise<ArrayBuffer>((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as ArrayBuffer);
+        r.readAsArrayBuffer(new Blob(["\xff\xd8\xff-board"]));
+      });
+    });
+    Object.defineProperty(f, "arrayBuffer", { value: read });
+    return { f, read };
+  }
+
+  it("a read that fails once is tried again, and the photo goes", async () => {
+    const { f, read } = flaky("board.jpg", "image/jpeg", 1);
+    const out = await sendLesson({ audio: { blob: new Blob(["rec"]), filename: "L.webm" }, plan: null, photos: [f], readWaits: [0, 0] }, a as never);
+    expect(out).toEqual({ coachingSessionId: "cs-9" });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(a.uploadToR2).toHaveBeenCalledTimes(2);
+  });
+
+  it("never readable: photo 1 is unreadable, and the report names the browser's error", async () => {
+    const { f, read } = flaky("board.jpg", "image/jpeg", Infinity);
+    const report = vi.fn();
+    const err = await sendLesson({ audio: { blob: new Blob(["rec"]), filename: "L.webm" }, plan: null, photos: [f], readWaits: [0, 0] },
+      a as never, undefined, report).catch((e) => e);
+    expect(err.detail).toEqual({ part: { kind: "photo", photo: 1 }, offline: false, unreadable: true });
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(report.mock.calls[0][0]).toEqual(expect.objectContaining({ stage: "read", kind: "photo", reason: "unreadable", errName: "NotReadableError" }));
+  });
+
+  it("a photo held when she picked it is sent as it is, not read from the phone again", async () => {
+    const { holdPhoto } = await import("./pickedRead");
+    const picked = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2])], "board.jpg", { type: "image/jpeg" });
+    const held = await holdPhoto(picked, []);
+    if (!held.ok) throw new Error("not held");
+    await sendLesson({ audio: { blob: new Blob(["rec"]), filename: "L.webm" }, plan: null, photos: [held.file] }, a as never);
+    expect(a.uploadToR2.mock.calls[1][1]).toBe(held.file);
+  });
+});

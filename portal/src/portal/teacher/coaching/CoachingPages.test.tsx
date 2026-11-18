@@ -114,7 +114,8 @@ const audioOf = (name = "lesson.m4a"): Audio => ({
   blob: new Blob(["a"]), filename: name, durationMs: 1_800_000, recordingId: null, source: "file", size: 1, startedAt: null,
 });
 const m4a = (name = "lesson.m4a") => new File(["a"], name, { type: "audio/mp4" });
-const jpg = (n: string) => new File(["x"], n, { type: "image/jpeg" });
+// bd-r2uzg1.9: a photo is read when she picks it and must be a JPEG or PNG inside, so the test photos are real JPEG bytes.
+const jpg = (n: string) => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])], n, { type: "image/jpeg" });
 /** Record lesson and Upload recording are in the Recording card's tray (operator, 16 Oct): open it if it is closed. */
 const inRecordTray = () => {
   if (!screen.queryByRole("dialog", { name: C.recording })) fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${C.recording}`) }));
@@ -208,10 +209,11 @@ describe("the page: no class, the recording first", () => {
     expect(screen.getByText(C.photosHint.replace(/\s+/g, " "))).toBeTruthy();
     const input = screen.getByTestId("dc-photos-input") as HTMLInputElement;
     fireEvent.change(input, { target: { files: Array.from({ length: 4 }, (_, i) => jpg(`a${i}.jpg`)) } });
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(4));
     fireEvent.change(input, { target: { files: Array.from({ length: 4 }, (_, i) => jpg(`b${i}.jpg`)) } });
-    expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(8);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(8));
     fireEvent.change(input, { target: { files: [jpg("c0.jpg"), jpg("c1.jpg")] } });
-    expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(10);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(10));
     expect(screen.queryByRole("button", { name: C.addPhoto })).toBeNull(); // full: no more room
     fireEvent.change(input, { target: { files: [jpg("d0.jpg")] } });
     expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(10);
@@ -253,11 +255,13 @@ describe("the page: no class, the recording first", () => {
     await screen.findByText("How plants make food");
     const photos = Array.from({ length: 10 }, (_, i) => jpg(`p${i}.jpg`));
     fireEvent.change(screen.getByTestId("dc-photos-input"), { target: { files: photos } });
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(10));
     fireEvent.click(screen.getByRole("button", { name: C.submit }));
     await waitFor(() => expect(sendLesson).toHaveBeenCalled());
     const [payload] = sendLesson.mock.calls[0] as unknown as [{ plan: unknown; photos: File[]; teacherClass: unknown }];
     expect(payload.plan).toEqual({ kind: "library", pick: { lessonId: "L3" } });
-    expect(payload.photos).toEqual(photos);
+    // bd-r2uzg1.9: the page sends the copies it read when she picked them — same names, same order.
+    expect(payload.photos.map((f) => f.name)).toEqual(photos.map((f) => f.name));
     expect(payload.teacherClass).toEqual(THE_CLASS);
   });
 

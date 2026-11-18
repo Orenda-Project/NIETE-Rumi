@@ -117,6 +117,20 @@
  *                           nobody pressing "I've answered" / Next. No row, 1 or anything else: OFF (today: one is enough).
  *                           The engine applies it wherever the move-on rule runs (sa-core.js opts.oral_in_a_row).
  *
+ *   Round 20 (the Urdu reviewer, 13 Nov: a child silent through a section moves on to the next subject), ONE app_settings
+ *   row holding an integer N, read by three readers (r20SilenceStop1..3, MATCH), so N is a data change:
+ *   sa_r20_silence_stop     N (1 to 3, a number or its string): battery.ui.r20_silence_stop = N. RDF auto: N silent Urdu or
+ *                           English letter/word parts in a row (each after its one reminder and repeat) end the subject
+ *                           (sa-core.js opts.silence_in_a_row). No row, 0 or anything else: OFF.
+ *   sa_r20_auto_end_section battery.ui.r20_auto_end_section = true: the coach's End this section (sa_end_section) works in
+ *                           RDF auto too.
+ *
+ *   Round 28, A11 (screen fit), each ON adds battery.ui.r28_<flag> = true for the engine:
+ *   sa_r28_cue_guard        the round-9 scroll cue, once shown, takes its own box off what it measures, so it goes as soon
+ *                           as the screen's own content is in view and never stays drawn over nothing (sa-ui.js scrollCheck).
+ *   sa_r28_toggle_fit       round 8's language toggle keeps its 56 px button inside a 44 px top bar on every screen, and a
+ *                           head row holding a tappable keeps its distance from the toggle's hit area (sa.css, round 28 A11).
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -155,6 +169,15 @@ const SWITCHES = {
   r13WholeStopAll: 'sa_r13_whole_stop', r13WholeStopEarly: 'sa_r13_whole_stop',
   // round 13b: one row, four readers (MATCH); the value is N
   r13OralRule2: 'sa_r13_oral_rule', r13OralRule3: 'sa_r13_oral_rule', r13OralRule4: 'sa_r13_oral_rule', r13OralRule5: 'sa_r13_oral_rule',
+  // round 20: one row, three readers (MATCH); the value is N. And the coach's End this section in RDF auto
+  r20SilenceStop1: 'sa_r20_silence_stop', r20SilenceStop2: 'sa_r20_silence_stop', r20SilenceStop3: 'sa_r20_silence_stop',
+  r20AutoEndSection: 'sa_r20_auto_end_section',
+  // round 28 (the 17 Nov evaluation meeting): the listen-and-tap letter sounds, the spoken MCQ, the ceiling extension
+  r28LetterPick: 'sa_r28_letter_pick', r28Mcq: 'sa_r28_mcq', r28Ceiling: 'sa_r28_ceiling',
+  // round 28, E-3: the story's clock stops at Done, not at the last-word tap (sa-core.js finish)
+  r28StoryClock: 'sa_r28_story_clock',
+  // round 28, A11: the scroll cue never holds itself; the language toggle inside a 44 px top bar (sa-ui.js, sa.css)
+  r28CueGuard: 'sa_r28_cue_guard', r28ToggleFit: 'sa_r28_toggle_fit',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
 const R13_ALL = (v) => v === true || v === 'all';
@@ -162,8 +185,11 @@ const R13_EARLY = (v) => v === 'early';
 /** sa_r13_oral_rule's value → ON for exactly N (a whole number 2..5, or its string). */
 const ORAL_N = [2, 3, 4, 5];
 const oralIs = (n) => (v) => v === n || v === String(n);
+/** sa_r20_silence_stop's value → ON for exactly N (a whole number 1..3, or its string). */
+const SILENCE_N = [1, 2, 3];
 const MATCH = { r13WholeStopAll: R13_ALL, r13WholeStopEarly: R13_EARLY,
-  ...Object.fromEntries(ORAL_N.map((n) => [`r13OralRule${n}`, oralIs(n)])) };
+  ...Object.fromEntries(ORAL_N.map((n) => [`r13OralRule${n}`, oralIs(n)])),
+  ...Object.fromEntries(SILENCE_N.map((n) => [`r20SilenceStop${n}`, oralIs(n)])) };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
@@ -179,7 +205,10 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r9QuestionTime: 'r9_question_time', r9CompText: 'r9_comp_text', r9ScrollCue: 'r9_scroll_cue',
   r9SkipInstructions: 'r9_skip_instructions',
   r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit',
-  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once' };
+  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once',
+  r20AutoEndSection: 'r20_auto_end_section',
+  r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling', r28StoryClock: 'r28_story_clock',
+  r28CueGuard: 'r28_cue_guard', r28ToggleFit: 'r28_toggle_fit' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');
@@ -216,9 +245,70 @@ function withoutW3(battery) {
   return out;
 }
 
+/**
+ * Round 28 (the 17 Nov evaluation meeting), three switches, each OFF by default. The built battery file carries
+ * everything the round adds, marked, and this strips it while the switch is OFF, so a phone with the switches OFF
+ * receives today's battery byte for byte (dashboard/tests/sa-r28-off-identity.service.test.js):
+ *
+ *   sa_r28_letter_pick  a task `r28: 'letter_pick'` (kind 'pick': Jugnu says a sound, the child taps one of five
+ *                       letters, scored on the phone). ON: it takes the place of the task it `replaces`
+ *                       (`<lang>.letter_sounds5`) in `tasks` and in the RDF lists (rdf_auto / rdf_manual); OFF: dropped.
+ *   sa_r28_mcq          a task `r28: 'mcq'` (kind 'mcq': the story questions as four spoken options to tap). ON: in the
+ *                       place of `<lang>.story_comp_w3`; OFF: dropped.
+ *   sa_r28_ceiling      a timed task's items past today's first N: the committed task keeps `items` / `grid` / `stop`
+ *                       as today and adds `base_n: N`, `ext_items: [...]` (each `ext: true`, `src`) and `ext_stop` (the
+ *                       scorer's first-row rule past N). ON: the served task's `items` are `items.concat(ext_items)`,
+ *                       `grid` is rebuilt from them, `base_n` stays (the screens read it); OFF: `ext_items`, `ext_stop`
+ *                       and `base_n` go and `items` / `grid` are exactly today's.
+ *   r28_tasks           the builder's list of the round's task ids (how they reach `tasks[]`): never served.
+ *   lines_r28           the round's own lines, each `{ text, audio, r28: <kind> }`: a line joins `lines` (without the
+ *                       `r28` key) when its kind's switch is ON; the `lines_r28` key never reaches a phone.
+ *   Each ON adds battery.ui.r28_<x> = true for the engine (UI). A battery with nothing of round 28 comes back as it is.
+ */
+const R28_KINDS = { r28LetterPick: 'letter_pick', r28Mcq: 'mcq' };
+const hasExt = (t) => Boolean(t && (t.base_n != null || Array.isArray(t.ext_items) || t.ext_stop != null));
+function withR28(battery, on) {
+  const tasks = battery.tasks;
+  const hasTask = tasks.some((t) => t && t.r28);
+  if (!hasTask && !tasks.some(hasExt) && !battery.lines_r28 && !battery.r28_tasks) return battery;
+  const kinds = new Set(Object.entries(R28_KINDS).filter(([k]) => on[k] === true).map(([, kind]) => kind));
+  // ON: the new task sits where the task it replaces sat; OFF: it is dropped.
+  const byOld = new Map(tasks.filter((t) => t && t.r28 && kinds.has(t.r28) && t.replaces).map((t) => [t.replaces, t]));
+  const placed = new Set();
+  let out = [];
+  for (const t of tasks) {
+    if (!t) { out.push(t); continue; }
+    if (t.r28) { if (kinds.has(t.r28) && !t.replaces) out.push(t); continue; }
+    const by = byOld.get(t.id);
+    if (by) { out.push(by); placed.add(by.id); } else out.push(t);
+  }
+  // a replacement whose old task is not in this battery still runs when ON (appended, as the lists name it)
+  for (const by of byOld.values()) if (!placed.has(by.id)) out.push(by);
+  out = out.map((t) => {
+    if (!hasExt(t)) return t;
+    const { base_n, ext_items: ext, ext_stop: _s, ...rest } = t;
+    if (!on.r28Ceiling || !Array.isArray(ext) || !ext.length) return rest;
+    const items = (Array.isArray(t.items) ? t.items : []).concat(ext);
+    return { ...rest, ...(base_n != null ? { base_n } : {}), items, ...(Array.isArray(t.grid) ? { grid: items.map((it) => (it.show != null ? it.show : it.target)) } : {}) };
+  });
+  const swap = (list) => (Array.isArray(list) ? list.map((id) => (byOld.has(id) ? byOld.get(id).id : id)) : list);
+  const { lines_r28: extraLines, r28_tasks: _ids, ...rest } = battery;
+  const lines = { ...(battery.lines || {}) };
+  for (const [k, l] of Object.entries(extraLines || {})) {
+    if (!l || !kinds.has(l.r28)) continue;
+    const { r28: _k, ...line } = l;
+    lines[k] = line;
+  }
+  const result = { ...rest, tasks: out };
+  for (const key of ['rdf_auto', 'rdf_manual']) if (Array.isArray(battery[key])) result[key] = swap(battery[key]);
+  if (battery.lines || Object.keys(lines).length) result.lines = lines;
+  return result;
+}
+
 function applySwitches(input, on = {}) {
   if (!input || !Array.isArray(input.tasks)) return input;
-  const w3 = on.rdfW3Forms ? input : withoutW3(input);
+  const r28 = withR28(input, on);
+  const w3 = on.rdfW3Forms ? r28 : withoutW3(r28);
   // round 8, sa_r8_counts: the RDF forms' counts (only W3 tasks carry them, so nothing changes without sa_rdf_w3_forms)
   const battery = on.r8Counts === true ? withCounts(w3) : w3;
   const fluencyOff = (t) => (on.r10FluencyNoPractice === true ? withoutFluencyPractice(t) : t);
@@ -244,12 +334,15 @@ function applySwitches(input, on = {}) {
   // round 13b: how many spoken questions in a row left unanswered end the subject (the smallest N read ON)
   const oralN = ORAL_N.find((n) => on[`r13OralRule${n}`] === true) || null;
   if (oralN) ui.push('r13OralRule');
+  // round 20: how many silent letter/word parts in a row end the subject (the smallest N read ON)
+  const silenceN = SILENCE_N.find((n) => on[`r20SilenceStop${n}`] === true) || null;
+  if (silenceN) ui.push('r20SilenceStop');
   // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
   if (!ui.length) return applyR7a({ ...battery, tasks }, on);
   // round 7b, sa_silence_repeat: Jugnu's reminder line in the battery's own language
   const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
   const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
-  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => (k === 'r13WholeStop' ? ['r13_whole_stop', r13] : k === 'r13OralRule' ? ['r13_oral_rule', oralN] : [UI[k], true]))) } }, on);
+  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => (k === 'r13WholeStop' ? ['r13_whole_stop', r13] : k === 'r13OralRule' ? ['r13_oral_rule', oralN] : k === 'r20SilenceStop' ? ['r20_silence_stop', silenceN] : [UI[k], true]))) } }, on);
 }
 
 module.exports = { SWITCHES, MATCH, R13_ALL, R13_EARLY, applySwitches };

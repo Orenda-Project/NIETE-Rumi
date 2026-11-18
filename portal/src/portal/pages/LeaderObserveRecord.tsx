@@ -12,6 +12,7 @@ import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPi
 import CoachRecorder, { minutesText } from '../components/coaching/coach/CoachRecorder';
 import SendLessonSheet from '../components/coaching/SendLessonSheet';
 import { leader, portal } from '../services/api';
+import { downloadsOnly } from '../lib/observeRecentPlans';
 import type { LeaderPatchTeacher, LeaderScheduledObservation } from '../types/portal';
 import { acceptFor, checkFile, formatSize, MAX_PHOTOS, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
 import { canRecordHere } from '../lib/recordingSupport';
@@ -192,7 +193,13 @@ const LeaderObserveRecord = () => {
     let live = true;
     Promise.resolve().then(() => portal.getConfig())
       // bd-o15qnr: coach v2's Take observation runs here too (the server gate is either flag).
-      .then((cfg) => { if (live) setEnabled(cfg?.features?.coachObservation === true || cfg?.features?.coachV2 === true); })
+      // bd-w0zbbe: the server now says per user (observeOnPortal, the API gate's own rule: a principal only on the
+      // principal app); an older server without it keeps the rule above.
+      .then((cfg) => {
+        if (!live) return;
+        const f = cfg?.features;
+        setEnabled(typeof f?.observeOnPortal === 'boolean' ? f.observeOnPortal : (f?.coachObservation === true || f?.coachV2 === true));
+      })
       .catch(() => { if (live) setEnabled(false); });
     canRecordHere().then((ok) => { if (live) setCanRecord(ok); }).catch(() => {});
     leader.getTeachers().then((d) => { if (live) setTeachers(d.teachers || []); }).catch(() => {});
@@ -326,7 +333,7 @@ const LeaderObserveRecord = () => {
   }, []);
 
   const loadHerRecent = useCallback(
-    () => (teacher ? leader.getObserveRecentPlans(teacher.teacherExtId, teacher.schoolExtId) : Promise.resolve({ plans: [] })),
+    () => (teacher ? leader.getObserveRecentPlans(teacher.teacherExtId, teacher.schoolExtId).then(downloadsOnly) : Promise.resolve({ plans: [] })),
     [teacher],
   );
 
@@ -619,7 +626,11 @@ const LeaderObserveRecord = () => {
                   className="mt-2 h-[60px] w-full rounded-[14px] bg-primary text-[19px] font-bold text-white">{COPY.changePlan}</button>
               </>
             )}
-            {(failure.kind === 'refused' || failure.kind === 'in_progress') && (
+            {/* bd-w0zbbe: the API does not let this account observe here — say so, and point to WhatsApp; nothing to retry. */}
+            {failure.kind === 'refused' && failure.message === 'not_available' && (
+              <p className="text-[17px] leading-relaxed text-[#3a3f4b]">{COPY.notAvailable}</p>
+            )}
+            {(failure.kind === 'refused' || failure.kind === 'in_progress') && failure.message !== 'not_available' && (
               <>
                 <p className="text-[17px] leading-relaxed text-[#3a3f4b]">{failure.message === 'not_your_teacher' ? COPY.notYourTeacher : COPY.refused}</p>
                 <button type="button" onClick={() => setStage(failure.message === 'not_your_teacher' ? 'who' : 'check')}

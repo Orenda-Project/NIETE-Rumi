@@ -34,7 +34,9 @@ const videoReco = require('../services/video-reco-events');
 const telemetry = require('../services/telemetry.service');
 
 const SIGN_IN = '/portal/login';
-const SESSION_SELECT = 'id, user_id, created_at, analysis_data, prioritized_action, report_pdf_url, voice_debrief_url';
+// observation_type (bd-r2uzg1.12): a coach visit gets no "the lesson plan you chose" line, and without the column
+// every visit would read as her own recording.
+const SESSION_SELECT = 'id, user_id, created_at, analysis_data, prioritized_action, report_pdf_url, voice_debrief_url, observation_type';
 const TREND_LIMIT = 10;
 
 function log(props, event = 'coaching.report_page.open') {

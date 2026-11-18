@@ -146,7 +146,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         <RadioList label={w.size} items={SIZES.map((k) => ({ key: k, label: C.sizes[k] }))} value={sizeNow} onPick={(k) => { remember(k); go({ size: k as OwnAt['size'] }); }} />
       ) : null}
       {s.step === 'level' ? (
-        <RadioList label={C.level} items={LEVELS.map((k) => ({ key: k, label: C.levels[k] }))} value={s.level} onPick={(k) => go({ level: k as OwnAt['level'] })} />
+        <RadioList label={C.level} items={LEVELS.map((k) => ({ key: k, label: C.levels[k], subtitle: C.levelHints[k] }))} value={s.level} onPick={(k) => go({ level: k as OwnAt['level'] })} />
       ) : null}
       {s.step === 'resources' ? (
         <TickList

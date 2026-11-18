@@ -10,6 +10,8 @@ const { practiceWhy } = require('../../bot/shared/services/coaching/practice-why
 // The card's header, steps and what she did well are shared with the slim WhatsApp image (bd-v0toag.57).
 const { stepOf, cardHeader, wells, pktDate } = require('../../bot/shared/services/coaching/report-card');
 const { disagreementsFor } = require('../../bot/shared/services/coaching/live-moves/disagreements');
+// bd-r2uzg1.12: the same soft line the hero image adds after a lesson-mismatch Section B (groups C and D read it here).
+const { lessonMismatchNote, withNote } = require('../../bot/shared/services/coaching/report-v2/lesson-mismatch-note');
 
 // fico-framework.js DOMAINS, in its order; the Urdu name in brackets as on the template.
 const SECTIONS = [
@@ -52,7 +54,7 @@ function thing(s, a, l) {
   return { text: move, why: practiceWhy(t.tag, l), step: m ? stepOf(m.phase) : null };
 }
 
-function sections(a, l) {
+function sections(a, l, s) {
   const domains = a.domains || a.areas;
   if (!domains || typeof domains !== 'object') return [];
   const whys = (a.report_narrative && a.report_narrative.domain_whys) || {};
@@ -63,7 +65,9 @@ function sections(a, l) {
     const score = num(d.domain_score ?? d.area_score);
     const max = num(d.domain_max ?? d.area_max);
     const pct = score != null && max ? Math.round((score / max) * 100) : null;
-    return { key: k, name, score, max, pct, colour: colourOf(pct), notAssessed: false, why: text(whys[k]) };
+    const why = text(whys[k]);
+    const note = k === 'lesson_plan_fidelity' ? lessonMismatchNote(a, s, l) : null;
+    return { key: k, name, score, max, pct, colour: colourOf(pct), notAssessed: false, why: note ? withNote(why, note) : why };
   });
 }
 
@@ -86,7 +90,7 @@ function buildReportView(input = {}) {
     header: cardHeader(s, a, input.firstName, l),
     wells: wells(a, l),
     thing: thing(s, a, l),
-    sections: sections(a, l),
+    sections: sections(a, l, s),
     journey: journey(input.trend),
     quizMessage: text(input.quizMessage) ? input.quizMessage : null,
     voice: https(s.voice_debrief_url),

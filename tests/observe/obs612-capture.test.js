@@ -86,7 +86,8 @@ test('a grade 7 Maths lesson: stamped before transcription, its own form row, FD
 test('a grade 1-5 lesson: FICO as today, the named class deciding the grades 1-5 gate', async () => {
   mockState.value = { state: 'awaiting_audio', origin: 'observe', boundTeacher: BOUND, obs612Lesson: { primary: true, grade: null, subject: null } };
   await startFromAudio(COACH, '9230', 'audio-1', 'chat-1', 1800);
-  expect(O6.decideVisitFramework).toHaveBeenCalledWith({ userId: 'coach-1', region: 'sihala', teacherUserId: 'teacher-1', lessonIsPrimary: true });
+  // bd-hk2jm3: the school the coach picked rides along, for the visit's region (FDE is ICT's only).
+  expect(O6.decideVisitFramework).toHaveBeenCalledWith({ userId: 'coach-1', region: 'sihala', teacherUserId: 'teacher-1', schoolExtId: 'sx1', lessonIsPrimary: true });
   expect(Store.createLessonForm).not.toHaveBeenCalled();
   expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
   expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
@@ -95,7 +96,7 @@ test('a grade 1-5 lesson: FICO as today, the named class deciding the grades 1-5
 test('no lesson named (the switch off): exactly today\'s capture', async () => {
   mockState.value = { state: 'awaiting_audio', origin: 'observe', boundTeacher: BOUND };
   await startFromAudio(COACH, '9230', 'audio-1', 'chat-1', 1800);
-  expect(O6.decideVisitFramework).toHaveBeenCalledWith({ userId: 'coach-1', region: 'sihala', teacherUserId: 'teacher-1' });
+  expect(O6.decideVisitFramework).toHaveBeenCalledWith({ userId: 'coach-1', region: 'sihala', teacherUserId: 'teacher-1', schoolExtId: 'sx1' });
   expect(Store.createLessonForm).not.toHaveBeenCalled();
   expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
   const ack = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];

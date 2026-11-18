@@ -5,7 +5,12 @@
  * Held = a topic_end_nudge row skipped because her WhatsApp window was shut (the bot books a retry for the next
  * school day), in the last week, for a teacher whose school is in group B of the topic-nudge draw. It stops being
  * held once a nudge for that topic got through, or once she made a paper for that grade/subject/chapter after
- * taking the plan. Read-only; the bot's teacher-nudges.store.js stays the only writer of teacher_nudges.
+ * taking the plan.
+ *
+ * skipHeldTopicNudge (bd-pw1ccr.39) is the card tap's write. It used to call the bot's teacher-nudges.store, but the
+ * portal build installs none of the bot's packages (dotenv, pino, @supabase/supabase-js under bot/), so on prod every
+ * tap 2-13 Nov was a 502 and no retry was skipped. It does the store's skipPendingForTopic through the portal's own
+ * Supabase client: pending → skipped, context merged with skip_reason, guarded on status so a claimed row is left alone.
  */
 
 const HELD_SQL = `
@@ -45,4 +50,27 @@ async function heldTopicNudge(dbQuery, userId) {
   return { topicId: String(c.topic_id), topicName: c.topic_name || null, grade, subject: String(c.subject), chapter };
 }
 
-module.exports = { HELD_SQL, heldTopicNudge };
+const TABLE = 'teacher_nudges';
+const KIND = 'topic_end_nudge';
+const CARD_USED = 'card_used';
+
+/** Skips her pending topic-end retries for one topic as card_used; returns how many. A database error is thrown. */
+async function skipHeldTopicNudge(supabase, userId, topicId) {
+  if (!userId || !topicId) return 0;
+  const { data, error } = await supabase.from(TABLE).select('id, context')
+    .eq('user_id', userId).eq('kind', KIND).eq('status', 'pending').eq('context->>topic_id', topicId);
+  if (error) throw new Error(`teacher_nudges read failed: ${error.message}`);
+  let skipped = 0;
+  for (const row of data || []) {
+    const context = { ...(row.context || {}), skip_reason: CARD_USED };
+    // eslint-disable-next-line no-await-in-loop
+    const { data: updated, error: upErr } = await supabase.from(TABLE)
+      .update({ status: 'skipped', context, updated_at: new Date().toISOString() })
+      .eq('id', row.id).eq('status', 'pending').select('id');
+    if (upErr) throw new Error(`teacher_nudges update failed: ${upErr.message}`);
+    if ((updated || []).length > 0) skipped += 1;
+  }
+  return skipped;
+}
+
+module.exports = { HELD_SQL, heldTopicNudge, skipHeldTopicNudge };

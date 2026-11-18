@@ -238,7 +238,11 @@ function buildHeroReportHtml(vm) {
   .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}
   .pnote{margin:12px 42px 0;padding:10px 14px;border-radius:8px;background:${P.footBorder};color:${P.note};font-size:12.5px;line-height:${RTL ? '1.7' : '1.5'}}
   .foot{display:flex;align-items:center;justify-content:space-between;padding:16px 42px 24px;margin-top:14px;border-top:1px solid ${P.footBorder};color:${P.faint};font-size:12px}
-  .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}${vm.breakLongWords ? `
+  /* bd-ra8xu.51 (FDE report only): a coach's note is typed by hand and can be one long run with no space (a held-down
+     key); Nastaliq draws such a run as a slanting cascade that leaves its box. Let it break, and keep it inside. */
+  .hero h1,.identity,.sh h3,.sh .nt,.try-text,.sc-n{overflow-wrap:anywhere;word-break:break-word}
+  .sh,.try,.identity{overflow:hidden}` : ''}
   </style></head><body>
   <div class="report">
     <div class="hero">${vm.photoB64 ? `<img class="bg" src="data:image/jpeg;base64,${vm.photoB64}">` : ''}

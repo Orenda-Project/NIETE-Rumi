@@ -309,7 +309,9 @@ async function renderStatus(renderId, userId) {
     // Queue #71 — a GB lesson written on her tap in the app lives in GB's own rows (niete_gb_lp_renders).
     const gb = await require('./gb-lp-serving.service').renderStatus(renderId, userId);
     if (gb) return gb;
-    return require('./lp612-own.service').ownStatus(renderId, userId);
+    // bd-snkn32.42 — not hers: an approved "Made by a teacher" plan opens for any teacher, without the author's id.
+    return (await require('./lp612-own.service').ownStatus(renderId, userId))
+      || require('./lp612-own-library').shelfStatus(renderId);
   }
   // Filtered in JS rather than in the query on purpose — see `claims()`. The waiter list is
   // EMPTIED the moment the render completes, so a `.contains('waiters', …)` predicate would

@@ -12,6 +12,8 @@ export type SaSchool = {
   region?: string | null;
   /** sa_all_grades: the grade the coach named for this school's list (1–5); absent = today's grade rotation */
   grade?: number;
+  /** sa_r19_practice_first: a practice (test) school, listed first; absent with the switch off */
+  practice?: boolean;
 };
 
 export type SaOutcome = "present" | "absent" | "refused";
@@ -55,6 +57,8 @@ export type SaSwitches = {
   endTestRestart?: boolean;
   /** sa_end_section: coach-led (RDF manual) End this section skips to the next section */
   endSection?: boolean;
+  /** sa_r20_auto_end_section: End this section in RDF auto too (with endSection) */
+  r20AutoEndSection?: boolean;
   /** sa_dash_filters: the dashboard's mode / date / coach filters and every skip and stop by type and coach */
   dashFilters?: boolean;
   /** sa_cwpm: every words-per-minute number is labelled CWPM (correct words per minute), with its formula */
@@ -130,6 +134,38 @@ export type SaTaskResult = {
   score: Record<string, number> | null;
   /** the scorer heard another person (an adult, another child) in the recording: the score may include their help */
   secondVoice?: boolean;
+  /** round 28 (tap picker / MCQ): too few items heard to rate; Results says "not rated", the dashboard leaves it out */
+  unrated?: boolean;
+  /** round 28: how many items the child heard (lost clips are not presented) */
+  presented?: number;
+  /** round 28 (ceiling): the scorer's first N items, today's scale, shown beside the rate */
+  firstN?: { correct: number; of: number };
+  /** round 28 (MCQ): the question ids the gate allowed */
+  asked?: string[];
+  /** round 28 (tap): items whose clips were lost (out of every denominator) */
+  unavailable?: number;
+  /** round 28 (MCQ, picker): the items of the variant the phone served, before lost clips (a 5-question story: 5) */
+  ofAll?: number;
+  /** round 28 (voice check 'r28'): the other voice was an adult helping, another child, or neither */
+  secondVoiceKind?: 'help' | 'other_child' | 'other_voice' | (string & {});
+  /** round 28 (tap): answers tapped before the prompt's sound ended (n), of the answers the phone timed (of) */
+  tapBeforeSound?: { n: number; of: number };
+};
+
+/** Round 20 level vocabulary (as sent for review): reading and maths ladders, plus Beginner. */
+export type SaLevel = "beginner" | "letters" | "words" | "story" | "comprehension" | "numbers" | "comparing" | "add" | "sub_mul";
+
+/**
+ * Round 20 (server switch sa_r20_level): one subject's line. `reached` is the last part the child did (not skipped);
+ * `level` the highest rung met (null while the first is waiting for its score); `pending` more scores may raise it;
+ * `stop` why the subject ended: no answer (silence) or the coach.
+ */
+export type SaSubjectLevel = {
+  subject: "ur" | "en" | "ma";
+  reached: { taskId: string; title: { en: string | null; ur: string | null } | null } | null;
+  level: SaLevel | null;
+  pending: boolean;
+  stop: "no_answer" | "coach" | null;
 };
 
 /** GET …/sa/session/:id/results (switch sa_results_view; 404 when off or not this coach's session). No names. */
@@ -146,6 +182,8 @@ export type SaResults = {
     lang: "ur" | "en" | null;
   };
   tasks: SaTaskResult[];
+  /** round 20: present only when the server's sa_r20_level is ON */
+  levels?: SaSubjectLevel[];
 };
 
 /** The six skips and stops the dashboard audits (round 7b; the bot's STOP_TYPES). */

@@ -8,16 +8,19 @@
  *   'shadow'  V3 scores the recording and drives everything the teacher sees, exactly as today; this module runs the
  *             v6 prompt on the same transcript, at the same time, and the result is stored under
  *             analysis_data.shadow.fico17_v6. It is never sent to anyone.
- *   'v6'      scored the same way, stored under analysis_data.dc.fico17_v6 (bd-qix9oh.2, CONTRACTS §7). Still never
- *             sent: the operator decided (11 Nov) the teacher's report stays V3 (and the v10 coaching A/B test keeps
- *             reading V3) until the operator's go. Switching the report is its own change (teacher-report.js, option A).
+ *   'v6'      scored the same way, stored under analysis_data.dc.fico17_v6 (bd-qix9oh.2, CONTRACTS §7), and, when the
+ *             read is ok, the teacher's DC report is built from it (bd-ra8xu.52, operator 14 Nov ~01:10: "Yes" to Qurat
+ *             seeing her DC report on v6 instead of V3). analysis-processor stores teacherFacing()'s v6 analysis as the
+ *             analysis (framework 'fico17_v6', V3 kept under v3_fico); any other status keeps today's V3 report. The
+ *             wait is V6_GRACE_MS, not GRACE_MS, because the report depends on it. The prod row names one account; a
+ *             region or "*" value would move every teacher it covers, and the v10 A/B test reads V3.
  *
  * bd-qix9oh.2 — the transcript quality gate (observe/transcript-quality.js, spec §6) runs before the model call:
  * 'broken' → no call, every DC level 'IE'; 'partial' → its TRANSCRIPT GAPS block goes into the prompt. Every blob
  * carries transcript_quality, written here from the gate, never from the model's reply (spec §5.4).
  *
  * Only ICT's FICO self-recordings: a coach visit (leader_observation) is the coach switch's business, never this one.
- * Never throws and never delays the teacher by more than GRACE_MS after V3 is ready; a v6 failure or a slow reply is
+ * Never throws and never delays the teacher by more than GRACE_MS ('v6': V6_GRACE_MS) after V3 is ready; a v6 failure or a slow reply is
  * recorded as status 'failed' / 'invalid' / 'timeout', never as a default level. A slow reply that does come is put in
  * the timeout blob's place afterwards, marked late: true (storeLate; FICO6 fix-shadow).
  */
@@ -26,6 +29,9 @@ const { logToFile } = require('../../../../utils/logger');
 const v6 = require('./index');
 
 const GRACE_MS = 45 * 1000;
+// bd-ra8xu.52: in 'v6' mode the report is built from the v6 read, so wait longer for it. Her prod read on 12 Nov took
+// ~85 s against V3's ~40 s and landed 4 s after the 45 s grace. Past this, the teacher gets the V3 report.
+const V6_GRACE_MS = 150 * 1000;
 const BROKEN_BECAUSE = 'the recording could not be used';
 const RETRY_ON = /JSON pars/i; // GPT5MiniService.analyzePedagogy: 'JSON parsing failed: ...'
 
@@ -157,7 +163,7 @@ function start({ session, metadata, frameworkKey, transcript }) {
     if (mode !== 'shadow' && mode !== 'v6') return null;
     state.mode = mode;
     if (mode === 'v6') {
-      logToFile('[fico17-v6 shadow] fico_dc_rubric is v6, but the teacher report stays V3 until the operator\'s go — scoring v6 in the background only', {
+      logToFile('[fico17-v6 shadow] fico_dc_rubric is v6 — the DC report is built from the v6 read when it comes back ok', {
         coachingSessionId: session && session.id,
       });
     }
@@ -189,6 +195,31 @@ async function settle(promise, graceMs = GRACE_MS) {
   }
 }
 
+/** How long settle() waits for this task: V6_GRACE_MS when its switch said 'v6', else GRACE_MS. */
+function graceFor(task) {
+  return task && task.state && task.state.mode === 'v6' ? V6_GRACE_MS : GRACE_MS;
+}
+
+// What the lesson was, taken from V3's analysis (as the 13 Nov eval page's simulated report did). Nothing V3 scored or
+// advised (focus_area, uptake, summaries, its domains) crosses over: V3 and v6 codes collide (V3 C5 != v6 C5).
+const LESSON_FACTS = ['topic', 'subject', 'has_lesson_plan', 'subject_resolution', 'photo_mode', 'photo_analysis', 'photo_count_analysed', 'lp_fidelity'];
+
+/**
+ * bd-ra8xu.52 — the analysis the teacher's DC report is built from, when the switch said 'v6' and the read is ok: the v6
+ * levels and evidence added up by the v6 framework (computeScores, D2 counted from the transcript), stamped
+ * 'fico17_v6'. Null for anything else (no blob, 'shadow', failed / invalid / broken / timeout), so the caller keeps V3.
+ * Never changes the blob (it is stored as is under analysis_data.dc.fico17_v6).
+ */
+function teacherFacing(blob, v3Analysis, transcript) {
+  if (!blob || blob.mode !== 'v6' || blob.status !== 'ok' || !blob.levels) return null;
+  const fw = require('../fico17-v6-framework');
+  const base = {};
+  for (const k of LESSON_FACTS) if (v3Analysis && v3Analysis[k] !== undefined) base[k] = v3Analysis[k];
+  const copy = JSON.parse(JSON.stringify({ levels: blob.levels, combined_evidence: blob.combined_evidence || {} }));
+  const a = fw.computeScores({ ...base, ...copy }, false, transcript);
+  return { ...a, framework: v6.RUBRIC_KEY, rubric: v6.RUBRIC_KEY, transcript_quality: blob.transcript_quality || null };
+}
+
 /**
  * The analysis_data keys to merge into the V3 write: {} when there is nothing, so the write is unchanged.
  * Switch 'v6' → analysis_data.dc.fico17_v6; 'shadow' (or a blob with no mode) → analysis_data.shadow.fico17_v6.
@@ -214,4 +245,4 @@ async function storeLate(task, stored, sessionId, opts = {}) {
   return { started: true, ...res };
 }
 
-module.exports = { GRACE_MS, modeFor, shadowMetadata, scoreV6, start, settle, patch, storeLate };
+module.exports = { GRACE_MS, V6_GRACE_MS, modeFor, shadowMetadata, scoreV6, start, settle, graceFor, teacherFacing, patch, storeLate };

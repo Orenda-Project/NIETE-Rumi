@@ -127,13 +127,22 @@ function reviewFlowId() {
 
 async function _patchPaper(paperId, patch) {
   if (!paperId) return;
-  try {
-    await supabase.from('assessment_papers')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', paperId);
-  } catch (err) {
+  // bd-qyi45h.12: supabase-js resolves { error } rather than throwing, so a lost write used to vanish and a failed
+  // paper stayed `generating` for ever. A write that errors is logged and tried once more after a short pause.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    let error;
+    try {
+      const res = await supabase.from('assessment_papers')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', paperId);
+      error = res && res.error ? res.error.message || String(res.error) : null;
+    } catch (err) {
+      error = err.message;
+    }
+    if (!error) return;
     // Losing the record must not lose the paper she is waiting for.
-    logToFile('[assessment] could not update paper row', { paperId, error: err.message });
+    logToFile('[assessment] could not update paper row', { paperId, attempt, status: patch.status, error });
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 500));
   }
 }
 
@@ -572,7 +581,7 @@ async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
-    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
+    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
     curriculum = undefined,
@@ -624,7 +633,11 @@ async function buildPaper(job, user = {}) {
     // Her earlier questions on these pages, so asking again gives a new paper.
     const avoid = await RepeatGuard.previousQuestions({ db: supabase, requestId, grade });
     // bd-5jmnfj.38.31: grade 6 and up gets its own free paper (time-sized, marking points, checked).
-    const writeExam = Number(grade) >= 6 ? require('./free-secondary.service').generateExam : Generation.generateExam;
+    const secondary = Number(grade) >= 6;
+    // bd-pw1ccr.38: a G1-5 topic paper is checked for skipped skills and copied worked examples, re-asked once.
+    const writeExam = secondary ? require('./free-secondary.service').generateExam
+      : isTopic ? (a) => require('./topics/topic-exam').writeTopicExam(a, Generation.generateExam)
+        : Generation.generateExam;
     const [generated, oral] = await Promise.all([writeExam({
       grade, subject,
       pageContent: source.content,
@@ -636,7 +649,7 @@ async function buildPaper(job, user = {}) {
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
       ...(avoid.length ? { avoidQuestions: avoid } : {}),
       // Grade 6 and up asks about the lesson by name; G1-5 gets exactly the arguments it always did.
-      ...(writeExam !== Generation.generateExam ? { chapterTitle: source.chapterTitle || null, keySeed: paperId || requestId } : {}),
+      ...(secondary ? { chapterTitle: source.chapterTitle || null, keySeed: paperId || requestId } : {}),
     }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never
@@ -645,6 +658,8 @@ async function buildPaper(job, user = {}) {
     const versioned = await isAssessmentVersionsEnabled();
     if (isTopic) generated.examJson._topics = topics;
     if (oral) generated.examJson._oral = oral;
+    // "Save paper" rides on the paper itself, so every edit and re-render prints it the same way.
+    if (compact) generated.examJson._print = { compact: true };
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
       ...(versioned ? {} : { original_exam_json: generated.examJson }),

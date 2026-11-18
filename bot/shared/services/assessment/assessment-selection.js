@@ -135,6 +135,7 @@ function applySelection(examJson, selectedIds) {
   if (examJson && examJson._topics) out._topics = examJson._topics;
   // So does its oral part (bd-6clakk.11): it holds no questions, only the key's teacher sheet.
   if (examJson && examJson._oral) out._oral = examJson._oral;
+  if (examJson && examJson._print) out._print = examJson._print;
   return out;
 }
 

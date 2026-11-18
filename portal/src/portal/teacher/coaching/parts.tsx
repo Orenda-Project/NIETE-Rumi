@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Camera, Check, ChevronDown, Eye, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
+import { reportSendFailure } from '../../lib/dcUploadReport';
+import { holdPhoto, isRefused, type PhotoRefused } from '../../lib/pickedRead';
 import { AttentionBanner, ListRow } from '../ui';
 import { CARD, FOCUS, GRID } from '../ui/styles';
 import { useCopy } from '../i18n';
@@ -99,7 +101,18 @@ function usePreviews(files: File[]): (string | null)[] {
   return urls;
 }
 
-export type PhotosProblem = 'too_many' | 'not_a_photo' | null;
+export type PhotosProblem = 'too_many' | 'not_a_photo' | 'wont_open' | null;
+
+/** bd-r2uzg1.9 — a photo refused at the pick, to the logs (dc_upload.failed, stage pick): why, and what it was. */
+function tellPick(f: File, item: number, items: number, out: PhotoRefused, startedAt: number) {
+  reportSendFailure({
+    stage: 'pick', kind: 'photo', item, items, status: null,
+    reason: out.problem === 'wont_open' ? 'unreadable' : 'not_image',
+    sizeBytes: f.size, type: String(f.type || '').split(';')[0].trim(), elapsedMs: Date.now() - startedAt,
+    sentBytes: 0, online: typeof navigator === 'undefined' || navigator.onLine !== false, sentAs: 'none',
+    errName: out.errName, ...(out.kind ? { magic: out.kind } : {}),
+  });
+}
 
 const ADD_TILE = cn('flex aspect-square min-h-[56px] flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#c7cad6] bg-white text-center text-[14px] font-semibold text-[#33374a]', FOCUS);
 
@@ -110,23 +123,42 @@ const ADD_TILE = cn('flex aspect-square min-h-[56px] flex-col items-center justi
  * bd-rt8wky — `camera` (the teacher's Digital Coaching): Add photo becomes two tiles, Take photo (the phone camera,
  * one photo a tap; in the Android app Capacitor hands it to the camera app) and From gallery (one or several), and a
  * count under the grid. The coach's grid passes no `camera` and is unchanged.
+ *
+ * bd-r2uzg1.9 — `readOnPick` (the teacher's Digital Coaching, ICT IAB row 29): each photo is read the moment she picks
+ * it and the grid keeps those bytes (lib/pickedRead holdPhoto), never the picked file, which the Android app could no
+ * longer open by Submit. A photo that will not open, or is not a JPEG or PNG inside, is refused right there; the good
+ * ones picked with it still join. The coach's grid passes no `readOnPick` and is unchanged.
  */
-export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS, camera = false }: {
-  photos: File[]; onChange: (next: File[]) => void; testId: string; max?: number; camera?: boolean;
+export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS, camera = false, readOnPick = false }: {
+  photos: File[]; onChange: (next: File[]) => void; testId: string; max?: number; camera?: boolean; readOnPick?: boolean;
 }) {
   const C = useCopy(COACHING);
   const input = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<PhotosProblem>(null);
   const previews = usePreviews(photos);
+  // The photos as they are now: a pick read in the background joins the grid as it is then, not as it was.
+  const latest = useRef(photos);
+  latest.current = photos;
 
-  const add = (list: FileList | null) => {
+  const add = async (list: FileList | null) => {
     setProblem(null);
     const chosen = Array.from(list || []);
     if (!chosen.length) return;
     if (chosen.some((f) => checkFile(f, 'photo'))) { setProblem('not_a_photo'); return; }
     if (photos.length + chosen.length > max) { setProblem('too_many'); return; }
-    onChange([...photos, ...chosen]);
+    if (!readOnPick) { onChange([...photos, ...chosen]); return; }
+    const startedAt = Date.now();
+    const held: File[] = [];
+    let refused: PhotosProblem = null;
+    for (const [i, f] of chosen.entries()) {
+      const out = await holdPhoto(f);
+      if (!isRefused(out)) { held.push(out.file); continue; }
+      tellPick(f, i + 1, chosen.length, out, startedAt);
+      refused = refused === 'wont_open' ? refused : out.problem;
+    }
+    if (held.length) onChange([...latest.current, ...held].slice(0, max));
+    if (refused) setProblem(refused);
   };
 
   return (
@@ -178,7 +210,7 @@ export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS, camera =
           // accept must carry image/*: the Android app (Capacitor) opens the camera only then, and any
           // other list gets the gallery. add() still checks the type on arrival.
           accept="image/*"
-          onChange={(e) => { add(e.target.files); e.target.value = ''; }}
+          onChange={(e) => { void add(e.target.files); e.target.value = ''; }}
         />
       ) : null}
       <input
@@ -188,10 +220,10 @@ export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS, camera =
         multiple
         data-testid={testId}
         accept={`${acceptFor('photo')},image/jpeg,image/png`}
-        onChange={(e) => { add(e.target.files); e.target.value = ''; }}
+        onChange={(e) => { void add(e.target.files); e.target.value = ''; }}
       />
       {problem ? (
-        <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{problem === 'too_many' ? C.upToPhotos(max) : C.notAPhoto}</p>
+        <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{problem === 'too_many' ? C.upToPhotos(max) : problem === 'wont_open' ? C.photoWontOpen : C.notAPhoto}</p>
       ) : null}
     </>
   );

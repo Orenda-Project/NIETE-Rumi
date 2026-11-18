@@ -23,8 +23,9 @@ export type DcItem = {
   minutes: number | null;
   percentage: number | null;
   reportReady: boolean;
-  /** bd-aqotzx — a recording that did not sound like a class: waiting for her answer, or closed unanswered. */
-  state?: 'needs_answer' | 'stopped';
+  /** bd-aqotzx — a recording that did not sound like a class: waiting for her answer, or closed unanswered.
+   *  bd-sy4kcv — needs_answer also when her reflection question waits on her; preparing while the report is made. */
+  state?: 'needs_answer' | 'preparing' | 'stopped';
 };
 
 export type DcKpi = { value: number; previous: number | null };
@@ -53,6 +54,7 @@ const BAND_CHIP: Record<BandKey, ChipData['tone']> = {
 export function lessonChip(item: DcItem, C: CoachingCopy = COACHING_V2_COPY): ChipData | null {
   if (item.state === 'needs_answer') return { text: C.classNeedsAnswer, tone: 'waiting' };
   if (item.state === 'stopped') return { text: C.stoppedChip, tone: 'error' };
+  if (item.state === 'preparing') return { text: C.reportBeingMade, tone: 'waiting' };
   const band = scoreBandFor(item.percentage);
   if (band) return { text: C.bands[band], tone: BAND_CHIP[band] };
   if (!item.reportReady) return { text: C.analysing, tone: 'waiting' };

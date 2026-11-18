@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import i18n from "i18next";
 
@@ -22,6 +22,7 @@ import api from "../../services/api";
 import { TrainingHub } from "./TrainingHub";
 import { LoadState } from "./TrainingFrame";
 import { CertificateCardV2 } from "./parts";
+import { LevelCertificate } from "../../newui/training/TrainingLevel";
 import { TRAINING_V2_COPY_UR as U, TRAINING_INNER_UR as TU } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
@@ -50,6 +51,25 @@ describe("Training in Urdu", () => {
     render(<MemoryRouter><LoadState loading={false} failed onRetry={() => {}} /></MemoryRouter>);
     expect(screen.getByText(U.loadFailed)).toBeTruthy();
     expect(screen.getByRole("button", { name: U.tryAgain })).toBeTruthy();
+  });
+
+  it("My scores in Urdu: a watched unit with no quick check reads مکمل, an unwatched one says it has no check", async () => {
+    http.get.mockImplementation(async (url: string) => (url.endsWith("/certificate") ? { data: {
+      state: "locked", certificate: null, units_total: 3, units_done: 2, exams_total: 9, exams_done: 0,
+      scores: { modules: [{ course_id: 69, title: "Module 3 - Classroom Management", exam: null, units: [
+        { id: 454, title: "Unit 302", best_pct: null, has_check: false, done: true },
+        { id: 455, title: "Unit 303", best_pct: null, has_check: false, done: false },
+      ] }] },
+    } } : { data: {} }));
+    render(<MemoryRouter><LevelCertificate levelId={27} onIssued={() => {}} words={TU} /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId("level-scores"));
+    expect(within(await screen.findByTestId("score-unit-454")).getByText(TU.done)).toBeTruthy();
+    expect(within(screen.getByTestId("score-unit-455")).getByText(TU.noQuickCheck)).toBeTruthy();
+    expect(TU.noQuickCheck).toMatch(/[؀-ۿ]/);
+    expect(screen.queryByText("No quick check")).toBeNull();
+    // The unit rows never say "not taken"; the module exam's own chip still does (it has not been sat).
+    expect(within(screen.getByTestId("score-unit-454")).queryByText(TU.notTaken)).toBeNull();
+    expect(within(screen.getByTestId("score-unit-455")).queryByText(TU.notTaken)).toBeNull();
   });
 
   it("a reused new-UI word (the certificate's Download) in Urdu", () => {

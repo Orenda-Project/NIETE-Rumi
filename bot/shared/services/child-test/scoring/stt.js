@@ -28,6 +28,69 @@ async function transcribe(file, language, durationSec, { signal } = {}) {
   };
 }
 
+/**
+ * A plain second pass (sa_r26_voice_strict): Soniox with BOTH language hints and language identification, and none of
+ * the bot's classroom-observation context or speaker split. The usual call (above) gives one hint and that context; on
+ * some real recordings it heard no word where this request heard an adult clearly. Used only to back up an
+ * another-voice flag, never for the marks. The transcription and the uploaded file are deleted afterwards.
+ * { words, text, model, seconds, cost }; throws on an error status; an aborted `signal` rejects with reason 'timeout'.
+ * `diarize` (sa_r28_voice_help): the same request with Soniox's speaker split on, and `turns` beside the words, rendered
+ * as renderTurns does ("[12s] spk1: …"), for the help check to read.
+ */
+async function transcribePlain(file, durationSec, { signal, pollMs = 2000, maxWaitMs = 170 * 1000, diarize = false } = {}) {
+  /* eslint-disable global-require */
+  const axios = require('axios');
+  const FormData = require('form-data');
+  const fs = require('fs');
+  const { SONIOX_API_KEY, SONIOX_PRIMARY_MODEL } = require('../../../utils/constants');
+  /* eslint-enable global-require */
+  const headers = { Authorization: `Bearer ${SONIOX_API_KEY}` };
+  const base = 'https://api.soniox.com/v1';
+  const started = Date.now();
+  const aborted = () => { const e = new Error('stt_timeout'); e.reason = 'timeout'; return e; };
+  const wait = (ms) => new Promise((resolve, reject) => {
+    if (signal && signal.aborted) { reject(aborted()); return; }
+    const t = setTimeout(() => { if (signal) signal.removeEventListener('abort', stop); resolve(); }, ms);
+    function stop() { clearTimeout(t); reject(aborted()); }
+    if (signal) signal.addEventListener('abort', stop, { once: true });
+  });
+  let fileId = null;
+  let trId = null;
+  try {
+    const form = new FormData();
+    form.append('file', fs.createReadStream(file));
+    fileId = (await untilAborted(axios.post(`${base}/files`, form, { headers: { ...headers, ...form.getHeaders() } }), signal)).data.id;
+    trId = (await untilAborted(axios.post(`${base}/transcriptions`, {
+      file_id: fileId, model: SONIOX_PRIMARY_MODEL, language_hints: ['ur', 'en'], enable_language_identification: true,
+      ...(diarize ? { enable_speaker_diarization: true } : {}),
+    }, { headers }), signal)).data.id;
+    for (;;) {
+      const st = (await untilAborted(axios.get(`${base}/transcriptions/${trId}`, { headers }), signal)).data || {};
+      if (st.status === 'completed') break;
+      if (st.status === 'error') throw new Error(`plain_stt_error: ${String(st.error_message || '').slice(0, 80)}`);
+      if (Date.now() - started > maxWaitMs) throw aborted();
+      await wait(pollMs);
+    }
+    const tokens = ((await untilAborted(axios.get(`${base}/transcriptions/${trId}/transcript`, { headers }), signal)).data || {}).tokens || [];
+    const words = wordsFromTokens(tokens);
+    return {
+      words: words.length,
+      text: words.map((w) => w.raw).join(' '),
+      ...(diarize ? { turns: renderTurns(words) } : {}),
+      model: `soniox:${SONIOX_PRIMARY_MODEL}:plain${diarize ? ':diarized' : ''}`,
+      seconds: (Date.now() - started) / 1000,
+      cost: Number.isFinite(durationSec) ? Math.round(durationSec / 3600 * SONIOX_ASYNC_USD_PER_HOUR * 1e5) / 1e5 : null,
+    };
+  } finally {
+    if (trId) await deleteQuietly(`${base}/transcriptions/${trId}`, headers);
+    if (fileId) await deleteQuietly(`${base}/files/${fileId}`, headers);
+  }
+}
+
+async function deleteQuietly(url, headers) {
+  try { await require('axios').delete(url, { headers }); } catch (_) { /* best effort: Soniox drops old jobs itself */ } // eslint-disable-line global-require
+}
+
 function untilAborted(work, signal) {
   if (!signal) return work;
   return new Promise((resolve, reject) => {
@@ -64,4 +127,4 @@ function renderTurns(words, from = -Infinity, to = Infinity) {
   return lines.map((l) => `[${l.s.toFixed(0)}s] spk${l.spk == null ? '?' : l.spk}: ${l.text}`).join('\n');
 }
 
-module.exports = { transcribe, renderTurns, SONIOX_ASYNC_USD_PER_HOUR };
+module.exports = { transcribe, transcribePlain, renderTurns, SONIOX_ASYNC_USD_PER_HOUR };

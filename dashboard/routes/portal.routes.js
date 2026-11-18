@@ -77,6 +77,7 @@ const { CAPSTONE_MARKING_DEADLINE_MS } = require('../middleware/timeout');
 // issueCertificate, already required from this file. Anything in it that needs a
 // DB read or the vendor's bar stays behind the internal API.
 const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
+const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
 // bd-arghnv.3 — a question with a blank stem is never served or counted as a quiz. The bot's own rule
@@ -107,6 +108,9 @@ const {
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
+  PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_REVIEWERS_KEY,
+  isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_DECODE_KEY,
@@ -142,6 +146,8 @@ const SchoolsAnalytics = require('../services/schools-analytics.service');
 const CoachingAnalytics = require('../services/coaching-analytics.service'); // bd-97x22y.1
 const ObservationsAnalytics = require('../services/observations-analytics.service'); // bd-97x22y.5
 const AnalyticsLists = require('../lib/analytics-lists');
+const AnalyticsAreas = require('../lib/analytics-areas'); // bd-97daxo.33
+const ObserverAnalytics = require('../services/observer-analytics.service'); // bd-97daxo.33
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -1738,6 +1744,8 @@ function countOutputs(userIds, [from, to]) {
  *     organization's (training-levels). keepsUnplaced: the default organization (FDE's) keeps the people no region
  *     places, where they always were.
  *   - fdeLists: FDE's v8 lists are FDE's populations — only FDE's view counts against them.
+ *   - lpBandRule: how LP Engagement bands a roster teacher with no RDF list — FDE's view by teacher_level, as the RDF
+ *     does; another organization's by level, else registration grades, else Primary (services/lp-engagement WHOSE BANDS).
  */
 async function analyticsScope(req) {
   const organization = req.analyticsOrganization;
@@ -1749,8 +1757,31 @@ async function analyticsScope(req) {
     .filter((r) => r.organization !== organization)
     .map((r) => r.display_name);
   const isDefault = organization === DEFAULT_ANALYTICS_ORGANIZATION;
-  return { organization, regions, foreignRegions, keepsUnplaced: isDefault, fdeLists: isDefault };
+  return {
+    organization, regions, foreignRegions, keepsUnplaced: isDefault, fdeLists: isDefault,
+    lpBandRule: isDefault ? 'level' : 'derived',
+    // bd-97daxo.33: a non-FDE view whose region has areas (dashboard/config/gb-areas.json) is bucketed by area; FDE's never.
+    areas: isDefault ? null : AnalyticsAreas.areasFor(regions),
+  };
 }
+
+/**
+ * bd-97daxo.33 — AREAS (lib/analytics-areas). An area view (Moawin's Gilgit-Baltistan → Gilgit, Baltistan)
+ * buckets every school by its area, from schools.district; ?region= takes an area; access stays on schools.region.
+ * Any other view is untouched: these helpers answer exactly what the routes did before.
+ */
+/** The buckets a view's summarisers count into: its areas (and Area not set), else its regions. */
+const bucketsOf = (scope) => (scope.areas ? scope.areas.buckets : scope.regions);
+/** The ?region= filter for a view. */
+const parseViewRegion = (scope, raw) => (scope.areas
+  ? AnalyticsAreas.parseAreaFilter(raw, scope.areas)
+  : SchoolsAnalytics.parseRegionFilter(raw, scope.regions));
+/** The districts of an area view's schools (one small read), or null for any other view. */
+const areaPlacement = (scope) => (scope.areas ? AnalyticsAreas.loadPlacement(dbQuery, scope.areas) : Promise.resolve(null));
+/** School rows placed by area for an area view; as read for any other. */
+const placedSchools = (scope, placement, schools) => (placement ? AnalyticsAreas.placeSchools(scope.areas, schools, placement.districtById) : schools);
+/** An answer without an empty Area not set card; as summarised for any other view. */
+const trimmedForView = (placement, body) => (placement ? AnalyticsAreas.trimAreaNotSet(body, placement.needsNotSet) : body);
 /** The lists this scope counts against: FDE's (loaded) for FDE's view, none (every tab's v7 rule) for any other. */
 /**
  * The regions a view's reads are narrowed to: its own, for any organization but FDE's. FDE's view keeps reading every
@@ -1789,6 +1820,31 @@ const listsKey = (lists) => `${lists.missing.schools ? 0 : 1}${lists.missing.tea
 const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
 
 /**
+ * GET /api/portal/analytics/scope
+ *
+ * Whose view this is: { success, organization, regions } — the viewer's organization (requireAnalyticsViewer's
+ * portal_analytics_organizations rule, absent = 'niete') and the regions it owns in the region registry, in dashboard
+ * order. The page reads it once, before it shows a word, so an organization other than FDE's is worded for its own
+ * regions (Gilgit-Baltistan's, never Islamabad's). No data is read. Same gate as every analytics route; the map or the
+ * registry unreadable is a 500, never a guessed organization.
+ */
+router.get('/analytics/scope', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const scope = await analyticsScope(req);
+    // bd-97daxo.33: an area view is told its areas (the page words its filter by them); FDE's answer keeps its exact shape.
+    res.json({
+      success: true,
+      organization: scope.organization,
+      regions: scope.regions,
+      ...(scope.areas ? { areas: scope.areas.areas, areaDistricts: scope.areas.districts } : {}),
+    });
+  } catch (error) {
+    console.error('analytics/scope error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load the analytics scope.' });
+  }
+});
+
+/**
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
  *
  * School-wise analytics for the analytics-only accounts — objective counts only: per
@@ -1808,7 +1864,7 @@ const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 *
 router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
     const scope = await analyticsScope(req);
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
+    const region = parseViewRegion(scope, req.query.region);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -1816,16 +1872,22 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists, regions: readRegions(scope) });
-      return {
+      const [rows, placement] = await Promise.all([
+        SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists, regions: readRegions(scope) }),
+        areaPlacement(scope),
+      ]);
+      return trimmedForView(placement, {
         success: true,
         range,
         basis: listsBasis(lists),
         // LP opens are logged from this day on; the page says so for an earlier window (v7 basis only:
         // v8's "lesson plans used" reads lesson_plans too, which go back to the start).
         lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
-        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region, lists, regions: scope.regions }),
-      };
+        ...SchoolsAnalytics.summarizeSchoolsAnalytics(
+          { ...rows, schools: placedSchools(scope, placement, rows.schools) },
+          { region: region.region, lists, regions: bucketsOf(scope) },
+        ),
+      });
     });
     res.json(body);
   } catch (error) {
@@ -1849,7 +1911,7 @@ const coachingAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 
 router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
     const scope = await analyticsScope(req);
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
+    const region = parseViewRegion(scope, req.query.region);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -1857,13 +1919,16 @@ router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, asy
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await coachingAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range);
-      return {
+      const [rows, placement] = await Promise.all([CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range), areaPlacement(scope)]);
+      return trimmedForView(placement, {
         success: true,
         range,
         basis: listsBasis(lists),
-        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region, lists, regions: scope.regions }),
-      };
+        ...CoachingAnalytics.summarizeCoachingAnalytics(
+          { ...rows, schools: placedSchools(scope, placement, rows.schools) },
+          { region: region.region, lists, regions: bucketsOf(scope) },
+        ),
+      });
     });
     res.json(body);
   } catch (error) {
@@ -1910,7 +1975,7 @@ const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
 router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
     const scope = await analyticsScope(req);
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
+    const region = parseViewRegion(scope, req.query.region);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -1918,21 +1983,25 @@ router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsView
     if (!band.ok) {
       return res.status(400).json({ success: false, error: 'Unknown band.' });
     }
-    const snap = await trainingLevelsSnapshot.get();
+    const [snap, placement] = await Promise.all([trainingLevelsSnapshot.get(), areaPlacement(scope)]);
     // One snapshot for every organization; FDE's lists (in it) count only for FDE's view.
-    const rows = scope.fdeLists ? snap.rows : { ...snap.rows, lists: null };
-    res.json({
+    let rows = scope.fdeLists ? snap.rows : { ...snap.rows, lists: null };
+    // bd-97daxo.33: an area view's schools by area, and a member placed only by users.region still its own (Area not set).
+    if (placement) {
+      rows = { ...rows, schools: placedSchools(scope, placement, rows.schools), members: AnalyticsAreas.placeMembers(scope.areas, rows.members) };
+    }
+    res.json(trimmedForView(placement, {
       success: true,
       band: band.band,
       computedAt: snap.computedAt,
       ...TrainingLevels.summarizeTrainingLevels(rows, {
         band: band.band,
         region: region.region,
-        regions: scope.regions,
+        regions: bucketsOf(scope),
         foreignRegions: scope.foreignRegions,
         keepsUnplaced: scope.keepsUnplaced,
       }),
-    });
+    }));
   } catch (error) {
     console.error('analytics/training-levels error:', error);
     res.status(500).json({ success: false, error: 'Failed to load training analytics.' });
@@ -1958,7 +2027,7 @@ const observationsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs:
 router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
     const scope = await analyticsScope(req);
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
+    const region = parseViewRegion(scope, req.query.region);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -1966,18 +2035,70 @@ router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer,
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range, { regions: readRegions(scope) });
-      return {
+      const [rows, placement] = await Promise.all([
+        ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range, { regions: readRegions(scope) }),
+        areaPlacement(scope),
+      ]);
+      return trimmedForView(placement, {
         success: true,
         range,
         basis: listsBasis(lists),
-        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region, lists, regions: scope.regions }),
-      };
+        ...ObservationsAnalytics.summarizeObservationsAnalytics(
+          { ...rows, schools: placedSchools(scope, placement, rows.schools) },
+          { region: region.region, lists, regions: bucketsOf(scope) },
+        ),
+      });
     });
     res.json(body);
   } catch (error) {
     console.error('analytics/observations error:', error);
     res.status(500).json({ success: false, error: 'Failed to load observation analytics.' });
+  }
+});
+
+// bd-97daxo.33 — its own ten-minute cache, keyed like the others.
+const observersAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/observers?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<area|all>
+ *
+ * A non-FDE view's (Moawin's Gilgit-Baltistan's) human observations by who observed whom (bd-97daxo.33): every
+ * finished visit, whoever was observed (teacher or principal), split by observer (principals, FMOs), FICO17 v6 as the
+ * score (V3, copied HOTS and FDE 6-8 tool visits counted beside it, never in it) — overall, per area and per school,
+ * each school with its visits (Pakistan day, observer kind, the FMO's name, observed role, rubric, score). Principals
+ * are never named, teachers never appear. Definitions: services/observer-analytics.service.js.
+ *
+ * FDE's view does not have it (404): its observation numbers are /analytics/observations', unchanged. Same gate and
+ * window as the others; ?region= is an area of the view (or all); anything else is a 400.
+ */
+router.get('/analytics/observers', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const scope = await analyticsScope(req);
+    if (scope.keepsUnplaced) return res.status(404).json({ success: false, error: 'Not available for this view.' });
+    const region = parseViewRegion(scope, req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await observersAnalyticsCache.getOrLoad(key, async () => {
+      const [rows, placement] = await Promise.all([
+        ObserverAnalytics.loadObserverAnalyticsRows(dbQuery, range, { regions: scope.regions }),
+        areaPlacement(scope),
+      ]);
+      return trimmedForView(placement, {
+        success: true,
+        range,
+        ...ObserverAnalytics.summarizeObserverAnalytics(
+          { ...rows, schools: placedSchools(scope, placement, rows.schools) },
+          { region: region.region, regions: bucketsOf(scope) },
+        ),
+      });
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/observers error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load observer analytics.' });
   }
 });
 
@@ -4348,6 +4469,17 @@ async function _isapsScoreSheet(userId, levelId) {
         .select('training_module_id, score, total_questions, status')
         .eq('user_id', userId).eq('quiz_kind', 'training_module').in('training_module_id', unitIds)
       : { data: [] };
+    // Ten I-SAPS units have no quick check (I-SAPS did not provide one). Watching such a unit completes it
+    // (bd-2390), so the sheet needs to know which units HAVE a check (the same stem rule the unit list and
+    // the quiz use) and which she has done, or a watched unit reads "Not taken" for ever.
+    const { data: unitQuestions } = unitIds.length
+      ? await supabase.from('training_questions').select('training_module_id, question_text')
+        .in('training_module_id', unitIds).eq('is_active', true)
+      : { data: [] };
+    const { data: unitProgress } = unitIds.length
+      ? await supabase.from('teacher_training_progress').select('module_id')
+        .eq('user_id', userId).in('module_id', unitIds)
+      : { data: [] };
     const { data: examAttempts } = await supabase.from('training_assessment_attempts')
       .select('id, grand_quiz_id, is_passed, score, total_questions, status')
       .eq('user_id', userId).eq('quiz_kind', 'grand').in('grand_quiz_id', exams.map(e => e.id));
@@ -4371,6 +4503,8 @@ async function _isapsScoreSheet(userId, levelId) {
       courses: courses || [], units: units || [], exams,
       unitAttempts: (unitAttempts || []).filter(a => a.status !== 'in_progress'),
       examAttempts: examAttempts || [], examAnswers: examAnswers || [], crqMax,
+      checkedUnitIds: [...new Set(servableQuestions(unitQuestions || []).map(q => q.training_module_id))],
+      doneUnitIds: (unitProgress || []).map(p => p.module_id),
     });
   } catch (err) {
     console.error('isaps score sheet failed:', err?.message);
@@ -7912,7 +8046,7 @@ router.post('/coaching-upload/presign', requirePortalAuth, requireSelfObservatio
 function libraryPlanPick(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out = {};
-  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang']) {
+  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang', 'ownId']) {
     if (raw[k] !== undefined) out[k] = raw[k];
   }
   return out;
@@ -9180,6 +9314,17 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
   }
 });
 
+/** bd-w0zbbe — the signed-in user's role for /config; null signed out or on a failed read (then a coach's answers). */
+async function configRoleOf(userId) {
+  if (!userId) return null;
+  try {
+    const { data } = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    return (data && data.role) || null;
+  } catch {
+    return null;
+  }
+}
+
 router.get('/config', async (req, res) => {
   try {
     const userId = req.session && req.session.portalUserId;
@@ -9210,6 +9355,9 @@ router.get('/config', async (req, res) => {
       principalApp,
       lpMakeOwnRaw,
       helpVideosRaw,
+      lpOwnShelfRaw,
+      lpOwnReviewer,
+      configRole,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9258,7 +9406,22 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
       // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_HELP_VIDEOS_KEY, userId),
+      // bd-snkn32.42 — the "Made by a teacher" shelf (rides with the teacher app v2) and its reviewers (list-only).
+      isFlagEnabledForUser(supabase, PORTAL_LP_OWN_SHELF_KEY, userId),
+      isUserListedInFlag(supabase, PORTAL_LP_OWN_REVIEWERS_KEY, userId),
+      // bd-w0zbbe — her role, so the observe page follows the observe API's own gate (requireCoachObservation).
+      configRoleOf(userId),
     ]);
+    // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
+    // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
+    // upload 404'd as "The internet stopped". The operator: principals observe on WhatsApp unless the principal app
+    // names them. observeOnPortal = the gate's answer; a principal off the app also loses the Observations button.
+    const principal = isPrincipalRole(configRole);
+    const observeOnPortal = principal ? principalApp === true : (coachObservation === true || coachV2 === true);
+    // bd-2zopnc — Make my own and the shelf are not live for GB; read only when one is on, and a failed read is off.
+    const lpOwnNotGb = teacherV2 && (lpMakeOwnRaw || lpOwnShelfRaw)
+      ? !(await isGbTeacher(supabase, userId).catch(() => true))
+      : false;
     return res.json({
       success: true,
       // This deployment's WhatsApp bot (digits) for the portal's chat buttons, or null with none configured — then the
@@ -9272,7 +9435,8 @@ router.get('/config', async (req, res) => {
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
         childTest,
-        coachObservation,
+        coachObservation: principal ? (coachObservation === true && principalApp === true) : coachObservation,
+        observeOnPortal,
         newUi,
         coachV2,
         teacherV2,
@@ -9290,8 +9454,10 @@ router.get('/config', async (req, res) => {
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
-        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw && lpOwnNotGb,
         helpVideos: teacherV2 && helpVideosRaw,
+        lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
+        lpOwnReviewer,
       },
     });
   } catch (error) {
@@ -9307,6 +9473,7 @@ router.get('/config', async (req, res) => {
         selfObservation: false,
         childTest: false,
         coachObservation: false,
+        observeOnPortal: false,
         newUi: false,
         coachV2: false,
         teacherV2: false,
@@ -9325,6 +9492,8 @@ router.get('/config', async (req, res) => {
         principalApp: false,
         lpMakeOwn: false,
         helpVideos: false,
+        lpOwnShelf: false,
+        lpOwnReviewer: false,
       },
       roleSwitchRoles: [],
     });
@@ -9364,7 +9533,7 @@ const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 
 router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
     const scope = await analyticsScope(req);
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
+    const region = parseViewRegion(scope, req.query.region);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -9376,14 +9545,21 @@ router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
     const body = await lpEngagementCache.getOrLoad(key, async () => {
-      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists, regions: scope.regions });
-      return {
+      // bd-97daxo.33: an area view's schools are placed by area before its population is built from them.
+      const placement = await areaPlacement(scope);
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, {
+        lists,
+        regions: bucketsOf(scope),
+        bandRule: scope.lpBandRule,
+        ...(placement ? { placeSchools: (schools) => placedSchools(scope, placement, schools) } : {}),
+      });
+      return trimmedForView(placement, {
         success: true,
         range,
         band: band.band,
         basis: listsBasis(lists),
-        ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region, regions: scope.regions }),
-      };
+        ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region, regions: bucketsOf(scope) }),
+      });
     });
     res.json(body);
   } catch (error) {

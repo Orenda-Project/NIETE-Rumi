@@ -47,7 +47,9 @@
 // subject when a part is not finished).
 // sa-24: round 13b: sa-engine.js and sa-core.js (r13_oral_rule: a spoken part ends its subject only after N questions in a
 // row ran out unanswered).
-var VERSION = 'sa-24';
+// sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
+// auto; r20_auto_end_section: the coach's End this section in RDF auto too).
+var VERSION = 'sa-25';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -69,7 +71,21 @@ var CORE = 'sa-core-' + VERSION;
 // a little slower), their word timings scaled to match.
 // v16: round 12: the Urdu letter name «ثے» (said "se") re-voiced under its three keys (the letter alone and its two
 // practice answers), which the voice had read as a "t"/"th" sound; the two answers' word timings re-made.
-var SESSION = 'sa-session-v16';
+// v17: the field review of 16 Nov: «جھنڈا» re-voiced under its key with its vowel («جَھنڈا», it was said "jhunda"), five
+// English letter sounds said alone (h, r, y, k, qu) and six lines re-made under their keys; no word timings change.
+// v18: the review's second listen: the nine English dictation lines (word, sentence, word) re-voiced so the word and the
+// sentence are said clearly, the plough picture «کِسان … ہَل», and the five letter sounds from v17 given the English set's
+// voice processing (pitch and pace) like every other English clip; no word timings change.
+// v19: the two English letter sounds the content owner picked (x "ks", j "juh"), re-made under their keys.
+// v20: the 24 Urdu recordings the content owner marked wrong (letter names, check words, made-up words, five lines),
+// re-made under their keys from a line fix each (UR_LINE_SAID), with the lines' word timings re-made.
+// v21: the letter name «تے» and the made-up word «جھیٹ» in the content owner's own recordings (no voice said them right),
+// trimmed and levelled like the other v4 clips, under their keys.
+// v22: round 28's battery files (the letter-sound picker, story options and timed-task extension built in, stripped on serve
+// while their switches are OFF), so a phone takes the new files.
+// v23: round 28's letter-sound prompts re-picked under their keys (each sound heard right on repeated listens and
+// through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
+var SESSION = 'sa-session-v25';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

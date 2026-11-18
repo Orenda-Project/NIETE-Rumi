@@ -58,3 +58,15 @@ test('a page with no .page reports no height, so the caller refuses it', async (
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'v10print-')), 'x.pdf');
   expect((await printCard('<html><body>x</body></html>', out)).printPx).toBeNull();
 }, 60000);
+
+// bd-snkn32.38 — scrollHeight rounds a fractional height down (2214.25 → 2214), so the page came out a fraction of a
+// pixel short and Chrome moved the last line onto a near-blank second page (3 of 8 sandbox own plans, 12 Nov).
+test('a card with a fractional height over 2000px keeps its last line on the one page', async () => {
+  if (!canLaunch) return;
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'v10print-')), 'frac.pdf');
+  const html = '<html><body style="margin:0"><div class="page"><div style="height:2194.25px">a</div>'
+    + '<div style="height:20px;line-height:20px">last homework line</div></div></body></html>';
+  await printCard(html, out);
+  const pdf = await PDFDocument.load(fs.readFileSync(out));
+  expect(pdf.getPageCount()).toBe(1);
+}, 60000);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlignLeft, BookOpen, LayoutList, Plus, X } from 'lucide-react';
+import { AlignLeft, BookOpen, LayoutList, Plus, Printer, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
@@ -397,6 +397,8 @@ function SideDoor({ picked, onFlip, C, grade }: { picked: boolean; onFlip: () =>
 /* ── 3 Questions ─────────────────────────────────────────────────────────── */
 
 const GROUP = 'mx-1.5 mt-2 text-[13px] font-bold uppercase tracking-[.04em] text-[#6b7280]';
+// The Question types drawer's group names stay at the top of its list while their rows pass under them (bd-5icld3).
+const GROUP_STICKY = 'sticky top-0 z-[1] -mx-3.5 bg-[#f3f4f6] px-5 py-2 text-[13px] font-bold uppercase tracking-[.04em] text-[#6b7280]';
 
 /**
  * The paper's questions on one screen (the operator's pick, 20 Oct; design canvas "Questions · simpler", B v5): the
@@ -451,7 +453,7 @@ export function QuestionsStep() {
     if (list.length === 0) return null;
     return (
       <>
-        <p className={GROUP}>{name}</p>
+        <p className={GROUP_STICKY}>{name}</p>
         <ListCard label={name}>
           {list.map((t, i) => {
             const on = t.id in p.typeCounts;
@@ -567,12 +569,18 @@ export function QuestionsStep() {
         />
       </ListCard>
 
-      <Tray open={tray} title={C.steps.types} onClose={() => setTray(false)} closeLabel={C.close} testId="types-tray">
-        {types.status !== 'ok'
-          ? <LoadState status={types.status} onRetry={retry} />
-          : <>{group('objective', C.objective)}{group('subjective', C.written)}</>}
-        <p className="px-1.5 text-[14px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, MAX_TYPES)}</p>
-        <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, 'flex-none', FOCUS)}>{C.done}</button>
+      {/* bd-5icld3 — up to 18-20 types: the cards used to shrink to fit 88% of the screen and hide their rows. Now the
+          drawer opens tall, only the list scrolls, and the count and Done stay on one row below it. */}
+      <Tray open={tray} tall title={C.steps.types} onClose={() => setTray(false)} closeLabel={C.close} testId="types-tray">
+        <div data-testid="types-list" className="-mx-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3.5 pb-1 [&>*]:shrink-0">
+          {types.status !== 'ok'
+            ? <LoadState status={types.status} onRetry={retry} />
+            : <>{group('objective', C.objective)}{group('subjective', C.written)}</>}
+        </div>
+        <div data-testid="types-foot" className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
+          <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, MAX_TYPES)}</p>
+          <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
+        </div>
       </Tray>
     </StepFrame>
   );
@@ -661,6 +669,9 @@ function PlainCheck() {
       {/* Answer lines moved here from the old Marks and lines step: the one choice it had left. */}
       <SwitchRow on={p.answerLines} onFlip={() => set({ answerLines: !p.answerLines })}
         icon={<AlignLeft className="h-6 w-6" aria-hidden="true" />} name={C.answerLines} />
+      {/* bd-ipoxhx.5 — a tighter A4 page, for schools short of paper. Off unless she turns it on. */}
+      <SwitchRow on={!!p.compact} onFlip={() => set({ compact: !p.compact })}
+        icon={<Printer className="h-6 w-6" aria-hidden="true" />} name={C.savePaper} />
     </StepFrame>
   );
 }

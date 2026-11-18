@@ -99,6 +99,7 @@ const ObserveState = require('../services/observe/observe-state.service');
 const { observeStrings, observeLang } = require('../services/observe/observe-strings');
 const { buildBriefViewModel } = require('../services/observe/observe-brief-card');
 const { getObserveArm } = require('../services/observe/observe-gate');
+const { canSelfCoach, canObserve, observesOwnSchoolAtOnce } = require('../config/role-features');
 const { logToFile } = require('../utils/logger');
 
 // bd-2443: read per-call — the flag flips alongside the Flow republish and
@@ -369,19 +370,87 @@ const _admin = () => require('../services/observe/observe-school-admin.service')
 const _debriefService = () => require('../services/observe/observe-debrief.service');
 const _scheduleStore = () => require('../services/observe/observe-schedule.service');
 
+/**
+ * The leader's users row (role, language, school_id): `user` when the caller holds one with a role, else
+ * read (the Flow endpoint holds none). Null on a failed read.
+ */
+async function _leaderMe(userId, user) {
+  try {
+    return (user && typeof user.role === 'string') ? user : await LeaderSource.leaderProfile(userId);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Does this leader observe at once (a principal: config/role-features observesOwnSchoolAtOnce)? Operator,
+ * 15 Nov: "principals never schedule; they observe whenever they want. Coaches unchanged." False for anyone else and on
+ * a failed read, which keeps today's booking path: a coach is never sent past the date picker on a guess.
+ */
+async function _observesAtOnce(userId, user) {
+  return observesOwnSchoolAtOnce(await _leaderMe(userId, user));
+}
+
+/**
+ * bd-9bppaz — the leader, when they may BOTH have their own lesson coached and observe others (a principal:
+ * config/role-features.js). Null for anyone else and on a failed read: the Digital Coach is never offered on a guess.
+ * `user` is the users row when the caller holds one; the Flow endpoint does not, so the profile is read.
+ */
+async function _selfCoachingLeader(userId, user) {
+  try {
+    const me = (user && typeof user.role === 'string') ? user : await LeaderSource.leaderProfile(userId);
+    return me && canSelfCoach(me) && canObserve(me) ? me : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * bd-9bppaz — "My own lesson" on the /observe menu. Operator, 15 Nov: "When they select themselves it is a DC flow, and
+ * when they choose their teachers it is an HITL flow." The teacher picker never lists the leader (leader-source.js), so
+ * this row is how a principal chooses themselves here; the binding list already offers it for a recording sent first.
+ */
+async function _selfLessonRow(userId, user) {
+  const me = await _selfCoachingLeader(userId, user);
+  if (!me) return null;
+  const S = observeStrings(observeLang(me));
+  return {
+    id: 'self_dc',
+    'main-content': { title: clip(S.bind_row_self_dc, 30), metadata: clip(S.bind_row_self_dc_desc, 80) },
+    'on-click-action': { name: 'data_exchange', payload: { step: 'self_dc' } },
+  };
+}
+
+/**
+ * bd-9bppaz — "My own lesson" tapped: close the Flow as 'self_dc'; the chat side (flow-response.handler) opens the
+ * Classroom Coaching door. No teacher is bound and no observation is armed. Anyone who may not self-coach gets the menu.
+ */
+async function selfLessonStep(userId, user) {
+  if (!(await _selfCoachingLeader(userId, user))) return menuScreen(userId, { user });
+  const params = { observe_visit_action: 'self_dc', visit_next: 'done' };
+  return { screen: 'SUCCESS', data: _success('', '', { action: 'self_dc', params }) };
+}
+
 async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
+  // Who is asking, read once for the whole menu. A principal observes at once, in their own school.
+  const me = await _leaderMe(userId, opts.user);
+  const atOnce = observesOwnSchoolAtOnce(me);
   // bd-0cxz6: how many schools she actually has. Zero is a real state now that
   // /observe opens for any coach, and the menu must not offer her a scheduling
   // path that can only dead-end on an empty school list.
   let schoolCount = opts.schoolCount;
+  let holdings = null;   // leader_schools rows only; null = not read here
   if (schoolCount == null) {
     try {
       const A = _admin();
-      schoolCount = (await A.listMySchools(userId)).length;
+      holdings = (await A.listMySchools(userId)).length;
+      schoolCount = holdings;
     } catch (_) { schoolCount = 1; }   // unknown -> behave as today
   }
+  // A principal's own school (users.school_id) is one of theirs; the picker lists it (leader-source).
+  if (atOnce && !schoolCount && me && me.school_id) schoolCount = 1;
   let nForm = 0; let nDebrief = 0; let nSend = 0;
   try {
     const Debrief = _debriefService();
@@ -406,7 +475,7 @@ async function menuScreen(userId, opts = {}) {
     'main-content': { title: r.title, metadata: r.meta },
     'on-click-action': { name: 'data_exchange', payload: { step: r.step } },
   }));
-  const items = [
+  let items = [
     ...stageRows,
     {
       id: 'schedule',
@@ -452,13 +521,29 @@ async function menuScreen(userId, opts = {}) {
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
   ];
+  if (atOnce) {
+    // A principal observes at once, so the row says so, and an empty "My schedule" is not offered (visits
+    // a principal booked before this change stay reachable there). Manage teachers lists leader_schools holdings
+    // only, so a principal whose one school is their own would open an empty list: it is left out for them.
+    items = items
+      .filter((i) => !(i.id === 'schedule' && upcoming === 0))
+      .filter((i) => !(i.id === 'manage_teachers' && holdings === 0))
+      .map((i) => (i.id === 'new'
+        ? { ...i, 'main-content': { title: 'Observe a teacher', metadata: 'Pick a teacher and start now' } }
+        : i));
+  }
+  // bd-9bppaz: a principal's own lesson, after the observe rows and before the roster admin. It needs no school.
+  // The profile is read once, above: a failed read (me null) shows no row and is never retried here.
+  const self = me ? await _selfLessonRow(userId, me) : null;
   if (!schoolCount) {
     // Nothing to debrief, schedule or observe until she has a school. Show the
     // one action that gets her unstuck, and say why the rest is missing.
     const only = items.filter((i) => i.id === 'manage');   // teacher admin needs a school first
     only[0]['main-content'].metadata = 'Start here — add your first school';
+    if (self) only.push(self);
     return { screen: 'MENU', data: { items: only } };
   }
+  if (self) items.splice(items.findIndex((i) => i.id === 'manage'), 0, self);
   return { screen: 'MENU', data: { items } };
 }
 
@@ -861,6 +946,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   if (action === 'data_exchange') {
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
+    if (step === 'self_dc') return selfLessonStep(userId, user);
     if (step === 'debriefs') return debriefsScreen(userId, screenData && screenData.offset);
     if (step === 'work_form') return workFormScreen(userId, screenData && screenData.offset);
     if (step === 'work_send') return workSendScreen(userId, screenData && screenData.offset);
@@ -1364,8 +1450,10 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       };
     }
 
-    // READS ONLY. The number is all we asked for; the name screen only appears
-    // when we genuinely do not know this person.
+    // READS ONLY. The number is all we asked for; the name screen appears only
+    // when we do not know this person's name — a new number, or an account on
+    // record with no name (T.needsName). It used to be the new number alone,
+    // so a nameless account was confirmed as "Name: " and placed nameless.
     if (step === 'teacher_add_lookup') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
@@ -1388,10 +1476,23 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         };
       }
 
+      if (T.needsName(plan)) {
+        return {
+          screen: 'TEACHER_NAME',
+          data: {
+            school_ext_id: schoolExtId,
+            phone: String(plan.phone || ''),
+            intro: T.blankNameIntro(_flowLang, plan),
+          },
+        };
+      }
+
       return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
     }
 
-    // The name screen's Continue — the person is new, so go straight to confirm.
+    // The name screen's Continue — a new person, or a nameless account on
+    // record: either way the typed name goes to the confirm, which carries it
+    // to teacher_add_commit.
     if (step === 'teacher_add_named') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
@@ -1401,7 +1502,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
       }).catch(() => ({ outcome: 'failed' }));
       if (plan.outcome !== 'new') {
-        // Someone registered between the two taps — fall back to the found path.
+        // A nameless account on record: confirm with the name she just typed.
+        // commitAdd writes it only if the record is still blank.
+        if (T.needsName(plan)) {
+          return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, { ...plan, name }, schoolExtId) };
+        }
+        // Someone registered, or named the account, between the two taps — the
+        // record wins: fall back to the found path.
         return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
       }
       return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, { ...plan, name }, schoolExtId) };
@@ -1858,7 +1965,15 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       return _tdone(S_(_flowLang).teacher_cancelled_heading || 'No changes', _T().refusalBody(_flowLang, 'cancelled'));
     }
 
-    if (step === 'to_picker') return pickerScreen(userId, screenData);
+    if (step === 'to_picker') {
+      // A principal never books a visit. "Pick date & time" on a Flow published before this change starts
+      // the observation instead (BRIEF_SCHEDULE may route to BRIEF in every published version).
+      if (await _observesAtOnce(userId, user)) {
+        return briefScreen(userId, { teacher_ext_id: screenData && screenData.teacher_ext_id,
+          school_ext_id: screenData && screenData.school_ext_id }, 'BRIEF');
+      }
+      return pickerScreen(userId, screenData);
+    }
     if (step === 'save_schedule') return saveScheduleStep(userId, screenData);
     if (step === 'done') return successDone(flowToken || userId, screenData, _flowLang);
 
@@ -1875,7 +1990,12 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         // teacher herself rather than sending the brief an empty school.
         let schoolExtId = screenData.school_ext_id;
         if (!schoolExtId) schoolExtId = await schoolOfTeacher(userId, screenData.picked);
-        return briefScreen(userId, { teacher_ext_id: screenData.picked, school_ext_id: schoolExtId }, 'BRIEF_SCHEDULE');
+        // A principal goes straight to "Start observation" (BRIEF), no date picker. Only when the Flow
+        // says it can route there (at_once, sent by the teacher pickers of the Flow published with this change): an
+        // older Flow keeps the brief it can route to, whose "Record the lesson now" link also starts at once.
+        const atOnce = String(screenData.at_once || '') === '1' && await _observesAtOnce(userId, user);
+        return briefScreen(userId, { teacher_ext_id: screenData.picked, school_ext_id: schoolExtId },
+          atOnce ? 'BRIEF' : 'BRIEF_SCHEDULE');
       }
       return briefScreen(userId, screenData, 'BRIEF');
     }

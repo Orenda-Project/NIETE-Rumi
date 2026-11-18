@@ -823,7 +823,7 @@
         {
           "key": "s4d",
           "section": "Section 4: Language Skills Development",
-          "title": "D. Reading Skills",
+          "title": "D. Writing Skills",
           "sheets": [
             "en",
             "ur"
@@ -933,7 +933,8 @@
           "rating": 4
         }
       ],
-      "bands_apply_to": "percentage",
+      "bands_apply_to": "score_on_108",
+      "band_scale_max": 108,
       "feedback": [
         {
           "key": "strengths",
@@ -954,8 +955,8 @@
       ],
       "fde_notes": [
         "Section 4 B (Speaking Skills) prints the same two items as 4 A (Listening Skills). Kept as printed.",
-        "Section 4 D is titled \"Reading Skills\" (as 4 C is), but its items (grammar and structure; creativity and coherence) are about writing. Kept as printed.",
-        "Section 7 prints score bands of 90-108, 70-89, 50-69 and below 50, which fit neither total (148 English, 156 Urdu). They are applied to the percentage."
+        "Section 4 D is printed as \"Reading Skills\" (as 4 C is), but its items (grammar and structure; creativity and coherence) are about writing. Shown as \"D. Writing Skills\" (operator correction, 13 Nov 2026).",
+        "Section 7 prints score bands of 90-108, 70-89, 50-69 and below 50, which fit neither total (148 English, 156 Urdu). The band is read on the total scaled to 108 (total x 108 / the sheet total)."
       ]
     }
   }

@@ -64,6 +64,25 @@ const STRINGS = {
     subject_button: 'Pick the subject',
     subject_section: 'Subject',
     science_desc: 'General science, physics, chemistry, biology',
+    // "Plan my visit" class → grade → subject Flow (lesson-flow.js, 13 Nov): the message that opens it, its screens.
+    lf_body: (name) => (name
+      ? `Which class is *${name}*'s lesson? Tap *Choose the class*: the class and subject choose the observation form.`
+      : 'Which class is this lesson? Tap *Choose the class*: the class and subject choose the observation form.'),
+    lf_cta: 'Choose the class',
+    lf_class_heading: (name) => (name ? `Which class is ${name}'s lesson?` : 'Which class is this lesson?'),
+    lf_class_note: 'The class and subject choose the observation form.',
+    lf_class_label: 'Class',
+    lf_bands: {
+      primary: { title: 'Primary', description: 'Grades 1 to 5 · FICO form' },
+      middle: { title: 'Middle', description: "Grades 6 to 8 · FDE's own tool" },
+      high: { title: 'High', description: 'Grades 9 to 12 · FICO form' },
+    },
+    lf_grade_heading: 'Which grade?',
+    lf_grade_label: 'Grade',
+    lf_subject_heading: 'Which subject?',
+    lf_subject_label: 'Subject',
+    lf_continue: 'Continue',
+    lf_start: 'Start the visit',
     lesson_line: (g, subjectLabel) => `Grade ${g} · ${subjectLabel}`,
     // /observe: after the class is known, before the recording.
     fde_record_hint: (tool) => `This lesson uses ${TOOL_NAMES.en[tool]}. Record the lesson as usual and send me the recording: the FDE form comes as soon as it lands, and you set every level.`,
@@ -93,6 +112,24 @@ const STRINGS = {
     subject_button: 'مضمون چنیں',
     subject_section: 'مضمون',
     science_desc: 'جنرل سائنس، فزکس، کیمسٹری، بیالوجی',
+    lf_body: (name) => (name
+      ? `*${name}* کا یہ سبق کس جماعت کا ہے؟ *جماعت چنیں* دبائیں: جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے۔`
+      : 'یہ سبق کس جماعت کا ہے؟ *جماعت چنیں* دبائیں: جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے۔'),
+    lf_cta: 'جماعت چنیں',
+    lf_class_heading: (name) => (name ? `${name} کا یہ سبق کس جماعت کا ہے؟` : 'یہ سبق کس جماعت کا ہے؟'),
+    lf_class_note: 'جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے۔',
+    lf_class_label: 'جماعت',
+    lf_bands: {
+      primary: { title: 'پرائمری', description: 'جماعت ۱ تا ۵ · FICO فارم' },
+      middle: { title: 'مڈل', description: 'جماعت ۶ تا ۸ · ایف ڈی ای کا اپنا ٹول' },
+      high: { title: 'ہائی', description: 'جماعت ۹ تا ۱۲ · FICO فارم' },
+    },
+    lf_grade_heading: 'کون سی جماعت؟',
+    lf_grade_label: 'جماعت',
+    lf_subject_heading: 'کون سا مضمون؟',
+    lf_subject_label: 'مضمون',
+    lf_continue: 'آگے',
+    lf_start: 'وزٹ شروع کریں',
     lesson_line: (g, subjectLabel) => `جماعت ${urDigits(g)} · ${subjectLabel}`,
     fde_record_hint: (tool) => `اس سبق کے لیے ${TOOL_NAMES.ur[tool]} استعمال ہو گا۔ سبق معمول کے مطابق ریکارڈ کر کے یہاں بھیجیں: ریکارڈنگ آتے ہی ایف ڈی ای فارم آ جائے گا۔ ہر لیول خود طے کریں۔`,
     form_body: (g, subjectLabel, tool) => `جماعت ${urDigits(g)} · ${subjectLabel}۔ اس سبق کے لیے ${TOOL_NAMES.ur[tool]}: ${TOOL_HOW.ur[tool]}\n\nسبق ذہن میں تازہ ہو تو ابھی بھریں۔ ہر لیول خود طے کریں؛ ریکارڈنگ وزٹ کے ساتھ محفوظ رہتی ہے۔`,

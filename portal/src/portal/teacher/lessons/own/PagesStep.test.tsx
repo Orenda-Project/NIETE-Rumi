@@ -36,6 +36,13 @@ describe('PagesStep', () => {
     await new Promise((r) => setTimeout(r, 450));
     expect(get).toHaveBeenLastCalledWith('/lp612/own/pages', { params: { lesson_id: 'd2', from: 3, to: 4 } });
   });
+  it('bd-snkn32.33 — before a pick, a line says these are a starting point: she chooses her own pages after', () => {
+    render(<PagesStep {...props()} />);
+    expect(screen.getByTestId('own-pick-hint').textContent).toBe('Pick the closest one. You can choose your own pages after.');
+    cleanup();
+    render(<PagesStep {...props({ seg: L1, next: L2 })} />);
+    expect(screen.queryByTestId('own-pick-hint')).toBeNull();
+  });
   it('before a pick: a radio list, "Lesson N · title", pages under it', () => {
     const p = props();
     render(<PagesStep {...p} />);

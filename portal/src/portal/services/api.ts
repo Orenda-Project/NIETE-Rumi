@@ -8,7 +8,7 @@ import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, Ch
 import type { SaBlock, SaDashboardSession, SaEarMark, SaList, SaOutcome, SaResults, SaReview, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
+import type { AnalyticsScope, CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
 import type { LpBand, LpEngagementResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
@@ -231,7 +231,7 @@ export const portal = {
    */
   startCoachingUpload: async (args: {
     key: string; lessonPlanKey?: string; photoKeys: string[];
-    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' } | { ownId: string };
     /** bd-fmf24g.9: the class she picked in the teacher app (grade 1–12 and her subject). */
     teacherClass?: { grade: number; subject: string; subjectKey?: string };
     /** bd-v0toag.31: what the live screen saw while she recorded; the bot validates it. */
@@ -470,6 +470,7 @@ export const portal = {
           childTest: false,
           childTestSa: false,
           coachObservation: false,
+          observeOnPortal: false,
           newUi: false,
           assessmentEditing: false,
           coachV2: false,
@@ -668,6 +669,18 @@ export type RecentLessonPlan = {
   pagesLabel: string | null;
   downloadedAt: string | null;
 };
+/** bd-snkn32.41 — a plan the observed teacher made herself (Make my own), listed beside her downloads. */
+export type OwnRecentPlan = {
+  own: true;
+  ownId: string;
+  lessonId: string | null;
+  topic: string | null;
+  grade: string | number | null;
+  subject: string | null;
+  chapterNumber: string | number | null;
+  madeAt: string | null;
+};
+export type ObserveRecentPlan = RecentLessonPlan | OwnRecentPlan;
 export type LibraryLane = 'k5' | 'g612';
 export type LibraryGrade = { grade: number; lane: LibraryLane };
 export type LibraryOption = { key: string; label: string };
@@ -692,6 +705,8 @@ export type PortalConfig = {
     childTestSa?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
+    /** bd-w0zbbe — the portal's observe page is hers: the observe API's own gate (a principal only on the principal app). */
+    observeOnPortal?: boolean;
     /** Coach reports in the app — her debrief report as a page and its Home card (coach_reports_app; fail-closed). */
     coachReportsApp?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
@@ -727,6 +742,10 @@ export type PortalConfig = {
     principalApp?: boolean;
     /** bd-snkn32 — Make my own lesson plan (portal_lp_make_own, with the teacher app on; fail-closed). */
     lpMakeOwn?: boolean;
+    /** bd-snkn32.42 — "Made by a teacher" on a chapter page (portal_lp_own_shelf, with the teacher app on; fail-closed). */
+    lpOwnShelf?: boolean;
+    /** bd-snkn32.42 — this user approves plans for the shelf (portal_lp_own_reviewers, list-only; fail-closed). */
+    lpOwnReviewer?: boolean;
     /** bd-ik5e8j.4 — the help videos: the "?" and More → How to use (portal_help_videos, with the teacher app on; fail-closed). */
     helpVideos?: boolean;
   };
@@ -983,6 +1002,8 @@ export type AssessmentSpec = {
   /** Ignored: every paper is made with its answer key. Kept so older callers still type-check. */
   includeAnswerKey?: boolean;
   answerLines?: boolean;
+  /** bd-ipoxhx.5 — Save paper: a tighter A4 page. */
+  compact?: boolean;
   outputFormat?: 'pdf' | 'docx';
   /** A board-pattern request (absent on every other paper). */
   pattern?: string;
@@ -1086,6 +1107,12 @@ export type EditError = { id?: string; subIndex?: number; addedIndex?: number; m
 // `from`/`to` are inclusive days (YYYY-MM-DD); null leaves that end open. `region` is one of the six sector
 // names or 'all' (null = all).
 export const analytics = {
+  // Whose view this is (organization + its regions): the page reads it once, before it shows a word, so another
+  // organization's account (Moawin's Gilgit-Baltistan) is never shown FDE's wording.
+  getScope: async (): Promise<AnalyticsScope> => {
+    const response = await api.get('/analytics/scope');
+    return response.data;
+  },
   getSchools: async (q: { from: string | null; to: string | null; region: string | null }): Promise<SchoolsAnalyticsResponse> => {
     const params: Record<string, string> = {};
     if (q.from) params.from = q.from;
@@ -1199,7 +1226,7 @@ export const leader = {
   /** Start the observation of one teacher in her patch. A refusal rejects with err.response. */
   startObservation: async (args: {
     teacherExtId: string; schoolExtId?: string | null; key: string; lessonPlanKey?: string; photoKeys: string[];
-    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' } | { ownId: string };
     /** bd-ra8xu.40 — the class she named (asked only while FDE's tools are on for her). */
     lesson?: ObserveLesson;
   }): Promise<{ coachingSessionId: string }> => {
@@ -1213,8 +1240,8 @@ export const leader = {
     return response.data;
   },
 
-  /** HER recent plans — the teacher being observed. */
-  getObserveRecentPlans: async (teacherExtId: string, schoolExtId?: string | null): Promise<{ plans: RecentLessonPlan[] }> => {
+  /** HER recent plans — the teacher being observed: downloads and (bd-snkn32.41) the plans she made herself. */
+  getObserveRecentPlans: async (teacherExtId: string, schoolExtId?: string | null): Promise<{ plans: ObserveRecentPlan[] }> => {
     const response = await api.get('/leader/observe/recent-plans', {
       params: schoolExtId ? { teacherExtId, schoolExtId } : { teacherExtId },
     });
@@ -1550,6 +1577,18 @@ export const trainingLevelsAnalytics = {
 // bd-97x22y.5 — the schools analytics Observations tab's numbers (PLAN v7, her FICO section breakdown for Human and
 // Digital Coach observations): its own endpoint, same window and region as the schools read (the server 403s anyone
 // but an analytics-only account).
+/** bd-97daxo.33 — a non-FDE view's observations by who observed whom (FDE's view: 404). */
+export const observersAnalytics = {
+  get: async (q: { from: string | null; to: string | null; region: string | null }): Promise<import('../types/portal').ObserverAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/observers', { params });
+    return response.data;
+  },
+};
+
 export const observationsAnalytics = {
   get: async (q: { from: string | null; to: string | null; region: string | null }): Promise<import('../types/portal').ObservationsAnalyticsResponse> => {
     const params: Record<string, string> = {};

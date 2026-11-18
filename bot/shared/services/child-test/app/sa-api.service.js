@@ -6,7 +6,7 @@
  * (headphones on). This service is the bot side of that page, next to app-api.service.js (the
  * coach-recorded test) and reusing its gate, identity checks and the same draw and store:
  *
- *   listSchools   the coach's schools, today's observe visit first
+ *   listSchools   the coach's schools, today's observe visit first (sa_r19_practice_first ON: the practice school above it)
  *   dayList       draw.todaysList for one school — on today's observe visit when there is one, else
  *                 on the day key day:<coach>:<school>:<PKT date> (draw/visit-key.js)
  *   dayOutcome    present / absent / refused; present opens an app-channel session marked SA_MARK
@@ -29,6 +29,8 @@
  *                 an admin (asAdmin, set by the portal from sa_results_admins) reads any coach's SA session
  *   saSessions    the results dashboard: every SA session of this coach (an admin: every coach's) in saResults' shape,
  *                 with its school and sub-region; never a name
+ *   (sa_r20_level ON, level-switch.js: both also carry `levels`, per subject where the child reached, the level and why
+ *    it stopped, from sa/level.js; OFF: as before)
  *
  * Another phone (a teacher's, with no coach sign-in) can run one child's battery:
  *   saLink        the coach mints a signed link for one of their children's sessions (1 h)
@@ -64,7 +66,10 @@ const anySchool = require('./any-school-switch');
 const endTestRestart = require('./end-test-restart-switch');
 const dashFilters = require('./dash-filters-switch');
 const hidePractice = require('./hide-practice-switch');
+const practiceFirst = require('./practice-first-switch');
 const coachNameGuard = require('./coach-name-guard-switch');
+const levelSwitch = require('./level-switch');
+const { levelsOf } = require('../sa/level');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { isSetAside } = require('../sa/set-aside');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
@@ -113,6 +118,17 @@ async function isLiveSchool(d, schoolId) {
   return found.some((s) => s && s.id === schoolId && s.is_active !== false && s.is_probable_test !== true);
 }
 
+/**
+ * The practice (is_probable_test) schools among `ids`. The few practice schools are read by their flag and matched
+ * here, never asked for by id: an any-school user's list holds every live school (~460 ids), and one `.in()` that long
+ * is too big for the HTTP client (supabase-js answers "TypeError: fetch failed").
+ */
+async function practiceAmong(d, ids) {
+  const want = new Set(ids);
+  const practice = await rows(d.supabase.from('schools').select('id, is_probable_test').eq('is_probable_test', true));
+  return new Set(practice.filter((s) => s && s.is_probable_test === true && want.has(s.id)).map((s) => s.id));
+}
+
 const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async ({ userId }, d) => {
   const any = await anySchool.enabledFor(userId, deps);
   const linked = await linkedSchools(d, userId);
@@ -128,6 +144,9 @@ const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async (
   const ids = [...new Set([...visitOf.keys(), ...linked.keys(), ...(live || []).map((s) => s.id)])].filter((id) => allowedSchool(d, id));
   const named = live || (ids.length ? await rows(d.supabase.from('schools').select('id, name, emis, region').in('id', ids)) : []);
   const schoolOf = new Map(named.map((s) => [s.id, s]));
+  // sa_r19_practice_first: the practice (is_probable_test) schools in the list (an any-school user's `named` is the
+  // live list, which has none of them)
+  const practiceIds = (await practiceFirst.enabled(deps)) && ids.length ? await practiceAmong(d, ids) : null;
   const schools = ids.map((id) => {
     const v = visitOf.get(id);
     const s = schoolOf.get(id);
@@ -139,9 +158,11 @@ const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async (
       visitId: v ? v.visitId : null,
       observedGrade: v ? v.observedGrade : null,
       visitToday: !!v,
+      ...(practiceIds ? { practice: practiceIds.has(id) } : {}),
     };
   });
-  schools.sort((a, b) => (b.visitToday - a.visitToday) || String(a.name || '').localeCompare(String(b.name || '')));
+  schools.sort((a, b) => (practiceIds ? b.practice - a.practice : 0) || (b.visitToday - a.visitToday)
+    || String(a.name || '').localeCompare(String(b.name || '')));
   return { status: 'ok', schools };
 })(args, deps);
 
@@ -822,7 +843,36 @@ function shapeTask(r, stops = false) {
     score: recording === 'scored' ? numbersOf(m) : null,
     // the scorer heard another person in the recording (CHILD_TEST_SA_SECOND_VOICE): Results caveats the score
     ...(recording === 'scored' && m.detail && m.detail.second_voice === true ? { secondVoice: true } : {}),
+    // round 28 (voice check 'r28'): what the other voice was: an adult helping ('help') or another child ('other_child')
+    ...(recording === 'scored' && m.detail && m.detail.voice_check === 'r28' && typeof m.detail.second_voice_kind === 'string'
+      ? { secondVoiceKind: m.detail.second_voice_kind } : {}),
+    // round 28 (ceiling): an extended timed task's scorer reports the first N items too; Results shows it beside the rate
+    ...(recording === 'scored' && m.detail && typeof m.detail.of_base === 'number' && typeof m.detail.correct_base === 'number'
+      ? { firstN: { correct: m.detail.correct_base, of: m.detail.of_base } } : {}),
+    // round 28 (tap picker / MCQ): too few items heard to rate, how many were heard, and the questions the gate allowed.
+    // Tap only: today's spoken questions already keep `asked` in their result, and their Results row stays as it was.
+    ...(tap && ((m && m.unrated === true) || res.unrated === true) ? { unrated: true } : {}),
+    ...(tap && typeof res.presented === 'number' ? { presented: res.presented } : {}),
+    ...(tap && typeof res.unavailable === 'number' ? { unavailable: res.unavailable } : {}),
+    // round 28 (MCQ, picker): the questions of the variant the phone served, before lost clips (the share's denominator)
+    ...(tap && typeof res.of_all === 'number' ? { ofAll: res.of_all } : {}),
+    ...(tap && Array.isArray(res.asked) ? { asked: res.asked.filter((q) => typeof q === 'string') } : {}),
+    // round 28 (picker / MCQ): taps made before the prompt's sound ended, over the answers the phone timed (tap_ms)
+    ...(tap ? tapBeforeOf(res) : {}),
   };
+}
+
+/**
+ * { tapBeforeSound: { n, of } } when some answer carries a numeric tap_ms; else nothing (today's tap tasks). n counts
+ * the taps made before the prompt's sound: an answer's pre_taps (taps the picker logged and never scored, the item
+ * staying open) summed, plus an answer itself flagged tap_before_sound (results recorded before that rule). of = the
+ * answered items the phone timed, so n can exceed of when a child taps early more than once.
+ */
+function tapBeforeOf(res) {
+  const timed = (Array.isArray(res.answers) ? res.answers : []).filter((a) => a && typeof a.tap_ms === 'number');
+  if (!timed.length) return {};
+  const pre = (a) => (Number.isInteger(a.pre_taps) && a.pre_taps > 0 ? a.pre_taps : 0) + (a.tap_before_sound === true ? 1 : 0);
+  return { tapBeforeSound: { n: timed.reduce((sum, a) => sum + pre(a), 0), of: timed.length } };
 }
 
 const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.block).localeCompare(String(b.block));
@@ -831,14 +881,35 @@ const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.creat
  * Read only. The header (grade, form, block, status, times, language) and one entry per task, in the order the child
  * took them. Never the child's name, roll number, student id or draw, and never a recording's key.
  */
-async function resultsOf(sessionId, d, session, bank, stops = false) {
+async function resultsOf(sessionId, d, session, bank, stops = false, level = null) {
   const got = await d.store.listBlocks(sessionId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
-  return shapeResults(session, got.blocks, bank, stops);
+  return shapeResults(session, got.blocks, bank, stops, level);
+}
+
+/**
+ * sa_r20_level: the level lines' reader when the switch is ON (else null). Each part's item count is the phone
+ * battery's (the RDF parts are the same in every language file, so the Urdu file is read); the scorer's own count wins.
+ */
+async function levelReader(deps) {
+  if (!(await levelSwitch.enabled(deps))) return null;
+  const load = deps.phoneBattery || phoneBatteryFile;
+  const cache = new Map();
+  return {
+    itemsOf: (session) => {
+      const g = session.grade;
+      if (!cache.has(g)) {
+        const b = load(g, 'A', 'ur');
+        // sa_r28_ceiling: an extended task counts its base items only (base_n, else the items without ext)
+        cache.set(g, new Map(((b && Array.isArray(b.tasks)) ? b.tasks : []).filter((t) => t && t.id).map((t) => [t.id, Array.isArray(t.items) ? (Number(t.base_n) > 0 ? Number(t.base_n) : t.items.filter((x) => !(x && x.ext)).length) : null])));
+      }
+      return (taskId) => cache.get(g).get(taskId) ?? null;
+    },
+  };
 }
 
 /** resultsOf on rows already read (the dashboard reads every session's rows at once). */
-function shapeResults(session, rowsIn, bank, stops = false) {
+function shapeResults(session, rowsIn, bank, stops = false, level = null) {
   // round 7b: a restarted child's ended attempt (set aside on the session) is never on Results or the dashboard
   const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || '')) && !isSetAside(r.block)).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
@@ -861,10 +932,12 @@ function shapeResults(session, rowsIn, bank, stops = false) {
       lang,
     },
     tasks: blocks.map((r) => ({ ...shapeTask(r, stops), title: titleOf(r.block) })),
+    // sa_r20_level: per subject, where the child reached, the level and why it stopped (ON only)
+    ...(level ? { levels: levelsOf(blocks, (session.device || {}).events, { itemsOf: level.itemsOf(session), titleOf }) } : {}),
   };
 }
 
-const ownResults = onSession('sa_results', async ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank, await stopRulesSwitch.enabled(sa.deps)));
+const ownResults = onSession('sa_results', async ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank, await stopRulesSwitch.enabled(sa.deps), await levelReader(sa.deps)));
 
 /**
  * An admin (sa_results_admins, checked by the portal for ITS session user and sent as asAdmin: true — never taken
@@ -880,7 +953,7 @@ function saResults(args = {}, deps = {}) {
     const session = got.session;
     if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
     d.log('child_test.sa.results_admin', { userId, sessionId });
-    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank(), await stopRulesSwitch.enabled(deps));
+    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank(), await stopRulesSwitch.enabled(deps), await levelReader(deps));
   })(rest, deps);
 }
 
@@ -945,9 +1018,7 @@ function saSessions(args = {}, deps = {}) {
     // child_test_practice_only or sa_r8_hide_practice ON: each row says whether its school is a practice (test) school,
     // so views can leave them out (round 8: the dashboard does by default, practiceFilter tells it to)
     const practiceFilter = await hidePractice.enabled(deps);
-    const practiceIds = (practiceFilter || (await practiceOnly.enabled(deps)))
-      ? new Set((await rows(d.supabase.from('schools').select('id').in('id', schoolIds).eq('is_probable_test', true))).map((x) => x.id))
-      : null;
+    const practiceIds = (practiceFilter || (await practiceOnly.enabled(deps))) ? await practiceAmong(d, schoolIds) : null;
     const rowsOf = new Map();
     for (const r of blocks.blocks || []) {
       if (!rowsOf.has(r.session_id)) rowsOf.set(r.session_id, []);
@@ -955,6 +1026,7 @@ function saSessions(args = {}, deps = {}) {
     }
     const bank = deps.bank !== undefined ? deps.bank : loadBank();
     const stops = await stopRulesSwitch.enabled(deps);
+    const level = await levelReader(deps);
     // sa_dash_filters (round 7b): the coaches' names, read once for every session (staff; never a child's)
     const dash = await dashFilters.enabled(deps);
     let coachNames = null;
@@ -972,7 +1044,7 @@ function saSessions(args = {}, deps = {}) {
     const out = [];
     const stopOnly = [];
     for (const s of sessions) {
-      const results = shapeResults(s, rowsOf.get(s.id), bank, stops);
+      const results = shapeResults(s, rowsOf.get(s.id), bank, stops, level);
       const extra = dash ? dashFieldsOf(s, coachNames, draws) : null;
       if (!results.tasks.length && !(extra && extra.stops.length)) continue;
       const school = schoolOf.get(s.school_id) || {};

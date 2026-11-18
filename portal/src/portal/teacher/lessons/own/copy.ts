@@ -14,6 +14,11 @@ export const OWN_COPY = {
   /* the chapter page's card (bd-oitowp: first on the page, no heading; "Lesson plan" says what she makes) */
   makeMyOwn: 'Make my own',
   lessonPlanFive: 'Lesson plan · about 1 minute',
+  /* bd-snkn32.39 — the Lesson Plans main page's two choices (StartChoice), each explained in one line */
+  chooseOne: 'Select one',
+  readyMade: 'Ready-made lesson plans',
+  readyMadeHint: 'Open a plan already written for your chapter',
+  makeOwnHint: 'Make a plan for your own class, in about 1 minute',
   /* the steps */
   title: 'Make my own',
   ok: 'OK',
@@ -24,6 +29,8 @@ export const OWN_COPY = {
   dayN: (n: number) => `Day ${n}`,
   /* grades 1–5 book pages (bd-snkn32.17): the day's own, ready to change */
   pagesHint: 'Change them if you will teach other pages.',
+  // bd-snkn32.33 — the list read as the only pages she could use
+  pickHint: 'Pick the closest one. You can choose your own pages after.',
   pageFrom: 'From page',
   pageTo: 'To page',
   addNextDay: (r: string) => `Add the next day's pages (p.${r})`,
@@ -43,8 +50,13 @@ export const OWN_COPY = {
   },
   objectsHint612: 'Magnets, beakers, a globe, a ruler',
   tickAll: 'Tick all you have',
-  level: 'Where is your class on these pages?',
+  level: 'What level is your class at?',
   levels: { behind: 'Behind', on_track: 'On track', ahead: 'Ahead', mixed: 'Mixed' },
+  // bd-snkn32.32 — what each level means, shown under it
+  levelHints: {
+    behind: 'Most children are not ready for these pages yet', on_track: 'Most children can do these pages',
+    ahead: 'Most children already know these pages', mixed: 'Some behind, some on track, some ahead',
+  },
   way: 'Teaching way',
   pickWays: 'Pick one or more',
   suggested: 'Suggested for your class',
@@ -137,6 +149,10 @@ export const OWN_COPY = {
 const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   makeMyOwn: 'اپنا بنائیں',
   lessonPlanFive: 'لیسن پلان · تقریباً 1 منٹ',
+  chooseOne: 'ایک چنیں',
+  readyMade: 'تیار لیسن پلان',
+  readyMadeHint: 'اپنے باب کا پہلے سے لکھا ہوا لیسن پلان کھولیں',
+  makeOwnHint: 'اپنی کلاس کے لیے لیسن پلان بنائیں، تقریباً 1 منٹ میں',
   title: 'اپنا بنائیں',
   ok: 'ٹھیک ہے',
   pages: 'کتاب کے صفحات',
@@ -144,6 +160,7 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   dayLabel: 'دن',
   dayN: (n: number) => `دن ${n}`,
   pagesHint: 'اگر آپ دوسرے صفحات پڑھائیں گی تو بدل دیں۔',
+  pickHint: 'سب سے قریب والا چنیں۔ اس کے بعد آپ اپنے صفحات خود چن سکتی ہیں۔',
   pageFrom: 'صفحہ سے',
   pageTo: 'صفحہ تک',
   addNextDay: (r: string) => `اگلے دن کے صفحات بھی (ص ${r})`,
@@ -162,8 +179,12 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   },
   objectsHint612: 'مقناطیس، بیکر، گلوب، فٹا',
   tickAll: 'جو کچھ آپ کے پاس ہے، سب پر نشان لگائیں',
-  level: 'ان صفحات پر آپ کی کلاس کہاں ہے؟',
+  level: 'آپ کی کلاس کس سطح پر ہے؟',
   levels: { behind: 'پیچھے', on_track: 'ساتھ ساتھ', ahead: 'آگے', mixed: 'ملی جلی' },
+  levelHints: {
+    behind: 'زیادہ تر بچے ابھی ان صفحات کے لیے تیار نہیں', on_track: 'زیادہ تر بچے یہ صفحات کر سکتے ہیں',
+    ahead: 'زیادہ تر بچے یہ صفحات پہلے سے جانتے ہیں', mixed: 'کچھ پیچھے، کچھ ساتھ ساتھ، کچھ آگے',
+  },
   way: 'پڑھانے کا طریقہ',
   pickWays: 'ایک یا زیادہ چنیں',
   suggested: 'آپ کی کلاس کے لیے تجویز',
@@ -260,8 +281,10 @@ export const OWN_COPY_ENTRY: CopyEntry = {
     'changeThisPlan', 'changeTitle', 'whichPart', 'whatToChange', 'changeHint', 'changeMyPlan', 'usedBoth', 'refusals',
     // the unified flow: questions, hints, guardrail lines and the book's states are sentences; a resource
     // or way named for a subject classroom, and a label carrying its method in brackets, run past four words.
-    'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints',
+    'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'pickHint', 'levelHints',
     'purposeBoardFde', 'foci', 'whichLesson', 'pagesOneHint', 'badPages612', 'addNextLesson', 'bothHow', 'fromYourBook',
     'pageMissing', 'bookNotLoaded', 'picturesPending', 'changeSection', 'lessonPlanFive', 'sizeSecondary',
-    'myPlans', 'changesLeft'],
+    'myPlans', 'changesLeft',
+    // bd-snkn32.39 — each first-screen choice is explained in one plain line.
+    'readyMadeHint', 'makeOwnHint'],
 };

@@ -48,8 +48,13 @@ const names = (rows) => rows.map((r) => r.name).sort();
 const on = (value) => { supabase = createFakePostgrest({ tables: { ...tables, app_settings: [{ key: 'portal_principal_app', value }] } }); };
 
 describe('listPatchViaSupabase — a principal on the principal app', () => {
-  test('switch absent: a principal reads her holdings, as today', async () => {
-    expect(names(await Patch.listPatchViaSupabase(supabase, 'p-1'))).toEqual(['Held Teacher']);
+  // Since 15 Nov (operator: "a principal linked to a school (users.school_id or any leader_schools row) sees ALL
+  // teachers of that school"), a principal off the principal app reads her holdings AND her own school. The leader
+  // herself is in her patch as at any held school; the WhatsApp picker drops her (leader-source).
+  const HOLDINGS_AND_OWN = ['Ayesha Sample', 'Bina Sample', 'Held Teacher', 'Principal One', 'Principal Two'];
+
+  test('switch absent: a principal reads her holdings and her own school', async () => {
+    expect(names(await Patch.listPatchViaSupabase(supabase, 'p-1'))).toEqual(HOLDINGS_AND_OWN);
   });
 
   test('switch names her: her OWN school\'s teachers — not herself, not the other principal, not her holdings', async () => {
@@ -66,7 +71,7 @@ describe('listPatchViaSupabase — a principal on the principal app', () => {
 
   test('a principal the switch does not name, and a coach it names, are unchanged', async () => {
     on(['p-2', 'c-1']);
-    expect(names(await Patch.listPatchViaSupabase(supabase, 'p-1'))).toEqual(['Held Teacher']);
+    expect(names(await Patch.listPatchViaSupabase(supabase, 'p-1'))).toEqual(HOLDINGS_AND_OWN);
     const coach = await Patch.listPatchViaSupabase(supabase, 'c-1');
     expect(names(coach)).toEqual(['Ayesha Sample', 'Bina Sample', 'Principal One', 'Principal Two']);
   });

@@ -155,9 +155,11 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
     .map((r) => {
       const said = sum(r) ? P.withEquals(r.text, r.lang) : ops(r) ? P.withEnglishOps(r.text, r.lang) : sound(r) ? P.withSounds(r.text, r.lang) : (tashdeed.get(r.key) || r.text);
       const spoken = args.provider === 'soniox' ? Voice.sayAs(said, args.lang, { voice })
-        : P.spellEnglishNumbers(P.withEnglishWords(args.provider === 'elevenlabs' ? P.withLetterNames(P.withHeldWords(said, args.lang), args.lang) : said, args.lang));
-      const text = praise(r) ? `[excited] ${spoken}` : P.withTag(args.provider, r.role, spoken, voice);
-      return { ...r, key: r.key.replace(/^sa\/v1\//, 'sa/v4/'), job: { provider: args.provider, voice, speed, lang: args.lang, text } };
+        : P.spellEnglishNumbers(P.withEnglishWords(args.provider === 'elevenlabs' ? P.withWordVowels(P.withLetterNames(P.withHeldWords(said, args.lang), args.lang), args.lang) : said, args.lang));
+      const fixed = args.provider === 'elevenlabs' ? P.lineSaid(r.text, r.lang) : null;
+      const text = fixed ? fixed.say : praise(r) ? `[excited] ${spoken}` : P.withTag(args.provider, r.role, spoken, voice);
+      const job = { provider: args.provider, voice, speed, lang: args.lang, text, ...(fixed && fixed.model ? { model: fixed.model } : {}) };
+      return { ...r, key: r.key.replace(/^sa\/v1\//, 'sa/v4/'), job };
     });
   const chars = jobs.reduce((n, j) => n + j.job.text.length, 0);
   const estUsd = args.provider === 'soniox' ? (chars / SONIOX_CHARS_PER_SEC / (speed || 1)) * P.USD.soniox_per_sec

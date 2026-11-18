@@ -79,4 +79,29 @@ function isBound(session) {
   return !!(s.user_id && s.observer_user_id && s.user_id !== s.observer_user_id);
 }
 
-module.exports = { teacherOf, coachOf, isBound };
+/**
+ * The school on file for the account that owns `phone` — the number a report
+ * is about to go TO (bd-r2uzg1.14, HITL row 190). Keyed on the number, never on
+ * the session's user_id: a coach can send to someone other than the bound
+ * teacher, and on a bare capture user_id is the coach. One read-only lookup;
+ * no account, no school, two accounts on one number, or any failure → null, so
+ * the caller simply leaves the school out. Never a guess.
+ */
+async function schoolOfPhone(phone) {
+  const p = _s(phone);
+  if (!p) return null;
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('school_name')
+      .eq('phone_number', p)
+      .maybeSingle();
+    if (error || !data) return null;
+    return _s(data.school_name);
+  } catch (err) {
+    logToFile('⚠️ observe-people: school lookup failed', { error: err.message });
+    return null;
+  }
+}
+
+module.exports = { teacherOf, coachOf, isBound, schoolOfPhone };

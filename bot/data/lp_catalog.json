@@ -12,7 +12,7 @@
   "counts": {
     "books": 44,
     "chapters": 560,
-    "lessons": 5665
+    "lessons": 5673
   },
   "books": [
     {
@@ -51453,20 +51453,43 @@
               "lesson_id": "grade_3_english_ch12_seg5",
               "segment_index": 5,
               "lp_type": "content",
-              "day_label": "Day 5",
+              "day_label": "Day 5 · part 1",
               "section": "Grammar Playground",
               "section_short": "Grammar Playground",
-              "topic": "Grammar: Preposition Parade (position/direction) + Possession Celebration",
-              "topic_short": "Grammar: Preposition Parade (position/direction) + Possession Celebration",
+              "topic": "Grammar: Pinky's Preposition Parade (position words)",
+              "topic_short": "Grammar: Pinky's Preposition Parade (position words)",
               "pages": [
                 140
               ],
               "pages_label": "p.140",
               "row": {
                 "title": "Grammar Playground",
-                "description": "Day 5 · p.140",
-                "metadata": "Grammar: Preposition Parade (position/direction) + Possession Celebration"
-              }
+                "description": "Day 5 · part 1",
+                "metadata": "Grammar: Pinky's Preposition Parade (position words)‎ · p.140"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_3_english_ch12_seg5b",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5 · part 2",
+              "section": "Grammar Playground",
+              "section_short": "Grammar Playground",
+              "topic": "Grammar: Possession Celebration (possessive nouns with 's)",
+              "topic_short": "Grammar: Possession Celebration (possessive nouns with 's)",
+              "pages": [
+                140,
+                141,
+                142
+              ],
+              "pages_label": "p.140",
+              "row": {
+                "title": "Grammar Playground",
+                "description": "Day 5 · part 2",
+                "metadata": "Grammar: Possession Celebration (possessive nouns with 's)‎ · p.140-142"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_3_english_ch12_seg6",
@@ -59661,11 +59684,31 @@
               "lesson_id": "grade_3_math_ch12_seg3",
               "segment_index": 3,
               "lp_type": "content",
-              "day_label": "Day 3",
+              "day_label": "Day 3 · part 1",
               "section": "Topic 2 Time Word Problems - Leap and Learn (+ Solar Calendar hook)",
               "section_short": "Topic 2 Time Word Problems …",
-              "topic": "Time word problems + reading the calendar (days & dates)",
-              "topic_short": "Topic 2 Time Word Problems - Leap and Learn — Time word problems + reading the …",
+              "topic": "Reading the Calendar",
+              "topic_short": "Topic 2 Time Word Problems - Leap and Learn — Reading the Calendar",
+              "pages": [
+                202
+              ],
+              "pages_label": "p.202-205",
+              "row": {
+                "title": "Topic 2 Time Word Problems …",
+                "description": "Day 3 · part 1",
+                "metadata": "Topic 2 Time Word Problems - Leap and Learn — Reading the Calendar‎ · p.202"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_3_math_ch12_seg3b",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3 · part 2",
+              "section": "Topic 2 Time Word Problems - Leap and Learn (+ Solar Calendar hook)",
+              "section_short": "Topic 2 Time Word Problems …",
+              "topic": "Time Word Problems",
+              "topic_short": "Topic 2 Time Word Problems - Leap and Learn — Time Word Problems",
               "pages": [
                 202,
                 203,
@@ -59675,9 +59718,10 @@
               "pages_label": "p.202-205",
               "row": {
                 "title": "Topic 2 Time Word Problems …",
-                "description": "Day 3 · p.202-205",
-                "metadata": "Topic 2 Time Word Problems - Leap and Learn — Time word problems + reading the …"
-              }
+                "description": "Day 3 · part 2",
+                "metadata": "Topic 2 Time Word Problems - Leap and Learn — Time Word Problems‎ · p.202-205"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_3_math_ch12_seg4",
@@ -67373,8 +67417,8 @@
         },
         {
           "number": 2,
-          "title": "Food and Friends!",
-          "title_short": "Food and Friends!",
+          "title": "From Farm to Feast",
+          "title_short": "From Farm to Feast",
           "pages_label": "p.14-23",
           "lessons": [
             {
@@ -67613,8 +67657,8 @@
         },
         {
           "number": 3,
-          "title": "Pinky and Jojo Write a Story",
-          "title_short": "Pinky and Jojo Write a Story",
+          "title": "Teamwork Champions",
+          "title_short": "Teamwork Champions",
           "pages_label": "p.25-34",
           "lessons": [
             {
@@ -67836,8 +67880,8 @@
         },
         {
           "number": 4,
-          "title": "Heroes of History",
-          "title_short": "Heroes of History",
+          "title": "The Great Debate",
+          "title_short": "The Great Debate",
           "pages_label": "p.36-48",
           "lessons": [
             {
@@ -68086,8 +68130,8 @@
         },
         {
           "number": 5,
-          "title": "Culture Craze with Pinky!",
-          "title_short": "Culture Craze with Pinky!",
+          "title": "Journey of a Plastic Bottle",
+          "title_short": "Journey of a Plastic Bottle",
           "pages_label": "p.50-63",
           "lessons": [
             {
@@ -68338,8 +68382,8 @@
         },
         {
           "number": 6,
-          "title": "Tech Tales & Starry Sights",
-          "title_short": "Tech Tales & Starry Sights",
+          "title": "Allama Iqbal's (رَحْمَتُ اللہ عَلَيه) visit to Taleemabad",
+          "title_short": "Allama Iqbal's Visit",
           "pages_label": "p.65-76",
           "lessons": [
             {
@@ -68564,8 +68608,8 @@
         },
         {
           "number": 7,
-          "title": "Pinky's Safety Squad!",
-          "title_short": "Pinky's Safety Squad!",
+          "title": "Pinky and Jojo's Cool-Down Adventure",
+          "title_short": "Pinky and Jojo's Cool-Down Ad…",
           "pages_label": "p.78-87",
           "lessons": [
             {
@@ -68785,8 +68829,8 @@
         },
         {
           "number": 8,
-          "title": "Dream Town Builders!",
-          "title_short": "Dream Town Builders!",
+          "title": "Reaching for the Stars",
+          "title_short": "Reaching for the Stars",
           "pages_label": "p.89-100",
           "lessons": [
             {
@@ -69031,8 +69075,8 @@
         },
         {
           "number": 9,
-          "title": "Pinky's Personality Play",
-          "title_short": "Pinky's Personality Play",
+          "title": "The Dancing Poem",
+          "title_short": "The Dancing Poem",
           "pages_label": "p.102-110",
           "lessons": [
             {
@@ -69248,8 +69292,8 @@
         },
         {
           "number": 10,
-          "title": "Wonders of the Wild!",
-          "title_short": "Wonders of the Wild!",
+          "title": "Bridge Builder Unite",
+          "title_short": "Bridge Builder Unite",
           "pages_label": "p.112-124",
           "lessons": [
             {
@@ -69479,8 +69523,8 @@
         },
         {
           "number": 11,
-          "title": "Sands, Secrets, and Schooltime Surprises",
-          "title_short": "Sands, Secrets, and Schooltim…",
+          "title": "Chatter Patterns",
+          "title_short": "Chatter Patterns",
           "pages_label": "p.126-136",
           "lessons": [
             {
@@ -69684,8 +69728,8 @@
         },
         {
           "number": 12,
-          "title": "Sharing is Caring",
-          "title_short": "Sharing is Caring",
+          "title": "Finding Home",
+          "title_short": "Finding Home",
           "pages_label": "p.138-149",
           "lessons": [
             {
@@ -69731,11 +69775,11 @@
               "lesson_id": "grade_4_english_ch12_seg3",
               "segment_index": 3,
               "lp_type": "content",
-              "day_label": "Day 3",
+              "day_label": "Day 3 · part 1",
               "section": "Diving Deeper",
               "section_short": "Diving Deeper",
-              "topic": "Retelling + Painting with Words + Comprehension Quiz",
-              "topic_short": "Retelling + Painting with Words + Comprehension Quiz",
+              "topic": "Retelling Pinky's Journey",
+              "topic_short": "Retelling Pinky's Journey",
               "pages": [
                 141,
                 142,
@@ -69744,9 +69788,31 @@
               "pages_label": "p.141-143",
               "row": {
                 "title": "Diving Deeper",
-                "description": "Day 3 · p.141-143",
-                "metadata": "Retelling + Painting with Words + Comprehension Quiz"
-              }
+                "description": "Day 3 · part 1",
+                "metadata": "Retelling Pinky's Journey‎ · p.141-143"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_english_ch12_seg3b",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3 · part 2",
+              "section": "Diving Deeper",
+              "section_short": "Diving Deeper",
+              "topic": "Painting with Words: Descriptive Language in Pinky's Story",
+              "topic_short": "Painting with Words: Descriptive Language in Pinky's Story",
+              "pages": [
+                141,
+                142
+              ],
+              "pages_label": "p.141-143",
+              "row": {
+                "title": "Diving Deeper",
+                "description": "Day 3 · part 2",
+                "metadata": "Painting with Words: Descriptive Language in Pinky's Story‎ · p.141-142"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_english_ch12_seg4",
@@ -69772,11 +69838,11 @@
               "lesson_id": "grade_4_english_ch12_seg5",
               "segment_index": 5,
               "lp_type": "content",
-              "day_label": "Day 5",
+              "day_label": "Day 5 · part 1",
               "section": "Grammar Playground",
               "section_short": "Grammar Playground",
-              "topic": "Grammar: Adverb Match Up + Future Tense",
-              "topic_short": "Grammar: Adverb Match Up + Future Tense",
+              "topic": "Grammar: Adverb Match Up (how, when, where, how often)",
+              "topic_short": "Grammar: Adverb Match Up (how, when, where, how often)",
               "pages": [
                 145,
                 146
@@ -69784,38 +69850,80 @@
               "pages_label": "p.145-146",
               "row": {
                 "title": "Grammar Playground",
-                "description": "Day 5 · p.145-146",
-                "metadata": "Grammar: Adverb Match Up + Future Tense"
-              }
+                "description": "Day 5 · part 1",
+                "metadata": "Grammar: Adverb Match Up (how, when, where, how often)‎ · p.145-146"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_english_ch12_seg5b",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5 · part 2",
+              "section": "Grammar Playground",
+              "section_short": "Grammar Playground",
+              "topic": "Grammar: Mastering the Future Tense (will, shall, be going to)",
+              "topic_short": "Grammar: Mastering the Future Tense (will, shall, be going to)",
+              "pages": [
+                146
+              ],
+              "pages_label": "p.145-146",
+              "row": {
+                "title": "Grammar Playground",
+                "description": "Day 5 · part 2",
+                "metadata": "Grammar: Mastering the Future Tense (will, shall, be going to)‎ · p.146"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_english_ch12_seg6",
               "segment_index": 6,
               "lp_type": "content",
-              "day_label": "Day 6",
+              "day_label": "Day 6 · part 1",
               "section": "Grammar Playground + Imagination Canvas",
               "section_short": "Grammar Playground +",
-              "topic": "Grammar: Direct Speech + Storytelling in Reverse",
-              "topic_short": "Grammar Playground + Imagination Canvas — Grammar: Direct Speech + Storytelling…",
+              "topic": "Grammar: Direct Speech",
+              "topic_short": "Grammar Playground + Imagination Canvas — Grammar: Direct Speech",
               "pages": [
                 147
               ],
               "pages_label": "p.147",
               "row": {
                 "title": "Grammar Playground +",
-                "description": "Day 6 · p.147",
-                "metadata": "Grammar Playground + Imagination Canvas — Grammar: Direct Speech + Storytelling…"
-              }
+                "description": "Day 6 · part 1",
+                "metadata": "Grammar Playground + Imagination Canvas — Grammar: Direct Speech‎ · p.147"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_english_ch12_seg6b",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6 · part 2",
+              "section": "Grammar Playground + Imagination Canvas",
+              "section_short": "Grammar Playground +",
+              "topic": "Storytelling in Reverse",
+              "topic_short": "Grammar Playground + Imagination Canvas — Storytelling in Reverse",
+              "pages": [
+                147
+              ],
+              "pages_label": "p.147",
+              "row": {
+                "title": "Grammar Playground +",
+                "description": "Day 6 · part 2",
+                "metadata": "Grammar Playground + Imagination Canvas — Storytelling in Reverse‎ · p.147"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_english_ch12_seg7",
               "segment_index": 7,
               "lp_type": "content",
-              "day_label": "Day 7",
+              "day_label": "Day 7 · part 1",
               "section": "Connect and Create",
               "section_short": "Connect and Create",
-              "topic": "Write & Create: Formal Letter + Cursive",
-              "topic_short": "Write & Create: Formal Letter + Cursive",
+              "topic": "Write & Create: A Formal Letter",
+              "topic_short": "Write & Create: A Formal Letter",
               "pages": [
                 148,
                 149
@@ -69823,9 +69931,30 @@
               "pages_label": "p.148-149",
               "row": {
                 "title": "Connect and Create",
-                "description": "Day 7 · p.148-149",
-                "metadata": "Write & Create: Formal Letter + Cursive"
-              }
+                "description": "Day 7 · part 1",
+                "metadata": "Write & Create: A Formal Letter‎ · p.148-149"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_english_ch12_seg7b",
+              "segment_index": 7,
+              "lp_type": "content",
+              "day_label": "Day 7 · part 2",
+              "section": "Connect and Create",
+              "section_short": "Connect and Create",
+              "topic": "Cursive Handwriting: Loop, Link and Dictation",
+              "topic_short": "Cursive Handwriting: Loop, Link and Dictation",
+              "pages": [
+                148
+              ],
+              "pages_label": "p.148-149",
+              "row": {
+                "title": "Connect and Create",
+                "description": "Day 7 · part 2",
+                "metadata": "Cursive Handwriting: Loop, Link and Dictation‎ · p.148"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_english_ch12_seg995",
@@ -92843,11 +92972,31 @@
               "lesson_id": "grade_5_english_ch12_seg3",
               "segment_index": 3,
               "lp_type": "content",
-              "day_label": "Day 3",
+              "day_label": "Day 3 · part 1",
               "section": "Diving Deeper",
               "section_short": "Diving Deeper",
-              "topic": "Summarise the Story + Textual Detective",
-              "topic_short": "Summarise the Story + Textual Detective",
+              "topic": "Diving Deeper: Summarise the Story",
+              "topic_short": "Summarise the Story",
+              "pages": [
+                155
+              ],
+              "pages_label": "p.155-156",
+              "row": {
+                "title": "Diving Deeper",
+                "description": "Day 3 · part 1",
+                "metadata": "Summarise the Story‎ · p.155"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_5_english_ch12_seg3b",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3 · part 2",
+              "section": "Diving Deeper",
+              "section_short": "Diving Deeper",
+              "topic": "Diving Deeper: Textual Detective",
+              "topic_short": "Textual Detective",
               "pages": [
                 155,
                 156
@@ -92855,9 +93004,10 @@
               "pages_label": "p.155-156",
               "row": {
                 "title": "Diving Deeper",
-                "description": "Day 3 · p.155-156",
-                "metadata": "Summarise the Story + Textual Detective"
-              }
+                "description": "Day 3 · part 2",
+                "metadata": "Textual Detective‎ · p.155-156"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_5_english_ch12_seg4",
@@ -93089,22 +93239,42 @@
               "lesson_id": "grade_5_english_ch13_seg5",
               "segment_index": 5,
               "lp_type": "content",
-              "day_label": "Day 5",
+              "day_label": "Day 5 · part 1",
               "section": "Grammar Playground",
               "section_short": "Grammar Playground",
-              "topic": "Connector Choices + Verbs in Action",
-              "topic_short": "Connector Choices + Verbs in Action",
+              "topic": "Grammar Playground: Connector Choices (choice and cause-and-effect connectors)",
+              "topic_short": "Connector Choices (choice and cause-and-effect connectors)",
               "pages": [
-                170,
+                170
+              ],
+              "pages_label": "p.170-172",
+              "row": {
+                "title": "Grammar Playground",
+                "description": "Day 5 · part 1",
+                "metadata": "Connector Choices (choice and cause-and-effect connectors)‎ · p.170"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_5_english_ch13_seg5b",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5 · part 2",
+              "section": "Grammar Playground",
+              "section_short": "Grammar Playground",
+              "topic": "Grammar Playground: Verbs in Action (regular and irregular verbs)",
+              "topic_short": "Verbs in Action (regular and irregular verbs)",
+              "pages": [
                 171,
                 172
               ],
               "pages_label": "p.170-172",
               "row": {
                 "title": "Grammar Playground",
-                "description": "Day 5 · p.170-172",
-                "metadata": "Connector Choices + Verbs in Action"
-              }
+                "description": "Day 5 · part 2",
+                "metadata": "Verbs in Action (regular and irregular verbs)‎ · p.171-172"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_5_english_ch13_seg6",

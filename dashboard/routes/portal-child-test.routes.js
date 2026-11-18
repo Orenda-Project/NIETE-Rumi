@@ -156,6 +156,8 @@ const SA_SWITCHES = {
   iosMic: 'sa_r8_ios_mic',
   // round 12: the greyed RDF rows' note opens the microphone check again (portal pages/LeaderAssess.tsx)
   rdfMicCheck: 'sa_r12_rdf_mic_check',
+  // round 20: End this section in RDF auto too (portal components/assess/AssessEngineSlot.tsx; the engine reads its own copy)
+  r20AutoEndSection: 'sa_r20_auto_end_section',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);

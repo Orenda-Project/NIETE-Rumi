@@ -14,8 +14,9 @@
  * A grade 1-5 lesson stays on FICO; the coach's naming it decides the FICO grade gate (bd-ra8xu.42) instead of the
  * teacher's profile. Self-recordings (the DC) never come here.
  *
- * Runs only while app_settings.obs612_coach is on for the coach (coaching/obs612-switch.js). Off: asksClass is
- * false, every caller takes its old path, and nothing here runs.
+ * Runs only while app_settings.obs612_coach is on for the coach (coaching/obs612-switch.js), and never for a GB
+ * visit (bd-hk2jm3: FDE is ICT's; coaching/fde-region.js). Off: asksClass is false, every caller takes its old path,
+ * and nothing here runs.
  *
  * The FDE form of a visit is ONE observation_field_forms row: rubric_version = the obs612 id ('obs612-msci-v1' …),
  * visit_context.{grade, subject, sheet, via}. The Flow token is `<coachUserId>:obs612:<formId>`.
@@ -49,11 +50,24 @@ function isObs612Form(form) {
   return Boolean(form) && O.isObs612Id(form.rubric_version);
 }
 
-/** Does this coach get the class question? (the switch). Never throws: false on any failure. */
-async function asksClass(user) {
+/**
+ * Does this coach get the class question? The switch, and never for a GB visit (bd-hk2jm3, operator 17 Nov: FDE's
+ * grade 6-8 tools are ICT's only; GB stays on FICO, v6 for HITL). `visit` names what is known of the visit: the
+ * observed teacher's users.id and the school the coach picked (school_ext_id); without them the coach's own region
+ * decides (coaching/fde-region.js). Never throws: false on any failure.
+ * @param {object} user  the coach's (or principal's) users row
+ * @param {{teacherUserId?: string|null, schoolExtId?: string|null}} [visit]
+ */
+async function asksClass(user, visit = {}) {
   if (!user || !user.id) return false;
   try {
-    return await require('../../coaching/obs612-switch').isOn({ userId: user.id, region: user.region });
+    const on = await require('../../coaching/obs612-switch').isOn({
+      userId: user.id,
+      region: user.region,
+      role: user.role, // bd-9bppaz: "role:principal" needs no read (undefined: read only when a role key needs it)
+    });
+    if (!on) return false;
+    return await require('../../coaching/fde-region').fdeAllowed({ observer: user, ...(visit || {}) });
   } catch (_) {
     return false;
   }
@@ -80,7 +94,9 @@ function parseTap(id) {
   if (step === 'g') {
     if (gradeRaw === 'p') return { step, kind, ref, primary: true };
     const g = O.normGrade(gradeRaw);
-    if (g === null || g <= O.PRIMARY_MAX_GRADE) return null;
+    if (g === null) return null;
+    // bd-ra8xu.50: the "Plan my visit" Flow names the primary grade itself (1-5); a FICO lesson, its grade kept.
+    if (g <= O.PRIMARY_MAX_GRADE) return { step, kind, ref, primary: true, grade: g };
     // bd-ra8xu.40: grades 9-12 are FICO lessons: no subject is asked.
     if (!O.isFdeGrade(g)) return { step, kind, ref, primary: true, grade: g };
     return { step, kind, ref, grade: g };
@@ -94,6 +110,19 @@ function parseTap(id) {
 
 async function askClass(user, to, { kind, ref, teacherName = null }) {
   const s = S(user);
+  // bd-ra8xu.50 (operator 13 Nov): class → grade → subject on three Flow screens ("Plan my visit", lesson-flow.js)
+  // once that Flow is published here; until then (or if it will not send), the two chat lists below.
+  const flowId = process.env.OBS612_LESSON_FLOW_ID;
+  if (flowId && user && user.id) {
+    const sent = await WhatsAppService.sendFlow(to, {
+      flowId,
+      body: cap(s.lf_body(teacherName), 1024),
+      buttonText: cap(s.lf_cta, 20),
+      flowToken: require('./lesson-flow').lessonToken(user.id, kind, ref),
+    });
+    if (sent) return sent;
+    logToFile('❌ obs612: the class Flow did not send — chat lists instead', { kind, ref }, 'error');
+  }
   const rows = [
     { id: `o612:g:${kind}:${ref}:p`, title: cap(s.grade_primary, 24), description: cap(s.grade_primary_desc, 72) },
     ...O.GRADES.filter((g) => g > O.PRIMARY_MAX_GRADE).map((g) => ({ id: `o612:g:${kind}:${ref}:${g}`, title: cap(s.grade_row(g), 24) })),

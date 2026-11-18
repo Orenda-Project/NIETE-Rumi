@@ -38,7 +38,8 @@ describe("PdfPage", () => {
     page.render.mockImplementation(() => ({ promise: Promise.reject(new Error("broken")), cancel: vi.fn() }));
     const onFailed = vi.fn();
     render(<PdfPage doc={docOf(page)} pageNumber={2} width={300} ratio={1.4} onRatio={vi.fn()} onFailed={onFailed} />);
-    await waitFor(() => expect(onFailed).toHaveBeenCalledWith(2));
+    // bd-zrdvmi.21: with its error, for the viewer's failure report.
+    await waitFor(() => expect(onFailed).toHaveBeenCalledWith(2, expect.any(Error)));
   });
 
   it("draws the step outline only on the marked page", () => {

@@ -1273,6 +1273,61 @@
    "library_version": "1.0"
   },
   {
+   "id": "W-LS-T",
+   "name_en": "Letter sounds (listen and tap)",
+   "name_ur": "حروف کی آوازیں (سن کر چُنیں)",
+   "stream": "egra",
+   "signal": "E4 letter sounds, EN only: child below bar when correct share <= 50% (1-of-5 tap, chance 20%); cell = school × grade × language, more than half the cell below bar. Urdu letter sounds is a GAP: the Urdu tile reads 'not measured yet', never zero (E3 letter names exist for Urdu)",
+   "population": "P-EGRA; floor 5 tested children per cell; counts not percentages under 10",
+   "sentence_en": "{n} of {d} children tested in this grade could not give the sound for most English letters.",
+   "sentence_ur": "اس جماعت کے جانچے گئے {d} بچوں میں سے {n} انگریزی کے زیادہ تر حروف کی آواز نہیں بتا سکے۔",
+   "noise": [
+    "tap task: accuracy with chance at 20%, not fluency",
+    "group level only"
+   ],
+   "causes": [
+    "letter names taught instead of sounds (hijje names letters)",
+    "impure sounds ('buh') that block blending",
+    "the alphabet sung as a list"
+   ],
+   "sounds_like_weak": [
+    "children answer 'bee' when asked the sound of b",
+    "no sound-level instruction anywhere in the period (F8 = 0)"
+   ],
+   "sounds_like_good": [
+    "the teacher says /m/ not 'em'; children produce the sound alone and in chorus"
+   ],
+   "what_good_looks_like_en": "Revise yesterday's sounds in two minutes (first-sound game). Teach one new sound, pure, in its printed forms; class and then individuals say it. Blend it with known sounds into three words on the board; say it slowly, then fast; children blend alone. Ten minutes of independent work: children read a decodable list or sentences and write three dictated words. Close with three children reading a word alone and the teacher checking copies.",
+   "what_good_looks_like_ur": "دو منٹ میں کل کی آوازیں دہرائیں (پہلی آواز کا کھیل)۔ ایک نئی آواز خالص صورت میں، اس کی لکھی شکلوں کے ساتھ سکھائیں؛ پہلے جماعت پھر بچے اکیلے اسے بولیں۔ اسے جانی پہچانی آوازوں سے ملا کر بورڈ پر تین لفظ بنائیں؛ آہستہ کہیں، پھر تیز؛ بچے اکیلے آوازیں جوڑیں۔ دس منٹ خود مشق: بچے صوتی الفاظ کی فہرست یا جملے پڑھیں اور تین املا کے لفظ لکھیں۔ آخر میں تین بچے اکیلے ایک ایک لفظ پڑھیں اور استاد کاپیاں دیکھیں۔",
+   "priority_rank": 4,
+   "pedagogical_weight": 0.8,
+   "weight_reason": "The first measurable outcome of W-PHON; pairs with it on the same page (W3 §D)",
+   "threshold": {
+    "coach_share": 0.5,
+    "coach_min_teachers": 1,
+    "sector_ratio": 1.5,
+    "teacher_recent": "not shown per teacher: the cell is school × grade × language, floor 5 tested children; counts not percentages under 10; persisting over two visit rounds"
+   },
+   "min_denominator": {
+    "teacher": 4,
+    "coach": 5,
+    "sector": 10
+   },
+   "window_default_days": 120,
+   "grader_note": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's.",
+   "level": "school_grade",
+   "notes": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's. round 28: the tapped form's own series, never pooled with W-LS / W-RC.",
+   "parent_w_id": null,
+   "short_name_en": "Letter sounds (listen and tap)",
+   "short_name_ur": "حروف کی آوازیں (سن کر چُنیں)",
+   "surface": "s7",
+   "s1_eligible": false,
+   "stream_source": "child_test",
+   "is_s7": true,
+   "is_cause_line": false,
+   "library_version": "1.0"
+  },
+  {
    "id": "W-LN",
    "parent_w_id": null,
    "name_en": "Letter names low (E3; Urdu and English)",
@@ -1536,6 +1591,60 @@
    "parent_w_id": null,
    "short_name_en": "Comprehension low",
    "short_name_ur": "سمجھ کم",
+   "surface": "s7",
+   "s1_eligible": false,
+   "stream_source": "child_test",
+   "is_s7": true,
+   "is_cause_line": false,
+   "library_version": "1.0"
+  },
+  {
+   "id": "W-RC-T",
+   "name_en": "Story questions (listen and tap)",
+   "name_ur": "کہانی کے سوال (سن کر چُنیں)",
+   "stream": "egra",
+   "signal": "E11 low AND E10 cwpm >= bar; only once E11 grading exists ('not graded yet' before). Compare with E2 listening comprehension: low on both points to language, low on E11 only points to reading",
+   "population": "P-EGRA; floor 5 per cell; grade 3 and up mainly",
+   "sentence_en": "{n} of {d} children tested in this grade read fluently but could not answer questions on the passage.",
+   "sentence_ur": "اس جماعت کے جانچے گئے {d} بچوں میں سے {n} روانی سے پڑھ سکے مگر متن کے سوالوں کے جواب نہیں دے سکے۔",
+   "noise": [
+    "E11 graded later; E2 separates language from reading",
+    "in English this is the default second-language profile"
+   ],
+   "causes": [
+    "no strategy instruction; questions after reading are literal recall only",
+    "in English: vocabulary and listening, not decoding"
+   ],
+   "sounds_like_weak": [
+    "students read the passage aloud in turns and the only questions are literal recall",
+    "new words translated once and moved past"
+   ],
+   "sounds_like_good": [
+    "the teacher says the strategy name, thinks aloud, children try it on the next paragraph"
+   ],
+   "what_good_looks_like_en": "Name the strategy (\"today we predict\"). Model it aloud on paragraph one (\"I think... because...\"). Children try it in pairs on paragraph two; three pairs say theirs. Check: one question that needs the strategy, answered in a sentence.",
+   "what_good_looks_like_ur": "حکمتِ عملی کا نام بتائیں («آج اندازہ لگانا»)۔ پہلے پیراگراف پر بلند آواز میں خود کر کے دکھائیں («میرا خیال ہے... کیونکہ...»)۔ بچے دوسرے پیراگراف پر جوڑیوں میں آزمائیں؛ تین جوڑیاں اپنا بتائیں۔ جانچ: ایک ایسا سوال جس میں یہ حکمتِ عملی لگے، جواب پورے جملے میں۔",
+   "priority_rank": 7,
+   "pedagogical_weight": 0.7,
+   "weight_reason": "Outcome twin of W-COMP; matters from grade 3 (W3 §D)",
+   "threshold": {
+    "coach_share": 0.5,
+    "coach_min_teachers": 1,
+    "sector_ratio": 1.5,
+    "teacher_recent": "not shown per teacher: the cell is school × grade × language, floor 5 tested children; counts not percentages under 10; persisting over two visit rounds"
+   },
+   "min_denominator": {
+    "teacher": 4,
+    "coach": 5,
+    "sector": 10
+   },
+   "window_default_days": 120,
+   "grader_note": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's. An English cell that is fluent but not understanding routes to vocabulary, listening and story plans, never to phonics videos (W2 §4, §8).",
+   "level": "school_grade",
+   "notes": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's. round 28: the tapped form's own series, never pooled with W-LS / W-RC.",
+   "parent_w_id": null,
+   "short_name_en": "Story questions (listen and tap)",
+   "short_name_ur": "کہانی کے سوال (سن کر چُنیں)",
    "surface": "s7",
    "s1_eligible": false,
    "stream_source": "child_test",
@@ -8443,6 +8552,634 @@
    "with_whom_ur": "سب سے کم والے اسکول اور جماعت کے خانے کا استاد، اپنے ہی پڑھائی کے گھنٹے میں۔"
   },
   {
+   "id": "I-LS-T-1",
+   "weakness_id": "W-LS-T",
+   "level": "school",
+   "kind": "materials",
+   "title_en": "Assign the letter-sound plans to the stuck grade, by language, through the FLN send",
+   "title_ur": "پھنسی ہوئی جماعت کو زبان کے مطابق حروف کی آوازوں کے منصوبے پورٹل سے بھیجیں",
+   "what_coach_does": "1. Read the cell: which grade, which language, how many of how many tested (counts, not percentages, under 10).\n2. English, grade 1: send the sound plans (10180 b/p, 10182 a, 10184 d/t, 10198 i, 10201 g/c/k), Jolly Phonics Group 1 (4963) and 11130; grade 2-3: 4717 or 4642 and 10153, 10155, 10212; grade 4-5 still at letter level: 4764, 10215, 10214, 10218.\n3. Urdu (letter names E3 low; sounds not measured): grade 1 letter-family plans 10152, 10157, 10158, 10161, 10162, 10164, 10175, 10176, 10177 and 11133; grade 2-3: 5072, 5080, 11219; grade 4-5: 10188, 10190, 10192, 5084.\n4. Tell the grade's teachers in one line which plan to run in the next three reading hours and that the next child check reads the same cell.\n5. Book I-LS-2 (the modelled routine) with the teacher of the lowest cell within a week.",
+   "with_whom": "The grade's reading-hour teachers at the school whose cell fired; the plans go through the portal's FLN send and the coach names the plan in each teacher's next debrief.",
+   "duration": "15 min at the portal + one line to each teacher",
+   "materials": [
+    {
+     "kind": "fln_plan",
+     "ref": "10180",
+     "name": "FLN plan 10180: Sounds of 'b' and 'p' (English grade 1)",
+     "fln_uuid": "dcd5d3c9-b939-49db-93aa-35c6b8e21dff",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 'b' and 'p'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10180⁩: ⁦Sounds⁩ ⁦of⁩ '⁦b⁩' ⁦and⁩ '⁦p⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10182",
+     "name": "FLN plan 10182: Sounds of 'a' (English grade 1)",
+     "fln_uuid": "80ce831d-34b5-4160-a5ad-2e6bbb7b4f45",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 'a'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10182⁩: ⁦Sounds⁩ ⁦of⁩ '⁦a⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10184",
+     "name": "FLN plan 10184: Sounds of 'd' and 't' (English grade 1)",
+     "fln_uuid": "cc5be54f-98de-4402-a3d3-995ebea7b15f",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 'd' and ‘t'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10184⁩: ⁦Sounds⁩ ⁦of⁩ '⁦d⁩' ⁦and⁩ ‘⁦t⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10198",
+     "name": "FLN plan 10198: Sounds of 'i' (English grade 1)",
+     "fln_uuid": "191e4f0f-edd6-439a-88f7-4f8e58dc1654",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 'i'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10198⁩: ⁦Sounds⁩ ⁦of⁩ '⁦i⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10201",
+     "name": "FLN plan 10201: Sounds of 'g', 'c' and 'k' (English grade 1)",
+     "fln_uuid": "e39619b6-490a-43e0-9bf1-c39f4938d6b7",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 'g', ‘c’ and ‘k'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10201⁩: ⁦Sounds⁩ ⁦of⁩ '⁦g⁩', ‘⁦c⁩’ ⁦and⁩ ‘⁦k⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "4963",
+     "name": "FLN plan 4963: Jolly Phonics Group 1: s, a, t, i, p, n (English grade 1)",
+     "fln_uuid": "1e66f933-2594-421e-843c-27f5b4179cd8",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Jolly Phonics Group 1: s, a, t, i, p, n",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦4963⁩: ⁦Jolly⁩ ⁦Phonics⁩ ⁦Group⁩ ⁦1⁩: ⁦s⁩, ⁦a⁩, ⁦t⁩, ⁦i⁩, ⁦p⁩, ⁦n⁩",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11130",
+     "name": "FLN plan 11130: Sounds of 's, a, t, i, p, n' (Fluency) (English grade 1)",
+     "fln_uuid": "91edc157-edfe-449d-8489-b7bfa097b5b9",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 's, a, t, i, p, n' (Fluency)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11130⁩: ⁦Sounds⁩ ⁦of⁩ '⁦s⁩, ⁦a⁩, ⁦t⁩, ⁦i⁩, ⁦p⁩, ⁦n⁩' (⁦Fluency⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "4717",
+     "name": "FLN plan 4717: Jolly Phonics Group 1: s, a, t, i, p, n (English grade 2)",
+     "fln_uuid": "b7809b30-a8d1-4319-80dc-555379a646ce",
+     "subject": "reading-hour-english",
+     "grade": 2,
+     "topic": "Jolly Phonics Group 1: s, a, t, i, p, n",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦4717⁩: ⁦Jolly⁩ ⁦Phonics⁩ ⁦Group⁩ ⁦1⁩: ⁦s⁩, ⁦a⁩, ⁦t⁩, ⁦i⁩, ⁦p⁩, ⁦n⁩",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "4642",
+     "name": "FLN plan 4642: Jolly Phonics Group 2: ck, e, h, r, m, d (English grade 2)",
+     "fln_uuid": "96a62462-a2e7-4295-a7ae-86f48f6d7761",
+     "subject": "reading-hour-english",
+     "grade": 2,
+     "topic": "Jolly Phonics Group 2: ck, e, h, r, m, d",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦4642⁩: ⁦Jolly⁩ ⁦Phonics⁩ ⁦Group⁩ ⁦2⁩: ⁦ck⁩, ⁦e⁩, ⁦h⁩, ⁦r⁩, ⁦m⁩, ⁦d⁩",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10153",
+     "name": "FLN plan 10153: Sounds of 'a', 'b' and 'c' (English grade 3)",
+     "fln_uuid": "8684b556-0aeb-4a1e-adb6-09062b01ee08",
+     "subject": "reading-hour-english",
+     "grade": 3,
+     "topic": "Sounds of 'a', 'b' and 'c'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10153⁩: ⁦Sounds⁩ ⁦of⁩ '⁦a⁩', '⁦b⁩' ⁦and⁩ '⁦c⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10155",
+     "name": "FLN plan 10155: Sounds of 'd', 'e' and 'f' (English grade 3)",
+     "fln_uuid": "8723388a-c88e-40e5-8c2e-71adc6860d9f",
+     "subject": "reading-hour-english",
+     "grade": 3,
+     "topic": "Sounds of 'd', 'e' and ‘f'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10155⁩: ⁦Sounds⁩ ⁦of⁩ '⁦d⁩', '⁦e⁩' ⁦and⁩ ‘⁦f⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10212",
+     "name": "FLN plan 10212: Review of the sounds a to n (English grade 3)",
+     "fln_uuid": "09cfa991-8200-4821-8bdf-18549d64ded0",
+     "subject": "reading-hour-english",
+     "grade": 3,
+     "topic": "Review of the sounds a, b, c, d, e, till n",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10212⁩: ⁦Review⁩ ⁦of⁩ ⁦the⁩ ⁦sounds⁩ ⁦a⁩, ⁦b⁩, ⁦c⁩, ⁦d⁩, ⁦e⁩, ⁦till⁩ ⁦n⁩",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "4764",
+     "name": "FLN plan 4764: Jolly Phonics Group 1: s, a, t, i, p, n (English grade 4)",
+     "fln_uuid": "d4032989-6731-4299-883e-85c97c770b3d",
+     "subject": "reading-hour-english",
+     "grade": 4,
+     "topic": "Jolly Phonics Group 1: s, a, t, i, p, n",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦4764⁩: ⁦Jolly⁩ ⁦Phonics⁩ ⁦Group⁩ ⁦1⁩: ⁦s⁩, ⁦a⁩, ⁦t⁩, ⁦i⁩, ⁦p⁩, ⁦n⁩",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10215",
+     "name": "FLN plan 10215: Sounds of 'a' to 'f' (English grade 5)",
+     "fln_uuid": "bbb290a4-026e-44d3-bdfe-615dece74cfe",
+     "subject": "reading-hour-english",
+     "grade": 5,
+     "topic": "Sounds of 'a', 'b', 'c', ‘d’, ‘e’ and ‘f’",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10215⁩: ⁦Sounds⁩ ⁦of⁩ '⁦a⁩', '⁦b⁩', '⁦c⁩', ‘⁦d⁩’, ‘⁦e⁩’ ⁦and⁩ ‘⁦f⁩’",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10214",
+     "name": "FLN plan 10214: Sounds of 'g' to 'n' (English grade 5)",
+     "fln_uuid": "773caf9e-b22e-4345-be62-2a5fc3c00912",
+     "subject": "reading-hour-english",
+     "grade": 5,
+     "topic": "Sounds of 'g’, ‘h’, ‘i’, ‘j’, ‘k’, ‘l’, ‘m’ and ‘n'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10214⁩: ⁦Sounds⁩ ⁦of⁩ '⁦g⁩’, ‘⁦h⁩’, ‘⁦i⁩’, ‘⁦j⁩’, ‘⁦k⁩’, ‘⁦l⁩’, ‘⁦m⁩’ ⁦and⁩ ‘⁦n⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10218",
+     "name": "FLN plan 10218: Review of the sounds of all alphabets (English grade 5)",
+     "fln_uuid": "5bebbf9e-9a32-49c6-acb5-e3c08ee6fa0d",
+     "subject": "reading-hour-english",
+     "grade": 5,
+     "topic": "Review of the sounds of all alphabets.",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10218⁩: ⁦Review⁩ ⁦of⁩ ⁦the⁩ ⁦sounds⁩ ⁦of⁩ ⁦all⁩ ⁦alphabets⁩.",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10152",
+     "name": "FLN plan 10152: ا تا ث کے حروف اور بنیادی آوازیں (Urdu grade 1)",
+     "fln_uuid": "59a71a8b-b74e-47c4-99c9-bb0c6d2002a7",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "ا تا ث\" تک کے حروف اور ان کی بنیادی آوازیں ''",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10152⁩: ا تا ث\" تک کے حروف اور ان کی بنیادی آوازیں ''",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10157",
+     "name": "FLN plan 10157: ج کے خاندان کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "4858a7c1-df9e-4cc7-9cf3-d9f10bf3a28a",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"ج \" کے خاندان  کے حروف   اور ان کی بنیادی آوازیں۔",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10157⁩: «ج » کے خاندان  کے حروف   اور ان کی بنیادی آوازیں۔",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10158",
+     "name": "FLN plan 10158: د کے خاندان کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "720ddcea-7a03-414a-ac6f-21e941960653",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"د\" کے خاندان کے حروف  اور ان کی بنیادی آوازیں۔",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10158⁩: «د» کے خاندان کے حروف  اور ان کی بنیادی آوازیں۔",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10161",
+     "name": "FLN plan 10161: ر کے خاندان کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "97ebc4a8-44f4-4631-9e7f-2118f652519e",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"ر\" کے خاندان کے حروف اور ان کی بنیادی آوازیں",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10161⁩: «ر» کے خاندان کے حروف اور ان کی بنیادی آوازیں",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10162",
+     "name": "FLN plan 10162: س تا ض کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "1e38c385-2b8f-41d9-a9e1-e3ed25826d2a",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"س\" تا \" ض\" تک کے حروف اور ان کی بنیادی آوازیں",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10162⁩: «س» تا « ض» تک کے حروف اور ان کی بنیادی آوازیں",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10164",
+     "name": "FLN plan 10164: ط تا غ کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "0da15ae1-335f-4721-b35c-15e58a098e1c",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "ط تا غ\" تک کے حروف اور ان کی بنیادی آوازیں''",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10164⁩: ط تا غ\" تک کے حروف اور ان کی بنیادی آوازیں''",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10175",
+     "name": "FLN plan 10175: ف تا گ کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "702bda79-f8e3-4c04-864b-1ecf77c3c1af",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"ف\" تا \"گ\" تک کے حروف اور ان کی بنیادی آوازیں",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10175⁩: «ف» تا «گ» تک کے حروف اور ان کی بنیادی آوازیں",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10176",
+     "name": "FLN plan 10176: ل تا ن کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "7ced46e7-416c-467d-ab7b-0354b3ee3f3a",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"ل\" تا \"ن\" تک کے حروف اور ان کی بنیادی آوازیں",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10176⁩: «ل» تا «ن» تک کے حروف اور ان کی بنیادی آوازیں",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10177",
+     "name": "FLN plan 10177: و تا ے کے حروف اور آوازیں (Urdu grade 1)",
+     "fln_uuid": "5d7938a7-89e2-408c-965f-2d11c021ee35",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "\"و\"  تا\"ے\" تک کے حروف اور ان کی بنیادی آوازیں",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10177⁩: «و»  تا«ے» تک کے حروف اور ان کی بنیادی آوازیں",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11133",
+     "name": "FLN plan 11133: حروف ب م ن ا کی صوتیات (روانی) (Urdu grade 1)",
+     "fln_uuid": "d7e6f570-a8bd-4f6e-aa4f-0fce5edc6489",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "حروف ب ، م ، ن ، ا  کی صوتیات(روانی)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11133⁩: حروف ب ، م ، ن ، ا  کی صوتیات(روانی)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "5072",
+     "name": "FLN plan 5072: حروف تہجی کی اصوات (Urdu grade 2)",
+     "fln_uuid": "6b1e6db8-e55d-4680-803c-0e26f0a70d27",
+     "subject": "reading-hour-urdu",
+     "grade": 2,
+     "topic": "حروف تہجی کی اصوات",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦5072⁩: حروف تہجی کی اصوات",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11219",
+     "name": "FLN plan 11219: حروف ب م ن ا کی صوتیات (روانی) (Urdu grade 2)",
+     "fln_uuid": "c98c995d-e48f-4223-bace-e447b8b2d49d",
+     "subject": "reading-hour-urdu",
+     "grade": 2,
+     "topic": "حروف ب ، م ، ن ، ا  کی صوتیات(روانی)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11219⁩: حروف ب ، م ، ن ، ا  کی صوتیات(روانی)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "5080",
+     "name": "FLN plan 5080: حروف تہجی کی اصوات (Urdu grade 3)",
+     "fln_uuid": "f15bdac3-5d9d-4850-857c-7449b9c2a95c",
+     "subject": "reading-hour-urdu",
+     "grade": 3,
+     "topic": "حروف تہجی کی اصوات",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦5080⁩: حروف تہجی کی اصوات",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10188",
+     "name": "FLN plan 10188: حروف تہجی ا تا ژ، آوازوں کو سن کر پہچاننا (Urdu grade 4)",
+     "fln_uuid": "524966ee-8cb8-4021-86c3-9850d2da1e5e",
+     "subject": "reading-hour-urdu",
+     "grade": 4,
+     "topic": "حروف تہجی   '' ا تا  ژ ''اور ان کی بنیادی آوازوں کو سن کر پہچاننا",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10188⁩: حروف تہجی   '' ا تا  ژ ''اور ان کی بنیادی آوازوں کو سن کر پہچاننا",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10190",
+     "name": "FLN plan 10190: حروف تہجی س تا ے، آوازوں کو سن کر پہچاننا (Urdu grade 4)",
+     "fln_uuid": "7e89b672-cc41-4c7d-894f-eeec8fcc8a1a",
+     "subject": "reading-hour-urdu",
+     "grade": 4,
+     "topic": "حروف تہجی   '' س تا ے''اور ان کی بنیادی آوازوں کو سن کر پہچاننا",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10190⁩: حروف تہجی   '' س تا ے''اور ان کی بنیادی آوازوں کو سن کر پہچاننا",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10192",
+     "name": "FLN plan 10192: انفرادی پیچیدہ آوازیں خ غ ق (Urdu grade 4)",
+     "fln_uuid": "93f4e6b9-5b2c-45ca-92a8-6ec0f1bd20ba",
+     "subject": "reading-hour-urdu",
+     "grade": 4,
+     "topic": "انفرادی پیچیدہ آوازیں ، حروف  خ ، غ ، ق",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10192⁩: انفرادی پیچیدہ آوازیں ، حروف  خ ، غ ، ق",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "5084",
+     "name": "FLN plan 5084: حروف تہجی کی اصوات (Urdu grade 5)",
+     "fln_uuid": "d033da36-cf21-41d7-819c-3f73ca67af6a",
+     "subject": "reading-hour-urdu",
+     "grade": 5,
+     "topic": "حروف تہجی کی اصوات",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦5084⁩: حروف تہجی کی اصوات",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "61",
+     "name": "VIDREC module 61 \"Building phonic foundations\"",
+     "title": "Building phonic foundations",
+     "language": "en",
+     "duration_s": 355,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦61⁩: ⁦Building⁩ ⁦phonic⁩ ⁦foundations⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "32",
+     "name": "VIDREC module 32 \"Phonic strategies part 1\"",
+     "title": "Phonic strategies part 1",
+     "language": "ur",
+     "duration_s": 351,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦32⁩: ⁦Phonic⁩ ⁦strategies⁩ ⁦part⁩ ⁦1⁩",
+     "api_kind": "vidrec"
+    }
+   ],
+   "evidence": [
+    {
+     "citation": "Piper, Zuilkowski, Dubeck, Jepkemei and King (2018). Identifying the essential ingredients to literacy and numeracy improvement. World Development 106 (Kenya PRIMR RCT)",
+     "url": "https://doi.org/10.1016/j.worlddev.2018.01.018",
+     "strength": "rct_or_meta",
+     "finding": "structured plans added the most to reading gains; phonics started in grade 1 d = 0.55; letter sounds = alphabet knowledge in the EGRA map",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "200",
+      "opens": true
+     },
+     "source": "Piper, Zuilkowski, Dubeck, Jepkemei and King (2018). Identifying the essential ingredients to literacy and numeracy improvement. World Development 106 (Kenya PRIMR RCT)"
+    },
+    {
+     "citation": "Ehri, Nunes, Stahl and Willows (2001). Systematic phonics instruction helps students learn to read. Review of Educational Research 71(3)",
+     "url": "https://journals.sagepub.com/doi/10.3102/00346543071003393",
+     "strength": "rct_or_meta",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "403",
+      "opens": false
+     },
+     "source": "Ehri, Nunes, Stahl and Willows (2001). Systematic phonics instruction helps students learn to read. Review of Educational Research 71(3)"
+    },
+    {
+     "citation": "RTI International (2016). EGRA Toolkit, 2nd edition (subtask-skill map; dictation as reading in reverse)",
+     "url": "https://s3.us-west-2.amazonaws.com/ierc-v2-publicfiles/public/public/resources/EGRA%20Toolkit%20V2%202016.pdf",
+     "strength": "practitioner",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "200",
+      "opens": true
+     },
+     "source": "RTI International (2016). EGRA Toolkit, 2nd edition (subtask-skill map; dictation as reading in reverse)"
+    }
+   ],
+   "check_it_worked": {
+    "look_for": "The grade's next reading-hour recordings carry pure sounds with aerab and children saying them alone; the next cell for this school and grade moves.",
+    "where": "both",
+    "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
+    "signal": {
+     "signal_id": "detector.F8.stages_heard",
+     "comparison": ">=",
+     "value": 2,
+     "window_days": 14,
+     "pass_rule": "2 of 3",
+     "min_recordings": 3
+    },
+    "coach_tick": "At the next child-test round the cell's count below bar fell (floor 5 tested; counts under 10); the assigned plan was open on the teacher's phone.",
+    "check_by_rule": "visit_7_or_14",
+    "look_for_ur": "اس جماعت کی پڑھائی کے گھنٹے کی اگلی ریکارڈنگز میں اعراب کے ساتھ خالص آوازیں ہوں اور بچے یہ آوازیں الگ الگ بولیں؛ اس اسکول اور جماعت کا اگلا خانہ آگے بڑھے۔",
+    "coach_tick_ur": "بچوں کی جانچ کے اگلے دور میں اسکول اور جماعت کے خانے میں حد سے نیچے والوں کی گنتی کم ہوئی (کم از کم ۵ بچوں کی جانچ؛ ۱۰ سے کم گنتیاں)؛ دیا گیا منصوبہ استاد کے فون پر کھلا تھا۔"
+   },
+   "debrief_script_en": "Run the sound plan I sent, and in your hijje say the sound of each letter, not its name: the sound alone, then with its aerab.",
+   "debrief_script_ur": "جو آوازوں کا منصوبہ بھیجا گیا ہے وہ چلائیں، اور اپنے ہجے میں ہر حرف کی آواز کہیں، نام نہیں: پہلے صرف آواز، پھر اعراب کے ساتھ۔",
+   "teacher_action_step": {
+    "step_en": "Run the assigned letter-sound plan in the next 3 reading hours, saying each sound alone then with its aerab, never the name",
+    "step_ur": "اگلے تین پڑھائی کے گھنٹوں میں بھیجا ہوا حروف کی آوازوں کا منصوبہ چلائیں، ہر حرف کی پہلے صرف آواز پھر اعراب کے ساتھ، نام کبھی نہیں",
+    "when_in_lesson": "the reading hour, explain and guided steps",
+    "materials": "the FLN plan on the phone"
+   },
+   "rehearsal_script_en": "«'m' کا نام ایم، آواز /m/۔ سب: /m/۔ تیسری قطار اکیلے: /m/۔» The coach listens for a pure sound without 'uh'.",
+   "rehearsal_script_ur": "«'⁦m⁩' کا نام ایم، آواز /⁦m⁩/۔ سب: /⁦m⁩/۔ تیسری قطار اکیلے: /⁦m⁩/۔» کوچ کے لیے سننے کی بات: خالص آواز، بغیر «اَ» کے۔",
+   "notes": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's. FLN plans are sent via the portal's FLN send (any leader-family role with the portal_fln_share switch; only to teachers in the coach's own scope; logged as a niete_fln_events row). Urdu letter SOUNDS are not measured (FACTS.md:33); the Urdu plans are assigned on the E3 letter-names cell and the W-PHON recording check.",
+   "fits_period_minutes": 25,
+   "library_version": "1.0",
+   "with_whom_kind": "debrief",
+   "duration_min": 15,
+   "rank_in_w": 1,
+   "duration_ur": "پورٹل پر ۱۵ منٹ اور ہر استاد کے لیے ایک سطر",
+   "with_whom_ur": "جس اسکول کا اسکول اور جماعت کا خانہ نشان میں آیا، وہاں اس جماعت کے پڑھائی کے گھنٹے کے اساتذہ؛ منصوبے پورٹل کی ⁦FLN⁩ ترسیل سے بھیجے جائیں اور کوچ ہر استاد کی اگلی بات چیت میں منصوبے کا نام لے۔",
+   "mirror_of": "I-LS-1"
+  },
+  {
+   "id": "I-LS-T-2",
+   "weakness_id": "W-LS-T",
+   "level": "teacher",
+   "kind": "modelling",
+   "title_en": "Coach models the pure-sound routine inside the teacher's hijje: sound of the day, then blend two known sounds",
+   "title_ur": "کوچ استاد کے ہجے کے اندر خالص آواز کا معمول کر کے دکھائے: آج کی آواز، پھر دو جانی پہچانی آوازیں جوڑیں",
+   "what_coach_does": "1. Take the day's hijje list; teach minutes 5 to 12: the sound of the day pure (no 'uh'), in its printed forms, class echo, five children alone.\n2. Write two known letters beside it; tor-jor one word: sounds apart, then swept; three children blend alone.\n3. Hand back; debrief: the step is the sound-first hijje; send the grade's plan; check-by date.",
+   "with_whom": "The teacher of the lowest cell, in their own reading hour.",
+   "duration": "7 min inside the period + 8 min debrief",
+   "materials": [
+    {
+     "kind": "vidrec_module",
+     "ref": "61",
+     "name": "VIDREC module 61 \"Building phonic foundations\"",
+     "title": "Building phonic foundations",
+     "language": "en",
+     "duration_s": 355,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦61⁩: ⁦Building⁩ ⁦phonic⁩ ⁦foundations⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "32",
+     "name": "VIDREC module 32 \"Phonic strategies part 1\"",
+     "title": "Phonic strategies part 1",
+     "language": "ur",
+     "duration_s": 351,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦32⁩: ⁦Phonic⁩ ⁦strategies⁩ ⁦part⁩ ⁦1⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "34",
+     "name": "VIDREC module 34 \"Key components of phonological awareness\"",
+     "title": "Key components of phonological awareness",
+     "language": "ur",
+     "duration_s": 347,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦34⁩: ⁦Key⁩ ⁦components⁩ ⁦of⁩ ⁦phonological⁩ ⁦awareness⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10180",
+     "name": "FLN plan 10180: Sounds of 'b' and 'p' (English grade 1)",
+     "fln_uuid": "dcd5d3c9-b939-49db-93aa-35c6b8e21dff",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Sounds of 'b' and 'p'",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10180⁩: ⁦Sounds⁩ ⁦of⁩ '⁦b⁩' ⁦and⁩ '⁦p⁩'",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "4963",
+     "name": "FLN plan 4963: Jolly Phonics Group 1: s, a, t, i, p, n (English grade 1)",
+     "fln_uuid": "1e66f933-2594-421e-843c-27f5b4179cd8",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Jolly Phonics Group 1: s, a, t, i, p, n",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦4963⁩: ⁦Jolly⁩ ⁦Phonics⁩ ⁦Group⁩ ⁦1⁩: ⁦s⁩, ⁦a⁩, ⁦t⁩, ⁦i⁩, ⁦p⁩, ⁦n⁩",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "10152",
+     "name": "FLN plan 10152: ا تا ث کے حروف اور بنیادی آوازیں (Urdu grade 1)",
+     "fln_uuid": "59a71a8b-b74e-47c4-99c9-bb0c6d2002a7",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "ا تا ث\" تک کے حروف اور ان کی بنیادی آوازیں ''",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦10152⁩: ا تا ث\" تک کے حروف اور ان کی بنیادی آوازیں ''",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "printable",
+     "ref": "P-bridge-card",
+     "name": "Bridge card",
+     "name_ur": "پل کارڈ: ہجے = پہلے صرف آواز پھر اعراب کے ساتھ، نام نہیں؛ توڑ = آوازیں الگ؛ جوڑ = ملا کر لفظ کہیں؛ انگلیوں پر واپس توڑیں؛ دو لکھوائیں",
+     "api_kind": "print"
+    }
+   ],
+   "evidence": [
+    {
+     "citation": "Piasta and Wagner (2010). Learning letter names and sounds. Journal of Experimental Child Psychology",
+     "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2978809",
+     "strength": "quasi",
+     "finding": "sound knowledge, not name knowledge, transfers to reading; modelled in the room",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "200",
+      "opens": true
+     },
+     "source": "Piasta and Wagner (2010). Learning letter names and sounds. Journal of Experimental Child Psychology"
+    },
+    {
+     "citation": "Ehri, Nunes, Stahl and Willows (2001). Systematic phonics instruction helps students learn to read. Review of Educational Research 71(3)",
+     "url": "https://journals.sagepub.com/doi/10.3102/00346543071003393",
+     "strength": "rct_or_meta",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "403",
+      "opens": false
+     },
+     "source": "Ehri, Nunes, Stahl and Willows (2001). Systematic phonics instruction helps students learn to read. Review of Educational Research 71(3)"
+    },
+    {
+     "citation": "Cilliers, Fleisch, Prinsloo and Taylor (2020). How to improve teaching practice? Journal of Human Resources 55(3) (South Africa EGRS RCT)",
+     "url": "https://jhr.uwpress.org/content/55/3/926",
+     "strength": "rct_or_meta",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "200",
+      "opens": true
+     },
+     "source": "Cilliers, Fleisch, Prinsloo and Taylor (2020). How to improve teaching practice? Journal of Human Resources 55(3) (South Africa EGRS RCT)"
+    }
+   ],
+   "check_it_worked": {
+    "look_for": "Pure sounds in the hijje and children saying them alone; one blended word.",
+    "where": "both",
+    "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
+    "signal": {
+     "signal_id": "detector.F8.stages_heard",
+     "comparison": ">=",
+     "value": 2,
+     "window_days": 14,
+     "pass_rule": "2 of 3",
+     "min_recordings": 3
+    },
+    "coach_tick": "In the watched reading hour the teacher said sounds, not names, and five children said the sound alone; the next cell moves.",
+    "check_by_rule": "visit_7_or_14",
+    "look_for_ur": "ہجے میں صاف آوازیں اور بچے انہیں اکیلے بولیں؛ ایک لفظ ملا کر۔",
+    "coach_tick_ur": "دیکھے گئے پڑھائی کے گھنٹے میں حروف کے نام نہیں بلکہ آوازیں بولی گئیں، اور ۵ بچوں نے آواز الگ الگ بولی؛ اسکول اور جماعت کا اگلا خانہ آگے بڑھے۔"
+   },
+   "debrief_script_en": "in your hijje, the sound of each letter with its aerab, never the name, and five children say it alone.",
+   "debrief_script_ur": "اپنے ہجے میں ہر حرف کی آواز اعراب کے ساتھ، نام کبھی نہیں، اور پانچ بچے اکیلے کہیں۔",
+   "teacher_action_step": {
+    "step_en": "In tomorrow's hijje say each letter's sound with its aerab, never its name; 5 children say it alone",
+    "step_ur": "کل کے ہجے میں ہر حرف کی آواز اعراب کے ساتھ کہیں، نام کبھی نہیں؛ پانچ بچے اکیلے کہیں",
+    "when_in_lesson": "the hijje part, minutes 5-10",
+    "materials": "the hijje list; the bridge card"
+   },
+   "rehearsal_script_en": "«یہ 'پ' ہے۔ نام نہیں، آواز: /پ/۔ زبر: /پَ/۔ سب۔ ... پہلی قطار، ایک ایک۔» The coach listens for no «پے».",
+   "rehearsal_script_ur": "«یہ 'پ' ہے۔ نام نہیں، آواز: /پ/۔ زبر: /پَ/۔ سب۔ ... پہلی قطار، ایک ایک۔» کوچ کے لیے سننے کی بات: «پے» نہ ہو۔",
+   "notes": "Lead decision (26 Oct, 06:45Z): x-analysis measured 21 literacy recordings; explicit sound-level phonics scored 0 on 12, 1 on 8, 2 on 1; what classrooms do is hijje (ہجے: letter names with aerab), and tor-jor (توڑ جوڑ: joining and breaking). Every W-PHON card starts from hijje and tor-jor as the teacher's existing practice and bridges to pure sounds, blending and segmenting; never 'start phonics from zero'. Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's.",
+   "fits_period_minutes": 25,
+   "library_version": "1.0",
+   "with_whom_kind": "visit",
+   "duration_min": 15,
+   "rank_in_w": 2,
+   "duration_ur": "پیریڈ کے اندر ۷ منٹ اور ۸ منٹ کی بات چیت",
+   "with_whom_ur": "سب سے کم والے اسکول اور جماعت کے خانے کا استاد، اپنے ہی پڑھائی کے گھنٹے میں۔",
+   "mirror_of": "I-LS-2"
+  },
+  {
    "id": "I-LN-1",
    "weakness_id": "W-LN",
    "level": "school",
@@ -10365,6 +11102,425 @@
    "rank_in_w": 2,
    "duration_ur": "پیریڈ کے اندر ۸ منٹ اور ۸ منٹ کی بات چیت",
    "with_whom_ur": "سب سے کم والے اسکول اور جماعت کے خانے کا استاد، اپنے ہی پڑھائی کے گھنٹے میں۔"
+  },
+  {
+   "id": "I-RC-T-1",
+   "weakness_id": "W-RC-T",
+   "level": "school",
+   "kind": "materials",
+   "title_en": "Assign the (فہم) and (Comprehension) story plans; an English fluent-not-understanding cell gets vocabulary and listening, never phonics",
+   "title_ur": "فہم والی کہانیوں کے منصوبے بھیجیں؛ انگریزی میں روانی ٹھیک مگر سمجھ کم ہو تو ذخیرۂ الفاظ اور سننا، حروف کی آوازیں کبھی نہیں",
+   "what_coach_does": "1. Read the cell with E2 beside it: low E11 with fine E2 = reading strategy; low on both = language (vocabulary, listening), loudest in English.\n2. Urdu strategy: grade 1: 11595, 11596 (کہانی فہم); grade 2: 11604, 11611; grade 5: 11641, 11644. English strategy: grade 1: 11650, 11652; grade 2: 11674, 11686; grade 4: 11690, 11702 (Comprehension).\n3. English language cell: the same (Comprehension) story plans run as read-alouds with questions before, during and after, three new words a day used in a sentence; videos 107, 108, 38; never modules 32-35 or 61.\n4. One line to the grade's teachers: the plan, three reading hours, one strategy named and modelled.\n5. Book I-RC-2 with the teacher of the lowest cell.",
+   "with_whom": "The grade's reading-hour teachers at the school whose cell fired.",
+   "duration": "15 min at the portal + one line to each teacher",
+   "materials": [
+    {
+     "kind": "fln_plan",
+     "ref": "11595",
+     "name": "FLN plan 11595: کہانی: بلی اور دودھ کا گلاس (فہم) (Urdu grade 1)",
+     "fln_uuid": "f3256a7e-bc8d-42e0-891b-cb85d191db2c",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "کہانی : بلی اور دودھ کا گلاس _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11595⁩: کہانی : بلی اور دودھ کا گلاس _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11596",
+     "name": "FLN plan 11596: کہانی: احمد اور رنگین پھول (فہم) (Urdu grade 1)",
+     "fln_uuid": "9e1cb218-7bd5-47e7-898a-c5fdc61a1caa",
+     "subject": "reading-hour-urdu",
+     "grade": 1,
+     "topic": "کہانی : احمد اور رنگین پھول _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11596⁩: کہانی : احمد اور رنگین پھول _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11604",
+     "name": "FLN plan 11604: کہانی: مریم اور حنانہ (فہم) (Urdu grade 2)",
+     "fln_uuid": "8535a336-28e5-498a-b992-80c275ca88a4",
+     "subject": "reading-hour-urdu",
+     "grade": 2,
+     "topic": "کہانی : مریم اور حنانہ _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11604⁩: کہانی : مریم اور حنانہ _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11611",
+     "name": "FLN plan 11611: کہانی: آصف اور اسکول کا دن (فہم) (Urdu grade 2)",
+     "fln_uuid": "20dc79c1-f3f9-49ae-b0d1-cc164a1a1a4b",
+     "subject": "reading-hour-urdu",
+     "grade": 2,
+     "topic": "کہانی : آصف اور اسکول کا دن _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11611⁩: کہانی : آصف اور اسکول کا دن _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11641",
+     "name": "FLN plan 11641: کہانی: ایک دن مریم کے ساتھ (فہم) (Urdu grade 5)",
+     "fln_uuid": "e57877d3-5926-493d-9961-10eadebb3ac4",
+     "subject": "reading-hour-urdu",
+     "grade": 5,
+     "topic": "کہانی : ایک دن مریم کے ساتھ _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11641⁩: کہانی : ایک دن مریم کے ساتھ _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11644",
+     "name": "FLN plan 11644: کہانی: یہ کیوں ہوا؟ (فہم) (Urdu grade 5)",
+     "fln_uuid": "54d40def-6f10-49af-bfab-e919938d615d",
+     "subject": "reading-hour-urdu",
+     "grade": 5,
+     "topic": "کہانی : یہ کیوں ہوا ؟ _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11644⁩: کہانی : یہ کیوں ہوا ؟ _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11650",
+     "name": "FLN plan 11650: Omar's Happy Day Outside (Comprehension) (English grade 1)",
+     "fln_uuid": "aba6f974-1ebf-4ddc-b9a7-9b102296770a",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Omar's Happy Day Outside (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11650⁩: ⁦Omar's⁩ ⁦Happy⁩ ⁦Day⁩ ⁦Outside⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11652",
+     "name": "FLN plan 11652: Amina's Fun Day at the Park (Comprehension) (English grade 1)",
+     "fln_uuid": "2a02ccec-749f-40d1-9b09-431a01bba498",
+     "subject": "reading-hour-english",
+     "grade": 1,
+     "topic": "Amina’s Fun Day at the Park (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11652⁩: ⁦Amina⁩’⁦s⁩ ⁦Fun⁩ ⁦Day⁩ ⁦at⁩ ⁦the⁩ ⁦Park⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11674",
+     "name": "FLN plan 11674: Sara and Amina's Magical Garden Adventure (Comprehension) (English grade 2)",
+     "fln_uuid": "64cc3362-64a8-4a87-9f95-2fd8ec7be865",
+     "subject": "reading-hour-english",
+     "grade": 2,
+     "topic": "Sara and Amina’s Magical Garden Adventure (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11674⁩: ⁦Sara⁩ ⁦and⁩ ⁦Amina⁩’⁦s⁩ ⁦Magical⁩ ⁦Garden⁩ ⁦Adventure⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11686",
+     "name": "FLN plan 11686: Bilal and the Cricket Bat (Comprehension) (English grade 2)",
+     "fln_uuid": "721d7d3d-1be2-491e-8386-026961455194",
+     "subject": "reading-hour-english",
+     "grade": 2,
+     "topic": "Bilal and the Cricket Bat (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11686⁩: ⁦Bilal⁩ ⁦and⁩ ⁦the⁩ ⁦Cricket⁩ ⁦Bat⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11690",
+     "name": "FLN plan 11690: The Game Before the Storm (Comprehension) (English grade 4)",
+     "fln_uuid": "788131d0-749e-4883-82b1-fc277e394b95",
+     "subject": "reading-hour-english",
+     "grade": 4,
+     "topic": "The Game Before the Storm (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11690⁩: ⁦The⁩ ⁦Game⁩ ⁦Before⁩ ⁦the⁩ ⁦Storm⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11702",
+     "name": "FLN plan 11702: The Library Key (Comprehension) (English grade 4)",
+     "fln_uuid": "c992fefc-4079-4590-bc23-e2a0311093ea",
+     "subject": "reading-hour-english",
+     "grade": 4,
+     "topic": "The Library Key (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11702⁩: ⁦The⁩ ⁦Library⁩ ⁦Key⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "39",
+     "name": "VIDREC module 39 \"Guided Reading\"",
+     "title": "Guided Reading",
+     "language": "ur",
+     "duration_s": 322,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦39⁩: ⁦Guided⁩ ⁦Reading⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "106",
+     "name": "VIDREC module 106 \"Comprehension Strategies\"",
+     "title": "Comprehension Strategies",
+     "language": "mixed",
+     "duration_s": 339,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦106⁩: ⁦Comprehension⁩ ⁦Strategies⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "107",
+     "name": "VIDREC module 107 \"Vocabulary Instructions to Reading and Writing\"",
+     "title": "Vocabulary Instructions to Reading and Writing",
+     "language": "mixed",
+     "duration_s": 492,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦107⁩: ⁦Vocabulary⁩ ⁦Instructions⁩ ⁦to⁩ ⁦Reading⁩ ⁦and⁩ ⁦Writing⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "108",
+     "name": "VIDREC module 108 \"Integrating listening texts and oral narratives into literacy\"",
+     "title": "Integrating listening texts and oral narratives into literac",
+     "language": "mixed",
+     "duration_s": 398,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦108⁩: ⁦Integrating⁩ ⁦listening⁩ ⁦texts⁩ ⁦and⁩ ⁦oral⁩ ⁦narratives⁩ ⁦into⁩ ⁦literac⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "38",
+     "name": "VIDREC module 38 \"Vocabulary Building\"",
+     "title": "Vocabulary Building",
+     "language": "ur",
+     "duration_s": 207,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦38⁩: ⁦Vocabulary⁩ ⁦Building⁩",
+     "api_kind": "vidrec"
+    }
+   ],
+   "evidence": [
+    {
+     "citation": "Shanahan et al. (2010). Improving Reading Comprehension in Kindergarten Through 3rd Grade. IES Practice Guide NCEE 2010-4038",
+     "url": "https://ies.ed.gov/ncee/wwc/practiceguide/14",
+     "strength": "descriptive",
+     "finding": "teach strategies explicitly; reading = decoding × language, so a fluent-not-understanding English cell is a language gap; English fluency without comprehension is the expected L2 profile",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "000",
+      "opens": false
+     },
+     "source": "Shanahan et al. (2010). Improving Reading Comprehension in Kindergarten Through 3rd Grade. IES Practice Guide NCEE 2010-4038"
+    },
+    {
+     "citation": "Hoover and Gough (1990). The simple view of reading. Reading and Writing 2",
+     "url": "https://rd.springer.com/article/10.1007/BF00401799",
+     "strength": "descriptive",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "200",
+      "opens": true
+     },
+     "source": "Hoover and Gough (1990). The simple view of reading. Reading and Writing 2"
+    },
+    {
+     "citation": "Piper, Schroeder and Trudell (2016). Oral reading fluency and comprehension in Kenya: English fluency without comprehension. Journal of Research in Reading 39(2)",
+     "url": "https://www.rti.org/publication/oral-reading-fluency-and-comprehension-kenya-reading-acquisition-multilingual",
+     "strength": "descriptive",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "403",
+      "opens": false
+     },
+     "source": "Piper, Schroeder and Trudell (2016). Oral reading fluency and comprehension in Kenya: English fluency without comprehension. Journal of Research in Reading 39(2)"
+    },
+    {
+     "citation": "Education Endowment Foundation. Teaching and Learning Toolkit: Reading comprehension strategies",
+     "url": "https://educationendowmentfoundation.org.uk/education-evidence/teaching-learning-toolkit/reading-comprehension-strategies",
+     "strength": "rct_or_meta",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "403",
+      "opens": false
+     },
+     "source": "Education Endowment Foundation. Teaching and Learning Toolkit: Reading comprehension strategies"
+    }
+   ],
+   "check_it_worked": {
+    "look_for": "The grade's next reading-hour recordings name a strategy, think aloud, and have children trying it; or, for a language cell, a read-aloud with before, during and after questions and three new words used by children.",
+    "where": "both",
+    "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
+    "signal": {
+     "signal_id": "fico.-|F9.score",
+     "comparison": ">=",
+     "value": 2,
+     "window_days": 14,
+     "pass_rule": "2 of 3",
+     "min_recordings": 3
+    },
+    "coach_tick": "At the next child-test round the cell's E11 count below bar fell with ORF unchanged; the plan was on the phone.",
+    "check_by_rule": "visit_7_or_14",
+    "look_for_ur": "اس جماعت کی پڑھائی کے گھنٹے کی اگلی ریکارڈنگز میں کسی طریقے کا نام لیا جائے، سوچ اونچی آواز میں بتائی جائے، اور بچے اسے آزمائیں؛ یا زبان والے خانے میں کہانی اونچی آواز میں پڑھی جائے، پڑھنے سے پہلے، دوران اور بعد میں سوال ہوں، اور بچے ۳ نئے الفاظ خود استعمال کریں۔",
+    "coach_tick_ur": "بچوں کی جانچ کے اگلے دور میں اس خانے میں ⁦E11⁩ پر حد سے نیچے بچوں کی تعداد کم ہوئی اور ⁦ORF⁩ ویسا ہی رہا؛ منصوبہ فون پر موجود تھا۔"
+   },
+   "debrief_script_en": "the comprehension plan I sent: name the strategy, think aloud on paragraph one, pairs try paragraph two.",
+   "debrief_script_ur": "جو فہم کا منصوبہ میں نے بھیجا: حکمتِ عملی کا نام، پہلے پیراگراف پر سوچ کر بولیں، جوڑیاں دوسرا آزمائیں۔",
+   "teacher_action_step": {
+    "step_en": "Run the assigned comprehension plan: name the strategy, think aloud on paragraph one, pairs try paragraph two",
+    "step_ur": "بھیجا ہوا فہم کا منصوبہ چلائیں: حکمتِ عملی کا نام، پہلے پیراگراف پر سوچ کر بولیں، جوڑیاں دوسرا آزمائیں",
+    "when_in_lesson": "minutes 5-13 of the reading hour",
+    "materials": "the FLN (فہم) plan"
+   },
+   "rehearsal_script_en": "«آج ہم دوبارہ سنانا سیکھتے ہیں۔ پہلا پیراگراف میں نے پڑھا، اب اپنے الفاظ میں: پہلے بچہ ... پھر ... آخر میں ...۔ اب تم دوسرا، ساتھ والے کو۔» The coach listens for the name and the three-part retell.",
+   "rehearsal_script_ur": "«آج ہم دوبارہ سنانا سیکھتے ہیں۔ پہلا پیراگراف میں نے پڑھا، اب اپنے الفاظ میں: پہلے بچہ ... پھر ... آخر میں ...۔ اب تم دوسرا، ساتھ والے کو۔» کوچ کے لیے سننے کی بات: نام اور تین حصوں میں دوبارہ سنانا۔",
+   "notes": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's. FLN plans are sent via the portal's FLN send (any leader-family role with the portal_fln_share switch; only to teachers in the coach's own scope; logged as a niete_fln_events row). Strip signal is v4 F9 (sandbox only); on prod the cell and the coach tick are the checks. English fluent-not-understanding cells never route to phonics videos.",
+   "fits_period_minutes": 25,
+   "library_version": "1.0",
+   "with_whom_kind": "debrief",
+   "duration_min": 15,
+   "rank_in_w": 1,
+   "duration_ur": "پورٹل پر ۱۵ منٹ اور ہر استاد کے لیے ایک سطر",
+   "with_whom_ur": "جس اسکول اور جماعت کا خانہ نکلا ہو، وہاں اس جماعت میں پڑھائی کا گھنٹہ جو بھی استاد لے۔",
+   "mirror_of": "I-RC-1"
+  },
+  {
+   "id": "I-RC-T-2",
+   "weakness_id": "W-RC-T",
+   "level": "teacher",
+   "kind": "modelling",
+   "title_en": "Coach models the strategy mini lesson on the teacher's own story",
+   "title_ur": "کوچ استاد کی اپنی کہانی پر حکمتِ عملی کا چھوٹا سبق کر کے دکھائے",
+   "what_coach_does": "1. Take the day's story; teach minutes 5 to 13 as in W2 §7.5: name, model aloud with «کیونکہ», pairs on paragraph two, three pairs report, one question answered in a sentence.\n2. For an English language cell: read aloud instead, stop twice for «آگے کیا ہوگا؟» answered in sentences, three new words used by children.\n3. The teacher watches for one thing: the think-aloud is the teacher's own thinking, not a question.\n4. Debrief: the step; send the plan; check-by date.",
+   "with_whom": "The teacher of the lowest cell, in their own reading hour.",
+   "duration": "8 min inside the period + 8 min debrief",
+   "materials": [
+    {
+     "kind": "vidrec_module",
+     "ref": "106",
+     "name": "VIDREC module 106 \"Comprehension Strategies\"",
+     "title": "Comprehension Strategies",
+     "language": "mixed",
+     "duration_s": 339,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦106⁩: ⁦Comprehension⁩ ⁦Strategies⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "vidrec_module",
+     "ref": "108",
+     "name": "VIDREC module 108 \"Integrating listening texts and oral narratives into literacy\"",
+     "title": "Integrating listening texts and oral narratives into literac",
+     "language": "mixed",
+     "duration_s": 398,
+     "catalog": "catalog-v1-20261024T2145-r7onfs",
+     "name_ur": "ویڈیو ⁦108⁩: ⁦Integrating⁩ ⁦listening⁩ ⁦texts⁩ ⁦and⁩ ⁦oral⁩ ⁦narratives⁩ ⁦into⁩ ⁦literac⁩",
+     "api_kind": "vidrec"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11604",
+     "name": "FLN plan 11604: کہانی: مریم اور حنانہ (فہم) (Urdu grade 2)",
+     "fln_uuid": "8535a336-28e5-498a-b992-80c275ca88a4",
+     "subject": "reading-hour-urdu",
+     "grade": 2,
+     "topic": "کہانی : مریم اور حنانہ _ فہم",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11604⁩: کہانی : مریم اور حنانہ _ فہم",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "fln_plan",
+     "ref": "11674",
+     "name": "FLN plan 11674: Sara and Amina's Magical Garden Adventure (Comprehension) (English grade 2)",
+     "fln_uuid": "64cc3362-64a8-4a87-9f95-2fd8ec7be865",
+     "subject": "reading-hour-english",
+     "grade": 2,
+     "topic": "Sara and Amina’s Magical Garden Adventure (Comprehension)",
+     "name_ur": "⁦FLN⁩ منصوبہ ⁦11674⁩: ⁦Sara⁩ ⁦and⁩ ⁦Amina⁩’⁦s⁩ ⁦Magical⁩ ⁦Garden⁩ ⁦Adventure⁩ (⁦Comprehension⁩)",
+     "api_kind": "fln"
+    },
+    {
+     "kind": "printable",
+     "ref": "P-strategy-card",
+     "name": "Strategy card",
+     "name_ur": "حکمتِ عملی کارڈ: نام لیں، بلند آواز میں کر کے دکھائیں، جوڑیاں آزمائیں، ایک سوال پورے جملے میں",
+     "api_kind": "print"
+    }
+   ],
+   "evidence": [
+    {
+     "citation": "Shanahan et al. (2010). Improving Reading Comprehension in Kindergarten Through 3rd Grade. IES Practice Guide NCEE 2010-4038",
+     "url": "https://ies.ed.gov/ncee/wwc/practiceguide/14",
+     "strength": "descriptive",
+     "finding": "explicit strategy instruction with gradual release; modelled in the room",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "000",
+      "opens": false
+     },
+     "source": "Shanahan et al. (2010). Improving Reading Comprehension in Kindergarten Through 3rd Grade. IES Practice Guide NCEE 2010-4038"
+    },
+    {
+     "citation": "Education Endowment Foundation. Teaching and Learning Toolkit: Reading comprehension strategies",
+     "url": "https://educationendowmentfoundation.org.uk/education-evidence/teaching-learning-toolkit/reading-comprehension-strategies",
+     "strength": "rct_or_meta",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "403",
+      "opens": false
+     },
+     "source": "Education Endowment Foundation. Teaching and Learning Toolkit: Reading comprehension strategies"
+    },
+    {
+     "citation": "Cilliers, Fleisch, Prinsloo and Taylor (2020). How to improve teaching practice? Journal of Human Resources 55(3) (South Africa EGRS RCT)",
+     "url": "https://jhr.uwpress.org/content/55/3/926",
+     "strength": "rct_or_meta",
+     "link_check": {
+      "on": "2026-10-26",
+      "http": "200",
+      "opens": true
+     },
+     "source": "Cilliers, Fleisch, Prinsloo and Taylor (2020). How to improve teaching practice? Journal of Human Resources 55(3) (South Africa EGRS RCT)"
+    }
+   ],
+   "check_it_worked": {
+    "look_for": "The strategy named, a think-aloud with «کیونکہ», a pair stretch, a child's answer in a sentence.",
+    "where": "both",
+    "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
+    "signal": {
+     "signal_id": "fico.-|F9.score",
+     "comparison": ">=",
+     "value": 2,
+     "window_days": 14,
+     "pass_rule": "2 of 3",
+     "min_recordings": 3
+    },
+    "coach_tick": "In the watched reading hour the teacher named the strategy and thought aloud once; the next cell's E11 moves with ORF unchanged.",
+    "check_by_rule": "visit_7_or_14",
+    "look_for_ur": "طریقے کا نام لیا جائے، «کیونکہ» کے ساتھ سوچ کو بول کر دکھایا جائے، جوڑیوں کا ایک وقفہ ہو، اور بچوں میں سے کسی کا جواب پورے جملے میں آئے۔",
+    "coach_tick_ur": "دیکھے گئے پڑھائی کے گھنٹے میں طریقے کا نام لیا گیا اور ایک بار سوچ اونچی آواز میں بتائی گئی؛ اگلے خانے میں ⁦E11⁩ بہتر ہو اور ⁦ORF⁩ ویسا ہی رہے۔"
+   },
+   "debrief_script_en": "name the strategy, say your own 'I think ... because' on paragraph one, and let pairs try paragraph two.",
+   "debrief_script_ur": "حکمتِ عملی کا نام بتائیں، پہلے پیراگراف پر اپنا «میرا خیال ہے ... کیونکہ» کہیں، اور جوڑیاں دوسرا آزمائیں۔",
+   "teacher_action_step": {
+    "step_en": "Name the strategy, say your own 'I think ... because' on paragraph one, pairs try paragraph two",
+    "step_ur": "حکمتِ عملی کا نام بتائیں، پہلے پیراگراف پر اپنا «میرا خیال ہے ... کیونکہ» کہیں، جوڑیاں دوسرا آزمائیں",
+    "when_in_lesson": "minutes 5-13 of the reading hour",
+    "materials": "the story; the strategy card"
+   },
+   "rehearsal_script_en": "«میرا خیال ہے چابی باغ میں ہے، کیونکہ تصویر میں چابی باغ کے پاس ہے۔ اب ساتھ والے سے: تمہارا خیال؟ کیونکہ؟» The coach listens for «کیونکہ» in the teacher's own sentence.",
+   "rehearsal_script_ur": "«میرا خیال ہے چابی باغ میں ہے، کیونکہ تصویر میں چابی باغ کے پاس ہے۔ اب ساتھ والے سے: تمہارا خیال؟ کیونکہ؟» کوچ کے لیے سننے کی بات: استاد کے اپنے جملے میں «کیونکہ»۔",
+   "notes": "Child-result row (P-EGRA): shown at school and grade level first, floor 5 tested children per cell (min_denominator.coach = the cell floor, sector = 10 for a share). First results expected November; empty state until then. Checks are the next visit's cell; the recording strip is the teaching twin's.",
+   "fits_period_minutes": 25,
+   "library_version": "1.0",
+   "with_whom_kind": "visit",
+   "duration_min": 16,
+   "rank_in_w": 2,
+   "duration_ur": "پیریڈ کے اندر ۸ منٹ اور ۸ منٹ کی بات چیت",
+   "with_whom_ur": "سب سے کم والے اسکول اور جماعت کے خانے کا استاد، اپنے ہی پڑھائی کے گھنٹے میں۔",
+   "mirror_of": "I-RC-2"
   },
   {
    "id": "I-SPELL-1",

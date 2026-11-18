@@ -21,7 +21,8 @@ const PARKED = 'final:sa_score_later';
 const PHONE_SCORER = 'tap-v1';
 const SA_SCORER_MARKS = 'sa-marks-v1'; // sa/score.js VERSION
 const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
-const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice'];
+// vw / vh / dpr: the phone's viewport (CSS px, whole; pixel ratio to 2 decimals), so a screen-fit read can be cut by phone
+const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice', 'vw', 'vh', 'dpr'];
 // the ruling events a session keeps (device.events); past the cap the oldest are kept
 const MAX_KEPT_EVENTS = 200;
 // round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
@@ -76,7 +77,13 @@ async function updateRow(id, patch, where) {
   return error ? fail(where, error, { blockId: id }) : { ok: true };
 }
 
-/** The device's sync state on the session; a field already set (the device's start) is kept. */
+/**
+ * The device's sync state on the session. Each batch's device fields replace the stored ones (the last batch wins: ua,
+ * dpr, the mic check, ...), except the viewport: vw is the narrowest CSS width any batch of this session was drawn in
+ * (the MIN) and vh the tallest CSS height (the MAX), so a phone turned or a session synced later on another frame never
+ * widens the record. The frame of each item rides on the engine's own reads, not here. last_seq only grows; block is
+ * kept once set.
+ */
 async function markSynced(sessionId, { lastSeq, clientStartedAt, clientFinishedAt, device, block, events } = {}) {
   const got = await getSession(sessionId);
   if (!got.ok) return got;
@@ -84,6 +91,10 @@ async function markSynced(sessionId, { lastSeq, clientStartedAt, clientFinishedA
   const s = got.session;
   const dev = { ...(s.device || {}) };
   for (const f of DEVICE_FIELDS) if (device && device[f] !== undefined) dev[f] = device[f];
+  // the viewport: the narrowest width and the tallest height of every batch so far (s.device holds the earlier ones)
+  const was = s.device || {};
+  if (device && Number.isFinite(device.vw) && Number.isFinite(was.vw)) dev.vw = Math.min(was.vw, device.vw);
+  if (device && Number.isFinite(device.vh) && Number.isFinite(was.vh)) dev.vh = Math.max(was.vh, device.vh);
   if (Number.isInteger(lastSeq) && !(dev.last_seq >= lastSeq)) dev.last_seq = lastSeq;
   if (block && !dev.block) dev.block = block;
   if (Array.isArray(events) && events.length) dev.events = keepEvents(dev.events, events);

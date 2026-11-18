@@ -161,12 +161,25 @@ describe('fromReply (the board format -> the tree)', () => {
     expect(t.unseen.subjective.srq[0].slot).toBe('B.Q3');
     expect(T.shortfallOf(t, S)).toEqual([{ slot: 'A.Q2', have: 0, need: 2 }]);
   });
-  test('a stimulus group as the format writes it becomes {stimulus:{text, items}}; written sub-parts stay parts', () => {
+  test('a stimulus group as the format writes it becomes {stimulus:{text, items}}; in a stimulus slot "parts" are its items', () => {
+    // bd-qyi45h.14: G11 Physics (13 Nov dry run) wrote 4 of 6 passage groups with "parts"; D12 counted 12 of 24 and failed it
     const t = T.fromReply({ 'A.Q2': [{ stimulus: 'passage', items: [{ question: 'x', tag }, { question: 'y', tag }] }, { stimulus: 'table', parts: [{ question: 'z', tag }] }] }, S);
     const [g, p] = t.unseen.objective.scenario;
     expect(g).toEqual({ slot: 'A.Q2', stimulus: { text: 'passage', items: [{ question: 'x', tag }, { question: 'y', tag }] } });
-    expect(p).toEqual({ slot: 'A.Q2', stimulus: { text: 'table' }, parts: [{ question: 'z', tag }] });
+    expect(p).toEqual({ slot: 'A.Q2', stimulus: { text: 'table', items: [{ question: 'z', tag }] } });
+    expect(T.isGroup(p)).toBe(true);
     expect(T.liveCounts(t).get('A.Q2')).toBe(3);
+  });
+  test('in a stimulus slot a loose question (no stimulus) is not taken: it would crowd real groups out of the trim', () => {
+    // bd-qyi45h.14: G11 Physics rewrite (13 Nov trace) came back as 16 loose items; trimExcess kept 5 of them over a group
+    const t = T.fromReply({ 'A.Q2': [{ question: 'loose', tag }, { stimulus: 'passage', items: [{ question: 'x', tag }, { question: 'y', tag }] }] }, S);
+    expect(t.unseen.objective.scenario).toHaveLength(1);
+    expect(T.isGroup(t.unseen.objective.scenario[0])).toBe(true);
+    expect(T.liveCounts(t).get('A.Q2')).toBe(2);
+  });
+  test('outside a stimulus slot, written sub-parts under a stimulus stay parts', () => {
+    const t = T.fromReply({ 'B.Q3': [{ stimulus: 'table', parts: [{ question: 'z', tag }] }] }, S);
+    expect(t.unseen.subjective.srq[0]).toEqual({ slot: 'B.Q3', stimulus: { text: 'table' }, parts: [{ question: 'z', tag }] });
   });
   test('keys that are not slot ids, teacher-marked slots and non-lists are ignored; the input is not mutated', () => {
     const reply = { objective: { MCQ: [{ question: 'a', tag }] }, 'C.Q9': [{ question: 'q', tag }], 'A.Q1': 'not a list' };

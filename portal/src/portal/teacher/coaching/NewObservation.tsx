@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Check, ChevronDown, Mic, Pause, Save, Square, Upload } from 'lucide-react';
+import { Check, ChevronDown, ImageIcon, Mic, Pause, Save, Send, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { isOffline, SendError, sendLesson } from '../../lib/coachingSend';
+import { holdPhoto, isRefused } from '../../lib/pickedRead';
 import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
@@ -278,7 +279,11 @@ export function NewObservationPage() {
   const uploaded = useRef(new WeakMap<Blob, string>());
   // bd-bmc9a0.2 — Try again repeats what she asked for: a failed Save is saved again, never turned into a Submit.
   const lastSave = useRef(false);
-  const submit = async ({ saveForLater = false }: { saveForLater?: boolean } = {}) => {
+  /**
+   * bd-r2uzg1.9 (ICT IAB row 29) — `photos`: what to send when it is not the grid as drawn — "Send without it" sends
+   * the grid less the photo that would not open, at once, before the state has caught up.
+   */
+  const submit = async ({ saveForLater = false, photos: these = photos }: { saveForLater?: boolean; photos?: File[] } = {}) => {
     if (!audio || !cls) return;
     lastSave.current = saveForLater;
     setFailure(null);
@@ -288,7 +293,7 @@ export function NewObservationPage() {
       const { coachingSessionId } = await sendLesson({
         audio: isSavedAudio(audio) ? { key: audio.key } : { blob: audio.blob, filename: audio.filename },
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
-        photos,
+        photos: these,
         teacherClass: { grade: cls.grade, subject: cls.subject, ...(cls.subjectKey ? { subjectKey: cls.subjectKey } : {}) },
         liveMoves: peekDraft()?.live ?? null,
         uploaded: uploaded.current,
@@ -309,6 +314,34 @@ export function NewObservationPage() {
     } finally {
       setSending(null);
     }
+  };
+
+  /**
+   * bd-r2uzg1.9 — ICT IAB row 29: photo N would not open at Submit (the phone had lost the photo it picked; she pressed
+   * Submit up to 94 times on one). Change photo picks one in its place, read at once like any photo; Send without it
+   * sends the rest now. Either way one photo never holds the lesson back.
+   */
+  const changeInput = useRef<HTMLInputElement>(null);
+  const [changeProblem, setChangeProblem] = useState<'not_a_photo' | 'wont_open' | null>(null);
+  useEffect(() => { setChangeProblem(null); }, [failure]);
+  const badPhoto = failure?.kind === 'network' && failure.detail?.unreadable && failure.detail.part?.kind === 'photo'
+    ? failure.detail.part.photo : 0;
+  const changePhoto = async (picked: File | undefined) => {
+    setChangeProblem(null);
+    if (!picked || !badPhoto) return;
+    if (checkFile(picked, 'photo')) { setChangeProblem('not_a_photo'); return; }
+    const out = await holdPhoto(picked);
+    if (isRefused(out)) { setChangeProblem(out.problem); return; }
+    const held = out.file;
+    setPhotos((now) => now.map((p, i) => (i === badPhoto - 1 ? held : p)));
+    setFailure(null);
+  };
+  const sendWithout = () => {
+    if (!badPhoto) return;
+    const rest = photos.filter((_, i) => i !== badPhoto - 1);
+    setPhotos(rest);
+    setChangeProblem(null);
+    void submit({ saveForLater: lastSave.current, photos: rest });
   };
 
   // From the library (bd-fgj73x.5): her class's chapters, to CHOOSE a plan (lessons/ pages with pick=dc; a tap attaches it
@@ -516,7 +549,7 @@ export function NewObservationPage() {
           {ready ? (
             <>
               <p className="mx-1 -mt-1 whitespace-pre-line text-[14px] text-[#6b7280]">{C.photosHint}</p>
-              <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" max={DC_MAX_PHOTOS} camera />
+              <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" max={DC_MAX_PHOTOS} camera readOnPick />
             </>
           ) : null}
 
@@ -535,6 +568,23 @@ export function NewObservationPage() {
                   <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{C.fileWontOpen}</p>
                   {failure.detail.part?.kind === 'audio' ? (
                     <Action tone="outline" icon={Upload} onClick={() => { setFailure(null); audioInput.current?.click(); }}>{C.changeFile}</Action>
+                  ) : null}
+                  {badPhoto ? (
+                    <>
+                      {changeProblem ? (
+                        <p className="m-0 text-[14px] font-semibold text-[#c8331f]">{changeProblem === 'wont_open' ? C.photoWontOpen : C.notAPhoto}</p>
+                      ) : null}
+                      <Action icon={ImageIcon} onClick={() => changeInput.current?.click()}>{C.changePhoto}</Action>
+                      <Action tone="outline" icon={Send} onClick={sendWithout}>{C.sendWithoutPhoto}</Action>
+                      <input
+                        ref={changeInput}
+                        hidden
+                        type="file"
+                        data-testid="dc-photo-change-input"
+                        accept={`${acceptFor('photo')},image/jpeg,image/png`}
+                        onChange={(e) => { void changePhoto(e.target.files?.[0]); e.target.value = ''; }}
+                      />
+                    </>
                   ) : null}
                 </>
               ) : failure.kind === 'network' ? (

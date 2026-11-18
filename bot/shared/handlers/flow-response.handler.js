@@ -788,6 +788,28 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       return true;
     }
 
+    if (visitAction === 'self_dc') {
+      // bd-9bppaz — "My own lesson" in the /observe menu: a principal chose THEMSELVES, which is the Digital Coach,
+      // never an observation (operator, 15 Nov). Must return before the fall-through below, which binds a teacher and
+      // asks for the observation recording. The Classroom Coaching door is the one every coaching entry uses; it sends
+      // the record-your-lesson instruction and arms the declared intent the audio router honours for a leader's own
+      // recording (observe-audio-router hasDeclaredDcIntent). Anyone who may not self-coach gets nothing opened.
+      const { canSelfCoach, canObserve } = require('../config/role-features');
+      if (!user || !canSelfCoach(user) || !canObserve(user)) {
+        logToFile('observe-visit: self_dc from a user who may not self-coach — ignored', { userId, role: user && user.role }, 'warn');
+        return true;
+      }
+      const ObserveState = require('../services/observe/observe-state.service');
+      // Clear any armed capture state, so their own recording is never taken as an observation of someone else.
+      try { await ObserveState.clearState(userId); } catch (_) { /* best effort */ }
+      const MenuService = require('../services/menu.service');
+      const { getOrCreateSession } = require('../database/bot-helpers');
+      let chatSessionId = null;
+      try { chatSessionId = await getOrCreateSession(userId); } catch (_) { /* the door tolerates null */ }
+      await MenuService._handleClassroomCoachingChoice(userId, chatSessionId, phoneNumber, observeLang(user));
+      return true;
+    }
+
     if (visitAction === 'debrief') {
       const ObserveDebrief = require('../services/observe/observe-debrief.service');
       await ObserveDebrief.startDebrief(responseJson.session_id, phoneNumber, user);
@@ -876,9 +898,12 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     const teacherName = result && result.boundTeacher && result.boundTeacher.teacher_name;
     // bd-pni007: with FDE's grade 6-12 tools on for this coach (obs612_coach), the lesson's class (and subject) is
     // asked first; the capture prompt follows the answer. Off (the default): today's capture prompt, unchanged.
+    // bd-hk2jm3: never for a GB visit (FDE is ICT's only): the visit's school and teacher decide, else the coach.
     try {
       const Obs612 = require('../services/observe/obs612/visit');
-      if (user && await Obs612.asksClass(user) && await Obs612.askForObserve(user, phoneNumber, { teacherName })) return true;
+      const bound = (result && result.boundTeacher) || {};
+      const visit = { teacherUserId: bound.user_id || null, schoolExtId: bound.school_ext_id || responseJson.school_ext_id || null };
+      if (user && await Obs612.asksClass(user, visit) && await Obs612.askForObserve(user, phoneNumber, { teacherName })) return true;
     } catch (_) { /* today's capture prompt */ }
     await WhatsAppService.sendMessage(
       phoneNumber,
@@ -1137,6 +1162,7 @@ async function handleAssessmentFlowCompletion(responseJson, from, user, opts = {
         userId: user?.id,
         outputFormat: responseJson?.output_format,
         answerLines: responseJson?.answer_lines,
+        savePaper: responseJson?.save_paper,
       });
     } catch (err) {
       logToFile('[assessment] submit from completion threw', { error: err?.message });

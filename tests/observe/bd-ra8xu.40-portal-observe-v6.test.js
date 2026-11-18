@@ -128,12 +128,25 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     expect(section(out, 'v6_teacher').title).toBe('What the teacher does');
   });
 
-  test('one of Rumi\'s 11: Rumi\'s level pre-filled and ringed, Rumi\'s evidence editable, N/A and Couldn\'t tell offered', async () => {
+  test('one of Rumi\'s 11: Rumi\'s level pre-filled and ringed, Rumi\'s evidence editable; 1-4 only, each its level name (13 Nov)', async () => {
     const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow()));
     const c1 = ind(out, 'C1');
     expect(c1).toMatchObject({ kind: 'dc', field: 'C1', rumi: '3', rating: '3', improvement: 'Next for C1' });
     expect(c1.evidence).toContain('Rumi saw C1 twice.');
-    expect(c1.options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA', 'IE']);
+    expect(c1.options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
+    expect(c1.options.map((o) => o.title)).toEqual(['Not Observed', 'Developing', 'Proficient', 'Highly Effective']);
+    expect(c1.options[2].description).toBe(v6.indicator('C1').levels[2].text);
+  });
+
+  test('an old review that saved N/A keeps that choice on its list, so it still shows', async () => {
+    const a = v6Analysis();
+    const O = require('../../bot/shared/services/observe/observe-fico17-v6');
+    const edits = validEdits({ r_C7: 'NA' });
+    O.applyReview(a, O.buildReview(a, edits), edits, v6Analysis());
+    const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow({ status: 'observer_review_complete', analysis_data: a })));
+    expect(ind(out, 'C7').rating).toBe('NA');
+    expect(ind(out, 'C7').options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']);
+    expect(ind(out, 'C3').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
   });
 
   test('one of the six: blank, with the definition and Rumi\'s evidence above it, and its own options', async () => {
@@ -143,12 +156,12 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     expect(c3.body).toContain(v6.indicator('C3').definition);
     expect(c3.body).toContain('Ali, what do you think?');
     expect(c3.options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
-    expect(ind(out, 'D2')).toMatchObject({ d2: { children: '', quietLater: '' } });
+    expect(ind(out, 'D2').d2).toBeUndefined(); // 13 Nov: no count boxes
     expect(ind(out, 'D2').body).toContain('4 student turns in the first half');
     expect(section(out, 'v6_teacher').changeReason).toBe('');
   });
 
-  test('once saved, the coach\'s own answers come back: her levels, reasons, counts and change reason', async () => {
+  test('once saved, the coach\'s own answers come back: her levels, reasons and change reason', async () => {
     const a = v6Analysis();
     const O = require('../../bot/shared/services/observe/observe-fico17-v6');
     const edits = validEdits({ r_C1: '2', chg_C: 'Only one open question was asked, not two.', ev_C1: 'One open question at 03:10.', d2_children: '4', d2_quiet_later: '1' });
@@ -157,8 +170,18 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     expect(out.saved).toBe(true);
     expect(ind(out, 'C1')).toMatchObject({ rating: '2', rumi: '3', evidence: 'One open question at 03:10.' });
     expect(ind(out, 'C3')).toMatchObject({ rating: '3', why: WHY });
-    expect(ind(out, 'D2')).toMatchObject({ d2: { children: '4', quietLater: '1' } });
+    expect(ind(out, 'D2').d2).toBeUndefined();
     expect(section(out, 'v6_teacher').changeReason).toBe('Only one open question was asked, not two.');
+  });
+
+  test('a review saved on WhatsApp with a reason per indicator opens with those reasons as the part\'s', async () => {
+    const a = v6Analysis();
+    const O = require('../../bot/shared/services/observe/observe-fico17-v6');
+    const edits = validEdits({ r_C1: '2', chg_C1: 'Only one open question was asked, not two.' });
+    delete edits.chg_C;
+    O.applyReview(a, O.buildReview(a, edits), edits, v6Analysis());
+    const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow({ status: 'observer_review_complete', analysis_data: a })));
+    expect(section(out, 'v6_teacher').changeReason).toBe('C1: Only one open question was asked, not two.');
   });
 
   test('a V3 visit is served as before, with its own label', async () => {
