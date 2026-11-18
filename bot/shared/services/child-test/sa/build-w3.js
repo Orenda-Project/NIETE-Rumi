@@ -537,7 +537,7 @@ function r28Tasks(f, { r28 }, w3List, H) {
       const p = r28.mcq.practice[lang];
       Object.assign(t, { task: `${lang}.story_mcq_w3`, r28: 'mcq', replaces: comp.task, kind: 'mcq', response: 'tap', replay_at_s: 10, next_at_s: 15,
         title: R28_TITLE.mcq, script: script(R28_LINES.mcq_intro), coach_text: coach('mcq'),
-        mcq_practice: p ? [{ id: `${lang}.story_mcq_w3.p1`, role: 'practice', passage: p.passage, prompt: { text: p.question, lang, audio: v5(said, lang, p.question) }, options: p.options,
+        mcq_practice: p ? [{ id: `${lang}.story_mcq_w3.p1`, role: 'practice', passage: { text: p.passage, audio: v5(said, lang, p.passage) }, prompt: { text: p.question, lang, audio: v5(said, lang, p.question) }, options: p.options,
           option_audio: p.options.map((o) => v5(said, lang, o)), target_index: p.target_index, src: p.src }] : [] });
       out.push(t);
     }

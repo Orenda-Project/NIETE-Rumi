@@ -188,6 +188,23 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
     }
   });
 
+  test('story_mcq_w3 practice: the passage carries its own clip, keyed on its unchanged text', () => {
+    const key = (l, text) => `sa/v5/${l}/${require('crypto').createHash('sha1').update(`${l}|${text}`).digest('hex').slice(0, 12)}.mp3`;
+    expect([key('ur', r28.mcq.practice.ur.passage), key('en', r28.mcq.practice.en.passage)])
+      .toEqual(['sa/v5/ur/402c6898531d.mp3', 'sa/v5/en/6a1d9b5ad1c4.mp3']);
+    const files = splitSaBankWithRuntime(buildSaBank({ v3, extra, w3, r28 }));
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      for (const b of [runtime(form, lang), JSON.parse(JSON.stringify(files[`sa/sa.${form}.${lang}.json`]))]) {
+        for (const l of ['ur', 'en']) {
+          const [p, ...more] = byId(b)[`${l}.story_mcq_w3`].practice;
+          expect(more).toEqual([]);
+          expect([form, lang, l, p.passage]).toEqual([form, lang, l, { text: r28.mcq.practice[l].passage, audio: key(l, r28.mcq.practice[l].passage) }]);
+          expect(p.target_index).toBe(1);
+        }
+      }
+    }
+  });
+
   test('served OFF: no r28 task, no r28_tasks, no ext_items, base_n or ext_stop anywhere', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       for (const on of [{}, { rdfW3Forms: true }]) {
