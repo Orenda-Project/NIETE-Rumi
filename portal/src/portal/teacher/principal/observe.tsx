@@ -22,6 +22,9 @@ const BASE = "/portal/teacher/principal";
 const seg = encodeURIComponent;
 
 export const PRINCIPAL_PICK = `${BASE}/pick`;
+/** bd-31ziu8 — a principal books a visit as a coach does: the day and time for the picked teacher, then My schedule. */
+export const principalNewVisitPath = (ext: string) => `${BASE}/new-visit?teacher=${seg(ext)}`;
+export const PRINCIPAL_SCHEDULE = `${BASE}/schedule`;
 /** bd-33wxxi.9.3 — the picked teacher's page: the coach's visit screen (Start recording / Upload recording, the Teacher card). */
 export const principalVisitPath = (ext: string) => `${BASE}/visit/${seg(ext)}`;
 export const principalCheckPath = (ext: string) => `${BASE}/observe/${seg(ext)}`;

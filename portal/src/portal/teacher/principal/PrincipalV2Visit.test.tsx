@@ -93,12 +93,13 @@ describe("the principal app v2: a picked teacher opens the coach's visit screen"
     await i18n.changeLanguage("en");
   });
 
-  it("Pick the teacher: a row opens her visit screen", async () => {
+  // bd-31ziu8 (operator 18 Nov ~16:40: principals schedule "the same as coach"): a row books the visit first.
+  it("Pick the teacher: a row opens booking a day and time for her (the visit screen opens from My schedule)", async () => {
     serve();
     open("/portal/teacher/principal/pick");
     await screen.findByText("Ayesha Sample", {}, T);
     const ayesha = screen.getAllByRole("link").find((a) => /Ayesha/.test(a.textContent || ""));
-    expect(ayesha?.getAttribute("href")).toBe(VISIT);
+    expect(ayesha?.getAttribute("href")).toBe("/portal/teacher/principal/new-visit?teacher=900001");
   });
 
   it("the squares go to her own record / upload steps; no Reschedule, no Cancel visit; nothing read or made at the coach's visit API", async () => {

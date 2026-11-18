@@ -22,6 +22,7 @@
  */
 
 const O = require('../../coaching/frameworks/obs612');
+const FicoS = require('../../coaching/frameworks/fico-s');
 const { obs612View, num } = require('./view');
 const { SUBJECT_LABELS, urDigits } = require('./strings');
 const { clampLanguage } = require('../../../config/ux-strings');
@@ -52,6 +53,12 @@ const clip = (s) => {
   return cps.length <= NOTE_MAX ? cps.join('') : `${cps.slice(0, NOTE_MAX - 1).join('')}…`;
 };
 
+// A FICO-S band in Urdu: it shares its name with the level of the same rank (Exemplary = 4 … Below standard = 1).
+function bandUr(label) {
+  const hit = Object.entries(FicoS.LEVEL_LABELS).find(([, v]) => v === label);
+  return hit ? FicoS.levelName(Number(hit[0]), 'ur') : ltr(label);
+}
+
 const STRINGS = {
   en: {
     d: asIs,
@@ -59,7 +66,13 @@ const STRINGS = {
     sep: ', ',
     saved: '✅ Saved.',
     grade: (g) => `Grade ${g}`,
-    tools: { msci: 'Maths & Science tool', enur: 'English & Urdu tool', gen: 'General form' },
+    tools: { msci: 'Maths & Science tool', enur: 'English & Urdu tool', gen: 'General form', ficos: 'FICO 6-12' },
+    // bd-31ziu8 — a FICO-S visit's result: '66 / 88 · 75% · Proficient', the section averages, highest and lowest.
+    ficos: (v) => `${v.total} / ${v.max} · ${num(v.pct)}%${v.band ? ` · ${v.band}` : ''}`,
+    ficosSections: (secs) => secs.filter((s) => s.average !== null).map((s) => `${s.key} ${s.average.toFixed(1)}`).join(' · '),
+    ficosInd: (i) => `${i.code} ${i.name}`,
+    ficosNa: (codes) => `N/A: ${codes.join(', ')}`,
+    stop: '. ',
     enur: (v) => `${v.total} / ${v.max} · ${num(v.score_108)} / 108 · ${v.band}`,
     gen: (v) => `Yes on ${v.yes} of ${v.of}`,
     msci: (n) => `${n} indicators, Level 0-3. FDE gives no total.`,
@@ -92,7 +105,12 @@ const STRINGS = {
     sep: '، ',
     saved: '✅ محفوظ ہو گیا۔',
     grade: (g) => `جماعت ${urDigits(g)}`,
-    tools: { msci: 'ریاضی اور سائنس ٹول', enur: 'انگریزی اور اردو ٹول', gen: 'عمومی فارم' },
+    tools: { msci: 'ریاضی اور سائنس ٹول', enur: 'انگریزی اور اردو ٹول', gen: 'عمومی فارم', ficos: ltr('FICO 6-12') },
+    ficos: (v) => `${urDigits(v.max)} میں سے ${urDigits(v.total)} · ${urDigits(num(v.pct))}٪${v.band ? ` · ${bandUr(v.band)}` : ''}`,
+    ficosSections: (secs) => secs.filter((s) => s.average !== null).map((s) => `${ltr(s.key)} ${urDigits(s.average.toFixed(1))}`).join(' · '),
+    ficosInd: (i) => `${ltr(i.code)} ${FicoS.indicatorText(i.code, 'ur').name}`,
+    ficosNa: (codes) => `لاگو نہیں: ${codes.map(ltr).join('، ')}`,
+    stop: '۔ ',
     enur: (v) => `${urDigits(v.total)} / ${urDigits(v.max)} · ${urDigits(num(v.score_108))} / ${urDigits(108)} · ${ltr(v.band)}`,
     gen: (v) => `${urDigits(v.of)} میں سے ${urDigits(v.yes)} پر ہاں`,
     msci: (n) => `${urDigits(n)} نکات، لیول ۰ تا ۳۔ ایف ڈی ای اس ٹول کا کوئی مجموعی اسکور نہیں دیتا۔`,
@@ -143,6 +161,16 @@ const indicatorName = (i, L) => L.fde(`${i.n} ${i.short}`);
 
 function resultLines(v, L) {
   const tool = L.tools[v.tool];
+  if (v.tool === 'ficos') {
+    const f = v.ficos;
+    const lines = [`${tool}: ${f.pct === null ? '—' : L.ficos(f)}`];
+    const secs = L.ficosSections(f.sections);
+    if (secs) lines.push(secs);
+    if (v.strongest.length && !v.even) lines.push(`${L.highest}: ${v.strongest.map(L.ficosInd).join(L.sep)} (${L.level(v.strongest[0].level)})`);
+    if (v.lowest.length) lines.push(`${L.lowest}: ${v.lowest.map(L.ficosInd).join(L.sep)} (${L.level(v.lowest[0].level)})`);
+    if (f.na.length) lines.push(L.ficosNa(f.na));
+    return lines;
+  }
   if (v.tool === 'enur') {
     const lines = [`${tool}: ${L.enur(v.enur)}`];
     if (v.even) lines.push(L.even);
@@ -181,6 +209,17 @@ function planMove(p) {
 
 function talkLines(v, L) {
   const lines = [];
+  if (v.tool === 'ficos') {
+    if (v.feedback.strengths) lines.push(bullet(L.start, own(clip(v.feedback.strengths))));
+    for (const p of v.plan) {
+      const ind = v.ficos.indicators.find((i) => i.code === p.code);
+      const head = ind ? L.ficosInd(ind) : p.code;
+      lines.push(bullet(L.workOn, `${head}${ind && ind.level !== null ? ` (${L.level(ind.level)})` : ''}${p.action ? `${L.stop}${own(clip(p.action))}` : ''}`));
+      if (ind && ind.evidence) lines.push(bullet(L.note, own(clip(ind.evidence))));
+    }
+    if (v.feedback.by_when) lines.push(bullet(L.by, own(clip(v.feedback.by_when))));
+    return lines;
+  }
   if (v.tool === 'enur') {
     const f = v.feedback;
     if (f.strengths) lines.push(bullet(L.start, own(clip(f.strengths))));
@@ -246,6 +285,16 @@ function buildSummaryMessages(sessionId, analysis, { lang, teacherName } = {}) {
   const { observeStrings } = require('../observe-strings');
   const { buildSendChoiceButtons } = require('../observe-send.service');
   // The send flow's own ids and titles (observe_send_start_ / observe_send_later_): a tap lands in startSendFlow.
+  const v = obs612View(analysis);
+  // bd-31ziu8 — FICO-S is the coach HITL flow (operator 18 Nov ~16:35): after the review comes the debrief, offered
+  // exactly as after a FICO review (Debrief now / later, observe-debrief's own buttons and ids); the report and Send
+  // follow the debrief. FDE's tools keep their send-report buttons.
+  if (v && v.tool === 'ficos') {
+    const S = observeStrings(L.lang);
+    const debrief = require('../observe-debrief-buttons').buildDebriefChoiceButtons(sessionId, S);
+    const mergedD = joinWithinCap([summary, debrief.body], BODY_CAP);
+    return { summary, lead: mergedD ? null : summary, buttons: { ...debrief, body: mergedD || debrief.body } };
+  }
   const choice = buildSendChoiceButtons(sessionId, observeStrings(L.lang));
   const ask = L.ask(String(teacherName || '').trim());
   const merged = joinWithinCap([summary, ask], BODY_CAP);
