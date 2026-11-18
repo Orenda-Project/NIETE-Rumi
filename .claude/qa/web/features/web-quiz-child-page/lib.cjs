@@ -90,6 +90,15 @@ async function setMode(ctx, page, mode, code) {
   throw new Error('the bot still serves identity mode "' + seen + '" 45 s after setting "' + mode + '"');
 }
 
+// Family phone binding: web_quiz_phone_bind is effective only with web_quiz_identity_canon on (and WQ_TOMB_SALT in the
+// lane env: web-quiz-identity-flags.js). Both on, then one cache wait; setMode puts them back off for another mode.
+async function idSwitchesOn(ctx, page) {
+  const on = await rows(ctx, "select key from app_settings where key in ('web_quiz_identity_canon', 'web_quiz_phone_bind') and value::text = 'true'");
+  idSwitches.on = true;
+  if (on.length === 2) return;
+  await base.setSetting(ctx, 'web_quiz_identity_canon', 'true');
+  await setFlag(ctx, page, 'web_quiz_phone_bind', 'true');   // the bot caches identity switches 30 s
+}
 // Any other app_settings switch the bot reads with a 30 s cache: set it, then either wait for `seen(boot)` to hold on
 // the page's boot payload, or (for a switch that only shows at finish time) wait the cache out.
 async function setFlag(ctx, page, key, value, seen, code) {
@@ -105,6 +114,18 @@ async function setFlag(ctx, page, key, value, seen, code) {
     await sleep(2000);
   }
   throw new Error('the bot still does not reflect ' + key + ' = ' + value + ' after 45 s');
+}
+// The polished Urdu look is one switch (app_settings web_quiz_ur_polish → payload ui.ur2 → the edge's wq-ur2 root class).
+// Off in the seed snapshot: a scenario that needs it switches it on and removes it again after (in its finally).
+async function urPolish(ctx, page, on) {
+  await setFlag(ctx, page, 'web_quiz_ur_polish', on ? 'true' : null, null);
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    const html = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.UR)).text();
+    if (/class="wq-ur2"/.test(html) === on) return;
+    await sleep(2000);
+  }
+  throw new Error('the Urdu page does not reflect web_quiz_ur_polish=' + on + ' after 60 s');
 }
 // The bot's log for this run (pino JSON lines), for server-written events a scenario asserts.
 // The bot, worker and portal write pino's pretty log: a header line, then one indented `key: value` line per field.
@@ -128,6 +149,12 @@ function botLog(ctx) { return flatLog(rawLog(ctx, 'bot.log')); }
 function workerLog(ctx) { return flatLog(rawLog(ctx, 'worker.log')); }
 function portalLog(ctx) { return flatLog(rawLog(ctx, 'portal.log')); }
 
+// What a page is showing, for a failure message when a wait misses (the screen marker, the address, the first words).
+const showing = (page) => page.evaluate(() => { const r = document.getElementById('wq'); return { m: r ? r.getAttribute('data-m') : null, url: location.pathname + location.search, body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 200) }; }).catch((e) => ({ err: String(e.message || e).slice(0, 80) }));
+async function waitOr(page, sel, what) {
+  try { return await page.waitForSelector(sel, { state: 'attached', timeout: WAIT }); }
+  catch (err) { throw new Error(what + ': ' + JSON.stringify(await showing(page))); }
+}
 // ── opening the page ──────────────────────────────────────────────────────────────────────────────────────────────
 const FIRST = '#wq-play, #wq-play-as, #wq-cont, .wq-scorecard, .wq-closed, .wq-kid-big, #wq-someone, #wq-card, #wq-sync, ' + onScreen('M3-teacher') + ', ' + onScreen('M6') + ', ' + onScreen('M4-name') + ', ' + onScreen('M4-class') + ', .wqc';
 async function openQuiz(page, ctx, code, query) {
@@ -345,6 +372,6 @@ function events(page) {
   };
 }
 
-module.exports = { idSwitches, reachPlan, reachGo, reachFast, finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
+module.exports = { showing, waitOr, idSwitches, idSwitchesOn, urPolish, reachPlan, reachGo, reachFast, finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
   q, one, rows, codeRow, teacherOf, studentNamed, tokens, bot, setMode, openQuiz, startAsNew, current, wrongSlot,
   tapAndNext, play, toResults, finishAsNew, newPhone, stored, remember, chipFor, events, base };

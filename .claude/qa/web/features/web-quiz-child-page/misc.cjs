@@ -8,7 +8,10 @@ const M = (m) => onScreen(m);
 const modes = {}, runs = {};
 const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
 const BANK = 'the video library is the lesson bank (student_videos rows with lesson videos in the file store), absent from the demo seed';
-const WA_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 WhatsApp/2.24.10.74 A';
+// WhatsApp's link-preview fetcher is exactly "WhatsApp/2.x.x.x A|I|N" (web-quiz-preview.js PREVIEW_UA_RX). A user agent
+// that starts "Mozilla/" is a browser — WhatsApp's own in-app browser included — and gets the live page, never the preview.
+const WA_UA = 'WhatsApp/2.24.10.74 A';
+const WA_BROWSER_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 [WA4A/2.24.10.74;]';
 
 async function api(page, ctx, method, p, body) {
   const url = ctx.baseUrl + '/api/wq/' + p;
@@ -42,6 +45,8 @@ on('WQ175', 'off', async (page, ctx) => {
   expect(!/<script id="boot"/.test(html), 'the preview fetch got the whole quiz');
   const live = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.G3)).text();
   expect(/<script id="boot"/.test(live), 'a browser no longer gets the live quiz');
+  const inApp = await (await page.request.get(ctx.baseUrl + '/q/' + CODES.G3, { headers: { 'user-agent': WA_BROWSER_UA } })).text();
+  expect(/<script id="boot"/.test(inApp), 'WhatsApp\'s in-app browser (a child) got the preview, not the live quiz');
   return { previewQuizLoads: 0, note: 'the picture answered from the edge after a warm-up is WQ180/WQ183\'s check' };
 });
 
@@ -97,10 +102,16 @@ on('WQ184', 'off', async (page, ctx) => {
   const me = await apiFinish(page, ctx, CODES.OPEN, 'Trace184', -1);
   await sleep(1500);
   const before = L.portalLog(ctx).split('\n').filter((l) => /web_quiz\.art_edge/.test(l)).length;
-  await page.request.get(ctx.baseUrl + '/q/' + CODES.OPEN + '/art/card.jpg?a=' + encodeURIComponent(me.result.art.card), { headers: { 'user-agent': WA_UA } });
-  await page.request.get(ctx.baseUrl + '/q/' + CODES.OPEN + '/art/card.jpg?a=' + encodeURIComponent(me.result.art.card));
+  const f1 = await page.request.get(ctx.baseUrl + '/q/' + CODES.OPEN + '/art/card.jpg?a=' + encodeURIComponent(me.result.art.card), { headers: { 'user-agent': WA_UA } });
+  const f2 = await page.request.get(ctx.baseUrl + '/q/' + CODES.OPEN + '/art/card.jpg?a=' + encodeURIComponent(me.result.art.card));
+  expect(f1.status() === 200 && f2.status() === 200, 'the card picture answered ' + f1.status() + ' / ' + f2.status());
   await sleep(800);
   const lines = L.portalLog(ctx).split('\n').filter((l) => /web_quiz\.art_edge/.test(l)).slice(before);
+  // The portal's logEvent (dashboard/services/telemetry.service.js) ships to Axiom ONLY and prints no console line;
+  // this lane's portal runs without AXIOM_* on purpose (dev-portal.sh: nothing leaves the laptop), so art_edge can
+  // never reach portal.log here. The two fetches above are still made (and must answer); the trace itself is not
+  // provable on this lane.
+  if (!lines.length && !process.env.AXIOM_DATASET) return { blocked: 'web_quiz.art_edge is sent by the portal\'s telemetry.service to Axiom only (no console line), and this lane\'s portal has no AXIOM_DATASET/AXIOM_TOKEN (dev-portal.sh), so the trace cannot be read here; the edge code that writes it is dashboard/routes/web-quiz.routes.js artRoute' };
   expect(lines.length >= 2, 'the portal logged ' + lines.length + ' art_edge lines for two fetches');
   for (const l of lines) {
     expect(/"kind":"card"/.test(l), 'no picture kind: ' + l.slice(0, 200));
