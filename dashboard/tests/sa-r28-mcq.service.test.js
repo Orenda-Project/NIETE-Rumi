@@ -1575,6 +1575,22 @@ function mounted(html) {
   if ((MOUNT.sync || MOUNT.embed) && (out === html || !lang)) throw new Error('mount not applied');
   return out;
 }
+/** A frame captured for a person (the shot dirs). The stand-in hold row above is drawn at BOTH top corners so every hit
+ *  test reads against either; the served coach page draws one, at the portal's start. With SA_SHOT_ONE_HOLD=1 the
+ *  far-side row (the one whose direction is not the page's: an Urdu/RTL page keeps the right-hand row, an English/LTR
+ *  page the left) is hidden for the capture alone and put back at once, so no hit test ever runs without it. Without
+ *  the flag this is page.screenshot(opts), unchanged. */
+async function personShot(p, opts) {
+  if (process.env.SA_SHOT_ONE_HOLD !== '1') return p.screenshot(opts);
+  await p.evaluate(() => {
+    const root = document.querySelector('.sae') || document.body; const dir = getComputedStyle(root).direction;
+    document.querySelectorAll('.coach-hold-row').forEach((r) => { if (r.dir !== dir) { r.dataset.shotHidden = r.style.visibility || '-'; r.style.visibility = 'hidden'; } });
+  });
+  try { return await p.screenshot(opts); } finally {
+    await p.evaluate(() => document.querySelectorAll('.coach-hold-row[data-shot-hidden]').forEach((r) => {
+      r.style.visibility = r.dataset.shotHidden === '-' ? '' : r.dataset.shotHidden; delete r.dataset.shotHidden; }));
+  }
+}
 
 /** Round 7: the coach's line, one line at a time (A6's per-line ink method). Its text is split at its line breaks
  *  into spans laid out exactly as before, every other element on the screen hidden, one line's text drawn at a time;
@@ -1658,7 +1674,7 @@ afterAll(() => { if (process.env.SA_B10_SIZES) require('fs').writeFileSync(proce
 /** The B10 shot of a frame under the production mount (SA_B10_SHOTS). */
 async function b10Shot(p, what, lang) {
   if (!process.env.SA_B10_SHOTS || MOUNT !== MOUNTS.prod) return;
-  await p.screenshot({ path: require('path').join(process.env.SA_B10_SHOTS, `b10_${what}_${lang}_phone_coach.png`) });
+  await personShot(p, { path: require('path').join(process.env.SA_B10_SHOTS, `b10_${what}_${lang}_phone_coach.png`) });
 }
 
 /** The bank's longest question (code points) and longest four-answer set, per language: the worst case for the fit. */
@@ -1776,7 +1792,7 @@ maybeBrowser('sa_r28_mcq coach-led on a 360×640 phone: four whole cards, the re
       out[name] = await p.evaluate(measure);
       out[name].frame = await frameRead(p);
       if (inkLine) out[name].coach_ink = out[name].frame.line.length ? await coachLineInk(p) : null;
-      if (shots) await p.screenshot({ path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
+      if (shots) await personShot(p, { path: path.join(shots, `${name}_${lang}${urFit ? '' : '_plain'}.png`) });
       if (urFit && !inkLine && B10SHOT[name]) await b10Shot(p, B10SHOT[name], lang);
     };
     const endLine = async (p, gapMs) => { await p.evaluate(() => window.__end()); await p.waitForTimeout(gapMs); };
@@ -2369,13 +2385,13 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
       out[name] = await p.evaluate(measure);
       out[name].frame = await frameRead(p);
       out[name].stem_above = await stemAbove(p);
-      if (shots && SHOT[name]) await p.screenshot({ path: path.join(shots, `b9_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
+      if (shots && SHOT[name]) await personShot(p, { path: path.join(shots, `b9_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
       if (ui.r9_skip_instructions && B10SHOT[name]) await b10Shot(p, B10SHOT[name], lang);
       // round 10: the coach's line on the passage step (above, the step that precedes every question), one line at a time
       if (name === 'passage' && out[name].frame.line.length) out[name].coach_ink = await coachLineInk(p);
       if (name === 'foldopen' && out[name].frame.line.length) out[name].coach_ink = await coachLineInk(p);
       // the coach's Next exists only without the Skip: that frame is shot from the no-Skip walk
-      if (process.env.SA_B9_SHOTS && !ui.r9_skip_instructions && name === 'passage_next') await p.screenshot({ path: path.join(process.env.SA_B9_SHOTS, `b9_practice_passagenext_noskip_${lang}_phone_coach.png`) });
+      if (process.env.SA_B9_SHOTS && !ui.r9_skip_instructions && name === 'passage_next') await personShot(p, { path: path.join(process.env.SA_B9_SHOTS, `b9_practice_passagenext_noskip_${lang}_phone_coach.png`) });
     };
     const { ctx, p } = await open(lang, ui);
     // the passage step (the first clip asked is the passage's), then a tap on its text at +1 s: the step goes on
@@ -2645,7 +2661,7 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
       await p.waitForTimeout(200);
       out[name] = await p.evaluate(measure);
       out[name].stem_above = await stemAbove(p);
-      if (shots && SHOT[name] && ui.r9_skip_instructions) await p.screenshot({ path: path.join(shots, `b8_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
+      if (shots && SHOT[name] && ui.r9_skip_instructions) await personShot(p, { path: path.join(shots, `b8_practice_${SHOT[name]}_${lang}_phone_coach.png`) });
     };
     let { ctx, p } = await open(lang, ui);
     await snap(p, 'listening');
@@ -2673,7 +2689,7 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
     await p.waitForTimeout(900); // settle + press: the practice's feedback
     out.feedback = await p.evaluate(measure);
     out.feedback.stem_above = await stemAbove(p);
-    if (shots && ui.r9_skip_instructions) await p.screenshot({ path: path.join(shots, `b8_practice_feedback_${lang}_phone_coach.png`) });
+    if (shots && ui.r9_skip_instructions) await personShot(p, { path: path.join(shots, `b8_practice_feedback_${lang}_phone_coach.png`) });
     await p.waitForTimeout(1600); // the retry: the same question read again
     for (let k = 0; k < 5; k++) await endLine(p, k === 0 ? 900 : 600);
     await p.waitForTimeout(300);
@@ -2910,15 +2926,15 @@ maybeBrowser('sa_r28_mcq RDF auto on a 360×640 Urdu phone: the two-line questio
       if (await p.evaluate(() => { window.__view.render(); return !!document.querySelector('.sa-next'); })) break;
     }
     out.offernext = await read(p, dpr, vw);
-    if (process.env.SA_RDF_Q_SHOTS && MOUNT === MOUNTS.prod && !vw) await p.screenshot({ path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_offernext.png`) });
+    if (process.env.SA_RDF_Q_SHOTS && MOUNT === MOUNTS.prod && !vw) await personShot(p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_offernext.png`) });
     await ctx.close();
     if (process.env.SA_RDF_Q_SHOTS && MOUNT === MOUNTS.prod && !vw) {
       // the three states, shot again on a fresh page at this DPR (the read above restores the page after its ink read)
       const s = await open(set, dpr, manual, lang);
-      await s.p.screenshot({ path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_listening.png`) });
+      await personShot(s.p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_listening.png`) });
       for (let k = 0; k < 5; k++) { await s.p.evaluate(() => window.__end()); await s.p.waitForTimeout(k === 0 ? 900 : 600); }
       await s.p.waitForTimeout(250);
-      await s.p.screenshot({ path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_open.png`) });
+      await personShot(s.p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `q_${set}_${lang || 'ur'}_${manual ? 'coach' : 'auto'}_dpr${dpr}_open.png`) });
       await s.ctx.close();
     }
     return out;
@@ -3020,7 +3036,7 @@ maybeBrowser('sa_r28_mcq RDF auto on a 360×640 Urdu phone: the two-line questio
         }
         await p.waitForTimeout(250);
         const offer_ink = await qLineInk(p, dpr); const offer_reach = await reach(p);
-        if (process.env.SA_RDF_Q_SHOTS) await p.screenshot({ path: path.join(process.env.SA_RDF_Q_SHOTS, `lines_${set}_${id}_dpr${dpr}_offernext.png`) });
+        if (process.env.SA_RDF_Q_SHOTS) await personShot(p, { path: path.join(process.env.SA_RDF_Q_SHOTS, `lines_${set}_${id}_dpr${dpr}_offernext.png`) });
         await ctx.close();
         rows[id] = { read_ink, read_reach, offer_ink, offer_reach };
       }
