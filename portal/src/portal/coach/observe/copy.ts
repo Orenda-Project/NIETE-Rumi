@@ -127,6 +127,10 @@ export const OBSERVE_COPY = {
   kindPhoto: 'Photo',
   upToMb: (n = 0) => `Up to ${n} MB`,
   notPlanFile: 'Not a plan file',
+  /* bd-tymy1n (queue #179) — a file the phone will not open, refused when she picks it (the teacher app's words) */
+  fileWontOpen: 'File will not open',
+  /** bd-tymy1n — Send again without the photo or plan the phone could not read (the teacher app's words) */
+  sendWithoutIt: 'Send without it',
   planChip: (kind = '') => `Plan · ${kind}`.trim(),
   lpReading: 'Reading',
   lpRead: 'Read',
@@ -168,6 +172,10 @@ export const OBSERVE_COPY = {
     plan: 'That lesson plan could not be used. Select another, or take a photo of the plan.',
     notYourTeacher: 'That teacher is not in your schools any more.',
     refused: 'Something was not accepted. Please try again.',
+    /* bd-tymy1n — a file this phone could not read at Send: not the internet; say which, and the way on */
+    photoUnreadable: (n = 0) => `Photo ${n} could not be read on this phone. Send without it.`,
+    planUnreadable: 'The lesson plan could not be read on this phone. Send without it.',
+    recordingUnreadable: 'The recording could not be read on this phone. Select the file again.',
   },
 
   /** Short weekday and month names, for "Tue 6 Oct" (index 0 = Sunday / January). */
@@ -284,6 +292,8 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   kindPhoto: 'تصویر',
   upToMb: (n = 0) => `${n} MB تک`,
   notPlanFile: 'پلان کی فائل نہیں',
+  fileWontOpen: 'فائل نہیں کھل رہی',
+  sendWithoutIt: 'اس کے بغیر بھیجیں',
   planChip: (kind = '') => `پلان · ${kind}`.trim(),
   lpReading: 'پڑھا جا رہا ہے',
   lpRead: 'پڑھ لیا',
@@ -321,6 +331,9 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
     plan: 'وہ لیسن پلان استعمال نہیں ہو سکا۔ دوسرا چنیں، یا پلان کی تصویر لیں۔',
     notYourTeacher: 'یہ ٹیچر اب آپ کے اسکولوں میں نہیں ہے۔',
     refused: 'کچھ قبول نہیں ہوا۔ براہ کرم دوبارہ کوشش کریں۔',
+    photoUnreadable: (n = 0) => `تصویر ${n} اس فون پر نہیں کھل سکی۔ اس کے بغیر بھیجیں۔`,
+    planUnreadable: 'لیسن پلان اس فون پر نہیں کھل سکا۔ اس کے بغیر بھیجیں۔',
+    recordingUnreadable: 'ریکارڈنگ اس فون پر نہیں کھل سکی۔ فائل دوبارہ چنیں۔',
   },
 
   weekdays: ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'],

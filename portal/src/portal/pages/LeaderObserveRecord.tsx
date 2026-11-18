@@ -19,6 +19,7 @@ import { canRecordHere } from '../lib/recordingSupport';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../lib/recordingStore';
 import { withDuration } from '../lib/webmDuration';
 import { SendError, type LibraryPick } from '../lib/coachingSend';
+import { holdFile, holdPhoto, isFileRefused, isRefused, tellUnreadablePick } from '../lib/pickedRead';
 import type { FinishedRecording } from '../lib/lessonRecorder';
 import {
   entryCopy, firstName, forgetRecording, recordingTeacher, rememberRecording, sendObservation, type UnsentFor,
@@ -82,6 +83,17 @@ const COPY = {
   photosSub: `Up to ${MAX_PHOTOS}. No faces.`,
   tooManyPhotos: `You can add up to ${MAX_PHOTOS} photos.`,
   notAPhoto: 'That is not a photo. Choose a JPG or PNG.',
+  // bd-tymy1n (queue #179): a file the phone will not open, refused when she picks it (the teacher app's words)
+  photoWontOpen: 'Photo will not open',
+  fileWontOpen: 'File will not open',
+  // bd-tymy1n: a file the phone could not read at Send — not the internet; which one, and the way on
+  photoNWontOpen: (n: number) => `Photo ${n} will not open`,
+  planWontOpen: 'The lesson plan will not open',
+  recordingWontOpen: 'The recording will not open',
+  removeItSub: 'Take it out, then send again.',
+  chooseAgainSub: 'Choose the recording again, then send.',
+  removeIt: 'Remove it',
+  chooseItAgain: 'Choose it again',
   notAudio: 'That is not a recording. Choose a sound file from your phone.',
   tooLarge: 'That recording is too large to send.',
   send: 'Send to Digital Coach',
@@ -252,11 +264,17 @@ const LeaderObserveRecord = () => {
   // ── the two ways ─────────────────────────────────────────────────────────
   const recordNow = () => { setWaysSheet(false); setStage('recording'); };
 
-  const onAudioChosen = async (file: File | undefined) => {
+  // bd-tymy1n (queue #179): every file picked on this page is READ when she picks it and sent from those bytes; in the
+  // Android app the picked file could no longer be opened by Send (production 18 Nov, coach Check and send: 8 sends,
+  // each stopped on photo 1 and read as "internet"). A file that will not open is refused here, with its reason logged.
+  const onAudioChosen = async (picked: File | undefined) => {
     setFileError(null);
-    if (!file) return;
-    const problem = checkFile(file, 'audio');
+    if (!picked) return;
+    const problem = checkFile(picked, 'audio');
     if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick('audio', picked, out.errName); setFileError(COPY.fileWontOpen); return; }
+    const file = out.file;
     const seconds = await readAudioDuration(file);
     const durationMs = seconds != null ? seconds * 1000 : null;
     setAudio({
@@ -309,22 +327,33 @@ const LeaderObserveRecord = () => {
     setWaysSheet(true);
   };
 
-  const onPlanFile = (file: File | undefined, asPhoto: boolean) => {
+  const onPlanFile = async (picked: File | undefined, asPhoto: boolean) => {
     setPlanError(null);
-    if (!file) return;
-    if (checkFile(file, 'lesson_plan')) { setPlanError(COPY.planNotOk); return; }
+    if (!picked) return;
+    if (checkFile(picked, 'lesson_plan')) { setPlanError(COPY.planNotOk); return; }
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick('lesson_plan', picked, out.errName); setPlanError(COPY.fileWontOpen); return; }
+    const file = out.file;
     setPlan({ kind: 'file', file, title: asPhoto ? COPY.photoOfPlan : file.name, sub: asPhoto ? COPY.takenNow : `File · ${formatSize(file.size)}` });
     setPlanSheet(false);
   };
 
-  const onPhotos = (list: FileList | null) => {
+  const onPhotos = async (list: FileList | null) => {
     setPhotosError(null);
     const chosen = Array.from(list || []);
     if (!chosen.length) return;
     if (chosen.some((f) => checkFile(f, 'photo'))) { setPhotosError(COPY.notAPhoto); return; }
-    const next = [...photos, ...chosen];
-    if (next.length > MAX_PHOTOS) { setPhotosError(COPY.tooManyPhotos); return; }
-    setPhotos(next);
+    if (photos.length + chosen.length > MAX_PHOTOS) { setPhotosError(COPY.tooManyPhotos); return; }
+    const held: File[] = [];
+    let refused: string | null = null;
+    for (const [i, f] of chosen.entries()) {
+      const out = await holdPhoto(f);
+      if (!isRefused(out)) { held.push(out.file); continue; }
+      if (out.problem === 'wont_open') { tellUnreadablePick('photo', f, out.errName, i + 1, chosen.length); refused = COPY.photoWontOpen; }
+      else if (!refused) refused = COPY.notAPhoto;
+    }
+    if (held.length) setPhotos((cur) => [...cur, ...held].slice(0, MAX_PHOTOS));
+    if (refused) setPhotosError(refused);
   };
 
   const onLibraryPick = useCallback((p: PickedPlan) => {
@@ -336,6 +365,16 @@ const LeaderObserveRecord = () => {
     () => (teacher ? leader.getObserveRecentPlans(teacher.teacherExtId, teacher.schoolExtId).then(downloadsOnly) : Promise.resolve({ plans: [] })),
     [teacher],
   );
+
+  // bd-tymy1n: the part this phone could not read at Send (SendError detail), and taking it out.
+  const unreadable = failure && failure.kind === 'network' && failure.detail?.unreadable && failure.detail.part ? failure.detail.part : null;
+  const takeOut = async (part: { kind: 'audio' | 'lesson_plan' | 'photo'; photo: number }) => {
+    setFailure(null);
+    if (part.kind === 'audio') { await redo(); return; }
+    if (part.kind === 'lesson_plan') setPlan(null);
+    else setPhotos((cur) => cur.filter((_, i) => i !== part.photo - 1));
+    setStage('check');
+  };
 
   // ── send ─────────────────────────────────────────────────────────────────
   const send = async () => {
@@ -539,7 +578,7 @@ const LeaderObserveRecord = () => {
                 </button>
               </div>
               <input ref={photosInput} data-testid="photos-input" type="file" multiple accept={`${acceptFor('photo')},image/jpeg,image/png`} className="hidden"
-                onChange={(e) => { onPhotos(e.target.files); e.target.value = ''; }} />
+                onChange={(e) => { void onPhotos(e.target.files); e.target.value = ''; }} />
               {photos.length > 0 && (
                 <div className="flex flex-wrap gap-2.5">
                   {photos.map((p, i) => (
@@ -576,10 +615,10 @@ const LeaderObserveRecord = () => {
             {/* accept must be exactly image/*: Capacitor opens the camera only then (any
                 other list gets the file picker). The type is still checked on arrival. */}
             <input ref={planPhotoInput} data-testid="plan-photo-input" type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={(e) => { onPlanFile(e.target.files?.[0], true); e.target.value = ''; }} />
+              onChange={(e) => { void onPlanFile(e.target.files?.[0], true); e.target.value = ''; }} />
             <button type="button" onClick={() => planFileInput.current?.click()} className="h-11 text-base font-semibold text-primary underline">{COPY.orFile}</button>
             <input ref={planFileInput} data-testid="plan-file-input" type="file" accept={acceptFor('lesson_plan')} className="hidden"
-              onChange={(e) => { onPlanFile(e.target.files?.[0], false); e.target.value = ''; }} />
+              onChange={(e) => { void onPlanFile(e.target.files?.[0], false); e.target.value = ''; }} />
             <button type="button" onClick={() => setPlanSheet(false)}
               className="h-[52px] rounded-xl border border-[#d6d9de] bg-white text-[17px] font-semibold text-[#5b6170]">{COPY.cancel}</button>
           </BottomSheet>
@@ -610,9 +649,22 @@ const LeaderObserveRecord = () => {
         {stage === 'failed' && failure && (
           <div className="flex flex-col items-center gap-4 px-1 pt-10 text-center">
             <span className="flex h-24 w-24 items-center justify-center rounded-full bg-[#fff6e0]">
-              {failure.kind === 'network' ? <WifiOff className="h-11 w-11 text-[#7a5600]" aria-hidden="true" /> : <AlertTriangle className="h-11 w-11 text-[#7a5600]" aria-hidden="true" />}
+              {failure.kind === 'network' && !unreadable ? <WifiOff className="h-11 w-11 text-[#7a5600]" aria-hidden="true" /> : <AlertTriangle className="h-11 w-11 text-[#7a5600]" aria-hidden="true" />}
             </span>
-            {failure.kind === 'network' && (
+            {/* bd-tymy1n (queue #179): this phone could not read a file she picked — not the internet. Which one, and
+                the way on: a photo or the plan comes out (then Send again); the recording is chosen again. */}
+            {unreadable && (
+              <>
+                <h2 className="text-[23px] font-bold">
+                  {unreadable.kind === 'photo' ? COPY.photoNWontOpen(unreadable.photo) : unreadable.kind === 'lesson_plan' ? COPY.planWontOpen : COPY.recordingWontOpen}
+                </h2>
+                <p className="text-[17px] leading-relaxed text-[#3a3f4b]">{unreadable.kind === 'audio' ? COPY.chooseAgainSub : COPY.removeItSub}</p>
+                <button type="button" onClick={() => { void takeOut(unreadable); }} className="mt-2 h-[60px] w-full rounded-[14px] bg-primary text-[19px] font-bold text-white">
+                  {unreadable.kind === 'audio' ? COPY.chooseItAgain : COPY.removeIt}
+                </button>
+              </>
+            )}
+            {failure.kind === 'network' && !unreadable && (
               <>
                 <h2 className="text-[23px] font-bold">{COPY.netTitle}</h2>
                 <p className="text-[17px] leading-relaxed text-[#3a3f4b]">{audio?.recordingId ? COPY.netRecorded : COPY.netFile}</p>

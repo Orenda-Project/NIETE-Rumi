@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
@@ -23,6 +23,7 @@ vi.mock("../../lib/voiceAnswer", () => ({ useVoiceAnswer: () => voice, VOICE_ANS
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
 import { portal } from "../../services/api";
 import FeedbackPage from "./FeedbackPage";
+import { isHeld } from "../../lib/pickedRead";
 import { currentCoachMenuItem } from "../../teacher/menu";
 import { currentInsightsItem } from "../insights/paths";
 
@@ -187,9 +188,10 @@ describe("Send feedback — step 3, Screenshots, and Send", () => {
     await toStep3(user);
     const input = screen.getByTestId("feedback-shot-input") as HTMLInputElement;
     await user.upload(input, [png("a.png"), png("b.png")]);
-    expect(screen.getAllByTestId("feedback-shot")).toHaveLength(2);
+    // bd-tymy1n: each screenshot is read when she picks it, so it joins a moment later
+    await waitFor(() => expect(screen.getAllByTestId("feedback-shot")).toHaveLength(2));
     await user.upload(input, [png("c.png"), png("d.png")]);
-    expect(screen.getAllByTestId("feedback-shot")).toHaveLength(3);
+    await waitFor(() => expect(screen.getAllByTestId("feedback-shot")).toHaveLength(3));
     expect(screen.queryByRole("button", { name: "Add screenshot" })).toBeNull();
     await user.click(within(screen.getAllByTestId("feedback-shot")[0]).getByRole("button", { name: "Remove screenshot" }));
     expect(screen.getAllByTestId("feedback-shot")).toHaveLength(2);
@@ -205,6 +207,35 @@ describe("Send feedback — step 3, Screenshots, and Send", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Only a picture");
   });
 
+  /**
+   * bd-tymy1n (queue #179) — in the Android app a picked file could no longer be opened by Send (production 18 Nov, coach
+   * Check and send). A screenshot is read when she picks it; what goes up is that copy.
+   */
+  it("a screenshot is read when she picks it: what goes up is that copy, never the picked file", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await toStep3(user);
+    const shot = png("a.png");
+    await user.upload(screen.getByTestId("feedback-shot-input"), [shot]);
+    await waitFor(() => expect(screen.getAllByTestId("feedback-shot")).toHaveLength(1));
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Thank you")).toBeInTheDocument();
+    const body = vi.mocked(portal.uploadToR2).mock.calls[0][1];
+    expect(body).not.toBe(shot);
+    expect(isHeld(body)).toBe(true);
+  });
+
+  it("a screenshot the phone will not open is refused at the pick", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await toStep3(user);
+    const bad = png("b.png");
+    Object.defineProperty(bad, "arrayBuffer", { value: () => Promise.reject(Object.assign(new Error("x"), { name: "NotReadableError" })) });
+    await user.upload(screen.getByTestId("feedback-shot-input"), [bad]);
+    expect(await screen.findByRole("alert", undefined, { timeout: 4000 })).toHaveTextContent("Picture will not open");
+    expect(screen.queryAllByTestId("feedback-shot")).toHaveLength(0);
+  });
+
   it("Send uploads the voice note and each screenshot first, then sends their keys", async () => {
     const user = userEvent.setup();
     Object.assign(voice, { state: "recorded", clip: { blob: new Blob(["a"], { type: "audio/webm" }), mimeType: "audio/webm", ext: ".webm" } });
@@ -213,6 +244,7 @@ describe("Send feedback — step 3, Screenshots, and Send", () => {
     await user.click(next());
     await user.click(next());
     await user.upload(screen.getByTestId("feedback-shot-input"), [png("a.png")]);
+    await waitFor(() => expect(screen.getAllByTestId("feedback-shot")).toHaveLength(1));
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     expect(portal.presignFeedbackUpload).toHaveBeenCalledWith({ filename: "voice.webm", sizeBytes: 1, kind: "feedback_audio" });

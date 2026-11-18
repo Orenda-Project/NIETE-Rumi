@@ -177,6 +177,8 @@ export const REPORTS_EN = {
   listeningTalk: "Listening to your talk",
   notAudio: "Not a recording",
   tooLarge: "File too large",
+  /* bd-tymy1n (queue #179) — a talk file the phone will not open, refused when she picks it (the teacher app's words) */
+  fileWontOpen: "File will not open",
   sendingTalk: "Sending",
   netTitle: "The internet stopped",
   netSafe: "The recording is safe",
@@ -381,6 +383,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   listeningTalk: "گفتگو کا تجزیہ",
   notAudio: "یہ ریکارڈنگ نہیں",
   tooLarge: "فائل بہت بڑی ہے",
+  fileWontOpen: "فائل نہیں کھل رہی",
   sendingTalk: "بھیجا جا رہا ہے",
   netTitle: "انٹرنیٹ بند ہو گیا",
   netSafe: "ریکارڈنگ محفوظ ہے",
