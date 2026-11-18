@@ -60,13 +60,14 @@ describe("the gate and the menu", () => {
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach$/));
   });
 
-  it("Home has the navy band and three tiles: Training Library and My schools, with their counts, then Coach Training", async () => {
+  // bd-39qx8x — operator, 18 Nov: My Schools, Coach Training, then the Training Library last.
+  it("Home has the navy band and three tiles: My schools, Coach Training, then Training Library, with their counts", async () => {
     on();
     const { container } = await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     const links = within(tiles).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training"]);
-    expect(links[2]).toHaveTextContent("Coach Training");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training"]);
+    expect(links[1]).toHaveTextContent("Coach Training");
     await waitFor(() => expect(tiles).toHaveTextContent("2 courses"));
     await waitFor(() => expect(tiles).toHaveTextContent("1 school · 12 teachers"));
     expect(container.textContent).toContain("Salaam, Test Coach!");
@@ -112,24 +113,28 @@ describe("the gate and the menu", () => {
 describe("Learning assessment on Home (portal_child_test_sa)", () => {
   const hrefs = (tiles: HTMLElement) => Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"));
 
-  it("on: a Learning assessment tile opens /portal/leader/assess, its own art, between My schools and Coach Training", async () => {
+  // bd-39qx8x — operator, 18 Nov: "Learning Assessment, not Learning assessment (A capital)", and it comes first for a
+  // coach without Schedule and Observe (her order: ..., Learning Assessment, My Schools, Coach Training, Training Library).
+  it("on: a Learning Assessment tile opens /portal/leader/assess, its own art, first, before My schools", async () => {
     on({ childTestSa: true });
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await waitFor(() => expect(hrefs(tiles)).toEqual([
-      "/portal/coach/training", "/portal/coach/people", "/portal/leader/assess", "/portal/coach/coach-training",
+      "/portal/leader/assess", "/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training",
     ]));
     const assess = tiles.querySelector('a[href="/portal/leader/assess"]') as HTMLElement;
-    expect(assess).toHaveTextContent("Learning assessment");
+    expect(assess.children[1]).toHaveTextContent(/^Learning Assessment$/);
     expect(assess.querySelector("svg")).toHaveAttribute("data-feature-art", "learningAssessment");
   });
 
-  it("on: the four tiles fill two rows; no tile spans both columns", async () => {
+  it("on: the four are the teacher Home's compact tile, three per row; no tile spans two columns", async () => {
     on({ childTestSa: true });
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await waitFor(() => expect(hrefs(tiles)).toContain("/portal/leader/assess"));
+    expect(tiles.className.split(" ")).toContain("grid-cols-3");
     expect(Array.from(tiles.querySelectorAll("a")).filter((a) => a.className.includes("col-span-2"))).toEqual([]);
+    expect(Array.from(tiles.querySelectorAll("a")).every((a) => a.className.split(" ").includes("min-h-[104px]"))).toBe(true);
   });
 
   it("in Urdu the tile is «تعلیمی جائزہ», the same word as the More row", async () => {
@@ -139,13 +144,14 @@ describe("Learning assessment on Home (portal_child_test_sa)", () => {
     await waitFor(() => expect(tiles.querySelector('a[href="/portal/leader/assess"]')).toHaveTextContent("تعلیمی جائزہ"));
   });
 
-  it.each([false, undefined, "true"])("%s: no tile, and Coach Training stays the wide tile under the two", async (v) => {
+  it.each([false, undefined, "true"])("%s: no tile; My schools, Coach Training, Training Library: one row of compact tiles", async (v) => {
     on({ childTestSa: v });
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await new Promise((r) => setTimeout(r, 50));
-    expect(hrefs(tiles)).toEqual(["/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training"]);
-    expect(tiles.querySelector('a[href="/portal/coach/coach-training"]')!.className).toContain("col-span-2");
+    expect(hrefs(tiles)).toEqual(["/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training"]);
+    expect(Array.from(tiles.querySelectorAll("a")).filter((a) => a.className.includes("col-span-2"))).toEqual([]);
+    expect(Array.from(tiles.querySelectorAll("a")).every((a) => a.className.split(" ").includes("min-h-[104px]"))).toBe(true);
   });
 
   it("the tile's page opens for her: the guard lets /portal/leader/assess through", async () => {
