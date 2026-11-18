@@ -30,7 +30,7 @@ What it does to everyone NOT on the keep-list (ids, schools, relations and row c
            tokens nulled; record_history rows (old/new values) for scrubbed tables deleted, including the rows
            this run's own updates write; materialized views refreshed.
 Never prints a phone, name or email: reports are counts only. The row backup (old values of every row it changes or
-deletes) and the R2 object backup go to --backup-dir, which must be outside any git repo; keep it mode 700.
+deletes, without coaching_sessions.tokens_raw: raw ASR tokens, ~400 MB as JSON, slow over the pooler) and the R2 object backup go to --backup-dir, which must be outside any git repo; keep it mode 700.
 """
 import argparse
 import collections
@@ -127,11 +127,17 @@ class Run:
         self.backup_path = p
 
     def snap(self, cur, table, where, params=(), schema="public"):
+        """Old values of the rows about to change, streamed through a server-side cursor in small batches: one
+        result holding every coaching session's recordings metadata dropped the pooler connection (18 Nov)."""
         if not self.backup:
             return
-        cur.execute(f'select row_to_json(t)::text from "{schema}"."{table}" t where {where}', params)
-        for (r,) in cur.fetchall():
-            self.backup.write(json.dumps({"t": f"{schema}.{table}", "row": json.loads(r)}) + "\n")
+        self.snaps = getattr(self, "snaps", 0) + 1
+        with cur.connection.cursor(name=f"purge_snap_{self.snaps}") as sc:
+            sc.itersize = 50
+            sc.execute(f"select (to_jsonb(t) - 'tokens_raw')::text from \"{schema}\".\"{table}\" t where {where}", params)
+            for (r,) in sc:
+                self.backup.write(json.dumps({"t": f"{schema}.{table}", "row": json.loads(r)}) + "\n")
+        self.backup.flush()
 
     def batch_update(self, cur, schema, table, idcols, rows, casts, label):
         """rows: [(ident tuple of text, {col: new value})]. One snapshot query and one UPDATE ... FROM (VALUES)
@@ -150,11 +156,13 @@ class Run:
             for i in range(0, len(items), 2000):
                 chunk = items[i:i + 2000]
                 if self.backup:
-                    got = psycopg2.extras.execute_values(
-                        cur, f'select row_to_json(t)::text from "{schema}"."{table}" t join (values %s) v({ids_sql}) on {join}',
-                        [tuple(ident) for ident, _ in chunk], page_size=len(chunk), fetch=True)
-                    for (r,) in got:
-                        self.backup.write(json.dumps({"t": f"{schema}.{table}", "row": json.loads(r)}) + "\n")
+                    for j in range(0, len(chunk), 100):  # small results: big rows dropped the connection (18 Nov)
+                        sub = chunk[j:j + 100]
+                        got = psycopg2.extras.execute_values(
+                            cur, f"select (to_jsonb(t) - 'tokens_raw')::text from \"{schema}\".\"{table}\" t join (values %s) v({ids_sql}) on {join}",
+                            [tuple(ident) for ident, _ in sub], page_size=len(sub), fetch=True)
+                        for (r,) in got:
+                            self.backup.write(json.dumps({"t": f"{schema}.{table}", "row": json.loads(r)}) + "\n")
                 vcols = ", ".join(f'"c{j}"' for j in range(len(cols)))
                 sets = ", ".join(f'"{c}" = v."c{j}"::{casts.get(c, "text")}' for j, c in enumerate(cols))
                 psycopg2.extras.execute_values(
