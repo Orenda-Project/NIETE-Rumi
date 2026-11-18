@@ -825,3 +825,18 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
 }
 /* end round 28, round 9 */
+/* ---- round 28: spoken MCQ, coach-led on a phone, round 10 (row 32: the coach's line in the fold on the question frames) ----
+   Coach-led, Urdu, below 700 px. In the coach page's frame (the corner hold's 64 px) with a syncing session's dot the
+   question frame did not hold the coach's three-line line above the fold AND four whole cards. On every question frame
+   (practice and scored) the line is drawn as the first line of the fold's body instead (sa-ui.js draws both copies;
+   this block shows one), so the coach reads it each time the fold is opened; the summary stays «جگنو پوچھے گا — یہ آپ
+   نہ پڑھیں». The passage step keeps the line above (no fold copy there), so every question is preceded by it. The
+   fold, folded, is a box of its own (its top border back). The line keeps round 7's type, pitch and sides in the fold.
+   Every other width and language: the fold's copy is not drawn and nothing changes. */
+.sae-mcq-coach-body>.sae-mcq-coach-line{display:none}
+@media (max-width:699px){
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach-body>.sae-mcq-coach-line) .sae-body>.sae-mcq-coach-line{display:none}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach) .sae-mcq-coach-body>.sae-mcq-coach-line[lang=ur]{display:block;box-sizing:border-box;width:auto;max-width:none;margin:0 -12px 2px;border:0;border-bottom:2px dashed var(--sae-line);border-radius:0;background:transparent}
+  .sae[lang=ur] .sae-mcq:has(.sae-mcq-coach-body>.sae-mcq-coach-line) details.sae-mcq-coach{border-top-width:3px;border-top-left-radius:var(--sae-r);border-top-right-radius:var(--sae-r)}
+}
+/* end round 28, round 10 */
