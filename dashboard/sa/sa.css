@@ -845,3 +845,20 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-coach) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
 }
 /* end round 28, round 9 */
+/* round 28, A11 (sa_r28_toggle_fit, the page's .is-r28-toggle-fit; OFF: none of this applies). Once the other language's
+   battery is on the phone, r8's language toggle (a 56 px button) grew the 44 px top bar to 56 on every screen, pushing
+   each screen 12 px down (the missing-number keys past a 568 px phone's foot) and calling up the round-9 cue. (a) Its
+   layout box is 44 on every screen, its 56 px button and hit area kept, centred: 6 px over the bar above and below.
+   (b) A head row that holds a tappable keeps a measured top gap (--sae-a11-g) while the toggle is drawn, so the toggle's
+   hit area and that row's tappables never meet; the gap is per screen class and language, the largest the screen's
+   fit allows up to 24 px edge to edge. */
+.sae.is-r28-toggle-fit.is-r8-lang .sae-top>.sae-r8-lang{margin-block:-6px}
+@media (max-width:699px){
+  .sae.is-r28-toggle-fit .sae-screen.sae-pick:has(>.sae-top>.sae-r8-lang) .sae-pick-head{margin-top:var(--sae-a11-g,0px)}
+  .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-pick:not(.sae-practice):has(>.sae-top>.sae-r8-lang){--sae-a11-g:1px}
+  .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-pick:not(.sae-practice):has(>.sae-top>.sae-r8-lang){--sae-a11-g:8px}
+  .sae.is-r28-toggle-fit[lang=ur] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:16px}
+  .sae.is-r28-toggle-fit[lang=en] .sae-screen.sae-pick.sae-practice:has(>.sae-top>.sae-r8-lang){--sae-a11-g:20px}
+  .sae.is-r28-toggle-fit .sae-screen.sae-mcq:has(>.sae-top>.sae-r8-lang) .sae-mcq-head{margin-top:var(--sae-a11-g,0px)}
+}
+/* end round 28, A11 */

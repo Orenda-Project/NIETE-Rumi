@@ -125,6 +125,12 @@
  *   sa_r20_auto_end_section battery.ui.r20_auto_end_section = true: the coach's End this section (sa_end_section) works in
  *                           RDF auto too.
  *
+ *   Round 28, A11 (screen fit), each ON adds battery.ui.r28_<flag> = true for the engine:
+ *   sa_r28_cue_guard        the round-9 scroll cue, once shown, takes its own box off what it measures, so it goes as soon
+ *                           as the screen's own content is in view and never stays drawn over nothing (sa-ui.js scrollCheck).
+ *   sa_r28_toggle_fit       round 8's language toggle keeps its 56 px button inside a 44 px top bar on every screen, and a
+ *                           head row holding a tappable keeps its distance from the toggle's hit area (sa.css, round 28 A11).
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -170,6 +176,8 @@ const SWITCHES = {
   r28LetterPick: 'sa_r28_letter_pick', r28Mcq: 'sa_r28_mcq', r28Ceiling: 'sa_r28_ceiling',
   // round 28, E-3: the story's clock stops at Done, not at the last-word tap (sa-core.js finish)
   r28StoryClock: 'sa_r28_story_clock',
+  // round 28, A11: the scroll cue never holds itself; the language toggle inside a 44 px top bar (sa-ui.js, sa.css)
+  r28CueGuard: 'sa_r28_cue_guard', r28ToggleFit: 'sa_r28_toggle_fit',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
 const R13_ALL = (v) => v === true || v === 'all';
@@ -199,7 +207,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit',
   r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once',
   r20AutoEndSection: 'r20_auto_end_section',
-  r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling', r28StoryClock: 'r28_story_clock' };
+  r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling', r28StoryClock: 'r28_story_clock',
+  r28CueGuard: 'r28_cue_guard', r28ToggleFit: 'r28_toggle_fit' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');

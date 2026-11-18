@@ -567,6 +567,12 @@
     var r9Skip = manual && r7.r9_skip_instructions === true;
     // Round 9 item 7 (r9_scroll_cue): a scroll cue on any screen whose content runs past the bottom
     var r9Scroll = r7.r9_scroll_cue === true;
+    // Round 28 (sa_r28_cue_guard, battery.ui.r28_cue_guard): the shown cue never keeps itself shown; scrollCheck takes its
+    // own box (height + the gap it adds) off what it measures, so it goes once the screen's own content is in view
+    var r28CueGuard = r7.r28_cue_guard === true;
+    // Round 28 (sa_r28_toggle_fit, battery.ui.r28_toggle_fit): the language toggle's 56 px button inside a 44 px top bar
+    // on every screen, and the head rows that hold a tappable kept clear of its hit area (sa.css "round 28, A11")
+    var r28ToggleFit = r7.r28_toggle_fit === true;
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
     // Round 10 layout 2 (r10_number_fit): a maths number as large as its box allows, whatever its digits (numFit)
     var r10Num = r7.r10_number_fit === true;
@@ -1186,6 +1192,7 @@
     if (r9Skip) el.classList.add('is-r9-skip'); // round 9 item 3 (sa.css "Round 9 item 3")
     // Round 9 item 7 (sa.css "Round 9 item 7": every rule under this class)
     if (r9Scroll) el.classList.add('is-r9-scroll');
+    if (r28ToggleFit) el.classList.add('is-r28-toggle-fit'); // round 28 (sa.css "round 28, A11")
     if (r10Num) el.classList.add('is-r10-numfit'); // round 10 layout 2 (sa.css "Round 10 layout 2")
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
@@ -3459,6 +3466,22 @@
     }
     /** More below in n (a scroll box): it overflows and its bottom is not in view. */
     function moreIn(n) { return !!n && n.scrollHeight > n.clientHeight + 4 && n.scrollTop + n.clientHeight < n.scrollHeight - 8; }
+    /** sa_r28_cue_guard: moreIn on n's height less `less` px (the shown cue's own box). */
+    function moreLess(n, less) { var sh = n ? n.scrollHeight - less : 0; return !!n && sh > n.clientHeight + 4 && n.scrollTop + n.clientHeight < sh - 8; }
+    /** sa_r28_cue_guard: what the shown cue adds to the screen's height: its box, its margins and its parent's gap. */
+    function cueBox(c) {
+      if (c.hidden) return 0;
+      var px = function (v) { var n = parseFloat(v); return isFinite(n) ? n : 0; };
+      var add = c.offsetHeight || 0;
+      try {
+        var cs = getComputedStyle(c);
+        add += px(cs.marginTop) + px(cs.marginBottom);
+        var p = c.parentNode, ps = p && p.nodeType === 1 ? getComputedStyle(p) : null;
+        var col = ps && ((/flex/.test(ps.display) && /^column/.test(ps.flexDirection)) || /grid/.test(ps.display));
+        if (col && p.children.length > 1) add += px(ps.rowGap || ps.gap);
+      } catch (_) { /* no styles: the box alone */ }
+      return add;
+    }
     /** The cue shown while more of the screen is below, in its body (when the body scrolls itself) or the page. */
     function scrollCheck() {
       var sc = scrollCue;
@@ -3467,6 +3490,10 @@
       var oy = '';
       if (body) { try { oy = getComputedStyle(body).overflowY; } catch (_) { oy = ''; } }
       var more = ((oy === 'auto' || oy === 'scroll') && moreIn(body)) || moreIn(document.scrollingElement || document.documentElement);
+      if (r28CueGuard && !sc.el.hidden) {
+        var less = cueBox(sc.el);
+        more = ((oy === 'auto' || oy === 'scroll') && moreLess(body, less)) || moreLess(document.scrollingElement || document.documentElement, less);
+      }
       if (sc.el.hidden === !more) return;
       sc.el.hidden = !more;
       if (more) scrollSay(sc);
