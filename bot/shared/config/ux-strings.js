@@ -1104,6 +1104,19 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+  // bd-9652yj (queue #166, option B, the operator 18 Nov: "B works") — the coach app NUDGE (app-redirect 2f): one
+  // message, a link button and a way back that she types. The words are the mockups' ("Coach app fallback"), signed off
+  // with option B. The "1" is the reply she types, so it stays the digit on her keyboard (a code, not prose; the bot also
+  // takes ۱). Urdu in the bot's own first person (feminine, as every NIETE observe line). Button 15 en / 14 ur code points.
+  coachNudgeBodyObserve: {
+    en: "Take your observation in the app.\nIf the app gives trouble, reply *1* and I'll carry on here on WhatsApp.",
+    ur: 'اپنا مشاہدہ ایپ میں لیں۔\nاگر ایپ میں مسئلہ ہو تو *1* لکھ کر بھیجیں، میں یہیں واٹس ایپ پر جاری رکھوں گی۔',
+  },
+  coachNudgeBodyHome: {
+    en: "Open the NIETE app.\nIf the app gives trouble, reply *1* and I'll carry on here on WhatsApp.",
+    ur: '\u200FNIETE ایپ کھولیں۔\nاگر ایپ میں مسئلہ ہو تو *1* لکھ کر بھیجیں، میں یہیں واٹس ایپ پر جاری رکھوں گی۔',
+  },
+  coachNudgeButton: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },

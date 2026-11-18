@@ -478,6 +478,12 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'آپ کی ڈی بریف رپورٹ تیار ہے۔ یہ ایپ میں کھلتی ہے، انگریزی یا اردو میں۔',
     coach_report_link_button: 'میری رپورٹ کھولیں',
+    // bd-9652yj (queue #166) — for a coach on the coach app nudge: the report-ready message's way back (reply 1 sends
+    // today's WhatsApp report card), the line when that card cannot be sent, and the line that opens a visit resumed
+    // from the app's "Continue on WhatsApp". The "1" is what she types (the bot also takes ۱).
+    coach_report_reply1_line: 'رپورٹ نہیں کھل رہی؟ *1* لکھ کر بھیجیں، میں یہیں بھیج دوں گی۔',
+    coach_report_here_failed: 'یہ رپورٹ ابھی یہاں نہیں کھل سکی۔ اپنے مشاہدے دیکھنے کے لیے /observe لکھیں۔',
+    handoff_resume_intro: 'آئیے آپ کا دورہ یہیں واٹس ایپ پر جاری رکھتے ہیں۔',
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'آپ کی ہفتہ وار کوچنگ رپورٹ تیار ہے: آپ کا ہفتہ، اور اگلے ہفتے کا فوکس۔ یہ صرف آپ کے لیے ہے۔',
     coach_week_link_button: 'میرا ہفتہ کھولیں',
@@ -881,6 +887,10 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'Your debrief report is ready. It opens in the app, in English or Urdu.',
     coach_report_link_button: 'Open my report',
+    // bd-9652yj (queue #166) — see the Urdu block.
+    coach_report_reply1_line: "Report not opening? Reply *1* and I'll send it here.",
+    coach_report_here_failed: 'I could not open that report here just now. Type /observe to see your observations.',
+    handoff_resume_intro: "Let's carry on with your visit here on WhatsApp.",
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'Your weekly coaching report is ready: your week, and your focus for next week. It is just for you.',
     coach_week_link_button: 'Open my week',
