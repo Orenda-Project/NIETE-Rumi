@@ -29,16 +29,16 @@ function bootWorker(existing) {
   return { listeners, kept, deleted };
 }
 
-test('the session cache is sa-session-v26 (round 28\'s battery files re-made: two Urdu story options, the EN words\' accept forms)', () => {
-  expect(require('../sa/sw').SESSION).toBe('sa-session-v26');
+test('the session cache is sa-session-v27 (round 28\'s battery files re-made: the picker\'s practice feedback names the sound)', () => {
+  expect(require('../sa/sw').SESSION).toBe('sa-session-v27');
 });
 
-test('activate deletes every older sa-session cache (v1 to v25) and keeps v26, the current core and other caches', async () => {
+test('activate deletes every older sa-session cache (v1 to v26) and keeps v27, the current core and other caches', async () => {
   const { CORE } = require('../sa/sw');
-  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15', 'sa-session-v16', 'sa-session-v17', 'sa-session-v18', 'sa-session-v19', 'sa-session-v20', 'sa-session-v21', 'sa-session-v22', 'sa-session-v23', 'sa-session-v24', 'sa-session-v25', 'sa-session-v26', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-core-sa-14', 'wq-cache']);
+  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15', 'sa-session-v16', 'sa-session-v17', 'sa-session-v18', 'sa-session-v19', 'sa-session-v20', 'sa-session-v21', 'sa-session-v22', 'sa-session-v23', 'sa-session-v24', 'sa-session-v25', 'sa-session-v26', 'sa-session-v27', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-core-sa-14', 'wq-cache']);
   let done;
   w.listeners.activate({ waitUntil: (p) => { done = p; } });
   await done;
-  expect(w.deleted.sort()).toEqual(['sa-core-sa-14', 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15', 'sa-session-v16', 'sa-session-v17', 'sa-session-v18', 'sa-session-v19', 'sa-session-v20', 'sa-session-v21', 'sa-session-v22', 'sa-session-v23', 'sa-session-v24', 'sa-session-v25'].sort());
-  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v26', 'wq-cache'].sort());
+  expect(w.deleted.sort()).toEqual(['sa-core-sa-14', 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15', 'sa-session-v16', 'sa-session-v17', 'sa-session-v18', 'sa-session-v19', 'sa-session-v20', 'sa-session-v21', 'sa-session-v22', 'sa-session-v23', 'sa-session-v24', 'sa-session-v25', 'sa-session-v26'].sort());
+  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v27', 'wq-cache'].sort());
 });

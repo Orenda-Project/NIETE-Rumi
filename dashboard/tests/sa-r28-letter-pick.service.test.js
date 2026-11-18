@@ -2523,3 +2523,83 @@ maybe('sa-ui: the picker\'s instruction is spoken in coach-led', () => {
     });
   }
 });
+
+// ---------- the picker's practice feedback NAMES the sound (the built battery, both modes) ----------
+// SPEC: wrong twice → the right card is shown AND named. The built picker practice rows carry the letter-sounds lines
+// as chains: the carrier in the page's language, then the item's own sound clip (the one the child just heard), so the
+// second wrong tap says "The sound of this letter is: <sound>" and a right tap "Yes! The sound of this letter is: <sound>",
+// never the generic "This is the right one." Read from the committed battery files, not a fixture.
+maybe('sa-ui: the built picker practice names the sound', () => {
+  const fs = require('fs');
+  const DATA = path.join(__dirname, '../../bot/shared/data/child-test/sa');
+  let dom;
+  const keep = {};
+  let views = [];
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
+    for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+      keep[k] = global[k];
+      global[k] = k === 'window' ? dom.window : dom.window[k];
+    }
+    jest.resetModules();
+  });
+  afterEach(() => { views.forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } }); views = []; for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function built(lang, l) {
+    const b = JSON.parse(fs.readFileSync(path.join(DATA, `sa.coach.G2.A.${lang}.json`), 'utf8'));
+    const t = b.tasks.find((x) => x.id === `${l}.letter_pick10`);
+    return { battery_id: b.battery_id, lines: b.lines, ui: { r28_letter_pick: true }, tasks: [t, JSON.parse(JSON.stringify(AFTER))] };
+  }
+  function mount(b, lang, manual) {
+    const c = require('../sa/sa-core');
+    const ui = require('../sa/sa-ui');
+    const r = c.createRunner({ battery: b, onEvent: () => {}, manual });
+    const speak = jest.fn(() => Promise.resolve());
+    const el = document.getElementById('m');
+    const view = ui.mount(el, { runner: r, battery: b, lang, mode: 'proctored', speak, manual, r28: { letter_pick: true } });
+    views.push(view);
+    return { r, el, view, speak };
+  }
+  const heard = (m, from) => m.speak.mock.calls.slice(from).map((x) => [x[0] && x[0].text, x[0] && x[0].audio]);
+  const card = (m, right) => {
+    const p = m.r.view().practice;
+    return Array.from(m.el.querySelectorAll('.sae-pick-cards .sae-opt')).find((b) => (b.getAttribute('data-value') === p.target) === right);
+  };
+  async function toP2(m) {
+    m.r.start(); m.r.instructionDone(); m.r.practiceModelled();
+    m.view.render();
+    await wait(360);
+  }
+
+  for (const manual of [false, true]) for (const [lang, l] of [['ur', 'ur'], ['en', 'en'], ['en', 'ur']]) {
+    const mode = manual ? 'coach-led' : 'RDF auto';
+    test(`${mode}, ${l} picker on the ${lang} page: the second wrong tap says the carrier then the item's sound, the right card lit`, async () => {
+      const b = built(lang, l);
+      const p2 = b.tasks[0].practice[1];
+      const m = mount(b, lang, manual);
+      await toP2(m);
+      card(m, false).click();
+      await wait(1300);
+      const mid = m.speak.mock.calls.length;
+      card(m, false).click();
+      await wait(30);
+      const [carrier, sound] = p2.feedback.wrong;
+      expect(heard(m, mid)).toEqual([[carrier.text, carrier.audio], [p2.prompt_text, p2.prompt_audio]]);
+      const shown = Array.from(m.el.querySelectorAll('.sae-pick-cards .sae-opt')).find((x) => x.classList.contains('is-shown'));
+      expect(shown && shown.classList.contains('is-right') && shown.getAttribute('data-value')).toBe(p2.target);
+      expect(sound.audio).toBe(p2.prompt_audio);
+    });
+    test(`${mode}, ${l} picker on the ${lang} page: a right tap says "Yes! The sound of this letter is:" then the item's sound`, async () => {
+      const b = built(lang, l);
+      const p2 = b.tasks[0].practice[1];
+      const m = mount(b, lang, manual);
+      await toP2(m);
+      const before = m.speak.mock.calls.length;
+      card(m, true).click();
+      await wait(30);
+      expect(heard(m, before)).toEqual([[p2.feedback.correct[0].text, p2.feedback.correct[0].audio], [p2.prompt_text, p2.prompt_audio]]);
+      expect(heard(m, before)[0][0]).toMatch(/^(Yes! The sound of this letter is:|شاباش! اس حرف کی آواز ہے:)$/);
+    });
+  }
+});
