@@ -1,0 +1,1 @@
+{"ts":"2026-11-18T18:13:12Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-e1qvrf-quiz-grade: child-test spec: NOT UPDATED e2e: missing (no hook record: the author's machine never reported (hooks not installed or not linked). Check: `bash .claude/qa/engine/bin/e2e-doctor.sh <clone> --publish`)","sha":"358f94ec2b6b","branch":"bd-e1qvrf-quiz-grade","user":""}
