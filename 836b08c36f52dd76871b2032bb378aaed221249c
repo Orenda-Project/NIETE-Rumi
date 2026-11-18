@@ -1,2 +1,3 @@
 {"ts":"2026-11-18T06:25:20Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"836b08c36f52","branch":"bd-5icld3.4-82737","user":"Fatima"}
 {"ts":"2026-11-18T06:25:32Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-assessment,fde-board-pattern=none-needed (no scenario asserts the 8-type cap; unit tests cover the drawer and Next rule; local web stack cannot start on this machine)","sha":"836b08c36f52","branch":"bd-5icld3.4-82737","user":"Fatima"}
+{"ts":"2026-11-18T06:25:32Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"8d281a21-5c57-4a08-9035-ddc2e1fc3346","sha":"836b08c36f52","branch":"bd-5icld3.4-82737","user":"Fatima"}
