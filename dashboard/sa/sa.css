@@ -892,6 +892,19 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts{gap:4px}
 }
 /* end round 28, RDF auto question card */
+/* ---- round 28: spoken MCQ, RDF auto on a phone (a two-line Urdu question keeps its lines apart) ----
+   RDF auto only (the card straight after the head row, as above), below 700 px, Urdu only. At 22 px on a 1.75 pitch
+   a Nastaliq line's ink runs ~2.9x its size, so a two-line question drew its second line into its first (up to ~24 px
+   of shared ink rows). A taller line alone cannot pay for the pitch the ink needs and keep the four answers in reach
+   (the screen has ~2 px of room under the lowest card with the coach page's frame), so the question steps down to
+   18 px (the answers' size) on a 3.05 pitch: on every served Urdu question the second line's ink starts below the
+   first line's (>= 1.5 px), the card's padding moves to the top where the first line's ascenders reach (the larger
+   half-leading holds the last line's descenders), and the card grows < 1 px, so the cards, the replay and the
+   offered Next stay where they were. Coach-led and the tablet are not touched. */
+@media (max-width:699px){
+  .sae .sae-mcq .sae-mcq-head+.sae-mcq-q[lang=ur]{font-size:18px;line-height:3.05;padding-top:11px;padding-bottom:0}
+}
+/* end round 28, RDF auto two-line question */
 /* round 28, A11 (sa_r28_toggle_fit, the page's .is-r28-toggle-fit; OFF: none of this applies). Once the other language's
    battery is on the phone, r8's language toggle (a 56 px button) grew the 44 px top bar to 56 on every screen, pushing
    each screen 12 px down (the missing-number keys past a 568 px phone's foot) and calling up the round-9 cue. (a) Its
