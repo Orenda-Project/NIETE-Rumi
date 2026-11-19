@@ -45,8 +45,9 @@ const EXPECTED = {
   'shared/services/coaching/reflective-conversation.service.js': {
     sites: 1, jobs: ['coaching.acknowledgement'],
   },
+  // Two sites, one job: the report narrative, and FICO 6-12's one line per section (queue #184, v6's rule).
   'shared/services/coaching/report-v2/narrative.service.js': {
-    sites: 1, jobs: ['coaching.narrative'],
+    sites: 2, jobs: ['coaching.narrative'],
   },
   'shared/services/coaching/coaching-card/commitment-card.service.js': {
     sites: 2, jobs: ['coaching.commitmentCard', 'coaching.cardLocalise'],

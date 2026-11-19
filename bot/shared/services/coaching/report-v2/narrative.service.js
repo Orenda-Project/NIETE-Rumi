@@ -157,6 +157,18 @@ function pickWeakestDomain(analysis) {
 // final level and the horizon the report's target (target-resolver), so the pills, the card and the debrief name the
 // same things. The V3 and /observe2 prompts never reach this branch and read exactly as before.
 
+// The one-line "why" under each section bar of the live v6 report (bd-1t1wz). Queue #184 (operator 19 Nov ~17:10:
+// "just a one liner under each section's score, just like ... the FICO17v6 reports"): FICO 6-12 asks for its line in
+// these SAME words (buildFicoSWhysPrompt), so the rule lives once.
+const DOMAIN_WHYS_RULE = `domain_whys: ONE sentence per section, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (the locked reference):
+  EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
+  UR: «یہ اسکور اچھا/بہتر ہے کیونکہ <کلاس کا ایک ٹھوس لمحہ> — مکمل نمبر اس لیے نہیں کیونکہ <ایک واضح، ٹھوس کمی>۔»
+- ONE sentence, never a paragraph. ALWAYS name ONE concrete missing element in the second clause, taken from the section's lowest-level indicator and what its next level asks; never end vague. If (and only if) every levelled indicator in the section is at the top level, drop the second clause and just state what made it strong.
+- An indicator marked "not applicable" or "couldn't tell" is NOT a low mark: it is outside this lesson's score. Never name it as missing and never diagnose it.
+- The missing element is always something the teacher could have DONE IN THIS LESSON. NEVER name another subject as what was missing — never fault a lesson for not being a different subject. Subject knowledge is judged on THIS lesson's subject only.
+- Ground every claim in the SECTION LEVELS below or the transcript — NEVER invent an activity or moment that is not there, and NEVER contradict the recorded evidence (it is the observer's own record of this lesson).
+- LANGUAGE PURITY: write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).`;
+
 const V6_CLIP_EVIDENCE = 220;
 const V6_CLIP_FOCUS = 300;
 
@@ -264,14 +276,7 @@ The selected lesson plan was for a different lesson: nowhere in this report — 
 ${strengthLine}
 ${horizonLine}
 
-domain_whys: ONE sentence per section, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (the locked reference):
-  EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
-  UR: «یہ اسکور اچھا/بہتر ہے کیونکہ <کلاس کا ایک ٹھوس لمحہ> — مکمل نمبر اس لیے نہیں کیونکہ <ایک واضح، ٹھوس کمی>۔»
-- ONE sentence, never a paragraph. ALWAYS name ONE concrete missing element in the second clause, taken from the section's lowest-level indicator and what its next level asks; never end vague. If (and only if) every levelled indicator in the section is at the top level, drop the second clause and just state what made it strong.
-- An indicator marked "not applicable" or "couldn't tell" is NOT a low mark: it is outside this lesson's score. Never name it as missing and never diagnose it.
-- The missing element is always something the teacher could have DONE IN THIS LESSON. NEVER name another subject as what was missing — never fault a lesson for not being a different subject. Subject knowledge is judged on THIS lesson's subject only.
-- Ground every claim in the SECTION LEVELS below or the transcript — NEVER invent an activity or moment that is not there, and NEVER contradict the recorded evidence (it is the observer's own record of this lesson).
-- LANGUAGE PURITY: write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).
+${DOMAIN_WHYS_RULE}
 SECTION LEVELS (diagnose each):
 ${v6SectionsBlock(a)}
 
@@ -279,6 +284,95 @@ ${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}
 ${v6LanguageLine(language)}
 TRANSCRIPT:
 ${String(transcript || '').slice(0, 11000)}`;
+}
+
+// ── Queue #184 (bd-pkxzg9.4): FICO 6-12's one line per section, the live v6 way ────────────────────────────────
+// Operator 19 Nov ~17:10: "just a one liner under each section's score, just like ... the FICO17v6 reports that are
+// live for primary". v6's line is the narrative model's domain_whys (DOMAIN_WHYS_RULE) over its SECTION LEVELS block;
+// FICO 6-12 asks for the same line, in the same words, over its five sections: the observer's final levels and
+// evidence (obs612/view ficos), each indicator's next level from the rubric. Only the lines are asked for: the rest of
+// the FICO 6-12 page stays the observer's own words.
+
+/** One FICO 6-12 indicator, as the model reads it (v6RowLine's shape). */
+function ficoSRowLine(i) {
+  const FicoS = require('../frameworks/fico-s');
+  const t = FicoS.indicatorText(i.code, 'en');
+  if (i.na) return `  · ${t.name}: not applicable in this lesson — not a low mark; never diagnose it or name it as missing.`;
+  const lv = Number(i.level);
+  if (!Number.isInteger(lv) || lv < 1 || lv > 4) return `  · ${t.name}: no level for this lesson — not part of the score; never diagnose it or name it as missing.`;
+  const ev = clipText(i.evidence, V6_CLIP_EVIDENCE);
+  const next = lv < 4 ? t.levels[lv] : null;
+  return `  · ${t.name}: level ${lv} of 4${ev ? ` — evidence: "${ev}"` : ''}${next ? ` — the next level asks: "${clipText(next, V6_CLIP_EVIDENCE)}"` : ' — the top level'}`;
+}
+
+/** The SECTION LEVELS block for FICO 6-12 (v6SectionsBlock's shape): each section's marks, then its indicators. */
+function ficoSSectionsBlock(ficos) {
+  const FicoS = require('../frameworks/fico-s');
+  const f = ficos || {};
+  return (f.sections || []).map((s) => {
+    const rows = (f.indicators || []).filter((i) => i.section === s.key);
+    const levels = rows.filter((i) => !i.na).map((i) => Number(i.level)).filter((l) => Number.isInteger(l) && l >= 1 && l <= 4);
+    const name = FicoS.sectionName(s.key, 'en');
+    if (!levels.length) {
+      return `- ${s.key} (${name}): NOT ASSESSED — no indicator in this section has a level for this lesson. Do NOT diagnose it, do NOT name anything missing from it, and omit it from "domain_whys" entirely.`;
+    }
+    const marks = levels.reduce((x, y) => x + y, 0);
+    return [`- ${s.key} (${name}): ${marks} of ${levels.length * 4} over ${levels.length} levelled indicator${levels.length === 1 ? '' : 's'}.`,
+      ...rows.map(ficoSRowLine)].join('\n');
+  }).join('\n');
+}
+
+function buildFicoSWhysPrompt(ficos, { transcript = '', language = 'en', teacherName = 'the teacher' } = {}) {
+  const name = LANG_NAME[language] || 'English';
+  const script = language === 'ur' ? ' (Urdu script)' : '';
+  return `You are the NIETE Teaching Assistant, a warm, perceptive instructional coach. Below is the FULL TRANSCRIPT of a real lesson by ${teacherName} and the levels this lesson was given on the FICO 6-12 classroom rubric (23 indicators in five sections, each at level 1 to 4). Write the one-line diagnosis that goes under each section's score in her report.
+
+The levels and evidence below are the record of this lesson: every claim about how something went must agree with them. Use the TRANSCRIPT for her real words and moments. Address her as "you".
+
+NEVER write an indicator code (a letter and a number), a section key, a snake_case token or any programmatic identifier as prose: name an indicator only in the plain words given below. Never say who set a level or wrote the evidence, and never compare two sources of a level (no "the AI", "the app", "the system", "the observer changed it"): these are simply this lesson's levels.
+
+${langRules(language)}
+
+Return STRICT JSON:
+{
+ "domain_whys":{ "A":"...", "B":"...", "C":"...", "D":"...", "E":"..." }
+}
+
+${DOMAIN_WHYS_RULE}
+SECTION LEVELS (diagnose each):
+${ficoSSectionsBlock(ficos)}
+
+REPORT LANGUAGE: ${name}${script} — every domain_whys line is written in ${name}, even though the transcript and the evidence above may be in another language.
+TRANSCRIPT:
+${String(transcript || '').slice(0, 11000)}`;
+}
+
+/**
+ * FICO 6-12's section lines: { A?, B?, C?, D?, E? } (non-empty strings only), or null when the model failed twice
+ * (the report then shows its bars without a line, as v6 does). One retry, as generateReportNarrative.
+ */
+async function generateFicoSDomainWhys(ficos, opts = {}) {
+  const language = opts.language || 'en';
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const response = await GPT5MiniService.openai.chat.completions.create({
+        model: modelFor('coaching.narrative'),
+        job: 'coaching.narrative',
+        messages: [{ role: 'user', content: buildFicoSWhysPrompt(ficos, opts) }],
+        response_format: { type: 'json_object' },
+      });
+      const parsed = JSON.parse(response.choices[0].message.content);
+      const raw = (parsed && parsed.domain_whys) || {};
+      const out = {};
+      for (const k of ['A', 'B', 'C', 'D', 'E']) {
+        if (typeof raw[k] === 'string' && raw[k].trim()) out[k] = RTL_LANGS.has(language) ? fixCodeswitch(raw[k].trim()) : raw[k].trim();
+      }
+      return out;
+    } catch (err) {
+      logToFile('❌ FICO 6-12 section lines failed', { error: err.message, language, attempt });
+    }
+  }
+  return null;
 }
 
 function buildPrompt(analysis, { transcript, trend = [], language, teacherName, target = null }) {
@@ -490,4 +584,5 @@ function subjectUnconfirmedNote(language) {
 
 module.exports = {
   generateReportNarrative, buildPrompt, LANG_NAME, fixCodeswitch, subjectUnconfirmedNote,
+  DOMAIN_WHYS_RULE, buildFicoSWhysPrompt, generateFicoSDomainWhys,
 };

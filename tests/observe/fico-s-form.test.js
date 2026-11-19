@@ -365,3 +365,21 @@ describe('HITL parity: a principal and a coach get the same FICO-S flow (operato
     expect(msgs.buttons.buttons.map((b) => b.id)[0]).toMatch(/^observe_send_start_/);
   });
 });
+
+describe('the checklist is required (operator 19 Nov: "the checklist section is not optional")', () => {
+  const CHECKS = FicoS.RUBRIC.checklist.map((c) => c.key);
+  test('Next with checks unanswered keeps the observer on the checklist, a line under each one missing (EN, UR)', async () => {
+    const r = await ex('form-s', 'FS_CHECKLIST', { cl_1: 'yes', cl_2: 'no' });
+    expect(r.screen).toBe('FS_CHECKLIST');
+    expect(Object.keys(r.data.error_messages).sort()).toEqual(CHECKS.slice(2).sort());
+    expect(r.data.error_messages.cl_3).toBe('Choose Yes or No.');
+    expect(r.data.err_v).toBe(true);
+    const u = await Endpoint.handleObs612DataExchange(fsToken('form-s-ur', 'coach-ur'), 'FS_CHECKLIST', { screen: 'FS_CHECKLIST' });
+    expect(u.screen).toBe('FS_CHECKLIST');
+    expect(u.data.error_messages.cl_1).toBe('ہاں یا نہیں چنیں۔');
+  });
+  test('every check answered goes on to the feedback', async () => {
+    const ok = await ex('form-s', 'FS_CHECKLIST', Object.fromEntries(CHECKS.map((k) => [k, 'no'])));
+    expect(ok.screen).toBe('FS_FEEDBACK');
+  });
+});
