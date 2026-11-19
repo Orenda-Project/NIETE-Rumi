@@ -87,7 +87,9 @@
 // sa-39: sa-offline.js and this worker (a slow link no longer refuses the start: the page waits while clips keep arriving,
 //   a fetch is given up only when it stalls, a retry joins the downloads already running, and the phone logs how long
 //   the preparation took).
-var VERSION = 'sa-39';
+// sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
+//   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
+var VERSION = 'sa-40';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
