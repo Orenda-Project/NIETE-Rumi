@@ -26,6 +26,13 @@
 
   var FORM_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
   var SESSION_RX = /^[A-Za-z0-9_-]{6,64}$/;
+  // This build of the page, logged on device_ready (round 28): always sw.js VERSION in the same tree (a test pins the two).
+  var VERSION = 'sa-41';
+
+  // the server's MAX_EVENT_DATA (sa-api.service.js): a longer value is not kept at all
+  var MAX_VALUE = 300;
+  /** A worker's word for device_ready / worker_swap: whole or null (never cut), so the event stays inside 300 characters. */
+  function stamp(v) { return typeof v === 'string' && v && v.length <= 64 ? v : null; }
 
   /** The page's parameters, checked; anything unexpected falls back to the safe value. */
   function params(search, hash) {
@@ -151,14 +158,18 @@
    * (the page hidden: a timed task runs again from its start) is gated then, before it runs again.
    */
   function voiceGate(engine, offline, ctx) {
-    function readyOf(o) {
-      return {
+    function readyOf(o, session) {
+      var v = {
         ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
         clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
         // how the preparation went on this phone (sa-offline.js): its ms, bytes, the first clip stage that stalled, clips missing
         prep_ms: o.prep_ms != null ? o.prep_ms : null, prep_bytes: o.prep_bytes != null ? o.prep_bytes : null,
         prep_gaveup_stage: o.prep_gaveup_stage || null, prep_missing: o.prep_missing != null ? o.prep_missing : null,
+        page: VERSION, sw: stamp(o.sw), session: stamp(session),
       };
+      // the server drops a value over MAX_EVENT_DATA whole: long names give way first, so the preparation fields are kept
+      if (JSON.stringify(v).length > MAX_VALUE) { v.sw = null; v.session = null; }
+      return v;
     }
     /** The timed task under way when the verdict lands, if the gate may wait for its end; else null. */
     function running() {
@@ -201,7 +212,16 @@
       engine.on('state', onState);
     }
     return offline.then(function (o) {
-      engine.runner.log('device_ready', { value: readyOf(o) });
+      // The clips' cache (o.held, capped at 2 s by sa-offline.js) is waited for only when no refusal is coming: a refusal
+      // is never held back by it, and its device_ready says session null.
+      var refusing = o.voice === 'none' && engine.view && engine.view.refuse;
+      var held = !refusing && o.held && typeof o.held.then === 'function' ? o.held.then(null, function () { return null; }) : Promise.resolve(null);
+      return held.then(function (session) { return [o, session]; });
+    }).then(function (r) {
+      var o = r[0];
+      var value = readyOf(o, r[1]);
+      if (typeof ctx.onReady === 'function') ctx.onReady(value);
+      engine.runner.log('device_ready', { value: value });
       // No clip and no phone voice for this language: Jugnu would be silent, so the test does not start.
       if (o.voice !== 'none' || !engine.view || !engine.view.refuse) return;
       var under = running();
@@ -224,6 +244,29 @@
       if (retry) engine.view.refuse('voice', { retry: retry }); else engine.view.refuse('voice');
       tell(ctx, { type: 'sa:refused', s: engine.session_id, reason: 'voice' });
     }
+  }
+
+  /**
+   * worker_swap { from, to, task } (round 28): a newer worker took the page over mid-session (skipWaiting + clients.claim,
+   * no reload), so the clips from here on come from its cache. from = the worker before (first: from(), device_ready's sw),
+   * to = version(the new controller) or null, task = the task running when it happened, or null between tasks. Data only.
+   */
+  function swapWatch(engine, container, from, version) {
+    if (!container || typeof container.addEventListener !== 'function') return;
+    var task = null;
+    var last;
+    if (typeof engine.on === 'function') {
+      engine.on('task_start', function (e) { task = e && e.task_id || null; });
+      engine.on('task_end', function () { task = null; });
+    }
+    container.addEventListener('controllerchange', function () {
+      var was = last !== undefined ? last : from();
+      var at = task;
+      Promise.resolve().then(function () { return version(container.controller); }).then(null, function () { return null; }).then(function (to) {
+        last = stamp(to);
+        engine.runner.log('worker_swap', { task_id: at || undefined, value: { from: stamp(was), to: last, task: at } });
+      });
+    });
   }
 
   /** FNV-1a of a string: the same session always gets the same number. Math.imul keeps the product's low bits
@@ -488,7 +531,10 @@
               .then(function (d) { if (d.length) engine.runner.log('drained', { value: d }); }, function () {});
           }, 3000);
         }
-        voiceGate(engine, offline, { win: root, embed: p.embed, battery: battery, again: function () { return prepareOf(SAE, battery, p.lang, url); } });
+        var served = null;
+        voiceGate(engine, offline, { win: root, embed: p.embed, battery: battery, again: function () { return prepareOf(SAE, battery, p.lang, url); },
+          onReady: function (v) { served = v.sw; } });
+        if (SAE.offline && SAE.offline.version) swapWatch(engine, root.navigator && root.navigator.serviceWorker, function () { return served; }, SAE.offline.version);
         if (battery.ui && battery.ui.r8_lang_switch === true) langAltLoad(SAE, p, battery, offline, engine);
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
@@ -499,5 +545,5 @@
     });
   }
 
-  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, deferrable: deferrable, clipPrompted: clipPrompted, lockDown: lockDown, drain: drain, boot: boot };
+  return { VERSION: VERSION, otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, swapWatch: swapWatch, deferrable: deferrable, clipPrompted: clipPrompted, lockDown: lockDown, drain: drain, boot: boot };
 }));
