@@ -12,7 +12,7 @@ Extracted word for word from `Coaching Framework/FICO17_v6_rubric.md` (final 29 
 
 **Couldn't tell (to be tested).** Every indicator has a "couldn't tell" option, separate from N/A. N/A means the thing the indicator looks for did not come up (for example no student-to-student talk for D3). Couldn't tell means it may have happened but the recording cannot show it: the transcript stops early, starts mid-lesson, repeats one word for minutes, or the part of the lesson needed is missing or garbled. Each entry has a "Couldn't tell" line saying when to use it. Couldn't tell is not reported to the teacher as a level. On a combined indicator the DC's couldn't tell means it has no evidence to give; the coach still sets the level from what they saw.
 
-A number in a level counts things that can be found in the transcript: answers, questions, times the teacher does something. It never counts different children by the Student label, because the transcript labels every child "Student" and cannot show how many different children spoke. The one exception is names the teacher says aloud (C3 L4): they are in the teacher's own words, so different names called can be counted. D2 is the other: its levels count different children, and that count comes from the coach, not the transcript.
+A number in a level counts things that can be found in the transcript: answers, questions, times the teacher does something. It never counts different children by the Student label, because the transcript labels every child "Student" and cannot show how many different children spoke. The one exception is names the teacher says aloud (C3 L4): they are in the teacher's own words, so different names called can be counted. D2 is the other: its levels say how much of the class spoke (in words, no counts), which the coach judges from the room, not the transcript.
 
 **The codes.** C is what the teacher does, D is what the children do, F is what the teacher says about the subject. Each entry starts with a short definition of what the indicator measures. An "N/A link" line says which indicator is N/A when another is scored 1. The pipeline sets this from the score, so it is not part of the level text.
 
@@ -177,20 +177,21 @@ A number in a level counts things that can be found in the transcript: answers, 
 
 ### D2 How many children spoke
 *Was: Participation Breadth*  
-**Definition:** How many different children speak across the lesson, and whether children silent early on speak later.  
-**Combined indicator.** The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because every level counts different children.  
-**Coach adds:** how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification.  
+*Changed 20 Nov 2026 (bd-ra8xu.61, operator 13 Nov: the counts were "way too specific"; option A approved 19 Nov): the levels say how much of the class spoke, in words, with no counts. The rubric sheet's D2 rows are to be updated to this text by its owner.*  
+**Definition:** How much of the class speaks during the lesson: a few children, many, or most of the class. A child counts when they speak on their own (answer, read out, ask a question); chorus answers do not count.  
+**Combined indicator.** The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because the transcript cannot tell children apart.  
+**Coach adds:** how much of the class spoke on their own. The coach sets the final level with a written justification.  
 **Couldn't tell (DC):** student lines are missing or garbled for a large part of the lesson.  
 
 **Levels (for the coach)**
 ```
 1  No student speaks during the lesson.
-2  Only the same one or two children speak.
-     e.g. (coach) "Only Ali and Sara answered all lesson; 30 student turns, almost all theirs."
-3  Three to five different children speak.
-     e.g. (coach) "4 different children answered, all from the front rows."
-4  Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half.
-     e.g. (coach) "9 different children spoke, including 2 from the back row who were quiet until the group activity."
+2  Only a few children speak.
+     e.g. (coach) "The same few children in the front row answered every question; the rest only joined the chorus."
+3  Many children speak, but a large part of the class never does.
+     e.g. (coach) "Many children answered, front rows and back, but the same ones all lesson; a large part of the class never spoke."
+4  Most of the class speaks at least once.
+     e.g. (coach) "After the pair talk, most of the class answered at least once, back rows too."
 ```
 
 ### D3 Children answering each other
