@@ -1,2 +1,3 @@
 {"ts":"2026-11-19T16:30:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"eb84ea3f8bb9","branch":"try-with-deps","user":""}
 {"ts":"2026-11-19T17:04:43Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (this commit itself adds the 11 lesson-plan.feature lines for the Before-they-write step, synced on sandbox #5027; validate_specs OK)","sha":"eb84ea3f8bb9","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-19T17:04:43Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-eb84ea3f8bb9","sha":"eb84ea3f8bb9","branch":"bd-snkn32.56.1-05633","user":""}
