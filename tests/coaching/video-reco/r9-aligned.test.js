@@ -286,3 +286,30 @@ describe('the ask classifier', () => {
     expect(A.classifyAsk('[TEACHER], try dedicating 5 minutes of your next class specifically to improving "Questioning".')).toBeNull();
   });
 });
+
+// R9b (COS 20261119T152504 §2; ped-align r5 20261119T152426): the 45 picks the blind panel judged wrong at #5136 2ab5e211e9,
+// each through the real v2 file, the panel's gates and the 9-list. Each is silent, or moves to a clip other than the one
+// judged wrong (that new pair goes to ped-align).
+describe('R9b · the card\'s main move decides (r5 wrong picks)', () => {
+  const R5 = require('./fixtures/r5-wrong-picks.json').picks;
+  const LIST = new Set(ALLOW.split(','));
+  const pickFor = (x) => {
+    const g = Number(x.grade);
+    const langs = [...new Set([x.report_lang, x.lesson_lang, 'mixed'].filter(Boolean))];
+    for (const ask of A.classifyAsks(x.card)) {
+      const c = A.candidates(C.loadV2(), ask, { languages: langs, allow: LIST, history: { segments: [], modules: [] } }, { subject: x.subject, grade: Number.isFinite(g) && g > 0 ? { lo: g, hi: g } : null });
+      if (c.length) return c[0].seg.seg_id;
+    }
+    return null;
+  };
+  test.each(R5.map((x) => [x.id, x.seg, x]))('%s never gets %s again', (_, seg, x) => {
+    expect(pickFor(x)).not.toBe(seg);
+  });
+  test('the open "why… then wait" card is one ask in two steps (either order) and still gets its clip', () => {
+    const card = 'Next class, when a student answers a fractions question in just one word, wait 5 to 7 seconds, then ask an open-ended \'why\' question to stretch their thinking.';
+    expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['wait_time', 'open_questions']);
+  });
+  test('after a non-questioning main move nothing later is served («ask what they already know, then wait»)', () => {
+    expect(A.classifyAsks('Next class, before the new topic, ask what students already know about plants, give wait time, then link their answers.').map((x) => x.move)).toEqual(['activate_prior_knowledge']);
+  });
+});

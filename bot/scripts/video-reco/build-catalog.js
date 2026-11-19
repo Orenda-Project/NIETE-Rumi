@@ -51,7 +51,8 @@ function buildV2({ modules, vetoes = [], sourceSha, now = new Date() }) {
     m.thumb = `video-thumbs/${src.module_id}.jpg`;
     m.segments = (Array.isArray(src.segments) ? src.segments : []).filter(executable).map((x) => pick(x, SEGMENT_FIELDS_V2));
     return m;
-  }).filter((m) => Number.isInteger(m.module_id) && m.module_id > 0 && m.segments.length) // lp_demo rows (module_id null) have no training_modules row to play from.sort((a, b) => a.module_id - b.module_id);
+    // lp_demo rows (module_id null) have no training_modules row to play from
+  }).filter((m) => Number.isInteger(m.module_id) && m.module_id > 0 && m.segments.length).sort((a, b) => a.module_id - b.module_id);
   applyVetoes(out, vetoes.filter((v) => !v.seg_id || out.some((m) => m.segments.some((x) => x.seg_id === String(v.seg_id)))).filter((v) => out.some((m) => m.module_id === Number(v.module_id))));
   return { version: `catalog-v2-${stamp}-${String(sourceSha || '').slice(0, 8)}`, built_at: now.toISOString(), framework: 'fico-v4', modules: out };
 }
