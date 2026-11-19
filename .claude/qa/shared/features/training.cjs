@@ -1984,4 +1984,9 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
           + 'does not drive; needs a step that seeds a passed grand attempt and calls certify-level before /certificates. '
           + 'Behaviour is unit-tested in bot/tests/training/bd-jtgjt8-chain-level-exam-certifies.test.js (bd-jtgjt8.1)' }, 0);
 
+  // bd-e1qvrf: the saved grade is observable as meta.grade_source = 'profile' on the quiz row.
+  rec('T1184', 'A class quiz is pitched at the grade the teacher saved on their profile', 'BLOCKED',
+      { reason: 'needs a recorded lesson transcript and its digest LLM call, which the mock cassettes do not hold; '
+          + 'unit-tested in bot/tests/quiz/transcript-quiz-digest-grade.test.js (bd-e1qvrf)' }, 0);
+
 };
