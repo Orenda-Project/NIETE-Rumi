@@ -54,7 +54,8 @@ async function recentHistory(userId) {
     return { segments, modules: [...perModule].filter(([, s]) => s.size >= 2).map(([m]) => m) };
   } catch (e) {
     warn('recentHistory', e, { userId });
-    return { segments: [], modules: [] };
+    // R9 (bd-tp4w7n.1): `failed` lets aligned mode stay silent rather than risk a repeat; every other reader ignores it
+    return { segments: [], modules: [], failed: true };
   }
 }
 
