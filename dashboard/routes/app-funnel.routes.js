@@ -616,6 +616,8 @@ const ACTIONS = [
   ['POST', /^\/leader\/observe\/[^/]+\/report\/send$/, 'observe.report_sent', 'coach', {}],
   // The "ready for you" strip.
   ['POST', /^\/me\/notices\/[^/]+\/opened$/, 'notice.opened', 'notice', {}],
+  // The survey bar at the end of a lesson plan in the app: an answer saved (the route's body is never logged).
+  ['POST', /^\/lp\/feedback$/, 'lp_feedback', 'lesson_plan', {}],
 ];
 
 function matchAction(req) {

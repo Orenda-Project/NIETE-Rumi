@@ -24,7 +24,7 @@ Full index: `CLAUDE.index.md`
 | `sw.js` | Battery service worker (scope /sa/): network-first engine files, cache-first battery and clips; offline prepare |
 | `sink-coach.js` | Coach sink: battery putBatch/presign/register via portal relay /api/portal/leader/child-test/sa/session/:id/* |
 | `sink-game.js` | Game sink: battery sync via /api/sa-game/s/* with run token st and x-wq-device header; openSession/forGame helpers |
-| `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with |
+| `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with. sw.js (sa-42+) also reads it at install: on a SESSION bump the new cache copies an older cache's entry only when the entry's own bytes hash to the new lock's sha1 for its path (never a battery file); activate repeats the pass, then deletes the older cache |
 | `demo-battery.json` | Demo battery (coach G3 set A, ur) with welcome/audio-check lines and tasks; default form of the QA page run.html |
 | … | 15 more → `CLAUDE.index.md` |
 

@@ -138,7 +138,7 @@ async function handleImageMessage(message, from, user = null) {
       // (handleLessonPlanResponse → handleLessonPlanUpload + queueAnalysis).
       try {
         const { handleLessonPlanMediaArrival } = require('../services/coaching/media-attach.service');
-        if (await handleLessonPlanMediaArrival({ user, from, mediaId: imageId, mimeType })) {
+        if (await handleLessonPlanMediaArrival({ user, from, mediaId: imageId, mimeType, messageId: message.id })) {
           typingController.stop();
           return;
         }

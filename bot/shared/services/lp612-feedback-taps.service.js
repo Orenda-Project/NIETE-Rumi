@@ -275,4 +275,6 @@ module.exports = {
   handleFeedbackButton,
   handleUsageButton,
   consumeReasonIfPending,
+  // The lane's lp_variant for a segment (ICT / GB card / GB written): the in-app survey writes the same value.
+  variantOf,
 };
