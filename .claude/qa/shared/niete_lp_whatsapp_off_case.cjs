@@ -1,5 +1,5 @@
 'use strict';
-/* lp-whatsapp-off-case.cjs — the step lesson-plan L13/L14 take (bd-96f69c.8): set lp_whatsapp_pdf_off to a list of
+/* niete_lp_whatsapp_off_case.cjs — the step lesson-plan L13/L14 take (bd-96f69c.8): set lp_whatsapp_pdf_off to a list of
  * programmes ("ict", "gb"), send /lp, and report what came back. The driver teacher is ICT (not a GB teacher).
  * api.setAppSetting only flips the run's own database (E2E_LOCAL_DB=1) and refuses a shared one: then { ran: false }.
  * The switch is put back whatever happens. */

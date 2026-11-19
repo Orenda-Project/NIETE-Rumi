@@ -286,15 +286,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   });
   if (r12.ran) rec('L12', L12, r12.value.shelfSeeded && r12.value.storeLink && !r12.value.editSentence ? 'PASS' : 'FAIL', r12.value, r12.value.ms);
   else rec('L12', L12, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: r12.reason }, 0);
-  // bd-96f69c.8 — lp_whatsapp_pdf_off per programme (../lp-whatsapp-off-case.cjs); L15 is @no-mock-driver.
+  // bd-96f69c.8 — lp_whatsapp_pdf_off per programme (../niete_lp_whatsapp_off_case.cjs); L15 is @no-mock-driver.
   if (want('L13')) {
     const L13 = 'With lesson-plan PDFs off on WhatsApp for my programme, asking for a lesson plan sends me one app link';
-    const x = await require('../lp-whatsapp-off-case.cjs').sendLpWithPdfOff(api, ['ict'], CARD), e = x.value || {};
+    const x = await require('../niete_lp_whatsapp_off_case.cjs').sendLpWithPdfOff(api, ['ict'], CARD), e = x.value || {};
     if (x.ran) rec('L13', L13, ...V(e.appLink && e.messages === 1 && !e.card && !e.pdf, e), x.ms); else rec('L13', L13, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: x.reason }, 0);
   }
   if (want('L14')) {
     const L14 = "With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged";
-    const x = await require('../lp-whatsapp-off-case.cjs').sendLpWithPdfOff(api, ['gb'], CARD), e = x.value || {};
+    const x = await require('../niete_lp_whatsapp_off_case.cjs').sendLpWithPdfOff(api, ['gb'], CARD), e = x.value || {};
     if (x.ran) rec('L14', L14, ...V(e.card && !e.appLink, e), x.ms); else rec('L14', L14, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: x.reason }, 0);
   }
 };
