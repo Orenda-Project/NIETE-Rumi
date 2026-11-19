@@ -6338,6 +6338,40 @@ async function _attemptAnswers(attemptId) {
 const _resultsOf = (rows) => rows.map((r) => ({ question_id: r.question_id, question_index: r.question_index, is_correct: Boolean(r.is_correct) }));
 
 /**
+ * bd-r2uzg1.18.13 — the question she is on: the first one with no saved answer. The saved answers
+ * are the record; current_question_index is only where WhatsApp resumes, and it can lag them —
+ * checking an answer is two writes (the answer, then the cursor), and a database timeout between
+ * them saved the answer and left the cursor behind. The order rule used to read the cursor while
+ * start sent her screen to the next unanswered question, so every Check after that was refused
+ * ("Answer the questions in order") and she could never move on.
+ */
+function _nextUnanswered(rows, total) {
+  const done = new Set(rows.map((r) => Number(r.question_index)));
+  let i = 0;
+  while (i < total && done.has(i)) i += 1;
+  return i;
+}
+
+/**
+ * Move the cursor FORWARD to `to` (never back: a slower parallel write cannot rewind it). Best
+ * effort: the answer that matters is already saved, and the order rule reads the answers, so a
+ * failure here is logged and the next answer or reopen moves it on.
+ */
+async function _catchUpCursor(attemptId, to, log) {
+  try {
+    const { error } = await supabase
+      .from('training_assessment_attempts')
+      .update({ current_question_index: to, last_activity_at: new Date().toISOString() })
+      .eq('id', attemptId)
+      .eq('status', 'in_progress')
+      .lt('current_question_index', to);
+    if (error) log(error);
+  } catch (error) {
+    log(error);
+  }
+}
+
+/**
  * A module-quiz step that failed: on Axiom (the portal's telemetry sink) as well as the Railway
  * console. The console line used to be all there was, so a start that answered 500 left nothing in
  * the logs anyone queries. Carries the pg code and the request's correlation id, which the 5xx body
@@ -6526,9 +6560,16 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
     }
 
     const done = await _attemptAnswers(attempt.id);
+    // bd-r2uzg1.18.13 — the screen opens on the first unanswered question, the one answer will
+    // accept; a cursor left behind by a timed-out write is moved up to it here, so WhatsApp resumes
+    // there too.
+    const nextIndex = _nextUnanswered(done, attempt.total_questions);
+    if (open && Number(open.current_question_index) < nextIndex) {
+      await _catchUpCursor(attempt.id, nextIndex, (error) => _quizAttemptFailed('start_cursor', { correlationId, userId, moduleId, attemptId: attempt.id, error }));
+    }
     return res.json({
       success: true,
-      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: done.length },
+      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: nextIndex },
       // Options in the served order, each carrying its canonical 1-based value —
       // the value the bot marks against. The key itself is never sent.
       questions: paper.map(({ q, display_order }) => {
@@ -6575,7 +6616,8 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
 
     // A checked answer is final. Reported with what she chose and its verdict,
     // so a reloaded page shows the same locked state.
-    const stored = (await _attemptAnswers(attempt.id)).find((r) => r.question_index === index);
+    const saved = await _attemptAnswers(attempt.id);
+    const stored = saved.find((r) => r.question_index === index);
     if (stored) {
       return res.status(409).json({
         success: false, error: 'Already answered', already_answered: true,
@@ -6583,8 +6625,11 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       });
     }
     if (attempt.status !== 'in_progress') return res.status(409).json({ success: false, error: 'This quiz is already finished' });
-    if (index !== attempt.current_question_index) {
-      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: attempt.current_question_index });
+    // In order = the first question with no saved answer, not the cursor: the cursor can lag the
+    // answers after a timed-out write, and comparing with it refused her for ever (bd-r2uzg1.18.13).
+    const expected = _nextUnanswered(saved, attempt.total_questions);
+    if (index !== expected) {
+      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: expected });
     }
 
     const { q } = paper[index];
@@ -6621,16 +6666,14 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       }
       throw ansErr;
     }
-    const { error: moveErr } = await supabase
-      .from('training_assessment_attempts')
-      .update({ current_question_index: index + 1, last_activity_at: now })
-      .eq('id', attempt.id)
-      .eq('status', 'in_progress');
-    if (moveErr) throw moveErr;
+    // The answer is saved: from here she gets her verdict even if the cursor cannot move this time
+    // (the next answer or reopen moves it on). Throwing here used to answer 500 for a saved answer.
+    const after = _nextUnanswered([...saved, { question_index: index }], attempt.total_questions);
+    await _catchUpCursor(attempt.id, after, (error) => _quizAttemptFailed('answer_cursor', { correlationId, userId, moduleId, attemptId, error }));
 
     // The last answer saves the result there and then.
     let result = null;
-    if (index + 1 >= attempt.total_questions) {
+    if (after >= attempt.total_questions) {
       try {
         const fresh = await _ownModuleAttempt(userId, moduleId, attempt.id);
         const out = await _finishModuleQuizAttempt(userId, moduleId, fresh, paper);
@@ -6645,7 +6688,7 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       success: true,
       question_id: q.id,
       is_correct: Boolean(g.is_correct),
-      answered: index + 1,
+      answered: saved.length + 1,
       total_questions: attempt.total_questions,
       result,
     });
