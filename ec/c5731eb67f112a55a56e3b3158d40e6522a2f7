@@ -1,0 +1,3 @@
+{"ts":"2026-11-19T19:39:26Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"ecc5731eb67f","branch":"bd-m8zwt1-fixes","user":""}
+{"ts":"2026-11-19T19:39:27Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"ecc5731eb67f","branch":"bd-m8zwt1-fixes","user":""}
+{"ts":"2026-11-19T19:40:10Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"1afd67c9-f695-474b-af53-66e9db5ffb1b","sha":"ecc5731eb67f","branch":"bd-m8zwt1-fixes","user":""}
