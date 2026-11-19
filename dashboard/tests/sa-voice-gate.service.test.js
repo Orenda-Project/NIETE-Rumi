@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-43'); // sa-43: a SESSION bump keeps what did not change (the carry in install and activate)
+    expect(sw.CORE).toBe('sa-core-sa-45'); // sa-45: round 28, the letter-sound picker's prompts re-made (SESSION v32)
   });
 });
 

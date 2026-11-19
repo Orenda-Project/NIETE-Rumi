@@ -99,7 +99,8 @@
 // sa-43: this worker and sa-page.js (a SESSION bump keeps what did not change: install, then activate, copies an older
 //   session cache's entry whose bytes hash to the new lock's sha1 for its path; nothing else is kept). SESSION unchanged:
 //   the carry needs no record from an earlier worker, so it works on the bump it ships with.
-var VERSION = 'sa-43';
+// sa-45: the letter-sound picker's prompt clips re-made (SESSION v32); no worker code changes.
+var VERSION = 'sa-45';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -145,7 +146,12 @@ var CORE = 'sa-core-' + VERSION;
 // «آواز بولیں»), each with its clip at the new text's key.
 // v30: the letter-names practice example's name «ثے» re-voiced under its v4 key: the take said "see" ([siː]), now "say"
 // ([seː]), heard so on repeated listens; levelled like the other v4 clips. No word timings change.
-var SESSION = 'sa-session-v30';
+// v32: the letter-sound picker's 24 prompts (scored and practice, English and Urdu) say each sound three times: one
+// recorded sound copied three times with the same gap, so no letter gets a clue; English t (a real /t/ burst) and d
+// (longer) re-made, the held sounds as the content owner picked, Urdu م and س held. v5/prompt_timings.json gives the
+// three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is retired unused;
+// the next re-voice takes v33, and SESSION never moves backwards.)
+var SESSION = 'sa-session-v32';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
