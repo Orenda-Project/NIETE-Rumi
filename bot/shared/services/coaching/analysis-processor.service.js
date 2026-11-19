@@ -150,6 +150,11 @@ class AnalysisProcessorService {
         return { skipped: 'obs612' };
       }
 
+      // bd-r2uzg1.18.9 (HITL row 186): a coach's recording is analysed ONCE, also when its analysis starts late (a
+      // failed job retried after she re-sent the recording; two sends of the same file a second apart). The same
+      // check the transcription worker runs (bd-erpvf), asked again here. Fails OPEN like it.
+      if (await this._refuseIfAlreadyAnalysed(session, from)) return { skipped: 'duplicate' };
+
       // Update status
       await CoachingSessionService.updateStatus(coachingSessionId, 'analyzing', {
         analysis_started_at: new Date().toISOString()
@@ -712,6 +717,31 @@ class AnalysisProcessorService {
     } catch (error) {
       await this.handleAnalysisError(coachingSessionId, error, payload.from);
       throw error;
+    }
+  }
+
+  /**
+   * bd-r2uzg1.18.9 — audio-hash-cache.refuseIfAlreadyAnalysed, wired exactly like the transcription worker's check
+   * (TranscriptionProcessorService.observeRefusalDeps: one wiring, the same message, the same /observe2 form release).
+   * @returns {Promise<boolean>} true when the observation was closed as a duplicate and must not be analysed
+   */
+  static async _refuseIfAlreadyAnalysed(session, from) {
+    if (!session || session.observation_type !== 'leader_observation') return false;
+    try {
+      const Cache = require('./audio-hash-cache');
+      const TranscriptionProcessorService = require('./transcription-processor.service');
+      return await Cache.refuseIfAlreadyAnalysed(session, {
+        ...TranscriptionProcessorService.observeRefusalDeps(session, session.id),
+        from,
+        findPrior: (opts) => Cache.findPriorLeaderObservation(supabase, opts),
+        skipsCheck: (uid) => require('./duplicate-check-switch').skipsCheck(uid),
+      });
+    } catch (err) {
+      // Class N — degraded, not terminal: the analysis goes ahead, and the monitor still sees it.
+      require('../../utils/logger').logWarn('⚠️ observe duplicate check at analysis failed — analysing normally (non-fatal)', {
+        coachingSessionId: session.id, error: err && err.message,
+      });
+      return false;
     }
   }
 
