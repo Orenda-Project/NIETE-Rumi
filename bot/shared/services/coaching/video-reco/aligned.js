@@ -94,7 +94,10 @@ const SUB_ASK = Object.freeze({
 
 // Quoted spans (the card's example question) are masked while the clause is cut, so a comma inside a quote never ends it.
 const QUOTE = /'[^'\n]{0,160}'|‘[^’\n]{0,160}’|"[^"\n]{0,160}"|“[^”\n]{0,160}”|«[^»\n]{0,160}»/gu;
-const mask = (s) => s.replace(QUOTE, (q) => q[0] + '·'.repeat(Math.max(0, [...q].length - 2)) + q[q.length - 1]);
+// an apostrophe between two letters («the hair's movement») is text, not a quote mark (qa-e2e 20261119T215759): it would
+// pair with the card's real quote and leave it unmasked. ʼ (U+02BC) keeps the length, so mainClause's offsets hold.
+const APOSTROPHE = /(?<=\p{L})'(?=\p{L})/gu;
+const mask = (s) => s.replace(APOSTROPHE, 'ʼ').replace(QUOTE, (q) => q[0] + '·'.repeat(Math.max(0, [...q].length - 2)) + q[q.length - 1]);
 const ADDRESS = /^\s*(?:\[TEACHER\]\s*[،,:]?\s*)+/u;
 const LEAD = /^\s*(?:next (?:class|lesson|time)[,،]?\s*|tomorrow[,،]?\s*|in (?:the|your) next (?:class|lesson)[,،]?\s*|اگلی (?:کلاس|بار)(?: میں)?[،,]?\s*)/iu;
 // The trigger clause («when a student answers 'X',» / «جب … ، تو») names a moment, not the ask.
@@ -220,11 +223,43 @@ function questionMove(card, main) {
   return OPEN_WHY.test(main) ? 'open_questions' : null;
 }
 
+// R9d route (a) (COS 20261119T215752; ped-align r9a 20261119T215415, 259/343 at #5202): a later visit is a pick for a
+// teacher who has been shown a clip before (the r9a rank ≥ 2). There, only the card's MAIN step is served, and wait time
+// only when the wait is that step with no question of the card's own («ask 'why…?', wait 5 s» is the question's card:
+// r9a 451-s1 45/98). A near-miss anywhere on the card silences it (r9a: the TPS wrongs are a pair-share tacked onto
+// feedback, a video, roles, a definition), except the pair-work words that ARE the think-pair-share ask.
+const QUESTION_STEP = /\b(?:ask|asks|asking|pose)\b|open[- ]ended|\bwhy\b|\bhow\b|\?|؟|پوچھ|کیوں|کیسے|سوال/iu;
+const LATER_NEAR_MISS_KEEP = Object.freeze({ think_pair_share: new Set(['pair_work', 'timed_pairs']) });
+// …and three main steps the r9a wrongs name in Urdu (fitted on those 4 cards, later visits only): roles, a played video,
+// a classmate's opinion of an answer
+const LATER_NEAR_MISS = [
+  ['roles', /\bرول\b|کا رول|کردار تقسیم/u],
+  ['played_video', /\bvideo\b[^۔.]{0,15}چلائ|ویڈیو[^۔.]{0,15}چلائ/iu],
+  ['peer_opinion', /جواب پر رائے/u],
+];
+
+/** A later visit (rank ≥ 2): the teacher has been shown a clip before. */
+function laterVisit(history) {
+  return !!history && ((history.segments || []).length > 0 || (history.modules || []).length > 0);
+}
+
 /**
  * The card's asks, in the order its main clause names them → [{ move, sub, at }] (empty = silence). One why-family ask at
  * most. The report asked every move named; a clip that shows any one of them, at its sub-ask, shows what was asked.
+ * opts.later: a later visit (laterVisit), the main step only (above).
  */
-function classifyAsks(sentence) {
+function classifyAsks(sentence, opts = {}) {
+  const asks = firstVisitAsks(sentence);
+  if (!opts.later || !asks.length) return asks;
+  const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
+  const main = asks[0];
+  const keep = LATER_NEAR_MISS_KEEP[main.move] || new Set();
+  if ([...NEAR_MISS, ...LATER_NEAR_MISS].some(([id, rx]) => !keep.has(id) && rx.test(card))) return [];
+  if (main.move === 'wait_time' && QUESTION_STEP.test(mask(mainClause(card)).replace(/wait[- ]time/giu, ''))) return [];
+  return [main];
+}
+
+function firstVisitAsks(sentence) {
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = mainClause(card);
   if (!main) return [];
@@ -321,11 +356,13 @@ function videoKey(module) {
  * subject, then the narrower grade band, then seg id (stable).
  * @param {object} catalog  catalog.fromData(v2 data)
  * @param {{move, sub}} ask
- * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null}} ctx
+ * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null, later?:boolean}} ctx
  * @param {{subject:string|null, grade:{lo,hi}|null}} lesson
  */
 function candidates(catalog, ask, ctx = {}, lesson = {}) {
   if (!catalog || !ask) return [];
+  // the cross-gate (GATE_FREE) was judged on first clips; a later visit keeps the subject × grade gates (COS 215752)
+  const later = ctx.later !== undefined ? !!ctx.later : laterVisit(ctx.history);
   const langs = new Set(ctx.languages || []);
   const h = ctx.history || {};
   const seenSegs = new Set((h.segments || []).map(String));
@@ -343,7 +380,7 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
   const out = [];
   for (const module of catalog.modules || []) {
     if (seenVideos.has(videoKey(module))) continue;
-    if (!GATE_FREE.has(ask.move) && (!subjectOk(module, lesson) || !gradeOk(module, lesson))) continue;
+    if ((later || !GATE_FREE.has(ask.move)) && (!subjectOk(module, lesson) || !gradeOk(module, lesson))) continue;
     for (const seg of module.segments || []) {
       const rec = SUB_ASK[String(seg.seg_id)];
       if (!rec || rec.sub !== ask.sub) continue;
@@ -374,4 +411,4 @@ function reasonFor(ask, seg) {
   return { reason_en: line('en'), reason_ur: line('ur') };
 }
 
-module.exports = { GATE_FREE, classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
+module.exports = { GATE_FREE, laterVisit, classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
