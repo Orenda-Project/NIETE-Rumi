@@ -80,13 +80,14 @@ function fromClient(raw, { now = new Date() } = {}) {
 const notesOf = (analysis) => (Array.isArray((analysis || {})[NOTES_KEY]) ? analysis[NOTES_KEY] : []);
 
 /** The patchSession step that appends one save's notes (once per batch). */
-function appendStep(notes, batch) {
+function appendStep(notes, batch, seen = {}) {
   return (analysis) => {
     const existing = notesOf(analysis);
     if (existing.some((n) => n && n.batch === batch)) return { done: true };
     const room = MAX_NOTES - existing.length;
     if (room <= 0) return { stop: 'full' };
     const before = !analysis[REVIEW_KEY];
+    seen.before = before; // eslint-disable-line no-param-reassign
     const added = notes.slice(0, room).map((n, i) => ({
       id: `n${existing.length + i + 1}`,
       text: n.text,
@@ -106,19 +107,25 @@ const instant = () => Promise.resolve();
  * Save notes on a visit. The first passes run back to back (the coach is told at once whether they were saved); then,
  * unless `quick`, the normal passes run in the background so a whole-blob writer that read before this write and wrote
  * after it cannot lose them.
- * @returns {Promise<{ok: boolean, added: number, why?: string}>}
+ * @returns {Promise<{ok: boolean, added: number, before?: boolean, why?: string}>}  before: saved before the review opened
  */
 async function addNotes(sessionId, notes, { batch, quick = false } = {}) {
   const list = Array.isArray(notes) ? notes.filter((n) => n && n.text) : [];
   if (!sessionId || !list.length) return { ok: false, added: 0, why: 'nothing to save' };
   const { patchSession } = require('../coaching/frameworks/fico17-v6/late-write');
   const key = batch || `b:${Date.now()}`;
-  const step = appendStep(list, key);
+  const seen = {};
+  const step = appendStep(list, key, seen);
   const out = await patchSession(sessionId, step, { sleep: instant, label: 'observation notes' });
   if (!quick && out.ok) {
-    patchSession(sessionId, step, { label: 'observation notes (confirm)' }).catch(() => null);
+    patchSession(sessionId, appendStep(list, key), { label: 'observation notes (confirm)' }).catch(() => null);
   }
-  return { ok: out.ok, added: out.written ? Math.min(list.length, MAX_NOTES) : 0, ...(out.ok ? {} : { why: out.why }) };
+  return {
+    ok: out.ok,
+    added: out.written ? Math.min(list.length, MAX_NOTES) : 0,
+    ...(seen.before !== undefined ? { before: seen.before } : {}),
+    ...(out.ok ? {} : { why: out.why }),
+  };
 }
 
 /** Stamp the first time the coach opened Rumi's review form. Never throws. */
@@ -169,7 +176,196 @@ function introText(analysis, lang = 'en') {
   return out;
 }
 
+// ── WhatsApp: the Observation Notes Flow ────────────────────────────────────
+// One screen (docs/flows/observe-notes.json, published per rung, its id in OBSERVE_NOTES_FLOW_ID), opened in navigate
+// mode with every word as screen data in the coach's language, so one Flow serves English and Urdu. Its Save completes
+// the Flow; the reply (an nfm_reply whose token is obsnotes:<session id>) comes to handleFlowReply.
+const FLOW_ID_ENV = 'OBSERVE_NOTES_FLOW_ID';
+const TOKEN_PREFIX = 'obsnotes:';
+const FLOW_SCREEN = 'NOTES';
+const V6 = 'fico17_v6';
+
+function strings(lang) {
+  const { observeStrings } = require('./observe-strings');
+  return observeStrings(lang === 'ur' ? 'ur' : 'en');
+}
+
+const fillN = (tpl, n, lang) => String(tpl || '').replace('{n}', lang === 'ur'
+  ? String(n).replace(/[0-9]/g, (d) => URDU_DIGITS[Number(d)])
+  : String(n));
+
+/**
+ * After the recording's acknowledgement on a v6 /observe visit: the one message that offers the notes Flow, while the
+ * switch is on for the coach. Never throws; a failure is logged and the capture goes on.
+ * @param {{observerId: string, to: string, session: object, lang?: string, teacherName?: string|null}} args
+ * @returns {Promise<{sent: boolean, why?: string}>}
+ */
+async function offerNotes({ observerId, to, session, lang = 'en', teacherName = null } = {}) {
+  try {
+    if (!session || session.framework !== V6) return { sent: false, why: 'not_v6' };
+    const { isOn } = require('./observation-notes-switch');
+    if (!(await isOn(observerId))) return { sent: false, why: 'off' };
+    const flowId = process.env[FLOW_ID_ENV] || '';
+    if (!flowId) {
+      logToFile(`observation-notes: ${FLOW_ID_ENV} is unset — no notes offer on this deployment`, { sessionId: session.id }, 'error');
+      return { sent: false, why: 'no_flow_id' };
+    }
+    const S = strings(lang);
+    const WhatsAppService = require('../whatsapp.service');
+    await WhatsAppService.sendFlow(to, {
+      flowId,
+      flowToken: `${TOKEN_PREFIX}${session.id}`,
+      screen: FLOW_SCREEN,
+      screenData: {
+        heading: S.nf_heading,
+        who: teacherName || '',
+        who_v: !!teacherName,
+        help: S.nf_help,
+        lbl: S.nf_label,
+        helper: S.nf_helper,
+        save: S.nf_save,
+      },
+      body: S.notes_invite,
+      buttonText: S.notes_button,
+    });
+    logToFile('📝 observation-notes: notes Flow offered', { sessionId: session.id, observerId });
+    return { sent: true };
+  } catch (err) {
+    logToFile('❌ observation-notes: the notes offer failed (the capture goes on)', { sessionId: session && session.id, error: err.message }, 'error');
+    return { sent: false, why: 'error' };
+  }
+}
+
+const isNotesToken = (token) => typeof token === 'string' && token.startsWith(TOKEN_PREFIX);
+
+/**
+ * The notes Flow's reply. Claims every obsnotes: token (returns true), readable or not, so no other Flow handler sees
+ * it. Saves the notes on the visit only when the sender is the visit's coach, and tells her how many were saved.
+ * @param {{id: string, preferred_language?: string}} user  the sender
+ * @param {string} from  her WhatsApp number
+ * @param {string} token  the Flow token (obsnotes:<session id>)
+ * @param {object} responseJson  the Flow's completion payload ({ notes })
+ * @param {{messageId?: string}} [opts]
+ */
+async function handleFlowReply(user, from, token, responseJson, { messageId = null } = {}) {
+  const sessionId = String(token || '').slice(TOKEN_PREFIX.length);
+  try {
+    const supabase = require('../../config/supabase');
+    const { data: session } = await supabase.from('coaching_sessions')
+      .select('id, user_id, observer_user_id, observation_type, status, framework')
+      .eq('id', sessionId).maybeSingle();
+    const owner = session && (session.observer_user_id || session.user_id);
+    if (!session || session.observation_type !== 'leader_observation' || !user || owner !== user.id) {
+      logToFile('🚫 observation-notes: notes reply refused — not this coach\'s visit', { sessionId, userId: user && user.id }, 'warn');
+      return true;
+    }
+    let lang = 'en';
+    try { lang = await require('./observe-language').languageFor('coach', session); } catch (_) { /* English */ }
+    const S = strings(lang);
+    const WhatsAppService = require('../whatsapp.service');
+    const { TERMINAL_STATUSES } = require('../coaching/session-terminal');
+    if (TERMINAL_STATUSES.includes(session.status)) {
+      await WhatsAppService.sendMessage(from, S.flow_terminal_refused);
+      logToFile('🚫 observation-notes: notes reply for an observation that is over', { sessionId, status: session.status });
+      return true;
+    }
+    const notes = notesFromText(responseJson && responseJson.notes, { source: 'whatsapp' });
+    if (!notes.length) return true;
+    const out = await addNotes(sessionId, notes, { batch: `wa:${messageId || `${sessionId}:${Date.now()}`}` });
+    if (!out.ok) {
+      logToFile('❌ observation-notes: notes not saved', { sessionId, why: out.why }, 'error');
+      await WhatsAppService.sendMessage(from, S.notes_not_saved);
+      return true;
+    }
+    const count = fillN(notes.length === 1 ? S.notes_count_one : S.notes_count_many, notes.length, lang);
+    await WhatsAppService.sendMessage(from, String(out.before === false ? S.notes_saved_late : S.notes_saved).replace('{n}', count));
+    logToFile('📝 observation-notes: notes saved from WhatsApp', { sessionId, count: notes.length, added: out.added, beforeReview: out.before !== false });
+    runInformedSoon(sessionId);
+  } catch (err) {
+    logToFile('❌ observation-notes: notes reply failed', { sessionId, error: err.message }, 'error');
+  }
+  return true;
+}
+
+// ── The informed scoring (Phase 1: stored only) ─────────────────────────────
+const MAX_INFORMED_RUNS = 3;
+const running = new Map();
+
+/** The informed run's step: put this blob in place unless a newer one is already stored. */
+function informedStep(blob) {
+  const want = JSON.parse(JSON.stringify(blob));
+  const { isDeepStrictEqual } = require('util');
+  return (analysis) => {
+    const have = analysis[INFORMED_KEY];
+    if (have && isDeepStrictEqual(have, want)) return { done: true };
+    if (have && have.at && want.at && have.at > want.at) return { stop: 'a newer informed scoring is stored' };
+    return { next: { ...analysis, [INFORMED_KEY]: want } };
+  };
+}
+
+/**
+ * Score a v6 visit with its notes and store it under analysis_data.dc_informed, once both the notes and the blind
+ * analysis exist. Again when notes arrive that the stored scoring did not read (at most MAX_INFORMED_RUNS runs). Never
+ * pre-fills the review, never reaches the report. Never throws: a failure is logged under its correlation id and
+ * nothing else happens.
+ * @returns {Promise<{ran: boolean, why?: string, status?: string}>}
+ */
+async function runInformed(sessionId) {
+  const correlationId = `dc-informed-${sessionId}`;
+  const { runWithCorrelation } = require('../../utils/structured-logger');
+  return runWithCorrelation(correlationId, async () => {
+    try {
+      const supabase = require('../../config/supabase');
+      const { data: session } = await supabase.from('coaching_sessions')
+        .select('id, user_id, observer_user_id, observation_type, status, framework, transcript_text, audio_duration_seconds, analysis_data, autofill_analysis_data')
+        .eq('id', sessionId).maybeSingle();
+      if (!session || session.observation_type !== 'leader_observation' || session.framework !== V6) return { ran: false, why: 'not_v6' };
+      const analysis = session.analysis_data || {};
+      const informed = require('../coaching/frameworks/fico17-v6/informed');
+      const usable = informed.promptNotes(notesOf(analysis));
+      if (!usable.length) return { ran: false, why: 'no_notes' };
+      const blind = session.autofill_analysis_data;
+      if (!blind || blind.framework !== V6) return { ran: false, why: 'no_blind' };
+      if (!session.transcript_text) return { ran: false, why: 'no_transcript' };
+      const { isOn } = require('./observation-notes-switch');
+      if (!(await isOn(session.observer_user_id || session.user_id))) return { ran: false, why: 'off' };
+      const have = analysis[INFORMED_KEY] || null;
+      const ids = usable.map((n) => n.id);
+      if (have && JSON.stringify(have.note_ids || []) === JSON.stringify(ids)) return { ran: false, why: 'up_to_date' };
+      const runs = (have && Number(have.runs)) || 0;
+      if (runs >= MAX_INFORMED_RUNS) return { ran: false, why: 'max_runs' };
+
+      const blob = await informed.scoreInformed(session.transcript_text, usable, {
+        coachingSessionId: sessionId, duration: session.audio_duration_seconds,
+      });
+      blob.runs = runs + 1;
+      blob.blind_prompt_version = blind.prompt_version || null;
+      const { patchSession } = require('../coaching/frameworks/fico17-v6/late-write');
+      const stored = await patchSession(sessionId, informedStep(blob), { label: 'dc_informed' });
+      logToFile('📝 observation-notes: informed DC scoring stored', {
+        sessionId, correlationId, status: blob.status, notes: ids.length, made_up: blob.made_up_note_support,
+        cost: blob.usage && blob.usage.cost, stored: stored.ok,
+      });
+      return { ran: true, status: blob.status };
+    } catch (err) {
+      logToFile('❌ observation-notes: informed DC scoring failed — nothing stored', { sessionId, correlationId, error: err.message }, 'error');
+      return { ran: false, why: 'error' };
+    }
+  });
+}
+
+/** runInformed beside the caller's work, one at a time per visit; a call while one runs shares it. Never throws. */
+function runInformedSoon(sessionId) {
+  if (!sessionId) return Promise.resolve({ ran: false, why: 'no_session' });
+  if (running.has(sessionId)) return running.get(sessionId);
+  const job = runInformed(sessionId).finally(() => running.delete(sessionId));
+  running.set(sessionId, job);
+  return job;
+}
+
 module.exports = {
   NOTE_CAP, MAX_NOTES, INTRO_CAP, SOURCES, REVIEW_KEY, NOTES_KEY, INFORMED_KEY, CARRY_KEYS,
+  FLOW_ID_ENV, TOKEN_PREFIX, FLOW_SCREEN, MAX_INFORMED_RUNS,
   notesFromText, fromClient, notesOf, addNotes, markReviewOpened, carry, introText,
+  offerNotes, isNotesToken, handleFlowReply, runInformed, runInformedSoon,
 };
