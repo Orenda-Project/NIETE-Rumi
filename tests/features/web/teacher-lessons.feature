@@ -285,3 +285,31 @@ Feature: Teacher lesson plans
     Given the teacher app v2 and "portal_lp_make_own" are on for her
     When she opens a ready-made plan, or another teacher's plan from the shelf
     Then no "How good was this plan?" card is shown
+
+  # bd-snkn32.56, queue #151 (#134 E) — Make my own from a learning goal or topic, no textbook in class (grades 6–12).
+  # Behind the LIST-ONLY app_settings key `portal_lp_own_goal_start` (a list of user ids). Component proof:
+  # OwnPage.goal.test.tsx, GoalStep.test.tsx, state.goal.test.ts; server: tests/lp612/own-goal*.test.js,
+  # tests/portal/lp612-own-goal-route.test.js, tests/portal/lp612-own-goal-config-flag.test.js.
+  @GOAL01 @draft @config-gated
+  Scenario: A listed teacher starts a plan from a learning goal and it is made with no textbook
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she opens Make my own on a Grades 6–12 chapter
+    Then step 1 offers "Start from a learning goal or topic"
+    When she taps it and selects one of her grade's learning goals
+    And she answers the rest of the steps and taps Make my plan
+    Then her answers carry her goal and the lesson under it, with no textbook and no book pages
+    And the Preparing page opens on her plan's id
+
+  @GOAL02 @draft @config-gated
+  Scenario: A typed topic with no lesson behind it is said plainly
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she types a topic no lesson of her grade shares a word with and taps Find
+    Then she sees "Not found in your grade’s lessons. Try other words, or select a learning goal."
+    And OK stays disabled
+
+  @GOAL03 @draft @config-gated @negative
+  Scenario: A teacher not on the list never sees the goal start
+    Given the teacher app v2 and "portal_lp_make_own" are on for her, but she is not on "portal_lp_own_goal_start"
+    When she opens Make my own on a Grades 6–12 chapter
+    Then step 1 has no "Start from a learning goal or topic"
+    And a goal address sends her back to the book pages, and the server answers 404 to the goal reads

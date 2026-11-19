@@ -23,6 +23,8 @@ export type OwnBody = {
   pages?: { start: number; end: number };
   /** bd-snkn32.14 — grades 6–12: the next lesson's pages joined on, and how. */
   extend?: { next: string; shape: Extend };
+  /** bd-snkn32.56 — a goal start (no textbook in class): her learning goal or topic; then no pages, no extend. */
+  goal?: { kind: 'outcome' | 'topic'; text: string };
 };
 
 /** What the bot answered: her new plan's id, a refusal she is told about (bd-snkn32.15), or null (could not reach it). */

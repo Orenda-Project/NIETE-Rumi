@@ -28,6 +28,9 @@ const H = Number(arg('h', '640'));
 const SLOW = process.argv.includes('--slow'); // hold the lesson list back and shoot mid-load
 const BAND = arg('band', '612'); // bd-snkn32.4: 'k5' shoots a grade 3 Math chapter (the grades 1–5 lane)
 const NAME = arg('name', `chapter-${BAND}-${FLAG ? 'on' : 'off'}-${LANG}-${W}`);
+// bd-snkn32.56 — --at <address> shoots any lessons address; --head <text> is what to wait for (goal-start screens).
+const AT_ARG = arg('at', null);
+const HEAD_ARG = arg('head', null);
 
 function findChromium() {
   const base = path.join(homedir(), 'Library', 'Caches', 'ms-playwright');
@@ -74,7 +77,16 @@ const lessons = [
   ['ict7.c03.p045', 'Sharing files on a network', 'p.45–47'],
 ].map(([segment_id, title, pages_label], i) => ({ segment_id, title, pages_label, sent: i === 0 }));
 const FIXTURE = {
-  '/config': { success: true, features: { lpMakeOwn: FLAG, teacherApp: true } },
+  '/config': { success: true, features: { lpMakeOwn: FLAG, lpOwnGoalStart: FLAG, teacherApp: true } },
+  // bd-snkn32.56 — the goal start's reads (the catalogue's own outcome words for grade 7 ICT)
+  '/lp612/own/goals/match': { success: true, match: { segmentId: 'ict7.c03.p042', title: 'Using email safely' } },
+  '/lp612/own/goals': { success: true, outcomes: [
+    { segmentId: 'ict7.c01.p002', text: 'Identify the main parts of a computer', chapter: 'Computer Basics' },
+    { segmentId: 'ict7.c02.p015', text: 'Create and save a document in a word processor', chapter: 'Word Processing' },
+    { segmentId: 'ict7.c03.p030', text: 'Explain what a computer network is and why we use one', chapter: 'Computer Networks' },
+    { segmentId: 'ict7.c03.p033', text: 'Compare a LAN and a WAN', chapter: 'Computer Networks' },
+    { segmentId: 'ict7.c03.p042', text: 'Use email safely and politely', chapter: 'Computer Networks' },
+  ] },
   '/curriculum/grades': { grades: [{ grade: 4, subject_count: 1 }] },
   '/lp612/grades': { grades: [{ grade: 7 }] },
   '/lp612/subjects': { subjects: [{ subject: 'ICT', lesson_count: 6 }] },
@@ -135,8 +147,8 @@ try {
     : '/portal/teacher/lessons/lessons?grade=7&subject=ICT&chapter=c03';
   // bd-snkn32.4 — --own: Make my own's step 1 for the same chapter ("Which day?" in grades 1–5)
   const OWN = process.argv.includes('--own');
-  const atNow = OWN ? at.replace('/lessons/lessons?', '/lessons/own?') : at;
-  const HEAD = OWN ? (BAND === 'k5' ? (LANG === 'ur' ? 'کون سا دن؟' : 'Which day?') : 'Book pages') : BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks';
+  const atNow = AT_ARG ?? (OWN ? at.replace('/lessons/lessons?', '/lessons/own?') : at);
+  const HEAD = HEAD_ARG ?? (OWN ? (BAND === 'k5' ? (LANG === 'ur' ? 'کون سا دن؟' : 'Which day?') : 'Book pages') : BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks');
   const FIRST = BAND === 'k5' ? K5_DAYS[0] : 'What is a computer network?';
   await page.goto(`${origin}/scripts/chapter-shot/harness.html?lang=${LANG}&at=${encodeURIComponent(atNow)}`);
   if (SLOW) {

@@ -181,7 +181,9 @@ function createOwnWorker(deps) {
 
       const own = row.parent_own_id ? buildEditInstruction(row.edit_request) // bd-snkn32.15: her one change
         : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id, subject: segment.subject,
-          bookText: await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
+          // bd-snkn32.56 — a goal start: her class has no book, so no book text is read for it.
+          bookText: row.answers && row.answers.goal ? null
+            : await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
       const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
       const { instruction } = joined;
       const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
