@@ -262,6 +262,22 @@ describe('the ask classifier', () => {
   ])('red7 keeps: %s', (_, card, move) => {
     expect(A.classifyAsks(card).map((x) => x.move)).toContain(move);
   });
+  // red7 HOLD 20261119T151939 H2 (gate_2ab5e211e9/pick_delta.txt): explain cards and "follow up with a why" cards fell to
+  // open_questions → 95-s1, the family the panel failed (10 A / 7 W); 95-s1 is cleared only for "why do you think…?"
+  test.each([
+    ['explain in one sentence', 'Next class, when a student shares a homophone sentence like \'I bear my four,\' praise the matching sounds first, then ask: \'Why does this spelling fit here? Explain in one sentence.\''],
+    ['explain in two sentences', 'Next class, after the ruler-and-paper experiment, ask \'Why did the paper stick to the ruler? Explain in two sentences,\' then add a next step.'],
+    ['explain your steps', 'Next class, when a student gives a short answer for 16/10, pause, wait 5–7 seconds, and ask \'Why does the point go there? Explain your steps\' before giving the fix.'],
+    ['how would you explain why', 'Next class, when a student pauses on a place value question like 642, wait 5–7 seconds, appreciate their effort, then ask \'How would you explain why 6 is 600?\''],
+    ['pairs explain why', 'Next class, after modeling the square perimeter formula, pair students 3 minutes to explain why we multiply by 4; then ask how a pentagon\'s formula changes.'],
+    ['follow up with a why question', 'Next class, during independent comma practice, when a child gives a one-word answer, follow up with a real-life why question and wait 5-7 seconds before moving on.'],
+    ['follow up with one open question', 'Next class, when the orbit video ends and a student answers with one word, follow up with one open question such as \'Why do planets stay in orbit?\' to stretch their thinking.'],
+  ])('red7 H2: %s never reaches 95-s1 (open_questions)', (_, card) => {
+    expect(A.classifyAsks(card).map((x) => x.move)).not.toContain('open_questions');
+  });
+  test('red7 H2: "follow up with a why question" is a follow-up', () => {
+    expect(A.classifyAsk('Next class, when a child gives a one-word answer, follow up with a real-life why question and wait 5-7 seconds.').move).toBe('follow_up_probe');
+  });
   test('an aligned row stamps the v2 catalogue version (red7 N4)', async () => {
     const { row } = await run({ action: WAIT, env: ON });
     expect(row.catalog_version).toBe(V2.version);
