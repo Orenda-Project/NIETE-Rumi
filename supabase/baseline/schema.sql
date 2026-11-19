@@ -850,6 +850,15 @@ $$;
 
 
 --
+-- Name: db_is_replica(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.db_is_replica() RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT pg_is_in_recovery() $$;
+
+
+--
 -- Name: exec_sql(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4336,7 +4345,7 @@ CREATE TABLE public.lp_feedback (
     lp612_segment_id text,
     assessment_paper_id uuid,
     CONSTRAINT lp_feedback_reason_polarity_check CHECK ((reason_polarity = ANY (ARRAY['liked'::text, 'disliked'::text, 'unknown'::text]))),
-    CONSTRAINT lp_feedback_trigger_mode_check CHECK ((trigger_mode = ANY (ARRAY['after_voice_note'::text, 'after_pdf_only'::text]))),
+    CONSTRAINT lp_feedback_trigger_mode_check CHECK ((trigger_mode = ANY (ARRAY['after_voice_note'::text, 'after_pdf_only'::text, 'in_app'::text]))),
     CONSTRAINT lp_feedback_used_in_class_chk CHECK (((used_in_class IS NULL) OR (used_in_class = ANY (ARRAY['taught'::text, 'planned'::text, 'not_yet'::text])))),
     CONSTRAINT lp_feedback_useful_component_check CHECK ((useful_component = ANY (ARRAY['lp_only'::text, 'voicenote_only'::text, 'both'::text])))
 );
@@ -14461,6 +14470,14 @@ GRANT ALL ON FUNCTION public.cleanup_old_coaching_jobs(p_days_old integer) TO se
 --
 
 GRANT ALL ON FUNCTION public.complete_coaching_job(p_job_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION db_is_replica(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.db_is_replica() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.db_is_replica() TO service_role;
 
 
 --

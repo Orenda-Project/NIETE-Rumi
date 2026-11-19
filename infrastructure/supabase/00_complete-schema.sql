@@ -4231,7 +4231,7 @@ CREATE TABLE IF NOT EXISTS lp_feedback (
   chapter_number INTEGER,
   segment_number INTEGER,
   topic TEXT,
-  trigger_mode TEXT CHECK (trigger_mode IN ('after_voice_note', 'after_pdf_only')),
+  trigger_mode TEXT CHECK (trigger_mode IN ('after_voice_note', 'after_pdf_only', 'in_app')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_lp_feedback_user_time
@@ -4244,6 +4244,18 @@ CREATE INDEX IF NOT EXISTS idx_lp_feedback_useful_time
 CREATE INDEX IF NOT EXISTS idx_lp_feedback_polarity_time
   ON lp_feedback (reason_polarity, created_at DESC)
   WHERE reason_text IS NOT NULL;
+COMMENT ON COLUMN lp_feedback.trigger_mode IS
+  '[Internal] where the survey was asked: after_voice_note / after_pdf_only (WhatsApp) or in_app (the teacher app)';
+
+-- Replica check (migration V1.10.4): true on a read replica (in recovery), false on the primary. A scheduled job that
+-- must only read a replica calls it first and refuses to run on false. Reads nothing; service_role only.
+CREATE OR REPLACE FUNCTION public.db_is_replica() RETURNS boolean
+  LANGUAGE sql STABLE SECURITY INVOKER
+  AS $$ SELECT pg_is_in_recovery() $$;
+COMMENT ON FUNCTION public.db_is_replica() IS
+  'true on a read replica (in recovery), false on the primary. Called first by jobs that must only read a replica.';
+REVOKE ALL ON FUNCTION public.db_is_replica() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.db_is_replica() TO service_role;
 
 -- =============================================================================
 -- EXAM GENERATOR (design: docs/migration/05-exam-generator.md)
