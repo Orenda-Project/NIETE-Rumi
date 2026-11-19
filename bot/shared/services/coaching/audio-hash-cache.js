@@ -323,7 +323,10 @@ async function refuseDuplicateObservation(ctx, opts) {
  *   - It is NEWER: this is the old failed observation coming back after the coach re-sent the recording → closed
  *     the same way but quietly; the coach is following the newer one.
  *
- * Leader observations only; a row without a hash (never stamped), a row whose own analysis already finished (a re-run
+ * bd-r2uzg1.18.15: a teacher's own recording (DC, observation_type null) goes to yieldDcCopyAtAnalysis below, with
+ * DC deps (TranscriptionProcessorService.dcDuplicateDeps) — her copies, the same older/newer decision.
+ *
+ * For leader observations: a row without a hash (never stamped), a row whose own analysis already finished (a re-run
  * of it is not a second analysis of the recording, and must never close a finished observation) and a test account on
  * skip_recording_duplicate_check go ahead. Throws only if a dep throws — the caller fails OPEN.
  *
@@ -334,7 +337,10 @@ async function refuseDuplicateObservation(ctx, opts) {
  * @returns {Promise<boolean>} true when this observation was closed and must not be analysed
  */
 async function refuseIfAlreadyAnalysed(session, deps) {
-  if (!session || session.observation_type !== 'leader_observation') return false;
+  if (!session) return false;
+  // bd-r2uzg1.18.15: a teacher's own recording (DC) — the same question, her copies (below).
+  if (!session.observation_type) return yieldDcCopyAtAnalysis(session, deps);
+  if (session.observation_type !== 'leader_observation') return false;
   const observerUserId = session.observer_user_id;
   const audioHash = session.audio_hash;
   if (!observerUserId || !audioHash || session.analysis_completed_at) return false;
@@ -349,6 +355,148 @@ async function refuseIfAlreadyAnalysed(session, deps) {
     { coachingSessionId: session.id, from: deps.from, observerUserId, audioHash, prior, quiet: newer },
     deps,
   );
+}
+
+// ── bd-r2uzg1.18.15 — her own recording sent again while the first copy is still in flight ───────────
+//
+// findRecentDuplicateSession above matches only a COMPLETED copy. NIETE production, 1 Oct – 18 Nov 2026: 259 pairs of
+// analysed copies of one teacher's same bytes, and in 258 the second copy's check ran while the first was still in
+// flight — at the photo / lesson-plan step, analysing, or waiting for her reflection — so it was analysed again: two
+// reports, two scores. Since 26 Oct most come from the recording page that opens in WhatsApp.
+//
+// So a copy still in flight counts too — but only a RECENT one, so a stuck first copy never traps her re-send.
+
+/**
+ * How long a first copy still in progress holds back a re-send of the same bytes, from its creation. Production DC,
+ * Oct–Nov 2026: created → analysis finished p99 217 min (WhatsApp) / 204 min (the page); rounded up to 4 h. Past it
+ * the copy is treated as stuck and her re-send is analysed (the mid-flight watchdog fails a stuck processing copy in
+ * ~90 min; the photo step advances on its own at 60 min). 4 h covers 251 of the 259 measured pairs.
+ */
+const IN_FLIGHT_WINDOW_MS = 4 * 60 * 60 * 1000;
+/** Not in flight: finished (findRecentDuplicateSession's business) or never analysed (must not block). */
+const NOT_IN_FLIGHT_STATUSES = ['completed', ...NOT_ANALYSED_STATUSES];
+/** failed_step of a copy closed because another copy of the same recording is ahead (the page's stopReason). */
+const IN_FLIGHT_DUPLICATE_STEP = 'duplicate_in_flight';
+
+/**
+ * Her other DC copies of the same bytes still in flight and created within IN_FLIGHT_WINDOW_MS, oldest first.
+ * Narrow (Class R): id, status, created_at, analysis_started_at; at most 5 rows. Throws on a query error, so the
+ * caller's fail-open catch logs it.
+ * @returns {Promise<Array<{id, status, created_at, analysis_started_at}>>}
+ */
+async function findInFlightCopies(supabase, opts) {
+  const { userId, audioHash, excludeSessionId, now = Date.now() } = opts || {};
+  if (!userId || !audioHash) return [];
+  let q = supabase
+    .from('coaching_sessions')
+    .select('id, status, created_at, analysis_started_at')
+    .eq('user_id', userId)
+    .eq('audio_hash', audioHash)
+    .is('observation_type', null)
+    .not('status', 'in', `(${NOT_IN_FLIGHT_STATUSES.join(',')})`)
+    .gte('created_at', new Date(now - IN_FLIGHT_WINDOW_MS).toISOString());
+  if (excludeSessionId) q = q.neq('id', excludeSessionId);
+  const { data, error } = await q.order('created_at', { ascending: true }).limit(5);
+  if (error) throw new Error(`in-flight copy lookup failed: ${error.message}`);
+  return (data || []).filter((r) => r && r.id !== excludeSessionId);
+}
+
+/** Was copy `a` created before copy `b`? Same instant: the smaller id counts as first, so exactly one yields. */
+function createdBefore(a, b) {
+  const ta = Date.parse(a && a.created_at);
+  const tb = Date.parse(b && b.created_at);
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  if (ta !== tb) return ta < tb;
+  return String(a.id) < String(b.id);
+}
+
+/**
+ * Which copy this one yields to, if any. An EARLIER copy in flight → this one is the repeat (she is told). At
+ * analysis only, a LATER copy whose analysis already started → this is an old copy coming back (a retried job after
+ * she re-sent): it closes quietly. A later copy not yet analysing goes on and yields to this one when it gets there.
+ * @returns {{prior: object, quiet: boolean}|null}
+ */
+function copyToYieldTo(session, copies, { atAnalysis = false } = {}) {
+  const others = (copies || []).filter((c) => c && c.id !== session.id);
+  const earlier = others.find((c) => createdBefore(c, session));
+  if (earlier) return { prior: earlier, quiet: false };
+  if (!atAnalysis) return null;
+  const startedLater = others.find((c) => c.analysis_started_at && createdBefore(session, c));
+  return startedLater ? { prior: startedLater, quiet: true } : null;
+}
+
+/**
+ * Close this copy as a duplicate of the one ahead of it and, unless quiet, tell her once that the earlier copy is
+ * being checked and its report will come. The copy ahead is never written: it delivers its report as before.
+ * `quiet`: her page recording (the page shows why, from failed_step) or an old copy coming back.
+ * @param {object} ctx  { coachingSessionId, from, userId, audioHash, prior, quiet? }
+ * @param {object} opts { updateIfNotTerminal, sendMessage, getMessage, getLanguage, log }
+ * @returns {Promise<boolean>} always true — the caller must not go on
+ */
+async function closeInFlightDuplicate(ctx, opts) {
+  const { coachingSessionId, from, userId, audioHash, prior, quiet = false } = ctx;
+  const log = opts.log || (() => {});
+  const { applied } = await opts.updateIfNotTerminal(coachingSessionId, {
+    audio_hash: audioHash,
+    status: 'cancelled',
+    duplicate_of_session_id: prior.id,
+    failed_step: IN_FLIGHT_DUPLICATE_STEP,
+  });
+  if (!applied) {
+    log('🚫 DC: another copy of this recording is ahead, but this session is already over', { coachingSessionId });
+    return true;
+  }
+  if (!quiet) {
+    // getMessage falls back to English for a language it lacks: no floor here.
+    await opts.sendMessage(from, opts.getMessage('duplicateRecordingInFlight', await opts.getLanguage(userId)));
+  }
+  log('🔁 DC: the same recording is already in flight — this copy closed as its duplicate', {
+    coachingSessionId, priorSessionId: prior.id, priorStatus: prior.status, quiet, audioHash,
+  });
+  return true;
+}
+
+/**
+ * Transcription time: an EARLIER copy of these bytes still in flight → close this one (closeInFlightDuplicate).
+ * The caller has already looked for a completed copy (findRecentDuplicateSession → resolveDuplicateSubmission).
+ * @param {object} session  { id, user_id, created_at } of the copy being transcribed
+ * @param {object} deps     { from, audioHash, quiet, findInFlight } + closeInFlightDuplicate's opts
+ * @returns {Promise<boolean>} true when this copy was closed and must not be transcribed
+ */
+async function yieldToEarlierCopy(session, deps) {
+  const copies = await deps.findInFlight({ userId: session.user_id, audioHash: deps.audioHash, excludeSessionId: session.id });
+  const pick = copyToYieldTo(session, copies);
+  if (!pick) return false;
+  return closeInFlightDuplicate({
+    coachingSessionId: session.id, from: deps.from, userId: session.user_id, audioHash: deps.audioHash,
+    prior: pick.prior, quiet: Boolean(deps.quiet),
+  }, deps);
+}
+
+/**
+ * Analysis time (refuseIfAlreadyAnalysed's DC half): the last moment before a second analysis.
+ *   - a COMPLETED copy: older → reuse its report (bd-7beiz, resolveDuplicateSubmission); newer → this old one closes
+ *     quietly;
+ *   - else a copy in flight: copyToYieldTo({ atAnalysis: true }) — the later-created of two copies yields.
+ * A row without a hash, or whose own analysis already finished, goes ahead.
+ * @param {object} deps { from, quiet, findDone, findInFlight } + resolveDuplicateSubmission's and
+ *                      closeInFlightDuplicate's opts
+ */
+async function yieldDcCopyAtAnalysis(session, deps) {
+  const userId = session.user_id;
+  const audioHash = session.audio_hash;
+  if (!userId || !audioHash || session.analysis_completed_at) return false;
+  const base = { coachingSessionId: session.id, from: deps.from, userId, audioHash };
+  const quiet = Boolean(deps.quiet);
+
+  const done = await deps.findDone({ userId, audioHash, excludeSessionId: session.id });
+  if (done) {
+    if (createdBefore(done, session)) return resolveDuplicateSubmission({ ...base, duplicate: done, quiet }, deps);
+    return closeInFlightDuplicate({ ...base, prior: done, quiet: true }, deps);
+  }
+  const pick = copyToYieldTo(session, await deps.findInFlight({ userId, audioHash, excludeSessionId: session.id }), { atAnalysis: true });
+  if (!pick) return false;
+  return closeInFlightDuplicate({ ...base, prior: pick.prior, quiet: quiet || pick.quiet }, deps);
 }
 
 /**
@@ -396,4 +544,11 @@ module.exports = {
   refuseDuplicateObservation,
   refuseIfAlreadyAnalysed,
   findPriorAnalysedDebrief,
+  // bd-r2uzg1.18.15
+  IN_FLIGHT_WINDOW_MS,
+  IN_FLIGHT_DUPLICATE_STEP,
+  findInFlightCopies,
+  copyToYieldTo,
+  closeInFlightDuplicate,
+  yieldToEarlierCopy,
 };

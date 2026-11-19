@@ -176,10 +176,12 @@ export function ClassCheck({ sessionId, onYes, onNo }: { sessionId: string; onYe
   );
 }
 
-/** bd-aqotzx — why a stopped observation stopped: the not-a-class notes, too short, or the general line. */
+/** bd-aqotzx — why a stopped observation stopped: the not-a-class notes, an earlier copy in flight, too short, or the general line. */
 export function stoppedLine(progress: CoachingProgress | null, C: CoachingCopy): string {
   if (progress?.stopReason === 'not_a_class_no_answer') return C.classNoAnswerNote;
   if (progress?.stopReason === 'not_a_class') return C.classRecordAgainNote;
+  // bd-r2uzg1.18.15 — the same recording was already being checked: this copy stopped, the first one's report will come.
+  if (progress?.stopReason === 'duplicate_in_flight') return C.duplicateInFlightNote;
   if (progress?.shortRecording) return C.tooShort;
   return C.stopped;
 }
