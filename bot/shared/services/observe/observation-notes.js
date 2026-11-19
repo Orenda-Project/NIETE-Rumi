@@ -242,8 +242,6 @@ async function offerNotes({ observerId, to, session, lang = 'en', teacherName = 
   }
 }
 
-const isNotesToken = (token) => typeof token === 'string' && token.startsWith(TOKEN_PREFIX);
-
 /**
  * The notes Flow's reply. Claims every obsnotes: token (returns true), readable or not, so no other Flow handler sees
  * it. Saves the notes on the visit only when the sender is the visit's coach, and tells her how many were saved.
@@ -323,19 +321,22 @@ async function runInformed(sessionId) {
     try {
       const supabase = require('../../config/supabase');
       const { data: session } = await supabase.from('coaching_sessions')
-        .select('id, user_id, observer_user_id, observation_type, status, framework, transcript_text, audio_duration_seconds, analysis_data, autofill_analysis_data')
+        // One row by id; only the slices of the two analysis blobs this needs (the transcript is read whole).
+        .select([
+          'id, user_id, observer_user_id, observation_type, status, framework, transcript_text, audio_duration_seconds',
+          `notes:analysis_data->${NOTES_KEY}`, `informed:analysis_data->${INFORMED_KEY}`,
+          'blind_framework:autofill_analysis_data->>framework', 'blind_prompt_version:autofill_analysis_data->>prompt_version',
+        ].join(', '))
         .eq('id', sessionId).maybeSingle();
       if (!session || session.observation_type !== 'leader_observation' || session.framework !== V6) return { ran: false, why: 'not_v6' };
-      const analysis = session.analysis_data || {};
       const informed = require('../coaching/frameworks/fico17-v6/informed');
-      const usable = informed.promptNotes(notesOf(analysis));
+      const usable = informed.promptNotes(Array.isArray(session.notes) ? session.notes : []);
       if (!usable.length) return { ran: false, why: 'no_notes' };
-      const blind = session.autofill_analysis_data;
-      if (!blind || blind.framework !== V6) return { ran: false, why: 'no_blind' };
+      if (session.blind_framework !== V6) return { ran: false, why: 'no_blind' };
       if (!session.transcript_text) return { ran: false, why: 'no_transcript' };
       const { isOn } = require('./observation-notes-switch');
       if (!(await isOn(session.observer_user_id || session.user_id))) return { ran: false, why: 'off' };
-      const have = analysis[INFORMED_KEY] || null;
+      const have = session.informed || null;
       const ids = usable.map((n) => n.id);
       if (have && JSON.stringify(have.note_ids || []) === JSON.stringify(ids)) return { ran: false, why: 'up_to_date' };
       const runs = (have && Number(have.runs)) || 0;
@@ -345,7 +346,7 @@ async function runInformed(sessionId) {
         coachingSessionId: sessionId, duration: session.audio_duration_seconds,
       });
       blob.runs = runs + 1;
-      blob.blind_prompt_version = blind.prompt_version || null;
+      blob.blind_prompt_version = session.blind_prompt_version || null;
       const { patchSession } = require('../coaching/frameworks/fico17-v6/late-write');
       const stored = await patchSession(sessionId, informedStep(blob), { label: 'dc_informed' });
       logToFile('📝 observation-notes: informed DC scoring stored', {
@@ -373,5 +374,5 @@ module.exports = {
   NOTE_CAP, MAX_NOTES, INTRO_CAP, SOURCES, REVIEW_KEY, NOTES_KEY, INFORMED_KEY, CARRY_KEYS,
   FLOW_ID_ENV, TOKEN_PREFIX, FLOW_SCREEN, MAX_INFORMED_RUNS,
   notesFromText, fromClient, notesOf, initialNotes, addNotes, markReviewOpened, carry, introText,
-  offerNotes, isNotesToken, handleFlowReply, runInformed, runInformedSoon,
+  offerNotes, handleFlowReply, runInformed, runInformedSoon,
 };

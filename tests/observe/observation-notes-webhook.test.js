@@ -132,7 +132,6 @@ describe('webhook → the notes Flow reply', () => {
   test('an obsnotes: reply goes to the notes handler with the sender, the token, the answers and the message id', async () => {
     mockEverythingBefore();
     jest.doMock('../../bot/shared/services/observe/observation-notes', () => ({
-      isNotesToken: (t) => typeof t === 'string' && t.startsWith('obsnotes:'),
       handleFlowReply: jest.fn().mockResolvedValue(true),
     }));
     const flowHandler = { handleObserveVisitFlow: jest.fn(), handleReadingAssessmentFlow: jest.fn() };

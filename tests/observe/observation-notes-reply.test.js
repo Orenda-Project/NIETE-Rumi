@@ -20,10 +20,19 @@ jest.mock('../../bot/shared/services/observe/observe-language', () => ({ languag
 
 const mockDb = { settings: [], row: null, writes: [] };
 jest.mock('../../bot/shared/config/supabase', () => {
+  // PostgREST's JSON projection ("alias:col->key", "alias:col->>key"), as the real client returns it.
+  const project = (row, cols) => {
+    const out = { ...row };
+    for (const part of String(cols || '').split(',').map((s) => s.trim())) {
+      const m = /^(\w+):(\w+)->>?(\w+)$/.exec(part);
+      if (m) out[m[1]] = row[m[2]] && row[m[2]][m[3]] !== undefined ? row[m[2]][m[3]] : null;
+    }
+    return out;
+  };
   const make = (table) => {
-    const q = { filters: [], patch: null };
+    const q = { filters: [], patch: null, cols: '' };
     const b = {
-      select: jest.fn(() => b),
+      select: jest.fn((c) => { q.cols = c; return b; }),
       eq: jest.fn((k, v) => { q.filters.push([k, v]); return b; }),
       in: jest.fn(() => b),
       is: jest.fn(() => b),
@@ -32,7 +41,7 @@ jest.mock('../../bot/shared/config/supabase', () => {
       maybeSingle: jest.fn(() => {
         if (table === 'users') return Promise.resolve({ data: { region: 'Sihala' }, error: null });
         const idf = q.filters.find(([k]) => k === 'id');
-        const row = mockDb.row && (!idf || idf[1] === mockDb.row.id) ? JSON.parse(JSON.stringify(mockDb.row)) : null;
+        const row = mockDb.row && (!idf || idf[1] === mockDb.row.id) ? project(JSON.parse(JSON.stringify(mockDb.row)), q.cols) : null;
         return Promise.resolve({ data: row, error: null });
       }),
       then: (resolve) => {
