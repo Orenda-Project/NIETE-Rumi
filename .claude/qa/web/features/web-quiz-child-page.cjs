@@ -287,6 +287,7 @@ const TABLE = [
   { id: 'WQ259', title: 'With practice play off, the class preview stays look-only and its content routes refuse it' },
   { id: 'WQ260', title: 'The preview\'s games never ask for the microphone' },
   { id: 'WQ261', title: 'A phone that cannot play Ogg Opus hears the storybook voices as mp3' },
+  { id: 'WQ262', title: 'With Your turn on, the teacher\'s class preview reads a storybook page aloud, counted against the teacher' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))
