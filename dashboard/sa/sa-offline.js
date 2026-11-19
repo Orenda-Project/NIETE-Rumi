@@ -12,11 +12,11 @@
  *     tap without them); a clip not on the phone is spoken by the phone's own voice instead (clips_missing counts
  *     them), so it never blocks "ready".
  *   SAE.prepare(battery, { lang, battery_url, base }) → Promise<{ clips_total, clips_cached, voice, persisted, ready,
- *     battery, why?, prep_ms, prep_bytes, prep_gaveup_stage, prep_missing }> — the voice-readiness gate (RULING #14):
- *     each clip stage waits while its clips keep arriving and gives up only after 20 s with nothing new (then the phone's
- *     own cache is counted); voice 'clips' when every clip of the session is on the
+ *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
+ *     The answer also carries prep_ms, prep_bytes, prep_gaveup_stage and prep_missing. Each clip stage waits while its
+ *     clips keep arriving and gives up only after 20 s with nothing new (then the phone's own cache is counted).
  *   SAE.offline.prepVisit({ forms, part?, fresh?, paused?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes,
  *     forms, why? }>
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
