@@ -122,11 +122,12 @@ describe('the guide builder and the after-submit message', () => {
     const { sendCoachSummary } = require('../../bot/shared/services/observe/obs612/summary');
     const r = await sendCoachSummary({ coachUserId: 'coach-1', sessionId: 'sess-1', analysis: analysis() });
     expect(r).toMatchObject({ sent: true, kind: 'v6_ack' });
-    expect(WA.sendMessage).not.toHaveBeenCalled();
     const btn = WA.sendInteractiveButtons.mock.calls[0][1];
     expect(btn.buttons.map((b) => b.id)).toEqual(['observe_debrief_now_sess-1', 'observe_debrief_later_sess-1']);
-    expect(btn.body).not.toMatch(/FICO 6-12: \d+/);
-    expect(btn.body).not.toMatch(/For the talk with the teacher/);
+    const all = [...WA.sendMessage.mock.calls.map((c) => c[1]), btn.body].join('\n');
+    expect(all).toMatch(/saved/i);
+    expect(all).not.toMatch(/FICO 6-12: \d+/);
+    expect(all).not.toMatch(/For the talk with the teacher/);
   });
   test('a FICO 6-12 visit Rumi did not fill: the summary as today', async () => {
     const { sendCoachSummary } = require('../../bot/shared/services/observe/obs612/summary');
