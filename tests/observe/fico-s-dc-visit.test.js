@@ -251,3 +251,27 @@ describe('the submitted record: who set each level, Rumi\'s beside it', () => {
     expect(missing).toContain('chg_A1');
   });
 });
+
+// Found on the staging walk (19 Nov): a Digital Coach visit's form row is an /observe2-store form, so observe2's
+// moments step claimed it ("obs612") and nothing queued the analysis. After transcription a DC visit goes straight to
+// the portal step or the photo/plan gates or the analysis, as v6's does; observe2 is never asked.
+describe('after transcription, the whole step: a Digital Coach visit reaches the analysis', () => {
+  const T = () => require('../../bot/shared/services/coaching/transcription-processor.service');
+  test('portal visit: observe2 is not asked; the portal step queues the analysis', async () => {
+    const observe2 = { runForSession: jest.fn(async () => ({ handled: true, action: 'obs612' })) };
+    const portal = { isPortalSession: () => true, afterTranscription: jest.fn(async () => ({ action: 'analysis' })) };
+    const r = await T().observePostTranscription('sess-portal', sessRow('sess-portal'), '9230', { observe2, portal, env: {} });
+    expect(observe2.runForSession).not.toHaveBeenCalled();
+    expect(portal.afterTranscription).toHaveBeenCalled();
+    expect(r.action).toBe('portal');
+  });
+  test('WhatsApp visit with the gates off: the analysis is queued', async () => {
+    const observe2 = { runForSession: jest.fn(async () => ({ handled: true, action: 'obs612' })) };
+    const queueAnalysis = jest.fn(async () => true);
+    const portal = { isPortalSession: () => false, afterTranscription: jest.fn() };
+    const r = await T().observePostTranscription('sess-dc', sessRow('sess-dc'), '9230', { observe2, portal, queueAnalysis, env: {} });
+    expect(observe2.runForSession).not.toHaveBeenCalled();
+    expect(queueAnalysis).toHaveBeenCalledWith('sess-dc', { from: '9230' });
+    expect(r.action).toBe('queued_analysis');
+  });
+});
