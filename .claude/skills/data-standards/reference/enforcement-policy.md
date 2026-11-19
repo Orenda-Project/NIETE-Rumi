@@ -17,11 +17,37 @@ Git hook, CI):
 | Prohibited identifier type on an applicable entity | D1 | A PK column typed `SERIAL`/`INTEGER`/bare `TEXT` instead of `UUID`, on a table not marked `NOT APPLICABLE` for D1, is directly readable from the DDL |
 | Bare `TIMESTAMP` where `TIMESTAMPTZ` is mandatory | D5 | A column typed `TIMESTAMP` with no `WITH TIME ZONE` in a `created_at`/`updated_at`-named column is a type-string match |
 | Missing mandatory constraint or referential integrity | D3 | A column named `*_id` with no matching `REFERENCES`/`FOREIGN KEY` clause anywhere in the same migration, on a table that isn't documented as having no parent |
-| Duplicate migration version | D8 | Two migration files claiming the same version number/timestamp prefix is a filename collision, not an inference |
-| Destructive migration without safety metadata | D8/D17 | A `DROP COLUMN`/`DROP TABLE`/`TRUNCATE` statement with no accompanying rollback script or explicit `-- destructive: reviewed` marker |
+| Destructive migration without safety metadata | D8/D17 | A `DROP COLUMN`/`DROP TABLE`/`TRUNCATE` statement with no accompanying rollback script or explicit `-- destructive: reviewed` marker (statements after a `-- migrate:down` / `-- rollback` section marker are undo code and are skipped) |
+| Renamed column or table | D12 | `RENAME COLUMN` / `RENAME TO` breaks any code still using the old name the moment it runs. Exception: a `-- breaking: reviewed` marker in the 200 characters before it |
+| New `NOT NULL` column without a `DEFAULT` | D12 | `ADD COLUMN ... NOT NULL` with no `DEFAULT` fails on a table with rows, and old code inserting without it breaks. Same `-- breaking: reviewed` exception |
 | New restricted-PII field without required protection/classification metadata | D4/D6 | A newly added column matching a known PII name pattern (phone, cnic, ssn, email, dob) with no adjacent classification comment/registry entry |
 | Malformed validator output | — | If the validator itself can't produce a well-formed report (see exit code 2), that is treated as a failure, not a silent pass — an enforcement layer that can't confirm compliance must never behave as if compliance was confirmed |
 | New violation of a non-negotiable standard (D1-D8) not already listed above | D1-D8 | Any other NON-NEGOTIABLE-tier hit that the deterministic scanner confirms via its `detect` patterns AND a structural check (not keyword-only) |
+
+## Warnings (mechanical, but too often legitimate to block)
+
+These are read from the SQL text just as mechanically as the blocking checks, but real migrations
+trip them for good reasons often enough that blocking would be wrong. Tested against the 142
+migrations in whatsapp-ai-bot (5 Nov 2026), for example, `D17-no-rollback` fired on all of them
+and `D9-no-deleted-at` on 27%, mostly log and event tables. Each warning is shown to the developer,
+in the PR comment, as a CI annotation, on the gate board as `PASS WITH WARNINGS` (counted as a pass) and in Slack, always with the
+reason it only warns. The check ids, modes and reasons live in `enforcement:` in
+[standards.yaml](standards.yaml); edit them there.
+
+| Check | Standard | What it flags |
+|---|---|---|
+| `D8-duplicate-version` | D8 | Two forward migrations with the same version number (plain date prefixes are skipped) |
+| `D9-hard-delete` | D9 | `DELETE FROM` in a migration |
+| `D9-no-deleted-at` | D9 | A new table with no `deleted_at` (log/event/history-named tables skipped) |
+| `D14-table-name` | D14 | A new table name that isn't snake_case or plural |
+| `D14-boolean-prefix` | D14 | A boolean column not starting `is_`/`has_`/`can_` |
+| `D14-timestamp-suffix` | D14 | A timestamp column not ending `_at` |
+| `D15-free-text-category` | D15 | A `status`/`type`/`category`/`role`/... text column with no enum, `CHECK` or lookup table |
+| `D16-no-is-test` | D16 | A new users/teachers/students/accounts-style table with no `is_test` |
+| `D17-no-rollback` | D17 | A new migration with no rollback/down file beside it and no `-- migrate:down` section |
+
+A repo that has cleaned these up can make any of them block: add `"strict": ["D15", "D17-no-rollback"]`
+to its `.data-standards.json` (a standard id promotes all of that standard's checks). See "Strict mode".
 
 ## Advisory / manual-review findings (never block on their own)
 
@@ -60,7 +86,11 @@ change — is always treated with the same severity as a brand-new violation on 
 used to pass" is not a mitigating factor.
 
 **Pre-existing debt** — a violation that already existed before this change and isn't made worse
-by it — is reported (visibly, not hidden) but does **not** block an unrelated change. Blocking every
+by it — is reported (visibly, not hidden) but does **not** block an unrelated change.
+`validate_schema.py` does this by running every check on each changed file twice, before and after
+the change (base and head commits in CI, `HEAD` and the index at commit time, the file on disk and
+the edit's result in the live Claude gate), and listing anything found both times under `existing`.
+Editing an old, large `schema.sql` therefore only blocks on what the edit adds. Blocking every
 commit in a repository until all historical debt is cleared makes the gate impossible to adopt
 incrementally and gets it disabled. See [audit-report-format.md](audit-report-format.md) §11 for
 how legacy vs. new-schema results are reported as separate facts even though only one blocks.
@@ -72,4 +102,5 @@ blocking for teams that have already cleared their baseline debt and want the ga
 Which specific advisory checks strict mode promotes is a per-repository configuration decision, not
 a global default — document the choice in the repo's own `.data-standards.json` (see
 [detection-guidance.md](detection-guidance.md) "Configuring paths") rather than baking it into this
-reference file.
+reference file. The key is `"strict"`: a list of check ids from the Warnings table above, or
+standard ids (`"D15"`) to promote every check of that standard.

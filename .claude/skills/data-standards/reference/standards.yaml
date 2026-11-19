@@ -34,6 +34,51 @@ verifiers:
 
 products: [lesson_plans, digital_coach, teacher_training, exam_generator, user_mgmt, data_analytics]
 
+# What each mechanical check in scripts/validate_schema.py does when it fires.
+#   block — stops the Claude edit, the commit, the push and the PR check (validator exit 1)
+#   warn  — shown to the developer, in the PR comment, on the gate board and in Slack; never blocks
+# `why` is printed with every warning, so the reader knows why it did not block.
+# Only problems a change ADDS are judged this way. Problems already in a file before the
+# change are listed as existing and never block (reference/enforcement-policy.md).
+# A repo can promote warn checks to block with "strict": ["D15", "D14-boolean-prefix", ...]
+# in its own .data-standards.json (a standard id promotes every check of that standard).
+enforcement:
+  D1-primary-key: {mode: block}
+  D3-foreign-key: {mode: block}
+  D4-pii-classification: {mode: block}
+  D5-timestamptz: {mode: block}
+  D8-migration-tool: {mode: block}
+  D8-destructive: {mode: block}
+  D12-rename: {mode: block}
+  D12-not-null-without-default: {mode: block}
+  D8-duplicate-version:
+    mode: warn
+    why: "A shared version number only breaks runners that track migrations by number (Flyway, Rails-style). Repos that apply files by full name or by hand are fine, and the script can't tell which runner a repo uses."
+  D9-hard-delete:
+    mode: warn
+    why: "A DELETE in a migration is usually a one-off data fix, which can be legitimate. The script can't tell a fix from a habit of hard-deleting rows."
+  D9-no-deleted-at:
+    mode: warn
+    why: "Soft delete is for tables whose rows get edited or removed. Log, event and history tables never are, and the script can't reliably tell them apart."
+  D14-table-name:
+    mode: warn
+    why: "The naming guide has fair exceptions (uncountable words like data or feedback, long-established names), so a name that looks off may be fine."
+  D14-boolean-prefix:
+    mode: warn
+    why: "Usually a real slip, but some booleans are named to match an outside API or an existing table, so a person decides."
+  D14-timestamp-suffix:
+    mode: warn
+    why: "Usually a real slip, but some timestamp columns are named to match an outside API or an existing table, so a person decides."
+  D15-free-text-category:
+    mode: warn
+    why: "Some status or type columns hold free text on purpose. The script can't tell which, so a person decides whether it needs an enum, a CHECK or a lookup table."
+  D16-no-is-test:
+    mode: warn
+    why: "Only tables that can hold test or demo accounts need is_test. The script can't tell which tables do."
+  D17-no-rollback:
+    mode: warn
+    why: "The teams have not agreed to write rollback files yet. Once they do, set this to block here or in the repo's .data-standards.json."
+
 standards:
   - id: D1
     tier: non_negotiable
