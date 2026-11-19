@@ -55,7 +55,8 @@ function bootWorker({ held = {}, src = SW_SRC, keysHang = false } = {}) {
     skipWaiting: () => Promise.resolve(),
     clients: { claim: () => Promise.resolve() },
   };
-  vm.runInNewContext(src, { self, caches, URL, Promise, fetch: (u) => Promise.resolve(res(u)), setTimeout, clearTimeout, setInterval, clearInterval, console });
+  const fetched = [];
+  vm.runInNewContext(src, { self, caches, URL, Promise, fetch: (u) => { fetched.push(String(u)); return Promise.resolve(res(u)); }, setTimeout, clearTimeout, setInterval, clearInterval, console });
   const active = {
     state: 'activated',
     postMessage: (msg, ports) => {
@@ -65,7 +66,7 @@ function bootWorker({ held = {}, src = SW_SRC, keysHang = false } = {}) {
       listeners.message({ data: msg, ports: wrapped ? [wrapped] : [], waitUntil: () => {} });
     },
   };
-  return { active, named, posted };
+  return { active, named, posted, fetched };
 }
 
 class FakeChannel {
@@ -250,6 +251,19 @@ describe('the value fits the server\'s MAX_EVENT_DATA', () => {
         expect(w).toMatchObject({ sw: null, session: null });
       });
     });
+  });
+});
+
+describe('the held ask never reaches the network', () => {
+  test('a held ask naming clips that are not on the phone fetches nothing: session null, sw the worker\'s VERSION', async () => {
+    const w = bootWorker();
+    const reply = await new Promise((ok) => {
+      const ch = new FakeChannel();
+      ch.port1.onmessage = (e) => ok(e.data);
+      w.active.postMessage({ type: 'held', urls: clipsOf() }, [ch.port2]);
+    });
+    expect(reply).toEqual({ sw: SW_VERSION, session: null });
+    expect(w.fetched).toEqual([]);
   });
 });
 
