@@ -91,7 +91,8 @@ const V6_CHECK = '3';
 const COACH_CHECK = '4';
 // Set only while buildEvidenceCheckFlow({ coach2: true }) runs.
 let COACH2 = false;
-const coachOptions = (code) => V6.coachLevelOptions(code, 'en');
+// { na: false }: this copy is published with 1-4 only; the per-indicator N/A (19 Nov) is /observe's and the portal's.
+const coachOptions = (code) => V6.coachLevelOptions(code, 'en', { na: false });
 // "Add one Rumi missed" (spec §9.2, RULINGS R7): two slots, each a type, the minute and the words.
 const MISSED_SLOTS = 2;
 const MISSED_WORDS_MAX = 280;
