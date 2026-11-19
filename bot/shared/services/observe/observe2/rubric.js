@@ -30,7 +30,8 @@ function isV6(form) {
 async function rubricForNewVisit({ observerUserId, region, teacherUserId = null, lessonIsPrimary } = {}) {
   try {
     const sw = require('../../coaching/fico-rubric-switch');
-    if (!(await sw.isAnySet('coach'))) return V5_RUBRIC_VERSION; // default off: no region lookup
+    // default off: no region lookup. Queue #191: a coach is v6 whatever the switch holds, so a coach never stops here.
+    if (!(await sw.isAnySet('coach')) && !sw.isCoachRole(await sw.knownRole({ userId: observerUserId }))) return V5_RUBRIC_VERSION;
     const reg = region !== undefined ? region : await sw.regionOfUser(observerUserId);
     const v = await sw.coachRubric({ userId: observerUserId, region: reg });
     if (v !== 'v6') return V5_RUBRIC_VERSION;
