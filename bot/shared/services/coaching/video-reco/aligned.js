@@ -108,38 +108,43 @@ function mainClause(sentence) {
 const UNSHOWN = [
   ['own_words', /do you understand|own words|اپنے الفاظ|سمجھ (?:آیا|آئی|گئے)|اپنی زبان میں/iu],
   ['pair_reflection', /one thing (?:you|they) (?:have )?learn(?:ed|t)|questions? (?:you|they) still have|جو آپ نے سیکھی|ذہن میں ہے/iu],
-  ['differentiate', /two versions|\btiers?\b|tiered|easier (?:and|or) (?:a )?harder|let (?:them|students|each) choose|choose (?:one|between|which)|struggling|advanced (?:pairs|students|learners)|باقی بچوں کو آسان|کمزور بچوں|دو ورژن|آسان اور مشکل|سطح|لیول/iu],
+  ['differentiate', /two versions|\btiers?\b|tiered|easier (?:and|or) (?:a )?harder|let (?:them|students|each) choose|choose (?:one|between|which)|struggling|advanced (?:pairs|students|learners)|باقی بچوں کو آسان|کمزور بچوں|support set|challenge set|دو حصے|دو گروپ|دو ورژن|آسان اور مشکل|سطح|لیول/iu],
   ['feedback', /good start|feedback|\bpraise\b|well done|next[- ]step|name what'?s right|\bsuggestion\b|شاباش|فیڈبیک|اچھی کوشش/iu],
   ['objective', /\bobjective\b|learning goal|success criteria|ہدف|مقصد/iu],
   ['label', /dedicat\w* \d+ minutes|spend (?:\d+|five|a few) minutes|specifically to improving|بہتر بنانے کے لیے/iu],
   ['silent_write', /\bwrite (?:down )?(?:their|your|its) own|quietly write|write (?:down )?[^.]{0,30}\bfirst\b|خاموشی سے لکھ|خود لکھ/iu],
-  ['correction', /\bcorrect (?:it|them|their|the)\b|\bcorrections?\b|then[- ]correct|instead of correcting|غلطی (?:درست|ٹھیک)/iu],
-  ['worksheet', /worksheet|exercise book|\bslates?\b|کاپی میں/iu],
+  ['correction', /\bcorrect (?:it|them|their|the)\b|\bcorrections?\b|then[- ]correct|instead of correcting|غلطی (?:درست|ٹھیک)|غلطیوں کو[^۔]{0,30}(?:درست|ٹھیک)/iu],
+  ['worksheet', /worksheet|exercise book|\bslates?\b|\bquiz\b|written test|کاپی میں/iu],
   ['model', /\bmodel(?:s|ling|led)?\b[^.;]{0,30}\b(?:example|sentence|answer|it|aloud|one|first)|\bmodel →|i do,? we do|ماڈل کر|مثال model|model کریں/iu],
   ['peer_check', /\bpartner\b[^.;]{0,15}\b(?:check|fix|correct|mark)|(?:check|fix|correct)\w*\b[^.;]{0,15}\b(?:with )?(?:a |their )?partner|peer[- ](?:check|assess|review)|checklist|rubric/iu],
   ['roles', /\broles?\b|کردار تقسیم/iu],
-  ['closure', /exit (?:slip|ticket)|what (?:did )?(?:we|you|they) learn|کیا سیکھا|خلاصہ/iu],
+  ['closure', /exit (?:slip|ticket)|what (?:did )?(?:we|you|they) learn|at the end of (?:the )?(?:lesson|class|period)|کیا سیکھا|خلاصہ|سبق کے آخر/iu],
   ['sentence_stems', /sentence (?:starters?|stems?|frames?)|جملے کا آغاز/iu],
 ];
 // …and the one a given move's clip must not be read as (ped-align ALLOWLIST.md "match at this grain"; held-out wrongs)
 const REFUSE = Object.freeze({
   open_questions: ['own_words', 'differentiate'],
-  think_pair_share: ['pair_reflection', 'peer_check'],
+  think_pair_share: ['pair_reflection', 'peer_check', 'worksheet'],
   wait_time: ['silent_write', 'pair_reflection', 'peer_check', 'closure'],
+  activate_prior_knowledge: ['closure', 'worksheet', 'correction'],
 });
 
 const WHY = /\bwhy\b|\bhow\b|کیوں|کیسے/iu;
+// 790-s3 shows wait time AFTER A QUESTION, never a wait for latecomers, an instruction or copying (red7 N1 K3 K17 K18)
+const QUESTION_NEAR = /question|\bask(?:s|ed|ing)?\b|answers?\b|respond|\bthink\b|\bwhy\b|\bhow\b|سوال|پوچھ|جواب|سوچ|کیوں|کیسے/iu;
+// a follow-up is a further QUESTION (red7 K1 K14: «follow up with the students who missed homework»)
+const FOLLOW_UP = /follow[- ]up (?:question|with (?:a |another |one )?(?:question|why|how))|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|open[- ]ended follow[- ]up|follow[- ]up (?:open[- ]ended )?(?:question|سوال)|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|follow-up open-ended question|مزید سوال|اور کوئی وجہ/iu;
 const ASK_RX = Object.freeze({
-  attention_cue: /attention (?:signal|cue)|classroom cue|clap(?:-| )?(?:pattern|back|signal)|eyes on me|call[- ]and[- ]response|count(?:s)? down|تالی|تالیاں/iu,
-  inquiry_opening: /\b(?:bring|hold up|show)\b[^.;]{0,30}\b(?:object|bag|jar|jars|bottle|bottles|plant|torch|mirror|real)\b|provocative|predict\b/iu,
-  activate_prior_knowledge: /already know|\brecall\b|remember (?:what|the|last)|prior knowledge|what (?:do )?(?:they|you|students) (?:already )?know|پہلے سے (?:کیا )?(?:جانتے|معلوم)|یاد (?:دلائیں|کروائیں)|پچھلی/iu,
+  attention_cue: /attention (?:signal|cue)|cue to (?:regain|get) (?:their |the class'?s? )?attention|classroom cue to regain|(?:regain|get|gain) (?:the class'?s? |their )?attention|eyes on me|call[- ]and[- ]response|توجہ (?:کے لیے|لینے|حاصل)/iu,
+  inquiry_opening: /\b(?:bring|hold up|show)\b[^.;]{0,30}\b(?:object|bag|jar|jars|bottle|bottles|plant|torch|mirror)\b[^.;]{0,60}\b(?:ask|question)|provocative (?:object|question)/iu,
+  activate_prior_knowledge: /\b(?:ask|elicit)\b[^.;]{0,40}(?:already know|\brecall\b|remember)|what (?:do )?(?:they|you|students) (?:already )?know|prior knowledge|(?:پوچھیں|پوچھ کر)[^۔]{0,40}پہلے سے|پہلے سے (?:کیا )?(?:جانتے|معلوم)[^۔]{0,30}پوچھ|یاد (?:دلائیں|کروائیں)[^۔]{0,30}(?:پوچھ|سوال)/iu,
   think_pair_share: /think[- ]pair[- ]share|think[- ]pair|turn[- ](?:and|to)[- ](?:talk|tell|your|a)|pair[- ]?(?:share|talk|discussion|discuss)|\bpairs?\b[^.;]{0,25}\b(?:discuss|talk|share|agree|compare)|(?:discuss|talk|share)\w*\b[^.;]{0,20}\bwith (?:a |their |your |the )?(?:partner|neighbou?r)|جوڑی(?:وں)? میں (?:بات|گفتگو|discuss|ڈسکس)|جوڑوں میں (?:بات|گفتگو|تقسیم|discuss|ڈسکس)|pair (?:discussion|میں بات)|ساتھی سے بات/iu,
   wait_time: /wait[- ]time|\bwait\s+(?:\d|a few|five|ten|several)|\d+\s*(?:[-–]\s*\d+\s*)?seconds? (?:of )?(?:silence|quiet|wait|think)|(?:silence|quiet) for \d|count silently|hold (?:your )?(?:\d|wait)|سیکنڈ (?:کا|کی)? ?(?:wait|انتظار|خاموش)|خاموشی سے (?:انتظار|wait)|wait time/iu,
-  question: /follow[- ]up|probe|open[- ]ended|open questions?|open (?:'|‘)?(?:why|how)|explain why|how do you know|how did you (?:get|know)|\bask\b[^.;]{0,25}(?:'|‘|"|“)?\s*(?:why|how|what (?:do you think|would|if|made))|why do you think|کھلا سوال|کھلے سوال|(?:کیوں|کیسے)[^۔]{0,40}پوچھ|پوچھیں[^۔]{0,30}(?:کیوں|کیسے)/iu,
+  question: /follow[- ]up (?:question|with|open|سوال)|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|open[- ]ended|open questions?|open (?:'|‘)?(?:why|how)|\bask\b[^.;]{0,30}\bexplain why|how do you know|how did you (?:get|know)|\bask\b[^.;]{0,25}(?:'|‘|"|“)?\s*(?:why|how|what (?:do you think|would|if|made))|why do you think|کھلا سوال|کھلے سوال|(?:کیوں|کیسے)[^۔]{0,40}پوچھ|پوچھیں[^۔]{0,30}(?:کیوں|کیسے)/iu,
 });
 
 const ANSWER_FIRST = /\b(?:answers?|answered|says?|said|gives?|repl(?:y|ies)|responds?|names?|labels?|repeats?|echoes|explains?)\b|جواب دے|جواب [^،]{0,20}دے|کہے|بتائے|دہرائے/iu;
-const REASONING = /explain (?:why|in|their|your)|how do you know|how did you (?:get|know)|give (?:a|one) reason|\breasoning\b|وضاحت کریں|کیسے پتا|وجہ بتائیں/iu;
+const REASONING = /(?:ask|have|let|get) (?:\w+ ){0,3}(?:to )?explain|explain (?:their|your) (?:thinking|reasoning|answer)|how do you know|how did you (?:get|know)|give (?:a|one) reason|\breasoning\b|وضاحت کریں|کیسے پتا|وجہ بتائیں/iu;
 const OPEN_NAMED = /open[- ]ended|open questions?|کھلا سوال|کھلے سوال/iu;
 const OPEN_WHY = /\bwhy\b|کیوں|what do you think|what would|what if|what (?:did|do) you (?:understand|notice|see)|تمہارے خیال|آپ کے خیال|اگر آپ|کیا سمجھ/iu;
 
@@ -150,8 +155,8 @@ const OPEN_WHY = /\bwhy\b|کیوں|what do you think|what would|what if|what (?:
  */
 function questionMove(card, main) {
   const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
-  if (/follow[- ]up|probe/iu.test(main)) return 'follow_up_probe';
-  if (!OPEN_NAMED.test(main) && ANSWER_FIRST.test(trigger) && (WHY.test(main) || /follow[- ]up/iu.test(main))) return 'follow_up_probe';
+  if (FOLLOW_UP.test(main)) return 'follow_up_probe';
+  if (!OPEN_NAMED.test(main) && ANSWER_FIRST.test(trigger) && WHY.test(main)) return 'follow_up_probe';
   if (!OPEN_NAMED.test(main) && REASONING.test(main)) return 'ask_for_reasoning';
   return OPEN_WHY.test(main) ? 'open_questions' : null;
 }
@@ -174,6 +179,7 @@ function classifyAsks(sentence) {
     if (!x) continue;
     const move = id === 'question' ? questionMove(card, main) : id;
     if (!move) continue;
+    if (move === 'wait_time' && !QUESTION_NEAR.test(card)) continue;
     if ((REFUSE[move] || []).some((r) => off.has(r))) continue;
     found.push({ move, at: x.index });
   }
