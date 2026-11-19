@@ -1,1 +1,2 @@
 {"ts":"2026-11-19T11:59:48Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-mft11s.10-stg: E-DUPID:child-test","sha":"096ebe19e481","branch":"bd-mft11s.10-stg","user":"tariqtaleemabad"}
+{"ts":"2026-11-19T14:19:15Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"096ebe19e481","branch":"bd-mft11s.10-stg","user":"tariqtaleemabad"}
