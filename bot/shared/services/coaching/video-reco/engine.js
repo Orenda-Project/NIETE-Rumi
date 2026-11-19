@@ -809,9 +809,11 @@ async function alignedPick({ a, d, base, finish, card, nextStep, analysis, sessi
   for (const x of asks) {
     const fresh = aligned.candidates(catalog, x, { ...ctx, history }, lesson);
     if (fresh.length) { hit = fresh[0]; ask = x; break; }
-    if (aligned.candidates(catalog, x, { ...ctx, history: null, later }, lesson).length) seenOnly = true;
+    if (aligned.candidates(catalog, x, { ...ctx, history: null, later, cleared: false }, lesson).length) seenOnly = true;
   }
-  if (!hit) return none(seenOnly ? 'aligned:seen' : 'aligned:no_clip');
+  // R9d: a later visit whose only fresh clips have not cleared on later picks (aligned.js `later`) says so
+  const uncleared = !hit && later && asks.some((x) => aligned.candidates(catalog, x, { ...ctx, history, cleared: false }, lesson).length);
+  if (!hit) return none(uncleared ? 'aligned:later_uncleared' : seenOnly ? 'aligned:seen' : 'aligned:no_clip');
   const said = aligned.reasonFor(ask, hit.seg);
   if (!said) return none('aligned:no_clip');
   const usable = hit.seg.quality.usable;

@@ -83,12 +83,17 @@ const SUB_ASK = Object.freeze({
   // close video 790 and with it 790-s3 (red7 N1). 794-s2 is write-alone-then-four: never below Grade 3 (4 of 24 G1–2
   // votes wrong). 778-s2 is held (red7 HOLD 175254: the transcript shows a check-in, not a question and a held wait).
   '790-s2': { sub: 'think_pair_share:think_then_pair', tier: 2, shows_en: 'a trainer asking everyone to think of the answer alone first, then put heads together and agree on the best answer', shows_ur: 'ایک ٹرینر سب سے کہتے ہیں کہ پہلے اکیلے ذہن میں جواب سوچیں، پھر مل کر بہترین جواب طے کریں' },
-  '804-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'adult participants thinking and writing alone, then talking in pairs, then sharing the pair\'s ideas at the board', shows_ur: 'بڑے شرکاء پہلے اکیلے سوچ کر لکھتے ہیں، پھر جوڑی میں بات کرتے ہیں، پھر جوڑی کے خیالات بورڈ پر سب کو بتاتے ہیں' },
+  '804-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, later: true, shows_en: 'adult participants thinking and writing alone, then talking in pairs, then sharing the pair\'s ideas at the board', shows_ur: 'بڑے شرکاء پہلے اکیلے سوچ کر لکھتے ہیں، پھر جوڑی میں بات کرتے ہیں، پھر جوڑی کے خیالات بورڈ پر سب کو بتاتے ہیں' },
   '905-s5': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'a teacher giving students 2 minutes to settle three facts on their own, then pairs to discuss their story', shows_ur: 'ایک ٹیچر طلبہ کو 2 منٹ دیتے ہیں کہ خود تین باتیں طے کریں، پھر جوڑی میں اپنی کہانی پر بات کریں' },
   '794-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, grade_min: 3, shows_en: 'a trainer asking everyone to write their answer alone, then after a minute moving into groups of four to compare and correct', shows_ur: 'ایک ٹرینر سب سے پہلے اکیلے جواب لکھواتے ہیں، پھر ایک منٹ بعد چار کے گروپ میں جواب ملا کر درست کرواتے ہیں' },
   '745-s1': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'adult participants each listing five qualities of a good teacher, then making one list in pairs, then in fours', shows_ur: 'بڑے شرکاء پہلے اکیلے اچھے ٹیچر کی پانچ خوبیاں لکھتے ہیں، پھر جوڑی میں ایک فہرست بناتے ہیں، پھر چار کے گروپ میں' },
   '451-s1': { sub: 'wait_time:after_question', tier: 1, shows_en: 'a teacher setting the rule of 10 seconds to think and no calling out, then holding back a student who wants to answer first', shows_ur: 'ایک ٹیچر اصول بتاتے ہیں: سوچنے کے 10 سیکنڈ اور بیچ میں کوئی نہ بولے، پھر جلدی جواب دینے والے ایک بچے کو روکتے ہیں' },
 });
+
+// R9d (COS 20261119T233941; ped-align r10 233921, fresh later picks at #5219 58e0b433ba): `later` marks the clips a later
+// visit may get, each cleared on its own out-of-sample later picks. 804-s2 182/186 = 97.8%; off: 745-s1 167/191, 794-s2
+// 110/125, 790-s2 26/34 (the card asks a quick oral pair routine; these clips show written lists, group correction, a
+// trainer describing it). A clip earns the mark only by a later-pick re-score at >= 95% / 0 ⛔.
 
 // --- 1. the card's ask -------------------------------------------------------------------------------------------------
 
@@ -357,13 +362,14 @@ function videoKey(module) {
  * subject, then the narrower grade band, then seg id (stable).
  * @param {object} catalog  catalog.fromData(v2 data)
  * @param {{move, sub}} ask
- * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null, later?:boolean}} ctx
+ * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null, later?:boolean, cleared?:boolean}} ctx
  * @param {{subject:string|null, grade:{lo,hi}|null}} lesson
  */
 function candidates(catalog, ask, ctx = {}, lesson = {}) {
   if (!catalog || !ask) return [];
   // the cross-gate (GATE_FREE) was judged on first clips; a later visit keeps the subject × grade gates (COS 215752)
   const later = ctx.later !== undefined ? !!ctx.later : laterVisit(ctx.history);
+  const clearedOnly = later && ctx.cleared !== false; // `cleared: false` = the gates only (the engine's none reason)
   const langs = new Set(ctx.languages || []);
   const h = ctx.history || {};
   const seenSegs = new Set((h.segments || []).map(String));
@@ -385,6 +391,7 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
     for (const seg of module.segments || []) {
       const rec = SUB_ASK[String(seg.seg_id)];
       if (!rec || rec.sub !== ask.sub) continue;
+      if (clearedOnly && !rec.later) continue;
       if (ctx.allow && !ctx.allow.has(String(seg.seg_id))) continue;
       if (seenSegs.has(String(seg.seg_id))) continue;
       if (rec.grade_min && !(lesson && lesson.grade && Number(lesson.grade.lo) >= rec.grade_min)) continue; // unknown grade: no
