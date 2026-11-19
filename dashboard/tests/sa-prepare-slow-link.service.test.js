@@ -349,6 +349,6 @@ describe('the cache', () => {
   test('VERSION moves on (the phones take the new worker and engine files); SESSION does not (they keep their clips)', () => {
     const sw = require('../sa/sw');
     expect(Number(sw.VERSION.replace('sa-', ''))).toBeGreaterThanOrEqual(39); // sa-39 or a later bump stacked on it
-    expect(sw.SESSION).toBe('sa-session-v29');
+    expect(sw.SESSION).toBe('sa-session-v32'); // the letter-sound picker's prompts re-made (three times)
   });
 });
