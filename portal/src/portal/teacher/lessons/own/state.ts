@@ -15,8 +15,14 @@ export { LESSONS_OWN };
 export const OWN_PICK = 'own';
 export const OWN_START = `${LESSONS_NEW}?pick=${OWN_PICK}`;
 /** Every step there is, in the one order every grade walks ; stepsFor says which she walks. */
-export const OWN_STEPS = ['pages', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check'] as const;
+export const OWN_STEPS = ['pages', 'goal', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check'] as const;
 export type OwnStep = (typeof OWN_STEPS)[number];
+
+/** bd-snkn32.56 — "Start from a learning goal or topic" (grades 6–12): what she picked, or null kind before she picks. */
+export const GOAL_KINDS = ['outcome', 'topic'] as const;
+export type GoalKind = (typeof GOAL_KINDS)[number];
+export type GoalPick = { kind: GoalKind | null; text: string };
+export const GOAL_TEXT_MAX = 120;
 
 export type OwnAt = {
   grade: number;
@@ -37,6 +43,8 @@ export type OwnAt = {
   ext?: Extend | null;
   /** bd-snkn32.17 — grades 1–5: the book pages she chose, when not the day's own. */
   pg?: PageRange;
+  /** bd-snkn32.56 — present only on a goal start (no textbook in class); `seg` is then the closest lesson under it. */
+  goal?: GoalPick;
 };
 
 const pick = <T extends string>(list: readonly T[], v: string | null): T | null => (v && (list as readonly string[]).includes(v) ? v as T : null);
@@ -54,7 +62,12 @@ export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; cha
   if (s.purpose) q.set('purpose', s.purpose);
   if (s.focus) q.set('focus', s.focus);
   if (s.ext) q.set('ext', s.ext);
-  if (s.pg) q.set('pg', fmtPg(s.pg));
+  if (s.pg && !s.goal) q.set('pg', fmtPg(s.pg));
+  if (s.goal) {
+    q.set('start', 'goal');
+    if (s.goal.kind) q.set('gk', s.goal.kind);
+    if (s.goal.text) q.set('gt', s.goal.text.slice(0, GOAL_TEXT_MAX));
+  }
   return `${LESSONS_OWN}?${q.toString()}`;
 }
 
@@ -73,7 +86,9 @@ export function readOwn(search: string): OwnAt | null {
   const ways = [...new Set((q.get('way') ?? '').split(',').map((x) => pick(allowed, x)).filter((x): x is Way => !!x))];
   const way = ways[0] ?? null;
   const focus = grade >= 9 && purpose !== 'board' ? pick(FOCI, q.get('focus')) : null;
-  const ext = isSecondary(grade) ? pick(EXTENDS, q.get('ext')) : null;
+  const goal: GoalPick | null = isSecondary(grade) && q.get('start') === 'goal'
+    ? { kind: pick(GOAL_KINDS, q.get('gk')), text: (q.get('gt') ?? '').trim().slice(0, GOAL_TEXT_MAX) } : null;
+  const ext = isSecondary(grade) && !goal ? pick(EXTENDS, q.get('ext')) : null;
   return {
     grade, subject, chapter,
     step: pick(OWN_STEPS, q.get('step')) ?? 'pages',
@@ -86,7 +101,8 @@ export function readOwn(search: string): OwnAt | null {
     purpose,
     focus,
     ...(ext ? { ext } : {}),
-    ...(pg ? { pg } : {}),
+    ...(pg && !goal ? { pg } : {}),
+    ...(goal ? { goal } : {}),
   };
 }
 
@@ -94,9 +110,11 @@ export function readOwn(search: string): OwnAt | null {
  * /.19 — the steps she walks: grades 6–12 add "what is this lesson for?" right after the pages, and
  * "which outcomes first?" only at 9–12 when the lesson's FBISE SLOs are mixed and it is not exam practice.
  */
-export function stepsFor({ grade, mixed, purpose = null }: { grade: number; mixed: boolean; purpose?: Purpose | null }): OwnStep[] {
+export function stepsFor({ grade, mixed, purpose = null, goal = false }: { grade: number; mixed: boolean; purpose?: Purpose | null; goal?: boolean }): OwnStep[] {
+  // bd-snkn32.56 — a goal start (6–12): the goal screen stands where the book pages were; no "which outcomes first".
+  if (goal && isSecondary(grade)) return OWN_STEPS.filter((x) => x !== 'pages' && x !== 'focus');
   const focus = grade >= 9 && mixed && purpose !== 'board';
-  return OWN_STEPS.filter((x) => (x === 'purpose' ? isSecondary(grade) : x === 'focus' ? focus : true));
+  return OWN_STEPS.filter((x) => (x === 'goal' ? false : x === 'purpose' ? isSecondary(grade) : x === 'focus' ? focus : true));
 }
 
 const PRIMARY_STEPS = stepsFor({ grade: 1, mixed: false });
@@ -116,6 +134,15 @@ export function prevStep(step: OwnStep, steps: readonly OwnStep[] = PRIMARY_STEP
  * `next`: the lesson after hers, when she adds its pages (bd-snkn32.14).
  */
 export function toAnswers(s: OwnAt, note: string, next: string | null = null) {
+  // bd-snkn32.56 — a goal start: her goal, no textbook, no book pages, no next lesson.
+  const goal = s.goal && s.goal.kind && s.goal.text ? { kind: s.goal.kind, text: s.goal.text } : null;
+  if (goal) {
+    return {
+      size: s.size, resources: [...s.res] as Resource[], level: s.level, way: s.way, note: note.trim(), goal,
+      ...(s.ways && s.ways.length > 1 ? { ways: s.ways } : {}),
+      ...(s.purpose ? { purpose: s.purpose } : {}),
+    };
+  }
   return {
     size: s.size, resources: ['textbook', ...s.res] as Resource[], level: s.level, way: s.way, note: note.trim(),
     ...(s.ways && s.ways.length > 1 ? { ways: s.ways } : {}),

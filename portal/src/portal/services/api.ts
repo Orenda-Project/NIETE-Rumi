@@ -746,6 +746,8 @@ export type PortalConfig = {
     lpOwnShelf?: boolean;
     /** bd-snkn32.42 — this user approves plans for the shelf (portal_lp_own_reviewers, list-only; fail-closed). */
     lpOwnReviewer?: boolean;
+    /** bd-snkn32.56 — Make my own from a learning goal or topic (portal_lp_own_goal_start, list-only; fail-closed). */
+    lpOwnGoalStart?: boolean;
     /** bd-ik5e8j.4 — the help videos: the "?" and More → How to use (portal_help_videos, with the teacher app on; fail-closed). */
     helpVideos?: boolean;
   };
