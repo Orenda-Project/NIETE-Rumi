@@ -76,16 +76,18 @@ jest.mock('../../bot/shared/handlers/child-test.handler', () => ({ handleImage: 
 // Where the pic-to-LP route exists (staging/main): a fresh picture goes to the batch coalescer, whose not-a-book-page
 // fallback is the generic path (runImageAnalysis). The double flushes each picture as its own non-book batch on a
 // later turn, as the real one does (after its window): by then the handler has tagged the image pic_lp_handled.
+// Virtual only where pic-to-LP does not exist (sandbox): a virtual mock over a real module leaks into the next suite
+// in the same Jest worker (tests/pic-to-lp/image-handler-routing.test.js then loaded the real session service).
 jest.mock('../../bot/shared/services/pic-to-lp/pic-lp-session.service', () => ({
   getActiveSession: jest.fn(async () => null), cancelActiveForUser: jest.fn(),
-}), { virtual: true });
+}), { virtual: !require('fs').existsSync(require('path').join(__dirname, '../../bot/shared/services/pic-to-lp')) });
 jest.mock('../../bot/shared/services/pic-to-lp/image-batch-coalescer.service', () => ({
   enqueue: ({ image, onFlush }) => { setTimeout(() => onFlush({ images: [image], primary: image, caption: image.caption || '' }), 5); },
-}), { virtual: true });
+}), { virtual: !require('fs').existsSync(require('path').join(__dirname, '../../bot/shared/services/pic-to-lp')) });
 jest.mock('../../bot/shared/services/pic-to-lp/classifier.service', () => ({
   classifyImageType: jest.fn(async () => ({ type: 'CLASSROOM', confidence: 0.9 })),
-}), { virtual: true });
-jest.mock('../../bot/shared/services/pic-to-lp/page-collector.service', () => ({}), { virtual: true });
+}), { virtual: !require('fs').existsSync(require('path').join(__dirname, '../../bot/shared/services/pic-to-lp')) });
+jest.mock('../../bot/shared/services/pic-to-lp/page-collector.service', () => ({}), { virtual: !require('fs').existsSync(require('path').join(__dirname, '../../bot/shared/services/pic-to-lp')) });
 
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
 
