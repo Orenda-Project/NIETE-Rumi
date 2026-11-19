@@ -238,6 +238,49 @@ describe('(e) a second prepare joins the downloads already running', () => {
     expect(dups).toEqual([]);
   });
 
+  // A battery file is asked for `fresh` when a switch may have changed it under the same URL: a fresh ask must never end on
+  // the copy a plain prepare is still matching. Both directions, every join window; a plain ask may join a fresh download.
+  describe('a fresh ask never joins a plain prepare that may end on the kept copy', () => {
+    const BAT = 'http://x/sa/batteries/sa.coach.G2.A.ur.json';
+    const CLIP = 'http://x/sa/v4/ur/abc.mp3';
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function race(o) {
+      const store = Object.assign({}, o.kept || {});
+      const reqs = {};
+      const sw = require('../sa/sw');
+      const base = {
+        fetch: async (u) => { reqs[u] = (reqs[u] || 0) + 1; await pause(o.fetchMs || 20); return { ok: true, status: 200, body: null, headers: { get: () => null }, v: o.net[u] }; },
+        match: async (u) => { await pause(o.matchMs || 0); return store[u] ? { v: store[u] } : null; },
+        put: async (u, res) => { store[u] = res.v; },
+        ok: (u, res) => !!(res && res.ok),
+        inflight: {}, retryMs: 5, idleMs: 2000,
+      };
+      const a = sw.prefetch(o.urls, Object.assign({}, base, { fresh: o.freshA || [] }));
+      await pause(o.bAtMs || 0);
+      const b = sw.prefetch(o.urls, Object.assign({}, base, { fresh: o.freshB || [] }));
+      const [ma, mb] = await Promise.all([a, b]);
+      return { kept: store[o.urls[0]], requests: reqs[o.urls[0]] || 0, missing: ma.length + mb.length };
+    }
+    beforeEach(() => { jest.useRealTimers(); });
+
+    test.each([[50, 10], [200, 50], [5, 1], [0, 0]])('a plain prepare matching the kept copy (match %i ms), a fresh ask %i ms later → the network copy, 1 request', async (m, at) => {
+      const r = await race({ urls: [BAT], kept: { [BAT]: 'OLD' }, net: { [BAT]: 'NEW' }, matchMs: m, bAtMs: at, freshB: [BAT] });
+      expect(r).toEqual({ kept: 'NEW', requests: 1, missing: 0 });
+    });
+    test('the fresh ask first, a plain one joins it → the network copy, 1 request', async () => {
+      const r = await race({ urls: [BAT], kept: { [BAT]: 'OLD' }, net: { [BAT]: 'NEW' }, matchMs: 50, bAtMs: 5, freshA: [BAT] });
+      expect(r).toEqual({ kept: 'NEW', requests: 1, missing: 0 });
+    });
+    test('two plain prepares of a clip not on the phone → 1 request (R4)', async () => {
+      const r = await race({ urls: [CLIP], net: { [CLIP]: 'NEW' }, fetchMs: 50, bAtMs: 10 });
+      expect(r).toEqual({ kept: 'NEW', requests: 1, missing: 0 });
+    });
+    test('two fresh asks → 1 request', async () => {
+      const r = await race({ urls: [BAT], kept: { [BAT]: 'OLD' }, net: { [BAT]: 'NEW' }, fetchMs: 50, bAtMs: 10, freshA: [BAT], freshB: [BAT] });
+      expect(r).toEqual({ kept: 'NEW', requests: 1, missing: 0 });
+    });
+  });
+
   test('(c) still six at a time per prepare', async () => {
     let inFlight = 0; let most = 0;
     const net = makeNet({ spec: () => ({ size: 4 * KB, chunk: 4 * KB, every: 500 }) });
