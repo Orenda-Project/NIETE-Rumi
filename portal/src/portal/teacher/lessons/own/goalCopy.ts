@@ -1,6 +1,6 @@
 /**
- * bd-snkn32.56 (queue #134 E) — the words of "Start from a learning goal or topic" (grades 6–12, behind the list-only
- * portal_lp_own_goal_start). Its own small catalogue (own/copy.ts is at the 300-line limit), registered through
+ * bd-snkn32.56 (queue #134 E) — the words of "Start from a learning goal or topic" (every grade since bd-snkn32.57,
+ * behind the list-only portal_lp_own_goal_start). Its own small catalogue (own/copy.ts is at the 300-line limit), registered through
  * lessons/copy.ts COPY_ENTRIES like OWN. The Urdu is MACHINE-DRAFTED from the words own/copy.ts already uses
  * (سبق, لیسن پلان, صفحات) and needs a human read before this is switched on for anyone beyond the pilot.
  */
@@ -22,6 +22,8 @@ export const GOAL_COPY = {
   noMatch: 'Not found in your grade’s lessons. Try other words, or select a learning goal.',
   checkLabel: 'Learning goal',
   noBook: 'Written for a class with no textbook.',
+  /* bd-snkn32.57 — "What you have" on the Check screen when, with no book, she ticked nothing */
+  nothingExtra: 'Nothing extra',
 };
 
 const GOAL_COPY_UR: typeof GOAL_COPY = {
@@ -37,6 +39,7 @@ const GOAL_COPY_UR: typeof GOAL_COPY = {
   noMatch: 'آپ کی جماعت کے لیسن پلان میں نہیں ملا۔ دوسرے الفاظ لکھیں، یا سیکھنے کا مقصد چنیں۔',
   checkLabel: 'سیکھنے کا مقصد',
   noBook: 'بغیر کتاب والی کلاس کے لیے لکھا گیا۔',
+  nothingExtra: 'کچھ اضافی نہیں',
 };
 
 export const GOAL = bilingual(GOAL_COPY, GOAL_COPY_UR);

@@ -26,8 +26,8 @@ describe('the goal in the address', () => {
     expect(readOwn(ownUrl({ ...base, step: 'size' }).split('?')[1])).not.toHaveProperty('goal');
   });
 
-  it('grades 1–5 never take a goal (6–12 first), and an unknown kind is dropped', () => {
-    expect(readOwn('grade=3&subject=Maths&chapter=c1&start=goal&gk=topic&gt=Shapes')).not.toHaveProperty('goal');
+  it('grades 1–5 take a goal too (bd-snkn32.57), and an unknown kind is dropped', () => {
+    expect(readOwn('grade=3&subject=math&chapter=1&start=goal&gk=topic&gt=Shapes')?.goal).toEqual({ kind: 'topic', text: 'Shapes' });
     expect(readOwn('grade=7&subject=Maths&chapter=c1&start=goal&gk=book&gt=Shapes')?.goal).toEqual({ kind: null, text: 'Shapes' });
   });
 
@@ -39,6 +39,9 @@ describe('the goal in the address', () => {
 describe('the walk with a goal', () => {
   it('the goal screen replaces the book pages, and no "which outcomes first"', () => {
     expect(stepsFor({ grade: 10, mixed: true, purpose: 'new', goal: true })).toEqual(['goal', 'purpose', 'size', 'level', 'resources', 'way', 'check']);
+  });
+  it('grades 1–5: the goal screen replaces the day\'s pages (bd-snkn32.57)', () => {
+    expect(stepsFor({ grade: 3, mixed: false, goal: true })).toEqual(['goal', 'size', 'level', 'resources', 'way', 'check']);
   });
   it('without a goal, as before', () => {
     expect(stepsFor({ grade: 10, mixed: false })).toEqual(['pages', 'purpose', 'size', 'level', 'resources', 'way', 'check']);

@@ -106,6 +106,15 @@ const K5 = {
   '/lp612/grades': { grades: [{ grade: 7 }] },
   '/curriculum/subjects': { subjects: [{ subject_key: 'math', subject: 'Math', lesson_count: 10 }] },
   '/curriculum/chapters': { chapters: [{ chapter_number: 1, chapter_title: 'Number Ninjas: Mastering the Thousands', lesson_count: 10 }] },
+  // bd-snkn32.57 — the goal start's reads for grade 3 Math: the official matrix outcomes, as goalRows serves them.
+  '/lp612/own/goals/match': { success: true, match: { segmentId: 'grade_3_math_ch2_seg1', title: 'Add up to 4-digit numbers with and without regrouping in written form.' } },
+  '/lp612/own/goals': { success: true, outcomes: [
+    { segmentId: 'grade_3_math_ch1_seg1', text: 'Count up to 9999 (4-digit numbers).', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch1_seg2', text: 'Read and write up to 9999 in numerals and in words.', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch1_seg3', text: 'Compare numbers using symbols and arrange numbers up to 9999 using appropriate language.', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch1_seg7', text: 'Read and write Roman numerals up to 20.', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch2_seg1', text: 'Add up to 4-digit numbers with and without regrouping in written form.', chapter: 'Plus and Minus Mysteries' },
+  ] },
   '/curriculum/lps': { lessons: [
     ...K5_DAYS.map((topic, i) => ({ lesson_id: `grade_3_math_ch1_seg${i + 1}`, lp_type: 'content', day_label: `Day ${i + 1}`, topic, downloaded: i === 0 })),
     { lesson_id: 'grade_3_math_ch1_seg990', lp_type: 'assessment', day_label: 'Worksheet', topic: 'Worksheet' },

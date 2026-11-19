@@ -9,6 +9,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
  *   Given the goal switch is off   step 1 is today's, and a goal address goes back to the book pages
  *   Given it is on (grades 6–12)   step 1 offers it; her pick of a learning goal leads on to what the lesson is for
  *   And taps Make my plan          her goal goes with the lesson under it, and no textbook, no pages
+ *   Given a grades 1–5 class       the same way in (bd-snkn32.57): an official outcome names its day, sent as lesson_id
  */
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -56,7 +57,8 @@ beforeEach(() => {
   flag.on = true;
   flag.goal = true;
   try { localStorage.clear(); } catch { /* none */ }
-  http.get.mockImplementation(async (url: string) => {
+  http.get.mockImplementation(async (url: string, opts?: { params?: { grade?: number } }) => {
+    const params = opts?.params;
     const data: Record<string, unknown> = {
       '/curriculum/grades': { grades: [{ grade: 4, subject_count: 1 }] },
       '/lp612/grades': { grades: [{ grade: 8 }] },
@@ -74,6 +76,7 @@ beforeEach(() => {
         { lesson_id: 'g4m990', lp_type: 'assessment', day_label: 'Worksheet', topic: 'Worksheet' },
       ] },
     };
+    if (url === '/lp612/own/goals' && params?.grade === 4) return { data: { success: true, outcomes: [{ segmentId: 'g4m7', text: 'Add 2-digit numbers', chapter: 'Addition' }] } };
     if (url === '/lp612/own/goals') return { data: { success: true, outcomes: [{ segmentId: 'sci8.c05.p040', text: 'Explain air pressure', chapter: 'Air' }] } };
     if (!(url in data)) throw Object.assign(new Error(`404 ${url}`), { response: { status: 404 } });
     return { data: data[url] };
@@ -120,5 +123,27 @@ describe('Make my own from a learning goal or topic', () => {
     expect(body.answers.goal).toEqual({ kind: 'outcome', text: 'Explain air pressure' });
     expect(body.answers.resources).toEqual(['board']);
     expect(body.answers).not.toHaveProperty('pages');
+  });
+
+  it('grades 1–5 (bd-snkn32.57): step 1 offers it; an official outcome leads to the class size; Make my plan sends its day', async () => {
+    const k5 = `${LESSONS_OWN}?grade=4&subject=math&chapter=1`;
+    at(k5);
+    fireEvent.click(await screen.findByTestId('own-goal-start'));
+    await waitFor(() => expect(where()).toContain('step=goal'));
+    fireEvent.click(await screen.findByText('Add 2-digit numbers'));
+    await waitFor(() => expect(where()).toContain('seg=g4m7'));
+    fireEvent.click(screen.getByTestId('own-ok'));
+    await waitFor(() => expect(where()).toContain('step=size'));
+    cleanup();
+    http.post.mockResolvedValue({ data: { success: true, renderId: 'own-10' } });
+    at(`${k5}&step=check&start=goal&gk=outcome&gt=Add%202-digit%20numbers&seg=g4m7&size=over70&level=behind&way=tarl`);
+    expect((await screen.findByTestId('own-check')).textContent).toContain(G.nothingExtra); // no book, nothing ticked
+    fireEvent.click(await screen.findByTestId('own-make'));
+    await waitFor(() => expect(http.post).toHaveBeenCalled());
+    const [, body] = http.post.mock.calls[0];
+    expect(body.lesson_id).toBe('g4m7');
+    expect(body).not.toHaveProperty('segment_id');
+    expect(body.answers.goal).toEqual({ kind: 'outcome', text: 'Add 2-digit numbers' });
+    expect(body.answers.resources).toEqual([]);
   });
 });
