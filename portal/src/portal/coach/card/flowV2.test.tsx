@@ -28,8 +28,8 @@ const today = karachiDay();
 const visit = (id: string, slot: string, status: string, name: string) => ({
   id, teacherName: name, schoolName: "IMCB G-10/4", scheduledFor: today, scheduledSlot: slot, status,
 });
-function home(todays: ReturnType<typeof visit>[]) {
-  net.answers.set("/coach/home", { success: true, home: { today: todays, next: null, counts: { week: 5, overdue: 2, waiting: 1, inProgress: 0, teachers: 20, schools: 6 } } });
+function home(todays: ReturnType<typeof visit>[], next: ReturnType<typeof visit> | null = null) {
+  net.answers.set("/coach/home", { success: true, home: { today: todays, next, counts: { week: 5, overdue: 2, waiting: 2, inProgress: 0, teachers: 20, schools: 6 } } });
 }
 
 beforeAll(async () => { await loadApp(); }, 120_000);
@@ -38,45 +38,45 @@ beforeEach(async () => {
   (await import("../flow/useCoachFlowV2")).resetCoachFlowV2Memory();
 });
 
-describe("the menu, switch on", () => {
-  it("Home · Schedule · Observations · Lesson Plans · More: Schedule is the list, Observations her observations", async () => {
+describe("the menu, switch on (Concept 1: one Observe entry)", () => {
+  it("Home · Observe · Lesson Plans · More; Observe opens the one Observe screen", async () => {
     config(true);
     await renderApp(`/portal/coach/school/${EMIS}`);
     await screen.findByTestId("overview");
     const nav = screen.getByTestId("teacher-nav");
-    await waitFor(() => expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toEqual(["Home", "Schedule", "Observations", "Lesson Plans", "More"]));
+    await waitFor(() => expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toEqual(["Home", "Observe", "Lesson Plans", "More"]));
     expect(Array.from(nav.querySelectorAll("a")).map((a) => a.getAttribute("href")))
-      .toEqual(["/portal/coach", "/portal/coach/schedule", "/portal/coach/reports", "/portal/teacher/lessons", "/portal/coach/more"]);
+      .toEqual(["/portal/coach", "/portal/coach/observe", "/portal/teacher/lessons", "/portal/coach/more"]);
   });
 
-  it("in Urdu the item is مشاہدات (the ontology's Observations)", async () => {
+  it("in Urdu the item stays مشاہدہ (the operator: 'No need to make it Observations')", async () => {
     config(true);
     await renderApp(`/portal/coach/school/${EMIS}`, "ur");
     const nav = await screen.findByTestId("teacher-nav");
-    await waitFor(() => expect(nav.textContent).toContain("مشاہدات"));
+    await waitFor(() => expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toContain("مشاہدہ"));
+    expect(nav.textContent).not.toContain("مشاہدات");
   });
 
-  it("which item is current: a visit and its steps are Schedule's; reports and an observation are Observations'", () => {
-    for (const p of ["/portal/coach/schedule", "/portal/coach/visit/7", "/portal/coach/visit/7/record", "/portal/coach/new-visit", "/portal/coach/team"]) {
-      expect(currentCoachCardItem(p, "", true)).toBe("schedule");
-      expect(currentCoachMenuItem(p, "", true)).toBe("schedule");
-    }
-    expect(currentCoachCardItem("/portal/coach/visit/7", "?from=observe", true)).toBe("schedule");
-    for (const p of ["/portal/coach/reports", "/portal/coach/reports/all", "/portal/coach/observation/9", "/portal/coach/observation/9/form"]) {
+  it("which item is current: every visit, booking and observation page is Observe's", () => {
+    for (const p of ["/portal/coach/observe", "/portal/coach/schedule", "/portal/coach/visit/7", "/portal/coach/visit/7/record", "/portal/coach/new-visit",
+      "/portal/coach/team", "/portal/coach/reports", "/portal/coach/reports/all", "/portal/coach/observation/9", "/portal/coach/observation/9/form"]) {
       expect(currentCoachCardItem(p, "", true)).toBe("observe");
+      expect(currentCoachMenuItem(p, "", true)).toBe("observe");
     }
-    // off: today's rule (a visit's record step is Observe's)
+    // off: today's rule (a visit page is Schedule's, its record step Observe's)
+    expect(currentCoachMenuItem("/portal/coach/visit/7", "")).toBe("schedule");
     expect(currentCoachMenuItem("/portal/coach/visit/7/record", "")).toBe("observe");
   });
 });
 
-describe("the Home, switch on: Today card, then the tiles", () => {
-  it("today's visits with their count; the next one carries Start recording, straight to its record step", async () => {
+describe("the Home, switch on: only the next visit, then one Observe tile", () => {
+  it("Next visit: today's next one alone, with Start recording straight to its record step (no other visits listed)", async () => {
     config(true);
-    home([visit("t1", "08:30", "done", "Farah Naz"), visit("t2", "10:00", "upcoming", "Kiran Shahzadi"), visit("t3", "12:00", "upcoming", "Asma Batool")]);
+    home([visit("t1", "08:30", "done", "Farah Naz"), visit("t2", "10:00", "upcoming", "Kiran Shahzadi"), visit("t3", "12:00", "upcoming", "Asma Batool")],
+      visit("t2", "10:00", "upcoming", "Kiran Shahzadi"));
     await renderApp("/portal/coach");
-    const card = await screen.findByTestId("home-today");
-    expect(within(card).getByTestId("section-count")).toHaveTextContent("3");
+    const card = await screen.findByTestId("home-next");
+    expect(card).toHaveTextContent("Next visit");
     const current = within(card).getByTestId("visit-current");
     expect(current).toHaveTextContent("Kiran Shahzadi");
     const start = within(current).getByRole("link", { name: /Start recording/ });
@@ -84,30 +84,28 @@ describe("the Home, switch on: Today card, then the tiles", () => {
     fireEvent.click(start);
     const { trackFlow } = await import("../flow/track");
     expect(trackFlow).toHaveBeenCalledWith("home.today_start");
-    // the others are rows (done muted), each opening its visit
-    expect(within(card).getByText("Asma Batool").closest("a")).toHaveAttribute("href", "/portal/coach/visit/t3");
-    expect(within(card).getByText("Farah Naz").closest("a")).toHaveAttribute("href", "/portal/coach/visit/t1");
+    expect(screen.queryByText("Asma Batool")).toBeNull();
+    expect(screen.queryByText("Farah Naz")).toBeNull();
   });
 
-  it("only one visit today: the card holds it alone, never an empty 'Nothing yet' under it (seen live on sandbox)", async () => {
+  it("the next visit is another day: no card (Start recording is for today)", async () => {
     config(true);
-    home([visit("t2", "10:00", "upcoming", "Kiran Shahzadi")]);
+    home([], { ...visit("t4", "09:00", "upcoming", "Nadia Perveen"), scheduledFor: "2099-01-01" });
     await renderApp("/portal/coach");
-    const card = await screen.findByTestId("home-today");
-    expect(within(card).getByTestId("visit-current")).toHaveTextContent("Kiran Shahzadi");
-    expect(card.querySelector("[data-empty]")).toBeNull();
+    await screen.findByTestId("feature-tiles");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId("home-next")).toBeNull();
   });
 
-  it("the Schedule tile opens the list; the second tile is Observations and opens her observations", async () => {
+  it("one Observe tile in place of Schedule and Observe: it opens the Observe screen, with what waits on her", async () => {
     config(true);
     home([]);
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
-    await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href")).slice(0, 2))
-      .toEqual(["/portal/coach/schedule", "/portal/coach/reports"]));
-    expect(tiles.querySelectorAll("a")[1].textContent).toContain("Observations");
-    // no visits today: no Today card at all (never an empty one)
-    expect(screen.queryByTestId("home-today")).toBeNull();
+    await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href")))
+      .toEqual(["/portal/coach/observe", "/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training"]));
+    expect(tiles.querySelectorAll("a")[0].textContent).toContain("Observe");
+    await waitFor(() => expect(tiles.querySelectorAll("a")[0].textContent).toContain("2 waiting"));
   });
 });
 
