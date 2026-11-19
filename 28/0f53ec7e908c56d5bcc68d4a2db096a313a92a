@@ -1,0 +1,2 @@
+{"ts":"2026-11-19T16:36:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=child-test spec_sync=true","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-19T16:36:51Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.56.1-05633: E-NODRIVER:coaching","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
