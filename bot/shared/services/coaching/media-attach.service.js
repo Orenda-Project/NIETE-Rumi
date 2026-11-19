@@ -86,8 +86,23 @@ async function attachClassroomPhoto({ user, from, mediaId, mimeType, session, cl
   return { outcome: 'attached', sessionId: session.id, mode: onPhotoStep ? 'capture' : 'hold' };
 }
 
-/** Hand a lesson plan (document or photo) to the LP processor for a KNOWN session. */
-async function attachLessonPlanMedia({ user, from, mediaId, session, claim = true }) {
+/**
+ * Hand a lesson plan (document or photo) to the LP processor for a KNOWN session.
+ *
+ * bd-r2uzg1.18.6: once a plan is CONFIRMED from the list, it is the plan. A photo arriving at the plan step after
+ * that (an image, or an image sent as a Document — prod 28 Oct, the 3rd classroom photo) is a classroom photo: it
+ * is kept with the session's photos and never read as a plan, so its "not a lesson plan" verdict cannot clear the
+ * pick. A PDF or Word file still goes to the plan reader, as before.
+ */
+async function attachLessonPlanMedia({ user, from, mediaId, session, claim = true, mimeType = null, messageId = null }) {
+  const { hasConfirmedListPick } = require('./lp-coaching/lp-coaching-linker.service');
+  const { isImageMime } = require('./photo-capture-routing');
+  if (hasConfirmedListPick(session) && isImageMime(mimeType)) {
+    logToFile('📸 Photo at the plan step after a confirmed list pick — kept as a classroom photo', {
+      coachingSessionId: session.id, mediaId, mimeType,
+    });
+    return attachClassroomPhoto({ user, from, mediaId, mimeType, session, claim, messageId });
+  }
   if (claim) {
     const ok = await claimMedia(user.id, mediaId, 'lp_media_handled');
     if (!ok) {
@@ -181,14 +196,14 @@ async function handlePhotoArrival({ user, from, mediaId, mimeType, kind = 'photo
  * A lesson plan arrived (document webhook, or a photo while a session waits at
  * awaiting_lesson_plan). Same contract as handlePhotoArrival.
  */
-async function handleLessonPlanMediaArrival({ user, from, mediaId, mimeType }) {
+async function handleLessonPlanMediaArrival({ user, from, mediaId, mimeType, messageId = null }) {
   const r = await resolveMediaSession({ user, kind: 'lp' });
   if (r.outcome === 'none') return false;
   if (r.outcome === 'ambiguous') {
     await parkAndAsk({ user, from, kind: 'lp', mediaId, mimeType, candidates: r.candidates });
     return true;
   }
-  await attachLessonPlanMedia({ user, from, mediaId, session: r.session });
+  await attachLessonPlanMedia({ user, from, mediaId, mimeType, messageId, session: r.session });
   return true;
 }
 
@@ -235,7 +250,7 @@ async function handleMediaTargetTap(listId, from, user) {
   }
 
   if (kind === 'lp') {
-    await attachLessonPlanMedia({ user, from, mediaId: parked.mediaId, session, claim: false });
+    await attachLessonPlanMedia({ user, from, mediaId: parked.mediaId, mimeType: parked.mimeType, session, claim: false });
   } else {
     await attachClassroomPhoto({ user, from, mediaId: parked.mediaId, mimeType: parked.mimeType, session, claim: false });
   }
