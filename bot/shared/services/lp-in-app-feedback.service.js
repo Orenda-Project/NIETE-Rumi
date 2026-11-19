@@ -85,20 +85,6 @@ async function findRow(userId, band, ref) {
   return rows[0] || null;
 }
 
-/**
- * Her in-app answer for a grades 1-5 lesson, on any of her lesson_plans rows for it (the app writes its own row), or
- * null. The WhatsApp tap asks this so an app answer is not answered a second time on WhatsApp (sceptic pass).
- */
-async function answeredInApp(userId, lessonId) {
-  if (!userId || !lessonId) return null;
-  const plans = must(await supabase.from('lesson_plans').select('id')
-    .eq('user_id', userId).eq('content->v8->>lesson_id', lessonId));
-  if (!plans.length) return null;
-  const rows = must(await supabase.from('lp_feedback').select('id, useful')
-    .eq('user_id', userId).eq('trigger_mode', 'in_app').in('lesson_plan_id', plans.map((p) => p.id)).limit(1));
-  return rows[0] || null;
-}
-
 const stateOf = (row) => (row ? { useful: row.useful === true, usedInClass: row.used_in_class || null } : null);
 
 /** Whether she has answered this plan: null, or { useful, usedInClass }. Throws when the database cannot answer. */
@@ -167,9 +153,9 @@ async function g612Columns(ref, lang) {
 async function save(p) {
   const band = bandOf(p.kind, p.ref);
   const ids = { userId: p.userId, kind: band, ref: p.ref };
-  const done = (outcome, extra = {}) => {
+  const done = (outcome, feedbackId) => {
     logEvent('lp.in_app_feedback', {
-      outcome, ...ids, useful: p.useful, usedInClass: p.usedInClass, reason: !!p.reasonText, ...extra,
+      outcome, ...ids, useful: p.useful, usedInClass: p.usedInClass, reason: !!p.reasonText, ...(feedbackId ? { feedbackId } : {}),
     });
     return outcome;
   };
@@ -188,9 +174,9 @@ async function save(p) {
       ...(p.useful && p.usedInClass ? { used_in_class: p.usedInClass } : {}),
       ...(!p.useful && p.reasonText ? reasonFields(p.reasonText) : {}),
     };
-    const { data, error } = await supabase.from('lp_feedback').insert(insert).select('id').single();
+    const { data, error } = await supabase.from('lp_feedback').insert({ ...insert }).select('id').single();
     if (error || !data) throw new Error((error && error.message) || 'lp_feedback insert returned no row');
-    done('saved', { feedbackId: data.id });
+    done('saved', data.id);
     return { outcome: 'saved', feedback: { useful: p.useful, usedInClass: insert.used_in_class || null } };
   }
 
@@ -198,14 +184,13 @@ async function save(p) {
   if (p.useful === null && p.usedInClass && row.useful === true && !row.used_in_class) update.used_in_class = p.usedInClass;
   if (p.useful === null && p.reasonText && row.useful === false && !row.reason_text) Object.assign(update, reasonFields(p.reasonText));
   if (!Object.keys(update).length) {
-    done('already_answered', { feedbackId: row.id });
+    done('already_answered', row.id);
     return { outcome: 'already_answered', feedback: stateOf(row) };
   }
-  const { error } = await supabase.from('lp_feedback').update(update).eq('id', row.id).eq('user_id', p.userId);
+  const { error } = await supabase.from('lp_feedback').update({ ...update }).eq('id', row.id).eq('user_id', p.userId);
   if (error) throw new Error(error.message || 'lp_feedback update failed');
-  done('saved', { feedbackId: row.id });
+  done('saved', row.id);
   return { outcome: 'saved', feedback: stateOf({ ...row, ...update }) };
 }
 
-module.exports = {
-  answeredInApp, parse, state, save, REASON_MAX, USED_IN_CLASS };
+module.exports = { parse, state, save, REASON_MAX, USED_IN_CLASS };

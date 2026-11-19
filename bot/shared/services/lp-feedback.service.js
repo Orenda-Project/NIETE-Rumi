@@ -320,7 +320,7 @@ async function handleFeedbackButton(buttonId, phone, opts = {}) {
     .maybeSingle();
 
   // She answered this lesson in the app already (its own lesson_plans row): the app answer stands, no second row.
-  const inApp = existing ? null : await require('./lp-in-app-feedback.service')
+  const inApp = existing ? null : await require('./lp-in-app-answer')
     .answeredInApp(lp.user_id, meta.v8 && meta.v8.lesson_id).catch(() => null);
   if (inApp) {
     logToFile('LP Feedback: already answered in the app', { lessonPlanId, existingId: inApp.id });
