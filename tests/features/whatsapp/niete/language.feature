@@ -329,8 +329,9 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     Then the launch bubble, the Flow screens, and the "Sending…" pre-gen ack are in Urdu
     # Inverted 2026-11-18 (bd-kbo9h0.7): it asserted the English leak as the expected result, so it
     # passed while the bug lived and would fail once fixed. It now states the right behaviour and FAILS
-    # until the Flow is localised: the launch bubble is Urdu, but the Pick-Class Flow screens ("Grade 1 /
-    # Tap to open") and the pre-gen ack are still English. Listed in known-findings.json until then.
+    # until the Flow's grade list is localised. As of 2026-11-19 the launch bubble, its button and the
+    # pre-gen ack are Urdu (seen on prod); the Flow's grade rows are not: pakistan-lp-endpoint.js gradeTitle
+    # is `Grade ${g}` and the catalog rows say 'Tap to open'. Listed in known-findings.json until then.
     # History of the bug:
     # F-LP-i18n. Launch bubble only partially inline-localized (header hardcoded English,
     # text-message.handler.js:979). Pick-Class Flow screens all hardcoded English
