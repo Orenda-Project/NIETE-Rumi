@@ -1017,8 +1017,11 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the teaching part has no homework section, only one line pointing to "Homework, in full" in the support pages
     And every homework question is printed in "Homework, in full" with its answer and its textbook source, under the homework notes
     And a lesson that fits within its teaching pages still prints its homework questions in the teaching part, unchanged
+    And when a move only trades a teaching page for a support page, the move is kept and the teaching part is a page shorter
     # bd-xkkw9.2 (queue #114, from bd-xkkw9.1): third paint in render_lp.js renderDoc, kept only when it
     # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.
+    # bd-xkkw9.4 (queue #147): a tie on the overage goes to the layout with fewer TEACH pages
+    # (render_lp.js `better`; SYNC.md §3.40). Unit: tests/lp612/over-cap-flow-groups.test.js too.
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
 

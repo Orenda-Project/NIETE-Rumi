@@ -163,11 +163,33 @@ describe('still over TEACH after the two-box move: homework prints only in Refer
     expect(mockHwIn(out.htmlPath)).toBe(false);
   });
 
-  test('Reference would spill over its own cap: the previous layout is kept and is what is on disk', async () => {
+  // bd-xkkw9.4 — a tie on pages over goes to the layout with the shorter TEACH part. Same PDF
+  // length, nothing dropped; the teacher holds four teaching pages and Reference runs one long.
+  // (Before: the previous layout was kept, and 5 of the 11 lessons still over stayed at 5 TEACH.)
+  test('Reference would spill over its own cap by as much as TEACH gains: the shorter TEACH is kept', async () => {
     mockPages = pages(at(T + 2, 2), at(T + 1, 2), at(T + 1, 2), at(T, CAPS.max.support + 1));
+    const out = await render();
+    expect(out.homeworkMoved).toBe(true);
+    expect(out.flowGroupsMoved).toBe(true);
+    expect(out.pagesByPart).toEqual({ teach: T, support: CAPS.max.support + 1 });
+    expect(pageCount(out)).toHaveLength(1);
+    expect(pageCount(out)[0]).toMatch(/^PAGE COUNT: support /);
+    expect(mockHwIn(out.htmlPath)).toBe(false);
+  });
+
+  test('Reference would spill further than TEACH gains: the previous layout is kept and is what is on disk', async () => {
+    mockPages = pages(at(T + 2, 2), at(T + 1, 2), at(T + 1, 2), at(T, CAPS.max.support + 2));
     const out = await render();
     expect(out.homeworkMoved).toBe(false);
     expect(out.flowGroupsMoved).toBe(true);
+    expect(out.pagesByPart).toEqual({ teach: T + 1, support: 2 });
+    expect(mockHwIn(out.htmlPath)).toBe(true);
+  });
+
+  test('a tie that does not shorten TEACH changes nothing: the previous layout is kept', async () => {
+    mockPages = pages(at(T + 2, 2), at(T + 1, 2), at(T + 1, 2), at(T + 1, 2));
+    const out = await render();
+    expect(out.homeworkMoved).toBe(false);
     expect(out.pagesByPart).toEqual({ teach: T + 1, support: 2 });
     expect(mockHwIn(out.htmlPath)).toBe(true);
   });
