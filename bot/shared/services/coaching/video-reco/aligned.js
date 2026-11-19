@@ -265,6 +265,14 @@ function gradeOk(module, lesson) {
   return span ? g.lo <= span[1] && g.hi >= span[0] : true;
 }
 
+/**
+ * The moves whose cleared clips a teacher of another subject or grade can execute from, at the panel's bar (COS
+ * 20261119T152504 §3; ped-align r5 cross-gate round: think_pair_share 80/80, follow_up_probe 40/40, 0 ⛔). Language
+ * still binds. ask_for_reasoning (9/40), activate_prior_knowledge (25/40), inquiry_opening (3/10), open_questions and
+ * attention_cue (too few pairs) keep the gate.
+ */
+const GATE_FREE = new Set(['think_pair_share', 'follow_up_probe']);
+
 /** lib's §B contract on one chapter (the shown move, not the moves it is about). */
 function contractOk(module, seg, move) {
   const q = seg.quality || {};
@@ -306,7 +314,7 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
   const out = [];
   for (const module of catalog.modules || []) {
     if (seenVideos.has(videoKey(module))) continue;
-    if (!subjectOk(module, lesson) || !gradeOk(module, lesson)) continue;
+    if (!GATE_FREE.has(ask.move) && (!subjectOk(module, lesson) || !gradeOk(module, lesson))) continue;
     for (const seg of module.segments || []) {
       const rec = SUB_ASK[String(seg.seg_id)];
       if (!rec || rec.sub !== ask.sub) continue;
@@ -335,4 +343,4 @@ function reasonFor(ask, seg) {
   return { reason_en: line('en'), reason_ur: line('ur') };
 }
 
-module.exports = { classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
+module.exports = { GATE_FREE, classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
