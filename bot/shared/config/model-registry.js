@@ -241,6 +241,8 @@ const JOBS = {
   // Make my own AI reviewer: scores a finished own plan against gate v2 for shared-library eligibility
   // only. A cheaper model than the author; no env var of its own, the per-job override moves it.
   'lp.ownReview': { env: null, default: 'anthropic/claude-haiku-4-5', site: 'shared/services/lp612-own-reviewer.js' },
+  // Make my own from a goal or topic (bd-snkn32.56): the content-accuracy check of a book-less plan, for the shelf only.
+  'lp.ownAccuracy': { env: null, default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp612-own-accuracy.js' },
   // These four call api.openai.com directly on their own client, so their model must be one it serves:
   // a bare OpenAI id and no env var. Only the per-job override (which routes it) moves them elsewhere.
   'quiz.generate': { env: null, default: 'gpt-4o', lane: 'openai-direct', site: 'shared/services/quiz/quiz-generation.service.js' },

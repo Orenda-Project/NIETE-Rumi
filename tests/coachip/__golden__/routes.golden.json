@@ -368,6 +368,7 @@
           "coachipDecode": "boolean",
           "coachipRm": "boolean",
           "loginIntlNumbers": "boolean",
+          "lpOwnGoalStart": "boolean",
           "newUi": "boolean",
           "selfObservation": "boolean",
           "teacherHomeCard": "boolean",

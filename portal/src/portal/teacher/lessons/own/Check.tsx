@@ -10,9 +10,11 @@ import { bandWords } from './bandCopy';
  * "Your plan": every answer, each with Change (back to its step), the note, and what went wrong.
  * out of OwnPage; the band's words (bandWords), and the fixed GRR line: no answer removes a phase.
  */
-export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNote, failed }: {
+export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNote, failed, goal }: {
   s: OwnAt; C: OwnCopy; k5: boolean; nextLabel: string | null; pagesLabel: string; gradeLabel: string; note: string;
   setNote: (v: string) => void; failed: Refusal | 'error' | null;
+  /** bd-snkn32.56 — a goal start: her goal stands where the pages were, and the textbook is not in what she has. */
+  goal?: { label: string; value: string; sub: string };
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   const w = bandWords(C, s.grade);
@@ -20,13 +22,14 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
     <>
       <ChosenSoFar
         items={[
-          { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
+          goal ? { label: goal.label, value: goal.value, sub: `${gradeLabel} · ${s.subject} · ${goal.sub}`, to: at('goal') }
+            : { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
           ...(nextLabel && s.ext ? [{ label: C.nextLesson, value: C.extends[s.ext], sub: nextLabel, to: at('pages') }] : []),
           ...(isSecondary(s.grade) ? [{ label: C.purposeLabel, value: s.purpose ? w.purpose(s.purpose) : '—', to: at('purpose') }] : []),
           ...(s.focus ? [{ label: C.focusLabel, value: C.foci[s.focus], to: at('focus') }] : []),
           { label: w.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },
-          { label: C.resources, value: ['textbook', ...s.res].map((r) => w.resource(r as Resource)).join(', '), to: at('resources') },
+          { label: C.resources, value: (goal ? s.res : ['textbook', ...s.res]).map((r) => w.resource(r as Resource)).join(', '), to: at('resources') },
           { label: C.way, value: s.way ? (s.ways ?? [s.way]).map((k) => w.way(k)).join(', ') : '—', to: at('way') },
         ]}
       />
