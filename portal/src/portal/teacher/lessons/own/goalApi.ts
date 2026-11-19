@@ -7,7 +7,8 @@ import { readConfigShared } from '../../../lib/useNewUi';
  * features.lpOwnGoalStart, list-only, fail-closed), her grade+subject's learning goals, and the closest lesson to a
  * topic she types. Each goal names the lesson the plan is written over (its pages keep the facts right).
  */
-export type GoalOutcome = { segmentId: string; text: string; chapter: string | null };
+/** bd-snkn32.58.1 — grades 1–5 goals are skill-sized and carry their skill `group` and SLO `code`; 6–12 rows have neither. */
+export type GoalOutcome = { segmentId: string; text: string; chapter: string | null; group?: string; code?: string | null };
 export type GoalMatch = { segmentId: string; title: string };
 type At = { grade: number; subject: string };
 
@@ -33,7 +34,10 @@ export async function fetchGoals(at: At): Promise<GoalOutcome[] | null> {
     if (!Array.isArray(data?.outcomes)) return null;
     return data.outcomes
       .filter((o: Partial<GoalOutcome>) => str(o?.segmentId) && str(o?.text))
-      .map((o: GoalOutcome) => ({ segmentId: o.segmentId, text: o.text, chapter: str(o.chapter) ? o.chapter : null }));
+      .map((o: GoalOutcome) => ({
+        segmentId: o.segmentId, text: o.text, chapter: str(o.chapter) ? o.chapter : null,
+        ...(str(o.group) ? { group: o.group, code: str(o.code) ? o.code : null } : {}),
+      }));
   } catch {
     return null;
   }

@@ -12,7 +12,10 @@ import { LESSONS_HOME, lessonsUrl } from './paths';
 import { Steps } from './Steps';
 import { FlnBand } from '../../fln/FlnBand';
 import { OWN } from './own/copy';
-import { OWN_PICK } from './own/state';
+import { OWN_PICK, OWN_START, ownUrl } from './own/state';
+import { useLpOwnGoalStart } from './own/goalApi';
+import { GOAL } from './own/goalCopy';
+import { OwnStartChoice } from './own/OwnStartChoice';
 
 /**
  * bd-fgj73x — step 1 of 3 of a new lesson plan, Grade and subject (Assessment's Class step, the same kit picker).
@@ -32,7 +35,15 @@ export function NewLessonPage() {
   const C = useCopy(LESSONS);
   const O = useCopy(OWN);
   // bd-snkn32.25 — from the main page's Make my own card: same picker, every pick carries pick=own on to the chapters.
-  const own = new URLSearchParams(useLocation().search).get('pick') === OWN_PICK ? OWN_PICK : undefined;
+  const query = new URLSearchParams(useLocation().search);
+  const own = query.get('pick') === OWN_PICK ? OWN_PICK : undefined;
+  // bd-snkn32.58.1 (queue #155 A) — goal switch on: own mode opens on two equal starts; `start=goal` picks only her
+  // class and goes to the goal step (no chapter); `start=book` is today's flow. Switch off: today's picker, unchanged.
+  const G = useCopy(GOAL);
+  const goalOn = useLpOwnGoalStart();
+  const start = own && goalOn === true ? query.get('start') : null;
+  const choosing = !!own && goalOn === true && start !== 'book' && start !== 'goal';
+  const toGoal = (grade: number, subject: string) => ownUrl({ grade, subject, step: 'goal', goal: { kind: null, text: '' } });
   const navigate = useNavigate();
   const { toast } = useToast();
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
@@ -53,6 +64,7 @@ export function NewLessonPage() {
   // Hers: straight to its chapters, with the catalogue's own key and the one subject key.
   const toChapters = (_v: GradeSubjectPair, pick: ClassPick) => {
     const c = pick.combo as (GradeSubject & { featureKey: string }) | null;
+    if (pick.mine && c && c.grade != null && start === 'goal') return toGoal(c.grade, c.featureKey);
     return pick.mine && c && c.grade != null ? lessonsUrl('chapters', { grade: c.grade, subject: c.featureKey, key: c.subjectKey, pick: own }) : undefined;
   };
 
@@ -67,7 +79,7 @@ export function NewLessonPage() {
       const want = norm(v.subject);
       const s = subjects.find((x) => x.name === v.subject)
         ?? (want ? subjects.find((x) => norm(x.name) === want || norm(x.key) === want) : undefined);
-      if (s) navigate(lessonsUrl('chapters', { grade: v.grade, subject: s.key, pick: own }));
+      if (s) navigate(start === 'goal' ? toGoal(v.grade, s.key) : lessonsUrl('chapters', { grade: v.grade, subject: s.key, pick: own }));
       else toast({ title: C.notAvailable });
     } catch {
       toast({ title: C.couldNotOpen, variant: 'destructive' });
@@ -77,8 +89,9 @@ export function NewLessonPage() {
   };
 
   return (
-    <TeacherPage crumb={own ? O.makeMyOwn : C.newLessonPlan} title={C.gradeAndSubject} backTo={LESSONS_HOME} testId="lessons-new">
+    <TeacherPage crumb={own ? O.makeMyOwn : C.newLessonPlan} title={choosing ? G.startTitle : C.gradeAndSubject} backTo={start ? OWN_START : LESSONS_HOME} testId="lessons-new">
       {own ? null : <Steps n={1} />}
+      {choosing ? <OwnStartChoice /> : own && goalOn === null ? <div className="h-[240px] rounded-2xl bg-[#f0f1f3] motion-safe:animate-pulse" aria-hidden /> : (<>
       <ClassPicker
         label={C.selectGradeSubject}
         feature="lessons"
@@ -88,6 +101,7 @@ export function NewLessonPage() {
         onChange={(v, pick) => { void openOther(v, pick); }}
       />
       <FlnBand />
+      </>)}
     </TeacherPage>
   );
 }

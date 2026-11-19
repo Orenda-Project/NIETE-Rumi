@@ -324,3 +324,30 @@ Feature: Teacher lesson plans
     When she selects one and answers the rest of the steps and taps Make my plan
     Then her answers carry her goal and the day under it, with no textbook and no book pages
     And the Preparing page opens on her plan's id
+
+  # bd-snkn32.58.1, queue #155 A (Amena 19 Nov: "wrong flow, From textbook chapter OR Start from a learning goal").
+  # Same LIST-ONLY switch. Component proof: OwnTwoStarts.test.tsx, GoalStep.test.tsx; server: tests/lp612/own-goal-skills.test.js.
+  @GOAL05 @draft @config-gated
+  Scenario: Make my own opens on two equal starts, and the goal start needs no chapter
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she taps "Make my own" on the Lesson Plans main page
+    Then she sees two equal cards "From a textbook chapter" and "From a learning goal", and no class picker yet
+    When she taps "From a learning goal" and selects Grade 3 Maths
+    Then the learning goal step opens for Grade 3 Maths with no chapter screen in between
+
+  @GOAL06 @draft @config-gated
+  Scenario: Grades 1–5 learning goals are skill-sized and grouped by skill
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths
+    Then she sees skill groups such as "Multiplying and dividing", each with its number of goals
+    When she taps "Multiplying and dividing"
+    Then she sees one goal per official outcome, such as "Multiply 2 digit numbers by 1 digit number mentally and in written form."
+    And no "[DERIVED" page note is listed as a goal
+    When she types "multiply" in "Search goals"
+    Then only goals with that word are listed
+
+  @GOAL07 @draft @config-gated @negative
+  Scenario: With the goal switch off, Make my own's first screen is unchanged
+    Given the teacher app v2 and "portal_lp_make_own" are on for her, but she is not on "portal_lp_own_goal_start"
+    When she taps "Make my own" on the Lesson Plans main page
+    Then she sees Grade and subject, as before, with no "From a learning goal" card

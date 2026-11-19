@@ -9,8 +9,10 @@
  *                  curriculum has them), with what lp612-own-goal needs: outcome text, titles and book order.
  *                  Grades 1–5 (bd-snkn32.57): the official outcomes of the curriculum matrix (assessment_topics, ICT,
  *                  current), each mapped onto its day of her book (the default ICT shelf), by lp-k5-own-goal.
+ *                  bd-snkn32.58.1: one row per official SLO (skill-sized), grouped by strand (lp-own-goal-skills).
  */
-const { matrixSubject, k5GoalRows } = require('./lp-k5-own-goal');
+const { matrixSubject } = require('./lp-k5-own-goal');
+const { skillRows } = require('./lp-own-goal-skills');
 
 const GOAL_START_KEY = 'portal_lp_own_goal_start';
 const GOAL_COLUMNS = 'segment_id, curriculum, chapter_number, chapter_title, order_index, menu_title, subtopic_title, slo_descriptions';
@@ -49,7 +51,7 @@ async function k5Rows(supabase, { grade, subject }) {
     .eq('subject', wanted)
     .limit(MAX_ROWS);
   if (error || !Array.isArray(data)) return [];
-  return k5GoalRows(data, book);
+  return skillRows(data, book, wanted); // bd-snkn32.58.1: one skill-sized goal per official SLO, grouped by strand
 }
 
 /** The grade+subject's current lessons (grades 6-12) or official outcomes (1-5), one curriculum's; [] on any failure. */
