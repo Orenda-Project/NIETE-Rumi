@@ -17,9 +17,10 @@ import { useCoachFeatureReady } from "../training/useCoachFullApp";
 import { ReadyReportCard } from "../report/ReadyReportCard";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 import { COACH_PROFILE } from "../profile/copy";
-import { HistoryList } from "../../teacher/ui";
 import { SectionLabel } from "../ui";
-import { CurrentVisit, visitItem } from "../home/VisitCards";
+import { CurrentVisit } from "../home/VisitCards";
+import { OBSERVE } from "../observe/copy";
+import { karachiDay } from "../time";
 import { useFlowV2 } from "../flow/useCoachFlowV2";
 import { trackFlow } from "../flow/track";
 
@@ -72,9 +73,11 @@ export default function SlimHome() {
   // The Learning assessment tile: only for a literal true (fail-closed, as the guard and the More row read it).
   const assess = useChildTestSa() === true;
   const P = useCopy(COACH_PROFILE);
+  const O = useCopy(OBSERVE);
   const flowV2 = useFlowV2() === true && fullApp;
-  const todays = flowV2 ? home?.today ?? [] : [];
-  const current = todays.find((v) => v.status === "upcoming") ?? null;
+  // Concept 1 (the operator on #188's canvas, 19 Nov: "Just show her the next visit here only. So the buttons are higher
+  // up on the page"): the next visit, only when it is today (Start recording is for today).
+  const next = flowV2 && home?.next && home.next.scheduledFor === karachiDay() && home.next.status === "upcoming" ? home.next : null;
 
   return (
     <CoachGate>
@@ -94,23 +97,22 @@ export default function SlimHome() {
       >
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
         <ReadyReportCard />
-        {todays.length > 0 && (
-          <section data-testid="home-today" className="mt-1 flex flex-col gap-2.5">
-            <SectionLabel count={todays.length}>{W.todaysVisits}</SectionLabel>
-            {current && <CurrentVisit v={current} W={W} start={{ onPress: () => trackFlow("home.today_start") }} />}
-            {/* the rest of today's visits, only when there are any (the kit's list draws an empty card for none) */}
-            {todays.length > (current ? 1 : 0) && (
-              <HistoryList showMore={false} groups={[{ day: "", items: todays.filter((v) => v !== current).map((v) => visitItem(v, W)) }]} />
-            )}
+        {next && (
+          <section data-testid="home-next" className="mt-1 flex flex-col gap-2.5">
+            <SectionLabel>{O.nextVisit}</SectionLabel>
+            <CurrentVisit v={next} W={W} start={{ onPress: () => trackFlow("home.today_start") }} />
           </section>
         )}
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className={`mt-2 ${tileGrid(true)}`}>
             {fullApp && (
               <>
-                <FeatureTile feature="schedule" label={W.tiles.schedule} to={flowV2 ? "/portal/coach/schedule" : "/portal/coach/scheduling"} compact
-                  chip={home ? { text: W.chips.thisWeek(home.counts.week), tone: "info" } : null} />
-                <FeatureTile feature="observations" label={flowV2 ? W.tiles.observations : W.tiles.observe} to={flowV2 ? "/portal/coach/reports" : "/portal/coach/observe"} compact
+                {/* Concept 1: one Observe tile in place of Schedule and Observe (the operator, 19 Nov) */}
+                {!flowV2 && (
+                  <FeatureTile feature="schedule" label={W.tiles.schedule} to="/portal/coach/scheduling" compact
+                    chip={home ? { text: W.chips.thisWeek(home.counts.week), tone: "info" } : null} />
+                )}
+                <FeatureTile feature="observations" label={W.tiles.observe} to="/portal/coach/observe" compact
                   chip={home ? { text: W.chips.waiting(home.counts.waiting), tone: home.counts.waiting > 0 ? "waiting" : "info" } : null} />
               </>
             )}
