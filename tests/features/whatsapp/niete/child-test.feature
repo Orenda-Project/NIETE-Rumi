@@ -2085,3 +2085,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a run that ended when the minute ran out, a run stopped on the first line, and a run without the phone's clock are scored exactly as before
     And the letters, words and maths timed tasks are scored exactly as before
     And with sa_r28_story_minute off every story's marks are exactly as before and carry no minute stamp
+
+  @e2e @wip @draft @config-gated @P1 @CT299 @no-mock-driver
+  # No mock driver: the engine page's layout on a phone. Asserted in
+  # dashboard/tests/sa-r28-mcq-auto-practice.service.test.js (real Chromium, 360×640 at DPR 3 and 2, the coach page's
+  # frame, both tiers' switches; the tablet as the control).
+  Scenario: With sa_r28_mcq on, the Urdu story questions' practice in RDF auto fits a phone like the scored questions
+    Given sa_r28_mcq is on and a child answers the Urdu story questions alone (RDF auto) on a 360×640 phone
+    When the practice question is read out, waits for a tap, takes the child's answer and gives its feedback
+    Then all four answers are whole on the screen and tappable, with nothing to scroll and no scroll cue
+    And the head row (Jugnu, the practice chip, the replay) is no taller than on the scored questions
+    And the four answers stay 56 px tall and at least 8 px apart, on the practice and on the scored questions
+    And English, the coach-led phone and the tablet show these screens as before
+    And with sa_r28_mcq off there is no story question screen and nothing changes
