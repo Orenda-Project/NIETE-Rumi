@@ -5,6 +5,14 @@ import { isSecondary, type Resource } from './rules';
 import { ownUrl, type OwnAt } from './state';
 import type { Refusal } from './change';
 import { bandWords } from './bandCopy';
+import { useLang } from '../../i18n';
+import { subjectShort } from '../../ui/subjects';
+
+/** bd-m8zwt1.2 — the URL carries the subject KEY ("math", "general_science"): shown as a name, Urdu from the kit's list. */
+function subjectShown(subject: string, lang: 'en' | 'ur'): string {
+  if (lang === 'ur') return subjectShort(subject, 'ur');
+  return subject.replace(/_/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
 
 /**
  * "Your plan": every answer, each with Change (back to its step), the note, and what went wrong.
@@ -18,12 +26,15 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   const w = bandWords(C, s.grade);
+  const subject = subjectShown(s.subject, useLang());
   return (
     <>
+      {/* bd-m8zwt1.9 — first on the screen and scrolled to: under the note it sat behind the sticky button, unseen. */}
+      {failed ? <p ref={(el) => { try { el?.scrollIntoView?.({ block: 'center' }); } catch { /* old browsers */ } }} role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
       <ChosenSoFar
         items={[
-          goal ? { label: goal.label, value: goal.value, sub: `${gradeLabel} · ${s.subject} · ${goal.sub}`, to: at('goal') }
-            : { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
+          goal ? { label: goal.label, value: goal.value, sub: `${gradeLabel} · ${subject} · ${goal.sub}`, to: at('goal') }
+            : { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${subject}`, to: at('pages') },
           ...(nextLabel && s.ext ? [{ label: C.nextLesson, value: C.extends[s.ext], sub: nextLabel, to: at('pages') }] : []),
           ...(isSecondary(s.grade) ? [{ label: C.purposeLabel, value: s.purpose ? w.purpose(s.purpose) : '—', to: at('purpose') }] : []),
           ...(s.focus ? [{ label: C.focusLabel, value: C.foci[s.focus], to: at('focus') }] : []),
@@ -45,7 +56,6 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
           data-testid="own-note"
         />
       </label>
-      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
     </>
   );
 }
