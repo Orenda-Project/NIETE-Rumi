@@ -19,7 +19,7 @@ beforeEach(() => {
   mockLink.mockReset().mockResolvedValue(true);
 });
 
-describe.each(Fake.PER_TEACHER)('lp_whatsapp_pdf_off %s, %s teacher', (_label, value, _who, userId, off) => {
+describe.each(Fake.PER_TEACHER)('lp_whatsapp_pdf_off %s (%j), %s teacher', (_label, value, _who, userId, off) => {
   test(off ? 'the app link goes, not the PDF' : 'today: not off, nothing sent here', async () => {
     Fake.setPdfOff(value);
     const out = await pdfOffLink({ userId, phone: PHONE, language: 'ur', reason: 'flow_tap' });

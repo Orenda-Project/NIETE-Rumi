@@ -62,7 +62,7 @@ const set = (key, value) => mockState.settings.push({ key, value });
 const ask = (feature, userId) => svc.redirectIfFlagged(feature, { userId, from: FROM, language: 'en', reason: 'test' });
 const landedOn = () => link.verifyAppLink(mockCta.mock.calls[0][1].url.slice(`${PORTAL}/go/`.length));
 
-describe.each(PER_TEACHER)('lp_whatsapp_pdf_off %s, %s teacher, app_redirect_lesson_plan absent', (_l, value, _w, userId, off) => {
+describe.each(PER_TEACHER)('lp_whatsapp_pdf_off %s (%j), %s teacher, app_redirect_lesson_plan absent', (_l, value, _w, userId, off) => {
   test(off ? 'the app link, one message, no Flow' : 'today: not handled, nothing sent', async () => {
     Fake.setPdfOff(value);
     expect(await ask('lesson_plan', userId)).toBe(off);
