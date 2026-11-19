@@ -100,25 +100,28 @@ const VISIT_PAGE_RX = /^\/portal\/coach\/visit\/[^/]+$/;
 export const FROM_OBSERVE = "observe";
 
 /**
- * bd-o15qnr.26 (queue #177, Option A) — the visit flow v2 switch (portal_coach_flow_v2): Schedule opens the one list of
- * her visits and holds every visit and its steps (record, attach, check, sending); "Observe" becomes Observations (her
- * word list: Observations / مشاہدات) and opens My observations, holding the observation pages. Off: the paths above.
+ * bd-o15qnr.26 — the visit flow v2 switch (portal_coach_flow_v2), rebuilt to #188's Concept 1 (the operator, 19 Nov):
+ * ONE Observe entry holds every visit, booking and observation page (Schedule's and Observe's sections together), and
+ * it opens the one Observe screen. The menu word stays "Observe" / مشاہدہ ("No need to make it Observations").
  */
 export const COACH_FLOW_V2_PATHS: Partial<Record<CoachNavKey, string>> = {
-  schedule: "/portal/coach/schedule",
-  observe: "/portal/coach/reports",
+  observe: "/portal/coach/observe",
 };
 
 /** Where a coach menu item goes, with the visit flow v2 switch on or off. */
 export const coachMenuPath = (key: CoachNavKey, flowV2 = false): string =>
   (flowV2 ? COACH_FLOW_V2_PATHS[key] : undefined) ?? COACH_MENU_PATHS[key];
 
+/** The School card menu with the full app AND the visit flow v2 on: Home · Observe · Lesson Plans · More. */
+export const COACH_CARD_FLOW_NAV_KEYS: readonly CoachNavKey[] = ["home", "observe", "lessons", "more"];
+
 const VISIT_RX = /^\/portal\/coach\/visit(\/|$)/;
 
 export function currentCoachMenuItem(pathname: string, search = "", flowV2 = false): CoachNavKey | null {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === COACH_MENU_PATHS.home) return "home";
-  if (flowV2 && VISIT_RX.test(path)) return "schedule";
+  if (flowV2 && VISIT_RX.test(path)) return "observe";
+  if (flowV2 && [...COACH_SECTIONS.schedule, ...COACH_SECTIONS.observe].some((p) => path === p || path.startsWith(`${p}/`))) return "observe";
   if (VISIT_PAGE_RX.test(path)) return new URLSearchParams(search).get("from") === FROM_OBSERVE ? "observe" : "schedule";
   for (const key of Object.keys(COACH_SECTIONS) as (keyof typeof COACH_SECTIONS)[]) {
     if (COACH_SECTIONS[key].some((p) => path === p || path.startsWith(`${p}/`))) return key;

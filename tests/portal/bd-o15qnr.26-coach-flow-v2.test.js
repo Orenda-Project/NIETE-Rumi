@@ -167,7 +167,7 @@ describe('POST /funnel/coach-flow', () => {
     req.on('error', reject); req.write(data); req.end();
   });
 
-  test.each(['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'home.today_start'])('%s → app_funnel.coach_flow, user and journey from the session', async (a) => {
+  test.each(['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'home.today_start', 'observe.start'])('%s → app_funnel.coach_flow, user and journey from the session', async (a) => {
     const res = await post(await app(), { a, userId: OTHER });
     expect(res.status).toBe(204);
     const row = emitted.find((x) => x.e === 'app_funnel.coach_flow');

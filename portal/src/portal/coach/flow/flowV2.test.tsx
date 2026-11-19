@@ -17,7 +17,8 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) =
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hina", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
 vi.mock("../../services/api", () => ({
-  coach: { getHome: vi.fn(), getSchedule: vi.fn(), getTeam: vi.fn(), getPeople: vi.fn(), handoff: vi.fn(() => Promise.resolve({ code: null })) },
+  coach: { getHome: vi.fn(), getSchedule: vi.fn(), getTeam: vi.fn(), getPeople: vi.fn(), handoff: vi.fn(() => Promise.resolve({ code: null })),
+    getReports: vi.fn(() => Promise.resolve({ success: true, waiting: [], inProgress: [], all: { total: 0, page: 1, pageSize: 20, items: [] } })) },
   leader: { cancelSchedule: vi.fn(), createSchedule: vi.fn() },
 }));
 vi.mock("./track", () => ({ trackFlow: vi.fn() }));
@@ -80,21 +81,22 @@ beforeEach(() => {
   C.getHome.mockResolvedValue({ success: true, home: { today: [], next: null, counts: { week: 5, overdue: 2, waiting: 1, inProgress: 0, teachers: 20, schools: 6 } } });
 });
 
-describe("Schedule, switch on: one open list, nothing folded", () => {
-  it("asks for 30 days back to 90 ahead, as Take observation did", async () => {
+describe("Booked visits (Concept 1), switch on: late, today, ahead; history lives in History", () => {
+  it("asks for today to 90 ahead (the server adds every late visit); the done past is History's", async () => {
     renderAt("/portal/coach/schedule");
     await screen.findByTestId("visit-list");
-    expect(C.getSchedule).toHaveBeenCalledWith({ from: addDays(today, -30), to: addDays(today, 90) });
+    expect(C.getSchedule).toHaveBeenCalledWith({ from: today, to: addDays(today, 90) });
   });
 
-  it("Overdue · Today · Coming up · Earlier, in that order, every group open (no fold, no week strip)", async () => {
+  it("Late · Today · Ahead, in that order, every group open, no Earlier (no week strip)", async () => {
     renderAt("/portal/coach/schedule");
     const list = await screen.findByTestId("visit-list");
     const groups = Array.from(list.querySelectorAll("[data-group]")).map((g) => g.getAttribute("data-group"));
-    expect(groups).toEqual(["overdue", "today", "coming", "earlier"]);
-    // nothing folded: no toggle anywhere, and every one of the 44 earlier visits is on the page
+    expect(groups).toEqual(["overdue", "today", "coming"]);
+    expect(within(list.querySelector('[data-group="overdue"]') as HTMLElement).getByRole("heading", { level: 2 })).toHaveTextContent(/^Late/);
+    expect(within(list.querySelector('[data-group="coming"]') as HTMLElement).getAllByRole("heading", { level: 2 })[0]).toHaveTextContent(/^Ahead/);
     expect(list.querySelector("[aria-expanded]")).toBeNull();
-    expect(within(list.querySelector('[data-group="earlier"]') as HTMLElement).getAllByText(/^Done Teacher \d+$/)).toHaveLength(44);
+    expect(within(list).queryByText(/^Done Teacher \d+$/)).toBeNull();
     // the week strip is gone (risk 2: dropped)
     expect(screen.queryByRole("group", { name: SCHEDULE_COPY.week })).toBeNull();
   });
@@ -106,7 +108,6 @@ describe("Schedule, switch on: one open list, nothing folded", () => {
     expect(count("overdue")).toBe("2");
     expect(count("today")).toBe("3");
     expect(count("coming")).toBe("2");
-    expect(count("earlier")).toBe("44");
   });
 
   it("an overdue or today's visit: Start recording (its record step) and Cancel visit; coming up: Reschedule and Cancel visit", async () => {
@@ -140,7 +141,6 @@ describe("Schedule, switch on: one open list, nothing folded", () => {
     await screen.findByTestId("visit-list");
     const farah = screen.getByText("Farah Naz").closest("a") as HTMLElement;
     expect(farah).toHaveAttribute("href", "/portal/coach/observation/sess-farah");
-    expect(screen.getByText("Done Teacher 0").closest("a")).toHaveAttribute("href", "/portal/coach/observation/sess-0");
     expect(within(screen.getByTestId("visit-t1")).queryByRole("button", { name: /Cancel visit/ })).toBeNull();
   });
 
@@ -151,10 +151,11 @@ describe("Schedule, switch on: one open list, nothing folded", () => {
     expect(trackFlow).toHaveBeenCalledWith("schedule.start");
   });
 
-  it("New visit in the dock; Team schedule as a row; the way back to WhatsApp on top", async () => {
+  it("titled Booked visits under Observe; Book ahead (New visit with day and time); Team schedule; WhatsApp on top", async () => {
     renderAt("/portal/coach/schedule");
     await screen.findByTestId("visit-list");
-    expect(screen.getByRole("link", { name: /New visit/ })).toHaveAttribute("href", "/portal/coach/new-visit");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Booked visits");
+    expect(screen.getByRole("link", { name: /Book ahead/ })).toHaveAttribute("href", "/portal/coach/new-visit");
     expect(screen.getByRole("link", { name: /Team schedule/ })).toHaveAttribute("href", "/portal/coach/team");
     expect(screen.getByTestId("continue-on-whatsapp")).toBeInTheDocument();
   });
@@ -209,10 +210,9 @@ describe("Cancel visit on a row: asks, then the visit leaves the list", () => {
 
 describe("old addresses, switch on: WhatsApp and old links keep working", () => {
   it.each([
-    ["/portal/coach/scheduling", "/portal/coach/schedule"],
-    ["/portal/coach/observe/pick", "/portal/coach/schedule"],
-    ["/portal/coach/observe", "/portal/coach/reports"],
-  ])("%s → %s", async (from, to) => {
+    ["/portal/coach/scheduling", "/portal/coach/observe"],
+    ["/portal/coach/observe/pick", "/portal/coach/observe"],
+  ])("%s → %s (Concept 1: Observe is the one screen)", async (from, to) => {
     renderAt(from);
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(new RegExp(`^${to}$`)));
   });

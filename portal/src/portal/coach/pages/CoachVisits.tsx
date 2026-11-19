@@ -4,19 +4,24 @@ import { CalendarClock, Plus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { coach, leader } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
-import { HistoryRow, addDays } from "../../teacher/ui";
+import { addDays } from "../../teacher/ui";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
-import { BottomLink, Chevron, DayLabel, Failed, Loading, SectionLabel, useLoad } from "../ui";
+import { DayLabel, Failed, Loading, SectionLabel, useLoad } from "../ui";
 import { karachiDay } from "../time";
 import type { CoachVisit } from "../types";
 import ObservePage from "../observe/ObservePage";
+import { OBSERVE } from "../observe/copy";
 import { SCHEDULE } from "../schedule/copy";
 import { dayShort } from "../schedule/model";
 import { CancelVisitTray } from "../schedule/CancelVisitTray";
-import { VisitCard, doneTo, visitPath } from "../schedule/VisitCard";
+import { VisitCard } from "../schedule/VisitCard";
 import { trackFlow } from "../flow/track";
 
 /**
+ * bd-o15qnr.26 — Concept 1 (#188, the operator 19 Nov): this is "Booked visits", opened from the Observe screen: Late ·
+ * Today · Ahead, each visit with Record / Reschedule and Cancel visit; Book ahead and Team schedule at the end. The done
+ * past is History's (no Earlier here). What follows is Option A's first build note.
+ *
  * bd-o15qnr.26 (queue #177, Option A: "Schedule holds every visit") — the coach's ONE list of visits, behind
  * portal_coach_flow_v2. It replaces the Schedule hub, My schedule's week and Take observation's pick list.
  *
@@ -36,7 +41,8 @@ import { trackFlow } from "../flow/track";
  * however old (the server adds those).
  */
 
-const DAYS_BACK = 30;
+// Concept 1: from today (the server adds every late visit however old); the done past is History's.
+const DAYS_BACK = 0;
 const DAYS_AHEAD = 90;
 
 const slotKey = (v: CoachVisit) => (/^\d{2}:\d{2}$/.test(v.scheduledSlot || "") ? v.scheduledSlot! : "~");
@@ -76,6 +82,7 @@ export function groupVisits(all: CoachVisit[], today: string) {
 
 const CoachVisits = () => {
   const S = useCopy(SCHEDULE);
+  const O = useCopy(OBSERVE);
   const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
   const { data, failed, reload } = useLoad(
     () => coach.getSchedule({ from: addDays(today, -DAYS_BACK), to: addDays(today, DAYS_AHEAD) }), [today]);
@@ -93,7 +100,6 @@ const CoachVisits = () => {
   }, [data, gone]);
   const g = useMemo(() => groupVisits(all, today), [all, today]);
   const comingCount = g.coming.reduce((n, d) => n + d.visits.length, 0);
-  const earlierCount = g.earlier.reduce((n, d) => n + d.visits.length, 0);
 
   const askCancel = (v: CoachVisit) => { trackFlow("schedule.cancel_tap"); setAsking(v); };
   const confirmCancel = async () => {
@@ -115,8 +121,7 @@ const CoachVisits = () => {
   const card = (v: CoachVisit) => <VisitCard key={v.id} v={v} today={today} next={v.id === g.nextId} onCancel={askCancel} />;
 
   return (
-    <ObservePage title={S.title} crumb={S.home} backTo="/portal/coach" feature="schedule"
-      dock={<BottomLink to="/portal/coach/new-visit"><Plus className="h-5 w-5" aria-hidden="true" />{S.newVisit}</BottomLink>}>
+    <ObservePage title={S.bookedVisits} crumb={O.observe} backTo="/portal/coach/observe" feature="schedule">
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {data && (
@@ -129,7 +134,7 @@ const CoachVisits = () => {
 
           {g.overdue.length > 0 && (
             <section data-group="overdue" className="flex flex-col gap-2.5">
-              <SectionLabel count={g.overdue.length} countTone="warn">{S.overdue}</SectionLabel>
+              <SectionLabel count={g.overdue.length} countTone="warn">{S.late}</SectionLabel>
               {g.overdue.map(card)}
             </section>
           )}
@@ -143,7 +148,7 @@ const CoachVisits = () => {
 
           {comingCount > 0 && (
             <section data-group="coming" className="flex flex-col gap-2.5">
-              <SectionLabel count={comingCount}>{S.comingUp}</SectionLabel>
+              <SectionLabel count={comingCount}>{S.ahead}</SectionLabel>
               {g.coming.map((d) => (
                 <div key={d.day} className="flex flex-col gap-2.5">
                   <DayLabel>{d.day ? dayShort(d.day, S) : S.dash}</DayLabel>
@@ -153,30 +158,13 @@ const CoachVisits = () => {
             </section>
           )}
 
-          <Link to="/portal/coach/team" className={cn(LIST_CARD, "mt-1 flex min-h-[60px] items-center gap-3 px-4 text-[15px] font-semibold", FOCUS)}>
-            <Users className="h-5 w-5 shrink-0 text-[#be185d]" aria-hidden="true" />
-            <span className="flex-1">{S.teamSchedule}</span>
-            <Chevron />
+          {/* Concept 1: day and time only from here (Start an observation books for now); the done past is History's */}
+          <Link to="/portal/coach/new-visit" className={cn(LIST_CARD, "mt-1 flex min-h-[56px] items-center justify-center gap-2 px-4 text-[16px] font-semibold text-[#33374a]", FOCUS)}>
+            <Plus className="h-5 w-5 shrink-0" aria-hidden="true" />{S.bookAhead}
           </Link>
-
-          {earlierCount > 0 && (
-            <section data-group="earlier" className="flex flex-col gap-2.5">
-              <SectionLabel count={earlierCount}>{S.earlier}</SectionLabel>
-              {g.earlier.map((d) => (
-                <div key={d.day} className="flex flex-col gap-2">
-                  <DayLabel>{d.day ? dayShort(d.day, S) : S.dash}</DayLabel>
-                  <div className={LIST_CARD}>
-                    {d.visits.map((v, i) => (
-                      <HistoryRow key={v.id} lead="person" first={i === 0} title={v.teacherName || S.dash} extra={v.schoolName || undefined}
-                        time={v.scheduledSlot} state={v.status === "done" ? "done" : "default"}
-                        chip={v.status === "done" ? { text: S.done, tone: "done" } : null}
-                        to={v.status === "done" ? doneTo(v) : visitPath(v.id)} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
+          <Link to="/portal/coach/team" className={cn("flex min-h-[56px] items-center justify-center gap-2 px-4 text-[15px] font-semibold text-[#be185d]", FOCUS)}>
+            <Users className="h-5 w-5 shrink-0" aria-hidden="true" />{S.teamSchedule}
+          </Link>
         </div>
       )}
 
