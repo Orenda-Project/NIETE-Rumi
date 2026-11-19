@@ -160,6 +160,12 @@ function teacherFacing(blob, v3Analysis, transcript) {
   const fw = require('../fico17-v6-framework');
   const base = {};
   for (const k of LESSON_FACTS) if (v3Analysis && v3Analysis[k] !== undefined) base[k] = v3Analysis[k];
+  // Queue #184: a blob scored in starred mode keeps nothing for the six; re-adding it up must not count D2 again.
+  if (Array.isArray(blob.starred) && blob.starred.length) {
+    const copyS = JSON.parse(JSON.stringify({ levels: blob.levels }));
+    const s = fw.starredVariant().computeScores({ ...base, ...copyS }, false);
+    return { ...s, framework: v6.RUBRIC_KEY, rubric: v6.RUBRIC_KEY, transcript_quality: blob.transcript_quality || null };
+  }
   const copy = JSON.parse(JSON.stringify({ levels: blob.levels, combined_evidence: blob.combined_evidence || {} }));
   const a = fw.computeScores({ ...base, ...copy }, false, transcript);
   return { ...a, framework: v6.RUBRIC_KEY, rubric: v6.RUBRIC_KEY, transcript_quality: blob.transcript_quality || null };
