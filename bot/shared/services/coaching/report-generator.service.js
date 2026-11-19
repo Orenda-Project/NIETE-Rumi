@@ -1766,7 +1766,9 @@ class ReportGeneratorService {
           lessonMismatch: fidelity.lessonMismatch,
           sectionBNotAssessed: voice.notAssessed
         },
-        outputLanguage
+        outputLanguage,
+        // bd-r2uzg1.18.10: the script's examples must come from her own recording, and are checked against it.
+        { transcript: session.transcript_text }
       );
 
       logToFile('Voice debrief script generated', {
