@@ -39,6 +39,10 @@ export const GOAL_COPY = {
   seeMine: 'See my grade’s goals',
   blocked: 'This is not a school topic. Select a learning goal.',
   noteDropped: 'Your note was not used.',
+  /* bd-snkn32.58.3 (queue #155 C) — the check before a goal plan is shown */
+  checking: 'Checking it matches your goal…',
+  unsureTitle: 'We could not make a plan we are sure of for this goal.',
+  anotherGoal: 'Select another goal',
   groups: {
     numbers: 'Numbers', add_sub: 'Adding and subtracting', mul_div: 'Multiplying and dividing', fractions: 'Fractions and decimals',
     measure: 'Measuring', time_money: 'Time and money', shapes: 'Shapes', data: 'Charts and data', patterns: 'Patterns',
@@ -74,6 +78,9 @@ const GOAL_COPY_UR: typeof GOAL_COPY = {
   seeMine: 'میری جماعت کے مقاصد',
   blocked: 'یہ اسکول کا موضوع نہیں۔ سیکھنے کا مقصد چنیں۔',
   noteDropped: 'آپ کا نوٹ شامل نہیں کیا گیا۔',
+  checking: 'دیکھا جا رہا ہے کہ لیسن پلان آپ کے مقصد کے مطابق ہے…',
+  unsureTitle: 'اس مقصد کے لیے ہم ایسا لیسن پلان نہیں بنا سکے جس پر ہمیں یقین ہو۔',
+  anotherGoal: 'دوسرا مقصد چنیں',
   groups: {
     numbers: 'اعداد', add_sub: 'جمع اور تفریق', mul_div: 'ضرب اور تقسیم', fractions: 'کسور اور اعشاریہ',
     measure: 'پیمائش', time_money: 'وقت اور پیسے', shapes: 'اشکال', data: 'گراف اور معلومات', patterns: 'نمونے',
@@ -91,5 +98,5 @@ export const GOAL_COPY_ENTRY: CopyEntry = {
   module: GOAL as Bilingual<unknown>,
   same: [],
   // The way in, its hint, the list's heading, the empty and not-found states and the Check line are sentences.
-  longOk: ['didYouMean', 'otherGrade', 'seeMine', 'blocked', 'noteDropped', 'useAnyway', 'startTitle', 'fromBook', 'fromBookHint', 'fromGoal', 'fromGoalHint', 'search', 'noneFound', 'groups', 'startFromGoal', 'startFromGoalHint', 'outcomes', 'noOutcomes', 'topicPlaceholder', 'noMatch', 'noBook', 'title', 'checkLabel'],
+  longOk: ['checking', 'unsureTitle', 'anotherGoal', 'didYouMean', 'otherGrade', 'seeMine', 'blocked', 'noteDropped', 'useAnyway', 'startTitle', 'fromBook', 'fromBookHint', 'fromGoal', 'fromGoalHint', 'search', 'noneFound', 'groups', 'startFromGoal', 'startFromGoalHint', 'outcomes', 'noOutcomes', 'topicPlaceholder', 'noMatch', 'noBook', 'title', 'checkLabel'],
 };
