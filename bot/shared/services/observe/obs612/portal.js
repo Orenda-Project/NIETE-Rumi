@@ -131,7 +131,7 @@ function bodyPart(key, ctx, draft) {
 }
 
 function sectionsOf(ctx, draft) {
-  if (ctx.tool === 'ficos') return FS.portalSections(draft, ctx.lang);
+  if (ctx.tool === 'ficos') return FS.portalSections(draft, ctx.lang, { dc: ctx.form ? require('./fico-s-dc').dcOf(ctx.form) : null });
   return F.pathFor(ctx.tool, ctx.sheet).map((id) => {
     const s = F.screenById(id);
     const parts = [];
@@ -152,7 +152,7 @@ function sectionsOf(ctx, draft) {
 
 /** Every screen's check on the draft, as one { field: code }. */
 function errorsOf(ctx, draft) {
-  if (ctx.tool === 'ficos') return FS.errorsByKey(draft);
+  if (ctx.tool === 'ficos') return FS.errorsByKey(draft, { dc: ctx.form ? require('./fico-s-dc').dcOf(ctx.form) : null });
   return Object.assign({}, ...F.pathFor(ctx.tool, ctx.sheet).map((id) => Model.checkScreen(id, draft)));
 }
 

@@ -90,6 +90,8 @@ function withDefaults(deps = {}) {
       fdeOn: require('./obs612/visit').asksClass,
       // bd-31ziu8: FICO-S v1.1 for this visit (ICT grades 6-12; the observer's fico_s_coach switch).
       ficoSOn: require('../coaching/fico-s-switch').forVisit,
+      // Queue #184: FICO 6-12 visits go to the Digital Coach for this observer (fico_s_dc).
+      ficoSDcOn: require('../coaching/fico-s-switch').dcForVisit,
       createLessonForm: require('./observe2/field-form.store').createLessonForm,
     }),
     // Does the principal app's switch (portal_principal_app) name this principal? (the portal's rule)
@@ -244,9 +246,11 @@ async function decideStamp(d, coach, teacherUserId, lesson, schoolExtId = null) 
     const subject = lesson.subject || lesson.named_subject || null;
     const t = O.toolFor(lesson.grade, subject, { ficoS: true });
     if (t) {
+      let dc = false;
+      try { dc = !!(d.rubric.ficoSDcOn && (await d.rubric.ficoSDcOn(coach, visit))); } catch (_) { dc = false; }
       return {
         v6Stamp: null,
-        fdeLesson: { primary: false, grade: O.normGrade(lesson.grade), subject: O.normSubject(subject), rubricId: t.rubricId, tool: t.tool, sheet: null },
+        fdeLesson: { primary: false, grade: O.normGrade(lesson.grade), subject: O.normSubject(subject), rubricId: t.rubricId, tool: t.tool, sheet: null, ...(dc ? { dc: true } : {}) },
       };
     }
   }
@@ -306,7 +310,7 @@ async function startFdeVisit(d, { userId, session, ownerUserId, teacher, schoolE
     return false;
   }
   const { error } = await d.supabase.from('coaching_sessions')
-    .update({ framework: lesson.rubricId, framework_selection_reason: 'obs612_lesson' })
+    .update({ framework: lesson.rubricId, framework_selection_reason: lesson.dc ? require('./obs612/fico-s-dc').REASON : 'obs612_lesson' })
     .eq('id', session.id);
   if (error) {
     d.log('❌ portal observe: the FDE stamp was not written', { coachingSessionId: session.id, formId: made.form.id, error: error.message }, 'error');

@@ -144,6 +144,8 @@ export const REPORTS_EN = {
       // bd-31ziu8 — FICO-S v1.1: every level needs what the observer saw and heard (20+ characters; the box says so).
       evidence: "Write what you saw",
       same_focus: "Pick another indicator",
+      // Queue #184 — FICO 6-12 on the Digital Coach: a level changed from Rumi's needs the reason (20+ characters).
+      change: "You changed Rumi's level: write why",
     },
   },
 
@@ -352,6 +354,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
       same_area: "کوئی اور شعبہ چنیں",
       evidence: "جو دیکھا وہ لکھیں",
       same_focus: "کوئی اور اشاریہ چنیں",
+      change: "آپ نے Rumi کا لیول بدلا: وجہ لکھیں",
     },
   },
 

@@ -39,6 +39,9 @@ async function observerLang(userId) {
   }
 }
 
+// Queue #184: Rumi's pre-fill on the form row (a Digital Coach visit), for the screens' lines and the change check.
+const dcOf = (form) => require('../services/observe/obs612/fico-s-dc').dcOf(form);
+
 const done = (outcome, formId, lang, lines) => ({ screen: 'DONE', data: FS.doneData(outcome, formId, lang, lines) });
 const show = (screenId, draft, lang, opts) => ({ screen: screenId, data: FS.screenData(screenId, draft, lang, opts) });
 
@@ -49,14 +52,14 @@ async function handleInit(flowToken, deps) {
     logToFile('[fico-s] form refused at open', { formId: ctx.formId || null, refusal: ctx.refusal }, 'warn');
     return { screen: 'NOTICE', data: FS.noticeData(ctx.refusal, lang) };
   }
-  return show(FS.FIRST_SCREEN, deps.Store.draftOf(ctx.form), lang);
+  return show(FS.FIRST_SCREEN, deps.Store.draftOf(ctx.form), lang, { dc: dcOf(ctx.form) });
 }
 
 async function submit(ctx, step, draft, lang, deps) {
   const missing = deps.Record.whatIsMissing(ctx.form, draft);
   if (missing.length) {
     logToFile('[fico-s] Submit with answers missing', { formId: ctx.formId, missing: missing.slice(0, 10), count: missing.length }, 'warn');
-    return show(step, draft, lang, { note: FS.missingNote(missing, lang) });
+    return show(step, draft, lang, { note: FS.missingNote(missing, lang), dc: dcOf(ctx.form) });
   }
   let analysis;
   try {
@@ -72,7 +75,7 @@ async function submit(ctx, step, draft, lang, deps) {
       logToFile('[fico-s] Submit refused: the visit was cancelled', { formId: ctx.formId, sessionId: ctx.form.coaching_session_id }, 'warn');
       return done('closed', ctx.formId, lang);
     }
-    return show(step, draft, lang, { note: FS.STR[lang].submit_failed });
+    return show(step, draft, lang, { note: FS.STR[lang].submit_failed, dc: dcOf(ctx.form) });
   }
   logToFile('[fico-s] form submitted', {
     formId: ctx.formId, sessionId: res.sessionId, pct: analysis.obs612 && analysis.obs612.result ? analysis.obs612.result.pct : null,
@@ -109,21 +112,22 @@ async function handleDataExchange(flowToken, screen, payload, deps) {
     const saved = await deps.Store.saveDraft(ctx.form, draft);
     if (!saved.ok) {
       if (saved.sealed) return done('already', ctx.formId, lang, s.refused.sealed);
-      return show(step, draft, lang, { note: s.save_failed });
+      return show(step, draft, lang, { note: s.save_failed, dc: dcOf(ctx.form) });
     }
     ctx.form = saved.form;
   }
 
   // 2. This screen's answers.
-  const errors = FS.checkScreen(step, draft);
+  const dc = dcOf(ctx.form);
+  const errors = FS.checkScreen(step, draft, { dc });
   if (Object.keys(errors).length) {
     const footer = FS.isSubmitScreen(step) ? s.submit : s.next;
-    return show(step, draft, lang, { errors, note: s.fix_note(footer) });
+    return show(step, draft, lang, { errors, note: s.fix_note(footer), dc });
   }
 
   // 3. On, or Submit.
   const next = FS.nextOf(step);
-  if (next) return show(next, draft, lang);
+  if (next) return show(next, draft, lang, { dc });
   return submit(ctx, step, draft, lang, deps);
 }
 
