@@ -131,6 +131,9 @@
       return {
         ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
         clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
+        // how the preparation went on this phone (sa-offline.js): its ms, bytes, the first clip stage that stalled, clips missing
+        prep_ms: o.prep_ms != null ? o.prep_ms : null, prep_bytes: o.prep_bytes != null ? o.prep_bytes : null,
+        prep_gaveup_stage: o.prep_gaveup_stage || null, prep_missing: o.prep_missing != null ? o.prep_missing : null,
       };
     }
     return offline.then(function (o) {
