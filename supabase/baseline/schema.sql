@@ -2475,14 +2475,19 @@ CREATE FUNCTION public.teacher_activity_batch(p_user_ids uuid[]) RETURNS TABLE(u
         FROM quizzes q
        WHERE q.teacher_id = t.uid AND q.status IN ('sent', 'report_sent') AND q.created_at >= w.prev_from
     ) quizzes ON true
+    -- her papers (the Assessment Generator): one per request that reached a ready root paper, never an edit
+    -- (progress.service's rule), dated by the paper
     LEFT JOIN LATERAL (
       SELECT count(*) FILTER (WHERE e.created_at >= w.now_from) AS now_n,
              count(*) FILTER (WHERE e.created_at < w.now_from) AS prev_n,
              jsonb_agg(jsonb_build_object('kind', 'exam', 'at', e.created_at, 'ref_id', e.id,
-               'meta', jsonb_strip_nulls(jsonb_build_object('grade', e.grade, 'subject', e.subject,
-                 'chapters', to_jsonb(e.chapters))))) AS steps
-        FROM exams e
-       WHERE e.created_by_user_id = t.uid AND e.status = 'ready' AND e.created_at >= w.prev_from
+               'meta', jsonb_strip_nulls(jsonb_build_object('grade', e.grade_code, 'subject', e.subject_code,
+                 'chapter', e.chapter_number)))) AS steps
+        FROM (SELECT DISTINCT ON (r.id) p.id, p.created_at, r.grade_code, r.subject_code, r.chapter_number
+                FROM assessment_requests r
+                JOIN assessment_papers p ON p.request_id = r.id
+               WHERE r.user_id = t.uid AND p.status = 'ready' AND p.edited_from IS NULL AND p.created_at >= w.prev_from
+               ORDER BY r.id, p.created_at DESC) e
     ) exams ON true
     -- every step in one list, newest first, capped at 200
     LEFT JOIN LATERAL (

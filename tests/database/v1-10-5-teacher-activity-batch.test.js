@@ -44,7 +44,8 @@ test('the counts follow the existing rules', () => {
   expect(UP).toContain("used_in_class = 'taught'");
   expect(UP).toContain("c.status = 'completed' and c.observation_type is null");
   expect(UP).toContain("q.status in ('sent', 'report_sent')");
-  expect(UP).toContain("e.status = 'ready'");
+  expect(UP).toContain("p.status = 'ready' and p.edited_from is null");
+  expect(UP).toContain('from assessment_requests r join assessment_papers p on p.request_id = r.id');
   // Pakistan days
   expect(UP).toContain("at time zone 'asia/karachi'");
 });
