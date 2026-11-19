@@ -20,6 +20,7 @@ import { ThingToTryStrip } from './ThingToTryStrip';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 import { useLessonsLeader } from './audience';
 import { OwnSections } from './own/OwnSections';
+import { useLpWhatsappSend } from './useLpWhatsappSend';
 import type { ChangeAt } from './own/change';
 
 /**
@@ -32,7 +33,8 @@ import type { ChangeAt } from './own/change';
  *                         Its plan step is outlined in the viewer, and the tap that opens it takes her there (bd-v0toag.8)
  *   Quiz this lesson      the Home card's switch on and a quiz home for her: the signed quiz home (home/LessonQuizButton)
  *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
- *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
+ *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows).
+ *                         No Send on WhatsApp when her programme's PDF is off on WhatsApp (useLpWhatsappSend)
  *
  * While a lesson records, neither Start DC observation (one is running) nor Open in another app
  * (another app in front silences the microphone, bd-5rz1v.10); the frame's recording bar shows
@@ -60,6 +62,8 @@ export function ViewerPage() {
   const openPlan = useLessonPlanOpener();
   const recording = !!useRecordingSession()?.active;
   const canSend = useShareAvailable('lesson');
+  // false only when her programme's lesson-plan PDF is off on WhatsApp: then no Send on WhatsApp at all.
+  const whatsappSend = useLpWhatsappSend();
   const state = location.state as ViewerState;
   const view = state?.lessonPlan ?? null;
   const dc = state?.dc ?? null;
@@ -110,7 +114,7 @@ export function ViewerPage() {
       ) : (
         <ShareActions
           available={canSend}
-          onSend={leader ? undefined : () => shareToWhatsApp('lesson', lessonPlanShareId(source))}
+          onSend={leader || whatsappSend === false ? undefined : () => shareToWhatsApp('lesson', lessonPlanShareId(source))}
           // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Open then.
           open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
         />
