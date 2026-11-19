@@ -1,0 +1,2 @@
+{"ts":"2026-11-20T04:51:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,portal-login,teacher-home,teacher-lessons,teacher-coaching,portal-smoke spec_sync=true","sha":"6e872bd0a6ce","branch":"bd-96f69c-staging-r","user":""}
+{"ts":"2026-11-20T04:51:58Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: attendance owe their Gherkin","sha":"6e872bd0a6ce","branch":"bd-96f69c-staging-r","user":""}
