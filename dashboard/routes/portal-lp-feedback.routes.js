@@ -33,6 +33,15 @@ const TIMEOUT_MS = 10000;
 const notFound = (res) => res.status(404).json({ success: false, error: 'Not found' });
 
 /** On for her: the teacher app AND the bar's switch, and not a leader. Anything unreadable is off. */
+/** Her keyed reference for a log line (web-quiz-kid `tk`); null when the key is missing. Never the raw id. */
+function tkOf(userId) {
+  try {
+    return require('../../bot/shared/services/quiz/web-quiz-kid').tk(userId);
+  } catch (_) {
+    return null;
+  }
+}
+
 async function requireBar(req, res, next) {
   const userId = req.session.portalUserId;
   let on = false;
@@ -103,7 +112,7 @@ router.get('/lp/feedback', requirePortalAuth, requireBar, async (req, res) => {
     if (!r || r.status !== 200 || !r.data || r.data.success !== true) throw new Error(`lp/feedback/state failed (HTTP ${r && r.status})`);
     return res.json({ success: true, feedback: r.data.feedback || null });
   } catch (error) {
-    console.error('❌ Portal lp/feedback state failed', { userId, kind: plan.kind, error: error && error.message });
+    console.error('❌ Portal lp/feedback state failed', { tk: tkOf(userId), kind: plan.kind, error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not check' });
   }
 });
@@ -125,7 +134,7 @@ router.post('/lp/feedback', requirePortalAuth, requireBar, async (req, res) => {
     }
     return res.json({ success: true, outcome: data.outcome, feedback: data.feedback || null });
   } catch (error) {
-    console.error('❌ Portal lp/feedback failed', { userId, kind: plan.kind, error: error && error.message });
+    console.error('❌ Portal lp/feedback failed', { tk: tkOf(userId), kind: plan.kind, error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not save' });
   }
 });

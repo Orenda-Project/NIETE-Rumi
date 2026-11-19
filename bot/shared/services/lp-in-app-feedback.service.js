@@ -29,7 +29,6 @@ const supabase = require('../config/supabase');
 const { logEvent } = require('../utils/structured-logger');
 const { withBand } = require('./lp-app-open-survey.service');
 
-const TABLE = 'lp_feedback';
 const KINDS = ['k5', 'g612'];
 const USED_IN_CLASS = ['taught', 'planned', 'not_yet'];
 const REASON_MAX = 300;
@@ -75,12 +74,12 @@ async function findRow(userId, band, ref) {
     const plans = must(await supabase.from('lesson_plans').select('id')
       .eq('user_id', userId).eq('content->v8->>lesson_id', ref));
     if (!plans.length) return null;
-    const rows = must(await supabase.from(TABLE).select(cols)
+    const rows = must(await supabase.from('lp_feedback').select(cols)
       .eq('user_id', userId).in('lesson_plan_id', plans.map((p) => p.id))
       .order('created_at', { ascending: false }).limit(1));
     return rows[0] || null;
   }
-  const rows = must(await supabase.from(TABLE).select(cols)
+  const rows = must(await supabase.from('lp_feedback').select(cols)
     .eq('user_id', userId).eq('lp612_segment_id', ref)
     .order('created_at', { ascending: false }).limit(1));
   return rows[0] || null;
@@ -127,8 +126,7 @@ async function k5Columns(userId, ref) {
 
 /** The columns a grades 6-12 row snapshots (as the WhatsApp tap does); null for an unknown segment. */
 async function g612Columns(ref, lang) {
-  const { SEGMENTS } = require('./lp612-feedback.shared');
-  const { data: segment, error } = await supabase.from(SEGMENTS)
+    const { data: segment, error } = await supabase.from('niete_lp612_segments')
     .select('segment_id, grade, subject, curriculum, chapter_number, subtopic_title, menu_title')
     .eq('segment_id', ref).maybeSingle();
   if (error) throw new Error(error.message || 'segment read failed');
@@ -176,7 +174,7 @@ async function save(p) {
       ...(p.useful && p.usedInClass ? { used_in_class: p.usedInClass } : {}),
       ...(!p.useful && p.reasonText ? reasonFields(p.reasonText) : {}),
     };
-    const { data, error } = await supabase.from(TABLE).insert(insert).select('id').single();
+    const { data, error } = await supabase.from('lp_feedback').insert(insert).select('id').single();
     if (error || !data) throw new Error((error && error.message) || 'lp_feedback insert returned no row');
     done('saved', { feedbackId: data.id });
     return { outcome: 'saved', feedback: { useful: p.useful, usedInClass: insert.used_in_class || null } };
@@ -189,7 +187,7 @@ async function save(p) {
     done('already_answered', { feedbackId: row.id });
     return { outcome: 'already_answered', feedback: stateOf(row) };
   }
-  const { error } = await supabase.from(TABLE).update(update).eq('id', row.id).eq('user_id', p.userId);
+  const { error } = await supabase.from('lp_feedback').update(update).eq('id', row.id).eq('user_id', p.userId);
   if (error) throw new Error(error.message || 'lp_feedback update failed');
   done('saved', { feedbackId: row.id });
   return { outcome: 'saved', feedback: stateOf({ ...row, ...update }) };

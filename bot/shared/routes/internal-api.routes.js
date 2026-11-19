@@ -1555,7 +1555,7 @@ router.post('/lp/feedback', requireInternalKey, async (req, res) => {
     if (out.outcome === 'no_answer') return res.status(409).json({ success: false, outcome: out.outcome });
     return res.json({ success: true, ...out });
   } catch (error) {
-    logToFile('❌ Internal LP in-app feedback failed', { userId: p.userId, kind: p.kind, ref: p.ref, error: error?.message }, 'error');
+    logToFile('❌ Internal LP in-app feedback failed', { tk: require('../services/quiz/web-quiz-kid').tk(p.userId), kind: p.kind, ref: p.ref, error: error?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Could not save' });
   }
 });
@@ -1568,7 +1568,7 @@ router.post('/lp/feedback/state', requireInternalKey, async (req, res) => {
   try {
     return res.json({ success: true, feedback: await InApp.state(p) });
   } catch (error) {
-    logToFile('❌ Internal LP in-app feedback state failed', { userId: p.userId, kind: p.kind, ref: p.ref, error: error?.message }, 'error');
+    logToFile('❌ Internal LP in-app feedback state failed', { tk: require('../services/quiz/web-quiz-kid').tk(p.userId), kind: p.kind, ref: p.ref, error: error?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Could not read' });
   }
 });
