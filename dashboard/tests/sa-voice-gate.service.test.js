@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-41'); // sa-41: round 28, device_ready names the build that ran (page, worker, session cache)
+    expect(sw.CORE).toBe('sa-core-sa-42'); // sa-42: round 28, device_ready names the build that ran (page, worker, session cache)
   });
 });
 

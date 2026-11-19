@@ -89,10 +89,10 @@
 //   the preparation took).
 // sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
 //   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
-// sa-41: round 28, sa-page.js and sa-offline.js and this worker (device_ready names the build that ran: the page's own
+// sa-42: round 28, sa-page.js and sa-offline.js and this worker (device_ready names the build that ran: the page's own
 //   VERSION, the VERSION of each worker that prepared it, and the session cache the clips were found in, asked for on its
 //   own 'held' message; worker_swap marks a newer worker taking the page over mid-session).
-var VERSION = 'sa-41';
+var VERSION = 'sa-42';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

@@ -8,7 +8,7 @@
  *   SAE.offline.images(battery, lang) → the picture URLs the session shows (option_images, script.demo_image)
  *   SAE.offline.prepare({ battery_url, battery, lang, base }) → Promise<{ ready, battery, clips, clips_missing, images,
  *     images_missing, why?, sw, held }>
- *     sw = the VERSION of each worker that answered (sa-41+, round 28; names()); held = Promise<the sa-session-* cache the
+ *     sw = the VERSION of each worker that answered (sa-42+, round 28; names()); held = Promise<the sa-session-* cache the
  *     clips are in, or null>, asked once after the last clip step and capped at 2 s: ready and clips never wait on it.
  *     ready = the engine files, the battery and its pictures are on the phone (a picture task offline has nothing to
  *     tap without them); a clip not on the phone is spoken by the phone's own voice instead (clips_missing counts
