@@ -3,6 +3,8 @@
 // Each run(page, ctx) gets a fresh browser context on ctx.baseUrl, throws on a broken expectation and
 // returns its evidence. ctx.sql(text) runs against THIS run's own local database (never a shared one).
 'use strict';
+const fs = require('fs');
+const path = require('path');
 const { PASSWORD, DEMO, MODES, expect, open, signIn, landsOn, setSetting, setFlags, sendUntilLink } = require('../lib.cjs');
 
 const TEACHER = DEMO.teacher;
@@ -141,6 +143,40 @@ const scenarios = [
     const path = new URL(page.url()).pathname;
     expect(path === '/portal/analytics/login', 'left the analytics sign-in for ' + path);
     return { message: msg, path };
+  } },
+  // PL19 (bd-zrdvmi.28): links last 7 days. Minted as PL13 does, with Date.now set back so the token's exp is real.
+  { id: 'PL19', title: 'A one-tap link works for 7 days; after that it opens the get-a-new-link page with its button', run: async (page, ctx) => {
+    expect(ctx.runDir && ctx.internalKey, 'no run dir / internal key on ctx (e2e-web.sh passes WEB_RUN_DIR + WEB_INTERNAL_KEY)');
+    const supabaseUrl = (fs.readFileSync(path.join(ctx.runDir, 'portal', '.env'), 'utf8').match(/^SUPABASE_URL=(.*)$/m) || [])[1];
+    expect(supabaseUrl, "no SUPABASE_URL in this run's portal env");
+    await setFlags(ctx, { portal_teacher_v2: true, portal_coach_v2: false });
+    const userId = (await ctx.sql("select id from users where phone_number = '92" + TEACHER.slice(1) + "' and deleted_at is null limit 1")).split('\n')[0].trim();
+    expect(userId, 'the demo teacher is not in this run\'s database');
+    const mintAgo = (ms) => {
+      const saved = { k: process.env.INTERNAL_API_KEY, s: process.env.SUPABASE_URL, now: Date.now };
+      const real = Date.now();
+      try {
+        process.env.INTERNAL_API_KEY = ctx.internalKey; process.env.SUPABASE_URL = supabaseUrl; Date.now = () => real - ms;
+        return require(path.join(ctx.runDir, 'src', 'bot', 'shared', 'services', 'app-login-link.js')).signAppLink(userId, 'lesson_plan');
+      } finally {
+        Date.now = saved.now;
+        for (const [k, v] of [['INTERNAL_API_KEY', saved.k], ['SUPABASE_URL', saved.s]]) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+      }
+    };
+    const DAY = 24 * 60 * 60 * 1000;
+    await page.goto(ctx.baseUrl + '/go/' + mintAgo(6 * DAY), { waitUntil: 'domcontentloaded' });
+    const landed = await landsOn(page, '/portal/teacher/lessons');
+    await page.context().clearCookies();
+    await page.goto(ctx.baseUrl + '/go/' + mintAgo(7 * DAY + 60 * 1000), { waitUntil: 'domcontentloaded' });
+    const title = await page.title();
+    expect(/link has expired/i.test(title), 'a link 7 days and 1 minute old did not open the "get a new link" page (title: ' + title + ')');
+    const body = await page.locator('body').innerText();
+    expect(body.includes('Links last 7 days.') && body.includes('لنک ۷ دن تک چلتا ہے۔'), 'the page does not say links last 7 days in English and Urdu');
+    const href = await page.locator('a[href*="wa.me"]').first().getAttribute('href').catch(() => null);
+    expect(href ? /\?text=%2Fportal$/.test(href) : /send \/portal/.test(body), 'no Get a new link button typing /portal (href ' + href + ')');
+    const me = await page.request.get(ctx.baseUrl + '/api/portal/me');
+    expect(me.status() === 401 || me.status() === 403, 'someone is signed in after the expired link (GET /api/portal/me ' + me.status() + ')');
+    return { landed, expired: { title, button: Boolean(href), me: me.status() } };
   } },
 ];
 
