@@ -75,7 +75,7 @@ test('re-tap within 24 h works every time', async () => {
 test('an expired token: the en+ur get-a-new-link page, no session', async () => {
   const srv = await app();
   const t = tok();
-  jest.setSystemTime(new Date('2026-10-11T10:00:01Z'));
+  jest.setSystemTime(new Date('2026-10-17T10:00:01Z')); // 7 days + 1 s (bd-zrdvmi.28)
   const res = await get(srv, `/go/${t}`);
   expect(res.status).toBe(200);
   // bd-x7aprz.3: the page asks for a new link with /portal (a wa.me button, or the words when no bot number is set).
