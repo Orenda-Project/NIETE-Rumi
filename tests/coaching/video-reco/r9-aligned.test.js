@@ -514,7 +514,7 @@ describe('R9d · later visits', () => {
       expect(row.seg_id).toBeNull();
       expect(row.status).toBe('none');
     });
-    test('…the same in Urdu: «پوچھیں 'کیوں؟' اور 5-7 سیکنڈ wait time دیں» after a first clip', () => {
+    test('…the same in Urdu: a why-question with a wait after it, at a later visit', () => {
       const card = "اگلی کلاس میں جب کوئی بچہ ایک لفظ میں جواب دے، تو 'کیوں؟' پوچھیں اور 5-7 سیکنڈ کا wait time دیں۔";
       expect(A.classifyAsks(card, { later: true })).toEqual([]);
     });
