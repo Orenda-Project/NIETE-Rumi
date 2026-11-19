@@ -2495,7 +2495,7 @@
         },
         "definition": {
           "type": "string",
-          "__example__": "How many different children speak across the lesson, and whether children silent early on speak later."
+          "__example__": "How much of the class speaks during the lesson: a few children, many, or most of the class. A child counts when they speak on their own (answer, read out, ask a question); chorus answers do not count."
         },
         "err_v": {
           "type": "boolean",
@@ -2534,17 +2534,17 @@
             {
               "id": "2",
               "title": "Developing",
-              "description": "Only the same one or two children speak."
+              "description": "Only a few children speak."
             },
             {
               "id": "3",
               "title": "Proficient",
-              "description": "Three to five different children speak."
+              "description": "Many children speak, but a large part of the class never does."
             },
             {
               "id": "4",
               "title": "Highly Effective",
-              "description": "Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half."
+              "description": "Most of the class speaks at least once."
             }
           ]
         },
@@ -2572,7 +2572,7 @@
         },
         "coach_adds": {
           "type": "string",
-          "__example__": "Coach adds: how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification."
+          "__example__": "Coach adds: how much of the class spoke on their own. The coach sets the final level with a written justification."
         },
         "lbl_why": {
           "type": "string",
