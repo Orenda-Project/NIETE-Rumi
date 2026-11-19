@@ -34,10 +34,15 @@ Full index: `CLAUDE.index.md`
 ## Never (human)
 - Engine files live here, not in public/, so nothing is served while sa_engine is off (routes/sa-engine.routes.js:5)
 - sa-core.js stays pure: no DOM, storage or timers (sa-core.js:4)
+- sa-page.js VERSION and sw.js VERSION are bumped together; dashboard/tests/sa-r28-served-stamp fails on a one-sided bump
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Result fields (human)
 - A pick task's result (sa-core.js finish): presented, unavailable, of_all; unrated: true under 6 presented (lost clips); under sa_r28_letter_pick, unrated_why: 'ended' when the coach ended it (coach_end / end_section) with presented < of_all. unrated = absent from the ladder (level.js partOf), never pending, never 0; stored whole in responses[0] (bot sa-store.js putResults), passed to Results as unratedWhy (sa-api.service.js shapeTask), drawn with copy key unrated_ended
+
+## Event fields (human)
+- device_ready.value.page / sw / session (round 28): page = sa-page.js VERSION (the code that ran); sw = the VERSION of each worker that answered the prepare replies ('a+b' in reply order); session = the sa-session-* cache holding the clips, from one { type: 'held' } ask after the last clip step (sw.js heldIn; 2 s cap in the page; not waited for when a refusal is coming). Names are joined, never cut: three → 'a+b+…'. null = no reply said (a worker before sa-42, none, or 2 s gone). page ≠ sw = "version mixed"
+- worker_swap { from, to, task } (sa-page.js swapWatch, kept by the server): a newer worker took the page over mid-session (controllerchange); to = its VERSION by the same held ask (no urls), or null
 
 ## Tests (generated)
 - `dashboard/tests/sa-r4-coach-last-word.service.test.js` (sa-core.js, sa-engine.js, sa-store.js, sa-ui.js, sink-coach.js)
