@@ -342,6 +342,33 @@ export function WaitingRecording({ rec, to, onPress }: { rec: PendingRecording; 
 }
 
 /**
+ * bd-r2uzg1.18.8 — ICT DC row 154: a recording made on this phone and never sent. The recorder writes it to the phone
+ * as it records (lib/recordingStore); the page that held it was closed, or the screen was opened afresh. The WhatsApp
+ * recording's banner, in the screen's own words: "Recording not sent · 27 min · Today", Add details & send. A tap
+ * attaches it to the screen (Listen / Redo there; Redo throws it away).
+ */
+export function UnsentRecording({ startedAt, durationMs, onPress }: { startedAt: string; durationMs: number | null; onPress: () => void }) {
+  const C = useCopy(COACHING);
+  const { days } = useCopy(LESSONS);
+  const minutes = minutesOf(durationMs);
+  const day = pkDayOf(startedAt);
+  const line = [C.recordingNotSent, minutes != null ? C.minutes(minutes) : null, day ? dayName(day, pkToday(), days) : null]
+    .filter(Boolean).join(' · ');
+  return (
+    <AttentionBanner
+      testId="dc-unsent"
+      text={(
+        <span className="flex flex-col">
+          <span>{line}</span>
+          <span className="font-normal">{C.addDetailsSend}</span>
+        </span>
+      )}
+      onPress={onPress}
+    />
+  );
+}
+
+/**
  * The one screen's step heading (design v6, FlowStep): its number in a 36px dot — indigo while it is the step she is on,
  * green with a tick once done, flat grey before she gets there (never tappable-looking) — then its name and chips.
  */
