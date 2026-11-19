@@ -4,7 +4,8 @@
  * Mounted at /api/portal by dashboard/index.js (one line), beside the other small routers.
  *
  *   POST /api/portal/coach/handoff   { screen, visitId? }
- *     200 { success: true, code }        5 characters (bot/shared/services/coach-handoff-code.js), stored 24 h in the
+ *     200 { success: true, code, bot }   bot: THIS deployment's WhatsApp number (app-login.routes botNumber; null when
+ *                                        unset), so the app opens this tier's chat. code: 5 characters (bot/shared/services/coach-handoff-code.js), stored 24 h in the
  *                                        Redis the bot shares: { u, v?, s, j, at }
  *     200 { success: true, code: null }  no Redis here: the app still opens the chat, and the bot runs plain /observe
  *     401                                signed out
@@ -25,6 +26,7 @@ const telemetry = require('../services/telemetry.service');
 const { requirePortalAuth } = require('../lib/portal-auth');
 const { handoffKey, newCode, HANDOFF_TTL_S, HANDOFF_SCREENS } = require('../../bot/shared/services/coach-handoff-code');
 const { isJourneyId, JOURNEY_TTL_MS } = require('../../bot/shared/services/app-journey');
+const { botNumber } = require('./app-login.routes');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TRIES = 3;
@@ -93,7 +95,7 @@ router.post('/coach/handoff', requirePortalAuth, requireCoachApp, async (req, re
   try {
     telemetry.logEvent('app_funnel.handoff_code', row);
   } catch (_) { /* logging never decides the response */ }
-  return res.json({ success: true, code });
+  return res.json({ success: true, code, bot: botNumber() });
 });
 
 module.exports = router;

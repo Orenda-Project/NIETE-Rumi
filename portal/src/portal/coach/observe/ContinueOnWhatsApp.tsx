@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronRight, MessageCircle } from "lucide-react";
-import { botChatUrl, useBotNumber } from "@/lib/whatsapp";
 import { useCopy } from "../../teacher/i18n";
 import { OBSERVE } from "./copy";
-import { askHandoffCode, reportTrouble, screenOf, type TroubleKind } from "./trouble";
+import { askHandoff, chatUrl, reportTrouble, screenOf, type TroubleKind } from "./trouble";
 
 /**
  * bd-9652yj (queue #166, option B) — the coach app's way back to WhatsApp, on every Observe screen of the coach app
@@ -17,7 +16,8 @@ import { askHandoffCode, reportTrouble, screenOf, type TroubleKind } from "./tro
  * A tap logs app_funnel.trouble_tap, asks the server for a short code (it names the visit and the screen), and opens
  * THIS tier's bot with "Continue my visit on WhatsApp (code V4KQ7)" typed, in the app's language. The bot resumes the
  * visit for the same coach only. No code (the server or Redis is not there): the same line without one, and the bot
- * runs /observe. No bot number on this tier: nothing is drawn (never a link to another tier's bot).
+ * runs /observe. The chat is the server's own bot for this tier (the handoff answer), else the portal's
+ * WHATSAPP_NUMBER when the server could not be asked (staging's portal has no per-tier number of its own).
  *
  * A recording screen (bare) draws nothing while nothing failed: one stray tap must not leave a recording.
  * `open` is how the chat is opened (tests pass their own); the default leaves the page for WhatsApp.
@@ -28,7 +28,6 @@ export default function ContinueOnWhatsApp({ trouble = null, bare = false, open 
   open?: (url: string) => void;
 }) {
   const C = useCopy(OBSERVE);
-  const bot = useBotNumber();
   const { pathname } = useLocation();
   const { screen, visitId } = screenOf(pathname);
   const [busy, setBusy] = useState(false);
@@ -42,16 +41,15 @@ export default function ContinueOnWhatsApp({ trouble = null, bare = false, open 
     reportTrouble("error", screen, trouble);
   }, [trouble, screen]);
 
-  if (!bot || (bare && !trouble)) return null;
+  if (bare && !trouble) return null;
 
   const go = async () => {
     if (busy) return;
     setBusy(true);
     reportTrouble("tap", screen, trouble || "strip");
-    const code = await askHandoffCode(screen, visitId);
-    const url = botChatUrl(bot, C.handoffLine(code || ""));
+    const { code, bot } = await askHandoff(screen, visitId);
+    const url = chatUrl(bot, C.handoffLine(code || ""));
     setBusy(false);
-    if (!url) return;
     if (open) open(url);
     else window.location.assign(url);
   };

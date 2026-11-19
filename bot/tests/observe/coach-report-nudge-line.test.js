@@ -45,6 +45,7 @@ const session = (over = {}) => ({
 
 beforeEach(() => {
   process.env.WEB_TRAINING_TOKEN_SECRET = 'test-secret';
+  process.env.INTERNAL_API_KEY = 'test-internal-key'; // staging signs report links with this key
   process.env.PORTAL_URL = 'https://portal-sandbox.example';
   nudged = jest.fn(async (id) => id === COACH);
   arm = jest.fn(async () => true);

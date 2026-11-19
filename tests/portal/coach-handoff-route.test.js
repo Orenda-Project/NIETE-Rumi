@@ -114,7 +114,18 @@ describe('POST /coach/handoff', () => {
     redisUp = false;
     const res = await handoff(await app(), { screen: 'record', visitId: VISIT });
     expect(res.status).toBe(200);
-    expect(res.json).toEqual({ success: true, code: null });
+    expect(res.json).toEqual(expect.objectContaining({ success: true, code: null }));
+  });
+
+  test('the answer names THIS tier\'s bot (WHATSAPP_BOT_NUMBER, as app-login.routes botNumber reads it)', async () => {
+    const before = process.env.WHATSAPP_BOT_NUMBER;
+    process.env.WHATSAPP_BOT_NUMBER = '+92 322 2482222';
+    try {
+      const res = await handoff(await app(), { screen: 'observe' });
+      expect(res.json.bot).toBe('923222482222');
+    } finally {
+      if (before === undefined) delete process.env.WHATSAPP_BOT_NUMBER; else process.env.WHATSAPP_BOT_NUMBER = before;
+    }
   });
 
   test('not a coach on the coach app: 404; signed out: 401', async () => {

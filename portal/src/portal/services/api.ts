@@ -1332,7 +1332,7 @@ export const coach = {
    * bd-9652yj (queue #166) — "Continue on WhatsApp": a 5-character code the bot reads to carry on with this visit
    * (dashboard/routes/coach-handoff.routes.js). code null: no code today; the chat still opens.
    */
-  handoff: async (body: { screen: string; visitId?: string }): Promise<{ success: boolean; code: string | null }> => {
+  handoff: async (body: { screen: string; visitId?: string }): Promise<{ success: boolean; code: string | null; bot?: string | null }> => {
     const response = await api.post('/coach/handoff', body, { timeout: 4000 });
     return response.data;
   },

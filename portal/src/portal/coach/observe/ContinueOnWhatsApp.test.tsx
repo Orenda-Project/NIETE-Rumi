@@ -11,16 +11,17 @@ import i18n from "i18next";
  * could not be sent) the strip becomes a full green button and the failure is logged once (app_funnel.page_error).
  * A tap logs app_funnel.trouble_tap, asks the server for a short code (POST /coach/handoff), then opens this tier's bot
  * with "Continue my visit on WhatsApp (code V4KQ7)" typed, in the app's language. No code (the server or Redis is not
- * there) → the same line without one: the bot still runs /observe. No bot number → no strip at all (never another bot).
+ * there) → the same line without one: the bot still runs /observe. The bot is the one the server names for its tier;
+ * when the server cannot be asked, the portal's own WHATSAPP_NUMBER (staging's portal has no per-tier number).
  * Recording (a bare screen): no strip unless something failed, so one stray tap cannot leave a recording.
  */
-let bot: string | null = "923025502255";
-vi.mock("@/lib/whatsapp", async (orig) => ({ ...(await orig<typeof import("@/lib/whatsapp")>()), useBotNumber: () => bot }));
+const TIER_BOT = "923025502255";
 vi.mock("../../services/api", () => ({ coach: { handoff: vi.fn() } }));
 vi.mock("@/lib/runtime", async (orig) => ({ ...(await orig<typeof import("@/lib/runtime")>()), getApiBaseUrl: () => "/api/portal", browserEnv: () => "browser" }));
 import { coach } from "../../services/api";
 import ContinueOnWhatsApp from "./ContinueOnWhatsApp";
-import { screenOf, askHandoffCode } from "./trouble";
+import { screenOf, askHandoff } from "./trouble";
+import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 
 const API = coach as unknown as { handoff: ReturnType<typeof vi.fn> };
 const VISIT = "0d8a6d1c-1111-4c1c-9a1a-000000000002";
@@ -42,11 +43,10 @@ const sent = () => fetchMock.mock.calls
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  bot = "923025502255";
   opened = [];
   fetchMock = vi.fn(async () => ({ status: 204 }));
   vi.stubGlobal("fetch", fetchMock);
-  API.handoff.mockResolvedValue({ success: true, code: "V4KQ7" });
+  API.handoff.mockResolvedValue({ success: true, code: "V4KQ7", bot: TIER_BOT });
   if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
   await act(async () => { await i18n.changeLanguage("en"); });
 });
@@ -64,15 +64,15 @@ describe("where she is", () => {
     expect(screenOf("/portal/teacher")).toEqual({ screen: "observe", visitId: null });
   });
 
-  it("askHandoffCode: the server's code, or null when it fails or is slow", async () => {
-    expect(await askHandoffCode("record", VISIT)).toBe("V4KQ7");
+  it("askHandoff: the server's code and its tier's bot; the portal's own number when the server cannot be asked", async () => {
+    expect(await askHandoff("record", VISIT)).toEqual({ code: "V4KQ7", bot: TIER_BOT });
     expect(API.handoff).toHaveBeenCalledWith({ screen: "record", visitId: VISIT });
     API.handoff.mockRejectedValueOnce(new Error("Network Error"));
-    expect(await askHandoffCode("record", VISIT)).toBeNull();
-    API.handoff.mockResolvedValueOnce({ success: true, code: "bad!" });
-    expect(await askHandoffCode("record", VISIT)).toBeNull();
+    expect(await askHandoff("record", VISIT)).toEqual({ code: null, bot: WHATSAPP_NUMBER });
+    API.handoff.mockResolvedValueOnce({ success: true, code: "bad!", bot: null });
+    expect(await askHandoff("record", VISIT)).toEqual({ code: null, bot: WHATSAPP_NUMBER });
     API.handoff.mockImplementationOnce(() => new Promise(() => {}));
-    expect(await askHandoffCode("record", VISIT, { timeoutMs: 20 })).toBeNull();
+    expect(await askHandoff("record", VISIT, { timeoutMs: 20 })).toEqual({ code: null, bot: WHATSAPP_NUMBER });
   });
 });
 
@@ -105,17 +105,19 @@ describe("the slim strip", () => {
   });
 
   it("no code from the server: the line without one, still the chat", async () => {
-    API.handoff.mockResolvedValue({ success: true, code: null });
+    API.handoff.mockResolvedValue({ success: true, code: null, bot: TIER_BOT });
     renderAt("/portal/coach/observe");
     fireEvent.click(screen.getByTestId("continue-on-whatsapp"));
     await waitFor(() => expect(opened).toHaveLength(1));
     expect(decodeURIComponent(opened[0].split("?text=")[1])).toBe("Continue my visit on WhatsApp");
   });
 
-  it("no bot number on this tier: nothing at all", () => {
-    bot = null;
+  it("the server cannot be asked (offline): the portal's own number, the line without a code", async () => {
+    API.handoff.mockRejectedValue(new Error("Network Error"));
     renderAt(`/portal/coach/visit/${VISIT}`);
-    expect(screen.queryByTestId("continue-on-whatsapp")).toBeNull();
+    fireEvent.click(screen.getByTestId("continue-on-whatsapp"));
+    await waitFor(() => expect(opened).toHaveLength(1));
+    expect(opened[0]).toBe(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Continue my visit on WhatsApp")}`);
   });
 
   it("a recording screen (bare) shows no strip while nothing failed", () => {

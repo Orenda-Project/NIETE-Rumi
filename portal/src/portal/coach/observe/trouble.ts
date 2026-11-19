@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect } from "react";
 import { browserEnv, getApiBaseUrl } from "@/lib/runtime";
 import { coach } from "../../services/api";
+import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 
 /**
  * bd-9652yj (queue #166) — the coach app's way back to WhatsApp: where she is, what failed, and the handoff code.
@@ -8,8 +9,10 @@ import { coach } from "../../services/api";
  *   screenOf(path)       the Observe screen and the visit she is on, from the route
  *   reportTrouble(...)   fire-and-forget: a tap on "Continue on WhatsApp" (app_funnel.trouble_tap) or a screen that
  *                        failed (app_funnel.page_error), POST /funnel/coach-trouble (dashboard/routes/app-funnel.routes.js)
- *   askHandoffCode(...)  POST /coach/handoff → a 5-character code for the bot (bot/shared/services/coach-handoff-code.js),
- *                        or null when the server, Redis or the network is not there (the chat still opens)
+ *   askHandoff(...)      POST /coach/handoff → { code, bot }: a 5-character code for the bot (bot/shared/services/
+ *                        coach-handoff-code.js) or null, and THIS tier's bot number from the server, else the portal's
+ *                        own WHATSAPP_NUMBER (lib/whatsapp) when the server, Redis or the network is not there
+ *   chatUrl(...)         the chat with that number, the line typed
  *   TroubleContext       how a screen's own failure (the shared `Failed` card) turns the strip into a full button
  */
 
@@ -47,13 +50,30 @@ export function reportTrouble(t: "tap" | "error", screen: HandoffScreen, kind: T
   }
 }
 
-/** The handoff code, or null (a failure, a slow answer, or no Redis on the server). Never throws. */
-export async function askHandoffCode(screen: HandoffScreen, visitId: string | null, { timeoutMs = 3000 } = {}): Promise<string | null> {
+const digits = (v: unknown): string | null => {
+  const d = typeof v === "string" || typeof v === "number" ? String(v).replace(/\D/g, "") : "";
+  return d.length >= 10 ? d : null;
+};
+
+/** The chat with `number`, `text` typed. */
+export function chatUrl(number: string, text: string): string {
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * The handoff code (or null: a failure, a slow answer, or no Redis on the server) and the bot to open: the server's own
+ * number for this tier, else the portal's WHATSAPP_NUMBER. Never throws.
+ */
+export async function askHandoff(screen: HandoffScreen, visitId: string | null, { timeoutMs = 3000 } = {}): Promise<{ code: string | null; bot: string }> {
+  const fallback = { code: null, bot: WHATSAPP_NUMBER };
   const ask = coach.handoff(visitId ? { screen, visitId } : { screen })
-    .then((r) => (r && typeof r.code === "string" && CODE_RX.test(r.code) ? r.code : null))
-    .catch(() => null);
+    .then((r) => ({
+      code: r && typeof r.code === "string" && CODE_RX.test(r.code) ? r.code : null,
+      bot: digits(r && r.bot) || WHATSAPP_NUMBER,
+    }))
+    .catch(() => fallback);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); });
+  const late = new Promise<typeof fallback>((resolve) => { timer = setTimeout(() => resolve(fallback), timeoutMs); });
   try {
     return await Promise.race([ask, late]);
   } finally {

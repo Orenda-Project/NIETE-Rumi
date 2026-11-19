@@ -12,7 +12,6 @@ import i18n from "i18next";
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach" }, loading: false }) }));
-vi.mock("@/lib/whatsapp", async (orig) => ({ ...(await orig<typeof import("@/lib/whatsapp")>()), useBotNumber: () => "923025502255" }));
 vi.mock("../../services/api", () => ({
   coach: { getHome: vi.fn(), getSchedule: vi.fn(), getVisit: vi.fn(), getPeople: vi.fn(), getPending: vi.fn(), handoff: vi.fn() },
   leader: { cancelSchedule: vi.fn() },
