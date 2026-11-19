@@ -121,7 +121,9 @@ var CORE = 'sa-core-' + VERSION;
 // words, not by decision numbers. Nothing a child sees or hears changes.
 // v29: round 28's battery files re-made with three Urdu "your turn" lines spelt right («آواز میں», «کا نام»,
 // «آواز بولیں»), each with its clip at the new text's key.
-var SESSION = 'sa-session-v29';
+// v30: the letter-names practice example's name «ثے» re-voiced under its v4 key: the take said "see" ([siː]), now "say"
+// ([seː]), heard so on repeated listens; levelled like the other v4 clips. No word timings change.
+var SESSION = 'sa-session-v30';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
