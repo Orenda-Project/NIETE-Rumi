@@ -2,3 +2,4 @@
 {"ts":"2026-11-19T14:09:52Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"4da96e0fd810","branch":"bd-snkn32.58-guard","user":""}
 {"ts":"2026-11-19T14:10:07Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"4da96e0fd810","branch":"bd-snkn32.58-guard","user":""}
 {"ts":"2026-11-19T14:16:37Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (only hides a stray line under Did you mean; GOAL08 already covers it)","sha":"4da96e0fd810","branch":"bd-snkn32.58-goalcheck","user":""}
+{"ts":"2026-11-19T14:17:56Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"62a11045-4dd2-409c-9a9e-7c4b0c481bc5","sha":"4da96e0fd810","branch":"bd-snkn32.58-goalcheck","user":""}
