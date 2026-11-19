@@ -369,7 +369,8 @@ async function generateFicoSDomainWhys(ficos, opts = {}) {
       }
       return out;
     } catch (err) {
-      logToFile('❌ FICO 6-12 section lines failed', { error: err.message, language, attempt });
+      // A failed call leaves the report without its lines: an on-caller wants it at error, not buried at info.
+      logToFile('❌ FICO 6-12 section lines failed', { error: err.message, language, attempt }, 'error');
     }
   }
   return null;
