@@ -144,7 +144,8 @@
    *
    * The preparation is not awaited by the start, so the verdict can land inside a running timed task. There a 'none'
    * never refuses (O-86 (c)): voice_late_none { task, ms into the task } is logged, the clock runs on untouched, the
-   * task's result carries voice_deferred: true, and the gate runs at that task's task_end, so the refusal falls between
+   * task's result carries voice_deferred: true, and the gate runs at that task's task_end (voice_deferred_end { task, ms,
+   * by } just before the refusal: by 'task_end', or the phase that ended the task), so the refusal falls between
    * tasks, before anything of the next one. Only a timed task whose items need no clip defers (deferrable); before any
    * task, between tasks, in an untimed task or a clip-prompted one the refusal is at once. A task left without its end
    * (the page hidden: a timed task runs again from its start) is gated then, before it runs again.
@@ -178,14 +179,23 @@
         engine.off('state', onState);
         return true;
       }
+      // how the deferral ended, on the task, immediately before the refusal: by 'task_end', or the phase that ended it
+      // (silence_reminder: a silent attempt under sa_silence_repeat is no result, and with no voice the reminder can't play)
+      function ended(by, used) {
+        var w = engine.runner.view();
+        var left = w && w.task && w.task.id === id ? (w.time_left_ms || 0) : 0;
+        var at = used != null ? used : Math.max(0, Math.round(v.task.time_limit_s * 1000 - left));
+        engine.runner.log('voice_deferred_end', { task_id: id, value: { task: id, ms: at, by: by } });
+        refuse();
+      }
       // task_end fires inside the runner's finish, before any screen of the task's end or of the next task is drawn
       function onEnd(e) {
         if (e && e.task_id === id && e.value) e.value.voice_deferred = true;
-        if (done()) refuse();
+        if (done()) ended('task_end', e && e.task_id === id && e.value ? e.value.time_used_ms : null);
       }
       function onState(s) {
         if (s && (s.phase === 'running' || s.phase === 'last_word') && s.task && s.task.id === id) return;
-        if (done()) refuse();
+        if (done()) ended((s && s.phase) || null, null);
       }
       engine.on('task_end', onEnd);
       engine.on('state', onState);
