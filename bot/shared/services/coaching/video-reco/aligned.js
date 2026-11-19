@@ -228,12 +228,13 @@ function questionMove(card, main) {
 // only when the wait is that step with no question of the card's own («ask 'why…?', wait 5 s» is the question's card:
 // r9a 451-s1 45/98). A near-miss anywhere on the card silences it (r9a: the TPS wrongs are a pair-share tacked onto
 // feedback, a video, roles, a definition), except the pair-work words that ARE the think-pair-share ask.
-const QUESTION_STEP = /\b(?:ask|asks|asking|pose)\b|open[- ]ended|\bwhy\b|\bhow\b|\?|؟|پوچھ|کیوں|کیسے|سوال/iu;
+// «after each question» / «ہر سوال کے بعد» is the question the wait follows, in either language (red7 N2): only asking one counts
+const QUESTION_STEP = /\b(?:ask|asks|asking|pose)\b|open[- ]ended|\bwhy\b|\bhow\b|\?|؟|پوچھ|کیوں|کیسے|سوال کر/iu;
 const LATER_NEAR_MISS_KEEP = Object.freeze({ think_pair_share: new Set(['pair_work', 'timed_pairs']) });
 // …and three main steps the r9a wrongs name in Urdu (fitted on those 4 cards, later visits only): roles, a played video,
 // a classmate's opinion of an answer
 const LATER_NEAR_MISS = [
-  ['roles', /\bرول\b|کا رول|کردار تقسیم/u],
+  ['roles', /(?<![\p{L}\p{M}])رول(?![\p{L}\p{M}])|کردار تقسیم/u], // JS \b is ASCII-only, even with /u (red7 N1)
   ['played_video', /\bvideo\b[^۔.]{0,15}چلائ|ویڈیو[^۔.]{0,15}چلائ/iu],
   ['peer_opinion', /جواب پر رائے/u],
 ];
