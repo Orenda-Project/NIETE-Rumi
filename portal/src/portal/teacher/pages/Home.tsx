@@ -19,6 +19,7 @@ import { ScoresRow } from "../home/ScoresRow";
 import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
 import { LookHome } from "../home/look/LookHome";
 import { QuizFeatureTile } from "../home/QuizTile";
+import { HomeActivity } from "../home/activity/HomeActivity";
 import { StatusChip } from "../ui";
 import { PEOPLE } from "../../coach/people/copy";
 import { usePrincipalApp } from "../principal/usePrincipalApp";
@@ -119,6 +120,8 @@ export default function Home() {
       <TeacherPage testId="teacher-home" hero={greeting}>
         {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
         {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
+        {/* The "Last 30 days" block and the My journey row (portal_teacher_home_activity / portal_teacher_journey). */}
+        {data ? <HomeActivity activity={data.activity} quizHome={data.quizHome} onGo={go} /> : null}
         {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
         <FeatureMotionProvider>
         <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
