@@ -586,7 +586,8 @@ Feature: Teacher lesson plans
     When she taps "Make my plan" again
     Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button
 
-  # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar), written by hand.
+  # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan, ICT or GB (portal_lp_feedback_bar; GB grades 1-5
+  # plans open on the 6-12 lane, so the plan's grade decides, bd-m8zwt1.16), written by hand.
   # @draft: the web lane's demo data has no lesson-plan PDF in its local file store, so the viewer never reaches its
   # last page here. Covered by portal/src/portal/teacher/lessons/FeedbackBar.test.tsx + ViewerPage tests (vitest) and
   # tests/portal/lp-feedback-route.test.js, tests/feedback/lp-in-app-feedback*.test.js (one row per teacher per plan,
