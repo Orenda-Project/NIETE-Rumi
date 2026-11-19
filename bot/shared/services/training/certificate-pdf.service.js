@@ -48,6 +48,7 @@ const branding = require('../../config/branding');
 const {
   TEST_BANNER_TEXT, TEST_BANNER_SUBTEXT, shouldStampTestBanner,
 } = require('./certificate-env.rules');
+const { isPlaceholderTeacherName, nameToRepair } = require('./certificate-name.rules');
 
 // NIETE palette (brand book): navy-slate + green. Same pair the coaching hero
 // report uses for this deployment, so a teacher's certificate and their
@@ -793,6 +794,11 @@ async function listCertificates(supabase, userId) {
  * The default stays `attachment` so WhatsApp delivery and every pre-existing
  * caller behave exactly as before.
  *
+ * NAME: a certificate issued while the account had no name (snapshot blank or
+ * 'Teacher') is re-rendered with the account's name once it has one, and the
+ * name becomes the snapshot (certificate-name.rules.js). A snapshot that holds
+ * a name is never changed.
+ *
  * @param {object} supabase
  * @param {{userId: string, certificateCode: string, expiresIn?: number,
  *          disposition?: 'attachment'|'inline'}} p
@@ -822,13 +828,43 @@ async function fetchOrMintCertificatePdf(supabase, p = {}) {
 
   let key = row.pdf_r2_key;
   let minted = false;
+  let teacherName = row.teacher_name_snapshot;
+
+  // A certificate issued while the account had no name printed 'Teacher', and
+  // the cached PDF kept printing it after the name was added. When the snapshot
+  // is that placeholder and the account now has a real name, re-render with the
+  // name (same key, code, level and date) and store it as the snapshot. The
+  // snapshot is written only AFTER the new PDF is stored, so a failed render
+  // leaves the placeholder in place and the next download retries.
+  const repairedName = await accountNameForPlaceholder(supabase, row);
+  if (repairedName) {
+    const newKey = await generateAndStoreCertificatePdf(supabase, {
+      userId,
+      levelId: row.level_id,
+      certificateCode: row.certificate_code,
+      teacherName: repairedName,
+      levelName: row.level_name_snapshot,
+      issuedAt: row.issued_at,
+    });
+    if (newKey) {
+      key = newKey;
+      minted = true;
+      teacherName = repairedName;
+      await storeRepairedName(supabase, row, repairedName);
+      logToFile('🏆 Certificate re-rendered with the account name', { certificateCode, key });
+    } else if (!key) {
+      throw certError('mint_failed', 'Certificate PDF could not be generated');
+    } else {
+      logToFile('⚠️  Certificate name repair failed — serving the stored PDF', { certificateCode, key });
+    }
+  }
 
   if (!key) {
     key = await generateAndStoreCertificatePdf(supabase, {
       userId,
       levelId: row.level_id,
       certificateCode: row.certificate_code,
-      teacherName: row.teacher_name_snapshot,
+      teacherName,
       levelName: row.level_name_snapshot,
       issuedAt: row.issued_at,
     });
@@ -846,12 +882,55 @@ async function fetchOrMintCertificatePdf(supabase, p = {}) {
   return {
     certificate_code: row.certificate_code,
     level_name: row.level_name_snapshot,
-    teacher_name: row.teacher_name_snapshot,
+    teacher_name: teacherName,
     issued_at: row.issued_at,
     pdf_r2_key: key,
     download_url: downloadUrl,
     minted,
   };
+}
+
+/**
+ * The account's name, when this certificate's snapshot is the
+ * no-name placeholder and the account has a real name now; otherwise null.
+ * Reads users only for a placeholder snapshot. Never throws: a failed read keeps
+ * today's behaviour (the stored certificate is served).
+ */
+async function accountNameForPlaceholder(supabase, row) {
+  if (!isPlaceholderTeacherName(row.teacher_name_snapshot)) return null;
+  try {
+    const { data: user, error } = await supabase
+      .from('users').select('name').eq('id', row.user_id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return nameToRepair(row.teacher_name_snapshot, user && user.name);
+  } catch (err) {
+    logToFile('⚠️  Certificate name lookup failed — serving as issued', {
+      certificateCode: row.certificate_code, error: err.message,
+    });
+    return null;
+  }
+}
+
+/**
+ * Store the repaired name as the snapshot, only while it is still the
+ * placeholder this request read (a concurrent repair writes the same name).
+ * Best effort: if it fails, the next download re-renders and tries again.
+ */
+async function storeRepairedName(supabase, row, name) {
+  try {
+    const q = supabase
+      .from('training_certificates')
+      .update({ teacher_name_snapshot: name })
+      .eq('id', row.id);
+    const { error } = await (row.teacher_name_snapshot == null
+      ? q.is('teacher_name_snapshot', null)
+      : q.eq('teacher_name_snapshot', row.teacher_name_snapshot));
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    logToFile('⚠️  Certificate name stored in the PDF but not on the row', {
+      certificateCode: row.certificate_code, error: err.message,
+    });
+  }
 }
 
 /**
