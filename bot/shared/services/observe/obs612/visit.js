@@ -412,7 +412,8 @@ async function sendForm(user, to, form, { live = false, prefilled = false } = {}
   }
   const subjectLabel = s.subjects[vc.subject] || '';
   // Queue #184: a FICO 6-12 form the Digital Coach pre-filled says so, and names the starred indicator(s).
-  const starred = () => FicoS.STARRED_CODES.map((c) => `${s.lang === 'ur' ? `\u2066${c}\u2069` : c} ${FicoS.indicatorText(c, s.lang).name}`);
+  // Seven indicators are starred (19 Nov): their codes, not their names, keep the body short.
+  const starred = () => FicoS.STARRED_CODES.slice(); // each language's line isolates the codes itself
   const body = prefilled && ficoS && s.form_body_dc ? s.form_body_dc(vc.grade, subjectLabel, starred())
     : (live ? s.form_body_live : s.form_body)(vc.grade, subjectLabel, tool);
   const sent = await WhatsAppService.sendFlow(to, {
