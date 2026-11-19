@@ -66,7 +66,15 @@ function videoRecoClipTemplate(env = process.env) {
   return String(env.VIDEO_RECO_CLIP_TEMPLATE || '').trim() || null;
 }
 
+/**
+ * R9 aligned picks (bd-tp4w7n.1, COS 20261119T115204 §R9.3): only demonstration / modelled chapters whose shown move and
+ * sub-ask match the card's ask (aligned.js), from the catalogue v2 file; no model call, no rescue clip. Off unless true/1.
+ */
+function videoRecoAligned(env = process.env) {
+  return on(env.VIDEO_RECO_ALIGNED);
+}
+
 module.exports = {
-  videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage,
+  videoRecoAligned, videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage,
   videoRecoClipTemplate,
 };

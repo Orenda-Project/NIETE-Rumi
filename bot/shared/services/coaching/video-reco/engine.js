@@ -16,7 +16,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoAligned } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const { OPTED_OUT } = require('./clip-pref');
 const target = require('./target');
@@ -24,6 +24,7 @@ const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
 const silence = require('./silence');
+const aligned = require('./aligned');
 const { composeReason, stripBidi } = require('./copy');
 const { leadingVocative, vocativeNames, relabelRecall } = require('./copy-rules');
 const terms = require('./urdu-terms');
@@ -292,6 +293,11 @@ async function compute(a, d, state) {
     return store.write({ ...row, engine_ms: engineMs });
   };
   state.base = base;
+
+  // R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): aligned mode decides alone. The card's ask → a demonstration / modelled
+  // chapter that shows it at its sub-ask (aligned.js), from a video this teacher has not seen; else silence. No model call,
+  // no rescue clip, no fallback to another move.
+  if (videoRecoAligned(d.env)) return alignedPick({ a, d, base, finish, card, nextStep, analysis, session, history, bands, clipsStopped, arm, hasPref, language, transcriptLanguage });
 
   // An unknown indicator is no longer a none here: the shortlist's step-text route takes it (SPEC v1.3 R3).
   if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') {
@@ -768,6 +774,56 @@ async function compute(a, d, state) {
     none_reason: videoRecoMode(d.env) !== 'shadow' && arm === 'video' && clipsStopped ? OPTED_OUT : null,
   });
   }
+}
+
+/** R9 aligned mode (see compute): one row, a pick or a none whose reason names the gate. */
+async function alignedPick({ a, d, base, finish, card, nextStep, analysis, session, history, bands, clipsStopped, arm, hasPref, language, transcriptLanguage }) {
+  const row = { ...base, route: 'aligned', attempts: 0, candidates: [] };
+  const none = (why) => finish({ ...row, status: 'none', none_reason: why });
+  const lines = prompt.transcriptLines(session);
+  // the report itself must be a lesson for any clip to attach to it (the same silences as every other mode)
+  if (!lines.length) return none('no_moments');
+  if (silence.degenerate(lines)) return none('no_moments:degenerate');
+  if (silence.notLesson(lines, { durationS: session.audio_duration_seconds })) return none('no_moments:not_lesson');
+  if (silence.testPeriod(lines)) return none('no_moments:test_period');
+  const asks = aligned.classifyAsks((card && card.action) || step0(nextStep, analysis));
+  if (!asks.length) return none('aligned:no_ask');
+  if (history && history.failed) return none('aligned:history_unread'); // fail closed: never risk a repeat
+  const catalog = d.catalogV2 || require('./catalog').loadV2(); // eslint-disable-line global-require
+  const sr = (analysis && analysis.subject_resolution) || {};
+  const lesson = { subject: sr.code && (sr.confidence === 'high' || sr.confidence === 'medium') ? sr.code : null, grade: gradeOf(analysis, bands) };
+  const ctx = { languages: hasPref ? [language, transcriptLanguage, 'mixed'].filter(Boolean) : [language, 'mixed'], allow: videoRecoAllowlist(d.env) };
+  let hit = null;
+  let ask = null;
+  let seenOnly = false;
+  for (const x of asks) {
+    const fresh = aligned.candidates(catalog, x, { ...ctx, history }, lesson);
+    if (fresh.length) { hit = fresh[0]; ask = x; break; }
+    if (aligned.candidates(catalog, x, { ...ctx, history: null }, lesson).length) seenOnly = true;
+  }
+  if (!hit) return none(seenOnly ? 'aligned:seen' : 'aligned:no_clip');
+  const said = aligned.reasonFor(ask, hit.seg);
+  if (!said) return none('aligned:no_clip');
+  const usable = hit.seg.quality.usable;
+  return finish({
+    ...row,
+    candidates: [{ seg_id: hit.seg.seg_id, route: 'aligned', ask: ask.sub }],
+    status: videoRecoMode(d.env) === 'shadow' || arm !== 'video' ? 'shadow' : (clipsStopped ? 'none' : 'shown'),
+    module_id: hit.module.module_id,
+    seg_id: hit.seg.seg_id,
+    start_s: usable.start_s,
+    end_s: usable.end_s,
+    language_match: (hit.seg.language || hit.module.language) === language ? 'preferred' : 'mixed',
+    chapter_language: hit.seg.language || hit.module.language || null,
+    alias_kind: ask.sub,
+    reason_en: said.reason_en,
+    reason_ur: said.reason_ur,
+    moment_at: null,
+    moment_quote: null,
+    moment_source: 'aligned',
+    confidence: null,
+    none_reason: videoRecoMode(d.env) !== 'shadow' && arm === 'video' && clipsStopped ? OPTED_OUT : null,
+  });
 }
 
 /**
