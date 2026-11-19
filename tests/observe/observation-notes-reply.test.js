@@ -113,7 +113,7 @@ describe('the notes Flow reply', () => {
       ['n1', 'Board work: she asked each one how they got it', 'whatsapp', true, 'wa:wamid.1'],
       ['n2', 'Back rows silent', 'whatsapp', true, 'wa:wamid.1'],
     ]);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('9230', "📝 Saved 2 notes with this observation. You'll see them at the top of each section of Rumi's form.");
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('9230', "📝 Saved 2 notes with this observation. You'll see them at the top of each section of the form.");
   });
 
   test('in Urdu, with Urdu digits; after the form was opened, the shorter line', async () => {

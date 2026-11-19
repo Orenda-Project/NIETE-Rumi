@@ -103,6 +103,12 @@ function appendStep(notes, batch, seen = {}) {
 
 const instant = () => Promise.resolve();
 
+/** A new row's notes (the portal start): numbered, typed before the review, one batch. Pure. */
+function initialNotes(notes, batch) {
+  const out = appendStep(Array.isArray(notes) ? notes.filter((n) => n && n.text) : [], batch)({});
+  return out.next ? out.next[NOTES_KEY] : [];
+}
+
 /**
  * Save notes on a visit. The first passes run back to back (the coach is told at once whether they were saved); then,
  * unless `quick`, the normal passes run in the background so a whole-blob writer that read before this write and wrote
@@ -187,7 +193,7 @@ const V6 = 'fico17_v6';
 
 function strings(lang) {
   const { observeStrings } = require('./observe-strings');
-  return observeStrings(lang === 'ur' ? 'ur' : 'en');
+  return observeStrings(lang); // observe-strings falls back to English key by key
 }
 
 const fillN = (tpl, n, lang) => String(tpl || '').replace('{n}', lang === 'ur'
@@ -205,7 +211,7 @@ async function offerNotes({ observerId, to, session, lang = 'en', teacherName = 
     if (!session || session.framework !== V6) return { sent: false, why: 'not_v6' };
     const { isOn } = require('./observation-notes-switch');
     if (!(await isOn(observerId))) return { sent: false, why: 'off' };
-    const flowId = process.env[FLOW_ID_ENV] || '';
+    const flowId = process.env.OBSERVE_NOTES_FLOW_ID || ''; // FLOW_ID_ENV, read literally (flow-config conformance)
     if (!flowId) {
       logToFile(`observation-notes: ${FLOW_ID_ENV} is unset — no notes offer on this deployment`, { sessionId: session.id }, 'error');
       return { sent: false, why: 'no_flow_id' };
@@ -228,7 +234,7 @@ async function offerNotes({ observerId, to, session, lang = 'en', teacherName = 
       body: S.notes_invite,
       buttonText: S.notes_button,
     });
-    logToFile('📝 observation-notes: notes Flow offered', { sessionId: session.id, observerId });
+    logToFile('📝 observation-notes: notes Flow offered', { sessionId: session.id });
     return { sent: true };
   } catch (err) {
     logToFile('❌ observation-notes: the notes offer failed (the capture goes on)', { sessionId: session && session.id, error: err.message }, 'error');
@@ -256,7 +262,7 @@ async function handleFlowReply(user, from, token, responseJson, { messageId = nu
       .eq('id', sessionId).maybeSingle();
     const owner = session && (session.observer_user_id || session.user_id);
     if (!session || session.observation_type !== 'leader_observation' || !user || owner !== user.id) {
-      logToFile('🚫 observation-notes: notes reply refused — not this coach\'s visit', { sessionId, userId: user && user.id }, 'warn');
+      logToFile('🚫 observation-notes: notes reply refused — not this coach\'s visit', { sessionId }, 'warn');
       return true;
     }
     let lang = 'en';
@@ -366,6 +372,6 @@ function runInformedSoon(sessionId) {
 module.exports = {
   NOTE_CAP, MAX_NOTES, INTRO_CAP, SOURCES, REVIEW_KEY, NOTES_KEY, INFORMED_KEY, CARRY_KEYS,
   FLOW_ID_ENV, TOKEN_PREFIX, FLOW_SCREEN, MAX_INFORMED_RUNS,
-  notesFromText, fromClient, notesOf, addNotes, markReviewOpened, carry, introText,
+  notesFromText, fromClient, notesOf, initialNotes, addNotes, markReviewOpened, carry, introText,
   offerNotes, isNotesToken, handleFlowReply, runInformed, runInformedSoon,
 };

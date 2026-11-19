@@ -3332,13 +3332,14 @@ function portalObserveRoute(name, run) {
 
 /**
  * POST /api/internal/coaching/observe/start
- * Body { userId, teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * Body { userId, teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys?, lesson?, notes? }
  * Ok   200 { status:'ok', coachingSessionId }   400 invalid (not_your_teacher, plan_not_found, …)
+ * notes (bd-ra8xu.60): her Observation Notes [{ text, rec_time | recTime, source, typed_at }]; the service checks them.
  */
 router.post('/coaching/observe/start', requireInternalKey, portalObserveRoute('observe-start',
   (Svc, b) => Svc.startPortalObservation({
     userId: b.userId, teacherExtId: b.teacherExtId, schoolExtId: b.schoolExtId, key: b.key,
-    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan, lesson: b.lesson,
+    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan, lesson: b.lesson, notes: b.notes,
   })));
 
 /** POST /api/internal/coaching/observe/lesson-question  Body { userId } — does Check and send ask the class? (bd-ra8xu.40) */
