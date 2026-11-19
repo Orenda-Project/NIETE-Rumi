@@ -1,3 +1,4 @@
 {"ts":"2026-11-19T17:19:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"9960a43ce0d0","branch":"bd-zrdvmi.29-stg","user":""}
 {"ts":"2026-11-19T17:19:19Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9960a43ce0d0","branch":"bd-zrdvmi.29-stg","user":""}
 {"ts":"2026-11-19T17:19:22Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.29-stg: E-DUPID:child-test;E-NODRIVER:coaching","sha":"9960a43ce0d0","branch":"bd-zrdvmi.29-stg","user":""}
+{"ts":"2026-11-19T17:20:10Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (retry-on-draw-failure is invisible unless a canvas fails; no page or scenario changes; covered by LessonPlanPage.retry unit tests 14/14)","sha":"9960a43ce0d0","branch":"bd-zrdvmi.29-stg","user":""}
