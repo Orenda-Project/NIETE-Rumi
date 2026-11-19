@@ -1,1 +1,2 @@
 {"ts":"2026-11-19T16:30:30Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"32f23c8b1e39","branch":"try-with-deps","user":""}
+{"ts":"2026-11-19T17:05:29Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (#5026: logging only (own_plan.opened, form-step events, ids only); shelf status gains a shelf:true marker read by the portal route; nothing a teacher sees changes)","sha":"32f23c8b1e39","branch":"bd-snkn32.56.1-05633","user":""}
