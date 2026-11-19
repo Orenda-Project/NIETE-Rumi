@@ -41,6 +41,12 @@ const BY_CODE = Object.fromEntries(RUBRIC.indicators.map((i) => [i.code, i]));
 const SECTIONS = RUBRIC.sections;
 const LEVEL_LABELS = RUBRIC.level_labels;
 const NA_CODES = CODES.filter((c) => BY_CODE[c].na && BY_CODE[c].na.allowed);
+// Starred (queue #184, operator 19 Nov): never sent to the Digital Coach (not in its prompt, dropped from its reply) and
+// mandatory for the observer. One field on the indicator (rubric.json `starred`); everything reads it from here.
+const STARRED_CODES = CODES.filter((c) => BY_CODE[c].starred === true);
+const isStarred = (code) => STARRED_CODES.includes(code);
+// What the Digital Coach is asked for: every indicator but the starred ones, in sheet order.
+const DC_CODES = CODES.filter((c) => !isStarred(c));
 const BANDS = RUBRIC.scoring.bands; // highest first
 const GRADES = RUBRIC.grades;
 // The observer's evidence for a level: at least this many characters once trimmed (as v6's room indicators).
@@ -184,6 +190,9 @@ module.exports = {
   SECTIONS,
   LEVEL_LABELS,
   NA_CODES,
+  STARRED_CODES,
+  DC_CODES,
+  isStarred,
   BANDS,
   GRADES,
   EVIDENCE_MIN,

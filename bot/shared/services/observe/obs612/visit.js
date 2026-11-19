@@ -31,6 +31,7 @@ const crypto = require('crypto');
 const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const ObserveState = require('../observe-state.service');
+const FicoS = require('../../coaching/frameworks/fico-s');
 const O = require('../../coaching/frameworks/obs612');
 const { obs612Strings } = require('./strings');
 const { observeLang } = require('../observe-strings');
@@ -234,8 +235,20 @@ function lessonOfState(st) {
  * @returns {Promise<{ok: boolean, form?: object}>}
  */
 async function startObserveVisit({ user, from, session, ownerUserId, boundTeacher, lesson }) {
+  // Queue #184: a FICO 6-12 visit whose observer has fico_s_dc on goes to the Digital Coach (obs612/fico-s-dc.js):
+  // stamped so, its form made now and sent pre-filled once Rumi has listened to the recording.
+  let dc = false;
+  if (lesson.tool === 'ficos') {
+    try {
+      dc = await ficoSSwitch().dcForVisit(user, {
+        teacherUserId: ownerUserId && ownerUserId !== user.id ? ownerUserId : null,
+        ...(boundTeacher && boundTeacher.school_ext_id ? { schoolExtId: String(boundTeacher.school_ext_id) } : {}),
+      });
+    } catch (_) { dc = false; }
+  }
+  const reason = dc ? require('./fico-s-dc').REASON : lesson.tool === 'ficos' ? 'fico_s_lesson' : 'obs612_lesson';
   const { error: stampErr } = await supabase.from('coaching_sessions')
-    .update({ framework: lesson.rubricId, framework_selection_reason: lesson.tool === 'ficos' ? 'fico_s_lesson' : 'obs612_lesson' })
+    .update({ framework: lesson.rubricId, framework_selection_reason: reason })
     .eq('id', session.id);
   if (stampErr) {
     logToFile('❌ obs612: the session was not stamped — this visit goes on as /observe', { sessionId: session.id, error: stampErr.message }, 'error');
@@ -262,7 +275,10 @@ async function startObserveVisit({ user, from, session, ownerUserId, boundTeache
     await WhatsAppService.sendMessage(from, S(user, { ficoS: lesson.tool === 'ficos' }).form_failed);
     return { ok: false };
   }
-  logToFile('🔭 obs612: /observe visit stamped, FDE form made', { sessionId: session.id, formId: created.form.id, rubricId: lesson.rubricId });
+  session.framework_selection_reason = reason;
+  logToFile('🔭 obs612: /observe visit stamped, FDE form made', { sessionId: session.id, formId: created.form.id, rubricId: lesson.rubricId, dc });
+  // The Digital Coach's visit: the form waits for Rumi's pre-fill; the capture's own ack goes out meanwhile.
+  if (dc) return { ok: true, form: created.form, dc: true };
   await sendForm(user, from, created.form);
   return { ok: true, form: created.form };
 }
@@ -380,7 +396,7 @@ async function handleTap(user, from, id) {
  * Send the FDE form of a visit. `live`: the coach fills it during the lesson (/observe2 before a recording);
  * otherwise after it. Unset OBS612_FLOW_ID: the coach is told, never left waiting (logged at error).
  */
-async function sendForm(user, to, form, { live = false } = {}) {
+async function sendForm(user, to, form, { live = false, prefilled = false } = {}) {
   const vc = (form && form.visit_context) || {};
   const tool = O.toolOf(form && form.rubric_version);
   // bd-31ziu8: a FICO-S form is its own Flow (obs612/fico-s-flow.js), on the same endpoint and token.
@@ -395,7 +411,11 @@ async function sendForm(user, to, form, { live = false } = {}) {
     return false;
   }
   const subjectLabel = s.subjects[vc.subject] || '';
-  const body = (live ? s.form_body_live : s.form_body)(vc.grade, subjectLabel, tool);
+  // Queue #184: a FICO 6-12 form the Digital Coach pre-filled says so, and names the starred indicator(s).
+  // Seven indicators are starred (19 Nov): their codes, not their names, keep the body short.
+  const starred = () => FicoS.STARRED_CODES.slice(); // each language's line isolates the codes itself
+  const body = prefilled && ficoS && s.form_body_dc ? s.form_body_dc(vc.grade, subjectLabel, starred())
+    : (live ? s.form_body_live : s.form_body)(vc.grade, subjectLabel, tool);
   const sent = await WhatsAppService.sendFlow(to, {
     flowId,
     body: cap(body, 1024),
@@ -420,6 +440,12 @@ async function sendForm(user, to, form, { live = false } = {}) {
  */
 async function afterTranscription(sessionId, session) {
   try {
+    // Queue #184: a FICO 6-12 visit for the Digital Coach goes on as a FICO17 v6 HITL visit does (photo and plan steps,
+    // then the analysis); its form is pre-filled when the analysis lands (obs612/fico-s-dc.js onAnalysisReady).
+    if (require('./fico-s-dc').isDcVisit(session)) {
+      logToFile('🔭 obs612: FICO 6-12 visit for the Digital Coach — on to the analysis, as v6', { sessionId });
+      return { handled: false, dc: true };
+    }
     const stamped = session && O.isObs612Id(session.framework);
     const got = await require('../observe2/field-form.store').findBySession(sessionId);
     const form = got.ok ? got.form : null;

@@ -69,6 +69,13 @@ const STR = {
     na_title: 'N/A · did not happen',
     lbl_ev: 'Evidence',
     help_ev: 'What you saw and heard: at least 20 characters.',
+    // Queue #184: the Digital Coach's pre-fill (v6's review wording) and the starred marker.
+    rumi_chose: (level) => `Rumi chose ${level} from the recording, and wrote the evidence below. Change either if you saw something different.`,
+    rumi_none: 'Rumi could not set a level from the recording. Choose the level you saw.',
+    rumi_none_why: (why) => `Rumi could not set a level from the recording (${why}). Choose the level you saw.`,
+    star_line: '★ Starred: yours alone. Rumi never scores this one; set it from what you saw.',
+    lbl_chg: 'Why you changed',
+    help_chg: "Only if you changed Rumi's level (20+ characters).",
     next: 'Next',
     cl_heading: 'Checklist (not scored)',
     cl_note: 'Yes or No for each. These are not part of the score.',
@@ -94,6 +101,7 @@ const STR = {
     err: {
       item: 'Choose a level.',
       evidence: 'Write what you saw and heard (at least 20 characters).',
+      change: 'You changed a level Rumi set. Write why (at least 20 characters).',
       choice: 'Choose one.',
       text: 'Write a few words here.',
       row_two: 'Fill this in too, or leave the second indicator empty.',
@@ -142,6 +150,12 @@ const STR = {
     na_title: 'لاگو نہیں · ایسا نہیں ہوا',
     lbl_ev: 'شواہد',
     help_ev: 'آپ نے کیا دیکھا اور سنا: کم از کم ۲۰ حروف۔',
+    rumi_chose: (level) => `Rumi نے ریکارڈنگ سے ${level} چنا اور نیچے شواہد لکھے۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔`,
+    rumi_none: 'Rumi ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔',
+    rumi_none_why: (why) => `Rumi ریکارڈنگ سے لیول نہیں چن سکی (\u2068${why}\u2069)۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
+    star_line: '★ ستارے والا اشاریہ: یہ صرف آپ بھریں گے۔ Rumi اسے کبھی نہیں جانچتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔',
+    lbl_chg: 'تبدیلی کی وجہ',
+    help_chg: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     next: 'آگے',
     cl_heading: 'چیک لسٹ (نمبر نہیں)',
     cl_note: 'ہر ایک کے لیے ہاں یا نہیں۔ یہ اسکور کا حصہ نہیں۔',
@@ -166,6 +180,7 @@ const STR = {
     err: {
       item: 'لیول چنیں۔',
       evidence: 'لکھیں کہ آپ نے کیا دیکھا اور سنا (کم از کم ۲۰ حروف)۔',
+      change: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم ۲۰ حروف)۔',
       choice: 'ایک چنیں۔',
       text: 'یہاں چند الفاظ لکھیں۔',
       row_two: 'یہ بھی بھریں، یا دوسرا اشاریہ خالی چھوڑ دیں۔',
@@ -215,6 +230,7 @@ const indicatorScreenId = (code) => {
 };
 const levelField = (code) => `lv_${code}`;
 const evidenceField = (code) => `ev_${code}`;
+const changeField = (code) => `chg_${code}`;
 
 // Field: { name (on the Flow), key (in the draft), input, required, check } — check: 'level' | 'evidence' | 'choice' |
 // 'text' | 'yes_no'.
@@ -231,6 +247,8 @@ for (const sec of FicoS.SECTIONS) {
       fields: [
         { name: levelField(code), key: code, input: 'radio', required: true, check: 'level', code },
         { name: evidenceField(code), key: evidenceField(code), input: 'textarea', required: true, check: 'evidence', max: TEXTAREA_MAX },
+        // Queue #184: why the observer changed Rumi's level (a Digital Coach visit only; required then, as v6's).
+        ...(FicoS.isStarred(code) ? [] : [{ name: changeField(code), key: changeField(code), input: 'textarea', required: false, check: 'change', code, max: TEXTAREA_MAX }]),
       ],
     });
   }
@@ -308,13 +326,18 @@ function mergeDraft(saved, screenId, posted = {}) {
   return out;
 }
 
-/** One screen's problems, { flowFieldName: code }, from the merged draft. */
-function checkScreen(screenId, draft = {}) {
+/**
+ * One screen's problems, { flowFieldName: code }, from the merged draft. `dc` (queue #184): Rumi's pre-fill kept on the
+ * form row (obs612/fico-s-dc.js dcOf); a level changed from Rumi's then needs a reason of 20+ characters.
+ */
+function checkScreen(screenId, draft = {}, { dc = null } = {}) {
   const errors = {};
   const d = draft || {};
   for (const f of fieldsOf(screenId)) {
     const v = d[f.key];
-    if (f.check === 'level') {
+    if (f.check === 'change') {
+      if (dc && !require('./fico-s-dc').changeExplained(dc, f.code, d)) errors[f.name] = 'change';
+    } else if (f.check === 'level') {
       if (FicoS.normLevel(v, f.code) === null) errors[f.name] = 'item';
     } else if (f.check === 'evidence') {
       if (!FicoS.isEvidence(v)) errors[f.name] = 'evidence';
@@ -337,18 +360,18 @@ function checkScreen(screenId, draft = {}) {
 }
 
 /** What is still needed before Submit: the draft keys of every unanswered required field, in form order. */
-function whatIsMissing(draft = {}) {
+function whatIsMissing(draft = {}, { dc = null } = {}) {
   const missing = [];
   for (const s of SCREENS) {
-    const errs = checkScreen(s.id, draft);
-    for (const f of s.fields) if (errs[f.name] && f.required) missing.push(f.key);
+    const errs = checkScreen(s.id, draft, { dc });
+    for (const f of s.fields) if (errs[f.name] && (f.required || f.check === 'change')) missing.push(f.key);
   }
   return missing;
 }
 
 /** Where a missing answer is, in the observer's words: 'A1 Lesson objective (SLO)' or the feedback field's label. */
 function whereIs(key, lang = 'en') {
-  const code = key.startsWith('ev_') ? key.slice(3) : key;
+  const code = key.startsWith('ev_') ? key.slice(3) : key.startsWith('chg_') ? key.slice(4) : key;
   if (FicoS.CODES.includes(code)) return `${atom(lang, code)} ${FicoS.indicatorText(code, lang).name}`;
   const s = strings(lang);
   const label = { fb_strengths: s.lbl_strengths, fs_focus: s.lbl_focus, fs_action: s.lbl_action }[key];
@@ -378,6 +401,18 @@ function prefill(f, draft) {
   if (!has(v)) return '';
   if (f.check === 'level') return FicoS.normLevel(v, f.code) === null ? '' : String(v);
   return String(v);
+}
+
+/** Queue #184: what an indicator screen says of Rumi's pre-fill ({ show, line }); nothing on a visit Rumi did not fill. */
+function rumiData(code, lang, dc) {
+  if (!dc || !dc.levels || FicoS.isStarred(code)) return { show: false, line: '' };
+  const s = strings(lang);
+  const row = dc.levels[code];
+  const lv = require('./fico-s-dc').rumiLevelOf(dc, code);
+  if (lv === 'NA') return { show: true, line: s.rumi_chose(s.na_title) };
+  if (lv !== null) return { show: true, line: s.rumi_chose(`${s.n(Number(lv))} · ${FicoS.levelName(Number(lv), lang)}`) };
+  const why = row && String(row.because || '').trim();
+  return { show: true, line: why ? s.rumi_none_why(clip(why, 160)) : s.rumi_none };
 }
 
 /**
@@ -410,10 +445,21 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
     const sec = FicoS.sectionOf(screen.section);
     const init = {};
     for (const f of screen.fields) init[f.name] = prefill(f, d);
+    // The star marks what Rumi does not score, so it shows on a Digital Coach visit only: a visit Rumi did not fill
+    // looks exactly as before (and Flow v1 and v2 render it the same).
+    const starred = FicoS.isStarred(code) && Boolean(opts.dc && opts.dc.levels);
+    const rumi = rumiData(code, lang, opts.dc);
     return {
       rubric_label: label,
       progress: s.progress(sec.key, sec.codes.indexOf(code) + 1, sec.codes.length),
-      heading: clip(`${atom(lang, code)} · ${t.name}`, 80),
+      heading: clip(`${starred ? '★ ' : ''}${atom(lang, code)} · ${t.name}`, 80),
+      star_v: starred,
+      star_line: starred ? s.star_line : '',
+      rumi_v: rumi.show,
+      rumi_line: rumi.line,
+      chg_v: rumi.show && !starred,
+      lbl_chg: s.lbl_chg,
+      help_chg: s.help_chg,
       look_for: t.look_for,
       how_line: s.how(t.how),
       back_hint: s.back_hint,
@@ -499,10 +545,10 @@ function portalFields(lang = 'en') {
 }
 
 /** Every screen's check on the draft, keyed by draft key: { A1: 'item', ev_A1: 'evidence', fs_focus: 'choice' … }. */
-function errorsByKey(draft = {}) {
+function errorsByKey(draft = {}, { dc = null } = {}) {
   const out = {};
   for (const s of SCREENS) {
-    const errs = checkScreen(s.id, draft);
+    const errs = checkScreen(s.id, draft, { dc });
     for (const f of s.fields) if (errs[f.name]) out[f.key] = errs[f.name];
   }
   return out;
@@ -513,7 +559,7 @@ function errorsByKey(draft = {}) {
  * word in the observer's language. An indicator is an 'item' field (its chip: "A1 · Lesson objective (SLO)", its text:
  * what to look for and how; the four levels one under another), then its evidence box.
  */
-function portalSections(draft = {}, lang = 'en') {
+function portalSections(draft = {}, lang = 'en', { dc = null } = {}) {
   const s = strings(lang);
   const fieldsByKey = Object.fromEntries(portalFields(lang).map((f) => [f.name, f]));
   const field = (key, role, text, extra = {}) => {
@@ -535,11 +581,17 @@ function portalSections(draft = {}, lang = 'en') {
       const code = screen.code;
       const t = FicoS.indicatorText(code, lang);
       const sec = FicoS.sectionOf(screen.section);
-      parts.push({ type: 'heading', text: `${atom(lang, code)} · ${t.name}` });
+      const starred = FicoS.isStarred(code) && Boolean(dc && dc.levels); // on a Digital Coach visit only
+      const rumi = rumiData(code, lang, dc);
+      parts.push({ type: 'heading', text: `${starred ? '★ ' : ''}${atom(lang, code)} · ${t.name}` });
+      // Queue #184: the starred line, and Rumi's line and the change box on a Digital Coach visit.
+      if (starred) parts.push({ type: 'sub', text: s.star_line });
+      if (rumi.show) parts.push({ type: 'sub', text: rumi.line });
       parts.push(field(code, 'item', `${t.look_for}\n${s.how(t.how)}`, {
         kind: 'level', short: s.progress(sec.key, sec.codes.indexOf(code) + 1, sec.codes.length),
       }));
       parts.push(field(evidenceField(code), 'other', `${s.lbl_ev}: ${s.help_ev}`));
+      if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.help_chg}`));
     } else if (screen.kind === 'checklist') {
       parts.push({ type: 'heading', text: s.cl_heading });
       parts.push({ type: 'sub', text: s.cl_note });
@@ -613,15 +665,20 @@ function screenJson(screen) {
   const payload = Object.fromEntries(screen.fields.map((f) => [f.name, `\${form.${f.name}}`]));
   const formChildren = [CAPTION];
   if (screen.kind === 'indicator') {
-    const [lv, ev] = screen.fields;
+    const [lv, ev, chg] = screen.fields;
+    // Queue #184: the starred line (a starred indicator only) and Rumi's line and the change box (a Digital Coach
+    // visit only) are shown from the screen's data, so one published Flow serves every visit.
     formChildren.push(
       { type: 'TextCaption', text: '${data.progress}' },
       { type: 'TextHeading', text: '${data.heading}' },
+      ...(FicoS.isStarred(screen.code) ? [{ type: 'TextBody', text: '${data.star_line}', visible: '${data.star_v}' }] : []),
       { type: 'TextBody', text: '${data.look_for}' },
       { type: 'TextCaption', text: '${data.how_line}' },
       { type: 'TextBody', text: '${data.err_note}', visible: '${data.err_v}' },
+      ...(chg ? [{ type: 'TextBody', text: '${data.rumi_line}', visible: '${data.rumi_v}' }] : []),
       { type: 'RadioButtonsGroup', name: lv.name, label: '${data.lbl_level}', required: true, 'data-source': '${data.opts}' },
       { type: 'TextArea', name: ev.name, label: '${data.lbl_ev}', required: true, 'max-length': TEXTAREA_MAX, 'helper-text': '${data.help_ev}' },
+      ...(chg ? [{ type: 'TextArea', name: chg.name, label: '${data.lbl_chg}', required: false, 'max-length': TEXTAREA_MAX, 'helper-text': '${data.help_chg}', visible: '${data.chg_v}' }] : []),
       { type: 'TextCaption', text: '${data.back_hint}' },
     );
   } else if (screen.kind === 'checklist') {

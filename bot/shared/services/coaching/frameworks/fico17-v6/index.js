@@ -47,6 +47,11 @@ const CODES = RUBRIC.indicators.map((i) => i.code);
 const BY_CODE = Object.fromEntries(RUBRIC.indicators.map((i) => [i.code, i]));
 const DC_CODES = CODES.filter((c) => BY_CODE[c].kind === 'dc');
 const COMBINED_CODES = CODES.filter((c) => BY_CODE[c].kind === 'combined');
+// Starred (queue #184, operator 19 Nov): never sent to the Digital Coach at all and mandatory for the coach. Read from the
+// indicator's own `starred` field, as FICO-S does. v6's rubric.json carries none yet: which v6 indicators are starred is
+// the operator's call (the six combined ones above are a different rule: evidence only for the DC).
+const STARRED_CODES = CODES.filter((c) => BY_CODE[c].starred === true);
+const isStarred = (code) => STARRED_CODES.includes(code);
 const LEVEL_LABELS = RUBRIC.level_labels;
 
 const JUSTIFICATION_MIN = 20;
@@ -204,7 +209,7 @@ function totals(levels = {}) {
 
 module.exports = {
   RUBRIC, RUBRIC_KEY, RUBRIC_SHA8, RUBRIC_FILE, DC_PROMPT_VERSION, COACH_PROMPT_VERSION,
-  CODES, DC_CODES, COMBINED_CODES, LEVEL_LABELS, SECTIONS, DOMAIN_OF, TITLES, DRAFT_TITLE_CODES, NA_OPTIONS,
+  CODES, DC_CODES, COMBINED_CODES, STARRED_CODES, isStarred, LEVEL_LABELS, SECTIONS, DOMAIN_OF, TITLES, DRAFT_TITLE_CODES, NA_OPTIONS,
   JUSTIFICATION_MIN, cp, clip, indicator, isDc, isCombined, levelText, levelOptions, stamp, normLevel, isJustified, totals,
   URDU, langOf, levelName, indicatorText, sectionName, coachLevelOptions,
 };
