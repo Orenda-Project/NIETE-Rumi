@@ -99,7 +99,8 @@ function mainClause(sentence) {
   const drop = (rx) => { const x = rx.exec(m.slice(cut)); if (x) cut += x[0].length; return !!x; };
   drop(ADDRESS);
   drop(LEAD);
-  drop(TRIGGER_EN) || drop(TRIGGER_UR);
+  // up to two leading triggers («during the comma practice, when a child answers in a word, …»)
+  if (drop(TRIGGER_EN) || drop(TRIGGER_UR)) drop(TRIGGER_EN) || drop(TRIGGER_UR);
   m = m.slice(cut);
   return raw.slice(raw.length - m.length).trim();
 }
@@ -121,9 +122,15 @@ const UNSHOWN = [
   ['closure', /exit (?:slip|ticket)|what (?:did )?(?:we|you|they) learn|at the end of (?:the )?(?:lesson|class|period)|کیا سیکھا|خلاصہ|سبق کے آخر/iu],
   ['sentence_stems', /sentence (?:starters?|stems?|frames?)|جملے کا آغاز/iu],
 ];
+// Sub-asks that refuse ONE move's clip but never silence the card (they do not lead a card the way a task does).
+// red7 H2: a child's explanation (in one sentence, the steps, why …) is not 95-s1's "why do you think…?" ; «instead of
+// explaining yourself» names what the teacher should NOT do, so it is no explain.
+const REFUSE_ONLY = [
+  ['explain', /\bexplain (?:in (?:one|two|a|their|your|full)|your|their|why|how)\b|how would you explain|explain (?:your |their )?steps/iu],
+];
 // …and the one a given move's clip must not be read as (ped-align ALLOWLIST.md "match at this grain"; held-out wrongs)
 const REFUSE = Object.freeze({
-  open_questions: ['own_words', 'differentiate'],
+  open_questions: ['own_words', 'differentiate', 'explain'],
   think_pair_share: ['pair_reflection', 'peer_check', 'worksheet'],
   wait_time: ['silent_write', 'pair_reflection', 'peer_check', 'closure'],
   activate_prior_knowledge: ['closure', 'worksheet', 'correction'],
@@ -133,7 +140,7 @@ const WHY = /\bwhy\b|\bhow\b|کیوں|کیسے/iu;
 // 790-s3 shows wait time AFTER A QUESTION, never a wait for latecomers, an instruction or copying (red7 N1 K3 K17 K18)
 const QUESTION_NEAR = /question|\bask(?:s|ed|ing)?\b|answers?\b|respond|\bthink\b|\bwhy\b|\bhow\b|سوال|پوچھ|جواب|سوچ|کیوں|کیسے/iu;
 // a follow-up is a further QUESTION (red7 K1 K14: «follow up with the students who missed homework»)
-const FOLLOW_UP = /follow[- ]up (?:question|with (?:a |another |one )?(?:question|why|how))|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|open[- ]ended follow[- ]up|follow[- ]up (?:open[- ]ended )?(?:question|سوال)|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|follow-up open-ended question|مزید سوال|اور کوئی وجہ/iu;
+const FOLLOW_UP = /follow[- ]up (?:question|with\b[^.;]{0,40}(?:question|\bwhy\b|\bhow\b|['‘"“]))|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|open[- ]ended follow[- ]up|follow[- ]up (?:open[- ]ended )?(?:question|سوال)|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|follow-up open-ended question|مزید سوال|اور کوئی وجہ/iu;
 const ASK_RX = Object.freeze({
   attention_cue: /attention (?:signal|cue)|cue to (?:regain|get) (?:their |the class'?s? )?attention|classroom cue to regain|(?:regain|get|gain) (?:the class'?s? |their )?attention|eyes on me|call[- ]and[- ]response|توجہ (?:کے لیے|لینے|حاصل)/iu,
   inquiry_opening: /\b(?:bring|hold up|show)\b[^.;]{0,30}\b(?:object|bag|jar|jars|bottle|bottles|plant|torch|mirror)\b[^.;]{0,60}\b(?:ask|question)|provocative (?:object|question)/iu,
@@ -172,6 +179,7 @@ function classifyAsks(sentence) {
   const m = mask(main);
   const off = new Map();
   for (const [id, rx] of UNSHOWN) { const x = rx.exec(m) || rx.exec(main); if (x) off.set(id, x.index); }
+  const only = new Set(REFUSE_ONLY.filter(([, rx]) => rx.test(main)).map(([id]) => id));
   if (off.has('label')) return [];
   const found = [];
   for (const [id, rx] of Object.entries(ASK_RX)) {
@@ -180,7 +188,7 @@ function classifyAsks(sentence) {
     const move = id === 'question' ? questionMove(card, main) : id;
     if (!move) continue;
     if (move === 'wait_time' && !QUESTION_NEAR.test(card)) continue;
-    if ((REFUSE[move] || []).some((r) => off.has(r))) continue;
+    if ((REFUSE[move] || []).some((r) => off.has(r) || only.has(r))) continue;
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
