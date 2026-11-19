@@ -89,7 +89,9 @@
 //   the preparation took).
 // sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
 //   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
-var VERSION = 'sa-40';
+// sa-41: the production release of round 28 on top of the slow-link hotfix: one VERSION above every merged one, and
+//   the release's one SESSION bump, v30 (the letter-names practice example's name re-voiced).
+var VERSION = 'sa-41';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
