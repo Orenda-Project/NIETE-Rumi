@@ -10,6 +10,11 @@
  * The page asks for a session's files with postMessage({ type: 'prepare', urls, fresh? }) on a MessageChannel and gets
  * back { ok, cached, missing[], bytes }; "ready offline" is shown only when missing is empty. The files are fetched six at
  * a time, and one that fails (a 429 from a busy tunnel, a dropped request) is tried once more after a short pause.
+ * A fetch is given up (then tried once more) only when it stalls: no answer for 20 s, or no body bytes for 20 s. A clip that
+ * keeps arriving slowly is never cut. A URL already being fetched by any prepare is not fetched again: the second prepare
+ * waits on the same download. With { progress: true } the worker also posts { type: 'progress', done, bytes, link } on the
+ * channel at once and at least every 5 s (done = this prepare's files kept, bytes = its body bytes, link = every body byte
+ * this worker received), so the page can tell a slow link from a dead one.
  * Round 8 (the coach's "ready for offline"): a URL in `fresh` (a battery file, which changes under one URL when a switch
  * flips) is read from the network even when a copy is kept, and keeps that copy when the network fails; bytes counts
  * what came over the network. postMessage({ type: 'check', urls }) answers { ok, cached, missing[] } from the phone
@@ -49,7 +54,10 @@
 // row ran out unanswered).
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
-var VERSION = 'sa-25';
+// sa-26: hotfix, sa-offline.js, this worker and sa-page.js (a slow link no longer refuses the start: the page waits while
+//   clips keep arriving, a fetch is given up only when it stalls, a retry joins the downloads already running, and the phone
+//   logs how long the preparation took; a late "no voice" inside a timed task waits for that task's end).
+var VERSION = 'sa-26';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -87,34 +95,85 @@ var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-u
 var NETWORK_WAIT_MS = 3000;
 var PREFETCH_AT_ONCE = 6;
 var RETRY_MS = 1500;
+var IDLE_MS = 20000;
+var PROGRESS_MS = 5000;
 
 /**
  * prefetch(urls, { fetch, match, put, ok, limit?, retryMs?, fresh?, onBytes? }) → Promise<missing urls>: each url not
  * already kept (match) is fetched, at most `limit` at a time, kept (put) when ok(url, res); a failure is tried once more
  * after retryMs. A url in fresh is fetched first even when kept (a failure then falls back to the kept copy).
- * onBytes(n) gets each fetched response's content-length. Never rejects.
+ * onBytes(n) gets the body bytes as they arrive (a response with no readable body: its content-length). A try is
+ * abandoned when no answer comes for idleMs, or no body bytes for idleMs (abort() gives the AbortController whose signal
+ * the fetch gets); a body that keeps arriving is never cut. inflight (shared by every prepare) holds the urls being fetched:
+ * a url already there waits on that download instead of starting another, except that a fresh ask never waits on a plain
+ * one that may still end on the kept copy. onDone(u) once per url kept. Never rejects.
  */
 function prefetch(urls, o) {
   var limit = o.limit || PREFETCH_AT_ONCE;
   var wait = o.retryMs != null ? o.retryMs : RETRY_MS;
+  var idle = o.idleMs || IDLE_MS;
   var fresh = o.fresh || [];
+  var running = o.inflight || {};
   var queue = urls.slice();
   var missing = [];
   function once(u) {
-    return Promise.resolve().then(function () { return o.fetch(u); }).then(function (res) {
+    var ctl = typeof o.abort === 'function' ? o.abort() : null;
+    var t = null;
+    var stop = null;
+    var stalled = new Promise(function (_, no) { stop = no; });
+    stalled.then(null, function () {});
+    // no answer, or no body bytes, for idle ms: the try is given up (a slow body that keeps coming is never cut)
+    function arm() {
+      clearTimeout(t);
+      t = setTimeout(function () { try { if (ctl) ctl.abort(); } catch (_) { /* already settled */ } stop(new Error('stalled')); }, idle);
+    }
+    arm();
+    var got = Promise.resolve().then(function () { return ctl ? o.fetch(u, { signal: ctl.signal }) : o.fetch(u); }).then(function (res) {
+      arm();
       if (!o.ok(u, res)) throw new Error(String(res && res.status));
-      if (o.onBytes) o.onBytes(Number((res.headers && res.headers.get && res.headers.get('content-length')) || 0) || 0);
-      return Promise.resolve(o.put(u, res)).then(function () { return true; });
-    }).then(null, function () { return false; });
+      var body = null;
+      if (res.body && typeof res.body.getReader === 'function' && typeof res.clone === 'function') {
+        var reader = res.clone().body.getReader();
+        body = (function next() {
+          return reader.read().then(function (c) {
+            if (c.done) return null;
+            arm();
+            if (o.onBytes) o.onBytes((c.value && c.value.byteLength) || 0);
+            return next();
+          });
+        }());
+      } else if (o.onBytes) {
+        o.onBytes(Number((res.headers && res.headers.get && res.headers.get('content-length')) || 0) || 0);
+      }
+      return Promise.all([Promise.resolve(o.put(u, res)), body]).then(function () { return true; });
+    });
+    got.then(null, function () {});
+    return Promise.race([got, stalled]).then(function (v) { clearTimeout(t); return v; }, function () { clearTimeout(t); return false; });
   }
-  function one(u) {
-    var first = fresh.indexOf(u) >= 0 ? once(u) : Promise.resolve(false);
+  // a download from the network (a fresh ask, or a plain one whose match missed) can be joined by any ask; a plain one
+  // still matching may end on the kept copy, so a fresh ask never joins it
+  function fromNet(e) { return !!e && (e.fresh || e.net); }
+  function fetchOne(u, e) {
+    var first = e.fresh ? once(u) : Promise.resolve(false);
     return first.then(function (got) { return got ? true : o.match(u); }).then(null, function () { return null; }).then(function (hit) {
       if (hit) return true;
+      var now = running[u];
+      if (now !== e && fromNet(now)) return now.p; // a fresh ask started while this one matched: one request, not two
+      e.net = true;
       return once(u).then(function (got) {
         return got ? true : new Promise(function (r) { setTimeout(r, wait); }).then(function () { return once(u); });
       });
-    }).then(function (got) { if (!got) missing.push(u); });
+    });
+  }
+  function one(u) {
+    var isFresh = fresh.indexOf(u) >= 0;
+    var e = running[u];
+    if (!e || (isFresh && !fromNet(e))) {
+      var mine = e = running[u] = { fresh: isFresh, net: false };
+      e.p = fetchOne(u, e);
+      e.p.then(function () { if (running[u] === mine) delete running[u]; });
+    }
+    return e.p.then(function (got) { if (!got) missing.push(u); else if (o.onDone) o.onDone(u); });
   }
   function worker() { var u = queue.shift(); return u === undefined ? null : one(u).then(worker); }
   var workers = [];
@@ -155,8 +214,37 @@ function strategyFor(url, method, origin) {
   return null;
 }
 
+// every prepare's downloads in flight (url → its promise), and every body byte this worker received
+var INFLIGHT = {};
+var LINK = { bytes: 0 };
+
+/**
+ * One 'prepare' message: prefetch(urls) into the session cache, then { ok, cached, missing, bytes } on the port. With
+ * d.progress, { type: 'progress', done, bytes, link } at once and every PROGRESS_MS until the answer (an older page that
+ * never asks for progress gets only the answer, as before). io: prefetch's fetch / match / put / ok / abort.
+ */
+function prepareReply(d, urls, port, io) {
+  var bytes = 0;
+  var done = 0;
+  var tick = null;
+  function progress() { port.postMessage({ type: 'progress', done: done, bytes: bytes, link: LINK.bytes }); }
+  if (d.progress === true) { progress(); tick = setInterval(progress, PROGRESS_MS); }
+  return prefetch(urls, {
+    fetch: io.fetch, match: io.match, put: io.put, ok: io.ok, abort: io.abort, inflight: INFLIGHT,
+    fresh: (d.fresh || []).filter(function (u) { return typeof u === 'string'; }),
+    onBytes: function (n) { bytes += n; LINK.bytes += n; },
+    onDone: function () { done += 1; },
+  }).then(function (missing) {
+    clearInterval(tick);
+    port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes });
+  }, function (err) {
+    clearInterval(tick);
+    throw err;
+  });
+}
+
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, prepareReply: prepareReply, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION, VERSION: VERSION, IDLE_MS: IDLE_MS, PROGRESS_MS: PROGRESS_MS, PREFETCH_AT_ONCE: PREFETCH_AT_ONCE };
 } else {
   self.addEventListener('install', function (e) {
     e.waitUntil(caches.open(CORE).then(function (c) {
@@ -219,19 +307,15 @@ if (typeof module === 'object' && module.exports) {
       }));
       return;
     }
-    var bytes = 0;
     e.waitUntil(caches.open(SESSION).then(function (c) {
-      return prefetch(urls, {
-        fetch: function (u) { return fetch(u); },
+      return prepareReply(d, urls, port, {
+        fetch: function (u, init) { return init ? fetch(u, init) : fetch(u); },
         match: function (u) { return caches.match(u, { ignoreSearch: true }); },
         put: function (u, res) { return c.put(u, res); },
         ok: function (u, res) { return cacheable(new URL(u, self.location.href).href, res); },
-        fresh: (d.fresh || []).filter(function (u) { return typeof u === 'string'; }),
-        onBytes: function (n) { bytes += n; },
+        abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
       });
-    }).then(function (missing) {
-      port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes });
-    }, function (err) {
+    }).then(null, function (err) {
       port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err) });
     }));
   });
