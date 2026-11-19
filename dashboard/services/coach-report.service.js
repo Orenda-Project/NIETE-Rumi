@@ -10,9 +10,11 @@
  *   marks       the eight behaviours in the rubric's order, done or missed, COMPUTED from the judge's booleans by the
  *               bot's own observe-coach-rubric (never from model text); Respect on its own line
  *   did         every done behaviour, each with what the coach did (the judge's `did` line; none = no line)
- *   missed      every missed behaviour: what happened in THIS debrief, why it matters, its Coach Training module
- *   focus       one next focus: the move, why this one, its module, and its ready "Try:" line (none supplied = null:
- *               the page marks the gap, nothing is invented)
+ *   missed      every missed behaviour: what happened in THIS debrief, why it matters
+ *   focus       one next focus: the move, why this one, and its ready "Try:" line (none supplied = null: the page marks
+ *               the gap, nothing is invented)
+ *   NO MODULE   no Coach Training module after a debrief (queue #186, the operator 19 Nov 2026): the coach's one training
+ *               recommendation is in her Weekly Report (coach-week.service.js `training`).
  *   NOT SENT    the reflection question (removed) and the praise banner (it repeated "What you did well").
  *   harmful     a debrief where the coach disparaged the teacher: the concern only, no marks to celebrate.
  *
@@ -31,7 +33,6 @@
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 const Rubric = require('../../bot/shared/services/observe/observe-coach-rubric');
 const { isHarmfulDebrief } = require('../../bot/shared/services/observe/observe-coach-feedback');
-const { BEHAVIOUR_MODULE } = require('../../bot/shared/config/coach-training-modules');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -154,13 +155,11 @@ function shapeCoachReport(row) {
       name: both('coach_rubric_names', x.key),
       line: text(said[x.key]),
       why: both('coach_rubric_why', x.key),
-      module: BEHAVIOUR_MODULE[x.key] || null,
     })),
     focus: focusKey ? {
       key: focusKey,
       move: text(t.move),
       why: text(fb.focus_why),
-      module: BEHAVIOUR_MODULE[focusKey] || null,
       tryLine: tryLineFor(focusKey),
     } : null,
   };
