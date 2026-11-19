@@ -2852,6 +2852,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-topic-paper.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
+// The survey bar at the end of a lesson plan in the teacher app (dark unless portal_lp_feedback_bar); see the route's header.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp-feedback.routes'));
 // bd-snkn32 — Make my own lesson plan (dark unless portal_lp_make_own); see the route's header.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own.routes'));
 // bd-snkn32.56 — Make my own from a learning goal or topic (dark unless the list-only portal_lp_own_goal_start).

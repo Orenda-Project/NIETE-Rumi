@@ -2995,6 +2995,12 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
   }
 });
 /**
+ * One survey per plan: with the survey bar on for her (portal_lp_feedback_bar, grades 1-5), she is asked at the end of
+ * the plan in the app, so the open tells the bot `inApp` and WhatsApp does not ask. Off, or a failed read: today's.
+ */
+const k5Survey = (userId) => LpAppSwitches.isLpFeedbackBarOn(supabase, userId).then((on) => (on ? 'in_app' : true), () => true);
+
+/**
  * GET /api/portal/curriculum/lp/:lesson_id/pdf?kind=lesson|answer_key
  *
  * Was a uuid lookup against curriculum_lp_ast / pre_generated_lps
@@ -3026,7 +3032,7 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     }
     // bd-5rz1v.15 — the link is minted to be opened in another app: that is an open.
     // Not awaited: logging never delays or fails the open.
-    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' });
+    k5Survey(userId).then((survey) => LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' }, { survey }));
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
     console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
@@ -3070,7 +3076,7 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   // bd-5rz1v.15 — recorded only once the PDF has gone out whole (a refused link, a storage error
   // or a dropped connection is not an open). After the response, so it can never delay it.
   if (res.statusCode === 200 && res.writableFinished) {
-    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' });
+    k5Survey(userId).then((survey) => LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' }, { survey }));
   }
   return undefined;
 });
