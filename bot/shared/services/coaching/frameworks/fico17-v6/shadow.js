@@ -48,9 +48,10 @@ function shadowMetadata(metadata = {}) {
 }
 
 /** Runs the v6 prompt through the production DC call (same model and settings as V3), validates, adds up. */
-async function scoreV6(transcript, metadata) {
+async function scoreV6(transcript, metadata, framework = null) {
   const GPT5MiniService = require('../../../gpt5-mini.service');
-  const fw = require('../fico17-v6-framework');
+  // Queue #184: the starred variant when the teacher's fico_v6_starred is on (start() decides), else today's.
+  const fw = framework || require('../fico17-v6-framework');
   const meta = shadowMetadata(metadata);
   let res;
   try {
@@ -74,8 +75,9 @@ async function scoreV6(transcript, metadata) {
   return {
     status: 'ok',
     ...stampNow(),
+    ...(fw.starredMode ? { prompt_version: fw.promptVersion, starred: scored.starred } : {}),
     levels: scored.levels,
-    combined_evidence: scored.combined_evidence,
+    ...(scored.combined_evidence ? { combined_evidence: scored.combined_evidence } : {}),
     scores: { ...scored.scores, overall_max_possible: fw.maxMarks },
     dropped_evidence: check.dropped,
     ...(check.warnings.length ? { warnings: check.warnings } : {}),
@@ -104,7 +106,15 @@ function start({ session, metadata, frameworkKey, transcript }) {
       });
     }
     try {
-      return { ...(await scoreV6(transcript, metadata)), mode };
+      let framework = null;
+      try {
+        const sw = require('../../fico-rubric-switch');
+        if (session && session.user_id && typeof sw.v6Starred === 'function'
+          && (await sw.v6Starred({ userId: session.user_id, region: (session.users && session.users.region) || undefined }))) {
+          framework = require('../fico17-v6-framework').starredVariant();
+        }
+      } catch (_) { framework = null; }
+      return { ...(await scoreV6(transcript, metadata, framework)), mode };
     } catch (err) {
       logToFile('[fico17-v6 shadow] failed — V3 unaffected', { coachingSessionId: session && session.id, error: err.message }, 'error');
       return { status: 'failed', ...stampNow(), mode, error: String(err.message || err).slice(0, 300) };

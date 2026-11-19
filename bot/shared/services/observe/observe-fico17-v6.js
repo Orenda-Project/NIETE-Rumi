@@ -93,6 +93,20 @@ function visitFramework(session) {
  * For the analysis step: the framework key a leader observation must be analysed with because of its stamp, or null
  * to select as today. Only /observe visits; a self-recording never carries this stamp.
  */
+/**
+ * Queue #184 — the v6 scorer for a stamped v6 visit: the starred variant (the six never sent to the DC) when
+ * app_settings.fico_v6_starred is on for the observer, else today's. Never throws: today's on any failure.
+ */
+async function v6FrameworkFor(session) {
+  const fw = require('../coaching/frameworks/fico17-v6-framework');
+  try {
+    const userId = (session && (session.observer_user_id || session.user_id)) || null;
+    const sw = require('../coaching/fico-rubric-switch');
+    if (userId && typeof sw.v6Starred === 'function' && (await sw.v6Starred({ userId }))) return fw.starredVariant();
+  } catch (_) { /* today's */ }
+  return fw;
+}
+
 function frameworkKeyForSession(session) {
   return session && session.observation_type === 'leader_observation' && session.framework === V6 ? V6 : null;
 }
@@ -173,12 +187,17 @@ function rumiEvidenceText(analysis, code) {
 }
 
 /** The text above a combined indicator's choice: definition, the DC's evidence, what the coach adds. */
+// Queue #184: an analysis made in starred mode names the indicators it never asked (analysis.starred).
+const starredIn = (analysis, code) => Array.isArray((analysis || {}).starred) && analysis.starred.includes(code);
+
 function combinedBody(analysis, code) {
   const ind = v6.indicator(code);
   const ce = ((analysis || {}).combined_evidence || {})[code] || {};
   const lines = [ind.definition || ''];
   lines.push('');
-  if (code === 'D2') {
+  if (starredIn(analysis, code)) {
+    lines.push('★ Starred: yours alone. Rumi does not listen for this one; set the level from what you saw.');
+  } else if (code === 'D2') {
     const a = ce.student_turns_first_half;
     const b = ce.student_turns_second_half;
     lines.push(Number.isFinite(a) && Number.isFinite(b)
@@ -276,6 +295,7 @@ function formStrings(lang) {
 /** What the recording showed for a combined indicator, in the coach's language (D2: the student turns). */
 function recordingText(analysis, code, lang, T) {
   const ce = ((analysis || {}).combined_evidence || {})[code] || {};
+  if (starredIn(analysis, code)) return T.v6f_rec_starred || '★';
   if (code === 'D2') {
     const a = ce.student_turns_first_half;
     const b = ce.student_turns_second_half;
@@ -609,7 +629,7 @@ module.exports = {
   READY_ENV, isReady,
   V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
-  optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, buildScreenPrefill, validateScreen, d2Expected,
+  optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
   fieldMessages, withSectionBAnswers,
