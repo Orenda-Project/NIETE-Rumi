@@ -1,2 +1,3 @@
 {"ts":"2026-11-19T16:32:26Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"ffb34c96e63e","branch":"try-with-deps","user":""}
 {"ts":"2026-11-19T17:01:33Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (this commit itself adds the teacher-lessons.feature scenarios for the two equal starts, synced on sandbox #5127; validate_specs OK)","sha":"ffb34c96e63e","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-19T17:01:41Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-ffb34c96e63e","sha":"ffb34c96e63e","branch":"bd-snkn32.56.1-05633","user":""}
