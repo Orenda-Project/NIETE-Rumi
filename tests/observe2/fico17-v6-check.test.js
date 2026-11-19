@@ -256,18 +256,17 @@ describe('a v6 visit', () => {
     expect(out.data.error_messages).toEqual({ cmb_C3_why: 'Write why you chose this level.' });
   });
 
-  test('D2: counts that do not add up are refused; a level off the counts needs a number in the reason', async () => {
+  test('D2: counts that do not add up are refused; the level is the coach\'s, whatever the counts (bd-ra8xu.61)', async () => {
     const id = await checkable();
     await toExplain(id);
     await ex(id, 'COMBINED_ONE', C1);
     await ex(id, 'COMBINED_TWO', C2);
     let out = await ex(id, 'COMBINED_THREE', { ...C3, d2_children: '3', d2_quiet_later: '5' });
     expect(out.data.error_messages).toEqual({ d2_children: 'Check the two numbers.' });
-    out = await ex(id, 'COMBINED_THREE', { ...C3, cmb_D2_level: '2' });
-    expect(out.screen).toBe('COMBINED_THREE');
-    expect(out.data.error_messages).toEqual({ cmb_D2_why: "Your level doesn't match the counts. Change one, or say why." });
-    out = await ex(id, 'COMBINED_THREE', { ...C3, cmb_D2_level: '2', cmb_D2_why: 'Only 2 children spoke more than a word.' });
+    // 7 children, 2 quiet-then-spoke was level 4 by the old counts; the coach's 2, with a reason in words, now goes on.
+    out = await ex(id, 'COMBINED_THREE', { ...C3, cmb_D2_level: '2', cmb_D2_why: 'Only a few children spoke more than a word.' });
     expect(out.screen).toBe('ADDED_DC_ONE');
+    expect(row(id).evidence_review.d2_counts).toEqual({ children: 7, quiet_later: 2 });
   });
 
   test('then Rumi\'s 11, pre-filled: a change with no reason is refused, naming the row', async () => {

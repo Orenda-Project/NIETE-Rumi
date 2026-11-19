@@ -440,14 +440,6 @@ function renderCombined(screenId, form, { errors = {} } = {}) {
 
 const wholeNumber = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
 
-/** D2's level from the two counts (spec §7.4). */
-function d2Expected(children, quietLater) {
-  if (children === 0) return 1;
-  if (children <= 2) return 2;
-  if (children <= 5) return 3;
-  return quietLater >= 2 ? 4 : 3;
-}
-
 function validateCombined(screenId, screenData, S, { coach2 = false } = {}) {
   const errors = {};
   for (const code of COMBINED_CODES_OF[screenId]) {
@@ -456,16 +448,12 @@ function validateCombined(screenId, screenData, S, { coach2 = false } = {}) {
     if (level == null || !allowed.includes(String(level))) errors[`cmb_${code}_level`] = S.v6_choose_level;
     if (!V6.isJustified(screenData[`cmb_${code}_why`])) errors[`cmb_${code}_why`] = S.v6_write_why;
   }
-  // The coach's own copy has no count boxes for D2: its level and reason are enough.
+  // The coach's own copy has no count boxes for D2: its level and reason are enough. The shared Flow still asks the two
+  // counts; they are checked for sense and stored, never against the level (bd-ra8xu.61: D2's levels are in words).
   if (COMBINED_CODES_OF[screenId].includes('D2') && !coach2) {
     const children = wholeNumber(screenData.d2_children);
     const quiet = wholeNumber(screenData.d2_quiet_later);
-    if (children == null || quiet == null || quiet > children) {
-      errors.d2_children = S.v6_check_numbers;
-    } else if (!errors.cmb_D2_level && !errors.cmb_D2_why) {
-      const level = V6.normLevel(screenData.cmb_D2_level);
-      if (level !== d2Expected(children, quiet) && !/\d/.test(String(screenData.cmb_D2_why || ''))) errors.cmb_D2_why = S.v6_d2_mismatch;
-    }
+    if (children == null || quiet == null || quiet > children) errors.d2_children = S.v6_check_numbers;
   }
   return errors;
 }
@@ -702,5 +690,4 @@ module.exports = {
   parseToken,
   handleObserve2CheckInit,
   handleObserve2CheckDataExchange,
-  d2Expected,
 };

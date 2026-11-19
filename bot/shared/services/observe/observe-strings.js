@@ -355,7 +355,6 @@ const STRINGS = {
     v6_choose_level: 'ایک لیول چنیں۔',
     v6_write_why: 'لکھیں کہ آپ نے یہ لیول کیوں چنا (کم از کم 20 حروف)۔',
     v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
-    v6_d2_mismatch: 'آپ کا لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
     v6_change_why: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم 20 حروف)۔',
     v6_fix_heading: 'آگے بڑھنے سے پہلے یہ ٹھیک کریں:',
     // FICO17 v6 coach form, one indicator per screen (13 Nov). DRAFT Urdu, for the rubric owner's review. {l} is a
@@ -743,7 +742,6 @@ const STRINGS = {
     v6_choose_level: 'Choose a level.',
     v6_write_why: 'Write why you chose this level (at least 20 characters).',
     v6_check_numbers: 'Check the two numbers.',
-    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
     v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',
     v6_fix_heading: 'Please fix these before you go on:',
     // FICO17 v6 coach form, one indicator per screen (13 Nov): observe-fico17-v6.js screenData.

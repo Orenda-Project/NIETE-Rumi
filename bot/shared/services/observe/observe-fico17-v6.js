@@ -11,8 +11,9 @@
  *
  * On a v6 visit (the review Flow, observe-fico17_v6-flow.json):
  * - C3 C5 C7 D2 D3 D4 (combined): the coach sets the level from the room, starting blank, with a written reason of
- *   at least 20 characters. D2 also takes two counts (children who spoke; quiet then spoke) and a level that does not
- *   match them needs a number in the reason. The DC's evidence for each is shown above the choice.
+ *   at least 20 characters. D2's levels are in words, not counts (bd-ra8xu.61): an old form that still sends D2's two
+ *   counts has them checked for sense and stored, and never checked against the level. The DC's evidence for each is
+ *   shown above the choice.
  * - The 11 DC indicators: Rumi's level is pre-filled from the v6 analysis of the recording; a coach who changes any
  *   level on a screen writes why in that screen's "Why you changed" box (operator Q2-B, 11 Nov).
  * - N/A (approved 19 Nov): offered only on C2 C3 C5 D4, each with its own words (fico17_v6.na.json).
@@ -35,7 +36,6 @@ const MSG_EN = {
   v6_choose_level: 'Choose a level.',
   v6_write_why: 'Write why you chose this level (at least 20 characters).',
   v6_check_numbers: 'Check the two numbers.',
-  v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
   v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',
   v6_fix_heading: 'Please fix these before you go on:',
 };
@@ -580,21 +580,14 @@ function wholeNumber(v) {
   return /^\d+$/.test(s) ? Number(s) : null;
 }
 
-/** D2's level from the two counts (spec §7.4). */
-function d2Expected(children, quietLater) {
-  if (children === 0) return 1;
-  if (children <= 2) return 2;
-  if (children <= 5) return 3;
-  return quietLater >= 2 ? 4 : 3;
-}
-
 /**
  * The reasons a v6 screen submit is refused, as { field: message }; {} when it may go on. `screenId` is one indicator's
  * screen (IND_C_ONE …), or a whole section (DOMAIN_C: the old 5-screen Flow, and the portal, which sends every level).
  * Combined: a level and a reason ≥ 20 characters; N/A (where the table offers it) needs no reason. DC: changing Rumi's
  * choice (1-4, or N/A on C2) needs a reason ≥ 20 characters, in chg_<code> on an indicator screen or chg_<letter> on a
  * section. A level where Rumi had none (or Couldn't tell) needs no change reason. An indicator screen accepts N/A only
- * where the table offers it (per-indicator N/A, 19 Nov). D2's two counts are checked only when a form still sends them (the old Flow).
+ * where the table offers it (per-indicator N/A, 19 Nov). D2's two counts are checked for sense only when a form still
+ * sends them (the old Flow); since bd-ra8xu.61 D2's levels are in words, so the level is never checked against them.
  */
 function validateScreen(screenId, data = {}, analysis = {}, S = MSG_EN) {
   const info = screenInfo(screenId);
@@ -613,11 +606,7 @@ function validateScreen(screenId, data = {}, analysis = {}, S = MSG_EN) {
       if (code === 'D2' && data.d2_children !== undefined) {
         const n = wholeNumber(data.d2_children);
         const q = wholeNumber(data.d2_quiet_later);
-        if (n === null || q === null || q > n) {
-          errors.d2_children = `${name}: ${S.v6_check_numbers}`;
-        } else if (/^[1-4]$/.test(level) && Number(level) !== d2Expected(n, q) && !/\d/.test(String(why || ''))) {
-          errors.why_D2 = `${name}: ${S.v6_d2_mismatch}`;
-        }
+        if (n === null || q === null || q > n) errors.d2_children = `${name}: ${S.v6_check_numbers}`;
       }
     } else {
       if (perCode && !allowed.includes(level)) errors[`r_${code}`] = `${name}: ${S.v6_choose_level}`;
@@ -773,7 +762,7 @@ module.exports = {
   READY_ENV, isReady,
   V6, FLOW_ID_ENV, MSG_EN, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
-  optionsFor, rumiLevel, rumiNumeric, rumiChoice, followsNa, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
+  optionsFor, rumiLevel, rumiNumeric, rumiChoice, followsNa, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen,
   buildReview, applyReview, messages,
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
   fieldMessages, withSectionBAnswers,
