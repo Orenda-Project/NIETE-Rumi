@@ -597,6 +597,29 @@ describe('R9d · later visits', () => {
     });
   });
 
+  // red7 20261119T233631 N1-N3
+  describe('red7 N1-N3', () => {
+    test('N1: «رول پلے» (roles) silences a later-visit card: JS \\b is ASCII-only', () => {
+      const card = 'اگلی کلاس میں بچوں کو جوڑوں میں سوچنے دیں، پھر رول پلے کروائیں اور Think-Pair-Share کریں۔';
+      expect(A.classifyAsks(card).map((x) => x.move)).toContain('think_pair_share');
+      expect(A.classifyAsks(card, { later: true })).toEqual([]);
+    });
+    test('N1: «کنٹرول» is not a role', () => {
+      expect(A.classifyAsks('اگلی کلاس میں کلاس کنٹرول کے لیے Think-Pair-Share کروائیں۔', { later: true }).map((x) => x.move)).toEqual(['think_pair_share']);
+    });
+    test('N2: en/ur parity — the question a wait follows is not a question of the card\'s own', () => {
+      expect(A.classifyAsks('Next class, give 5 seconds of wait time after each question before taking answers.', { later: true }).map((x) => x.move)).toEqual(['wait_time']);
+      expect(A.classifyAsks('اگلی کلاس میں ہر سوال کے بعد 5 سیکنڈ کا wait time دیں۔', { later: true }).map((x) => x.move)).toEqual(['wait_time']);
+      expect(A.classifyAsks('اگلی کلاس میں ایک سوال کریں اور 5 سیکنڈ کا wait time دیں۔', { later: true })).toEqual([]);
+    });
+    test('N3: "Grade 3 (2024)" is Grade 3, not 3-24: 794-s2 is reached, a 9-12 clip is not', async () => {
+      const others = ['791-s2', '451-s3', '804-s2', '905-s5', '745-s1'];
+      const { row } = await run({ action: TPS, env: on15, grade: 'Grade 3 (2024)', history: after(...others) });
+      expect(row.seg_id).toBe('794-s2');
+      expect((await run({ action: TPS, env: on15, grade: 'Grade 3 (2024)', history: after('791-s2') })).row.seg_id).toBe('745-s1'); // not 451-s3 (9-12)
+    });
+  });
+
   describe('an apostrophe inside a word is not a quote (qa-e2e 20261119T215759)', () => {
     const SLINKY = "Next class, right after the class choruses 'Yes' to the slinky question about the hair's movement, say: 'Turn to your partner — why does the hair move forward then back? 30 seconds,' then call one pair to answer in a full sentence.";
     test('the live sandbox card reads as think-pair-share, not silence', () => {
