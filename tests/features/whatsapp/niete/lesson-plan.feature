@@ -1354,3 +1354,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then no "Was this useful?" buttons follow it
     # @no-mock-driver: the survey is scheduled 30 s after a full PDF render; the mock lane does not render plans.
     # Unit: tests/feedback/lp-whatsapp-off.test.js (both sendFeedbackPrompt guards, ICT and GB).
+
+  # ADDED 2026-11-19 (bd-96f69c.9, sceptic pass): one answer per plan across the app and WhatsApp.
+  @e2e @config-gated @no-mock-driver @P1 @L16
+  Scenario: A lesson I already rated in the app is not rated a second time from WhatsApp
+    Given the NIETE bot chat is open
+    And I answered "Useful" for a grades 1-5 lesson in the teacher app
+    When I tap "Not useful" on the WhatsApp survey that came with the same lesson's PDF
+    Then the bot only thanks me
+    And my answer stays the one I gave in the app, with no second answer saved
+    # @no-mock-driver: the app answer needs the portal session and the survey's 30 s timer; the mock lane drives neither.
+    # Unit: tests/feedback/lp-in-app-feedback.test.js ("an app answer counts for a later WhatsApp tap").

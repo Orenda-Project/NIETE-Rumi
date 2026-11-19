@@ -109,10 +109,20 @@ const scenarios = [
       for (const want of ['Last 30 days', 'Updated today', 'Plans opened', '14', 'Taught in class', '3', 'DC observations', 'Quizzes · Papers', 'My journey']) {
         expect(block.includes(want), 'the block lacks "' + want + '": ' + block);
       }
+      // Design review: on a slim-card day the block follows the slim card (inside the grid), never above it.
+      let slimFirst = null;
+      if (await page.getByTestId('home-slim-card').count()) {
+        slimFirst = await page.evaluate(() => {
+          const card = document.querySelector('[data-testid="home-slim-card"]');
+          const block = document.querySelector('[data-testid="home-activity"]');
+          return !!(card && block && (card.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING));
+        });
+        expect(slimFirst, 'the Last 30 days block is above the slim card');
+      }
       const sw = await noSideScroll(page);
       const file = await shot(page, 'home-activity-en-360');
       healthy(w);
-      return { block: block.slice(0, 300), scrollWidth: sw, shot: file };
+      return { block: block.slice(0, 300), slimFirst, scrollWidth: sw, shot: file };
     }) },
   { id: 'TH12', title: 'Teacher app v2: with Home activity on in Urdu, the block and My journey read in Urdu', run: (page, ctx) =>
     withActivity(ctx, { on: true, stored: storedValue(), lang: 'ur' }, async () => {

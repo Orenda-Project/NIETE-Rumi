@@ -365,6 +365,7 @@ EXTRA['teacher-home'] = [EXTRA['teacher-home'], ('../flows/teacher-home-activity
     "    When the teacher opens /portal/teacher",
     "    Then a \"Last 30 days\" block shows \"Updated today\" and the tiles Plans opened 14, Taught in class 3, DC observations and Quizzes · Papers",
     "    And a \"My journey\" row is under the tiles",
+    "    And on a day her lesson card is the slim one, the block comes right after that card, never above it",
     "    And the page does not scroll sideways, and no page error or 5xx happened",
     "",
     "  @TH12",
