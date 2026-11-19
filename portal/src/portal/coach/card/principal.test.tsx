@@ -123,13 +123,15 @@ describe("teachers only, around the card", () => {
     expect(within(manage).getByRole("link", { name: /remove teachers/i })).toBeInTheDocument();
   });
 
-  it("the slim Home's My schools chip counts teachers only", async () => {
+  // bd-39qx8x — the Home's compact My schools tile carries the school count alone (with the teachers it spilled out of the
+  // tile at 360px), so the principal is never counted there; My schools itself counts the teachers, principal apart.
+  it("the slim Home's My schools chip is the school count alone, so it never counts the principal", async () => {
     on(schoolCard());
     net.answers.set("/coach/people", { success: true, schools: [{ emis: EMIS, name: "Model School Nine", teachers: 3 }],
       teachers: [{ teacherExtId: "t1", name: "T1" }, { teacherExtId: "t2", name: "T2" }, { teacherExtId: "t3", name: "T3" },
         { teacherExtId: HEAD.teacherExtId, name: HEAD.name, isPrincipal: true }] });
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
-    await waitFor(() => expect(tiles).toHaveTextContent("1 school · 3 teachers"));
+    await waitFor(() => expect(tiles.querySelector('a[href="/portal/coach/people"] [data-chip]')).toHaveTextContent(/^1 school$/));
   });
 });

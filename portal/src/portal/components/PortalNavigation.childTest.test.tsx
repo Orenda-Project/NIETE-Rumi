@@ -49,7 +49,7 @@ describe("PortalNavigation — Learning assessment", () => {
   it("a coach with the flag on gets a Learning assessment link", async () => {
     renderSa({ firstName: "A", role: "coach" }, true);
     await waitFor(() => {
-      const links = screen.getAllByRole("link", { name: /learning assessment/i });
+      const links = screen.getAllByRole("link", { name: /Learning Assessment/ }); // bd-39qx8x: capital A
       expect(links.some((l) => l.getAttribute("href") === "/portal/leader/assess")).toBe(true);
     });
   });
