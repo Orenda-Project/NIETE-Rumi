@@ -4,3 +4,4 @@
 {"ts":"2026-11-19T14:21:20Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (portal-only; no WhatsApp message or flow changes)","sha":"810a3943f41f","branch":"bd-snkn32.58-goalcheck","user":""}
 {"ts":"2026-11-19T14:21:23Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-smoke owe their Gherkin","sha":"810a3943f41f","branch":"HEAD","user":""}
 {"ts":"2026-11-19T14:21:25Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-810a3943f41f","sha":"810a3943f41f","branch":"bd-snkn32.58-goalcheck","user":""}
+{"ts":"2026-11-19T14:21:38Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,portal-smoke owe their Gherkin","sha":"810a3943f41f","branch":"HEAD","user":""}
