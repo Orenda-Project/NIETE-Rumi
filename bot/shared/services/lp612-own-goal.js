@@ -17,6 +17,8 @@
 
 const TOPIC_MIN = 3;
 const TOPIC_MAX = 120;
+// bd-m8zwt1.3 — an official outcome she picked runs to 371 characters (G1-5): never cut it; a typed topic stays at 120.
+const OUTCOME_MAX = 400;
 const KINDS = ['outcome', 'topic'];
 const STOP = new Set([
   'the', 'and', 'for', 'with', 'from', 'into', 'about', 'what', 'how', 'why', 'their', 'they', 'this', 'that', 'are',
@@ -29,7 +31,7 @@ const clean = (s) => String(s || '').replace(/["“”]/g, '').replace(/\s+/g, '
 function parseGoal(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'goal is required' };
   if (!KINDS.includes(raw.kind)) return { ok: false, error: 'goal.kind is not one of the choices' };
-  const text = clean(raw.text).slice(0, TOPIC_MAX);
+  const text = clean(raw.text).slice(0, raw.kind === 'outcome' ? OUTCOME_MAX : TOPIC_MAX);
   if (text.length < TOPIC_MIN) return { ok: false, error: 'goal.text is too short' };
   return { ok: true, goal: { kind: raw.kind, text } };
 }

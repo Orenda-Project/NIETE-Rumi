@@ -61,4 +61,11 @@ describe('Make my plan with a goal', () => {
     expect(a).not.toHaveProperty('goal');
     expect(a.resources).toEqual(['textbook', 'board']);
   });
+  it('bd-m8zwt1.3: a picked outcome keeps up to 400 characters in the URL; a typed topic stays at 120', () => {
+    const long = 'a'.repeat(371);
+    expect(readOwn(`grade=3&subject=math&start=goal&gk=outcome&gt=${long}`)?.goal?.text).toHaveLength(371);
+    expect(new URLSearchParams(ownUrl({ grade: 3, subject: 'math', step: 'check', goal: { kind: 'outcome', text: long } }).split('?')[1]).get('gt')).toHaveLength(371);
+    expect(readOwn(`grade=3&subject=math&start=goal&gk=outcome&gt=${'b'.repeat(900)}`)?.goal?.text).toHaveLength(400);
+    expect(readOwn(`grade=3&subject=math&start=goal&gk=topic&gt=${long}`)?.goal?.text).toHaveLength(120);
+  });
 });

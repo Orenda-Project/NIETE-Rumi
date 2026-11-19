@@ -392,3 +392,34 @@ Feature: Teacher lesson plans
     When the Preparing page learns it failed with OWN_GOAL_UNSURE
     Then she sees "We could not make a plan we are sure of for this goal." with "Select another goal" and "From a textbook chapter"
     And there is no "Try again"
+
+  # bd-m8zwt1.1 (queue #164 testing): every grades 1-5 goal plan whose first check failed crashed on its one fix
+  # ("k5EditMessages: unknown part undefined") and ended "Couldn't make it". Pinned by tests/lp612/own-goal-k5-fix.test.js.
+  @GOAL13 @draft @config-gated
+  Scenario: A grades 1-5 goal plan the check asks to fix gets its one fix, and ends ready or with the calm refusal
+    Given a Grade 3 Maths goal plan whose first goal check found a problem
+    When the worker makes its one fix
+    Then the plan ends ready with her goal at the top, or with "We could not make a plan we are sure of for this goal."
+    And she never sees "Couldn't make it" for that reason
+
+  # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
+  @GOAL14 @draft @config-gated
+  Scenario: Make my own's check screen names the subject, not its key
+    Given the demo teacher picks Grade 3 Maths and a learning goal
+    When she reaches "Your plan"
+    Then the line under her goal reads "Grade 3 · Math", never "math"
+    And in Urdu it reads "ریاضی"
+
+  # bd-m8zwt1.8 / bd-m8zwt1.9 (queue #164 testing), pinned by PreparingPage.retry.test.tsx and Check.test.tsx.
+  @GOAL15 @draft @config-gated
+  Scenario: Try again after her own plan failed takes her back to her own answers
+    Given the demo teacher's own plan failed while it was being made
+    When she taps "Try again" on the Preparing page
+    Then she is on "Your plan" with the answers she gave
+    And she is not shown the ready-made plan of that lesson
+
+  @GOAL16 @draft @config-gated @negative
+  Scenario: The daily limit is said where she can see it
+    Given the demo teacher has made today's last allowed own plan
+    When she taps "Make my plan" again
+    Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button

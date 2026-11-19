@@ -154,7 +154,8 @@ function Preparing({ at }: { at: AtRender }) {
               type="button"
               disabled={busy}
               onClick={() => {
-                if (lesson) void open(lesson, at, { replace: true });
+                if (at.back) navigate(at.back, { replace: true }); // bd-m8zwt1.8: her own plan → her own answers
+                else if (lesson) void open(lesson, at, { replace: true });
                 else navigate(openUrl({ plan: `g612:${at.lesson}`, title: at.title, grade: at.grade }), { replace: true });
               }}
               className={cn('min-h-[56px] w-full rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white disabled:opacity-50', FOCUS)}
