@@ -185,6 +185,8 @@ function baseJsonKey(r2Key, band) {
 
 /** The poll's fields for an own plan (lp612-own ownStatus sets changes_left on a ready one); {} for anything else. */
 function statusFields(row) {
+  // bd-snkn32.51 — a shelf plan opened by another teacher: marked, so the portal can log shelf reuse (no changes: not hers).
+  if (row && row.shelf === true) return { shelf: true };
   if (!row || typeof row.changes_left !== 'number') return {};
   return { changesLeft: row.changes_left, ownBand: row.own_band };
 }
