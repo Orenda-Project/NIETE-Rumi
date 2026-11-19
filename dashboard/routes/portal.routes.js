@@ -9374,6 +9374,7 @@ router.get('/config', async (req, res) => {
       lpFeedbackBarRaw,
       teacherHomeActivityRaw,
       teacherJourney,
+      lpViewerSlimRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9437,6 +9438,8 @@ router.get('/config', async (req, res) => {
       LpAppSwitches.isLpFeedbackBarOn(supabase, userId),
       LpAppSwitches.isTeacherHomeActivityOn(supabase, userId),
       LpAppSwitches.isTeacherJourneyOn(supabase, userId),
+      // The plan screen's slim layout (rides with the teacher app).
+      LpAppSwitches.isLpViewerSlimOn(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9489,6 +9492,7 @@ router.get('/config', async (req, res) => {
         lpFeedbackBar: teacherV2 && lpFeedbackBarRaw,
         teacherHomeActivity: teacherHomeCard && teacherHomeActivityRaw,
         teacherJourney,
+        lpViewerSlim: teacherV2 && lpViewerSlimRaw,
       },
     });
   } catch (error) {
@@ -9530,6 +9534,7 @@ router.get('/config', async (req, res) => {
         lpFeedbackBar: false,
         teacherHomeActivity: false,
         teacherJourney: false,
+        lpViewerSlim: false,
       },
       roleSwitchRoles: [],
     });

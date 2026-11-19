@@ -183,6 +183,8 @@ describe('GET /config — features.newUi', () => {
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       // The lesson plan in the app: the survey bar, real false unless portal_lp_feedback_bar names her.
       'lpFeedbackBar', 'lpMakeOwn', 'lpOwnGoalStart', 'lpOwnReviewer', 'lpOwnShelf',
+      // The plan screen's slim layout, a real false unless portal_lp_viewer_slim (and the teacher app) name her.
+      'lpViewerSlim',
       'newUi',
       // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
       'observeOnPortal',
