@@ -1,6 +1,7 @@
 'use strict';
 
 /**
+ * Superseded for the IMAGE 19 Nov ~17:10 (one line per section, v6's way); the portal block below still shows it.
  * Queue #184 (operator 19 Nov ~11:40): "In the FICOS's teacher's observation report, we are not showing the reasoning
  * ... Whatever the case, we want that." A FICO 6-12 visit's teacher report shows, indicator by indicator, the level the
  * observer set and the evidence the observer submitted, word for word (the 11 Nov rule for v6 HITL reports: what the
@@ -47,53 +48,19 @@ const analysis = () => Record.buildAnalysis({
 }, draft());
 const SESSION = { created_at: '2026-11-19T10:00:00Z' };
 
-describe('the teacher report image: indicator by indicator, the level and the observer\'s evidence', () => {
-  test('every indicator, in its section, with the level set and the evidence as submitted (en)', () => {
-    const vm = Report.buildObs612HeroVm(SESSION, analysis(), { language: 'en', teacherName: 'Rabia' });
-    expect(vm.evidence).toBeTruthy();
-    expect(vm.evidence.title).toMatch(/indicator by indicator/i);
-    expect(vm.evidence.sections.map((s) => s.name)).toEqual(vm.groups.map((g) => g.name));
-    const items = vm.evidence.sections.flatMap((s) => s.items);
-    expect(items).toHaveLength(23);
-    const a1 = items.find((i) => i.code === 'A1');
-    expect(a1).toMatchObject({ name: 'A1. Lesson objective (SLO)', level: 'Level 1 · Below standard', note: EV('A1') });
-    expect(items.find((i) => i.code === 'B2').note).toBe(UR_EV);
-    expect(items.find((i) => i.code === 'C2').level).toBe('N/A');
-    expect(items.find((i) => i.code === 'E3').note).toBe(EV('E3'));
-  });
-
-  test('Urdu: the chrome and the level in Urdu, the observer\'s words untouched', () => {
-    const vm = Report.buildObs612HeroVm(SESSION, analysis(), { language: 'ur', teacherName: 'Rabia' });
-    expect(vm.evidence.title).not.toMatch(/[A-Za-z]/);
-    const a1 = vm.evidence.sections.flatMap((s) => s.items).find((i) => i.code === 'A1');
-    expect(a1.level).toBe(`لیول ۱ · ${FicoS.levelName(1, 'ur')}`);
-    expect(a1.note).toBe(EV('A1'));
-  });
-
-  test('an indicator with no level is left out; one with no evidence shows its level only', () => {
-    const a = analysis();
-    delete a.obs612.answers.A2;
-    delete a.obs612.evidence.A3;
-    const items = Report.buildObs612HeroVm(SESSION, a, { language: 'en' }).evidence.sections.flatMap((s) => s.items);
-    expect(items.find((i) => i.code === 'A2')).toBeUndefined();
-    expect(items.find((i) => i.code === 'A3').note).toBe('');
-  });
-
-  test('the page draws it: each note in its own first-strong block, after the scorecard', () => {
-    const vm = Report.buildObs612HeroVm(SESSION, analysis(), { language: 'en', teacherName: 'Rabia' });
-    const html = buildHeroReportHtml(vm);
-    expect(html).toContain('class="evi"');
-    expect(html).toContain(`<div class="ev-t" dir="auto">${EV('A1')}</div>`);
-    expect(html).toContain(UR_EV);
-    expect(html).toContain('Level 1 · Below standard');
-    expect(html.indexOf('class="evi"')).toBeGreaterThan(html.indexOf('class="cols"'));
-    // a long hand-typed run breaks inside its box
-    expect(html).toMatch(/\.ev-t\{[^}]*overflow-wrap:anywhere/);
+describe('the teacher report image: no indicator-by-indicator list (operator 19 Nov ~17:10)', () => {
+  // "now all the indicators are being shown. We want just a one liner under each section's score": the list that was
+  // here (19 Nov ~11:40) is replaced by one line per section, v6's way (tests/observe/q184-fico-s-report-section-lines).
+  test('the hero view model carries no list, in either language', () => {
+    for (const language of ['en', 'ur']) {
+      const vm = Report.buildObs612HeroVm(SESSION, analysis(), { language, teacherName: 'Rabia' });
+      expect(vm.evidence).toBeUndefined();
+      expect(buildHeroReportHtml(vm)).not.toContain(EV('A1'));
+    }
   });
 
   test('a report with no evidence block (every other report) draws none', () => {
     const vm = Report.buildObs612HeroVm(SESSION, analysis(), { language: 'en' });
-    delete vm.evidence;
     expect(buildHeroReportHtml(vm)).not.toContain('class="evi"');
   });
 });
