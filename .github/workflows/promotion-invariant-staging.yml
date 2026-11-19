@@ -1,0 +1,35 @@
+# Does `staging` carry anything that never passed through `sandbox`?
+#
+# The lower-rung twin of promotion-invariant.yml. The per-PR gate `staging needs sandbox`
+# (staging-source-branch.yml) refuses a bad PR at the door; a bypass actor can merge past it. This
+# runs after the push lands on `staging` and asks the same provenance question over the whole
+# branch, so an ignored red run is a permanent record. See promotion-invariant.yml for the full
+# rationale — why this is a per-commit provenance check and not a tree comparison.
+#
+# ADVISORY. This is not (yet) a required status check; it records, it does not block. It reads red
+# until content that reached `staging` ahead of `sandbox` is back-filled to `sandbox` (bd-mft11s) —
+# which is the point: the red names exactly what to heal.
+name: Promotion invariant (staging)
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+# No `paths:` filter — see promotion-invariant.yml for why that matters if this is ever required.
+
+jobs:
+  sandbox-is-the-only-door:
+    name: staging carries nothing that skipped sandbox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the whole graph; a shallow clone cannot answer this
+
+      - name: Does staging carry content that skipped sandbox?
+        shell: bash
+        run: |
+          set -uo pipefail
+          git fetch -q origin sandbox staging
+          bash scripts/ci/promotion-invariant.sh origin/sandbox origin/staging
