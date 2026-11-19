@@ -115,9 +115,11 @@ that is too, with no padding between (RequestPage's ready card is the row itself
 inset 14px from the start edge (initials, a school glyph, or `leadText`). It is deliberately not the 64px flush column: that
 column belongs to grade·subject only, and a time, count, score or person must never borrow its look. A grade·subject row
 (`lead` left out) is drawn exactly as before, with or without a `time`. `HistoryList` draws no day heading for a group whose
-`day` is `""` (a page's own heading above it).
+`day` is `""` (a page's own heading above it). `lead="glyph"` puts a neutral lucide icon (`glyph={BookOpen}`) in the
+same round avatar: My journey's steps (an opened plan, a DC observation, a quiz), decorative, the title names the step.
 
 ```tsx
+<HistoryRow lead="glyph" glyph={BookOpen} title="Opened a lesson plan" extra="G3 Math · Today" to="/portal/teacher/lessons/open?plan=k5:L1" />
 <HistoryRow lead="person" title="Ayesha Bibi" extra="IMSG I-10/1" time="08:30" state="next" to="/portal/coach/visit/12" />
 <HistoryRow lead="person" leadText="87%" leadLabel="Score 87%" title="Ayesha Bibi" extra="12 Oct" to="/portal/coach/observation/9" />
 <HistoryRow lead="school" title="IMSG I-10/1" extra="12 teachers" chip={{ text: "41 days ago", tone: "waiting" }} to="/portal/coach/school/123" />
