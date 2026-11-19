@@ -49,4 +49,14 @@ describe('Check', () => {
     expect(setNote).toHaveBeenCalledWith('two sections');
     expect(screen.getByRole('alert').textContent).toBe(OWN_COPY.refusals.daily_limit);
   });
+  it('bd-m8zwt1.2: a subject KEY from the class picker is shown as a name, never raw ("math", "general_science")', () => {
+    show('grade=3&subject=math&start=goal&step=check', { k5: true, gradeLabel: 'Grade 3', goal: { label: 'Goal', value: 'Add numbers', sub: 'No textbook' } });
+    let t = document.body.textContent ?? '';
+    expect(t).toContain('Grade 3 · Math ·');
+    expect(t).not.toContain('· math');
+    cleanup();
+    show('grade=4&subject=general_science&chapter=1&seg=d', { k5: true, gradeLabel: 'Grade 4', pagesLabel: 'Day 1' });
+    t = document.body.textContent ?? '';
+    expect(t).toContain('Grade 4 · General Science');
+  });
 });

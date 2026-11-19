@@ -43,6 +43,16 @@ function buildEditInstruction({ part, text }) {
 
 /** Grades 1–5: the two messages for the model. Throws on a part the guard would have refused. */
 function k5EditMessages({ script, edit, lang, grade, subject }) {
+  // bd-m8zwt1.1 — the goal check's one fix arrives as a whole-plan instruction string (lp-own-goal-check fixInstruction).
+  if (typeof edit === 'string' && edit.trim()) {
+    const fix = [
+      `Grade ${grade}${subject ? `, ${subject}` : ''}. A checker found problems in this plan. Correct them.`,
+      'Keep every part, the goal and the minutes the same; change only what the list below asks for.',
+      edit.trim(),
+      '', 'The plan:', JSON.stringify(script),
+    ];
+    return [{ role: 'system', content: system(lang) }, { role: 'user', content: fix.join('\n') }];
+  }
   const key = K5_SECTIONS[edit && edit.part];
   if (!key) throw new Error(`k5EditMessages: unknown part ${edit && edit.part}`);
   const others = Object.values(K5_SECTIONS).filter((k) => k !== key);
