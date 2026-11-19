@@ -1,3 +1,4 @@
 {"ts":"2026-11-19T16:32:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"70bf27caa7f8","branch":"try-with-deps","user":""}
 {"ts":"2026-11-19T16:35:21Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"try-with-deps: E-DUPID:child-test;E-NODRIVER:coaching","sha":"70bf27caa7f8","branch":"try-with-deps","user":""}
 {"ts":"2026-11-19T16:35:34Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"try-with-deps: E-DUPID:child-test;E-NODRIVER:coaching","sha":"70bf27caa7f8","branch":"try-with-deps","user":""}
+{"ts":"2026-11-19T17:00:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (cherry-pick of #5134 to staging; the commit already carries its own lesson-plan.feature/teacher-lessons spec sync from sandbox; validate_specs OK)","sha":"70bf27caa7f8","branch":"bd-snkn32.56.1-05633","user":""}
