@@ -351,3 +351,28 @@ Feature: Teacher lesson plans
     Given the teacher app v2 and "portal_lp_make_own" are on for her, but she is not on "portal_lp_own_goal_start"
     When she taps "Make my own" on the Lesson Plans main page
     Then she sees Grade and subject, as before, with no "From a learning goal" card
+
+  # bd-snkn32.58.2, queue #155 B — guardrails for a typed topic. Component proof: GoalStep.test.tsx, OwnPage.goal.test.tsx;
+  # server: tests/lp612/own-goal-guard.test.js, own-goal-note-guard.test.js, tests/portal/lp612-own-goal-route.test.js.
+  @GOAL08 @draft @config-gated
+  Scenario: A misspelt or Roman Urdu topic offers "Did you mean" goals, and nothing is picked until she taps one
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "multiplcation by 2" and taps Find
+    Then she sees "Did you mean" with up to 3 of her grade's goals, the first about multiplying a 2-digit number
+    And OK stays disabled until she selects one
+    When she types "jama 2 hindsay" and taps Find
+    Then the first suggestion is about adding numbers
+
+  @GOAL09 @draft @config-gated
+  Scenario: A goal of another grade is named
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "add unlike fractions" and taps Find
+    Then she sees "This is a Grade 4 goal" with "Use it anyway" and "See my grade’s goals"
+
+  @GOAL10 @draft @config-gated @negative
+  Scenario: A topic off the curriculum, or with a blocked word, is refused
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "cricket world cup" and taps Find
+    Then she sees "Not found in your grade’s lessons. Try other words, or select a learning goal." and nothing is picked
+    When she types a blocked word and taps Find
+    Then she sees "This is not a school topic. Select a learning goal." and nothing is picked

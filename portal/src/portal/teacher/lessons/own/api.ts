@@ -28,7 +28,8 @@ export type OwnBody = {
 };
 
 /** What the bot answered: her new plan's id, a refusal she is told about (bd-snkn32.15), or null (could not reach it). */
-export type OwnAnswer = { renderId: string } | { outcome: Refusal } | null;
+/** bd-snkn32.58.2 — `noteDropped`: her note had a blocked word and was not used (the plan still goes ahead). */
+export type OwnAnswer = { renderId: string; noteDropped?: true } | { outcome: Refusal } | null;
 
 /** bd-snkn32.13 — a Grade 9–12 lesson's FBISE SLOs, split when they mix Summative and Formative. Not mixed on any failure. */
 export type SloMix = { mixed: boolean; summative: string[]; formative: string[] };
@@ -45,7 +46,7 @@ export async function fetchSloMix(segmentId: string): Promise<SloMix> {
 async function postOwn(url: string, body: object): Promise<OwnAnswer> {
   try {
     const { data } = await api.post(url, body);
-    return typeof data?.renderId === 'string' && data.renderId ? { renderId: data.renderId } : null;
+    return typeof data?.renderId === 'string' && data.renderId ? { renderId: data.renderId, ...(data.noteDropped === true ? { noteDropped: true as const } : {}) } : null;
   } catch (err) {
     const r = (err as { response?: { status?: number; data?: { outcome?: unknown } } } | null)?.response;
     return r?.status === 409 && isRefusal(r.data?.outcome) ? { outcome: r.data.outcome } : null;

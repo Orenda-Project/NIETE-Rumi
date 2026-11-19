@@ -5,6 +5,7 @@ import { dataOf, useLoad } from '../../../newui/lessons/shared';
 import { teacherPath } from '../../routes';
 import { DockButton, StepBar } from '../../ui';
 import { useCopy } from '../../i18n';
+import { useToast } from '@/hooks/use-toast';
 import TeacherPage from '../../TeacherPage';
 import { LoadState } from '../LoadState';
 import { LESSONS } from '../copy';
@@ -62,6 +63,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const goal = s.goal ?? null;
   const w = bandWords(C, s.grade);
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<Refusal | 'error' | null>(null);
@@ -119,6 +121,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     const r = await makeOwnPlan(seg, toAnswers(s, note, next612?.id ?? null));
     setBusy(false);
     if (!r || !('renderId' in r)) { setFailed(r && 'outcome' in r ? r.outcome : 'error'); return; }
+    if (r.noteDropped) toast({ title: G.noteDropped }); // bd-snkn32.58.2: a blocked word in her note
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: r.renderId, title: seg?.title ?? C.makeMyOwn,
     }), { replace: true });

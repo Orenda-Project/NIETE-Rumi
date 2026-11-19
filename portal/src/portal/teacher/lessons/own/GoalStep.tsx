@@ -3,13 +3,15 @@ import { ChevronDown } from 'lucide-react';
 import { useCopy } from '../../i18n';
 import { FOCUS, LIST_CARD, OUTLINE_WIDE } from '../../ui/styles';
 import { GOAL } from './goalCopy';
-import { fetchGoals, matchGoal, type GoalOutcome } from './goalApi';
+import { fetchGoals, matchGoal, type GoalMatch, type GoalOutcome } from './goalApi';
 import { RadioList } from './Options';
 import { GOAL_TEXT_MAX, type GoalPick } from './state';
 
 /**
  * bd-snkn32.56 (queue #134 E) — step 1 of a goal start: her grade+subject's learning goals, or a topic she types and
- * Finds (matched to the closest lesson; no lesson behind it is said plainly and picks nothing, never a guess).
+ * Finds. bd-snkn32.58.2 (queue #155 B): Find goes through the guard (spelling, Roman Urdu, grade check, blocked words);
+ * it offers up to three "Did you mean" goals and nothing is picked until she taps one; another grade's goal comes
+ * with "This is a Grade N goal" (use it anyway / see her own); a refusal picks nothing.
  *
  * bd-snkn32.58.1 (queue #155 A) — the goals are grouped: grades 1–5 by skill (each goal one official SLO, the server's
  * `group`), 6–12 by chapter. Two taps to a goal: the skill opens, then the goal. The search box on top filters every
@@ -28,8 +30,8 @@ export function GoalStep({ at, goal, onPick }: {
   const [outcomes, setOutcomes] = useState<GoalOutcome[] | null | undefined>(undefined);
   const [topic, setTopic] = useState(goal.kind === 'topic' ? goal.text : '');
   const [open, setOpen] = useState<string | null>(null);
-  const [found, setFound] = useState<string | null>(null);
-  const [missed, setMissed] = useState(false);
+  const [guard, setGuard] = useState<GoalMatch | null>(null);
+  const [missed, setMissed] = useState<'none' | 'blocked' | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function GoalStep({ at, goal, onPick }: {
 
   const pickRow = (k: string) => {
     const o = list[Number(k)];
-    if (o) { setFound(null); onPick({ kind: 'outcome', text: o.text }, o.segmentId); }
+    if (o) onPick({ kind: 'outcome', text: o.text }, o.segmentId);
   };
   const radios = (rows: { i: number; o: GoalOutcome }[], label: string) => (
     <RadioList label={label} items={rows.map(({ i, o }) => ({ key: String(i), label: o.text, subtitle: o.chapter ?? undefined }))}
@@ -69,14 +71,16 @@ export function GoalStep({ at, goal, onPick }: {
     const q = topic.trim();
     if (q.length < 3 || busy) return;
     setBusy(true);
-    setMissed(false);
-    setFound(null);
+    setMissed(null);
+    setGuard(null);
     const m = await matchGoal(at, q);
     setBusy(false);
-    if (!m) { setMissed(true); return; }
-    setFound(m.title);
-    onPick({ kind: 'topic', text: q }, m.segmentId);
+    if (!m || m.status === 'blocked') { setMissed(m ? 'blocked' : 'none'); return; }
+    setGuard(m);
+    if (!m.suggestions.length && !m.otherGrade) setMissed('none');
   }
+  const pickGoal = (g: { segmentId: string; text: string }) => onPick({ kind: 'outcome', text: g.text }, g.segmentId);
+  const clear = () => { setTopic(''); setGuard(null); setMissed(null); };
 
   return (
     <div className="flex flex-col gap-4">
@@ -86,7 +90,7 @@ export function GoalStep({ at, goal, onPick }: {
           value={topic}
           maxLength={GOAL_TEXT_MAX}
           placeholder={G.topicPlaceholder}
-          onChange={(e) => { setTopic(e.target.value); setMissed(false); }}
+          onChange={(e) => { setTopic(e.target.value); setMissed(null); setGuard(null); }}
           onKeyDown={(e) => { if (e.key === 'Enter') void find(); }}
           className={`min-h-[56px] rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[16px] ${FOCUS}`}
           data-testid="own-goal-topic"
@@ -94,7 +98,7 @@ export function GoalStep({ at, goal, onPick }: {
       </label>
       {outcomes === undefined ? <div className="h-[168px] rounded-2xl bg-[#f0f1f3] motion-safe:animate-pulse" aria-hidden /> : null}
       {words.length && hits.length ? radios(hits, G.outcomes) : null}
-      {words.length && !hits.length && list.length ? <p className="text-[15px] text-[#6b7280]" data-testid="own-goal-nohits">{G.noneFound}</p> : null}
+      {words.length && !hits.length && list.length && !guard && !missed ? <p className="text-[15px] text-[#6b7280]" data-testid="own-goal-nohits">{G.noneFound}</p> : null}
       {!words.length && groups.length ? (
         <div className="flex flex-col gap-2" role="list" aria-label={G.outcomes}>
           {groups.map((g) => {
@@ -117,8 +121,24 @@ export function GoalStep({ at, goal, onPick }: {
       ) : null}
       {outcomes !== undefined && !outcomes?.length ? <p className="text-[15px] text-[#6b7280]" data-testid="own-goal-none">{G.noOutcomes}</p> : null}
       <button type="button" disabled={topic.trim().length < 3 || busy} onClick={() => { void find(); }} className={`${OUTLINE_WIDE} disabled:opacity-50 ${FOCUS}`} data-testid="own-goal-find">{G.find}</button>
-      {found ? <p className="text-[15px] font-semibold text-[#15803d]" data-testid="own-goal-closest">{G.closest(found)}</p> : null}
-      {missed ? <p role="alert" className="text-[15px] text-[#c8331f]" data-testid="own-goal-nomatch">{G.noMatch}</p> : null}
+      {guard?.suggestions.length ? (
+        <div className="flex flex-col gap-1.5" data-testid="own-goal-didyoumean">
+          <span className="text-[15px] font-semibold text-[#33374a]">{G.didYouMean}</span>
+          <RadioList label={G.didYouMean} items={guard.suggestions.map((g, i) => ({ key: String(i), label: g.text, subtitle: g.chapter ?? undefined }))}
+            value={null} onPick={(k) => { const g = guard.suggestions[Number(k)]; if (g) pickGoal(g); }} />
+        </div>
+      ) : null}
+      {guard?.otherGrade ? (
+        <div className={`${LIST_CARD} flex flex-col gap-2 p-4`} data-testid="own-goal-grade">
+          <span className="text-[15px] font-semibold text-[#92400e]">{G.otherGrade(guard.otherGrade.grade)}</span>
+          <span dir="auto" className="text-[16px] text-[#111827]">{guard.otherGrade.text}</span>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => guard.otherGrade && pickGoal(guard.otherGrade)} className={`${OUTLINE_WIDE} ${FOCUS}`}>{G.useAnyway}</button>
+            <button type="button" onClick={clear} className={`${OUTLINE_WIDE} ${FOCUS}`}>{G.seeMine}</button>
+          </div>
+        </div>
+      ) : null}
+      {missed ? <p role="alert" className="text-[15px] text-[#c8331f]" data-testid="own-goal-nomatch">{missed === 'blocked' ? G.blocked : G.noMatch}</p> : null}
     </div>
   );
 }

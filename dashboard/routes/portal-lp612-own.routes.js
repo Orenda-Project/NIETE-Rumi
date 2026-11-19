@@ -56,7 +56,8 @@ function logMake(req, extra, outcome, httpStatus, ownId) {
 /** Pass on the bot's answer: queued, a known refusal, or a 400/403/404. Anything else throws (→ 502). */
 function answer(res, r, label) {
   if (r.status === 202 && r.data && r.data.success && r.data.renderId) {
-    return res.status(202).json({ success: true, state: 'authoring', renderId: r.data.renderId });
+    // bd-snkn32.58.2 — her note was dropped for a blocked word: the app says so in one line.
+    return res.status(202).json({ success: true, state: 'authoring', renderId: r.data.renderId, ...(r.data.noteDropped === true ? { noteDropped: true } : {}) });
   }
   if (r.status === 409 && r.data && REFUSALS.has(r.data.outcome)) {
     return res.status(409).json({ success: false, outcome: r.data.outcome });
