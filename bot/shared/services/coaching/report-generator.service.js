@@ -663,7 +663,10 @@ class ReportGeneratorService {
       answeredQuestionCount: session.conversation_state?.questions?.filter(q => q.answer).length || 0
     });
 
-    const enhancedAnalysis = await GPT5MiniService.enhanceAnalysisWithReflections(
+    // This pass rewrites the whole analysis the report image, PDF and report page are built from, so
+    // a Hindi-script word the model writes here is converted to Urdu script before it is stored or rendered.
+    const { urduScriptOnly } = require('./urdu-script-only');
+    const enhancedAnalysis = urduScriptOnly(await GPT5MiniService.enhanceAnalysisWithReflections(
       session.analysis_data,
       session.transcript_text,
       session.conversation_state,
@@ -672,7 +675,7 @@ class ReportGeneratorService {
       },
       session.user_id,  // Pass userId to enable prior sessions check
       session.id        // Pass currentSessionId to exclude from prior check
-    );
+    ), 'reflection_pass', { coachingSessionId: session.id });
 
     if (!enhancedAnalysis || typeof enhancedAnalysis !== 'object') {
       throw new Error('Reflection enhancement returned empty analysis payload');
