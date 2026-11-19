@@ -125,6 +125,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: r.renderId, title: seg?.title ?? C.makeMyOwn,
       ...(goal ? { check: 'goal' } : {}), // bd-snkn32.58.3: Preparing says it is checking against her goal
+      back: ownUrl({ ...s, step: 'check' }), // bd-m8zwt1.8: Try again on a failed plan returns to her answers
     }), { replace: true });
   }
 

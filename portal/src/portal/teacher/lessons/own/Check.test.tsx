@@ -59,4 +59,12 @@ describe('Check', () => {
     t = document.body.textContent ?? '';
     expect(t).toContain('Grade 4 · General Science');
   });
+  it('bd-m8zwt1.9: a refusal (daily limit) is the FIRST thing on the screen, never under the note behind the button', () => {
+    show('grade=10&subject=Physics&chapter=c&seg=s', { failed: 'daily_limit' });
+    const alert = screen.getByRole('alert');
+    const note = screen.getByTestId('own-note');
+    const first = document.body.querySelector('a, [role="alert"]');
+    expect(first).toBe(alert);
+    expect(alert.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

@@ -29,6 +29,8 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
   const subject = subjectShown(s.subject, useLang());
   return (
     <>
+      {/* bd-m8zwt1.9 — first on the screen and scrolled to: under the note it sat behind the sticky button, unseen. */}
+      {failed ? <p ref={(el) => { try { el?.scrollIntoView?.({ block: 'center' }); } catch { /* old browsers */ } }} role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
       <ChosenSoFar
         items={[
           goal ? { label: goal.label, value: goal.value, sub: `${gradeLabel} · ${subject} · ${goal.sub}`, to: at('goal') }
@@ -54,7 +56,6 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
           data-testid="own-note"
         />
       </label>
-      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
     </>
   );
 }

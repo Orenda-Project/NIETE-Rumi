@@ -572,6 +572,20 @@ Feature: Teacher lesson plans
     Then the line under her goal reads "Grade 3 · Math", never "math"
     And in Urdu it reads "ریاضی"
 
+  # bd-m8zwt1.8 / bd-m8zwt1.9 (queue #164 testing), pinned by PreparingPage.retry.test.tsx and Check.test.tsx.
+  @GOAL15 @draft @config-gated
+  Scenario: Try again after her own plan failed takes her back to her own answers
+    Given the demo teacher's own plan failed while it was being made
+    When she taps "Try again" on the Preparing page
+    Then she is on "Your plan" with the answers she gave
+    And she is not shown the ready-made plan of that lesson
+
+  @GOAL16 @draft @config-gated @negative
+  Scenario: The daily limit is said where she can see it
+    Given the demo teacher has made today's last allowed own plan
+    When she taps "Make my plan" again
+    Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button
+
   # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar), written by hand.
   # @draft: the web lane's demo data has no lesson-plan PDF in its local file store, so the viewer never reaches its
   # last page here. Covered by portal/src/portal/teacher/lessons/FeedbackBar.test.tsx + ViewerPage tests (vitest) and
