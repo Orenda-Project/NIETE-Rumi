@@ -78,6 +78,16 @@ const SUB_ASK = Object.freeze({
   '3-s2': { sub: 'attention_cue:call_response', shows_en: 'a teacher saying "one, two, three!" and the class answering "eyes on me!" with a clap', shows_ur: 'ٹیچر "ون، ٹو، تھری!" کہتے ہیں اور بچے تالی کے ساتھ "آئیز آن می!" جواب دیتے ہیں' },
   '481-s2': { sub: 'inquiry_opening:object_question', shows_en: 'a teacher opening with a bag of school rubbish and one question, then 30 seconds to think before pair talk', shows_ur: 'ایک ٹیچر اسکول کے کچرے کا تھیلا دکھا کر ایک سوال سے سبق شروع کرتے ہیں، پھر 30 سیکنڈ سوچنے اور جوڑی میں بات کا وقت' },
   '722-s2': { sub: 'activate_prior_knowledge:recall_first', shows_en: 'a teacher holding up a picture of Earth and asking what the children already know before naming the topic', shows_ur: 'ایک ٹیچر زمین کی تصویر دکھا کر موضوع بتانے سے پہلے پوچھتے ہیں کہ بچے کیا جانتے ہیں' },
+  // R9c second clips (ped-align ADDON.md 20261119T174039: 20/20 R+A each, 0 ⛔; red7 PASS 175254; COS 174101). `tier` 1
+  // ranks them after the 9 first clips, so first contact is unchanged; 790-s2 is tier 2, last, since showing it would
+  // close video 790 and with it 790-s3 (red7 N1). 794-s2 is write-alone-then-four: never below Grade 3 (4 of 24 G1–2
+  // votes wrong). 778-s2 is held (red7 HOLD 175254: the transcript shows a check-in, not a question and a held wait).
+  '790-s2': { sub: 'think_pair_share:think_then_pair', tier: 2, shows_en: 'a trainer asking everyone to think of the answer alone first, then put heads together and agree on the best answer', shows_ur: 'ایک ٹرینر سب سے کہتے ہیں کہ پہلے اکیلے ذہن میں جواب سوچیں، پھر مل کر بہترین جواب طے کریں' },
+  '804-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'adult participants thinking and writing alone, then talking in pairs, then sharing the pair\'s ideas at the board', shows_ur: 'بڑے شرکاء پہلے اکیلے سوچ کر لکھتے ہیں، پھر جوڑی میں بات کرتے ہیں، پھر جوڑی کے خیالات بورڈ پر سب کو بتاتے ہیں' },
+  '905-s5': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'a teacher giving students 2 minutes to settle three facts on their own, then pairs to discuss their story', shows_ur: 'ایک ٹیچر طلبہ کو 2 منٹ دیتے ہیں کہ خود تین باتیں طے کریں، پھر جوڑی میں اپنی کہانی پر بات کریں' },
+  '794-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, grade_min: 3, shows_en: 'a trainer asking everyone to write their answer alone, then after a minute moving into groups of four to compare and correct', shows_ur: 'ایک ٹرینر سب سے پہلے اکیلے جواب لکھواتے ہیں، پھر ایک منٹ بعد چار کے گروپ میں جواب ملا کر درست کرواتے ہیں' },
+  '745-s1': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'adult participants each listing five qualities of a good teacher, then making one list in pairs, then in fours', shows_ur: 'بڑے شرکاء پہلے اکیلے اچھے ٹیچر کی پانچ خوبیاں لکھتے ہیں، پھر جوڑی میں ایک فہرست بناتے ہیں، پھر چار کے گروپ میں' },
+  '451-s1': { sub: 'wait_time:after_question', tier: 1, shows_en: 'a teacher setting the rule of 10 seconds to think and no calling out, then holding back a student who wants to answer first', shows_ur: 'ایک ٹیچر اصول بتاتے ہیں: سوچنے کے 10 سیکنڈ اور بیچ میں کوئی نہ بولے، پھر جلدی جواب دینے والے ایک بچے کو روکتے ہیں' },
 });
 
 // --- 1. the card's ask -------------------------------------------------------------------------------------------------
@@ -133,18 +143,28 @@ const REFUSE_ONLY = [
 // in the when-clause counts: wait time after a stumble is not 790-s3's wait after a question). COS 152504 §2.
 const NEAR_MISS = [
   ['differentiate', /two (?:paths|versions|levels|tasks)|three (?:stations|levels)|\btiers?\b|tiered|struggl|quick(?:er)? (?:students|guessers|finishers)|early finishers|strongest|most students|for others|simpler (?:prompt|task|example)|easier|harder|stretch task|core task|challenge (?:task|set)|support set|\blevels?\b|کمزور|تیز (?:بچوں|طلبہ|بچے)|آسان|مشکل|باقی بچوں/iu],
-  ['stumble', /\bstumbl|\bstall|\bhesitat|\bpauses? (?:on|mid)|mid-sentence|reshap|comes out broken|پر (?:کوئی بچہ )?رکے|رکے،|رک جائے|اٹک/iu],
+  ['stumble', /\bstumbl|\bstall|\bhesita|\bpauses? (?:on|mid)|mid-sentence|reshap|comes out broken|پر (?:کوئی بچہ )?رکے|رکے،|رک جائے|اٹک/iu],
   // played media is the main move («play the audio», «a demo on the computer»); a classroom demo is 95-s1's observed
   // phenomenon, not one
   ['reading_model', /fluent model|poem audio|\baudio\b|\bplay (?:the |a )?(?:short )?(?:video|clip|audio|demo)|demo on the computer|role-play|آڈیو/iu],
-  ['monitoring', /independent|on[- ]task|visible timer|row by row|circulate|گھوم کر/iu],
+  ['monitoring', /independent|on[- ]task|visible timer|row by row|circulate|گھوم کر|کے پاس جا کر/iu],
   ['behaviour', /noise|shouting|chatter|quiet look|شور/iu],
   ['feedback', /praise|shabaa|شاباش|تعریف|next step|feedback/iu],
   ['model', /\bmodel(?:ing|led|s)?\b|ماڈل/iu],
+  ['exemplar', /exemplar/iu],
   ['sentence_task', /full sentence|sentence frame|complete[- ]the[- ]sentence|مکمل sentence|جملہ مکمل|sentence بنا/iu],
   ['lesson_plan', /lesson plan/iu],
   ['peer', /\bpeer|partner check|checklist/iu],
   ['board_work', /side-by-side|on the board first|بورڈ پر لکھیں/iu],
+  // R9c (ped-align r6, 20261119T172641: 18 wrongs beyond 782-s1's `model`): the card's main step is another classroom
+  // move with a why or a wait attached. Each pattern is a move no cleared clip shows.
+  ['representation', /\bT-chart|\barrows?\b|\bdraw\b[^.;,]{0,25}\bon the board|show it on|دو کالم بنا|sorting activity/iu],
+  ['scaffold', /offer (?:\w+ ){0,3}(?:hints|choices|options)|word choices/iu],
+  ['resource', /word cards|flash ?cards/iu],
+  ['task_choice', /let (?:them|students|the class|children|each \w+) choose/iu],
+  ['closure_stem', /میں نے سیکھا|today I learned|سمجھ آ گئی/iu],
+  ['hands_up', /raise (?:your |their )?hands?|how many of you|hands up/iu],
+  ['pair_work', /pair (?:them|students|children) up|\bask pairs\b|pair[- ]check|\bthink \d+\s*s(?:ec(?:onds?)?)?,? (?:then )?pair/iu],
   ['timed_pairs', /\d+\s*s(?:ec(?:onds?)?)? (?:of )?(?:think|pair)|\d+\s*سیکنڈ کی (?:paired|pair|جوڑی)|paired discussion/iu],
   ['name_cards', /name cards|quieter students/iu],
   ['act_out', /act (?:it |them )?out|role-play/iu],
@@ -152,6 +172,12 @@ const NEAR_MISS = [
   ['sort_task', /\bsort\b|sort کروائیں/iu],
 ];
 const NEAR_MISS_FOR = new Set(['open_questions', 'wait_time']);
+// …and the near-misses that refuse one more move's clip (ped-align r6: `model` on follow_up_probe, 782-s1 183/193 →
+// 179/185; the rest from the r6 wrongs, each priced on the 1,387 judged picks at #5141, eng-rec calib/r9c)
+const NEAR_MISS_ONLY = Object.freeze({
+  follow_up_probe: new Set(['model', 'representation', 'hands_up', 'pair_work']),
+  think_pair_share: new Set(['exemplar']),
+});
 // one questioning ask in two steps, either order («ask why, then wait» / «wait, then ask why»)
 const QUESTION_FAMILY = new Set(['open_questions', 'follow_up_probe', 'ask_for_reasoning', 'wait_time']);
 // …and the one a given move's clip must not be read as (ped-align ALLOWLIST.md "match at this grain"; held-out wrongs)
@@ -218,6 +244,7 @@ function classifyAsks(sentence) {
     if (move === 'wait_time' && !QUESTION_NEAR.test(card)) continue;
     if ((REFUSE[move] || []).some((r) => off.has(r) || only.has(r))) continue;
     if (nearMiss && NEAR_MISS_FOR.has(move)) continue;
+    if (NEAR_MISS_ONLY[move] && NEAR_MISS.some(([id, rx]) => NEAR_MISS_ONLY[move].has(id) && rx.test(card))) continue;
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
@@ -290,7 +317,8 @@ function videoKey(module) {
 }
 
 /**
- * The chapters this card may get, best first: same subject, then the narrower grade band, then seg id (stable).
+ * The chapters this card may get, best first: the 9 first clips before the second clips (SUB_ASK tier), then same
+ * subject, then the narrower grade band, then seg id (stable).
  * @param {object} catalog  catalog.fromData(v2 data)
  * @param {{move, sub}} ask
  * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null}} ctx
@@ -321,6 +349,7 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
       if (!rec || rec.sub !== ask.sub) continue;
       if (ctx.allow && !ctx.allow.has(String(seg.seg_id))) continue;
       if (seenSegs.has(String(seg.seg_id))) continue;
+      if (rec.grade_min && !(lesson && lesson.grade && Number(lesson.grade.lo) >= rec.grade_min)) continue; // unknown grade: no
       if (!contractOk(module, seg, ask.move)) continue;
       if (!langs.has(seg.language || module.language)) continue;
       out.push({ module, seg });
@@ -328,7 +357,8 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
   }
   const ls = subj(lesson && lesson.subject);
   const width = (m) => { const r = /^(\d{1,2})-(\d{1,2})$/.exec(String(m.grade_band || '')); return r ? Number(r[2]) - Number(r[1]) : 99; };
-  return out.sort((a, b) => Number((b.module.subjects || []).map(subj).includes(ls)) - Number((a.module.subjects || []).map(subj).includes(ls))
+  const tier = (c) => SUB_ASK[String(c.seg.seg_id)].tier || 0;
+  return out.sort((a, b) => tier(a) - tier(b) || Number((b.module.subjects || []).map(subj).includes(ls)) - Number((a.module.subjects || []).map(subj).includes(ls))
     || width(a.module) - width(b.module) || String(a.seg.seg_id).localeCompare(String(b.seg.seg_id)));
 }
 
