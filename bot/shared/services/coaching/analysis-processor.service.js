@@ -603,9 +603,14 @@ class AnalysisProcessorService {
       } else if (v6Shadow && v6Shadow.mode === 'v6') {
         logToFile('[fico17-v6] fico_dc_rubric is v6 but the v6 read is not ok — this report stays V3', { coachingSessionId, status: v6Shadow.status }, 'warn');
       }
+      // The model still writes the odd Hindi-script word into its Urdu (evidence, focus area, corpus,
+      // v6 read, photo read). analysis_data is what the coach's review form is pre-filled from and every report
+      // re-reads, so this write is stored in Urdu script: the transcript's own converter, run over every string once,
+      // here. The other columns (status, timestamps, costs, framework key) never hold Devanagari and pass unchanged.
+      const { urduScriptOnly } = require('./urdu-script-only');
       const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
-        .update({
+        .update(urduScriptOnly({
           analysis_data: {
             ...reportAnalysis,
             ...(liveMoves ? { live_moves: liveMoves } : {}),
@@ -649,7 +654,7 @@ class AnalysisProcessorService {
           gpt5_cached_tokens: analysisResult.usage.cached_tokens,
           framework: v6Report ? v6Report.framework : frameworkKey,
           framework_selection_reason: v6Report ? 'dc_rubric_v6' : frameworkSelectionReason,
-        })
+        }, 'analysis', { coachingSessionId }))
         .eq('id', coachingSessionId)
         .not('status', 'in', TERMINAL_IN_FILTER)
         .select('id');

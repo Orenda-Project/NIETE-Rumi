@@ -24,6 +24,7 @@ const GPT5MiniService = require('../../gpt5-mini.service');
 const { modelFor } = require('../../../config/model-registry');
 const { logToFile } = require('../../../utils/logger');
 const { KISWAHILI_STYLE } = require('../kiswahili-style');
+const { urduScriptOnly } = require('../urdu-script-only');
 
 const LANG_NAME = { en: 'English', ur: 'Urdu', ar: 'Arabic', sw: 'Kiswahili' };
 const RTL_LANGS = new Set(['ur', 'ar']);
@@ -364,7 +365,8 @@ async function generateFicoSDomainWhys(ficos, opts = {}) {
         response_format: { type: 'json_object' },
       });
       const parsed = JSON.parse(response.choices[0].message.content);
-      const raw = (parsed && parsed.domain_whys) || {};
+      // Urdu script first (no Devanagari font in the report), then the code-switch net.
+      const raw = urduScriptOnly((parsed && parsed.domain_whys) || {}, 'fico_s_domain_whys');
       const out = {};
       for (const k of ['A', 'B', 'C', 'D', 'E']) {
         if (typeof raw[k] === 'string' && raw[k].trim()) out[k] = RTL_LANGS.has(language) ? fixCodeswitch(raw[k].trim()) : raw[k].trim();
@@ -549,7 +551,10 @@ async function narrativeAttempt(analysis, opts, attempt) {
       response_format: { type: 'json_object' },
     });
     const parsed = JSON.parse(response.choices[0].message.content);
-    const narrative = normalize(parsed, language);
+    // Rendered into the report image and PDF (no Devanagari font: boxes) and stored for the report
+    // page, so a Hindi-script word the model writes is converted to Urdu script first, whatever the report language,
+    // and the code-switch net in normalize() then sees it like any other Urdu word.
+    const narrative = normalize(urduScriptOnly(parsed, 'report_narrative'), language);
     // The report's next-step is the COMMITMENT-CARD action, not a field of this pass.
     // Strip any try_next the model volunteered so there's one source of next-step truth.
     delete narrative.try_next;
