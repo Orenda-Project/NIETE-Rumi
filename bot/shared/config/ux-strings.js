@@ -288,6 +288,12 @@ const UX_STRINGS = {
     en: 'Your report gives you one thing to try next class. This clip shows one way to do it.',
     ur: 'آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے: {title}۔', // R7j: card_frame_other_ur
   },
+  // R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): an aligned clip's reason names what the report asked and what the clip
+  // shows. {ask} and {shows} are aligned.js SUB_ASKS / SUB_ASK lines (gender-neutral); {n} is the usable span in seconds.
+  videoRecoAlignedReason: {
+    en: 'Your report asked you to {ask}. This {n}-second clip shows {shows}.',
+    ur: 'آپ کی رپورٹ میں کہا گیا تھا کہ {ask}۔ اس {n} سیکنڈ کے کلپ میں دیکھیں: {shows}۔',
+  },
 
   // R7d (panel §4, §6.6: 46 rows attributed the card's script to the clip): the clip half of a reason, written from the
   // chapter's own title, never from the model. {title} is the chapter title in the reader's language.
@@ -1800,8 +1806,8 @@ const UX_STRINGS = {
   lpOwnRowMeta: { en: 'Your plan, made for your class', ur: 'آپ کی کلاس کے لیے آپ کا اپنا پلان' },
   lpOwnFlowAck: { en: 'Done. Tap the button in the chat to start.', ur: 'ہو گیا۔ شروع کرنے کے لیے چیٹ میں بٹن دبائیں۔' },
   lpOwnLinkBody: {
-    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 24 hours.',
-    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۲۴ گھنٹے چلے گا۔',
+    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 7 days.',
+    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۷ دن چلے گا۔',
   },
   lpOwnLinkButton: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
   lpOwnUnavailable: { en: 'Make my own is not available right now.', ur: 'اپنا پلان بنانا ابھی دستیاب نہیں۔' },

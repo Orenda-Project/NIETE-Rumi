@@ -14,8 +14,8 @@
  *
  * WHO SAYS WHO. The user, the journey and the session come from the portal SESSION — never from the request body. A
  * browser can say "I am on /portal/teacher/lessons" and nothing else about itself, so it cannot attribute events to
- * another teacher or another journey. The journey (set by /go from the link's token) counts for 24 hours, the life of
- * the link; after that the same session logs journeyId null.
+ * another teacher or another journey. The journey (set by /go from the link's token) counts for 24 hours from the tap
+ * (the link itself lives 7 days: bd-zrdvmi.28); after that the same session logs journeyId null.
  *
  * WHAT IS NEVER LOGGED. Names, phones, free text, ids, query strings. Routes are normalised to their shape
  * ('/portal/coach/visit/:id/record'); `appSessionId` is a hash of the session id, never the id itself.

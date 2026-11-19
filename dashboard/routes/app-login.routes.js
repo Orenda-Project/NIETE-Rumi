@@ -3,7 +3,7 @@
  *
  *   GET /go/:token   genuine, unexpired, for a teacher who exists → a NEW portal session for her (regenerated,
  *                    exactly as the password login does; the WHOLE app, no area scope), then the page for what she
- *                    asked for (bot/shared/services/app-login-link.js LANDINGS). Re-tappable for 24 h.
+ *                    asked for (bot/shared/services/app-login-link.js LANDINGS). Re-tappable for 7 days.
  *                    Anything else → the en/ur "get a new link" page and no session.
  *   GET /go          the same page.
  *
@@ -26,15 +26,15 @@ const telemetry = require('../services/telemetry.service');
 const COPY = {
   en: {
     title: 'This link has expired',
-    body: 'Links last 24 hours. Tap below and send the message: we will reply with a new link.',
+    body: 'Links last 7 days. Tap below and send the message: we will reply with a new link.',
     // No bot number configured on this deployment: no button, so the words carry the whole instruction.
-    bodyNoButton: 'Links last 24 hours. Go back to WhatsApp and send /portal. We will send you a new link.',
+    bodyNoButton: 'Links last 7 days. Go back to WhatsApp and send /portal. We will send you a new link.',
     button: 'Get a new link',
   },
   ur: {
     title: 'یہ لنک ختم ہو چکا ہے',
-    body: 'لنک ۲۴ گھنٹے تک چلتا ہے۔ نیچے ٹیپ کریں اور پیغام بھیجیں: ہم آپ کو نیا لنک بھیج دیں گے۔',
-    bodyNoButton: 'لنک ۲۴ گھنٹے تک چلتا ہے۔ واٹس ایپ پر واپس جائیں اور \u2066/portal\u2069 بھیجیں۔ ہم آپ کو نیا لنک بھیج دیں گے۔',
+    body: 'لنک ۷ دن تک چلتا ہے۔ نیچے ٹیپ کریں اور پیغام بھیجیں: ہم آپ کو نیا لنک بھیج دیں گے۔',
+    bodyNoButton: 'لنک ۷ دن تک چلتا ہے۔ واٹس ایپ پر واپس جائیں اور \u2066/portal\u2069 بھیجیں۔ ہم آپ کو نیا لنک بھیج دیں گے۔',
     button: 'نیا لنک لیں',
   },
 };
