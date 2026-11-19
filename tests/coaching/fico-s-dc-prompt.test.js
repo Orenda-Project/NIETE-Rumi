@@ -35,12 +35,15 @@ describe('the prompt is the rubric registry, starred indicators left out', () =>
       for (const l of ind.levels) expect(sys).toContain(`Level ${l.n} (${S.LEVEL_LABELS[l.n]}): ${l.text}`);
     }
   });
-  test('E3 (starred) is not in the prompt at all: not its code, name, words or levels', () => {
-    const e3 = S.indicator('E3');
+  test('no starred indicator is in the prompt at all: not its code, name, words or levels', () => {
+    for (const c of S.STARRED_CODES) {
+      const ind = S.indicator(c);
+      expect(sys).not.toContain(`Indicator: ${c} `);
+      expect(sys).not.toContain(`"${c}"`);
+      expect(sys).not.toContain(ind.look_for);
+      for (const l of ind.levels) expect(sys).not.toContain(l.text);
+    }
     expect(sys).not.toContain('E3');
-    expect(sys).not.toContain(e3.name);
-    expect(sys).not.toContain(e3.look_for);
-    for (const l of e3.levels) expect(sys).not.toContain(l.text);
   });
   test('N/A is offered only where the rubric allows it (C2)', () => {
     expect(sys).toContain(`N/A: ${S.indicator('C2').na.text}`);
@@ -48,7 +51,7 @@ describe('the prompt is the rubric registry, starred indicators left out', () =>
     expect(naLines).toHaveLength(S.NA_CODES.length);
   });
   test('the prompt version names the rubric data and a version of the prompt', () => {
-    expect(fw.promptVersion).toMatch(/^fico-s-dc-1\+[0-9a-f]{8}$/);
+    expect(fw.promptVersion).toMatch(/^fico-s-dc-2\+[0-9a-f]{8}$/); // 2: the HITL-only indicators starred (19 Nov)
     expect(fw.name).toBe('fico_s_v1_1');
   });
 });
@@ -83,16 +86,18 @@ describe('the validator and the scorer', () => {
     expect(r.levels.A1.evidence).toHaveLength(1);
     expect(v.dropped).toBeGreaterThanOrEqual(1);
   });
-  test('a reply that scores E3 is refused; NA outside C2 is refused; a missing indicator is refused', () => {
+  test('a reply that scores a starred indicator is refused; NA outside C2 is refused; a missing indicator is refused', () => {
     expect(fw.validate(reply({ E3: { result: 2, because: 'x', evidence: [] } }), T).errors.join('\n')).toMatch(/E3: a starred indicator/);
+    expect(fw.validate(reply({ C3: { result: 2, because: 'x', evidence: [] } }), T).errors.join('\n')).toMatch(/C3: a starred indicator/);
     expect(fw.validate(reply({ A2: { result: 'NA', because: 'x', evidence: [] } }), T).ok).toBe(false);
     const r = reply(); delete r.levels.B1;
     expect(fw.validate(r, T).errors.join('\n')).toMatch(/B1: missing/);
     expect(fw.validate(reply({ C2: { result: 'NA', because: 'no wrong answer', evidence: [] } }), T).ok).toBe(true);
   });
   test('the scorer stamps the rubric, never keeps a starred level, and adds up the DC levels as FICO-S does', () => {
-    const a = fw.computeScores(reply({ E3: { result: 4, because: 'by mistake', evidence: [] }, C2: { result: 'NA', because: '', evidence: [] }, D1: { result: 'IE', because: 'garbled', evidence: [] } }), false);
+    const a = fw.computeScores(reply({ E3: { result: 4, because: 'by mistake', evidence: [] }, D2: { result: 4, because: 'by mistake', evidence: [] }, C2: { result: 'NA', because: '', evidence: [] }, D1: { result: 'IE', because: 'garbled', evidence: [] } }), false);
     expect(a.levels.E3).toBeUndefined();
+    expect(a.levels.D2).toBeUndefined();
     expect(a.rubric).toBe('fico_s_v1_1');
     expect(a.prompt_version).toBe(fw.promptVersion);
     expect(a.dc_scores.counted).toBe(S.DC_CODES.length - 2);
