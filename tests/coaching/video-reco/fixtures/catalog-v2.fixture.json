@@ -1,0 +1,1833 @@
+{
+ "version": "catalog-v2-fixture-r9",
+ "framework": "fico",
+ "modules": [
+  {
+   "module_id": 3,
+   "video_id": "tm-3",
+   "library": "cpd",
+   "level_id": 1,
+   "title": "How to use attention cues in classroom",
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/3/bb698468-b8bb-4b39-ba7b-69cddca357d3.mp4",
+   "duration_s": 146.22,
+   "language": "mixed",
+   "format": "mixed",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "primary",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/thumbs/3.jpg",
+   "segments": [
+    {
+     "seg_id": "3-s1",
+     "start_s": 0.0,
+     "end_s": 33.3,
+     "title_en": "Intro: why attention slips",
+     "title_ur": "تعارف: بچوں کی توجہ کیوں ہٹتی ہے",
+     "moves": [
+      "attention_cue"
+     ],
+     "fico": [],
+     "language": "ur",
+     "recommendable": false,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": null,
+      "flags": [
+       "no_children_visible"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "3-s2",
+     "start_s": 33.9,
+     "end_s": 105.5,
+     "title_en": "Five attention cues, why they work, and a demo",
+     "title_ur": "توجہ کے پانچ اشارے، ان کا فائدہ اور عملی مظاہرہ",
+     "moves": [
+      "attention_cue",
+      "routines"
+     ],
+     "fico": [
+      {
+       "indicator": "B2",
+       "strength": 0,
+       "evidence_s": 79.1
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "attention_cue",
+      "fico": [],
+      "what_en": "Cartoon teacher says '1, 2, 3!' and claps 3 times; two cartoon children answer 'Eyes on me!' and clap back",
+      "what_ur": "کارٹون ٹیچر 'ون، ٹو، تھری!' کہتی اور تین تالیاں بجاتی ہے؛ دو بچے 'آئیز آن می!' کہہ کر تالی واپس بجاتے ہیں"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 33.9,
+       "end_s": 105.5
+      },
+      "flags": [
+       "english_slides_urdu_voice"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "3-s3",
+     "start_s": 106.1,
+     "end_s": 146.22,
+     "title_en": "Pick one cue and practise it",
+     "title_ur": "ایک اشارہ چنیں اور مشق کریں",
+     "moves": [
+      "routines",
+      "attention_cue"
+     ],
+     "fico": [],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 106.1,
+       "end_s": 146.22
+      },
+      "flags": [
+       "no_children_visible"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 95,
+   "video_id": "tm-95",
+   "library": "cpd",
+   "level_id": 3,
+   "title": "Use Socratic Questioning",
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/95/8b9ef0d9-53e6-4a73-ac9e-5919f7553b9b.mp4",
+   "duration_s": 226.81,
+   "language": "en",
+   "format": "animation",
+   "subjects": [
+    "general",
+    "science"
+   ],
+   "grade_band": "primary",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/thumbs/95.jpg",
+   "segments": [
+    {
+     "seg_id": "95-s1",
+     "start_s": 0.0,
+     "end_s": 85.47,
+     "title_en": "Socratic questioning in a Grade 4 science lesson",
+     "title_ur": "گریڈ 4 سائنس میں سقراطی سوالات",
+     "moves": [
+      "open_questions",
+      "inquiry_opening"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2,
+       "evidence_s": 54.63
+      },
+      {
+       "indicator": "F6",
+       "strength": 1,
+       "evidence_s": 79.23
+      },
+      {
+       "indicator": "F7",
+       "strength": 1,
+       "evidence_s": 64.89
+      },
+      {
+       "indicator": "D1",
+       "strength": 0,
+       "evidence_s": 67.71
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "open_questions",
+      "fico": [
+       "C1"
+      ],
+      "what_en": "Teacher asks: 'Why do you think summers are getting hotter, and how might this affect plants and animals around us?'",
+      "what_ur": "استاد پوچھتی ہیں: «تمہارے خیال میں گرمیاں ہر سال زیادہ گرم کیوں ہو رہی ہیں، اور اس کا ہمارے اردگرد پودوں اور جانوروں پر کیا اثر ہوگا؟»"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 0.0,
+       "end_s": 85.47
+      },
+      "flags": [
+       "storybook_illustration",
+       "english_audio",
+       "text_on_screen"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "95-s2",
+     "start_s": 85.47,
+     "end_s": 149.67,
+     "title_en": "What an inquiry classroom looks like",
+     "title_ur": "تحقیقی کلاس روم کیسا ہوتا ہے",
+     "moves": [
+      "inquiry_opening",
+      "real_world_connection"
+     ],
+     "fico": [
+      {
+       "indicator": "F6",
+       "strength": 1,
+       "evidence_s": 87.93
+      },
+      {
+       "indicator": "B5",
+       "strength": 1,
+       "evidence_s": 132.99
+      },
+      {
+       "indicator": "C4",
+       "strength": 0,
+       "evidence_s": 124.11
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 85.47,
+       "end_s": 149.67
+      },
+      "flags": [
+       "storybook_illustration",
+       "english_audio",
+       "text_on_screen"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "95-s3",
+     "start_s": 149.67,
+     "end_s": 226.81,
+     "title_en": "Open question stems, group talk and follow-up probes",
+     "title_ur": "کھلے سوال، گروپ گفتگو اور مزید پوچھنا",
+     "moves": [
+      "open_questions",
+      "follow_up_probe",
+      "ask_for_reasoning"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2,
+       "evidence_s": 161.67
+      },
+      {
+       "indicator": "D2",
+       "strength": 1,
+       "evidence_s": 187.29
+      },
+      {
+       "indicator": "D1",
+       "strength": 0,
+       "evidence_s": 174.15
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "follow_up_probe",
+      "fico": [
+       "C1",
+       "D2"
+      ],
+      "what_en": "When a student answers, follow up: 'Can you explain more?' or 'What makes you think that?'",
+      "what_ur": "جب بچہ جواب دے تو مزید پوچھیں: «کیا تم اور وضاحت کر سکتے ہو؟» یا «تمہیں ایسا کیوں لگتا ہے؟»"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 149.67,
+       "end_s": 226.81
+      },
+      "flags": [
+       "storybook_illustration",
+       "english_audio",
+       "credits_at_end"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 177,
+   "video_id": "tm-177",
+   "library": "oxbridge",
+   "level_id": 17,
+   "title": "SESSION#6",
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/177/asset.mp4",
+   "duration_s": 523.97,
+   "language": "en",
+   "format": "slides",
+   "subjects": [
+    "science",
+    "maths"
+   ],
+   "grade_band": "6-8",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/177.jpg",
+   "segments": [
+    {
+     "seg_id": "177-s1",
+     "start_s": 0.0,
+     "end_s": 59.07,
+     "title_en": "Session intro and learning outcomes",
+     "title_ur": "سیشن کا تعارف اور سیکھنے کے مقاصد",
+     "moves": [
+      "programme_intro"
+     ],
+     "fico": [],
+     "language": "en",
+     "recommendable": false,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": null,
+      "flags": [
+       "intro"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "177-s2",
+     "start_s": 64.29,
+     "end_s": 158.19,
+     "title_en": "What STEM and STEAM mean",
+     "title_ur": "اسٹیم اور اسٹیم (آرٹس کے ساتھ) کا مطلب",
+     "moves": [
+      "real_world_connection"
+     ],
+     "fico": [
+      {
+       "indicator": "B5",
+       "strength": 1,
+       "evidence_s": 80.25
+      },
+      {
+       "indicator": "D4",
+       "strength": 0,
+       "evidence_s": 145.11
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "science",
+      "maths"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 64.29,
+       "end_s": 158.19
+      },
+      "flags": [],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "177-s3",
+     "start_s": 162.75,
+     "end_s": 222.21,
+     "title_en": "Why games support STEM learning",
+     "title_ur": "کھیل اسٹیم سیکھنے میں کیسے مدد دیتے ہیں",
+     "moves": [
+      "learning_through_play",
+      "group_work"
+     ],
+     "fico": [
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 172.05
+      },
+      {
+       "indicator": "D1",
+       "strength": 0,
+       "evidence_s": 189.81
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 162.75,
+       "end_s": 222.21
+      },
+      "flags": [],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "177-s4",
+     "start_s": 224.43,
+     "end_s": 350.91,
+     "title_en": "Forces and motion: open with a challenge, then ask why",
+     "title_ur": "قوت اور حرکت: چیلنج سے آغاز، پھر 'کیوں' کا سوال",
+     "moves": [
+      "inquiry_opening",
+      "ask_for_reasoning",
+      "digital_tools"
+     ],
+     "fico": [
+      {
+       "indicator": "F6",
+       "strength": 2,
+       "evidence_s": 230.73
+      },
+      {
+       "indicator": "D2",
+       "strength": 1,
+       "evidence_s": 291.51
+      },
+      {
+       "indicator": "F5",
+       "strength": 1,
+       "evidence_s": 303.39
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "ask_for_reasoning",
+      "fico": [
+       "D2",
+       "F4"
+      ],
+      "what_en": "After the simulation: 'Why did the heavier object move slower? What changed when we increased the force?'",
+      "what_ur": "سیمولیشن کے بعد: «بھاری چیز آہستہ کیوں چلی؟ جب ہم نے قوت بڑھائی تو کیا بدلا؟»"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 224.43,
+       "end_s": 343.41
+      },
+      "flags": [
+       "screen_recording",
+       "no_children_visible"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "177-s5",
+     "start_s": 352.41,
+     "end_s": 410.97,
+     "title_en": "One activity, many subjects",
+     "title_ur": "ایک سرگرمی، کئی مضامین",
+     "moves": [
+      "real_world_connection",
+      "digital_tools"
+     ],
+     "fico": [
+      {
+       "indicator": "B5",
+       "strength": 1,
+       "evidence_s": 364.11
+      },
+      {
+       "indicator": "D4",
+       "strength": 0,
+       "evidence_s": 405.03
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "science",
+      "maths"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 352.41,
+       "end_s": 410.97
+      },
+      "flags": [],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "177-s6",
+     "start_s": 415.17,
+     "end_s": 472.71,
+     "title_en": "Coding through games: Scratch and Code.org",
+     "title_ur": "کھیلوں کے ذریعے کوڈنگ: اسکریچ اور کوڈ ڈاٹ آرگ",
+     "moves": [
+      "digital_tools"
+     ],
+     "fico": [
+      {
+       "indicator": "F5",
+       "strength": 0,
+       "evidence_s": 452.91
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "computer"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 415.17,
+       "end_s": 472.71
+      },
+      "flags": [],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "177-s7",
+     "start_s": 476.73,
+     "end_s": 517.95,
+     "title_en": "Key takeaways",
+     "title_ur": "اہم نکات",
+     "moves": [
+      "learning_through_play"
+     ],
+     "fico": [],
+     "language": "en",
+     "recommendable": false,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "6-8",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": null,
+      "flags": [
+       "recap"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 451,
+   "video_id": "tm-451",
+   "library": "isaps",
+   "level_id": 27,
+   "title": "Unit 207",
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/i-saps/level-1/module-2/unit-207.mp4",
+   "duration_s": 320.0,
+   "language": "mixed",
+   "format": "mixed",
+   "subjects": [
+    "science"
+   ],
+   "grade_band": "9-12",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/451.jpg",
+   "segments": [
+    {
+     "seg_id": "451-s1",
+     "start_s": 0.0,
+     "end_s": 67.35,
+     "title_en": "Set turn-taking rules and think time first",
+     "title_ur": "پہلے باری کے اصول اور سوچنے کا وقت طے کریں",
+     "moves": [
+      "wait_time",
+      "routines"
+     ],
+     "fico": [
+      {
+       "indicator": "F5",
+       "strength": 1,
+       "evidence_s": 26.67
+      },
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 42.51
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "wait_time",
+      "fico": [
+       "C1",
+       "F5"
+      ],
+      "what_en": "teacher sets the rule: 10 seconds to think, I call you in turn, no calling out; holds back an eager student",
+      "what_ur": "ٹیچر اصول بتاتی ہیں: سوچنے کے 10 سیکنڈ، باری پر بلاؤں گی، کوئی بیچ میں نہیں بولے گا؛ جلدی بولنے والی طالبہ کو روکتی ہیں"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 0.0,
+       "end_s": 67.35
+      },
+      "flags": [
+       "dramatised"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "451-s2",
+     "start_s": 68.43,
+     "end_s": 161.97,
+     "title_en": "Call on named students, no opt-out",
+     "title_ur": "نام لے کر بلانا، کوئی بچ کر نہ نکلے",
+     "moves": [
+      "no_hands_up",
+      "follow_up_probe",
+      "student_wellbeing"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2,
+       "evidence_s": 90.03
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 131.91
+      },
+      {
+       "indicator": "D2",
+       "strength": 0,
+       "evidence_s": 96.33
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "no_hands_up",
+      "fico": [
+       "C1",
+       "D1"
+      ],
+      "what_en": "teacher calls students by name; one gets stuck, is thanked, hears a classmate's answer, then is asked to repeat it",
+      "what_ur": "ٹیچر نام لے کر بلاتی ہیں؛ ایک طالبہ اٹک جاتی ہے، شکریہ ملتا ہے، پھر ساتھی کا جواب سن کر اسے دہراتی ہے"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 68.43,
+       "end_s": 161.97
+      },
+      "flags": [
+       "dramatised"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "451-s3",
+     "start_s": 162.69,
+     "end_s": 225.69,
+     "title_en": "Pair discussion before anyone answers",
+     "title_ur": "جواب سے پہلے جوڑیوں میں گفتگو",
+     "moves": [
+      "think_pair_share",
+      "closure_check"
+     ],
+     "fico": [
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 165.63
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 173.37
+      },
+      {
+       "indicator": "B7",
+       "strength": 0,
+       "evidence_s": 209.13
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "C4",
+       "D1"
+      ],
+      "what_en": "students talk in pairs first, then report; the teacher stops one student answering for everyone so others can share",
+      "what_ur": "طلبہ پہلے جوڑیوں میں بات کرتی ہیں پھر بتاتی ہیں؛ ٹیچر ایک طالبہ کو سب کی طرف سے جواب دینے سے روکتی ہیں"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 162.69,
+       "end_s": 225.69
+      },
+      "flags": [
+       "dramatised"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "451-s4",
+     "start_s": 227.31,
+     "end_s": 320.0,
+     "title_en": "Why preemptive teaching works",
+     "title_ur": "پہلے سے منصوبہ بندی کیوں کام کرتی ہے",
+     "moves": [
+      "routines",
+      "no_hands_up"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 0,
+       "evidence_s": 262.89
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 227.31,
+       "end_s": 320.0
+      },
+      "flags": [
+       "talking_head"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 481,
+   "video_id": "tm-481",
+   "library": "isaps",
+   "level_id": 27,
+   "title": "Unit 704",
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/i-saps/level-1/module-7/unit-704.mp4",
+   "duration_s": 777.92,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "social_studies"
+   ],
+   "grade_band": "9-12",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/481.jpg",
+   "segments": [
+    {
+     "seg_id": "481-s1",
+     "start_s": 0.0,
+     "end_s": 79.0,
+     "title_en": "Class A: recall and copy the definition",
+     "title_ur": "کلاس اے: یاد کرنا اور تعریف نقل کرنا",
+     "moves": [
+      "open_questions"
+     ],
+     "fico": [],
+     "language": "mixed",
+     "recommendable": false,
+     "kind": "demonstration",
+     "shows": {
+      "move": "open_questions",
+      "fico": [
+       "C1"
+      ],
+      "what_en": "Non-example: teacher asks only recall questions, accepts one-word answers, then students copy a definition",
+      "what_ur": "غیر مثال: ٹیچر صرف یاد والے سوال پوچھتی ہیں، ایک لفظی جواب لیتی ہیں، پھر بچے تعریف نقل کرتے ہیں"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 7.47,
+       "end_s": 78.0
+      },
+      "flags": [
+       "non_example",
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s2",
+     "start_s": 81.03,
+     "end_s": 155.97,
+     "title_en": "A bag of rubbish opens the lesson",
+     "title_ur": "کچرے کا تھیلا سبق شروع کرتا ہے",
+     "moves": [
+      "inquiry_opening",
+      "think_pair_share"
+     ],
+     "fico": [
+      {
+       "indicator": "F6",
+       "strength": 2,
+       "evidence_s": 99.09
+      },
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 137.85
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "inquiry_opening",
+      "fico": [
+       "F6"
+      ],
+      "what_en": "Teacher empties a bag of school rubbish, asks whose job it is to pick it up, gives 30 s think time then pair talk",
+      "what_ur": "ٹیچر اسکول کا کچرا دکھا کر پوچھتی ہیں اسے اٹھانا کس کی ذمہ داری ہے، 30 سیکنڈ سوچنے اور پھر جوڑی میں بات کا وقت دیتی ہیں"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 81.03,
+       "end_s": 155.97
+      },
+      "flags": [
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s3",
+     "start_s": 155.97,
+     "end_s": 246.63,
+     "title_en": "Sharing and a show-of-hands vote",
+     "title_ur": "جوابات اور ہاتھ اٹھا کر رائے",
+     "moves": [
+      "think_pair_share",
+      "check_understanding"
+     ],
+     "fico": [
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 164.25
+      },
+      {
+       "indicator": "D5",
+       "strength": 0,
+       "evidence_s": 202.83
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "C4",
+       "D1"
+      ],
+      "what_en": "After pair talk, several students give different answers; teacher takes a show-of-hands vote on two positions",
+      "what_ur": "جوڑی میں بات کے بعد کئی بچے مختلف جواب دیتے ہیں؛ ٹیچر دو رایوں پر ہاتھ اٹھوا کر ووٹ لیتی ہیں"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 155.97,
+       "end_s": 246.63
+      },
+      "flags": [
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s4",
+     "start_s": 251.37,
+     "end_s": 322.0,
+     "title_en": "Dropped wrapper and cold calls to silent students",
+     "title_ur": "گرا ہوا ریپر اور خاموش بچوں سے سوال",
+     "moves": [
+      "no_hands_up",
+      "follow_up_probe"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 251.37
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 288.33
+      },
+      {
+       "indicator": "D2",
+       "strength": 1,
+       "evidence_s": 301.71
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "no_hands_up",
+      "fico": [
+       "C1",
+       "D1"
+      ],
+      "what_en": "Teacher drops a wrapper to probe the 'cleaners' answer, then names students who have not spoken and they give reasons",
+      "what_ur": "ٹیچر ریپر گرا کر اگلا سوال کرتی ہیں، پھر خاموش بچوں کو نام لے کر پوچھتی ہیں اور وہ وجہ کے ساتھ جواب دیتے ہیں"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 251.37,
+       "end_s": 322.0
+      },
+      "flags": [
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s5",
+     "start_s": 333.87,
+     "end_s": 497.0,
+     "title_en": "From answers to five responsible actions",
+     "title_ur": "جوابات سے پانچ ذمہ دار اقدامات تک",
+     "moves": [
+      "real_world_connection",
+      "follow_up_probe"
+     ],
+     "fico": [
+      {
+       "indicator": "B5",
+       "strength": 1,
+       "evidence_s": 406.71
+      },
+      {
+       "indicator": "D4",
+       "strength": 0,
+       "evidence_s": 481.29
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "real_world_connection",
+      "fico": [
+       "B5"
+      ],
+      "what_en": "Teacher connects students' own ideas about school rubbish to five responsible-citizen actions on the board",
+      "what_ur": "ٹیچر کچرے پر بچوں کے اپنے خیالات کو ذمہ دار شہری کے پانچ اقدامات سے جوڑتی ہیں"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 333.87,
+       "end_s": 490.77
+      },
+      "flags": [
+       "low_light",
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s6",
+     "start_s": 497.91,
+     "end_s": 581.0,
+     "title_en": "Complete the sentence, write a group pledge",
+     "title_ur": "جملہ مکمل کریں، گروپ عہد نامہ لکھیں",
+     "moves": [
+      "group_work",
+      "student_explains_in_own_words"
+     ],
+     "fico": [
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 544.29
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 562.77
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "group_work",
+      "fico": [
+       "C4",
+       "D1"
+      ],
+      "what_en": "Students finish a sentence alone, then groups discuss and write a citizens' pledge on sticky notes",
+      "what_ur": "بچے اکیلے جملہ مکمل کرتے ہیں، پھر گروپ میں بات کر کے اسٹکی نوٹس پر شہری عہد نامہ لکھتے ہیں"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 497.91,
+       "end_s": 581.0
+      },
+      "flags": [
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s7",
+     "start_s": 581.79,
+     "end_s": 648.0,
+     "title_en": "Pledges shared and an exit slip",
+     "title_ur": "عہد نامے سنانا اور ایگزٹ سلپ",
+     "moves": [
+      "closure_check"
+     ],
+     "fico": [
+      {
+       "indicator": "B7",
+       "strength": 1,
+       "evidence_s": 609.27
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "closure_check",
+      "fico": [
+       "B7"
+      ],
+      "what_en": "Each student writes on an exit slip one action they will take as a responsible citizen and hands it to the teacher",
+      "what_ur": "ہر بچہ ایگزٹ سلپ پر لکھتا ہے کہ ذمہ دار شہری بننے کے لیے وہ کیا کرے گا اور ٹیچر کو دیتا ہے"
+     },
+     "subjects": [
+      "social_studies"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": {
+       "start_s": 581.79,
+       "end_s": 648.0
+      },
+      "flags": [
+       "transcript_devanagari_script"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "481-s8",
+     "start_s": 648.75,
+     "end_s": 777.92,
+     "title_en": "'Evaluate' needs evidence of reasoning",
+     "title_ur": "'جانچنا' کے لیے سوچ کا ثبوت چاہیے",
+     "moves": [
+      "check_understanding",
+      "align_activities"
+     ],
+     "fico": [
+      {
+       "indicator": "D5",
+       "strength": 1,
+       "evidence_s": 703.65
+      },
+      {
+       "indicator": "B3",
+       "strength": 1,
+       "evidence_s": 665.55
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 648.75,
+       "end_s": 776.91
+      },
+      "flags": [
+       "lecture_only"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 722,
+   "video_id": "tm-722",
+   "library": "legacy",
+   "level_id": 28,
+   "title": "Lesson Plan Demo - Opening",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e44be804-558d-43e4-be71-76c03e4f1be6.mp4",
+   "duration_s": 197.21,
+   "language": "ur",
+   "format": "mixed",
+   "subjects": [
+    "science"
+   ],
+   "grade_band": "4-5",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/722.jpg",
+   "segments": [
+    {
+     "seg_id": "722-s1",
+     "start_s": 0.0,
+     "end_s": 56.49,
+     "title_en": "Skit: the untrained teacher is sent to training",
+     "title_ur": "خاکہ: غیر تربیت یافتہ ٹیچر تربیت کے لیے",
+     "moves": [
+      "programme_intro"
+     ],
+     "fico": [],
+     "language": "ur",
+     "recommendable": false,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "good",
+      "sound": "ok",
+      "usable": null,
+      "flags": [],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "722-s2",
+     "start_s": 61.65,
+     "end_s": 147.45,
+     "title_en": "Opening a science lesson with a picture and questions",
+     "title_ur": "تصویر اور سوالوں سے سائنس کے سبق کا آغاز",
+     "moves": [
+      "activate_prior_knowledge",
+      "teaching_aids"
+     ],
+     "fico": [
+      {
+       "indicator": "B4",
+       "strength": 2,
+       "evidence_s": 85.17
+      },
+      {
+       "indicator": "C2",
+       "strength": 0,
+       "evidence_s": 78.69
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "activate_prior_knowledge",
+      "fico": [
+       "B4"
+      ],
+      "what_en": "Teacher holds up an Earth picture, asks who lives there and what the Sun gives, writes children's answers 'light, heat' on the board",
+      "what_ur": "ٹیچر زمین کی تصویر دکھا کر پوچھتی ہیں کہ اس پر کون رہتا ہے اور سورج کیا دیتا ہے، پھر جواب بورڈ پر لکھتی ہیں"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "ok",
+      "sound": "good",
+      "usable": {
+       "start_s": 61.65,
+       "end_s": 147.45
+      },
+      "flags": [
+       "no_children_visible"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "722-s3",
+     "start_s": 157.05,
+     "end_s": 197.21,
+     "title_en": "Recap slides: prepare the plan; purpose of the opening",
+     "title_ur": "خلاصہ: پلان تیار کریں؛ آغاز کا مقصد",
+     "moves": [
+      "lesson_planning"
+     ],
+     "fico": [
+      {
+       "indicator": "B1",
+       "strength": 0,
+       "evidence_s": 173.85
+      }
+     ],
+     "language": "ur",
+     "recommendable": false,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 157.05,
+       "end_s": 193.53
+      },
+      "flags": [
+       "english_slides_urdu_voice"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 782,
+   "video_id": "tm-782",
+   "library": "legacy",
+   "level_id": 28,
+   "title": "The Correct way of using Socratic Method",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6458a02e-9a13-46e1-b49c-5ff26792f54f.mp4",
+   "duration_s": 155.46,
+   "language": "mixed",
+   "format": "classroom_footage",
+   "subjects": [
+    "science"
+   ],
+   "grade_band": "primary",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/782.jpg",
+   "segments": [
+    {
+     "seg_id": "782-s1",
+     "start_s": 0.0,
+     "end_s": 113.13,
+     "title_en": "Chaining 'why?' questions about two plants",
+     "title_ur": "دو پودوں پر 'کیوں؟' کے سوالوں کی زنجیر",
+     "moves": [
+      "follow_up_probe",
+      "open_questions",
+      "ask_for_reasoning"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2,
+       "evidence_s": 44.43
+      },
+      {
+       "indicator": "D2",
+       "strength": 1,
+       "evidence_s": 68.07
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "follow_up_probe",
+      "fico": [
+       "C1",
+       "D2"
+      ],
+      "what_en": "Teacher shows two plants, asks which looks fresh, then 'Why?', then 'So how do plants stay fresh?' on each child's answer",
+      "what_ur": "ٹیچر دو پودے دکھا کر پوچھتے ہیں کون سا تازہ ہے، پھر 'کیوں؟' اور ہر جواب پر اگلا سوال"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 13.65,
+       "end_s": 110.19
+      },
+      "flags": [
+       "wide_shot"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "782-s2",
+     "start_s": 113.13,
+     "end_s": 155.46,
+     "title_en": "Summary: why Socratic questioning",
+     "title_ur": "خلاصہ: سقراطی سوالات کیوں",
+     "moves": [
+      "follow_up_probe"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 0,
+       "evidence_s": 118.83
+      }
+     ],
+     "language": "ur",
+     "recommendable": false,
+     "kind": "explanation",
+     "shows": null,
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": null,
+      "flags": [
+       "recap_text_slides"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 790,
+   "video_id": "tm-790",
+   "library": "legacy",
+   "level_id": 29,
+   "title": "Group Tasks",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0acb0da8-a11a-48b6-843e-f92128b90267.mp4",
+   "duration_s": 316.12,
+   "language": "mixed",
+   "format": "classroom_footage",
+   "subjects": [
+    "english"
+   ],
+   "grade_band": "4-5",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/790.jpg",
+   "segments": [
+    {
+     "seg_id": "790-s1",
+     "start_s": 0.0,
+     "end_s": 153.87,
+     "title_en": "Form groups of four and number each member",
+     "title_ur": "چار کے گروپ بنائیں اور ہر رکن کو نمبر دیں",
+     "moves": [
+      "group_work",
+      "routines"
+     ],
+     "fico": [
+      {
+       "indicator": "D1",
+       "strength": 0,
+       "evidence_s": 51.69
+      }
+     ],
+     "language": "ur",
+     "recommendable": false,
+     "kind": "modelled",
+     "shows": {
+      "move": "group_work",
+      "fico": [
+       "C4",
+       "D1"
+      ],
+      "what_en": "'Make groups of four… every group should have one, two, three, four. Please don't forget your numbers.'",
+      "what_ur": "'چار چار کے گروپ بنا لیں… ہر گروپ میں ون ٹو تھری فور ہونے چاہئیں۔ اپنا نمبر یاد رکھنا ہے۔'"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": null,
+      "flags": [
+       "no_children_visible",
+       "workshop_recording",
+       "logistics_only"
+      ]
+     }
+    },
+    {
+     "seg_id": "790-s2",
+     "start_s": 155.97,
+     "end_s": 259.83,
+     "title_en": "Steps: think alone, then agree the best answer",
+     "title_ur": "مراحل: پہلے اکیلے سوچیں، پھر بہترین جواب طے کریں",
+     "moves": [
+      "think_pair_share",
+      "wait_time"
+     ],
+     "fico": [
+      {
+       "indicator": "D1",
+       "strength": 2,
+       "evidence_s": 234.87
+      },
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 197.37
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "D1",
+       "D2"
+      ],
+      "what_en": "'Step one: first think about the answer individually in your mind. Then combine and say what's the best answer, and write it.'",
+      "what_ur": "'پہلا قدم: پہلے الگ الگ اپنے ذہن میں جواب سوچیں۔ پھر اکٹھے ہو کر طے کریں کہ بہترین جواب کیا ہے، اور لکھ لیں۔'"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 192.39,
+       "end_s": 259.83
+      },
+      "flags": [
+       "no_children_visible",
+       "workshop_recording"
+      ]
+     }
+    },
+    {
+     "seg_id": "790-s3",
+     "start_s": 260.01,
+     "end_s": 316.12,
+     "title_en": "Pose the question and hold think-alone time",
+     "title_ur": "سوال پوچھیں اور اکیلے سوچنے کا وقت دیں",
+     "moves": [
+      "wait_time",
+      "think_pair_share"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 285.99
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "wait_time",
+      "fico": [
+       "C1",
+       "F5"
+      ],
+      "what_en": "'Where did the bull settle?… No, first think separately. Step one: think the answer in your mind… After a few seconds, now discuss.'",
+      "what_ur": "'بیل کہاں رہا؟… نہیں، پہلے الگ الگ سوچیں… ذہن میں جواب سوچیں… چند سیکنڈ بعد، اب ڈسکس کر لیں۔'"
+     },
+     "subjects": [
+      "english"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 262.35,
+       "end_s": 303.03
+      },
+      "flags": [
+       "no_children_visible",
+       "workshop_recording"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 791,
+   "video_id": "tm-791",
+   "library": "legacy",
+   "level_id": 29,
+   "title": "Ask Questions",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/728acda2-fb40-41fd-bc40-0847969b7bcf.mp4",
+   "duration_s": 287.36,
+   "language": "en",
+   "format": "classroom_footage",
+   "subjects": [
+    "english"
+   ],
+   "grade_band": "4-5",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "catalog/v2/thumbs/791.jpg",
+   "segments": [
+    {
+     "seg_id": "791-s1",
+     "start_s": 0.0,
+     "end_s": 116.55,
+     "title_en": "Call a number: one member of every group answers",
+     "title_ur": "نمبر پکاریں: ہر گروپ کا ایک رکن جواب دے",
+     "moves": [
+      "no_hands_up",
+      "group_work"
+     ],
+     "fico": [
+      {
+       "indicator": "D1",
+       "strength": 2,
+       "evidence_s": 42.45
+      },
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 19.35
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "no_hands_up",
+      "fico": [
+       "C1",
+       "D1"
+      ],
+      "what_en": "'When I say the number, that student in each group stands up… Number 4, please stand up.' Each group's number 4 answers.",
+      "what_ur": "'جب میں نمبر بولوں گی تو ہر گروپ سے اسی نمبر والا کھڑا ہوگا… نمبر چار، کھڑے ہو جائیں۔' ہر گروپ کا چوتھا رکن جواب دیتا ہے۔"
+     },
+     "subjects": [
+      "english"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 3.21,
+       "end_s": 116.55
+      },
+      "flags": [
+       "no_children_visible",
+       "workshop_recording"
+      ]
+     }
+    },
+    {
+     "seg_id": "791-s2",
+     "start_s": 116.67,
+     "end_s": 219.87,
+     "title_en": "Think alone, then think together, then answer",
+     "title_ur": "پہلے اکیلے سوچیں، پھر مل کر، پھر جواب",
+     "moves": [
+      "think_pair_share",
+      "no_hands_up",
+      "wait_time"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 130.71
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 168.51
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "D1",
+       "D2"
+      ],
+      "what_en": "'First, think about the answer separately… give yourself a few seconds. Now think together.' Then: 'All the number 1s, please stand up.'",
+      "what_ur": "'پہلے الگ الگ سوچیں… خود کو چند سیکنڈ دیں۔ اب اکٹھے سوچ لیں۔' پھر: 'سب نمبر ایک کھڑے ہو جائیں۔'"
+     },
+     "subjects": [
+      "english"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 116.67,
+       "end_s": 219.87
+      },
+      "flags": [
+       "no_children_visible",
+       "workshop_recording"
+      ]
+     }
+    },
+    {
+     "seg_id": "791-s3",
+     "start_s": 220.29,
+     "end_s": 287.36,
+     "title_en": "Praise a good word choice",
+     "title_ur": "اچھے لفظ کے استعمال کی تعریف",
+     "moves": [
+      "specific_feedback",
+      "teach_vocabulary"
+     ],
+     "fico": [
+      {
+       "indicator": "C3",
+       "strength": 1,
+       "evidence_s": 258.99
+      },
+      {
+       "indicator": "F2",
+       "strength": 0,
+       "evidence_s": 262.29
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "specific_feedback",
+      "fico": [
+       "C3"
+      ],
+      "what_en": "'Outwitted the lion. Excellent. A very good use of the vocabulary… outwitting someone means beating them with your intelligence.'",
+      "what_ur": "'شیر کو چالاکی سے ہرایا۔ بہت خوب۔ لفظ کا بہت اچھا استعمال… یعنی اپنی ذہانت سے کسی کو ہرا دینا۔'"
+     },
+     "subjects": [
+      "english"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 220.29,
+       "end_s": 273.39
+      },
+      "flags": [
+       "no_children_visible",
+       "workshop_recording"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}
