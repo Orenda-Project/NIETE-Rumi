@@ -2,3 +2,4 @@
 {"ts":"2026-11-19T16:18:35Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"278d4cdb029f","branch":"bd-zrdvmi.29-04681","user":""}
 {"ts":"2026-11-19T16:18:53Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-smoke owe their Gherkin","sha":"278d4cdb029f","branch":"bd-zrdvmi.29-04681","user":""}
 {"ts":"2026-11-19T16:39:48Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (only a page that fails to draw behaves differently; happy-path screens unchanged; unit-tested in LessonPlanPage.retry.test.tsx; amended commit 49757b3af drove portal-smoke 5/5)","sha":"278d4cdb029f","branch":"bd-zrdvmi.29-staging","user":""}
+{"ts":"2026-11-19T16:39:48Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"668c85f8-0374-4928-a5b6-896914cc9775","sha":"278d4cdb029f","branch":"bd-zrdvmi.29-staging","user":""}
