@@ -1,3 +1,4 @@
 {"ts":"2026-11-19T20:17:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"927c0c95f99f","branch":"bd-m8zwt1-staging","user":""}
 {"ts":"2026-11-19T20:17:21Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"927c0c95f99f","branch":"bd-m8zwt1-staging","user":""}
 {"ts":"2026-11-19T20:17:38Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"1afd67c9-f695-474b-af53-66e9db5ffb1b","sha":"927c0c95f99f","branch":"bd-m8zwt1-staging","user":""}
+{"ts":"2026-11-19T20:17:43Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-m8zwt1-staging: E-NODRIVER:coaching","sha":"927c0c95f99f","branch":"bd-m8zwt1-staging","user":""}
