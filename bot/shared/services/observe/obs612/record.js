@@ -106,6 +106,33 @@ function buildFicoS(form, lesson, d, opts) {
     focus.push({ code, action: str(d[`fs_action${suffix}`]) });
   }
   const result = FicoS.score(answers);
+  // Queue #184: a Digital Coach visit keeps, beside every level the observer submitted, who set it ('rumi' when the
+  // observer kept Rumi's level, else 'coach'), Rumi's own level and the observer's reason for a change: the calibration
+  // pairs, as v6 keeps them. The levels and evidence that count are the observer's as submitted. Starred: always 'coach'.
+  const dcRow = require('./fico-s-dc').dcOf(form);
+  let dc = null;
+  if (dcRow) {
+    const FsDc = require('./fico-s-dc');
+    const levels = {};
+    for (const c of FicoS.CODES) {
+      if (answers[c] === undefined) continue;
+      const rumi = FsDc.rumiLevelOf(dcRow, c);
+      const kept = rumi !== null && rumi === answers[c];
+      levels[c] = {
+        set_by: kept ? 'rumi' : 'coach',
+        rumi_level: rumi,
+        ...(FicoS.isStarred(c) ? { starred: true } : {}),
+        ...(!kept && rumi !== null && str(d[`chg_${c}`]) ? { because: str(d[`chg_${c}`]) } : {}),
+      };
+    }
+    dc = {
+      prompt_version: dcRow.prompt_version || null,
+      prefilled_at: dcRow.prefilled_at || null,
+      levels,
+      changed: Object.keys(levels).filter((c) => levels[c].set_by === 'coach' && levels[c].rumi_level !== null),
+      rumi: dcRow.levels,
+    };
+  }
   const obs612 = {
     rubric_id: lesson.rubricId,
     tool: 'ficos',
@@ -128,6 +155,7 @@ function buildFicoS(form, lesson, d, opts) {
     result,
     feedback: { strengths: str(d.fb_strengths), focus, by_when: str(d.fs_by) || null },
     source: { sheet_id: FicoS.RUBRIC.source.sheet_id, read_on: FicoS.RUBRIC.source.read_on },
+    ...(dc ? { dc } : {}),
   };
   return {
     framework: lesson.rubricId,
@@ -218,7 +246,8 @@ function buildAnalysis(form, draft = {}, opts = {}) {
 function whatIsMissing(form, draft = {}) {
   const lesson = lessonOf(form);
   // bd-31ziu8: every indicator's level and evidence, and the feedback's strengths, focus and action.
-  if (lesson.tool === 'ficos') return require('./fico-s-flow').whatIsMissing(draft || {});
+  // Queue #184: a level changed from the Digital Coach's pre-fill needs its reason too.
+  if (lesson.tool === 'ficos') return require('./fico-s-flow').whatIsMissing(draft || {}, { dc: require('./fico-s-dc').dcOf(form) });
   const missing = O.missingItems(lesson.rubricId, lesson.sheet, draft || {});
   if (lesson.tool === 'enur') {
     for (const f of O.TOOLS.enur.feedback) if (!str((draft || {})[`fb_${f.key}`])) missing.push(`fb_${f.key}`);
