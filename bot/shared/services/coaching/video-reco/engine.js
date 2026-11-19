@@ -43,11 +43,16 @@ class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
 }
 
-/** The lesson's own grade (subject_resolution.grade), else null. A range («1-3», a multigrade class) is {lo: 1, hi: 3}, never 13 (red7 N9). */
+/**
+ * The lesson's own grade (subject_resolution.grade), else null. The first grade or range only: «1-3» (a multigrade class)
+ * is {lo: 1, hi: 3}, never 13 (red7 N9); «Grade 3 (2024)» is 3 (red7 N3). Outside 0–12 is unknown.
+ */
 function analysisGrade(analysis) {
   const g = analysis && analysis.subject_resolution && analysis.subject_resolution.grade;
-  const ns = (String(g === null || g === undefined ? '' : g).match(/\d{1,2}/g) || []).map(Number);
-  return ns.length ? { lo: Math.min(...ns), hi: Math.max(...ns) } : null;
+  const m = /(?<!\d)(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?(?!\d)/.exec(String(g === null || g === undefined ? '' : g));
+  if (!m) return null;
+  const lo = Number(m[1]); const hi = m[2] === undefined ? lo : Number(m[2]);
+  return lo <= 12 && hi <= 12 && lo <= hi ? { lo, hi } : null;
 }
 
 /** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
