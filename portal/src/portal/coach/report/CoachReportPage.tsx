@@ -6,13 +6,10 @@ import CoachGate from "../CoachGate";
 import TeacherPage from "../../teacher/TeacherPage";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy, useLang, type Lang } from "../../teacher/i18n";
-import { ListRow } from "../../teacher/ui";
 import { FOCUS } from "../../teacher/ui/styles";
 import { useLanguageSwitch } from "../../teacher/useLanguageSwitch";
 import { useBack } from "../../lib/useBack";
 import { takeBoot } from "@/lib/bootReads";
-import { COACH_MODULES, modulePath } from "../coachTraining/modules";
-import { COACH_TRAINING } from "../coachTraining/copy";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { getCoachReport, markOpened, problemOf, type Both, type CoachReport, type ReportProblem } from "./api";
 
@@ -26,10 +23,13 @@ import { getCoachReport, markOpened, problemOf, type Both, type CoachReport, typ
  *   3 the eight behaviours as boxes (done: green edge and tick; missed: dashed edge). A tap takes her to that
  *     behaviour's entry below and marks it: nothing is said twice (her 5 Nov review)
  *   4 What you did well — every done behaviour with what she did
- *   5 What was missed — what happened in THIS debrief, why it matters, its Coach Training module
+ *   5 What was missed — what happened in THIS debrief, why it matters
  *   6 Next focus — just one thing: the move, why this one, the ready "Try:" line (a marked placeholder until that
- *     behaviour's line is supplied), then its module
+ *     behaviour's line is supplied)
  *   7 her closing line. No reflection question, no praise banner (her 5 Nov review).
+ *
+ * No Coach Training module on a debrief report (queue #186, the operator 19 Nov 2026): the coach's one training
+ * recommendation is in her Weekly Report (CoachWeekPage).
  *
  * Colours keep the app's meanings: green = done, amber = missed (never red), violet = the one action (InsightRow's
  * tones), indigo = the frame. Steady open: the frame at once, grey outlines where the report goes, then the whole report
@@ -141,14 +141,6 @@ function Entry({ id, tone, name, marked, children }: { id: string; tone: "good" 
   );
 }
 
-/** Its Coach Training module, as the Coach Training page lists it (the same row, the same words). */
-export function ModuleRow({ n, lang }: { n: number | null; lang: Lang }) {
-  const T = useCopy(COACH_TRAINING);
-  const m = n ? COACH_MODULES.find((x) => x.n === n) : null;
-  if (!m) return null;
-  return <ListRow testId="report-module" prefix={T.coachModule} number={m.n} label={lang === "ur" ? m.title.ur : m.title.en} to={modulePath(m)} className="mt-1.5" />;
-}
-
 const dayOf = (iso: string | null, lang: Lang): string => {
   if (!iso) return "";
   const d = new Date(iso);
@@ -246,7 +238,6 @@ export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C:
                 {/* <bdi>: the judge's words keep their own direction after an Urdu label (bd-enec2e.5: "'.things I want…") */}
                 {m.line ? <p dir="auto" className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.what}</b> <bdi>{m.line}</bdi></p> : null}
                 {pick(m.why, lang) ? <p className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.why}</b> {pick(m.why, lang)}</p> : null}
-                <ModuleRow n={m.module} lang={lang} />
               </Entry>
             ))}
           </div>
@@ -274,7 +265,6 @@ export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C:
               <b className="font-bold text-[#33374a]">{C.tryLabel}</b> {C.tryPending}
             </p>
           )}
-          <ModuleRow n={r.focus.module} lang={lang} />
         </section>
       ) : null}
 

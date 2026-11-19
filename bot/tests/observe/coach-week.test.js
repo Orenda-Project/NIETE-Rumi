@@ -69,9 +69,9 @@ describe('the summary', () => {
     expect(s).toMatchObject({ monday: '2026-11-02', target: 12, complete: 10, debriefs: 10, small: false });
   });
 
-  test('the focus: the first behaviour not done in 6 of her last 10 before the week, with its module', () => {
+  test('the focus: the first behaviour not done in 6 of her last 10 before the week; its module is the week\'s one training', () => {
     expect(s.focus.key).toBe('asked_and_waited');
-    expect(s.focus.module).toBe(3);
+    expect(s.training).toBe(3);
     expect(s.focus.week).toEqual({ done: 4, of: 10 });
     expect(s.focus.last).toEqual({ done: 1, of: 9 });
   });

@@ -29,7 +29,9 @@ import type { CoachReport } from "./api";
  * Coach reports in the app — the coach's debrief report page and the card on her Home, in the NIETE app's look with the
  * ICT HITL owner's content and order. Pinned here:
  *   - the order: header (count, drawn stars, teacher · class · lesson) → Respect → the 8 boxes → did well → missed →
- *     next focus (why this one, the ready Try line, then the module) → her closing line;
+ *     next focus (why this one, the ready Try line) → her closing line;
+ *   - no Coach Training module anywhere on a debrief report (queue #186, the operator 19 Nov 2026): the coach's one
+ *     training recommendation is in her Weekly Report;
  *   - said once: no reflection question, no praise banner; a box tap goes to its entry and marks it;
  *   - the Try line is the supplied one, or a marked placeholder, never made up;
  *   - Urdu: the same page from the same payload (no second read);
@@ -62,10 +64,10 @@ const REPORT: CoachReport = {
     { key: "moves_not_teacher", name: both("Moves, not person", "تدریس پر بات"), line: null },
   ],
   missed: [
-    { key: "asked_and_waited", name: both("Asked & waited", "سوال کے بعد انتظار"), line: "You answered it yourself.", why: both("Waiting gives time.", "انتظار سے وقت ملتا ہے۔"), module: 3 },
-    { key: "elicited_if_then", name: both("Teacher’s own step", "استاد کا اپنا اگلا قدم"), line: "You gave the step yourself.", why: both("Own words stick.", "اپنے الفاظ"), module: 6 },
+    { key: "asked_and_waited", name: both("Asked & waited", "سوال کے بعد انتظار"), line: "You answered it yourself.", why: both("Waiting gives time.", "انتظار سے وقت ملتا ہے۔") },
+    { key: "elicited_if_then", name: both("Teacher’s own step", "استاد کا اپنا اگلا قدم"), line: "You gave the step yourself.", why: both("Own words stick.", "اپنے الفاظ") },
   ],
-  focus: { key: "elicited_if_then", move: "Let the teacher name the next step", why: "It was missed most often.", module: 6,
+  focus: { key: "elicited_if_then", move: "Let the teacher name the next step", why: "It was missed most often.",
     tryLine: { en: "“Next time, what will you do differently? Tell me in your own words.”", ur: "\"اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔\"" } },
 };
 
@@ -131,7 +133,7 @@ describe("the debrief report page", () => {
     expect(entry?.textContent).toContain("You gave the step yourself.");
   });
 
-  it("the next focus: the move, why this one, the supplied Try line, THEN its module", async () => {
+  it("the next focus: the move, why this one, the supplied Try line", async () => {
     getCoachReport.mockResolvedValue(REPORT);
     renderPage();
     const focus = await screen.findByTestId("report-focus");
@@ -139,13 +141,24 @@ describe("the debrief report page", () => {
     expect(focus.textContent).toContain("Why this one:");
     const tryLine = within(focus).getByTestId("report-try");
     expect(tryLine.textContent).toBe("Try: “Next time, what will you do differently? Tell me in your own words.”");
-    const moduleRow = within(focus).getByTestId("report-module");
-    expect(tryLine.compareDocumentPosition(moduleRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(moduleRow.textContent).toContain("The teacher’s own next step");
+  });
+
+  it("queue #186: no Coach Training module on a debrief report, even from a payload that still names them", async () => {
+    const legacy = {
+      ...REPORT,
+      missed: REPORT.missed.map((m, i) => ({ ...m, module: [3, 6][i] })),
+      focus: { ...REPORT.focus!, module: 6 },
+    } as unknown as CoachReport;
+    getCoachReport.mockResolvedValue(legacy);
+    renderPage();
+    const body = await screen.findByTestId("report-body");
+    expect(screen.queryAllByTestId("report-module")).toHaveLength(0);
+    expect(body.querySelector('a[href^="/portal/coach/coach-training"]')).toBeNull();
+    expect(body.textContent).not.toMatch(/Coach Training|Module \d/);
   });
 
   it("a focus whose line is not supplied yet: a marked placeholder, never a made-up line", async () => {
-    getCoachReport.mockResolvedValue({ ...REPORT, focus: { ...REPORT.focus!, key: "asked_and_waited", module: 3, tryLine: null } });
+    getCoachReport.mockResolvedValue({ ...REPORT, focus: { ...REPORT.focus!, key: "asked_and_waited", tryLine: null } });
     renderPage();
     const focus = await screen.findByTestId("report-focus");
     expect(within(focus).queryByTestId("report-try")).toBeNull();

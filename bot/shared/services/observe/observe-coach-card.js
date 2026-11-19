@@ -96,7 +96,6 @@ function esc(s) {
 const ICON = {
   star: (on) => `<svg data-star="${on ? 'on' : 'off'}" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.95 6.55.8-4.8 4.5 1.25 6.5L12 17.15l-5.85 3.2 1.25-6.5-4.8-4.5 6.55-.8z" fill="${on ? '#e0a21b' : '#dfe3ea'}"/></svg>`,
   tick: (color, size = 14) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5L19.5 6.5" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  book: '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5z" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round"/></svg>',
   lock: '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>',
 };
 
@@ -131,7 +130,6 @@ function rubricCss(rtl) {
 .miss .why{font-size:${rtl ? '15px' : '15.5px'};color:#4a4436;line-height:${rtl ? '2.4' : '2'}}
 .miss b,.try .fw b{font-weight:700}
 .try .fw{border-top:1px solid #cfe6d6;margin-top:12px;padding-top:10px}
-.mod{display:flex;align-items:center;gap:8px;margin:-4px 0 16px;font-size:${rtl ? '15px' : '15.5px'};color:#1d4ed8;font-weight:700;line-height:${rtl ? '2.2' : '1.8'}}
 .ft .lock{display:inline-flex;align-items:center;gap:6px}
 `;
 }
@@ -188,9 +186,6 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
   const missedHtml = missed.length ? `
     <div class="sec">${E(S.coach_card_missed_label)}</div>
     ${missed.map((k) => `<div class="miss"><div class="mi">!</div><div><div class="wt">${E(S.coach_rubric_names[k])}</div>${whatOf(k)}<div class="why"><b>${E(S.coach_card_why_label)}</b> ${E(S.coach_rubric_why[k])}</div></div></div>`).join('')}` : '';
-  const mod = rubricOn ? R.focusModule(fb) : null;
-  const moduleHtml = mod ? `
-    <div class="mod">${ICON.book}<span>${E(R.moduleLine(mod, S, S.coach_card_module_lang))}</span></div>` : '';
   // The one next focus and why it was chosen. No second behaviour: the old Action plan box is gone (ur/en).
   const rubricTryHtml = `
     <div class="try">
@@ -268,7 +263,7 @@ ${rubricOn ? rubricCss(rtl) : ''}.ft{border-top:1px solid #e7ebf4;padding:16px 3
       ${S.coach_card_action_label ? '' : `<p><b>${esc(t.instead || '')}</b></p>`}
     </div>`}
     ${!rubricOn && S.coach_card_action_label && t.instead ? `<div class="sec">${esc(S.coach_card_action_label)}</div>
-    <div class="act"><p>${esc(t.instead)}</p></div>` : ''}${moduleHtml}
+    <div class="act"><p>${esc(t.instead)}</p></div>` : ''}
     ${S.coach_card_reflect_label && fb.reflection_question ? `<div class="sec">${E(S.coach_card_reflect_label)}</div>
     <div class="ask"><p>${E(fb.reflection_question)}</p></div>` : ''}
   </div>

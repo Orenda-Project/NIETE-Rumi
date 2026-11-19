@@ -445,7 +445,8 @@ const STRINGS = {
     guide_cue_rehearse: '(تین سے پانچ سیکنڈ انتظار کریں)',
     coach_card_try_label: 'اگلا فوکس',
     // The Feedback Report shows the coach-debrief rubric: marks computed from the judge's booleans
-    // (observe-coach-rubric.js), the misses with why they matter, and the next focus's Coach Training module.
+    // (observe-coach-rubric.js), the misses with why they matter, and the one next focus. No Coach Training module after a
+    // debrief (queue #186): the coach's one training recommendation is in her Weekly Report.
     coach_card_marks_label: 'اس ڈی بریف میں آپ کے رویے',
     coach_card_respect_line: '✓ احترام برقرار رہا — ہمیشہ کی طرح',
     coach_card_missed_label: 'اس بار کیا رہ گیا',
@@ -454,8 +455,6 @@ const STRINGS = {
     coach_card_why_label: 'کیوں اہم ہے:',
     coach_card_focus_why_label: 'یہی کیوں:',
     coach_card_you_said_label: 'آپ نے کہا:',
-    coach_card_module_line: '📘 کوچ ٹریننگ، ماڈیول {n}: {title}',
-    coach_card_module_lang: 'ur',
     coach_rubric_names: {
       opened_with_specific_praise: 'مخصوص تعریف',
       anchored_in_real_moment: 'سبق کے لمحے کا حوالہ',
@@ -856,7 +855,8 @@ const STRINGS = {
     manage_removed_ack: '✅ {name} removed from your list.',
     coach_card_try_label: 'Next focus',
     // The Feedback Report shows the coach-debrief rubric: marks computed from the judge's booleans
-    // (observe-coach-rubric.js), the misses with why they matter, and the next focus's Coach Training module.
+    // (observe-coach-rubric.js), the misses with why they matter, and the one next focus. No Coach Training module after a
+    // debrief (queue #186): the coach's one training recommendation is in her Weekly Report.
     coach_card_marks_label: 'Your behaviours in this debrief',
     coach_card_respect_line: '✓ Respect held — as always',
     coach_card_missed_label: 'What was missed this time',
@@ -865,8 +865,6 @@ const STRINGS = {
     coach_card_why_label: 'Why it matters:',
     coach_card_focus_why_label: 'Why this one:',
     coach_card_you_said_label: 'You said:',
-    coach_card_module_line: '📘 Coach Training, Module {n}: {title}',
-    coach_card_module_lang: 'en',
     coach_rubric_names: {
       opened_with_specific_praise: 'Specific praise',
       anchored_in_real_moment: 'Real moment',
