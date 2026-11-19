@@ -406,6 +406,8 @@ name, spoken only ("1, Developing"); `value`, `dcValue` and `onChange` then carr
 bd-ra8xu.40: an option may also carry `text` (drawn instead of the id, e.g. "N/A" for `NA`) and `description`; `stacked` draws one full-width
 56px row per rung with its text, label and description (a rubric whose levels are described in words: FICO17 v6, as the WhatsApp form lists
 them). Picked indigo, the Digital Coach's ringed green, the same radiogroup and keys as the squares.
+An option may carry `icon` (a neutral lucide icon drawn before its words, hidden from a screen reader), and `disabled` makes every choice but
+the picked one untappable while an answer saves. The lesson-plan survey bar uses both (Useful / Not useful in a row; In class stacked).
 
 ### `SlotGroup`
 | Prop | Type | Default |
@@ -494,6 +496,11 @@ reason and Try again). It is never polled, never kept across a reload and never 
 ### `NumberField`
 `value` (string; "" = empty), `onChange(digits)`, `label` (big: a visible label over a 64px box), `ariaLabel` (when no label), `error`, `describedBy` (the id of the page's message), `size` (`big` · `row`: 72×56 in front of a name), `maxLength` (4), `dim` (row at its pre-written 0).
 An open number box (bd-fmf24g.34): `inputMode="numeric"`, digits only (Urdu and Arabic-Indic digits become Western), all selected on focus so the first key replaces a 0, `dir="ltr"`. No − / + stepper. The limit and its message belong to the page, shown right under the box and tied by `describedBy`. Canvas: AssessCoverage (Pages), AssessTypes (per-type counts).
+
+### `TextLine`
+`value`, `onChange(text)`, `label` (a visible label over the box), `maxLength`, `describedBy?` (the id of the page's message), `testId?`.
+A one-line text box for her own words (56px, 16px text, `dir="auto"` so Urdu and English each run their own way), the label above it, tied
+to it. Its limit is `maxLength`; the words around it come from the screen. First used by the lesson-plan survey bar's "What was wrong".
 
 ### `ButtonWithReason`
 `label`, `reason` (words, or null when it works), `to` | `onPress`, `icon`, `testId`.
