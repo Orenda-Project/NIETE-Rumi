@@ -790,6 +790,7 @@ async function alignedPick({ a, d, base, finish, card, nextStep, analysis, sessi
   if (!asks.length) return none('aligned:no_ask');
   if (history && history.failed) return none('aligned:history_unread'); // fail closed: never risk a repeat
   const catalog = d.catalogV2 || require('./catalog').loadV2(); // eslint-disable-line global-require
+  row.catalog_version = catalog.version; // red7 N4: the file the pick came from, not v1's
   const sr = (analysis && analysis.subject_resolution) || {};
   const lesson = { subject: sr.code && (sr.confidence === 'high' || sr.confidence === 'medium') ? sr.code : null, grade: gradeOf(analysis, bands) };
   const ctx = { languages: hasPref ? [language, transcriptLanguage, 'mixed'].filter(Boolean) : [language, 'mixed'], allow: videoRecoAllowlist(d.env) };

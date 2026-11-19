@@ -225,6 +225,47 @@ describe('the ask classifier', () => {
     const moves = A.classifyAsks(card).map((x) => x.move);
     if (notMove) expect(moves).not.toContain(notMove); else expect(moves).toEqual([]);
   });
+  // red7 HOLD 20261119T150737 H1: 5 of 3-s2's 9 prod picks (calib/engine_picks_prod.jsonl) were clapping as praise, clapping
+  // syllables, or differentiation; and N1, red7's attack set (gate_6527c6568f/attack_r9.jsonl), K1–K20
+  test.each([
+    ['clapping as praise after an answer (a6d2cb8c)', 'اگلی کلاس میں جب کوئی شاگرد \'وہ بھاگ رہے ہیں\' جیسا جملہ بار بار [a student]، جملہ خود مکمل کرنے کے بجائے ایک open-ended question پوچھیں، پانچ سے دس سیکنڈ کا wait time دیں، پھر نیا جواب آنے پر تالیاں [a student]۔', 'attention_cue'],
+    ['clapping before the next question (4267ec05)', 'اگلی کلاس میں جب [a student] جیسا بچہ تقسیم کا سوال حل کرے، تالیاں سے پہلے open-ended question پوچھیں \'کیسے سوچا؟\' اور 5-7 سیکنڈ wait time دے کر مزید بچوں سے سنیں۔', 'attention_cue'],
+    ['clapping out syllables (21380f6b)', 'اگلی کلاس میں جب \'[a student]\' جیسا لفظ توڑنے کا موقع آئے، خود لفظ بنانے کے بجائے ایک open-ended question پوچھیں، wait time دیں، پھر تالیاں بجا کر syllables دکھائیں۔', 'attention_cue'],
+    ['a silent count-down for chatter (cd2b15d3)', 'Next class, the moment chatter starts during independent work, silently count down 5-1 with your hand, step closer to that group, and start the visible timer—no words needed.', 'attention_cue'],
+    ['K6 count down to finish a task', 'Next class, count down from 30 so students finish their group task on time.', 'attention_cue'],
+    ['K1 follow up on homework', 'Next class, follow up with the three students who missed the homework.', 'follow_up_probe'],
+    ['K14 probe for homework', 'Next class, probe the class for homework completion at the start.', 'follow_up_probe'],
+    ['K2 recall at the end of the lesson', 'Next class, at the end of the lesson, ask students to recall the three key words from today.', 'activate_prior_knowledge'],
+    ['K7 remember the rules', 'Next class, remember the safety rules before the experiment.', 'activate_prior_knowledge'],
+    ['K8 correct past mistakes', 'اگلی کلاس میں پچھلی غلطیوں کو بورڈ پر درست کریں۔', 'activate_prior_knowledge'],
+    ['K20 a written quiz', 'Next class, ask students what they already know by giving a short written quiz.', 'activate_prior_knowledge'],
+    ['K3 wait for latecomers', 'Next class, wait a few minutes for latecomers before starting the reading.', 'wait_time'],
+    ['K17 silence to copy the board', 'Next class, give students 10 seconds of silence to copy the board.', 'wait_time'],
+    ['K18 wait after an instruction', 'Next class, wait five seconds after each instruction before repeating it.', 'wait_time'],
+    ['K4 predict the story', 'Next class, ask students to predict what happens next in the story before turning the page.', 'inquiry_opening'],
+    ['K5 real objects to explain', 'Next class, show real-life objects like a chocolate bar to explain fractions.', 'inquiry_opening'],
+    ['K9 pairs share worksheet answers', 'Next class, have pairs share their worksheet answers with each other.', 'think_pair_share'],
+    ['K12 the teacher explains', 'Next class, explain why the answer is correct before moving on.', 'ask_for_reasoning'],
+  ])('red7: %s', (_, card, notMove) => {
+    expect(A.classifyAsks(card).map((x) => x.move)).not.toContain(notMove);
+  });
+  test.each([
+    ['two parts: support set and challenge set (53e5e632)', 'اگلی کلاس میں تالی [a student] کی activity میں دو حصے بنائیں: support set میں \'دو\' جیسے آسان لفظ پر رہنمائی کے ساتھ تالی [a student]، اور challenge set میں \'[a student]\' جیسے مشکل لفظ یا غیر ملنے والے حروف [a student] کو دیں۔'],
+    ['two parts with easy and hard sentences (eb3e24a0)', 'اگلی کلاس میں جب \'lively\' جیسے الفاظ پر sentence بنانے کو کہیں، تو سب کو ایک ہی کام دینے کے بجائے دو حصے بنائیں: [a student] [a student] میں ایک لفظ پر ایک آسان sentence، اور [a student] [a student] میں دو مشکل sentences لکھو'],
+  ])('red7: a differentiation card is silent: %s', (_, card) => {
+    expect(A.classifyAsks(card)).toEqual([]);
+  });
+  test.each([
+    ['the attention cue the panel cleared (0bdebb8c)', 'Next class, when starting the seasons lesson, use a clap-pattern attention signal so every student is settled, then ask an open-ended question like \'Why does humidity change between seasons?\' and wait 5-10 seconds before calling on volunteers.', 'attention_cue'],
+    ['K21 wait after a question', 'Next class, after you ask a question, wait 5 seconds before choosing who answers.', 'wait_time'],
+    ['K22 what they already know, before the topic', 'Next class, before the new topic, ask what students already know about plants.', 'activate_prior_knowledge'],
+  ])('red7 keeps: %s', (_, card, move) => {
+    expect(A.classifyAsks(card).map((x) => x.move)).toContain(move);
+  });
+  test('an aligned row stamps the v2 catalogue version (red7 N4)', async () => {
+    const { row } = await run({ action: WAIT, env: ON });
+    expect(row.catalog_version).toBe(V2.version);
+  });
   test('a "spend 5 minutes improving" label names no move', () => {
     expect(A.classifyAsk('[TEACHER], try dedicating 5 minutes of your next class specifically to improving "Questioning".')).toBeNull();
   });
