@@ -87,6 +87,7 @@ const { isTeachersValue, isTeacherRole, isCoachRole } = require('./teacher-audie
 const { isRegistered } = require('../utils/registration-status');
 const { newJourneyId } = require('./app-journey');
 const { LEADER_ROLES } = require('./observe/observe-gate');
+const { isLpWhatsappPdfOffFor } = require('./lp-whatsapp-off');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -355,6 +356,9 @@ async function linkVerdict(feature, userId, now, note = {}, sharedAccount = null
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
   if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return null;
+  // lp_whatsapp_pdf_off: her programme is listed, so a lesson plan is the app link whatever her switch says (no Flow,
+  // no PDF, no Play Store notice). Not listed, absent or malformed: the rules below, as before.
+  if (feature === 'lesson_plan' && await isLpWhatsappPdfOffFor(userId)) return 'link';
   const values = await settingValues(now);
   const flag = values.get(key);
   const pilot = listHas(flag, userId);
@@ -650,6 +654,16 @@ async function openSchoolCard({ userId, from, language, query = '', now = Date.n
   });
 }
 
+/**
+ * The lesson-plan app link on its own, for a PDF send already in flight when her programme is on lp_whatsapp_pdf_off
+ * (lp-pdf-off.js): a Flow tap, a worker's waiter, a typed curriculum topic. true when it went; false = nothing sent.
+ */
+async function sendLessonPlanLink({ userId, from, language, reason = 'lp_pdf_off' } = {}) {
+  if (!userId || !from) return false;
+  const journey = startJourney({ userId, feature: 'lesson_plan', door: reason, verdict: 'link', why: 'lp_pdf_off' });
+  return sendAppLink('lesson_plan', { userId, from, language, reason, journey });
+}
+
 function _resetForTests() { flagCache = null; }
 
 module.exports = {
@@ -661,5 +675,6 @@ module.exports = {
   isOnTeacherApp,
   redirectIfFlagged,
   openSchoolCard,
+  sendLessonPlanLink,
   _resetForTests,
 };

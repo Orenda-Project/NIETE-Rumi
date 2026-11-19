@@ -1,4 +1,4 @@
-import { ChevronRight, Download, School } from 'lucide-react';
+import { ChevronRight, Download, School, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useLang } from '../i18n';
@@ -40,7 +40,8 @@ import { TimeStamp, type TimeTone } from './TimeStamp';
  *
  * COACH rows (bd-4404s7.1, COACH.md §0b): `lead="person"` and `lead="school"` replace that column with a ROUND 48px avatar
  * inset from the edge (initials, a school glyph, or a short `leadText` such as "87%", "HITL", "DC"), grey with ink so it can
- * never be mistaken for the square grade·subject column, which is reserved for a grade and a subject. `time` puts a TimeStamp
+ * never be mistaken for the square grade·subject column, which is reserved for a grade and a subject. `lead="glyph"` puts a
+ * lucide icon (`glyph`) in that same round avatar — My journey's steps (an opened plan, a quiz). `time` puts a TimeStamp
  * on the first line, above the title. `state` is `next` (the coming visit: tint and a 3px start bar) or `done` (muted).
  *
  * Then the title (16px/600, 2 lines), the red New dot, a chip, and the action:
@@ -68,7 +69,7 @@ export function leadColours(row: { subject: string; grade?: string | number | nu
 }
 
 /** The kit's grade·subject column (the default), or a coach's round avatar. */
-export type HistoryLead = 'grade' | 'person' | 'school';
+export type HistoryLead = 'grade' | 'person' | 'school' | 'glyph';
 export type HistoryLeadTone = 'grey' | 'indigo' | 'green' | 'amber';
 export type HistoryRowState = 'default' | 'next' | 'done';
 
@@ -91,6 +92,8 @@ export interface HistoryRowProps {
   lead?: HistoryLead;
   /** Avatar text instead of her initials ("87%", "HITL", "DC"). */
   leadText?: string;
+  /** The icon in the round avatar of a `lead="glyph"` row. */
+  glyph?: LucideIcon;
   leadTone?: HistoryLeadTone;
   /** What a screen reader hears for the avatar ("Score 87%"); the avatar itself is decorative. */
   leadLabel?: string;
@@ -172,7 +175,7 @@ export function GradeSubjectLead({ grade, subject = '', gradeShort }: {
 }
 
 export function HistoryRow({
-  lead = 'grade', leadText, leadTone = 'grey', leadLabel, time, timeTone, state = 'default',
+  lead = 'grade', leadText, glyph: Glyph, leadTone = 'grey', leadLabel, time, timeTone, state = 'default',
   subject = '', grade, title, wrapTitle = false, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
 }: HistoryRowProps) {
   const bidi = useBidi();
@@ -192,9 +195,9 @@ export function HistoryRow({
           data-testid="history-avatar"
           className={cn('ms-3.5 flex h-12 w-12 shrink-0 items-center justify-center whitespace-nowrap rounded-full text-[16px] font-bold leading-none', AVATAR_TONE[leadTone] ?? AVATAR_TONE.grey)}
         >
-          {lead === 'school'
-            ? <School className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
-            : bidi(leadText ?? initialsOf(title))}
+          {lead === 'school' ? <School className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+            : lead === 'glyph' && Glyph ? <Glyph className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+              : bidi(leadText ?? initialsOf(title))}
         </span>
       )}
       <span className="flex min-w-0 flex-1 flex-col gap-[3px] py-2.5">

@@ -23,8 +23,11 @@ const axios = require('axios');
 const TIMEOUT_MS = 10_000;
 const PATH = '/api/internal/lp/open-survey';
 
-/** Ask the bot for the survey for one recorded open. Resolves the bot's answer, or null on any failure. */
-async function requestSurvey(openId) {
+/**
+ * Ask the bot for the survey for one recorded open. Resolves the bot's answer, or null on any failure.
+ * `inApp`: the app's survey bar asks her, so the bot books the rest of the open but no WhatsApp survey.
+ */
+async function requestSurvey(openId, { inApp = false } = {}) {
   const baseUrl = (process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
   const apiKey = process.env.INTERNAL_API_KEY || '';
   if (!baseUrl || !apiKey) {
@@ -32,7 +35,7 @@ async function requestSurvey(openId) {
     return null;
   }
   try {
-    const res = await axios.post(`${baseUrl}${PATH}`, { openId }, {
+    const res = await axios.post(`${baseUrl}${PATH}`, inApp ? { openId, inApp: true } : { openId }, {
       headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
       timeout: TIMEOUT_MS,
     });
@@ -49,9 +52,9 @@ async function requestSurvey(openId) {
  * actually STORED (not a repeat inside the de-dupe window, not a failed write) asks for a survey;
  * the bot's own once-per-plan guard keeps it to one. Never throws.
  */
-function afterOpen(result) {
+function afterOpen(result, { inApp = false } = {}) {
   if (!result || result.recorded !== true || !result.id) return result;
-  requestSurvey(result.id);
+  requestSurvey(result.id, { inApp });
   return result;
 }
 

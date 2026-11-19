@@ -46,7 +46,7 @@ export { addDays, dayNumber, weekdayOf, weekOf } from './dates';
 export { DayStrip, type DayStripProps } from './DayStrip';
 export { TimePicker, PICKER_HOURS, type TimePickerProps } from './TimePicker';
 export { StepBar, type StepBarProps } from './StepBar';
-export { RatingScale, type RatingScaleProps, type RatingValue } from './RatingScale';
+export { RatingScale, type RatingOption, type RatingScaleProps, type RatingValue } from './RatingScale';
 export { SlotGroup, type SlotGroupProps, type SlotPerson } from './SlotGroup';
 export { SelectField, type SelectFieldProps, type SelectOption } from './SelectField';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
@@ -59,6 +59,9 @@ export { RecordUploadPair, type PairAction, type RecordUploadPairProps } from '.
 export { ChoicePair, type ChoiceItem, type ChoicePairProps } from './ChoicePair';
 export { DockButton } from './DockButton';
 export { NumberField, type NumberFieldProps } from './NumberField';
+export { TextLine, type TextLineProps } from './TextLine';
 export { ButtonWithReason, type ButtonWithReasonProps } from './ButtonWithReason';
 export { digitsOnly } from './digits';
 export { ShareActions, clockOf, PAGE_HANDOFF, type OpenTarget, type ShareActionsProps, type ShareResult } from './ShareActions';
+export { useOpenTarget, copyText, handoffIntentUrl, OPEN_HOLD_MS, type OpenFlash, type OpenState } from './useOpenTarget';
+export { ActionStrip, type ActionStripItem, type ActionStripProps } from './ActionStrip';
