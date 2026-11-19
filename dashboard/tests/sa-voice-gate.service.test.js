@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-25'); // sa-25: round 20, sa-engine.js / sa-core.js (N silent letter/word parts in a row)
+    expect(sw.CORE).toBe('sa-core-sa-26'); // sa-26: the hotfix (a slow link; a late no-voice inside a timed task)
   });
 });
 
