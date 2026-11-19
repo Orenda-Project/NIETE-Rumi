@@ -49,7 +49,10 @@
 // row ran out unanswered).
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
-var VERSION = 'sa-25';
+// sa-26: hotfix, sa-offline.js, this worker and sa-page.js (a slow link no longer refuses the start: the page waits while
+//   clips keep arriving, a fetch is given up only when it stalls, a retry joins the downloads already running, and the phone
+//   logs how long the preparation took; a late "no voice" inside a timed task waits for that task's end).
+var VERSION = 'sa-26';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

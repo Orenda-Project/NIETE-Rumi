@@ -480,7 +480,8 @@ const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repea
 // Round 8: the phone's readiness (device_ready: ready, voice, clips_total, clips_cached, persisted), the voice stop and its
 // Try again, so a slow or refused start can be read afterwards. A few per session (offline / online are not kept: a
 // flapping network would fill the session's cap; device.offline already says it).
-const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
+// voice_late_none { task, ms }: the 'none' verdict landed inside a timed task; the refusal waited for its end.
+const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry', 'voice_late_none'];
 const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
