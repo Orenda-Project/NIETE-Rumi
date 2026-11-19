@@ -1268,6 +1268,21 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the task is not flagged and no model is asked
     And with sa_r28_voice_help off the check and the Results are exactly as before
 
+  @e2e @wip @draft @config-gated @P1 @CT243 @no-mock-driver
+  # No mock driver: as @CT240. Asserted in bot/tests/child-test/sa-score-voice-items.test.js and sa-score-voice-help.test.js.
+  Scenario: With sa_r28_voice_help on, a help flag names the item the help touched, even when the adult speaks Urdu on an English task
+    Given sa_r28_voice_help is on and the another-voice check is on
+    And during an English task an adult says a word of the task in Urdu script, or spells it with Urdu letter names
+    When the task is flagged as help
+    Then the task's detail gives the reason as the task's own word in English and the ids of the items the help touched
+    And a passage word that appears more than once is given at the place a reader meets it first
+    And outside a passage the flag points at one item or none: words that fit more than one item give no item
+    And on timed sums a number read off a sum, or the answer of more than one sum, gives no item
+    And a per-question recording gives its own question as the item
+    And a help flag whose words name no item keeps an empty reason and no item, and still stands
+    And a recording with no word heard records that no model was asked
+    And none of the adult's other words are kept
+
   @e2e @wip @draft @config-gated @P1 @CT207 @no-mock-driver
   # No mock driver: the gate runs in the scoring sweep against a model and speech-to-text, not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-letter-gate.test.js.
