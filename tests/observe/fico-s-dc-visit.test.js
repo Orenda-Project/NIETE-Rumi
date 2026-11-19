@@ -130,7 +130,8 @@ describe('the analysis landed: the form is pre-filled and sent', () => {
     expect(flow[1].flowId).toBe('F-FICOS');
     expect(flow[1].flowToken).toBe('coach-1:obs612:form-dc:fs');
     expect(flow[1].body).toMatch(/Rumi has listened to the lesson/);
-    expect(flow[1].body).toMatch(/★ C3, C5, C7, D2, D3, E2, E3: yours alone/);
+    expect(flow[1].body).toMatch(/★ E3: yours alone/);
+    expect(flow[1].body).not.toMatch(/C3/);
   });
   test('what the observer typed first stays', async () => {
     await FsDc.onAnalysisReady(sessRow('sess-typed'), {});
@@ -193,19 +194,22 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
     expect(Object.keys(stay.data.error_messages)).toEqual(['lv_E3', 'ev_E3']);
   });
 
-  test('every starred indicator on a Digital Coach visit: ★, its line, never pre-filled, no change box', () => {
+  test('E3 alone is starred on a Digital Coach visit: ★, its line, never pre-filled, no change box', () => {
     const dc = FsDc.dcOf(formRow('form-dc'));
-    for (const code of ['C3', 'C5', 'C7', 'D2', 'D3', 'E2', 'E3']) {
-      const id = FS.SCREENS.find((x) => x.code === code).id;
-      const d = FS.screenData(id, formRow('form-dc').answers.obs612, 'en', { dc });
-      expect(d.heading).toMatch(/^★ /);
-      expect(d.star_v).toBe(true);
-      expect(d.rumi_v).toBe(false);
-      expect(d.chg_v).toBe(false);
-      expect(d.init[`lv_${code}`]).toBe('');
+    const at = (code) => FS.screenData(FS.SCREENS.find((x) => x.code === code).id, formRow('form-dc').answers.obs612, 'en', { dc });
+    const e3 = at('E3');
+    expect(e3.heading).toMatch(/^★ /);
+    expect(e3).toMatchObject({ star_v: true, rumi_v: false, chg_v: false });
+    expect(e3.init.lv_E3).toBe('');
+    // 19 Nov ~17:00: the six v6 combined ones (and E2) are not starred: Rumi's line, its level, the change box.
+    for (const code of ['C3', 'C5', 'C7', 'D2', 'D3', 'E2']) {
+      const d = at(code);
+      expect(d.heading).not.toMatch(/^★ /);
+      expect(d).toMatchObject({ star_v: false, rumi_v: true, chg_v: true });
     }
-    const portal = FS.portalSections({}, 'en', { dc }).find((x) => x.id === 'FS_C_THREE');
-    expect(portal.parts[0].text).toMatch(/^★ C3/);
+    const portal = FS.portalSections({}, 'en', { dc });
+    expect(portal.find((x) => x.id === 'FS_E_THREE').parts[0].text).toMatch(/^★ E3/);
+    expect(portal.find((x) => x.id === 'FS_C_THREE').parts[0].text).not.toMatch(/★/);
   });
 
   test('Urdu: Rumi\'s line and the starred line in Urdu', () => {

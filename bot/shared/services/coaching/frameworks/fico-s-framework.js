@@ -26,7 +26,8 @@ const S = require('./fico-s');
 const RUBRIC_SHA8 = crypto.createHash('sha256').update(fs.readFileSync(S.RUBRIC_FILE)).digest('hex').slice(0, 8);
 // Bump the number when the prompt's wording (not the rubric data) changes; the hash follows the rubric data.
 // 2 (19 Nov ~14:15): the HITL-only indicators starred too (C3 C5 C7 D2 D3 E2 E3), so 16 are asked.
-const DC_PROMPT_VERSION = `fico-s-dc-2+${RUBRIC_SHA8}`;
+// 3 (19 Nov ~17:00): starred = E3 only, so the Digital Coach is asked 22 indicators (2 asked 16; 1 was the first cut).
+const DC_PROMPT_VERSION = `fico-s-dc-3+${RUBRIC_SHA8}`;
 const RESULTS = [1, 2, 3, 4, 'NA', 'IE'];
 const TIME_RE = /^\d{1,3}:\d{2}$/;
 const NEAR_SECONDS = 30;

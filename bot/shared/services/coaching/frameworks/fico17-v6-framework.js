@@ -441,6 +441,9 @@ function computeScoresStarred(analysis, hasLp) {
 
 /** The v6 scorer in starred mode: the same interface and name, so every v6 reader treats its analysis as v6. */
 function starredVariant() {
+  // 19 Nov ~17:00 (operator: "those are not starred"): v6 stars none, so starred mode is today's v6, never a v6 that
+  // drops the combined six's evidence. It comes back on its own if the rubric ever marks one.
+  if (!v6.STARRED_CODES.length) return module.exports;
   return {
     ...module.exports,
     promptVersion: STARRED_PROMPT_VERSION,
