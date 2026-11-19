@@ -121,16 +121,17 @@ function createOwnWorker(deps) {
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
     const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
+    const noBook = !!(row.answers && row.answers.goal); // bd-snkn32.57: a goal start reads no book text, prints no pages
     const pg = (row.answers && row.answers.pages) || day.pages || {};
-    const bookText = await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
+    const bookText = noBook ? null : await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
     const out = await d.rewriteK5({
-      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, bookText, correlationId,
+      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: noBook ? null : day.pages || null, bookText, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     out.script = addK5Close(out.script, day.lang); // bd-snkn32.52 — "Before they write", after the gate, always
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: (row.answers && row.answers.pages) || day.pages || null });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: noBook ? null : (row.answers && row.answers.pages) || day.pages || null });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }

@@ -79,9 +79,10 @@ test('a typed topic: the closest lesson, or null', async () => {
     .toEqual({ success: true, match: null });
 });
 
-test('bad grade, grades 1-5 or no subject: 400', async () => {
+test('bad grade, a grade off 1-12 or no subject: 400', async () => {
   await start();
-  expect((await get('/api/portal/lp612/own/goals?grade=3&subject=Maths')).status).toBe(400);
+  expect((await get('/api/portal/lp612/own/goals?grade=0&subject=Maths')).status).toBe(400);
+  expect((await get('/api/portal/lp612/own/goals?grade=13&subject=Maths')).status).toBe(400);
   expect((await get('/api/portal/lp612/own/goals?grade=x&subject=Maths')).status).toBe(400);
   expect((await get('/api/portal/lp612/own/goals?grade=7')).status).toBe(400);
   expect((await get('/api/portal/lp612/own/goals/match?grade=7&subject=Maths')).status).toBe(400);
@@ -96,6 +97,14 @@ test.each([
   await start();
   expect((await get('/api/portal/lp612/own/goals?grade=7&subject=English')).status).toBe(404);
   expect((await get('/api/portal/lp612/own/goals/match?grade=7&subject=English&q=nouns')).status).toBe(404);
+});
+
+test('bd-snkn32.57 — grades 1-5 too: the official outcomes, each naming its day', async () => {
+  await start();
+  const r = await get('/api/portal/lp612/own/goals?grade=3&subject=math');
+  expect(r.status).toBe(200);
+  expect(rowsAsked).toEqual([{ grade: 3, subject: 'math' }]);
+  expect((await get('/api/portal/lp612/own/goals/match?grade=1&subject=urdu&q=water')).status).toBe(200);
 });
 
 test('someone not on the list: 404', async () => {

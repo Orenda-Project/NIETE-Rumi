@@ -20,7 +20,7 @@ const { checkAccuracy, ACCURACY_JOB } = require('./lp612-own-accuracy');
 const OWN_TABLE = 'niete_lp612_own_plans';
 const REVIEW_JOB = 'lp.ownReview';
 const REVIEW_READ = 'id, status, lang, segment_id, lesson_id, r2_key, answers';
-/** A 6-12 segment id names its grade (grade_8_science.c02…). */
+/** A 6-12 segment id and a 1-5 lesson id both name their grade (grade_8_science.c02…, grade_3_math_ch2_seg1). */
 const gradeOfSeg = (id) => { const m = /^grade_(\d+)_/.exec(String(id || '')); return m ? Number(m[1]) : null; };
 
 /** The document stored beside her PDF: `.lp.json` for a 6-12 fork, `.json` (slide script) for a grades 1-5 day. */
@@ -61,7 +61,7 @@ function createOwnReviewer(deps) {
       let pass = g.pass;
       let out = items;
       if (goal) {
-        const acc = await checkAccuracy(d.client, d.accuracyModel || d.model, { plan, goal, grade: gradeOfSeg(row.segment_id) });
+        const acc = await checkAccuracy(d.client, d.accuracyModel || d.model, { plan, goal, grade: gradeOfSeg(row.segment_id || row.lesson_id) });
         out = { ...items, ACC: acc ? (acc.accurate ? 4 : 1) : null };
         pass = pass && !!acc && acc.accurate;
         if (acc && !acc.accurate) d.log('LP own review: factual errors in a goal plan', { ownId, errors: acc.errors.length, correlationId });
