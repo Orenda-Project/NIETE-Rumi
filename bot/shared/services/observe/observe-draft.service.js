@@ -634,6 +634,9 @@ async function applyObserverEdits(sessionId, edits) {
     .select('analysis_data').eq('id', sessionId).single();
   const freshDebrief = freshRow && freshRow.analysis_data && freshRow.analysis_data.observer_debrief;
   if (freshDebrief) v2.observer_debrief = freshDebrief;
+  // bd-ra8xu.60: Observation Notes, the review-opened stamp and the informed scoring are written beside the form
+  // (observation-notes.js); a note saved while the form was open must not be lost to this whole-blob write.
+  Object.assign(v2, require('./observation-notes').carry(freshRow && freshRow.analysis_data));
 
   const patch = { analysis_data: v2, status: 'observer_review_complete' };
 

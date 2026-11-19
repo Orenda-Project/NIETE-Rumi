@@ -661,6 +661,7 @@
                   "payload": {
                     "_screen": "DOMAIN_B",
                     "v6f": "2",
+                    "v6n": "1",
                     "fid_r_1": "${form.fid_r_1}",
                     "fid_e_1": "${form.fid_e_1}",
                     "fid_r_2": "${form.fid_r_2}",
@@ -716,6 +717,18 @@
         "next_label": {
           "type": "string",
           "__example__": "Start Section C"
+        },
+        "notes_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "notes_heading": {
+          "type": "string",
+          "__example__": "📝 Your Observation Notes"
+        },
+        "notes": {
+          "type": "string",
+          "__example__": "12:40  Board work: 5 children solved sums with steps\nBack two rows silent all lesson"
         }
       },
       "layout": {
@@ -724,6 +737,16 @@
           {
             "type": "TextHeading",
             "text": "${data.heading}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.notes_heading}",
+            "visible": "${data.notes_v}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.notes}",
+            "visible": "${data.notes_v}"
           },
           {
             "type": "TextBody",
@@ -2254,6 +2277,18 @@
         "next_label": {
           "type": "string",
           "__example__": "Start Section C"
+        },
+        "notes_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "notes_heading": {
+          "type": "string",
+          "__example__": "📝 Your Observation Notes"
+        },
+        "notes": {
+          "type": "string",
+          "__example__": "12:40  Board work: 5 children solved sums with steps\nBack two rows silent all lesson"
         }
       },
       "layout": {
@@ -2262,6 +2297,16 @@
           {
             "type": "TextHeading",
             "text": "${data.heading}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.notes_heading}",
+            "visible": "${data.notes_v}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.notes}",
+            "visible": "${data.notes_v}"
           },
           {
             "type": "TextBody",
@@ -3213,6 +3258,18 @@
         "next_label": {
           "type": "string",
           "__example__": "Start Section C"
+        },
+        "notes_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "notes_heading": {
+          "type": "string",
+          "__example__": "📝 Your Observation Notes"
+        },
+        "notes": {
+          "type": "string",
+          "__example__": "12:40  Board work: 5 children solved sums with steps\nBack two rows silent all lesson"
         }
       },
       "layout": {
@@ -3221,6 +3278,16 @@
           {
             "type": "TextHeading",
             "text": "${data.heading}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.notes_heading}",
+            "visible": "${data.notes_v}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.notes}",
+            "visible": "${data.notes_v}"
           },
           {
             "type": "TextBody",
