@@ -1,0 +1,2 @@
+{"ts":"2026-11-19T12:02:54Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons,portal-smoke spec_sync=true","sha":"1a0e73c59847","branch":"bd-snkn32.57-goal-k5","user":""}
+{"ts":"2026-11-19T12:02:55Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,teacher-lessons,portal-smoke spec_sync=true","sha":"1a0e73c59847","branch":"bd-snkn32.57-goal-k5","user":""}
