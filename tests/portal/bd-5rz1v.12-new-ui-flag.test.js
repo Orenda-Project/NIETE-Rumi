@@ -182,7 +182,7 @@ describe('GET /config — features.newUi', () => {
       'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm',
       'helpVideos',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
-      'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
+      'lpMakeOwn', 'lpOwnGoalStart', 'lpOwnReviewer', 'lpOwnShelf',
       'newUi',
       // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
       'observeOnPortal',

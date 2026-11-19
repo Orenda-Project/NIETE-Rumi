@@ -15,10 +15,13 @@
  * Dependencies are injected (createOwnReviewer) so it is testable without Supabase, R2 or a model.
  */
 const { gateV2, parseReview, reviewMessages, applyBand, mustFor } = require('./lp612-own-review');
+const { checkAccuracy, ACCURACY_JOB } = require('./lp612-own-accuracy');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const REVIEW_JOB = 'lp.ownReview';
-const REVIEW_READ = 'id, status, lang, segment_id, lesson_id, r2_key';
+const REVIEW_READ = 'id, status, lang, segment_id, lesson_id, r2_key, answers';
+/** A 6-12 segment id and a 1-5 lesson id both name their grade (grade_8_science.c02…, grade_3_math_ch2_seg1). */
+const gradeOfSeg = (id) => { const m = /^grade_(\d+)_/.exec(String(id || '')); return m ? Number(m[1]) : null; };
 
 /** The document stored beside her PDF: `.lp.json` for a 6-12 fork, `.json` (slide script) for a grades 1-5 day. */
 function planKeyFor(row) {
@@ -53,16 +56,26 @@ function createOwnReviewer(deps) {
       const must = mustFor({ plan }); // bd-snkn32.46: Science also needs 9B >= 3, as production gate v2
       let g = gateV2(items, null, must);
       if (g.rescore) g = gateV2(items, await score(messages, band), must);
+      // bd-snkn32.56 — a book-less plan (a goal start) must also be factually right to join the shelf.
+      const goal = row.answers && row.answers.goal;
+      let pass = g.pass;
+      let out = items;
+      if (goal) {
+        const acc = await checkAccuracy(d.client, d.accuracyModel || d.model, { plan, goal, grade: gradeOfSeg(row.segment_id || row.lesson_id) });
+        out = { ...items, ACC: acc ? (acc.accurate ? 4 : 1) : null };
+        pass = pass && !!acc && acc.accurate;
+        if (acc && !acc.accurate) d.log('LP own review: factual errors in a goal plan', { ownId, errors: acc.errors.length, correlationId });
+      }
       const fields = {
         review_score: Math.round(g.pct * 10) / 10,
-        review_pass: g.pass,
-        review_items: items,
+        review_pass: pass,
+        review_items: out,
         review_model: d.model,
         reviewed_at: d.now(),
-        library_eligible: g.pass,
+        library_eligible: pass,
       };
       await d.patchOwn(row.id, fields);
-      return { pass: g.pass, score: fields.review_score, reasons: g.reasons };
+      return { pass, score: fields.review_score, reasons: g.reasons };
     } catch (err) {
       d.log('LP own review: not scored', { ownId, error: err && err.message, correlationId });
       return null;
@@ -84,6 +97,7 @@ function liveDeps() {
     readPlan: async (key) => (await require('../storage/r2').downloadFromR2(key)).toString('utf8'),
     client: require('./llm-client').getClient(),
     model: require('../config/model-registry').modelFor(REVIEW_JOB),
+    accuracyModel: require('../config/model-registry').modelFor(ACCURACY_JOB),
     patchOwn: async (id, fields) => {
       const { error } = await supabase.from('niete_lp612_own_plans').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
       if (error) throw new Error(error.message);

@@ -1940,7 +1940,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the speech gate, the marks, the words per minute and the first-row stop work as before
     And with sa_r28_words_prompt off the prompt and the marks are exactly as before
 
-  @e2e @wip @draft @config-gated @P1 @CT255 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT300 @no-mock-driver
   # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
   Scenario: With sa_r28_words_prompt and sa_r28_ceiling on, the model is given only the words the child reached
     Given sa_r28_words_prompt and sa_r28_ceiling are on
@@ -1950,7 +1950,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a child who reached fewer than today's 4 words is shown today's 4
     And a word list without today's count is shown whole, as before
 
-  @e2e @wip @draft @config-gated @P1 @CT256 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT301 @no-mock-driver
   # No mock driver: as @CT246. Asserted in bot/tests/child-test/sa-r28-words-prompt.test.js.
   Scenario: With sa_r28_words_prompt and sa_r8_counts on, the fifth word keeps its accepted forms
     Given sa_r28_words_prompt and sa_r8_counts are on
