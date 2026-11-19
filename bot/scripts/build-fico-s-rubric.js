@@ -32,6 +32,12 @@ const VERSION = '1.1';
 // wrong)"): the one indicator the sheet names. Any other is a data change here, with the operator's word.
 const NA = { C2: 'No answer was wrong in this lesson.' };
 
+// Ours (operator 19 Nov ~11:20, queue #184: "the E3 indicator is the 'starred' indicator ... Starred indicators are the
+// one that do not get sent to DC and are mandatorily filled by the HITL"). The sheet has no star column, so this is a
+// data change here, with the operator's word: a starred indicator is never in the Digital Coach's prompt or output, and
+// the observer must set it (with evidence) before the form submits.
+const STARRED = new Set(['E3']);
+
 const clean = (s) => String(s == null ? '' : s).replace(/\r/g, '').trim();
 const oneLine = (s) => clean(s).replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
 const sentenceCase = (s) => {
@@ -110,6 +116,7 @@ function build(source) {
       note: oneLine(al[5] || ''),
       examples: ex,
       na: NA[code] ? { allowed: true, text: NA[code] } : { allowed: false },
+      starred: STARRED.has(code),
     });
   }
 
@@ -178,6 +185,7 @@ function build(source) {
     ours: {
       na: 'N/A is offered only where the sheet names it (C2: no answer was wrong).',
       checklist_keys: 'cl_1 … cl_12, in the sheet order.',
+      starred: 'Starred (operator, 19 Nov): E3. Never sent to the Digital Coach; the observer must set it.',
     },
   };
 }
