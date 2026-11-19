@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-38'); // sa-38: round 28, sa.css (the Urdu RDF-auto story questions' practice fits a phone like the scored question)
+    expect(sw.CORE).toBe('sa-core-sa-39'); // sa-39: a slow link no longer refuses the start (sa-offline.js, sw.js)
   });
 });
 
