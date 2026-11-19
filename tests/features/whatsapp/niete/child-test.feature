@@ -2071,3 +2071,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a clip that plays slowly but keeps moving, or pauses for 3 seconds and then plays on, is heard as before
     And a stall on a replay the child asked for only ends that replay: the item stays open and the next tap scores
     And a line not marked clip-only still waits up to 60 seconds as before
+
+  @e2e @wip @draft @config-gated @P1 @CT298 @no-mock-driver
+  # No mock driver: the minute is the scorer's, on a recording already uploaded. Asserted in
+  # bot/tests/child-test/sa-r28-story-minute.test.js (the real scoring path, the clip and the model stand-ins).
+  Scenario: With sa_r28_story_minute on, a child who stops the story before its last line is rated on the full minute
+    Given sa_r28_story_minute is on
+    When a child taps "done" on the story after 9 seconds having read 11 of its 60 words, all correctly
+    Then the story's reading rate is 11 words a minute, not 75, and the marks say the full minute was used
+    And a child who reached the first word of the passage's last printed line, by the recording or by the last word tapped, is rated on the time actually used and the marks say the last line was reached
+    And the last line is read from the passage variant the child was shown, never a fixed word count
+    And a run that ended when the minute ran out, a run stopped on the first line, and a run without the phone's clock are scored exactly as before
+    And the letters, words and maths timed tasks are scored exactly as before
+    And with sa_r28_story_minute off every story's marks are exactly as before and carry no minute stamp
