@@ -6,7 +6,10 @@
  * the switch again). Mounted at /api/portal beside portal-lp612-own.routes.js.
  *
  *   GET /api/portal/lp612/own/goals?grade&subject          → { success, outcomes: [{ segmentId, text, chapter }] }
- *   GET /api/portal/lp612/own/goals/match?grade&subject&q  → { success, match: { segmentId, title } | null }
+ *   GET /api/portal/lp612/own/goals/match?grade&subject&q  → { success, status: ok|none|blocked, suggestions: [≤3
+ *       { segmentId, text, chapter }], otherGrade?: { grade, segmentId, text, chapter }, match: top suggestion | null }
+ *       bd-snkn32.58.2 (queue #155 B): the typed topic goes through lp-own-goal-guard (spelling, Roman Urdu, a nearby
+ *       grade's goal, blocked words); `match` stays for older app builds.
  *
  * Dark (404) unless the teacher app, portal_lp_make_own AND the LIST-ONLY portal_lp_own_goal_start are on for her, and
  * she is not a GB teacher. The user is always the session's. Rows are read with this server's client through the bot's
@@ -19,7 +22,8 @@ const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb');
 const { teacherAppOnFor } = require('../lib/teacher-app');
 const { requirePortalAuth } = require('../lib/portal-auth');
 const { goalStartOn, goalRows } = require('../../bot/shared/services/lp612-own-goal.store');
-const { outcomeList, matchTopic, outcomeOf } = require('../../bot/shared/services/lp612-own-goal');
+const { outcomeList } = require('../../bot/shared/services/lp612-own-goal');
+const { guardTopic } = require('../../bot/shared/services/lp-own-goal-guard');
 
 const router = express.Router();
 const SUBJECT_MAX = 80;
@@ -61,8 +65,13 @@ router.get('/lp612/own/goals/match', requirePortalAuth, requireGoalStart, async 
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, Q_MAX) : '';
   if (!at || !q) return res.status(400).json({ success: false, error: 'grade 1-12, subject and q are required' });
   try {
-    const hit = matchTopic(q, await goalRows(supabase, at));
-    return res.json({ success: true, match: hit ? { segmentId: hit.segment_id, title: outcomeOf(hit) } : null });
+    // her grade, and the grades ±2 inside her band (1–5 or 6–12), for the grade check
+    const [lo, hi] = at.grade <= 5 ? [1, 5] : [6, 12];
+    const near = [at.grade - 2, at.grade - 1, at.grade + 1, at.grade + 2].filter((g) => g >= lo && g <= hi);
+    const [rows, ...others] = await Promise.all([at.grade, ...near].map((g) => goalRows(supabase, { grade: g, subject: at.subject })));
+    const r = guardTopic(q, { rows, others: near.map((grade, i) => ({ grade, rows: others[i] })) });
+    const top = r.suggestions[0];
+    return res.json({ success: true, ...r, match: top ? { segmentId: top.segmentId, title: top.text } : null });
   } catch (error) {
     console.error('❌ Portal lp612/own/goals/match failed', { error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not match the topic' });

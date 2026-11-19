@@ -20,6 +20,11 @@ const OUTCOMES = [
 const at = { grade: 7, subject: 'General Science' };
 beforeEach(() => { cleanup(); http.get.mockReset(); });
 
+const WATER = { segmentId: 'g7.c03', text: 'Describe the water cycle', chapter: 'Water' };
+function guard(body: Record<string, unknown>) {
+  http.get.mockImplementation(async (url: string) => (url === '/lp612/own/goals/match'
+    ? { data: { success: true, ...body } } : { data: { success: true, outcomes: OUTCOMES } }));
+}
 function answer(match: unknown = null) {
   http.get.mockImplementation(async (url: string) => (url === '/lp612/own/goals/match'
     ? { data: { success: true, match } } : { data: { success: true, outcomes: OUTCOMES } }));
@@ -33,11 +38,13 @@ describe('goalApi', () => {
     http.get.mockRejectedValue(new Error('net'));
     expect(await fetchGoals(at)).toBeNull();
   });
-  it('a match is the lesson, or null; a malformed row is dropped', async () => {
-    answer({ segmentId: 'g7.c03', title: 'Describe the water cycle' });
-    expect(await matchGoal(at, 'rain')).toEqual({ segmentId: 'g7.c03', title: 'Describe the water cycle' });
+  it('bd-snkn32.58.2 — the guard\'s answer: status, suggestions, a nearby grade; malformed rows dropped; failure null', async () => {
+    guard({ status: 'ok', suggestions: [WATER, { text: 'x' }] });
+    expect(await matchGoal(at, 'rain')).toEqual({ status: 'ok', suggestions: [WATER], otherGrade: null });
     expect(http.get).toHaveBeenLastCalledWith('/lp612/own/goals/match', { params: { ...at, q: 'rain' } });
-    answer({ title: 'x' });
+    guard({ status: 'none', suggestions: [], otherGrade: { grade: 8, ...WATER } });
+    expect(await matchGoal(at, 'rain')).toEqual({ status: 'none', suggestions: [], otherGrade: { grade: 8, ...WATER } });
+    guard({ status: 'weird' });
     expect(await matchGoal(at, 'rain')).toBeNull();
   });
 });
@@ -52,18 +59,42 @@ describe('GoalStep', () => {
     expect(onPick).toHaveBeenCalledWith({ kind: 'outcome', text: 'Describe the water cycle' }, 'g7.c03');
   });
 
-  it('a typed topic is matched, and the closest lesson is named', async () => {
-    answer({ segmentId: 'g7.c03', title: 'Describe the water cycle' });
+  it('bd-snkn32.58.2 — a typed topic offers "Did you mean" goals; nothing is picked until she taps one', async () => {
+    guard({ status: 'ok', suggestions: [WATER] });
     const onPick = vi.fn();
     render(<GoalStep at={at} goal={{ kind: null, text: '' }} onPick={onPick} />);
-    fireEvent.change(screen.getByTestId('own-goal-topic'), { target: { value: 'Rain at home' } });
+    fireEvent.change(screen.getByTestId('own-goal-topic'), { target: { value: 'Rain at hme' } });
     fireEvent.click(screen.getByTestId('own-goal-find'));
-    await waitFor(() => expect(onPick).toHaveBeenCalledWith({ kind: 'topic', text: 'Rain at home' }, 'g7.c03'));
-    expect(screen.getByTestId('own-goal-closest').textContent).toBe(C.closest('Describe the water cycle'));
+    expect(await screen.findByText(C.didYouMean)).toBeTruthy();
+    expect(screen.queryByTestId('own-goal-nohits')).toBeNull(); // not "no goal has these words" above the suggestions
+    expect(onPick).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('radio', { name: /Describe the water cycle/ }));
+    expect(onPick).toHaveBeenCalledWith({ kind: 'outcome', text: 'Describe the water cycle' }, 'g7.c03');
+  });
+
+  it('bd-snkn32.58.2 — a goal of another grade: the grade line, use it anyway or see her own', async () => {
+    guard({ status: 'none', suggestions: [], otherGrade: { grade: 8, segmentId: 'g8.c01', text: 'Explain air pressure', chapter: 'Air' } });
+    const onPick = vi.fn();
+    render(<GoalStep at={at} goal={{ kind: null, text: '' }} onPick={onPick} />);
+    fireEvent.change(screen.getByTestId('own-goal-topic'), { target: { value: 'air pressure' } });
+    fireEvent.click(screen.getByTestId('own-goal-find'));
+    expect((await screen.findByTestId('own-goal-grade')).textContent).toContain(C.otherGrade(8));
+    fireEvent.click(screen.getByRole('button', { name: C.useAnyway }));
+    expect(onPick).toHaveBeenCalledWith({ kind: 'outcome', text: 'Explain air pressure' }, 'g8.c01');
+  });
+
+  it('bd-snkn32.58.2 — a blocked word: a calm refusal, nothing picked', async () => {
+    guard({ status: 'blocked', suggestions: [] });
+    const onPick = vi.fn();
+    render(<GoalStep at={at} goal={{ kind: null, text: '' }} onPick={onPick} />);
+    fireEvent.change(screen.getByTestId('own-goal-topic'), { target: { value: 'something bad' } });
+    fireEvent.click(screen.getByTestId('own-goal-find'));
+    await waitFor(() => expect(screen.getByTestId('own-goal-nomatch').textContent).toBe(C.blocked));
+    expect(onPick).not.toHaveBeenCalled();
   });
 
   it('a topic with no lesson behind it says so and picks nothing', async () => {
-    answer(null);
+    guard({ status: 'none', suggestions: [] });
     const onPick = vi.fn();
     render(<GoalStep at={at} goal={{ kind: null, text: '' }} onPick={onPick} />);
     fireEvent.change(screen.getByTestId('own-goal-topic'), { target: { value: 'Volcanoes' } });
