@@ -85,6 +85,20 @@ async function findRow(userId, band, ref) {
   return rows[0] || null;
 }
 
+/**
+ * Her in-app answer for a grades 1-5 lesson, on any of her lesson_plans rows for it (the app writes its own row), or
+ * null. The WhatsApp tap asks this so an app answer is not answered a second time on WhatsApp (sceptic pass).
+ */
+async function answeredInApp(userId, lessonId) {
+  if (!userId || !lessonId) return null;
+  const plans = must(await supabase.from('lesson_plans').select('id')
+    .eq('user_id', userId).eq('content->v8->>lesson_id', lessonId));
+  if (!plans.length) return null;
+  const rows = must(await supabase.from('lp_feedback').select('id, useful')
+    .eq('user_id', userId).eq('trigger_mode', 'in_app').in('lesson_plan_id', plans.map((p) => p.id)).limit(1));
+  return rows[0] || null;
+}
+
 const stateOf = (row) => (row ? { useful: row.useful === true, usedInClass: row.used_in_class || null } : null);
 
 /** Whether she has answered this plan: null, or { useful, usedInClass }. Throws when the database cannot answer. */
@@ -193,4 +207,5 @@ async function save(p) {
   return { outcome: 'saved', feedback: stateOf({ ...row, ...update }) };
 }
 
-module.exports = { parse, state, save, REASON_MAX, USED_IN_CLASS };
+module.exports = {
+  answeredInApp, parse, state, save, REASON_MAX, USED_IN_CLASS };

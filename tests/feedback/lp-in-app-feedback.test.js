@@ -167,6 +167,17 @@ describe('grades 1-5', () => {
     expect(feedback()[0]).toMatchObject({ id: 'fb-wa-1', used_in_class: 'planned' });
   });
 
+  // Sceptic pass: app first, then the delayed WhatsApp prompt of the WhatsApp copy of the same plan → still ONE answer.
+  test('an app answer counts for a later WhatsApp tap on the same plan: no second row', async () => {
+    const WA_PLAN = '00000000-0000-4000-8000-0000000000aa';
+    mockDb.rows('lesson_plans').push({ id: WA_PLAN, user_id: TEACHER, topic: 'Topic 3', content: { v8: { lesson_id: LESSON, surface: 'whatsapp' } } });
+    await InApp.save(InApp.parse({ userId: TEACHER, kind: 'k5', ref: LESSON, useful: true }));
+    const LpFeedback = require('../../bot/shared/services/lp-feedback.service');
+    await LpFeedback.handleFeedbackButton(`lp_feedback_no_${WA_PLAN}`, '923000000000');
+    expect(feedback()).toHaveLength(1);
+    expect(feedback()[0]).toMatchObject({ trigger_mode: 'in_app', useful: true });
+  });
+
   test('answers are per teacher and per plan: another teacher or another plan starts fresh', async () => {
     await InApp.save(InApp.parse({ userId: TEACHER, kind: 'k5', ref: LESSON, useful: true }));
     expect(await InApp.state({ userId: OTHER, kind: 'k5', ref: LESSON })).toBeNull();

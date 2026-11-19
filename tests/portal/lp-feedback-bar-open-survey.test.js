@@ -106,6 +106,11 @@ beforeEach(() => {
   jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
   jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
   barOn = false;
+  v2On = true;
+  jest.doMock('../../dashboard/lib/teacher-app', () => ({
+    ...jest.requireActual('../../dashboard/lib/teacher-app'),
+    teacherAppOnFor: jest.fn(async () => v2On),
+  }));
   jest.doMock('../../dashboard/lib/lp-app-switches', () => ({
     ...jest.requireActual('../../dashboard/lib/lp-app-switches'),
     isLpFeedbackBarOn: jest.fn(async () => {
@@ -126,6 +131,7 @@ afterEach(() => {
 });
 
 let barOn;
+let v2On;
 
 describe('the bar on: a grades 1-5 open tells the bot the app asks', () => {
   test('a viewer open: { openId, inApp: true }', async () => {
@@ -139,6 +145,22 @@ describe('the bar on: a grades 1-5 open tells the bot the app asks', () => {
     barOn = true;
     await invoke('/curriculum/lp/:lesson_id/pdf', { params: { lesson_id: 'grade_4_english_ch1_seg2' } });
     expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1', inApp: true }]);
+  });
+});
+
+// Sceptic pass: the open claims the survey only where the bar can be drawn — her plan (not its answer key), and only
+// with the teacher app v2 on for her (GET /config lpFeedbackBar = teacherV2 && the bar). Else WhatsApp still asks.
+describe('the bar on, but no bar can be drawn: WhatsApp still asks', () => {
+  test('the teacher app v2 is off for her → { openId } only', async () => {
+    barOn = true; v2On = false;
+    await invoke('/curriculum/lp/:lesson_id/file', { params: { lesson_id: 'grade_4_english_ch1_seg2' } });
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
+  });
+
+  test('the answer key, not the plan → { openId } only', async () => {
+    barOn = true;
+    await invoke('/curriculum/lp/:lesson_id/file', { params: { lesson_id: 'grade_4_english_ch1_seg2' }, query: { kind: 'answer_key' } });
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
   });
 });
 
