@@ -147,7 +147,8 @@ var PROGRESS_MS = 5000;
  * onBytes(n) gets the body bytes as they arrive (a response with no readable body: its content-length). A try is
  * abandoned when no answer comes for idleMs, or no body bytes for idleMs (abort() gives the AbortController whose signal
  * the fetch gets); a body that keeps arriving is never cut. inflight (shared by every prepare) holds the urls being fetched:
- * a url already there waits on that download instead of starting another. onDone(u) once per url kept. Never rejects.
+ * a url already there waits on that download instead of starting another, except that a fresh ask never waits on a plain
+ * one that may still end on the kept copy. onDone(u) once per url kept. Never rejects.
  */
 function prefetch(urls, o) {
   var limit = o.limit || PREFETCH_AT_ONCE;
@@ -191,22 +192,30 @@ function prefetch(urls, o) {
     got.then(null, function () {});
     return Promise.race([got, stalled]).then(function (v) { clearTimeout(t); return v; }, function () { clearTimeout(t); return false; });
   }
-  function fetchOne(u) {
-    var first = fresh.indexOf(u) >= 0 ? once(u) : Promise.resolve(false);
+  // a download from the network (a fresh ask, or a plain one whose match missed) can be joined by any ask; a plain one
+  // still matching may end on the kept copy, so a fresh ask never joins it
+  function fromNet(e) { return !!e && (e.fresh || e.net); }
+  function fetchOne(u, e) {
+    var first = e.fresh ? once(u) : Promise.resolve(false);
     return first.then(function (got) { return got ? true : o.match(u); }).then(null, function () { return null; }).then(function (hit) {
       if (hit) return true;
+      var now = running[u];
+      if (now !== e && fromNet(now)) return now.p; // a fresh ask started while this one matched: one request, not two
+      e.net = true;
       return once(u).then(function (got) {
         return got ? true : new Promise(function (r) { setTimeout(r, wait); }).then(function () { return once(u); });
       });
     });
   }
   function one(u) {
-    var p = running[u];
-    if (!p) {
-      p = running[u] = fetchOne(u);
-      p.then(function () { if (running[u] === p) delete running[u]; });
+    var isFresh = fresh.indexOf(u) >= 0;
+    var e = running[u];
+    if (!e || (isFresh && !fromNet(e))) {
+      var mine = e = running[u] = { fresh: isFresh, net: false };
+      e.p = fetchOne(u, e);
+      e.p.then(function () { if (running[u] === mine) delete running[u]; });
     }
-    return p.then(function (got) { if (!got) missing.push(u); else if (o.onDone) o.onDone(u); });
+    return e.p.then(function (got) { if (!got) missing.push(u); else if (o.onDone) o.onDone(u); });
   }
   function worker() { var u = queue.shift(); return u === undefined ? null : one(u).then(worker); }
   var workers = [];
