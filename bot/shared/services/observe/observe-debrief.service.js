@@ -560,7 +560,9 @@ async function buildDebriefGuide(session, lang) {
 
   // bd-pni007: an FDE (obs612) visit's guide is the coach's own "For the talk with the teacher" (obs612/summary.js), as
   // written: no model call, and never the FICO guide (its prompt reads FICO domains an FDE visit does not have).
-  if (require('../coaching/frameworks/own-rubric').isObs612Scored(v2)) {
+  // Queue #184: a FICO 6-12 visit the Digital Coach pre-filled gets v6's notes (below, from the observer's record).
+  const ficoSDc = require('./obs612/fico-s-dc').isDcVisit(session) && v2.obs612 && v2.obs612.tool === 'ficos';
+  if (!ficoSDc && require('../coaching/frameworks/own-rubric').isObs612Scored(v2)) {
     const { buildTalkGuide, buildCoachSummary } = require('./obs612/summary');
     const talk = buildTalkGuide(v2, { lang }) || buildCoachSummary(v2, { lang });
     if (talk) return { kind: 'obs612_talk', text: talk, intro: talk, sections: {}, outro: '' };
