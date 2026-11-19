@@ -1828,6 +1828,492 @@
      }
     }
    ]
+  },
+  {
+   "module_id": 804,
+   "video_id": "tm-804",
+   "library": "legacy",
+   "level_id": 30,
+   "title": "Reflection on Students' Role in Classroom",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0c4bcf00-b513-403d-849d-c3218690d2e4.mp4",
+   "duration_s": 214.6,
+   "language": "mixed",
+   "format": "mixed",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "video-thumbs/804.jpg",
+   "segments": [
+    {
+     "seg_id": "804-s2",
+     "start_s": 87.69,
+     "end_s": 164.37,
+     "title_en": "Think-pair-share on your own teaching",
+     "title_ur": "اپنی تدریس پر تھنک پیئر شیئر",
+     "moves": [
+      "think_pair_share",
+      "professional_growth"
+     ],
+     "fico": [
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 101.37
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 108.15
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "C4",
+       "D1"
+      ],
+      "what_en": "Adults think and write alone at a laptop, then talk in a pair, then one shares the pair's ideas at a whiteboard.",
+      "what_ur": "بڑے شرکاء پہلے اکیلے سوچ کر لکھتے ہیں، پھر جوڑی میں بات کرتے ہیں، پھر ایک فرد وائٹ بورڈ پر خیالات بتاتا ہے۔"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 87.69,
+       "end_s": 141.87
+      },
+      "flags": [
+       "no_children_visible",
+       "adult_participants"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 905,
+   "video_id": "tm-905",
+   "library": "isaps",
+   "level_id": 31,
+   "title": "Unit 2302",
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/i-saps/level-2/module-3/unit-2302.mp4",
+   "duration_s": 755.24,
+   "language": "mixed",
+   "format": "mixed",
+   "subjects": [
+    "english",
+    "science"
+   ],
+   "grade_band": "9-12",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "video-thumbs/905.jpg",
+   "segments": [
+    {
+     "seg_id": "905-s4",
+     "start_s": 302.61,
+     "end_s": 402.63,
+     "title_en": "'What is a neighbour?' Opening with a stretching question",
+     "title_ur": "'پڑوسی کون ہے؟' سوال سے سبق کا آغاز",
+     "moves": [
+      "open_questions",
+      "follow_up_probe",
+      "inquiry_opening"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2,
+       "evidence_s": 322.35
+      },
+      {
+       "indicator": "F6",
+       "strength": 1,
+       "evidence_s": 307.95
+      },
+      {
+       "indicator": "D3",
+       "strength": 1,
+       "evidence_s": 380.91
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "follow_up_probe",
+      "fico": [
+       "C1",
+       "D2"
+      ],
+      "what_en": "Teacher asks 'what is a neighbour?', then builds on answers: 'does it only mean people near our house?', 'do we have neighbours in space?'",
+      "what_ur": "ٹیچر پوچھتے ہیں 'پڑوسی کون ہے؟'، پھر جواب پر سوال: 'کیا صرف گھر کے قریب والے؟'، 'کیا خلا میں بھی پڑوسی ہیں؟'"
+     },
+     "subjects": [
+      "english"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 304.89,
+       "end_s": 399.03
+      },
+      "flags": [
+       "staged_class"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "905-s5",
+     "start_s": 402.63,
+     "end_s": 575.37,
+     "title_en": "Prompt, 2 minutes alone, then pair talk",
+     "title_ur": "تحریری ہدایت، 2 منٹ اکیلے، پھر جوڑی میں بات",
+     "moves": [
+      "think_pair_share",
+      "read_write_bridge"
+     ],
+     "fico": [
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 498.45
+      },
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 479.19
+      }
+     ],
+     "language": "en",
+     "recommendable": true,
+     "kind": "demonstration",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "D1",
+       "D2"
+      ],
+      "what_en": "Teacher: 'take 2 minutes and establish three facts: narrator, neighbour, disturbance… then work in pairs and discuss your story'",
+      "what_ur": "ٹیچر: '2 منٹ میں تین باتیں طے کریں: راوی، پڑوسی، جھگڑا… پھر جوڑی میں اپنی کہانی پر بات کریں'"
+     },
+     "subjects": [
+      "english"
+     ],
+     "grade_band": "9-12",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 479.19,
+       "end_s": 560
+      },
+      "flags": [
+       "staged_class"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 794,
+   "video_id": "tm-794",
+   "library": "legacy",
+   "level_id": 29,
+   "title": "How to involve each child in classroom discussion?",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/af048582-df30-49a5-8a9d-9a5837ac7139.mp4",
+   "duration_s": 237.12,
+   "language": "mixed",
+   "format": "mixed",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "video-thumbs/794.jpg",
+   "segments": [
+    {
+     "seg_id": "794-s2",
+     "start_s": 47.67,
+     "end_s": 158.97,
+     "title_en": "Write alone first, then 'move to your group'",
+     "title_ur": "پہلے اکیلے لکھیں، پھر 'گروپ میں جائیں'",
+     "moves": [
+      "think_pair_share",
+      "group_work"
+     ],
+     "fico": [
+      {
+       "indicator": "D1",
+       "strength": 2,
+       "evidence_s": 112.11
+      },
+      {
+       "indicator": "C4",
+       "strength": 1,
+       "evidence_s": 91.83
+      },
+      {
+       "indicator": "D2",
+       "strength": 0,
+       "evidence_s": 129.27
+      }
+     ],
+     "language": "mixed",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "D1",
+       "C4"
+      ],
+      "what_en": "'Write your answers separately.' ... after one minute: 'Okay, let's just move to your group' and the four compare and correct",
+      "what_ur": "'اپنا جواب الگ الگ لکھیں۔' ... ایک منٹ بعد: 'چلیں، اب اپنے گروپ میں آ جائیں' اور مل کر جواب درست کریں"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "ok",
+      "sound": "ok",
+      "usable": {
+       "start_s": 47.67,
+       "end_s": 156.21
+      },
+      "flags": [
+       "workshop_recording",
+       "no_children_visible",
+       "wide_shot"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 745,
+   "video_id": "tm-745",
+   "library": "legacy",
+   "level_id": 30,
+   "title": "Think, Pair and Share -3",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b28947dd-237a-4d7d-b841-17426bcfa7c5.mp4",
+   "duration_s": 112.4,
+   "language": "ur",
+   "format": "mixed",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "video-thumbs/745.jpg",
+   "segments": [
+    {
+     "seg_id": "745-s1",
+     "start_s": 0,
+     "end_s": 112.4,
+     "title_en": "Think-pair-share, then pairs merge into fours",
+     "title_ur": "تھنک پیئر شیئر: پہلے جوڑیاں، پھر چار کا گروپ",
+     "moves": [
+      "think_pair_share",
+      "group_work"
+     ],
+     "fico": [
+      {
+       "indicator": "C4",
+       "strength": 2,
+       "evidence_s": 51.27
+      },
+      {
+       "indicator": "D1",
+       "strength": 1,
+       "evidence_s": 62.07
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "think_pair_share",
+      "fico": [
+       "C4",
+       "D1"
+      ],
+      "what_en": "Adults each list five qualities of a good teacher, compare in pairs into one list, merge again in fours, then present to the room.",
+      "what_ur": "بڑے شرکاء اچھے ٹیچر کی پانچ خوبیاں لکھتے ہیں، جوڑی میں ایک فہرست بناتے ہیں، پھر چار کے گروپ میں ملا کر پیش کرتے ہیں۔"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "all",
+     "quality": {
+      "picture": "ok",
+      "sound": "good",
+      "usable": {
+       "start_s": 29.25,
+       "end_s": 92.61
+      },
+      "flags": [
+       "no_children_visible",
+       "adult_participants",
+       "captions_english",
+       "unrelated_skit_end"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
+  },
+  {
+   "module_id": 778,
+   "video_id": "tm-778",
+   "library": "legacy",
+   "level_id": 28,
+   "title": "Teaching Practically",
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/711d4233-48ec-4f2e-a359-1ffbf6509306.mp4",
+   "duration_s": 145.46,
+   "language": "ur",
+   "format": "mixed",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "primary",
+   "recommendable": true,
+   "media_ok": true,
+   "dup_of": null,
+   "also_in": [],
+   "thumb": "video-thumbs/778.jpg",
+   "segments": [
+    {
+     "seg_id": "778-s1",
+     "start_s": 0,
+     "end_s": 60.99,
+     "title_en": "Application and conceptual questions",
+     "title_ur": "اطلاق اور تصوراتی سوال",
+     "moves": [
+      "blooms_levels",
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 17.55
+      },
+      {
+       "indicator": "B5",
+       "strength": 0,
+       "evidence_s": 7.29
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "blooms_levels",
+      "fico": [
+       "C1"
+      ],
+      "what_en": "Application question: 'See, the wall and door make an angle. Can you tell me more examples?'",
+      "what_ur": "اطلاقی سوال: «دیکھیں، دیوار اور دروازے کے درمیان زاویہ بن رہا ہے۔ کیا آپ مجھے اور مثالیں بتا سکتے ہیں؟»"
+     },
+     "subjects": [
+      "general"
+     ],
+     "grade_band": "primary",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 7.29,
+       "end_s": 60.99
+      },
+      "flags": [
+       "no_children_visible",
+       "starts_mid_conversation"
+      ],
+      "sound_machine": "good"
+     }
+    },
+    {
+     "seg_id": "778-s2",
+     "start_s": 61.05,
+     "end_s": 145.46,
+     "title_en": "A 'what if' question, then wait 7 seconds",
+     "title_ur": "'اگر ایسا ہو تو' والا سوال، پھر سات سیکنڈ انتظار",
+     "moves": [
+      "wait_time",
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1,
+       "evidence_s": 61.05
+      },
+      {
+       "indicator": "F5",
+       "strength": 1,
+       "evidence_s": 80.55
+      }
+     ],
+     "language": "ur",
+     "recommendable": true,
+     "kind": "modelled",
+     "shows": {
+      "move": "wait_time",
+      "fico": [
+       "C1",
+       "F5"
+      ],
+      "what_en": "trainer puts a question to the adult teacher and visibly waits about 7 seconds before taking the answer",
+      "what_ur": "ٹرینر ساتھی ٹیچر سے سوال کر کے جواب لینے سے پہلے تقریباً سات سیکنڈ رکتے ہیں"
+     },
+     "subjects": [
+      "science"
+     ],
+     "grade_band": "4-5",
+     "quality": {
+      "picture": "good",
+      "sound": "good",
+      "usable": {
+       "start_s": 61.05,
+       "end_s": 139.29
+      },
+      "flags": [
+       "no_children_visible",
+       "comic_sketch"
+      ],
+      "sound_machine": "good"
+     }
+    }
+   ]
   }
  ]
 }

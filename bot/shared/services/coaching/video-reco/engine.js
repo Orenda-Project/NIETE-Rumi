@@ -827,6 +827,23 @@ async function alignedPick({ a, d, base, finish, card, nextStep, analysis, sessi
   });
 }
 
+/** R9c A9b: the one row for an own report the engine cannot read (no reads, no pick). */
+async function frameworkUnsupported(args, d0, env) {
+  const store = d0.store || require('./store'); // eslint-disable-line global-require
+  return store.write({
+    coaching_session_id: args.coachingSessionId,
+    user_id: args.session.user_id,
+    arm: assignArm(args.session.user_id, env),
+    observation_type: args.observationType || 'self',
+    experiment: videoRecoAbEnabled(env) ? AB_SALT : null,
+    route: 'aligned',
+    module_id: null,
+    seg_id: null,
+    status: 'none',
+    none_reason: `framework_unsupported:${args.analysis.framework || 'none'}`,
+  });
+}
+
 /**
  * @param {object} a
  * @param {object} a.session            coaching_sessions row (+ users.preferred_language, users.name)
@@ -846,7 +863,10 @@ async function recommendForReport(args = {}) {
   try {
     if (!videoRecoEnabled(env)) return null;
     if (isLeaderObservation(args)) return null; // queue #186: a HITL visit's report carries no training clip
-    if (!args.analysis || args.analysis.framework !== 'fico' || !args.session || !args.coachingSessionId) return null;
+    if (!args.analysis || !args.session || !args.coachingSessionId) return null;
+    // R9c A9b (COS 20261119T143330): a teacher's own report on a framework the engine cannot read is a `none` row that
+    // names it, so the A/B counts it; flag off = today (no row)
+    if (args.analysis.framework !== 'fico') return videoRecoAligned(env) ? await frameworkUnsupported(args, d0, env) : null;
     // A snapshot taken before the first await: the report goes on rendering (and may add to the analysis) while this runs.
     const snap = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
     a = { ...args, analysis: snap(args.analysis), nextStep: snap(args.nextStep), card: snap(args.card), loop: snap(args.loop) };
