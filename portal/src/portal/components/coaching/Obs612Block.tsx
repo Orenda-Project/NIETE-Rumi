@@ -32,6 +32,9 @@ export function Obs612Block({ o, className, showLabel = true }: { o: Obs612Summa
                   <span className="block h-full rounded bg-[#47BA7D]" style={{ width: `${Math.max(0, Math.min(100, r.pct))}%` }} />
                 </span>
               ) : null}
+              {r.note ? (
+                <p data-testid="obs612-note" dir="auto" className="m-0 whitespace-pre-line text-[13.5px] leading-[1.5] text-[#4b5563] [overflow-wrap:anywhere]">{r.note}</p>
+              ) : null}
             </div>
           ))}
         </div>
