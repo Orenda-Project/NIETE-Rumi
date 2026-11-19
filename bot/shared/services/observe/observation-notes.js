@@ -156,18 +156,24 @@ function carry(fresh) {
   return out;
 }
 
-const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const urduClock = (t) => `⁦${String(t).replace(/[0-9]/g, (d) => URDU_DIGITS[Number(d)])}⁩`;
+// The language's digits and how a clock sits in its prose are catalog data (observe-strings notes_digits, notes_clock):
+// Urdu digits, isolated so the RTL line cannot reorder the time; English as typed.
+const localDigits = (s, S) => {
+  const D = (S && S.notes_digits) || '0123456789';
+  return String(s).replace(/[0-9]/g, (d) => D[Number(d)] || d);
+};
+const clockText = (t, S) => String((S && S.notes_clock) || '{t}').replace('{t}', localDigits(t, S));
 
 /**
  * The coach's notes as a review intro screen shows them: one per line, word for word, the recording clock first when
  * there is one (Urdu digits, isolated, in Urdu). Cut to fit one screen ('…' when cut). '' when there are none.
  */
 function introText(analysis, lang = 'en') {
+  const S = strings(lang);
   const lines = notesOf(analysis)
     .filter((n) => n && typeof n.text === 'string' && n.text.trim())
     .map((n) => {
-      const t = n.rec_time && REC_TIME_RE.test(n.rec_time) ? `${lang === 'ur' ? urduClock(n.rec_time) : n.rec_time}  ` : '';
+      const t = n.rec_time && REC_TIME_RE.test(n.rec_time) ? `${clockText(n.rec_time, S)}  ` : '';
       return `${t}${n.text.trim()}`;
     });
   let out = '';
@@ -196,9 +202,7 @@ function strings(lang) {
   return observeStrings(lang); // observe-strings falls back to English key by key
 }
 
-const fillN = (tpl, n, lang) => String(tpl || '').replace('{n}', lang === 'ur'
-  ? String(n).replace(/[0-9]/g, (d) => URDU_DIGITS[Number(d)])
-  : String(n));
+const fillN = (tpl, n, S) => String(tpl || '').replace('{n}', localDigits(n, S));
 
 /**
  * After the recording's acknowledgement on a v6 /observe visit: the one message that offers the notes Flow, while the
@@ -281,7 +285,7 @@ async function handleFlowReply(user, from, token, responseJson, { messageId = nu
       await WhatsAppService.sendMessage(from, S.notes_not_saved);
       return true;
     }
-    const count = fillN(notes.length === 1 ? S.notes_count_one : S.notes_count_many, notes.length, lang);
+    const count = fillN(notes.length === 1 ? S.notes_count_one : S.notes_count_many, notes.length, S);
     await WhatsAppService.sendMessage(from, String(out.before === false ? S.notes_saved_late : S.notes_saved).replace('{n}', count));
     logToFile('📝 observation-notes: notes saved from WhatsApp', { sessionId, count: notes.length, added: out.added, beforeReview: out.before !== false });
     runInformedSoon(sessionId);
