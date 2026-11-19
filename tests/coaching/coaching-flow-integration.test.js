@@ -68,6 +68,9 @@ describe('LP Selection in Coaching Flow (bd-622)', () => {
           data: { id: 'lp-1', content: { steps: ['intro'] }, topic: 'Math' },
           error: null,
         }),
+        // The corpus lookup (niete_lp_assets) runs first: not a corpus asset → the lesson_plans path.
+        // bd-r2uzg1.18.6: the linker no longer swallows a failing lookup, so the mock needs the real call.
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       };
       return { from: jest.fn(() => chain) };
     });
