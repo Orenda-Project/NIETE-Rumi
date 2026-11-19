@@ -106,7 +106,8 @@ describe('2 · the shown move matches the card\'s ask (at its sub-ask)', () => {
     expect(row.seg_id).toBeNull();
   });
   test('a chapter that shows the move but has no sub-ask record never fires', async () => {
-    const { row } = await run({ action: WAIT, env: { ...ON, VIDEO_RECO_ALLOWLIST: '' }, v2: v2With((d) => { mod(d, 790).segments = mod(d, 790).segments.map((s) => (s.seg_id === '790-s3' ? { ...s, seg_id: '790-s9' } : s)); }) });
+    // R9c: 451-s1 (the second wait clip) already shown, so the unrecorded chapter is the only one left
+    const { row } = await run({ action: WAIT, env: { ...ON, VIDEO_RECO_ALLOWLIST: '' }, history: { segments: ['451-s1'], modules: [] }, v2: v2With((d) => { mod(d, 790).segments = mod(d, 790).segments.map((s) => (s.seg_id === '790-s3' ? { ...s, seg_id: '790-s9' } : s)); }) });
     expect(row.seg_id).toBeNull();
   });
   test('the env allowlist still binds', async () => {
@@ -353,5 +354,131 @@ describe('R9b · cross-gate: wait_time', () => {
   test('the near-miss exclusion still holds across the gate: wait after a stumble stays silent', async () => {
     const { row } = await run({ action: 'Next class, when a student stumbles on a word like \'friction\', pause for a few seconds of wait time, then ask a guiding question.', env: ON, subject: 'maths', grade: '4' });
     expect(row.seg_id).toBeNull();
+  });
+});
+
+// R9c (bd-tp4w7n.5; COS 20261119T174101, red7 20261119T175254): six second clips (ped-align ADDON.md, 20/20 R+A each,
+// 0 ⛔, transcript PASS). 778-s2 stays OUT (red7 HOLD). 794-s2 never below Grade 3. The 9 first clips keep their place;
+// 790-s2 ranks last within think_pair_share (it shares video 790 with 790-s3: red7 N1).
+describe('R9c · second clips', () => {
+  const ALLOW15 = `${ALLOW},790-s2,804-s2,905-s5,794-s2,745-s1,451-s1`;
+  const ADDONS = { '790-s2': 'think_pair_share:think_then_pair', '804-s2': 'think_pair_share:think_then_pair', '905-s5': 'think_pair_share:think_then_pair', '794-s2': 'think_pair_share:think_then_pair', '745-s1': 'think_pair_share:think_then_pair', '451-s1': 'wait_time:after_question' };
+  const TPS_ALL = ['791-s2', '451-s3', '804-s2', '905-s5', '794-s2', '745-s1', '790-s2'];
+  const on15 = { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW15 };
+  test.each(Object.entries(ADDONS))('%s carries a sub-ask record (%s) and shows its move in v2', (id, sub) => {
+    expect(A.SUB_ASK[id] && A.SUB_ASK[id].sub).toBe(sub);
+    const s = C.fromData(V2).segment(id);
+    expect(s && s.segment.shows.move).toBe(A.SUB_ASKS[sub].move);
+  });
+  test('778-s2 is held (red7 HOLD 175254): no record, never picked even when allowlisted', async () => {
+    expect(A.SUB_ASK['778-s2']).toBeUndefined();
+    const { row } = await run({ action: WAIT, env: { ...ON, VIDEO_RECO_ALLOWLIST: `${ALLOW15},778-s2` }, history: { segments: ['790-s3', '451-s1'], modules: [] } });
+    expect(row.seg_id).toBeNull();
+    expect(row.none_reason).toBe('aligned:seen');
+  });
+  test('first contact is unchanged by the 15-list: wait → 790-s3, think-pair-share → 791-s2', async () => {
+    expect((await run({ action: WAIT, env: on15 })).row.seg_id).toBe('790-s3');
+    expect((await run({ action: TPS, env: on15 })).row.seg_id).toBe('791-s2');
+    expect((await run({ action: TPS, env: on15, subject: 'science', grade: '4' })).row.seg_id).toBe('451-s3');
+  });
+  test('a repeat teacher gets a second wait clip from a different video: 790-s3 shown → 451-s1, shown, with its reason', async () => {
+    const { row } = await run({ action: WAIT, env: on15, history: { segments: ['790-s3'], modules: [] } });
+    expect(row.status).toBe('shown');
+    expect(row.seg_id).toBe('451-s1');
+    expect(row.module_id).not.toBe(790);
+    expect(row.reason_en).toContain(A.SUB_ASK['451-s1'].shows_en);
+    expect(row.reason_ur).toContain(A.SUB_ASK['451-s1'].shows_ur);
+  });
+  test('a repeat teacher walks the think-pair-share clips one video at a time, 790-s2 last, then silence', async () => {
+    const seen = [];
+    for (;;) {
+      const { row } = await run({ action: TPS, env: on15, grade: '4', history: { segments: [...seen], modules: [] } }); // eslint-disable-line no-await-in-loop
+      if (!row.seg_id) { expect(row.none_reason).toBe('aligned:seen'); break; }
+      expect(seen.map((s) => s.split('-')[0])).not.toContain(String(row.module_id)); // never a video already shown
+      seen.push(row.seg_id);
+    }
+    expect(seen[0]).toBe('791-s2');
+    expect(seen[seen.length - 1]).toBe('790-s2');
+    expect([...seen].sort()).toEqual([...TPS_ALL].sort());
+  });
+  test('790-s2 never follows 790-s3 (same video)', async () => {
+    const others = TPS_ALL.filter((s) => s !== '790-s2');
+    const { row } = await run({ action: TPS, env: on15, grade: '4', history: { segments: ['790-s3', ...others], modules: [] } });
+    expect(row.seg_id).toBeNull();
+  });
+  test.each([['1', false], ['2', false], ['3', true], ['5', true]])('794-s2 grade floor 3: Grade %s → reachable %p', async (grade, ok) => {
+    const others = TPS_ALL.filter((s) => s !== '794-s2' && s !== '790-s2');
+    const { row } = await run({ action: TPS, env: on15, grade, history: { segments: others, modules: [] } });
+    expect(row.seg_id === '794-s2').toBe(ok);
+  });
+  test('794-s2 with no known grade is not served (fail closed)', () => {
+    const ask = { move: 'think_pair_share', sub: 'think_pair_share:think_then_pair' };
+    const ids = (g) => A.candidates(C.fromData(V2), ask, { languages: ['en', 'ur', 'mixed'], allow: null, history: null }, { subject: 'english', grade: g }).map((c) => c.seg.seg_id);
+    expect(ids(null)).not.toContain('794-s2');
+    expect(ids({ lo: 1, hi: 5 })).not.toContain('794-s2'); // a PRIMARY band reaches Grade 1
+    expect(ids({ lo: 4, hi: 4 })).toContain('794-s2');
+  });
+  test('the add-on Urdu lines are gender-neutral (plural-respect verbs, no singular gendered ending)', () => {
+    for (const id of Object.keys(ADDONS)) expect(A.SUB_ASK[id].shows_ur).not.toMatch(/(?:تا|تی) ہے|تی ہیں|رہی ہیں|بتاتی|کرتی/u);
+  });
+});
+
+// R9c (ped-align r6 20261119T172641; COS 174509): the 22 picks the blind panel judged wrong at #5141 74842aad5e, each
+// through the real v2 file, the panel's gates and the 15-list. Each is silent now. 4 of them are the 782-s1 `model`
+// near-miss (ped-align: 179/185 = 96.8% with it).
+describe('R9c · r6 wrong picks are silent (incl. the 782-s1 model exclusion)', () => {
+  const R6 = require('./fixtures/r6-wrong-picks.json').picks;
+  const LIST = new Set(`${ALLOW},790-s2,804-s2,905-s5,794-s2,745-s1,451-s1`.split(','));
+  const BAND = { '1-2': { lo: 1, hi: 2 }, '3-5': { lo: 3, hi: 5 }, '6-8': { lo: 6, hi: 8 }, '9-12': { lo: 9, hi: 12 } };
+  const pickFor = (x) => {
+    const langs = [...new Set([x.report_lang, x.lesson_lang, 'mixed'].filter(Boolean))];
+    for (const ask of A.classifyAsks(x.card)) {
+      const c = A.candidates(C.loadV2(), ask, { languages: langs, allow: LIST, history: { segments: [], modules: [] } }, { subject: x.subject, grade: BAND[x.grade_band] || null });
+      if (c.length) return c[0].seg.seg_id;
+    }
+    return null;
+  };
+  test.each(R6.map((x) => [x.item, x.seg, x]))('%s (%s) → silence', (_, seg, x) => {
+    expect(pickFor(x)).toBeNull();
+  });
+  test.each([
+    ['a plain follow-up', 'Next class, when a student says the car drinks petrol, ask \'Why do you think that?\', then explain.'],
+    ['a follow-up after a one-word answer', 'Next class, when a child gives a one-word answer, follow up with a real-life why question and wait 5-7 seconds.'],
+  ])('782-s1 keeps %s', (_, card) => {
+    expect(A.classifyAsks(card).map((x) => x.move)).toContain('follow_up_probe');
+  });
+});
+
+// R9c A9b (COS 20261119T143330 / 174509; red7 174442): a teacher's own report on a framework the engine cannot read is a
+// `none` row that names it, so the A/B sees it. A leader observation stays with no row (queue #186). Flag off = today.
+describe('R9c · A9b framework_unsupported', () => {
+  const runFw = ({ framework, env = ON, observer = null }) => {
+    const writes = [];
+    return E.recommendForReport({
+      session: { id: 's1', user_id: 'u1', observer_user_id: observer, transcript_language: 'ur', users: { name: 'Test Teacher', preferred_language: 'en' }, diarization_data: { segments: LINES } },
+      analysis: { framework, domains: {}, subject_resolution: { code: 'english', grade: '4', confidence: 'high' } },
+      card: { indicator: 'C1', action: WAIT },
+      coachingSessionId: 's1',
+      deps: { env: { VIDEO_RECO_ENABLED: 'true', VIDEO_RECO_ALLOWLIST: ALLOW, ...env }, catalogV2: C.fromData(V2), store: { write: async (r) => { writes.push(r); return r; } } },
+    }).then((row) => ({ row, writes }));
+  };
+  test('an own report on fico17_v6 → one none row, framework_unsupported:fico17_v6', async () => {
+    const { row, writes } = await runFw({ framework: 'fico17_v6' });
+    expect(writes).toHaveLength(1);
+    expect(row).toMatchObject({ status: 'none', none_reason: 'framework_unsupported:fico17_v6', coaching_session_id: 's1', user_id: 'u1', observation_type: 'self', seg_id: null, route: 'aligned' });
+  });
+  test('…with no framework at all → framework_unsupported:none', async () => {
+    const { row } = await runFw({ framework: undefined });
+    expect(row.none_reason).toBe('framework_unsupported:none');
+  });
+  test('a leader observation on fico17_v6 → no row (queue #186)', async () => {
+    const { row, writes } = await runFw({ framework: 'fico17_v6', observer: 'coach-1' });
+    expect(row).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
+  test('flag off → today: null, no row', async () => {
+    const { row, writes } = await runFw({ framework: 'fico17_v6', env: {} });
+    expect(row).toBeNull();
+    expect(writes).toHaveLength(0);
   });
 });

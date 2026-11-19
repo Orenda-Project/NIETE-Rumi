@@ -1128,6 +1128,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Or I have already been shown every clip that shows what it asks
     Then my report arrives with no clip message, no clip on the image and no clip card
 
+  # R9c (bd-tp4w7n.5, COS 20261119T174101 / 174509): six second clips behind the same flag and the env allowlist (the 9
+  # first clips keep their place), and a recorded skip for an own report the engine cannot read. Units: the R9c blocks
+  # of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @P1 @COA107
+  Scenario: A teacher who already watched the wait-time clip gets a second one from a different video
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
+    And I was already shown the wait-time clip
+    When my next report asks me again to wait a few seconds after a question
+    Then the clip is a wait-time chapter from a different video, where a teacher gives 10 seconds to think and no one calls out
+    And the reason names what my report asked and what this clip shows
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA108
+  Scenario: My own report on an observation form the clips cannot read gets no clip, and the skip is recorded
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And my own recording was scored on a form other than FICO
+    When my coaching report arrives
+    Then it has no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says framework_unsupported with the form's name
+
   @e2e @draft @P2
   Scenario: The chapter's close-out lessons are named for what they are in the lesson list
     Given I am choosing which lesson my recording was for
