@@ -1775,6 +1775,12 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
   } catch (error) {
     logToFile('Error scheduling the quiz retest sweep (non-fatal)', { error: error && error.message }, 'error');
   }
+  try {
+    // The twice-a-day teacher activity count (Home numbers, My journey, team view); a no-op until teacher_activity_slots.
+    require('./teacher-activity-schedule').scheduleTeacherActivity({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the teacher activity job (non-fatal)', { error: error && error.message }, 'error');
+  }
 }
 
 function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {

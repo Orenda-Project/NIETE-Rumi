@@ -1521,7 +1521,8 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
     return res.status(400).json({ success: false, error: 'openId is required' });
   }
   const AppSurvey = require('../services/lp-app-open-survey.service');
-  const result = await AppSurvey.onViewerOpen({ openId });
+  // `inApp`: the survey bar is on for her in the app, so the app asks there and WhatsApp does not (one survey).
+  const result = await AppSurvey.onViewerOpen({ openId, inApp: (req.body || {}).inApp === true });
   // The same open books the coaching ask a WhatsApp-delivered K-5 plan books (its own guards,
   // its own once-a-day row). Never throws; its answer rides along for the logs.
   const LpCoachingAsk = require('../services/nudges/lp-coaching-ask.service');
@@ -1534,6 +1535,42 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
     topicNudge = { scheduled: false, reason: 'guard_unavailable' };
   }
   return res.json({ success: true, ...result, coachingAsk, topicNudge });
+});
+
+/**
+ * POST /api/internal/lp/feedback
+ * Body { userId, kind: 'k5'|'g612', ref, lang?, useful?, usedInClass?, reasonText? }
+ *   → 200 { success, outcome: 'saved'|'already_answered', feedback } · 404 unknown_plan · 409 no_answer · 400 · 500
+ *
+ * The survey bar at the end of the teacher app's plan viewer (lp-in-app-feedback.service): one lp_feedback row per
+ * teacher per plan, trigger_mode 'in_app', in the column the band rule picks. `userId` is the portal SESSION's.
+ */
+router.post('/lp/feedback', requireInternalKey, async (req, res) => {
+  const InApp = require('../services/lp-in-app-feedback.service');
+  const p = InApp.parse(req.body);
+  if (!p) return res.status(400).json({ success: false, error: 'userId, kind, ref and an answer are required' });
+  try {
+    const out = await InApp.save(p);
+    if (out.outcome === 'unknown_plan') return res.status(404).json({ success: false, outcome: out.outcome });
+    if (out.outcome === 'no_answer') return res.status(409).json({ success: false, outcome: out.outcome });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logToFile('❌ Internal LP in-app feedback failed', { tk: require('../services/quiz/web-quiz-kid').tk(p.userId), kind: p.kind, ref: p.ref, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not save' });
+  }
+});
+
+/** POST /api/internal/lp/feedback/state  Body { userId, kind, ref } → { success, feedback: null | { useful, usedInClass } } */
+router.post('/lp/feedback/state', requireInternalKey, async (req, res) => {
+  const InApp = require('../services/lp-in-app-feedback.service');
+  const p = InApp.parse({ ...(req.body || {}), useful: false });
+  if (!p) return res.status(400).json({ success: false, error: 'userId, kind and ref are required' });
+  try {
+    return res.json({ success: true, feedback: await InApp.state(p) });
+  } catch (error) {
+    logToFile('❌ Internal LP in-app feedback state failed', { tk: require('../services/quiz/web-quiz-kid').tk(p.userId), kind: p.kind, ref: p.ref, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not read' });
+  }
 });
 
 // ─── assessment generator ───────────────────────────────────────────────────

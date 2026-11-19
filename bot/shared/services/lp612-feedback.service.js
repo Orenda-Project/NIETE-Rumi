@@ -198,6 +198,12 @@ async function sendFeedbackPrompt({ segmentId, userId, phone, lang, renderId = n
     });
   }
 
+  // lp_whatsapp_survey_off: her programme is asked in the app, not here (absent or malformed → asked as today).
+  // Last, just before the send: the reads above are the ones the ask-once rule has always made, in that order.
+  if (await require('./lp-whatsapp-off').isLpWhatsappSurveyOffFor(userId)) {
+    logEvent('lp612.feedback.prompt_skipped', { segmentId, reason: 'whatsapp_survey_off' });
+    return;
+  }
   const ok = await WhatsAppService.sendInteractiveButtons(phone, {
     body: resolveUx('lp612FeedbackAsk', { language: voice }),
     buttons: [
@@ -464,4 +470,5 @@ module.exports = {
   BUTTON_RX,
   USAGE_RX,
   variantFor,
+  variantOf,
 };
