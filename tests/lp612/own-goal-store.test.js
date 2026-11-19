@@ -50,8 +50,8 @@ describe('goalRows', () => {
     const { client } = fake({ data: [rows[1]], error: null });
     expect((await goalRows(client, { grade: 7, subject: 'English' })).map((r) => r.segment_id)).toEqual(['b']);
   });
-  it('nothing for grades 1-5, a bad subject or a failed read', async () => {
-    expect(await goalRows(fake({ data: rows }).client, { grade: 3, subject: 'English' })).toEqual([]);
+  it('nothing off grades 1-12, for a bad subject or a failed read (grades 1-5: own-goal-k5.test.js)', async () => {
+    expect(await goalRows(fake({ data: rows }).client, { grade: 13, subject: 'English' })).toEqual([]);
     expect(await goalRows(fake({ data: rows }).client, { grade: 7, subject: '' })).toEqual([]);
     expect(await goalRows(fake({ data: null, error: { message: 'x' } }).client, { grade: 7, subject: 'English' })).toEqual([]);
   });

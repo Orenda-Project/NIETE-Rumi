@@ -14,7 +14,7 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
   s: OwnAt; C: OwnCopy; k5: boolean; nextLabel: string | null; pagesLabel: string; gradeLabel: string; note: string;
   setNote: (v: string) => void; failed: Refusal | 'error' | null;
   /** bd-snkn32.56 — a goal start: her goal stands where the pages were, and the textbook is not in what she has. */
-  goal?: { label: string; value: string; sub: string };
+  goal?: { label: string; value: string; sub: string; nothing?: string };
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   const w = bandWords(C, s.grade);
@@ -29,7 +29,8 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
           ...(s.focus ? [{ label: C.focusLabel, value: C.foci[s.focus], to: at('focus') }] : []),
           { label: w.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },
-          { label: C.resources, value: (goal ? s.res : ['textbook', ...s.res]).map((r) => w.resource(r as Resource)).join(', '), to: at('resources') },
+          // bd-snkn32.57 — a goal start has no book, so "What you have" may be empty: it says so instead of a blank.
+          { label: C.resources, value: (goal ? s.res : ['textbook', ...s.res]).map((r) => w.resource(r as Resource)).join(', ') || goal?.nothing || '—', to: at('resources') },
           { label: C.way, value: s.way ? (s.ways ?? [s.way]).map((k) => w.way(k)).join(', ') : '—', to: at('way') },
         ]}
       />
