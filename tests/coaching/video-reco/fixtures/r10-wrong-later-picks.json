@@ -1,0 +1,712 @@
+{
+ "source": "ped-align panel/r10 (20261119T233921): the later-visit (L10) picks the blind r10 panel judged wrong at #5219 58e0b433ba, out-of-sample (none of the r9a 343). Card text as the panel saw it (redacted).",
+ "picks": [
+  {
+   "item": "T0008",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "science",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student explains [a student]'s thick layers absorbing heat, ask 'why does that happen?' to stretch their reasoning, then run a quick Think-Pair-Share before moving on."
+  },
+  {
+   "item": "T0015",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student blurts out a quick answer like '9' for 3 groups of 3, pause and ask them to show it with counters or do a 60-second Think-Pair-Share with a neighbour before confirming."
+  },
+  {
+   "item": "T0017",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "745-s1"
+   ],
+   "subject": "urdu",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student gives a one-word noun answer like '[a student]', have them turn-and-talk with a partner for 10 seconds, then share the fuller answer with the class."
+  },
+  {
+   "item": "T0028",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "451-s3",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں، عیدی صاحب کے واقعے والے paragraph کے بعد 1-2 منٹ کا Think-Pair-Share کریں: partner A خلاصہ بتائے، partner B ایک نئی بات شامل کرے، پھر name slips سے ایک pair کو cold-call کریں۔"
+  },
+  {
+   "item": "T0040",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "islamiat",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "Next class, when the mind-map starts, pair students to discuss each branch—quarrels, hatred, enemies wanting to kill him—before writing, so they build it together like the opening discussion."
+  },
+  {
+   "item": "T0045",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "745-s1"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student says just 'carry' at the board, pause before re-explaining and have them turn to a partner for 90 seconds using the stem 'I carried the ___ because ___.'"
+  },
+  {
+   "item": "T0057",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you ask if the passage is clear, have students turn to a partner, compare their adjective lists, and let anyone who says 'No' explain their doubt before the whole class answers."
+  },
+  {
+   "item": "T0084",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں چاند والی نظم پر سوال پوچھنے سے پہلے بچوں کو ایک منٹ Think-Pair-Share دیں، پھر ہر بچے سے اپنا الگ جواب مانگیں تاکہ دہرانے کے بجائے خود سوچیں۔"
+  },
+  {
+   "item": "T0093",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when teaching about government, use the monitor example and give pairs 2 minutes to discuss why representation matters, then have one pair share."
+  },
+  {
+   "item": "T0097",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "urdu",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student gives a one-word noun answer like '[a student]', have them turn-and-talk with a partner for 10 seconds, then share the fuller answer with the class."
+  },
+  {
+   "item": "T0115",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you ask why 'am' goes with 'I,' wait 20 seconds in silence, let students pair-share for 60 seconds, then have one pair explain their answer aloud."
+  },
+  {
+   "item": "T0124",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student offers a spontaneous homophone or mixes up 'sense' and 'scene,' ask 'Why do you think that fits? Turn to your partner and explain in one sentence' before you correct it."
+  },
+  {
+   "item": "T0154",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student offers a spontaneous homophone or mixes up 'sense' and 'scene,' ask 'Why do you think that fits? Turn to your partner and explain in one sentence' before you correct it."
+  },
+  {
+   "item": "T0157",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "urdu",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب کوئی بچہ 'زہر' یا 'صفائی' جیسا مختصر جواب دے، فوراً آگے بڑھنے کی بجائے 60 سیکنڈ کا Think-Pair-Share کروائیں: ساتھی سے 'کیوں؟' پوچھیں، پھر دو جوڑے اپنا جواب شیئر کریں۔"
+  },
+  {
+   "item": "T0173",
+   "seg": "804-s2",
+   "rank": 4,
+   "prior": [
+    "451-s3",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب کوئی بچہ ٹھنڈ یا [a student] جیسا لفظ [a student] کر [a student]، تو دو منٹ کا Think-Pair-Share کروائیں جس میں partner وقت کی وضاحت اور conjunction پر ایک مخصوص suggestion دے۔"
+  },
+  {
+   "item": "T0182",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student quickly names mafool in a sentence like '[a student] tahni par baitha hua hai', pause for 5-7 seconds of wait time, then have pairs discuss before reporting back."
+  },
+  {
+   "item": "T0209",
+   "seg": "794-s2",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "en",
+   "card": "Next class, when hands shoot up during the 'Why' mime game, pause and use Think-Pair-Share: have students turn to a partner and whisper their answer before calling out to you."
+  },
+  {
+   "item": "T0228",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student offers a spontaneous homophone or mixes up 'sense' and 'scene,' ask 'Why do you think that fits? Turn to your partner and explain in one sentence' before you correct it."
+  },
+  {
+   "item": "T0245",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب ورک بک میں compound words جیسے 'ہارڈ ہیٹ' اور '[a student]' پر crossword دیں، تو بچوں کو جوڑوں میں 3-4 منٹ کے لیے think-pair-share کروائیں: ایک بچہ 'Speller' بن کر حروف پڑھے اور دوسرا 'Meaning-Maker' بن کر معنی یا جملہ بتائے۔"
+  },
+  {
+   "item": "T0265",
+   "seg": "804-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب کوئی بچہ '[a student]' جیسا لفظ بار بار [a student]، تو ایک منٹ کا Think-Pair-Share کروائیں: ایک طالب علم جملہ بنائے، دوسرا دہرا کر معنی بتائے۔"
+  },
+  {
+   "item": "T0277",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a child shares a story like a cousin visiting, ask how they'd turn it into an exclamatory sentence, then give a 2-minute Think-Pair-Share using stem 'My example is... because...'"
+  },
+  {
+   "item": "T0295",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "urdu",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب کسی طالب علم کا بنایا جملہ لکھ کر پوچھیں 'یہ کون سا جملہ بن گیا؟' تو پہلے 10-15 سیکنڈ کا wait time دیں، پھر Think-Pair-Share کروا کر 2 بچوں سے جملہ [a student] کر وجہ بھی پوچھیں۔"
+  },
+  {
+   "item": "T0322",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں، عیدی صاحب کے واقعے والے paragraph کے بعد 1-2 منٹ کا Think-Pair-Share کریں: partner A خلاصہ بتائے، partner B ایک نئی بات شامل کرے، پھر name slips سے ایک pair کو cold-call کریں۔"
+  },
+  {
+   "item": "T0349",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں pair-share کے بعد open-ended سوال پوچھیں، جیسے 'سلام سے رشتے پر کیا فرق پڑتا ہے؟'، پھر جواب سے پہلے 8 سیکنڈ wait time دیں تاکہ بچے مکمل جملہ بنائیں۔"
+  },
+  {
+   "item": "T0355",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you introduce a new word like \"present,\" pause after checking the Urdu meaning and give students 60 seconds with a partner: one shares an Urdu synonym, the other builds an English sentence, then call on a few pairs to share out."
+  },
+  {
+   "item": "T0359",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "maths",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a child offers just 'gram' or 'kay-ji' for the bag and apple weight, ask them to turn to a partner and explain their full answer in kilograms before you confirm it."
+  },
+  {
+   "item": "T0361",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب کوئی بچہ '[a student]' جیسا لفظ بار بار [a student]، تو ایک منٹ کا Think-Pair-Share کروائیں: ایک طالب علم جملہ بنائے، دوسرا دہرا کر معنی بتائے۔"
+  },
+  {
+   "item": "T0373",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب 'star' اور 'fish' جیسی compound words کی مثال دیں، تو بچوں کو pair میں بٹھا کر Think-Pair-Share کروائیں تاکہ ہر بچہ اپنے partner کے ساتھ مل کر نیا لفظ بنائے، جیسے 'sunny day' والے بچے نے خود بنایا تھا۔"
+  },
+  {
+   "item": "T0376",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student says just 'carry' at the board, pause before re-explaining and have them turn to a partner for 90 seconds using the stem 'I carried the ___ because ___.'"
+  },
+  {
+   "item": "T0381",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you introduce a new word like \"present,\" pause after checking the Urdu meaning and give students 60 seconds with a partner: one shares an Urdu synonym, the other builds an English sentence, then call on a few pairs to share out."
+  },
+  {
+   "item": "T0384",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب ورک بک میں compound words جیسے 'ہارڈ ہیٹ' اور '[a student]' پر crossword دیں، تو بچوں کو جوڑوں میں 3-4 منٹ کے لیے think-pair-share کروائیں: ایک بچہ 'Speller' بن کر حروف پڑھے اور دوسرا 'Meaning-Maker' بن کر معنی یا جملہ بتائے۔"
+  },
+  {
+   "item": "T0386",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں، playground push والے moral scenario پر 'کیا ہوگا اگر؟' جیسا open-ended question پوچھ کر 8-10 سیکنڈ وقت دیں، پھر Think-Pair-Share میں بچوں کو بات کرنے دیں۔"
+  },
+  {
+   "item": "T0390",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب [a student] جیسا بچہ جھولا کے ارکان پر ایک لفظ کہے، وضاحت کرنے کے بجائے open-ended question پوچھیں اور 30 سیکنڈ کا Think-Pair-Share کروائیں۔"
+  },
+  {
+   "item": "T0391",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student spots a pattern like 'butterfly' being a compound word, pause and ask 'What's the difference?' before explaining, then write one open-ended question about -ful on the board for pairs to discuss."
+  },
+  {
+   "item": "T0395",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "maths",
+   "grade": 6,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, after students read the ratio paragraph, run a quick Think-Pair-Share: partner A explains why ratio has no units, partner B asks 'why', then one pair shares aloud."
+  },
+  {
+   "item": "T0397",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a child like [a student] offers a guess about [a student]'s feelings, ask for one reason, then let pairs talk for 30 seconds before sharing two pair answers."
+  },
+  {
+   "item": "T0406",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "urdu",
+   "grade": 6,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب کوئی بچہ جہاز یا آن لائن جاب کی نئی مثال دے، تو ایک منٹ کا pair talk کروائیں — ایک بچہ speaker، دوسرا listener بنے، پھر تفصیل سے share کریں۔"
+  },
+  {
+   "item": "T0420",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "maths",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you see children really thinking during multiplication, stop and ask: 'How did you find that? Explain in one sentence' before moving to Think-Pair-Share with a partner."
+  },
+  {
+   "item": "T0423",
+   "seg": "804-s2",
+   "rank": 4,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student spots a pattern like 'butterfly' being a compound word, pause and ask 'What's the difference?' before explaining, then write one open-ended question about -ful on the board for pairs to discuss."
+  },
+  {
+   "item": "T0439",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "745-s1"
+   ],
+   "subject": "maths",
+   "grade": 6,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, after students read the ratio paragraph, run a quick Think-Pair-Share: partner A explains why ratio has no units, partner B asks 'why', then one pair shares aloud."
+  },
+  {
+   "item": "T0440",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student spots a pattern like 'butterfly' being a compound word, pause and ask 'What's the difference?' before explaining, then write one open-ended question about -ful on the board for pairs to discuss."
+  },
+  {
+   "item": "T0452",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student spots a pattern like 'butterfly' being a compound word, pause and ask 'What's the difference?' before explaining, then write one open-ended question about -ful on the board for pairs to discuss."
+  },
+  {
+   "item": "T0461",
+   "seg": "804-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "islamiat",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں pair-share کے بعد open-ended سوال پوچھیں، جیسے 'سلام سے رشتے پر کیا فرق پڑتا ہے؟'، پھر جواب سے پہلے 8 سیکنڈ wait time دیں تاکہ بچے مکمل جملہ بنائیں۔"
+  },
+  {
+   "item": "T0465",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, before explaining prefixes like بے and ان, open with a [a student] picture or short clip, ask why it changes a word's meaning, then give 60 seconds of pair talk before anyone answers."
+  },
+  {
+   "item": "T0472",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you ask how many roots a word like 'نفسیات' has, pause and have students turn to a partner for 45 seconds, one as [a student] and one as [a student], before sharing with the class."
+  },
+  {
+   "item": "T0475",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "science",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, after defining recycling with the plastic bottle, have pairs share one local recycling idea, then ask 'Why does recycling matter for our community?' and wait 5 seconds, especially after partial answers."
+  },
+  {
+   "item": "T0480",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when a student answers with just one word like 'اچھا' during the 'lend a hand' discussion, ask 'When might someone lend a hand? Tell me a short example,' then give pairs 30 seconds to discuss before sharing."
+  },
+  {
+   "item": "T0482",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "english",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you reach 'What do you see? What do you wonder?' with the poem, pause 30 seconds, then have students turn to a partner for one minute using 'I see __ because __' before sharing aloud."
+  },
+  {
+   "item": "T0493",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "791-s2"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "card": "Next class, when you reach '[a student] نے فرش کیوں [a student]؟', pause 5-10 seconds for think time, run a 1-minute pair talk where Partner A explains and Partner B adds one clue from the poem, then cold-call two students."
+  },
+  {
+   "item": "T0498",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب نئے لفظ کی spelling پر مختلف جواب آئیں، درست ہجے بورڈ پر لکھنے کے بعد بچوں کو 'turn to your partner' کروا کر 60 سیکنڈ میں ہجے [a student]۔"
+  },
+  {
+   "item": "T0537",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "urdu",
+   "grade": 6,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "card": "اگلی کلاس میں جب سبق لکھنے کا وقت آئے، پہلے بچوں کو Think-Pair-Share سے pair میں 'جھوٹے اور سچے لوگوں' پر خیالات share کرنے دیں، پھر لکھیں۔"
+  }
+ ]
+}
