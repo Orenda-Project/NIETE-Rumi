@@ -650,6 +650,17 @@ async function openSchoolCard({ userId, from, language, query = '', now = Date.n
   });
 }
 
+/**
+ * bd-r2uzg1.18.7 — the Digital Coaching link on its own (landing ai_coaching), for a teacher whose photos or lesson plan
+ * reached WhatsApp after she sent her lesson from the recording screen (coaching/app-recording-media.service). `copy`
+ * is the [body, button] pair of catalog keys. true when it went; false = nothing sent (the caller sends the line).
+ */
+async function sendCoachingLink({ userId, from, language, reason = 'media_after_app_recording', copy = null } = {}) {
+  if (!userId || !from) return false;
+  const journey = startJourney({ userId, feature: 'ai_coaching', door: reason, verdict: 'link', why: 'media_after_app_recording' });
+  return sendAppLink('ai_coaching', { userId, from, language, reason, journey, copy });
+}
+
 function _resetForTests() { flagCache = null; }
 
 module.exports = {
@@ -661,5 +672,6 @@ module.exports = {
   isOnTeacherApp,
   redirectIfFlagged,
   openSchoolCard,
+  sendCoachingLink,
   _resetForTests,
 };

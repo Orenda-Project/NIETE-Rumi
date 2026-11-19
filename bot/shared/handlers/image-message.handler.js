@@ -9,7 +9,11 @@
  *   1. Coaching classroom-photo collection (active coaching session)
  *   2. Exam checker (active exam session)
  *   3. Pic-to-LP: a textbook-page photo → illustrated lesson-plan PDF
- *   4. Generic vision analysis (fallback — feedback on any image)
+ *   4. Photos after a lesson sent from the recording screen (< 24 h): one
+ *      "can't be added" message per burst (bd-r2uzg1.18.7), asked first in
+ *      runImageAnalysis, so the pic-LP coalescer's not-a-book-page fallback
+ *      reaches it too
+ *   5. Generic vision analysis (fallback — feedback on any image)
  *
  * Features:
  * - Idempotency via Redis (prevents duplicate processing)
@@ -277,6 +281,21 @@ async function handleImageMessage(message, from, user = null) {
  * `{ idempotencyAcquired }` so the caller can update its own flag for that guard.
  */
 async function runImageAnalysis({ user, from, imageId, mimeType, caption, typingController, correlationId, startTime }) {
+  // bd-r2uzg1.18.7 — no session took it. If she sent her lesson from the
+  // recording screen in the last 24 h, these photos were meant for it and
+  // cannot join it: ONE message per burst (with the Digital Coaching
+  // button), never the generic picture reply. Here, so the pic-LP
+  // coalescer's not-a-book-page fallback asks it too. Everyone else: as before.
+  try {
+    const { answerMediaAfterAppRecording } = require('../services/coaching/app-recording-media.service');
+    if (user?.id && await answerMediaAfterAppRecording({ user, from, kind: 'image' })) {
+      typingController?.stop();
+      return { idempotencyAcquired: false };
+    }
+  } catch (appMediaErr) {
+    logToFile('⚠️ Media-after-app-recording check failed (non-critical)', { error: appMediaErr.message });
+  }
+
   // bd-onxyu — an image no session is waiting for is an open message: the
   // general-chat switch decides. Asked HERE, not at the call site, because the
   // pic-LP coalescer's not-a-book-page fallback lands here too.
