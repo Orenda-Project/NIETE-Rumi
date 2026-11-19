@@ -1,1 +1,2 @@
 {"ts":"2026-11-19T05:03:02Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"c28230681f0c","branch":"HEAD","user":""}
+{"ts":"2026-11-19T05:22:55Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (this IS the spec commit, rebased from caf099fe3 with identical content; caf099 web lane ran HEALTHY 0/0 at 20261119-100243; the GOAL01-03 scenarios are @draft so the web driver has no steps for them yet)","sha":"c28230681f0c","branch":"bd-snkn32.56-62306","user":""}
