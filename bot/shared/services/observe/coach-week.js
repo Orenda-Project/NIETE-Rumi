@@ -8,6 +8,10 @@
  * next week (where she is, four steps, the module, what comes next); the table of all 8 folded. Patterns only, never a
  * quote; private to the coach. Where her document is silent, the plan's rules (approved 5 Nov):
  *
+ *   TRAINING  ONE Coach Training module for the week, never more (queue #186, the operator 19 Nov 2026: "we only want
+ *             to recommend them ONE training"; the debrief reports carry none): the focus's module; with no focus, the
+ *             module of the first miss to keep in mind; else none. The focus and the misses carry no module of their own.
+ *
  *   WEEK      Monday 00:00 to Friday 16:00 PKT; ready at Friday 16:00. A debrief is placed by when its feedback was
  *             ready; one after Friday 16:00 or at the weekend counts in the next week.
  *   FOCUS     the first behaviour, in the rubric's (= the modules') order, not yet done in 6 of her last 10 debriefs
@@ -117,7 +121,6 @@ function summariseWeek({ monday, thisWeek = [], lastWeek = [], before = [] }) {
     });
     focus = {
       key: focusBehaviour,
-      module: BEHAVIOUR_MODULE[focusBehaviour] || null,
       week: count(week, focusBehaviour),
       last: lastWeek.length ? count(lastWeek, focusBehaviour) : null,
       days,
@@ -133,8 +136,8 @@ function summariseWeek({ monday, thisWeek = [], lastWeek = [], before = [] }) {
   const keepInMind = small ? [] : others
     .filter((c) => c.done * 2 < c.of)
     .sort((x, y) => (x.done - y.done) || (BEHAVIOUR_KEYS.indexOf(x.key) - BEHAVIOUR_KEYS.indexOf(y.key)))
-    .slice(0, 2)
-    .map((c) => ({ ...c, module: BEHAVIOUR_MODULE[c.key] || null }));
+    .slice(0, 2);
+  const trainingKey = focusBehaviour || (keepInMind[0] && keepInMind[0].key) || null;
 
   return {
     monday: b.monday,
@@ -146,6 +149,7 @@ function summariseWeek({ monday, thisWeek = [], lastWeek = [], before = [] }) {
     // bd-enec2e.5: "your first week" only when no debrief came before it, not merely none last week.
     firstWeek: before.length === 0,
     focus,
+    training: (trainingKey && BEHAVIOUR_MODULE[trainingKey]) || null,
     strengths,
     keepInMind,
     respectAll: n > 0 && week.every((d) => d.rubric && d.rubric.disparaged_teacher === false),

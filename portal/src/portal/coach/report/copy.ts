@@ -72,7 +72,6 @@ export const COACH_REPORT_EN = {
   afterThat: "After that:",
   thenNext: (next: string) => `your next focus will be ${next}.`,
   openModule: (n: number, title: string) => `Open Module ${n}: ${title}`,
-  allModules: (n: number) => `All ${n} Coach Training modules`,
   respectWeek: "Respect held in every debrief",
   fullWeek: "See the full week (all 8)",
   behaviour: "Behaviour",
@@ -147,7 +146,6 @@ const COACH_REPORT_UR: Words<typeof COACH_REPORT_EN> = {
   afterThat: "اس کے بعد:",
   thenNext: (next: string) => `آپ کا اگلا فوکس ہو گا: ${next}۔`,
   openModule: (n: number, title: string) => `ماڈیول ${n} کھولیں: ${title}`,
-  allModules: (n: number) => `کوچ ٹریننگ کے تمام ${n} ماڈیول`,
   respectWeek: "ہر ڈی بریف میں احترام برقرار رہا",
   fullWeek: "پورا ہفتہ دیکھیں (تمام 8)",
   behaviour: "رویہ",
@@ -169,5 +167,5 @@ export const COPY_ENTRY: CopyEntry = {
   module: COACH_REPORT as Bilingual<unknown>,
   // title / readyDebrief / concern: the WhatsApp report's own wording («آپ کی ڈی بریف رپورٹ», «کھل کر کہنے کی بات»).
   longOk: ["title", "readyDebrief", "concern", "respect", "tapHint", "did", "missed", "focus", "foot",
-    "completeNote", "dayHint", "smallWeek", "stays", "reached", "lastTen", "thenNext", "openModule", "allModules", "respectWeek", "fullWeek", "weekFoot", "noDebriefs", "readyWeek", "stepsDraft", "complete", "weekSpan", "weekFocus", "doneIn", "notExtra", "same", "lastWeek", "howTo", "ofTheWeek", "ofDebriefs", "upBy", "downBy", "firstWeek", "noneLastWeek", "weekEyebrow", "weekDebriefs", "openWeek", "lastWeekCol", "thisWeek"],
+    "completeNote", "dayHint", "smallWeek", "stays", "reached", "lastTen", "thenNext", "openModule", "respectWeek", "fullWeek", "weekFoot", "noDebriefs", "readyWeek", "stepsDraft", "complete", "weekSpan", "weekFocus", "doneIn", "notExtra", "same", "lastWeek", "howTo", "ofTheWeek", "ofDebriefs", "upBy", "downBy", "firstWeek", "noneLastWeek", "weekEyebrow", "weekDebriefs", "openWeek", "lastWeekCol", "thisWeek"],
 };

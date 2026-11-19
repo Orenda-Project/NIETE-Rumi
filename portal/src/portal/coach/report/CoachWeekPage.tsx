@@ -5,19 +5,22 @@ import { cn } from "@/lib/utils";
 import CoachGate from "../CoachGate";
 import TeacherPage from "../../teacher/TeacherPage";
 import { useCopy, useLang, type Lang } from "../../teacher/i18n";
-import { FOCUS, OUTLINE_WIDE, PRIMARY_WIDE } from "../../teacher/ui/styles";
+import { FOCUS, PRIMARY_WIDE } from "../../teacher/ui/styles";
 import { useBack } from "../../lib/useBack";
-import { COACH_MODULES, COACH_TRAINING_PATH, modulePath } from "../coachTraining/modules";
+import { COACH_MODULES, modulePath } from "../coachTraining/modules";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { getCoachWeek, markWeek, problemOf, type CoachWeek, type ReportProblem } from "./api";
 import { weekSpan } from "./weekSpan";
-import { LABEL, LanguagePill, ModuleRow, PILL, ReportOutline, SECTION, Spark, Tick, pick } from "./CoachReportPage";
+import { LABEL, LanguagePill, PILL, ReportOutline, SECTION, Spark, Tick, pick } from "./CoachReportPage";
 
 /**
  * Coach reports in the app, phase 3 — her WEEK as a page (/portal/coach/week/:monday), in the same app look as the debrief
  * report, with the ICT HITL owner's content and order: complete observations against 12 (never red) → the ONE focus,
  * counts day by day against her own last week → steady strengths → at most two misses to keep in mind → next week (where
  * she is, the four steps, the module, what comes next) → Respect → the full table of all 8, folded → "just for you".
+ * ONE training, never more (queue #186, the operator 19 Nov 2026: "we only want to recommend them ONE training"): the
+ * week's `training` module as one "Open Module" button — in Next week under the focus, or, with no focus, under the misses
+ * to keep in mind. No module on the misses, no link to the whole module list.
  * Counts only, never a percentage, never a quote. Fewer than 4 debriefs: the counts only. Every number comes from the
  * server (computed from the judge's booleans). Opening it stamps "opened" once (no WhatsApp link follows).
  */
@@ -59,7 +62,10 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
   const [day, setDay] = useState(firstPicked);
   const [open, setOpen] = useState(false);
   const delta = f && f.last ? f.week.done - f.last.done : null;
-  const mod = f?.module ? COACH_MODULES.find((m) => m.n === f.module) : null;
+  const mod = w.training ? COACH_MODULES.find((m) => m.n === w.training) ?? null : null;
+  const training = mod ? (
+    <Link to={modulePath(mod)} data-testid="week-open-module" className={cn(PRIMARY_WIDE, "mt-3 text-center leading-tight", FOCUS)}>{C.openModule(mod.n, lang === "ur" ? mod.title.ur : mod.title.en)}</Link>
+  ) : null;
 
   return (
     <div className="flex flex-col gap-3" data-testid="week-body">
@@ -145,11 +151,11 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
                   <b className="text-[16px] font-semibold leading-[1.3]">{pick(k.name, lang)}</b>
                   <span className="text-[13px] font-semibold text-[#6b7280]">{C.doneIn(k.done, k.of)}</span>
                   {pick(k.why, lang) ? <p className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.why}</b> {pick(k.why, lang)}</p> : null}
-                  <ModuleRow n={k.module} lang={lang} />
                 </span>
               </div>
             ))}
           </div>
+          {f ? null : training}
         </section>
       ) : null}
 
@@ -174,8 +180,7 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
             </>
           ) : null}
           {f.nextName ? <p className="m-0 mt-3 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.afterThat}</b> {C.thenNext(pick(f.nextName, lang))}</p> : null}
-          {mod ? <Link to={modulePath(mod)} data-testid="week-open-module" className={cn(PRIMARY_WIDE, "mt-3 text-center leading-tight", FOCUS)}>{C.openModule(mod.n, lang === "ur" ? mod.title.ur : mod.title.en)}</Link> : null}
-          <Link to={COACH_TRAINING_PATH} data-testid="week-all-modules" className={cn(OUTLINE_WIDE, "mt-2", FOCUS)}>{C.allModules(COACH_MODULES.length)}</Link>
+          {training}
         </section>
       ) : null}
 

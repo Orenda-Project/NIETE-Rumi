@@ -443,9 +443,10 @@ const STRINGS = {
     guide_cue_name_it: '(استاد کو خود بتانے دیں)',
     guide_cue_rehearse: '(تین سے پانچ سیکنڈ انتظار کریں)',
     coach_card_try_label: 'بہتری کا شعبہ',
-    // The coach-debrief rubric's words (behaviour names, why each matters, the module line), read by the coach's report
+    // The coach-debrief rubric's words (behaviour names, why each matters), read by the coach's report
     // page in the app (coach-report.service.js). On staging the WhatsApp card stays as it is: no marks label, so neither
     // the card image nor the text card draws the rubric (the round-2 card stays on sandbox; the report is a page now).
+    // No Coach Training module after a debrief (queue #186): the coach's one training recommendation is in her Weekly Report.
     coach_card_respect_line: '✓ احترام برقرار رہا — ہمیشہ کی طرح',
     coach_card_missed_label: 'اس بار کیا رہ گیا',
     // Each miss: what happened in this debrief, then why it matters; the focus says why it was chosen.
@@ -453,8 +454,6 @@ const STRINGS = {
     coach_card_why_label: 'کیوں اہم ہے:',
     coach_card_focus_why_label: 'یہی کیوں:',
     coach_card_you_said_label: 'آپ نے کہا:',
-    coach_card_module_line: '📘 کوچ ٹریننگ، ماڈیول {n}: {title}',
-    coach_card_module_lang: 'ur',
     coach_rubric_names: {
       opened_with_specific_praise: 'مخصوص تعریف',
       anchored_in_real_moment: 'سبق کے لمحے کا حوالہ',
@@ -847,9 +846,10 @@ const STRINGS = {
     manage_back_btn: 'Back',
     manage_removed_ack: '✅ {name} removed from your list.',
     coach_card_try_label: 'Areas for growth',
-    // The coach-debrief rubric's words (behaviour names, why each matters, the module line), read by the coach's report
+    // The coach-debrief rubric's words (behaviour names, why each matters), read by the coach's report
     // page in the app (coach-report.service.js). On staging the WhatsApp card stays as it is: no marks label, so neither
     // the card image nor the text card draws the rubric (the round-2 card stays on sandbox; the report is a page now).
+    // No Coach Training module after a debrief (queue #186): the coach's one training recommendation is in her Weekly Report.
     coach_card_respect_line: '✓ Respect held — as always',
     coach_card_missed_label: 'What was missed this time',
     // Each miss: what happened in this debrief, then why it matters; the focus says why it was chosen.
@@ -857,8 +857,6 @@ const STRINGS = {
     coach_card_why_label: 'Why it matters:',
     coach_card_focus_why_label: 'Why this one:',
     coach_card_you_said_label: 'You said:',
-    coach_card_module_line: '📘 Coach Training, Module {n}: {title}',
-    coach_card_module_lang: 'en',
     coach_rubric_names: {
       opened_with_specific_praise: 'Specific praise',
       anchored_in_real_moment: 'Real moment',

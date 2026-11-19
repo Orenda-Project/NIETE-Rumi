@@ -17,8 +17,8 @@ export interface CoachReport {
   total: number;
   respectHeld: boolean | null;
   did: { key: string; name: Both; line: string | null }[];
-  missed: { key: string; name: Both; line: string | null; why: Both; module: number | null }[];
-  focus: { key: string; move: string | null; why: string | null; module: number | null; tryLine: { en: string; ur: string } | null } | null;
+  missed: { key: string; name: Both; line: string | null; why: Both }[];
+  focus: { key: string; move: string | null; why: string | null; tryLine: { en: string; ur: string } | null } | null;
 }
 
 export interface ReadyDebrief {
@@ -53,15 +53,17 @@ export interface CoachWeek {
   /** No debrief before this week at all (bd-enec2e.5): only then is a week with no last week "her first week". */
   firstWeek?: boolean;
   respectAll: boolean;
+  /** Queue #186: the week's ONE Coach Training module (the focus's, else the top miss to keep in mind's), or none. */
+  training: number | null;
   focus: {
-    key: string; module: number | null; name: Both; why: Both;
+    key: string; name: Both; why: Both;
     week: Count; last: Count | null; days: { date: string; items: boolean[] }[];
     last10: Count; doneAt: number; reached: boolean;
-    next: string | null; nextName: Both | null; nextModule: number | null;
+    next: string | null; nextName: Both | null;
     steps: { en: string[]; ur: string[]; reviewed: boolean } | null;
   } | null;
   strengths: (Count & { key: string; name: Both })[];
-  keepInMind: (Count & { key: string; name: Both; why: Both; module: number | null })[];
+  keepInMind: (Count & { key: string; name: Both; why: Both })[];
   table: { key: string; name: Both; week: Count; last: Count | null }[];
 }
 

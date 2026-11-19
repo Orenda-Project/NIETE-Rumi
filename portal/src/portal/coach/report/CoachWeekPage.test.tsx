@@ -27,24 +27,27 @@ import type { CoachWeek } from "./api";
  * Coach reports in the app, phase 3 — her week as a page and as a row on her Home card. Pinned: the order (complete vs 12
  * → the one focus, day by day, against last week → steady → keep in mind → next week → Respect → the folded table →
  * "just for you"); counts, never percentages; the day strip; a small week shows counts only; draft steps are marked;
- * opening stamps "opened"; the Home card's week row opens it and its ✕ says "seen".
+ * opening stamps "opened"; the Home card's week row opens it and its ✕ says "seen". Queue #186 (the operator, 19 Nov 2026):
+ * ONE training, never more — the week's `training` module, as the focus's "Open Module" button, or (no focus) under the
+ * misses to keep in mind; no module on the misses, no "all modules" link.
  */
 const both = (en: string, ur: string) => ({ en, ur });
 const WEEK: CoachWeek = {
   monday: "2026-11-02", friday: "2026-11-06", target: 12, complete: 10, debriefs: 10, small: false, respectAll: true,
+  training: 3,
   focus: {
-    key: "asked_and_waited", module: 3, name: both("Asked & waited", "سوال کے بعد انتظار"), why: both("Waiting gives time.", "وقت"),
+    key: "asked_and_waited", name: both("Asked & waited", "سوال کے بعد انتظار"), why: both("Waiting gives time.", "وقت"),
     week: { done: 4, of: 10 }, last: { done: 1, of: 9 },
     days: [
       { date: "2026-11-02", items: [false, false] }, { date: "2026-11-03", items: [true, false] }, { date: "2026-11-04", items: [false, true] },
       { date: "2026-11-05", items: [true, true] }, { date: "2026-11-06", items: [false, false] },
     ],
     last10: { done: 4, of: 10 }, doneAt: 6, reached: false,
-    next: "one_improvement_only", nextName: both("One improvement", "صرف ایک بہتری"), nextModule: 4,
+    next: "one_improvement_only", nextName: both("One improvement", "صرف ایک بہتری"),
     steps: { en: ["After your praise, ask one open question.", "Try: “What was going through your mind?”", "Count to five.", "Keep waiting."], ur: ["ا", "ب", "پ", "ت"], reviewed: false },
   },
   strengths: [{ key: "opened_with_specific_praise", name: both("Specific praise", "مخصوص تعریف"), done: 10, of: 10 }],
-  keepInMind: [{ key: "righting_reflex_held", name: both("Talked less", "استاد کو بولنے کا موقع"), why: both("They think more.", "سوچ"), module: 7, done: 2, of: 10 }],
+  keepInMind: [{ key: "righting_reflex_held", name: both("Talked less", "استاد کو بولنے کا موقع"), why: both("They think more.", "سوچ"), done: 2, of: 10 }],
   table: ["opened_with_specific_praise", "anchored_in_real_moment", "asked_and_waited", "one_improvement_only", "moves_not_teacher", "elicited_if_then", "righting_reflex_held", "rehearsed_the_step"]
     .map((key) => ({ key, name: both(key, key), week: { done: 1, of: 10 }, last: { done: 0, of: 9 } })),
 };
@@ -93,7 +96,7 @@ describe("her week", () => {
     expect(screen.getByTestId("week-day").textContent).toContain("Debrief 1 ✓ · Debrief 2 ✓");
   });
 
-  it("next week: where she is, the four steps (marked as drafts), what comes next, the module", async () => {
+  it("next week: where she is, the four steps (marked as drafts), what comes next, the ONE module", async () => {
     getCoachWeek.mockResolvedValue(WEEK);
     renderAt("/portal/coach/week/2026-11-02");
     const next = await screen.findByTestId("week-next");
@@ -103,10 +106,33 @@ describe("her week", () => {
     expect(within(next).getByTestId("week-steps-draft")).toBeTruthy();
     expect(next.textContent).toContain("your next focus will be One improvement.");
     expect(within(next).getByTestId("week-open-module").textContent).toBe("Open Module 3: Ask, then wait");
-    // bd-rlxkkt.12 — the link to the list counts the modules it lists (it said "All 9" when there were ten)
-    const all = within(next).getByTestId("week-all-modules");
-    expect(all.textContent).toBe("All 10 Coach Training modules");
-    expect(all).toHaveAttribute("href", "/portal/coach/coach-training");
+    // queue #186: one training, so no second door to the module list
+    expect(screen.queryByTestId("week-all-modules")).toBeNull();
+  });
+
+  it("queue #186: exactly one training on the page, even from a payload whose misses still name modules", async () => {
+    const legacy = { ...WEEK, keepInMind: WEEK.keepInMind.map((k) => ({ ...k, module: 7 })) } as unknown as CoachWeek;
+    getCoachWeek.mockResolvedValue(legacy);
+    renderAt("/portal/coach/week/2026-11-02");
+    const body = await screen.findByTestId("week-body");
+    expect(body.querySelectorAll('a[href^="/portal/coach/coach-training"]')).toHaveLength(1);
+    expect(within(screen.getByTestId("week-keep")).queryByTestId("report-module")).toBeNull();
+    expect(screen.getByTestId("week-open-module")).toHaveAttribute("href", "/portal/coach/coach-training/3");
+  });
+
+  it("queue #186: no focus — the one training (the top miss's module) sits under the misses to keep in mind", async () => {
+    getCoachWeek.mockResolvedValue({ ...WEEK, focus: null, training: 7 });
+    renderAt("/portal/coach/week/2026-11-02");
+    const keep = await screen.findByTestId("week-keep");
+    expect(within(keep).getByTestId("week-open-module").textContent).toBe("Open Module 7: Talk less");
+    expect(screen.getByTestId("week-body").querySelectorAll('a[href^="/portal/coach/coach-training"]')).toHaveLength(1);
+  });
+
+  it("queue #186: nothing to work on — no training at all", async () => {
+    getCoachWeek.mockResolvedValue({ ...WEEK, focus: null, keepInMind: [], training: null });
+    renderAt("/portal/coach/week/2026-11-02");
+    const body = await screen.findByTestId("week-body");
+    expect(body.querySelector('a[href^="/portal/coach/coach-training"]')).toBeNull();
   });
 
   it("the full table stays folded until she opens it", async () => {
