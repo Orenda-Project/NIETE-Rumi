@@ -22,6 +22,8 @@ import { useLessonsLeader } from './audience';
 import { OwnSections } from './own/OwnSections';
 import { useLpWhatsappSend } from './useLpWhatsappSend';
 import type { ChangeAt } from './own/change';
+import { FeedbackBar } from './FeedbackBar';
+import { useLpFeedbackBar } from './feedbackApi';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -50,6 +52,9 @@ import type { ChangeAt } from './own/change';
  * bd-4joiqz — read by a LEADER (lessons/audience.ts): the plan, its answer key and Open in another app. None of the
  * teacher's own — no Start DC observation (her coaching), no Thing to try (her coaching test group), no Quiz this
  * lesson (her quiz home), no Send on WhatsApp (a template to her own number).
+ *
+ * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER grades 1-5 plan once it has
+ * loaded; never for a leader, in `pick` / `fromDc`, on her own made plan (it has its own rating) or on the answer key.
  */
 
 type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt } | null;
@@ -70,6 +75,9 @@ export function ViewerPage() {
   const pick = state?.pick ?? null;
   const inDc = !!pick || !!state?.fromDc;
   const leader = useLessonsLeader();
+  const feedbackOn = useLpFeedbackBar();
+  // The plan the viewer said is loaded (its key): the survey bar follows only a plan she can read.
+  const [readyKey, setReadyKey] = useState('');
   // Hers only: Start DC observation and Quiz this lesson (also not while a lesson records, or inside a DC observation).
   const teacherActions = !recording && !inDc && !leader;
   // The strip's plan step and her taps on it, for the plan they were read for only: another plan opened from here
@@ -160,12 +168,16 @@ export function ViewerPage() {
         recording={recording}
         highlight={step.key === key && step.index ? { step: step.index, jump: step.jump } : undefined}
         chrome="none"
+        onReady={() => setReadyKey(key)}
         onClose={close}
         onNotReady={() => {
           toast({ title: C.notReady });
           close();
         }}
       />
+      {feedbackOn && readyKey === key && source.lane === 'k5' && source.assetKind === 'lesson' && !leader && !inDc && !state?.own
+        ? <FeedbackBar plan={{ kind: 'k5', ref: source.lessonId }} />
+        : null}
     </TeacherPage>
   );
 }
