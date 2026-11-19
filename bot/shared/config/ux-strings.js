@@ -1806,8 +1806,8 @@ const UX_STRINGS = {
   lpOwnRowMeta: { en: 'Your plan, made for your class', ur: 'آپ کی کلاس کے لیے آپ کا اپنا پلان' },
   lpOwnFlowAck: { en: 'Done. Tap the button in the chat to start.', ur: 'ہو گیا۔ شروع کرنے کے لیے چیٹ میں بٹن دبائیں۔' },
   lpOwnLinkBody: {
-    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 24 hours.',
-    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۲۴ گھنٹے چلے گا۔',
+    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 7 days.',
+    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۷ دن چلے گا۔',
   },
   lpOwnLinkButton: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
   lpOwnUnavailable: { en: 'Make my own is not available right now.', ur: 'اپنا پلان بنانا ابھی دستیاب نہیں۔' },
