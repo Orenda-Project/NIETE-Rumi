@@ -86,7 +86,9 @@ const { routeLeaderAudio } = require('../../bot/shared/services/observe/observe-
 const { observe2Strings } = require('../../bot/shared/services/observe/observe2/strings');
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 
-const COACH = { id: 'coach-1', role: 'coach', preferred_language: 'en', phone_number: '920000000001' };
+// Queue #191: a coach is FICO17 v6 (and asked the class) whatever the switch rows say, so the visits this file pins
+// (v5 / shadow / no class question) are an observer the rows still decide for: a principal.
+const COACH = { id: 'coach-1', role: 'principal', preferred_language: 'en', phone_number: '920000000001' };
 const FROM = COACH.phone_number;
 const hoursAgo = (h) => new Date(Date.now() - h * 3600000).toISOString();
 
