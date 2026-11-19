@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { FOCUS, LIST_CARD } from './styles';
@@ -15,7 +15,7 @@ import { FOCUS, LIST_CARD } from './styles';
  */
 export interface ActionStripItem {
   key: string;
-  icon: ComponentType<{ className?: string; strokeWidth?: number; 'aria-hidden'?: boolean | 'true' }>;
+  icon: LucideIcon;
   label: string;
   spoken?: string;
   to?: string;

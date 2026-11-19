@@ -14,14 +14,14 @@ const FILE = "https://x.r2.cloudflarestorage.com/plan.pdf";
 
 describe("useOpenTarget", () => {
   it("no target, or a page outside WhatsApp's browser → not shown", () => {
-    expect(renderHook(() => useOpenTarget(undefined, { env: "chrome" })).result.current.show).toBe(false);
-    expect(renderHook(() => useOpenTarget({ page: true }, { env: "chrome", pageHandoff: true })).result.current.show).toBe(false);
+    expect(renderHook(() => useOpenTarget(undefined, { env: "browser" })).result.current.show).toBe(false);
+    expect(renderHook(() => useOpenTarget({ page: true }, { env: "browser", pageHandoff: true })).result.current.show).toBe(false);
   });
 
   it("a file in Chrome: shown; a press opens it in a new tab and flashes Opening", async () => {
     vi.useFakeTimers();
     const open = vi.spyOn(window, "open").mockReturnValue(null);
-    const { result } = renderHook(() => useOpenTarget({ fileUrl: async () => FILE }, { env: "chrome" }));
+    const { result } = renderHook(() => useOpenTarget({ fileUrl: async () => FILE }, { env: "browser" }));
     expect(result.current.show).toBe(true);
     expect(result.current.mode).toBe("default");
     await act(async () => { await result.current.press(); });
@@ -59,7 +59,7 @@ describe("useOpenTarget", () => {
 
   it("no link → copy fallback, flashes failed; a second press while opening is ignored", async () => {
     const url = vi.fn(async () => null);
-    const { result } = renderHook(() => useOpenTarget({ fileUrl: url }, { env: "chrome" }));
+    const { result } = renderHook(() => useOpenTarget({ fileUrl: url }, { env: "browser" }));
     await act(async () => { await Promise.all([result.current.press(), result.current.press()]); });
     expect(url).toHaveBeenCalledTimes(1);
     expect(result.current.mode).toBe("copy");
