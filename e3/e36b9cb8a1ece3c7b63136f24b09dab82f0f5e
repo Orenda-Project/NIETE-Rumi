@@ -3,3 +3,4 @@
 {"ts":"2026-11-18T18:11:21Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.1.1","sha":"e3e36b9cb8a1","branch":"bd-h7nsmx-staging-q150","user":""}
 {"ts":"2026-11-19T01:10:07Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.1.1","sha":"e3e36b9cb8a1","branch":"bd-h7nsmx-staging-q150","user":""}
 {"ts":"2026-11-19T01:15:41Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"observe=none-needed (only uploadVoiceDebrief retries a transient R2 error after a pause; shared r2.js maps here but no other upload or teacher-visible step changed)","sha":"e3e36b9cb8a1","branch":"bd-h7nsmx-staging-q150","user":""}
+{"ts":"2026-11-19T01:15:41Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-e3e36b9cb8a1","sha":"e3e36b9cb8a1","branch":"bd-h7nsmx-staging-q150","user":""}
