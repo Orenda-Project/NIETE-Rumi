@@ -2771,7 +2771,7 @@ async function handleDocumentMessage(message, from, user) {
     // the sender's NEWEST session (newest-first, one row, all columns) — every
     // document of a coach running observations back-to-back landed on it.
     const { handleLessonPlanMediaArrival } = require('./shared/services/coaching/media-attach.service');
-    const lpHandled = await handleLessonPlanMediaArrival({ user, from, mediaId: documentId, mimeType });
+    const lpHandled = await handleLessonPlanMediaArrival({ user, from, mediaId: documentId, mimeType, messageId: message.id });
     if (!lpHandled) {
       // No active coaching session - regular document
       await WhatsAppService.sendMessage(from,

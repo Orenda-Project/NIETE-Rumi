@@ -22,7 +22,7 @@
  *   lpconfirm_yes_{assetId}_{sessionId}  "Yes"                — link it (the unchanged lp_select_ path)
  *   lpconfirm_no_{sessionId}             "Change lesson plan" — link nothing, re-send the menu
  */
-const { logToFile, logWarn } = require('../../../utils/logger');
+const { logToFile, logWarn, logError } = require('../../../utils/logger');
 const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.service');
 const { resolveUx } = require('../../../config/ux-strings');
 const { isTerminalStatus } = require('../session-terminal');
@@ -161,6 +161,17 @@ async function handleLpListSelection(listId, from, deps = {}) {
   try {
     result = await linker.handleLPSelection(sessionId, listId);
   } catch (err) {
+    // bd-r2uzg1.18.6: a PICK the database could not link (the linker already retried) stops here, loudly.
+    // Carrying on "without a lesson plan" scored the observation as if the coach had given none (28 Oct).
+    // The session stays at awaiting_lesson_plan, nothing is queued, and the coach is asked to tap Yes again
+    // (the confirmation stays in the chat). If she never does, the photo-gate sweep advances it as before.
+    if (listId.startsWith('lp_select_')) {
+      logError('[lp-list] lesson plan pick could not be linked — asked to tap Yes again', {
+        sessionId, listId, code: err.code || null, step: err.step || null, error: err.message,
+      });
+      await sendMessage(from, getCoachingMessage('lessonPlan_link_failed', lang));
+      return true;
+    }
     // NEVER leave the teacher silent: degrade to the no-LP path so the flow finishes.
     logToFile('[lp-list] linker failed — degrading to no-LP continuation', { listId, error: err.message });
     await sendMessage(from, getCoachingMessage('lessonPlan_skip', lang));
