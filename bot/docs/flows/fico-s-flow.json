@@ -2665,7 +2665,8 @@
           "type": "object",
           "__example__": {
             "lv_C3": "",
-            "ev_C3": ""
+            "ev_C3": "",
+            "chg_C3": ""
           }
         },
         "err_v": {
@@ -2704,11 +2705,6 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.star_line}",
-                "visible": "${data.star_v}"
-              },
-              {
-                "type": "TextBody",
                 "text": "${data.look_for}"
               },
               {
@@ -2719,6 +2715,11 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -2736,6 +2737,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C3",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2747,7 +2757,8 @@
                   "payload": {
                     "screen": "FS_C_THREE",
                     "lv_C3": "${form.lv_C3}",
-                    "ev_C3": "${form.ev_C3}"
+                    "ev_C3": "${form.ev_C3}",
+                    "chg_C3": "${form.chg_C3}"
                   }
                 }
               }
@@ -3088,7 +3099,8 @@
           "type": "object",
           "__example__": {
             "lv_C5": "",
-            "ev_C5": ""
+            "ev_C5": "",
+            "chg_C5": ""
           }
         },
         "err_v": {
@@ -3127,11 +3139,6 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.star_line}",
-                "visible": "${data.star_v}"
-              },
-              {
-                "type": "TextBody",
                 "text": "${data.look_for}"
               },
               {
@@ -3142,6 +3149,11 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -3159,6 +3171,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C5",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3170,7 +3191,8 @@
                   "payload": {
                     "screen": "FS_C_FIVE",
                     "lv_C5": "${form.lv_C5}",
-                    "ev_C5": "${form.ev_C5}"
+                    "ev_C5": "${form.ev_C5}",
+                    "chg_C5": "${form.chg_C5}"
                   }
                 }
               }
@@ -3511,7 +3533,8 @@
           "type": "object",
           "__example__": {
             "lv_C7": "",
-            "ev_C7": ""
+            "ev_C7": "",
+            "chg_C7": ""
           }
         },
         "err_v": {
@@ -3550,11 +3573,6 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.star_line}",
-                "visible": "${data.star_v}"
-              },
-              {
-                "type": "TextBody",
                 "text": "${data.look_for}"
               },
               {
@@ -3565,6 +3583,11 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -3582,6 +3605,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C7",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3593,7 +3625,8 @@
                   "payload": {
                     "screen": "FS_C_SEVEN",
                     "lv_C7": "${form.lv_C7}",
-                    "ev_C7": "${form.ev_C7}"
+                    "ev_C7": "${form.ev_C7}",
+                    "chg_C7": "${form.chg_C7}"
                   }
                 }
               }
@@ -4216,7 +4249,8 @@
           "type": "object",
           "__example__": {
             "lv_D2": "",
-            "ev_D2": ""
+            "ev_D2": "",
+            "chg_D2": ""
           }
         },
         "err_v": {
@@ -4255,11 +4289,6 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.star_line}",
-                "visible": "${data.star_v}"
-              },
-              {
-                "type": "TextBody",
                 "text": "${data.look_for}"
               },
               {
@@ -4270,6 +4299,11 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -4287,6 +4321,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_D2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -4298,7 +4341,8 @@
                   "payload": {
                     "screen": "FS_D_TWO",
                     "lv_D2": "${form.lv_D2}",
-                    "ev_D2": "${form.ev_D2}"
+                    "ev_D2": "${form.ev_D2}",
+                    "chg_D2": "${form.chg_D2}"
                   }
                 }
               }
@@ -4422,7 +4466,8 @@
           "type": "object",
           "__example__": {
             "lv_D3": "",
-            "ev_D3": ""
+            "ev_D3": "",
+            "chg_D3": ""
           }
         },
         "err_v": {
@@ -4461,11 +4506,6 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.star_line}",
-                "visible": "${data.star_v}"
-              },
-              {
-                "type": "TextBody",
                 "text": "${data.look_for}"
               },
               {
@@ -4476,6 +4516,11 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -4493,6 +4538,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_D3",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -4504,7 +4558,8 @@
                   "payload": {
                     "screen": "FS_D_THREE",
                     "lv_D3": "${form.lv_D3}",
-                    "ev_D3": "${form.ev_D3}"
+                    "ev_D3": "${form.ev_D3}",
+                    "chg_D3": "${form.chg_D3}"
                   }
                 }
               }
@@ -5127,7 +5182,8 @@
           "type": "object",
           "__example__": {
             "lv_E2": "",
-            "ev_E2": ""
+            "ev_E2": "",
+            "chg_E2": ""
           }
         },
         "err_v": {
@@ -5166,11 +5222,6 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.star_line}",
-                "visible": "${data.star_v}"
-              },
-              {
-                "type": "TextBody",
                 "text": "${data.look_for}"
               },
               {
@@ -5181,6 +5232,11 @@
                 "type": "TextBody",
                 "text": "${data.err_note}",
                 "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -5198,6 +5254,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_E2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -5209,7 +5274,8 @@
                   "payload": {
                     "screen": "FS_E_TWO",
                     "lv_E2": "${form.lv_E2}",
-                    "ev_E2": "${form.ev_E2}"
+                    "ev_E2": "${form.ev_E2}",
+                    "chg_E2": "${form.chg_E2}"
                   }
                 }
               }
@@ -5438,7 +5504,7 @@
         },
         "note": {
           "type": "string",
-          "__example__": "Yes or No for each. These are not part of the score."
+          "__example__": "Choose Yes or No for every one. These are not part of the score."
         },
         "back_hint": {
           "type": "string",
@@ -5632,7 +5698,7 @@
                 "name": "cl_1",
                 "label": "${data.cl_1_lbl}",
                 "description": "${data.cl_1_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5640,7 +5706,7 @@
                 "name": "cl_2",
                 "label": "${data.cl_2_lbl}",
                 "description": "${data.cl_2_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5648,7 +5714,7 @@
                 "name": "cl_3",
                 "label": "${data.cl_3_lbl}",
                 "description": "${data.cl_3_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5656,7 +5722,7 @@
                 "name": "cl_4",
                 "label": "${data.cl_4_lbl}",
                 "description": "${data.cl_4_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5664,7 +5730,7 @@
                 "name": "cl_5",
                 "label": "${data.cl_5_lbl}",
                 "description": "${data.cl_5_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5672,7 +5738,7 @@
                 "name": "cl_6",
                 "label": "${data.cl_6_lbl}",
                 "description": "${data.cl_6_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5680,7 +5746,7 @@
                 "name": "cl_7",
                 "label": "${data.cl_7_lbl}",
                 "description": "${data.cl_7_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5688,7 +5754,7 @@
                 "name": "cl_8",
                 "label": "${data.cl_8_lbl}",
                 "description": "${data.cl_8_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5696,7 +5762,7 @@
                 "name": "cl_9",
                 "label": "${data.cl_9_lbl}",
                 "description": "${data.cl_9_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5704,7 +5770,7 @@
                 "name": "cl_10",
                 "label": "${data.cl_10_lbl}",
                 "description": "${data.cl_10_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5712,7 +5778,7 @@
                 "name": "cl_11",
                 "label": "${data.cl_11_lbl}",
                 "description": "${data.cl_11_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
@@ -5720,7 +5786,7 @@
                 "name": "cl_12",
                 "label": "${data.cl_12_lbl}",
                 "description": "${data.cl_12_text}",
-                "required": false,
+                "required": true,
                 "data-source": "${data.yes_no}"
               },
               {
