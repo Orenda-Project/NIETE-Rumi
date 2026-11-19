@@ -250,26 +250,9 @@ class TranscriptionProcessorService {
             excludeSessionId: coachingSessionId,
           });
           if (prior) {
-            const { updateIfNotTerminal } = require('./session-terminal');
-            const { observeStrings } = require('../observe/observe-strings');
             refused = await refuseDuplicateObservation(
               { coachingSessionId, from, observerUserId: session.observer_user_id, audioHash, prior },
-              {
-                updateIfNotTerminal,
-                sendMessage: TranscriptionProcessorService.coachNotice(
-                  session, (to, body) => WhatsAppService.sendMessage(to, body)),
-                getLanguage: (uid) => getUserLanguage(uid),
-                getStrings: observeStrings,
-                log: logToFile,
-                // /observe2: the refused recording had already joined the visit's form; give it back
-                // so the right recording can attach, and tell the coach it is still waiting.
-                afterApplied: async (lang) => {
-                  const { releaseRefusedRecording } = require('../observe/observe2/capture-link');
-                  const out = await releaseRefusedRecording(coachingSessionId);
-                  if (!out.released) return null;
-                  return require('../observe/observe2/strings').observe2Strings(lang).duplicate_form_waiting;
-                },
-              },
+              TranscriptionProcessorService.observeRefusalDeps(session, coachingSessionId),
             );
           }
         } catch (dedupeErr) {
@@ -764,6 +747,31 @@ class TranscriptionProcessorService {
     const { isPortalSession } = require('./portal-coaching.service');
     if (isPortalSession(session)) return async () => true;
     return send;
+  }
+
+  /**
+   * What audio-hash-cache.refuseDuplicateObservation needs to close a coach's repeated recording and tell her.
+   * One wiring for both places the check runs: here, right after the audio is hashed (bd-erpvf), and in
+   * analysis-processor just before the analysis starts (bd-r2uzg1.18.9).
+   * @param {object} session the coaching_sessions row
+   * @param {string} coachingSessionId
+   */
+  static observeRefusalDeps(session, coachingSessionId) {
+    return {
+      updateIfNotTerminal: require('./session-terminal').updateIfNotTerminal,
+      sendMessage: TranscriptionProcessorService.coachNotice(session, (to, body) => WhatsAppService.sendMessage(to, body)),
+      getLanguage: (uid) => getUserLanguage(uid),
+      getStrings: require('../observe/observe-strings').observeStrings,
+      log: logToFile,
+      // /observe2: the refused recording had already joined the visit's form; give it back
+      // so the right recording can attach, and tell the coach it is still waiting.
+      afterApplied: async (lang) => {
+        const { releaseRefusedRecording } = require('../observe/observe2/capture-link');
+        const out = await releaseRefusedRecording(coachingSessionId);
+        if (!out.released) return null;
+        return require('../observe/observe2/strings').observe2Strings(lang).duplicate_form_waiting;
+      },
+    };
   }
 
   /**

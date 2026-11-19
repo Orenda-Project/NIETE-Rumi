@@ -222,10 +222,13 @@ const NOT_ANALYSED_STATUSES = ['cancelled', 'abandoned', 'failed'];
  * still the same recording. audio_hash is stamped after transcription for every
  * session, so any prior that reached analysis carries it.
  *
+ * `analysisStarted` (bd-r2uzg1.18.9): only an observation whose analysis has started — the analysis-time re-check
+ * below. Left out, the transcription-time check is unchanged.
+ *
  * @returns {Promise<object|null>} { id, status, created_at } or null
  */
 async function findPriorLeaderObservation(supabase, opts) {
-  const { observerUserId, audioHash, excludeSessionId } = opts || {};
+  const { observerUserId, audioHash, excludeSessionId, analysisStarted = false } = opts || {};
   if (!observerUserId || !audioHash) return null;
 
   let q = supabase
@@ -236,6 +239,7 @@ async function findPriorLeaderObservation(supabase, opts) {
     .eq('observation_type', 'leader_observation')
     .not('status', 'in', `(${NOT_ANALYSED_STATUSES.join(',')})`);
 
+  if (analysisStarted) q = q.not('analysis_started_at', 'is', null);
   if (excludeSessionId) q = q.neq('id', excludeSessionId);
 
   const { data, error } = await q
@@ -251,12 +255,14 @@ async function findPriorLeaderObservation(supabase, opts) {
 /**
  * Close an already-analysed resubmission and tell the coach.
  *
- * @param {object} ctx  { coachingSessionId, from, observerUserId, audioHash, prior }
+ * `quiet` (bd-r2uzg1.18.9): close it the same way but say nothing — the coach is following another observation.
+ *
+ * @param {object} ctx  { coachingSessionId, from, observerUserId, audioHash, prior, quiet? }
  * @param {object} opts { updateIfNotTerminal, sendMessage, getLanguage, getStrings, log, afterApplied? }
  * @returns {Promise<boolean>} always true — the caller must not transcribe
  */
 async function refuseDuplicateObservation(ctx, opts) {
-  const { coachingSessionId, from, observerUserId, audioHash, prior } = ctx;
+  const { coachingSessionId, from, observerUserId, audioHash, prior, quiet = false } = ctx;
   const log = opts.log || (() => {});
 
   const { applied } = await opts.updateIfNotTerminal(coachingSessionId, {
@@ -269,6 +275,13 @@ async function refuseDuplicateObservation(ctx, opts) {
   // Still no transcription, but no message about an observation she ended.
   if (!applied) {
     log('🚫 duplicate observation audio, but the session is already over', { coachingSessionId });
+    return true;
+  }
+
+  if (quiet) {
+    log('🔁 observe: superseded by the coach\'s newer observation of the same recording — closed quietly', {
+      coachingSessionId, priorSessionId: prior.id, priorStatus: prior.status, audioHash,
+    });
     return true;
   }
 
@@ -289,6 +302,53 @@ async function refuseDuplicateObservation(ctx, opts) {
     coachingSessionId, priorSessionId: prior.id, priorStatus: prior.status, audioHash,
   });
   return true;
+}
+
+/**
+ * bd-r2uzg1.18.9 (HITL row 186) — the same check again when the analysis is about to START.
+ *
+ * The check above runs once, in the transcription worker. The analysis starts later (after the photo and lesson-plan
+ * steps, or when a failed analysis job is retried), and by then the picture can have changed. NIETE production,
+ * 8 Oct – 4 Nov 2026, 4 (coach, bytes) groups analysed twice, all past that one check:
+ *   - the first observation's analysis failed; the coach sent the recording again (rightly let through: a failed
+ *     prior was never analysed); the FIRST job then ran again (SQS redelivery ~15 min later, or a tap on one of its
+ *     old buttons) and completed too (22 Oct, 2 Nov, 4 Nov);
+ *   - the same recording arrived twice within a second, and both passed because the hash is only stored once
+ *     transcription has finished (8 Oct).
+ *
+ * So: before analysing, look for another observation of the same bytes by the same coach whose analysis has
+ * STARTED and that is not cancelled/abandoned/failed.
+ *   - It is OLDER: this one is a repeat → refused exactly as above (cancelled, duplicate_of_session_id, the
+ *     "already analysed" line, /observe2's form given back).
+ *   - It is NEWER: this is the old failed observation coming back after the coach re-sent the recording → closed
+ *     the same way but quietly; the coach is following the newer one.
+ *
+ * Leader observations only; a row without a hash (never stamped), a row whose own analysis already finished (a re-run
+ * of it is not a second analysis of the recording, and must never close a finished observation) and a test account on
+ * skip_recording_duplicate_check go ahead. Throws only if a dep throws — the caller fails OPEN.
+ *
+ * @param {object} session  the coaching_sessions row (id, observation_type, observer_user_id, audio_hash, created_at,
+ *                          analysis_completed_at)
+ * @param {object} deps     { from, findPrior, skipsCheck } + refuseDuplicateObservation's opts (updateIfNotTerminal,
+ *                          sendMessage, getLanguage, getStrings, log, afterApplied?)
+ * @returns {Promise<boolean>} true when this observation was closed and must not be analysed
+ */
+async function refuseIfAlreadyAnalysed(session, deps) {
+  if (!session || session.observation_type !== 'leader_observation') return false;
+  const observerUserId = session.observer_user_id;
+  const audioHash = session.audio_hash;
+  if (!observerUserId || !audioHash || session.analysis_completed_at) return false;
+  if (await deps.skipsCheck(observerUserId)) return false;
+
+  const prior = await deps.findPrior({ observerUserId, audioHash, excludeSessionId: session.id, analysisStarted: true });
+  if (!prior) return false;
+
+  const newer = Boolean(prior.created_at && session.created_at)
+    && Date.parse(prior.created_at) > Date.parse(session.created_at);
+  return refuseDuplicateObservation(
+    { coachingSessionId: session.id, from: deps.from, observerUserId, audioHash, prior, quiet: newer },
+    deps,
+  );
 }
 
 /**
@@ -334,5 +394,6 @@ module.exports = {
   resolveDuplicateSubmission,
   findPriorLeaderObservation,
   refuseDuplicateObservation,
+  refuseIfAlreadyAnalysed,
   findPriorAnalysedDebrief,
 };
