@@ -338,3 +338,20 @@ describe('R9b · cross-gate: think_pair_share and follow_up_probe reach across s
     expect(row.seg_id).not.toBe('791-s2');
   });
 });
+
+// R9b (COS 20261119T152504 §3; ped-align r5 cross-gate: wait_time 39/40 = 97.5%, 0 ⛔, lifted only WITH the 790-s3
+// near-miss exclusion, which a6621403fa put in place)
+describe('R9b · cross-gate: wait_time', () => {
+  test('a wait card on a Grade 4 maths lesson gets 790-s3 (an English 4-5 clip)', async () => {
+    const { row } = await run({ action: WAIT, env: ON, subject: 'maths', grade: '4' });
+    expect(row.seg_id).toBe('790-s3');
+  });
+  test('…and a wait card on a Grade 9 science lesson too (across grade)', async () => {
+    const { row } = await run({ action: WAIT, env: ON, subject: 'science', grade: '9' });
+    expect(row.seg_id).toBe('790-s3');
+  });
+  test('the near-miss exclusion still holds across the gate: wait after a stumble stays silent', async () => {
+    const { row } = await run({ action: 'Next class, when a student stumbles on a word like \'friction\', pause for a few seconds of wait time, then ask a guiding question.', env: ON, subject: 'maths', grade: '4' });
+    expect(row.seg_id).toBeNull();
+  });
+});
