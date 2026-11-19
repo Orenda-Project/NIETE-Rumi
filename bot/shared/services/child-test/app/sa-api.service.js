@@ -481,7 +481,9 @@ const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repea
 // Round 8: the phone's readiness (device_ready: ready, voice, clips_total, clips_cached, persisted), the voice stop and its
 // Try again, so a slow or refused start can be read afterwards. A few per session (offline / online are not kept: a
 // flapping network would fill the session's cap; device.offline already says it).
-const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
+// voice_late_none { task, ms }: the 'none' verdict landed inside a timed task; the refusal waited for its end.
+// voice_deferred_end { task, ms, by }: how that wait ended ('task_end', or the phase that ended the task), just before the refusal.
+const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry', 'voice_late_none', 'voice_deferred_end'];
 // practice_answer { item_id, value: { value, ok, try } }: each practice tap (sa-core.js practiceAnswer). Retry once, then
 // the answer is shown: at most 2 per answerable practice item, 4 per part (the grid / keypad / choice parts have two; the
 // letter-sound picker and the story questions one). Not behind any switch.
