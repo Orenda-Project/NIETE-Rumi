@@ -12,6 +12,8 @@
  *                                 Off: Home as today, no `activity` key.
  *   portal_teacher_journey        on: the My journey row and page (GET /me/journey), and the team view in Analytics
  *                                 for an analytics account the value names. Off: no row, no page, both routes 404.
+ *   portal_lp_viewer_slim         on: the plan screen's slim layout (one row of Observe, Answer key and Download over
+ *                                 the plan; Quiz this lesson and Send on WhatsApp after it; no dock). Off: today's viewer.
  *
  * Per programme (a JSON list from {"ict","gb"}; rules and parser shared with the bot in
  * bot/shared/config/lp-whatsapp-programmes.js; no row or anything else = today):
@@ -27,10 +29,12 @@ const {
 const PORTAL_LP_FEEDBACK_BAR_KEY = 'portal_lp_feedback_bar';
 const PORTAL_TEACHER_HOME_ACTIVITY_KEY = 'portal_teacher_home_activity';
 const PORTAL_TEACHER_JOURNEY_KEY = 'portal_teacher_journey';
+const PORTAL_LP_VIEWER_SLIM_KEY = 'portal_lp_viewer_slim';
 
 const isLpFeedbackBarOn = (supabase, userId) => isFlagEnabledForUser(supabase, PORTAL_LP_FEEDBACK_BAR_KEY, userId);
 const isTeacherHomeActivityOn = (supabase, userId) => isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ACTIVITY_KEY, userId);
 const isTeacherJourneyOn = (supabase, userId) => isFlagEnabledForUser(supabase, PORTAL_TEACHER_JOURNEY_KEY, userId);
+const isLpViewerSlimOn = (supabase, userId) => isFlagEnabledForUser(supabase, PORTAL_LP_VIEWER_SLIM_KEY, userId);
 
 /** The programmes a programme switch lists; [] (today) for no row, a malformed value or a failed read. */
 async function lpWhatsappOffProgrammes(supabase, key) {
@@ -62,11 +66,13 @@ module.exports = {
   PORTAL_LP_FEEDBACK_BAR_KEY,
   PORTAL_TEACHER_HOME_ACTIVITY_KEY,
   PORTAL_TEACHER_JOURNEY_KEY,
+  PORTAL_LP_VIEWER_SLIM_KEY,
   LP_WHATSAPP_PDF_OFF_KEY,
   LP_WHATSAPP_SURVEY_OFF_KEY,
   isLpFeedbackBarOn,
   isTeacherHomeActivityOn,
   isTeacherJourneyOn,
+  isLpViewerSlimOn,
   lpWhatsappOffProgrammes,
   isLpWhatsappPdfOffFor,
   isLpWhatsappSurveyOffFor,
