@@ -128,6 +128,32 @@ const UNSHOWN = [
 const REFUSE_ONLY = [
   ['explain', /\bexplain (?:in (?:one|two|a|their|your|full)|your|their|why|how)\b|how would you explain|explain (?:your |their )?steps/iu],
 ];
+// ped-align r5 (20261119T152426, 471 of the engine's own picks judged blind): a card whose main ask is another move gets a
+// near-miss from the open-question and wait-time clips (95-s1 87.1%, 790-s3 91.8%). Read on the WHOLE card (the moment
+// in the when-clause counts: wait time after a stumble is not 790-s3's wait after a question). COS 152504 §2.
+const NEAR_MISS = [
+  ['differentiate', /two (?:paths|versions|levels|tasks)|three (?:stations|levels)|\btiers?\b|tiered|struggl|quick(?:er)? (?:students|guessers|finishers)|early finishers|strongest|most students|for others|simpler (?:prompt|task|example)|easier|harder|stretch task|core task|challenge (?:task|set)|support set|\blevels?\b|کمزور|تیز (?:بچوں|طلبہ|بچے)|آسان|مشکل|باقی بچوں/iu],
+  ['stumble', /\bstumbl|\bstall|\bhesitat|\bpauses? (?:on|mid)|mid-sentence|reshap|comes out broken|پر (?:کوئی بچہ )?رکے|رکے،|رک جائے|اٹک/iu],
+  // played media is the main move («play the audio», «a demo on the computer»); a classroom demo is 95-s1's observed
+  // phenomenon, not one
+  ['reading_model', /fluent model|poem audio|\baudio\b|\bplay (?:the |a )?(?:short )?(?:video|clip|audio|demo)|demo on the computer|role-play|آڈیو/iu],
+  ['monitoring', /independent|on[- ]task|visible timer|row by row|circulate|گھوم کر/iu],
+  ['behaviour', /noise|shouting|chatter|quiet look|شور/iu],
+  ['feedback', /praise|shabaa|شاباش|تعریف|next step|feedback/iu],
+  ['model', /\bmodel(?:ing|led|s)?\b|ماڈل/iu],
+  ['sentence_task', /full sentence|sentence frame|complete[- ]the[- ]sentence|مکمل sentence|جملہ مکمل|sentence بنا/iu],
+  ['lesson_plan', /lesson plan/iu],
+  ['peer', /\bpeer|partner check|checklist/iu],
+  ['board_work', /side-by-side|on the board first|بورڈ پر لکھیں/iu],
+  ['timed_pairs', /\d+\s*s(?:ec(?:onds?)?)? (?:of )?(?:think|pair)|\d+\s*سیکنڈ کی (?:paired|pair|جوڑی)|paired discussion/iu],
+  ['name_cards', /name cards|quieter students/iu],
+  ['act_out', /act (?:it |them )?out|role-play/iu],
+  ['no_hands', /one student alone|no[- ]hands/iu],
+  ['sort_task', /\bsort\b|sort کروائیں/iu],
+];
+const NEAR_MISS_FOR = new Set(['open_questions', 'wait_time']);
+// one questioning ask in two steps, either order («ask why, then wait» / «wait, then ask why»)
+const QUESTION_FAMILY = new Set(['open_questions', 'follow_up_probe', 'ask_for_reasoning', 'wait_time']);
 // …and the one a given move's clip must not be read as (ped-align ALLOWLIST.md "match at this grain"; held-out wrongs)
 const REFUSE = Object.freeze({
   open_questions: ['own_words', 'differentiate', 'explain'],
@@ -144,7 +170,7 @@ const FOLLOW_UP = /follow[- ]up (?:question|with\b[^.;]{0,40}(?:question|\bwhy\b
 const ASK_RX = Object.freeze({
   attention_cue: /attention (?:signal|cue)|cue to (?:regain|get) (?:their |the class'?s? )?attention|classroom cue to regain|(?:regain|get|gain) (?:the class'?s? |their )?attention|eyes on me|call[- ]and[- ]response|توجہ (?:کے لیے|لینے|حاصل)/iu,
   inquiry_opening: /\b(?:bring|hold up|show)\b[^.;]{0,30}\b(?:object|bag|jar|jars|bottle|bottles|plant|torch|mirror)\b[^.;]{0,60}\b(?:ask|question)|provocative (?:object|question)/iu,
-  activate_prior_knowledge: /\b(?:ask|elicit)\b[^.;]{0,40}(?:already know|\brecall\b|remember)|what (?:do )?(?:they|you|students) (?:already )?know|prior knowledge|(?:پوچھیں|پوچھ کر)[^۔]{0,40}پہلے سے|پہلے سے (?:کیا )?(?:جانتے|معلوم)[^۔]{0,30}پوچھ|یاد (?:دلائیں|کروائیں)[^۔]{0,30}(?:پوچھ|سوال)/iu,
+  activate_prior_knowledge: /\b(?:ask|elicit)\b[^.;]{0,40}(?:already know|\brecall\b|remember)|what (?:do )?(?:they|you|students) (?:already )?know|prior knowledge|(?:پوچھیں|پوچھ کر)[^۔]{0,40}پہلے سے|پہلے سے (?:کیا )?(?:جانتے|معلوم)[^۔]{0,30}پوچھ|یاد (?:دلائیں|کروائیں)[^۔]{0,30}(?:پوچھ|سوال)|پہلے بچوں سے[^۔]{0,100}(?:مثالیں|پوچھیں)/iu,
   think_pair_share: /think[- ]pair[- ]share|think[- ]pair|turn[- ](?:and|to)[- ](?:talk|tell|your|a)|pair[- ]?(?:share|talk|discussion|discuss)|\bpairs?\b[^.;]{0,25}\b(?:discuss|talk|share|agree|compare)|(?:discuss|talk|share)\w*\b[^.;]{0,20}\bwith (?:a |their |your |the )?(?:partner|neighbou?r)|جوڑی(?:وں)? میں (?:بات|گفتگو|discuss|ڈسکس)|جوڑوں میں (?:بات|گفتگو|تقسیم|discuss|ڈسکس)|pair (?:discussion|میں بات)|ساتھی سے بات/iu,
   wait_time: /wait[- ]time|\bwait\s+(?:\d|a few|five|ten|several)|\d+\s*(?:[-–]\s*\d+\s*)?seconds? (?:of )?(?:silence|quiet|wait|think)|(?:silence|quiet) for \d|count silently|hold (?:your )?(?:\d|wait)|سیکنڈ (?:کا|کی)? ?(?:wait|انتظار|خاموش)|خاموشی سے (?:انتظار|wait)|wait time/iu,
   question: /follow[- ]up (?:question|with|open|سوال)|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|open[- ]ended|open questions?|open (?:'|‘)?(?:why|how)|\bask\b[^.;]{0,30}\bexplain why|how do you know|how did you (?:get|know)|\bask\b[^.;]{0,25}(?:'|‘|"|“)?\s*(?:why|how|what (?:do you think|would|if|made))|why do you think|کھلا سوال|کھلے سوال|(?:کیوں|کیسے)[^۔]{0,40}پوچھ|پوچھیں[^۔]{0,30}(?:کیوں|کیسے)/iu,
@@ -180,6 +206,8 @@ function classifyAsks(sentence) {
   const off = new Map();
   for (const [id, rx] of UNSHOWN) { const x = rx.exec(m) || rx.exec(main); if (x) off.set(id, x.index); }
   const only = new Set(REFUSE_ONLY.filter(([, rx]) => rx.test(main)).map(([id]) => id));
+  const nearMiss = NEAR_MISS.some(([, rx]) => rx.test(card));
+  if (NEAR_MISS[0][1].test(card)) return []; // a differentiated task anywhere: no clip shows it (ped-align's no-clip list)
   if (off.has('label')) return [];
   const found = [];
   for (const [id, rx] of Object.entries(ASK_RX)) {
@@ -189,14 +217,18 @@ function classifyAsks(sentence) {
     if (!move) continue;
     if (move === 'wait_time' && !QUESTION_NEAR.test(card)) continue;
     if ((REFUSE[move] || []).some((r) => off.has(r) || only.has(r))) continue;
+    if (nearMiss && NEAR_MISS_FOR.has(move)) continue;
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
   const first = Math.min(...found.map((f) => f.at));
   if ([...off.values()].some((at) => at < first)) return []; // the card leads with a move no clip shows
-  return found.sort((a, b) => a.at - b.at)
-    .map((f) => ({ ...f, sub: Object.keys(SUB_ASKS).find((k) => SUB_ASKS[k].move === f.move) }))
-    .filter((f) => f.sub);
+  // the MAIN move decides (COS 152504 §2). A later ask is reached only past a questioning step (an open "why… then wait
+  // time" card is one ask in two steps; ped-align r5: 790-s3 does not separate on the label there). After any other move
+  // («ask what they already know, then wait time») the card is about that move, so nothing after it is served.
+  const out = [];
+  for (const f of found.sort((a, b) => a.at - b.at)) { out.push(f); if (!QUESTION_FAMILY.has(f.move)) break; }
+  return out.map((f) => ({ ...f, sub: Object.keys(SUB_ASKS).find((k) => SUB_ASKS[k].move === f.move) })).filter((f) => f.sub);
 }
 
 /** The card's first ask (classifyAsks[0]) or null. */
@@ -232,6 +264,15 @@ function gradeOk(module, lesson) {
   const span = r ? [Number(r[1]), Number(r[2])] : BANDS[b];
   return span ? g.lo <= span[1] && g.hi >= span[0] : true;
 }
+
+/**
+ * The moves whose cleared clips a teacher of another subject or grade can execute from, at the panel's bar (COS
+ * 20261119T152504 §3; ped-align r5 cross-gate round: think_pair_share 80/80, follow_up_probe 40/40, 0 ⛔). Language
+ * still binds. ask_for_reasoning (9/40), activate_prior_knowledge (25/40), inquiry_opening (3/10), open_questions and
+ * attention_cue (too few pairs) keep the gate.
+ */
+// wait_time (39/40 = 97.5%) only together with the 790-s3 near-miss exclusion (NEAR_MISS above), as the COS ruled
+const GATE_FREE = new Set(['think_pair_share', 'follow_up_probe', 'wait_time']);
 
 /** lib's §B contract on one chapter (the shown move, not the moves it is about). */
 function contractOk(module, seg, move) {
@@ -274,7 +315,7 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
   const out = [];
   for (const module of catalog.modules || []) {
     if (seenVideos.has(videoKey(module))) continue;
-    if (!subjectOk(module, lesson) || !gradeOk(module, lesson)) continue;
+    if (!GATE_FREE.has(ask.move) && (!subjectOk(module, lesson) || !gradeOk(module, lesson))) continue;
     for (const seg of module.segments || []) {
       const rec = SUB_ASK[String(seg.seg_id)];
       if (!rec || rec.sub !== ask.sub) continue;
@@ -303,4 +344,4 @@ function reasonFor(ask, seg) {
   return { reason_en: line('en'), reason_ur: line('ur') };
 }
 
-module.exports = { classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
+module.exports = { GATE_FREE, classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
