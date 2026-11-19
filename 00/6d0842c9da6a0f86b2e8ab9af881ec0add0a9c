@@ -1,0 +1,2 @@
+{"ts":"2026-11-19T14:00:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"006d0842c9da","branch":"bd-96f69c-C","user":""}
+{"ts":"2026-11-19T14:03:36Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"006d0842c9da","branch":"bd-96f69c-C","user":""}
