@@ -378,3 +378,61 @@ describe('"Plan my visit" Flow: with FICO-S, High asks the subject and both band
     expect(g.data.extension_message_response.params.tap).toBe('o612:g:o:n1:10');
   });
 });
+
+// Queue #184 (operator 19 Nov: "all HITL go to DC"): app_settings.fico_s_dc, per user, OFF by default. With it on (and
+// fico_s_coach on) a FICO 6-12 visit with a recording goes to the Digital Coach: stamped 'fico_s_dc' at its start, its
+// form made but sent only once Rumi has filled it in (obs612/fico-s-dc.js), the capture's ordinary ack meanwhile.
+describe('fico_s_dc: a FICO 6-12 visit for the Digital Coach', () => {
+  const { startFromAudio } = require('../../bot/shared/services/observe/observe-capture.service');
+  const stampOf = () => {
+    const w = mockWrites.find(([op, t, p]) => op === 'update' && t === 'coaching_sessions' && p.framework);
+    return w ? w[2] : null;
+  };
+  const WA = () => require('../../bot/shared/services/whatsapp.service');
+
+  test('default off: no row, a bad value, or only fico_s_coach on', async () => {
+    mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
+    await expect(FicoSSwitch.dcForVisit(row(ICT_COACH), { teacherUserId: T_ICT_MIDDLE })).resolves.toBe(false);
+    FicoSSwitch._resetCache();
+    mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH), fico_s_dc: '{not json' };
+    await expect(FicoSSwitch.dcForVisit(row(ICT_COACH), { teacherUserId: T_ICT_MIDDLE })).resolves.toBe(false);
+    FicoSSwitch._resetCache();
+    mockSettings = { ...PROD_ROWS(), fico_s_dc: ON_FOR(ICT_COACH) }; // DC on, FICO-S off: nothing
+    await expect(FicoSSwitch.dcForVisit(row(ICT_COACH), { teacherUserId: T_ICT_MIDDLE })).resolves.toBe(false);
+  });
+
+  test('on per user, both switches: ICT yes; GB never; another coach no', async () => {
+    mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH, GB_COACH, ICT_COACH_BARE), fico_s_dc: ON_FOR(ICT_COACH, GB_COACH) };
+    await expect(FicoSSwitch.dcForVisit(row(ICT_COACH), { teacherUserId: T_ICT_MIDDLE })).resolves.toBe(true);
+    await expect(FicoSSwitch.dcForVisit(row(GB_COACH), { teacherUserId: T_GB_MIDDLE })).resolves.toBe(false);
+    await expect(FicoSSwitch.dcForVisit(row(ICT_COACH_BARE), { teacherUserId: T_ICT_MIDDLE })).resolves.toBe(false);
+  });
+
+  test.each([[7, 'maths'], [10, 'science']])('capture, grade %i %s: stamped fico_s_dc, the form made but not sent, the ordinary ack', async (grade, subject) => {
+    process.env.FICO_S_FLOW_ID = 'F-FICOS';
+    mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH), fico_s_dc: ON_FOR(ICT_COACH) };
+    mockState.value = {
+      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(grade, subject, 'ficos', 'fico_s_v1_1'),
+      boundTeacher: { user_id: T_ICT_MIDDLE, teacher_ext_id: 'tx2', school_ext_id: 'niete:100', teacher_name: 'Rabia' },
+    };
+    const session = await startFromAudio({ ...row(ICT_COACH), preferred_language: 'en' }, '9230', 'audio-1', 'chat-1', 1800);
+    expect(session.framework).toBe('fico_s_v1_1');
+    expect(stampOf()).toEqual({ framework: 'fico_s_v1_1', framework_selection_reason: 'fico_s_dc' });
+    expect(Store.createLessonForm).toHaveBeenCalledWith(expect.objectContaining({ rubricVersion: 'fico_s_v1_1' }));
+    expect(WA().sendFlow).not.toHaveBeenCalled();
+    expect(WA().sendInteractiveButtons).toHaveBeenCalled();
+    delete process.env.FICO_S_FLOW_ID;
+  });
+
+  test('portal decideStamp: the FICO-S lesson carries dc only with fico_s_dc on', async () => {
+    const Svc = require('../../bot/shared/services/observe/portal-observe.service');
+    const d = { supabase: require('../../bot/shared/config/supabase'), principalApp: () => Promise.resolve(true) };
+    mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH), fico_s_dc: ON_FOR(ICT_COACH) };
+    const on = await Svc._decideStamp(d, row(ICT_COACH), T_ICT_MIDDLE, { grade: 10, subject: 'science' }, 'niete:100');
+    expect(on.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_1', dc: true });
+    FicoSSwitch._resetCache();
+    mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
+    const off = await Svc._decideStamp(d, row(ICT_COACH), T_ICT_MIDDLE, { grade: 10, subject: 'science' }, 'niete:100');
+    expect(off.fdeLesson.dc).toBeUndefined();
+  });
+});
