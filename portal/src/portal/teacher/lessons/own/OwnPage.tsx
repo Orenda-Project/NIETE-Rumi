@@ -124,6 +124,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     if (r.noteDropped) toast({ title: G.noteDropped }); // bd-snkn32.58.2: a blocked word in her note
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: r.renderId, title: seg?.title ?? C.makeMyOwn,
+      ...(goal ? { check: 'goal' } : {}), // bd-snkn32.58.3: Preparing says it is checking against her goal
     }), { replace: true });
   }
 

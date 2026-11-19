@@ -45,6 +45,8 @@ export type LessonsAt = {
   title?: string;
   /** `dc`: Digital Coaching's From the library (bd-fgj73x.5): the pages CHOOSE a plan for her lesson. */
   pick?: string;
+  /** bd-snkn32.58.3 — `goal`: a goal plan, checked against her goal before it is shown (Preparing says so). */
+  check?: string;
 };
 
 export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
@@ -55,6 +57,7 @@ export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   if (at.render) q.set('render', at.render);
   if (at.title) q.set('title', at.title);
   if (at.pick) q.set('pick', at.pick);
+  if (at.check) q.set('check', at.check);
   return `${LESSONS_HOME}/${view}?${q.toString()}`;
 }
 
@@ -65,7 +68,7 @@ export function readAt(search: string): LessonsAt | null {
   const subject = q.get('subject');
   if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject) return null;
   const at: LessonsAt = { grade, subject };
-  for (const k of ['key', 'chapter', 'lesson', 'render', 'title', 'pick'] as const) {
+  for (const k of ['key', 'chapter', 'lesson', 'render', 'title', 'pick', 'check'] as const) {
     const v = q.get(k);
     if (v) at[k] = v;
   }
