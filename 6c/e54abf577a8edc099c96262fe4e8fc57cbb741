@@ -1,1 +1,2 @@
 {"ts":"2026-11-19T14:03:42Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"6ce54abf577a","branch":"bd-snkn32.58-check","user":""}
+{"ts":"2026-11-19T14:03:58Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.58-check: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"6ce54abf577a","branch":"bd-snkn32.58-check","user":""}
