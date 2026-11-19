@@ -40,10 +40,10 @@ test('re-tappable: the same token verifies again 23 h later', () => {
   expect(verifyAppLink(t)).not.toBeNull();
 });
 
-test('an expired token (24 h + 1 s) is refused', () => {
+test('an expired token (7 days + 1 s, bd-zrdvmi.28) is refused', () => {
   const { signAppLink, verifyAppLink } = load();
   const t = signAppLink(USER, 'menu');
-  jest.setSystemTime(new Date('2026-10-11T10:00:01Z'));
+  jest.setSystemTime(new Date('2026-10-17T10:00:01Z'));
   expect(verifyAppLink(t)).toBeNull();
 });
 
