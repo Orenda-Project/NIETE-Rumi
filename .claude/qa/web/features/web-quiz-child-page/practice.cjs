@@ -138,4 +138,50 @@ on('WQ261', 'off', async (page, ctx) => {
   } finally { await ctx.sql("delete from app_settings where key = 'web_quiz_story_mp3'"); }
 });
 
+// "Your turn" in the class preview (bd-21q0kr; app_settings web_quiz_practice_your_turn): the preview link names its
+// teacher (`tu`). Off: today's book (lr3 false) and the key refused 401. On, with live reading: the book offers Your turn
+// with lr3_keep false, and the key route admits the preview (200 with a key where this lane has Redis and a speech key;
+// 503 live_unavailable where it has not, never 401), and nothing is written under any child either way.
+const LIVE_SWITCHES = ['web_quiz_stories', 'web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
+on('WQ262', 'off', async (page, ctx) => {
+  const TEACHER = '77777777-7777-4777-8777-777777777777';
+  const t = L.tokens(ctx).sign({ k: 'h', ids: [], pr: 1, g: 3, lang: 'en', tu: TEACHER, exp: Math.floor(Date.now() / 1000) + 3600 });
+  const kept = await L.rows(ctx, "select key, value::text from app_settings where key in ('" + LIVE_SWITCHES.join("','") + "')").catch(() => []);
+  for (const k of LIVE_SWITCHES) await L.base.setSetting(ctx, k, 'true');
+  await playing(ctx, page, 'true');
+  try {
+    const shelf = await api(ctx, 'GET', '/stories/shelf/h/' + encodeURIComponent(t) + '?l=en');
+    const first = shelf.status === 200 ? (shelf.json.books || [])[0] : null;
+    if (!first) return { blocked: 'no Grade 3 English storybook on this lane (shelf ' + shelf.status + ')' };
+    const pages = await L.rows(ctx, "select n from story_pages where book_id = " + q(first.id) + " and not coalesce(is_picture, false) order by n limit 1").catch(() => []);
+    const pageN = pages.length ? Number(pages[0][0]) : 1;
+    const before = await counts(ctx);
+    const keyRows = await L.one(ctx, 'select count(*) from web_quiz_live_read_keys').catch(() => 'absent');
+    // the switch off: today's preview
+    const offBook = await api(ctx, 'GET', '/stories/book/' + first.id + '/h/' + encodeURIComponent(t));
+    expect(offBook.status === 200 && offBook.json.lr3 === false && !('lr3_keep' in offBook.json), 'switch off: the book → ' + offBook.status + ' lr3 ' + (offBook.json || {}).lr3);
+    const offKey = await api(ctx, 'POST', '/lr/key', { st: t, kid: null, book: first.id, page: pageN, lang: 'en' });
+    expect(offKey.status === 401, 'switch off: the key → ' + offKey.status);
+    // the switch on
+    await L.setFlag(ctx, page, 'web_quiz_practice_your_turn', 'true', null);
+    const onBook = await api(ctx, 'GET', '/stories/book/' + first.id + '/h/' + encodeURIComponent(t));
+    expect(onBook.status === 200 && onBook.json.lr3 === true && onBook.json.lr3_keep === false, 'switch on: the book → ' + onBook.status + ' ' + JSON.stringify({ lr3: (onBook.json || {}).lr3, keep: (onBook.json || {}).lr3_keep }));
+    const onKey = await api(ctx, 'POST', '/lr/key', { st: t, kid: null, book: first.id, page: pageN, lang: 'en' });
+    expect(onKey.status === 200 || (onKey.status === 503 && onKey.json && onKey.json.error === 'live_unavailable'), 'switch on: the key → ' + onKey.status + ' ' + JSON.stringify(onKey.json).slice(0, 80));
+    if (onKey.status === 200) expect(typeof onKey.json.api_key === 'string' && onKey.json.run, 'switch on: a key with no run');
+    const ev = await api(ctx, 'POST', '/stories/event/h/' + encodeURIComponent(t), { book_id: first.id, page_n: pageN, event: 'story_page_read', data: { words_total: 5, words_read: 5, ms: 4000, ended: 'last_word' } });
+    expect(ev.status === 200 && ev.json.ok === true, 'the page read → ' + ev.status);
+    const after = await counts(ctx);
+    expect(JSON.stringify(after) === JSON.stringify(before), 'a child table changed: ' + JSON.stringify(before) + ' → ' + JSON.stringify(after));
+    const keyRowsAfter = await L.one(ctx, 'select count(*) from web_quiz_live_read_keys').catch(() => 'absent');
+    expect(keyRowsAfter === keyRows, 'a child key row was written: ' + keyRows + ' → ' + keyRowsAfter);
+    return { book: first.id, page: pageN, key: onKey.status === 200 ? 'minted' : 'lane has no Redis or speech key (503)', tables: after };
+  } finally {
+    await ctx.sql("delete from app_settings where key = 'web_quiz_practice_your_turn'");
+    await ctx.sql("delete from app_settings where key in ('" + LIVE_SWITCHES.join("','") + "')");
+    for (const [k, v] of kept) await L.base.setSetting(ctx, k, v);
+    await playing(ctx, page, null);
+  }
+});
+
 module.exports = { runs, modes };

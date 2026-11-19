@@ -1996,3 +1996,15 @@ Feature: Web child quiz page on the portal
     When a storybook page voice is asked for as .mp3
     Then the portal serves it as audio/mpeg, made from the stored .ogg
     But with the switch off the .mp3 storage does not hold is not found, as before
+
+  # ── "Your turn" in the class preview (app_settings web_quiz_practice_your_turn, bd-21q0kr) ──
+  # The preview link carries the teacher it belongs to (`tu`); the speech key is counted against that teacher's day.
+  @WQ262
+  Scenario: With Your turn on, the teacher's class preview reads a storybook page aloud, counted against the teacher
+    Given app_settings "web_quiz_practice_play" and "web_quiz_practice_your_turn" are true, and live reading is on
+    And a teacher's class preview link for Grade 3 that names the teacher and no child
+    When a storybook is opened from the preview and its page asks for a speech key
+    Then the book offers "Your turn" with the child's reading bits, and says nothing of the voice is kept
+    And the key is given and counted against the teacher, never in a child's key count
+    And the page's reading result is answered and no child row, story event or key row is written
+    But with "web_quiz_practice_your_turn" off the book has no "Your turn" and the key is refused, as before

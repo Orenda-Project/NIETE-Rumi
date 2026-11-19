@@ -26,7 +26,10 @@
  *   - `story_done` gives the storybook sticker the first time a child finishes a book, only with Jugnu's Book on.
  * A grown-up's preview link (app_settings web_quiz_practice_play, web-quiz-practice-play.js) is answered for its grade
  * with no child: the same shelf (nothing finished), the same book without the microphone, every event answered and
- * none kept. Off, that link is refused 401 as any token that names no child.
+ * none kept. Off, that link is refused 401 as any token that names no child. With app_settings
+ * web_quiz_practice_your_turn on (web-quiz-live-read-preview.js, bd-21q0kr), a preview that names its teacher gets the
+ * book WITH the microphone, as the child does (Your turn, its word rules, the reading moment), its speech key counted
+ * against the teacher, and lr3_keep false: nothing of a preview's voice is kept, and the notice says so.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -444,7 +447,7 @@ async function cardBits() {
 async function book(id, token, { kid, device } = {}) {
   const who = await guard(token, kid, device, 'stories_book');
   const out = await bookData(id);
-  if (who.practice) return practiceBook(out);
+  if (who.practice) return practiceBook(out, await require('./web-quiz-live-read-preview').turnFor(who));
   await keepMisses(who.studentId, out);
   return Object.assign(out, await cardBits());
 }
@@ -452,9 +455,15 @@ async function book(id, token, { kid, device } = {}) {
 // A preview's book: the pages, the voices and the questions as a child gets them, but no microphone ("Read it
 // together" needs a speech key, which is counted against a child's own day) and no share card (it is a child's finish).
 // No miss row is kept (keepMisses writes one under the child).
-function practiceBook(out) {
+// `turn` (web_quiz_practice_your_turn on, a preview that names its teacher): the microphone as well, while the
+// deployment's live reading is on — the child's book with Your turn's bits (lr3, lrr, read_fb, read_sheet), its key
+// counted against the teacher (web-quiz-live-read-keys.js), and lr3_keep false: a preview's voice is never kept, so the
+// microphone notice says "Nothing is kept". Off (or live reading off): today's preview book, byte for byte.
+function practiceBook(out, turn = false) {
   const { lrr, lr3_keep: keep, read_fb: fb, read_sheet: sheet, ...rest } = out;
-  require('./web-quiz-practice-play').note('stories_book', { pages: (out.pages || []).length, voiced: (out.pages || []).filter((p) => p.audio).length });
+  const live = Boolean(turn && out.lr3 === true);
+  require('./web-quiz-practice-play').note('stories_book', { pages: (out.pages || []).length, voiced: (out.pages || []).filter((p) => p.audio).length, ...(live ? { turn: 1 } : {}) });
+  if (live) return { ...out, lr3_keep: false };
   return { ...rest, lr3: false };
 }
 
