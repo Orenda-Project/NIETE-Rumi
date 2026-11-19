@@ -46,11 +46,13 @@ const BAND_TONE: Record<BandKey, ChipTone> = {
 const RANK: Record<BandKey, number> = { needs_support: 0, below_average: 1, average: 2, good: 3, excellent: 4 };
 
 /** features.teacherJourney: on only for a real true (the shared /config read; first render from the answer in hand). */
+const journeyOf = (cfg: { features?: unknown } | null | undefined) => (cfg?.features as { teacherJourney?: unknown } | undefined)?.teacherJourney === true;
+
 function useJourneyOn(): boolean {
-  const [on, setOn] = useState(() => peekConfig()?.features?.teacherJourney === true);
+  const [on, setOn] = useState(() => journeyOf(peekConfig()));
   useEffect(() => {
     let live = true;
-    readConfigShared().then((cfg) => { if (live) setOn(cfg?.features?.teacherJourney === true); }).catch(() => { if (live) setOn(false); });
+    readConfigShared().then((cfg) => { if (live) setOn(journeyOf(cfg)); }).catch(() => { if (live) setOn(false); });
     return () => { live = false; };
   }, []);
   return on;
