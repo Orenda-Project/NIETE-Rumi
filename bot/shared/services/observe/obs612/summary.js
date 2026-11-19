@@ -348,7 +348,15 @@ async function sendCoachSummary({ coachUserId, sessionId, analysis } = {}) {
     // follow v6's path; no text summary.
     if (analysis.obs612 && analysis.obs612.tool === 'ficos' && analysis.obs612.dc) {
       const { observeStrings } = require('../observe-strings');
-      await require('../observe-debrief.service').acknowledgeFormSubmitted(to, sessionId, observeStrings(observeLang(coach)));
+      const S = observeStrings(observeLang(coach));
+      const Debrief = require('../observe-debrief.service');
+      // Exactly what a v6 review gets on this branch: one message where acknowledgeFormSubmitted exists, else the saved
+      // line and then the Debrief now / Later buttons.
+      if (typeof Debrief.acknowledgeFormSubmitted === 'function') await Debrief.acknowledgeFormSubmitted(to, sessionId, S);
+      else {
+        await WhatsAppService.sendMessage(to, S.submitted_ack);
+        await WhatsAppService.sendInteractiveButtons(to, Debrief.buildDebriefChoiceButtons(sessionId, S));
+      }
       logToFile('📋 obs612 summary: FICO 6-12 on the Digital Coach — saved, debrief offered (v6)', { sessionId, coachUserId });
       return { sent: true, buttons: true, kind: 'v6_ack' };
     }
