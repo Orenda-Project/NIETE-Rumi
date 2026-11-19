@@ -7,7 +7,8 @@
  *   - 8 behaviour marks and a separate Respect line, COMPUTED IN CODE from the judge's booleans (never LLM text);
  *   - "What you did well" (the existing wins);
  *   - "What was missed": each missed behaviour with its fixed "why it matters" line (catalog strings);
- *   - "Next focus" (the existing try) + one link to that behaviour's Coach Training module;
+ *   - "Next focus" (the existing try); since queue #186 (19 Nov) no Coach Training module after a debrief — the coach's
+ *     one training recommendation is in her Weekly Report;
  *   - the reflection question.
  * The 8th behaviour needs the judge to score rehearsed_the_step: the ur/en prompt gains that key and its definition.
  * Swahili (prompt, text card, card HTML) stays byte-identical. Old rows without the key show 7 marks, never a fake miss.
@@ -124,10 +125,11 @@ describe('the marks are computed in code from the booleans', () => {
     expect(m.marks.map((x) => x.key)).not.toContain('rehearsed_the_step');
     expect(R.missedBehaviours(r)).not.toContain('rehearsed_the_step');
   });
-  it('next focus: the judge\'s focus when valid, else the first miss, else the full debrief', () => {
+  it('next focus: the judge\'s focus when valid, else the first miss, else none', () => {
     expect(R.nextFocusKey(feedback())).toBe('rehearsed_the_step');
     expect(R.nextFocusKey(feedback({ focus: null }))).toBe('elicited_if_then');
-    expect(R.focusModule(feedback({ focus: null, rubric: rubric() })).n).toBe(9);
+    expect(R.nextFocusKey(feedback({ focus: null, rubric: rubric() }))).toBeNull();
+    expect(R.focusModule).toBeUndefined(); // queue #186: the debrief card names no module
   });
 });
 
@@ -144,7 +146,7 @@ describe('the text card (the fallback the PNG must match)', () => {
       expect(c).toMatch(new RegExp(`○ ${S.coach_rubric_names.rehearsed_the_step}`));
       expect(c).toMatch(new RegExp(`✓ ${S.coach_rubric_names.opened_with_specific_praise}`));
     });
-    it(`${lang}: did well (the wins), missed (each with its fixed why), next focus, its module link, the question`, () => {
+    it(`${lang}: did well (the wins), missed (each with its fixed why), next focus (no module link), the question`, () => {
       const c = card();
       const at = [S.coach_card_wins_label, S.coach_card_missed_label, S.coach_card_try_label, S.coach_card_reflect_label].map((l) => c.indexOf(l));
       at.forEach((i) => expect(i).toBeGreaterThan(-1));
@@ -153,8 +155,8 @@ describe('the text card (the fallback the PNG must match)', () => {
       for (const k of ['elicited_if_then', 'righting_reflex_held', 'rehearsed_the_step']) expect(c).toContain(S.coach_rubric_why[k]);
       expect(c).not.toContain(S.coach_rubric_why.opened_with_specific_praise);
       expect(c).toContain('Have the teacher say the question out loud');
-      expect(c).toContain('https://claude.ai/artifact/MGVm5YMAdQhRCrWRWWg65C');
-      expect(c).toContain(M.moduleFor('rehearsed_the_step').title[lang]);
+      expect(c).not.toContain('claude.ai/artifact');
+      expect(c).not.toContain(M.moduleFor('rehearsed_the_step').title[lang]);
       expect(c).toContain('What stopped you from asking for a rehearsal today?');
     });
     it(`${lang}: the marks follow the booleans, not what the model wrote`, () => {
@@ -215,7 +217,7 @@ describe('the PNG says what the text says', () => {
   for (const lang of ['en', 'ur']) {
     const S = observeStrings(lang);
     const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    it(`${lang}: the same marks, Respect, missed whys and module`, () => {
+    it(`${lang}: the same marks, Respect and missed whys; no module`, () => {
       const html = Card.buildCoachCardHtml(feedback(), { lang, brand: 'niete' });
       expect(html.match(/data-mark="done"/g)).toHaveLength(5);
       expect(html.match(/data-mark="missed"/g)).toHaveLength(3);
@@ -224,18 +226,18 @@ describe('the PNG says what the text says', () => {
       expect(html).toContain(esc(Card.stripPictographs(S.coach_card_respect_line)));
       expect(html).not.toContain('✓');
       for (const k of ['elicited_if_then', 'righting_reflex_held', 'rehearsed_the_step']) expect(html).toContain(esc(S.coach_rubric_why[k]));
-      expect(html).toContain(esc(M.moduleFor('rehearsed_the_step').title[lang]));
+      expect(html).not.toContain(esc(M.moduleFor('rehearsed_the_step').title[lang]));
+      expect(html).not.toContain('class="mod"');
     });
   }
 });
 
-describe('the caption carries the tappable module link (an image cannot)', () => {
-  it('praise, the module line with its link, then the closing — inside the 1,024 cap', () => {
+describe('the caption: the praise, then the closing (queue #186: no module link after a debrief)', () => {
+  it('praise, then the closing — inside the 1,024 cap', () => {
     const S = observeStrings('en');
     const cap = F.coachCardCaption('You opened warmly.', feedback(), S);
-    expect(cap.indexOf('You opened warmly.')).toBe(0);
-    expect(cap).toContain('https://claude.ai/artifact/MGVm5YMAdQhRCrWRWWg65C');
-    expect(cap.endsWith(S.coach_card_closing)).toBe(true);
+    expect(cap).toBe(`You opened warmly.\n\n${S.coach_card_closing}`);
+    expect(cap).not.toContain('claude.ai/artifact');
     expect([...cap].length).toBeLessThanOrEqual(1024);
   });
   it('Swahili: no link, the caption as before', () => {

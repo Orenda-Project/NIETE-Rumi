@@ -17,7 +17,6 @@
 
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 const Week = require('../../bot/shared/services/observe/coach-week');
-const { BEHAVIOUR_MODULE } = require('../../bot/shared/config/coach-training-modules');
 
 /** The card shows the week from Friday 16:00 for this long, if she neither opens nor closes it. */
 const CARD_DAYS = 3;
@@ -96,7 +95,6 @@ function shapeWeek(summary) {
         return Array.isArray(en) && Array.isArray(ur) ? { en, ur, reviewed: STEPS_REVIEWED } : null;
       })(),
       nextName: f.next ? both('coach_rubric_names', f.next) : null,
-      nextModule: f.next ? BEHAVIOUR_MODULE[f.next] || null : null,
     } : null,
     strengths: summary.strengths.map((s) => ({ ...s, ...named(s.key) })),
     keepInMind: summary.keepInMind.map((k) => ({ ...k, ...named(k.key), why: both('coach_rubric_why', k.key) })),

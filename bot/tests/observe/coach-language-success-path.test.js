@@ -124,10 +124,8 @@ describe('the debrief success path', () => {
     // the card, with the praise line above its closing line in the caption
     expect(sent[0]).toMatchObject({ kind: 'image', to: COACH_EN.phone_number });
     const image = sent.find((s) => s.kind === 'image');
-    // the praise first, then (the rubric Feedback Report) the next focus's Coach Training module link, then the closing
-    expect(image.caption.startsWith(`${FEEDBACK().praise_line}\n\n📘 Coach Training, Module`)).toBe(true);
-    expect(image.caption).toContain('https://claude.ai/artifact/');
-    expect(image.caption.endsWith(en.coach_card_closing)).toBe(true);
+    // the praise first, then the closing (queue #186: no Coach Training module after a debrief)
+    expect(image.caption).toBe(`${FEEDBACK().praise_line}\n\n${en.coach_card_closing}`);
     expect(cardCalls[0]).toMatchObject({ lang: 'en' });
     // the send prompt and its buttons — the mixed-language step QA reported
     const buttons = sent.find((s) => s.kind === 'buttons');
@@ -141,8 +139,7 @@ describe('the debrief success path', () => {
 
     const ur = observeStrings('ur');
     const caption = sent.find((s) => s.kind === 'image').caption;
-    expect(caption.startsWith(`${FEEDBACK().praise_line}\n\n📘 کوچ ٹریننگ، ماڈیول`)).toBe(true);
-    expect(caption.endsWith(ur.coach_card_closing)).toBe(true);
+    expect(caption).toBe(`${FEEDBACK().praise_line}\n\n${ur.coach_card_closing}`); // queue #186: no module after a debrief
     expect(cardCalls[0]).toMatchObject({ lang: 'ur' });
     expect(sent.find((s) => s.kind === 'buttons').p.buttons[0].title).toBe(ur.btn_send_report);
   });

@@ -102,15 +102,14 @@ describe('the rubric Feedback Report, end to end', () => {
     return require('../../shared/services/observe/observe-debrief.service');
   }
 
-  test('the card image carries the next focus\'s module link in its caption (English coach)', async () => {
+  // Queue #186 (the operator, 19 Nov 2026): no Coach Training module after a debrief; the Weekly Report has the one training.
+  test('the card image\'s caption is the praise and the closing line, no module (English coach)', async () => {
     const Debrief = load(row({ teacher: TEACHER_UR, coach: COACH_EN, feedback: TWO_WINS(FEEDBACK()) }));
     await Debrief.processDebriefRecording(SID, { from: COACH_EN.phone_number });
     const en = observeStrings('en');
     const caption = sent.find((s) => s.kind === 'image').caption;
-    expect(caption.startsWith(FEEDBACK().praise_line)).toBe(true);
-    expect(caption).toContain('Module 8: Rehearse it aloud');
-    expect(caption).toContain('https://claude.ai/artifact/MGVm5YMAdQhRCrWRWWg65C');
-    expect(caption.endsWith(en.coach_card_closing)).toBe(true);
+    expect(caption).toBe(`${FEEDBACK().praise_line}\n\n${en.coach_card_closing}`);
+    expect(caption).not.toContain('claude.ai/artifact');
   });
 
   test('ur/en: a card without rehearsal gets the one guided repair; the repaired card is delivered', async () => {
@@ -120,6 +119,6 @@ describe('the rubric Feedback Report, end to end', () => {
     await Debrief.processDebriefRecording(SID, { from: COACH_UR.phone_number });
     expect(calls).toHaveLength(2);
     expect(calls[1]).toMatch(/rehearsed_the_step/);
-    expect(sent.find((s) => s.kind === 'image').caption).toContain('https://claude.ai/artifact/MGVm5YMAdQhRCrWRWWg65C');
+    expect(sent.find((s) => s.kind === 'image').caption.endsWith(observeStrings('ur').coach_card_closing)).toBe(true);
   });
 });
