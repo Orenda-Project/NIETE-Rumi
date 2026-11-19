@@ -2773,6 +2773,13 @@ async function handleDocumentMessage(message, from, user) {
     const { handleLessonPlanMediaArrival } = require('./shared/services/coaching/media-attach.service');
     const lpHandled = await handleLessonPlanMediaArrival({ user, from, mediaId: documentId, mimeType, messageId: message.id });
     if (!lpHandled) {
+      // bd-r2uzg1.18.7 — a lesson plan (or a photo as a file) sent after she sent her lesson from the recording
+      // screen in the last 24 h cannot join it: ONE message per burst with the Digital Coaching button. An audio
+      // file whose length could not be read is not this. Anyone else: the reply below, as before.
+      if (audioClassification.decision !== 'route_to_audio_pipeline') {
+        const { answerMediaAfterAppRecording } = require('./shared/services/coaching/app-recording-media.service');
+        if (await answerMediaAfterAppRecording({ user, from, kind: 'document' })) return;
+      }
       // No active coaching session - regular document
       await WhatsAppService.sendMessage(from,
         "I received your document. If you're trying to submit a lesson plan for classroom coaching, " +

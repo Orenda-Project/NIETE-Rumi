@@ -1088,6 +1088,15 @@ const UX_STRINGS = {
     ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔ اس کی رپورٹ ایپ میں ہے۔',
   },
   appLinkButtonCoachingRepeat: { en: 'Digital Coaching', ur: 'ڈیجیٹل کوچنگ' },
+  // bd-r2uzg1.18.7 (ICT sheet, DC row) — photos or a lesson plan sent on WhatsApp after she sent her lesson from the
+  // recording screen (coaching/app-recording-media.service): ONE line per burst, with appLinkButtonCoachingSaved.
+  // Plain: they cannot join that lesson; next time add them before Send. Never "app" (the operator: NIETE is WhatsApp
+  // and the screen that opens inside it). "Send" / بھیجیں is the recording screen's own button (portal coaching copy).
+  // Imperatives only, so nothing assumes her gender.
+  dcMediaAfterAppRecording: {
+    en: "These can't be added to the lesson you already sent. Next time, add your lesson plan and photos on the recording screen before you press Send.",
+    ur: 'یہ تصاویر اور لیسن پلان پہلے سے بھیجے گئے سبق میں شامل نہیں ہو سکتے۔ اگلی بار ریکارڈنگ والی اسکرین پر ہی لیسن پلان اور تصاویر شامل کریں، پھر "بھیجیں" دبائیں۔',
+  },
   appLinkBodyTraining: { en: 'Open your training.', ur: 'اپنی ٹریننگ کھولیں۔' },
   appLinkButtonTraining: { en: 'Training', ur: 'ٹریننگ' },
   appLinkBodyAttendance: { en: 'Take attendance in the app.', ur: 'ایپ میں حاضری لگائیں۔' },

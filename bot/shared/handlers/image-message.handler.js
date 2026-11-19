@@ -8,7 +8,9 @@
  * Routing order (each gate falls through to the next):
  *   1. Coaching classroom-photo collection (active coaching session)
  *   2. Exam checker (active exam session)
- *   3. Generic vision analysis (fallback — feedback on any image)
+ *   3. Photos after a lesson sent from the recording screen (< 24 h): one
+ *      "can't be added" message per burst (bd-r2uzg1.18.7)
+ *   4. Generic vision analysis (fallback — feedback on any image)
  *
  * Features:
  * - Idempotency via Redis (prevents duplicate processing)
@@ -184,6 +186,20 @@ async function handleImageMessage(message, from, user = null) {
       } catch (raceErr) {
         logToFile('⚠️ Race-hold classroom-photo check failed (non-critical)', { error: raceErr.message });
         // fall through to generic vision feedback
+      }
+
+      // bd-r2uzg1.18.7 — no session took it. If she sent her lesson from the
+      // recording screen in the last 24 h, these photos were meant for it and
+      // cannot join it: ONE message per burst (with the Digital Coaching
+      // button), never the generic picture reply. Everyone else: as before.
+      try {
+        const { answerMediaAfterAppRecording } = require('../services/coaching/app-recording-media.service');
+        if (await answerMediaAfterAppRecording({ user, from, kind: 'image' })) {
+          typingController.stop();
+          return;
+        }
+      } catch (appMediaErr) {
+        logToFile('⚠️ Media-after-app-recording check failed (non-critical)', { error: appMediaErr.message });
       }
 
       // bd-onxyu — an image with no session waiting for it is an open message:
