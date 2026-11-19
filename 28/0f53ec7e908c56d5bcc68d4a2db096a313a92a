@@ -1,2 +1,4 @@
 {"ts":"2026-11-19T16:36:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=child-test spec_sync=true","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
 {"ts":"2026-11-19T16:36:51Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.56.1-05633: E-NODRIVER:coaching","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-19T16:37:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=child-test spec_sync=true","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-19T16:37:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (280f53ec7 only renames two scenario ids CT284/CT285 -> CT300/CT301 to avoid a duplicate id on staging; no code or behaviour changed)","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
