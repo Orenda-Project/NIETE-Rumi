@@ -22,9 +22,9 @@ const DATA = path.join(__dirname, '../../bot/shared/data/child-test/sa');
 const FULL = require(path.join(DATA, 'sa.coach.G3.A.ur.json'));
 
 /** The served battery of a block, with sa_voice_gate_v2 on (the Try again refusal). */
-function served(block) {
+function served(block, ui = { voice_gate_v2: true }) {
   const b = page.pick(FULL, block);
-  return { ...b, ui: { voice_gate_v2: true } };
+  return { ...b, ui };
 }
 
 /** A deferred: the preparation's verdict, landed when the test says. */
@@ -54,7 +54,7 @@ async function rig(block, o = {}) {
     },
     unrefuse() { calls.unrefuse++; },
   };
-  const battery = served(block);
+  const battery = served(block, o.ui);
   const e = await start({ mount: {}, battery, mode: 'proctored', lang: 'ur', session_id: o.session_id || 'sess-late', audio_check: false, warmup: false }, {
     core,
     store: { open: () => Promise.resolve(s) },
@@ -161,9 +161,10 @@ describe('a late "none" inside a timed task that needs no clip waits for the tas
     const types = ev.map((q) => q.type);
     const iEnd = types.indexOf('task_end');
     expect(types.slice(types.indexOf('device_ready'), types.indexOf('device_ready') + 2)).toEqual(['device_ready', 'voice_late_none']);
-    expect(types[iEnd + 1]).toBe('voice_not_ready');
+    expect(types.slice(iEnd + 1, iEnd + 3)).toEqual(['voice_deferred_end', 'voice_not_ready']);
+    expect(ev[iEnd + 1]).toMatchObject({ task_id: 'ur.letter_names5', value: { task: 'ur.letter_names5', ms: 60000, by: 'task_end' } });
     // the refusal came at the task's end: no event of the next task before it
-    expect(x.calls.refuse[0].seq).toBe(ev[iEnd + 1].seq);
+    expect(x.calls.refuse[0].seq).toBe(ev[iEnd + 2].seq);
     expect(ev.filter((q) => q.task_id === 'ur.letter_sounds5')).toEqual([]);
     expect(x.r.view()).toMatchObject({ phase: 'task_end', task: { id: 'ur.letter_names5' } });
     expect(x.calls.posts).toEqual(['sa:refused']);
@@ -234,6 +235,74 @@ describe('a late "none" inside a timed task that needs no clip waits for the tas
     x.view.render();
     expect(x.calls.refuse).toHaveLength(1);
     expect(x.r.view().phase).toBe('instruction');
+  });
+});
+
+// RDF auto as served on prod (sa_silence_repeat on): a late none 20 s into the timed letter-name grid, the child silent
+// (row A) or speaking (row B); row C is the silent child with silence_repeat off. Every deferral closes with one
+// voice_deferred_end { task, ms, by } immediately before the refusal: by 'task_end', or the phase that ended the task.
+describe('rows A, B, C: how a deferral ends is logged, with silence_repeat as on prod', () => {
+  async function lateNone(ui, speak) {
+    const x = await rig('rdf_auto', { ui });
+    x.r.start();
+    toGo(x.r);
+    const id = x.r.view().task.id;
+    x.r.log('record_start', { task_id: id });
+    if (speak) x.r.voice(true);
+    const v = verdict();
+    page.voiceGate(x.e, v.p, x.ctx);
+    x.clock.t = 20000;
+    v.land({ voice: 'none', ready: true, clips_total: 150, clips_cached: 40 });
+    await flush();
+    x.view.render();
+    expect(x.calls.refuse).toHaveLength(0);
+    x.clock.t = 60000;
+    x.r.tick();
+    x.view.render();
+    await flush();
+    x.view.render();
+    await x.e.flushed();
+    const ev = await events(x.s);
+    const types = ev.map((q) => q.type);
+    return { x, id, ev, types, res: x.r.results().find((q) => q.task_id === id) || null };
+  }
+
+  test('A: silent child, silence_repeat on → no result row; voice_deferred_end by silence_reminder, then the refusal at 60000; the recording discarded', async () => {
+    const { x, id, ev, types, res } = await lateNone({ voice_gate_v2: true, silence_repeat: true }, false);
+    expect(res).toBeNull();
+    expect(x.r.view().phase).toBe('silence_reminder');
+    expect(x.calls.refuse).toHaveLength(1);
+    expect(x.calls.refuse[0].at).toBe(60000);
+    const end = ev.find((q) => q.type === 'voice_deferred_end');
+    expect(end).toMatchObject({ task_id: id, value: { task: id, ms: 60000, by: 'silence_reminder' } });
+    expect(types[types.indexOf('voice_deferred_end') + 1]).toBe('voice_not_ready');
+    expect(types.indexOf('voice_late_none')).toBeLessThan(types.indexOf('voice_not_ready'));
+    // the silent attempt is not kept (the engine discards its recording on silence_repeat)
+    expect(types).toContain('silence_repeat');
+    expect(types.filter((t) => t === 'voice_deferred_end')).toHaveLength(1);
+  });
+
+  test.each([
+    ['B: the child speaks, silence_repeat on', { voice_gate_v2: true, silence_repeat: true }, true],
+    ['C: silent child, silence_repeat off', { voice_gate_v2: true }, false],
+  ])('%s → time_up at 60000, voice_deferred, voice_deferred_end by task_end; voice_late_none before voice_not_ready', async (_n, ui, speak) => {
+    const { x, id, ev, types, res } = await lateNone(ui, speak);
+    expect(res).toMatchObject({ stop_reason: 'time_up', time_used_ms: 60000, voice_deferred: true });
+    expect(x.calls.refuse).toHaveLength(1);
+    expect(x.calls.refuse[0].at).toBe(60000);
+    expect(ev.find((q) => q.type === 'voice_deferred_end')).toMatchObject({ task_id: id, value: { task: id, ms: 60000, by: 'task_end' } });
+    expect(types[types.indexOf('voice_deferred_end') + 1]).toBe('voice_not_ready');
+    expect(types.indexOf('voice_late_none')).toBeLessThan(types.indexOf('voice_not_ready'));
+  });
+
+  test('a refusal at once (no deferral) logs no voice_deferred_end', async () => {
+    const x = await rig('rdf_auto');
+    page.voiceGate(x.e, Promise.resolve({ voice: 'none' }), x.ctx);
+    await flush();
+    await x.e.flushed();
+    const types = (await events(x.s)).map((q) => q.type);
+    expect(types).toContain('voice_not_ready');
+    expect(types).not.toContain('voice_deferred_end');
   });
 });
 

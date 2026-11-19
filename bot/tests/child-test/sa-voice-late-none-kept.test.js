@@ -71,7 +71,7 @@ const result = {
   voice_deferred: true, answers: [],
 };
 
-test('voice_late_none { task, ms } is kept on the session with its task; voice_deferred: true stays on the stored result', async () => {
+test('voice_late_none { task, ms } and voice_deferred_end { task, ms, by } are kept on the session with their task; voice_deferred: true stays on the stored result', async () => {
   const { deps, synced, put } = world();
   const events = [
     { seq: 1, type: 'session_start', at: '2026-11-19T08:58:00Z' },
@@ -79,12 +79,14 @@ test('voice_late_none { task, ms } is kept on the session with its task; voice_d
     { seq: 3, type: 'device_ready', at: '2026-11-19T08:58:50Z', value: { ready: false, voice: 'none', clips_total: 150, clips_cached: 40 } },
     { seq: 4, type: 'voice_late_none', task_id: 'ur.letter_names5', at: '2026-11-19T08:58:50Z', value: { task: 'ur.letter_names5', ms: 20000 } },
     { seq: 5, type: 'task_end', task_id: 'ur.letter_names5', at: '2026-11-19T08:59:30Z', value: result },
-    { seq: 6, type: 'voice_not_ready', at: '2026-11-19T08:59:30Z' },
+    { seq: 6, type: 'voice_deferred_end', task_id: 'ur.letter_names5', at: '2026-11-19T08:59:30Z', value: { task: 'ur.letter_names5', ms: 60000, by: 'task_end' } },
+    { seq: 7, type: 'voice_not_ready', at: '2026-11-19T08:59:30Z' },
   ];
-  const out = await sa.saBatch({ userId: COACH, sessionId: SID, seqFrom: 1, seqTo: 6, events, results: [result], lang: 'ur' }, deps);
-  expect(out).toEqual({ status: 'ok', ackedTo: 6 });
+  const out = await sa.saBatch({ userId: COACH, sessionId: SID, seqFrom: 1, seqTo: 7, events, results: [result], lang: 'ur' }, deps);
+  expect(out).toEqual({ status: 'ok', ackedTo: 7 });
   const kept = synced[0].events;
-  expect(kept.map((e) => e.type).filter((t) => t !== 'session_start')).toEqual(['device_ready', 'voice_late_none', 'voice_not_ready']);
+  expect(kept.map((e) => e.type).filter((t) => t !== 'session_start')).toEqual(['device_ready', 'voice_late_none', 'voice_deferred_end', 'voice_not_ready']);
+  expect(kept.find((e) => e.type === 'voice_deferred_end')).toEqual({ seq: 6, type: 'voice_deferred_end', task_id: 'ur.letter_names5', at: '2026-11-19T08:59:30Z', data: { task: 'ur.letter_names5', ms: 60000, by: 'task_end' } });
   expect(kept.find((e) => e.type === 'voice_late_none')).toEqual({ seq: 4, type: 'voice_late_none', task_id: 'ur.letter_names5', at: '2026-11-19T08:58:50Z', data: { task: 'ur.letter_names5', ms: 20000 } });
   expect(put[0][0].voice_deferred).toBe(true);
   const row = memDb.rows.find((r) => r.session_id === SID && r.block === 'ur.letter_names5');
