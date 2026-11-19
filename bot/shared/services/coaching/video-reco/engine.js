@@ -8,6 +8,10 @@
  * recompute) → arm → target (target.js) → teacher context (languages, ladder level, history, grade) →
  * shortlist (BM25 + the ⛔ filters) → transcript moments, names redacted → ONE completeJson pick →
  * validation (one retry; v1.3c the card-sentence fallback) → names redacted again → one row. Control-arm rows, and every row in VIDEO_RECO_MODE=shadow, are 'shadow'.
+ *
+ * Queue #186 (the operator, 19 Nov 2026: "For all HITLs ... there are training modules attached everywhere. We dont need
+ * that."): a visit an observer recorded (a leader observation — coach or principal, every HITL rubric) gets NO clip: no
+ * read, no pick, no row, so its report carries none on any surface. A teacher's own recorded lesson is unchanged.
  */
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
@@ -28,6 +32,11 @@ const { wordCounts, maskedKeys, nameKey, guarded, scrubNames, vocativeKeys } = r
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
 const BAND_GRADES = Object.freeze({ PRIMARY: [1, 5], MIDDLE: [6, 8], HIGH: [9, 12] });
+
+/** Queue #186: a leader observation (HITL) — the caller says so, or the session has an observer. */
+function isLeaderObservation(args) {
+  return !!args && (args.observationType === 'leader_observation' || !!(args.session && args.session.observer_user_id));
+}
 
 class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
@@ -178,6 +187,7 @@ function prefetchReads(args = {}) {
     const d0 = (args && args.deps) || {};
     const env = d0.env || process.env;
     if (!videoRecoEnabled(env)) return false;
+    if (isLeaderObservation(args)) return false; // queue #186: no clip on a HITL report, so nothing to read ahead
     const { session, coachingSessionId, analysis } = args;
     if (!session || !session.user_id || !coachingSessionId) return false;
     if (!analysis || analysis.framework !== 'fico') return false; // as the pick (red7 N1): no analysis, no wave
@@ -778,6 +788,7 @@ async function recommendForReport(args = {}) {
   let a;
   try {
     if (!videoRecoEnabled(env)) return null;
+    if (isLeaderObservation(args)) return null; // queue #186: a HITL visit's report carries no training clip
     if (!args.analysis || args.analysis.framework !== 'fico' || !args.session || !args.coachingSessionId) return null;
     // A snapshot taken before the first await: the report goes on rendering (and may add to the analysis) while this runs.
     const snap = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
