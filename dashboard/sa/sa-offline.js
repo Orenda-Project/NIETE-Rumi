@@ -27,6 +27,9 @@
  *     chunk while it says true (a background download giving the line to the Start gate).
  *   SAE.offline.checkVisit({ forms }) → Promise<{ ready, total, cached, why? }>: the same files, looked up on the phone
  *     only (nothing fetched).
+ *   SAE.offline.timingUrls(clipUrls, index?) → the timing files of those clips worth asking for (see below); prepare and
+ *     prepVisit ask for sa/v5/prompt_timings.json on its own before any clip, and for the v4 word timings last, only
+ *     those dashboard/sa/timings.index.json lists (none when it cannot be read).
  *
  * UMD: window.SAE.offline (and SAE.prepare) in the browser, module.exports under Node.
  */
@@ -63,6 +66,51 @@
       }
     }(battery, null));
     return Object.keys(out).sort();
+  }
+
+  /**
+   * timingUrls(clipUrls, index) → once, beside the v5 clips, sa/v5/prompt_timings.json (round 28: each picker prompt's
+   * speech end, which starts the tap clock), first; then the word-timing file beside each v4 clip (sa/v4/<lang>/<key>.json,
+   * round 8 item 32: the screens light the words as Jugnu says them) that the timing index lists (index = { ur: [keys],
+   * en: [keys] }, dashboard/sa/timings.index.json). Most v4 clips have no timing file, so without the index no v4 timing
+   * is named at all (never one beside every clip: each would be a failed fetch). Best effort: a missing one is never
+   * "not ready". They go into the session cache with the clips, so a SESSION bump renews them together.
+   */
+  function timingUrls(list, index) {
+    list = list || [];
+    var out = [];
+    var v5 = list.filter(function (u) { return /\/sa\/v5\/(ur|en)\/[^/]+\.mp3$/.test(u); })[0];
+    if (v5) out.push(v5.replace(/\/(ur|en)\/[^/]+\.mp3$/, '/prompt_timings.json'));
+    if (!index || typeof index !== 'object') return out;
+    var has = {};
+    ['ur', 'en'].forEach(function (l) { has[l] = {}; (Array.isArray(index[l]) ? index[l] : []).forEach(function (k) { if (typeof k === 'string') has[l][k] = true; }); });
+    list.forEach(function (u) {
+      var m = /\/sa\/v4\/(ur|en)\/([^/]+)\.mp3$/.exec(u);
+      if (m && has[m[1]][m[2]]) out.push(u.replace(/\.mp3$/, '.json'));
+    });
+    return out;
+  }
+
+  function isV4(u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }
+
+  var INDEX_WAIT_MS = 10000;
+  /**
+   * loadIndex(base) → Promise<{ ur, en } | null>: dashboard/sa/timings.index.json (the v4 clips that have a timing file),
+   * read once per call with a time limit; null when it cannot be read (offline, refused, malformed). Never rejects.
+   */
+  function loadIndex(base) {
+    var f = typeof root.fetch === 'function' ? root.fetch.bind(root) : null;
+    if (!f) return Promise.resolve(null);
+    var u = (base == null ? '/' : base).replace(/\/?$/, '/') + 'sa/timings.index.json';
+    return new Promise(function (ok) {
+      var t = setTimeout(function () { ok(null); }, INDEX_WAIT_MS);
+      Promise.resolve().then(function () { return f(u, { credentials: 'same-origin' }); }).then(function (r) {
+        return r && r.ok ? r.json() : null;
+      }).then(function (d) {
+        clearTimeout(t);
+        ok(d && typeof d === 'object' && (Array.isArray(d.ur) || Array.isArray(d.en)) ? d : null);
+      }, function () { clearTimeout(t); ok(null); });
+    });
   }
 
   /** The clip URLs of the engine's own lines (battery.lines) for this language. */
@@ -232,6 +280,11 @@
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
         var none = { ok: true, missing: [] };
+        // the picker's prompt timings (its tap clock) first, on their own: before any clip, never counted as one
+        var early = timingUrls(clips);
+        if (early.length) ask(sw, { type: 'prepare', urls: early }).then(null, function () {});
+        // the timing index, read meanwhile; the v4 word timings it lists go behind everything else
+        var index = clips.some(isV4) ? (o.loadIndex || loadIndex)(o.base) : Promise.resolve(null);
         // each clip stage waits while its clips keep arriving (watch); a stage that stalled is counted on the phone (kept)
         var stat = { opening: {}, lines: {}, rest: {}, battery: {}, images: {} };
         var gaveUp = [];
@@ -247,6 +300,11 @@
         if (typeof o.onLines === 'function') opened.then(function () { o.onLines(); }, function () { o.onLines(); });
         var said = opened.then(function () { return first.length ? stage('lines', first) : none; });
         var then = said.then(function () { return stage('rest', rest); });
+        // the v4 clips' word timings the index lists, behind everything else and never waited on (no index: none)
+        Promise.all([then, index]).then(function (r) {
+          var timings = timingUrls(clips, r[1]).filter(function (u) { return early.indexOf(u) < 0; });
+          return timings.length ? ask(sw, { type: 'prepare', urls: timings }) : null;
+        }).then(null, function () {});
         return Promise.all([said, watch(sw, { type: 'prepare', urls: list }, stat.battery), then, watch(sw, { type: 'prepare', urls: pics }, stat.images), opened]).then(function (r) {
           var core = r[1] || { ok: false, missing: list };
           var audio = { missing: (r[4] || { missing: open }).missing.concat((r[0] || { missing: first }).missing, (r[2] || { missing: rest }).missing) };
@@ -540,6 +598,10 @@
       var total = bats.length + all.length;
       var done = bats.length;
       progress({ done: done, total: total, bytes: bytes });
+      // the picker's prompt timings (its tap clock) before any clip, best effort and not a file of the count
+      var early = timingUrls(all);
+      var index = all.some(isV4) ? (o.loadIndex || loadIndex)('/') : Promise.resolve(null);
+      var first = early.length ? q({ type: 'prepare', urls: early }).then(null, function (e) { if (e && e.turn) throw e; }) : Promise.resolve();
       var chunks = [];
       for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
       // paused() (the coach page's Start gate is downloading a child's part): no new chunk until it says false
@@ -557,7 +619,11 @@
           done += c.length;
           progress({ done: done, total: total, bytes: bytes });
         });
-      }, Promise.resolve()).then(function () {
+      }, first).then(function () { return index; }).then(function (idx) {
+        // the v4 clips' word timings the index lists, best effort: what the server has not got is not counted
+        var timings = timingUrls(all, idx).filter(function (u) { return early.indexOf(u) < 0; });
+        return timings.length ? q({ type: 'prepare', urls: timings }).then(null, function (e) { if (e && e.turn) throw e; }) : null;
+      }).then(function () {
         var missing = Object.keys(missingSet).length;
         var out = per.map(function (p) {
           var m = p.files.filter(function (u) { return missingSet[u]; }).length;
@@ -608,5 +674,5 @@
   }
 
   return { STALL_MS: STALL_MS, urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
-    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART };
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART, timingUrls: timingUrls, loadIndex: loadIndex };
 }));

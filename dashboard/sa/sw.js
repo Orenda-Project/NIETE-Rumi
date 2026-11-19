@@ -54,10 +54,44 @@
 // row ran out unanswered).
 // sa-25: round 20: sa-engine.js and sa-core.js (r20_silence_stop: N silent letter/word parts in a row end the subject in RDF
 // auto; r20_auto_end_section: the coach's End this section in RDF auto too).
-// sa-26: hotfix, sa-offline.js, this worker and sa-page.js (a slow link no longer refuses the start: the page waits while
-//   clips keep arriving, a fetch is given up only when it stalls, a retry joins the downloads already running, and the phone
-//   logs how long the preparation took; a late "no voice" inside a timed task waits for that task's end).
-var VERSION = 'sa-26';
+// sa-26: round 28 follow-up: sa-core.js (a letter-sound task the coach ends before every item was presented is not rated).
+// sa-27: round 28 follow-up: sa.css (the letter picker draws no language toggle inside the coach page's frame; the spoken MCQ's head
+//   gap under the toggle fit).
+// sa-28: round 28 follow-up: sa-ui.js and sa-core.js (the letter picker and the spoken MCQ draw no Back button on their item and
+//   practice screens, so the cards and the replay stay in reach on a phone; the sandbox-only dev row stays off those screens;
+//   a scored answer records since_fold_ms).
+// sa-29: round 28 follow-up: sa.css and sa-ui.js (the Urdu sound check fits a phone under sa_r28_check_fit; the letter
+//   picker's practice example keeps room for its pointing hand in RDF auto; its last practice feedback keeps the 1.2 s floor).
+// sa-30: round 28 follow-up: sa-ui.js and sa.css (RDF auto's Next sits in the head row with its place held, on the letter
+//   picker and the spoken MCQ, so nothing moves when it is offered and a phone keeps every card and option in reach).
+// sa-31: round 28 follow-up: sa-ui.js (the coach's hold menu says End this task in Urdu apart from the portal's End this
+//   section, under sa_r28_end_task_copy).
+// sa-32: round 28 follow-up, one bump for the engine files of several changes: sa-ui.js and sa.css (Jugnu says the letter
+//   picker's and the spoken MCQ's instruction and practice feedback in coach-led; the picker practice's named line wraps in
+//   the coach-led head row in place of the chip and the Skip), sa-offline.js (the offline timing sweep asks only for files
+//   that exist, prompt_timings.json first).
+// sa-33: round 28, sa.css (the Urdu story question card on a phone in RDF auto holds a two-line question: more
+//   padding over and under, the gaps below it tightened so the four answers stay on the screen).
+// sa-34: round 28, sa-core.js, sa-ui.js and sink-coach.js (the session row keeps the child's practice taps, the answer
+//   cards' reach at each item and again when Next is offered, a story question's first choice, and which engine served
+//   the page; no screen changes).
+// sa-35: round 28, sa-ui.js (the spoken MCQ keeps a few listed Urdu word runs, names and paired words, on one line in the
+//   question and its answers, so a phone never breaks them across two lines).
+// sa-36: round 28, sa.css (the Urdu story question card on a phone in RDF auto keeps a two-line question's lines apart:
+//   18 px at a taller line pitch, the card's padding moved to the top; the four answers stay on the screen).
+// sa-37: round 28, sa-voice.js and sa-ui.js (a spoken clip that starts and then stops mid-way is given up after a short
+//   wait and one retry, not counted as heard; the picker's and the MCQ's cards ignore a tap while it is stopped; the
+//   never-ended guard waits while the page is hidden).
+// sa-38: round 28, sa.css (the Urdu story questions' practice in RDF auto fits a phone like the scored question: the
+//   head row the replay's height, the feedback one fixed line, the four answers 8 px apart and all on the screen).
+// sa-39: sa-offline.js and this worker (a slow link no longer refuses the start: the page waits while clips keep arriving,
+//   a fetch is given up only when it stalls, a retry joins the downloads already running, and the phone logs how long
+//   the preparation took).
+// sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
+//   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
+// sa-41: the production release of round 28 on top of the slow-link hotfix: one VERSION above every merged one, and
+//   the release's one SESSION bump, v30 (the letter-names practice example's name re-voiced).
+var VERSION = 'sa-41';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -89,7 +123,21 @@ var CORE = 'sa-core-' + VERSION;
 // re-made under their keys from a line fix each (UR_LINE_SAID), with the lines' word timings re-made.
 // v21: the letter name «تے» and the made-up word «جھیٹ» in the content owner's own recordings (no voice said them right),
 // trimmed and levelled like the other v4 clips, under their keys.
-var SESSION = 'sa-session-v21';
+// v22: round 28's battery files (the letter-sound picker, story options and timed-task extension built in, stripped on serve
+// while their switches are OFF), so a phone takes the new files.
+// v23: round 28's letter-sound prompts re-picked under their keys (each sound heard right on repeated listens and
+// through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
+// v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
+// familiar words' accept forms (scorer only; never served).
+// v27: round 28's battery files re-made with the letter-sound picker's practice feedback naming the sound (the
+// letter-sounds lines, then the item's own clip; no new clip).
+// v28: round 28's battery files re-made with their source notes (why a line or item is as it is) worded in product
+// words, not by decision numbers. Nothing a child sees or hears changes.
+// v29: round 28's battery files re-made with three Urdu "your turn" lines spelt right («آواز میں», «کا نام»,
+// «آواز بولیں»), each with its clip at the new text's key.
+// v30: the letter-names practice example's name «ثے» re-voiced under its v4 key: the take said "see" ([siː]), now "say"
+// ([seː]), heard so on repeated listens; levelled like the other v4 clips. No word timings change.
+var SESSION = 'sa-session-v30';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

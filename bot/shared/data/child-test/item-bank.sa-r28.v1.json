@@ -1,0 +1,3076 @@
+{
+ "version": "child-test-items-sa-r28-v1",
+ "rule": "Round 28 content for the W3 forms, each part behind its own switch: the letter-sound picker (listen, then tap one of five letters), four options for every story question, and the timed tasks continued past today's items to the end of the published lists. Built from published instruments only (src on every item); options written for this round are marked authored. Generated from the item-bank review sheet; never edit by hand.",
+ "sources": {
+  "rwp2026": "Rawalpindi/ICT May 2026 EGRA/EGMA (enumerator-administered, SurveyCTO codebook v109; N = 2,233, G1-5), fields cited per item",
+  "egra_tk2009": "RTI EGRA Toolkit (2009), English sample grids (familiar words p.30; letter grid p.24, which the Rawalpindi English letter grid adapts)",
+  "core_egma": "RTI Core EGMA (2013/2014), Student Stimuli Booklet: Sheet 1 number ID; Sheets 8-9 addition L1; Sheets 11-12 subtraction L1",
+  "prpkp2020": "Pakistan Reading Project 2020 KP endline, EGRA Urdu Form 1 (NORC report USAID DEC PA00Z7MW, form pages as page images)",
+  "rti_rwanda2011": "RTI Rwanda 2011 EGMA, P6 number identification (bank item-bank.sa-extra.v1.json maths.number_id_upper)",
+  "tangerine_gh_sa": "Tangerine SA-EGRMA Ghana form definitions (letters form: letter sounds; numbers form: number ID)",
+  "jordan_egma_2021": "Jordan Ministry of Education, EGMA 2021 Stimulus Sheets (RTI SharEd, PDF 11 May 2022), page A: Task 1 number identification, the child-facing grid (the 2021 Assessor Protocol p.1 prints a different, all 1-2 digit grid; the stimulus page is used)",
+  "egra_tk2016": "RTI EGRA Toolkit, 2nd edition (2016): the assessor rule that a regional or dialectal pronunciation of the word is correct",
+  "pk_english": "Mahboob & Ahmar (2004), \"Pakistani English: phonology\", in Schneider et al. (eds), A Handbook of Varieties of English, vol. 1; Rahman (1990), Pakistani English (the vowel and consonant patterns behind each accepted form)"
+ },
+ "letter_pick": {
+  "ur": {
+   "items": [
+    {
+     "target": "ب",
+     "options": [
+      "ت",
+      "ب",
+      "پ",
+      "ٹ",
+      "ن"
+     ],
+     "say": "بَ",
+     "ipa": "/b/",
+     "src": "rwp2026:letterid_urd position 9 (target); today's ur.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "م",
+     "options": [
+      "ت",
+      "ف",
+      "ق",
+      "م",
+      "ل"
+     ],
+     "say": "مَ",
+     "ipa": "/m/",
+     "src": "rwp2026:letterid_urd position 3 (target); today's ur.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "ک",
+     "options": [
+      "ک",
+      "گ",
+      "ل",
+      "ٹ",
+      "د"
+     ],
+     "say": "کَ",
+     "ipa": "/k/",
+     "src": "rwp2026:letterid_urd position 4 (target); today's ur.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "س",
+     "options": [
+      "ش",
+      "ب",
+      "د",
+      "ل",
+      "س"
+     ],
+     "say": "سَ",
+     "ipa": "/s/",
+     "src": "rwp2026:letterid_urd position 5 (target); today's ur.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "ر",
+     "options": [
+      "ڑ",
+      "ز",
+      "ر",
+      "د",
+      "ن"
+     ],
+     "say": "رَ",
+     "ipa": "/r/",
+     "src": "rwp2026:letterid_urd position 1 (target); today's ur.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "ش",
+     "options": [
+      "ش",
+      "س",
+      "ت",
+      "خ",
+      "ل"
+     ],
+     "say": "شَ",
+     "ipa": "/ʃ/",
+     "src": "rwp2026:letterid_urd position 11 (target)",
+     "authored": true
+    },
+    {
+     "target": "گ",
+     "options": [
+      "ک",
+      "ل",
+      "د",
+      "گ",
+      "ب"
+     ],
+     "say": "گَ",
+     "ipa": "/ɡ/",
+     "src": "rwp2026:letterid_urd position 14 (target)",
+     "authored": true
+    },
+    {
+     "target": "ف",
+     "options": [
+      "ق",
+      "ف",
+      "ب",
+      "ک",
+      "ل"
+     ],
+     "say": "فَ",
+     "ipa": "/f/",
+     "src": "rwp2026:letterid_urd position 15 (target)",
+     "authored": true
+    },
+    {
+     "target": "چ",
+     "options": [
+      "ج",
+      "خ",
+      "ت",
+      "ل",
+      "چ"
+     ],
+     "say": "چَ",
+     "ipa": "/tʃ/",
+     "src": "rwp2026:letterid_urd position 30 (target)",
+     "authored": true
+    },
+    {
+     "target": "ٹ",
+     "options": [
+      "ت",
+      "پ",
+      "ٹ",
+      "ب",
+      "ن"
+     ],
+     "say": "ٹَ",
+     "ipa": "/ʈ/",
+     "src": "rwp2026:letterid_urd position 29 (target)",
+     "authored": true
+    }
+   ],
+   "practice": [
+    {
+     "target": "ل",
+     "options": [
+      "ک",
+      "ل",
+      "د",
+      "گ",
+      "ر"
+     ],
+     "role": "example",
+     "say": "لَ",
+     "ipa": "/l/",
+     "src": "item-bank.sa-w3.v1.json ur.letter_sounds.practice[0] (rwp2026 letterid_urd #17, panel-signed example letter)",
+     "authored": true
+    },
+    {
+     "target": "ن",
+     "options": [
+      "ب",
+      "ت",
+      "پ",
+      "ن",
+      "ل"
+     ],
+     "role": "practice",
+     "say": "نَ",
+     "ipa": "/n/",
+     "src": "item-bank.sa-w3.v1.json ur.letter_sounds.practice[1] (rwp2026 letterid_urd #20)",
+     "authored": true
+    }
+   ]
+  },
+  "en": {
+   "items": [
+    {
+     "target": "l",
+     "options": [
+      "i",
+      "t",
+      "l",
+      "r",
+      "h"
+     ],
+     "say": "la",
+     "ipa": "/l/",
+     "src": "rwp2026:letterid_eng position 1 (target); today's en.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "z",
+     "options": [
+      "v",
+      "z",
+      "w",
+      "y",
+      "h"
+     ],
+     "say": "za",
+     "ipa": "/z/",
+     "src": "rwp2026:letterid_eng position 72 (target)",
+     "authored": true
+    },
+    {
+     "target": "r",
+     "options": [
+      "h",
+      "l",
+      "u",
+      "r",
+      "i"
+     ],
+     "say": "ra",
+     "ipa": "/r/",
+     "src": "rwp2026:letterid_eng position 4 (target); today's en.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "n",
+     "options": [
+      "n",
+      "u",
+      "y",
+      "w",
+      "h"
+     ],
+     "say": "na",
+     "ipa": "/n/",
+     "src": "rwp2026:letterid_eng position 9 (target); today's en.letter_sounds5 item; options tangerine_gh_sa:letters form.html:466",
+     "authored": true
+    },
+    {
+     "target": "d",
+     "options": [
+      "b",
+      "p",
+      "q",
+      "t",
+      "d"
+     ],
+     "say": "da",
+     "ipa": "/d/",
+     "src": "rwp2026:letterid_eng position 14 (target); today's en.letter_sounds5 item",
+     "authored": true
+    },
+    {
+     "target": "f",
+     "options": [
+      "f",
+      "l",
+      "v",
+      "h",
+      "t"
+     ],
+     "say": "fa",
+     "ipa": "/f/",
+     "src": "rwp2026:letterid_eng position 36 (target); options tangerine_gh_sa:letters form.html:495",
+     "authored": true
+    },
+    {
+     "target": "b",
+     "options": [
+      "p",
+      "b",
+      "q",
+      "d",
+      "h"
+     ],
+     "say": "ba",
+     "ipa": "/b/",
+     "src": "rwp2026:letterid_eng position 33 (target); options tangerine_gh_sa:letters form.html:524",
+     "authored": true
+    },
+    {
+     "target": "a",
+     "options": [
+      "d",
+      "c",
+      "q",
+      "g",
+      "a"
+     ],
+     "say": "a",
+     "ipa": "/æ/",
+     "src": "rwp2026:letterid_eng position 15 (target); options tangerine_gh_sa:letters form.html:408",
+     "authored": true
+    },
+    {
+     "target": "p",
+     "options": [
+      "b",
+      "q",
+      "p",
+      "d",
+      "g"
+     ],
+     "say": "pa",
+     "ipa": "/p/",
+     "src": "rwp2026:letterid_eng position 45 (target)",
+     "authored": true
+    },
+    {
+     "target": "o",
+     "options": [
+      "c",
+      "q",
+      "d",
+      "o",
+      "g"
+     ],
+     "say": "o",
+     "ipa": "/ɒ/",
+     "src": "rwp2026:letterid_eng position 8 (target); options tangerine_gh_sa:letters form.html:553",
+     "authored": true
+    }
+   ],
+   "practice": [
+    {
+     "target": "t",
+     "options": [
+      "d",
+      "l",
+      "t",
+      "f",
+      "h"
+     ],
+     "role": "example",
+     "say": "ta",
+     "ipa": "/t/",
+     "src": "egra_tk2016:Annex H p.187 example letter T; options tangerine_gh_sa:letters form.html:437 with s replaced by h (A-4: f+s)",
+     "authored": true
+    },
+    {
+     "target": "m",
+     "options": [
+      "r",
+      "u",
+      "m",
+      "h",
+      "w"
+     ],
+     "role": "practice",
+     "say": "ma",
+     "ipa": "/m/",
+     "src": "egra_tk2016:Annex H p.187 practice letter M; options tangerine_gh_sa:letters form.html:289 with n replaced by h (A-4: m+n) and b by r (no /b/ beside /m/)",
+     "authored": true
+    }
+   ]
+  }
+ },
+ "mcq": {
+  "questions": {
+   "ur.story_w3.q1": {
+    "options": [
+     "اپنے دوست کے ساتھ",
+     "اپنے والد کے ساتھ",
+     "اپنی امی کے ساتھ",
+     "اپنے استاد کے ساتھ"
+    ],
+    "target_index": 1,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story.q1": {
+    "options": [
+     "اپنے دوست کے ساتھ",
+     "اپنے والد کے ساتھ",
+     "اپنی امی کے ساتھ",
+     "اپنے استاد کے ساتھ"
+    ],
+    "target_index": 1,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story_w3.q2": {
+    "options": [
+     "ریت",
+     "برف",
+     "پہاڑ",
+     "پانی"
+    ],
+    "target_index": 3,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story.q2": {
+    "options": [
+     "ریت",
+     "برف",
+     "پہاڑ",
+     "پانی"
+    ],
+    "target_index": 3,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story_w3.q3": {
+    "options": [
+     "گاڑی",
+     "مچھلی",
+     "کشتی",
+     "پرندہ"
+    ],
+    "target_index": 2,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story.q3": {
+    "options": [
+     "گاڑی",
+     "مچھلی",
+     "کشتی",
+     "پرندہ"
+    ],
+    "target_index": 2,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story_w3.q4": {
+    "options": [
+     "خوبصورت پتھر",
+     "سوکھے پتے",
+     "رنگ برنگے پھول",
+     "چھوٹے کھلونے"
+    ],
+    "target_index": 0,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story.q4": {
+    "options": [
+     "خوبصورت پتھر",
+     "سوکھے پتے",
+     "رنگ برنگے پھول",
+     "چھوٹے کھلونے"
+    ],
+    "target_index": 0,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story_w3.q5": {
+    "options": [
+     "بلال کو تیرنا سکھانے کے لیے",
+     "بلال کو مچھلیاں دکھانے کے لیے",
+     "کشتی چلانا سکھانے کے لیے",
+     "دریا کی اہمیت سمجھانے کے لیے"
+    ],
+    "target_index": 3,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story.q5": {
+    "options": [
+     "بلال کو تیرنا سکھانے کے لیے",
+     "بلال کو مچھلیاں دکھانے کے لیے",
+     "کشتی چلانا سکھانے کے لیے",
+     "دریا کی اہمیت سمجھانے کے لیے"
+    ],
+    "target_index": 3,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story_w3.q6": {
+    "options": [
+     "سیر اور پتھروں کی وجہ سے",
+     "دریا میں تیرنے کی وجہ سے",
+     "نئی کتاب ملنے کی وجہ سے",
+     "دوستوں سے کھیلنے کی وجہ سے"
+    ],
+    "target_index": 0,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story.q6": {
+    "options": [
+     "سیر اور پتھروں کی وجہ سے",
+     "دریا میں تیرنے کی وجہ سے",
+     "نئی کتاب ملنے کی وجہ سے",
+     "دوستوں سے کھیلنے کی وجہ سے"
+    ],
+    "target_index": 0,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story2.q1": {
+    "options": [
+     "گھر کی چھت پر",
+     "باغ کے درخت پر",
+     "پنجرے میں",
+     "باغ میں"
+    ],
+    "target_index": 2,
+    "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story2.q2": {
+    "options": [
+     "انھیں بھوک لگی تھی",
+     "وہ گانا گا رہے تھے",
+     "انھیں نیند آ رہی تھی",
+     "وہ باہر جانا چاہتے تھے"
+    ],
+    "target_index": 0,
+    "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story2.q3": {
+    "options": [
+     "مٹھو میاں کی",
+     "بانو کی",
+     "امی کی",
+     "بھائی کی"
+    ],
+    "target_index": 1,
+    "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story2.q4": {
+    "options": [
+     "کیونکہ اسے شور اچھا لگتا تھا",
+     "کیونکہ اسے سکول جانا تھا",
+     "کیونکہ امی نے اسے کہا تھا",
+     "کیونکہ اسے مٹھو سے محبت ہے"
+    ],
+    "target_index": 3,
+    "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "ur.story2.q5": {
+    "options": [
+     "انھیں بھوکا رکھ کر",
+     "وقت پر دانہ پانی دے کر",
+     "انھیں پنجرے سے باہر چھوڑ کر",
+     "ان پر شور مچا کر"
+    ],
+    "target_index": 1,
+    "src": "select2024: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story_w3.q1": {
+    "options": [
+     "To go to school",
+     "To play a game",
+     "To go to the market",
+     "To visit a friend"
+    ],
+    "target_index": 0,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story.q1": {
+    "options": [
+     "To go to school",
+     "To play a game",
+     "To go to the market",
+     "To visit a friend"
+    ],
+    "target_index": 0,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story_w3.q2": {
+    "options": [
+     "Flowers",
+     "Grass",
+     "Trees",
+     "Vegetables"
+    ],
+    "target_index": 2,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story.q2": {
+    "options": [
+     "Flowers",
+     "Grass",
+     "Trees",
+     "Vegetables"
+    ],
+    "target_index": 2,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story_w3.q3": {
+    "options": [
+     "His new school books",
+     "A bottle of water",
+     "His lunch box",
+     "A small plant"
+    ],
+    "target_index": 3,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story.q3": {
+    "options": [
+     "His new school books",
+     "A bottle of water",
+     "His lunch box",
+     "A small plant"
+    ],
+    "target_index": 3,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story_w3.q4": {
+    "options": [
+     "Some seeds",
+     "The plant",
+     "Some stones",
+     "His school bag"
+    ],
+    "target_index": 1,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story.q4": {
+    "options": [
+     "Some seeds",
+     "The plant",
+     "Some stones",
+     "His school bag"
+    ],
+    "target_index": 1,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story_w3.q5": {
+    "options": [
+     "He came to school very early",
+     "He brought a big bag",
+     "He planted the tree well",
+     "He read a long story"
+    ],
+    "target_index": 2,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story.q5": {
+    "options": [
+     "He came to school very early",
+     "He brought a big bag",
+     "He planted the tree well",
+     "He read a long story"
+    ],
+    "target_index": 2,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story_w3.q6": {
+    "options": [
+     "It was his birthday",
+     "He did a good job",
+     "He won a race",
+     "Imran asked them to clap"
+    ],
+    "target_index": 1,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story.q6": {
+    "options": [
+     "It was his birthday",
+     "He did a good job",
+     "He won a race",
+     "Imran asked them to clap"
+    ],
+    "target_index": 1,
+    "src": "rwp2026: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story2.q1": {
+    "options": [
+     "Two",
+     "Three",
+     "Five",
+     "Four"
+    ],
+    "target_index": 3,
+    "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story2.q2": {
+    "options": [
+     "Sam fell down",
+     "A snake bit Sam",
+     "Father got sick",
+     "Father lost the seeds"
+    ],
+    "target_index": 1,
+    "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story2.q3": {
+    "options": [
+     "On his leg",
+     "On his hand",
+     "On his arm",
+     "On his face"
+    ],
+    "target_index": 0,
+    "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story2.q4": {
+    "options": [
+     "Father took him to hospital",
+     "He slept all day long",
+     "His mother helped him",
+     "Pat gave him some medicine"
+    ],
+    "target_index": 2,
+    "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true
+   },
+   "en.story2.q5": {
+    "options": [
+     "Sam was well again",
+     "The seeds grew",
+     "They got a new farm",
+     "It rained on the farm"
+    ],
+    "target_index": 0,
+    "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true,
+    "question": "What made the family happy again?",
+    "question_was": "Was made the family happy again?"
+   },
+   "en.story2.q6r": {
+    "options": [
+     "Some water",
+     "Some seeds from the field",
+     "Wet cloths and leaves",
+     "Some mud from the farm"
+    ],
+    "target_index": 2,
+    "src": "tk2009: options authored for this question (no published multiple-choice form exists for this passage)",
+    "authored": true,
+    "question": "What did Mother put on Sam's leg?",
+    "replaces_question": "en.story2.q6"
+   }
+  },
+  "practice": {
+   "en": {
+    "passage": "Mary had a little lamb. The lamb was white as snow. Everywhere that Mary went, the lamb was sure to go.",
+    "question": "What did Mary have?",
+    "options": [
+     "a book",
+     "a little lamb",
+     "a dog",
+     "a pencil"
+    ],
+    "target_index": 1,
+    "src": "tangerine_gh_sa:letters form.html:610-671 (ORF story practice + comp_prac_01, options verbatim)"
+   },
+   "ur": {
+    "passage": "سلیم کو سکول جاتے ہوئے ایک کالا بٹوا ملا۔",
+    "question": "سلیم کو راستے سے کیا ملا؟",
+    "options": [
+     "ایک کتاب",
+     "ایک بٹوا",
+     "ایک گیند",
+     "ایک پنسل"
+    ],
+    "target_index": 1,
+    "src": "item-bank.sa-extra.v1.json reading.ur.story3 (prpkp2020 EGRA Urdu Form 1 subtask 7: sentence 1 and question 1; not served in any battery today); options authored",
+    "authored": true
+   }
+  }
+ },
+ "extension": {
+  "ur.letter_names5": {
+   "base_n": 5,
+   "ext": [
+    {
+     "item": "ر",
+     "src": "v3:sets.A.reading.ur.letters.items[0]"
+    },
+    {
+     "item": "م",
+     "src": "v3:sets.A.reading.ur.letters.items[2]"
+    },
+    {
+     "item": "ک",
+     "src": "v3:sets.A.reading.ur.letters.items[3]"
+    },
+    {
+     "item": "س",
+     "src": "v3:sets.A.reading.ur.letters.items[4]"
+    },
+    {
+     "item": "ب",
+     "src": "v3:sets.A.reading.ur.letters.items[8]"
+    },
+    {
+     "item": "ش",
+     "src": "v3:sets.A.reading.ur.letters.items[10]"
+    },
+    {
+     "item": "ح",
+     "src": "v3:sets.A.reading.ur.letters.items[11]"
+    },
+    {
+     "item": "ع",
+     "src": "v3:sets.A.reading.ur.letters.items[12]"
+    },
+    {
+     "item": "گ",
+     "src": "v3:sets.A.reading.ur.letters.items[13]"
+    },
+    {
+     "item": "ف",
+     "src": "v3:sets.A.reading.ur.letters.items[14]"
+    },
+    {
+     "item": "ق",
+     "src": "v3:sets.A.reading.ur.letters.items[15]"
+    },
+    {
+     "item": "ل",
+     "src": "v3:sets.A.reading.ur.letters.items[16]"
+    },
+    {
+     "item": "و",
+     "src": "v3:sets.A.reading.ur.letters.items[17]"
+    },
+    {
+     "item": "ہ",
+     "src": "v3:sets.A.reading.ur.letters.items[18]"
+    },
+    {
+     "item": "ن",
+     "src": "v3:sets.A.reading.ur.letters.items[19]"
+    },
+    {
+     "item": "ص",
+     "src": "v3:sets.A.reading.ur.letters.items[20]"
+    },
+    {
+     "item": "ث",
+     "src": "v3:sets.A.reading.ur.letters.items[21]"
+    },
+    {
+     "item": "ظ",
+     "src": "v3:sets.A.reading.ur.letters.items[22]"
+    },
+    {
+     "item": "ز",
+     "src": "v3:sets.A.reading.ur.letters.items[23]"
+    },
+    {
+     "item": "ذ",
+     "src": "v3:sets.A.reading.ur.letters.items[24]"
+    },
+    {
+     "item": "خ",
+     "src": "v3:sets.A.reading.ur.letters.items[25]"
+    },
+    {
+     "item": "ڑ",
+     "src": "v3:sets.A.reading.ur.letters.items[26]"
+    },
+    {
+     "item": "ڈ",
+     "src": "v3:sets.A.reading.ur.letters.items[27]"
+    },
+    {
+     "item": "ٹ",
+     "src": "v3:sets.A.reading.ur.letters.items[28]"
+    },
+    {
+     "item": "چ",
+     "src": "v3:sets.A.reading.ur.letters.items[29]"
+    },
+    {
+     "item": "ؤ",
+     "src": "v3:sets.A.reading.ur.letters.items[30]"
+    },
+    {
+     "item": "ئ",
+     "src": "v3:sets.A.reading.ur.letters.items[31]"
+    },
+    {
+     "item": "ں",
+     "src": "v3:sets.A.reading.ur.letters.items[32]"
+    },
+    {
+     "item": "ے",
+     "src": "v3:sets.A.reading.ur.letters.items[33]"
+    },
+    {
+     "item": "ض",
+     "src": "v3:sets.A.reading.ur.letters.items[34]"
+    },
+    {
+     "item": "ط",
+     "src": "v3:sets.A.reading.ur.letters.items[35]"
+    },
+    {
+     "item": "غ",
+     "src": "v3:sets.A.reading.ur.letters.items[36]"
+    },
+    {
+     "item": "آ",
+     "src": "v3:sets.A.reading.ur.letters.items[37]"
+    },
+    {
+     "item": "ء",
+     "src": "v3:sets.A.reading.ur.letters.items[38]"
+    },
+    {
+     "item": "ی",
+     "src": "v3:sets.A.reading.ur.letters.items[39]"
+    },
+    {
+     "item": "ہ",
+     "src": "v3:sets.A.reading.ur.letters.items[40]"
+    },
+    {
+     "item": "و",
+     "src": "v3:sets.A.reading.ur.letters.items[41]"
+    },
+    {
+     "item": "ن",
+     "src": "v3:sets.A.reading.ur.letters.items[42]"
+    },
+    {
+     "item": "ر",
+     "src": "v3:sets.A.reading.ur.letters.items[43]"
+    },
+    {
+     "item": "ل",
+     "src": "v3:sets.A.reading.ur.letters.items[44]"
+    },
+    {
+     "item": "س",
+     "src": "v3:sets.A.reading.ur.letters.items[45]"
+    },
+    {
+     "item": "ک",
+     "src": "v3:sets.A.reading.ur.letters.items[46]"
+    },
+    {
+     "item": "ت",
+     "src": "v3:sets.A.reading.ur.letters.items[47]"
+    },
+    {
+     "item": "م",
+     "src": "v3:sets.A.reading.ur.letters.items[48]"
+    },
+    {
+     "item": "ب",
+     "src": "v3:sets.A.reading.ur.letters.items[49]"
+    },
+    {
+     "item": "ی",
+     "src": "v3:sets.A.reading.ur.letters.items[50]"
+    },
+    {
+     "item": "ش",
+     "src": "v3:sets.A.reading.ur.letters.items[51]"
+    },
+    {
+     "item": "ح",
+     "src": "v3:sets.A.reading.ur.letters.items[52]"
+    },
+    {
+     "item": "گ",
+     "src": "v3:sets.A.reading.ur.letters.items[53]"
+    },
+    {
+     "item": "ع",
+     "src": "v3:sets.A.reading.ur.letters.items[54]"
+    },
+    {
+     "item": "ق",
+     "src": "v3:sets.A.reading.ur.letters.items[55]"
+    },
+    {
+     "item": "ف",
+     "src": "v3:sets.A.reading.ur.letters.items[56]"
+    },
+    {
+     "item": "د",
+     "src": "v3:sets.A.reading.ur.letters.items[57]"
+    },
+    {
+     "item": "پ",
+     "src": "v3:sets.A.reading.ur.letters.items[58]"
+    },
+    {
+     "item": "ج",
+     "src": "v3:sets.A.reading.ur.letters.items[59]"
+    },
+    {
+     "item": "ظ",
+     "src": "v3:sets.A.reading.ur.letters.items[60]"
+    },
+    {
+     "item": "ث",
+     "src": "v3:sets.A.reading.ur.letters.items[61]"
+    },
+    {
+     "item": "ص",
+     "src": "v3:sets.A.reading.ur.letters.items[62]"
+    },
+    {
+     "item": "ز",
+     "src": "v3:sets.A.reading.ur.letters.items[63]"
+    },
+    {
+     "item": "ذ",
+     "src": "v3:sets.A.reading.ur.letters.items[64]"
+    },
+    {
+     "item": "خ",
+     "src": "v3:sets.A.reading.ur.letters.items[65]"
+    },
+    {
+     "item": "ڑ",
+     "src": "v3:sets.A.reading.ur.letters.items[66]"
+    },
+    {
+     "item": "ڈ",
+     "src": "v3:sets.A.reading.ur.letters.items[67]"
+    },
+    {
+     "item": "ٹ",
+     "src": "v3:sets.A.reading.ur.letters.items[68]"
+    },
+    {
+     "item": "چ",
+     "src": "v3:sets.A.reading.ur.letters.items[69]"
+    },
+    {
+     "item": "م",
+     "src": "v3:sets.A.reading.ur.letters.items[70]"
+    },
+    {
+     "item": "ک",
+     "src": "v3:sets.A.reading.ur.letters.items[71]"
+    },
+    {
+     "item": "و",
+     "src": "v3:sets.A.reading.ur.letters.items[72]"
+    },
+    {
+     "item": "ہ",
+     "src": "v3:sets.A.reading.ur.letters.items[73]"
+    },
+    {
+     "item": "ں",
+     "src": "v3:sets.A.reading.ur.letters.items[74]"
+    },
+    {
+     "item": "ے",
+     "src": "v3:sets.A.reading.ur.letters.items[75]"
+    },
+    {
+     "item": "ی",
+     "src": "v3:sets.A.reading.ur.letters.items[76]"
+    },
+    {
+     "item": "ء",
+     "src": "v3:sets.A.reading.ur.letters.items[77]"
+    },
+    {
+     "item": "ا",
+     "src": "v3:sets.A.reading.ur.letters.items[78]"
+    },
+    {
+     "item": "آ",
+     "src": "v3:sets.A.reading.ur.letters.items[79]"
+    },
+    {
+     "item": "ق",
+     "src": "v3:sets.A.reading.ur.letters.items[80]"
+    },
+    {
+     "item": "ف",
+     "src": "v3:sets.A.reading.ur.letters.items[81]"
+    },
+    {
+     "item": "ج",
+     "src": "v3:sets.A.reading.ur.letters.items[82]"
+    },
+    {
+     "item": "ت",
+     "src": "v3:sets.A.reading.ur.letters.items[83]"
+    },
+    {
+     "item": "پ",
+     "src": "v3:sets.A.reading.ur.letters.items[84]"
+    },
+    {
+     "item": "ب",
+     "src": "v3:sets.A.reading.ur.letters.items[85]"
+    },
+    {
+     "item": "ن",
+     "src": "v3:sets.A.reading.ur.letters.items[86]"
+    },
+    {
+     "item": "ل",
+     "src": "v3:sets.A.reading.ur.letters.items[87]"
+    },
+    {
+     "item": "ر",
+     "src": "v3:sets.A.reading.ur.letters.items[88]"
+    },
+    {
+     "item": "س",
+     "src": "v3:sets.A.reading.ur.letters.items[89]"
+    },
+    {
+     "item": "ڈ",
+     "src": "v3:sets.A.reading.ur.letters.items[90]"
+    },
+    {
+     "item": "ٹ",
+     "src": "v3:sets.A.reading.ur.letters.items[91]"
+    },
+    {
+     "item": "چ",
+     "src": "v3:sets.A.reading.ur.letters.items[92]"
+    },
+    {
+     "item": "د",
+     "src": "v3:sets.A.reading.ur.letters.items[93]"
+    },
+    {
+     "item": "ف",
+     "src": "v3:sets.A.reading.ur.letters.items[94]"
+    },
+    {
+     "item": "ض",
+     "src": "v3:sets.A.reading.ur.letters.items[95]"
+    },
+    {
+     "item": "ط",
+     "src": "v3:sets.A.reading.ur.letters.items[96]"
+    },
+    {
+     "item": "ع",
+     "src": "v3:sets.A.reading.ur.letters.items[97]"
+    },
+    {
+     "item": "ح",
+     "src": "v3:sets.A.reading.ur.letters.items[98]"
+    },
+    {
+     "item": "گ",
+     "src": "v3:sets.A.reading.ur.letters.items[99]"
+    }
+   ],
+   "ext_stop": {
+    "type": "first_row",
+    "n": 10
+   }
+  },
+  "en.letter_names5": {
+   "base_n": 5,
+   "ext": [
+    {
+     "item": "L",
+     "src": "v3:sets.A.reading.en.letters.items[0]"
+    },
+    {
+     "item": "h",
+     "src": "v3:sets.A.reading.en.letters.items[2]"
+    },
+    {
+     "item": "R",
+     "src": "v3:sets.A.reading.en.letters.items[3]"
+    },
+    {
+     "item": "S",
+     "src": "v3:sets.A.reading.en.letters.items[4]"
+    },
+    {
+     "item": "n",
+     "src": "v3:sets.A.reading.en.letters.items[8]"
+    },
+    {
+     "item": "T",
+     "src": "v3:sets.A.reading.en.letters.items[9]"
+    },
+    {
+     "item": "i",
+     "src": "v3:sets.A.reading.en.letters.items[10]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[11]"
+    },
+    {
+     "item": "T",
+     "src": "v3:sets.A.reading.en.letters.items[12]"
+    },
+    {
+     "item": "D",
+     "src": "v3:sets.A.reading.en.letters.items[13]"
+    },
+    {
+     "item": "t",
+     "src": "v3:sets.A.reading.en.letters.items[15]"
+    },
+    {
+     "item": "a",
+     "src": "v3:sets.A.reading.en.letters.items[16]"
+    },
+    {
+     "item": "d",
+     "src": "v3:sets.A.reading.en.letters.items[17]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[18]"
+    },
+    {
+     "item": "w",
+     "src": "v3:sets.A.reading.en.letters.items[19]"
+    },
+    {
+     "item": "h",
+     "src": "v3:sets.A.reading.en.letters.items[20]"
+    },
+    {
+     "item": "O",
+     "src": "v3:sets.A.reading.en.letters.items[21]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[22]"
+    },
+    {
+     "item": "m",
+     "src": "v3:sets.A.reading.en.letters.items[23]"
+    },
+    {
+     "item": "U",
+     "src": "v3:sets.A.reading.en.letters.items[24]"
+    },
+    {
+     "item": "r",
+     "src": "v3:sets.A.reading.en.letters.items[25]"
+    },
+    {
+     "item": "L",
+     "src": "v3:sets.A.reading.en.letters.items[26]"
+    },
+    {
+     "item": "G",
+     "src": "v3:sets.A.reading.en.letters.items[27]"
+    },
+    {
+     "item": "R",
+     "src": "v3:sets.A.reading.en.letters.items[28]"
+    },
+    {
+     "item": "u",
+     "src": "v3:sets.A.reading.en.letters.items[29]"
+    },
+    {
+     "item": "G",
+     "src": "v3:sets.A.reading.en.letters.items[30]"
+    },
+    {
+     "item": "R",
+     "src": "v3:sets.A.reading.en.letters.items[31]"
+    },
+    {
+     "item": "B",
+     "src": "v3:sets.A.reading.en.letters.items[32]"
+    },
+    {
+     "item": "E",
+     "src": "v3:sets.A.reading.en.letters.items[33]"
+    },
+    {
+     "item": "i",
+     "src": "v3:sets.A.reading.en.letters.items[34]"
+    },
+    {
+     "item": "f",
+     "src": "v3:sets.A.reading.en.letters.items[35]"
+    },
+    {
+     "item": "m",
+     "src": "v3:sets.A.reading.en.letters.items[36]"
+    },
+    {
+     "item": "t",
+     "src": "v3:sets.A.reading.en.letters.items[37]"
+    },
+    {
+     "item": "s",
+     "src": "v3:sets.A.reading.en.letters.items[38]"
+    },
+    {
+     "item": "r",
+     "src": "v3:sets.A.reading.en.letters.items[39]"
+    },
+    {
+     "item": "S",
+     "src": "v3:sets.A.reading.en.letters.items[40]"
+    },
+    {
+     "item": "T",
+     "src": "v3:sets.A.reading.en.letters.items[41]"
+    },
+    {
+     "item": "C",
+     "src": "v3:sets.A.reading.en.letters.items[42]"
+    },
+    {
+     "item": "N",
+     "src": "v3:sets.A.reading.en.letters.items[43]"
+    },
+    {
+     "item": "p",
+     "src": "v3:sets.A.reading.en.letters.items[44]"
+    },
+    {
+     "item": "A",
+     "src": "v3:sets.A.reading.en.letters.items[45]"
+    },
+    {
+     "item": "F",
+     "src": "v3:sets.A.reading.en.letters.items[46]"
+    },
+    {
+     "item": "c",
+     "src": "v3:sets.A.reading.en.letters.items[47]"
+    },
+    {
+     "item": "G",
+     "src": "v3:sets.A.reading.en.letters.items[48]"
+    },
+    {
+     "item": "E",
+     "src": "v3:sets.A.reading.en.letters.items[49]"
+    },
+    {
+     "item": "y",
+     "src": "v3:sets.A.reading.en.letters.items[50]"
+    },
+    {
+     "item": "Q",
+     "src": "v3:sets.A.reading.en.letters.items[51]"
+    },
+    {
+     "item": "A",
+     "src": "v3:sets.A.reading.en.letters.items[52]"
+    },
+    {
+     "item": "M",
+     "src": "v3:sets.A.reading.en.letters.items[53]"
+    },
+    {
+     "item": "C",
+     "src": "v3:sets.A.reading.en.letters.items[54]"
+    },
+    {
+     "item": "O",
+     "src": "v3:sets.A.reading.en.letters.items[55]"
+    },
+    {
+     "item": "t",
+     "src": "v3:sets.A.reading.en.letters.items[56]"
+    },
+    {
+     "item": "n",
+     "src": "v3:sets.A.reading.en.letters.items[57]"
+    },
+    {
+     "item": "P",
+     "src": "v3:sets.A.reading.en.letters.items[58]"
+    },
+    {
+     "item": "s",
+     "src": "v3:sets.A.reading.en.letters.items[59]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[60]"
+    },
+    {
+     "item": "A",
+     "src": "v3:sets.A.reading.en.letters.items[61]"
+    },
+    {
+     "item": "b",
+     "src": "v3:sets.A.reading.en.letters.items[62]"
+    },
+    {
+     "item": "s",
+     "src": "v3:sets.A.reading.en.letters.items[63]"
+    },
+    {
+     "item": "O",
+     "src": "v3:sets.A.reading.en.letters.items[64]"
+    },
+    {
+     "item": "F",
+     "src": "v3:sets.A.reading.en.letters.items[65]"
+    },
+    {
+     "item": "h",
+     "src": "v3:sets.A.reading.en.letters.items[66]"
+    },
+    {
+     "item": "u",
+     "src": "v3:sets.A.reading.en.letters.items[67]"
+    },
+    {
+     "item": "A",
+     "src": "v3:sets.A.reading.en.letters.items[68]"
+    },
+    {
+     "item": "t",
+     "src": "v3:sets.A.reading.en.letters.items[69]"
+    },
+    {
+     "item": "R",
+     "src": "v3:sets.A.reading.en.letters.items[70]"
+    },
+    {
+     "item": "z",
+     "src": "v3:sets.A.reading.en.letters.items[71]"
+    },
+    {
+     "item": "H",
+     "src": "v3:sets.A.reading.en.letters.items[72]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[73]"
+    },
+    {
+     "item": "S",
+     "src": "v3:sets.A.reading.en.letters.items[74]"
+    },
+    {
+     "item": "i",
+     "src": "v3:sets.A.reading.en.letters.items[75]"
+    },
+    {
+     "item": "g",
+     "src": "v3:sets.A.reading.en.letters.items[76]"
+    },
+    {
+     "item": "m",
+     "src": "v3:sets.A.reading.en.letters.items[77]"
+    },
+    {
+     "item": "i",
+     "src": "v3:sets.A.reading.en.letters.items[78]"
+    },
+    {
+     "item": "L",
+     "src": "v3:sets.A.reading.en.letters.items[79]"
+    },
+    {
+     "item": "o",
+     "src": "v3:sets.A.reading.en.letters.items[80]"
+    },
+    {
+     "item": "I",
+     "src": "v3:sets.A.reading.en.letters.items[81]"
+    },
+    {
+     "item": "N",
+     "src": "v3:sets.A.reading.en.letters.items[82]"
+    },
+    {
+     "item": "O",
+     "src": "v3:sets.A.reading.en.letters.items[83]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[84]"
+    },
+    {
+     "item": "L",
+     "src": "v3:sets.A.reading.en.letters.items[85]"
+    },
+    {
+     "item": "E",
+     "src": "v3:sets.A.reading.en.letters.items[86]"
+    },
+    {
+     "item": "r",
+     "src": "v3:sets.A.reading.en.letters.items[87]"
+    },
+    {
+     "item": "p",
+     "src": "v3:sets.A.reading.en.letters.items[88]"
+    },
+    {
+     "item": "X",
+     "src": "v3:sets.A.reading.en.letters.items[89]"
+    },
+    {
+     "item": "H",
+     "src": "v3:sets.A.reading.en.letters.items[90]"
+    },
+    {
+     "item": "A",
+     "src": "v3:sets.A.reading.en.letters.items[91]"
+    },
+    {
+     "item": "c",
+     "src": "v3:sets.A.reading.en.letters.items[92]"
+    },
+    {
+     "item": "D",
+     "src": "v3:sets.A.reading.en.letters.items[93]"
+    },
+    {
+     "item": "d",
+     "src": "v3:sets.A.reading.en.letters.items[94]"
+    },
+    {
+     "item": "t",
+     "src": "v3:sets.A.reading.en.letters.items[95]"
+    },
+    {
+     "item": "O",
+     "src": "v3:sets.A.reading.en.letters.items[96]"
+    },
+    {
+     "item": "j",
+     "src": "v3:sets.A.reading.en.letters.items[97]"
+    },
+    {
+     "item": "e",
+     "src": "v3:sets.A.reading.en.letters.items[98]"
+    },
+    {
+     "item": "n",
+     "src": "v3:sets.A.reading.en.letters.items[99]"
+    }
+   ],
+   "ext_stop": {
+    "type": "first_row",
+    "n": 10
+   }
+  },
+  "ur.words4": {
+   "base_n": 4,
+   "ext": [
+    {
+     "item": "گھر",
+     "src": "v3:sets.A.reading.ur.words.items[4]"
+    },
+    {
+     "item": "قلم",
+     "src": "v3:sets.A.reading.ur.words.items[5]"
+    },
+    {
+     "item": "بستہ",
+     "src": "v3:sets.A.reading.ur.words.items[6]"
+    },
+    {
+     "item": "کمرہ",
+     "src": "v3:sets.A.reading.ur.words.items[7]"
+    },
+    {
+     "item": "استاد",
+     "src": "v3:sets.A.reading.ur.words.items[8]"
+    },
+    {
+     "item": "سکول",
+     "src": "v3:sets.A.reading.ur.words.items[9]"
+    },
+    {
+     "item": "باغ",
+     "src": "v3:sets.A.reading.ur.words.items[10]"
+    },
+    {
+     "item": "کھڑکی",
+     "src": "v3:sets.A.reading.ur.words.items[11]"
+    },
+    {
+     "item": "کرسی",
+     "src": "v3:sets.A.reading.ur.words.items[12]"
+    },
+    {
+     "item": "میز",
+     "src": "v3:sets.A.reading.ur.words.items[13]"
+    },
+    {
+     "item": "کاپی",
+     "src": "v3:sets.A.reading.ur.words.items[14]"
+    },
+    {
+     "item": "چائے",
+     "src": "v3:sets.A.reading.ur.words.items[15]"
+    },
+    {
+     "item": "دودھ",
+     "src": "v3:sets.A.reading.ur.words.items[16]"
+    },
+    {
+     "item": "روٹی",
+     "src": "v3:sets.A.reading.ur.words.items[17]"
+    },
+    {
+     "item": "درخت",
+     "src": "v3:sets.A.reading.ur.words.items[18]"
+    },
+    {
+     "item": "پھول",
+     "src": "v3:sets.A.reading.ur.words.items[19]"
+    },
+    {
+     "item": "دوست",
+     "src": "v3:sets.A.reading.ur.words.items[20]"
+    },
+    {
+     "item": "بہن",
+     "src": "v3:sets.A.reading.ur.words.items[21]"
+    },
+    {
+     "item": "بھائی",
+     "src": "v3:sets.A.reading.ur.words.items[22]"
+    },
+    {
+     "item": "باپ",
+     "src": "v3:sets.A.reading.ur.words.items[23]"
+    },
+    {
+     "item": "ماں",
+     "src": "v3:sets.A.reading.ur.words.items[24]"
+    },
+    {
+     "item": "ہاتھ",
+     "src": "v3:sets.A.reading.ur.words.items[25]"
+    },
+    {
+     "item": "جوتا",
+     "src": "v3:sets.A.reading.ur.words.items[26]"
+    },
+    {
+     "item": "کپڑا",
+     "src": "v3:sets.A.reading.ur.words.items[27]"
+    },
+    {
+     "item": "گیند",
+     "src": "v3:sets.A.reading.ur.words.items[28]"
+    },
+    {
+     "item": "کھیل",
+     "src": "v3:sets.A.reading.ur.words.items[29]"
+    },
+    {
+     "item": "منہ",
+     "src": "v3:sets.A.reading.ur.words.items[30]"
+    },
+    {
+     "item": "سر",
+     "src": "v3:sets.A.reading.ur.words.items[31]"
+    },
+    {
+     "item": "ناک",
+     "src": "v3:sets.A.reading.ur.words.items[32]"
+    },
+    {
+     "item": "کان",
+     "src": "v3:sets.A.reading.ur.words.items[33]"
+    },
+    {
+     "item": "آنکھ",
+     "src": "v3:sets.A.reading.ur.words.items[34]"
+    },
+    {
+     "item": "ستارہ",
+     "src": "v3:sets.A.reading.ur.words.items[35]"
+    },
+    {
+     "item": "چاند",
+     "src": "v3:sets.A.reading.ur.words.items[36]"
+    },
+    {
+     "item": "سورج",
+     "src": "v3:sets.A.reading.ur.words.items[37]"
+    },
+    {
+     "item": "رات",
+     "src": "v3:sets.A.reading.ur.words.items[38]"
+    },
+    {
+     "item": "دن",
+     "src": "v3:sets.A.reading.ur.words.items[39]"
+    },
+    {
+     "item": "دکان",
+     "src": "v3:sets.A.reading.ur.words.items[40]"
+    },
+    {
+     "item": "بازار",
+     "src": "v3:sets.A.reading.ur.words.items[41]"
+    },
+    {
+     "item": "سڑک",
+     "src": "v3:sets.A.reading.ur.words.items[42]"
+    },
+    {
+     "item": "بس",
+     "src": "v3:sets.A.reading.ur.words.items[43]"
+    },
+    {
+     "item": "گاڑی",
+     "src": "v3:sets.A.reading.ur.words.items[44]"
+    },
+    {
+     "item": "گھڑی",
+     "src": "v3:sets.A.reading.ur.words.items[45]"
+    },
+    {
+     "item": "مچھلی",
+     "src": "v3:sets.A.reading.ur.words.items[46]"
+    },
+    {
+     "item": "پرندہ",
+     "src": "v3:sets.A.reading.ur.words.items[47]"
+    },
+    {
+     "item": "کتا",
+     "src": "v3:sets.A.reading.ur.words.items[48]"
+    },
+    {
+     "item": "بلی",
+     "src": "v3:sets.A.reading.ur.words.items[49]"
+    },
+    {
+     "item": "ایک",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 1 (row 1, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "روز",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 2 (row 1, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "میرے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 3 (row 1, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "گڑیا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 4 (row 1, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "ساتھ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 5 (row 1, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "یہاں",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 6 (row 2, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "وہ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 7 (row 2, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دونوں",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 8 (row 2, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "نہ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 9 (row 2, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دیر",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 10 (row 2, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "اور",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 11 (row 3, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "پری",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 12 (row 3, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "اپنے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 13 (row 3, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "وقت",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 14 (row 3, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "بزرگ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 15 (row 3, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "طرف",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 16 (row 4, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "عمر",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 17 (row 4, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "ہیں",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 18 (row 4, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دیکھا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 19 (row 4, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "خوبصورت",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 20 (row 4, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "گئے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 21 (row 5, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "ہوا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 22 (row 5, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "بادشاہ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 23 (row 5, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "لیکن",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 24 (row 5, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "مینڈک",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 25 (row 5, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "پر",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 26 (row 6, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "یہ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 27 (row 6, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "مجھے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 28 (row 6, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "میں",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 29 (row 6, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "مغرور",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 30 (row 6, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "بچے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 31 (row 7, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "کچھ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 32 (row 7, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "کمرے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 33 (row 7, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "لگا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 34 (row 7, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دوسرے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 35 (row 7, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "کہ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 36 (row 8, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "کیا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 37 (row 8, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "بڑا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 38 (row 8, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "رہا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 39 (row 8, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دعوت",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 40 (row 8, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دیا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 41 (row 9, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "جادو",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 42 (row 9, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "تھے",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 43 (row 9, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "کہا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 44 (row 9, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "نہیں",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 45 (row 9, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "امی",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 46 (row 10, col 1)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "بہت",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 47 (row 10, col 2)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "دیکھ",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 48 (row 10, col 3)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "ہوں",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 49 (row 10, col 4)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    },
+    {
+     "item": "گیا",
+     "src": "prpkp2020:EGRA Urdu Form 1 p.9 (PDF p.88) familiar words, cell 50 (row 10, col 5)",
+     "transcribed": "from the printed form page (page image), checked by a reviewer"
+    }
+   ],
+   "ext_stop": {
+    "type": "first_row",
+    "n": 5
+   }
+  },
+  "en.words4": {
+   "base_n": 4,
+   "ext": [
+    {
+     "item": "come",
+     "src": "v3:sets.A.reading.en.words.items[4]"
+    },
+    {
+     "item": "help",
+     "src": "v3:sets.A.reading.en.words.items[5]"
+    },
+    {
+     "item": "two",
+     "src": "v3:sets.A.reading.en.words.items[6]"
+    },
+    {
+     "item": "run",
+     "src": "v3:sets.A.reading.en.words.items[7]"
+    },
+    {
+     "item": "see",
+     "src": "v3:sets.A.reading.en.words.items[8]"
+    },
+    {
+     "item": "down",
+     "src": "v3:sets.A.reading.en.words.items[9]"
+    },
+    {
+     "item": "red",
+     "src": "v3:sets.A.reading.en.words.items[10]"
+    },
+    {
+     "item": "and",
+     "src": "v3:sets.A.reading.en.words.items[11]"
+    },
+    {
+     "item": "play",
+     "src": "v3:sets.A.reading.en.words.items[12]"
+    },
+    {
+     "item": "at",
+     "src": "v3:sets.A.reading.en.words.items[13]"
+    },
+    {
+     "item": "you",
+     "src": "v3:sets.A.reading.en.words.items[14]"
+    },
+    {
+     "item": "chair",
+     "src": "v3:sets.A.reading.en.words.items[15]"
+    },
+    {
+     "item": "man",
+     "src": "v3:sets.A.reading.en.words.items[16]"
+    },
+    {
+     "item": "when",
+     "src": "v3:sets.A.reading.en.words.items[17]"
+    },
+    {
+     "item": "now",
+     "src": "v3:sets.A.reading.en.words.items[18]"
+    },
+    {
+     "item": "under",
+     "src": "v3:sets.A.reading.en.words.items[19]"
+    },
+    {
+     "item": "please",
+     "src": "v3:sets.A.reading.en.words.items[20]"
+    },
+    {
+     "item": "soon",
+     "src": "v3:sets.A.reading.en.words.items[21]"
+    },
+    {
+     "item": "like",
+     "src": "v3:sets.A.reading.en.words.items[22]"
+    },
+    {
+     "item": "they",
+     "src": "v3:sets.A.reading.en.words.items[23]"
+    },
+    {
+     "item": "good",
+     "src": "v3:sets.A.reading.en.words.items[24]"
+    },
+    {
+     "item": "thank",
+     "src": "v3:sets.A.reading.en.words.items[25]"
+    },
+    {
+     "item": "going",
+     "src": "v3:sets.A.reading.en.words.items[26]"
+    },
+    {
+     "item": "are",
+     "src": "v3:sets.A.reading.en.words.items[27]"
+    },
+    {
+     "item": "know",
+     "src": "v3:sets.A.reading.en.words.items[28]"
+    },
+    {
+     "item": "him",
+     "src": "v3:sets.A.reading.en.words.items[29]"
+    },
+    {
+     "item": "jump",
+     "src": "v3:sets.A.reading.en.words.items[30]"
+    },
+    {
+     "item": "once",
+     "src": "v3:sets.A.reading.en.words.items[31]"
+    },
+    {
+     "item": "ask",
+     "src": "v3:sets.A.reading.en.words.items[32]"
+    },
+    {
+     "item": "fly",
+     "src": "v3:sets.A.reading.en.words.items[33]"
+    },
+    {
+     "item": "want",
+     "src": "v3:sets.A.reading.en.words.items[34]"
+    },
+    {
+     "item": "must",
+     "src": "v3:sets.A.reading.en.words.items[35]"
+    },
+    {
+     "item": "green",
+     "src": "v3:sets.A.reading.en.words.items[36]"
+    },
+    {
+     "item": "sing",
+     "src": "v3:sets.A.reading.en.words.items[37]"
+    },
+    {
+     "item": "those",
+     "src": "v3:sets.A.reading.en.words.items[38]"
+    },
+    {
+     "item": "always",
+     "src": "v3:sets.A.reading.en.words.items[39]"
+    },
+    {
+     "item": "many",
+     "src": "v3:sets.A.reading.en.words.items[40]"
+    },
+    {
+     "item": "which",
+     "src": "v3:sets.A.reading.en.words.items[41]"
+    },
+    {
+     "item": "upon",
+     "src": "v3:sets.A.reading.en.words.items[42]"
+    },
+    {
+     "item": "sit",
+     "src": "v3:sets.A.reading.en.words.items[43]"
+    },
+    {
+     "item": "clean",
+     "src": "v3:sets.A.reading.en.words.items[44]"
+    },
+    {
+     "item": "stop",
+     "src": "v3:sets.A.reading.en.words.items[45]"
+    },
+    {
+     "item": "big",
+     "src": "v3:sets.A.reading.en.words.items[46]"
+    },
+    {
+     "item": "me",
+     "src": "v3:sets.A.reading.en.words.items[47]"
+    },
+    {
+     "item": "house",
+     "src": "v3:sets.A.reading.en.words.items[48]"
+    },
+    {
+     "item": "girl",
+     "src": "v3:sets.A.reading.en.words.items[49]"
+    },
+    {
+     "item": "boy",
+     "src": "rwp2026:idwrd_eng position 1 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "school",
+     "src": "rwp2026:idwrd_eng position 3 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "book",
+     "src": "rwp2026:idwrd_eng position 4 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "pen",
+     "src": "rwp2026:idwrd_eng position 5 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "bag",
+     "src": "rwp2026:idwrd_eng position 6 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "teacher",
+     "src": "rwp2026:idwrd_eng position 7 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "student",
+     "src": "rwp2026:idwrd_eng position 8 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "class",
+     "src": "rwp2026:idwrd_eng position 9 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "read",
+     "src": "rwp2026:idwrd_eng position 10 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "write",
+     "src": "rwp2026:idwrd_eng position 11 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "stand",
+     "src": "rwp2026:idwrd_eng position 13 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "walk",
+     "src": "rwp2026:idwrd_eng position 14 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "friend",
+     "src": "rwp2026:idwrd_eng position 17 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "happy",
+     "src": "rwp2026:idwrd_eng position 19 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "home",
+     "src": "rwp2026:idwrd_eng position 21 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "mother",
+     "src": "rwp2026:idwrd_eng position 22 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "father",
+     "src": "rwp2026:idwrd_eng position 23 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "sister",
+     "src": "rwp2026:idwrd_eng position 24 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "brother",
+     "src": "rwp2026:idwrd_eng position 25 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "water",
+     "src": "rwp2026:idwrd_eng position 26 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "food",
+     "src": "rwp2026:idwrd_eng position 27 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "eat",
+     "src": "rwp2026:idwrd_eng position 28 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "drink",
+     "src": "rwp2026:idwrd_eng position 29 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "day",
+     "src": "rwp2026:idwrd_eng position 30 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "night",
+     "src": "rwp2026:idwrd_eng position 31 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "sun",
+     "src": "rwp2026:idwrd_eng position 32 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "rain",
+     "src": "rwp2026:idwrd_eng position 33 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "road",
+     "src": "rwp2026:idwrd_eng position 34 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "market",
+     "src": "rwp2026:idwrd_eng position 35 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "bus",
+     "src": "rwp2026:idwrd_eng position 36 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "open",
+     "src": "rwp2026:idwrd_eng position 38 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "close",
+     "src": "rwp2026:idwrd_eng position 39 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "look",
+     "src": "rwp2026:idwrd_eng position 43 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "small",
+     "src": "rwp2026:idwrd_eng position 45 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "no",
+     "src": "rwp2026:idwrd_eng position 47 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "child",
+     "src": "rwp2026:idwrd_eng position 48 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    },
+    {
+     "item": "family",
+     "src": "rwp2026:idwrd_eng position 49 (rebuilt from audio, 20 children; positions after a gap approximate)",
+     "reconstructed_from_audio": true
+    }
+   ],
+   "ext_stop": {
+    "type": "first_row",
+    "n": 5
+   }
+  },
+  "ma.number_id8": {
+   "base_n": 8,
+   "ext": [
+    {
+     "item": "2",
+     "src": "v3:sets.A.maths.3.number_id.items[0]"
+    },
+    {
+     "item": "0",
+     "src": "v3:sets.A.maths.3.number_id.items[2]"
+    },
+    {
+     "item": "30",
+     "src": "v3:sets.A.maths.3.number_id.items[4]"
+    },
+    {
+     "item": "22",
+     "src": "v3:sets.A.maths.3.number_id.items[5]"
+    },
+    {
+     "item": "39",
+     "src": "v3:sets.A.maths.3.number_id.items[7]"
+    },
+    {
+     "item": "48",
+     "src": "v3:sets.A.maths.3.number_id.items[9]"
+    },
+    {
+     "item": "91",
+     "src": "v3:sets.A.maths.3.number_id.items[10]"
+    },
+    {
+     "item": "74",
+     "src": "v3:sets.A.maths.3.number_id.items[12]"
+    },
+    {
+     "item": "65",
+     "src": "v3:sets.A.maths.3.number_id.items[14]"
+    },
+    {
+     "item": "108",
+     "src": "v3:sets.A.maths.3.number_id.items[15]"
+    },
+    {
+     "item": "587",
+     "src": "v3:sets.A.maths.3.number_id.items[17]"
+    },
+    {
+     "item": "989",
+     "src": "v3:sets.A.maths.3.number_id.items[19]"
+    },
+    {
+     "item": "3",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 1"
+    },
+    {
+     "item": "7",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 3"
+    },
+    {
+     "item": "20",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 5"
+    },
+    {
+     "item": "77",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 6"
+    },
+    {
+     "item": "29",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 7"
+    },
+    {
+     "item": "61",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 8"
+    },
+    {
+     "item": "54",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 9"
+    },
+    {
+     "item": "58",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 10"
+    },
+    {
+     "item": "70",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 12"
+    },
+    {
+     "item": "89",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 14"
+    },
+    {
+     "item": "104",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 16"
+    },
+    {
+     "item": "368",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 17"
+    },
+    {
+     "item": "740",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 18"
+    },
+    {
+     "item": "500",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 19"
+    },
+    {
+     "item": "898",
+     "src": "jordan_egma_2021:stimulus p.A (child-facing sheet; the assessor protocol prints a different grid), cell 20"
+    },
+    {
+     "item": "4",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 1"
+    },
+    {
+     "item": "10",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 2"
+    },
+    {
+     "item": "28",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 3"
+    },
+    {
+     "item": "94",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 5"
+    },
+    {
+     "item": "106",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 8"
+    },
+    {
+     "item": "14",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 11"
+    },
+    {
+     "item": "711",
+     "src": "rti_rwanda2011:Annex C p.C-4 P4 number identification sample, cell 12"
+    },
+    {
+     "item": "4010",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_01)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "410",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_02)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "646",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_03)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "1004",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_04)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "64",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_05)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "99006",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_08)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "3900",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_10)",
+     "grades": [
+      4,
+      5
+     ]
+    },
+    {
+     "item": "10711",
+     "src": "rti_rwanda2011:C-4 P6 number ID (rw_p6_12)",
+     "grades": [
+      4,
+      5
+     ]
+    }
+   ]
+  },
+  "ma.fluency1m": {
+   "base_n": 20,
+   "ext": [
+    {
+     "item": "2 + 3",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[1])",
+     "answer": 5
+    },
+    {
+     "item": "6 + 2",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[2])",
+     "answer": 8
+    },
+    {
+     "item": "4 + 5",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[3])",
+     "answer": 9
+    },
+    {
+     "item": "8 + 1",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[5])",
+     "answer": 9
+    },
+    {
+     "item": "7 + 3",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[6])",
+     "answer": 10
+    },
+    {
+     "item": "3 + 9",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[7])",
+     "answer": 12
+    },
+    {
+     "item": "2 + 8",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[8])",
+     "answer": 10
+    },
+    {
+     "item": "9 + 3",
+     "src": "core_egma:Stimuli Sheet 8 (v3 add1.items[9])",
+     "answer": 12
+    },
+    {
+     "item": "7 + 8",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[10])",
+     "answer": 15
+    },
+    {
+     "item": "4 + 7",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[11])",
+     "answer": 11
+    },
+    {
+     "item": "7 + 5",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[12])",
+     "answer": 12
+    },
+    {
+     "item": "8 + 6",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[13])",
+     "answer": 14
+    },
+    {
+     "item": "9 + 8",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[14])",
+     "answer": 17
+    },
+    {
+     "item": "6 + 7",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[15])",
+     "answer": 13
+    },
+    {
+     "item": "8 + 8",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[16])",
+     "answer": 16
+    },
+    {
+     "item": "8 + 5",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[17])",
+     "answer": 13
+    },
+    {
+     "item": "10 + 2",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[18])",
+     "answer": 12
+    },
+    {
+     "item": "8 + 10",
+     "src": "core_egma:Stimuli Sheet 9 (v3 add1.items[19])",
+     "answer": 18
+    },
+    {
+     "item": "4 - 3",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[0])",
+     "answer": 1
+    },
+    {
+     "item": "5 - 3",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[1])",
+     "answer": 2
+    },
+    {
+     "item": "8 - 2",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[2])",
+     "answer": 6
+    },
+    {
+     "item": "9 - 5",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[3])",
+     "answer": 4
+    },
+    {
+     "item": "9 - 1",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[5])",
+     "answer": 8
+    },
+    {
+     "item": "10 - 3",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[6])",
+     "answer": 7
+    },
+    {
+     "item": "12 - 9",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[7])",
+     "answer": 3
+    },
+    {
+     "item": "10 - 8",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[8])",
+     "answer": 2
+    },
+    {
+     "item": "12 - 3",
+     "src": "core_egma:Stimuli Sheet 11 (v3 sub1.items[9])",
+     "answer": 9
+    },
+    {
+     "item": "15 - 8",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[10])",
+     "answer": 7
+    },
+    {
+     "item": "11 - 7",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[11])",
+     "answer": 4
+    },
+    {
+     "item": "12 - 5",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[12])",
+     "answer": 7
+    },
+    {
+     "item": "14 - 6",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[13])",
+     "answer": 8
+    },
+    {
+     "item": "17 - 8",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[14])",
+     "answer": 9
+    },
+    {
+     "item": "13 - 7",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[15])",
+     "answer": 6
+    },
+    {
+     "item": "16 - 8",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[16])",
+     "answer": 8
+    },
+    {
+     "item": "13 - 5",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[17])",
+     "answer": 8
+    },
+    {
+     "item": "12 - 2",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[18])",
+     "answer": 10
+    },
+    {
+     "item": "18 - 10",
+     "src": "core_egma:Stimuli Sheet 12 (v3 sub1.items[19])",
+     "answer": 8
+    }
+   ]
+  }
+ },
+ "word_accept": {
+  "en.words4": {
+   "rule": "A local accent or regional pronunciation that keeps it the same word is correct; a change that makes a different word is not (come said as some, up as cup, find as fan stay wrong). The forms below are such local pronunciations, ruled word by word from the vowel and consonant patterns of English as spoken in Pakistan, each spelled as a speech-to-text engine writes it. Read by the scorer only; never shown or served.",
+   "src": "egra_tk2016 (the accent rule); pk_english (the patterns each form follows)",
+   "forms": {
+    "sad": [
+     "said",
+     "sed",
+     "set"
+    ],
+    "up": [
+     "ap"
+    ],
+    "find": [
+     "fine",
+     "fain",
+     "fide"
+    ],
+    "come": [
+     "kam",
+     "cam"
+    ],
+    "help": [
+     "hep"
+    ],
+    "run": [
+     "ran"
+    ],
+    "down": [
+     "daun"
+    ],
+    "and": [
+     "end",
+     "an",
+     "en"
+    ],
+    "play": [
+     "ple",
+     "pley"
+    ],
+    "at": [
+     "et"
+    ],
+    "chair": [
+     "cheyar",
+     "chare"
+    ],
+    "man": [
+     "men"
+    ],
+    "when": [
+     "ven",
+     "wen"
+    ],
+    "now": [
+     "nao"
+    ],
+    "under": [
+     "andar",
+     "undar"
+    ],
+    "please": [
+     "plees",
+     "pleej",
+     "pliz"
+    ],
+    "like": [
+     "laik"
+    ],
+    "they": [
+     "de",
+     "dey"
+    ],
+    "good": [
+     "gud"
+    ],
+    "thank": [
+     "tank",
+     "thenk",
+     "thang",
+     "tenk"
+    ],
+    "going": [
+     "goin"
+    ],
+    "are": [
+     "aar"
+    ],
+    "him": [
+     "heem"
+    ],
+    "jump": [
+     "jamp",
+     "jum"
+    ],
+    "once": [
+     "vans",
+     "wans",
+     "wance"
+    ],
+    "ask": [
+     "aask",
+     "aas"
+    ],
+    "fly": [
+     "flai"
+    ],
+    "want": [
+     "vant",
+     "vont",
+     "wan"
+    ],
+    "must": [
+     "mast",
+     "mus"
+    ],
+    "green": [
+     "grin"
+    ],
+    "sing": [
+     "seeng"
+    ],
+    "those": [
+     "dose",
+     "doz",
+     "thos"
+    ],
+    "always": [
+     "alvays",
+     "olvez"
+    ],
+    "which": [
+     "vich",
+     "wich",
+     "veech"
+    ],
+    "upon": [
+     "apon"
+    ],
+    "sit": [
+     "seat"
+    ],
+    "clean": [
+     "klin"
+    ],
+    "stop": [
+     "istop",
+     "estop"
+    ],
+    "big": [
+     "beeg"
+    ],
+    "house": [
+     "haus"
+    ],
+    "girl": [
+     "gurl",
+     "garl"
+    ],
+    "boy": [
+     "boi"
+    ],
+    "school": [
+     "iskool",
+     "sakool",
+     "skool"
+    ],
+    "book": [
+     "buk"
+    ],
+    "bag": [
+     "beg"
+    ],
+    "teacher": [
+     "teachar",
+     "ticher"
+    ],
+    "student": [
+     "istudent",
+     "stoodent"
+    ],
+    "class": [
+     "klaas",
+     "claas"
+    ],
+    "read": [
+     "red"
+    ],
+    "write": [
+     "rite"
+    ],
+    "stand": [
+     "stan",
+     "istand",
+     "stend"
+    ],
+    "walk": [
+     "valk",
+     "vaak",
+     "waak"
+    ],
+    "friend": [
+     "fren",
+     "frend"
+    ],
+    "happy": [
+     "heppy",
+     "hapi"
+    ],
+    "home": [
+     "hom"
+    ],
+    "mother": [
+     "mudder",
+     "mader",
+     "mothar"
+    ],
+    "father": [
+     "fader",
+     "fadar"
+    ],
+    "sister": [
+     "sistar"
+    ],
+    "brother": [
+     "brader",
+     "bruder",
+     "brothar"
+    ],
+    "water": [
+     "vater",
+     "vaater",
+     "watar"
+    ],
+    "food": [
+     "fud"
+    ],
+    "eat": [
+     "it"
+    ],
+    "drink": [
+     "dreenk",
+     "dring"
+    ],
+    "day": [
+     "de"
+    ],
+    "night": [
+     "nait"
+    ],
+    "sun": [
+     "san"
+    ],
+    "rain": [
+     "ren"
+    ],
+    "road": [
+     "rod"
+    ],
+    "market": [
+     "markit"
+    ],
+    "bus": [
+     "bas"
+    ],
+    "open": [
+     "opan"
+    ],
+    "close": [
+     "klos",
+     "cloj",
+     "kloz"
+    ],
+    "look": [
+     "luk"
+    ],
+    "small": [
+     "ismall",
+     "smol"
+    ],
+    "child": [
+     "chail",
+     "chile"
+    ],
+    "family": [
+     "femily",
+     "femli"
+    ]
+   }
+  }
+ }
+}

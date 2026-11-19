@@ -1,7 +1,7 @@
 /**
  * Jugnu's voice for the self-administered runner (switch sa_engine).
  *
- * SAE.voice.create({ lang, base, muted, onSpeak }) → { speak(textObj, audioObj) → Promise, stop(), setMuted(b) }
+ * SAE.voice.create({ lang, base, muted, onSpeak }) → { speak(textObj, audioObj[, opts]) → Promise, stop(), setMuted(b) }
  * onSpeak({ speaking: true|false, text }) fires when Jugnu starts and stops talking (the game skin moves the mouth).
  *   1. a recorded clip: base + audioObj[lang], played in an <audio> element, when given. A clip that errors, is
  *      refused (a busy tunnel's 429) or has not started in load_ms is tried once more after retry_ms (1.5 s: the
@@ -15,6 +15,19 @@
  * textObj: a string, { en, ur }, or { text, lang } (a line in the task's own language: spoken with that language's
  * voice); a { …, audio } on it is used when audioObj is not given. audioObj: a key string or { en, ur }.
  * speak() never throws and its promise always resolves (when the words end, on any error, or on a guard timeout).
+ * Round 28 (the letter-sound picker), opts.clip_only: the line is the clip or nothing. No clip, a clip that fails twice
+ * or gives up, or no audio element: the promise REJECTS and the phone's voice is never used (it would say the letter's
+ * name). Muted and a line cut by the next one behave as without it. A page hidden mid-line holds the line as without it,
+ * but only up to the 60 s guard, which does not count the hidden time: it starts a full 60 s again on show (resume()).
+ * Under clip_only a clip that has started must reach its end: when its currentTime makes no progress for progress_ms
+ * (default load_ms, 5 s; the clock is the progress itself, so a stall that fires no event is caught too, and a slow
+ * clip that keeps moving is not), it is tried once more from the start at once; a second such stall, or the 60 s
+ * guard with no 'ended', REJECTS as a lost clip does (worst case about 2 x 5 s + the clip's start, under the 11.5 s
+ * of a clip that never loads). speak.stalled() is true while the clip on now is stalled ('waiting'/'stalled', or no
+ * progress for stale_ms, 1 s) until it moves again or the line ends, so a screen can drop a tap made meanwhile.
+ * Without clip_only none of this applies: the 60 s guard resolves as before.
+ * preload([audioObj…], ms) → Promise<{ ready, of }> (round 28): loads the clips in elements of their own (the offline copy
+ * warms with them) and resolves when every one is ready to play through (or failed), or after ms, whichever is first.
  * A new speak() or stop() cuts the one before it and resolves its promise.
  * The page hidden mid-line (another tab, another app, the screen off; the tester, 28 Oct):
  *   - a clip refused, failing or not started while the page is hidden is held, never handed to the phone's voice;
@@ -93,6 +106,8 @@
     var onSilent = typeof o.onSilent === 'function' ? o.onSilent : null;
     var onHeld = typeof o.onHeld === 'function' ? o.onHeld : null;
     var stallMs = o.stall_ms != null ? o.stall_ms : 4000;
+    var progressMs = o.progress_ms != null ? o.progress_ms : loadMs; // clip_only: no progress this long = a stall
+    var staleMs = o.stale_ms != null ? o.stale_ms : 1000; // clip_only: no progress this long = stalled() for the screen
     var cur = null; // { done(), audio?, tts?, park? }
     function notify(on, text) { if (onSpeak) { try { onSpeak({ speaking: on, text: text || null }); } catch (e) { /* ignore */ } } }
     function held(kind) { if (onHeld) { try { onHeld({ kind: kind }); } catch (e) { /* ignore */ } } }
@@ -185,14 +200,15 @@
       var c = cur;
       cur = null;
       if (!c) return;
-      try { if (c.audio) { c.audio.onended = c.audio.onerror = c.audio.onplaying = c.audio.onpause = null; c.audio.pause(); } } catch (e) { /* ignore */ }
+      try { if (c.audio) { c.audio.onended = c.audio.onerror = c.audio.onplaying = c.audio.onpause = c.audio.ontimeupdate = c.audio.onwaiting = c.audio.onstalled = null; c.audio.pause(); } } catch (e) { /* ignore */ }
       try { if (c.tts) { var s = synth(); if (s && s.cancel) s.cancel(); } } catch (e) { /* ignore */ }
       c.done();
     }
 
-    function speak(textObj, audioObj) {
+    function speak(textObj, audioObj, so) {
+      var clipOnly = !!(so && so.clip_only);
       try { stopCur(); } catch (e) { cur = null; }
-      return new Promise(function (resolve) {
+      return new Promise(function (resolve, reject) {
         var finished = false, timers = [], said = false;
         var said0 = null;
         try {
@@ -203,6 +219,7 @@
         var tl = said0 ? said0.lang : lang;
         function start() { if (!said && !finished) { said = true; notify(true, text); } }
         var me = {
+          clipOnly: clipOnly,
           done: function () {
             if (finished) return;
             finished = true;
@@ -212,14 +229,39 @@
             if (cur === me) cur = null;
             resolve();
           },
+          // round 28 (clip_only): the clip could not be played; the caller decides (never the phone's voice)
+          fail: function () {
+            if (finished) return;
+            finished = true;
+            free(me.slot); me.slot = null;
+            if (said) notify(false, text);
+            timers.forEach(function (t) { clearTimeout(t); });
+            if (cur === me) cur = null;
+            reject(new Error('clip_unavailable'));
+          },
         };
         cur = me;
         function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+        // The 60 s never-ended guard. clip_only: suspended while the line is held for a hidden page (parked, or paused
+        // while hidden), and started again with a full 60 s when resume() plays that line on; off clip_only it never stops.
+        var guard = null;
+        me.guardOn = function () {
+          if (finished) return;
+          if (guard) clearTimeout(guard);
+          guard = setTimeout(clipOnly ? me.fail : me.done, 60000);
+          timers.push(guard);
+        };
+        me.hold = function () {
+          if (!clipOnly) return;
+          if (guard) { clearTimeout(guard); guard = null; }
+          me.hidHold = true;
+        };
 
         function pause() { later(me.done, text ? Math.min(2500, Math.max(pauseMs, text.length * 40)) : pauseMs); }
 
         function tts() {
           if (finished || cur !== me) return;
+          if (clipOnly) { me.fail(); return; }
           try {
             var s = synth(), U = Utter();
             if (muted || !text || !s || !U || !s.speak) { pause(); return; }
@@ -245,6 +287,7 @@
         function lost() {
           if (finished || cur !== me) return;
           if (unlockOn) held('lost');
+          if (clipOnly) { me.fail(); return; }
           var s = null;
           try { s = synth(); } catch (e) { s = null; }
           var has = false;
@@ -253,6 +296,7 @@
         }
         function silent() {
           if (finished || cur !== me) return;
+          if (clipOnly) { me.fail(); return; }
           if (onSilent && text) { try { onSilent({ text: text, lang: tl }); } catch (e) { /* ignore */ } }
           pause();
         }
@@ -272,17 +316,18 @@
             var a = slot ? slot.a : new A(base + clip), playing = false, fell = false, t0 = null;
             me.audio = a;
             me.slot = slot;
-            var fallback = function (err) {
+            var fallback = function (err, wait) {
               if (fell || finished || cur !== me) return;
               fell = true;
               if (t0) clearTimeout(t0);
+              if (prog) clearTimeout(prog);
               if (unlockOn && err && err.name === 'NotAllowedError') held('refused');
-              try { a.onended = a.onerror = a.onplaying = a.onpause = null; a.pause(); } catch (e) { /* ignore */ }
+              try { a.onended = a.onerror = a.onplaying = a.onpause = a.ontimeupdate = a.onwaiting = a.onstalled = null; a.pause(); } catch (e) { /* ignore */ }
               me.audio = null;
               free(me.slot); me.slot = null;
               // The page is hidden: the line waits for it, in Jugnu's own clip (resume()), never the phone's voice.
-              if (hidden()) { tries -= 1; me.park = play; held('parked'); return; }
-              if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, retryMs);
+              if (hidden()) { tries -= 1; me.park = play; me.hold(); held('parked'); return; }
+              if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, wait != null ? wait : retryMs);
               else lost();
             };
             // Paused by the browser (the page hidden, the audio taken): held until resume(), or until stallMs on a visible page.
@@ -307,7 +352,7 @@
               if (fell || finished || cur !== me || a.ended || !playing) return;
               me.held = a;
               held('paused');
-              if (!hidden()) stall();
+              if (!hidden()) stall(); else me.hold();
             };
             me.unhold = function () {
               if (me.held !== a) return;
@@ -317,19 +362,75 @@
               if (q && typeof q.then === 'function') q.then(function () { if (me.held === a) me.held = null; }, function () { /* the stall below decides */ });
               stall();
             };
-            a.onplaying = function () { playing = true; start(); };
+            // clip_only: a started clip must reach its end. No currentTime progress for progressMs (paused by the browser
+            // or the page hidden: the paths above own it) = a stall: tried once more from 0 at once, then lost.
+            var prog = null, lastT = 0;
+            var arm = function () {
+              if (!clipOnly) return;
+              if (prog) clearTimeout(prog);
+              prog = setTimeout(noProgress, progressMs);
+              timers.push(prog);
+            };
+            var moved = function () {
+              var t = +a.currentTime || 0;
+              if (t <= lastT) return false;
+              lastT = t; me.prog_at = Date.now(); me.stalled = false;
+              return true;
+            };
+            var noProgress = function () {
+              prog = null;
+              if (fell || finished || cur !== me || a.ended) return;
+              if (moved() || me.held === a || hidden()) { arm(); return; }
+              me.stalled = true;
+              fallback(null, 0);
+            };
+            var began = function () {
+              if (!playing) { playing = true; me.prog_at = Date.now(); arm(); }
+              start();
+            };
+            if (clipOnly) {
+              a.ontimeupdate = function () { if (!fell && !finished && cur === me && moved()) arm(); };
+              a.onwaiting = a.onstalled = function () { if (!fell && !finished && cur === me && playing && !a.ended) me.stalled = true; };
+            }
+            a.onplaying = began;
             a.onended = function () { me.done(); };
             a.onerror = function () { fallback(); };
             t0 = setTimeout(function () { if (!playing) fallback(); }, loadMs); // never loaded
             timers.push(t0);
             var p = a.play();
-            if (p && typeof p.then === 'function') p.then(function () { playing = true; start(); }, fallback);
+            if (p && typeof p.then === 'function') p.then(began, fallback);
           };
-          later(me.done, 60000); // never ended
+          me.guardOn(); // never ended (clip_only: never heard whole, so lost)
           play();
         } catch (e) {
           if (clip) silent(); else tts();
         }
+      });
+    }
+
+    /** Round 28: load these clips now; resolves when all can play through (or failed), or after ms. Never rejects. */
+    function preload(list, ms) {
+      return new Promise(function (resolve) {
+        var urls = [];
+        try { (list || []).forEach(function (x) { var c = pick(x, lang); if (c && urls.indexOf(base + c) < 0) urls.push(base + c); }); } catch (e) { urls = []; }
+        var A = AudioCtor();
+        var ready = 0, settled = 0, done = false;
+        var end = function () { if (done) return; done = true; resolve({ ready: ready, of: urls.length }); };
+        if (!urls.length || !A) { end(); return; }
+        setTimeout(end, ms != null ? ms : 5000);
+        urls.forEach(function (u) {
+          var fin = function (ok) { if (ok) ready++; settled++; if (settled >= urls.length) end(); };
+          try {
+            var a = new A();
+            var once = false;
+            var hit = function (ok) { if (once) return; once = true; fin(ok); };
+            a.preload = 'auto';
+            a.oncanplaythrough = function () { hit(true); };
+            a.onerror = function () { hit(false); };
+            a.src = u;
+            if (a.load) a.load();
+          } catch (e) { fin(false); }
+        });
       });
     }
 
@@ -338,15 +439,27 @@
       var c = cur;
       if (!c || hidden()) return;
       try {
+        // clip_only: a line held for the hidden page gets its full 60 s again (only then: a line playing on is untouched)
+        if (c.hidHold && (c.park || c.held)) { c.hidHold = false; c.guardOn(); }
         if (c.park) { var f = c.park; c.park = null; held('resumed'); f(); }
         else if (c.held && c.unhold) c.unhold();
       } catch (e) { /* the line's own guards end it */ }
     }
 
+    /** Round 8 (item 32): the <audio> playing now (a clip line), else null; the screens light its words. */
+    speak.audio = function () { return cur && cur.audio ? cur.audio : null; };
+    /** clip_only: the clip on now has stalled (and not moved since), or its retry has not moved yet. */
+    speak.stalled = function () {
+      var c = cur;
+      if (!c || !c.audio) return !!(c && c.stalled);
+      return !!c.stalled || (c.prog_at != null && !c.audio.ended && !c.audio.paused && Date.now() - c.prog_at > staleMs && !!c.clipOnly);
+    };
+
     return {
       speak: speak,
       resume: resume,
       warm: warm,
+      preload: preload,
       stop: function () { try { stopCur(); } catch (e) { cur = null; } },
       setMuted: function (b) { muted = !!b; if (muted) { try { stopCur(); } catch (e) { cur = null; } } },
       get muted() { return muted; },

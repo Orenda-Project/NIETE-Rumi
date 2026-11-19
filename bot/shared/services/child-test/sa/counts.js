@@ -29,14 +29,19 @@ const PLAN = {
 const pad = (n) => String(n).padStart(2, '0');
 const srcAt = (it, i) => new RegExp(`\\.items\\[${i}\\]$`).test(String(it.src || ''));
 
-/** A spare item in the shape the W3 task's own items have (show / target / answer; a sum keeps its say + clip). */
+/**
+ * A spare item in the shape the W3 task's own items have (show / target / answer; a sum keeps its say + clip). A spare
+ * with accepted forms (a non-empty `accept` list) keeps them, so the words prompt lists them beside the word
+ * (sa_r28_words_prompt); a spare without them gets no key.
+ */
 function asItem(task, spare, id) {
-  if (Array.isArray(spare.options) && !spare.say) return { id, target: spare.target, options: spare.options.slice(), src: spare.src };
+  const acc = Array.isArray(spare.accept) && spare.accept.length ? { accept: spare.accept.slice() } : {};
+  if (Array.isArray(spare.options) && !spare.say) return { id, target: spare.target, options: spare.options.slice(), src: spare.src, ...acc };
   if (spare.shown != null) {
     const show = String(spare.shown).replace(/\s*=\s*$/, '').replace(/ - /g, ' − ');
-    return { id, show, target: spare.target, answer: spare.target, src: spare.src, say: spare.say, prompt_audio: spare.prompt_audio };
+    return { id, show, target: spare.target, answer: spare.target, src: spare.src, say: spare.say, prompt_audio: spare.prompt_audio, ...acc };
   }
-  return { id, show: spare.target, target: spare.target, answer: spare.target, src: spare.src };
+  return { id, show: spare.target, target: spare.target, answer: spare.target, src: spare.src, ...acc };
 }
 
 /** The spares a plan names, from the battery's own tasks; null when one is missing (the task then stays as it is). */
@@ -59,8 +64,17 @@ function countsTask(battery, task) {
     const spares = sparesFor(battery, plan.add);
     if (!spares) return task;
     const items = task.items.slice();
-    spares.forEach((s) => items.push(asItem(task, s, `${task.id}.${pad(items.length + 1)}`)));
+    // sa_r28_ceiling: the extension may already carry a spare (the words' 5th word is its .05): never add it twice
+    const have = new Set(items.map((it) => it && it.src).filter(Boolean));
+    spares.filter((s) => !s.src || !have.has(s.src)).forEach((s) => items.push(asItem(task, s, `${task.id}.${pad(items.length + 1)}`)));
     out.items = items;
+    // sa_r28_ceiling: base_n is the base the child is SERVED: a spare that sits right after the base (added, or the
+    // extension's own copy of it) is part of today's base, so the words' base is 5 with sa_r8_counts ON
+    if (Number(task.base_n) > 0) {
+      let base = Number(task.base_n);
+      spares.forEach((s) => { if (s.src && items[base] && items[base].src === s.src) base += 1; });
+      out.base_n = base;
+    }
     if (Array.isArray(task.grid)) out.grid = items.map((it) => it.show);
   }
   return out;

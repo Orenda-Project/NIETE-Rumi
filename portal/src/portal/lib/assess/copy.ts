@@ -177,6 +177,8 @@ const en = {
       stopped_by_rule: "Stopped early (EGRA rule)",
       stopped_by_rule_egma: "Stopped early (EGMA rule)",
       comprehension_not_asked: "Questions not asked: the reading stopped early. Scored 0.",
+      // the tapped questions under the same reading floor: asked on the phone, the taps not counted
+      comprehension_not_counted: "Not counted: the reading stopped early (EGRA's rule). Scored 0.",
       comprehension_voided: "Not scored: the recording shows the reading stopped early.",
       multiplication_not_asked: "Not asked: no addition or subtraction answer was right. Scored 0.",
       consecutive_errors: "Stopped: wrong answers in a row",
@@ -203,6 +205,21 @@ const en = {
     secondVoiceNote: (n: string, one: boolean) => `Another person's voice was heard in ${n} ${one ? "recording" : "recordings"}. Those scores may include help from someone else: listen to the recording before relying on them.`,
     score: "Score",
     scoreKeys: { correct: "Correct", attempted: "Attempted", per_minute: "Correct per minute", seconds_used: "Seconds used", of: "Questions" },
+    // round 28: the extended timed task's first N items (today's scale) beside the rate; a tapped task heard too little
+    firstN: (n: number) => `First ${n} correct`,
+    ofN: (x: number, n: number) => `${x} of ${n}`,
+    unrated: "not rated (too few items heard)",
+    // O-46 (SPEC v2.80, §F): a picker the coach ended before every item was presented
+    unrated_ended: "not rated (ended early)",
+    // round 28 (SPEC F): the guessing floor beside a tapped score (guessFloor.ts), and the child's taps before the sound
+    guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
+      ? `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n} (${f[1].pct} reach ${f[1].k} of ${f[1].n}).`
+      : `By guessing alone, ${f[0].pct} of children reach ${f[0].k} of ${f[0].n}.`),
+    tapBefore: "Taps before the sound",
+    // round 28 (voice check): what the other voice was
+    voiceKinds: { help: "An adult helped with the answer", other_child: "Another child was reading too" } as Record<string, string>,
+    // the one footnote under the voice row (what the check does not yet catch)
+    voiceNote: "A second child reading along is not yet caught.",
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "CWPM (correct words per minute)",
     cwpmHow: "CWPM, correct words per minute (familiar words and the passage) = correct words × 60 ÷ the seconds the child read (60 at most).",
@@ -392,6 +409,7 @@ const ur: Copy = {
       stopped_by_rule: "EGRA کے اصول کے تحت پہلے ہی روک دیا گیا",
       stopped_by_rule_egma: "EGMA کے اصول کے تحت پہلے ہی روک دیا گیا",
       comprehension_not_asked: "سوال نہیں پوچھے گئے، کیونکہ پڑھائی پہلے ہی رک گئی تھی۔ نمبر: ۰",
+      comprehension_not_counted: "نمبر نہیں گنے گئے: پڑھائی پہلے ہی رک گئی تھی (EGRA کا اصول)۔ نمبر: ۰",
       comprehension_voided: "نمبر نہیں دیے گئے: ریکارڈنگ کے مطابق پڑھائی پہلے ہی رک گئی تھی۔",
       multiplication_not_asked: "سوال نہیں پوچھے گئے، کیونکہ جمع یا تفریق کا کوئی جواب درست نہیں تھا۔ نمبر: ۰",
       consecutive_errors: "رک گیا: لگاتار غلط جواب",
@@ -418,6 +436,16 @@ const ur: Copy = {
     scored: "ریکارڈنگ کے نمبر لگ گئے",
     score: "نمبر",
     scoreKeys: { correct: "درست", attempted: "کوشش", per_minute: "فی منٹ درست", seconds_used: "لگے ہوئے سیکنڈ", of: "کل سوال" },
+    firstN: (n: number) => `پہلے ⁦${urDigits(n)}⁩ درست`,
+    ofN: (x: number, n: number) => `⁦${urDigits(n)}⁩ میں سے ⁦${urDigits(x)}⁩`,
+    unrated: "درجہ نہیں (بہت کم سنے گئے)",
+    unrated_ended: "درجہ نہیں (جلد ختم کر دیا گیا)",
+    guessFloor: (f: { pct: string; k: string; n: string }[]) => (f.length > 1
+      ? `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں (${f[1].pct} بچے ${f[1].n} میں سے ${f[1].k} تک)۔`
+      : `صرف اندازے سے ${f[0].pct} بچے ${f[0].n} میں سے ${f[0].k} تک پہنچتے ہیں۔`),
+    tapBefore: "آواز سے پہلے ٹیپ",
+    voiceKinds: { help: "کسی بڑے نے جواب میں مدد کی", other_child: "ایک اور بچہ بھی پڑھ رہا تھا" },
+    voiceNote: "ساتھ پڑھنے والا دوسرا بچہ ابھی پکڑا نہیں جاتا۔",
     // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
     cwpmKey: "⁨CWPM⁩ (فی منٹ درست الفاظ)",
     cwpmHow: "⁨CWPM⁩، فی منٹ درست الفاظ (جانے پہچانے الفاظ اور عبارت) = درست الفاظ × ⁦۶۰⁩ ÷ بچے کے پڑھنے کے سیکنڈ (زیادہ سے زیادہ ⁦۶۰⁩)۔",

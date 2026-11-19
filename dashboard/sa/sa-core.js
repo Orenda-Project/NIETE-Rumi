@@ -119,6 +119,21 @@
  * 120 s); the cell pace no longer moves such a sum on early. Next or an answer still moves on at once. A part with its
  * own clock (the one-minute reads and sums) is the measure and keeps every timing it has. Coach-led: as before.
  *
+ * Round 28 (battery.ui.r28_letter_pick; the served battery carries a task of kind 'pick' only when it is ON): the
+ * letter-sound picker is an untimed tap task (five letter cards, Jugnu's clip, replay_at_s 10, next_at_s 15). Its task
+ * keeps kind 'pick' for the page. answer(value, meta) keeps meta.replays (the child's replays of the clip) and
+ * meta.tap_ms (tap time minus the prompt's speech end, negative during the sound; see sa-ui.js), tap_before_sound and
+ * tap_ms_src on the answer; without meta the answer is as before.
+ * practiceModelled(): an example practice item (role 'example') is modelled, not answered: one practice_model event, no
+ * score. clipLost(itemId, 'prompt'): the item's clip could not be played (after the voice's one retry): the item is
+ * unavailable (not attempted, not wrong, out of every denominator), answers[] gets { item_id, value: null,
+ * unavailable: 'clip' }, one item_unavailable event { why: 'clip' }, and the next item shows; the task never ends on it.
+ * clipLost(itemId, 'replay'): a replay that could not play: logged (replay, value 'lost'), the item stays open and its
+ * auto replay is not tried again. A pick task's result adds presented (items not unavailable), unavailable and of_all
+ * (its items); with fewer than PICK_MIN_PRESENTED presented it is unrated: true (scored_on stays 'phone').
+ * Under the switch, a pick task the coach ends (coach_end, end_section) with presented < of_all is unrated: true,
+ * unrated_why: 'ended' (correct, presented, of_all, attempted kept).
+ *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -155,13 +170,19 @@
   var FLUENCY_ITEM_S = 5;
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
   var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
+  var SHORT_CELL_MS = 500; // sa_r28_ceiling (C-7): a final cell on show for less than this at time up is not attempted
   var R9_WAIT_MIN_S = 30; // r9_question_time: no question in an untimed part moves on by itself before this
+  // Round 28 (picker, MCQ): Next is one number per mode, from the end of the last play of the sound (never doubled)
+  var R28_NEXT_COACH_S = 15;
+  var R28_NEXT_AUTO_S = 30;
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
   // Round 8 (r8_reading_position): under this many voiced seconds on the passage, the child read nothing. 1.0 s, not 2.0:
   // a reader of 3 words measured 1.6-1.8 s; silent and noisy rooms 0.0-0.4 s.
   var NO_VOICE_S = 1.0;
   var VOICE_TICK_MS = 100; // the recorder's ear reads the level ten times a second
   var VOICE_RUN_TICKS = 3; // and reports a voice after three loud reads in a row
+  var PICK_MIN_PRESENTED = 6; // round 28: a letter-sound picker with fewer items whose sound played is not rated
+  var MCQ_MIN_PRESENTED = 4; // round 28 (B-17): a spoken MCQ that lost clips and kept fewer questions is not rated
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -211,11 +232,19 @@
       silence_stop_s: num(t.silence_stop_s, t.record && t.record.silence_stop_s, 20),
     };
     // A passage keeps the rotation variant it was given (sa-page.js rotate; null without rotation), for its result.
-    if (t.kind === 'passage') r.variant_id = t.variant && t.variant.id ? t.variant.id : null;
+    // Round 28 (sa_r28_mcq): the MCQ on the story keeps it too (recorded only with the switch on, finish()).
+    // Round 28, ledger O-19: the spoken comprehension keeps it too (recorded only with sa_r28_story_clock on, finish()).
+    if (t.kind === 'passage' || t.kind === 'mcq' || mode === 'oral') r.variant_id = t.variant && t.variant.id ? t.variant.id : null;
+    // Round 28 (sa_r28_mcq): the story's questions as a spoken multiple choice (a tap task the runner gates on promptDone)
+    if (t.kind === 'mcq') r.kind = 'mcq';
     // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
     if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
     // The item screen's chip (W3-12 4c: a mental sum says "Say the answer"), else the page's own "Read aloud".
     if (t.chip) r.chip = t.chip;
+    // Round 28 (r28_letter_pick): the letter-sound picker keeps its kind for the page (its own screen)
+    if (t.kind === 'pick') r.kind = 'pick';
+    // Round 28 (sa_r28_ceiling): the base the route served (base_n), recorded on the result for the scorer
+    if (t.base_n != null) r.base_n = t.base_n;
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
     } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {
@@ -313,6 +342,12 @@
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
+    // sa_r28_ceiling (opts.ceiling, from battery.ui.r28_ceiling): a final cell closed by the clock under
+    // SHORT_CELL_MS is presented (it stays in cells with its ms) but not attempted (last_item_index skips it)
+    var ceilingOn = opts.ceiling === true;
+    // sa_r28_story_clock (opts.story_clock, from battery.ui.r28_story_clock): a record task's clock stops at Done (the
+    // recorder stops there), not at the last-word tap; elapsed_ms stays the real elapsed
+    var storyClock = opts.story_clock === true;
     // Round 7b: End this section (RDF manual), the move-on when a part is not finished and the silence repeat (RDF auto).
     var endSectionOn = !!opts.end_section && (manual || !!opts.auto_end_section);
     var incompleteOn = !!opts.incomplete && !manual;
@@ -326,7 +361,7 @@
     // Round 9 item 4 (battery.ui.r9_question_time): the untimed parts' per-question waits, doubled, at least 30 s.
     var longerWaits = !!(battery.ui && battery.ui.r9_question_time === true);
     /** r9_question_time: a part's wait in seconds as the child gets it (a timed part, the measure, keeps its own). */
-    function waitS(t, s) { return longerWaits && s && !t.time_limit_s ? Math.max(2 * s, R9_WAIT_MIN_S) : s; }
+    function waitS(t, s) { return longerWaits && s && !t.time_limit_s && !r28Sound(t) ? Math.max(2 * s, R9_WAIT_MIN_S) : s; }
     // Round 9 item 3 (battery.ui.r9_skip_instructions): coach-led only, the coach may skip a part's instructions.
     var skipInstrOn = manual && !!(battery.ui && battery.ui.r9_skip_instructions === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
@@ -338,6 +373,22 @@
     var oralRun = incompleteOn && typeof opts.oral_in_a_row === 'number' && opts.oral_in_a_row >= 2 ? opts.oral_in_a_row : null;
     // Round 20 (opts.silence_in_a_row): how many silent letter/word parts in a row end the subject (null: OFF)
     var silenceRun = incompleteOn && [1, 2, 3].indexOf(opts.silence_in_a_row) >= 0 ? opts.silence_in_a_row : null;
+    // Round 28 (opts.r28_mcq / battery.ui.r28_mcq): a kind 'mcq' task takes no answer, skip, replay or Next until Jugnu has
+    // read the question and all four options (promptDone()); the item's clock starts there
+    var mcqOn = !!opts.r28_mcq || !!(opts.r28 && opts.r28.mcq === true) || !!(battery.ui && battery.ui.r28_mcq === true);
+    /** sa_r28_mcq: the spoken multiple choice, its answer window not open yet (the read-out is still going). */
+    function mcqReading(t) { return mcqOn && !!t && t.kind === 'mcq' && st.answer_at == null; }
+    // Round 28 (opts.r28_letter_pick / battery.ui.r28_letter_pick): the letter-sound picker's engine rules below
+    var pickOn = !!opts.r28_letter_pick || !!(opts.r28 && opts.r28.letter_pick === true) || !!(battery.ui && battery.ui.r28_letter_pick === true);
+    /**
+     * A round-28 task whose item is a sound the child listens to (the picker, the spoken MCQ), its switch ON. Its waits
+     * are exempt from the r9_question_time doubling; Next is R28_NEXT_COACH_S coach-led and R28_NEXT_AUTO_S in RDF
+     * auto (the lead's ruling: one number per mode, set when the task is read, not by a doubling); the auto replay and
+     * Next count from the end of the last play of the sound, and neither comes while it plays (clipPlaying()).
+     */
+    function r28Sound(t) { return !!t && ((pickOn && t.kind === 'pick') || (mcqOn && t.kind === 'mcq')); }
+    /** The wait before Next is offered on an untimed item, in seconds (null: none). */
+    function nextAtS(t) { return r28Sound(t) ? (manual ? R28_NEXT_COACH_S : R28_NEXT_AUTO_S) : t.next_at_s; }
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -415,6 +466,9 @@
         var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
         // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question,
         // whatever the variant's questions carry (min_words gates or needs_line).
+        // Round 28 (SPEC E-6): the spoken MCQ keeps the RWP gate on every path (coach-led and the per-question gate too):
+        // fewer than 10 words read, or a stop on the first line, asks no question
+        if (mcqOn && t.kind === 'mcq' && (read < COMP_ALL_MIN_WORDS || dep.stop_reason === STOP.FIRST_LINE)) return { skip: STOP.SKIPPED_NO_LINE };
         if (compAll) {
           return read >= COMP_ALL_MIN_WORDS && dep.stop_reason !== STOP.FIRST_LINE ? { items: t.items } : { skip: STOP.SKIPPED_NO_LINE };
         }
@@ -435,12 +489,12 @@
       st = {
         phase: 'instruction', task_id: t.id, resumed: !!resumed, plays: 0, items: g.items || [],
         practice_i: 0, practice_tries: 0,
-        item_i: 0, item_started: null, replayed: false, correct: 0, incorrect: 0, attempted: 0, streak: 0, first_line_correct: 0,
+        item_i: 0, item_started: null, replayed: false, sounding: false, correct: 0, incorrect: 0, attempted: 0, streak: 0, first_line_correct: 0,
         started: null, last_item_index: null, answers: [],
       };
       if (from && from.answers) {
         // An untimed task resumes at the item reached, with what was answered before the reload.
-        from.answers.forEach(function (a) { tally(t, a.ok, a.value); st.answers.push(a); });
+        from.answers.forEach(function (a) { if (!a.unavailable) tally(t, a.ok, a.value); st.answers.push(a); });
         st.item_i = from.answers.length;
       }
       ev('task_intro', { task_id: t.id, value: resumed ? { resumed: true } : undefined });
@@ -476,10 +530,16 @@
     function finish(reason) {
       var t = task();
       if (silenceDue(t, reason)) { silenceReminder(t); return; }
+      var closedByClock = !!st.cell && reason === STOP.TIME_UP;
       if (st.cell) closeCell(reason);
+      if (ceilingOn && closedByClock) {
+        var lastCell = st.cells[st.cells.length - 1];
+        if (lastCell && lastCell.ms < SHORT_CELL_MS) st.last_item_index = st.cells.length > 1 ? st.cells[st.cells.length - 2].i : null;
+      }
       var used = st.started == null ? 0 : Math.round(now() - st.started);
       // The clock as it really ran (a throttled tab, a late time-up): never capped, unlike time_used_ms.
       var elapsed = used;
+      if (storyClock && t.mode === 'record' && st.started != null && st.used_at_stop != null) used = Math.round(st.used_at_stop - st.started);
       var lim = limitMs(t);
       if (lim != null && used > lim) used = lim;
       var phone = t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard';
@@ -496,7 +556,21 @@
       };
       // the rotation variant this child saw (sa-page.js rotate): its id, null for the passage without rotation, so the
       // scorer marks the text the child read instead of guessing it from the session id
-      if (has(t, 'variant_id')) r.variant = t.variant_id;
+      // (round 28, O-19: the spoken comprehension's only under sa_r28_story_clock, so a switch-OFF phone stays byte-identical)
+      if (has(t, 'variant_id') && (t.kind !== 'mcq' || mcqOn) && (t.mode !== 'oral' || storyClock)) r.variant = t.variant_id;
+      // round 28 (sa_r28_ceiling): the base this child was served (5 words with the counts spare, else 4), never the bank's
+      if (ceilingOn && Number(t.base_n) > 0) r.base_n = Number(t.base_n);
+      // round 28 (the letter-sound picker): items whose sound played, the ones that could not, and whether it is rated
+      if (t.kind === 'pick') {
+        var lost = st.answers.filter(function (a) { return a.unavailable; }).length;
+        r.presented = st.answers.length - lost;
+        r.unavailable = lost;
+        r.of_all = t.items.length;
+        if (r.presented < PICK_MIN_PRESENTED) r.unrated = true;
+        // O-46 (SPEC v2.80): the coach ended it before every item was presented: the items not presented are not missing
+        // at random (a coach ends when a child is stuck), so correct of presented is not the score; absent from the ladder
+        if (pickOn && (reason === STOP.COACH_END || reason === STOP.END_SECTION) && r.presented < r.of_all) { r.unrated = true; r.unrated_why = 'ended'; }
+      }
       if (t.mode === 'record') {
         r.mercy_offered = !!st.mercy;
         r.mercy_ear = st.ear || 'running';
@@ -514,6 +588,16 @@
       }
       if (st.cells) r.cells = st.cells.slice();
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
+      if (mcqOn && t.kind === 'mcq') {
+        // round 28 (B-17): a question whose clips were lost is not asked; presented = the questions whose clips all played
+        var lostIds = st.answers.filter(function (a) { return a.unavailable; }).map(function (a) { return a.item_id; });
+        r.asked = st.items.map(function (q) { return q.id; }).filter(function (id) { return lostIds.indexOf(id) < 0; });
+        // presented is a COUNT (as the picker's): the ids of the presented questions are asked[]
+        r.presented = st.answers.filter(function (a) { return !a.unavailable; }).length;
+        // of_all: the SERVED (rotated) variant's questions, before the lost-clip filter (6 on most stories, 5 on a 5-question one)
+        r.of_all = t.items.length;
+        if (lostIds.length) { r.unavailable = lostIds.length; if (r.presented < MCQ_MIN_PRESENTED) r.unrated = true; }
+      }
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
       // the server waits for audio only where a recording exists.
@@ -669,11 +753,20 @@
       if (ok && t.stop.first_line_n && st.attempted <= t.stop.first_line_n) st.first_line_correct++;
     }
 
-    function score(it, value) {
+    /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given (first_choice:
+     *  the story question's first card tapped; the value scored is the last). */
+    function answerMeta(a, meta) {
+      if (!meta || typeof meta !== 'object') return a;
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes', 'since_fold_ms', 'first_choice'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      return a;
+    }
+
+    function score(it, value, meta) {
       var t = task();
       var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
-      var a = { item_id: it.id, value: value, ok: ok };
+      var a = answerMeta({ item_id: it.id, value: value, ok: ok }, meta);
+      if (value === 'skipped' && meta && typeof meta.wait_ms === 'number') a.wait_ms = meta.wait_ms;
       if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
       if (st.rec_marks) {
         var at = function (x) { return Math.max(0, Math.round(x - st.rec_t0)); };
@@ -686,6 +779,7 @@
       st.ask_at = st.item_started;
       st.answer_at = null;
       st.replayed = false;
+      st.sounding = false;
       var stop = stopRule(t);
       if (stop) finish(stop);
       return ok;
@@ -824,6 +918,21 @@
         return { ok: ok, retry: retry, shown: !ok && !retry ? p.target : null, feedback: p.feedback || null };
       },
       /**
+       * Round 28 (the letter-sound picker): the practice item on show is an example (role 'example'), modelled by Jugnu
+       * with the right card lit; the child does not answer it. One practice_model event, no score; the next practice item
+       * (or ready). → true when it acted, false otherwise (not in practice, or not an example).
+       */
+      practiceModelled: function () {
+        if (st.phase !== 'practice') return false;
+        var p = task().practice[st.practice_i];
+        if (!p || p.role !== 'example') return false;
+        ev('practice_model', { task_id: st.task_id, item_id: p.id });
+        st.practice_i++;
+        st.practice_tries = 0;
+        if (st.practice_i >= task().practice.length) st.phase = 'ready';
+        return true;
+      },
+      /**
        * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach skips the part's instruction and practice. It lands
        * on the part's Ready screen, never past it: Go still starts the clock and the first item is still asked (a timed
        * part's clock must not start before the child holds the phone). A session gate (mic check, oral practice, keypad
@@ -848,14 +957,61 @@
         if (cellTask(task())) { st.cells = []; st.cell = { i: 0, at: st.started }; }
         ev('task_start', { task_id: st.task_id, value: { time_limit_s: task().time_limit_s || null, mode: task().mode, items: st.items.length } });
       },
-      /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null. */
-      answer: function (value) {
+      /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null.
+       *  meta (round 28, optional): { replays, tap_ms, chosen_at_option, changes } kept on the answer (tap_ms may be negative: a tap during the MCQ read-out). */
+      answer: function (value, meta) {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
+        if (mcqReading(t)) return undefined; // sa_r28_mcq: a tap before the read-out ended is not an answer
         var it = st.items[st.item_i];
+        // round 28 (the pre-sound rule, SPEC A.5): a tap before the sound is logged as the screens log it, never scored
+        if (meta && meta.tap_before_sound === true) { ev('tap_before_sound', { task_id: st.task_id, item_id: it.id, value: value, tap_ms: meta.tap_ms }); return undefined; }
         st.oral_run = 0; // round 13b: an answered question starts the count again
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
-        return score(it, value);
+        return score(it, value, meta);
+      },
+      /**
+       * Round 28 (the letter picker, A-13, and the spoken MCQ, B-17): a clip of the item on show could not be played
+       * (after the voice's one retry). stage 'prompt' (its first read-out): the item is unavailable (not asked, not
+       * attempted, not wrong), answers[] gets { item_id, value: null, unavailable: 'clip' }, one item_unavailable event,
+       * and the next item shows; the task never ends on it (complete after the last). stage 'replay': logged (replay,
+       * value 'lost'), the item stays open and its auto replay is not tried again. → true when it acted.
+       */
+      clipLost: function (itemId, stage) {
+        var t = task();
+        if (st.phase !== 'running' || !t || !(t.kind === 'pick' || (mcqOn && t.kind === 'mcq'))) return false;
+        var it = st.items[st.item_i];
+        if (!it || it.id !== itemId) return false;
+        if (stage === 'replay') {
+          st.replayed = true;
+          ev('replay', { task_id: t.id, item_id: it.id, value: 'lost' });
+          return true;
+        }
+        st.answers.push({ item_id: it.id, value: null, unavailable: 'clip' });
+        ev('item_unavailable', { task_id: t.id, item_id: it.id, value: { why: 'clip' } });
+        st.item_i++;
+        st.item_started = now();
+        st.ask_at = st.item_started;
+        st.answer_at = null;
+        st.replayed = false;
+        st.sounding = false;
+        if (st.item_i >= st.items.length) finish(STOP.COMPLETE);
+        return true;
+      },
+      /**
+       * Round 28 (picker, MCQ; lead ruling P3 Q4): the item's sound started (on: true) or ended (false), whoever asked
+       * for it (the first play, the child's replay, the auto replay). While it plays there is no auto replay and no
+       * Next; at its end the item's clock starts again, so both count from the end of the last play. Only for the item
+       * on show of such a task (anything else is ignored). → true when it acted.
+       */
+      clipPlaying: function (itemId, on) {
+        var t = task();
+        if (st.phase !== 'running' || !r28Sound(t)) return false;
+        var it = st.items[st.item_i];
+        if (!it || it.id !== itemId) return false;
+        st.sounding = !!on;
+        if (!on) st.item_started = now();
+        return true;
       },
       /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
       promptDone: function () {
@@ -863,12 +1019,27 @@
         st.item_started = now();
         st.answer_at = st.item_started;
       },
+      /**
+       * Round 28 (sa_r28_mcq, lead ruling: a replay resets both clocks): a replay of the read-out begins (the child's or
+       * the auto one). The auto replay, the Next and the answer window wait for its promptDone(), so both clocks count
+       * from the end of the last play, whoever started it. → true when it acted (the MCQ with the switch on only).
+       */
+      replayStart: function () {
+        var t = task();
+        if (st.phase !== 'running' || !mcqOn || !t || t.kind !== 'mcq') return false;
+        st.answer_at = null;
+        return true;
+      },
       /** "Next" on an untimed item the child cannot answer (offered after next_at_s): no response = wrong. */
       skip: function () {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
+        if (mcqReading(t)) return undefined;
         st.oral_run = 0; // round 13b: Next pressed is not a question left to run out
-        return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped');
+        // round 28 (picker, MCQ; O-10): the skipped answer says how long the child had, from the end of the last play of
+        // the sound (the picker) or of the fourth option (the MCQ) to the skip; the mode on the block tells whose Next it was
+        var waited = r28Sound(t) && st.item_started != null ? { wait_ms: Math.max(0, Math.round(now() - st.item_started)) } : undefined;
+        return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped', waited);
       },
       /** One at a time: the cell on show is passed (how: 'tap', or 'auto' when the page moves it on). */
       nextCell: function (how) { nextCell(how === 'auto' ? 'auto' : 'tap'); },
@@ -878,6 +1049,7 @@
       done: function () {
         if (st.phase !== 'running' || task().mode !== 'record') return;
         ev('reading_done', { task_id: st.task_id });
+        if (storyClock) st.used_at_stop = now();
         if (task().items.length && skipLW) { st.last_word_skipped = true; finish(STOP.COMPLETE); } else if (task().items.length) st.phase = 'last_word'; else finish(STOP.COMPLETE);
       },
       /** The last word read (index into the passage's words). */
@@ -923,6 +1095,8 @@
           return st.phase === 'running' ? 'go_on' : null;
         }
         if (t.mode === 'record') return null;
+        if (mcqReading(t)) return null; // sa_r28_mcq: no replay, Next or timeout while the read-out runs
+        if (st.sounding && r28Sound(t)) return null; // round 28: nothing moves while the item's sound plays
         var waited = now() - st.item_started;
         var tmo = itemTimeoutS(t);
         if (tmo && waited >= tmo * 1000) {
@@ -974,12 +1148,13 @@
         st.oral_run = 0; // round 13b: the question asked again starts the count again
         if (st.rec_marks && st.rec_marks.length) st.rec_marks.pop();
         st.attempted = 0; st.correct = 0; st.incorrect = 0; st.streak = 0; st.first_line_correct = 0;
-        st.answers.forEach(function (a) { tally(t, a.ok); });
+        st.answers.forEach(function (a) { if (!a.unavailable) tally(t, a.ok); });
         st.item_i = st.answers.length;
         st.item_started = now();
         st.ask_at = st.item_started;
         st.answer_at = null;
         st.replayed = false;
+        st.sounding = false;
         ev('back', { task_id: t.id, item_id: st.items[st.item_i] ? st.items[st.item_i].id : undefined, value: { by: who, from: from, to: st.item_i } });
         return true;
       },
@@ -1040,7 +1215,8 @@
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
             v.item_wait_ms = waited;
-            v.offer_next = !!(t.next_at_s && waited >= t.next_at_s * 1000);
+            var nx = nextAtS(t);
+            v.offer_next = !!(nx && waited >= nx * 1000) && !mcqReading(t) && !(st.sounding && r28Sound(t));
           }
         }
         if (st.phase === 'task_end') v.result = st.result;

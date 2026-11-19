@@ -65,7 +65,13 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 13b (spoken questions: N unanswered in a row end the subject): one row, its value read by four readers (MATCH)
   'r13OralRule2', 'r13OralRule3', 'r13OralRule4', 'r13OralRule5',
   // round 20 (silent letter/word parts: N in a row end the subject): one row, three readers (MATCH); End this section in RDF auto
-  'r20SilenceStop1', 'r20SilenceStop2', 'r20SilenceStop3', 'r20AutoEndSection'];
+  'r20SilenceStop1', 'r20SilenceStop2', 'r20SilenceStop3', 'r20AutoEndSection',
+  // round 28 (the 17 Nov evaluation meeting): the listen-and-tap letter sounds, the spoken MCQ, the ceiling extension
+  'r28LetterPick', 'r28Mcq', 'r28Ceiling', 'r28StoryClock',
+  // round 28, A11 (screen fit): the scroll cue's self-hold, the language toggle in a 44 px bar
+  'r28CueGuard', 'r28ToggleFit', 'r28CheckFit',
+  // round 28: the coach's hold menu's Urdu End this task
+  'r28EndTaskCopy'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {

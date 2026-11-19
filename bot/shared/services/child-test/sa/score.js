@@ -29,8 +29,12 @@
  *   grid       letters / words, one 60-s clip: per item c / w / s (Gemini 3.8 Flash; words with the study's STORY
  *              prompt verbatim, letters with the R8 letters prompt, self-administered, sound OR name per subtask);
  *              EGRA's first-row stop; attempted to the last item reached; correct per minute on the time used
+ *              (app_settings sa_r28_words_prompt ON: familiar words get their own one-at-a-time word-list prompt with
+ *              EGRA's accent rule instead of STORY; the gate, rows and numbers are the same)
  *   passage    the 60-s reading: STORY prompt; attempted to the last word the child tapped (RULING #2), else the
  *              model's last word; words correct per minute on the time used
+ *              (app_settings sa_r28_story_minute ON: the time used counts only when the child reached the passage's
+ *              last printed line; otherwise the rate is taken over the whole minute; detail.minute says which)
  *   questions  comprehension, listening, segmentation: one clip per asked item (or one clip for all), each marked
  *              against its accept / reject / rubric
  * EGRA's stop rules (app_settings sa_stop_rules, OFF by default; the off path is unchanged): a W3 letters / words task
@@ -73,6 +77,15 @@
  * was. The gate and the check share one speech-to-text call per clip. The quoted words are never kept (they can hold a name);
  * the call record says why the flag stood or went (voice_check). Still a flag, never a change of mark.
  *
+ * Help, not support (app_settings sa_r28_voice_help, OFF by default; read by the sweep; sa/voice-help.js): a coach
+ * saying "louder" or "press next" is another voice, and the flag went up on most real tests while hand checks found
+ * someone helping in a few. ON (in place of the audio check and of sa_r26_voice_strict), each clip gets one plain
+ * speech-to-text pass split by speaker; no word heard is none. Else a text model reads the transcript beside the task's
+ * items and answers and labels it help / other_child / support / unclear / none, and only help and other_child flag,
+ * when the other person's quoted words are in the transcript (else unclear). The detail adds second_voice_kind,
+ * second_voice_reason (only the quoted words that are the task's own items, answers or passage), other_voice
+ * ('support' | 'unclear' | null: logged, never a flag) and voice_check: 'r28'. Still a flag, never a change of mark.
+ *
  * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
  * once, from Begin to its end, so an answer given early or late is never cut. Its row has one audio_r2_key, and the
  * result says rec_section: true with rec_marks [{ item_id, ask_ms, answer_ms, end_ms }] (ms from the recording's start).
@@ -96,6 +109,16 @@ const stopRulesSwitch = require('../app/stop-rules-switch');
 const coachLastWord = require('../app/coach-last-word-switch');
 const variantWaitSwitch = require('../app/variant-wait-switch');
 const voiceStrictSwitch = require('../app/voice-strict-switch');
+const letterGateSwitch = require('../app/letter-gate-switch');
+const { voiceActivity } = require('./voice-activity');
+const voiceHelpSwitch = require('../app/voice-help-switch');
+const VH = require('./voice-help');
+const noEchoUrSwitch = require('../app/no-echo-ur-switch');
+const childOnlySwitch = require('../app/child-only-answer-switch');
+const ceilingSwitch = require('../app/ceiling-switch');
+const mcqSwitch = require('../app/mcq-switch');
+const wordsPromptSwitch = require('../app/words-prompt-switch');
+const storyMinuteSwitch = require('../app/story-minute-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -121,7 +144,7 @@ const SECONDS = 60;
 // tick was skipped without a word. A timed-out call is a retry (reason 'timeout'); a sweep past its deadline clears
 // `running`, logs the stage it reached and changes this process's claim token, so its abandoned claims go stale and are
 // taken again like a dead process's. deps.limits (ms) overrides these in tests.
-const LIMITS = { model: 60 * 1000, stt: 60 * 1000, r2: 30 * 1000, sweep: 90 * 1000 };
+const LIMITS = { model: 60 * 1000, stt: 60 * 1000, r2: 30 * 1000, vad: 30 * 1000, sweep: 90 * 1000 };
 const SKIP_LOG_MS = 60 * 1000;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 const SECTION_LEAD_MS = 1000;   // a section stretch starts this long before the item's answer window opens
@@ -269,6 +292,36 @@ function ranCounts(battery, t, row) {
 }
 
 /**
+ * sa_r28_ceiling (C-2, C-8): the base the child was SERVED, which the phone records on its result (base_n: 5 words when
+ * sa_r8_counts served the spare, 4 when not); a result without it was served the committed task's base.
+ */
+function servedBase(t, row) {
+  const res = resultOf(row) || {};
+  return Number(res.base_n) > 0 ? Number(res.base_n) : Number(t.base_n);
+}
+
+/**
+ * sa_r28_ceiling (C-2, C-10): the committed task keeps today's items, grid and stop and carries the extension beside
+ * them (base_n, ext_items, ext_stop); the route serves items + ext_items only with the switch ON. A run whose cells go
+ * past base_n (and past the counts form's own N, sa_r8_counts) ran the extended list: the task as it ran (items + ext_items, the grid rebuilt, ext_stop as its stop).
+ * Any other run (every OFF run, an ON run that stopped inside today's items) is today's task, byte for byte. null: not
+ * extended.
+ */
+function extendedOf(t, row, ran = 0) {
+  const base = servedBase(t, row);
+  if (!(base > 0) || !Array.isArray(t.ext_items) || !t.ext_items.length) return null;
+  const res = resultOf(row) || {};
+  // the phone's own base says what was served (its counts form included); else the counts form's N is inferred
+  const served = Number(res.base_n) > 0;
+  if (!(Array.isArray(res.cells) && res.cells.length > (served ? base : Math.max(base, ran)))) return null;
+  const items = (t.items || []).concat(t.ext_items);
+  const out = { ...t, items, base_n: base };
+  if (Array.isArray(t.grid)) out.grid = items.map((x) => x.show);
+  if (t.ext_stop) out.stop = t.ext_stop;
+  return out;
+}
+
+/**
  * A task as the phone ran it (the W3 forms: letters / words / numbers / sums one at a time, the passage with its own
  * punctuation), in the bank's shape so the scorers below read one shape. The variant is the phone's rotation: the one
  * whose questions were asked in this session, else hash(the phone's session id) mod n (sa-page.js rotate).
@@ -279,7 +332,10 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
   const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
   let t = tasks.find((x) => x && x.id === row.block);
   if (!t) return null;
-  t = ranCounts(b, t, row);
+  // the counts form (sa_r8_counts) first: a run of exactly its N cells is that form, not the extension
+  const asRun = ranCounts(b, t, row);
+  const extended = extendedOf(t, row, asRun.items.length);
+  t = extended ? ranCounts(b, extended, row) : asRun;
   let variant = null;
   const base = shown && shown.from !== 'guess' && shown.id == null; // the phone showed the passage without rotation
   if (!base && Array.isArray(t.variants) && t.variants.length) {
@@ -307,29 +363,57 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
     questions: t.kind === 'questions' || t.kind === 'listen_questions' ? items : undefined,
     items,
     time_limit_s: t.time_limit_s || null,
+    // sa_r28_ceiling: a run past today's N items is scored on the extended list (base_n marks today's N)
+    ...(extended ? { base_n: Number(t.base_n) } : {}),
+    ...(Array.isArray(t.ext_items) || extended ? { extends: true } : {}),
   };
   return { spec: { task: t.id, kind: t.kind, subtask: t.subtask, lang: t.lang || row.lang || lang, present: t.present || null, record }, variant };
 }
 
 const UR_NAMES = () => require('../scoring/tasks/prompts').UR_NAMES || {}; // eslint-disable-line global-require
 
-function lettersPrompt({ grade, lang, items, perRow, sound, answers = [], one = false }) {
+// sa_r28_letter_gate, the letter-SOUNDS prompt ON ("variant B"): the card without the expected answers, plus these two
+// sentences (OFF, the prompt is unchanged)
+const LETTER_SOUNDS_BARE = 'The clip may hold bare letter sounds (a consonant said on its own, with no vowel), which a speech-to-text engine often does not register: judge from the audio itself.';
+const LETTER_SOUNDS_NO_CHILD = 'If the clip holds only noise, silence or the phone\'s own voice, and no child saying letters, return found: false and every v = "s".';
+/** The R8 letters prompt; `variantB` (sa_r28_letter_gate ON, letter sounds) is the card without the expected answers. */
+function lettersPrompt({ grade, lang, items, perRow, sound, answers = [], one = false, variantB = false }) {
   const ur = lang === 'ur';
   const names = ur ? UR_NAMES() : {};
-  const said = (L, i) => answers[i] || (ur && names[L]) || '';
+  const said = (L, i) => (variantB ? '' : answers[i] || (ur && names[L]) || '');
   const card = items.map((L, i) => `${i + 1}: ${L}${said(L, i) ? ` (${said(L, i)})` : ''}`).join(' ');
   const rule = sound
     ? `the child says each letter's SOUND${ur ? ' (e.g. "بَ" for ب)' : ' (e.g. /b/ for b)'}; a letter NAME said instead of its sound is WRONG`
     : `the child says each letter's NAME${ur ? ' (e.g. الف، بے، جیم; "یے" alone is acceptable for ی and ے, "ہمزہ" for ء)' : ' (upper or lower case is the same letter)'}; a clear letter SOUND for that letter also counts`;
-  return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${ur ? 'Urdu' : 'English'} LETTER ${sound ? 'SOUND' : 'NAME'} task of an EGRA reading test ALONE on a phone, wearing headphones. ${one ? `The phone showed ${items.length} letters ONE AT A TIME, in this order, each for a few seconds,` : `The phone showed a card of ${items.length} letters, ${perRow} per row, read ${ur ? 'right to left' : 'left to right'} row by row,`} and recorded the child for up to 60 seconds. There is no adult in the clip; the phone's own voice may be faintly heard.
-Marking rules: ${rule}. A self-correction counts as correct. A letter said wrongly, or passed over while the child keeps going, is WRONG. Every position after the last letter the child reached is SKIPPED.
-${answers.length ? 'The printed letters in order (position: letter (what a correct child says)):' : `The printed card in reading order (position: letter${ur ? ' (its name)' : ''}):`}
+  return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${ur ? 'Urdu' : 'English'} LETTER ${sound ? 'SOUND' : 'NAME'} task of an EGRA reading test ALONE on a phone, wearing headphones. ${one ? `The phone showed ${items.length} letters ONE AT A TIME, in this order, each for a few seconds,` : `The phone showed a card of ${items.length} letters, ${perRow} per row, read ${ur ? 'right to left' : 'left to right'} row by row,`} and recorded the child for up to 60 seconds. There is no adult in the clip; the phone's own voice may be faintly heard.${variantB ? ` ${LETTER_SOUNDS_BARE}` : ''}
+Marking rules: ${rule}. A self-correction counts as correct. A letter said wrongly, or passed over while the child keeps going, is WRONG. Every position after the last letter the child reached is SKIPPED.${variantB ? ` ${LETTER_SOUNDS_NO_CHILD}` : ''}
+${variantB ? 'The printed letters in order (position: letter):' : answers.length ? 'The printed letters in order (position: letter (what a correct child says)):' : `The printed card in reading order (position: letter${ur ? ' (its name)' : ''}):`}
 ${card}
 For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s" (skipped / not reached), heard = what the child said for that letter ("" if skipped), and conf = your confidence 0-1 in that verdict. found = whether the clip contains the child saying letters from this card at all.
 Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
 }
 
-function questionsPrompt({ lang, task, questions, passage, single }) {
+// sa_r28_words_prompt: the familiar-word tasks' own prompt ("prompt C"; OFF, words keep prompts.STORY). The phone shows the
+// words ONE AT A TIME, so the card is a numbered word list (the letters card shape, one word per line) and the model
+// answers per position (LETTERS_SCHEMA). WORDS_ACCENT is EGRA's accent rule as psychometrics signed it, word for word.
+const WORDS_SUBTASK = 'familiar_word_reading';
+const WORDS_ACCENT = 'A local accent or regional pronunciation that keeps it the same word is correct (the accepted forms listed with each word count as that word); a change that makes a different word, or a letter name, is wrong.';
+/** Prompt C. `accepts[k]` (an item's `accept` list, when the bank carries one) is shown beside its word as "(also: …)". */
+function wordsPrompt({ grade, lang, items, accepts = [] }) {
+  const also = (k) => (Array.isArray(accepts[k]) ? accepts[k].map((a) => String(a == null ? '' : a).trim()).filter(Boolean) : []);
+  const card = items.map((w, k) => `${k + 1}: ${w}${also(k).length ? ` (also: ${also(k).join(', ')})` : ''}`).join('\n');
+  return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${lang === 'ur' ? 'Urdu' : 'English'} FAMILIAR WORDS task of an EGRA reading test on a phone, wearing headphones. The phone showed ${items.length} separate words ONE AT A TIME, in this order, each for a few seconds (a word list, not a story), and recorded the child reading each word aloud. The phone's own voice may be faintly heard; ignore it.
+Marking rules: a word is correct if the child says that word. ${WORDS_ACCENT} A self-correction counts as correct. A different word, a sounded-out word never put together, or a word passed over while the child keeps going is WRONG. Every position after the last word the child reached is SKIPPED.
+The printed words in order (position: word):
+${card}
+For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s" (skipped / not reached), heard = what the child said for that word ("" if skipped), and conf = your confidence 0-1.
+Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
+}
+
+// sa_r28_no_echo_ur: the one sentence an Urdu questions prompt gains with the switch ON (OFF, the prompt is unchanged)
+const NO_ECHO_UR = 'A repetition of the question, or of the phone\'s own words, is not an answer: if that is all the child says, mark it NO_ANSWER.';
+/** `noEcho` (sa_r28_no_echo_ur ON) adds NO_ECHO_UR to an Urdu prompt; English is unchanged. */
+function questionsPrompt({ lang, task, questions, passage, single, noEcho = false }) {
   const L = lang === 'ur' ? 'Urdu' : 'English';
   const what = task.subtask === 'phoneme_segmentation'
     ? 'says the separate SOUNDS of a word it heard (each sound on its own; the whole word is WRONG)'
@@ -337,7 +421,7 @@ function questionsPrompt({ lang, task, questions, passage, single }) {
       : 'answers questions about a passage the child has just read on the phone';
   const ctx = passage ? `The ${task.kind === 'listen_questions' ? 'story the child heard' : 'passage'}:\n${passage}\n` : '';
   const list = questions.map((q, i) => `${i + 1}. [${q.id}] ${(q.prompt && q.prompt.text) || q.word || ''}\n   accept: ${(q.accept || []).join(' | ') || '-'}\n   reject: ${(q.reject || []).join(' | ') || '-'}\n   rubric: ${q.rubric || (q.phonemes ? `the sounds ${q.phonemes.join(' ')}` : '-')}`).join('\n');
-  return `A child in a Pakistani government school (grade 1-5), alone with a phone and wearing headphones, ${what}, in an ${L} EGRA task. ${single ? 'The clip holds the child\'s answers to the questions below, in order.' : 'The clip holds the child\'s spoken answer to ONE question, the one listed.'} Judge the meaning, in any language or wording: CORRECT if it gives the right information, WRONG if it is incorrect or the child says they do not know, NO_ANSWER if nothing audible is said. Use each item's accepted and rejected answers and rubric.
+  return `A child in a Pakistani government school (grade 1-5), alone with a phone and wearing headphones, ${what}, in an ${L} EGRA task. ${single ? 'The clip holds the child\'s answers to the questions below, in order.' : 'The clip holds the child\'s spoken answer to ONE question, the one listed.'} Judge the meaning, in any language or wording: CORRECT if it gives the right information, WRONG if it is incorrect or the child says they do not know, NO_ANSWER if nothing audible is said. Use each item's accepted and rejected answers and rubric.${noEcho && lang === 'ur' ? ` ${NO_ECHO_UR}` : ''}
 ${ctx}ITEMS:
 ${list}
 Return ONLY JSON: {"questions":[{"id":"<id>","answer":"<the child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}]}`;
@@ -380,6 +464,8 @@ function defaultDeps() {
         return { words: words.length, text: words.map((w) => w.raw).join(' '), said: r.text || '', model: r.model, cost: r.cost, seconds: r.seconds };
       } finally { media.cleanup(file); }
     },
+    // sa_r28_letter_gate's voice check: the clip the model hears, as 16 kHz mono PCM
+    pcmOf: (clip, signal) => require('./voice-activity').pcmOf(clip, signal),
     // sa_r26_voice_strict's second pass: both language hints, no classroom context (scoring/stt transcribePlain)
     speechPlainOf: async (clip, signal) => {
       const fs = require('fs');
@@ -387,6 +473,15 @@ function defaultDeps() {
       fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
       try {
         return await require('../scoring/stt').transcribePlain(file, clip.durationSec, { signal });
+      } finally { media.cleanup(file); }
+    },
+    // sa_r28_voice_help: the plain pass with the speaker split, as turns the help check reads
+    speechTurnsOf: async (clip, signal) => {
+      const fs = require('fs');
+      const file = media.tmpFile('mp3');
+      fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
+      try {
+        return await require('../scoring/stt').transcribePlain(file, clip.durationSec, { signal, diarize: true });
       } finally { media.cleanup(file); }
     },
     // one recording per section: download once, cut each item's stretch
@@ -459,38 +554,57 @@ function usedSeconds(res) {
   return Math.max(1, Math.min(SECONDS, ms / 1000));
 }
 
-async function call(deps, calls, { prompt, schema, clip, job }) {
+async function call(deps, calls, { prompt, schema, clip, job, name = null }) {
   const model = deps.model();
   let r;
   try {
     r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt, schema, audio: { data: clip.base64, format: 'mp3' }, job, maxTokens: 12000, signal }));
   } catch (e) {
-    calls.push({ job, model, cost: null, seconds: round1(limitOf(deps, 'model') / 1000), error: e.reason || 'model_failed' });
+    calls.push({ job, model, cost: null, seconds: round1(limitOf(deps, 'model') / 1000), error: e.reason || 'model_failed', ...(name ? { prompt: name } : {}) });
     throw e;
   }
-  calls.push({ job, model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null });
+  calls.push({ job, model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, ...(name ? { prompt: name } : {}) });
   if (!r.json) { const e = new Error('model_failed'); e.reason = 'model_failed'; throw e; }
   return r.json;
 }
 
 /**
- * The speech gate (CHILD_TEST_SA_SPEECH_GATE): true when the clip is shorter than the minimum speech duration or STT
- * hears no word in it, false when it hears some, null when it cannot say (switch off, STT failed): then the model's
- * verdicts stand as they are. `heard` (when given) gets what STT heard, for the echo check.
+ * The speech gate (CHILD_TEST_SA_SPEECH_GATE), as a reason: 'duration' when the clip is shorter than the minimum speech
+ * duration, 'no_words' when STT hears no word in it, false when it hears some, null when it cannot say (switch off, STT
+ * failed): then the model's verdicts stand as they are. Every caller mutes on any truthy reason. `heard` (when given)
+ * gets what STT heard, for the echo check. `vad` (sa_r28_letter_gate, letter sounds): no STT call; an energy
+ * voice-activity check on the clip (voice-activity.js) decides instead: 'no_voice' when it fails, false when it passes;
+ * the call record says model 'skipped_r28' with the check's numbers, and `heard.vad` gets them. A check that cannot run
+ * leaves the decision to the STT gate as before (never to the model alone).
  */
-async function silent(deps, calls, clip, lang, heard = null) {
+async function silent(deps, calls, clip, lang, heard = null, { vad = false } = {}) {
   if (!gateOn()) return null;
   const dur = Number(clip && clip.durationSec);
   if (Number.isFinite(dur) && dur < minSpeechS()) {
     calls.push({ job: 'child_test.sa_speech_gate', model: 'duration', cost: 0, seconds: 0, error: null, words: 0, clip_s: round1(dur) });
-    return true;
+    return 'duration';
+  }
+  if (vad) {
+    const clipS = Number.isFinite(dur) ? { clip_s: round1(dur) } : {};
+    const t0 = Date.now();
+    try {
+      const pcm = await bounded('vad', limitOf(deps, 'vad'), (signal) => deps.pcmOf(clip, signal));
+      const a = voiceActivity(pcm.samples, pcm.rate);
+      calls.push({ job: 'child_test.sa_speech_gate', model: 'skipped_r28', cost: 0, seconds: round1((Date.now() - t0) / 1000), error: null, ...clipS, vad_voiced_ms: a.voiced_ms, vad_share: a.share, vad_floor_db: a.floor_db, vad_margin_db: a.margin_db, vad_pass: a.pass });
+      if (heard) heard.vad = a;
+      return a.pass ? false : 'no_voice';
+    } catch (e) {
+      calls.push({ job: 'child_test.sa_speech_gate', model: 'skipped_r28', cost: 0, seconds: round1((Date.now() - t0) / 1000), error: `vad_failed: ${String((e && e.message) || e).slice(0, 100)}`, ...clipS });
+      if (e && e.reason === 'timeout') throw e;
+    }
   }
   if (!deps.speechOf) return null;
   try {
     const s = await bounded('stt', limitOf(deps, 'stt'), (signal) => deps.speechOf(clip, lang, signal));
     calls.push({ job: 'child_test.sa_speech_gate', model: s.model || 'stt', cost: s.cost == null ? null : Math.round(s.cost * 1e5) / 1e5, seconds: round1(s.seconds || 0), error: null, words: s.words });
     if (heard && typeof s.text === 'string') heard.text = s.text;
-    return Number.isInteger(s.words) ? s.words === 0 : null;
+    if (heard && Number.isInteger(s.words)) heard.words = s.words;
+    return Number.isInteger(s.words) ? (s.words === 0 ? 'no_words' : false) : null;
   } catch (e) {
     calls.push({ job: 'child_test.sa_speech_gate', model: 'stt', cost: null, seconds: 0, error: String((e && e.message) || e).slice(0, 120) });
     if (e && e.reason === 'timeout') throw e; // no answer is not "STT cannot say": the row is retried
@@ -522,12 +636,30 @@ function echoed(q, g, sttText) {
 /** A clip with no speech: each of its items is not reached (timed) / no answer (questions), conf 0, never correct. */
 const MUTE = { verdict: 'not_reached', heard: '', conf: 0, no_speech: true };
 
-/** Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect). */
-function timedRows(refs, verdictOf) {
+/**
+ * E-11 (behind the r28 switches): what a gate override leaves on the item: the clip's length and how many words STT heard
+ * in it, when STT ran. The transcript itself (stt_text, cut to 80 code points) is kept ONLY where `text` is asked for: the
+ * echo override, where it is the phone's own question by construction. A speech-gate mute or the model's found:false on a
+ * coach-led clip never stores it (an adult's words, a child's name). The model's own answer is added by the caller
+ * (raw_verdict, raw_heard).
+ */
+const sttNote = (heard, clip, { text = false } = {}) => ({
+  ...(clip && Number.isFinite(Number(clip.durationSec)) ? { clip_s: round1(Number(clip.durationSec)) } : {}),
+  ...(heard && Number.isInteger(heard.words) ? { stt_words: heard.words, ...(text ? { stt_text: Array.from(String(heard.text || '')).slice(0, 80).join('') } : {}) } : {}),
+});
+
+/**
+ * Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect).
+ * `presented` (sa_r28_ceiling, an extended grid): the cells the phone presented and counts attempted. A presented cell
+ * with no answer heard is attempted and wrong (EGRA's no-response), reason 'no_response', never not_reached; a no-voice
+ * mute (no_speech) stays not_reached. null (switch OFF, or a task that does not extend): today's rows.
+ */
+function timedRows(refs, verdictOf, { presented = null } = {}) {
   const v = refs.map((_, k) => verdictOf(k));
   let last = 0;
   v.forEach((x, k) => { if (x.verdict !== 'not_reached') last = k + 1; });
-  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: v[k].verdict === 'not_reached' && k < last ? 'wrong' : v[k].verdict, heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}) }));
+  const silentPass = (x, k) => presented != null && k < presented && x.verdict === 'not_reached' && !x.no_speech;
+  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: (v[k].verdict === 'not_reached' && k < last) || silentPass(v[k], k) ? 'wrong' : v[k].verdict, ...(silentPass(v[k], k) ? { reason: 'no_response' } : {}), heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}), ...(v[k].gate || {}) }));
 }
 
 function firstRowStopped(rows, n) {
@@ -535,49 +667,144 @@ function firstRowStopped(rows, n) {
   return rows.slice(0, n).every((r) => r.verdict !== 'correct');
 }
 
-function timedNumbers(rows, res, { stopped, attemptedTo = null }) {
+function timedNumbers(rows, res, { stopped, attemptedTo = null, pending = false, fullMinute = false }) {
   let attempted = 0;
   rows.forEach((r) => { if (r.verdict !== 'not_reached') attempted = r.i; });
   if (attemptedTo != null) attempted = attemptedTo;
   const correct = stopped ? 0 : rows.filter((r) => r.i <= attempted && r.verdict === 'correct').length;
-  const used = usedSeconds(res);
+  // sa_r28_ceiling (C-5): no phone clock → no rate until it is known, never an assumed minute
+  if (pending) return { correct, attempted, per_minute: null, seconds_used: null };
+  // sa_r28_story_minute: a story run that stopped before the last line is rated on the whole minute
+  const used = fullMinute ? SECONDS : usedSeconds(res);
   return { correct, attempted, per_minute: correct ? round1((correct / used) * SECONDS) : 0, seconds_used: round1(used) };
 }
 
-async function scoreGrid(task, rec, row, res, deps, calls, grade) {
-  const items = (rec.grid || []).map(String);
+// sa_r28_letter_gate's scope: letter SOUNDS, by subtask name, never /letter/ (letter names keep the STT gate; a future
+// letter_pick recording is not letters)
+const LETTER_GATE_SUBTASK = 'letter_sound_identification';
+
+/** The phone's clock is missing (or 0): usedSeconds would assume the minute. */
+const noClock = (res) => { const ms = Number(res && res.time_used_ms); return !Number.isFinite(ms) || ms <= 0; };
+
+/**
+ * sa_r28_ceiling (C-5, SPEC v2.1: every timed task): ON, no clock → no rate (rate_pending); OFF, the minute is assumed
+ * as today and the marks say so (seconds_assumed). A result with its clock gets no key.
+ */
+const clockPending = (deps, res) => deps.ceiling === true && noClock(res);
+function clockDetail(pending, res) {
+  if (pending) return { rate_pending: true };
+  return noClock(res) ? { seconds_assumed: true } : null;
+}
+
+/**
+ * sa_r28_ceiling (C-7): a task built with base_n carries the whole published grid; the model is given the items the
+ * child reached, never fewer than today's N (a run that stopped inside today's items is prompted exactly as before).
+ * A task without base_n: the whole list, as today.
+ */
+function shownOf(rec, list, reached) {
+  const base = Number(rec.base_n);
+  if (!(base > 0)) return list;
+  return list.slice(0, Math.max(reached == null ? list.length : reached, base));
+}
+
+/**
+ * sa_r28_ceiling (C.4, C-8): what an extended run's marks add beside today's numbers. of_all: items reached;
+ * of_base / correct_base: today's first N, the fixed anchor the Results ladder reads; seconds_assumed: the phone left
+ * no clock and the minute was assumed. rate_pending (switch ON, C-5): no clock, so no rate. A run that did not go past
+ * today's N gets no new key unless its rate is pending (its marks are today's).
+ */
+function ceilingDetail(rec, rows, numbers, { stopped, pending, res }) {
+  const base = Number(rec.base_n);
+  const extra = pending ? { rate_pending: true } : {};
+  if (!(base > 0)) return clockDetail(pending, res);
+  const right = (r) => !stopped && r.i <= numbers.attempted && r.verdict === 'correct';
+  return {
+    of_all: numbers.attempted,
+    of_base: base,
+    correct_base: rows.filter((r) => r.i <= base && right(r)).length,
+    ...(pending ? extra : noClock(res) ? { seconds_assumed: true } : {}),
+  };
+}
+
+async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate = false, wordsC = false } = {}) {
+  const grid = (rec.grid || []).map(String);
+  const reached = reachedOf(task, res, grid.length);
+  const items = shownOf(rec, grid, reached);
+  // sa_r28_ceiling ON, an extended grid: the cells presented (the 500 ms final-cell rule already applied by reachedOf)
+  const presented = deps.ceiling === true && Number(rec.base_n) > 0 && reached != null ? Math.min(reached, items.length) : null;
   const perRow = Number(rec.per_row) || 10;
   const clip = await clipOf(deps, row.audio_r2_key);
   const letters = /letter/.test(task.subtask || task.task);
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   let rows;
-  const mute = await silent(deps, calls, clip, task.lang);
-  if (mute) rows = timedRows(items, () => MUTE);
+  // sa_r28_letter_gate ON, letter sounds: bare sounds are no word, so a voice-activity check replaces STT's word count;
+  // each item carries the gate's numbers (and the mute's reason) so the cut can be re-made from the stored marks
+  const r28 = letterGate === true && task.subtask === LETTER_GATE_SUBTASK;
+  const heard = {};
+  const mute = await silent(deps, calls, clip, task.lang, heard, { vad: r28 });
+  const gate = r28 ? {
+    ...(Number.isFinite(Number(clip.durationSec)) ? { clip_s: round1(Number(clip.durationSec)) } : {}),
+    ...(heard.vad ? { vad_voiced_ms: heard.vad.voiced_ms, vad_share: heard.vad.share, vad_floor_db: heard.vad.floor_db, vad_margin_db: heard.vad.margin_db, vad_pass: heard.vad.pass } : {}),
+  } : null;
+  // E-11 (sa_r28_letter_gate ON, every other grid task): a mute keeps its reason, the clip's length and STT's words
+  const note = letterGate === true && !r28 ? sttNote(heard, clip) : null;
+  if (mute) rows = timedRows(items, () => (gate || note ? { ...MUTE, gate: { ...(gate || note), reason: mute } } : MUTE));
   else if (letters) {
-    const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time' }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
+    const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time', variantB: r28 }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
-    rows = gateOn() && json.found === false ? timedRows(items, () => MUTE)
-      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+    // E-11: the model's own found:false overrides its marks; ON, each item keeps the model's verdict and what it heard,
+    // under its own reason ('found_false': the third mute cause beside 'duration' and 'no_voice' / 'no_words')
+    const raw = (k) => { const it = by.get(k + 1) || {}; return { raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') }; };
+    rows = gateOn() && json.found === false ? timedRows(items, (k) => (letterGate === true ? { ...MUTE, gate: { ...(gate || note), reason: 'found_false', ...raw(k) } } : MUTE))
+      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf), ...(gate ? { gate } : {}) }; }, { presented });
+  } else if (wordsC === true && task.subtask === WORDS_SUBTASK) {
+    // sa_r28_words_prompt ON: prompt C, per-position answers; the same job (cost / precision series), the prompt named
+    const accepts = items.map((_, k) => ((rec.items || [])[k] || {}).accept);
+    const json = await call(deps, calls, { prompt: wordsPrompt({ grade, lang: task.lang, items, accepts }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_words', name: 'words_c' });
+    const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
+    rows = timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; }, { presented });
   } else {
-    rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
+    rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words', { presented });
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo: reachedOf(task, res, items.length) }), rows, stopped, durationSec: clip.durationSec };
+  const pending = clockPending(deps, res);
+  const numbers = timedNumbers(rows, res, { stopped, attemptedTo: reached == null ? null : Math.min(reached, items.length), pending });
+  return { numbers, rows, stopped, durationSec: clip.durationSec, ceiling: ceilingDetail(rec, rows, numbers, { stopped, pending, res }), ...(r28 ? { letterGate: true } : {}) };
+}
+
+// sa_r28_ceiling (C-7, red team C9): a final cell on show for less than this at time up was presented, not attempted
+const SHORT_LAST_MS = 500;
+
+/**
+ * The phone left its final cell out of what was attempted (sa_r28_ceiling: closed by the clock under 500 ms, so its
+ * last_item_index names the cell before it, null when it was the first). The phone's own word decides, so the
+ * scorer's attempted always equals the phone's; a phone without the rule names the final cell, as today.
+ */
+function shortLast(res) {
+  const c = res.cells[res.cells.length - 1];
+  if (!c || c.how !== 'time_up' || !(Number(c.ms) < SHORT_LAST_MS)) return false;
+  if (!Object.prototype.hasOwnProperty.call(res, 'last_item_index')) return false;
+  return res.last_item_index !== c.i;
 }
 
 /** One item at a time: the phone knows the last cell the child reached (cells[] / last_item_index). */
 function reachedOf(task, res, n) {
   if (task.present !== 'one_at_a_time' || !res) return null;
-  if (Array.isArray(res.cells) && res.cells.length) return Math.min(n, res.cells.length);
+  if (Array.isArray(res.cells) && res.cells.length) return Math.min(n, res.cells.length - (shortLast(res) ? 1 : 0));
   return Number.isInteger(res.last_item_index) ? Math.min(n, res.last_item_index + 1) : null;
 }
 
-function oralPrompt({ lang, task, items, one }) {
+// sa_r28_child_only_answer: the one sentence the spoken-maths prompt gains with the switch ON (OFF, unchanged). An answer
+// that follows an adult's SUPPORT ("louder", "next") keeps its credit; only a number another person said, or a change to
+// it, is discounted, and the item is then marked from what the child said before (the ladder reads as a human grader's).
+const CHILD_ONLY = 'Mark only the child\'s own answer for each item (a self-correction by the child counts). Ignore every other speaker, adult or child: a number said by another person is never the child\'s answer, and a number the child repeats or changes to after another person has said it is not either; mark such an item from what the child said before the other person spoke ("w" if a different number, "s" if nothing). Other words from another person (instructions, encouragement) do not change the mark.';
+/** `childOnly` (sa_r28_child_only_answer ON) adds CHILD_ONLY after the phone's-voice sentence. */
+function oralPrompt({ lang, task, items, one, childOnly = false }) {
   const what = /fluency/.test(task.subtask || '') ? 'quick sums, as many as it can in one minute'
     : /number_id/.test(task.subtask || '') ? 'the NAME of each number shown (e.g. "forty-five" / «پینتالیس» for 45)'
       : 'the answer to each sum shown, worked out in its head';
   const list = items.map((x, i) => `${i + 1}: shown "${x.show}" → correct answer ${x.answer}`).join('\n');
-  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.
+  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.${childOnly ? ` ${CHILD_ONLY}` : ''}
 Marking rules: "c" if the child's final answer for that item is the correct number (a self-correction counts), "w" if it says a different number or "I don't know", "s" if it never reached the item or said nothing for it.
 ITEMS (position: what was shown → the correct answer):
 ${list}
@@ -586,8 +813,10 @@ Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <i
 }
 
 /** Spoken maths (W3: number identification, mental + − ×, one-minute fluency): one clip for the task, or one per item. */
-async function scoreOral(task, rec, row, res, deps, calls) {
-  const items = rec.items || [];
+async function scoreOral(task, rec, row, res, deps, calls, { childOnlyAnswer = false, letterGate = false } = {}) {
+  const list = rec.items || [];
+  const reached = reachedOf(task, res, list.length);
+  const items = shownOf(rec, list, reached);
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   const one = task.present === 'one_at_a_time';
   const got = new Map();
@@ -600,22 +829,31 @@ async function scoreOral(task, rec, row, res, deps, calls) {
   for (const p of parts) {
     const clip = p.clip || await clipOf(deps, p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
-    if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
-    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
+    const heard = {};
+    const mute = await silent(deps, calls, clip, task.lang, heard);
+    // E-11 (sa_r28_letter_gate ON): an override keeps its reason, the clip's length, STT's words and the model's answer
+    const note = letterGate === true ? sttNote(heard, clip) : null;
+    if (mute) { p.at.forEach((k) => got.set(k, { mute: true, ...(note ? { gate: { ...note, reason: mute } } : {}) })); continue; }
+    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one, childOnly: childOnlyAnswer === true }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
     const none = gateOn() && json.found === false;
-    p.at.forEach((k, j) => got.set(k, none ? { mute: true } : by.get(j + 1) || {}));
+    p.at.forEach((k, j) => {
+      const it = by.get(j + 1) || {};
+      got.set(k, none ? { mute: true, ...(note ? { gate: { ...note, reason: 'found_false', raw_verdict: LV[it.v] || 'not_reached', raw_heard: String(it.heard || '') } } : {}) } : it);
+    });
   }
-  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? MUTE : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? (it.gate ? { ...MUTE, gate: it.gate } : MUTE) : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
   rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
   const timed = Number(rec.time_limit_s) > 0;
-  const attemptedTo = reachedOf(task, res, items.length);
-  const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo })
+  const attemptedTo = reached == null ? null : Math.min(reached, items.length);
+  const pending = timed && clockPending(deps, res);
+  const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo, pending })
     : { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length };
-  return { numbers, rows, stopped: false, durationSec, section: Boolean(section) };
+  const ceiling = timed ? ceilingDetail(rec, rows, numbers, { stopped: false, pending, res }) : null;
+  return { numbers, rows, stopped: false, durationSec, section: Boolean(section), ceiling };
 }
 
-async function storyRows(tokens, lang, clip, deps, calls, job) {
+async function storyRows(tokens, lang, clip, deps, calls, job, { presented = null } = {}) {
   /* eslint-disable global-require */
   const prompts = require('../scoring/prompts');
   const { verdictsFrom } = require('../scoring/story');
@@ -623,14 +861,18 @@ async function storyRows(tokens, lang, clip, deps, calls, job) {
   const json = await call(deps, calls, { prompt: prompts.STORY({ lang: lang === 'ur' ? 'urdu' : 'english', tokens }), schema: prompts.STORY_SCHEMA, clip, job });
   const v = verdictsFrom(json, tokens.length);
   const VV = { correct: 'correct', wrong: 'wrong', skipped: 'not_reached' };
-  return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }));
+  return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }), { presented });
 }
 
-async function scorePassage(task, rec, row, res, deps, calls) {
+async function scorePassage(task, rec, row, res, deps, calls, { letterGate = false, storyMinute = false } = {}) {
   const p = rec.passage || {};
   const tokens = Array.isArray(p.words) && p.words.length ? p.words.map((w) => String(w.target)) : String(p.text || '').split(/\s+/).filter(Boolean);
   const clip = await clipOf(deps, row.audio_r2_key);
-  const rows = (await silent(deps, calls, clip, task.lang)) ? timedRows(tokens, () => MUTE)
+  const heard = {};
+  const mute = await silent(deps, calls, clip, task.lang, heard);
+  // E-11 (sa_r28_letter_gate ON): a mute keeps its reason, the clip's length and STT's words
+  const note = mute && letterGate === true ? { ...sttNote(heard, clip), reason: mute } : null;
+  const rows = mute ? timedRows(tokens, () => (note ? { ...MUTE, gate: note } : MUTE))
     : await storyRows(tokens, task.lang, clip, deps, calls, 'child_test.sa_story');
   // RULING #2: the child taps the last word read; words after it were not attempted
   const tapped = res && Number.isInteger(res.last_word_index) ? Math.min(tokens.length, res.last_word_index + 1) : null;
@@ -642,7 +884,39 @@ async function scorePassage(task, rec, row, res, deps, calls) {
   const tapper = res && typeof res.last_word_how === 'string' ? 'coach' : fromRecording ? 'child' : null;
   const lastWord = tapper ? lastWordOf(rows, tapped, p.lines, tapper) : null;
   const attemptedTo = lastWord ? lastWord.attempted : tapped;
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord };
+  const pending = clockPending(deps, res);
+  let numbers = timedNumbers(rows, res, { stopped, attemptedTo, pending });
+  const minute = storyMinute === true ? minuteOf(numbers, res, p.lines, tokens.length, { stopped, pending }) : null;
+  // a time-up run already used the minute: its clock stands, exactly as before
+  if (minute === 'full_60' && res.stop_reason !== 'time_up') numbers = timedNumbers(rows, res, { stopped, attemptedTo, pending, fullMinute: true });
+  const clock = clockDetail(pending, res);
+  return { numbers, rows, stopped, durationSec: clip.durationSec, tapped, lastWord, ceiling: minute ? { ...(clock || {}), minute } : clock };
+}
+
+/**
+ * sa_r28_story_minute: the first word (1-based) of the passage's last printed line, from the variant's own line table
+ * ({ from, to } word ranges, 0-based). Without a table, the convention lastWordOf uses: 10 words a line.
+ */
+function lastLineStart(lines, n) {
+  const last = Array.isArray(lines) && lines.length ? lines[lines.length - 1] : null;
+  if (last && Number.isInteger(last.from) && last.from >= 0) return last.from + 1;
+  return n > 0 ? Math.floor((n - 1) / 10) * 10 + 1 : 1;
+}
+
+/**
+ * sa_r28_story_minute: which minute a story run is rated on. 'last_line_reached': the scorer's attempted count reaches
+ * the last line's first word, or the phone's last-word index (0-based) does; the phone's clock is used.
+ * 'full_60': neither does, so the rate is taken over the whole minute. null (no stamp, nothing changes): a run without a
+ * rate (the clock pending, or no clock at all), a first-line stop (by the phone or by the scorer: no words count).
+ * A time-up run keeps its clock, which is the minute, and is stamped 'full_60'.
+ */
+function minuteOf(numbers, res, lines, n, { stopped, pending }) {
+  const why = res && res.stop_reason;
+  if (pending || noClock(res) || stopped || why === 'early_stop_first_line') return null;
+  if (why === 'time_up') return 'full_60';
+  const L = lastLineStart(lines, n);
+  const tappedTo = res && Number.isInteger(res.last_word_index) ? res.last_word_index : -1;
+  return numbers.attempted >= L || tappedTo >= L - 1 ? 'last_line_reached' : 'full_60';
 }
 
 /**
@@ -665,7 +939,13 @@ function lastWordOf(rows, tapped, lines, tapper = 'coach') {
   return { attempted: useCoach ? tapped : heard, heard, source: useCoach ? tapper : 'recording', check: tapped == null ? null : differ ? 'differ' : 'agree' };
 }
 
-async function scoreQuestions(task, rec, row, res, deps, calls) {
+async function scoreQuestions(task, rec, row, res, deps, calls, { noEchoUr = false, letterGate = false } = {}) {
+  // sa_r28_no_echo_ur ON, an Urdu task: no echo check (the prompt asks the model to judge a repeated question)
+  const noEcho = noEchoUr === true && task.lang === 'ur';
+  const echo = (q, g, text) => !noEcho && echoed(q, g, text);
+  // E-11: a mute (sa_r28_letter_gate ON) or an echo zero (sa_r28_no_echo_ur ON) keeps what was overridden
+  const muteNote = (why, stt, clip) => (letterGate === true ? { gate: { ...sttNote(stt, clip), reason: why } } : {});
+  const echoNote = (g, stt, clip) => (noEchoUr === true ? { gate: { raw_verdict: g.verdict, raw_heard: String(g.answer || ''), ...sttNote(stt, clip, { text: true }) } } : {});
   const all = rec.questions || [];
   const asked = res && Array.isArray(res.asked) && res.asked.length ? res.asked : all.map((q) => q.id);
   const qs = asked.map((id) => all.find((q) => q.id === id)).filter(Boolean);
@@ -679,27 +959,29 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
       if (!(section ? section.has(q.id) : k)) continue; // no clip (or stretch) for this question: no answer heard
       const clip = section ? section.get(q.id) : await clipOf(deps, k.key);
       const stt = {};
-      if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
-      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
+      const why = await silent(deps, calls, clip, task.lang, stt);
+      if (why) { marked.set(q.id, { mute: true, ...muteNote(why, stt, clip) }); continue; }
+      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false, noEcho }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       const got = (json.questions || [])[0];
-      if (got) marked.set(q.id, echoed(q, got, stt.text) ? { mute: true, echo: true } : got);
+      if (got) marked.set(q.id, echo(q, got, stt.text) ? { mute: true, echo: true, ...echoNote(got, stt, clip) } : got);
     }
   } else if (row.audio_r2_key) {
     const clip = await clipOf(deps, row.audio_r2_key);
     const stt = {};
-    if (await silent(deps, calls, clip, task.lang, stt)) qs.forEach((q) => marked.set(q.id, { mute: true }));
+    const why = await silent(deps, calls, clip, task.lang, stt);
+    if (why) qs.forEach((q) => marked.set(q.id, { mute: true, ...muteNote(why, stt, clip) }));
     else {
-      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
+      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true, noEcho }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       for (const g of json.questions || []) {
         const q = qs.find((x) => x.id === g.id);
-        marked.set(g.id, q && echoed(q, g, stt.text) ? { mute: true, echo: true } : g);
+        marked.set(g.id, q && echo(q, g, stt.text) ? { mute: true, echo: true, ...echoNote(g, stt, clip) } : g);
       }
     }
   }
   const rows = qs.map((q, k) => {
     const g = marked.get(q.id);
     const clip = keys.some((x) => x.i === q.id) || Boolean(row.audio_r2_key);
-    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip, ...(g.echo ? { echo: true } : {}) };
+    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip, ...(g.echo ? { echo: true } : {}), ...(g.gate || {}) };
     return { i: k + 1, id: q.id, verdict: g ? g.verdict : 'no_answer', heard: g ? String(g.answer || '') : '', conf: g ? conf01(g.confidence) : null, clip };
   });
   return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false, section: Boolean(section) };
@@ -738,6 +1020,9 @@ Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none",
 // second pass, 0.4 kept no false alarm and 14-16 of 16 real adults; 0.35 kept 15-16 with no false alarm but only 0.03
 // above the highest; 0.3 kept all 16 and let one false alarm back.
 const QUOTE_MIN = 0.4;
+// sa_r28_voice_help: the model copies its quote from the transcript it was given, so it must be there almost whole
+// (replays over 311 hand-labelled transcripts: the true help quotes all matched at 0.6 and above)
+const HELP_QUOTE_MIN = 0.6;
 
 /**
  * sa_r26_voice_strict: do the other person's words, as the model gave them, stand in what speech-to-text heard in the
@@ -805,6 +1090,46 @@ async function voiceOf(deps, calls, clip, key, { strict = false, speech = null, 
   return { key, heard: rec.second_voice };
 }
 
+/**
+ * sa_r28_voice_help: did anyone but the child HELP in this clip? { key, heard: true | false | null (not checked),
+ * label, kind, reason }. One plain diarized transcript; no word heard: none, no model call. Else a text model labels
+ * the transcript beside the task (sa/voice-help.js); help / other_child stand only when their quote is in the
+ * transcript. The call record keeps the label, kind and why, never the quote.
+ */
+async function voiceHelpOf(deps, calls, clip, key, { task, turns } = {}) {
+  const dur = Number(clip && clip.durationSec);
+  if (Number.isFinite(dur) && dur < minSpeechS()) return { key, heard: false, label: 'none' };
+  const model = deps.model();
+  const rec = { job: 'child_test.sa_second_voice', model, cost: null, seconds: 0, error: null, voice_check: null, label: null };
+  let tx;
+  try {
+    tx = await turns();
+  } catch (e) {
+    calls.push({ ...rec, error: (e && e.reason) || 'stt_failed' });
+    return { key, heard: null };
+  }
+  rec.stt_words = tx && Number.isInteger(tx.words) ? tx.words : null;
+  if (tx && Number.isFinite(tx.cost)) rec.stt_cost = tx.cost;
+  if (!tx || !tx.words) {
+    calls.push({ ...rec, label: 'none', second_voice: false, voice_check: 'no_words' });
+    return { key, heard: false, label: 'none' };
+  }
+  let r;
+  try {
+    r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: VH.promptOf(task, tx.turns || tx.text), schema: VH.SCHEMA, job: 'child_test.sa_second_voice', maxTokens: VOICE_MAX_TOKENS, signal }));
+  } catch (e) {
+    calls.push({ ...rec, error: (e && e.reason) || 'model_failed' });
+    return { key, heard: null };
+  }
+  const heardText = [tx.turns, tx.text].filter((t) => typeof t === 'string' && t).map((t) => ensureNoDevanagari(t));
+  const quoteHeard = (q) => bare(ensureNoDevanagari(q)).length >= 2 && heardText.some((h) => within(ensureNoDevanagari(q), h) >= HELP_QUOTE_MIN);
+  const d = VH.decide(r.json, quoteHeard);
+  Object.assign(rec, { cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, ...(r.detail ? { detail: r.detail } : {}), label: d.label, kind: d.kind || null, who: (r.json && r.json.who) || null, second_voice: d.flag, voice_check: d.why });
+  calls.push(rec);
+  if (d.flag === null) return { key, heard: null };
+  return { key, heard: d.flag, label: d.label, kind: d.kind, reason: d.flag ? VH.matchedWords(r.json.evidence, task) : '' };
+}
+
 let LETTERS_SCHEMA_CACHE = null;
 function LETTERS_SCHEMA() {
   if (!LETTERS_SCHEMA_CACHE) {
@@ -814,8 +1139,13 @@ function LETTERS_SCHEMA() {
   return LETTERS_SCHEMA_CACHE;
 }
 
-/** The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story. */
-const passageOf = (block) => String(block || '').replace('_comp', '');
+/**
+ * The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story; sa_r28_mcq: the
+ * story's questions picked from four follow it too (ur.story_mcq_w3 → ur.story_w3).
+ */
+const passageOf = (block) => String(block || '').replace(/_(comp|mcq)/, '');
+/** sa_r28_mcq: the story's questions picked from four (a tap task the phone counts; only served with the switch ON). */
+const isMcq = (block) => /_mcq/.test(String(block || ''));
 
 /**
  * EGRA's first row (sa_stop_rules) for a letters / words grid that carries no stop of its own, only when the grid is
@@ -862,12 +1192,76 @@ function gateMul(out) {
 }
 
 /**
+ * sa_r28_mcq: the story's questions picked from four take the oral questions' reading floor. Their marks are the
+ * phone's count (sa-store.js phoneMarks), written here once the passage's marks are known so the gate can be applied:
+ *   gated (compGate: 'first_line' | 'under_10_words'): not reached, 0 of the questions, as the oral questions; the
+ *     phone's answers kept whole in detail.raw and per question in raw_verdict ('correct' | 'wrong')
+ *   passed: the phone's marks stand, with gate_checked: true and stop_why: null (checked, not gated)
+ *   no passage marks (none recorded, or failed for good): the phone's marks stand, gate_checked: false
+ *   unrated (too few questions presented): the phone's marks, never gated (an unrated part is absent from the ladder)
+ */
+function mcqMarks(row, session) {
+  const res = resultOf(row) || {};
+  const phone = require('../sa-store').phoneMarks({ ...res, mode: 'tap' }); // eslint-disable-line global-require
+  const answers = (row.responses || []).filter((x) => x && x.kind === 'answer').map(({ kind, ...a }) => a); // eslint-disable-line no-unused-vars
+  const ofAll = Number.isFinite(res.of_all) ? res.of_all : null;
+  const of = ofAll === null ? null : Math.max(0, ofAll - (Number(res.unavailable) || 0));
+  const asked = Array.isArray(res.asked) ? res.asked.filter((q) => typeof q === 'string') : [];
+  const base = { version: VERSION, task: row.block };
+  if (res.unrated === true) return { ...base, ...phone, detail: { kind: 'mcq', unrated: true, of_all: ofAll } };
+  const passage = session.passages ? session.passages.get(passageOf(row.block)) : null;
+  const known = Boolean(passage) && !passage.pending;
+  const why = known ? compGate(passage) : null;
+  if (!why) {
+    return { ...base, correct: phone.tap_correct, of, ...phone, detail: { kind: 'mcq', stopped_by_rule: false, gate_checked: known, stop_why: null, of_all: ofAll, of_asked: asked.length } };
+  }
+  const verdictOf = (id) => { const a = answers.find((x) => x.item_id === id); return a ? (a.ok === true ? 'correct' : 'wrong') : null; };
+  return {
+    ...base,
+    correct: 0,
+    of,
+    tap_correct: 0,
+    tap_attempted: phone.tap_attempted,
+    options_n: phone.options_n,
+    chance_corrected: phone.chance_corrected === null ? null : 0,
+    stop_reason: phone.stop_reason,
+    detail: {
+      kind: 'mcq',
+      stopped_by_rule: true,
+      stop_detail: 'comprehension',
+      stop_why: why,
+      gated: true,
+      of_all: ofAll,
+      of_asked: 0,
+      items: asked.map((id, k) => ({ i: k + 1, id, verdict: 'not_reached', heard: '', conf: null, stop_rule: true, gated: true, raw_verdict: verdictOf(id) })),
+      raw: { tap_correct: phone.tap_correct, tap_attempted: phone.tap_attempted, answers },
+    },
+  };
+}
+
+/**
+ * sa_r28_voice_help's fields beside second_voice: the first flagged clip's kind ('help' | 'other_child') and its matched
+ * item words; other_voice the strongest non-flag label heard ('unclear' over 'support'; null when none); voice_check.
+ */
+function helpDetail(heard) {
+  const flagged = heard.find((v) => v.heard === true);
+  const rest = heard.filter((v) => v.heard === false).map((v) => v.label);
+  return {
+    ...(flagged ? { second_voice_kind: flagged.label === 'other_child' ? 'other_child' : 'help', second_voice_reason: flagged.reason || '' } : {}),
+    other_voice: rest.includes('unclear') ? 'unclear' : rest.includes('support') ? 'support' : null,
+    voice_check: 'r28',
+  };
+}
+
+/**
  * One SA task's row → marks. { ok: true, marks } | { ok: false, reason, retry }.
  * `wait` (not an error): a questions task whose clips are still arriving.
  */
 async function scoreRow(row, session, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const res = resultOf(row);
+  // sa_r28_mcq: the questions picked from four are the phone's count through the oral questions' reading floor
+  if (isMcq(row.block) && res && res.mode === 'tap') return { ok: true, marks: { ...mcqMarks(row, session), meta: { seconds: 0, cost_usd: 0, calls: [] } } };
   // A W3 task (w3: true in the bank) is scored from the battery the phone ran: its items carry show + answer.
   // sa_r8_variant_wait: the variant the phone showed, when it left word of it (null: the switch is off or no variants)
   const shown = session.variantWait === true ? shownVariant(session, row, d.phoneBattery) : null;
@@ -886,7 +1280,19 @@ async function scoreRow(row, session, deps = {}) {
   // check share one speech-to-text call per clip (the gate's, when it ran; else the check makes its own).
   // the switch's value: true (the default bar) or a number from 0.2 to 0.9 (that bar)
   const strictValue = voiceStrictSwitch.valueOf(d.voiceStrict);
-  const strict = Boolean(voices) && strictValue !== false;
+  // sa_r28_letter_gate (the sweep reads the setting; true only)
+  const letterGate = letterGateSwitch.valueOf(d.letterGate);
+  // sa_r28_voice_help: help, not support; it takes the place of the audio check and of the stricter one
+  const help = Boolean(voices) && voiceHelpSwitch.valueOf(d.voiceHelp) && Boolean(d.speechTurnsOf);
+  // sa_r28_no_echo_ur (the sweep reads the setting; true only)
+  const noEchoUr = noEchoUrSwitch.valueOf(d.noEchoUr);
+  // sa_r28_child_only_answer (the sweep reads the setting; true only)
+  const childOnlyAnswer = childOnlySwitch.valueOf(d.childOnlyAnswer);
+  // sa_r28_words_prompt (the sweep reads the setting; true only)
+  const wordsC = wordsPromptSwitch.valueOf(d.wordsPrompt);
+  // sa_r28_story_minute (the sweep reads the setting; true only)
+  const storyMinute = storyMinuteSwitch.valueOf(d.storyMinute);
+  const strict = Boolean(voices) && !help && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
     const stt = d.speechOf;
@@ -902,13 +1308,16 @@ async function scoreRow(row, session, deps = {}) {
     : {});
   if (voices) {
     const fetch = d.clipOf;
-    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(voiceOf(d, calls, clip, key, voiceOpts(clip))); return clip; };
+    const check = (clip, key) => (help
+      ? voiceHelpOf(d, calls, clip, key, { task, turns: () => bounded('stt', limitOf(d, 'stt'), (signal) => d.speechTurnsOf(clip, signal)) })
+      : voiceOf(d, calls, clip, key, voiceOpts(clip)));
+    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(check(clip, key)); return clip; };
     // a section recording is cut per item for the marks; the voice check hears it whole, once
     const cut = d.sliceOf;
     if (cut) {
       d.sliceOf = async (key, windows, signal) => {
         const clips = await cut(key, windows, signal);
-        voices.push(fetch(key, signal).then((clip) => voiceOf(d, calls, clip, key, voiceOpts(clip)), () => ({ key, heard: null })));
+        voices.push(fetch(key, signal).then((clip) => check(clip, key), () => ({ key, heard: null })));
         return clips;
       };
     }
@@ -917,10 +1326,10 @@ async function scoreRow(row, session, deps = {}) {
     let out;
     const gate = compGate(passage);   // null unless sa_stop_rules
     if (gate) out = notReached(rec, res, gate);
-    else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3);
-    else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
-    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls);
-    else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls);
+    else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate, wordsC });
+    else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls, { letterGate, storyMinute });
+    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls, { childOnlyAnswer, letterGate });
+    else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr, letterGate });
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
     if (stops && row.block === MUL && session.sums && session.sums.known && !session.sums.right) out = gateMul(out);
     const confidence = mean(out.rows.map((r) => r.conf));
@@ -953,8 +1362,11 @@ async function scoreRow(row, session, deps = {}) {
           ...(out.tapped != null ? { last_word_tapped: out.tapped } : {}),
           ...(out.lastWord ? { last_word_source: out.lastWord.source, last_word_heard: out.lastWord.heard, ...(out.lastWord.check ? { last_word_check: out.lastWord.check } : {}) } : {}),
           ...(out.section ? { section: true } : {}),
+          ...(out.letterGate ? { letter_gate: 'r28' } : {}),
+          ...(out.ceiling || {}),
           confidence,
           ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
+          ...(heard && help ? helpDetail(heard) : {}),
           ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
           items: out.rows,
         },
@@ -972,10 +1384,18 @@ function ready(row, session, nowMs) {
   const res = resultOf(row);
   if (!res) return false;
   // sa_stop_rules: questions wait for their passage's marks (a passage stopped on line 1 means they were not reached)
-  // a row never waits on itself: only a `_comp` names another block (its passage)
+  // a row never waits on itself: only a `_comp` (or, sa_r28_mcq, an `_mcq`) names another block (its passage)
   const own = passageOf(row.block) === row.block;
-  const passage = !own && session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
-  if (passage && passage.pending) return false;
+  // sa_r28_mcq: the questions picked from four wait for their passage's marks too (the reading floor is applied on them)
+  const waits = session.stopRules === true || (session.mcqFloor === true && isMcq(row.block));
+  const passage = !own && waits && session.passages ? session.passages.get(passageOf(row.block)) : null;
+  if (passage && passage.pending) {
+    // sa_r28_mcq: a passage whose recording never came (not parked) is awaited only until a while after the LATER of the
+    // session's end and this row's own arrival (an offline session synced hours later still waits from its sync)
+    const ended = Date.parse(session.finished_at || session.client_finished_at || '') || 0;
+    const anchor = ended > 0 ? Math.max(ended, Date.parse(row.updated_at || '') || 0) : 0;
+    if (!(passage.unparked && anchor > 0 && nowMs - anchor > WAIT_FOR_CLIPS_MS)) return false;
+  }
   // sa_r8_variant_wait: a rotated passage waits for its questions row (the variant the phone showed), not past the
   // session's end or VARIANT_WAIT_MS
   if (session.variantWait === true && own && shownVariant(session, row) === undefined) {
@@ -1019,8 +1439,11 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
   if (error) { logError('child_test.sa_score.scan_failed', { error: error.message }); return []; }
   const nowMs = now.getTime();
   return (data || []).filter((r) => {
-    if (!TASK_RE.test(String(r.block || '')) || !hasAudio(r)) return false;
-    if (envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
+    // sa_r28_mcq: the questions picked from four have no recording (a tap task); the store parks them for the floor only
+    // with the switch ON, so a parked one is admitted whatever the switch reads now (a flip to OFF never strands it)
+    const tapMcq = isMcq(r.block) && !hasAudio(r);
+    if (!TASK_RE.test(String(r.block || '')) || !(hasAudio(r) || tapMcq)) return false;
+    if (!tapMcq && envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
     if (r.ai_reason.startsWith(WAIT_BANK)) return nowMs - Date.parse(r.updated_at || 0) >= bankBackoffMs(attemptOf(r.ai_reason, WAIT_BANK));
     if (!r.ai_reason.startsWith(SCORING) || LIVE.has(r.ai_reason) || r.ai_reason === MINE) return false;
@@ -1056,13 +1479,18 @@ async function passagesOf(sessionId, supabase) {
   const { data } = await supabase.from('child_test_blocks').select('block, ai_marks, ai_status, ai_reason').eq('session_id', sessionId);
   const out = new Map();
   const followed = new Set((data || []).map((r) => r.block).filter((b) => passageOf(b) !== b).map(passageOf));
+  // sa_r28_mcq: the passages a questions-picked-from-four row follows
+  const byMcq = new Set((data || []).map((r) => r.block).filter(isMcq).map(passageOf));
   for (const r of data || []) {
     const m = r.ai_marks;
     const kind = m && m.detail ? m.detail.kind : null;
     if (m ? kind !== 'passage' : !followed.has(r.block)) continue;
     const reason = String(r.ai_reason || '');
     const pending = !m && reason.startsWith('final:sa_') && !reason.startsWith(FAILED);
-    if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null });
+    // sa_r28_mcq: an MCQ's passage is awaited before its recording has arrived too (not parked yet), so the MCQ is
+    // never marked ahead of the marks its floor reads; ready() bounds that wait by the session's end
+    const unparked = !m && !pending && byMcq.has(r.block) && !reason.startsWith(FAILED) && r.ai_status !== 'failed';
+    if (m || pending || unparked) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending: pending || unparked, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null, ...(unparked ? { unparked: true } : {}) });
   }
   return out;
 }
@@ -1160,6 +1588,14 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const stopRules = await stopRulesSwitch.enabled(deps);
   const variantWait = await variantWaitSwitch.enabled(deps);
   const voiceStrict = await voiceStrictSwitch.enabled(deps);
+  const letterGate = await letterGateSwitch.enabled(deps);
+  const voiceHelp = await voiceHelpSwitch.enabled(deps);
+  const noEchoUr = await noEchoUrSwitch.enabled(deps);
+  const childOnlyAnswer = await childOnlySwitch.enabled(deps);
+  const ceiling = await ceilingSwitch.enabled(deps);
+  const mcqFloor = await mcqSwitch.enabled(deps);
+  const wordsPromptOn = await wordsPromptSwitch.enabled(deps);
+  const storyMinuteOn = await storyMinuteSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1176,6 +1612,10 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
       if (s) { s.askedBy = await askedByOf(row.session_id, supabase); s.asked = [...s.askedBy.values()].flat(); s.variantWait = variantWait; }
       if (s) s.lastWordFromRecording = await coachLastWord.enabled(deps, s.coach_user_id || null, supabase);
       if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
+      // sa_r28_mcq: the questions picked from four read their passage's marks (the reading floor), stop rules or not; a
+      // parked MCQ row in the queue is proof the switch was ON at its sync, so its session waits the same way
+      const parkedMcq = rows.some((r) => r.session_id === row.session_id && isMcq(r.block) && !hasAudio(r));
+      if (s && (mcqFloor || parkedMcq)) { s.mcqFloor = true; if (!s.passages) s.passages = await passagesOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
     }
     const session = sessions.get(row.session_id);
@@ -1196,7 +1636,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, lastWordFromRecording: session.lastWordFromRecording === true });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer, ceiling, wordsPrompt: wordsPromptOn, storyMinute: storyMinuteOn });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1232,5 +1672,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, corroborated, keysOf, defaultDeps },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks, wordsPrompt, WORDS_ACCENT, lastLineStart, minuteOf },
 };
