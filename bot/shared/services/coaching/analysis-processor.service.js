@@ -152,6 +152,7 @@ class AnalysisProcessorService {
       // bd-r2uzg1.18.9 (HITL row 186): a coach's recording is analysed ONCE, also when its analysis starts late (a
       // failed job retried after she re-sent the recording; two sends of the same file a second apart). The same
       // check the transcription worker runs (bd-erpvf), asked again here. Fails OPEN like it.
+      // bd-r2uzg1.18.15: a teacher's own recording too — a copy re-sent while the first was in flight.
       if (await this._refuseIfAlreadyAnalysed(session, from)) return { skipped: 'duplicate' };
 
       // Update status
@@ -683,13 +684,24 @@ class AnalysisProcessorService {
   /**
    * bd-r2uzg1.18.9 — audio-hash-cache.refuseIfAlreadyAnalysed, wired exactly like the transcription worker's check
    * (TranscriptionProcessorService.observeRefusalDeps: one wiring, the same message, the same /observe2 form release).
+   * bd-r2uzg1.18.15 — and a teacher's own recording (DC), wired with TranscriptionProcessorService.dcDuplicateDeps.
    * @returns {Promise<boolean>} true when the observation was closed as a duplicate and must not be analysed
    */
   static async _refuseIfAlreadyAnalysed(session, from) {
-    if (!session || session.observation_type !== 'leader_observation') return false;
+    if (!session) return false;
+    const dc = !session.observation_type;
+    if (!dc && session.observation_type !== 'leader_observation') return false;
     try {
       const Cache = require('./audio-hash-cache');
       const TranscriptionProcessorService = require('./transcription-processor.service');
+      // bd-r2uzg1.18.15 — her own recording: the same hook, her copies (the later-created of two copies in flight
+      // yields; an earlier completed copy is reused). The transcription worker's DC wiring, one copy of it.
+      if (dc) {
+        return await Cache.refuseIfAlreadyAnalysed(session, {
+          ...TranscriptionProcessorService.dcDuplicateDeps(session, from),
+          quiet: require('./portal-coaching.service').isPortalTeacherSession(session),
+        });
+      }
       return await Cache.refuseIfAlreadyAnalysed(session, {
         ...TranscriptionProcessorService.observeRefusalDeps(session, session.id),
         from,
