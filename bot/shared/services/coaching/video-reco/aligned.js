@@ -271,7 +271,8 @@ function gradeOk(module, lesson) {
  * still binds. ask_for_reasoning (9/40), activate_prior_knowledge (25/40), inquiry_opening (3/10), open_questions and
  * attention_cue (too few pairs) keep the gate.
  */
-const GATE_FREE = new Set(['think_pair_share', 'follow_up_probe']);
+// wait_time (39/40 = 97.5%) only together with the 790-s3 near-miss exclusion (NEAR_MISS above), as the COS ruled
+const GATE_FREE = new Set(['think_pair_share', 'follow_up_probe', 'wait_time']);
 
 /** lib's §B contract on one chapter (the shown move, not the moves it is about). */
 function contractOk(module, seg, move) {
