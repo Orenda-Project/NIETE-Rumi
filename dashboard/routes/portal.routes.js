@@ -1848,6 +1848,12 @@ router.get('/analytics/scope', requirePortalAuth, requireAnalyticsViewer, async 
   }
 });
 
+// The team view "Where teachers get to" (LP tab, Primary): the activity store only, this file's guard and scope;
+// dark unless portal_teacher_journey names the account (routes/portal-analytics-journey.routes.js).
+router.use(require('./portal-analytics-journey.routes').createAnalyticsJourneyRouter({
+  supabase, requirePortalAuth, requireAnalyticsViewer, analyticsScope,
+}));
+
 /**
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
  *
