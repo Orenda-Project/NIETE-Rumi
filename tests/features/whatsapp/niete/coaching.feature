@@ -1128,6 +1128,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   Scenario: A teacher who already watched the wait-time clip gets a second one from a different video
     Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
     And I was already shown the wait-time clip
+    And my lesson is a subject and grade that second clip was made for
     When my next report asks me again to wait a few seconds after a question
     Then the clip is a wait-time chapter from a different video, where a teacher gives 10 seconds to think and no one calls out
     And the reason names what my report asked and what this clip shows
@@ -1139,6 +1140,24 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When my coaching report arrives
     Then it has no clip message, no clip on the image and no clip card
     And the video recommendation row for that session says framework_unsupported with the form's name
+
+  # R9d route (a) (bd-tp4w7n.6, COS 20261119T215752; ped-align r9a 259/343 at #5202): a later visit (a teacher already
+  # shown a clip) gets a clip only for the card's main step, within the clip's subject and grade, and
+  # VIDEO_RECO_LATER_VISITS=false stops later-visit clips. Units: the R9d block of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @negative @P1 @COA109
+  Scenario: After my first clip, a wait tacked onto another step gets no wait-time clip
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
+    And I was already shown a clip
+    When my next report asks me to ask "why?" and then wait a few seconds
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA110
+  Scenario: With later visits switched off, a teacher who already got a clip gets no other
+    Given VIDEO_RECO_ALIGNED is on and VIDEO_RECO_LATER_VISITS is false for the NIETE sandbox bot
+    And I was already shown a clip
+    When my next report asks me to wait a few seconds after a question
+    Then my report arrives with no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says aligned:later_off
 
   @e2e @draft @P2
   Scenario: The chapter's close-out lessons are named for what they are in the lesson list
