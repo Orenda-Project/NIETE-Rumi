@@ -508,15 +508,16 @@ describe('R9d · later visits', () => {
   });
 
   describe('wait time only as the main step', () => {
-    test('a why-question card with a wait tacked on: 95-s1 shown, then silence (never 790-s3 for the wait)', async () => {
-      expect((await run({ action: WHY_WAIT, env: on15 })).row.seg_id).toBe('95-s1');
-      const { row } = await run({ action: WHY_WAIT, env: on15, history: after('95-s1') });
+    test('a why-after-an-answer card with a wait tacked on: 782-s1 shown, then silence (never 790-s3 for the wait)', async () => {
+      expect((await run({ action: WHY_WAIT, env: on15 })).row.seg_id).toBe('782-s1');
+      const { row } = await run({ action: WHY_WAIT, env: on15, history: after('782-s1') });
       expect(row.seg_id).toBeNull();
       expect(row.status).toBe('none');
     });
     test('…the same in Urdu: a why-question with a wait after it, at a later visit', () => {
       const card = "اگلی کلاس میں جب کوئی بچہ ایک لفظ میں جواب دے، تو 'کیوں؟' پوچھیں اور 5-7 سیکنڈ کا wait time دیں۔";
-      expect(A.classifyAsks(card, { later: true })).toEqual([]);
+      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['follow_up_probe', 'wait_time']);
+      expect(A.classifyAsks(card, { later: true }).map((x) => x.move)).toEqual(['follow_up_probe']);
     });
     test('a wait-only card is still served at a later visit, inside the gates', async () => {
       const { row } = await run({ action: WAIT, env: on15, history: after('791-s2') });
