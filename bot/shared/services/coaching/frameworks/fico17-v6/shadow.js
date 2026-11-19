@@ -256,7 +256,10 @@ async function storeLate(task, stored, sessionId, opts = {}) {
   if (!blob) return { started: true, ok: false, why: 'no result' };
   const LateWrite = require('./late-write');
   const key = Object.keys(patch(blob))[0];
-  const res = await LateWrite.patchSession(sessionId, LateWrite.dcFico17V6(key, stored, { ...blob, late: true }), { ...opts, label: 'DC v6 after the grace' });
+  // The on-time read goes through the analysis write's Urdu-script guard; the late one is written here.
+  const { urduScriptOnly } = require('../../urdu-script-only');
+  const late = urduScriptOnly({ ...blob, late: true }, 'fico17_v6_late', { coachingSessionId: sessionId });
+  const res = await LateWrite.patchSession(sessionId, LateWrite.dcFico17V6(key, stored, late), { ...opts, label: 'DC v6 after the grace' });
   logToFile('[fico17-v6 shadow] the read that timed out has landed', { coachingSessionId: sessionId, status: blob.status, key, ...res }, res.ok ? 'info' : 'warn');
   return { started: true, ...res };
 }
