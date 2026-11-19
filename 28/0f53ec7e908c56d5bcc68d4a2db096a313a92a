@@ -5,3 +5,4 @@
 {"ts":"2026-11-19T16:37:53Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"d3fbe650-89b2-43fe-b555-e5dbb556f0ee","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
 {"ts":"2026-11-19T16:50:52Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks engine=2.1.1","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
 {"ts":"2026-11-19T17:11:56Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-19T17:12:01Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.56.1-05633: E-NODRIVER:coaching","sha":"280f53ec7e90","branch":"bd-snkn32.56.1-05633","user":""}
