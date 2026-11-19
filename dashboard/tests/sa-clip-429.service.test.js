@@ -32,6 +32,8 @@ function worker(fail = []) {
   const asked = [];
   const sw = {
     postMessage(msg, [port]) {
+      // round 28: the stamp's own 'held' ask (where the clips are) is not a prepare
+      if (msg.type === 'held') { port.postMessage({ sw: null, session: null }); return; }
       asked.push(msg.urls);
       const missing = msg.urls.filter((u) => fail.includes(u));
       port.postMessage({ ok: missing.length === 0, cached: msg.urls.length - missing.length, missing });

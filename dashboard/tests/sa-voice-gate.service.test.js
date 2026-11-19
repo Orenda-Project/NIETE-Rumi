@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-41'); // sa-41: the round-28 release on top of the hotfix (sa-40: a late "no voice" inside a timed task waits for its end)
+    expect(sw.CORE).toBe('sa-core-sa-42'); // sa-42: round 28, device_ready names the build that ran (page, worker, session cache)
   });
 });
 

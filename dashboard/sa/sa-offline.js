@@ -7,7 +7,9 @@
  *   SAE.offline.lineUrls(battery, lang, base) → the clips of the engine's own lines (battery.lines), asked for first
  *   SAE.offline.images(battery, lang) → the picture URLs the session shows (option_images, script.demo_image)
  *   SAE.offline.prepare({ battery_url, battery, lang, base }) → Promise<{ ready, battery, clips, clips_missing, images,
- *     images_missing, why? }>
+ *     images_missing, why?, sw, held }>
+ *     sw = the VERSION of each worker that answered (sa-42+, round 28; names()); held = Promise<the sa-session-* cache the
+ *     clips are in, or null>, asked once after the last clip step and capped at 2 s: ready and clips never wait on it.
  *     ready = the engine files, the battery and its pictures are on the phone (a picture task offline has nothing to
  *     tap without them); a clip not on the phone is spoken by the phone's own voice instead (clips_missing counts
  *     them), so it never blocks "ready".
@@ -17,6 +19,8 @@
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
  *     The answer also carries prep_ms, prep_bytes, prep_gaveup_stage and prep_missing. Each clip stage waits while its
  *     clips keep arriving and gives up only after 20 s with nothing new (then the phone's own cache is counted).
+ *     It carries sw (the VERSION of each worker that answered) and held (a Promise of the session cache, above) too.
+ *   SAE.offline.version(worker) → Promise<its VERSION or null> (2 s cap): worker_swap's "to" (sa-page.js swapWatch)
  *   SAE.offline.prepVisit({ forms, part?, fresh?, paused?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes,
  *     forms, why? }>
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
@@ -263,6 +267,24 @@
     });
   }
 
+  // round 28 (device_ready, worker_swap): the page never waits longer than this on a worker's 'held' answer
+  var HELD_WAIT_MS = 2000;
+
+  /** Distinct names in order, joined with '+' (two at most, then '+…', never a name cut short); null when there are none. */
+  function names(list) {
+    var out = [];
+    (list || []).forEach(function (n) { if (typeof n === 'string' && n && out.indexOf(n) < 0) out.push(n); });
+    if (!out.length) return null;
+    return out.length > 2 ? out.slice(0, 2).join('+') + '+…' : out.join('+');
+  }
+
+  /** The VERSION of worker w ({ type: 'held' } with no urls), or null: no worker, a build before round 28, or 2 s gone. */
+  function version(w) {
+    if (!w || typeof w.postMessage !== 'function' || !root.MessageChannel) return Promise.resolve(null);
+    return Promise.resolve().then(function () { return ask(w, { type: 'held', urls: [] }, HELD_WAIT_MS); })
+      .then(function (r) { return r && typeof r.sw === 'string' ? r.sw : null; }, function () { return null; });
+  }
+
   function prepare(o) {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
@@ -300,6 +322,9 @@
         if (typeof o.onLines === 'function') opened.then(function () { o.onLines(); }, function () { o.onLines(); });
         var said = opened.then(function () { return first.length ? stage('lines', first) : none; });
         var then = said.then(function () { return stage('rest', rest); });
+        // where the clips are (device_ready.session): one ask after the last clip step, its own 2 s cap; nothing waits on it
+        var held = then.then(function () { return ask(sw, { type: 'held', urls: clips }, HELD_WAIT_MS); })
+          .then(function (r) { return r && typeof r.session === 'string' ? r.session : null; }, function () { return null; });
         // the v4 clips' word timings the index lists, behind everything else and never waited on (no index: none)
         Promise.all([then, index]).then(function (r) {
           var timings = timingUrls(clips, r[1]).filter(function (u) { return early.indexOf(u) < 0; });
@@ -315,7 +340,9 @@
             images: pics.length - img.missing.length, images_missing: img.missing.length,
             bytes: Object.keys(stat).reduce(function (n, k) { return n + (stat[k].bytes || 0); }, 0),
             gaveup_stage: order.filter(function (k) { return gaveUp.indexOf(k) >= 0; })[0] || null,
-            why: !core.ok ? 'battery_not_cached' : (ready ? undefined : 'images_not_cached') };
+            why: !core.ok ? 'battery_not_cached' : (ready ? undefined : 'images_not_cached'),
+
+            sw: names([r[4], r[0], r[2], r[1], r[3]].map(function (x) { return x && x.sw; })), held: held };
         });
       })
       .catch(function (e) { return { ready: false, why: String(e && e.message || e) }; });
@@ -367,7 +394,8 @@
       // stalled (null: none did), and how many of the session's clips are not on the phone
       return { clips_total: total, clips_cached: cached, voice: voice, persisted: r[2], ready: !!c.ready, battery: !!c.battery, why: c.why,
         prep_ms: now() - t0, prep_bytes: typeof c.bytes === 'number' ? c.bytes : null,
-        prep_gaveup_stage: c.gaveup_stage || null, prep_missing: total - cached };
+        prep_gaveup_stage: c.gaveup_stage || null, prep_missing: total - cached,
+        sw: c.sw || null, held: c.held || Promise.resolve(null) };
     });
   }
 
@@ -673,6 +701,6 @@
       });
   }
 
-  return { STALL_MS: STALL_MS, urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
+  return { STALL_MS: STALL_MS, names: names, version: version, urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
     prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART, timingUrls: timingUrls, loadIndex: loadIndex };
 }));

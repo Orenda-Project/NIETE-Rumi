@@ -78,6 +78,8 @@ function phone(net) {
   };
   const sw = {
     postMessage(msg, [port]) {
+      // the build stamp's own ask: the real worker answers it from its caches, never the network (sw.js message handler)
+      if (msg.type === 'held') { port.postMessage({ sw: swMod.VERSION, session: null }); return; }
       if (typeof swMod.prepareReply === 'function') { swMod.prepareReply(msg, msg.urls, port, io); return; }
       // the worker as it was: prefetch, then the answer
       let bytes = 0;
