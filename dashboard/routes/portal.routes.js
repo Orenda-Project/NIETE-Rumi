@@ -9374,6 +9374,7 @@ router.get('/config', async (req, res) => {
       lpFeedbackBarRaw,
       teacherHomeActivityRaw,
       teacherJourney,
+      lpWhatsappPdfOff,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9437,6 +9438,8 @@ router.get('/config', async (req, res) => {
       LpAppSwitches.isLpFeedbackBarOn(supabase, userId),
       LpAppSwitches.isTeacherHomeActivityOn(supabase, userId),
       LpAppSwitches.isTeacherJourneyOn(supabase, userId),
+      // lp_whatsapp_pdf_off for her programme (never throws; false = today). Its own read, so it is not a rider.
+      LpAppSwitches.isLpWhatsappPdfOffFor(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9489,6 +9492,9 @@ router.get('/config', async (req, res) => {
         lpFeedbackBar: teacherV2 && lpFeedbackBarRaw,
         teacherHomeActivity: teacherHomeCard && teacherHomeActivityRaw,
         teacherJourney,
+        // May the plan screen show Send on WhatsApp? false only when her programme's lesson-plan PDF is off on
+        // WhatsApp; POST /share/whatsapp checks again.
+        lpWhatsappSend: lpWhatsappPdfOff !== true,
       },
     });
   } catch (error) {
@@ -9530,6 +9536,8 @@ router.get('/config', async (req, res) => {
         lpFeedbackBar: false,
         teacherHomeActivity: false,
         teacherJourney: false,
+        // Not a switch that turns something on: true is today (the server still refuses a send that is off).
+        lpWhatsappSend: true,
       },
       roleSwitchRoles: [],
     });
