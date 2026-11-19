@@ -9,7 +9,8 @@
 // bd-31ziu8: "ficos" = FICO-S v1.1, ICT's grade 6-12 rubric from 18 Nov (same form path, its own result).
 export type Obs612Tool = "enur" | "msci" | "gen" | "ficos";
 
-export type Obs612Row = { name: string; value: string; pct: number | null; full?: string };
+// `note` (queue #184): a FICO 6-12 indicator's evidence as the observer submitted it, shown under the row.
+export type Obs612Row = { name: string; value: string; pct: number | null; full?: string; note?: string };
 
 /** The full block (an observation page, a report page). */
 export type Obs612Summary = {

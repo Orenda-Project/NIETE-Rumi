@@ -302,7 +302,9 @@ function portalSummary(analysis) {
         name: `${i.code} · ${i.name}`,
         value: i.na ? 'N/A' : i.level === null ? '—' : `${i.level} · ${i.levelName}`,
         pct: null,
-        full: [i.levelText, i.evidence ? `Evidence: ${i.evidence}` : null].filter(Boolean).join('\n') || undefined,
+        full: i.levelText || undefined,
+        // Queue #184: the observer's evidence, shown under the row (it used to be in the hover title only).
+        ...(i.evidence ? { note: i.evidence } : {}),
       })),
     ];
     if (v.feedback.strengths) out.feedback.push({ label: 'Strengths', text: v.feedback.strengths });
