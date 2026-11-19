@@ -56,7 +56,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const C = useCopy(OWN);
   const L = useCopy(LESSONS);
   const G = useCopy(GOAL);
-  // bd-snkn32.56 — "Start from a learning goal or topic" (6–12, list-only switch): the goal screen replaces the pages.
+  // bd-snkn32.56 — "Start from a learning goal or topic" (list-only switch; grades 1–5 too, bd-snkn32.57): the goal
+  // screen replaces the pages.
   const goalOn = useLpOwnGoalStart();
   const goal = s.goal ?? null;
   const w = bandWords(C, s.grade);
@@ -69,7 +70,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const plans: PlanRow[] = all.filter(ownable).map((l) => ({ id: l.id, number: l.number, title: l.title, pages: l.pages ?? null, lane: l.lane === 'k5' ? 'k5' : 'g612' }));
   const k5 = plans.some((l) => l.lane === 'k5');
   // a goal's lesson may sit in another chapter: it is named by the goal, not by this chapter's list.
-  const seg = plans.find((l) => l.id === s.seg) ?? (goal && s.seg ? { id: s.seg, number: null, title: goal.text, pages: null, lane: 'g612' as const } : null);
+  const seg = plans.find((l) => l.id === s.seg) ?? (goal && s.seg ? { id: s.seg, number: null, title: goal.text, pages: null, lane: isSecondary(s.grade) ? 'g612' as const : 'k5' as const } : null);
   const next612 = nextLesson(all, s.seg); // none on the chapter's last lesson
   const nextRow = seg?.lane === 'k5' ? plans[plans.indexOf(seg) + 1] ?? null : next612 ? plans.find((l) => l.id === next612.id) ?? null : null;
   const lesson = seg ? parseLabel(seg.pages) : null;
@@ -146,7 +147,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       ) : null}
       {s.step === 'pages' ? (
         <>
-          {goalOn === true && isSecondary(s.grade) && !s.seg ? (
+          {goalOn === true && !s.seg ? (
             <button type="button" data-testid="own-goal-start" onClick={() => go({ step: 'goal', goal: { kind: null, text: '' }, seg: null, pg: undefined, ext: null })}
               className={`${LIST_CARD} flex min-h-[64px] w-full flex-col items-start justify-center gap-0.5 px-4 py-2 text-start ${FOCUS}`}>
               <span className={ROW_TITLE}>{G.startFromGoal}</span>
@@ -199,7 +200,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       ) : null}
       {s.step === 'check' ? (
         <Check s={s} C={C} k5={k5} nextLabel={next612 && s.ext ? next612.pages ?? next612.title : null} pagesLabel={[segName, segPages].filter(Boolean).join(' · ')} gradeLabel={L.grade(s.grade)}
-          goal={goal?.text ? { label: G.checkLabel, value: goal.text, sub: G.noBook } : undefined} note={note} setNote={setNote} failed={failed} />
+          goal={goal?.text ? { label: G.checkLabel, value: goal.text, sub: G.noBook, nothing: G.nothingExtra } : undefined} note={note} setNote={setNote} failed={failed} />
       ) : null}
     </TeacherPage>
   );

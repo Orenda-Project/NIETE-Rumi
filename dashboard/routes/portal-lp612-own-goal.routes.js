@@ -1,7 +1,8 @@
 'use strict';
 /**
  * bd-snkn32.56 (queue #134 E) — "Make my own": start from a learning goal or topic (no textbook in class). Two reads for
- * the form's step 1, grades 6-12; Make my plan itself is the same POST /lp612/own with `answers.goal` (the bot checks
+ * the form's step 1, grades 1-12 (1-5: the official matrix outcomes, each naming its day's lesson id in `segmentId`,
+ * bd-snkn32.57); Make my plan itself is the same POST /lp612/own with `answers.goal` (the bot checks
  * the switch again). Mounted at /api/portal beside portal-lp612-own.routes.js.
  *
  *   GET /api/portal/lp612/own/goals?grade&subject          → { success, outcomes: [{ segmentId, text, chapter }] }
@@ -37,16 +38,16 @@ async function requireGoalStart(req, res, next) {
   return next();
 }
 
-/** grade 6-12 and a subject, from the query; null when either is missing or off the band. */
+/** grade 1-12 and a subject, from the query; null when either is missing or off the grades. */
 function gradeSubject(q) {
   const grade = Number(q.grade);
   const subject = typeof q.subject === 'string' ? q.subject.trim().slice(0, SUBJECT_MAX) : '';
-  return Number.isInteger(grade) && grade >= 6 && grade <= 12 && subject ? { grade, subject } : null;
+  return Number.isInteger(grade) && grade >= 1 && grade <= 12 && subject ? { grade, subject } : null;
 }
 
 router.get('/lp612/own/goals', requirePortalAuth, requireGoalStart, async (req, res) => {
   const at = gradeSubject(req.query || {});
-  if (!at) return res.status(400).json({ success: false, error: 'grade 6-12 and subject are required' });
+  if (!at) return res.status(400).json({ success: false, error: 'grade 1-12 and subject are required' });
   try {
     return res.json({ success: true, outcomes: outcomeList(await goalRows(supabase, at)) });
   } catch (error) {
@@ -58,7 +59,7 @@ router.get('/lp612/own/goals', requirePortalAuth, requireGoalStart, async (req, 
 router.get('/lp612/own/goals/match', requirePortalAuth, requireGoalStart, async (req, res) => {
   const at = gradeSubject(req.query || {});
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, Q_MAX) : '';
-  if (!at || !q) return res.status(400).json({ success: false, error: 'grade 6-12, subject and q are required' });
+  if (!at || !q) return res.status(400).json({ success: false, error: 'grade 1-12, subject and q are required' });
   try {
     const hit = matchTopic(q, await goalRows(supabase, at));
     return res.json({ success: true, match: hit ? { segmentId: hit.segment_id, title: outcomeOf(hit) } : null });

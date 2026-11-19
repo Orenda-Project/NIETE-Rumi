@@ -18,6 +18,11 @@ describe('RadioList', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(2);
     expect(screen.getByText('red')).toBeTruthy();
   });
+  it('each row\'s words take their own direction (an English outcome on an Urdu page keeps its full stop, bd-snkn32.57)', () => {
+    render(<RadioList label="Fruit" items={items} value={null} onPick={() => {}} />);
+    expect(screen.getByText('Apple').getAttribute('dir')).toBe('auto');
+    expect(screen.getByText('red').getAttribute('dir')).toBe('auto');
+  });
   it('reports the row she taps', () => {
     const onPick = vi.fn();
     render(<RadioList label="Fruit" items={items} value={null} onPick={onPick} />);

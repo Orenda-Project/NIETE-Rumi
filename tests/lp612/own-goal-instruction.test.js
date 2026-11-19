@@ -26,8 +26,8 @@ describe('parseOwnAnswers with a goal', () => {
   it('refuses a bad goal', () => {
     expect(parseOwnAnswers({ ...base, way, goal: { kind: 'topic', text: 'x' } }, ctx).ok).toBe(false);
   });
-  it('refuses a goal for grades 1-5 (6-12 first)', () => {
-    expect(parseOwnAnswers({ ...base, way: 'tarl', goal }).ok).toBe(false);
+  it('takes a goal for grades 1-5 too (bd-snkn32.57)', () => {
+    expect(parseOwnAnswers({ ...base, way: 'tarl', goal }).ok).toBe(true);
   });
   it('without a goal, answers are as before', () => {
     const out = parseOwnAnswers({ ...base, way }, ctx);

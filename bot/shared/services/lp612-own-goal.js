@@ -3,8 +3,8 @@
  * bd-snkn32.56 (queue #134 E) — "Make my own": start from a learning goal or topic, with no textbook in class.
  *
  * WHAT SHE CHOOSES. Her grade+subject's learning outcomes (each a catalogue lesson's own `slo_descriptions`, else its
- * subtopic title) or a topic she types. Grades 6-12 only, behind portal_lp_own_goal_start (off for everyone but a
- * pilot list).
+ * subtopic title) or a topic she types. Grades 6-12 here; grades 1-5 bring the official matrix outcomes as the same
+ * rows (lp-k5-own-goal, bd-snkn32.57). Behind portal_lp_own_goal_start (off for everyone but a pilot list).
  *
  * WHY THERE IS STILL A LESSON UNDER IT. A plan with no page to stand on is a plan whose facts nobody checked. So the
  * outcome she picks names its lesson, and her topic is matched to the lesson whose words it shares most (no shared
@@ -56,8 +56,12 @@ function outcomeList(rows) {
   return out;
 }
 
-const words = (s) => new Set(clean(s).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP.has(w))
-  .map((w) => w.replace(/(ies|es|s)$/, (m) => (m === 'ies' ? 'y' : ''))));
+// bd-snkn32.57 — grades 1–5 outcomes and topics are often Urdu: any script's letters make a word; Urdu's vowel marks
+// (zer, zabar, pesh) are dropped first, so "گَھر" and "گھر" are one word. English words are as before.
+const STOP_UR = new Set(['اور', 'میں', 'سکیں', 'سکے', 'کریں', 'کرنا', 'بارے', 'اپنے', 'والے']);
+const words = (s) => new Set(clean(s).replace(/\p{M}+/gu, '').toLowerCase().split(/[^\p{L}\p{N}]+/u)
+  .filter((w) => w.length >= 3 && !STOP.has(w) && !STOP_UR.has(w))
+  .map((w) => w.replace(/(?<=\p{L}{3})ing$/u, '').replace(/(ies|es|s)$/, (m) => (m === 'ies' ? 'y' : ''))));
 
 /** The lesson her topic shares most words with (outcome, titles, chapter); null when none shares one. */
 function matchTopic(topic, rows) {

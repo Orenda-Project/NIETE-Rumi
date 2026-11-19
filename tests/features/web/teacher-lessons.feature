@@ -313,3 +313,14 @@ Feature: Teacher lesson plans
     When she opens Make my own on a Grades 6–12 chapter
     Then step 1 has no "Start from a learning goal or topic"
     And a goal address sends her back to the book pages, and the server answers 404 to the goal reads
+
+  @GOAL04 @draft @config-gated
+  Scenario: A listed teacher starts a Grades 1–5 plan from an official learning outcome
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she opens Make my own on a Grades 1–5 Urdu, English or Maths chapter
+    Then step 1 offers "Start from a learning goal or topic"
+    When she taps it
+    Then she sees her grade and subject's official learning outcomes, in the book's language
+    When she selects one and answers the rest of the steps and taps Make my plan
+    Then her answers carry her goal and the day under it, with no textbook and no book pages
+    And the Preparing page opens on her plan's id

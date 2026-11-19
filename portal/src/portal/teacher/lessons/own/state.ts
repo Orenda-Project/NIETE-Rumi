@@ -18,7 +18,7 @@ export const OWN_START = `${LESSONS_NEW}?pick=${OWN_PICK}`;
 export const OWN_STEPS = ['pages', 'goal', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check'] as const;
 export type OwnStep = (typeof OWN_STEPS)[number];
 
-/** bd-snkn32.56 — "Start from a learning goal or topic" (grades 6–12): what she picked, or null kind before she picks. */
+/** bd-snkn32.56 — "Start from a learning goal or topic" (every grade, bd-snkn32.57): what she picked, or null kind before she picks. */
 export const GOAL_KINDS = ['outcome', 'topic'] as const;
 export type GoalKind = (typeof GOAL_KINDS)[number];
 export type GoalPick = { kind: GoalKind | null; text: string };
@@ -86,7 +86,8 @@ export function readOwn(search: string): OwnAt | null {
   const ways = [...new Set((q.get('way') ?? '').split(',').map((x) => pick(allowed, x)).filter((x): x is Way => !!x))];
   const way = ways[0] ?? null;
   const focus = grade >= 9 && purpose !== 'board' ? pick(FOCI, q.get('focus')) : null;
-  const goal: GoalPick | null = isSecondary(grade) && q.get('start') === 'goal'
+  // bd-snkn32.57 — every grade (1–5 since 19 Nov: "we are an FLN company first").
+  const goal: GoalPick | null = q.get('start') === 'goal'
     ? { kind: pick(GOAL_KINDS, q.get('gk')), text: (q.get('gt') ?? '').trim().slice(0, GOAL_TEXT_MAX) } : null;
   const ext = isSecondary(grade) && !goal ? pick(EXTENDS, q.get('ext')) : null;
   return {
@@ -111,8 +112,9 @@ export function readOwn(search: string): OwnAt | null {
  * "which outcomes first?" only at 9–12 when the lesson's FBISE SLOs are mixed and it is not exam practice.
  */
 export function stepsFor({ grade, mixed, purpose = null, goal = false }: { grade: number; mixed: boolean; purpose?: Purpose | null; goal?: boolean }): OwnStep[] {
-  // bd-snkn32.56 — a goal start (6–12): the goal screen stands where the book pages were; no "which outcomes first".
-  if (goal && isSecondary(grade)) return OWN_STEPS.filter((x) => x !== 'pages' && x !== 'focus');
+  // bd-snkn32.56 — a goal start: the goal screen stands where the book pages were; no "which outcomes first".
+  // Grades 1–5 (bd-snkn32.57) walk it too, still without "what is this lesson for?".
+  if (goal) return OWN_STEPS.filter((x) => x !== 'pages' && x !== 'focus' && (x !== 'purpose' || isSecondary(grade)));
   const focus = grade >= 9 && mixed && purpose !== 'board';
   return OWN_STEPS.filter((x) => (x === 'goal' ? false : x === 'purpose' ? isSecondary(grade) : x === 'focus' ? focus : true));
 }

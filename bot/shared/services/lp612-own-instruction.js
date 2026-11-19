@@ -113,8 +113,7 @@ function parseOwnAnswers(body, ctx) {
   const answers = { size: b.size, resources, level: b.level, way: picked[0], note };
   if (picked.length > 1) answers.ways = picked;
   if (b.goal != null) {
-    // bd-snkn32.56 — start from a learning goal or topic: grades 6–12 only, and the class has no textbook.
-    if (!band) return bad('a goal start is for grades 6-12');
+    // bd-snkn32.56 — start from a learning goal or topic, and the class has no textbook (grades 1–5 too, bd-snkn32.57).
     const g = parseGoal(b.goal);
     if (!g.ok) return bad(g.error);
     answers.goal = g.goal;

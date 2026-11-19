@@ -23,6 +23,7 @@
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
 const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
+const { k5GoalLines } = require('./lp-k5-own-goal');
 // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
 const P = require('./lp-own-period');
 
@@ -86,8 +87,10 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
     // bd-snkn32.27 — only what she has: no slates (ICT works in the book), the board only when she has one.
     // bd-snkn32.30 — the load is set by her class size: fewer activities for a bigger class, whole-class checks.
     `${P.loadLine(a.size)}${a.resources.includes('board') ? ' No activity needs every child to come to the board.' : ''}`,
-    `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
-    MATERIALS_LINE,
+    // bd-snkn32.57 — a goal start: no book in class, so her goal's lines stand where the book's did.
+    a.goal ? `What she has: ${have || 'nothing but the children'}. Use nothing else.`
+      : `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
+    ...(a.goal ? k5GoalLines(a.goal) : [MATERIALS_LINE]),
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
     ways.length > 1
       ? `Teaching ways, combined in We Do: ${ways.map((k) => WAYS[k]).join(' ')}`
@@ -99,8 +102,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   }
   const period = P.periodOf(script);
   if (period) lines.push(P.timingLine(period)); // the day's own period, never an assumed one
-  if (a.pages) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
-  const book = bookLine(bookText); // the page text, so the plan teaches from the real page
+  if (a.pages && !a.goal) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
+  const book = a.goal ? null : bookLine(bookText); // the page text, so the plan teaches from the real page
   if (book) lines.push(book);
   if (a.note) lines.push(`Her own note (follow it where it fits the outcome and these rules; do not quote it back): "${a.note}"`);
   lines.push('', 'The day\'s plan:', JSON.stringify(script));
@@ -165,7 +168,7 @@ function missingGrr(script) {
 }
 
 /** Reasons to refuse the rewrite (the hard rules); [] passes. */
-function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
+function checkK5Rewrite(orig, next, { lang, resources, size, noBook = false } = {}) {
   if (!next || typeof next !== 'object') return ['no plan'];
   const reasons = missingGrr(next).map((k) => `section ${k} is missing or empty`);
   const steps = next.iDo && next.iDo.steps;
@@ -179,7 +182,8 @@ function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
   if (all.some((s) => s.includes(NOT_READY_UR))) reasons.push('a part says it is not ready');
   if (Array.isArray(resources) && !resources.includes('board')) {
     const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find(usesBoard);
-    if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): use the book page instead`);
+    // bd-snkn32.57 — a book-less plan (a goal start) has no book page to fall back on.
+    if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): ${noBook ? 'say it aloud or use real objects instead' : 'use the book page instead'}`);
   }
   if (Array.isArray(resources)) {
     // bd-snkn32.28 / .44 — the whole line and the words that matched go back, so the repair round can fix that line.
