@@ -17,7 +17,6 @@ export const GOAL_COPY = {
   noOutcomes: 'No learning goals listed for this subject yet.',
   topicPlaceholder: 'e.g. Saving water at home',
   find: 'Find',
-  closest: (t: string) => `Closest lesson: ${t}`,
   noMatch: 'Not found in your grade’s lessons. Try other words, or select a learning goal.',
   checkLabel: 'Learning goal',
   noBook: 'Written for a class with no textbook.',
@@ -33,6 +32,13 @@ export const GOAL_COPY = {
   search: 'Search goals',
   goalsCount: (n: number) => (n === 1 ? '1 goal' : `${n} goals`),
   noneFound: 'No goal has these words.',
+  /* bd-snkn32.58.2 (queue #155 B) — the typed-topic guard */
+  didYouMean: 'Did you mean',
+  otherGrade: (n: number) => `This is a Grade ${n} goal`,
+  useAnyway: 'Use it anyway',
+  seeMine: 'See my grade’s goals',
+  blocked: 'This is not a school topic. Select a learning goal.',
+  noteDropped: 'Your note was not used.',
   groups: {
     numbers: 'Numbers', add_sub: 'Adding and subtracting', mul_div: 'Multiplying and dividing', fractions: 'Fractions and decimals',
     measure: 'Measuring', time_money: 'Time and money', shapes: 'Shapes', data: 'Charts and data', patterns: 'Patterns',
@@ -50,7 +56,6 @@ const GOAL_COPY_UR: typeof GOAL_COPY = {
   noOutcomes: 'اس مضمون کے سیکھنے کے مقاصد ابھی موجود نہیں۔',
   topicPlaceholder: 'مثلاً گھر میں پانی بچانا',
   find: 'تلاش کریں',
-  closest: (t: string) => `قریب ترین سبق: ${t}`,
   noMatch: 'آپ کی جماعت کے لیسن پلان میں نہیں ملا۔ دوسرے الفاظ لکھیں، یا سیکھنے کا مقصد چنیں۔',
   checkLabel: 'سیکھنے کا مقصد',
   noBook: 'بغیر کتاب والی کلاس کے لیے لکھا گیا۔',
@@ -63,6 +68,12 @@ const GOAL_COPY_UR: typeof GOAL_COPY = {
   search: 'مقاصد تلاش کریں',
   goalsCount: (n: number) => `${n} مقاصد`,
   noneFound: 'ان الفاظ والا کوئی مقصد نہیں ملا۔',
+  didYouMean: 'کیا آپ کا مطلب یہ تھا؟',
+  otherGrade: (n: number) => `یہ جماعت ${n} کا مقصد ہے`,
+  useAnyway: 'پھر بھی یہی لیں',
+  seeMine: 'میری جماعت کے مقاصد',
+  blocked: 'یہ اسکول کا موضوع نہیں۔ سیکھنے کا مقصد چنیں۔',
+  noteDropped: 'آپ کا نوٹ شامل نہیں کیا گیا۔',
   groups: {
     numbers: 'اعداد', add_sub: 'جمع اور تفریق', mul_div: 'ضرب اور تقسیم', fractions: 'کسور اور اعشاریہ',
     measure: 'پیمائش', time_money: 'وقت اور پیسے', shapes: 'اشکال', data: 'گراف اور معلومات', patterns: 'نمونے',
@@ -80,5 +91,5 @@ export const GOAL_COPY_ENTRY: CopyEntry = {
   module: GOAL as Bilingual<unknown>,
   same: [],
   // The way in, its hint, the list's heading, the empty and not-found states and the Check line are sentences.
-  longOk: ['startTitle', 'fromBook', 'fromBookHint', 'fromGoal', 'fromGoalHint', 'search', 'noneFound', 'groups', 'startFromGoal', 'startFromGoalHint', 'outcomes', 'noOutcomes', 'topicPlaceholder', 'closest', 'noMatch', 'noBook', 'title', 'checkLabel'],
+  longOk: ['didYouMean', 'otherGrade', 'seeMine', 'blocked', 'noteDropped', 'useAnyway', 'startTitle', 'fromBook', 'fromBookHint', 'fromGoal', 'fromGoalHint', 'search', 'noneFound', 'groups', 'startFromGoal', 'startFromGoalHint', 'outcomes', 'noOutcomes', 'topicPlaceholder', 'noMatch', 'noBook', 'title', 'checkLabel'],
 };

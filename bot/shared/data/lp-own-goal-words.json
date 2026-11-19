@@ -1,0 +1,357 @@
+{
+ "_about": "bd-snkn32.58.2 (queue #155 B): words for the Make my own typed-topic guard (lp-own-goal-guard.js). roman: Roman-Urdu school words -> English and Urdu words the official goals use. synonyms: everyday English -> the words the official goals use (poem -> poetry, aloud -> orally). blocked: a small list that refuses a topic or drops a note (en, ur, Roman Urdu); exact words only, so 'skills' never trips 'kill'. Our list, not official; extend here, never in code.",
+ "roman": {
+  "jama": [
+   "add",
+   "addition",
+   "جمع"
+  ],
+  "jamaa": [
+   "add",
+   "جمع"
+  ],
+  "jam": [
+   "add",
+   "جمع"
+  ],
+  "tafreeq": [
+   "subtract",
+   "تفریق"
+  ],
+  "tafriq": [
+   "subtract",
+   "تفریق"
+  ],
+  "manfi": [
+   "subtract",
+   "تفریق"
+  ],
+  "zarb": [
+   "multiply",
+   "ضرب"
+  ],
+  "pahara": [
+   "multiply",
+   "table",
+   "پہاڑا"
+  ],
+  "pahare": [
+   "multiply",
+   "table",
+   "پہاڑے"
+  ],
+  "taqseem": [
+   "divide",
+   "تقسیم"
+  ],
+  "taqsim": [
+   "divide",
+   "تقسیم"
+  ],
+  "hindsa": [
+   "digit",
+   "ہندسہ"
+  ],
+  "hindsay": [
+   "digit",
+   "ہندسے"
+  ],
+  "hindse": [
+   "digit",
+   "ہندسے"
+  ],
+  "adad": [
+   "number",
+   "عدد"
+  ],
+  "aadad": [
+   "number",
+   "اعداد"
+  ],
+  "ginti": [
+   "count",
+   "گنتی"
+  ],
+  "kasr": [
+   "fraction",
+   "کسر"
+  ],
+  "kasoor": [
+   "fraction",
+   "کسور"
+  ],
+  "shakal": [
+   "shape",
+   "شکل"
+  ],
+  "ashkal": [
+   "shape",
+   "اشکال"
+  ],
+  "waqt": [
+   "time",
+   "وقت"
+  ],
+  "ghari": [
+   "clock",
+   "گھڑی"
+  ],
+  "paisay": [
+   "money",
+   "رقم"
+  ],
+  "naap": [
+   "measure",
+   "پیمائش"
+  ],
+  "nazm": [
+   "poem",
+   "poetry",
+   "نظم"
+  ],
+  "kahani": [
+   "story",
+   "کہانی"
+  ],
+  "kahaani": [
+   "story",
+   "کہانی"
+  ],
+  "parhna": [
+   "read",
+   "پڑھ",
+   "پڑھنا"
+  ],
+  "parhnay": [
+   "read",
+   "پڑھ"
+  ],
+  "parho": [
+   "read",
+   "پڑھ"
+  ],
+  "parhai": [
+   "read",
+   "پڑھ"
+  ],
+  "likhna": [
+   "write",
+   "لکھ",
+   "لکھنا"
+  ],
+  "likhnay": [
+   "write",
+   "لکھ"
+  ],
+  "bolna": [
+   "speak",
+   "بول"
+  ],
+  "sunna": [
+   "listen",
+   "سن"
+  ],
+  "ism": [
+   "noun",
+   "اسم"
+  ],
+  "fail": [
+   "verb",
+   "فعل"
+  ],
+  "feil": [
+   "verb",
+   "فعل"
+  ],
+  "sift": [
+   "adjective",
+   "صفت"
+  ],
+  "zameer": [
+   "pronoun",
+   "ضمیر"
+  ],
+  "jumla": [
+   "sentence",
+   "جملہ"
+  ],
+  "jumlay": [
+   "sentence",
+   "جملے"
+  ],
+  "lafz": [
+   "word",
+   "لفظ"
+  ],
+  "alfaz": [
+   "words",
+   "الفاظ"
+  ],
+  "harf": [
+   "letter",
+   "حرف"
+  ],
+  "huroof": [
+   "letters",
+   "حروف"
+  ],
+  "haroof": [
+   "letters",
+   "حروف"
+  ],
+  "awaz": [
+   "sound",
+   "آواز"
+  ],
+  "paudhay": [
+   "plants",
+   "پودے"
+  ],
+  "janwar": [
+   "animals",
+   "جانور"
+  ],
+  "pani": [
+   "water",
+   "پانی"
+  ],
+  "hawa": [
+   "air",
+   "ہوا"
+  ]
+ },
+ "synonyms": {
+  "poem": [
+   "poetry",
+   "poems",
+   "rhyme"
+  ],
+  "poems": [
+   "poetry",
+   "poem"
+  ],
+  "aloud": [
+   "orally",
+   "loud"
+  ],
+  "plus": [
+   "add",
+   "addition"
+  ],
+  "sum": [
+   "add",
+   "addition"
+  ],
+  "minus": [
+   "subtract",
+   "subtraction"
+  ],
+  "times": [
+   "multiply",
+   "multiplication"
+  ],
+  "product": [
+   "multiply"
+  ],
+  "share": [
+   "divide",
+   "division"
+  ],
+  "sharing": [
+   "divide",
+   "division"
+  ],
+  "naming": [
+   "noun"
+  ],
+  "action": [
+   "verb"
+  ],
+  "describing": [
+   "adjective"
+  ],
+  "stories": [
+   "story"
+  ],
+  "tables": [
+   "multiply",
+   "table"
+  ],
+  "sums": [
+   "add",
+   "addition"
+  ],
+  "clock": [
+   "time"
+  ],
+  "money": [
+   "coins",
+   "notes",
+   "currency"
+  ],
+  "shapes": [
+   "shape"
+  ]
+ },
+ "blocked": {
+  "en": [
+   "sex",
+   "sexy",
+   "porn",
+   "nude",
+   "naked",
+   "gun",
+   "guns",
+   "pistol",
+   "rifle",
+   "bomb",
+   "bombs",
+   "kill",
+   "killing",
+   "murder",
+   "suicide",
+   "cocaine",
+   "heroin",
+   "alcohol",
+   "beer",
+   "wine",
+   "whisky",
+   "gambling",
+   "gamble",
+   "betting",
+   "casino",
+   "weapon",
+   "weapons",
+   "terrorist",
+   "terrorism"
+  ],
+  "ur": [
+   "شراب",
+   "جوا",
+   "جوئے",
+   "بندوق",
+   "پستول",
+   "بم",
+   "قتل",
+   "خودکشی",
+   "فحش",
+   "ننگا",
+   "منشیات",
+   "دہشت گرد",
+   "دہشتگرد"
+  ],
+  "roman": [
+   "sharab",
+   "jua",
+   "juwa",
+   "bandooq",
+   "bandook",
+   "qatal",
+   "qatl",
+   "khudkushi",
+   "nanga",
+   "fahash",
+   "fahaashi"
+  ]
+ }
+}
