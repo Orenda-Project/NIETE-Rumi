@@ -555,6 +555,23 @@ Feature: Teacher lesson plans
     Then she sees "We could not make a plan we are sure of for this goal." with "Select another goal" and "From a textbook chapter"
     And there is no "Try again"
 
+  # bd-m8zwt1.1 (queue #164 testing): every grades 1-5 goal plan whose first check failed crashed on its one fix
+  # ("k5EditMessages: unknown part undefined") and ended "Couldn't make it". Pinned by tests/lp612/own-goal-k5-fix.test.js.
+  @GOAL13 @draft @config-gated
+  Scenario: A grades 1-5 goal plan the check asks to fix gets its one fix, and ends ready or with the calm refusal
+    Given a Grade 3 Maths goal plan whose first goal check found a problem
+    When the worker makes its one fix
+    Then the plan ends ready with her goal at the top, or with "We could not make a plan we are sure of for this goal."
+    And she never sees "Couldn't make it" for that reason
+
+  # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
+  @GOAL14 @draft @config-gated
+  Scenario: Make my own's check screen names the subject, not its key
+    Given the demo teacher picks Grade 3 Maths and a learning goal
+    When she reaches "Your plan"
+    Then the line under her goal reads "Grade 3 · Math", never "math"
+    And in Urdu it reads "ریاضی"
+
   # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar), written by hand.
   # @draft: the web lane's demo data has no lesson-plan PDF in its local file store, so the viewer never reaches its
   # last page here. Covered by portal/src/portal/teacher/lessons/FeedbackBar.test.tsx + ViewerPage tests (vitest) and
