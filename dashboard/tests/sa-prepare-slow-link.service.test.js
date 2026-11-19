@@ -346,9 +346,33 @@ describe('the device fields reach device_ready', () => {
 });
 
 describe('the cache', () => {
+  // The clips a phone holds live in this cache, so moving SESSION is a deliberate act that edits this line too.
+  // It is not read from the lock: a real bump re-cuts the lock under the new name, and the check must still go red.
+  const EXPECTED_SESSION = 'sa-session-v32';
+
+  // the worker's SESSION from its source, run as the tests load it (module.exports, no service-worker globals)
+  function sessionOf(src) {
+    const module = { exports: {} };
+    require('vm').runInNewContext(src, { module, Promise, Math, Date, JSON, String, Object, Array, setTimeout, clearTimeout });
+    return module.exports.SESSION;
+  }
+  const SW_SRC = require('fs').readFileSync(require('path').join(__dirname, '../sa/sw.js'), 'utf8');
+  // the one check both rows run: does this worker source still hold the pinned cache?
+  const pinHolds = (src) => sessionOf(src) === EXPECTED_SESSION;
+
   test('VERSION moves on (the phones take the new worker and engine files); SESSION does not (they keep their clips)', () => {
     const sw = require('../sa/sw');
     expect(Number(sw.VERSION.replace('sa-', ''))).toBeGreaterThanOrEqual(39); // sa-39 or a later bump stacked on it
-    expect(sw.SESSION).toBe('sa-session-v32'); // the letter-sound picker's prompts re-made (three times)
+    expect(sw.SESSION).toBe(EXPECTED_SESSION);
+    expect(pinHolds(SW_SRC)).toBe(true); // the source the next row rewrites is the worker under test
+  });
+
+  test('a worker whose SESSION moved fails the check, with or without the clips lock re-cut under the new name', () => {
+    const next = 'sa-session-v' + (Number(EXPECTED_SESSION.split('-v')[1]) + 1); // the next bump, whatever today's is
+    const bumped = SW_SRC.replace(/var SESSION = 'sa-session-v\d+';/, "var SESSION = '" + next + "';");
+    expect(sessionOf(bumped)).toBe(next);
+    const recutLock = Object.assign({}, require('../sa/clips.lock.json'), { session: next });
+    expect(recutLock.session).toBe(sessionOf(bumped)); // the real bump: worker and lock agree again
+    expect(pinHolds(bumped)).toBe(false); // and the same check the pin row runs goes red
   });
 });

@@ -71,6 +71,39 @@ function bandsOf(user = {}) {
   return teacherLevelOf(user);
 }
 
+// ── the picker label ───────────────────────────────────────────────────
+
+/** Manage teachers' word for a principal; every picker prints this same word. */
+const PRINCIPAL_LABEL = 'Principal';
+/** The words the level screen already offers (TEACHER_EDIT_LEVEL: Primary / Middle / High). Latin: picker chrome. */
+const BAND_WORD = Object.freeze({ PRIMARY: 'Primary', MIDDLE: 'Middle', HIGH: 'High' });
+
+/**
+ * bd-r2uzg1.18.5 — EVERY band, for a coach to read: 'Primary + Middle + High'. '' when none is on record.
+ *
+ * The pickers printed bandOf() — the lowest band only — so a teacher of all three read as "primary"
+ * while her profile listed three, and coaches re-edited a record that was right (prod, 19 Nov: 2,160
+ * rostered teachers and principals hold more than one level). Longest value is 23 characters, inside
+ * every field it lands in (row description 30, row metadata 80).
+ */
+function levelsLabelOf(bands = []) {
+  return (Array.isArray(bands) ? bands : []).map((b) => BAND_WORD[b]).filter(Boolean).join(' + ');
+}
+
+/**
+ * bd-r2uzg1.18.5 — the one label a picker prints for a person: 'Principal' for a principal, else every band.
+ *
+ * Manage teachers printed roleLabel, the Observe list printed the band, so after a coach changed a role
+ * to Principal one screen said Principal and the other said PRIMARY. One function, every picker.
+ * Accepts a shaped patch person (isPrincipal, levelsLabel), a leader-source row (is_principal,
+ * levels_label) or a raw users row (role, teacher_level).
+ */
+function pickerLabelOf(p = {}) {
+  if (!p) return '';
+  if (p.isPrincipal || p.is_principal || p.role === 'principal') return PRINCIPAL_LABEL;
+  return p.levelsLabel || p.levels_label || levelsLabelOf(bandsOf(p));
+}
+
 // ── shaping ────────────────────────────────────────────────────────────
 
 const _norm = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
@@ -160,11 +193,14 @@ function shapePatchRow(r = {}) {
     phone: r.phone_number || null,
     role: r.role || null,
     isPrincipal,
-    roleLabel: isPrincipal ? 'Principal' : '',
+    roleLabel: isPrincipal ? PRINCIPAL_LABEL : '',
     schoolId: r.school_id || null,
     schoolName: r.school_name || null,
     emis: r.emis == null ? null : String(r.emis),
+    // ONE band, for code that needs one value (toLeaderSourceRow.level, the voice-call roster).
     band: bandOf(r),
+    // Every band, for a coach to read. Pickers print pickerLabelOf(), never `band`.
+    levelsLabel: levelsLabelOf(bandsOf(r)),
   };
 }
 
@@ -423,6 +459,8 @@ function toLeaderSourceRow(p = {}) {
     // "0 teachers" for GB Hoto and Deosai while tapping the school listed them.
     school_ext_id: schoolKeyOf(p),
     level: p.band ? String(p.band).toUpperCase() : null,
+    // bd-r2uzg1.18.5: every band, for display ('Primary + Middle + High'); `level` above stays one value.
+    levels_label: p.levelsLabel || '',
     is_principal: !!p.isPrincipal,
   };
 }
@@ -438,6 +476,9 @@ module.exports = {
   bandOf,
   schoolIdsForHoldings,
   bandsOf,
+  levelsLabelOf,
+  pickerLabelOf,
+  PRINCIPAL_LABEL,
   shapePatchRow,
   fullNameOf,
   displayNameOf,
