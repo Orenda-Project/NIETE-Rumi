@@ -433,3 +433,18 @@ Feature: Teacher lesson plans
     Given the teacher app v2 and "portal_lp_make_own" are on for her
     When she opens a ready-made plan, or another teacher's plan from the shelf
     Then no "How good was this plan?" card is shown
+
+  # bd-2q8l2u (operator, sandbox 19 Nov: Make my own "shows only chapters 4 onwards"). The app kept one window scroll
+  # across screens, so a chapter list opened part-way down when she had scrolled Grade and subject to reach her subject.
+  # TeacherPage now opens every new page at its top. Unit: portal/src/portal/teacher/TeacherPage.scroll.test.tsx.
+  # Hand-written (@draft): the web driver has no scroll step yet.
+  @OWNSCROLL01 @draft
+  Scenario: Make my own: after scrolling down Grade and subject, the chapter list opens at chapter 1
+    Given the teacher app v2 is on and Make my own is on for demo teacher 03000000911
+    And demo teacher 03000000911 is signed in on a 360 px phone
+    When she opens /portal/teacher/lessons/new?pick=own
+    And she scrolls down the page and taps a Grades 1-5 subject
+    Then the chapter list opens at its top with chapter 1 the first row in view
+    When she picks a chapter and moves through the Make my own steps
+    Then each step keeps the page where it is
+    And no page error or 5xx happened
