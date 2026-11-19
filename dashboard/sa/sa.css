@@ -905,6 +905,26 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq .sae-mcq-head+.sae-mcq-q[lang=ur]{font-size:18px;line-height:3.05;padding-top:11px;padding-bottom:0}
 }
 /* end round 28, RDF auto two-line question */
+/* ---- round 28: spoken MCQ, RDF auto on a phone (the Urdu practice question fits like the scored one) ----
+   RDF auto only (the question card straight after the head row, as above), below 700 px, Urdu only. The practice
+   question drew more than the scored one: the «مشق» chip in its 72 px Nastaliq box made the head row 12 px taller, and
+   the empty feedback line under the cards took 80 px, so the fourth card sat under the fold with the scroll cue over it.
+   (1) Jugnu takes 48 px (as coach-led), so the head row is the replay's 56 on every question frame; the chip, when
+   drawn, takes that 56 px box with its one line centred. (2) The task title keeps to one line in a smaller type (as
+   coach-led did before its fold took the room); the head row meets its box (the page's Urdu fit keeps the title's
+   ink inside that box, clear of its bottom edge). (3) The practice's feedback line is one fixed 40 px line, empty or not
+   (nothing moves when it fills), 7 px under the lowest card. (4) The room that frees keeps the answers 8 px apart, the
+   scored question and the practice alike. The cards keep their 56 px; English and the tablet are not touched. */
+@media (max-width:699px){
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-head{min-height:56px}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-jugnu{width:48px;height:48px}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-head>.sae-chip{box-sizing:border-box;height:56px;max-height:56px;padding-top:0 !important;padding-bottom:0 !important;line-height:56px;flex:none}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-task-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:15px;line-height:1.9;margin-bottom:-4px}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts{gap:8px}
+  .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
+  .sae .sae-mcq.sae-mcq-practice:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts ~ .sae-fb.is-empty{display:none}
+}
+/* end round 28, RDF auto practice question */
 /* round 28, A11 (sa_r28_toggle_fit, the page's .is-r28-toggle-fit; OFF: none of this applies). Once the other language's
    battery is on the phone, r8's language toggle (a 56 px button) grew the 44 px top bar to 56 on every screen, pushing
    each screen 12 px down (the missing-number keys past a 568 px phone's foot) and calling up the round-9 cue. (a) Its

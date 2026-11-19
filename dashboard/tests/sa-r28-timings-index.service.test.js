@@ -98,7 +98,10 @@ describe('dashboard/sa/timings.index.json is the folder and the lock', () => {
     const locked = Object.keys(lock.files).map((p) => /^dashboard\/sa\/v4\/(ur|en)\/([0-9a-f]{12})\.json$/.exec(p)).filter(Boolean).map((m) => `${m[1]}/${m[2]}`).sort();
     const listed = ['ur', 'en'].reduce((a, l) => a.concat(idx[l].map((k) => `${l}/${k}`)), []).sort();
     expect(listed).toEqual(locked);
-    expect(listed.length).toBe(582);
+    // the count follows the folder the index is built from (a fixed number went red when new clips were added)
+    const built = build();
+    expect(listed.length).toBe(built.ur.length + built.en.length);
+    expect(listed.length).toBeGreaterThan(0);
   });
   test('the index is outside the lock\'s scope and the worker answers it network first (no SESSION tie)', () => {
     const { digest } = require('../scripts/sa-clips-lock');
