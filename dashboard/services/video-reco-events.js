@@ -94,10 +94,12 @@ function crCardEnabled(env = process.env) {
  */
 async function cardFor(supabase, sessionId, userId, language, catalog) {
   const { data: rec, error } = await supabase.from('video_recommendations')
-    .select('id, module_id, seg_id, start_s, end_s, reason_en, reason_ur')
+    .select('id, module_id, seg_id, start_s, end_s, reason_en, reason_ur, observation_type')
     .eq('coaching_session_id', sessionId).eq('user_id', userId).eq('status', 'shown').maybeSingle();
   if (error) throw new Error(error.message || 'video_recommendations read failed');
   if (!rec) return null;
+  // Queue #186: a HITL visit's report shows no training clip, including one picked before the engine stopped picking them.
+  if (rec.observation_type === 'leader_observation') return null;
   const { signVideoLink, VIDEO_PATH } = require('../../bot/shared/services/coaching/video-reco/link-token');
   const token = signVideoLink({ recommendationId: rec.id, userId, surface: 'cr' });
   if (!token) return null;
