@@ -147,7 +147,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "A2",
@@ -203,7 +204,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "A3",
@@ -257,7 +259,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "B1",
@@ -314,7 +317,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "B2",
@@ -372,7 +376,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "B3",
@@ -429,7 +434,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "B4",
@@ -482,7 +488,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "B5",
@@ -536,7 +543,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "C1",
@@ -592,7 +600,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "C2",
@@ -650,7 +659,8 @@
       "na": {
         "allowed": true,
         "text": "No answer was wrong in this lesson."
-      }
+      },
+      "starred": false
     },
     {
       "code": "C3",
@@ -707,7 +717,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     },
     {
       "code": "C4",
@@ -763,7 +774,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "C5",
@@ -821,7 +833,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     },
     {
       "code": "C6",
@@ -879,7 +892,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "C7",
@@ -932,7 +946,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     },
     {
       "code": "C8",
@@ -986,7 +1001,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "D1",
@@ -1042,7 +1058,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "D2",
@@ -1099,7 +1116,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     },
     {
       "code": "D3",
@@ -1155,7 +1173,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     },
     {
       "code": "D4",
@@ -1205,7 +1224,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "E1",
@@ -1260,7 +1280,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": false
     },
     {
       "code": "E2",
@@ -1295,7 +1316,8 @@
       "examples": [],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     },
     {
       "code": "E3",
@@ -1347,7 +1369,8 @@
       ],
       "na": {
         "allowed": false
-      }
+      },
+      "starred": true
     }
   ],
   "scoring": {
@@ -1459,6 +1482,7 @@
   ],
   "ours": {
     "na": "N/A is offered only where the sheet names it (C2: no answer was wrong).",
-    "checklist_keys": "cl_1 … cl_12, in the sheet order."
+    "checklist_keys": "cl_1 … cl_12, in the sheet order.",
+    "starred": "Starred (operator, 19 Nov): E3, and what the sheet marks HITL-only: aligned only with v6 HITL-only indicators, or a check the principal makes himself (How: \"Principal …\"). Never sent to the Digital Coach; the observer must set it."
   }
 }

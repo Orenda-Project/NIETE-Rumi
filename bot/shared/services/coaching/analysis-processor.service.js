@@ -142,7 +142,9 @@ class AnalysisProcessorService {
       // bd-pni007: an FDE (obs612) coach visit is scored by the coach on FDE's own form, never by a model. Nothing
       // queues its analysis (transcription stops at observe/obs612/visit.afterTranscription); this guards a retry
       // or a watchdog that does.
-      if (require('../observe/obs612/visit').isObs612Form({ rubric_version: session.framework })) {
+      // Queue #184: a FICO 6-12 visit stamped for the Digital Coach (obs612/fico-s-dc.js) IS analysed, as a v6 visit.
+      const ficoSDc = require('../observe/obs612/fico-s-dc').isDcVisit(session);
+      if (!ficoSDc && require('../observe/obs612/visit').isObs612Form({ rubric_version: session.framework })) {
         logToFile('🚫 analysis skipped — an FDE (obs612) visit is scored by the coach', { coachingSessionId, framework: session.framework }, 'warn');
         return { skipped: 'obs612' };
       }
@@ -253,6 +255,12 @@ class AnalysisProcessorService {
         grade: subjectResolution.grade,
         subjectConfidence: subjectResolution.confidence,
       };
+      // Queue #184: a FICO 6-12 visit's lesson is the one the observer named (the form's grade and subject).
+      if (ficoSDc) {
+        const named = await require('../observe/obs612/fico-s-dc').lessonOf(coachingSessionId);
+        if (named.grade) metadata.grade = named.grade;
+        if (named.subject) metadata.subject = named.subject;
+      }
 
       logToFile('Analysis metadata', metadata);
 
@@ -267,9 +275,16 @@ class AnalysisProcessorService {
       // with v6, whatever the switch says now. Unstamped sessions (every one while the switch is off) are unchanged.
       const stampedV6 = require('../observe/observe-fico17-v6').frameworkKeyForSession(session);
       if (stampedV6) {
-        framework = require('./frameworks/framework-registry').getFramework(stampedV6);
+        // Queue #184: in starred mode (app_settings.fico_v6_starred for the observer) the six are never sent.
+        framework = await require('../observe/observe-fico17-v6').v6FrameworkFor(session);
         frameworkKey = stampedV6;
         frameworkSelectionReason = 'coach_rubric_stamp';
+      }
+      // Queue #184: FICO 6-12 for the Digital Coach (starred indicators never asked); the stamp's reason is kept.
+      if (ficoSDc) {
+        framework = require('./frameworks/framework-registry').getFramework('fico_s_v1_1');
+        frameworkKey = 'fico_s_v1_1';
+        frameworkSelectionReason = require('../observe/obs612/fico-s-dc').REASON;
       }
       logToFile('Framework resolved', {
         userId: session.user_id,
@@ -438,6 +453,18 @@ class AnalysisProcessorService {
       if (analysisSettled.status === 'rejected') throw analysisSettled.reason;
       const analysisResult = analysisSettled.value;
       const lpFidelity = fidelitySettled.status === 'fulfilled' ? fidelitySettled.value : null;
+      // Queue #184: a FICO 6-12 reply is checked against the transcript (quotes not in it dropped; a starred level, a
+      // missing indicator or a misplaced N/A noted) before it pre-fills the observer's form. The check is stored with it.
+      if (ficoSDc && analysisResult.analysis) {
+        try {
+          const chk = framework.validate(analysisResult.analysis, session.transcript_text || '');
+          analysisResult.analysis.dc_check = { ok: chk.ok, errors: chk.errors.slice(0, 20), dropped: chk.dropped, warnings: chk.warnings.slice(0, 20) };
+          framework.computeScores(analysisResult.analysis);
+          logToFile('[fico-s dc] reply checked', { coachingSessionId, ok: chk.ok, errors: chk.errors.length, dropped: chk.dropped });
+        } catch (chkErr) {
+          logToFile('[fico-s dc] reply check failed (the reply is kept as returned)', { coachingSessionId, error: chkErr.message }, 'warn');
+        }
+      }
       if (fidelitySettled.status === 'rejected') {
         logToFile('[lp-fidelity] failed (non-blocking)', {
           coachingSessionId,

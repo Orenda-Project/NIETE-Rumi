@@ -262,6 +262,9 @@ const HERO_FICO_S = {
     level: (n) => `Level ${n} · ${FicoS.levelName(n)}`,
     footnote: FICO_S_FOOTNOTE,
     caption: '📋 Your observation report · FICO 6-12',
+    // Queue #184 (operator 19 Nov ~11:40): the reasoning, indicator by indicator.
+    evidence: 'Indicator by indicator: what your observer saw',
+    na: 'N/A',
     atom: (x) => x,
     band: (label) => label,
   },
@@ -272,6 +275,8 @@ const HERO_FICO_S = {
     level: (n) => `لیول ${urDigitsOf(n)} · ${FicoS.levelName(n, 'ur')}`,
     footnote: FICO_S_FOOTNOTE_UR,
     caption: '📋 آپ کی مشاہداتی رپورٹ · \u2066FICO 6-12\u2069',
+    evidence: 'ہر اشاریہ: آپ کے مشاہدہ کار نے کیا دیکھا',
+    na: 'لاگو نہیں',
     atom: (x) => `\u2066${x}\u2069`,
     // A band shares its name with the level of the same rank (Exemplary = 4 … Below standard = 1).
     band: (label) => {
@@ -430,6 +435,21 @@ function ficosHeroVm(vm, v, lang) {
     horizon_note: readableNote(focus ? focus.evidence || '' : ''),
   };
   vm.tryNext = readableNote(joinNote(plan ? plan.action : '', (v.feedback || {}).by_when ? H.by(v.feedback.by_when) : ''));
+  // Queue #184 (operator 19 Nov ~11:40: "we are not showing the reasoning ... we want that"): every indicator the
+  // observer set, in its section, with that level and the evidence as the observer submitted it, word for word (the
+  // 11 Nov rule for HITL reports). No model writes any of it. An indicator with no level is left out.
+  vm.evidence = {
+    title: H.evidence,
+    sections: f.sections.filter((s) => s.scored > 0 || f.indicators.some((i) => i.section === s.key && i.na)).map((s) => ({
+      name: `${H.atom(s.key)}. ${FicoS.sectionName(s.key, lang)}`,
+      items: f.indicators.filter((i) => i.section === s.key && (i.level !== null || i.na)).map((i) => ({
+        code: i.code,
+        name: indName(i),
+        level: i.na ? H.na : H.level(i.level),
+        note: String(i.evidence || '').trim(),
+      })),
+    })),
+  };
   return vm;
 }
 

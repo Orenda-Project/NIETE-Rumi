@@ -384,6 +384,7 @@ const STRINGS = {
     v6f_next: 'آگے',
     v6f_submit: 'مشاہدہ جمع کریں',
     v6f_rec_nothing: 'ریکارڈنگ میں اس کے لیے کچھ نہیں ملا۔',
+    v6f_rec_starred: '★ ستارے والا اشاریہ: یہ صرف آپ کا ہے۔ Rumi اسے نہیں سنتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔',
     v6f_rec_ie: 'ریکارڈنگ سے یہ معلوم نہیں ہو سکا۔ جو آپ نے دیکھا اس سے لیول چنیں۔',
     v6f_rec_na: 'ریکارڈنگ کو سبق میں یہ نہیں ملا۔',
     v6f_d2_turns: 'پہلے آدھے حصے میں طلبہ {a} بار بولے اور دوسرے میں {b} بار۔ ریکارڈنگ یہ نہیں بتا سکتی کہ کتنے مختلف بچے بولے۔',
@@ -768,6 +769,8 @@ const STRINGS = {
     v6f_next: 'Next',
     v6f_submit: 'Submit observation',
     v6f_rec_nothing: 'The recording showed nothing for this.',
+    // Queue #184: a starred indicator in starred mode (fico_v6_starred): never sent to the Digital Coach.
+    v6f_rec_starred: '★ Starred: yours alone. Rumi does not listen for this one; set the level from what you saw.',
     v6f_rec_ie: "The recording couldn't show this. Set the level from what you saw.",
     v6f_rec_na: 'The recording did not find this in the lesson.',
     v6f_d2_turns: 'The recording has {a} student turns in the first half and {b} in the second. It cannot tell how many different children spoke.',

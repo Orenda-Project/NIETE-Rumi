@@ -159,7 +159,8 @@ describe('the endpoint door', () => {
     const r = await ex('form-s', 'FS_A_ONE', { lv_A1: '3', ev_A1: 'short' });
     expect(r.screen).toBe('FS_A_ONE');
     expect(r.data.error_messages).toEqual({ ev_A1: expect.stringMatching(/20 characters/) });
-    expect(r.data.init).toEqual({ lv_A1: '3', ev_A1: 'short' });
+    // queue #184: the change box (shown on a Digital Coach visit only) starts empty
+    expect(r.data.init).toEqual({ lv_A1: '3', ev_A1: 'short', chg_A1: '' });
     expect(formRow('form-s').answers.obs612).toEqual({ A1: '3', ev_A1: 'short' });
   });
 

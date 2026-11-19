@@ -348,6 +348,89 @@ function getScoringConstants() {
   return { domains, maxMarks: DC_MAX, scaleMax: 4, totalIndicators: v6.CODES.length, dcIndicators: v6.DC_CODES.length };
 }
 
+// ─── Starred mode (queue #184) ─────────────────────────────────────────
+// Operator 19 Nov ~14:15: "yeah those six are the starred ones. hitl only are the starred ones basically" (the rule,
+// ~11:20: "Starred indicators are the one that do not get sent to DC and are mandatorily filled by the HITL"). In starred
+// mode the starred indicators (rubric field `starred`: C3 C5 C7 D2 D3 D4) are never sent to the DC: the prompt has no
+// evidence part and no block for them, a reply that brings anything for them is refused, and the stored analysis keeps
+// nothing for them (no combined_evidence, no D2 count); it names them in `starred`. The coach sets them as today.
+// Behind app_settings.fico_v6_starred (coaching/fico-s-switch.js isV6StarredOn), OFF by default; off, nothing changes.
+const STARRED_PROMPT_VERSION = `fico17-v6-dc-1s+${v6.RUBRIC_SHA8}`;
+const STARRED_SCHEMA = () => `{
+  "rubric": "fico17_v6",
+  "levels": {
+${v6.DC_CODES.filter((c) => !v6.isStarred(c)).map((c, i) => (i === 0
+    ? `    "${c}": {"result": 3, "because": "one short line on why this level", "evidence": [{"time": "12:40", "quote": "exact words from the transcript"}]}`
+    : `    "${c}": {...}`)).join(',\n')}
+  }
+}
+- levels.<code>.result is one of 1, 2, 3, 4, "NA", "IE".
+- Every "time" is MM:SS from the transcript; every "quote" is copied exactly from the transcript line at that time.`;
+let _starredCached = null;
+
+function getStarredSystemPrompt() {
+  if (_starredCached && _starredCached.version === STARRED_PROMPT_VERSION) return _starredCached.prompt;
+  const asked = v6.DC_CODES.filter((c) => !v6.isStarred(c));
+  const prompt = `You are an expert classroom observer scoring one primary-school lesson with FICO17 v6 (the ICT classroom observation rubric).
+
+You are reading the transcript of one primary-school lesson. Each line is
+\`[MM:SS] Speaker (LANG): text\`; speakers are labelled Teacher or Student.
+Every child is labelled "Student": never count different children by that label.
+Score only what the transcript shows. Never infer that something "probably happened".
+A number in a level counts things you can find in the transcript (answers, questions, times the teacher does
+something), never different children.
+
+For each indicator below, choose the ONE level (1-4) whose
+description best fits the whole lesson, using only what is in the transcript.
+If the indicator's "Couldn't tell" condition applies, return "IE" instead of a level.
+If the indicator's N/A condition applies, return "NA".
+Give 1-3 evidence items, each a timestamp and the exact words from the transcript.
+
+${asked.map((c) => renderLevelBlock(v6.indicator(c))).join('\n\n')}
+
+Return only JSON matching this schema:
+${STARRED_SCHEMA()}`;
+  _starredCached = { version: STARRED_PROMPT_VERSION, prompt };
+  return prompt;
+}
+
+function validateStarred(analysis, transcript) {
+  const a = analysis || {};
+  const errors = [];
+  const ce = a.combined_evidence && typeof a.combined_evidence === 'object' ? a.combined_evidence : null;
+  for (const code of v6.STARRED_CODES) {
+    if (ce && ce[code] !== undefined) errors.push(`${code}: starred: never asked of the Digital Coach`);
+  }
+  // The level checks are the full validator's, over a copy that brings no evidence part (none was asked).
+  const copy = { ...a, combined_evidence: Object.fromEntries(EVIDENCE_CODES.map((c) => [c, { result: null, items: [] }])) };
+  const base = validate(copy, transcript);
+  if (a.levels) for (const code of v6.DC_CODES) if (copy.levels && copy.levels[code]) a.levels[code] = copy.levels[code];
+  const all = [...errors, ...base.errors];
+  return { ok: all.length === 0, errors: all, dropped: base.dropped, warnings: base.warnings };
+}
+
+function computeScoresStarred(analysis, hasLp) {
+  const a = analysis || {};
+  delete a.combined_evidence;
+  const out = computeScores(a, hasLp); // no transcript: no D2 count
+  delete out.combined_evidence;
+  out.prompt_version = STARRED_PROMPT_VERSION;
+  out.starred = v6.STARRED_CODES.slice();
+  return out;
+}
+
+/** The v6 scorer in starred mode: the same interface and name, so every v6 reader treats its analysis as v6. */
+function starredVariant() {
+  return {
+    ...module.exports,
+    promptVersion: STARRED_PROMPT_VERSION,
+    starredMode: true,
+    getSystemPrompt: getStarredSystemPrompt,
+    validate: validateStarred,
+    computeScores: computeScoresStarred,
+  };
+}
+
 module.exports = {
   name: 'fico17_v6',
   version: '6.0',
@@ -368,4 +451,6 @@ module.exports = {
   lines,
   EVIDENCE_CODES,
   KINDS,
+  starredVariant,
+  STARRED_PROMPT_VERSION,
 };
