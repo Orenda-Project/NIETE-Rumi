@@ -623,6 +623,59 @@ async function tryPicLpRoute({ user, from, imageId, mimeType, caption, typingCon
 }
 
 /**
+ * Hand-off from pic-to-LP to the generic reply, for a not-a-book-page batch.
+ *
+ * handleImageMessage tags `image:<uid>:<media>` = pic_lp_handled the moment it
+ * enqueues a photo to the coalescer, so a repeat send cannot reach the generic
+ * path on its own. But the batch's not-a-book-page fallback IS the generic
+ * path, and runImageAnalysis's SET NX on that same key always failed: "🔄
+ * Duplicate image detected, skipping" and the teacher got no reply at all.
+ *
+ * The batch owns its photos, so it hands the claim over:
+ *   - every photo in the batch is marked handed-off, once (SET NX on
+ *     `image:<uid>:<media>:pic_lp_fallback`). A batch whose primary was
+ *     already handed off is a repeat (a webhook retry of a photo we answered):
+ *     it stops here, no second reply.
+ *   - the primary's pic_lp_handled tag (that tag only) is released, so
+ *     runImageAnalysis's own guard takes the photo and replies.
+ *
+ * Returns true when the caller should send the generic reply. Never throws: a
+ * Redis error means a reply (a rare double beats silence), as setNX does.
+ */
+async function handOffPicLpClaim(userId, batch) {
+  const primaryId = batch.primary.mediaId;
+  const handoff = JSON.stringify({ status: 'pic_lp_fallback', timestamp: Date.now() });
+  try {
+    const fresh = await redisService.setNX(`image:${userId}:${primaryId}:pic_lp_fallback`, handoff, IDEMPOTENCY_TTL_SECONDS);
+    for (const img of batch.images) {
+      if (img.mediaId === primaryId) continue;
+      await redisService.setNX(`image:${userId}:${img.mediaId}:pic_lp_fallback`, handoff, IDEMPOTENCY_TTL_SECONDS);
+    }
+    if (!fresh) {
+      logToFile('🔄 Pic-LP batch repeats a photo already answered, skipping', {
+        imageId: primaryId, userId, batchSize: batch.images.length,
+      });
+      return false;
+    }
+
+    const tagKey = `image:${userId}:${primaryId}`;
+    let tag = await redisService.get(tagKey); // the service JSON-parses
+    if (typeof tag === 'string') {
+      try { tag = JSON.parse(tag); } catch (e) { tag = null; }
+    }
+    if (tag && tag.status === 'pic_lp_handled') {
+      await redisService.delete(tagKey);
+    }
+    return true;
+  } catch (err) {
+    logToFile('⚠️ Pic-LP hand-off to the generic reply failed (replying anyway)', {
+      error: err.message, userId, imageId: primaryId,
+    });
+    return true;
+  }
+}
+
+/**
  * Process a coalesced batch of images from one user.
  *
  * The coalescer has already deduped by mediaId and picked a `primary` image
@@ -666,6 +719,10 @@ async function handleCoalescedBatch({ user, from, batch }) {
   // Threshold 0.5 to catch borderline textbook pages (poorly lit, partially
   // obscured) that would otherwise fall to the fallback.
   if (classification.type !== 'BOOK_PAGE' || classification.confidence < 0.5) {
+    // The batch owns these photos: hand pic-to-LP's claim to the generic reply
+    // (a repeat of a photo already answered stops here).
+    if (!(await handOffPicLpClaim(user.id, batch))) return;
+
     // Restore vision-feedback for the primary image only. For a 4-classroom-
     // photo batch the user gets ONE content-aware reply. Call into
     // runImageAnalysis with a synthetic correlationId + startTime since the
