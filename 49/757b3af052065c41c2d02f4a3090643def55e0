@@ -1,2 +1,3 @@
 {"ts":"2026-11-19T16:19:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"49757b3af052","branch":"bd-zrdvmi.29-04681","user":""}
 {"ts":"2026-11-19T16:39:58Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (only a page that fails to draw behaves differently; happy-path screens unchanged; unit-tested in LessonPlanPage.retry.test.tsx; driven 5/5 in run 20261119-211903-portal-smoke)","sha":"49757b3af052","branch":"bd-zrdvmi.29-staging","user":""}
+{"ts":"2026-11-19T16:39:58Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-49757b3af052","sha":"49757b3af052","branch":"bd-zrdvmi.29-staging","user":""}
