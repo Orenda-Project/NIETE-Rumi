@@ -10,7 +10,8 @@ import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
-import { deleteRecording } from '../../lib/recordingStore';
+import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
+import { withDuration } from '../../lib/webmDuration';
 import { isInAppBrowser } from '@/lib/runtime';
 import { getRecentPlans, planChips, pickOf } from '../../newui/coaching/coachingApi';
 import { LevelBars } from '../../newui/coaching/LevelBars';
@@ -34,7 +35,7 @@ import { DC_PICK } from './libraryPick';
 import { libraryKeyFor, sameSubjectName } from '../../lib/classKey';
 import { lessonsUrl, openUrl } from '../lessons/paths';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
-import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard, WaitingRecording } from './parts';
+import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard, UnsentRecording, WaitingRecording } from './parts';
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
 import { dcSteps } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
@@ -69,6 +70,13 @@ import { useDcReport } from './useDcReport';
  *
  * What she has chosen is held in memory (draft.ts) so a trip to the library or her lesson plan, and Back, finds it.
  * Opened from a lesson plan (?grade&subject&plan) the class and the plan arrive filled in.
+ *
+ * Not sent        bd-r2uzg1.18.8 (ICT DC row 154): memory is not enough for the recording. A new page load (WhatsApp's
+ *                 browser closed, the phone ended the page, a fresh link) loses it, and so does opening this screen
+ *                 afresh from the main page (the held draft is replaced). The recorder has written every chunk to the
+ *                 phone as it recorded (lib/lessonRecorder → lib/recordingStore), so the screen offers the newest one
+ *                 not sent — never the one recording now, nor the one already on the screen. A tap attaches it; Submit
+ *                 or Save takes it off the phone once sent, and Redo throws it away.
  */
 
 type AudioProblem = 'too_large' | 'not_audio' | 'video' | null;
@@ -259,9 +267,36 @@ export function NewObservationPage() {
       recordingId: null, source: 'file', size: file.size, startedAt: null,
     });
   };
+  // bd-r2uzg1.18.8 — the newest recording on this phone not sent (see "Not sent" above), read once on arrival. The one
+  // recording now and the one already on the screen are the screen's own, never offered. No phone storage: nothing.
+  const [unsent, setUnsent] = useState<{ meta: StoredRecording; blob: Blob } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const own = new Set([session?.recordingId, kept?.audio && !isSavedAudio(kept.audio) ? kept.audio.recordingId : null]);
+    latestUnsent().then((u) => { if (alive && u && !own.has(u.meta.id)) setUnsent(u); }).catch(() => { /* none to offer */ });
+    return () => { alive = false; };
+    // Once, on arrival: what was on the phone when she opened the screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /** Once it is on the screen, sent or thrown away, it is no longer offered. */
+  const letGo = (id: string | null | undefined) => { if (id) setUnsent((u) => (u && u.meta.id === id ? null : u)); };
+  const takeUnsent = async () => {
+    const u = unsent;
+    if (!u) return;
+    setUnsent(null);
+    setAudioProblem(null);
+    setRepeat(null);
+    // The WebM header carries no length until it is written in (lib/webmDuration); the phone kept the clock's.
+    const blob = await withDuration(u.blob, u.meta.ext, u.meta.elapsedMs);
+    setAudio({
+      blob, filename: lessonFilename(u.meta.ext, new Date(u.meta.startedAt)), durationMs: u.meta.elapsedMs || null,
+      recordingId: u.meta.id, source: 'resumed', size: blob.size, startedAt: u.meta.startedAt,
+    });
+  };
   const redo = async () => {
     const id = isSavedAudio(audio) ? null : audio?.recordingId;
     if (id) { try { await deleteRecording(id); } catch { /* gone */ } }
+    letGo(id);
     setAudio(null);
     setAudioProblem(null);
   };
@@ -299,7 +334,10 @@ export function NewObservationPage() {
         uploaded: uploaded.current,
         ...(saveForLater ? { saveForLater: true } : {}),
       }, portal, (pct) => setSending({ pct }));
-      if (!isSavedAudio(audio) && audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
+      if (!isSavedAudio(audio) && audio.recordingId) {
+        try { await deleteRecording(audio.recordingId); } catch { /* gone */ }
+        letGo(audio.recordingId);
+      }
       clearDraft();
       if (saveForLater) {
         setSavedId(coachingSessionId);
@@ -425,6 +463,10 @@ export function NewObservationPage() {
 
       {!after ? (
         <>
+          {/* bd-r2uzg1.18.8 — first thing on the screen, before she picks anything: her recording not sent. */}
+          {unsent && !audio && !checking && phase === 'idle' && unsent.meta.id !== session?.recordingId ? (
+            <UnsentRecording startedAt={unsent.meta.startedAt} durationMs={unsent.meta.elapsedMs || null} onPress={() => { void takeUnsent(); }} />
+          ) : null}
           <FlowStep n={1} state={s1}>{C.gradeAndSubject}</FlowStep>
           <ClassPicker
             label={C.gradeAndSubject}
@@ -523,7 +565,8 @@ export function NewObservationPage() {
               </Tray>
             </>
           ) : null}
-          {audio && (cls || isSavedAudio(audio)) ? (
+          {/* A recording kept from WhatsApp, or one taken back from the phone (bd-r2uzg1.18.8), shows before a class too. */}
+          {audio && (cls || isSavedAudio(audio) || audio.source === 'resumed') ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
           ) : null}
           {/* bd-bmc9a0.2 — ICT IAB row 31: Save recording, under the recording, once it could be sent (the same rule as
