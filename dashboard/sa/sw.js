@@ -149,8 +149,8 @@ var CORE = 'sa-core-' + VERSION;
 // v32: the letter-sound picker's 24 prompts (scored and practice, English and Urdu) say each sound three times: one
 // recorded sound copied three times with the same gap, so no letter gets a clue; English t (a real /t/ burst) and d
 // (longer) re-made, the held sounds as the content owner picked, Urdu م and س held. v5/prompt_timings.json gives the
-// three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is kept for the
-// letter-names practice example's name, which moves only on the content owner's pick.)
+// three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is retired unused;
+// the next re-voice takes v33, and SESSION never moves backwards.)
 var SESSION = 'sa-session-v32';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
