@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { DEFAULT_RANGE, pkToday, type DateRange } from '../../newui/range';
+import { useLocation } from 'react-router-dom';
+import { pkToday, rangeFromSearch, type DateRange } from '../../newui/range';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { useCopy } from '../i18n';
@@ -38,7 +39,9 @@ export function CoachingAllPage() {
   const C = useCopy(COACHING);
   const { days } = useCopy(LESSONS);
   const kit = useKitCopy();
-  const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
+  // The range in the address (Home's tiles open their 30 days: ?range=custom&from=&to=); else This month.
+  const { search } = useLocation();
+  const [range, setRange] = useState<DateRange>(() => rangeFromSearch(new URLSearchParams(search)));
   const dates = useMemo(() => datesOf(range, kit), [range, kit]);
   const key = JSON.stringify([dates.from, dates.to, dates.prevFrom, dates.prevTo]);
   const [history, retry] = useLoad(() => loadDcHistory(historyParams(dates)), `dc-all:${key}`);

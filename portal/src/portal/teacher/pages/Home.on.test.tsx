@@ -124,6 +124,36 @@ describe("teacher v2 Home, card switch ON", () => {
     expect(Array.from(grid.children).findIndex((c) => c.contains(chips))).toBe(3);
   });
 
+  // Design review (slim-card day): the block never sits above the card. Row 1, the slim card, the block, then the chips
+  // (the spec puts the score strip after the block).
+  const ACTIVITY = {
+    updatedAt: new Date(Date.now() - 3_600_000).toISOString(), slot: "day", trend: [], tip: null,
+    tiles: { opened: { now: 14, prev: 9 }, taught: { now: 3, prev: 1 }, coached: { now: 2, prev: 2 }, quizzes: { now: 4, prev: 0 }, papers: { now: 1, prev: 0 } },
+  };
+  it("with the slim card and the Last 30 days block, the block comes right after the slim card, inside the grid, then the chips", async () => {
+    serve({ home: body({ card: LESSON_CARD, activity: ACTIVITY, scores: { coach: null, observation: { marks: 29, max: 38, at: "", id: "o-1" } } }),
+      features: { teacherHomeCard: true, teacherHomeActivity: true } });
+    renderHome();
+    const slim = await screen.findByTestId("home-slim-card");
+    const block = await screen.findByTestId("home-activity");
+    const grid = screen.getByTestId("feature-tiles");
+    const at = (el: Element) => Array.from(grid.children).findIndex((c) => c === el || c.contains(el));
+    expect(at(slim)).toBe(2);
+    expect(at(block)).toBe(3);
+    expect(at(screen.getByTestId("home-scores"))).toBe(4);
+  });
+
+  it("with the full card, the block stays between the card and the grid", async () => {
+    serve({ home: body({ card: COACH_CARD, activity: ACTIVITY }), features: { teacherHomeCard: true, teacherHomeActivity: true } });
+    renderHome();
+    const card = await screen.findByTestId("home-next-card");
+    const block = await screen.findByTestId("home-activity");
+    const grid = screen.getByTestId("feature-tiles");
+    expect(grid.contains(block)).toBe(false);
+    expect(card.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("tiles in the server's order when the order switch is on and it lands in time", async () => {
     const order = ["coaching", "lessons", "training", "observations", "assessment", "attendance", "classes", "analytics"];
     serve({ home: body({ order, orderOn: true }), features: { teacherHomeCard: true, teacherHomeOrder: true } });
