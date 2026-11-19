@@ -98,7 +98,7 @@ export function GoalStep({ at, goal, onPick }: {
       </label>
       {outcomes === undefined ? <div className="h-[168px] rounded-2xl bg-[#f0f1f3] motion-safe:animate-pulse" aria-hidden /> : null}
       {words.length && hits.length ? radios(hits, G.outcomes) : null}
-      {words.length && !hits.length && list.length ? <p className="text-[15px] text-[#6b7280]" data-testid="own-goal-nohits">{G.noneFound}</p> : null}
+      {words.length && !hits.length && list.length && !guard && !missed ? <p className="text-[15px] text-[#6b7280]" data-testid="own-goal-nohits">{G.noneFound}</p> : null}
       {!words.length && groups.length ? (
         <div className="flex flex-col gap-2" role="list" aria-label={G.outcomes}>
           {groups.map((g) => {
