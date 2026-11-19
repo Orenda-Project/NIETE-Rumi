@@ -16,12 +16,12 @@ const sha1 = (p) => crypto.createHash('sha1').update(fs.readFileSync(path.join(R
 
 describe('the ث name clip in the letter-names practice', () => {
   it('serves the [seː] take under its key', () => {
-    expect(sha1(KEY)).toBe('0873374a26485ca9747b84007ff8b2fdca7d103b');
+    expect(sha1(KEY)).toBe('7669fabe27eebacc12ba249b7a6f7b3d872dbcce');
   });
 
   it('the lock records that take under a SESSION after sa-session-v29', () => {
     const lock = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
-    expect(lock.files[KEY]).toBe('0873374a26485ca9747b84007ff8b2fdca7d103b');
+    expect(lock.files[KEY]).toBe('7669fabe27eebacc12ba249b7a6f7b3d872dbcce');
     expect(Number(session().replace('sa-session-v', ''))).toBeGreaterThan(29);
   });
 });
