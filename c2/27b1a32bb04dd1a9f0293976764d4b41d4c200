@@ -1,0 +1,2 @@
+{"ts":"2026-11-19T14:12:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"c227b1a32bb0","branch":"bd-snkn32.58-guardrails","user":""}
+{"ts":"2026-11-19T14:12:15Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.58-guardrails: lesson-plan spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"c227b1a32bb0","branch":"bd-snkn32.58-guardrails","user":""}
