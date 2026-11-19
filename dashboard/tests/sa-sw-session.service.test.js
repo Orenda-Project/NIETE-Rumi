@@ -25,7 +25,7 @@ function bootWorker(existing) {
     delete: (k) => { deleted.push(k); kept.delete(k); return Promise.resolve(true); },
     open: () => Promise.resolve({ put: () => Promise.resolve(), match: () => Promise.resolve(undefined) }),
   };
-  vm.runInNewContext(SRC, { self, caches, URL, Promise, fetch: () => Promise.reject(new Error('offline')), setTimeout, console });
+  vm.runInNewContext(SRC, { self, caches, URL, Promise, fetch: () => Promise.reject(new Error('offline')), setTimeout, clearTimeout, console });
   return { listeners, kept, deleted };
 }
 
