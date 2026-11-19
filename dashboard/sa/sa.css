@@ -922,6 +922,7 @@ button{font:inherit;color:inherit}
   .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-task-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:15px;line-height:1.9;margin-bottom:-4px}
   .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts{gap:8px}
   .sae .sae-mcq:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts ~ .sae-fb{flex:none;box-sizing:border-box;height:40px;min-height:0;margin:7px 0 0;padding-top:0 !important;padding-bottom:0 !important;font-size:15px;line-height:40px;white-space:nowrap}
+  .sae .sae-mcq.sae-mcq-practice:has(.sae-mcq-head+.sae-mcq-q[lang=ur]) .sae-mcq-opts ~ .sae-fb.is-empty{display:none}
 }
 /* end round 28, RDF auto practice question */
 /* round 28, A11 (sa_r28_toggle_fit, the page's .is-r28-toggle-fit; OFF: none of this applies). Once the other language's

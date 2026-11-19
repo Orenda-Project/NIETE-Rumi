@@ -201,4 +201,18 @@ maybe('the spoken story questions\' practice in RDF auto on a 360×640 phone fit
       expect(rows.map((r) => r.opts.every((o) => o.h >= 56))).toEqual(rows.map(() => true));
     }, 180000);
   }
+
+  // A 320×568 phone (the small end): the Urdu practice question open (read out, and waiting for the tap) draws all four
+  // cards whole with no scroll cue. The empty feedback line under the cards is not drawn there (as on the letter
+  // picker), so the fourth card is never the one under the fold. After a wrong tap the feedback line returns: the
+  // stated 320 limit, not asserted here. Under the served set with the 44 px top bar (r28_toggle_fit); without it the
+  // 56 px bar alone puts the page 15 px past a 568 px fold.
+  const SMALL = { name: 'phone320', vp: { width: 320, height: 568 }, dpr: 3 };
+  for (const set of SETS.filter((x) => x.ui.r28_toggle_fit)) {
+    test(`[${set.name}] ur phone320 (320×568 dpr 3): the practice question open: card 4 whole, no scroll cue`, async () => {
+      const rows = (await walk('ur', SMALL, set)).filter((r) => r.state === 'p_early' || r.state === 'p_read');
+      const bar4 = (r) => ({ state: r.state, practice: r.practice, opts: r.opts.length, card4_whole: !!(r.opts[3] && r.opts[3].whole && r.opts[3].hit), cue: !!r.cue });
+      expect(rows.map(bar4)).toEqual(['p_early', 'p_read'].map((state) => ({ state, practice: true, opts: 4, card4_whole: true, cue: false })));
+    }, 180000);
+  }
 });
