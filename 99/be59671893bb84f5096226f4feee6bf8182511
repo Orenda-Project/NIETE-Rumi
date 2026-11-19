@@ -1,3 +1,4 @@
 {"ts":"2026-11-19T15:46:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test,portal-login,portal-smoke spec_sync=true","sha":"99be59671893","branch":"bd-zrdvmi.28-staging","user":""}
 {"ts":"2026-11-19T15:47:24Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.28-staging: E-DUPID:child-test;E-NODRIVER:coaching","sha":"99be59671893","branch":"bd-zrdvmi.28-staging","user":""}
 {"ts":"2026-11-19T15:47:42Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.28-staging: E-DUPID:child-test;E-NODRIVER:coaching","sha":"99be59671893","branch":"bd-zrdvmi.28-staging","user":""}
+{"ts":"2026-11-19T15:47:54Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.28-staging: E-DUPID:child-test;E-NODRIVER:coaching","sha":"99be59671893","branch":"bd-zrdvmi.28-staging","user":""}
