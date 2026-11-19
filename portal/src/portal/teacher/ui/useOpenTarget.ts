@@ -3,7 +3,7 @@ import { browserEnv, type BrowserEnv } from '@/lib/runtime';
 
 /**
  * useOpenTarget — "Open in another app" as logic only, so one behaviour has two looks: ShareActions' 64px button and
- * ActionStrip's Download cell (lifted out of ShareActions, bd-fmf24g.30 / .53 / .59 / .60). Where she is decides what a
+ * ActionStrip's Download cell (lifted out of ShareActions). Where she is decides what a
  * press does:
  *
  *   WhatsApp's browser, Android    a FILE goes to the phone's browser through OUR page (public/open-file.html, no .pdf
@@ -26,7 +26,7 @@ export type OpenFlash = 'opening' | 'copied' | 'failed' | null;
 export const OPEN_HOLD_MS = 10_000;
 
 /**
- * bd-fmf24g.60 — the hosts public/open-file.html forwards to (keep the two in step). A file anywhere else is not handed off:
+ * The hosts public/open-file.html forwards to (keep the two in step). A file anywhere else is not handed off:
  * its link is copied instead, so the page can never be used to send someone elsewhere.
  */
 export const HANDOFF_HOST = /(^|\.)(r2\.cloudflarestorage\.com|r2\.dev|niete\.edu\.pk|up\.railway\.app)$/i;
@@ -38,10 +38,10 @@ function b64url(text: string): string {
 }
 
 /**
- * bd-fmf24g.60 — Android, WhatsApp's browser: "open this file in the phone's browser". WhatsApp's in-app browser sends any
+ * Android, WhatsApp's browser: "open this file in the phone's browser". WhatsApp's in-app browser sends any
  * link whose path ends in .pdf — even inside intent:// — to its own PDF viewer, which throws "unknown protocol: intent"
  * and takes WhatsApp down. So the browser gets OUR page, public/open-file.html, which has no .pdf in its link and
- * forwards to the file. No S.browser_fallback_url: nothing ever loads inside WhatsApp (bd-fmf24g.53). Null when the
+ * forwards to the file. No S.browser_fallback_url: nothing ever loads inside WhatsApp. Null when the
  * file's host is not one that page forwards to.
  */
 export function handoffIntentUrl(fileUrl: string, pageOrigin: string): string | null {
@@ -94,7 +94,7 @@ export function useOpenTarget(open: OpenTarget | undefined, { env: envProp, page
   const fileUrl = open && 'fileUrl' in open ? open.fileUrl : null;
   const isPage = !!open && 'page' in open;
   const show = !!open && (isPage ? pageHandoff && (env === 'android-iab' || env === 'ios-iab') : true);
-  // Android, WhatsApp's browser, a FILE: hand it to the phone's app (bd-fmf24g.59), with Copy link underneath.
+  // Android, WhatsApp's browser, a FILE: hand it to the phone's app, with Copy link underneath.
   const handOff = env === 'android-iab' && show && !!fileUrl;
   // Anywhere else inside WhatsApp's browser the press only copies: nothing it can navigate to leaves WhatsApp.
   const copyMode = (env === 'ios-iab' || env === 'android-iab') && show && !handOff;
