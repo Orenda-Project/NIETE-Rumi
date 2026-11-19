@@ -391,8 +391,44 @@ function createAppFunnelRouter({ limiter } = {}) {
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
   );
 
+  /**
+   * bd-o15qnr.26 (queue #177) — the coach visit flow v2 (portal coach/flow/track.ts): what she does on the one Schedule
+   * list, New visit's level chips and the Home's Today card → app_funnel.coach_flow { action, level }. Coach and journey
+   * from the SESSION; only the actions below (anything else is a 400 and nothing is logged), level only from its list.
+   */
+  router.post(
+    '/funnel/coach-flow',
+    requireSession,
+    express.text({ type: 'text/*', limit: '1kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !COACH_FLOW_ACTIONS.includes(body.a)) {
+        return res.status(400).end();
+      }
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const { journeyId, ...base } = who(req, now);
+      emit('app_funnel.coach_flow', {
+        ...base,
+        journeyId,
+        feature: 'schedule',
+        browser: browserClass(req, body.b),
+        action: body.a,
+        level: body.a === 'new_visit.level' ? (COACH_FLOW_LEVELS.includes(body.level) ? body.level : 'unknown') : null,
+      });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   return router;
 }
+
+// bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
+const COACH_FLOW_ACTIONS = ['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start'];
+const COACH_FLOW_LEVELS = ['all', 'primary', 'middle', 'high'];
+
 
 const SA_OFFLINE_KINDS = {
   prep: 'sa_prep.result', prep_waiting: 'sa_prep.still_waiting', list_failed: 'sa_list.failed', list_slow: 'sa_list.slow', list_late: 'sa_list.late',

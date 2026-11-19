@@ -63,7 +63,11 @@ export function useLevelNames(): (levels: readonly string[] | null | undefined) 
  * All · Primary · Middle · High (the kit's ChoiceChips), with only the levels some teacher here teaches. Two levels or
  * more, or one picked already, or nothing is shown: with every teacher at one level there is nothing to choose.
  */
-export function LevelChips({ counts }: { counts: Partial<Record<TeachingLevel, number>> | null | undefined }) {
+export function LevelChips({ counts, onPick }: {
+  counts: Partial<Record<TeachingLevel, number>> | null | undefined;
+  /** bd-o15qnr.26 — told which chip she tapped (New visit counts it); the address changes either way. */
+  onPick?: (level: TeachingLevel | null) => void;
+}) {
   const C = useCopy(PEOPLE);
   const [level, setLevel] = useLevel();
   const present = LEVELS.filter((l) => (counts?.[l] ?? 0) > 0 || l === level);
@@ -71,7 +75,7 @@ export function LevelChips({ counts }: { counts: Partial<Record<TeachingLevel, n
   return (
     <div data-testid="level-chips">
       <ChoiceChips label={C.teachingLevel} value={level ?? "ALL"}
-        onChange={(k) => setLevel(k === "ALL" ? null : levelOf(k))}
+        onChange={(k) => { const next = k === "ALL" ? null : levelOf(k); setLevel(next); onPick?.(next); }}
         options={[{ key: "ALL", label: C.allLevels }, ...present.map((l) => ({ key: l, label: C.levelNames[l] }))]} />
     </div>
   );

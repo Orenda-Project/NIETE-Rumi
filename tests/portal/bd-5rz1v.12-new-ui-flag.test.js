@@ -178,7 +178,8 @@ describe('GET /config — features.newUi', () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
-      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm',
+      // bd-o15qnr.26 — the coach visit flow v2, a real false unless portal_coach_flow_v2 (with v2 and the full app) names her.
+      'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm',
       'helpVideos',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
