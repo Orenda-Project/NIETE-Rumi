@@ -14,6 +14,12 @@ export { LESSONS_OWN };
 /** bd-snkn32.25 — `pick=own`: grade and subject, then a chapter, lead straight into these steps (from the main page). */
 export const OWN_PICK = 'own';
 export const OWN_START = `${LESSONS_NEW}?pick=${OWN_PICK}`;
+/**
+ * bd-snkn32.58.1 (queue #155 A) — with the goal switch on, OWN_START is two equal choices: from a textbook chapter
+ * (OWN_BOOK: today's class → chapter → steps) or from a learning goal (OWN_GOAL: class → the goal step, no chapter).
+ */
+export const OWN_BOOK = `${OWN_START}&start=book`;
+export const OWN_GOAL = `${OWN_START}&start=goal`;
 /** Every step there is, in the one order every grade walks ; stepsFor says which she walks. */
 export const OWN_STEPS = ['pages', 'goal', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check'] as const;
 export type OwnStep = (typeof OWN_STEPS)[number];
@@ -49,8 +55,9 @@ export type OwnAt = {
 
 const pick = <T extends string>(list: readonly T[], v: string | null): T | null => (v && (list as readonly string[]).includes(v) ? v as T : null);
 
-export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; chapter: string }): string {
-  const q = new URLSearchParams({ grade: String(s.grade), subject: s.subject, chapter: s.chapter });
+export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; chapter?: string }): string {
+  const q = new URLSearchParams({ grade: String(s.grade), subject: s.subject });
+  if (s.chapter) q.set('chapter', s.chapter); // a goal start (bd-snkn32.58.1) has none
   if (s.step && s.step !== 'pages') q.set('step', s.step);
   if (s.seg) q.set('seg', s.seg);
   if (s.size) q.set('size', s.size);
@@ -75,8 +82,9 @@ export function readOwn(search: string): OwnAt | null {
   const q = new URLSearchParams(search);
   const grade = Number(q.get('grade'));
   const subject = q.get('subject');
-  const chapter = q.get('chapter');
-  if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject || !chapter) return null;
+  // bd-snkn32.58.1 — a goal start needs no chapter (her class, then her goal); every other own address does.
+  const chapter = q.get('chapter') ?? '';
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject || (!chapter && q.get('start') !== 'goal')) return null;
   const pg = parsePg(q.get('pg'));
   const res = (q.get('res') ?? '').split(',').map((r) => pick(RESOURCES, r)).filter((r): r is Resource => !!r && r !== 'textbook');
   // the band decides what survives: a way off her list, exam practice below Grade 8, the outcomes focus
