@@ -555,7 +555,39 @@ Feature: Teacher lesson plans
     Then she sees "We could not make a plan we are sure of for this goal." with "Select another goal" and "From a textbook chapter"
     And there is no "Try again"
 
-  # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar), written by hand.
+  # bd-m8zwt1.1 (queue #164 testing): every grades 1-5 goal plan whose first check failed crashed on its one fix
+  # ("k5EditMessages: unknown part undefined") and ended "Couldn't make it". Pinned by tests/lp612/own-goal-k5-fix.test.js.
+  @GOAL13 @draft @config-gated
+  Scenario: A grades 1-5 goal plan the check asks to fix gets its one fix, and ends ready or with the calm refusal
+    Given a Grade 3 Maths goal plan whose first goal check found a problem
+    When the worker makes its one fix
+    Then the plan ends ready with her goal at the top, or with "We could not make a plan we are sure of for this goal."
+    And she never sees "Couldn't make it" for that reason
+
+  # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
+  @GOAL14 @draft @config-gated
+  Scenario: Make my own's check screen names the subject, not its key
+    Given the demo teacher picks Grade 3 Maths and a learning goal
+    When she reaches "Your plan"
+    Then the line under her goal reads "Grade 3 · Math", never "math"
+    And in Urdu it reads "ریاضی"
+
+  # bd-m8zwt1.8 / bd-m8zwt1.9 (queue #164 testing), pinned by PreparingPage.retry.test.tsx and Check.test.tsx.
+  @GOAL15 @draft @config-gated
+  Scenario: Try again after her own plan failed takes her back to her own answers
+    Given the demo teacher's own plan failed while it was being made
+    When she taps "Try again" on the Preparing page
+    Then she is on "Your plan" with the answers she gave
+    And she is not shown the ready-made plan of that lesson
+
+  @GOAL16 @draft @config-gated @negative
+  Scenario: The daily limit is said where she can see it
+    Given the demo teacher has made today's last allowed own plan
+    When she taps "Make my plan" again
+    Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button
+
+  # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan, ICT or GB (portal_lp_feedback_bar; GB grades 1-5
+  # plans open on the 6-12 lane, so the plan's grade decides, bd-m8zwt1.16), written by hand.
   # @draft: the web lane's demo data has no lesson-plan PDF in its local file store, so the viewer never reaches its
   # last page here. Covered by portal/src/portal/teacher/lessons/FeedbackBar.test.tsx + ViewerPage tests (vitest) and
   # tests/portal/lp-feedback-route.test.js, tests/feedback/lp-in-app-feedback*.test.js (one row per teacher per plan,
@@ -573,3 +605,17 @@ Feature: Teacher lesson plans
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
     When she opens the plan and reaches its end
     Then no survey bar is drawn
+
+  # bd-m8zwt1.15 / bd-m8zwt1.16 (queue #164 testing), pinned by FeedbackBar.test.tsx and ViewerPage.feedback.test.tsx.
+  @LPBAR03 @draft @config-gated
+  Scenario: Teacher app v2: a GB grades 1-5 plan ends with the survey bar too; a grades 6-12 plan still has none
+    Given the survey bar is on for a GB grades 1-5 teacher
+    When she opens a grades 3 plan and reaches its end
+    Then "This plan · Useful · Not useful" is drawn
+    And a grades 7 plan shows no survey bar
+
+  @LPBAR04 @draft @config-gated @negative
+  Scenario: Teacher app v2: the same plan open in two tabs follows the answer already saved
+    Given she answered "Useful" for a plan in one tab
+    When she taps "Not useful" for the same plan in a second tab
+    Then the second tab shows what is saved ("In class"), never the "What was wrong" box

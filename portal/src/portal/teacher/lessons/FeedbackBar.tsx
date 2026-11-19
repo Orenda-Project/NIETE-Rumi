@@ -64,6 +64,11 @@ export function FeedbackBar({ plan }: { plan: FeedbackPlan }) {
       return;
     }
     last.current = null;
+    if ('stale' in out && out.stale) { // bd-m8zwt1.15 — the plan was answered in another tab: show what is saved
+      setReasonOpen(false);
+      setPhase(out.feedback?.useful && !out.feedback.usedInClass ? 'inClass' : 'thanks');
+      return;
+    }
     if ('useful' in answer) {
       if (answer.useful) setPhase('inClass');
       else { setPhase('thanks'); setReasonOpen(true); }

@@ -47,7 +47,7 @@ export async function fetchPlanFeedback(plan: FeedbackPlan): Promise<PlanFeedbac
 }
 
 export type SaveResult =
-  | { ok: true; feedback: PlanFeedback | null }
+  | { ok: true; feedback: PlanFeedback | null; stale?: true }
   | { ok: false; reason: 'offline' | 'failed' | 'gone' };
 
 const offline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -58,6 +58,8 @@ export async function savePlanFeedback(plan: FeedbackPlan, answer: FeedbackAnswe
   try {
     const { data } = await api.post('/lp/feedback', { ...plan, ...answer }, { timeout: SAVE_TIMEOUT_MS });
     if (data?.success !== true) return { ok: false, reason: 'failed' };
+    // bd-m8zwt1.15 — already_answered (another tab got there first): the caller follows what is SAVED, not her tap.
+    if (data.outcome === 'already_answered') return { ok: true, feedback: feedbackOf(data.feedback), stale: true };
     return { ok: true, feedback: feedbackOf(data.feedback) };
   } catch (err) {
     const r = (err as { response?: { status?: number } } | null)?.response;
