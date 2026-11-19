@@ -47,7 +47,8 @@ async function visitRubric({ observerUserId, region, teacherUserId = null, lesso
   const v5 = { rubricVersion: V5_RUBRIC_VERSION, shadow: false };
   try {
     const sw = require('../../coaching/fico-rubric-switch');
-    if (!(await sw.isAnySet('coach'))) return v5; // default off: no region lookup
+    // default off: no region lookup. Queue #191: a coach is v6 whatever the switch holds, so a coach never stops here.
+    if (!(await sw.isAnySet('coach')) && !sw.isCoachRole(await sw.knownRole({ userId: observerUserId }))) return v5;
     const reg = region !== undefined ? region : await sw.regionOfUser(observerUserId);
     const v = await sw.coachRubric({ userId: observerUserId, region: reg });
     // bd-ra8xu.42: v6 reaches grades 1-5 only (operator 11 Nov ~18:05); a teacher of grades 6-12, of unknown level,
