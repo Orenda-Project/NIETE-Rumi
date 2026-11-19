@@ -118,3 +118,22 @@ describe('the switch: app_settings.fico_v6_starred, per user, OFF by default', (
     expect((await O6.v6FrameworkFor(session)).promptVersion).toBe(fw.promptVersion);
   });
 });
+
+describe('a self-recording scored in starred mode: the teacher-facing analysis keeps nothing for the six', () => {
+  test('teacherFacing on a starred blob: no combined_evidence, no D2 count, the six named', () => {
+    const shadow = require('../../bot/shared/services/coaching/frameworks/fico17-v6/shadow');
+    const sv = fw.starredVariant();
+    const scored = sv.computeScores(reply(), false, T);
+    const blob = { status: 'ok', mode: 'v6', levels: scored.levels, starred: scored.starred, prompt_version: sv.promptVersion };
+    const a = shadow.teacherFacing(blob, { topic: 'x' }, T);
+    expect(a.combined_evidence).toBeUndefined();
+    expect(a.starred).toEqual(SIX);
+    expect(a.prompt_version).toBe(sv.promptVersion);
+  });
+  test('a blob from before starred mode: as before (D2 counted from the transcript)', () => {
+    const shadow = require('../../bot/shared/services/coaching/frameworks/fico17-v6/shadow');
+    const scored = fw.computeScores({ ...reply(), combined_evidence: {} }, false, T);
+    const a = shadow.teacherFacing({ status: 'ok', mode: 'v6', levels: scored.levels, combined_evidence: scored.combined_evidence }, {}, T);
+    expect(a.combined_evidence.D2).toBeDefined();
+  });
+});
