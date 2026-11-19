@@ -135,7 +135,7 @@ function treeA(extra = {}, opts) {
 
 /** Phone on the deployed worker before this change (sa-40, SESSION v29) prepares tree A; then (straight from it) the
  * bump to v30 reaches it. Returns what the v30 prepare fetched. */
-async function bump(A, B, { middle = false, beforeBump, betweenInstallAndActivate, lockSession, lockStatus } = {}) {
+async function bump(A, B, { middle = false, beforeBump, betweenInstallAndActivate, lockSession, lockStatus, restart = false } = {}) {
   const ph = phone();
   const srv = server();
   srv.tree = A;
@@ -157,13 +157,18 @@ async function bump(A, B, { middle = false, beforeBump, betweenInstallAndActivat
   await settle(l.install);
   const afterInstall = { keys: [...ph.stores.keys()], carried: [...(ph.stores.get(NEW) || new Map()).keys()] };
   if (betweenInstallAndActivate) await betweenInstallAndActivate({ ph, srv, first });
-  await settle(l.activate);
+  // restart: the waiting worker was stopped while idle (a slow link holds activation for minutes) and is started again for
+  // activate, so every global it set at install is gone
+  const on = restart ? boot(ph, srv, { session: NEW, version: 'sa-43' }) : l;
+  srv.net = [];
+  await settle(on.activate);
+  const activateNet = srv.net.slice();
   const afterActivate = { keys: [...ph.stores.keys()], carried: new Map(ph.stores.get(NEW) || []) };
   srv.net = [];
   const urlsB = [...B.served.keys()];
-  const res = await prepare(l, urlsB);
+  const res = await prepare(on, urlsB);
   const fetched = srv.net.filter((u) => !/\/sa\/[^/]+\.(js|css|html)$/.test(new URL(u).pathname) && !/clips\.lock\.json$/.test(u));
-  return { ph, res, fetched, afterInstall, afterActivate, urlsB };
+  return { ph, res, fetched, afterInstall, afterActivate, urlsB, activateNet };
 }
 
 describe('sw.js carries unchanged clips across a SESSION bump', () => {
@@ -251,6 +256,50 @@ describe('sw.js carries unchanged clips across a SESSION bump', () => {
     expect(afterActivate.keys).not.toContain(OLD);
     const got = afterActivate.carried.get(urlOf(late));
     expect(got && got.buf.toString()).toBe('asked during install');
+  });
+
+  it('C-1 idle stop: the waiting worker restarted before activate still carries what the old worker kept, reading no network', async () => {
+    const A = treeA();
+    const late = 'dashboard/sa/v6/ur/late00000002.mp3';
+    const B = tree(NEW, Object.assign({}, A.files, { [late]: Buffer.from('asked while the new worker waited') }));
+    let answer = null;
+    const { afterActivate, activateNet, fetched } = await bump(A, B, {
+      restart: true,
+      betweenInstallAndActivate: async ({ srv, first }) => {
+        const keep = srv.tree;
+        srv.tree = B;
+        answer = await prepare(first, [urlOf(late)]);
+        srv.tree = keep;
+        srv.lockSession = 'sa-session-v31'; // a later fetch of the lock would name another SESSION: activate must not read it
+      },
+    });
+    expect(answer.missing).toEqual([]);
+    expect(activateNet).toEqual([]);
+    expect(afterActivate.keys).not.toContain(OLD);
+    const got = afterActivate.carried.get(urlOf(late));
+    expect(got && got.buf.toString()).toBe('asked while the new worker waited');
+    // and the install's copy still stands after the restart: only the batteries are fetched
+    expect(fetched.sort()).toEqual(Object.keys(A.files).filter(isBattery).map(urlOf).sort());
+  });
+
+  it('C-1 idle stop: the lock activate reads is the one install parsed and checked, kept in this worker\'s CORE cache', async () => {
+    const A = treeA();
+    const B = tree(NEW, A.files);
+    const { ph } = await bump(A, B, { restart: true });
+    const core = [...ph.stores.keys()].filter((k) => k.startsWith('sa-core-'));
+    expect(core).toEqual(['sa-core-sa-43']);
+    const held = [...ph.stores.get('sa-core-sa-43').values()].map((v) => { try { return JSON.parse(v.buf.toString()); } catch (e) { return null; } })
+      .filter((j) => j && j.files);
+    expect(held).toEqual([B.lock]);
+  });
+
+  it('C-1 idle stop with no usable lock at install (none served): the restarted activate carries nothing and the install still completes', async () => {
+    const A = treeA();
+    const B = tree(NEW, A.files);
+    const none = await bump(A, B, { lockStatus: 404, restart: true });
+    expect(none.activateNet).toEqual([]);
+    expect(none.fetched.length).toBe(none.urlsB.length);
+    expect(none.res.missing).toEqual([]);
   });
 
   it('(iii) a short or corrupt old entry (bytes not the lock\'s) is fetched', async () => {

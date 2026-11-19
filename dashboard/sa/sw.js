@@ -416,9 +416,25 @@ if (typeof module === 'object' && module.exports) {
   // The SESSION carry: install copies what an older SESSION cache holds unchanged, while the old worker still serves; activate
   // makes a second pass (what the old worker kept since, e.g. a prepare it answered during the install) and only then
   // deletes the older caches, so a clip a page was told is ready is never lost in the swap.
-  // activate reads no network (fetches wait while a worker activates): its pass uses the lock install read, or is skipped.
+  // activate reads no network (fetches wait while a worker activates): its pass uses the lock install read and checked.
+  // A waiting worker is stopped when idle (a slow link holds activation for minutes) and its globals go with it, so
+  // install also keeps that lock in this worker's CORE cache, under a key no request is answered from, and activate reads
+  // it back from there. With no lock (none served, or one naming another SESSION) activate carries nothing, as install did.
   var installLock = null;
   var carrySeen = new Set();
+  var CARRY_LOCK_KEY = '/sa/carry/lock.json';
+  function heldLock() {
+    if (installLock) return Promise.resolve(installLock);
+    return caches.open(CORE).then(function (c) { return c.match(new URL(CARRY_LOCK_KEY, self.location.href).href); })
+      .then(function (res) { return res ? res.json() : null; })
+      .then(function (l) { return l && l.session === SESSION && l.files ? l : null; }, function () { return null; });
+  }
+  function keepLock(l) {
+    return caches.open(CORE).then(function (c) {
+      return c.put(new URL(CARRY_LOCK_KEY, self.location.href).href,
+        new Response(JSON.stringify(l), { headers: { 'content-type': 'application/json' } }));
+    }).then(null, function () { return null; });
+  }
   function carryNow(atActivate) {
     return carry({
       session: SESSION,
@@ -426,14 +442,17 @@ if (typeof module === 'object' && module.exports) {
       keys: function () { return caches.keys(); },
       open: function (n) { return caches.open(n); },
       lock: function () {
-        if (atActivate) return Promise.resolve(installLock);
+        if (atActivate) return heldLock();
         return readLock(new URL('/sa/' + LOCK_FILE, self.location.href).href, {
           fetch: function (u, init) { return fetch(u, Object.assign({ cache: 'no-cache' }, init || {})); },
           abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
         });
       },
       digest: function (buf) { return crypto.subtle.digest('SHA-1', buf).then(hex); },
-    }).then(function (r) { installLock = r.lock || installLock; return r; });
+    }).then(function (r) {
+      if (!atActivate && r.lock) { installLock = r.lock; return keepLock(r.lock).then(function () { return r; }); }
+      return r;
+    });
   }
   self.addEventListener('install', function (e) {
     e.waitUntil(Promise.all([caches.open(CORE).then(function (c) {
