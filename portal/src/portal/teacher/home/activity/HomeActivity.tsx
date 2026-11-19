@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, AudioLines, BookOpen, ChevronRight, CircleCheck, Compass, ListChecks } from 'lucide-react';
+import { ArrowRight, ChevronRight, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { peekConfig, readConfigShared } from '../../../lib/useNewUi';
 import type { BandKey } from '../../../lib/scoreBands';
@@ -78,14 +78,14 @@ export function HomeActivity({ activity, quizHome, onGo, className }: HomeActivi
   const t = shown.tiles;
   const range = activityRange(shown.updatedAt);
   const items: KpiItem[] = [
-    { value: t.opened.now, label: A.opened, delta: changeOf(t.opened), icon: BookOpen, onPress: () => onGo('act_opened', rangeHref(LESSONS_ALL, range)) },
+    { value: t.opened.now, label: A.opened, delta: changeOf(t.opened), onPress: () => onGo('act_opened', rangeHref(LESSONS_ALL, range)) },
     {
-      value: t.taught.now, label: A.taught, note: A.toldUs, delta: changeOf(t.taught), icon: CircleCheck,
+      value: t.taught.now, label: A.taught, note: A.toldUs, delta: changeOf(t.taught),
       onPress: journey ? () => onGo('act_taught', journeyHref('taught')) : undefined,
     },
-    { value: t.coached.now, label: A.coached, delta: changeOf(t.coached), icon: AudioLines, onPress: () => onGo('act_coached', rangeHref(COACHING_ALL, range)) },
+    { value: t.coached.now, label: A.coached, delta: changeOf(t.coached), onPress: () => onGo('act_coached', rangeHref(COACHING_ALL, range)) },
     {
-      value: `${t.quizzes.now} · ${t.papers.now}`, label: A.quizPapers, icon: ListChecks, onPress: () => setTray(true),
+      value: `${t.quizzes.now} · ${t.papers.now}`, label: A.quizPapers, onPress: () => setTray(true),
       delta: changeOf({ now: t.quizzes.now + t.papers.now, prev: t.quizzes.prev + t.papers.prev }),
     },
   ];

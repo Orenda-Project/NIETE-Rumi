@@ -88,6 +88,8 @@ async function shot(page, name) {
   if (!process.env.WEB_SHOTS_DIR) return null;
   const file = path.join(process.env.WEB_SHOTS_DIR, name + '.png');
   await page.screenshot({ path: file, fullPage: true });
+  // The fold as she sees it (360×740, menu bar in place), for the design review's "all four tiles show" check.
+  await page.screenshot({ path: path.join(process.env.WEB_SHOTS_DIR, name + '-fold.png') });
   return file;
 }
 function healthy(w) {

@@ -45,6 +45,15 @@ const draw = (activity: Activity | undefined, quizHome: string | null = "/quiz/t
   render(<MemoryRouter><HomeActivity activity={activity} quizHome={quizHome} onGo={onGo} /></MemoryRouter>);
 
 describe("with numbers", () => {
+  // Design review, Urdu at 360×740: with an icon the number and pill had ~67px and the tiles grew to ~168px, so row 2
+  // fell under the menu bar. Home's tiles carry no icon: the number and its pill keep one line.
+  it("the four tiles carry no icon, so the number and its pill share one line", () => {
+    draw(ACT);
+    const tiles = screen.getAllByRole("button").filter((b) => b.querySelector("[data-kpi-top]"));
+    expect(tiles).toHaveLength(4);
+    for (const tile of tiles) expect(tile.querySelector("[data-kpi-top] > svg:first-child")).toBeNull();
+  });
+
   it("the heading, the updated line, four tiles named number, label and change", () => {
     const { container } = draw(ACT);
     expect(screen.getByRole("heading", { name: A.lastDays })).toBeInTheDocument();
