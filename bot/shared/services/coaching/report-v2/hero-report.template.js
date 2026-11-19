@@ -150,6 +150,10 @@ function buildHeroReportHtml(vm) {
       ${whyLine('sc-why', g.why)}
     </div>`)).join('');
 
+  // Queue #184: only a FICO 6-12 view model carries `evidence`; every other report draws nothing here.
+  const ev = vm.evidence;
+  const evidenceBlock = ev && Array.isArray(ev.sections) && ev.sections.some((s) => s.items && s.items.length) ? `<div class="evi"><div class="label">${T(ev.title || '')}</div>${ev.sections.filter((s) => s.items && s.items.length).map((s) => `<div class="ev-s"><div class="ev-sn">${T(s.name)}</div>${s.items.map((it) => `<div class="ev-i"><div class="ev-h"><span class="ev-n">${T(it.name)}</span><span class="ev-l">${T(it.level)}</span></div>${it.note ? `<div class="ev-t" dir="auto">${esc(it.note)}</div>` : ''}</div>`).join('')}</div>`).join('')}</div>` : '';
+
   return `<!doctype html><html dir="${dir}" lang="${lang}"><head><meta charset="utf-8"><style>${fontFaces()}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:${P.pageBg}}
@@ -236,6 +240,18 @@ function buildHeroReportHtml(vm) {
   .try{margin:16px 42px 0;background:${P.tryGrad};color:#fff;border-radius:16px;padding:18px 24px}
   .try .label{color:${P.tryLabel};opacity:1;margin-bottom:6px}
   .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}
+${evidenceBlock ? `
+  /* Queue #184 (FICO 6-12 only): indicator by indicator, the level and the observer's evidence as submitted. The note
+     is the observer's own words in whatever language they wrote: first-strong, with both faces, and a long hand-typed
+     run breaks inside its box. */
+  .evi{padding:14px 42px 0}
+  .ev-s{margin-top:10px}
+  .ev-sn{font-family:${headFam};font-weight:600;font-size:15px;color:${P.deep};line-height:${RTL ? '1.9' : '1.35'}}
+  .ev-i{padding:7px 0;border-bottom:1px solid ${P.footBorder}}
+  .ev-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px;font-weight:700;line-height:${RTL ? '1.8' : '1.4'}}
+  .ev-n{min-width:0;overflow-wrap:anywhere}
+  .ev-l{flex-shrink:0;font-weight:600;color:${P.mid}}
+  .ev-t{margin-top:3px;font-family:'Lexend',${NON_LATIN},sans-serif;font-size:12.5px;color:${P.note};line-height:${RTL ? '1.85' : '1.45'};unicode-bidi:plaintext;overflow-wrap:anywhere;word-break:break-word}` : ''}
   .pnote{margin:12px 42px 0;padding:10px 14px;border-radius:8px;background:${P.footBorder};color:${P.note};font-size:12.5px;line-height:${RTL ? '1.7' : '1.5'}}
   .foot{display:flex;align-items:center;justify-content:space-between;padding:16px 42px 24px;margin-top:14px;border-top:1px solid ${P.footBorder};color:${P.faint};font-size:12px}
   .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}${vm.breakLongWords ? `
@@ -267,6 +283,7 @@ function buildHeroReportHtml(vm) {
         <div class="sh h"><span class="pill">${T(C.horizon)}</span><h3>${T(n.horizon_title || '')}</h3><div class="nt">${T(n.horizon_note || '')}</div></div>
       </div>
     </div>
+    ${evidenceBlock}
     ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${esc(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
     ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
     ${(vm.uptake && vm.uptake.asked) ? `<div class="uptake"><div class="label">${T(C.uptake_asked)}</div><div class="u-asked">${T(vm.uptake.asked)}</div><div class="u-line"><span class="upill ${esc(vm.uptake.status || 'unknown')}">${T(C['uptake_' + (vm.uptake.status || 'unknown')] || C.uptake_unknown)}</span>${T(vm.uptake.line || '')}</div></div>` : ''}
