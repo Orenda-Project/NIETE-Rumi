@@ -1,1 +1,2 @@
 {"ts":"2026-11-18T18:11:06Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"4fb29c60e835","branch":"bd-h7nsmx-staging-q150","user":""}
+{"ts":"2026-11-19T01:15:59Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (ask-to-delivered flow unchanged and specified; removes a rare AI misspelling failure that cannot be triggered on demand)","sha":"4fb29c60e835","branch":"bd-h7nsmx-staging-q150","user":""}
