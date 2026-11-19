@@ -1,2 +1,3 @@
 {"ts":"2026-11-19T14:02:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"69357532a303","branch":"bd-snkn32.58-guard","user":""}
 {"ts":"2026-11-19T14:02:48Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.58-guard: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"69357532a303","branch":"bd-snkn32.58-guard","user":""}
+{"ts":"2026-11-19T14:03:09Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.58-guard: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"69357532a303","branch":"bd-snkn32.58-check","user":""}
