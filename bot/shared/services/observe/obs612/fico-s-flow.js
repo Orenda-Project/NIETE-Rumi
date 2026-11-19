@@ -445,7 +445,9 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
     const sec = FicoS.sectionOf(screen.section);
     const init = {};
     for (const f of screen.fields) init[f.name] = prefill(f, d);
-    const starred = FicoS.isStarred(code);
+    // The star marks what Rumi does not score, so it shows on a Digital Coach visit only: a visit Rumi did not fill
+    // looks exactly as before (and Flow v1 and v2 render it the same).
+    const starred = FicoS.isStarred(code) && Boolean(opts.dc && opts.dc.levels);
     const rumi = rumiData(code, lang, opts.dc);
     return {
       rubric_label: label,
@@ -579,7 +581,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null } = {}) {
       const code = screen.code;
       const t = FicoS.indicatorText(code, lang);
       const sec = FicoS.sectionOf(screen.section);
-      const starred = FicoS.isStarred(code);
+      const starred = FicoS.isStarred(code) && Boolean(dc && dc.levels); // on a Digital Coach visit only
       const rumi = rumiData(code, lang, dc);
       parts.push({ type: 'heading', text: `${starred ? '★ ' : ''}${atom(lang, code)} · ${t.name}` });
       // Queue #184: the starred line, and Rumi's line and the change box on a Digital Coach visit.

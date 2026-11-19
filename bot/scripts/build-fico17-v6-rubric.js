@@ -85,6 +85,10 @@ function parse(md) {
       couldnt_tell: combined ? field(meta, "Couldn't tell (DC):") : field(meta, "Couldn't tell:"),
       combined_evidence: combined,
       coach_adds: field(meta, 'Coach adds:'),
+      // Queue #184 (operator 19 Nov ~14:15: "yeah those six are the starred ones. hitl only are the starred ones
+      // basically"): the workbook's "HITL only" six, the combined ones, are STARRED: never sent to the Digital Coach
+      // (in starred mode, app_settings.fico_v6_starred) and set by the coach. The same field as FICO-S's.
+      starred: Boolean(combined),
       // D2 is the one indicator whose levels are for the coach only; it never enters the DC level prompt.
       levels_for: meta.some((l) => /^\*\*Levels \(for the coach\)\*\*/.test(l)) ? 'coach' : 'all',
     });

@@ -130,7 +130,7 @@ describe('the analysis landed: the form is pre-filled and sent', () => {
     expect(flow[1].flowId).toBe('F-FICOS');
     expect(flow[1].flowToken).toBe('coach-1:obs612:form-dc:fs');
     expect(flow[1].body).toMatch(/Rumi has listened to the lesson/);
-    expect(flow[1].body).toMatch(/★ E3 Notebooks & written feedback: yours alone/);
+    expect(flow[1].body).toMatch(/★ C3, C5, C7, D2, D3, E2, E3: yours alone/);
   });
   test('what the observer typed first stays', async () => {
     await FsDc.onAnalysisReady(sessRow('sess-typed'), {});
@@ -193,6 +193,21 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
     expect(Object.keys(stay.data.error_messages)).toEqual(['lv_E3', 'ev_E3']);
   });
 
+  test('every starred indicator on a Digital Coach visit: ★, its line, never pre-filled, no change box', () => {
+    const dc = FsDc.dcOf(formRow('form-dc'));
+    for (const code of ['C3', 'C5', 'C7', 'D2', 'D3', 'E2', 'E3']) {
+      const id = FS.SCREENS.find((x) => x.code === code).id;
+      const d = FS.screenData(id, formRow('form-dc').answers.obs612, 'en', { dc });
+      expect(d.heading).toMatch(/^★ /);
+      expect(d.star_v).toBe(true);
+      expect(d.rumi_v).toBe(false);
+      expect(d.chg_v).toBe(false);
+      expect(d.init[`lv_${code}`]).toBe('');
+    }
+    const portal = FS.portalSections({}, 'en', { dc }).find((x) => x.id === 'FS_C_THREE');
+    expect(portal.parts[0].text).toMatch(/^★ C3/);
+  });
+
   test('Urdu: Rumi\'s line and the starred line in Urdu', () => {
     const dc = FsDc.dcOf(formRow('form-dc'));
     const a1 = FS.screenData('FS_A_ONE', {}, 'ur', { dc });
@@ -201,10 +216,16 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
     expect(FS.screenData('FS_E_THREE', {}, 'ur', { dc }).star_line).toMatch(/^★ ستارے والا اشاریہ/);
   });
 
-  test('a visit Rumi did not fill: no Rumi line, no change box, no change check', () => {
+  test('a visit Rumi did not fill: no Rumi line, no change box, no change check, and no star (the form as before)', () => {
     const d = FS.screenData('FS_A_ONE', {}, 'en', {});
     expect(d.rumi_v).toBe(false);
     expect(d.chg_v).toBe(false);
+    const e3 = FS.screenData('FS_E_THREE', {}, 'en', {});
+    expect(e3.heading).toBe('E3 · Notebooks & written feedback');
+    expect(e3.star_v).toBe(false);
+    const portal = FS.portalSections({}, 'en').find((x) => x.id === 'FS_E_THREE');
+    expect(portal.parts[0].text).toBe('E3 · Notebooks & written feedback');
+    expect(portal.parts.filter((p) => p.type === 'sub' && /★/.test(p.text || ''))).toEqual([]);
     expect(FS.checkScreen('FS_A_ONE', { A1: '2', ev_A1: 'Written by the observer in the room.' })).toEqual({});
   });
 });
