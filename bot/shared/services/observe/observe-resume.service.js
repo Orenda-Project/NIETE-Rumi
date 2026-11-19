@@ -35,7 +35,7 @@ const GATE_PHOTO = ['awaiting_photo', 'awaiting_classroom_photo'];
 async function _loadOwn(sessionId, user) {
   const { data: s } = await supabase
     .from('coaching_sessions')
-    .select('id, status, created_at, updated_at, user_id, observer_user_id, analysis_data, transcript_text, conversation_state, audio_id')
+    .select('id, status, created_at, updated_at, user_id, observer_user_id, analysis_data, transcript_text, conversation_state, audio_id, framework')
     .eq('id', sessionId)
     .maybeSingle();
   if (!s || s.observer_user_id !== user.id) return null;
@@ -147,16 +147,24 @@ async function sendForm(sessionId, from, user) {
   const s = await _loadOwn(sessionId, user);
   if (!s) { await WhatsAppService.sendMessage(from, S.debrief_not_yours); return; }
   if (isTerminalStatus(s.status)) return _refuseTerminal(s, from, user, 'form');
-  const OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || '';
-  if (!OBSERVE_MEWAKA_FLOW_ID) { await WhatsAppService.sendMessage(from, S.flow_fallback); return; }
+  // Queue #191: the Flow the visit was stamped for, exactly as the first send (observe-draft) picks it. This always sent
+  // the V3 Flow, so a coach reopening a FICO17 v6 visit got V3 screens the endpoint refused on every page (prod 16-19
+  // Nov: 11 v6 visits, 10 coaches). A v6 visit with no v6 Flow id configured gets the text fallback, never V3's Flow.
+  const v6Visit = !!require('./observe-fico17-v6').visitFramework(s);
+  const flowId = (v6Visit ? process.env.OBSERVE_FICO17_V6_FLOW_ID : process.env.OBSERVE_MEWAKA_FLOW_ID) || '';
+  if (!flowId) {
+    if (v6Visit) logToFile('⚠️ observe-resume: FICO17 v6 visit but OBSERVE_FICO17_V6_FLOW_ID is unset — text fallback', { sessionId: s.id });
+    await WhatsAppService.sendMessage(from, S.flow_fallback);
+    return;
+  }
   await WhatsAppService.sendFlow(from, {
-    flowId: OBSERVE_MEWAKA_FLOW_ID,
+    flowId,
     flowToken: `${user.id}:${s.id}`,   // the endpoint derives identity from this
     header: S.flow_header,
     body: S.flow_body,
     buttonText: S.flow_button,
   });
-  logToFile('🔁 observe-resume: review form re-sent', { sessionId: s.id, observerId: user.id });
+  logToFile('🔁 observe-resume: review form re-sent', { sessionId: s.id, observerId: user.id, flow: v6Visit ? 'fico17_v6' : 'v3' });
 }
 
 // bd-go4tl.2 — WHERE to re-enter the pipeline, and whether we can at all.
