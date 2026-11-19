@@ -1,2 +1,3 @@
 {"ts":"2026-11-19T14:36:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"80746eefc8c2","branch":"bd-snkn32.58-goalcheck2","user":""}
 {"ts":"2026-11-19T14:36:35Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan owe their Gherkin","sha":"80746eefc8c2","branch":"bd-snkn32.58-goalcheck2","user":""}
+{"ts":"2026-11-19T14:37:52Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (the goal check runs only for portal goal starts; no WhatsApp message or flow changes)","sha":"80746eefc8c2","branch":"bd-snkn32.58-goalcheck2","user":""}
