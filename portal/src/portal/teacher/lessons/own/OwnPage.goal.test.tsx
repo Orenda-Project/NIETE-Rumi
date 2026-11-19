@@ -12,7 +12,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
  *   Given a grades 1–5 class       the same way in (bd-snkn32.57): an official outcome names its day, sent as lesson_id
  */
 
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
 vi.mock('../../../components/PortalLayout', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('../../../lib/recordingSession', () => ({ useRecordingSession: () => null }));
 vi.mock('../../../services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
@@ -145,5 +146,13 @@ describe('Make my own from a learning goal or topic', () => {
     expect(body).not.toHaveProperty('segment_id');
     expect(body.answers.goal).toEqual({ kind: 'outcome', text: 'Add 2-digit numbers' });
     expect(body.answers.resources).toEqual([]);
+  });
+
+  it('bd-snkn32.58.2 — a note dropped for a blocked word: one line tells her, and the plan still goes ahead', async () => {
+    http.post.mockResolvedValue({ data: { success: true, renderId: 'own-11', noteDropped: true } });
+    at(`${pages}&step=check&start=goal&gk=outcome&gt=Explain%20air%20pressure&seg=sci8.c05.p040&size=up30&level=ahead&way=practical&res=board&purpose=new`);
+    fireEvent.click(await screen.findByTestId('own-make'));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: G.noteDropped }));
+    await waitFor(() => expect(where()).toContain('render=own-11'));
   });
 });

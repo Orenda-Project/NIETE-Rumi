@@ -9,7 +9,13 @@ import { readConfigShared } from '../../../lib/useNewUi';
  */
 /** bd-snkn32.58.1 — grades 1–5 goals are skill-sized and carry their skill `group` and SLO `code`; 6–12 rows have neither. */
 export type GoalOutcome = { segmentId: string; text: string; chapter: string | null; group?: string; code?: string | null };
-export type GoalMatch = { segmentId: string; title: string };
+/** bd-snkn32.58.2 — the typed-topic guard's answer (lp-own-goal-guard): she taps a suggestion; a refusal picks nothing. */
+export type GoalSuggestion = { segmentId: string; text: string; chapter: string | null };
+export type GoalMatch = {
+  status: 'ok' | 'none' | 'blocked';
+  suggestions: GoalSuggestion[];
+  otherGrade: (GoalSuggestion & { grade: number }) | null;
+};
 type At = { grade: number; subject: string };
 
 /** null while /config is read, then true only for a real `true`. */
@@ -43,12 +49,18 @@ export async function fetchGoals(at: At): Promise<GoalOutcome[] | null> {
   }
 }
 
-/** The closest lesson to her topic, or null (none, a malformed answer or a failure). */
+const suggestion = (o: Partial<GoalSuggestion> | null | undefined): GoalSuggestion | null => (
+  o && str(o.segmentId) && str(o.text) ? { segmentId: o.segmentId, text: o.text, chapter: str(o.chapter) ? o.chapter : null } : null);
+
+/** The guard's answer to her topic, or null (a malformed answer or a failure: the screen says try again). */
 export async function matchGoal(at: At, q: string): Promise<GoalMatch | null> {
   try {
     const { data } = await api.get('/lp612/own/goals/match', { params: { ...at, q } });
-    const m = data?.match;
-    return m && str(m.segmentId) && str(m.title) ? { segmentId: m.segmentId, title: m.title } : null;
+    if (!['ok', 'none', 'blocked'].includes(data?.status)) return null;
+    const suggestions = (Array.isArray(data.suggestions) ? data.suggestions : []).map(suggestion).filter((x: GoalSuggestion | null): x is GoalSuggestion => !!x);
+    const o = data.otherGrade;
+    const other = suggestion(o);
+    return { status: data.status, suggestions, otherGrade: other && Number.isInteger(o.grade) ? { ...other, grade: o.grade } : null };
   } catch {
     return null;
   }

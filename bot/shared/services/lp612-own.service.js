@@ -126,7 +126,9 @@ function createOwnService(deps) {
       if (!on) return { outcome: 'not_found' };
       if (answers.pages != null || answers.extend != null) return { outcome: 'bad_request', error: 'a goal start takes no pages or next lesson' };
     }
-    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
+    // bd-snkn32.58.2 — a note dropped for a blocked word is said back to her (the app shows one line).
+    const told = (out) => (parsed.answers.noteDropped && out && out.outcome === 'queued' ? { ...out, noteDropped: true } : out);
+    if (lessonId) return told(await requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId }));
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
@@ -155,7 +157,7 @@ function createOwnService(deps) {
     });
     if (!row || !row.id) return { outcome: 'error' };
 
-    return queue(row, segmentId, correlationId);
+    return told(await queue(row, segmentId, correlationId));
   }
 
   /** Her fork in the render row's shape (renderStatus), or null — never someone else's, never a throw. */

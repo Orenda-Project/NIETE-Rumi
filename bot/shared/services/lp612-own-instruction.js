@@ -18,6 +18,7 @@ const { sloMix, sloCodes } = require('./lp612-own-slo');
 const { loadLine } = require('./lp-own-period');
 const { isScience, SCIENCE_GLOSS_LINE } = require('./lp612-own-gloss');
 const { parseGoal, goalLines } = require('./lp612-own-goal');
+const { hasBlockedWord } = require('./lp-own-goal-guard');
 
 const NOTE_MAX = 200;
 const FOCI = ['summative', 'formative'];
@@ -107,15 +108,20 @@ function parseOwnAnswers(body, ctx) {
   if (given.some((r) => !Object.prototype.hasOwnProperty.call(RESOURCES, r))) return bad('resources has an unknown item');
   // The textbook is always there; the rest in the list's own order, once each.
   const resources = Object.keys(RESOURCES).filter((r) => r === 'textbook' || given.includes(r));
-  const note = typeof b.note === 'string'
+  const raw = typeof b.note === 'string'
     ? b.note.replace(/["“”]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOTE_MAX)
     : '';
+  // bd-snkn32.58.2 (queue #155 B) — a note with a blocked word never reaches the model; the answers say it was dropped.
+  const dropNote = !!raw && hasBlockedWord(raw);
+  const note = dropNote ? '' : raw;
   const answers = { size: b.size, resources, level: b.level, way: picked[0], note };
+  if (dropNote) answers.noteDropped = true;
   if (picked.length > 1) answers.ways = picked;
   if (b.goal != null) {
     // bd-snkn32.56 — start from a learning goal or topic, and the class has no textbook (grades 1–5 too, bd-snkn32.57).
     const g = parseGoal(b.goal);
     if (!g.ok) return bad(g.error);
+    if (hasBlockedWord(g.goal.text)) return bad('goal.text is not a school topic'); // bd-snkn32.58.2: a forged body too
     answers.goal = g.goal;
     answers.resources = resources.filter((r) => r !== 'textbook');
   }
