@@ -174,7 +174,9 @@ class TranscriptionProcessorService {
         // cost of a throw here would be a lost session.
         let handled = false;
         try {
-          const { updateIfNotTerminal } = require('./session-terminal');
+          // bd-c5reix: her own portal recording is followed in the app — nothing about it goes to WhatsApp.
+          const quiet = require('./portal-coaching.service').isPortalTeacherSession(session);
+          const dcDeps = TranscriptionProcessorService.dcDuplicateDeps(session, from);
 
           const duplicate = await findRecentDuplicateSession(supabase, {
             userId: session.user_id,
@@ -184,26 +186,18 @@ class TranscriptionProcessorService {
 
           if (duplicate) {
             handled = await resolveDuplicateSubmission(
-              // bd-c5reix: her own portal recording is followed in the app — nothing about it goes to WhatsApp.
               {
-                coachingSessionId, from, userId: session.user_id, audioHash, duplicate,
-                quiet: require('./portal-coaching.service').isPortalTeacherSession(session),
+                coachingSessionId, from, userId: session.user_id, audioHash, duplicate, quiet,
               },
-              {
-                updateIfNotTerminal,
-                sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
-                // bd-5tgzv — the stored report is a PNG on this deployment, so the
-                // resend needs the image sender too; without it the branch would
-                // hit `undefined` at runtime.
-                sendImageFromUrl: (to, url, caption) =>
-                  WhatsAppService.sendImageFromUrl(to, url, caption),
-                sendDocumentFromUrl: (to, url, filename) =>
-                  WhatsAppService.sendDocumentFromUrl(to, url, filename),
-                getMessage: getCoachingMessage,
-                getLanguage: (uid) => getUserLanguage(uid),
-                log: logToFile,
-                warn: logWarn,
-              },
+              dcDeps,
+            );
+          } else {
+            // bd-r2uzg1.18.15 — an EARLIER copy of the same bytes still in flight (at the photo / lesson-plan step,
+            // analysing, waiting for her reflection; recent, not failed): this copy is closed as its duplicate and she
+            // is told once that the earlier one is being checked. Before the upload and the transcription.
+            handled = await require('./audio-hash-cache').yieldToEarlierCopy(
+              { id: coachingSessionId, user_id: session.user_id, created_at: session.created_at },
+              { ...dcDeps, audioHash, quiet },
             );
           }
         } catch (dedupeErr) {
@@ -717,6 +711,34 @@ class TranscriptionProcessorService {
     const { isPortalSession } = require('./portal-coaching.service');
     if (isPortalSession(session)) return async () => true;
     return send;
+  }
+
+  /**
+   * What audio-hash-cache needs to handle a teacher's (DC) recording of bytes she sent before: reuse a completed copy's
+   * report (bd-7beiz), or close this copy behind one still in flight (bd-r2uzg1.18.15). One wiring for both places the
+   * check runs: here, right after the audio is hashed, and in analysis-processor just before the analysis starts
+   * (audio-hash-cache.refuseIfAlreadyAnalysed). `quiet` (her page recording: nothing to WhatsApp) is set by the caller.
+   * @param {object} session the coaching_sessions row
+   * @param {string} from her number
+   */
+  static dcDuplicateDeps(session, from) {
+    const Cache = () => require('./audio-hash-cache');
+    return {
+      from,
+      findDone: (opts) => Cache().findRecentDuplicateSession(supabase, opts),
+      findInFlight: (opts) => Cache().findInFlightCopies(supabase, opts),
+      updateIfNotTerminal: require('./session-terminal').updateIfNotTerminal,
+      sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+      // bd-5tgzv — the stored report is a PNG on this deployment, so the
+      // resend needs the image sender too; without it the branch would
+      // hit `undefined` at runtime.
+      sendImageFromUrl: (to, url, caption) => WhatsAppService.sendImageFromUrl(to, url, caption),
+      sendDocumentFromUrl: (to, url, filename) => WhatsAppService.sendDocumentFromUrl(to, url, filename),
+      getMessage: getCoachingMessage,
+      getLanguage: (uid) => getUserLanguage(uid),
+      log: logToFile,
+      warn: logWarn,
+    };
   }
 
   /**
