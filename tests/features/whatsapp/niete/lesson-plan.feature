@@ -1326,3 +1326,31 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # (render_lp.js `better`; SYNC.md §3.40). Unit: tests/lp612/over-cap-flow-groups.test.js too.
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
+
+  # ADDED 2026-11-19 (bd-96f69c.8): per-programme WhatsApp switches. lp_whatsapp_pdf_off / lp_whatsapp_survey_off hold
+  # a list of programmes ("ict", "gb"); a teacher's programme is "gb" when she is a GB teacher, else "ict". No row = today.
+  # Unit: tests/lp-whatsapp-off/, tests/app-redirect/lp-pdf-off-door.test.js, tests/feedback/lp-whatsapp-off.test.js.
+  @e2e @config-gated @P1 @L13
+  Scenario: With lesson-plan PDFs off on WhatsApp for my programme, asking for a lesson plan sends me one app link
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the ICT programme
+    When I send "/lp"
+    Then I get one message with an "open in the app" button carrying my own sign-in link
+    And no lesson-plan menu opens and no PDF arrives
+
+  @e2e @config-gated @negative @P1 @L14
+  Scenario: With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the GB programme only
+    When I send "/lp"
+    Then the Lesson Plans card opens as before
+    And no app link is sent
+
+  @e2e @config-gated @no-mock-driver @P2 @L15
+  Scenario: With the WhatsApp survey off for my programme, a delivered lesson plan is not followed by "Was this useful?"
+    Given the NIETE bot chat is open
+    And the lesson-plan survey on WhatsApp is switched off for the ICT programme
+    When a lesson plan is delivered to me
+    Then no "Was this useful?" buttons follow it
+    # @no-mock-driver: the survey is scheduled 30 s after a full PDF render; the mock lane does not render plans.
+    # Unit: tests/feedback/lp-whatsapp-off.test.js (both sendFeedbackPrompt guards, ICT and GB).
