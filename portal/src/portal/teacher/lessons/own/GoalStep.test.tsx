@@ -66,6 +66,7 @@ describe('GoalStep', () => {
     fireEvent.change(screen.getByTestId('own-goal-topic'), { target: { value: 'Rain at hme' } });
     fireEvent.click(screen.getByTestId('own-goal-find'));
     expect(await screen.findByText(C.didYouMean)).toBeTruthy();
+    expect(screen.queryByTestId('own-goal-nohits')).toBeNull(); // not "no goal has these words" above the suggestions
     expect(onPick).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('radio', { name: /Describe the water cycle/ }));
     expect(onPick).toHaveBeenCalledWith({ kind: 'outcome', text: 'Describe the water cycle' }, 'g7.c03');
