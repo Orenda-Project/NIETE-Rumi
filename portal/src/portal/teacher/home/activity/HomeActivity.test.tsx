@@ -148,7 +148,8 @@ describe("Urdu", () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     draw(ACT);
     expect(screen.getByRole("heading", { name: U.lastDays })).toBeInTheDocument();
-    expect(screen.getByText(/اپ ڈیٹ: آج، .*2:30 بعد دوپہر/)).toBeInTheDocument();
+    const updated = screen.getByText(/اپ ڈیٹ: آج، .*2:30.* بعد دوپہر/);
+    expect(updated.textContent).not.toMatch(/\u2066[^\u2069]*بعد/); // the PM word is never inside the digits' isolate
     expect(screen.getByText(U.opened)).toBeInTheDocument();
     expect(screen.getByText(U.myJourney)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/[۰-۹٠-٩]/);

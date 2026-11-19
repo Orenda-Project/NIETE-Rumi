@@ -25,9 +25,10 @@ import { FEATURE_HUE, type AnyFeature } from '../icons/features';
  * feature's art on its light tint, the number (44px) in the feature's colour, the change pill, then the label. It is
  * information, so it carries no chevron and no pressed look. Without `feature` the tile is the plain white one.
  *
- * `dense` (Home's "Last 30 days" block): min-h 88px; an optional neutral 24px `icon` at the start; the number 28px/700
- * with the pill on the same line; the label 16px/600 under it (up to 2 lines, never cut); an optional `note`, a 13px
- * muted third line. A dense item with `to` / `onPress` is ONE link/button (the card edge, › mirrored, FOCUS, a pressed
+ * `dense` (Home's "Last 30 days" block): min-h 88px; the first line is an optional neutral 24px `icon`, the number
+ * 28px/700 and the pill, and the › at the end; the label 16px/600 under it across the tile's full width (never cut; the
+ * design review found it squeezed to 3 Urdu lines beside the icon and ›); an optional `note`, a 13px muted third line.
+ * A two-number string value ("4 · 1") follows the page direction, so in Urdu each number sits under its word. A dense item with `to` / `onPress` is ONE link/button (the card edge, › mirrored, FOCUS, a pressed
  * tint) named like the group ("14 Plans opened, up 5"). Without them it is information, as above.
  */
 
@@ -61,7 +62,7 @@ export interface KpiTilesProps {
 
 const TONE = { good: 'bg-[#eaf6ef] text-[#2f7a52]', bad: 'bg-[#fef3c7] text-[#b45309]', same: 'bg-[#f3f4f6] text-[#374151]' };
 
-const DENSE_TILE = 'flex min-h-[88px] min-w-0 items-center gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-start shadow-[0_1px_2px_rgba(16,24,40,0.05)]';
+const DENSE_TILE = 'flex min-h-[88px] min-w-0 flex-col items-stretch justify-center gap-0.5 rounded-2xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-start shadow-[0_1px_2px_rgba(16,24,40,0.05)]';
 
 export function KpiTiles({ items, columns, compareLabel, copy, className, dense = false }: KpiTilesProps) {
   const words = { ...useKitCopy(), ...copy };
@@ -106,10 +107,10 @@ export function KpiTiles({ items, columns, compareLabel, copy, className, dense 
             const tappable = !!(t.it.to || t.it.onPress);
             const body = (
               <>
-                {Icon ? <Icon className="h-6 w-6 shrink-0 text-[#6b7280]" strokeWidth={2} aria-hidden="true" /> : null}
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span dir="ltr" className="text-[28px] font-bold leading-[1.1] tabular-nums">{t.value}</span>
+                <span data-kpi-top className="flex w-full items-center gap-2.5">
+                  {Icon ? <Icon className="h-6 w-6 shrink-0 text-[#6b7280]" strokeWidth={2} aria-hidden="true" /> : null}
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span dir={typeof t.it.value === 'number' ? 'ltr' : undefined} className="text-[28px] font-bold leading-[1.1] tabular-nums">{t.value}</span>
                     {t.hasDelta ? (
                       <span data-delta dir="ltr" className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[13px] font-bold tabular-nums', t.tone)}>
                         <span aria-hidden="true" className="text-[10px]">{t.dir > 0 ? '▲' : t.dir < 0 ? '▼' : '●'}</span>
@@ -117,10 +118,10 @@ export function KpiTiles({ items, columns, compareLabel, copy, className, dense 
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-[16px] font-semibold leading-[1.25] text-[#4b5563] rtl:leading-[1.8]">{t.it.label}</span>
-                  {t.it.note ? <span className={ROW_SUB}>{t.it.note}</span> : null}
+                  {tappable ? <ChevronRight className={cn('h-5 w-5 shrink-0', CHEVRON)} strokeWidth={2.4} aria-hidden="true" /> : null}
                 </span>
-                {tappable ? <ChevronRight className={cn('h-5 w-5', CHEVRON)} strokeWidth={2.4} aria-hidden="true" /> : null}
+                <span className="text-[16px] font-semibold leading-[1.25] text-[#4b5563] rtl:leading-[1.8]">{t.it.label}</span>
+                {t.it.note ? <span className={ROW_SUB}>{t.it.note}</span> : null}
               </>
             );
             const k = `${t.it.label}-${i}`;

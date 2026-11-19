@@ -3,16 +3,13 @@
  * (portal_teacher_journey). Both languages; the Urdu is machine-drafted and needs a human read. Registered through
  * home/copy.ts (COPY_ENTRIES), since the registry finds only teacher/<feature>/copy.ts.
  *
- * DATA is not copy: the numbers, an indicator's name, the tip and the time come from GET /me/home. The time sits in a
- * left-to-right isolate inside the Urdu line (Western digits, the kit's AM/PM words). Band words are Coaching's
+ * DATA is not copy: the numbers, an indicator's name, the tip and the time come from GET /me/home. The time goes in
+ * plain, as My journey's does; the kit's bidi (ui/bidi useBidi) isolates only its digits, so the Urdu AM/PM word reads
+ * after them (design review, 360 px Urdu). Band words are Coaching's
  * (coaching/copy.ts `bands`), never a second set.
  */
 import { bilingual, type Bilingual } from '../../i18n';
 import type { CopyEntry } from '../../copyRegistry';
-
-const LRI = '⁦';
-const PDI = '⁩';
-const time = (t: string) => `${LRI}${t}${PDI}`;
 
 export const ACTIVITY_COPY = {
   lastDays: 'Last 30 days',
@@ -34,8 +31,8 @@ export const ACTIVITY_COPY = {
 export const ACTIVITY_COPY_UR: typeof ACTIVITY_COPY = {
   lastDays: 'پچھلے 30 دن',
   updatedNight: 'اپ ڈیٹ: کل رات',
-  updatedToday: (t: string) => `اپ ڈیٹ: آج، ${time(t)}`,
-  updatedYesterday: (t: string) => `اپ ڈیٹ: کل، ${time(t)}`,
+  updatedToday: (t: string) => `اپ ڈیٹ: آج، ${t}`,
+  updatedYesterday: (t: string) => `اپ ڈیٹ: کل، ${t}`,
   opened: 'کھولے گئے لیسن پلان',
   taught: 'کلاس میں پڑھایا',
   toldUs: 'آپ نے بتایا',

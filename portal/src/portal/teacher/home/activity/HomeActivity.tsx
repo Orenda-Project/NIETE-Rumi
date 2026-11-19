@@ -10,6 +10,7 @@ import { ListRow } from '../../ui/ListRow';
 import { StatusChip } from '../../ui/StatusChip';
 import { Tray } from '../../ui/Tray';
 import { useKitCopy } from '../../ui/useKitCopy';
+import { useBidi } from '../../ui/bidi';
 import { CARD, CHEVRON, FOCUS, LIST_CARD, ROW_DIVIDER, ROW_SUB, ROW_TITLE, type ChipTone } from '../../ui/styles';
 import { COACHING } from '../../coaching/copy';
 import { COACHING_ALL, lessonPath } from '../../coaching/paths';
@@ -62,6 +63,7 @@ export function HomeActivity({ activity, quizHome, onGo, className }: HomeActivi
   const A = useCopy(ACTIVITY);
   const { bands } = useCopy(COACHING);
   const kit = useKitCopy();
+  const bidi = useBidi();
   const journey = useJourneyOn();
   const [tray, setTray] = useState(false);
   const line = activity ? updatedLine(activity.updatedAt, Date.now(), A, kit) : null;
@@ -92,7 +94,7 @@ export function HomeActivity({ activity, quizHome, onGo, className }: HomeActivi
     <section data-testid="home-activity" className={cn('flex flex-col gap-2.5', className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 px-1">
         <h2 className="text-[16px] font-semibold text-[#1d2025]">{A.lastDays}</h2>
-        <span className={ROW_SUB}>{line}</span>
+        <span className={ROW_SUB}>{bidi(line ?? '')}</span>
       </div>
       <KpiTiles dense items={items} />
       {shown.trend.length ? (

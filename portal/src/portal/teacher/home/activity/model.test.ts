@@ -51,8 +51,8 @@ describe("updatedLine", () => {
     expect(updatedLine("x", NOW, C, clock)).toBeNull();
     expect(updatedLine("2026-11-20T09:30:00.000Z", NOW, C, clock)).toBeNull();
   });
-  it("Urdu: the kit's PM word, the time in a left-to-right isolate", () => {
-    expect(updatedLine("2026-11-19T09:30:00.000Z", NOW, U, { am: "صبح", pm: "بعد دوپہر" })).toBe("اپ ڈیٹ: آج، ⁦2:30 بعد دوپہر⁩");
+  it("Urdu: the kit's PM word after the time, never inside a left-to-right isolate (the page's bidi isolates the digits)", () => {
+    expect(updatedLine("2026-11-19T09:30:00.000Z", NOW, U, { am: "صبح", pm: "بعد دوپہر" })).toBe("اپ ڈیٹ: آج، 2:30 بعد دوپہر");
   });
 });
 

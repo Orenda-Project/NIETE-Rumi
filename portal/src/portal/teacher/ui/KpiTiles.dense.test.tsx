@@ -58,6 +58,25 @@ describe("KpiTiles dense", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
+  // Design review (360 px, Urdu): beside the icon and the ›, the label had ~90px and wrapped to 3 Nastaliq lines.
+  it("the icon, the number, the pill and the › share the first line; the label runs the tile's full width under it", () => {
+    inRouter(<KpiTiles dense items={[{ value: 14, label: "Plans opened", delta: 5, icon: BookOpen, to: "/all" }]} />);
+    const link = screen.getByRole("link");
+    const label = screen.getByText("Plans opened");
+    const top = screen.getByText("14").closest("[data-kpi-top]");
+    expect(top).not.toBeNull();
+    expect(top?.querySelector("svg.rtl\\:rotate-180")).not.toBeNull();
+    expect(top?.contains(label)).toBe(false);
+    expect(classes(link)).toContain("flex-col");
+  });
+
+  it("a two-number value (\"4 · 1\") follows the page direction, so each number sits under its word in Urdu", () => {
+    inRouter(<KpiTiles dense items={[{ value: "4 · 1", label: "Quizzes · Papers", to: "/q" }]} />);
+    expect(screen.getByText("4 · 1")).not.toHaveAttribute("dir", "ltr");
+    inRouter(<KpiTiles dense items={[{ value: 14, label: "Plans opened", to: "/all" }]} />);
+    expect(screen.getByText("14")).toHaveAttribute("dir", "ltr");
+  });
+
   it("without dense, a plain tile is exactly as before (104px, 32px number, 14px label)", () => {
     render(<KpiTiles items={[{ value: 5, label: "Lesson plans" }]} />);
     expect(classes(screen.getByRole("group", { name: "5 Lesson plans" }))).toContain("min-h-[104px]");
