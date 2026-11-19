@@ -58,7 +58,7 @@ describe('open-file.html', () => {
 
   it('forwards only to the hosts ShareActions hands off (the two lists are kept in step)', () => {
     const page = /var HOST = (\/.*\/i);/.exec(html)[1];
-    const kit = /export const HANDOFF_HOST = (\/.*\/i);/.exec(fs.readFileSync(path.join(__dirname, '../../portal/src/portal/teacher/ui/ShareActions.tsx'), 'utf8'))[1];
+    const kit = /export const HANDOFF_HOST = (\/.*\/i);/.exec(fs.readFileSync(path.join(__dirname, '../../portal/src/portal/teacher/ui/useOpenTarget.ts'), 'utf8'))[1];
     expect(page).toBe(kit);
   });
 });

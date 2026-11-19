@@ -142,3 +142,45 @@ Feature: Teacher home, analytics, more and profile
     And the lesson card is shown
     And the page does not scroll sideways
     And no page error or 5xx happened
+
+  # bd-96f69c (queue #153): Home's Last 30 days block (portal_teacher_home_activity, with portal_teacher_home_card)
+  # and My journey (portal_teacher_journey). The numbers are counted twice a day by the worker into Redis; opening
+  # Home reads only that stored value. Unit: tests/portal/teacher-activity-store.test.js, home/activity/*.test.tsx.
+  @TH11
+  Scenario: Teacher app v2: with Home activity on and her numbers counted, Home shows her last 30 days and My journey
+    Given the teacher app v2 is on, the Home card is on, and Home activity and My journey are on for the demo teacher only
+    And her counted numbers are stored: 14 plans opened, 3 taught in class, 2 DC observations, 4 quizzes and 1 paper
+    And the demo teacher is signed in on a 360 px phone
+    When the teacher opens /portal/teacher
+    Then a "Last 30 days" block shows "Updated today" and the tiles Plans opened 14, Taught in class 3, DC observations and Quizzes · Papers
+    And a "My journey" row is under the tiles
+    And on a day her lesson card is the slim one, the block comes right after that card, never above it
+    And the page does not scroll sideways, and no page error or 5xx happened
+
+  @TH12
+  Scenario: Teacher app v2: with Home activity on in Urdu, the block and My journey read in Urdu
+    Given Home activity and My journey are on for the demo teacher, her numbers are stored, and her language is Urdu
+    When the teacher opens /portal/teacher and then /portal/teacher/journey
+    Then the block is headed "پچھلے 30 دن" with a "میرا سفر" row
+    And My journey lists "لیسن پلان کھولا" and "کلاس میں پڑھایا"
+    And no page error or 5xx happened
+
+  @TH13
+  Scenario: Teacher app v2: My journey lists her stored steps newest first, with the updated line
+    Given Home activity and My journey are on for the demo teacher, and her stored steps are a plan opened, a lesson taught and a DC observation
+    When the teacher taps "My journey" on her Home
+    Then /portal/teacher/journey lists Opened a lesson plan, Taught in class and DC observation, newest first
+    And it says "Updated today …"
+
+  @TH14
+  Scenario: Teacher app v2: with Home activity on but no numbers counted yet, Home loads with no numbers and no error
+    Given Home activity is on for the demo teacher and nothing is stored for her
+    When the teacher opens /portal/teacher
+    Then no number tiles are drawn
+    And the rest of Home loads with no page error or 5xx
+
+  @TH15
+  Scenario: Teacher app v2: with Home activity and My journey off, Home has no Last 30 days block, even with numbers stored
+    Given Home activity and My journey are off, and numbers are stored for the demo teacher
+    When the teacher opens /portal/teacher
+    Then there is no "Last 30 days" block
