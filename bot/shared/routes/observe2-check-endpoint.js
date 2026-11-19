@@ -452,7 +452,7 @@ function validateCombined(screenId, screenData, S, { coach2 = false } = {}) {
   const errors = {};
   for (const code of COMBINED_CODES_OF[screenId]) {
     const level = V6.normLevel(screenData[`cmb_${code}_level`]);
-    const allowed = (coach2 ? V6.coachLevelOptions(code) : V6.levelOptions(code)).map((o) => o.id);
+    const allowed = (coach2 ? V6.coachLevelOptions(code, 'en', { na: false }) : V6.levelOptions(code)).map((o) => o.id);
     if (level == null || !allowed.includes(String(level))) errors[`cmb_${code}_level`] = S.v6_choose_level;
     if (!V6.isJustified(screenData[`cmb_${code}_why`])) errors[`cmb_${code}_why`] = S.v6_write_why;
   }

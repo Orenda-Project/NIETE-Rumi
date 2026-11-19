@@ -58,7 +58,9 @@ describe('the v6 DC prompt (spec §5.3)', () => {
     }
     expect(all).toContain('name_called');
     expect(all).toContain('child_agrees_or_adds');
-    expect(all).toContain(`N/A rule: ${v6.indicator('D3').na_rule}`);
+    // Per-indicator N/A (19 Nov, option A): D3 has no N/A any more; C5 carries the one Part 2 N/A rule, from the approved table.
+    expect(all).not.toContain(`N/A rule: ${v6.indicator('D3').na_rule}`);
+    expect(all).toContain('N/A rule: the class stays on one activity for the whole transcript.');
     expect(all).not.toContain('### Indicator: D2');
     expect(all).not.toContain('### Evidence: D2');
   });

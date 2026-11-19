@@ -15,6 +15,9 @@
  *   match them needs a number in the reason. The DC's evidence for each is shown above the choice.
  * - The 11 DC indicators: Rumi's level is pre-filled from the v6 analysis of the recording; a coach who changes any
  *   level on a screen writes why in that screen's "Why you changed" box (operator Q2-B, 11 Nov).
+ * - N/A (approved 19 Nov): offered only on C2 C3 C5 D4, each with its own words (fico17_v6.na.json).
+ *   C2 arrives on N/A when Rumi heard no wrong answer (Rumi's choice: changing it needs the reason); C3 and D4 arrive
+ *   on N/A when the coach set C1 to 1 (her choice decides, never the DC's). An N/A needs no 20-character reason.
  * - Lesson-plan fidelity (screen B) is the measured fidelity exactly as V3 edits it; it is not one of the 17.
  * Every stored level carries rubric + prompt_version + set_by ('coach' | 'rumi'). v6 totals never mix with V3.
  */
@@ -26,10 +29,6 @@ const FLOW_ID_ENV = 'OBSERVE_FICO17_V6_FLOW_ID';
 const QUOTE_CAP = 120;
 const EVIDENCE_ITEMS = 5;
 const PREFILL_TEXT_CAP = 600;
-
-// The NA a DC indicator can carry (the DC returns "NA" when what it looks for did not come up, e.g. C2 with no
-// wrong answer). Combined indicators use their own NA options (v6.NA_OPTIONS).
-const DC_NA_OPTION = { id: 'NA', title: 'N/A · Did not come up', description: 'What this indicator looks for did not come up in the lesson.' };
 
 // Validation messages. Urdu lives in observe-strings.js (v6_* keys, DRAFT for native review).
 const MSG_EN = {
@@ -117,15 +116,15 @@ function isV6Analysis(analysis) { return !!analysis && analysis.framework === V6
 
 /**
  * The level options a coach is offered for one indicator, on every coach path (/observe, /observe2, portal), operator
- * 13 Nov: 1-4 only, each the level's name with the rubric sheet's text under it (v6.coachLevelOptions), in the coach's
- * language. No N/A and no Couldn't tell. `keep`: a value an OLD review saved ('NA' / 'IE'), added back at the end so
- * that review still shows its choice; nothing new offers it.
+ * 13 Nov: each level's name with the rubric sheet's text under it (v6.coachLevelOptions), in the coach's language, and
+ * N/A with the indicator's own words where the approved table allows it (19 Nov: C2 C3 C5 D4). No Couldn't tell.
+ * `keep`: a value an OLD review saved ('NA' / 'IE') on an indicator that no longer offers it, added back at the end
+ * so that review still shows its choice; nothing new offers it.
  */
 function optionsFor(code, { keep = null, lang = 'en' } = {}) {
   const out = v6.coachLevelOptions(code, lang);
   if (keep === 'NA') {
-    const na = (v6.isCombined(code) && v6.NA_OPTIONS[code]) || DC_NA_OPTION;
-    out.push({ id: 'NA', title: na.title, description: v6.clip(na.description, 300) });
+    if (!out.some((o) => o.id === 'NA')) out.push(v6.legacyNaOption(lang));
   } else if (keep === 'IE') {
     out.push({ id: 'IE', title: "Couldn't tell", description: v6.clip(`Use when ${v6.indicator(code).couldnt_tell}`, 300) });
   }
@@ -135,7 +134,6 @@ function optionsFor(code, { keep = null, lang = 'en' } = {}) {
 const COACH_IDS = ['1', '2', '3', '4'];
 // What the old 5-screen Flow (and an old portal review) could send: 1-4, N/A, Couldn't tell. Accepted, never offered.
 const LEGACY_IDS = ['1', '2', '3', '4', 'NA', 'IE'];
-const optionIds = () => COACH_IDS;
 
 function v6Row(analysis, code) {
   const dom = ((analysis || {}).domains || {})[v6.DOMAIN_OF[code]];
@@ -153,16 +151,40 @@ function rumiLevel(analysis, code) {
   return null;
 }
 
-/** Rumi's level when it is a number 1-4; null for none, N/A or Couldn't tell (the coach then sets it). */
+/** Rumi's level when it is a number 1-4; null for none, N/A or Couldn't tell. */
 function rumiNumeric(analysis, code) {
   const r = rumiLevel(analysis, code);
   return typeof r === 'number' ? r : null;
 }
 
-/** The option a DC radio is pre-filled with: Rumi's 1-4, or blank when Rumi has none (or N/A / Couldn't tell). */
+/**
+ * Rumi's CHOICE on one of the 11, as the coach is shown it: 1-4, or 'NA' where the indicator offers N/A (C2, queue
+ * #128); null for none or Couldn't tell, and for an N/A on an indicator that no longer offers one (the coach then sets
+ * it). Changing Rumi's choice needs a reason; setting one where Rumi had none does not.
+ */
+function rumiChoice(analysis, code) {
+  const r = rumiLevel(analysis, code);
+  if (typeof r === 'number') return r;
+  return r === 'NA' && v6.naAllowed(code) ? 'NA' : null;
+}
+
+/** The option a DC radio is pre-filled with: Rumi's choice (1-4, or N/A on C2), or blank when Rumi has none. */
 function prefillLevel(analysis, code) {
-  const r = rumiNumeric(analysis, code);
+  const r = rumiChoice(analysis, code);
   return r === null ? '' : String(r);
+}
+
+/**
+ * The N/A a coach-set indicator arrives on because of another indicator: C3 and D4 when C1 is level 1 ("no question
+ * for the children to answer"). C1 is the coach's own answer when she has given one, else Rumi's pre-fill (what her
+ * C1 screen showed). Never the DC's say on C3/D4 themselves: those six are the coach's (bd-ra8xu.44).
+ */
+function followsNa(analysis, code, edits = {}) {
+  const f = v6.naFollows(code);
+  if (!f) return false;
+  const mine = edits[`r_${f.code}`];
+  const level = mine !== undefined && mine !== null && String(mine) !== '' ? v6.normLevel(mine) : rumiChoice(analysis, f.code);
+  return level === f.level;
 }
 
 function clipWords(s, n) {
@@ -309,7 +331,7 @@ function combinedBody(analysis, code) {
   } else if (ce.result === 'IE') {
     lines.push("The recording couldn't show this. Set the level from what you saw.");
   } else if (ce.result === 'NA') {
-    lines.push('The recording found no child-to-child talk.');
+    lines.push(v6.naAllowed(code) ? v6.naSentence(code, 'en', { by: 'dc' }) : 'The recording did not find this in the lesson.');
   } else {
     const items = (Array.isArray(ce.items) ? ce.items : []).filter((i) => i && i.quote).slice(0, EVIDENCE_ITEMS);
     if (!items.length) lines.push('The recording showed nothing for this.');
@@ -405,7 +427,8 @@ function recordingText(analysis, code, lang, T) {
     return Number.isFinite(a) && Number.isFinite(b) ? fill(T.v6f_d2_turns, { a: num(a, lang), b: num(b, lang) }) : T.v6f_rec_nothing;
   }
   if (ce.result === 'IE') return T.v6f_rec_ie;
-  if (ce.result === 'NA') return T.v6f_rec_na;
+  // Per-indicator N/A (19 Nov): the DC's N/A in its own words for that indicator (C5: "No change of activity in this transcript.").
+  if (ce.result === 'NA') return v6.naAllowed(code) ? v6.naSentence(code, lang, { by: 'dc' }) : T.v6f_rec_na;
   const items = (Array.isArray(ce.items) ? ce.items : []).filter((i) => i && i.quote).slice(0, EVIDENCE_ITEMS);
   if (!items.length) return T.v6f_rec_nothing;
   return items.map((i) => `${i.time || '--:--'}  "${clipWords(i.quote, QUOTE_CAP)}"`).join('\n');
@@ -480,6 +503,7 @@ function screenData(analysis, screenId, { lang = 'en', edits = null, errors = nu
     next_label: isLastScreen(screenId) ? T.v6f_submit : T.v6f_next,
   };
   const init = {};
+  const ids = v6.coachIds(code);
   if (v6.isCombined(code)) {
     Object.assign(data, {
       lbl_level: T.v6f_level_room,
@@ -487,16 +511,27 @@ function screenData(analysis, screenId, { lang = 'en', edits = null, errors = nu
       evidence: recordingText(analysis, code, lang, T),
       coach_adds: `${T.v6f_coach_adds} ${text.coach_adds || ''}`.trim(),
       lbl_why: T.v6f_why,
-      help_why: T.v6f_why_help,
+      // The published Flow marks this box required, so an N/A still needs a word or two; a level needs 20+ characters.
+      help_why: v6.naAllowed(code) ? (T.v6f_why_help_na || T.v6f_why_help) : T.v6f_why_help,
     });
-    if (COACH_IDS.includes(submitted)) init[`r_${code}`] = submitted;
+    if (ids.includes(submitted)) init[`r_${code}`] = submitted;
+    else if (followsNa(analysis, code, e)) {
+      // C3 / D4 after C1 = 1: N/A arrives chosen, and the screen says why (under the definition: the Flow has no slot
+      // of its own for it, and adding one would mean republishing the Flow).
+      init[`r_${code}`] = 'NA';
+      const note = v6.naFollowNote(code, lang);
+      if (note) data.definition = `${data.definition}\n\n${String(note).replace(/\b([CDF]\d)\b/g, (m) => iso(m, lang))}`;
+    }
     init[`why_${code}`] = typeof e[`why_${code}`] === 'string' ? e[`why_${code}`] : '';
   } else {
-    const rumi = rumiNumeric(analysis, code);
+    const rumi = rumiChoice(analysis, code);
     const row = v6Row(analysis, code) || {};
+    let rumiNote = T.v6f_rumi_none;
+    if (rumi === 'NA') rumiNote = v6.naRumiNote(code, lang) || fill(T.v6f_rumi_chose, { level: v6.naOption(code, lang).title });
+    else if (rumi !== null) rumiNote = fill(T.v6f_rumi_chose, { level: v6.levelName(rumi, lang) });
     Object.assign(data, {
       lbl_level: T.v6f_level,
-      rumi_note: rumi === null ? T.v6f_rumi_none : fill(T.v6f_rumi_chose, { level: v6.levelName(rumi, lang) }),
+      rumi_note: rumiNote,
       lbl_ev: T.v6f_evidence,
       help_ev: T.v6f_evidence_help,
       lbl_imp: T.v6f_improve,
@@ -504,7 +539,7 @@ function screenData(analysis, screenId, { lang = 'en', edits = null, errors = nu
       lbl_chg: T.v6f_change,
       help_chg: T.v6f_change_help,
     });
-    const level = COACH_IDS.includes(submitted) ? submitted : prefillLevel(analysis, code);
+    const level = ids.includes(submitted) ? submitted : prefillLevel(analysis, code);
     if (level) init[`r_${code}`] = level;
     init[`ev_${code}`] = typeof e[`ev_${code}`] === 'string' ? e[`ev_${code}`] : rumiEvidenceText(analysis, code);
     init[`imp_${code}`] = typeof e[`imp_${code}`] === 'string' ? e[`imp_${code}`] : clipWords(row.improvement || '', PREFILL_TEXT_CAP);
@@ -556,24 +591,25 @@ function d2Expected(children, quietLater) {
 /**
  * The reasons a v6 screen submit is refused, as { field: message }; {} when it may go on. `screenId` is one indicator's
  * screen (IND_C_ONE …), or a whole section (DOMAIN_C: the old 5-screen Flow, and the portal, which sends every level).
- * Combined: a level and a reason ≥ 20 characters. DC: changing a level Rumi set (a number 1-4) needs a reason ≥ 20
- * characters, in chg_<code> on an indicator screen or chg_<letter> on a section. A level where Rumi had none (or N/A
- * or Couldn't tell) needs no change reason. D2's two counts are checked only when a form still sends them (the old Flow).
+ * Combined: a level and a reason ≥ 20 characters; N/A (where the table offers it) needs no reason. DC: changing Rumi's
+ * choice (1-4, or N/A on C2) needs a reason ≥ 20 characters, in chg_<code> on an indicator screen or chg_<letter> on a
+ * section. A level where Rumi had none (or Couldn't tell) needs no change reason. An indicator screen accepts N/A only
+ * where the table offers it (per-indicator N/A, 19 Nov). D2's two counts are checked only when a form still sends them (the old Flow).
  */
 function validateScreen(screenId, data = {}, analysis = {}, S = MSG_EN) {
   const info = screenInfo(screenId);
   const codes = codesFor(screenId);
   const perCode = info.kind === 'ind';
-  const allowed = perCode ? COACH_IDS : LEGACY_IDS;
   const errors = {};
   let sectionChanged = false;
   for (const code of codes) {
+    const allowed = perCode ? v6.coachIds(code) : LEGACY_IDS;
     const level = data[`r_${code}`] === undefined || data[`r_${code}`] === null ? '' : String(data[`r_${code}`]);
     const name = v6.indicator(code).name;
     if (v6.isCombined(code)) {
       if (!allowed.includes(level)) errors[`r_${code}`] = `${name}: ${S.v6_choose_level}`;
       const why = data[`why_${code}`];
-      if (!v6.isJustified(why)) errors[`why_${code}`] = `${name}: ${S.v6_write_why}`;
+      if (level !== 'NA' && !v6.isJustified(why)) errors[`why_${code}`] = `${name}: ${S.v6_write_why}`;
       if (code === 'D2' && data.d2_children !== undefined) {
         const n = wholeNumber(data.d2_children);
         const q = wholeNumber(data.d2_quiet_later);
@@ -585,7 +621,7 @@ function validateScreen(screenId, data = {}, analysis = {}, S = MSG_EN) {
       }
     } else {
       if (perCode && !allowed.includes(level)) errors[`r_${code}`] = `${name}: ${S.v6_choose_level}`;
-      const rumi = rumiNumeric(analysis, code);
+      const rumi = rumiChoice(analysis, code);
       const changed = rumi !== null && level !== '' && level !== String(rumi);
       if (changed && perCode && !v6.isJustified(data[`chg_${code}`])) errors[`chg_${code}`] = S.v6_change_why;
       if (changed && !perCode) sectionChanged = true;
@@ -735,9 +771,9 @@ function messages(lang) {
 
 module.exports = {
   READY_ENV, isReady,
-  V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
+  V6, FLOW_ID_ENV, MSG_EN, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
-  optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
+  optionsFor, rumiLevel, rumiNumeric, rumiChoice, followsNa, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
   fieldMessages, withSectionBAnswers,

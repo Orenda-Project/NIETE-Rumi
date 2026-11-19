@@ -146,7 +146,8 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow({ status: 'observer_review_complete', analysis_data: a })));
     expect(ind(out, 'C7').rating).toBe('NA');
     expect(ind(out, 'C7').options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']);
-    expect(ind(out, 'C3').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
+    expect(ind(out, 'C3').options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']); // per-indicator N/A (19 Nov): C3 offers N/A
+    expect(ind(out, 'C1').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
   });
 
   test('one of the six: blank, with the definition and Rumi\'s evidence above it, and its own options', async () => {
@@ -155,7 +156,9 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     expect(c3).toMatchObject({ kind: 'combined', field: 'C3', rating: '', why: '' });
     expect(c3.body).toContain(v6.indicator('C3').definition);
     expect(c3.body).toContain('Ali, what do you think?');
-    expect(c3.options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
+    expect(c3.options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']); // per-indicator N/A (19 Nov): its own N/A
+    expect(c3.options.find((o) => o.id === 'NA').title).toBe('N/A · No question asked');
+    expect(ind(out, 'D2').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']); // D2: never N/A
     expect(ind(out, 'D2').d2).toBeUndefined(); // 13 Nov: no count boxes
     expect(ind(out, 'D2').body).toContain('4 student turns in the first half');
     expect(section(out, 'v6_teacher').changeReason).toBe('');
