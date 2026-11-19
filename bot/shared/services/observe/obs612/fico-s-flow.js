@@ -11,7 +11,8 @@
  *   FS_<A..E>_<ONE..>   ONE indicator per screen: its name, what to look for, how; the four levels, each its name and
  *                       the sheet's words (C2 also "N/A · no answer was wrong"); the observer's evidence (required,
  *                       at least 20 characters: the sheet's "write what you saw and heard as evidence")
- *   FS_CHECKLIST        the sheet's 12 Yes/No checks (not scored, optional)
+ *   FS_CHECKLIST        the sheet's 12 Yes/No checks (not scored; every one required, operator 19 Nov: "the checklist
+ *                       section is not optional")
  *   FS_FEEDBACK         the score so far (read-only), 1-2 strengths, ONE indicator to work on with an action and a date
  *                       (a second one optional): the sheet's Feedback rule. Submit.
  *   NOTICE / DONE       as FDE's form: refused / the one terminal screen.
@@ -78,7 +79,8 @@ const STR = {
     help_chg: "Only if you changed Rumi's level (20+ characters).",
     next: 'Next',
     cl_heading: 'Checklist (not scored)',
-    cl_note: 'Yes or No for each. These are not part of the score.',
+    cl_note: 'Choose Yes or No for every one. These are not part of the score.',
+    cl_where: (n) => `Checklist ${n}`,
     yes: 'Yes',
     no: 'No',
     fb_heading: 'Feedback for the teacher',
@@ -103,6 +105,7 @@ const STR = {
       evidence: 'Write what you saw and heard (at least 20 characters).',
       change: 'You changed a level Rumi set. Write why (at least 20 characters).',
       choice: 'Choose one.',
+      yes_no: 'Choose Yes or No.',
       text: 'Write a few words here.',
       row_two: 'Fill this in too, or leave the second indicator empty.',
       same_focus: 'Pick an indicator other than the first.',
@@ -158,7 +161,8 @@ const STR = {
     help_chg: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     next: 'آگے',
     cl_heading: 'چیک لسٹ (نمبر نہیں)',
-    cl_note: 'ہر ایک کے لیے ہاں یا نہیں۔ یہ اسکور کا حصہ نہیں۔',
+    cl_note: 'ہر ایک کے لیے ہاں یا نہیں چننا لازمی ہے۔ یہ اسکور کا حصہ نہیں۔',
+    cl_where: (n) => `چیک لسٹ ${urDigits(n)}`,
     yes: 'ہاں',
     no: 'نہیں',
     fb_heading: 'استاد کے لیے رائے',
@@ -182,6 +186,7 @@ const STR = {
       evidence: 'لکھیں کہ آپ نے کیا دیکھا اور سنا (کم از کم ۲۰ حروف)۔',
       change: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم ۲۰ حروف)۔',
       choice: 'ایک چنیں۔',
+      yes_no: 'ہاں یا نہیں چنیں۔',
       text: 'یہاں چند الفاظ لکھیں۔',
       row_two: 'یہ بھی بھریں، یا دوسرا اشاریہ خالی چھوڑ دیں۔',
       same_focus: 'پہلے کے علاوہ کوئی اور اشاریہ چنیں۔',
@@ -256,7 +261,8 @@ for (const sec of FicoS.SECTIONS) {
 SCREENS.push({
   id: 'FS_CHECKLIST',
   kind: 'checklist',
-  fields: FicoS.RUBRIC.checklist.map((c) => ({ name: c.key, key: c.key, input: 'radio', required: false, check: 'yes_no' })),
+  // Required (operator 19 Nov): the observer stays here until each check is answered; Submit refuses too.
+  fields: FicoS.RUBRIC.checklist.map((c) => ({ name: c.key, key: c.key, input: 'radio', required: true, check: 'yes_no' })),
 });
 SCREENS.push({
   id: 'FS_FEEDBACK',
@@ -342,7 +348,7 @@ function checkScreen(screenId, draft = {}, { dc = null } = {}) {
     } else if (f.check === 'evidence') {
       if (!FicoS.isEvidence(v)) errors[f.name] = 'evidence';
     } else if (f.check === 'yes_no') {
-      if (has(v) && !['yes', 'no'].includes(String(v))) errors[f.name] = 'choice';
+      if (!has(v)) { if (f.required) errors[f.name] = 'yes_no'; } else if (!['yes', 'no'].includes(String(v))) errors[f.name] = 'choice';
     } else if (f.check === 'choice') {
       if (!has(v)) { if (f.required) errors[f.name] = 'choice'; } else if (!FicoS.CODES.includes(String(v))) errors[f.name] = 'choice';
     } else if (!has(v) && f.required) {
@@ -374,6 +380,8 @@ function whereIs(key, lang = 'en') {
   const code = key.startsWith('ev_') ? key.slice(3) : key.startsWith('chg_') ? key.slice(4) : key;
   if (FicoS.CODES.includes(code)) return `${atom(lang, code)} ${FicoS.indicatorText(code, lang).name}`;
   const s = strings(lang);
+  const check = FicoS.RUBRIC.checklist.findIndex((c) => c.key === key);
+  if (check >= 0) return s.cl_where(check + 1);
   const label = { fb_strengths: s.lbl_strengths, fs_focus: s.lbl_focus, fs_action: s.lbl_action }[key];
   return label || key;
 }
@@ -687,7 +695,7 @@ function screenJson(screen) {
       { type: 'TextBody', text: '${data.note}' },
       { type: 'TextBody', text: '${data.err_note}', visible: '${data.err_v}' },
       ...screen.fields.map((f) => ({
-        type: 'RadioButtonsGroup', name: f.name, label: `\${data.${f.name}_lbl}`, description: `\${data.${f.name}_text}`, required: false, 'data-source': '${data.yes_no}',
+        type: 'RadioButtonsGroup', name: f.name, label: `\${data.${f.name}_lbl}`, description: `\${data.${f.name}_text}`, required: f.required, 'data-source': '${data.yes_no}',
       })),
       { type: 'TextCaption', text: '${data.back_hint}' },
     );

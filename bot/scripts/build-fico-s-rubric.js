@@ -34,18 +34,11 @@ const NA = { C2: 'No answer was wrong in this lesson.' };
 
 // Ours (queue #184): STARRED indicators are never sent to the Digital Coach and the observer must set them (operator,
 // 19 Nov ~11:20: "the E3 indicator is the 'starred' indicator ... Starred indicators are the one that do not get sent to
-// DC and are mandatorily filled by the HITL"; ~14:15: "hitl only are the starred ones basically"). The sheet has no
-// star or HITL-only column, so the set is mapped from what it does say:
-//   - E3, by name (the operator);
-//   - an indicator whose "Aligned v6" codes are ALL starred in FICO17 v6 (v6's "HITL only" six): C3 C5 C7 D2 D3 (C6 is
-//     also aligned with v6 C6, a Digital Coach indicator, so it stays);
-//   - a check the sheet's "How" says the principal makes himself, outside the lesson's talk ("Principal asks …",
-//     "Principal checks …"): E2, E3.
-const V6_STARRED = new Set(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'shared', 'services', 'coaching', 'frameworks', 'fico17-v6', 'fico17_v6.rubric.json'), 'utf8'))
-  .indicators.filter((i) => i.starred === true).map((i) => i.code));
-const isStarredRow = (code, alignedV6, how) => code === 'E3'
-  || (alignedV6.length > 0 && alignedV6.every((c) => V6_STARRED.has(c)))
-  || /^Principal\b/.test(how || '');
+// DC and are mandatorily filled by the HITL"). The sheet marks none (read 19 Nov with notes and formatting: no star or
+// HITL column, nothing marked), so the set is the operator's word alone: E3. 19 Nov ~17:00, asked about C3: "thats
+// wrong. those are not starred" (v6's HITL-only six, and what they align with here, are NOT starred).
+const STARRED = new Set(['E3']);
+const isStarredRow = (code) => STARRED.has(code);
 
 const clean = (s) => String(s == null ? '' : s).replace(/\r/g, '').trim();
 const oneLine = (s) => clean(s).replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
@@ -125,7 +118,7 @@ function build(source) {
       note: oneLine(al[5] || ''),
       examples: ex,
       na: NA[code] ? { allowed: true, text: NA[code] } : { allowed: false },
-      starred: isStarredRow(code, codesIn(row[7]), lf.how),
+      starred: isStarredRow(code),
     });
   }
 
@@ -194,7 +187,7 @@ function build(source) {
     ours: {
       na: 'N/A is offered only where the sheet names it (C2: no answer was wrong).',
       checklist_keys: 'cl_1 … cl_12, in the sheet order.',
-      starred: 'Starred (operator, 19 Nov): E3, and what the sheet marks HITL-only: aligned only with v6 HITL-only indicators, or a check the principal makes himself (How: "Principal …"). Never sent to the Digital Coach; the observer must set it.',
+      starred: 'Starred (operator, 19 Nov): E3 only; the sheet marks none. Never sent to the Digital Coach; the observer must set it.',
     },
   };
 }

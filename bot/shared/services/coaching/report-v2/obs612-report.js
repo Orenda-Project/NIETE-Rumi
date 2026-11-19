@@ -355,7 +355,7 @@ function buildObs612HeroVm(session, analysis, opts = {}) {
     breakLongWords: true,
   };
   if (!v) return vm;
-  if (v.tool === 'ficos') return ficosHeroVm(vm, v, lang);
+  if (v.tool === 'ficos') return ficosHeroVm(vm, v, lang, opts);
   const top = (v.strongest || [])[0] || null;
   const low = (v.lowest || [])[0] || null;
   const fb = v.feedback || {};
@@ -410,7 +410,7 @@ function buildObs612HeroVm(session, analysis, opts = {}) {
  * observer's focus, else the lowest) with what they saw, and the action with its date. Every word is the observer's
  * or the rubric's; no model writes any of it.
  */
-function ficosHeroVm(vm, v, lang) {
+function ficosHeroVm(vm, v, lang, opts = {}) {
   const H = HERO_FICO_S[lang] || HERO_FICO_S.en;
   const f = v.ficos;
   const bandName = (label) => (label ? H.band(label) : label);
@@ -420,11 +420,16 @@ function ficosHeroVm(vm, v, lang) {
   const focus = plan ? f.indicators.find((i) => i.code === plan.code) : (v.lowest || [])[0] || null;
   vm.partialNote = H.footnote;
   vm.score = { overall: f.pct === null ? null : Math.round(f.pct), marks: f.total, max: f.max };
+  // Queue #184 (operator 19 Nov ~17:10): ONE line under each section's score, the live v6 way: the narrative model's
+  // domain_whys (narrative.service generateFicoSDomainWhys, v6's rule), keyed by the section. None: the bar alone.
+  const whys = (opts && opts.domainWhys) || {};
   vm.groups = f.sections.filter((s) => s.scored > 0).map((s) => ({
     name: `${H.atom(s.key)}. ${FicoS.sectionName(s.key, lang)}`,
+    domainKey: s.key,
     score: s.total,
     max: s.max,
     pct: Math.round(s.pct),
+    ...(typeof whys[s.key] === 'string' && whys[s.key].trim() ? { why: whys[s.key].trim() } : {}),
   }));
   vm.narrative = {
     affirmation: H.affirm(bandName(f.band)),
@@ -435,21 +440,8 @@ function ficosHeroVm(vm, v, lang) {
     horizon_note: readableNote(focus ? focus.evidence || '' : ''),
   };
   vm.tryNext = readableNote(joinNote(plan ? plan.action : '', (v.feedback || {}).by_when ? H.by(v.feedback.by_when) : ''));
-  // Queue #184 (operator 19 Nov ~11:40: "we are not showing the reasoning ... we want that"): every indicator the
-  // observer set, in its section, with that level and the evidence as the observer submitted it, word for word (the
-  // 11 Nov rule for HITL reports). No model writes any of it. An indicator with no level is left out.
-  vm.evidence = {
-    title: H.evidence,
-    sections: f.sections.filter((s) => s.scored > 0 || f.indicators.some((i) => i.section === s.key && i.na)).map((s) => ({
-      name: `${H.atom(s.key)}. ${FicoS.sectionName(s.key, lang)}`,
-      items: f.indicators.filter((i) => i.section === s.key && (i.level !== null || i.na)).map((i) => ({
-        code: i.code,
-        name: indName(i),
-        level: i.na ? H.na : H.level(i.level),
-        note: String(i.evidence || '').trim(),
-      })),
-    })),
-  };
+  // The indicator-by-indicator list (19 Nov ~11:40) is gone (operator 19 Nov ~17:10: "now all the indicators are
+  // being shown. We want just a one liner under each section's score"): the line under each bar carries the reasoning.
   return vm;
 }
 
@@ -463,9 +455,19 @@ function ficosHeroVm(vm, v, lang) {
 async function generateObs612Report(session, analysis, opts = {}) {
   const { htmlToImage } = require('../../../utils/html-to-pdf');
   const { buildHeroReportHtml } = require('./hero-report.template');
-  const vm = buildObs612HeroVm(session, analysis, opts);
+  const base = buildObs612ReportVm(session, analysis, opts);
+  // Queue #184: a FICO 6-12 page asks the narrative model for its one line per section (as v6); FDE's pages never do.
+  let domainWhys = null;
+  if (base.view && base.view.tool === 'ficos') {
+    domainWhys = await require('./narrative.service').generateFicoSDomainWhys(base.view.ficos, {
+      transcript: opts.transcript || (session && session.transcript_text) || '',
+      language: clampLanguage(base.language, ['en', 'ur']),
+      teacherName: opts.teacherName || base.teacherName || 'the teacher',
+    });
+  }
+  const vm = buildObs612HeroVm(session, analysis, { ...opts, domainWhys });
   const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
-  return { png, caption: caption(buildObs612ReportVm(session, analysis, opts)), narrative: null, partialNote: vm.partialNote };
+  return { png, caption: caption(base), narrative: domainWhys ? { domain_whys: domainWhys } : null, partialNote: vm.partialNote };
 }
 
 module.exports = { generateObs612Report, buildObs612ReportVm, buildObs612HeroVm, buildObs612ReportHtml, caption, CHROME, HERO };

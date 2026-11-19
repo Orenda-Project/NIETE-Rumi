@@ -113,7 +113,7 @@
       "couldnt_tell": "the teacher's speech before student answers is missing or garbled.",
       "combined_evidence": "The DC reports the times the teacher names a child before a question or sets pair talk or \"everyone write\", and the level the transcript alone supports.",
       "coach_adds": "choosing that cannot be heard (pointing, a nod, \"you tell\" with no name), and whether children who had not put a hand up were brought in. The coach sets the final level with a written justification.",
-      "starred": true,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -185,7 +185,7 @@
       "couldnt_tell": "the transcript has gaps around the changes of activity, so the signals or times cannot be read.",
       "combined_evidence": "The DC reports the teacher's signals for each change of activity, with timestamps, and the level the transcript alone supports.",
       "coach_adds": "how long the class actually took to settle into the next activity (chairs moved, books out, working), which the transcript times only roughly. The coach sets the final level with a written justification.",
-      "starred": true,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -257,7 +257,7 @@
       "couldnt_tell": "the part of the lesson where group work is set or reported back is missing or garbled.",
       "combined_evidence": "The DC reports the teacher's spoken set-up (pairs or groups, a shared task, what the group must make, roles, report back) and the level the transcript alone supports.",
       "coach_adds": "whether the groups actually worked together on one product and used the roles, which is mostly silent or too quiet for the recording. The coach sets the final level with a written justification.",
-      "starred": true,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -365,7 +365,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson.",
       "combined_evidence": "The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because every level counts different children.",
       "coach_adds": "how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification.",
-      "starred": true,
+      "starred": false,
       "levels_for": "coach"
     },
     {
@@ -401,7 +401,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson. This is separate from the N/A line below, which is for lessons where no child-to-child talk is found.",
       "combined_evidence": "The DC reports the exchanges it finds (a child agreeing with or adding to another, a second child named to agree) and the level the transcript alone supports.",
       "coach_adds": "children talking to each other about the task that the recording did not pick up, mostly during pair and group work, and whether they gave reasons or reached a shared answer. The coach sets the final level with a written justification.",
-      "starred": true,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -437,7 +437,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson.",
       "combined_evidence": "The DC reports unsure answers (\"Maybe...\", \"Should I say...?\", an answer that changes halfway), second tries after a wrong answer, and answers given without being asked, with the level the transcript alone supports. Its cues are English only for now and rarely appear in the Urdu transcripts.",
       "coach_adds": "how children behave when they are unsure: whether they have a go or go quiet, put a hand up or wait for the teacher, and try again after a wrong answer. The coach sets the final level with a written justification.",
-      "starred": true,
+      "starred": false,
       "levels_for": "all"
     },
     {
