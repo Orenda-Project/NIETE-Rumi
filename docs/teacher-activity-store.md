@@ -49,7 +49,9 @@ they were until their TTL.
   database" and the product spec §3): `plans_opened` = the lp-history rule (every grade); `taught` =
   `lp_feedback.used_in_class = 'taught'` by `created_at`; `coached` = `coaching_sessions` completed with
   `observation_type` null (the `countsFor` rule); `quizzes` = `quizzes` sent / report_sent by `teacher_id`;
-  `exams` = `exams` ready by `created_by_user_id`.
+  `exams` = her papers as the teacher app's Papers list counts them: one per Assessment Generator request that reached a
+  ready root paper (`assessment_papers` ready, never an edit; progress.service's rule), dated by the paper. (The tile
+  key keeps the name `exams`; the `exams` table is another generator's and is not read.)
 - `trend`: at most 2 entries, in display order (line 1 = the indicator whose band rose most, else her best band; line
   2 = her lowest band in the latest report). Present only when she has ≥ 2 reports of the same framework in 90 days,
   else `[]`. `points` oldest first, ≥ 2. `band` is a key of `score-bands.js` / `lib/scoreBands.ts`:
@@ -71,6 +73,14 @@ they were until their TTL.
   "steps": { "none": { "count": 40, "user_ids": ["…"] }, "plan_opened": { "count": 22, "user_ids": ["…"] } } }
 ```
 
+`teachers` (optional) is the roster the team view scopes and lists by, one entry per counted teacher:
+`{ "<users.id>": { "org": "niete" | "moawin" | null, "region": "Sihala" | null, "band": "k5" | "g612" | null,
+"name": "…", "school": "…", "furthest": "<rung or none>", "last_kind": "<journey kind>" | null, "last_at": "…" | null } }`.
+`org` is region.service's rule (users.source, users.region, the school's region) through the region registry; a
+teacher it cannot place has `org: null` and is seen only by the default organization's accounts, as every analytics
+tab treats unplaced teachers. The name and school are here so opening the team view reads no database; they are never
+logged.
+
 `steps` has one entry per rung (`none`, `plan_opened`, `taught`, `coached`, `report`, `quiz`): `count` = teachers
 whose furthest step is **exactly** this one ("Stopped here"), `user_ids` = those teachers, oldest last step first.
 "Reached" for a rung = the sum of `count` from that rung up. Tracked teachers = active ICT + GB teachers of the run.
@@ -82,3 +92,29 @@ whose furthest step is **exactly** this one ("Stopped here"), `user_ids` = those
 - The reader answers `null` for: no Redis client, Redis down, no key, bad JSON, a value that fails the check, or an
   `updated_at` more than 36 h old. `null` means "show no numbers", never an error and never a database read.
 - Logs carry no user id (the reader logs only that a stored value was unreadable, and which key family).
+
+## The writer: the twice-a-day job
+
+- **Where:** the bot worker (`bot/workers/teacher-activity-schedule.js`, ticked hourly on main-queue replicas) runs
+  `bot/shared/services/teacher-activity/teacher-activity-run.service.js`; the pure shaping is
+  `teacher-activity/teacher-journey.service.js`.
+- **Switch:** `app_settings` `teacher_activity_slots`, e.g. `{"day":"14:30","night":"01:30"}` (Pakistan times; one or
+  both slots). No row, a malformed value or a failed read = off. A slot is due from its time for 90 minutes; one worker
+  claims the tick (Redis), and the run marker stops a second run of the same slot on the same Pakistan date.
+- **Replica only:** `bot/shared/config/supabase-replica-only.js` — `NIETE_SUPABASE_REPLICA_URL` + the service key; no
+  URL = the job is off on that tier. Every run first calls `rpc('db_is_replica')` and refuses unless it answers true.
+  The switch, the region registry and every count are read on the replica; the primary is never read by the job.
+- **Reads (migration V1.10.5):** `teacher_activity_teachers()` once (active teachers: role teacher, not deleted or
+  merged, and a WhatsApp message, a portal sign-in or an app plan open in the last 60 days), then
+  `teacher_activity_batch(ids)` per 500 teachers with a 1 s pause. Both are read only with a 20 s statement timeout.
+- **Writes:** one key per teacher (36 h), then the team key and the run marker only when every batch was read; a failed
+  batch keeps those teachers' previous values and the next hourly tick inside the slot's window runs again.
+- **Logs:** counts and timings with a correlation id (`teacher_activity.run.<outcome>`); never a user id or a name.
+
+## Readers
+
+- `GET /api/portal/me/journey` (`dashboard/routes/portal-teacher-journey.routes.js`): the session teacher's own steps.
+- `GET /api/portal/analytics/journey`, `/analytics/journey/teachers?step=`, `/analytics/journey/teacher/:id`
+  (`dashboard/routes/portal-analytics-journey.routes.js`, behind the analytics-account guard): counts, the teachers who
+  stopped at a rung and one teacher's journey, scoped to the account's organization from the roster above.
+- Both behind `portal_teacher_journey` (per user; for the team view, the analytics account must be named).
