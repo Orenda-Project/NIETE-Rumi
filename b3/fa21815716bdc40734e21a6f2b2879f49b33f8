@@ -1,1 +1,2 @@
 {"ts":"2026-11-19T16:32:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons,portal-smoke spec_sync=true","sha":"b3fa21815716","branch":"try-with-deps","user":""}
+{"ts":"2026-11-19T17:01:14Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (this commit itself adds the 25 teacher-lessons.feature lines for the typed-topic guard, synced on sandbox #5129)","sha":"b3fa21815716","branch":"bd-snkn32.56.1-05633","user":""}
