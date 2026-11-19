@@ -140,9 +140,12 @@ describe('after Start: the record, then the period', () => {
 });
 
 describe('the period button sends the live form', () => {
+  // Queue #191: an ICT coach is asked the lesson's class first (obs612 is on for every coach); these tests pin the live
+  // form itself, so their observer is one the switch rows still decide for (a principal, rows off).
+  const ROWS_OBSERVER = { ...COACH, role: 'principal' };
   test('sets the period and sends the form with its own token and the before-the-lesson steps', async () => {
     Store.getForm.mockResolvedValueOnce({ ok: true, form: { id: 'form-1', observer_user_id: 'coach-1' } });
-    expect(await Start.handlePeriodButton(COACH, '923000000001', 'obs2_period:form-1:40')).toBe(true);
+    expect(await Start.handlePeriodButton(ROWS_OBSERVER, '923000000001', 'obs2_period:form-1:40')).toBe(true);
     expect(Store.setPeriod).toHaveBeenCalledWith('form-1', 40);
     const [, flow] = WhatsAppService.sendFlow.mock.calls[0];
     expect(flow).toMatchObject({ flowId: 'F-FORM', flowToken: 'coach-1:observe2-form:form-1' });
@@ -162,7 +165,7 @@ describe('the period button sends the live form', () => {
   });
   test('25 minutes (Friday) is saved and the form runs to minute 25', async () => {
     Store.getForm.mockResolvedValueOnce({ ok: true, form: { id: 'form-1', observer_user_id: 'coach-1' } });
-    expect(await Start.handlePeriodButton(COACH, '923000000001', 'obs2_period:form-1:25')).toBe(true);
+    expect(await Start.handlePeriodButton(ROWS_OBSERVER, '923000000001', 'obs2_period:form-1:25')).toBe(true);
     expect(Store.setPeriod).toHaveBeenCalledWith('form-1', 25);
     const [, flow] = WhatsAppService.sendFlow.mock.calls[0];
     expect(flow.body).toMatch(/minute 25/);

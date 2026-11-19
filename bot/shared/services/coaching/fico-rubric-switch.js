@@ -15,6 +15,9 @@
  *                                               its own; "role:coach" the same for coaches
  *   {"role:principal@ict": "v6"}                that role in one organization ("ict", "gb") or one region ("sihala")
  *
+ * Queue #191 (operator 19 Nov): the coach switch is no longer a gate for coaches: users.role 'coach' is always 'v6'
+ * (coachRubric). The rows below decide only for everyone else (principals and any other role).
+ *
  * Lookup order: "user:<id>"; the role keys, scoped to the user's region, then to its organization, then the bare
  * role; the user's region; its organization ('niete'/'ict', 'moawin'/'gb'); "*"; then OFF. Who you are beats where
  * you are: {"role:principal": "v6", "sihala": "current"} puts a Sihala principal on v6.
@@ -144,10 +147,33 @@ async function pickFor(map, who, allowed, off) {
  *   (users.role; read when a role key needs it and it is omitted) and region (users.region)
  * @returns {Promise<'current'|'v6'>}  never throws; OFF on any failure
  */
+// Queue #191 (operator, 19 Nov ~17:40: "since we want to have it live for all the coaches, lets just remove the feature
+// flag. it should be live for all of them no matter if we added their thingy or not"): for a coach (users.role 'coach')
+// fico_coach_rubric and obs612_coach are no longer a gate. Everyone else (principals, teachers) reads them as before.
+const COACH_ROLE = 'coach';
+const isCoachRole = (role) => typeof role === 'string' && norm(role) === COACH_ROLE;
+
+/**
+ * Queue #191: the users.role of `who`: the role the caller passed, else read once. Undefined when it cannot be known
+ * (no id, or a failed read), so the rows then decide exactly as before (pickFor reads it again only for a role key).
+ */
+async function knownRole(who = {}) {
+  const w = who || {};
+  if (w.role !== undefined) return w.role;
+  if (!w.userId) return undefined;
+  const r = await roleOfUser(w.userId);
+  return r === ROLE_UNKNOWN ? undefined : r;
+}
+
 async function coachRubric(who = {}, now = Date.now()) {
   try {
     const { coach } = await cache.get(now);
-    return await pickFor(coach, who, COACH_VALUES, COACH_OFF);
+    const w = { ...(who || {}) };
+    // A row that already says v6 for this account decides with no role read.
+    if (w.userId && coach[`user:${norm(String(w.userId))}`] === 'v6') return 'v6';
+    w.role = await knownRole(w);
+    if (isCoachRole(w.role)) return 'v6';
+    return await pickFor(coach, w, COACH_VALUES, COACH_OFF);
   } catch (_) {
     return COACH_OFF;
   }
@@ -221,4 +247,5 @@ function _resetCache() { cache.reset(); }
 module.exports = {
   COACH_KEY, DC_KEY, STARRED_SETTING, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
   asMap, resolve, pickFor, coachRubric, dcRubric, v6Starred, isAnySet, regionOfUser, roleOfUser, _resetCache,
+  COACH_ROLE, isCoachRole, knownRole,
 };
