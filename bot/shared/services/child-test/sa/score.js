@@ -33,6 +33,8 @@
  *              EGRA's accent rule instead of STORY; the gate, rows and numbers are the same)
  *   passage    the 60-s reading: STORY prompt; attempted to the last word the child tapped (RULING #2), else the
  *              model's last word; words correct per minute on the time used
+ *              (app_settings sa_r28_story_minute ON: the time used counts only when the child reached the passage's
+ *              last printed line; otherwise the rate is taken over the whole minute; detail.minute says which)
  *   questions  comprehension, listening, segmentation: one clip per asked item (or one clip for all), each marked
  *              against its accept / reject / rubric
  * EGRA's stop rules (app_settings sa_stop_rules, OFF by default; the off path is unchanged): a W3 letters / words task
@@ -116,6 +118,7 @@ const childOnlySwitch = require('../app/child-only-answer-switch');
 const ceilingSwitch = require('../app/ceiling-switch');
 const mcqSwitch = require('../app/mcq-switch');
 const wordsPromptSwitch = require('../app/words-prompt-switch');
+const storyMinuteSwitch = require('../app/story-minute-switch');
 const { ensureNoDevanagari } = require('../../../utils/devanagari-guard');
 const { isSetAside } = require('./set-aside');
 
@@ -664,14 +667,15 @@ function firstRowStopped(rows, n) {
   return rows.slice(0, n).every((r) => r.verdict !== 'correct');
 }
 
-function timedNumbers(rows, res, { stopped, attemptedTo = null, pending = false }) {
+function timedNumbers(rows, res, { stopped, attemptedTo = null, pending = false, fullMinute = false }) {
   let attempted = 0;
   rows.forEach((r) => { if (r.verdict !== 'not_reached') attempted = r.i; });
   if (attemptedTo != null) attempted = attemptedTo;
   const correct = stopped ? 0 : rows.filter((r) => r.i <= attempted && r.verdict === 'correct').length;
   // sa_r28_ceiling (C-5): no phone clock → no rate until it is known, never an assumed minute
   if (pending) return { correct, attempted, per_minute: null, seconds_used: null };
-  const used = usedSeconds(res);
+  // sa_r28_story_minute: a story run that stopped before the last line is rated on the whole minute
+  const used = fullMinute ? SECONDS : usedSeconds(res);
   return { correct, attempted, per_minute: correct ? round1((correct / used) * SECONDS) : 0, seconds_used: round1(used) };
 }
 
@@ -860,7 +864,7 @@ async function storyRows(tokens, lang, clip, deps, calls, job, { presented = nul
   return timedRows(tokens, (k) => ({ verdict: VV[v[k]] || 'not_reached', heard: '', conf: null }), { presented });
 }
 
-async function scorePassage(task, rec, row, res, deps, calls, { letterGate = false } = {}) {
+async function scorePassage(task, rec, row, res, deps, calls, { letterGate = false, storyMinute = false } = {}) {
   const p = rec.passage || {};
   const tokens = Array.isArray(p.words) && p.words.length ? p.words.map((w) => String(w.target)) : String(p.text || '').split(/\s+/).filter(Boolean);
   const clip = await clipOf(deps, row.audio_r2_key);
@@ -881,7 +885,38 @@ async function scorePassage(task, rec, row, res, deps, calls, { letterGate = fal
   const lastWord = tapper ? lastWordOf(rows, tapped, p.lines, tapper) : null;
   const attemptedTo = lastWord ? lastWord.attempted : tapped;
   const pending = clockPending(deps, res);
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo, pending }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord, ceiling: clockDetail(pending, res) };
+  let numbers = timedNumbers(rows, res, { stopped, attemptedTo, pending });
+  const minute = storyMinute === true ? minuteOf(numbers, res, p.lines, tokens.length, { stopped, pending }) : null;
+  // a time-up run already used the minute: its clock stands, exactly as before
+  if (minute === 'full_60' && res.stop_reason !== 'time_up') numbers = timedNumbers(rows, res, { stopped, attemptedTo, pending, fullMinute: true });
+  const clock = clockDetail(pending, res);
+  return { numbers, rows, stopped, durationSec: clip.durationSec, tapped, lastWord, ceiling: minute ? { ...(clock || {}), minute } : clock };
+}
+
+/**
+ * sa_r28_story_minute: the first word (1-based) of the passage's last printed line, from the variant's own line table
+ * ({ from, to } word ranges, 0-based). Without a table, the convention lastWordOf uses: 10 words a line.
+ */
+function lastLineStart(lines, n) {
+  const last = Array.isArray(lines) && lines.length ? lines[lines.length - 1] : null;
+  if (last && Number.isInteger(last.from) && last.from >= 0) return last.from + 1;
+  return n > 0 ? Math.floor((n - 1) / 10) * 10 + 1 : 1;
+}
+
+/**
+ * sa_r28_story_minute: which minute a story run is rated on. 'last_line_reached': the scorer's attempted count reaches
+ * the last line's first word, or the phone's last-word index (0-based) does; the phone's clock is used.
+ * 'full_60': neither does, so the rate is taken over the whole minute. null (no stamp, nothing changes): a run without a
+ * rate (the clock pending, or no clock at all), a first-line stop (by the phone or by the scorer: no words count).
+ * A time-up run keeps its clock, which is the minute, and is stamped 'full_60'.
+ */
+function minuteOf(numbers, res, lines, n, { stopped, pending }) {
+  const why = res && res.stop_reason;
+  if (pending || noClock(res) || stopped || why === 'early_stop_first_line') return null;
+  if (why === 'time_up') return 'full_60';
+  const L = lastLineStart(lines, n);
+  const tappedTo = res && Number.isInteger(res.last_word_index) ? res.last_word_index : -1;
+  return numbers.attempted >= L || tappedTo >= L - 1 ? 'last_line_reached' : 'full_60';
 }
 
 /**
@@ -1255,6 +1290,8 @@ async function scoreRow(row, session, deps = {}) {
   const childOnlyAnswer = childOnlySwitch.valueOf(d.childOnlyAnswer);
   // sa_r28_words_prompt (the sweep reads the setting; true only)
   const wordsC = wordsPromptSwitch.valueOf(d.wordsPrompt);
+  // sa_r28_story_minute (the sweep reads the setting; true only)
+  const storyMinute = storyMinuteSwitch.valueOf(d.storyMinute);
   const strict = Boolean(voices) && !help && strictValue !== false;
   if (strict && d.speechOf) {
     const heard = new WeakMap();
@@ -1290,7 +1327,7 @@ async function scoreRow(row, session, deps = {}) {
     const gate = compGate(passage);   // null unless sa_stop_rules
     if (gate) out = notReached(rec, res, gate);
     else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3, { letterGate, wordsC });
-    else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls, { letterGate });
+    else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls, { letterGate, storyMinute });
     else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls, { childOnlyAnswer, letterGate });
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls, { noEchoUr, letterGate });
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
@@ -1558,6 +1595,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const ceiling = await ceilingSwitch.enabled(deps);
   const mcqFloor = await mcqSwitch.enabled(deps);
   const wordsPromptOn = await wordsPromptSwitch.enabled(deps);
+  const storyMinuteOn = await storyMinuteSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -1598,7 +1636,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session, slot }) => {
     try {
-      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer, ceiling, wordsPrompt: wordsPromptOn });
+      const got = await scoreRow(had, session, { ...deps, stopRules, voiceStrict, letterGate, voiceHelp, lastWordFromRecording: session.lastWordFromRecording === true, noEchoUr, childOnlyAnswer, ceiling, wordsPrompt: wordsPromptOn, storyMinute: storyMinuteOn });
       if (ctx.abandoned) {
         // this sweep gave up at its deadline: the row is taken again once its claim is stale
         logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
@@ -1634,5 +1672,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks, wordsPrompt, WORDS_ACCENT },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, LETTER_SOUNDS_BARE, LETTER_SOUNDS_NO_CHILD, silent, questionsPrompt, voiceOf, voiceHelpOf, corroborated, keysOf, defaultDeps, NO_ECHO_UR, oralPrompt, CHILD_ONLY, reachedOf, shownOf, extendedOf, passageOf, passagesOf, mcqMarks, wordsPrompt, WORDS_ACCENT, lastLineStart, minuteOf },
 };
