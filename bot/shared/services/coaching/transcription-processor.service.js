@@ -694,8 +694,11 @@ class TranscriptionProcessorService {
     // /observe2: a recording linked to a field form goes to its own moments step. The coach took
     // the photos and answered the lesson-plan question in the form, and the classic FICO draft is
     // not what /observe2 sends, so the gates and the analysis below are skipped for it.
+    // Queue #184: a FICO 6-12 visit for the Digital Coach is not an /observe2 visit, though its form row is in the same
+    // store (observe2's moments step would claim it as 'obs612' and nothing would queue the analysis; staging walk,
+    // 19 Nov). It goes on to the portal step / the gates / the analysis below, as a v6 visit does.
     const observe2 = deps.observe2 || require('../observe/observe2/moments');
-    const o2 = await observe2.runForSession(coachingSessionId, from);
+    const o2 = o612 && o612.dc ? null : await observe2.runForSession(coachingSessionId, from);
     if (o2 && o2.handled) {
       logToFile('✅ Transcription complete (observe2 path — moments step ran)', { coachingSessionId, action: o2.action });
       return { action: 'observe2', result: o2 };
