@@ -1,0 +1,2 @@
+{"ts":"2026-11-19T14:03:21Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,portal-smoke spec_sync=true","sha":"9dd237394084","branch":"bd-96f69c-B","user":""}
+{"ts":"2026-11-19T14:03:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"9dd237394084","branch":"bd-96f69c-B","user":""}
