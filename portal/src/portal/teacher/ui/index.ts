@@ -62,3 +62,5 @@ export { NumberField, type NumberFieldProps } from './NumberField';
 export { ButtonWithReason, type ButtonWithReasonProps } from './ButtonWithReason';
 export { digitsOnly } from './digits';
 export { ShareActions, clockOf, PAGE_HANDOFF, type OpenTarget, type ShareActionsProps, type ShareResult } from './ShareActions';
+export { useOpenTarget, copyText, handoffIntentUrl, OPEN_HOLD_MS, type OpenFlash, type OpenState } from './useOpenTarget';
+export { ActionStrip, type ActionStripItem, type ActionStripProps } from './ActionStrip';
