@@ -16,6 +16,12 @@
  * (FDE's grade 6-8 tools) and over the FICO coach switch for grades 9-12; grades 1-5 are not touched. OFF: everything
  * behaves exactly as before. Flipping it needs no deploy (30 s cache). A visit already started keeps the rubric it
  * was stamped with: an FDE form opened before the switch stays an FDE form.
+ *
+ * Queue #184 — app_settings.fico_s_dc  'off' | 'on'   default OFF, same keys and lookup. ON (and fico_s_coach on) for an
+ * observer: a FICO 6-12 visit that has a recording goes to the Digital Coach as a FICO17 v6 HITL visit does (operator
+ * 19 Nov: "all HITL go to DC"): the recording, the photos and the plan are analysed with the FICO 6-12 prompt
+ * (frameworks/fico-s-framework.js), the form comes pre-filled for the observer to check, starred indicators (E3) are the
+ * observer's alone, and the debrief follows v6's. Decided once per visit, at its start (obs612/fico-s-dc.js REASON).
  */
 
 const supabase = require('../../config/supabase');
@@ -24,29 +30,30 @@ const { cachedSwitch } = require('../settings/switch-cache');
 const { asMap, pickFor, regionOfUser } = require('./fico-rubric-switch');
 
 const KEY = 'fico_s_coach';
+const DC_KEY = 'fico_s_dc';
 const VALUES = ['off', 'on'];
 const OFF = 'off';
 const TTL_MS = 30 * 1000;
 
-const cache = cachedSwitch({
-  ttlMs: TTL_MS,
-  off: () => ({}),
-  read: async () => {
-    const { data, error } = await supabase.from('app_settings').select('key,value').eq('key', KEY);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || [])[0];
-    return asMap(row ? row.value : undefined);
-  },
-  log: (err) => logToFile('fico-s switch: settings lookup failed — treating as off', { error: err.message }, 'error'),
-});
+function switchCache(key) {
+  return cachedSwitch({
+    ttlMs: TTL_MS,
+    off: () => ({}),
+    read: async () => {
+      const { data, error } = await supabase.from('app_settings').select('key,value').eq('key', key);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      const row = (data || [])[0];
+      return asMap(row ? row.value : undefined);
+    },
+    log: (err) => logToFile(`fico-s switch: ${key} lookup failed — treating as off`, { error: err.message }, 'error'),
+  });
+}
+const cache = switchCache(KEY);
+const dcCache = switchCache(DC_KEY);
 
-/**
- * Is FICO-S on for this observer? Never throws: false on any failure.
- * @param {{userId?: string, role?: string, region?: string|null, organization?: string}} who
- */
-async function isOn(who = {}, now = Date.now()) {
+async function onIn(c, who, now) {
   try {
-    const map = await cache.get(now);
+    const map = await c.get(now);
     if (!Object.keys(map).length) return false; // default off: no region lookup
     const w = { ...who };
     if (w.region === undefined) w.region = await regionOfUser(w.userId);
@@ -55,6 +62,15 @@ async function isOn(who = {}, now = Date.now()) {
     return false;
   }
 }
+
+/**
+ * Is FICO-S on for this observer? Never throws: false on any failure.
+ * @param {{userId?: string, role?: string, region?: string|null, organization?: string}} who
+ */
+async function isOn(who = {}, now = Date.now()) { return onIn(cache, who, now); }
+
+/** Queue #184: is the Digital Coach on for this observer's FICO 6-12 visits (fico_s_dc)? Never throws. */
+async function isDcOn(who = {}, now = Date.now()) { return onIn(dcCache, who, now); }
 
 /**
  * Does this VISIT get FICO-S for a grade 6-12 lesson? The observer's switch, and an ICT visit (never GB). Never
@@ -73,6 +89,20 @@ async function forVisit(user, visit = {}) {
   }
 }
 
-function _resetCache() { cache.reset(); }
+/**
+ * Queue #184: does this FICO 6-12 VISIT go to the Digital Coach? fico_s_coach for the visit (forVisit: ICT, never GB)
+ * and fico_s_dc for the observer. Never throws: false on any failure.
+ */
+async function dcForVisit(user, visit = {}) {
+  if (!user || !user.id) return false;
+  try {
+    if (!(await isDcOn({ userId: user.id, region: user.region, role: user.role }))) return false;
+    return await forVisit(user, visit);
+  } catch (_) {
+    return false;
+  }
+}
 
-module.exports = { KEY, VALUES, OFF, isOn, forVisit, _resetCache };
+function _resetCache() { cache.reset(); dcCache.reset(); }
+
+module.exports = { KEY, DC_KEY, VALUES, OFF, isOn, isDcOn, forVisit, dcForVisit, _resetCache };

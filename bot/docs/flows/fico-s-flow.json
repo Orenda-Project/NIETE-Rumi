@@ -261,6 +261,34 @@
           "type": "string",
           "__example__": "A1 · Lesson objective (SLO)"
         },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
+        },
         "look_for": {
           "type": "string",
           "__example__": "Whether the teacher tells students what they will learn today, whether the lesson matches the SOW / syllabus breakdown for this week, and whether the activities serve that objective."
@@ -332,7 +360,8 @@
           "type": "object",
           "__example__": {
             "lv_A1": "",
-            "ev_A1": ""
+            "ev_A1": "",
+            "chg_A1": ""
           }
         },
         "err_v": {
@@ -383,6 +412,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_A1",
                 "label": "${data.lbl_level}",
@@ -398,6 +432,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_A1",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -409,7 +452,8 @@
                   "payload": {
                     "screen": "FS_A_ONE",
                     "lv_A1": "${form.lv_A1}",
-                    "ev_A1": "${form.ev_A1}"
+                    "ev_A1": "${form.ev_A1}",
+                    "chg_A1": "${form.chg_A1}"
                   }
                 }
               }
@@ -433,6 +477,34 @@
         "heading": {
           "type": "string",
           "__example__": "A2 · Opening & prior learning"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -505,7 +577,8 @@
           "type": "object",
           "__example__": {
             "lv_A2": "",
-            "ev_A2": ""
+            "ev_A2": "",
+            "chg_A2": ""
           }
         },
         "err_v": {
@@ -556,6 +629,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_A2",
                 "label": "${data.lbl_level}",
@@ -571,6 +649,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_A2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -582,7 +669,8 @@
                   "payload": {
                     "screen": "FS_A_TWO",
                     "lv_A2": "${form.lv_A2}",
-                    "ev_A2": "${form.ev_A2}"
+                    "ev_A2": "${form.ev_A2}",
+                    "chg_A2": "${form.chg_A2}"
                   }
                 }
               }
@@ -606,6 +694,34 @@
         "heading": {
           "type": "string",
           "__example__": "A3 · Closure & homework"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -678,7 +794,8 @@
           "type": "object",
           "__example__": {
             "lv_A3": "",
-            "ev_A3": ""
+            "ev_A3": "",
+            "chg_A3": ""
           }
         },
         "err_v": {
@@ -729,6 +846,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_A3",
                 "label": "${data.lbl_level}",
@@ -744,6 +866,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_A3",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -755,7 +886,8 @@
                   "payload": {
                     "screen": "FS_A_THREE",
                     "lv_A3": "${form.lv_A3}",
-                    "ev_A3": "${form.ev_A3}"
+                    "ev_A3": "${form.ev_A3}",
+                    "chg_A3": "${form.chg_A3}"
                   }
                 }
               }
@@ -845,6 +977,34 @@
           "type": "string",
           "__example__": "B1 · Accuracy & command of content"
         },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
+        },
         "look_for": {
           "type": "string",
           "__example__": "Whether what the teacher says about the subject is correct, whether they can answer students' content questions, and whether they go beyond the textbook accurately. Count something as wrong only when you are sure."
@@ -916,7 +1076,8 @@
           "type": "object",
           "__example__": {
             "lv_B1": "",
-            "ev_B1": ""
+            "ev_B1": "",
+            "chg_B1": ""
           }
         },
         "err_v": {
@@ -967,6 +1128,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_B1",
                 "label": "${data.lbl_level}",
@@ -982,6 +1148,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_B1",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -993,7 +1168,8 @@
                   "payload": {
                     "screen": "FS_B_ONE",
                     "lv_B1": "${form.lv_B1}",
-                    "ev_B1": "${form.ev_B1}"
+                    "ev_B1": "${form.ev_B1}",
+                    "chg_B1": "${form.chg_B1}"
                   }
                 }
               }
@@ -1017,6 +1193,34 @@
         "heading": {
           "type": "string",
           "__example__": "B2 · Explaining why"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1089,7 +1293,8 @@
           "type": "object",
           "__example__": {
             "lv_B2": "",
-            "ev_B2": ""
+            "ev_B2": "",
+            "chg_B2": ""
           }
         },
         "err_v": {
@@ -1140,6 +1345,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_B2",
                 "label": "${data.lbl_level}",
@@ -1155,6 +1365,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_B2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -1166,7 +1385,8 @@
                   "payload": {
                     "screen": "FS_B_TWO",
                     "lv_B2": "${form.lv_B2}",
-                    "ev_B2": "${form.ev_B2}"
+                    "ev_B2": "${form.ev_B2}",
+                    "chg_B2": "${form.chg_B2}"
                   }
                 }
               }
@@ -1190,6 +1410,34 @@
         "heading": {
           "type": "string",
           "__example__": "B3 · Subject language"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1262,7 +1510,8 @@
           "type": "object",
           "__example__": {
             "lv_B3": "",
-            "ev_B3": ""
+            "ev_B3": "",
+            "chg_B3": ""
           }
         },
         "err_v": {
@@ -1313,6 +1562,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_B3",
                 "label": "${data.lbl_level}",
@@ -1328,6 +1582,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_B3",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -1339,7 +1602,8 @@
                   "payload": {
                     "screen": "FS_B_THREE",
                     "lv_B3": "${form.lv_B3}",
-                    "ev_B3": "${form.ev_B3}"
+                    "ev_B3": "${form.ev_B3}",
+                    "chg_B3": "${form.chg_B3}"
                   }
                 }
               }
@@ -1363,6 +1627,34 @@
         "heading": {
           "type": "string",
           "__example__": "B4 · Links to real life & other subjects"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1435,7 +1727,8 @@
           "type": "object",
           "__example__": {
             "lv_B4": "",
-            "ev_B4": ""
+            "ev_B4": "",
+            "chg_B4": ""
           }
         },
         "err_v": {
@@ -1486,6 +1779,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_B4",
                 "label": "${data.lbl_level}",
@@ -1501,6 +1799,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_B4",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -1512,7 +1819,8 @@
                   "payload": {
                     "screen": "FS_B_FOUR",
                     "lv_B4": "${form.lv_B4}",
-                    "ev_B4": "${form.ev_B4}"
+                    "ev_B4": "${form.ev_B4}",
+                    "chg_B4": "${form.chg_B4}"
                   }
                 }
               }
@@ -1536,6 +1844,34 @@
         "heading": {
           "type": "string",
           "__example__": "B5 · Resources & technology"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1608,7 +1944,8 @@
           "type": "object",
           "__example__": {
             "lv_B5": "",
-            "ev_B5": ""
+            "ev_B5": "",
+            "chg_B5": ""
           }
         },
         "err_v": {
@@ -1659,6 +1996,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_B5",
                 "label": "${data.lbl_level}",
@@ -1674,6 +2016,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_B5",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -1685,7 +2036,8 @@
                   "payload": {
                     "screen": "FS_B_FIVE",
                     "lv_B5": "${form.lv_B5}",
-                    "ev_B5": "${form.ev_B5}"
+                    "ev_B5": "${form.ev_B5}",
+                    "chg_B5": "${form.chg_B5}"
                   }
                 }
               }
@@ -1775,6 +2127,34 @@
           "type": "string",
           "__example__": "C1 · Quality of questions"
         },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
+        },
         "look_for": {
           "type": "string",
           "__example__": "What kinds of questions the teacher asks and whether they make students think. A closed question needs a one-word answer; an open question needs a longer answer; the strongest questions ask why / compare / apply, and are followed up."
@@ -1846,7 +2226,8 @@
           "type": "object",
           "__example__": {
             "lv_C1": "",
-            "ev_C1": ""
+            "ev_C1": "",
+            "chg_C1": ""
           }
         },
         "err_v": {
@@ -1897,6 +2278,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C1",
                 "label": "${data.lbl_level}",
@@ -1912,6 +2298,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C1",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -1923,7 +2318,8 @@
                   "payload": {
                     "screen": "FS_C_ONE",
                     "lv_C1": "${form.lv_C1}",
-                    "ev_C1": "${form.ev_C1}"
+                    "ev_C1": "${form.ev_C1}",
+                    "chg_C1": "${form.chg_C1}"
                   }
                 }
               }
@@ -1947,6 +2343,34 @@
         "heading": {
           "type": "string",
           "__example__": "C2 · Responding to wrong answers"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2024,7 +2448,8 @@
           "type": "object",
           "__example__": {
             "lv_C2": "",
-            "ev_C2": ""
+            "ev_C2": "",
+            "chg_C2": ""
           }
         },
         "err_v": {
@@ -2075,6 +2500,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C2",
                 "label": "${data.lbl_level}",
@@ -2090,6 +2520,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2101,7 +2540,8 @@
                   "payload": {
                     "screen": "FS_C_TWO",
                     "lv_C2": "${form.lv_C2}",
-                    "ev_C2": "${form.ev_C2}"
+                    "ev_C2": "${form.ev_C2}",
+                    "chg_C2": "${form.chg_C2}"
                   }
                 }
               }
@@ -2125,6 +2565,34 @@
         "heading": {
           "type": "string",
           "__example__": "C3 · Who gets to answer"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2197,7 +2665,8 @@
           "type": "object",
           "__example__": {
             "lv_C3": "",
-            "ev_C3": ""
+            "ev_C3": "",
+            "chg_C3": ""
           }
         },
         "err_v": {
@@ -2248,6 +2717,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C3",
                 "label": "${data.lbl_level}",
@@ -2263,6 +2737,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C3",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2274,7 +2757,8 @@
                   "payload": {
                     "screen": "FS_C_THREE",
                     "lv_C3": "${form.lv_C3}",
-                    "ev_C3": "${form.ev_C3}"
+                    "ev_C3": "${form.ev_C3}",
+                    "chg_C3": "${form.chg_C3}"
                   }
                 }
               }
@@ -2298,6 +2782,34 @@
         "heading": {
           "type": "string",
           "__example__": "C4 · Student voice & choice"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2370,7 +2882,8 @@
           "type": "object",
           "__example__": {
             "lv_C4": "",
-            "ev_C4": ""
+            "ev_C4": "",
+            "chg_C4": ""
           }
         },
         "err_v": {
@@ -2421,6 +2934,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C4",
                 "label": "${data.lbl_level}",
@@ -2436,6 +2954,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C4",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2447,7 +2974,8 @@
                   "payload": {
                     "screen": "FS_C_FOUR",
                     "lv_C4": "${form.lv_C4}",
-                    "ev_C4": "${form.ev_C4}"
+                    "ev_C4": "${form.ev_C4}",
+                    "chg_C4": "${form.chg_C4}"
                   }
                 }
               }
@@ -2471,6 +2999,34 @@
         "heading": {
           "type": "string",
           "__example__": "C5 · Time & transitions"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2543,7 +3099,8 @@
           "type": "object",
           "__example__": {
             "lv_C5": "",
-            "ev_C5": ""
+            "ev_C5": "",
+            "chg_C5": ""
           }
         },
         "err_v": {
@@ -2594,6 +3151,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C5",
                 "label": "${data.lbl_level}",
@@ -2609,6 +3171,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C5",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2620,7 +3191,8 @@
                   "payload": {
                     "screen": "FS_C_FIVE",
                     "lv_C5": "${form.lv_C5}",
-                    "ev_C5": "${form.ev_C5}"
+                    "ev_C5": "${form.ev_C5}",
+                    "chg_C5": "${form.chg_C5}"
                   }
                 }
               }
@@ -2644,6 +3216,34 @@
         "heading": {
           "type": "string",
           "__example__": "C6 · Respectful & safe climate"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2716,7 +3316,8 @@
           "type": "object",
           "__example__": {
             "lv_C6": "",
-            "ev_C6": ""
+            "ev_C6": "",
+            "chg_C6": ""
           }
         },
         "err_v": {
@@ -2767,6 +3368,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C6",
                 "label": "${data.lbl_level}",
@@ -2782,6 +3388,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C6",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2793,7 +3408,8 @@
                   "payload": {
                     "screen": "FS_C_SIX",
                     "lv_C6": "${form.lv_C6}",
-                    "ev_C6": "${form.ev_C6}"
+                    "ev_C6": "${form.ev_C6}",
+                    "chg_C6": "${form.chg_C6}"
                   }
                 }
               }
@@ -2817,6 +3433,34 @@
         "heading": {
           "type": "string",
           "__example__": "C7 · Pair & group work"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2889,7 +3533,8 @@
           "type": "object",
           "__example__": {
             "lv_C7": "",
-            "ev_C7": ""
+            "ev_C7": "",
+            "chg_C7": ""
           }
         },
         "err_v": {
@@ -2940,6 +3585,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C7",
                 "label": "${data.lbl_level}",
@@ -2955,6 +3605,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C7",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -2966,7 +3625,8 @@
                   "payload": {
                     "screen": "FS_C_SEVEN",
                     "lv_C7": "${form.lv_C7}",
-                    "ev_C7": "${form.ev_C7}"
+                    "ev_C7": "${form.ev_C7}",
+                    "chg_C7": "${form.chg_C7}"
                   }
                 }
               }
@@ -2990,6 +3650,34 @@
         "heading": {
           "type": "string",
           "__example__": "C8 · Support for different learners"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3062,7 +3750,8 @@
           "type": "object",
           "__example__": {
             "lv_C8": "",
-            "ev_C8": ""
+            "ev_C8": "",
+            "chg_C8": ""
           }
         },
         "err_v": {
@@ -3113,6 +3802,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_C8",
                 "label": "${data.lbl_level}",
@@ -3128,6 +3822,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_C8",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3139,7 +3842,8 @@
                   "payload": {
                     "screen": "FS_C_EIGHT",
                     "lv_C8": "${form.lv_C8}",
-                    "ev_C8": "${form.ev_C8}"
+                    "ev_C8": "${form.ev_C8}",
+                    "chg_C8": "${form.chg_C8}"
                   }
                 }
               }
@@ -3229,6 +3933,34 @@
           "type": "string",
           "__example__": "D1 · Students' reasoning"
         },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
+        },
         "look_for": {
           "type": "string",
           "__example__": "How deep students' answers are: one word, a longer answer that only repeats what was said, or an answer that shows reasoning in the student's own words (says why, compares, applies a rule to a new case, explains a choice, gives their own example)."
@@ -3300,7 +4032,8 @@
           "type": "object",
           "__example__": {
             "lv_D1": "",
-            "ev_D1": ""
+            "ev_D1": "",
+            "chg_D1": ""
           }
         },
         "err_v": {
@@ -3351,6 +4084,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_D1",
                 "label": "${data.lbl_level}",
@@ -3366,6 +4104,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_D1",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3377,7 +4124,8 @@
                   "payload": {
                     "screen": "FS_D_ONE",
                     "lv_D1": "${form.lv_D1}",
-                    "ev_D1": "${form.ev_D1}"
+                    "ev_D1": "${form.ev_D1}",
+                    "chg_D1": "${form.chg_D1}"
                   }
                 }
               }
@@ -3401,6 +4149,34 @@
         "heading": {
           "type": "string",
           "__example__": "D2 · Breadth of participation"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3473,7 +4249,8 @@
           "type": "object",
           "__example__": {
             "lv_D2": "",
-            "ev_D2": ""
+            "ev_D2": "",
+            "chg_D2": ""
           }
         },
         "err_v": {
@@ -3524,6 +4301,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_D2",
                 "label": "${data.lbl_level}",
@@ -3539,6 +4321,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_D2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3550,7 +4341,8 @@
                   "payload": {
                     "screen": "FS_D_TWO",
                     "lv_D2": "${form.lv_D2}",
-                    "ev_D2": "${form.ev_D2}"
+                    "ev_D2": "${form.ev_D2}",
+                    "chg_D2": "${form.chg_D2}"
                   }
                 }
               }
@@ -3574,6 +4366,34 @@
         "heading": {
           "type": "string",
           "__example__": "D3 · Students talking to each other"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3646,7 +4466,8 @@
           "type": "object",
           "__example__": {
             "lv_D3": "",
-            "ev_D3": ""
+            "ev_D3": "",
+            "chg_D3": ""
           }
         },
         "err_v": {
@@ -3697,6 +4518,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_D3",
                 "label": "${data.lbl_level}",
@@ -3712,6 +4538,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_D3",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3723,7 +4558,8 @@
                   "payload": {
                     "screen": "FS_D_THREE",
                     "lv_D3": "${form.lv_D3}",
-                    "ev_D3": "${form.ev_D3}"
+                    "ev_D3": "${form.ev_D3}",
+                    "chg_D3": "${form.chg_D3}"
                   }
                 }
               }
@@ -3747,6 +4583,34 @@
         "heading": {
           "type": "string",
           "__example__": "D4 · Students' own questions"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3819,7 +4683,8 @@
           "type": "object",
           "__example__": {
             "lv_D4": "",
-            "ev_D4": ""
+            "ev_D4": "",
+            "chg_D4": ""
           }
         },
         "err_v": {
@@ -3870,6 +4735,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_D4",
                 "label": "${data.lbl_level}",
@@ -3885,6 +4755,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_D4",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -3896,7 +4775,8 @@
                   "payload": {
                     "screen": "FS_D_FOUR",
                     "lv_D4": "${form.lv_D4}",
-                    "ev_D4": "${form.ev_D4}"
+                    "ev_D4": "${form.ev_D4}",
+                    "chg_D4": "${form.chg_D4}"
                   }
                 }
               }
@@ -3986,6 +4866,34 @@
           "type": "string",
           "__example__": "E1 · Checking understanding during the lesson"
         },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
+        },
         "look_for": {
           "type": "string",
           "__example__": "Whether the teacher checks during the lesson if students are learning, gets answers from most of the class rather than a few volunteers, and changes what they do based on what they find."
@@ -4057,7 +4965,8 @@
           "type": "object",
           "__example__": {
             "lv_E1": "",
-            "ev_E1": ""
+            "ev_E1": "",
+            "chg_E1": ""
           }
         },
         "err_v": {
@@ -4108,6 +5017,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_E1",
                 "label": "${data.lbl_level}",
@@ -4123,6 +5037,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_E1",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -4134,7 +5057,8 @@
                   "payload": {
                     "screen": "FS_E_ONE",
                     "lv_E1": "${form.lv_E1}",
-                    "ev_E1": "${form.ev_E1}"
+                    "ev_E1": "${form.ev_E1}",
+                    "chg_E1": "${form.chg_E1}"
                   }
                 }
               }
@@ -4158,6 +5082,34 @@
         "heading": {
           "type": "string",
           "__example__": "E2 · Student learning check (5 students)"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -4230,7 +5182,8 @@
           "type": "object",
           "__example__": {
             "lv_E2": "",
-            "ev_E2": ""
+            "ev_E2": "",
+            "chg_E2": ""
           }
         },
         "err_v": {
@@ -4281,6 +5234,11 @@
                 "visible": "${data.err_v}"
               },
               {
+                "type": "TextBody",
+                "text": "${data.rumi_line}",
+                "visible": "${data.rumi_v}"
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "lv_E2",
                 "label": "${data.lbl_level}",
@@ -4296,6 +5254,15 @@
                 "helper-text": "${data.help_ev}"
               },
               {
+                "type": "TextArea",
+                "name": "chg_E2",
+                "label": "${data.lbl_chg}",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.help_chg}",
+                "visible": "${data.chg_v}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "${data.back_hint}"
               },
@@ -4307,7 +5274,8 @@
                   "payload": {
                     "screen": "FS_E_TWO",
                     "lv_E2": "${form.lv_E2}",
-                    "ev_E2": "${form.ev_E2}"
+                    "ev_E2": "${form.ev_E2}",
+                    "chg_E2": "${form.chg_E2}"
                   }
                 }
               }
@@ -4330,7 +5298,35 @@
         },
         "heading": {
           "type": "string",
-          "__example__": "E3 · Notebooks & written feedback"
+          "__example__": "★ E3 · Notebooks & written feedback"
+        },
+        "star_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "star_line": {
+          "type": "string",
+          "__example__": "★ Starred: yours alone. Rumi never scores this one; set it from what you saw."
+        },
+        "rumi_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "rumi_line": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chg_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "lbl_chg": {
+          "type": "string",
+          "__example__": "Why you changed"
+        },
+        "help_chg": {
+          "type": "string",
+          "__example__": "Only if you changed Rumi's level (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -4439,6 +5435,11 @@
               {
                 "type": "TextHeading",
                 "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.star_line}",
+                "visible": "${data.star_v}"
               },
               {
                 "type": "TextBody",

@@ -407,6 +407,13 @@ async function onAnalysisReady(sessionId, from) {
     return;
   }
 
+  // Queue #184: a FICO 6-12 visit for the Digital Coach is reviewed on its own FICO 6-12 form, pre-filled from this
+  // analysis (obs612/fico-s-dc.js), never on the v3/v6 review Flow.
+  if (require('./obs612/fico-s-dc').isDcVisit(session)) {
+    await require('./obs612/fico-s-dc').onAnalysisReady(session, { from });
+    return;
+  }
+
   const update = { status: 'awaiting_observer_review', debrief_status: session.debrief_status || 'pending' };
   if (!session.autofill_analysis_data) {
     update.autofill_analysis_data = session.analysis_data; // freeze v1 exactly once
