@@ -81,6 +81,9 @@ const { isMultiKey } = require('../../bot/shared/services/training/paper-marking
 const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
+// bd-r2uzg1.18.1 — the band gate on band-only providers (I-SAPS needs HIGH), the bot's own code, run in-process
+// with this file's supabase client. It requires only pure modules (tests/portal/portal-reaches-bot-modules).
+const { gateTeacherScopes } = require('../../bot/shared/services/training/vendor-band-gate.service');
 // bd-arghnv.3 — a question with a blank stem is never served or counted as a quiz. The bot's own rule
 // (zero requires, like paper-marking.service.js); the portal hands it its logger.
 const { servableQuestions } = require('../../bot/shared/services/training/question-stem.rules');
@@ -3699,11 +3702,13 @@ async function _filterLevelsByScopes(userId, levels) {
   const programIds = [...new Set((assignments || []).map(a => a.program_id))];
   if (programIds.length === 0) return [];
 
-  const { data: scopes } = await supabase
+  const { data: allScopes } = await supabase
     .from('training_program_scopes')
-    .select('vendor_id, level_ids')
+    .select('program_id, vendor_id, level_ids')
     .in('program_id', programIds);
-  if (!scopes || scopes.length === 0) return [];
+  if (!allScopes || allScopes.length === 0) return [];
+  // bd-r2uzg1.18.1 — the same band gate the bot's catalogue applies (I-SAPS only with HIGH or I-SAPS work).
+  const scopes = await gateTeacherScopes(supabase, userId, allScopes);
 
   const allowedByVendor = _levelScopeByVendor(scopes);
   return levels.filter(l => _levelInScope(allowedByVendor, l));
@@ -3924,11 +3929,14 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
     // 2. Program scopes → vendor_ids (dedup — a single program can list a
     //    vendor multiple times via multiple scope rows), and per vendor the
     //    levels those scopes show (the same union GET /training/levels uses)
-    const { data: scopes, error: sErr } = await supabase
+    const { data: allScopes, error: sErr } = await supabase
       .from('training_program_scopes')
-      .select('vendor_id, level_ids')
+      .select('program_id, vendor_id, level_ids')
       .in('program_id', programIds);
     if (sErr) throw sErr;
+    // bd-r2uzg1.18.1 — minus a band-only provider her band does not cover (I-SAPS needs HIGH), unless she has
+    // work there: the bot's catalogue applies the same rule, so the cards and the levels agree.
+    const scopes = await gateTeacherScopes(supabase, userId, allScopes || []);
 
     const levelScope = _levelScopeByVendor(scopes);
     const vendorIds = Array.from(new Set((scopes || []).map(s => s.vendor_id).filter(Boolean)));
