@@ -456,6 +456,11 @@ async function onAnalysisReady(sessionId, from) {
     return;
   }
 
+  // bd-ra8xu.60: a v6 visit whose coach typed Observation Notes: the informed DC scoring (notes + transcript), stored
+  // under analysis_data.dc_informed only. The review below is pre-filled from the blind analysis frozen above, as
+  // before. Not awaited (the form must not wait for it); it checks notes, the switch and the blind analysis itself.
+  if (require('./observe-fico17-v6').visitFramework(session)) require('./observation-notes').runInformedSoon(sessionId);
+
   // bd-5rz1v.6: an observation started in the PORTAL is reviewed there (operator:
   // "the flow should be complete from the portal"). The draft is stored above
   // exactly as for WhatsApp; the Flow and the coach's chat state are not touched.
