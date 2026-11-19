@@ -88,7 +88,9 @@ describe('parseSlots / dueSlot', () => {
   test('a slot map of HH:MM times; anything else is off', () => {
     expect(Run.parseSlots(SLOTS)).toEqual({ day: 870, night: 90 });
     expect(Run.parseSlots(JSON.stringify({ night: '01:30' }))).toEqual({ night: 90 });
-    for (const bad of [undefined, null, true, [], {}, { day: '25:00' }, { day: '2pm' }, { noon: '12:00' }, 'x']) {
+    // Sceptic pass: a slot after 22:30 would have its 90-minute window cut at midnight and be missed by the hourly tick.
+    expect(Run.parseSlots({ day: '22:30' })).toEqual({ day: 1350 });
+    for (const bad of [undefined, null, true, [], {}, { day: '25:00' }, { day: '2pm' }, { noon: '12:00' }, 'x', { night: '22:31' }, { night: '23:30' }]) {
       expect(Run.parseSlots(bad)).toBeNull();
     }
   });
@@ -109,10 +111,10 @@ describe('run', () => {
     expect(redis.sets).toHaveLength(0);
   });
 
-  test('no slots row → off after one settings read on the replica', async () => {
+  test('no slots row → off after the replica check and one settings read on the replica', async () => {
     const db = fakeDb({ slots: null });
     await expect(Run.run(deps({ db }))).resolves.toEqual({ outcome: 'off', reason: 'no_slots' });
-    expect(db.calls).toEqual([['settings', 'teacher_activity_slots']]);
+    expect(db.calls).toEqual([['db_is_replica', undefined], ['settings', 'teacher_activity_slots']]);
   });
 
   test('outside a slot window → not due, no claim', async () => {
@@ -125,21 +127,22 @@ describe('run', () => {
     const redis = fakeRedis({ [Run.TICK_KEY]: 'someone-else' });
     const db = fakeDb();
     await expect(Run.run(deps({ redis, db }))).resolves.toMatchObject({ outcome: 'skipped', reason: 'other' });
-    expect(db.calls.filter((c) => c[0] !== 'settings')).toHaveLength(0);
+    expect(db.calls.filter((c) => !['db_is_replica', 'settings'].includes(c[0]))).toHaveLength(0);
   });
 
   test('this slot already ran today → done, nothing counted', async () => {
     const redis = fakeRedis({ [C.runMarkerKey('2026-11-19', 'day')]: '1' });
     const db = fakeDb();
     await expect(Run.run(deps({ redis, db }))).resolves.toEqual({ outcome: 'done_already', slot: 'day' });
-    expect(db.calls.map((c) => c[0])).toEqual(['settings']);
+    expect(db.calls.map((c) => c[0])).toEqual(['db_is_replica', 'settings']);
   });
 
-  test.each([[false, 'not_replica'], [null, 'not_replica']])('the server is not a replica (%s) → refused, no marker', async (replica, reason) => {
+  // Sceptic pass: the replica check is the FIRST call, so a URL pointing at the primary never gets even the settings read.
+  test.each([[false, 'not_replica'], [null, 'not_replica']])('the server is not a replica (%s) → refused before any other read, no marker', async (replica, reason) => {
     const redis = fakeRedis();
     const db = fakeDb({ replica });
-    await expect(Run.run(deps({ redis, db }))).resolves.toEqual({ outcome: 'refused', reason, slot: 'day' });
-    expect(db.calls.map((c) => c[0])).toEqual(['settings', 'db_is_replica']);
+    await expect(Run.run(deps({ redis, db }))).resolves.toEqual({ outcome: 'refused', reason });
+    expect(db.calls.map((c) => c[0])).toEqual(['db_is_replica']);
     expect(redis.sets).toHaveLength(0);
   });
 

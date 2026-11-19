@@ -102,7 +102,8 @@ whose furthest step is **exactly** this one ("Stopped here"), `user_ids` = those
   both slots). No row, a malformed value or a failed read = off. A slot is due from its time for 90 minutes; one worker
   claims the tick (Redis), and the run marker stops a second run of the same slot on the same Pakistan date.
 - **Replica only:** `bot/shared/config/supabase-replica-only.js` — `NIETE_SUPABASE_REPLICA_URL` + the service key; no
-  URL = the job is off on that tier. Every run first calls `rpc('db_is_replica')` and refuses unless it answers true.
+  URL = the job is off on that tier. Every hourly tick first calls `rpc('db_is_replica')`, before any other read, and
+  refuses unless it answers true. A slot is at most 22:30, so its 90-minute window ends by midnight.
   The switch, the region registry and every count are read on the replica; the primary is never read by the job.
 - **Reads (migration V1.10.5):** `teacher_activity_teachers()` once (active teachers: role teacher, not deleted or
   merged, and a WhatsApp message, a portal sign-in or an app plan open in the last 60 days), then

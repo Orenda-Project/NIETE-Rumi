@@ -43,6 +43,8 @@ function parseSlots(value) {
     const m = C.SLOTS.includes(slot) && typeof time === 'string' ? HHMM.exec(time) : null;
     if (!m) return null;
     out[slot] = Number(m[1]) * 60 + Number(m[2]);
+    // A slot's 90-minute window must end by midnight (dueSlot does not wrap): latest 22:30.
+    if (out[slot] + DUE_WINDOW_MIN > 24 * 60) return null;
   }
   return Object.keys(out).length ? out : null;
 }
@@ -114,6 +116,13 @@ async function countAll({ db, redis, now, slot, sleep, batchSize, pauseMs, teach
 
 async function tick({ now, redis, db, sleep, batchSize, pauseMs }) {
   if (!db) return { outcome: 'off', reason: 'no_replica' };
+  // The replica check comes before ANY other read: a URL pointing at the primary by mistake gets nothing else.
+  const { checkReplica } = require('../../config/supabase-replica-only');
+  const check = await checkReplica(db);
+  if (!check.ok) {
+    logToFile('⚠️ Teacher activity: refused — not reading a replica; old numbers stay', { reason: check.reason }, 'warn');
+    return { outcome: 'refused', reason: check.reason };
+  }
   const slots = await readSlots(db);
   if (!slots) return { outcome: 'off', reason: 'no_slots' };
   const slot = dueSlot(now, slots);
@@ -124,13 +133,6 @@ async function tick({ now, redis, db, sleep, batchSize, pauseMs }) {
   if (claim !== 'owner') return { outcome: 'skipped', reason: claim, slot };
   const marker = C.runMarkerKey(pktDate(now), slot);
   if (await redis.get(marker)) return { outcome: 'done_already', slot };
-
-  const { checkReplica } = require('../../config/supabase-replica-only');
-  const check = await checkReplica(db);
-  if (!check.ok) {
-    logToFile('⚠️ Teacher activity: refused — not reading a replica; old numbers stay', { slot, reason: check.reason }, 'warn');
-    return { outcome: 'refused', reason: check.reason, slot };
-  }
 
   const started = Date.now();
   let roster;
