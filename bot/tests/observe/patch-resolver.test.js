@@ -238,7 +238,7 @@ describe('toLeaderSourceRow · the shape the visit Flow already consumes', () =>
     // phone as teacher_ext_id, so emitting it keeps scheduling continuous.
     const r = toLeaderSourceRow({
       userId: 'u1', name: 'Tahira', phone: '923001111111',
-      emis: '409', schoolName: 'Rawal Dam', band: 'primary', isPrincipal: false,
+      emis: '409', schoolName: 'Rawal Dam', band: 'primary', levelsLabel: 'Primary', isPrincipal: false,
     });
     expect(r).toEqual({
       teacher_ext_id: '923001111111',
@@ -246,6 +246,8 @@ describe('toLeaderSourceRow · the shape the visit Flow already consumes', () =>
       teacher_phone_e164: '923001111111',
       school_ext_id: 'niete:409',
       level: 'PRIMARY',
+      // bd-r2uzg1.18.5: the display label (every band) rides beside the single `level`.
+      levels_label: 'Primary',
       is_principal: false,
     });
   });
