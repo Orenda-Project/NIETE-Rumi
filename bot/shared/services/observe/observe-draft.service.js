@@ -234,6 +234,15 @@ function rescoreFidelityFromEdits(lp, edits) {
   // prescribed move (move_id/text/phase/bucket/selection) AND the verdict
   // fields — so the edited rows feed back in as moves and verdicts alike.
   const rescored = scoreFidelity(rows, rows);
+  // bd-r2uzg1.18.2 (ICT sheet HITL 191): the grader's moderators ride through the coach's edit. The scorer
+  // returns `moderators: null` when none is passed in (since 3dfb573fc, 15 Sep), and spreading that over `lp`
+  // wiped the grader's `note`, so any edit, even an evidence-only one, turned a lesson_mismatch report into an
+  // unflagged one for every reader (Section B row, narrative, voice note, subject resolution). The block is
+  // not passed INTO the scorer on purpose: its truncation check is the grader contradicting its own verdicts,
+  // and these verdicts are now the coach's, so that finding stays false after an edit, as before.
+  if (lp.moderators) {
+    rescored.moderators = { ...lp.moderators, truncation_inconsistent: rescored.truncation_inconsistent };
+  }
   out.lp = { ...lp, ...rescored, observer_edited: true };
   return out;
 }
