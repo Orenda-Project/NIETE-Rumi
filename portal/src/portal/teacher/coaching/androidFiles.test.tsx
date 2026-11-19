@@ -55,9 +55,12 @@ import { clearDraft, holdDraft, isSavedAudio, peekDraft } from "./draft";
 import { SendError, type SendDetail } from "../../lib/coachingSend";
 import { COACHING_V2_COPY as C } from "./copy";
 import { beforeAll as preloadFirst } from "vitest";
-import { preloadAll } from "@/lib/lazyPage";
+import * as lazyPages from "@/lib/lazyPage";
 
-preloadFirst(() => preloadAll({ pages: true }), 120_000);
+// Sandbox and staging preload every lazy page first (lazyPage.preloadAll); main's lazyPage has no such helper yet, and
+// this one file is carried to all three branches.
+const preloadAll = (lazyPages as { preloadAll?: (o: { pages: boolean }) => Promise<unknown> }).preloadAll;
+if (preloadAll) preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 
