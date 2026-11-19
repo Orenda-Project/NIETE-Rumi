@@ -27,6 +27,35 @@ const MODULE_FIELDS = ['module_id', 'level_id', 'cpd_level', 'level_name', 'cour
 // language (module 60 splices Urdu and English). continues_to is dropped (SPEC v1.2.1: one chapter = one playable unit).
 const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'recommendable_reason', 'keep_with_caveat', 'phase', 'grade_band'];
 
+// R9 (bd-tp4w7n.1): --v2 keeps lib's execution tags (contracts/catalog.v2.schema.md §A/§B) and only the chapters that
+// pass its engine contract (kind demonstration | modelled, shows, usable span, sound not poor), for aligned.js. No keywords.
+const MODULE_FIELDS_V2 = ['module_id', 'video_id', 'library', 'level_id', 'level_name', 'course_title', 'title', 'video_url', 'duration_s',
+  'language', 'format', 'subjects', 'grade_band', 'recommendable', 'recommendable_reason', 'media_ok', 'dup_of', 'also_in'];
+const SEGMENT_FIELDS_V2 = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'moves', 'fico', 'fico_main37', 'language', 'recommendable',
+  'recommendable_reason', 'kind', 'shows', 'subjects', 'grade_band', 'quality'];
+
+function executable(s) {
+  const q = (s && s.quality) || {};
+  return !!s && (s.kind === 'demonstration' || s.kind === 'modelled') && !!s.shows && !!s.shows.move
+    && !!q.usable && Number(q.usable.end_s) > Number(q.usable.start_s) && q.sound !== 'poor';
+}
+
+/** The v2 engine file: modules with at least one executable chapter, those chapters only. */
+function buildV2({ modules, vetoes = [], sourceSha, now = new Date() }) {
+  const stamp = now.toISOString().replace(/[-:]/g, '').slice(0, 13);
+  const out = (modules || []).map((src) => {
+    const m = pick(src, MODULE_FIELDS_V2);
+    m.video_id = m.video_id || `tm-${src.module_id}`;
+    m.dup_of = m.dup_of || null;
+    m.also_in = Array.isArray(m.also_in) ? m.also_in : [];
+    m.thumb = `video-thumbs/${src.module_id}.jpg`;
+    m.segments = (Array.isArray(src.segments) ? src.segments : []).filter(executable).map((x) => pick(x, SEGMENT_FIELDS_V2));
+    return m;
+  }).filter((m) => Number.isInteger(m.module_id) && m.module_id > 0 && m.segments.length) // lp_demo rows (module_id null) have no training_modules row to play from.sort((a, b) => a.module_id - b.module_id);
+  applyVetoes(out, vetoes.filter((v) => !v.seg_id || out.some((m) => m.segments.some((x) => x.seg_id === String(v.seg_id)))).filter((v) => out.some((m) => m.module_id === Number(v.module_id))));
+  return { version: `catalog-v2-${stamp}-${String(sourceSha || '').slice(0, 8)}`, built_at: now.toISOString(), framework: 'fico-v4', modules: out };
+}
+
 function pick(obj, fields) {
   const out = {};
   for (const f of fields) if (obj[f] !== undefined) out[f] = obj[f];
@@ -117,7 +146,7 @@ function build({ modules, keywords, crosswalk, meta = null, vetoes = [], sourceS
   };
 }
 
-function validate(data, { thumbsDir } = {}) {
+function validate(data, { thumbsDir, v2 = false } = {}) {
   const errs = [];
   if (!data || !Array.isArray(data.modules)) return ['no modules array'];
   const modIds = new Set();
@@ -133,7 +162,8 @@ function validate(data, { thumbsDir } = {}) {
       const a = Number(s.start_s);
       const b = Number(s.end_s);
       if (!(a >= 0 && b > a && (!dur || b <= dur + 0.5))) errs.push(`segment ${s.seg_id} [${s.start_s}, ${s.end_s}] is outside the video (0, ${dur})`);
-      if (m.recommendable !== false && s.recommendable !== false && !(s.keywords || []).length) errs.push(`segment ${s.seg_id} is recommendable but has no keywords`);
+      if (v2 && !executable(s)) errs.push(`segment ${s.seg_id} fails the v2 engine contract`);
+      if (!v2 && m.recommendable !== false && s.recommendable !== false && !(s.keywords || []).length) errs.push(`segment ${s.seg_id} is recommendable but has no keywords`);
       ficoRows.push(...(s.fico || []));
     }
     for (const f of ficoRows) {
@@ -178,7 +208,8 @@ async function main(argv) {
   const [input, keywordsFile, thumbsIn] = pos;
   if (!input) throw new Error('usage: build-catalog.js <catalog.json|cards dir> <keywords.json> <thumbs dir> [--crosswalk f] [--meta catalog.meta.json] [--modules f]');
   const root = path.join(__dirname, '../../..');
-  const out = opt('out') || path.join(root, 'bot/shared/data/video-catalog.v1.json');
+  const v2 = argv.includes('--v2');
+  const out = opt('out') || path.join(root, `bot/shared/data/video-catalog.${v2 ? 'v2' : 'v1'}.json`);
   const thumbsOut = opt('thumbs-out') || path.join(root, 'bot/assets/video-thumbs');
   const modules = readModules(input, opt('modules'));
   const keywords = keywordsFile && fs.existsSync(keywordsFile) ? JSON.parse(fs.readFileSync(keywordsFile, 'utf8')) : {};
@@ -193,22 +224,25 @@ async function main(argv) {
   const sourceSha = sha.digest('hex');
   const mf = opt('meta');
   const meta = mf && fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')) : null;
-  const data = build({ modules, keywords, crosswalk, meta, vetoes, sourceSha });
+  const data = v2 ? buildV2({ modules, vetoes, sourceSha }) : build({ modules, keywords, crosswalk, meta, vetoes, sourceSha });
 
   fs.mkdirSync(thumbsOut, { recursive: true });
+  // v2: thumbnails only for the modules aligned picks can reach (a SUB_ASK record) and that v1 has none for
+  const reach = v2 ? new Set(Object.keys(require('../../shared/services/coaching/video-reco/aligned').SUB_ASK).map((id) => Number(id.split('-')[0]))) : null; // eslint-disable-line global-require
   for (const m of data.modules) {
+    if (reach && (!reach.has(Number(m.module_id)) || fs.existsSync(path.join(thumbsOut, `${m.module_id}.jpg`)))) continue;
     const src = thumbsIn && path.join(thumbsIn, `${m.module_id}.jpg`);
     if (src && fs.existsSync(src)) await shrinkThumb(src, path.join(thumbsOut, `${m.module_id}.jpg`));
   }
-  const errs = validate(data, { thumbsDir: thumbsOut });
+  const errs = validate(data, { thumbsDir: thumbsOut, v2 });
   if (errs.length) throw new Error(`catalogue invalid:\n  ${errs.join('\n  ')}`);
   fs.writeFileSync(out, `${JSON.stringify(data, null, 1)}\n`);
   const segs = data.modules.reduce((n, m) => n + m.segments.length, 0);
-  console.log(`wrote ${out}: ${data.version}, ${data.modules.length} modules, ${segs} segments, holes=${data.holes.join(',') || '-'}, crosswalk=${crosswalk ? 'yes' : 'identity'}, vetoes=${vetoes.length}`);
+  console.log(`wrote ${out}: ${data.version}, ${data.modules.length} modules, ${segs} segments, holes=${(data.holes || []).join(',') || '-'}, crosswalk=${crosswalk ? 'yes' : 'identity'}, vetoes=${vetoes.length}`);
 }
 
 if (require.main === module) {
   main(process.argv.slice(2)).catch((e) => { console.error(e.message); process.exit(1); });
 }
 
-module.exports = { build, validate, aliasesFrom, V4_IDS, THUMB_MAX_BYTES };
+module.exports = { build, buildV2, executable, validate, aliasesFrom, V4_IDS, THUMB_MAX_BYTES };

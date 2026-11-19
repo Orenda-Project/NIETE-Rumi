@@ -1099,6 +1099,35 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When my coaching report arrives
     Then no "watch this" message, no clip on the image, and no clip card on my report page
 
+  # R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): behind VIDEO_RECO_ALIGNED (unset = the picks above, unchanged). Only a
+  # chapter that SHOWS a teacher doing what the report asked (lib's catalogue v2: demonstration / modelled, the shown move
+  # and its sub-ask), never one already shown and never from a video already shown; else no clip. Units:
+  # tests/coaching/video-reco/r9-aligned.test.js; matcher calibration outputs/lanes/eng-rec/calib/ (VIDREC team folder).
+  @e2e @wip @draft @config-gated @P1 @COA104
+  Scenario: A wait-time card gets the clip that shows a teacher holding the silence, and says so
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And my report says to wait a few seconds in silence after asking a question
+    When the clip arrives
+    Then it is the chapter where a trainer asks a question and gives everyone time to think alone first
+    And the reason says "Your report asked you to wait a few seconds after a question before anyone answers" and what the clip shows
+    And the clip plays only the part that shows it, not the whole chapter
+
+  @e2e @wip @draft @config-gated @P1 @COA105
+  Scenario: A teacher who has already watched the best clip gets the next one from a different video
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And I was already shown a think-pair-share clip
+    When my next report asks me again to let students talk in pairs first
+    Then the clip is a think-pair-share chapter from a different video
+    And it is never the clip I already got
+
+  @e2e @wip @draft @config-gated @negative @P1 @COA106
+  Scenario: A card no clip shows stays silent rather than getting a near-miss
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    When my report asks me to replace "Do you understand?" with "explain it in your own words"
+    Or it asks for two versions of the task for students to choose from
+    Or I have already been shown every clip that shows what it asks
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
   @e2e @draft @P2
   Scenario: The chapter's close-out lessons are named for what they are in the lesson list
     Given I am choosing which lesson my recording was for

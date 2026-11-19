@@ -50,9 +50,9 @@ test('recentHistory: chapters shown in 365 d (status shown only, v1.3); modules 
   expect(chain).toContainEqual(['limit', [500]]);
 });
 
-test('recentHistory: error → empty history', async () => {
+test('recentHistory: error → empty history, marked failed (R9 bd-tp4w7n.1: aligned mode stays silent on it)', async () => {
   load({ video_recommendations: new Error('x') });
-  expect(await S.recentHistory(UID)).toEqual({ segments: [], modules: [] });
+  expect(await S.recentHistory(UID)).toEqual({ segments: [], modules: [], failed: true });
 });
 
 test('ladderProgress: the Taleemabad ladder only (level ids 1–4); no rows → level null, never a default', async () => {
