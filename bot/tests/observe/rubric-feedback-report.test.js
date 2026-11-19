@@ -7,7 +7,8 @@
  *   - 8 behaviour marks and a separate Respect line, COMPUTED IN CODE from the judge's booleans (never LLM text);
  *   - "What you did well" (the existing wins);
  *   - "What was missed": each missed behaviour with its fixed "why it matters" line (catalog strings);
- *   - "Next focus" (the existing try) + one link to that behaviour's Coach Training module;
+ *   - "Next focus" (the existing try); since queue #186 (19 Nov) no Coach Training module after a debrief — the coach's
+ *     one training recommendation is in her Weekly Report;
  *   - the reflection question.
  * The 8th behaviour needs the judge to score rehearsed_the_step: the ur/en prompt gains that key and its definition.
  * Swahili (prompt, text card, card HTML) stays byte-identical. Old rows without the key show 7 marks, never a fake miss.
@@ -124,10 +125,11 @@ describe('the marks are computed in code from the booleans', () => {
     expect(m.marks.map((x) => x.key)).not.toContain('rehearsed_the_step');
     expect(R.missedBehaviours(r)).not.toContain('rehearsed_the_step');
   });
-  it('next focus: the judge\'s focus when valid, else the first miss, else the full debrief', () => {
+  it('next focus: the judge\'s focus when valid, else the first miss, else none', () => {
     expect(R.nextFocusKey(feedback())).toBe('rehearsed_the_step');
     expect(R.nextFocusKey(feedback({ focus: null }))).toBe('elicited_if_then');
-    expect(R.focusModule(feedback({ focus: null, rubric: rubric() })).n).toBe(9);
+    expect(R.nextFocusKey(feedback({ focus: null, rubric: rubric() }))).toBeNull();
+    expect(R.focusModule).toBeUndefined(); // queue #186: the debrief card names no module
   });
 });
 

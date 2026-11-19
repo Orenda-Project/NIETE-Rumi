@@ -270,7 +270,7 @@ function validateCoachFeedback(fb, opts = {}) {
     throw new Error(`rubric incomplete: ${REHEARSAL_KEY} must be judged true/false`);
   }
   if (REHEARSAL_KEY in fb.rubric && typeof fb.rubric[REHEARSAL_KEY] !== 'boolean') delete fb.rubric[REHEARSAL_KEY];
-  // The focus links the card to a Coach Training module: kept only if it names a behaviour the judge scored false.
+  // The focus names the one next focus: kept only if it names a behaviour the judge scored false.
   if ('focus' in fb) fb.focus = require('./observe-coach-rubric').validFocus(fb);
   _normaliseJudgeLines(fb);
 
@@ -347,13 +347,8 @@ function _missedBlock(fb, S) {
   return lines;
 }
 
-// The next focus's Coach Training module, with its link: the card's one link.
-function _moduleBlock(fb, S) {
-  const R = require('./observe-coach-rubric');
-  const mod = R.focusModule(fb);
-  if (!mod) return [];
-  return ['', R.moduleLine(mod, S, S.coach_card_module_lang), R.moduleUrl(mod)];
-}
+// Queue #186 (the operator, 19 Nov 2026): no Coach Training module after a debrief — the coach's one training
+// recommendation is in her Weekly Report (coach-week.js `training`).
 
 function renderCoachFeedbackMessages(fb, S) {
   // bd-30 — the harmful path. No celebration card, no ✓ ticks, no manufactured
@@ -406,7 +401,6 @@ function renderCoachFeedbackMessages(fb, S) {
     `🌱 *${S.coach_card_try_label}: ${fb.try.move}*`,
     // One focus and why it was chosen; no Action plan (it added a second behaviour), no unlabelled quote.
     ...(fb.focus_why ? [`${S.coach_card_focus_why_label} ${fb.focus_why}`] : []),
-    ..._moduleBlock(fb, S),
     ...reflectBlock,
     '',
     S.coach_card_closing,
