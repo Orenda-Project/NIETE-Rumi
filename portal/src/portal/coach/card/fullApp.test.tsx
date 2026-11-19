@@ -52,14 +52,19 @@ describe("the switch on (Rifat)", () => {
   });
 });
 
+/** A Home tile's own words (the art, then the words, then any chip). */
+const words = (a: Element) => a.children[1]?.textContent ?? "";
+
 describe("the Home with the switch on (Rifat): Schedule and Observe tiles beside My schools", () => {
-  it("tiles: Schedule, Observe, Training Library, My schools, then Coach Training wide — each opening its page", async () => {
+  // bd-39qx8x — operator, 18 Nov ~16:00: "order would be Schedule, Observe, Learning Assessment, My Schools, Coach Training
+  // and Lastly Teacher Training Library". Without the Learning assessment, the other five keep that order.
+  it("tiles: Schedule, Observe, My schools, Coach Training, then Training Library last — each opening its page", async () => {
     config(true);
     net.answers.set("/coach/home", { success: true, home: { today: [], next: null, counts: { week: 1, overdue: 3, waiting: 2, inProgress: 0, teachers: 24, schools: 7 } } });
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual([
-      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training",
+      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training",
     ]));
     const text = tiles.textContent || "";
     expect(text).toContain("Schedule");
@@ -69,17 +74,40 @@ describe("the Home with the switch on (Rifat): Schedule and Observe tiles beside
     expect(tiles.textContent).toContain("2 waiting");
   });
 
-  // bd-zay62o — with the Learning assessment on too: six tiles in three full rows, Learning assessment beside Coach Training.
-  it("with portal_child_test_sa on: Learning assessment joins before Coach Training, and the six fill three rows", async () => {
+  // bd-39qx8x — the operator's own Home (full coach app + Learning assessment): her six tiles in her order, her words.
+  it("with portal_child_test_sa on: Schedule, Observe, Learning Assessment, My schools, Coach Training, Training Library", async () => {
     config(true);
     net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, coachip: false, coachFullApp: true, childTestSa: true } });
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual([
-      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/training", "/portal/coach/people",
-      "/portal/leader/assess", "/portal/coach/coach-training",
+      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/leader/assess", "/portal/coach/people",
+      "/portal/coach/coach-training", "/portal/coach/training",
     ]));
-    expect(Array.from(tiles.querySelectorAll("a")).filter((a) => a.className.includes("col-span-2"))).toEqual([]);
+    expect(Array.from(tiles.querySelectorAll("a")).map(words)).toEqual([
+      "Schedule", "Observe", "Learning Assessment", "My schools", "Coach Training", "Training Library",
+    ]);
+    // the compact tile's My schools chip is the school count alone (the long "· N teachers" spilled out of the tile)
+    await waitFor(() => expect(tiles.querySelector('a[href="/portal/coach/people"] [data-chip]')).toHaveTextContent(/^1 school$/));
+  });
+
+  // bd-39qx8x — operator: "the tiles on the coach home app screen are still huge, like the teacher app was before". The
+  // teacher Home's tile since 30 Oct (home/look/FeatureTiles): the kit's FeatureTile compact, three per row.
+  it("the six are the teacher Home's compact tile, three per row: 104px, 44px art, 14px words, none wide", async () => {
+    config(true);
+    net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, coachip: false, coachFullApp: true, childTestSa: true } });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(tiles.querySelectorAll("a")).toHaveLength(6));
+    expect(tiles.className.split(" ")).toEqual(expect.arrayContaining(["grid-cols-3", "gap-2.5"]));
+    Array.from(tiles.querySelectorAll("a")).forEach((a) => {
+      const cls = a.className.split(" ");
+      expect(cls, a.getAttribute("href")!).toContain("min-h-[104px]");
+      expect(cls).not.toContain("min-h-[176px]");
+      expect(cls).not.toContain("col-span-2");
+      expect(a.querySelector("svg[data-feature-art]")!.getAttribute("width")).toBe("44");
+      expect(a.children[1].className.split(" ")).toContain("text-[14px]");
+    });
   });
 
   it("no number yet (or /coach/home failed): the tiles still show, with no chip and never a 0", async () => {
@@ -102,13 +130,13 @@ describe("the switch off, absent or not a literal true (every other coach)", () 
     }
   });
 
-  it.each([false, undefined, "true"])("%s: the Home is exactly today's three tiles, and /coach/home is never asked", async (v) => {
+  it.each([false, undefined, "true"])("%s: the Home is the three tiles (My schools, Coach Training, Training Library), and /coach/home is never asked", async (v) => {
     config(v);
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await new Promise((r) => setTimeout(r, 50));
     expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual([
-      "/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training",
+      "/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training",
     ]);
     expect(net.calls.some((c) => c.startsWith("/coach/home"))).toBe(false);
   });
