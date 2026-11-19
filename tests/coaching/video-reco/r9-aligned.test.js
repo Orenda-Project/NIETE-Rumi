@@ -286,3 +286,72 @@ describe('the ask classifier', () => {
     expect(A.classifyAsk('[TEACHER], try dedicating 5 minutes of your next class specifically to improving "Questioning".')).toBeNull();
   });
 });
+
+// R9b (COS 20261119T152504 §2; ped-align r5 20261119T152426): the 45 picks the blind panel judged wrong at #5136 2ab5e211e9,
+// each through the real v2 file, the panel's gates and the 9-list. Each is silent, or moves to a clip other than the one
+// judged wrong (that new pair goes to ped-align).
+describe('R9b · the card\'s main move decides (r5 wrong picks)', () => {
+  const R5 = require('./fixtures/r5-wrong-picks.json').picks;
+  const LIST = new Set(ALLOW.split(','));
+  const pickFor = (x) => {
+    const g = Number(x.grade);
+    const langs = [...new Set([x.report_lang, x.lesson_lang, 'mixed'].filter(Boolean))];
+    for (const ask of A.classifyAsks(x.card)) {
+      const c = A.candidates(C.loadV2(), ask, { languages: langs, allow: LIST, history: { segments: [], modules: [] } }, { subject: x.subject, grade: Number.isFinite(g) && g > 0 ? { lo: g, hi: g } : null });
+      if (c.length) return c[0].seg.seg_id;
+    }
+    return null;
+  };
+  test.each(R5.map((x) => [x.id, x.seg, x]))('%s never gets %s again', (_, seg, x) => {
+    expect(pickFor(x)).not.toBe(seg);
+  });
+  test('the open "why… then wait" card is one ask in two steps (either order) and still gets its clip', () => {
+    const card = 'Next class, when a student answers a fractions question in just one word, wait 5 to 7 seconds, then ask an open-ended \'why\' question to stretch their thinking.';
+    expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['wait_time', 'open_questions']);
+  });
+  test('after a non-questioning main move nothing later is served («ask what they already know, then wait»)', () => {
+    expect(A.classifyAsks('Next class, before the new topic, ask what students already know about plants, give wait time, then link their answers.').map((x) => x.move)).toEqual(['activate_prior_knowledge']);
+  });
+});
+
+// R9b (COS 20261119T152504 §3; ped-align r5 cross-gate round: think_pair_share 80/80, follow_up_probe 40/40, 0 ⛔): the
+// subject × grade gate is lifted for these two moves only; language still binds; the other moves keep the gate.
+describe('R9b · cross-gate: think_pair_share and follow_up_probe reach across subject and grade', () => {
+  test('a think-pair-share card on a Grade 4 science lesson gets 451-s3 (science, G9-12: same subject first, across grade)', async () => {
+    const { row } = await run({ action: TPS, env: ON, subject: 'science', grade: '4' });
+    expect(row.seg_id).toBe('451-s3');
+  });
+  test('…and on a Grade 4 maths lesson, 791-s2 (English 4-5: no subject match, the narrower band first)', async () => {
+    const { row } = await run({ action: TPS, env: ON, subject: 'maths', grade: '4' });
+    expect(row.seg_id).toBe('791-s2');
+  });
+  test('a follow-up card on a Grade 4 English lesson gets 782-s1 (a primary science clip)', async () => {
+    const { row } = await run({ action: 'Next class, when a student says the car drinks petrol, ask \'Why do you think that?\', then explain.', env: ON, subject: 'english', grade: '4' });
+    expect(row.seg_id).toBe('782-s1');
+  });
+  test('ask_for_reasoning keeps the gate: 177-s4 (science 6-8) never reaches a Grade 4 English lesson', () => {
+    const ask = { move: 'ask_for_reasoning', sub: 'ask_for_reasoning:why_after_observation' };
+    expect(A.candidates(C.fromData(V2), ask, { languages: ['en', 'mixed'], allow: null, history: null }, { subject: 'english', grade: { lo: 4, hi: 4 } }).map((c) => c.seg.seg_id)).not.toContain('177-s4');
+  });
+  test('language still binds across the gate: an Urdu-only reader never gets 791-s2 (English)', async () => {
+    const { row } = await run({ action: TPS, env: ON, subject: 'science', grade: '4', lang: 'ur' });
+    expect(row.seg_id).not.toBe('791-s2');
+  });
+});
+
+// R9b (COS 20261119T152504 §3; ped-align r5 cross-gate: wait_time 39/40 = 97.5%, 0 ⛔, lifted only WITH the 790-s3
+// near-miss exclusion, which a6621403fa put in place)
+describe('R9b · cross-gate: wait_time', () => {
+  test('a wait card on a Grade 4 maths lesson gets 790-s3 (an English 4-5 clip)', async () => {
+    const { row } = await run({ action: WAIT, env: ON, subject: 'maths', grade: '4' });
+    expect(row.seg_id).toBe('790-s3');
+  });
+  test('…and a wait card on a Grade 9 science lesson too (across grade)', async () => {
+    const { row } = await run({ action: WAIT, env: ON, subject: 'science', grade: '9' });
+    expect(row.seg_id).toBe('790-s3');
+  });
+  test('the near-miss exclusion still holds across the gate: wait after a stumble stays silent', async () => {
+    const { row } = await run({ action: 'Next class, when a student stumbles on a word like \'friction\', pause for a few seconds of wait time, then ask a guiding question.', env: ON, subject: 'maths', grade: '4' });
+    expect(row.seg_id).toBeNull();
+  });
+});

@@ -1,0 +1,455 @@
+{
+ "source": "ped-align panel/r5_decision/engine_wrong_picks.json (blind r5, 20261119T152426); card text masked as in asks.jsonl",
+ "picks": [
+  {
+   "id": "e4475a42",
+   "seg": "782-s1",
+   "card": "Next class, when a student says just 'it's big there' during the ball-strike experiment, pause and give two paths: simple words like 'more push, more movement' for those who need it, and ask others to explain why amplitude changes in their own words, like [a student] did.",
+   "subject": "science",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "bf506960",
+   "seg": "95-s1",
+   "card": "Next class, before explaining prefixes like بے and ان, open with a [a student] picture or short clip, ask why it changes a word's meaning, then give 60 seconds of pair talk before anyone answers.",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "996fd614",
+   "seg": "95-s1",
+   "card": "Next class, when noise rises during the dough recipe reading, try a quiet look at the group first, then follow up with 'Why does refrigeration help the dough?' before moving on.",
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "6c9c78c2",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب '[a student]' جیسے لفظ پر کوئی بچہ رکے، تو 3-5 سیکنڈ کا wait time دیں، پھر کسی دوسرے بچے سے example یا rephrase کروا کر پہلے بچے سے دوبارہ پوچھیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "72488d3f",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب کوئی بچہ 'جاؤں گا' جیسا ایک لفظ کا جواب دے، تو اسے 'فی الحال' والا مکمل sentence بنانے کو کہیں اور جواب درست ہونے تک wait time دیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "38118c1b",
+   "seg": "790-s3",
+   "card": "Next class, during the was/were fill-in-the-blank sentences, hand everyone a Try task first, then offer a [a student] task where quicker students build a two-clause sentence with past continuous, pausing with wait time before they answer.",
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "en",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "31d86645",
+   "seg": "95-s1",
+   "card": "Next class, when students start shouting wild animal names again, pause them for a 1-minute Think-Pair-Share, then ask an open-ended 'why' question with wait time before anyone answers.",
+   "subject": "general_knowledge",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "2fbfe036",
+   "seg": "95-s1",
+   "card": "Next class, when you reach the shaheen metaphor again, pause reading for 90 seconds: ask 'Why does [a student] compare potential to a falcon?', give 20s think time, 40s pair discussion, then hear 2 pairs out.",
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "5aa3ae21",
+   "seg": "95-s1",
+   "card": "Next class, when the lesson plan's countable/uncountable noun section comes up, follow its check-for-understanding step and ask one more 'why' before peer-checking, so answers like 'banana' get corrected right away.",
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "3627ec55",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب بچے کا جواب [a student] لگے، پہلے تعریف کریں، پھر درست جملہ بول کر wait time دیں، اور اسے روزمرہ کی مثال والے sentence frame سے دہرانے کو کہیں۔",
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "c4e1fda2",
+   "seg": "95-s1",
+   "card": "Next class, when drilling سن and جون, ask quick guessers an open why question ('Why is this long یُ?'), then give 5-8 seconds wait time and a simpler prompt for others.",
+   "subject": "english",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "efdf194a",
+   "seg": "95-s1",
+   "card": "Next class, when a child hesitates like [a student] [a student] did with 'road', hold back the answer, ask 'why do you think so?', give 10 seconds of silent think, then 60 seconds of pair talk before they answer.",
+   "subject": "english",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "879865fb",
+   "seg": "95-s1",
+   "card": "Next class, when a student stalls mid-sentence like '[a student] ne' in the dog [a student], wait quietly 5-7 seconds, ask 'why forgiveness matters,' and let them finish before saying shabaash.",
+   "subject": "islamiat",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "be5e221f",
+   "seg": "95-s1",
+   "card": "Next class, after modeling how 1/100 becomes 0.01 in your simple everyday words, ask an open 'why' question, give 10 seconds thinking time, then run a 60-second Think-Pair-Share before cold-calling a pair.",
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "06ed4f3e",
+   "seg": "95-s1",
+   "card": "Next class, when you reach the cancellation step, show multiply-first vs cancel-first side-by-side on the board, give 10 seconds of wait time, then ask one student to verbalize why both paths give the same answer.",
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "151b775e",
+   "seg": "95-s1",
+   "card": "Next class, when a student says '120 is bigger' during the protractor comparison task, ask an open-ended question like 'What do you see on the inner scale?', give pairs 60 seconds with explainer/listener roles, then cold-call a pair to share their reasoning.",
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "f4289533",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب subject-verb agreement پڑھائیں تو [a student] lesson plan کا have/has والا چارٹ بورڈ پر لگائیں، اور جب کوئی بچہ 'She have' جیسا جواب دے تو چند سیکنڈز کا wait time دیں تاکہ وہ خود correction کر سکے۔",
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "3f38800b",
+   "seg": "95-s1",
+   "card": "Next class, after modeling the square perimeter formula, pair students 3 minutes to explain why we multiply by 4; then ask how a pentagon's formula changes, allowing 5-8 seconds wait time before calling on pairs.",
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "cec670b1",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب role-play کے دوران کوئی بچہ '[a student] پاکستان' جیسے مشکل لفظ پر [a student]، تو فوراً جواب نہ دیں — پہلے 5 سیکنڈز کا wait time دیں، پھر شاباش کے ساتھ ایک چھوٹا اگلا قدم بتائیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "cbf01f7b",
+   "seg": "95-s1",
+   "card": "Next class, when students begin the independent worksheet on conductors and insulators, set a visible timer, walk row by row checking who's on task, and pause once to ask a student why before confirming the answer.",
+   "subject": "science",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "1d25fed4",
+   "seg": "95-s1",
+   "card": "Next class, before naming word classes for compound words like heart and screwdriver, write noun or adjective next to each root word on the board first, then ask an open-ended question about why that matters.",
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "en",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "452db1eb",
+   "seg": "790-s3",
+   "card": "Next class, when a student stumbles on a word like '[a student]', pause for a few seconds of wait time, then ask a guiding question such as 'What sound does it start with?' before giving the meaning yourself.",
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "f76eb611",
+   "seg": "95-s1",
+   "card": "Next class, when teaching 'some' with the candy jar, give strugglers an easier example like counting apples, then ask quicker students why candies are countable but sugar isn't.",
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "87411e9a",
+   "seg": "95-s1",
+   "card": "Next class, during the rukun clapping activity, ask 'Why did this word break here?' and cold-call quieter students with name cards before the fast hands jump in.",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "7d29ed18",
+   "seg": "95-s1",
+   "card": "Next class, when a child like [a student] reaches beyond the lesson on mixed fractions, ask an open 'why' question, wait, then give one specific next step instead of just praising.",
+   "subject": "maths",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "7e8ffc6d",
+   "seg": "95-s1",
+   "card": "Next class, when you break students into small groups for subtraction practice, set up three stations — candies for counting, workbook problems, and a three-number challenge — and ask each group 'why' they chose that step.",
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "77e594de",
+   "seg": "95-s1",
+   "card": "Next class, when a student's answer about [a student] comes out broken, pause 5-10 seconds, give a clue, and ask 'why do you think that?' before completing their sentence yourself.",
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "en",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "835ab109",
+   "seg": "95-s1",
+   "card": "اگلی کلاس میں 'grumbled' پر context clues ڈھونڈتے وقت کمزور طلبہ سے آسان سوال اور تیز طلبہ سے open-ended 'why' سوال پوچھیں تاکہ ہر level کے طلبہ سوچ کر جواب دیں۔",
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "3a2378f0",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب تلی کھڑی نظم کے حصے پڑھائیں، تو پہلے [a student] کی poem audio بطور fluent model چلائیں، پھر بچوں کو جواب دینے سے پہلے 2 منٹ کا wait time دیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "011d0d4c",
+   "seg": "95-s1",
+   "card": "Next class, when a group just says 'I don't know' about kicking a ball, pause, ask 'why did it move?' and have them act out the push before explaining.",
+   "subject": "science",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "ce6c1ec6",
+   "seg": "95-s1",
+   "card": "Next class, when a student reshapes a sentence in their own words like [a student] did about his محلہ, pause before fixing it — ask 'why did you say it that way?', name what's correct, then let them retry.",
+   "subject": "urdu",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "87316d5e",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب قافیہ [a student] والا نیا stanza [a student] کرائیں، تو پہلے بچوں سے ان کے جانے [a student] rhyming الفاظ (جیسے 'ماما اور [a student]') کی مثالیں پوچھیں، 5-7 سیکنڈ wait time دیں، پھر انہی جوابات کو نئے تصور سے جوڑیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "8d591056",
+   "seg": "95-s1",
+   "card": "اگلی کلاس میں جب 'اعزازات' یا 'راہگیر' جیسے الفاظ کا معنی پوچھیں، تو ایک open-ended question جیسے 'یہ لفظ کیوں استعمال ہوا؟' بورڈ پر لکھیں اور جواب سے پہلے 60 سیکنڈ کی paired discussion کروائیں، جس میں ایک بولنے والا اور ایک سننے والا ہو۔",
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "04d9e45f",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب نظم کا مقصد پوچھیں تو بچے کا جملہ خود مکمل کرنے کے بجائے کمزور بچوں کو آسان اشارہ اور تیز بچوں کو open-ended question دیں، پھر wait time دے کر خود بات مکمل کرنے دیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "119d1df3",
+   "seg": "790-s3",
+   "card": "Next class, before starting the inclusive education poem, ask what students already know about every child's right to learn, give wait time, then link their answers to today's objective.",
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "8beb503e",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں direct اور indirect object کی مشق کے دوران تیز بچوں کو دو objects والا مشکل جملہ اور باقی بچوں کو ایک object والا آسان جملہ دیں، پھر wait time کے بعد peer feedback سے جواب درست کریں۔",
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "1ef10887",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں کہانی کے سوال پر بچے خاموش ہوں تو پہلے wait time دیں، پھر ایک ہی task کے تین levels بنائیں: easy میں فعل ماضی [a student]، medium میں جملہ بنائیں، challenge میں کہانی کا انجام بدل کر لکھیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "5c5dde81",
+   "seg": "95-s1",
+   "card": "Next class, when you launch the Think-Pair-Share antonym task, give [a student] [a student] to most students and [a student] [a student] to your four strongest, then ask 'why?' before praising.",
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "dc10671d",
+   "seg": "95-s1",
+   "card": "Next class, when a chorus answer like 'mobile' comes up again, pause and say 'Now I want one student alone' before moving to an open-ended question such as 'Why did the poet include balloons?'",
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "645f6735",
+   "seg": "95-s1",
+   "card": "Next class, when a جب تب sentence is missing its clause, ask 'Why does this need تب?' then give strugglers a complete-the-sentence task and early finishers a harder one combining two clauses.",
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "55f81373",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب بچے 'جنگل بچانے کا منصوبہ' پر خود سے کام کریں، تو [a student] لگا کر مکمل independent work کا وقت دیں، کلاس میں گھوم کر دیکھیں ہر بچہ on-task ہے، اور رک جانے پر فوراً لفظ دینے کے بجائے wait time دیں تاکہ وہ خود سوچیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "f8f4f0a5",
+   "seg": "95-s1",
+   "card": "Next class, when a student asks 'کیا چیز ہے؟' during the classification task, play a 2-3 minute [a student] demo on the computer showing code executing, then ask why it needs that language.",
+   "subject": "Computer Science",
+   "grade": null,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  },
+  {
+   "id": "a83f0cdc",
+   "seg": "95-s1",
+   "card": "Next class, before reading the paragraph about [a student] sharing water, play the short [a student] audio once, then have a pair retell it and ask 'why' until they explain fully instead of guessing.",
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "99153703",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب کوئی بچہ لفظی مطلب [a student]، تو pairs کو [a student] جملے دے کر literal اور figurative میں sort کروائیں، پھر open-ended سوال پوچھ کر 3-5 سیکنڈ wait time دیں۔",
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong"
+  },
+  {
+   "id": "3edca680",
+   "seg": "790-s3",
+   "card": "اگلی کلاس میں جب کوئی بچہ 'birds fly' یا 'flies' میں [a student] تو model → choral → partner → individual write کے [a student] سے sentence drills کروائیں، اور ایک open-ended question کے بعد wait time دیں۔",
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "panel": "r5 wrong 3/3"
+  }
+ ]
+}
