@@ -172,7 +172,7 @@ describe('the one message', () => {
     const [to, { body, buttonText, url }] = WA.sendCtaUrl.mock.calls[0];
     expect(to).toBe('923345027774');
     expect(buttonText).toBe('Make my own');
-    expect(body).toMatch(/24 hours/);
+    expect(body).toMatch(/7 days/); // bd-zrdvmi.28
     const m = url.match(/^https:\/\/portal\.test\/go\/([A-Za-z0-9_-]+)$/);
     expect(m).not.toBeNull();
     const Link = require('../../bot/shared/services/app-login-link');
