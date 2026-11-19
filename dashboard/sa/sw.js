@@ -89,7 +89,10 @@
 //   the preparation took).
 // sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
 //   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
-var VERSION = 'sa-40';
+// sa-42: round 28, sa-page.js and sa-offline.js and this worker (device_ready names the build that ran: the page's own
+//   VERSION, the VERSION of each worker that prepared it, and the session cache the clips were found in, asked for on its
+//   own 'held' message; worker_swap marks a newer worker taking the page over mid-session).
+var VERSION = 'sa-42';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -227,6 +230,26 @@ function prefetch(urls, o) {
   return Promise.all(workers).then(function () { return urls.filter(function (u) { return missing.indexOf(u) >= 0; }); });
 }
 
+/**
+ * The sa-session-* cache holding most of urls (the one the clips are read from), or null when none holds any. On a deploy
+ * day the worker answering can be newer than the cache the clips are in, so this is looked up, not taken from SESSION.
+ * Only the 'held' message runs it: a prepare reply never waits on it.
+ */
+function heldIn(urls, cachesApi) {
+  if (!urls.length) return Promise.resolve(null);
+  return cachesApi.keys().then(function (keys) {
+    return Promise.all(keys.filter(function (k) { return k.indexOf('sa-session-') === 0; }).map(function (k) {
+      return cachesApi.open(k).then(function (c) {
+        return Promise.all(urls.map(function (u) { return c.match(u, { ignoreSearch: true }); }));
+      }).then(function (hits) { return { name: k, n: hits.filter(Boolean).length }; });
+    }));
+  }).then(function (held) {
+    var best = null;
+    held.forEach(function (h) { if (h.n > 0 && (!best || h.n > best.n)) best = h; });
+    return best ? best.name : null;
+  }).then(null, function () { return null; });
+}
+
 /** A response worth keeping: 2xx, and the type the URL is (a clip is audio, a battery JSON, an engine file not HTML). */
 function cacheable(url, res) {
   if (!res || !res.ok) return false;
@@ -282,7 +305,7 @@ function prepareReply(d, urls, port, io) {
     onDone: function () { done += 1; },
   }).then(function (missing) {
     clearInterval(tick);
-    port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes });
+    port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes, sw: VERSION });
   }, function (err) {
     clearInterval(tick);
     throw err;
@@ -290,7 +313,7 @@ function prepareReply(d, urls, port, io) {
 }
 
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, prepareReply: prepareReply, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION, VERSION: VERSION, IDLE_MS: IDLE_MS, PROGRESS_MS: PROGRESS_MS, PREFETCH_AT_ONCE: PREFETCH_AT_ONCE };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, prepareReply: prepareReply, heldIn: heldIn, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION, VERSION: VERSION, IDLE_MS: IDLE_MS, PROGRESS_MS: PROGRESS_MS, PREFETCH_AT_ONCE: PREFETCH_AT_ONCE };
 } else {
   self.addEventListener('install', function (e) {
     e.waitUntil(caches.open(CORE).then(function (c) {
@@ -342,8 +365,13 @@ if (typeof module === 'object' && module.exports) {
   self.addEventListener('message', function (e) {
     var d = e.data || {};
     var port = e.ports && e.ports[0];
-    if ((d.type !== 'prepare' && d.type !== 'check') || !port) return;
+    if ((d.type !== 'prepare' && d.type !== 'check' && d.type !== 'held') || !port) return;
     var urls = (d.urls || []).filter(function (u) { return typeof u === 'string'; });
+    // which build this is and where the clips are (device_ready, worker_swap); the page caps its wait at 2 s
+    if (d.type === 'held') {
+      e.waitUntil(heldIn(urls, caches).then(function (session) { port.postMessage({ sw: VERSION, session: session }); }));
+      return;
+    }
     if (d.type === 'check') {
       e.waitUntil(Promise.all(urls.map(function (u) {
         return caches.match(u, { ignoreSearch: true }).then(function (hit) { return hit ? null : u; }, function () { return u; });
@@ -362,7 +390,7 @@ if (typeof module === 'object' && module.exports) {
         abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
       });
     }).then(null, function (err) {
-      port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err) });
+      port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err), sw: VERSION });
     }));
   });
 }
