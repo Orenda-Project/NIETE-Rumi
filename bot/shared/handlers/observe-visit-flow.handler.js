@@ -840,12 +840,27 @@ async function bindAndStart(userId, screenData, user, opts = {}) {
   } catch (err) {
     logToFile('observe-visit: resolveTeacher failed', { userId, teacherExtId, error: err.message });
   }
+  // Queue #184 (bd-pkxzg9.1): a visit she booked carries the teacher it names. The roster read cannot resolve some
+  // booked teachers (prod 19 Nov: a booking naming the coach herself, whom the roster drops), and an unbound capture
+  // asks "who did you observe?" after the recording. The booking itself is the answer; its school retires it.
+  let fromBooking = false;
+  if (!teacher) {
+    const booked = await _scheduleStore().scheduledTeacher(userId, teacherExtId, schoolExtId);
+    if (booked) {
+      const { schedule_id: scheduleId, ...shape } = booked;
+      teacher = shape;
+      fromBooking = true;
+      logToFile('🔭 observe-visit: the roster had no match — bound to the teacher her booking names', {
+        userId, scheduleId, boundUserId: shape.user_id || null, selfBooked: shape.user_id === userId,
+      });
+    }
+  }
   const arm = user ? getObserveArm(user) : 'functional';
   await ObserveState.setState(userId, 'awaiting_audio', {
     arm,
     // school_ext_id rides along so the capture lifecycle can retire the
     // matching observation_schedules row (bd-2445).
-    boundTeacher: teacher ? { ...teacher, school_ext_id: String(schoolExtId || '') } : null,
+    boundTeacher: teacher ? { ...teacher, school_ext_id: String((fromBooking && teacher.school_ext_id) || schoolExtId || '') } : null,
     // Which flow this Start belongs to: an /observe2 recording joins its field form, a classic one never does.
     origin: opts.observe2 ? 'observe2' : 'observe',
   });

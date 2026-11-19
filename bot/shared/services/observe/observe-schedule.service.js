@@ -165,6 +165,51 @@ async function listUpcoming(leaderUserId, opts = {}) {
   return rows;
 }
 
+/**
+ * Queue #184 (bd-pkxzg9.1) — the teacher an UPCOMING booking of this coach names, in the shape a roster bind leaves
+ * (resolveTeacher), or null. The visit handler's bind falls back to it when the roster cannot resolve the teacher of a
+ * visit she booked: the booking was checked against her patch when she made it, so running it must not ask her who
+ * she observed (prod 19 Nov: a booking that named the coach herself, whom the roster read drops). Same school first,
+ * then the teacher alone (as markDone). Never throws.
+ */
+async function scheduledTeacher(leaderUserId, teacherExtId, schoolExtId) {
+  try {
+    if (!leaderUserId || !teacherExtId) return null;
+    const read = async (school) => {
+      let q = supabase
+        .from('observation_schedules')
+        .select('id, school_ext_id, teacher_ext_id, teacher_name, teacher_user_id')
+        .eq('leader_user_id', leaderUserId)
+        .eq('teacher_ext_id', String(teacherExtId))
+        .eq('status', 'upcoming');
+      if (school) q = q.eq('school_ext_id', String(school));
+      const { data, error } = await q.limit(1);
+      if (error) throw new Error(error.message);
+      return (data && data[0]) || null;
+    };
+    const row = (schoolExtId && await read(schoolExtId)) || await read(null);
+    if (!row) return null;
+    let person = null;
+    if (row.teacher_user_id) {
+      const { data } = await supabase.from('users').select('id, phone_number, preferred_language')
+        .eq('id', row.teacher_user_id).maybeSingle();
+      person = data || null;
+    }
+    return {
+      teacher_ext_id: row.teacher_ext_id,
+      teacher_name: row.teacher_name || null,
+      phone_e164: (person && person.phone_number) || null,
+      user_id: (person && person.id) || row.teacher_user_id || null,
+      preferred_language: (person && person.preferred_language) || 'en',
+      school_ext_id: row.school_ext_id || '',
+      schedule_id: row.id,
+    };
+  } catch (err) {
+    logToFile('observe-schedule: scheduledTeacher failed', { leaderUserId, error: err.message });
+    return null;
+  }
+}
+
 async function countUpcoming(leaderUserId) {
   try {
     return (await listUpcoming(leaderUserId)).length;
@@ -241,5 +286,5 @@ async function rescheduleById(leaderUserId, scheduleId, date, slot) {
 
 module.exports = {
   saveSchedule, listUpcoming, countUpcoming, markDone, SLOTS,
-  cancelById, rescheduleById, announce,
+  cancelById, rescheduleById, announce, scheduledTeacher,
 };
