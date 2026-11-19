@@ -123,3 +123,31 @@ describe('checkTeamActivity', () => {
     expect(C.checkTeamActivity(team({ window_days: '30' }), NOW)).toBe(null);
   });
 });
+
+describe('checkTeamActivity — the per-teacher roster (who and where, for the team view\'s scoped list)', () => {
+  const who = (over = {}) => ({
+    org: 'niete', region: 'Sihala', band: 'k5', name: 'Test Teacherwala', school: 'Test School',
+    furthest: 'none', last_kind: 'plan_opened', last_at: '2026-11-01T08:00:00.000Z', ...over,
+  });
+  const withRoster = (teachers) => ({ ...team(), teachers });
+
+  test('a well-formed roster passes and is kept', () => {
+    const v = withRoster({ [UID]: who(), other: who({ org: null, region: null, band: null, name: null, school: null, last_kind: null, last_at: null }) });
+    expect(C.checkTeamActivity(v, NOW)).toEqual(v);
+  });
+  test('no roster is still a valid value (counts only)', () => {
+    expect(C.checkTeamActivity(team(), NOW).teachers).toBeUndefined();
+  });
+  const BAD = {
+    'a list': [],
+    'an entry that is not an object': { [UID]: 'x' },
+    'an unknown furthest step': { [UID]: who({ furthest: 'tip' }) },
+    'an unknown band': { [UID]: who({ band: 'g13' }) },
+    'a numeric org': { [UID]: who({ org: 7 }) },
+    'an unknown last kind': { [UID]: who({ last_kind: 'visited' }) },
+    'a bad last time': { [UID]: who({ last_at: 'yesterday' }) },
+  };
+  test.each(Object.entries(BAD))('%s → null', (_name, teachers) => {
+    expect(C.checkTeamActivity(withRoster(teachers), NOW)).toBe(null);
+  });
+});

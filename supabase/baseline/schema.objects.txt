@@ -822,6 +822,8 @@ fn:roster_hand_over_class(p_class_id uuid, p_school_id uuid, p_teacher_user_id u
 fn:roster_import_students(p_class_id uuid, p_list_id uuid, p_run_id text, p_enrolled_by uuid, p_students jsonb)
 fn:roster_import_students(p_class_id uuid, p_list_id uuid, p_run_id text, p_enrolled_by uuid, p_students jsonb, p_school_id uuid)
 fn:set_portal_user_context(p_portal_user_id uuid)
+fn:teacher_activity_batch(p_user_ids uuid[])
+fn:teacher_activity_teachers()
 fn:update_access_scopes_updated_at()
 fn:update_assessment_status(p_assessment_id uuid, p_new_status character varying, p_error_message text)
 fn:update_byof_session_timestamp()

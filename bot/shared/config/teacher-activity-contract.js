@@ -68,12 +68,24 @@ function checkTeacherActivity(value, now = Date.now()) {
   return value.journey.length > MAX_JOURNEY ? { ...value, journey: value.journey.slice(0, MAX_JOURNEY) } : value;
 }
 
+const isNullableText = (v) => v === null || typeof v === 'string';
+/** One roster entry: where she is placed (organization, region), her band, name and school, and her last step. */
+const whoOk = (w) => isObj(w) && isNullableText(w.org) && isNullableText(w.region) && isNullableText(w.name)
+  && isNullableText(w.school) && (w.band === null || GRADE_BANDS.includes(w.band)) && TEAM_STEPS.includes(w.furthest)
+  && (w.last_kind === null || JOURNEY_KINDS.includes(w.last_kind)) && (w.last_at === null || isTime(w.last_at));
+const rosterOk = (r) => r === undefined || (isObj(r) && Object.values(r).every(whoOk));
+
 const teamStepOk = (s) => isObj(s) && isCount(s.count) && Array.isArray(s.user_ids)
   && s.user_ids.every(isText) && s.user_ids.length === s.count;
 
-/** The team summary, or null. Steps outside TEAM_STEPS are dropped (a later rung an older reader does not know). */
+/**
+ * The team summary, or null. Steps outside TEAM_STEPS are dropped (a later rung an older reader does not know).
+ * `teachers` (optional) is the roster the team view scopes and lists by: { <users.id>: { org, region, band, name,
+ * school, furthest, last_kind, last_at } }; a malformed roster fails the whole value.
+ */
 function checkTeamActivity(value, now = Date.now()) {
   if (!isObj(value) || !fresh(value.updated_at, now) || !isCount(value.window_days) || !isObj(value.steps)) return null;
+  if (!rosterOk(value.teachers)) return null;
   const steps = {};
   for (const step of TEAM_STEPS) {
     if (value.steps[step] === undefined) continue;
