@@ -58,7 +58,9 @@ describe('the v6 DC prompt (spec §5.3)', () => {
     }
     expect(all).toContain('name_called');
     expect(all).toContain('child_agrees_or_adds');
-    expect(all).toContain(`N/A rule: ${v6.indicator('D3').na_rule}`);
+    // Per-indicator N/A (19 Nov, option A): D3 has no N/A any more; C5 carries the one Part 2 N/A rule, from the approved table.
+    expect(all).not.toContain(`N/A rule: ${v6.indicator('D3').na_rule}`);
+    expect(all).toContain('N/A rule: the class stays on one activity for the whole transcript.');
     expect(all).not.toContain('### Indicator: D2');
     expect(all).not.toContain('### Evidence: D2');
   });
@@ -109,7 +111,7 @@ describe('bd-qix9oh.2 — the per-lesson part of the prompt (spec §5.3 TRANSCRI
     const crypto = require('crypto');
     const fs = require('fs');
     const sha8 = crypto.createHash('sha256').update(fs.readFileSync(v6.RUBRIC_FILE)).digest('hex').slice(0, 8);
-    expect(v6.DC_PROMPT_VERSION).toBe(`fico17-v6-dc-1+${sha8}`);
+    expect(v6.DC_PROMPT_VERSION).toBe(`fico17-v6-dc-2+${sha8}`); // dc-2: N/A only on C2 (per-indicator N/A, 19 Nov)
     const before = fw.getSystemPrompt();
     fw.buildAnalysisPrompt(TRANSCRIPT, { transcriptQuality: partial, retry: true });
     expect(fw.getSystemPrompt()).toBe(before);

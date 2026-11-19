@@ -379,6 +379,8 @@ const STRINGS = {
     v6f_change_help: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     v6f_why: 'اس لیول کی وجہ',
     v6f_why_help: 'کم از کم ۲۰ حروف: آپ نے کلاس میں کیا دیکھا۔',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required. DRAFT.
+    v6f_why_help_na: 'لیول کے لیے کم از کم ۲۰ حروف۔ لاگو نہیں کے لیے ایک دو لفظ کافی ہیں۔',
     v6f_from_recording: 'ریکارڈنگ سے',
     v6f_coach_adds: 'کوچ شامل کرتا ہے:',
     v6f_next: 'آگے',
@@ -764,6 +766,8 @@ const STRINGS = {
     v6f_change_help: "Only if you changed Rumi's level (20+ characters).",
     v6f_why: 'Why this level',
     v6f_why_help: 'At least 20 characters: what you saw in the room.',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required.
+    v6f_why_help_na: 'For a level, 20+ characters on what you saw. For N/A, a word or two.',
     v6f_from_recording: 'From the recording',
     v6f_coach_adds: 'Coach adds:',
     v6f_next: 'Next',
