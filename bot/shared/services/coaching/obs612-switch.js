@@ -13,6 +13,9 @@
  *   {"role:principal": "on"}          every principal (bd-9bppaz; "role:principal@ict" for ICT's only). A role key is
  *                                     read after "user:<id>" and before the region; see fico-rubric-switch.js
  *
+ * Queue #191 (operator 19 Nov): every users.role 'coach' is ON whatever the rows say; the rows now decide only for
+ * everyone else (principals). GB coaches are still never asked: asksClass checks the visit's region (fde-region.js).
+ *
  * ON for a coach: each visit asks the lesson's class (and, for grades 6-12, its subject). A grade 6-12 lesson is
  * observed on FDE's tool for that class and subject; a grade 1-5 lesson stays on FICO, decided by the FICO coach
  * switch exactly as today. OFF: nothing is asked and both tools behave exactly as before. Flipping it needs no
@@ -22,7 +25,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { cachedSwitch } = require('../settings/switch-cache');
-const { asMap, pickFor, regionOfUser } = require('./fico-rubric-switch');
+const { asMap, pickFor, regionOfUser, isCoachRole, knownRole } = require('./fico-rubric-switch');
 
 const KEY = 'obs612_coach';
 const VALUES = ['off', 'on'];
@@ -48,9 +51,13 @@ const cache = cachedSwitch({
  */
 async function isOn(who = {}, now = Date.now()) {
   try {
+    const w = { ...(who || {}) };
+    // Queue #191 (operator, 19 Nov ~17:40): on for every coach, whatever the rows say. GB keeps its rule downstream: a GB
+    // visit is never FDE (coaching/fde-region.js, which obs612/visit.js asksClass checks after this).
+    w.role = await knownRole(w);
+    if (isCoachRole(w.role)) return true;
     const map = await cache.get(now);
     if (!Object.keys(map).length) return false; // default off: no region lookup
-    const w = { ...who };
     if (w.region === undefined) w.region = await regionOfUser(w.userId);
     return (await pickFor(map, w, VALUES, OFF)) === 'on';
   } catch (_) {
