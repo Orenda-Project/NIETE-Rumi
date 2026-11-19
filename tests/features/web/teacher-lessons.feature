@@ -604,3 +604,17 @@ Feature: Teacher lesson plans
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
     When she opens the plan and reaches its end
     Then no survey bar is drawn
+
+  # bd-m8zwt1.15 / bd-m8zwt1.16 (queue #164 testing), pinned by FeedbackBar.test.tsx and ViewerPage.feedback.test.tsx.
+  @LPBAR03 @draft @config-gated
+  Scenario: Teacher app v2: a GB grades 1-5 plan ends with the survey bar too; a grades 6-12 plan still has none
+    Given the survey bar is on for a GB grades 1-5 teacher
+    When she opens a grades 3 plan and reaches its end
+    Then "This plan · Useful · Not useful" is drawn
+    And a grades 7 plan shows no survey bar
+
+  @LPBAR04 @draft @config-gated @negative
+  Scenario: Teacher app v2: the same plan open in two tabs follows the answer already saved
+    Given she answered "Useful" for a plan in one tab
+    When she taps "Not useful" for the same plan in a second tab
+    Then the second tab shows what is saved ("In class"), never the "What was wrong" box

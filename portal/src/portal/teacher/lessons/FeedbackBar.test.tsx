@@ -199,3 +199,29 @@ describe("FeedbackBar", () => {
     expect(document.body.textContent).not.toMatch(/[A-Za-z]{3,}/);
   });
 });
+
+// bd-m8zwt1.15 (queue #164): the same plan open in two tabs. Tab 1 already answered Useful; tab 2 taps Not useful and
+// the server answers already_answered with what is saved. Tab 2 follows what is SAVED (In class), and never shows the
+// "What was wrong" box for a reason the server would throw away.
+describe("two tabs: an answer the server already has", () => {
+  it("follows the saved answer, not the stale tap", async () => {
+    state(null);
+    http.post.mockResolvedValue(saved({ useful: true, usedInClass: null }, "already_answered"));
+    render(<FeedbackBar plan={PLAN} />);
+    await screen.findByText(C.thisPlan);
+    fireEvent.click(radio(C.notUseful));
+    await screen.findByText(C.inClass);
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("saved with In class already: Thanks, no reason box", async () => {
+    state(null);
+    http.post.mockResolvedValue(saved({ useful: true, usedInClass: "taught" }, "already_answered"));
+    render(<FeedbackBar plan={PLAN} />);
+    await screen.findByText(C.thisPlan);
+    fireEvent.click(radio(C.notUseful));
+    await screen.findByText(C.thanks);
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
