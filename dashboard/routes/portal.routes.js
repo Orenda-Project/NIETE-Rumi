@@ -128,6 +128,8 @@ const {
   isRoleSwitchUser,
   ROLE_SWITCH_ROLES,
 } = require('../lib/feature-flags');
+// The lesson plan in the app and the activity Home (each off by default; see the file).
+const LpAppSwitches = require('../lib/lp-app-switches');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
@@ -9369,6 +9371,9 @@ router.get('/config', async (req, res) => {
       lpOwnReviewer,
       configRole,
       lpOwnGoalStartRaw,
+      lpFeedbackBarRaw,
+      teacherHomeActivityRaw,
+      teacherJourney,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9426,6 +9431,12 @@ router.get('/config', async (req, res) => {
       configRoleOf(userId),
       // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
       isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
+      // The survey bar at the end of the plan (rides with the teacher app), the Home's "Last 30 days" block (rides
+      // with the Home card, whose route carries it) and My journey + the team view (as it reads for her: an analytics
+      // account is not on the teacher app).
+      LpAppSwitches.isLpFeedbackBarOn(supabase, userId),
+      LpAppSwitches.isTeacherHomeActivityOn(supabase, userId),
+      LpAppSwitches.isTeacherJourneyOn(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9475,6 +9486,9 @@ router.get('/config', async (req, res) => {
         lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
         lpOwnReviewer,
         lpOwnGoalStart: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnGoalStartRaw,
+        lpFeedbackBar: teacherV2 && lpFeedbackBarRaw,
+        teacherHomeActivity: teacherHomeCard && teacherHomeActivityRaw,
+        teacherJourney,
       },
     });
   } catch (error) {
@@ -9513,6 +9527,9 @@ router.get('/config', async (req, res) => {
         lpOwnShelf: false,
         lpOwnReviewer: false,
         lpOwnGoalStart: false,
+        lpFeedbackBar: false,
+        teacherHomeActivity: false,
+        teacherJourney: false,
       },
       roleSwitchRoles: [],
     });
