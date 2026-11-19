@@ -77,7 +77,9 @@
 // sa-37: round 28, sa-voice.js and sa-ui.js (a spoken clip that starts and then stops mid-way is given up after a short
 //   wait and one retry, not counted as heard; the picker's and the MCQ's cards ignore a tap while it is stopped; the
 //   never-ended guard waits while the page is hidden).
-var VERSION = 'sa-37';
+// sa-38: round 28, sa.css (the Urdu story questions' practice in RDF auto fits a phone like the scored question: the
+//   head row the replay's height, the feedback one fixed line, the four answers 8 px apart and all on the screen).
+var VERSION = 'sa-38';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
