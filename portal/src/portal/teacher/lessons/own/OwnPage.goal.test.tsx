@@ -154,5 +154,6 @@ describe('Make my own from a learning goal or topic', () => {
     fireEvent.click(await screen.findByTestId('own-make'));
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: G.noteDropped }));
     await waitFor(() => expect(where()).toContain('render=own-11'));
+    expect(where()).toContain('check=goal'); // bd-snkn32.58.3: Preparing says it is checking
   });
 });

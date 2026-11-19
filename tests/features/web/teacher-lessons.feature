@@ -376,3 +376,19 @@ Feature: Teacher lesson plans
     Then she sees "Not found in your grade’s lessons. Try other words, or select a learning goal." and nothing is picked
     When she types a blocked word and taps Find
     Then she sees "This is not a school topic. Select a learning goal." and nothing is picked
+
+  # bd-snkn32.58.3, queue #155 C — a goal plan is checked (facts + goal) before it is shown; one fix, then refused.
+  # Component proof: PreparingPage.goal.test.tsx; worker: tests/lp612/own-goal-check.test.js (seeded wrong fact fixed / refused).
+  @GOAL11 @draft @config-gated
+  Scenario: A goal plan says it is being checked, and opens with her goal at the top
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she makes a plan from a Grade 3 Maths learning goal
+    Then the Preparing page says "Checking it matches your goal…"
+    And when it is ready the plan opens with her official goal at the top
+
+  @GOAL12 @draft @config-gated @negative
+  Scenario: A goal plan the check refuses shows a calm refusal, not Try again
+    Given a goal plan whose check found problems the one fix did not clear
+    When the Preparing page learns it failed with OWN_GOAL_UNSURE
+    Then she sees "We could not make a plan we are sure of for this goal." with "Select another goal" and "From a textbook chapter"
+    And there is no "Try again"

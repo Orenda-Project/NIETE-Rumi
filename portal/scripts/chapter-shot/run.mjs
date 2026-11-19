@@ -35,6 +35,11 @@ const HEAD_ARG = arg('head', null);
 const GOALS_ARG = arg('goals', null);
 const CLICK_ARG = arg('click', null);
 const TYPE_ARG = arg('type', null);
+// bd-snkn32.58.2/.3 — --match <json> answers the typed-topic guard; --status <json> answers the plan poll; --find taps Find.
+const MATCH_ARG = arg('match', null);
+const STATUS_ARG = arg('status', null);
+const FIND = process.argv.includes('--find');
+const WAIT_MS = Number(arg('wait', '1200'));
 
 function findChromium() {
   const base = path.join(homedir(), 'Library', 'Caches', 'ms-playwright');
@@ -127,6 +132,8 @@ const K5 = {
 };
 if (BAND === 'k5') { for (const k of Object.keys(FIXTURE)) delete FIXTURE[k]; Object.assign(FIXTURE, K5); }
 if (GOALS_ARG) FIXTURE['/lp612/own/goals'] = { success: true, outcomes: JSON.parse((await import('node:fs')).readFileSync(GOALS_ARG, 'utf8')) };
+if (MATCH_ARG) FIXTURE['/lp612/own/goals/match'] = JSON.parse(MATCH_ARG);
+if (STATUS_ARG) FIXTURE['/lp612/status'] = JSON.parse(STATUS_ARG);
 FIXTURE['/me/grade-subjects'] = { success: true, combos: [
   { grade: 3, gradeCode: 'grade_3', subject: 'Mathematics', subjectKey: 'maths', source: 'class', featureKey: 'math', available: true },
 ] };
@@ -155,7 +162,7 @@ try {
     const u = new URL(route.request().url());
     if (u.origin === origin && (DEV.test(u.pathname) || u.pathname.startsWith('/@') || u.pathname.startsWith('/scripts/'))) return route.continue();
     if (u.origin !== origin && !/\/api\//.test(u.pathname)) return route.abort();
-    const key = Object.keys(FIXTURE).find((k) => u.pathname.endsWith(k));
+    const key = Object.keys(FIXTURE).find((k) => u.pathname.endsWith(k) || (k === '/lp612/status' && u.pathname.includes(k)));
     if (SLOW && u.pathname.endsWith('/lp612/lessons')) await new Promise((r) => setTimeout(r, 6000));
     asked.push(`${u.pathname}${key ? '' : ' (stub {})'}`);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(key ? FIXTURE[key] : { success: true }) });
@@ -183,8 +190,9 @@ try {
     console.log(JSON.stringify({ errs, asked, body: (await page.evaluate(() => document.body.innerText)).slice(0, 400) }, null, 1));
     throw e;
   }
-  await page.waitForTimeout(1200); // the lazy Make my own chunk and fonts settle
+  await page.waitForTimeout(WAIT_MS); // the lazy Make my own chunk and fonts settle (a poll needs ~3.5 s)
   if (TYPE_ARG) { await page.getByTestId('own-goal-topic').fill(TYPE_ARG); await page.waitForTimeout(400); }
+  if (FIND) { await page.getByTestId('own-goal-find').click(); await page.waitForTimeout(800); }
   if (CLICK_ARG) { await page.getByText(CLICK_ARG).first().click(); await page.waitForTimeout(600); }
   mkdirSync(OUT, { recursive: true });
   await page.screenshot({ path: path.join(OUT, `${NAME}.png`) });
