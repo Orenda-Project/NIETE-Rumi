@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
@@ -7,10 +7,11 @@ import { AudioCard, ListRow, SelectField } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { leader, type ObserveLesson, type ObserveLessonQuestion, type ObserveRecentPlan } from "../../services/api";
+import { leader, type ObserveLesson, type ObserveLessonQuestion, type ObserveNote, type ObserveRecentPlan } from "../../services/api";
 import { downloadsOnly, isOwnPlan } from "../../lib/observeRecentPlans";
 import { Card, Loading, Failed, useLoad } from "../ui";
-import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
+import { clearDraft, getDraft, getNotes, MAX_NOTES, setDraft, setNotes, withTyped, type DraftAudio } from "../observeDraft";
+import { AddNote, NotesList, shownNote } from "../observe/ObservationNotes";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
 import { checkPlanFile, formatSize, MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
@@ -52,6 +53,11 @@ import type { CoachVisit } from "../types";
  * (PhotoGrid readOnPick, as the teacher's Digital Coaching since bd-r2uzg1.9) and her own plan. In the Android app the
  * picked file could no longer be opened by Send (production 18 Nov: 8 sends, each stopped on photo 1). A file that will
  * not open is refused right here, with its reason in the logs.
+ *
+ * bd-ra8xu.60 (queue #127) — Observation Notes, while her observation_notes switch is on (the same lesson-question read
+ * says `observationNotes: true`): the notes typed on Record, read only with their recording clocks, and a box for anything
+ * she remembers after Stop. Send carries them all to the start; with none there is no `notes` key, as today. Notes made on
+ * Record are shown (and sent) even if this read fails, so nothing she typed is lost; off, there are none and nothing shows.
  */
 
 type Plan =
@@ -130,13 +136,22 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     let live = true;
     Promise.resolve()
       .then(() => leader.getObserveLessonQuestion())
-      .then((q) => { if (live && q && q.ask) setQuestion(q); })
+      .then((q) => { if (live && q && (q.ask || q.observationNotes === true)) setQuestion(q); })
       .catch(() => { /* not asked */ });
     return () => { live = false; };
   }, []);
   // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
   // An older bot that does not say which grades: every grade 6-12 asks it, as before.
   const needsSubject = (g: string | null) => !!g && g !== "primary" && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
+  // bd-ra8xu.60 — her Observation Notes for this recording (Record's, then the ones added here).
+  const [notes, setNoteList] = useState<ObserveNote[]>(() => getNotes(visit.id));
+  const notesHeading = useId();
+  const showNotes = question.observationNotes === true || notes.length > 0;
+  const addNotes = (typed: string) => {
+    const next = withTyped(notes, typed, { source: "portal_check", typed_at: new Date().toISOString() }, true);
+    setNoteList(next);
+    setNotes(visit.id, next);
+  };
   const lessonOf = (): ObserveLesson | null => {
     if (!question.ask || !grade) return null;
     if (grade === "primary") return { primary: true };
@@ -206,6 +221,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       plan: plan ? (plan.kind === "library" ? { kind: "library", pick: plan.pick } : { kind: "file", file: plan.file }) : null,
       photos,
       ...(lesson ? { lesson } : {}),
+      ...(notes.length ? { notes } : {}),
       // bd-33wxxi.4 — where the strip's tap and the ready banner go (the principal app's own screens, or the coach's).
       waitHref: routes.sending(visit.id),
       observationHref: (obsId) => routes.observation(obsId),
@@ -288,6 +304,14 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 
       <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
       <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" readOnPick />
+
+      {showNotes && (
+        <section aria-labelledby={notesHeading} data-testid="observation-notes" className="flex flex-col gap-3">
+          <SectionHeading><span id={notesHeading}>{C.notesTitle}</span></SectionHeading>
+          <NotesList notes={notes.map(shownNote)} />
+          {notes.length < MAX_NOTES && <AddNote multiline label={C.notesMore} addLabel={C.addNote} onAdd={addNotes} />}
+        </section>
+      )}
 
       <Tray open={ownOpen} title={C.ownPlan} onClose={() => setOwnOpen(false)}>
         <SheetRow icon={<Camera className="h-[22px] w-[22px]" />} label={C.camera} onClick={() => planPhotoInput.current?.click()} />

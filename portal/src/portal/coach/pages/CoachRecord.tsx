@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, CalendarDays, Check, MicOff, Pause, Play, Square } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
@@ -8,10 +8,12 @@ import { ConfirmTray } from "../../teacher/ui/ConfirmTray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { OBSERVE } from "../observe/copy";
-import { lengthShort } from "../observe/format";
+import { lengthShort, recClock } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
-import { setDraft } from "../observeDraft";
+import { MAX_NOTES, setDraft, setNotes, withTyped } from "../observeDraft";
+import { AddNote, NotesList, shownNote } from "../observe/ObservationNotes";
+import { leader, type ObserveNote } from "../../services/api";
 import { useCoachRecording } from "../../lib/useCoachRecording";
 import { useRecordingBackGuard } from "../../lib/useRecordingBackGuard";
 import { rememberRecording } from "../../lib/coachObserve";
@@ -30,6 +32,11 @@ import type { CoachVisit } from "../types";
  * remembered as this teacher's, so a reload can still send it. No menu while
  * recording; Back asks first. A refused microphone offers Try again, or Upload
  * recording instead. The words are the Observe copy's (English and Urdu), "observation" and "Start recording".
+ *
+ * bd-ra8xu.60 (queue #127) — Observation Notes, only while her observation_notes switch is on (the lesson-question read
+ * says `observationNotes: true`; a read that fails is off): a card between the meter and the linked visit for what the
+ * recording cannot hear, each note stamped with the recording clock as it is typed. Stop hands them to Check and send with
+ * the recording (observeDraft). Off: no card, and the screen is exactly as before.
  */
 
 const BARS = 24;
@@ -58,11 +65,13 @@ function LevelMeter({ level, live }: { level: number | null; live: boolean }) {
   );
 }
 
-function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => void }) {
+function Recorder({ visit, onBlocked, notesOn }: { visit: CoachVisit; onBlocked: () => void; notesOn: boolean }) {
   const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
   const navigate = useNavigate();
   const [asking, setAsking] = useState(false);
+  const [notes, setNoteList] = useState<ObserveNote[]>([]);
+  const notesTitle = useId();
   const { recording, paused, elapsed, level, screenWentOff, micBlocked, togglePause, finish, elapsedNow } = useCoachRecording({
     onStarted: (recordingId) => rememberRecording(recordingId, {
       teacherExtId: visit.teacherExtId || "", schoolExtId: visit.schoolExtId || null, teacherName: visit.teacherName || "",
@@ -70,6 +79,12 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
   });
   useRecordingBackGuard(recording, () => setAsking(true));
   useEffect(() => { if (micBlocked) onBlocked(); }, [micBlocked, onBlocked]);
+
+  // Each note is stamped with the recording clock at the moment it is added (the timer's own clock).
+  const addNote = (typed: string) => {
+    const stamp = { source: "portal_record" as const, typed_at: new Date().toISOString(), rec_time: recClock(elapsedNow()) };
+    setNoteList((cur) => withTyped(cur, typed, stamp));
+  };
 
   const stop = async () => {
     setAsking(false);
@@ -79,6 +94,7 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
       blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs, recordingId: out.id,
       label: C.observationOf(visit.teacherName || C.dash), sub: [lengthShort(out.durationMs, C), C.justNow].filter(Boolean).join(" · "),
     });
+    setNotes(visit.id, notes); // bd-ra8xu.60: this recording's notes go with it (none: none)
     navigate(routes.check(visit.id), { replace: true }); // a finished recording is not a screen to go Back to
   };
 
@@ -113,6 +129,16 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
           <div className="flex w-full gap-2.5 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.screenOff}</span>
           </div>
+        )}
+        {notesOn && (
+          <Card className="flex w-full flex-col gap-3 p-4" data-testid="observation-notes" aria-labelledby={notesTitle}>
+            <div className="flex flex-col gap-1">
+              <h2 id={notesTitle} className="text-[17px] font-semibold text-[#1d2025]">{C.notesTitle}</h2>
+              <p className="text-[15px] leading-snug text-[#4b5563]">{C.notesHint}</p>
+            </div>
+            <NotesList notes={notes.map(shownNote)} />
+            {notes.length < MAX_NOTES && <AddNote label={C.notesTitle} placeholder={C.notesPlaceholder} addLabel={C.addNote} onAdd={addNote} />}
+          </Card>
         )}
         <Card className="w-full overflow-hidden" data-testid="linked-visit">
           <HistoryRow lead="person" title={visit.teacherName || C.dash} extra={visit.schoolName || undefined} action="none" />
@@ -149,6 +175,16 @@ const CoachRecord = () => {
   const [blocked, setBlocked] = useState(false);
   const block = useCallback(() => setBlocked(true), []);
   const visit = data?.visit;
+  // bd-ra8xu.60 — her observation_notes switch, from the lesson-question read; fail-closed: only a literal true shows the card.
+  const [notesOn, setNotesOn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => leader.getObserveLessonQuestion())
+      .then((q) => { if (live && q && q.observationNotes === true) setNotesOn(true); })
+      .catch(() => { /* off */ });
+    return () => { live = false; };
+  }, []);
 
   if (!visit || blocked) {
     return (
@@ -172,7 +208,7 @@ const CoachRecord = () => {
   }
   // Only an upcoming visit is recorded; a done or cancelled one goes back to its page.
   if (visit.status !== "upcoming" || !visit.teacherExtId) return <Navigate to={routes.visit(id)} replace />;
-  return <Recorder key={attempt} visit={visit} onBlocked={block} />;
+  return <Recorder key={attempt} visit={visit} onBlocked={block} notesOn={notesOn} />;
 };
 
 export default CoachRecord;

@@ -90,6 +90,14 @@ export const OBSERVE_COPY = {
   screenOff: 'The screen went off for a while. Part of it may be silent. Keep this screen open.',
   micBlocked: 'Microphone blocked',
   micAllow: 'When the phone asks, tap Allow.',
+  /* bd-ra8xu.60 (queue #127) — Observation Notes, while her observation_notes switch is on: the card on Record (each note
+     stamped with the recording clock) and the box on Check and send for anything remembered after Stop. The operator's
+     words; the bot is never named here. */
+  notesTitle: 'Observation Notes',
+  notesHint: "What the recording can't hear: the board, group work, who stayed quiet.",
+  notesPlaceholder: 'Type what you see…',
+  addNote: 'Add',
+  notesMore: 'Anything else you saw?',
 
   /* upload */
   chooseFile: 'Select file',
@@ -258,6 +266,12 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   screenOff: 'اسکرین کچھ دیر بند رہی۔ کچھ حصہ خاموش ہو سکتا ہے۔ یہ اسکرین کھلی رکھیں۔',
   micBlocked: 'مائیک کی اجازت نہیں',
   micAllow: 'فون پوچھے تو اجازت دیں پر ٹیپ کریں۔',
+  // bd-ra8xu.60 — MACHINE-DRAFTED from the operator's brief, awaiting a native check (NATIVE-CHECK).
+  notesTitle: 'مشاہدے کے نوٹس',
+  notesHint: 'جو ریکارڈنگ میں سنائی نہیں دیتا: بورڈ، گروپ کا کام، کون خاموش رہا۔',
+  notesPlaceholder: 'جو دیکھ رہے ہیں لکھیں…',
+  addNote: 'شامل کریں',
+  notesMore: 'اور کچھ جو آپ نے دیکھا؟',
 
   chooseFile: 'فائل چنیں',
   notAudio: 'یہ ریکارڈنگ نہیں',
@@ -356,6 +370,11 @@ export type ObserveCopy = Words<typeof OBSERVE_COPY>;
  * the strip's question ("Having trouble?", the operator's words in the option B mockups) and the line typed into
  * WhatsApp, which the bot reads.
  */
-export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine'] as const;
+export const SENTENCES = [
+  'recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine',
+  // bd-ra8xu.60 — the Observation Notes card's hint, its box's prompt (five Urdu words) and Check and send's question:
+  // the operator's own sentences for what the recording cannot hear.
+  'notesHint', 'notesPlaceholder', 'notesMore',
+] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;
