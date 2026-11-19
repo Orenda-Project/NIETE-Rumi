@@ -695,7 +695,9 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
    * @returns {Promise<{result: object, usage: object, finishReason: string|null}>}
    */
   static async completeJson(prompt, options = {}) {
-    const { maxTokens = 4000, label = 'completeJson', reasoningEffort } = options;
+    // `keepScript` — a caller with its own script gate (video-reco rejects a pick written in another
+    // script) gets the reply as the model wrote it; every other caller gets it in Urdu script (urdu-script-only.js).
+    const { maxTokens = 4000, label = 'completeJson', reasoningEffort, keepScript = false } = options;
     try {
       const response = await this.openai.chat.completions.create({
         // The job a caller names decides the model as well as the label: the coach's debrief guide
@@ -716,7 +718,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       if (choice && choice.finish_reason === 'length') {
         logToFile(`⚠️ ${label}: response truncated at max_completion_tokens`, { maxTokens });
       }
-      const result = this._safeJsonParse(choice.message.content);
+      const parsed = this._safeJsonParse(choice.message.content);
+      const result = keepScript ? parsed : require('./coaching/urdu-script-only').urduScriptOnly(parsed, `completeJson:${label}`);
       // bd-08qvls.1: the finish reason is the truncation signal ('length'; the direct lane maps Anthropic's
       // 'max_tokens' to it). A token count is not: a moved job is given more room than maxTokens.
       return { result, usage: response.usage || {}, finishReason: (choice && choice.finish_reason) || null };
@@ -866,7 +869,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       }
     }
     logToFile('[refl-q] v12 question generated', { questionNumber, model_used, language: profile.language });
-    return question;
+    // The question is sent to the teacher on WhatsApp; a Hindi-script word in it goes out in Urdu script.
+    return require('./coaching/urdu-script-only').urduScriptOnly(question, 'reflective_question');
   }
 
   /**
@@ -1635,7 +1639,8 @@ Return ONLY the topic text, nothing else.`;
         temperature: 0.3
       });
 
-      const topic = response.choices[0].message.content.trim();
+      // Stored as analysis_data.topic and printed on the report — Urdu script only.
+      const topic = require('./coaching/urdu-script-only').urduScriptOnly(response.choices[0].message.content.trim(), 'lesson_topic');
 
       logToFile('✅ Lesson topic inferred', {
         topic,
@@ -1685,7 +1690,7 @@ Return ONLY the subject name, nothing else.`;
         temperature: 0.3
       });
 
-      const subject = response.choices[0].message.content.trim();
+      const subject = require('./coaching/urdu-script-only').urduScriptOnly(response.choices[0].message.content.trim(), 'lesson_subject');
 
       logToFile('✅ Lesson subject inferred', {
         subject,
@@ -1833,7 +1838,8 @@ Generate ONLY the script text (no stage directions, just what will be spoken).`;
         temperature: 0.7
       });
 
-      const script = response.choices[0].message.content.trim();
+      // Spoken by TTS and kept as analysis_data.voice_debrief_script — Urdu script only.
+      const script = require('./coaching/urdu-script-only').urduScriptOnly(response.choices[0].message.content.trim(), 'voice_debrief_script');
 
       logToFile('Voice debrief script generated', {
         language,
