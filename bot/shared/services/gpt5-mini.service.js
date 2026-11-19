@@ -1773,9 +1773,46 @@ Recommendations: ${JSON.stringify(recommendations)}
    * @param {string} language - Output language ('en' or 'ur')
    * @returns {Promise<string>} Script for TTS (90 seconds)
    */
-  static async summarizeForVoiceDebrief(observationData, language = 'ur') {
+  /**
+   * EXAMPLES (bd-r2uzg1.18.10, ICT DC sheet row 69): the voice summary praised a classroom activity that is not
+   * in the teacher's recording. Asked for "one major strength with specific example" out of a dump of the whole
+   * analysis, the model supplied an example of its own. The only examples now offered are the analysis's own
+   * quotes that the transcript confirms (coaching/voice-grounding.js groundedMoments); with none, no specific
+   * example is asked for. The script is then checked against the recording before it is spoken.
+   */
+  static voiceExamplesRule(moments) {
+    const never = 'NEVER describe an activity, material, grouping or student action (group work, pair work, cards, '
+      + 'pictures, charts, worksheets, games, songs, stories, role play, videos, objects) as something that happened '
+      + 'in this lesson unless it is in these moments. The teacher knows exactly what happened in the lesson; one '
+      + 'invented example makes the whole voice note untrustworthy.';
+    if (!moments || !moments.length) {
+      return `EXAMPLES — no moment from this recording could be checked word for word against the transcript, so give NO specific classroom example: describe the strength and the growth area in general terms. ${never.replace(' unless it is in these moments', '')} In the growth part you may suggest something to try next time, said clearly as a suggestion.
+
+`;
+    }
+    const list = moments.map((m, i) => `${i + 1}. "${m.quote}"${m.about ? ` — ${m.about}` : ''}`).join('\n');
+    return `EXAMPLES — moments from the teacher's own recording; each quote was checked against the transcript:
+${list}
+- The strength's specific example MUST be one of these moments: say its words exactly as written above, in quotation marks, and what it showed.
+- ${never}
+- In the growth part you may suggest something NEW to try next time — say it clearly as a suggestion, never as something that happened.
+
+`;
+  }
+
+  /**
+   * @param {object} observationData - analysis (projected for the voice) + conversation + fidelity fields
+   * @param {string} language - 'en' or 'ur'
+   * @param {object} [grounding] - { transcript }: the lesson transcript the script's examples must come from
+   * @returns {Promise<string>} the script TTS speaks (and analysis_data.voice_debrief_script keeps)
+   */
+  static async summarizeForVoiceDebrief(observationData, language = 'ur', grounding = {}) {
     try {
       logToFile('Generating voice debrief summary', { language });
+      const VG = require('./coaching/voice-grounding');
+      const transcript = (grounding && grounding.transcript) || '';
+      const analysis = (observationData && observationData.analysis) || {};
+      const moments = VG.groundedMoments(analysis, transcript);
 
       const prompt = `Create a 90-second voice message script summarizing this classroom observation.
 
@@ -1786,12 +1823,13 @@ TARGET LANGUAGE: ${language === 'en' ? 'English' : 'Urdu'}
 
 STRUCTURE (90 seconds total):
 1. Greeting (10 seconds)
-2. One major strength with specific example (30 seconds)
+2. One major strength, its example ONLY as EXAMPLES below allows (30 seconds)
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
 ${voiceFidelityRule(observationData)}
 
+${GPT5MiniService.voiceExamplesRule(moments)}
 TONE:
 - Warm, respectful, mentor-like
 - Conversational (as you would speak naturally)
@@ -1823,22 +1861,55 @@ AVOID:
 - Being overly critical or negative
 - Rushed or incomplete thoughts
 
-Generate ONLY the script text (no stage directions, just what will be spoken).`;
+OUTPUT — reply with ONE JSON object and nothing else: {"greeting": "...", "strength": "...", "growth": "...", "closing": "..."} — the four parts of the STRUCTURE above, each holding exactly the words to be spoken (no stage directions, no labels, no markdown). They are spoken one after another as one voice note.`;
 
-      const response = await this.openai.chat.completions.create({
-        model: modelFor('coaching.voiceDebrief'),
-        job: 'coaching.voiceDebrief',
-        messages: [{ role: 'user', content: prompt }],
-        max_completion_tokens: 1500,
-        temperature: 0.7
-      });
+      const draft = async (text) => {
+        const response = await this.openai.chat.completions.create({
+          model: modelFor('coaching.voiceDebrief'),
+          job: 'coaching.voiceDebrief',
+          messages: [{ role: 'user', content: text }],
+          response_format: { type: 'json_object' },
+          max_completion_tokens: 1500,
+          temperature: 0.7
+        });
+        const sections = VG.parseSections(response.choices[0].message.content);
+        return { sections, tokens: response.usage && response.usage.completion_tokens };
+      };
 
-      const script = response.choices[0].message.content.trim();
+      // bd-r2uzg1.18.10: the praise may only name an activity or material the recording (or her photos, or
+      // her own reflection) has. A draft that names one it does not is written again once, with the reason;
+      // if the second still does, the sentences that name it are dropped before anything is spoken.
+      const ctx = { transcript, analysis };
+      let { sections, tokens } = await draft(prompt);
+      const first = VG.checkVoiceScript(sections, ctx);
+      let outcome = first.ok ? 'grounded' : 'rewritten';
+      if (!first.ok) {
+        const named = [...new Set(first.problems.map((p) => p.what.replace(/_/g, ' ')))].join(', ');
+        ({ sections, tokens } = await draft(`${prompt}
+
+YOUR LAST DRAFT WAS REJECTED: it described ${named} as part of this lesson, and none of that is in the teacher's recording. Write the whole script again without ${named}; take the strength's example only from the moments under EXAMPLES.`));
+        const second = VG.checkVoiceScript(sections, ctx);
+        if (!second.ok) {
+          sections = VG.stripUngrounded(sections, second.problems);
+          outcome = 'stripped';
+        }
+        // Concept ids and parts only — never her words.
+        logToFile('Voice debrief named an activity not in the recording', {
+          language,
+          firstDraft: first.problems.map((p) => `${p.section}:${p.what}`),
+          secondDraft: second.problems.map((p) => `${p.section}:${p.what}`),
+          outcome,
+        }, 'warn');
+      }
+
+      const script = VG.joinSections(sections);
 
       logToFile('Voice debrief script generated', {
         language,
         scriptLength: script.length,
-        tokens: response.usage.completion_tokens
+        tokens,
+        groundedMoments: moments.length,
+        grounding: outcome,
       });
 
       return script;
