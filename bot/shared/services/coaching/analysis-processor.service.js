@@ -306,7 +306,8 @@ class AnalysisProcessorService {
       // with v6, whatever the switch says now. Unstamped sessions (every one while the switch is off) are unchanged.
       const stampedV6 = require('../observe/observe-fico17-v6').frameworkKeyForSession(session);
       if (stampedV6) {
-        framework = require('./frameworks/framework-registry').getFramework(stampedV6);
+        // Queue #184: in starred mode (app_settings.fico_v6_starred for the observer) the six are never sent.
+        framework = await require('../observe/observe-fico17-v6').v6FrameworkFor(session);
         frameworkKey = stampedV6;
         frameworkSelectionReason = 'coach_rubric_stamp';
       }
