@@ -31,8 +31,6 @@ export const TEACHER_COPY = {
     home: "Home",
     schedule: "Schedule",
     observe: "Observe",
-    /** bd-o15qnr.26 — the Observe item's word with the visit flow v2 switch on (Option A, operator 18 Nov): her observations. */
-    observations: "Observations",
     schools: "My schools",
     training: "Training Library",
     /** bd-4joiqz — the teacher Lesson Plans pages, read as a leader: the teachers' own word for them (nav.lessons). */
@@ -99,7 +97,6 @@ export const TEACHER_COPY_UR = {
     home: "ہوم",
     schedule: "شیڈول",
     observe: "مشاہدہ",
-    observations: "مشاہدات",
     schools: "میرے سکول",
     training: "ٹریننگ لائبریری",
     lessons: "لیسن پلان",

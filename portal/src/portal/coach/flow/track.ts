@@ -9,11 +9,12 @@ import { browserEnv, getApiBaseUrl } from "@/lib/runtime";
  *   schedule.cancel_confirm  she confirmed it in the tray
  *   schedule.start           Start recording on a Schedule row
  *   new_visit.level          a teaching-level chip on New visit (level: all / primary / middle / high)
- *   home.today_start         Start recording on the Home's Today card
+ *   home.today_start         Start recording on the Home's next-visit card
+ *   observe.start            Start an observation (Concept 1's big button on Observe)
  *
  * Fire-and-forget: it never throws, never waits, never decides anything.
  */
-export type FlowAction = "schedule.cancel_tap" | "schedule.cancel_confirm" | "schedule.start" | "new_visit.level" | "home.today_start";
+export type FlowAction = "schedule.cancel_tap" | "schedule.cancel_confirm" | "schedule.start" | "new_visit.level" | "home.today_start" | "observe.start";
 export type FlowLevel = "all" | "primary" | "middle" | "high";
 
 export function trackFlow(a: FlowAction, level?: FlowLevel): void {
