@@ -12,7 +12,7 @@ const { logToFile } = require('../../utils/logger');
 async function _loadOwn(sessionId, user) {
   const { data: s } = await supabase
     .from('coaching_sessions')
-    .select('id, status, created_at, updated_at, user_id, observer_user_id, analysis_data, transcript_text, conversation_state, audio_id')
+    .select('id, status, created_at, updated_at, user_id, observer_user_id, analysis_data, transcript_text, conversation_state, audio_id, framework')
     .eq('id', sessionId)
     .maybeSingle();
   if (!s || s.observer_user_id !== user.id) return null;

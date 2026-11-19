@@ -5,6 +5,7 @@ import { dataOf, useLoad } from '../../../newui/lessons/shared';
 import { teacherPath } from '../../routes';
 import { DockButton, StepBar } from '../../ui';
 import { useCopy } from '../../i18n';
+import { useToast } from '@/hooks/use-toast';
 import TeacherPage from '../../TeacherPage';
 import { LoadState } from '../LoadState';
 import { LESSONS } from '../copy';
@@ -13,7 +14,7 @@ import { OWN } from './copy';
 import {
   FOCI, LEVELS, RESOURCES, SIZES, isComplete, isSecondary, purposesFor, suggestWay, waysFor, type Resource, type Way,
 } from './rules';
-import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
+import { OWN_START, nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
 import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
 import { nextLesson } from './extend';
 import type { Refusal } from './change';
@@ -62,10 +63,11 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const goal = s.goal ?? null;
   const w = bandWords(C, s.grade);
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<Refusal | 'error' | null>(null);
-  const [lessons, retry] = useLoad(() => lessonPlans.lessons(s.grade, s.subject, s.chapter), `l:${s.grade}:${s.subject}:${s.chapter}`);
+  const [lessons, retry] = useLoad(s.chapter ? () => lessonPlans.lessons(s.grade, s.subject, s.chapter) : null, `l:${s.grade}:${s.subject}:${s.chapter}`);
   const all = dataOf(lessons) ?? [];
   const plans: PlanRow[] = all.filter(ownable).map((l) => ({ id: l.id, number: l.number, title: l.title, pages: l.pages ?? null, lane: l.lane === 'k5' ? 'k5' : 'g612' }));
   const k5 = plans.some((l) => l.lane === 'k5');
@@ -80,7 +82,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const atStart = (): PagesPick | null => (lesson ? checkBand(seg?.lane === 'k5', String((start ?? lesson).start), String((start ?? lesson).end), lesson, nextPages) : null);
   const [pickEdit, setPick] = useState<{ seg: string | null; pick: PagesPick | null } | null>(null);
   const pick = pickEdit && pickEdit.seg === s.seg ? pickEdit.pick : atStart();
-  const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
+  // bd-snkn32.58.1 — a goal start from Make my own's first screen has no chapter: its way back is that screen.
+  const chapterUrl = s.chapter ? lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter }) : OWN_START;
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
   const askMix = s.grade >= 9 && !!s.seg && !goal;
   const [slo] = useLoad(askMix ? () => fetchSloMix(s.seg as string) : null, `slo:${askMix ? s.seg : ''}`);
@@ -88,7 +91,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const purposeNow = s.purpose ?? 'new';
   const steps = stepsFor({ grade: s.grade, mixed: !!mix?.mixed, purpose: purposeNow, goal: !!goal });
   const back = prevStep(s.step, steps);
-  const toPages = ownUrl({ ...s, step: 'pages', goal: undefined, seg: null });
+  const toPages = s.chapter ? ownUrl({ ...s, step: 'pages', goal: undefined, seg: null }) : OWN_START;
   const n = steps.indexOf(s.step) + 1;
   const sizeNow = s.size ?? SIZES.find((x) => x === remembered()) ?? null;
   const suggestion = suggestWay({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: ['textbook', ...s.res], level: s.level, way: null, purpose: s.purpose });
@@ -118,8 +121,10 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     const r = await makeOwnPlan(seg, toAnswers(s, note, next612?.id ?? null));
     setBusy(false);
     if (!r || !('renderId' in r)) { setFailed(r && 'outcome' in r ? r.outcome : 'error'); return; }
+    if (r.noteDropped) toast({ title: G.noteDropped }); // bd-snkn32.58.2: a blocked word in her note
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: r.renderId, title: seg?.title ?? C.makeMyOwn,
+      ...(goal ? { check: 'goal' } : {}), // bd-snkn32.58.3: Preparing says it is checking against her goal
     }), { replace: true });
   }
 

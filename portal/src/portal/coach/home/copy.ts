@@ -22,8 +22,6 @@ export const COACH_HOME_EN = {
   tiles: {
     schedule: "Schedule",
     observe: "Observe",
-    /** bd-o15qnr.26 — the second tile with the visit flow v2 switch on: her observations (the menu's word). */
-    observations: "Observations",
     schools: "Schools & teachers",
     analytics: "Analytics",
   },
@@ -47,7 +45,6 @@ export const COACH_HOME_UR: Words<typeof COACH_HOME_EN> = {
   tiles: {
     schedule: "شیڈول",
     observe: "مشاہدہ",
-    observations: "مشاہدات",
     schools: "اسکول اور ٹیچرز",
     analytics: "تجزیہ",
   },

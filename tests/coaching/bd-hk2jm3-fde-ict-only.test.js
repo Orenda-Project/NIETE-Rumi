@@ -220,9 +220,11 @@ describe('the class question (asksClass): never for a GB visit, whatever obs612_
     await expect(Visit().asksClass(row(ICT_TESTER), { teacherUserId: T_GB_TEST })).resolves.toBe(true);
   });
 
-  test('the switch off is still off (the guard only ever takes FDE away)', async () => {
+  test('queue #191: an ICT coach is asked with no obs612_coach row at all (the switch is no gate for a coach)', async () => {
     mockSettings = {};
-    await expect(Visit().asksClass(row(ICT_COACH))).resolves.toBe(false);
+    await expect(Visit().asksClass(row(ICT_COACH))).resolves.toBe(true);
+    // ...and the guard still takes FDE away from a GB visit
+    await expect(Visit().asksClass(row(ICT_COACH), { teacherUserId: T_GB_MIDDLE })).resolves.toBe(false);
   });
 });
 
@@ -241,9 +243,9 @@ describe('HITL v6 (decideVisitFramework): a GB visit is v6 at every grade; ICT k
     await expect(O6().decideVisitFramework({ userId: ICT_COACH, region: 'Urban-I', teacherUserId: T_ICT_PRIMARY })).resolves.toBe('fico17_v6');
   });
 
-  test('the coach switch still decides: a GB coach not on fico_coach_rubric stays on today\'s V3', async () => {
+  test('queue #191: a GB coach not on fico_coach_rubric is v6 too (the switch is no gate for a coach)', async () => {
     mockSettings.fico_coach_rubric = JSON.stringify({ [`user:${ICT_COACH}`]: 'v6' });
-    await expect(O6().decideVisitFramework({ userId: GB_COACH, region: 'Gilgit-Baltistan', teacherUserId: T_GB_MIDDLE })).resolves.toBeNull();
+    await expect(O6().decideVisitFramework({ userId: GB_COACH, region: 'Gilgit-Baltistan', teacherUserId: T_GB_MIDDLE })).resolves.toBe('fico17_v6');
   });
 
   test('DC is untouched: fico_dc_rubric is a separate switch (V3 unless an account is named)', async () => {

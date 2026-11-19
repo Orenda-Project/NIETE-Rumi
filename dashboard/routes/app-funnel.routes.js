@@ -489,7 +489,8 @@ function createAppFunnelRouter({ limiter } = {}) {
   return router;
 }
 
-const COACH_FLOW_ACTIONS = ['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start'];
+// bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
+const COACH_FLOW_ACTIONS = ['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start'];
 const COACH_FLOW_LEVELS = ['all', 'primary', 'middle', 'high'];
 
 const COACH_TROUBLE_EVENTS = { tap: 'app_funnel.trouble_tap', error: 'app_funnel.page_error' };

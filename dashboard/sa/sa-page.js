@@ -122,21 +122,93 @@
   }
 
   /**
+   * Whether a task's item prompt is a clip: the child must hear the item to answer it. The letter-sound picker and the
+   * spoken MCQ (kind pick | mcq), the spoken questions (mode oral), a listening task, and any task whose items Jugnu
+   * says as they show (say | prompt | prompt_audio; a task that reads them only on its replay tile shows them instead).
+   * The listen-and-tap grids (letters, words, numbers: the item is said, the child taps it) are clip-prompted.
+   */
+  function clipPrompted(t) {
+    if (!t) return true;
+    if (t.kind === 'pick' || t.kind === 'mcq' || t.mode === 'oral' || /listen/.test(String(t.subtask || ''))) return true;
+    if (t.say_on === 'replay') return false;
+    return (t.items || []).some(function (it) { return !!(it && (it.say || it.prompt || it.prompt_audio)); });
+  }
+
+  /** A late 'none' may wait for the task's end only in a timed task whose items need no clip (the child sees them). */
+  function deferrable(t) { return !!(t && t.time_limit_s > 0) && !clipPrompted(t); }
+
+  /**
    * After the preparation: device_ready is logged; no clip and no phone voice → the screen refuses the start and the
    * coach page is told {type:'sa:refused', s, reason:'voice'}. With sa_voice_gate_v2 (battery.ui.voice_gate_v2) the
    * refusal offers Try again: ctx.again() prepares once more; a voice → the test starts, {type:'sa:unrefused', s}.
+   *
+   * The preparation is not awaited by the start, so the verdict can land inside a running timed task. There a 'none'
+   * never refuses (O-86 (c)): voice_late_none { task, ms into the task } is logged, the clock runs on untouched, the
+   * task's result carries voice_deferred: true, and the gate runs at that task's task_end (voice_deferred_end { task, ms,
+   * by } just before the refusal: by 'task_end', or the phase that ended the task), so the refusal falls between
+   * tasks, before anything of the next one. Only a timed task whose items need no clip defers (deferrable); before any
+   * task, between tasks, in an untimed task or a clip-prompted one the refusal is at once. A task left without its end
+   * (the page hidden: a timed task runs again from its start) is gated then, before it runs again.
    */
   function voiceGate(engine, offline, ctx) {
     function readyOf(o) {
       return {
         ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
         clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
+        // how the preparation went on this phone (sa-offline.js): its ms, bytes, the first clip stage that stalled, clips missing
+        prep_ms: o.prep_ms != null ? o.prep_ms : null, prep_bytes: o.prep_bytes != null ? o.prep_bytes : null,
+        prep_gaveup_stage: o.prep_gaveup_stage || null, prep_missing: o.prep_missing != null ? o.prep_missing : null,
       };
+    }
+    /** The timed task under way when the verdict lands, if the gate may wait for its end; else null. */
+    function running() {
+      if (typeof engine.on !== 'function' || !engine.runner.view) return null;
+      var v = engine.runner.view();
+      if (!v || (v.phase !== 'running' && v.phase !== 'last_word') || !deferrable(v.task)) return null;
+      return v;
+    }
+    function waitForEnd(v) {
+      var id = v.task.id;
+      var ms = Math.max(0, Math.round(v.task.time_limit_s * 1000 - (v.time_left_ms || 0)));
+      engine.runner.log('voice_late_none', { task_id: id, value: { task: id, ms: ms } });
+      var pending = true;
+      function done() {
+        if (!pending) return false;
+        pending = false;
+        engine.off('task_end', onEnd);
+        engine.off('state', onState);
+        return true;
+      }
+      // how the deferral ended, on the task, immediately before the refusal: by 'task_end', or the phase that ended it
+      // (silence_reminder: a silent attempt under sa_silence_repeat is no result, and with no voice the reminder can't play)
+      function ended(by, used) {
+        var w = engine.runner.view();
+        var left = w && w.task && w.task.id === id ? (w.time_left_ms || 0) : 0;
+        var at = used != null ? used : Math.max(0, Math.round(v.task.time_limit_s * 1000 - left));
+        engine.runner.log('voice_deferred_end', { task_id: id, value: { task: id, ms: at, by: by } });
+        refuse();
+      }
+      // task_end fires inside the runner's finish, before any screen of the task's end or of the next task is drawn
+      function onEnd(e) {
+        if (e && e.task_id === id && e.value) e.value.voice_deferred = true;
+        if (done()) ended('task_end', e && e.task_id === id && e.value ? e.value.time_used_ms : null);
+      }
+      function onState(s) {
+        if (s && (s.phase === 'running' || s.phase === 'last_word') && s.task && s.task.id === id) return;
+        if (done()) ended((s && s.phase) || null, null);
+      }
+      engine.on('task_end', onEnd);
+      engine.on('state', onState);
     }
     return offline.then(function (o) {
       engine.runner.log('device_ready', { value: readyOf(o) });
       // No clip and no phone voice for this language: Jugnu would be silent, so the test does not start.
       if (o.voice !== 'none' || !engine.view || !engine.view.refuse) return;
+      var under = running();
+      if (under) { waitForEnd(under); return; }
+      refuse();
+    });
+    function refuse() {
       engine.runner.log('voice_not_ready');
       var gate2 = !!(ctx.battery && ctx.battery.ui && ctx.battery.ui.voice_gate_v2 === true) && typeof ctx.again === 'function';
       var retry = gate2 ? function () {
@@ -151,7 +223,7 @@
       } : null;
       if (retry) engine.view.refuse('voice', { retry: retry }); else engine.view.refuse('voice');
       tell(ctx, { type: 'sa:refused', s: engine.session_id, reason: 'voice' });
-    });
+    }
   }
 
   /** FNV-1a of a string: the same session always gets the same number. Math.imul keeps the product's low bits
@@ -427,5 +499,5 @@
     });
   }
 
-  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
+  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, deferrable: deferrable, clipPrompted: clipPrompted, lockDown: lockDown, drain: drain, boot: boot };
 }));

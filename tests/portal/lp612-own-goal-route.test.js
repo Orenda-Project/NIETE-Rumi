@@ -73,10 +73,11 @@ test('her grade and subject\'s outcomes, in book order, each naming its lesson',
 
 test('a typed topic: the closest lesson, or null', async () => {
   await start();
+  // bd-snkn32.58.2 — the answer now also carries the guard's status and suggestions (below)
   expect((await get('/api/portal/lp612/own/goals/match?grade=7&subject=General%20Science&q=rain%20and%20water')).body)
-    .toEqual({ success: true, match: { segmentId: 'grade_7_general_science.c03.p020', title: 'Describe the water cycle' } });
+    .toEqual(expect.objectContaining({ success: true, match: { segmentId: 'grade_7_general_science.c03.p020', title: 'Describe the water cycle' } }));
   expect((await get('/api/portal/lp612/own/goals/match?grade=7&subject=General%20Science&q=volcanoes')).body)
-    .toEqual({ success: true, match: null });
+    .toEqual(expect.objectContaining({ success: true, match: null }));
 });
 
 test('bad grade, a grade off 1-12 or no subject: 400', async () => {
@@ -110,4 +111,43 @@ test('bd-snkn32.57 — grades 1-5 too: the official outcomes, each naming its da
 test('someone not on the list: 404', async () => {
   await start('u2');
   expect((await get('/api/portal/lp612/own/goals?grade=7&subject=English')).status).toBe(404);
+});
+
+/**
+ * bd-snkn32.58.2 (queue #155 B) — a typed topic goes through the guard (lp-own-goal-guard): up to 3 "Did you mean"
+ * goals of her grade, a nearby grade's goal when it fits clearly better, or a refusal (blocked word / off the curriculum).
+ */
+describe('the typed-topic guard', () => {
+  const G3 = [{ segment_id: 'd2', chapter_title: 'Times', slo_descriptions: ['Multiply 2 digit numbers by 1 digit number.'] }];
+  const G4 = [{ segment_id: 'e1', chapter_title: 'Decimals', slo_descriptions: ['Read and write decimal numbers and their place value.'] }];
+  beforeEach(() => {
+    jest.doMock('../../bot/shared/services/lp612-own-goal.store', () => ({
+      goalStartOn: async () => true,
+      goalRows: async (_s, q) => { rowsAsked.push(q); return q.grade === 3 ? G3 : q.grade === 4 ? G4 : []; },
+    }));
+  });
+
+  test('a misspelling: did you mean, from her grade', async () => {
+    await start();
+    const r = (await get('/api/portal/lp612/own/goals/match?grade=3&subject=math&q=multiplcation%20by%202')).body;
+    expect(r.status).toBe('ok');
+    expect(r.suggestions).toEqual([{ segmentId: 'd2', text: 'Multiply 2 digit numbers by 1 digit number.', chapter: 'Times' }]);
+    expect(r.match).toEqual({ segmentId: 'd2', title: 'Multiply 2 digit numbers by 1 digit number.' });
+  });
+
+  test('nearby grades are read (±2, inside grades 1–5) and a clearly better one is named', async () => {
+    await start();
+    const r = (await get('/api/portal/lp612/own/goals/match?grade=3&subject=math&q=decimal%20place%20value')).body;
+    expect(rowsAsked.map((x) => x.grade).sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(r.otherGrade).toEqual(expect.objectContaining({ grade: 4, segmentId: 'e1' }));
+    expect(r.match).toBeNull();
+  });
+
+  test('a blocked word or a topic off the curriculum: refused, no match', async () => {
+    await start();
+    expect((await get('/api/portal/lp612/own/goals/match?grade=3&subject=math&q=guns')).body)
+      .toEqual(expect.objectContaining({ status: 'blocked', suggestions: [], match: null }));
+    expect((await get('/api/portal/lp612/own/goals/match?grade=3&subject=math&q=cricket%20world%20cup')).body)
+      .toEqual(expect.objectContaining({ status: 'none', suggestions: [], match: null }));
+  });
 });

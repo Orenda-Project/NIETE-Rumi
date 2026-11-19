@@ -8,7 +8,7 @@ import { teacherPath } from "./routes";
 import { FeatureGlyph, type GlyphName } from "./icons";
 import { AuthContext } from "../hooks/authContext";
 import { useHomeLook } from "./home/useHomeData";
-import { COACH_CARD_FULL_NAV_KEYS, COACH_CARD_NAV_KEYS, COACH_NAV_KEYS, coachMenuPath, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, currentPrincipalMenuItem, PRINCIPAL_NAV_FEATURE, PRINCIPAL_NAV_KEYS, type CoachNavKey, type NavFeature, type PrincipalNavKey } from "./menu";
+import { COACH_CARD_FLOW_NAV_KEYS, COACH_CARD_FULL_NAV_KEYS, COACH_CARD_NAV_KEYS, COACH_NAV_KEYS, coachMenuPath, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, currentPrincipalMenuItem, PRINCIPAL_NAV_FEATURE, PRINCIPAL_NAV_KEYS, type CoachNavKey, type NavFeature, type PrincipalNavKey } from "./menu";
 import { usePrincipalApp } from "./principal/usePrincipalApp";
 
 /**
@@ -66,8 +66,8 @@ const LOOK_ITEM =
  * `ready` (coach only): the features that are ready, others are left out (bd-s42dye.2). `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same.
  * `schoolCard` (coach only): the School card's menu, Home · Lesson Plans · More, with Home current on the pages it opens.
  * `fullApp` (coach only, bd-jjcofw): with the School card, Home · Schedule · Observe · Lesson Plans · More.
- * `flowV2` (coach only, bd-o15qnr.26): the visit flow v2 switch: Schedule opens the one list, Observe is "Observations"
- * and opens My observations, and a visit's steps keep Schedule current.
+ * `flowV2` (coach only, bd-o15qnr.26, Concept 1): the visit flow v2 switch: one Observe entry (no Schedule item) opens the
+ * one Observe screen and stays current on every visit, booking and observation page.
  */
 const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false, fullApp = false, flowV2 = false }: { role?: MenuRole; ready?: readonly string[]; schoolCard?: boolean; fullApp?: boolean; flowV2?: boolean } = {}) => {
   const C = useCopy(TEACHER_FRAME);
@@ -77,7 +77,9 @@ const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false, fullAp
   // does not name) is answered at once with no read, so their bar is exactly today's; a coach's menu never asks.
   const principal = usePrincipalApp(role === "teacher" ? authUser : null);
   const items: { feature: string; label: string; to: string; glyph: GlyphName }[] = role === "coach"
-    ? (schoolCard ? (fullApp ? COACH_CARD_FULL_NAV_KEYS : COACH_CARD_NAV_KEYS) : ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: flowV2 && k === "observe" ? C.coachNav.observations : C.coachNav[k], to: coachMenuPath(k, flowV2), glyph: COACH_ICONS[k] }))
+    ? (schoolCard ? (fullApp ? (flowV2 ? COACH_CARD_FLOW_NAV_KEYS : COACH_CARD_FULL_NAV_KEYS) : COACH_CARD_NAV_KEYS) : ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS)
+      .filter((k) => !flowV2 || k !== "schedule")
+      .map((k) => ({ feature: k, label: C.coachNav[k], to: coachMenuPath(k, flowV2), glyph: COACH_ICONS[k] }))
     : principal
       ? PRINCIPAL_NAV_KEYS.map((k) => ({ feature: k, label: k === "observe" ? C.coachNav.observe : C.nav[k], to: teacherPath(PRINCIPAL_NAV_FEATURE[k]), glyph: PRINCIPAL_ICONS[k] }))
       : ITEMS.map((f) => ({ feature: f, label: C.nav[f], to: teacherPath(f), glyph: NAV_ICONS[f] }));

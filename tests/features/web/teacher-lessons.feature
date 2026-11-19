@@ -486,3 +486,71 @@ Feature: Teacher lesson plans
     When she selects one and answers the rest of the steps and taps Make my plan
     Then her answers carry her goal and the day under it, with no textbook and no book pages
     And the Preparing page opens on her plan's id
+
+  # bd-snkn32.58.1, queue #155 A (Amena 19 Nov: "wrong flow, From textbook chapter OR Start from a learning goal").
+  # Same LIST-ONLY switch. Component proof: OwnTwoStarts.test.tsx, GoalStep.test.tsx; server: tests/lp612/own-goal-skills.test.js.
+  @GOAL05 @draft @config-gated
+  Scenario: Make my own opens on two equal starts, and the goal start needs no chapter
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she taps "Make my own" on the Lesson Plans main page
+    Then she sees two equal cards "From a textbook chapter" and "From a learning goal", and no class picker yet
+    When she taps "From a learning goal" and selects Grade 3 Maths
+    Then the learning goal step opens for Grade 3 Maths with no chapter screen in between
+
+  @GOAL06 @draft @config-gated
+  Scenario: Grades 1–5 learning goals are skill-sized and grouped by skill
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths
+    Then she sees skill groups such as "Multiplying and dividing", each with its number of goals
+    When she taps "Multiplying and dividing"
+    Then she sees one goal per official outcome, such as "Multiply 2 digit numbers by 1 digit number mentally and in written form."
+    And no "[DERIVED" page note is listed as a goal
+    When she types "multiply" in "Search goals"
+    Then only goals with that word are listed
+
+  @GOAL07 @draft @config-gated @negative
+  Scenario: With the goal switch off, Make my own's first screen is unchanged
+    Given the teacher app v2 and "portal_lp_make_own" are on for her, but she is not on "portal_lp_own_goal_start"
+    When she taps "Make my own" on the Lesson Plans main page
+    Then she sees Grade and subject, as before, with no "From a learning goal" card
+
+  # bd-snkn32.58.2, queue #155 B — guardrails for a typed topic. Component proof: GoalStep.test.tsx, OwnPage.goal.test.tsx;
+  # server: tests/lp612/own-goal-guard.test.js, own-goal-note-guard.test.js, tests/portal/lp612-own-goal-route.test.js.
+  @GOAL08 @draft @config-gated
+  Scenario: A misspelt or Roman Urdu topic offers "Did you mean" goals, and nothing is picked until she taps one
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "multiplcation by 2" and taps Find
+    Then she sees "Did you mean" with up to 3 of her grade's goals, the first about multiplying a 2-digit number
+    And OK stays disabled until she selects one
+    When she types "jama 2 hindsay" and taps Find
+    Then the first suggestion is about adding numbers
+
+  @GOAL09 @draft @config-gated
+  Scenario: A goal of another grade is named
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "add unlike fractions" and taps Find
+    Then she sees "This is a Grade 4 goal" with "Use it anyway" and "See my grade’s goals"
+
+  @GOAL10 @draft @config-gated @negative
+  Scenario: A topic off the curriculum, or with a blocked word, is refused
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "cricket world cup" and taps Find
+    Then she sees "Not found in your grade’s lessons. Try other words, or select a learning goal." and nothing is picked
+    When she types a blocked word and taps Find
+    Then she sees "This is not a school topic. Select a learning goal." and nothing is picked
+
+  # bd-snkn32.58.3, queue #155 C — a goal plan is checked (facts + goal) before it is shown; one fix, then refused.
+  # Component proof: PreparingPage.goal.test.tsx; worker: tests/lp612/own-goal-check.test.js (seeded wrong fact fixed / refused).
+  @GOAL11 @draft @config-gated
+  Scenario: A goal plan says it is being checked, and opens with her goal at the top
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she makes a plan from a Grade 3 Maths learning goal
+    Then the Preparing page says "Checking it matches your goal…"
+    And when it is ready the plan opens with her official goal at the top
+
+  @GOAL12 @draft @config-gated @negative
+  Scenario: A goal plan the check refuses shows a calm refusal, not Try again
+    Given a goal plan whose check found problems the one fix did not clear
+    When the Preparing page learns it failed with OWN_GOAL_UNSURE
+    Then she sees "We could not make a plan we are sure of for this goal." with "Select another goal" and "From a textbook chapter"
+    And there is no "Try again"
