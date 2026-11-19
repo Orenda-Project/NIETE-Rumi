@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import PortalLayout from "../components/PortalLayout";
 import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
@@ -58,6 +58,11 @@ export default function TeacherPage({
   children: ReactNode;
 }) {
   const C = useCopy(TEACHER_FRAME);
+  // bd-2q8l2u — a new page opens at its top: the window's scroll otherwise carries over from the last screen (the
+  // chapter list opened part-way down, chapters 1–3 above the screen). A layout effect, so a child's own scroll
+  // (PagesStep's scrollIntoView) still wins; only the path counts, so a ?step= change inside one page keeps her place.
+  const { pathname } = useLocation();
+  useLayoutEffect(() => { try { window.scrollTo(0, 0); } catch { /* no window to scroll */ } }, [pathname]);
   // bd-fmf24g.62: an English lesson title or crumb on an Urdu page is its own LTR paragraph (src/lib/textDir.ts).
   const ltrOf = useLatinAttrs();
   const circle = (
