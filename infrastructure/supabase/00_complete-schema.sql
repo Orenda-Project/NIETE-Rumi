@@ -4288,7 +4288,7 @@ CREATE OR REPLACE FUNCTION public.teacher_activity_batch(p_user_ids uuid[])
          jsonb_build_object(
            'plans_opened', jsonb_build_object('now', plans.now_n, 'prev', plans.prev_n),
            'taught', jsonb_build_object('now', taught.now_n, 'prev', taught.prev_n),
-           'coached', jsonb_build_object('now', coached.now_n, 'prev', coached.prev_n),
+           'coached', jsonb_build_object('now', listed.now_n, 'prev', listed.prev_n),
            'quizzes', jsonb_build_object('now', quizzes.now_n, 'prev', quizzes.prev_n),
            'exams', jsonb_build_object('now', exams.now_n, 'prev', exams.prev_n)),
          coalesce(steps.list, '[]'::jsonb),
@@ -4347,6 +4347,17 @@ CREATE OR REPLACE FUNCTION public.teacher_activity_batch(p_user_ids uuid[])
         FROM coaching_sessions c
        WHERE c.user_id = t.uid AND c.status = 'completed' AND c.observation_type IS NULL AND c.completed_at >= w.prev_from
     ) coached ON true
+    -- the Coached tile counts what the list it opens shows ("All DC observations", teacher-coaching.service
+    -- HISTORY_SQL): every lesson she sent that was not stopped, by created_at (bd-96f69c.11). Steps above keep the
+    -- completed rule.
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE c.created_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE c.created_at < w.now_from) AS prev_n
+        FROM coaching_sessions c
+       WHERE c.user_id = t.uid AND c.observation_type IS NULL AND c.created_at >= w.prev_from
+         AND (c.status NOT IN ('failed', 'cancelled', 'abandoned') OR (c.status = 'cancelled' AND c.failed_step = 'not_a_class_no_answer'))
+         AND c.status NOT IN ('initiated', 'pending')
+    ) listed ON true
     LEFT JOIN LATERAL (
       SELECT count(*) FILTER (WHERE q.created_at >= w.now_from) AS now_n,
              count(*) FILTER (WHERE q.created_at < w.now_from) AS prev_n,
