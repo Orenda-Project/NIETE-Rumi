@@ -78,3 +78,17 @@ test('the fresh-install schema and the mock-lane baseline declare both', () => {
     expect(OBJECTS).toContain(`fn:${f}`);
   }
 });
+
+// bd-96f69c.12: users.merged_into exists on prod's dump but not in the schema of record or on staging, so V1.10.5
+// failed there ("column u.merged_into does not exist"). deleted_at is THE gone-predicate (V1.4.6); every users column
+// the functions read must be one the schema of record's CREATE TABLE users has.
+test('every users column it reads is in the schema of record', () => {
+  const raw = fs.readFileSync(path.join(ROOT, 'infrastructure/supabase/00_complete-schema.sql'), 'utf8');
+  const start = raw.search(/CREATE TABLE IF NOT EXISTS users \(/);
+  const table = raw.slice(start, raw.indexOf('\n);', start));
+  const cols = new Set([...table.matchAll(/^\s+([a-z_]+)\s/gm)].map((m) => m[1]));
+  const altered = [...raw.matchAll(/ALTER TABLE (?:public\.)?users\s+ADD COLUMN(?: IF NOT EXISTS)? ([a-z_]+)/gi)].map((m) => m[1]);
+  altered.forEach((c) => cols.add(c));
+  const used = [...new Set([...UP.matchAll(/\bu\.([a-z_]+)/g)].map((m) => m[1]))];
+  expect(used.filter((c) => !cols.has(c))).toEqual([]);
+});

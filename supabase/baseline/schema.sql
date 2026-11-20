@@ -2541,7 +2541,7 @@ CREATE FUNCTION public.teacher_activity_teachers() RETURNS jsonb
            'level', to_jsonb(u.teacher_level), 'grades', u.grades_taught) ORDER BY u.id), '[]'::jsonb)
     FROM users u
     LEFT JOIN schools s ON s.id = u.school_id
-   WHERE u.role = 'teacher' AND u.deleted_at IS NULL AND u.merged_into IS NULL
+   WHERE u.role = 'teacher' AND u.deleted_at IS NULL
      AND (u.last_message_at >= now() - interval '60 days'
        OR u.portal_last_login >= now() - interval '60 days'
        OR EXISTS (SELECT 1 FROM niete_lp_opens o WHERE o.user_id = u.id AND o.opened_at >= now() - interval '60 days'))
