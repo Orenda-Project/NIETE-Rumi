@@ -30,7 +30,7 @@ function loadRoutes() {
     generatePresignedUrl: jest.fn(), generatePresignedUrls: jest.fn(), isValidR2Url: jest.fn(),
   }));
   jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
-  jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, n) => n()), { virtual: true });
+  jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, n) => n()));
   jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
   jest.doMock('../../dashboard/services/observe-notice.service', () => ({ notifyTeacher: announce }));
   jest.doMock('../../dashboard/services/leader-schedule-write.service', () => ({
@@ -157,7 +157,7 @@ describe('GET /config — principalFlowV2 (bd-o15qnr.27: principals on the porta
     jest.doMock('../../dashboard/services/portal-coaching.client', () => ({}));
     jest.doMock('../../dashboard/services/r2.service', () => ({ generatePresignedUrl: jest.fn(), generatePresignedUrls: jest.fn(), isValidR2Url: jest.fn() }));
     jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
-    jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, n) => n()), { virtual: true });
+    jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, n) => n()));
     jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
   });
   afterEach(() => { jest.restoreAllMocks(); jest.resetModules(); });
