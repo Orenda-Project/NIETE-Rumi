@@ -4,11 +4,14 @@
  * slackbot/mcp_client.py. The MCP is the ONLY data path here — the governance gate, the serving
  * policy, the cost guard and the audit log all live behind it.
  *
- * Every request says where it comes from (`x-taleemabad-surface: whatsapp`) and, when known, who is
- * asking (`x-taleemabad-user`), so their audit trail shows each WhatsApp call as that person's. A
- * Bearer token is sent only when DATA_MCP_TOKEN is set: their server runs permissive auth today, and
- * strict mode would need their TALEEMABAD_API_TOKEN here.
+ * Every request says where it comes from (their surface header: `whatsapp`) and, when known, who is
+ * asking (their user header), so their audit trail shows each WhatsApp call as that person's. The two
+ * header names are theirs, read from the vendored contract. A Bearer token is sent only when
+ * DATA_MCP_TOKEN is set: their server runs permissive auth today, and strict mode would need their API
+ * token here.
  */
+
+const { mcp_headers: HEADERS } = require('./vendor/data-mcp-contract.json');
 
 const ACCEPT = 'application/json, text/event-stream';
 const SURFACE = 'whatsapp';
@@ -45,9 +48,9 @@ class McpClient {
   }
 
   headers() {
-    const h = { 'Content-Type': 'application/json', Accept: ACCEPT, 'x-taleemabad-surface': this.surface };
+    const h = { 'Content-Type': 'application/json', Accept: ACCEPT, [HEADERS.surface]: this.surface };
     if (this.token) h.Authorization = `Bearer ${this.token}`;
-    if (this.userEmail) h['x-taleemabad-user'] = this.userEmail;
+    if (this.userEmail) h[HEADERS.user] = this.userEmail;
     return h;
   }
 

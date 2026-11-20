@@ -228,6 +228,11 @@
   "bot_token": "Unauthorized: missing or invalid Bearer token.",
   "email_domain": "Unauthorized domain in email"
  },
+ "mcp_headers": {
+  "surface": "x-taleemabad-surface",
+  "user": "x-taleemabad-user"
+ },
+ "identifiers_note": "contains personal identifiers ({columns}) — internal use only, do not share outside Taleemabad",
  "shared_tables": [
   "leader_roster_audit",
   "school_programme",

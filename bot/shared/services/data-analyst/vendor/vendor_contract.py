@@ -9,6 +9,7 @@ sys.path.insert(0, str(repo / "src"))
 from taleemabad_data_mcp.slackbot import tools as T
 from taleemabad_data_mcp.slackbot import prompt as P
 from taleemabad_data_mcp.slackbot import brain as B
+from taleemabad_data_mcp.engine.serving_policy import identifiers_note
 from taleemabad_data_mcp.ontology.loader import get_program
 from taleemabad_data_mcp.ontology.resolve import COMPILED_PROGRAMS
 
@@ -23,6 +24,13 @@ def compiled_tables():
             own = tables - T._SHARED_TABLES - {T._SCHEMA_VIEWS}
             out[metric.name] = sorted(set(out.get(metric.name, [])) | own)
     return out
+
+# Their client's two request headers, read from its source (the names carry the org's name, which NIETE's own
+# code may not: tests/unit/sprint-1/taleemabad-strip.test.js).
+_client_src = (repo / "src/taleemabad_data_mcp/slackbot/mcp_client.py").read_text()
+headers = sorted(set(__import__("re").findall(r'"(x-[a-z]+-(?:surface|user))"', _client_src)))
+mcp_headers = {h.rsplit("-", 1)[1]: h for h in headers}
+assert set(mcp_headers) == {"surface", "user"}, mcp_headers
 
 version = (repo / "pyproject.toml").read_text().split('version = "', 1)[1].split('"', 1)[0]
 commit = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -44,6 +52,9 @@ print(json.dumps({
               "_TIME_CAP_NOTE", "_WRAP_UP_PROMPT", "_WRAP_UP_PROMPT_TIME", "_NOT_RUN", "_NOT_RUN_TIME", "_WRAP_UP_ACK"]},
     "auth_prefixes": {"misconfigured": T._MCP_MISCONFIGURED_PREFIX, "bot_token": T._BOT_TOKEN_INVALID_TEXT,
                       "email_domain": T._EMAIL_DOMAIN_REJECTED_PREFIX},
+    "mcp_headers": mcp_headers,
+    # The "this contains real people" sentence, as their formatting writes it once per answer.
+    "identifiers_note": identifiers_note(["{columns}"]),
     "shared_tables": sorted(T._SHARED_TABLES),
     "compiled_programs": list(COMPILED_PROGRAMS),
     "compiled_tables": compiled_tables(),
