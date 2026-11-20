@@ -159,3 +159,33 @@ describe('renderAnswer', () => {
     for (const m of out.messages) expect(m.length).toBeLessThanOrEqual(4096);
   });
 });
+
+describe('composeReply (round 2: a chart and one or two lines, or text, never numbered replies)', () => {
+  const calls = [rules(), metric({ metric: 'lp_users', from_date: '2026-11-07', to_date: '2026-11-13' }, { notes: ['November is not over yet.'] })];
+  test('with a chart: the headline and one more line, the disclosures, the footer; under 1,024', () => {
+    const r = F.composeReply({ text: '**1,816 teachers** got a plan.\nUp from 1,700.\n\n• bullet one\n• bullet two\n\nNEXT: [analyze] a | [detect] b', calls, hasChart: true });
+    expect(r.caption).toBe('*1,816 teachers* got a plan.\nUp from 1,700.\n\nNovember is not over yet.\n\n_NIETE data · 7–13 Nov 2026 · rules v0.42.5_');
+    expect(r.asks).toEqual([]);
+  });
+  test('without a chart: the whole answer, bullets and all', () => {
+    const r = F.composeReply({ text: '*1,816* got a plan.\n\n• a\n• b', calls, hasChart: false });
+    expect(r.caption).toContain('• a\n• b');
+  });
+  test('an answer too long for one bubble is split: the text first, a short body for the buttons', () => {
+    const long = `Headline.\n\n${'word '.repeat(400)}`;
+    const r = F.composeReply({ text: long, calls, hasChart: false });
+    expect(r.caption.length).toBeLessThanOrEqual(1024);
+    expect(r.before.length).toBeGreaterThan(0);
+  });
+  test('a clarifying question: its options, no chart caption needed', () => {
+    const r = F.composeReply({ text: '"Active" can mean two things.\nASK: Which active? | Used the assistant | Made a lesson plan', calls: [rules()], hasChart: false });
+    expect(r.asks).toEqual([{ question: 'Which active?', options: ['Used the assistant', 'Made a lesson plan'] }]);
+    expect(r.caption).toBe('"Active" can mean two things.');
+  });
+});
+
+test('beside a chart, a list label ("By sector:") is not one of the two lines', () => {
+  const calls = [rules(), metric({ metric: 'lp_users', from_date: '2026-11-14', to_date: '2026-11-20' }, {})];
+  const r = F.composeReply({ text: '1,989 of 6,354 teachers got a plan.\n\nBy sector:\n• Urban-I 485 • B.K 468\n\nUrban-I and B.K lead.', calls, hasChart: true });
+  expect(r.caption.split('\n\n')[0]).toBe('1,989 of 6,354 teachers got a plan.\nUrban-I and B.K lead.');
+});

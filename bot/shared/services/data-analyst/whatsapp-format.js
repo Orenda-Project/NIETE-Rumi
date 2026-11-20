@@ -340,4 +340,31 @@ function renderAnswer({ text, calls = [], stoppedEarly = false, knownText = '', 
   return { messages: chunk(sections.join('\n\n')), choices, body };
 }
 
-module.exports = { splitNext, splitAsks, toWhatsApp, disclosures, footer, renderAnswer, chunk, queryDates };
+const MAX_BODY = 1024; // an interactive message's body (buttons, image header) refuses anything longer
+const NEXT_STEP = 'Ask another question, or go back to the main menu.';
+
+/**
+ * Round 2 (the operator, 21 Nov): one answer bubble with buttons. With a chart, its caption is the headline and
+ * at most one more line (the chart carries the breakdown), then the disclosures and the footer; without one, the
+ * whole answer. Anything longer than one bubble goes first as plain text, and the buttons get a short line.
+ * A clarifying question returns its options for the caller to offer as taps.
+ * @returns {{caption: string, before: string[], asks: object[], body: string}}
+ */
+function composeReply({ text, calls = [], stoppedEarly = false, knownText = '', hasChart = false }) {
+  const { body: withoutAsks, asks } = splitAsks(text);
+  const { body: raw } = splitNext(withoutAsks);
+  const known = new Set([...urlsInResults(calls), ...urlsIn(knownText)]);
+  const body = toWhatsApp(raw, known);
+  if (asks.length) return { caption: body.slice(0, MAX_BODY), before: [], asks, body };
+  // Beside a chart: the headline and one more line, never a bullet (the chart is the breakdown).
+  const shown = hasChart ? body.split('\n').filter((l) => l.trim() && !/^\s*(?:[•·\-–]|\d+[.)])\s/.test(l) && !/:\s*$/.test(l)).slice(0, 2).join('\n') : body;
+  const head = [stoppedEarly ? INCOMPLETE : '', shown].filter(Boolean);
+  const notes = disclosures(calls);
+  const foot = footer(calls);
+  const all = [...head, notes.length ? notes.join('\n') : '', foot].filter(Boolean).join('\n\n');
+  if (all.length <= MAX_BODY) return { caption: all, before: [], asks: [], body };
+  const lead = [...head, notes.length ? notes.join('\n') : ''].filter(Boolean).join('\n\n');
+  return { caption: (foot ? `${foot}\n\n${NEXT_STEP}` : NEXT_STEP).slice(0, MAX_BODY), before: chunk(lead), asks: [], body };
+}
+
+module.exports = { splitNext, splitAsks, toWhatsApp, disclosures, footer, renderAnswer, composeReply, chunk, queryDates };
