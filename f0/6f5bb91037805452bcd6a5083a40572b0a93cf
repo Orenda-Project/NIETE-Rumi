@@ -4,3 +4,5 @@
 {"ts":"2026-11-18T00:52:36Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"f06f5bb91037","branch":"bd-zrdvmi.15-partA","user":""}
 {"ts":"2026-11-19T01:10:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"f06f5bb91037","branch":"bd-zrdvmi.15-partA","user":""}
 {"ts":"2026-11-19T01:10:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"f06f5bb91037","branch":"bd-zrdvmi.15-partA","user":""}
+{"ts":"2026-11-20T01:47:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"f06f5bb91037","branch":"bd-zrdvmi.15-partA","user":""}
+{"ts":"2026-11-20T01:47:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"f06f5bb91037","branch":"bd-zrdvmi.15-partA","user":""}
