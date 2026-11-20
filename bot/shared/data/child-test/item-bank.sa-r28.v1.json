@@ -10,7 +10,11 @@
   "tangerine_gh_sa": "Tangerine SA-EGRMA Ghana form definitions (letters form: letter sounds; numbers form: number ID)",
   "jordan_egma_2021": "Jordan Ministry of Education, EGMA 2021 Stimulus Sheets (RTI SharEd, PDF 11 May 2022), page A: Task 1 number identification, the child-facing grid (the 2021 Assessor Protocol p.1 prints a different, all 1-2 digit grid; the stimulus page is used)",
   "egra_tk2016": "RTI EGRA Toolkit, 2nd edition (2016): the assessor rule that a regional or dialectal pronunciation of the word is correct",
-  "pk_english": "Mahboob & Ahmar (2004), \"Pakistani English: phonology\", in Schneider et al. (eds), A Handbook of Varieties of English, vol. 1; Rahman (1990), Pakistani English (the vowel and consonant patterns behind each accepted form)"
+  "pk_english": "Mahboob & Ahmar (2004), \"Pakistani English: phonology\", in Schneider et al. (eds), A Handbook of Varieties of English, vol. 1; Rahman (1990), Pakistani English (the vowel and consonant patterns behind each accepted form)",
+  "jordan_egma_2021_protocol": "Jordan Ministry of Education, EGMA 2021 Assessor Protocol (RTI SharEd, PDF 11 May 2022), p.1: Task 1 number identification, the assessor grid (read left to right, line by line, as the protocol instructs)",
+  "malawi_egma2010": "Malawi Early Grade Mathematics Assessment (EGMA): National Baseline Report 2010 (MTPDS for USAID/Malawi, October 2011), Annex A Student Stimuli Booklet, Sheets 2(1)-2(2): number identification",
+  "zambia_nas2014": "Zambia Grade 2 National Assessment Survey 2014: Preliminary Mathematics Findings (RTI International), p.13: number identification items (the grid as printed)",
+  "morocco_egma2012": "Morocco EdData II: Student Performance in Reading and Mathematics, Pedagogic Practice, and School Management (RTI International, final report with instruments, 26 Apr 2012), Annex B EGMA Task 1, sheet 1M, grades 2-3, printed p.76 (read left to right, line by line, as the form instructs)"
  },
  "letter_pick": {
   "ur": {
@@ -2587,6 +2591,186 @@
      "grades": [
       4,
       5
+     ]
+    },
+    {
+     "id": "c43",
+     "item": "21",
+     "src": "jordan_egma_2021_protocol:p.1, cell 5",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c44",
+     "item": "18",
+     "src": "jordan_egma_2021_protocol:p.1, cell 7",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c45",
+     "item": "17",
+     "src": "jordan_egma_2021_protocol:p.1, cell 10",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c46",
+     "item": "66",
+     "src": "jordan_egma_2021_protocol:p.1, cell 16",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c47",
+     "item": "72",
+     "src": "jordan_egma_2021_protocol:p.1, cell 18",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c48",
+     "item": "26",
+     "src": "jordan_egma_2021_protocol:p.1, cell 20",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c49",
+     "item": "13",
+     "src": "malawi_egma2010:p.A-5, Sheet 2(1), cell 3",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c50",
+     "item": "97",
+     "src": "malawi_egma2010:p.A-6, Sheet 2(2), cell 6",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c51",
+     "item": "234",
+     "src": "malawi_egma2010:p.A-6, Sheet 2(2), cell 8",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c52",
+     "item": "468",
+     "src": "malawi_egma2010:p.A-6, Sheet 2(2), cell 9",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c53",
+     "item": "16",
+     "src": "zambia_nas2014:p.13, cell 4",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c54",
+     "item": "27",
+     "src": "zambia_nas2014:p.13, cell 9",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c55",
+     "item": "59",
+     "src": "zambia_nas2014:p.13, cell 11",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c56",
+     "item": "553",
+     "src": "zambia_nas2014:p.13, cell 18",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c57",
+     "item": "600",
+     "src": "zambia_nas2014:p.13, cell 19",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c58",
+     "item": "100",
+     "src": "morocco_egma2012:p.76, cell 4",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c59",
+     "item": "81",
+     "src": "morocco_egma2012:p.76, cell 7",
+     "grades": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "id": "c60",
+     "item": "32",
+     "src": "morocco_egma2012:p.76, cell 8",
+     "grades": [
+      1,
+      2,
+      3
      ]
     }
    ]
