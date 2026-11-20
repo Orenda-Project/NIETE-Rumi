@@ -109,6 +109,9 @@ const FEATURE_GATES = {
   // The /observe2 field-form pilot: its live form, its evidence check, and the /observe visit
   // planner it starts from (the teacher is picked there).
   observe2: ['OBSERVE2_FIELD_FORM_FLOW_ID', 'OBSERVE2_CHECK_FLOW_ID', 'OBSERVE_VISIT_FLOW_ID'],
+  // The data analyst on WhatsApp (services/data-analyst): the data team's governed MCP, the address
+  // its questions are asked as, and the model key. Who may use it is the app_settings switch.
+  data_analyst: ['DATA_MCP_URL', 'DATA_MCP_USER_EMAIL', 'ANTHROPIC_API_KEY'],
 };
 
 /**
