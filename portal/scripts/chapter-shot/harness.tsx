@@ -14,6 +14,9 @@ import { NewLessonPage } from '@/portal/teacher/lessons/NewLessonPage';
 import { PreparingPage } from '@/portal/teacher/lessons/PreparingPage';
 import { OwnPage } from '@/portal/teacher/lessons/own/OwnPage';
 import { LESSONS_OWN } from '@/portal/teacher/lessons/own/state';
+import { UnitNewPage } from '@/portal/teacher/lessons/own/UnitNewPage';
+import { UnitPage } from '@/portal/teacher/lessons/own/UnitPage';
+import { LESSONS_UNIT, LESSONS_UNIT_NEW } from '@/portal/teacher/lessons/own/unitPaths';
 
 const params = new URLSearchParams(location.search);
 const LANG = params.get('lang') === 'ur' ? 'ur' : 'en';
@@ -36,6 +39,9 @@ async function start() {
           <Route path={LESSONS_NEW} element={<NewLessonPage />} />
           {/* bd-snkn32.58.3 — the waiting page (checking / refused) */}
           <Route path={`${LESSONS_HOME}/preparing`} element={<PreparingPage />} />
+          {/* bd-snkn32.59.1 — A whole unit (run.mjs --extra <fixture json>) */}
+          <Route path={LESSONS_UNIT_NEW} element={<UnitNewPage />} />
+          <Route path={LESSONS_UNIT} element={<UnitPage />} />
           <Route path="*" element={<div data-testid="elsewhere" />} />
         </Routes>
       </MemoryRouter>
