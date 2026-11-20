@@ -1,2 +1,3 @@
 {"ts":"2026-11-20T12:24:39Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"a59a2cb69484","branch":"bd-snkn32.63-staging","user":""}
 {"ts":"2026-11-20T12:25:10Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"a59a2cb69484","branch":"bd-snkn32.63-stg2","user":""}
+{"ts":"2026-11-20T12:27:08Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (commit is itself the spec: cherry-pick -x of sandbox 0f5f8e1c, id tags @L25-@L29 + @no-mock-driver on five scenarios; no product code)","sha":"a59a2cb69484","branch":"bd-snkn32.63-stg2","user":""}
