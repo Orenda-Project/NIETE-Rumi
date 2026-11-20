@@ -1,0 +1,2 @@
+{"ts":"2026-11-20T16:40:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test,portal-smoke spec_sync=true","sha":"de6f794ecd0e","branch":"bd-zrdvmi.28-main","user":""}
+{"ts":"2026-11-20T16:40:36Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: attendance,coach-portal,leader-portal owe their Gherkin","sha":"de6f794ecd0e","branch":"bd-zrdvmi.28-main","user":""}
