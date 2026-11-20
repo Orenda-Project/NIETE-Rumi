@@ -144,11 +144,16 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ══════════════════════════════ C. REGISTRATION FLOW ══════════════════════════════════
 
-  @e2e @language @known-issue @P3 @LANG09
-  Scenario: The registration launch bubble is English regardless of any prior language
+  @e2e @language @P3 @LANG09
+  Scenario: /register on an Urdu account answers in Urdu
     Given the NIETE bot chat is open
+    And my language is set to Urdu
     When I send "/register"
-    Then the launch bubble ("Welcome" / "Quick setup…" / "Get started") renders English (BUG)
+    Then the registration bubble is in Urdu, with no English-only text
+    # Inverted 2026-11-18 (bd-kbo9h0.7), as LANG14 was: this @known-issue asserted the English bubble,
+    # and the registration invite is now localised (ux-strings.js registrationInvite*, en + ur). On an
+    # account that is already registered the bubble is "اپنی تفصیلات درست کریں" (update your details).
+    # History of the old bug:
     # text-message.handler.js:1659-1662 hardcoded English, no language read (same on the auto-onboard
     # path feature-registration.service.js:156-161). Minor: pre-language a new user has no stored
     # pref anyway, but a returning user re-registering in Urdu still gets the English bubble.
@@ -293,11 +298,17 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # environment (Flow card on staging) and is asserted in status.feature.
 
   @e2e @language @known-issue @P2 @LANG16
-  Scenario: Lesson Plans via the Pick-Class Flow renders English on an Urdu account
+  Scenario: Lesson Plans via the Pick-Class Flow speaks Urdu on an Urdu account
     Given the NIETE bot chat is open
     And my language is set to Urdu
     When I open Lesson Plans from /menu and drive the Pick-Class Flow
-    Then the launch bubble, the Flow screens, and the "Sending…" pre-gen ack render English (BUG)
+    Then the launch bubble, the Flow screens, and the "Sending…" pre-gen ack are in Urdu
+    # Inverted 2026-11-18 (bd-kbo9h0.7): it asserted the English leak as the expected result, so it
+    # passed while the bug lived and would fail once fixed. It now states the right behaviour and FAILS
+    # until the Flow's grade list is localised. As of 2026-11-19 the launch bubble, its button and the
+    # pre-gen ack are Urdu (seen on prod); the Flow's grade rows are not: pakistan-lp-endpoint.js gradeTitle
+    # is `Grade ${g}` and the catalog rows say 'Tap to open'. Listed in known-findings.json until then.
+    # History of the bug:
     # F-LP-i18n. Launch bubble only partially inline-localized (header hardcoded English,
     # text-message.handler.js:979). Pick-Class Flow screens all hardcoded English
     # (pakistan-lp-endpoint.js:34,144,186,236,280…). Pre-gen ack hardcoded English
