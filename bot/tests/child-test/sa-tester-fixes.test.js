@@ -41,15 +41,48 @@ function spokenLines(t) {
   return out;
 }
 
+// Two exemptions, by clip key: the letter-sound picker's intro on the other language's battery names its example in
+// the example's own script (the Urdu task on an English battery: «بَ»; the English task on an Urdu battery: b), as the
+// reviewers asked. Each clip splices the shipped prompt token at that span instead of letting the voice read it, so the
+// example is still voiced in its own language. The clip's timing file must record the splice (example_span_ms and
+// example_src, the token's clip), or the line counts as mixed.
+const SPLICED = { '8669cb4e1bb4': 'en', '095986edd89a': 'ur' };
+const SA = path.join(__dirname, '../../../dashboard');
+function splicedExample(t, where, x) {
+  if (where !== 'script.intro' || !/\.letter_pick10$/.test(t.id) || !x || typeof x.audio !== 'string') return false;
+  const m = x.audio.match(/^sa\/v5\/(en|ur)\/([0-9a-f]{12})\.mp3$/);
+  if (!m || SPLICED[m[2]] !== m[1]) return false;
+  const timing = path.join(SA, 'sa', 'v5', m[1], `${m[2]}.json`);
+  if (!fs.existsSync(timing)) return false;
+  const j = JSON.parse(fs.readFileSync(timing, 'utf8'));
+  return Array.isArray(j.example_span_ms) && j.example_span_ms.length === 2 && j.example_span_ms[0] < j.example_span_ms[1]
+    && typeof j.example_src === 'string' && fs.existsSync(path.join(SA, j.example_src));
+}
+
 describe('A08: English and Urdu never mix', () => {
   test('no single spoken line holds both Arabic-script and Latin letters, in any battery on either page', () => {
     const bad = [];
     for (const f of RUNTIMES) {
       for (const t of runtime(f).tasks) {
-        for (const [where, text] of spokenLines(t)) if (ARABIC.test(text) && LATIN.test(text)) bad.push(`${f} ${t.id} ${where}: ${text}`);
+        for (const [where, text] of spokenLines(t)) {
+          if (!(ARABIC.test(text) && LATIN.test(text))) continue;
+          if (splicedExample(t, where, t.script && t.script.intro)) continue;
+          bad.push(`${f} ${t.id} ${where}: ${text}`);
+        }
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  test('the spliced-example exemption is exactly the two picker intros, one per battery language', () => {
+    const exempt = new Set();
+    for (const f of RUNTIMES) {
+      for (const t of runtime(f).tasks.filter((x) => /\.letter_pick10$/.test(x.id))) {
+        const x = t.script && t.script.intro;
+        if (x && ARABIC.test(x.text) && LATIN.test(x.text)) exempt.add(`${f.match(/\.(en|ur)\.json$/)[1]} ${t.id} ${x.audio}`);
+      }
+    }
+    expect([...exempt].sort()).toEqual(['en ur.letter_pick10 sa/v5/en/8669cb4e1bb4.mp3', 'ur en.letter_pick10 sa/v5/ur/095986edd89a.mp3']);
   });
 
   test('every English task item, option, grid cell and spoken item is English only (no Arabic-script code point)', () => {

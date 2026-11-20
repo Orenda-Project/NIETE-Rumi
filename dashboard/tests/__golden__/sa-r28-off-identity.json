@@ -1,9 +1,9 @@
 {
- "recorded": "2026-11-18",
+ "recorded": "2026-11-20",
  "batteries": {
   "sa.coach.G1.A.ur.json": {
    "all_off": "9cec98052950ff765402da8fdd066f3bbc0bacd02c82dc9c3fed06672850581e",
-   "earlier_on": "5caa5aa241f6edcba28319ab69a1d42f416087fe795233b58170d64fca6542e5"
+   "earlier_on": "06622401d4fce488c8fbc7682ad0a7c73655cbacb961d4a5741f09f7051b960d"
   },
   "sa.coach.G1.A.en.json": {
    "all_off": "fe3ed4fc2610b7d74e0217b65e3ce8c07182884b317b18f6dd37bbea66d0ae2b",
@@ -11,7 +11,7 @@
   },
   "sa.coach.G2.A.ur.json": {
    "all_off": "503ca2fc7f1aab29e98ff463f3d0154165f32389c928a25510ad70960fec10d3",
-   "earlier_on": "a06062cd8f12941e2c191e24602de1a85277526a947f93c2f006785e28ad5689"
+   "earlier_on": "08dbbddc032ff9b2bfe846ee5ce5a0b8dc1d7ca4b221b37b9c18c9ba52801dcd"
   },
   "sa.coach.G2.A.en.json": {
    "all_off": "e90f4720022a45ff03aa7638c1edda9752964dc4b3ba33554f00d2c54f6047c0",
@@ -19,7 +19,7 @@
   },
   "sa.coach.G3.A.ur.json": {
    "all_off": "d1634d378a6e403d7bea653689caef8a1917e2dfbdec02f106e22af78a344638",
-   "earlier_on": "6825578e1be7339fa36f6fb8fe9a4f7ade27f17ecf3fc148293d6bce7da5c1e5"
+   "earlier_on": "ddcba02cb17223c0ec103a19194e3be2b9a1e7de89f8f04186ce76c975b91568"
   },
   "sa.coach.G3.A.en.json": {
    "all_off": "c357ee53aa4eff173d4853853935d1516aa0a53bb6543aa1576842458913a169",
@@ -27,7 +27,7 @@
   },
   "sa.coach.G4.A.ur.json": {
    "all_off": "cdff645d53cd2a858a34b4c1d4c9fc011f33502ae1fbee640f5402a31c4bc97e",
-   "earlier_on": "6e86943c649e716852be09cad01aa41aa059daa9538fe3641c8ce653cb11a04d"
+   "earlier_on": "10b4fc02ed4452ec6aae3504b1977fc1b01111e50b662362a8ddd9783f47f616"
   },
   "sa.coach.G4.A.en.json": {
    "all_off": "ba661d001054940a6e23e618ed33db87b3f9fe9a2b449541cf310235e4f4b8b4",
@@ -35,7 +35,7 @@
   },
   "sa.coach.G5.A.ur.json": {
    "all_off": "4c69a19f8af8818af2189e99aa7673e0e8b75b460f2fec23ea49e25dce0065a4",
-   "earlier_on": "3c40397b7055eb6fbe2b51b886e322bfb5c85c25d969dec7df7356625c866599"
+   "earlier_on": "3174602aa96ff632cada01980a6d8fb94e62560bef700267f434d5c7e3c51678"
   },
   "sa.coach.G5.A.en.json": {
    "all_off": "006f0121b50556ee9b3c1a9a3a35ef015e92a8f7e8f40561a7096419a6079733",
