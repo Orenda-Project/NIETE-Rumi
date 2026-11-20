@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T01:59:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"c897e6ba1dd2","branch":"bd-zrdvmi.36-39764","user":""}
 {"ts":"2026-11-20T01:59:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"c897e6ba1dd2","branch":"bd-zrdvmi.36-39764","user":""}
 {"ts":"2026-11-20T02:00:08Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"65f1d197-790e-4a7e-8f5d-9bc4c958a48b","sha":"c897e6ba1dd2","branch":"bd-zrdvmi.36-39764","user":""}
+{"ts":"2026-11-20T02:00:20Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.36-39764: E-DUPID:child-test;E-NODRIVER:registration","sha":"c897e6ba1dd2","branch":"bd-zrdvmi.36-39764","user":""}
