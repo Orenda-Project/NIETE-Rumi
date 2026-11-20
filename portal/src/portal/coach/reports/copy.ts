@@ -90,6 +90,8 @@ export const REPORTS_EN = {
   keepChecking: "Keep checking",
   saving: "Saving",
   saveFailed: "Could not save",
+  /* bd-tfya0m — an observation with no analysis: there is no draft to check (the bot answers 409 no_analysis) */
+  noAnalysis: "No report to check",
   notEditable: "Cannot change it now",
   readOnly: "Your answers",
   /* bd-ra8xu.40 — a FICO17 v6 visit: the six set from the room, their reasons, D2's counts, a changed AI level's reason */
@@ -306,6 +308,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   keepChecking: "جانچتے رہیں",
   saving: "محفوظ ہو رہا ہے",
   saveFailed: "محفوظ نہیں ہوا",
+  noAnalysis: "رپورٹ موجود نہیں",
   notEditable: "اب بدل نہیں سکتا",
   readOnly: "آپ کے جوابات",
   fromRoom: "کلاس میں طے کریں",
