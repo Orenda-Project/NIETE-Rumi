@@ -102,7 +102,10 @@
 // sa-45: the letter-sound picker's prompt clips re-made (SESSION v32); no worker code changes.
 // sa-46: sa-engine.js (the last recording: the battery's end waits for a recorder stop under way, and tells the page when
 //   the audio is acked). SESSION unchanged: no clip or battery changed.
-var VERSION = 'sa-46';
+// sa-47: sa-page.js + sa-sync.js (the drain keeps an upload that is making progress; an already-scored recording counts as
+//   sent), sa-core.js + sa-mic.js + sa-ui.js + sink-coach.js (an unknown microphone is checked, behind its switch), and
+//   sa-engine.js. SESSION unchanged: no clip or battery changed.
+var VERSION = 'sa-47';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
