@@ -16,7 +16,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoAligned } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoAligned, videoRecoLaterVisits } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const { OPTED_OUT } = require('./clip-pref');
 const target = require('./target');
@@ -43,11 +43,16 @@ class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
 }
 
-/** The lesson's own grade (subject_resolution.grade), else null. */
+/**
+ * The lesson's own grade (subject_resolution.grade), else null. The first grade or range only: «1-3» (a multigrade class)
+ * is {lo: 1, hi: 3}, never 13 (red7 N9); «Grade 3 (2024)» is 3 (red7 N3). Outside 0–12 is unknown.
+ */
 function analysisGrade(analysis) {
   const g = analysis && analysis.subject_resolution && analysis.subject_resolution.grade;
-  const n = parseInt(String(g === null || g === undefined ? '' : g).replace(/[^0-9]/g, ''), 10);
-  return Number.isFinite(n) ? { lo: n, hi: n } : null;
+  const m = /(?<!\d)(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?(?!\d)/.exec(String(g === null || g === undefined ? '' : g));
+  if (!m) return null;
+  const lo = Number(m[1]); const hi = m[2] === undefined ? lo : Number(m[2]);
+  return lo <= 12 && hi <= 12 && lo <= hi ? { lo, hi } : null;
 }
 
 /** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
@@ -786,7 +791,11 @@ async function alignedPick({ a, d, base, finish, card, nextStep, analysis, sessi
   if (silence.degenerate(lines)) return none('no_moments:degenerate');
   if (silence.notLesson(lines, { durationS: session.audio_duration_seconds })) return none('no_moments:not_lesson');
   if (silence.testPeriod(lines)) return none('no_moments:test_period');
-  const asks = aligned.classifyAsks((card && card.action) || step0(nextStep, analysis));
+  // R9d (COS 20261119T215752): a later visit (a clip shown before) serves the card's main step only, inside the subject ×
+  // grade gates (aligned.js); VIDEO_RECO_LATER_VISITS off = no rank ≥ 2 pick at all
+  const later = aligned.laterVisit(history);
+  if (later && !videoRecoLaterVisits(d.env)) return none('aligned:later_off');
+  const asks = aligned.classifyAsks((card && card.action) || step0(nextStep, analysis), { later });
   if (!asks.length) return none('aligned:no_ask');
   if (history && history.failed) return none('aligned:history_unread'); // fail closed: never risk a repeat
   const catalog = d.catalogV2 || require('./catalog').loadV2(); // eslint-disable-line global-require
@@ -800,9 +809,11 @@ async function alignedPick({ a, d, base, finish, card, nextStep, analysis, sessi
   for (const x of asks) {
     const fresh = aligned.candidates(catalog, x, { ...ctx, history }, lesson);
     if (fresh.length) { hit = fresh[0]; ask = x; break; }
-    if (aligned.candidates(catalog, x, { ...ctx, history: null }, lesson).length) seenOnly = true;
+    if (aligned.candidates(catalog, x, { ...ctx, history: null, later, cleared: false }, lesson).length) seenOnly = true;
   }
-  if (!hit) return none(seenOnly ? 'aligned:seen' : 'aligned:no_clip');
+  // R9d: a later visit whose only fresh clips have not cleared on later picks (aligned.js `later`) says so
+  const uncleared = !hit && later && asks.some((x) => aligned.candidates(catalog, x, { ...ctx, history, cleared: false }, lesson).length);
+  if (!hit) return none(uncleared ? 'aligned:later_uncleared' : seenOnly ? 'aligned:seen' : 'aligned:no_clip');
   const said = aligned.reasonFor(ask, hit.seg);
   if (!said) return none('aligned:no_clip');
   const usable = hit.seg.quality.usable;

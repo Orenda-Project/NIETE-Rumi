@@ -34,17 +34,17 @@ const v2With = (edit) => { const d = clone(V2); if (edit) edit(d); return d; };
 const seg = (d, id) => d.modules.flatMap((m) => m.segments).find((s) => s.seg_id === id);
 const mod = (d, mid) => d.modules.find((m) => m.module_id === mid);
 
-function run({ action, env = {}, history = { segments: [], modules: [] }, lang = 'en', subject = 'english', grade = '4', v2 = V2, arm } = {}) {
+function run({ action, env = {}, history = { segments: [], modules: [] }, lang = 'en', transcriptLang = 'ur', subject = 'english', grade = '4', v2 = V2, catalogV2 = null, arm } = {}) {
   const writes = [];
   return E.recommendForReport({
-    session: { id: 's1', user_id: arm === 'control' ? 'u-control' : 'u1', transcript_language: 'ur', users: { name: 'Test Teacher', preferred_language: lang }, diarization_data: { segments: LINES } },
+    session: { id: 's1', user_id: arm === 'control' ? 'u-control' : 'u1', transcript_language: transcriptLang, users: { name: 'Test Teacher', preferred_language: lang }, diarization_data: { segments: LINES } },
     analysis: { framework: 'fico', domains: { C: { indicators: [{ id: 'C1', name: 'Quality Questioning', score: 1, applicable: true, evidence: 'Closed. Quote: "Where did the bull live?"', timestamp: '[00:30]' }] } }, subject_resolution: { code: subject, grade, confidence: 'high' } },
     nextStep: { target: { indicator: 'C1', rung: 1, rationale: 'x', try: action } },
     card: { indicator: 'C1', action },
     coachingSessionId: 's1',
     deps: {
       env: { VIDEO_RECO_ENABLED: 'true', VIDEO_RECO_REASON: 'card', VIDEO_RECO_ALLOWLIST: ALLOW, ...env },
-      catalogV2: C.fromData(v2),
+      catalogV2: catalogV2 || C.fromData(v2),
       store: {
         readForSession: async () => null,
         recentHistory: async () => history,
@@ -117,15 +117,21 @@ describe('2 · the shown move matches the card\'s ask (at its sub-ask)', () => {
 });
 
 describe('3 · the next aligned clip comes from a different video', () => {
-  // 451-s3 is a G9-12 science module in the catalogue; widened here so one lesson passes both think-pair-share chapters
+  // R9d (COS 20261119T233941): a later visit gets only a clip cleared on its own later picks, today 804-s2; 451-s3 is
+  // widened here so it would otherwise pass the gates
   const both = (d) => { Object.assign(mod(d, 451), { subjects: ['general'], grade_band: 'all' }); };
-  test('791-s2 already shown → 451-s3', async () => {
-    const { row } = await run({ action: TPS, env: ON, v2: v2With(both), history: { segments: ['791-s2'], modules: [] } });
-    expect(row.seg_id).toBe('451-s3');
+  const on15 = { ...ON, VIDEO_RECO_ALLOWLIST: `${ALLOW},790-s2,804-s2,905-s5,794-s2,745-s1,451-s1` };
+  test('791-s2 already shown → 804-s2 (another video), never 451-s3', async () => {
+    const { row } = await run({ action: TPS, env: on15, v2: v2With(both), history: { segments: ['791-s2'], modules: [] } });
+    expect(row.seg_id).toBe('804-s2');
   });
-  test('another chapter of video 791 shown → 791-s2 is skipped for 451-s3', async () => {
-    const { row } = await run({ action: TPS, env: ON, v2: v2With(both), history: { segments: ['791-s1'], modules: [] } });
-    expect(row.seg_id).toBe('451-s3');
+  test('another chapter of video 791 shown → 791-s2 is skipped for 804-s2', async () => {
+    const { row } = await run({ action: TPS, env: on15, v2: v2With(both), history: { segments: ['791-s1'], modules: [] } });
+    expect(row.seg_id).toBe('804-s2');
+  });
+  test('with the 9-list, a later visit is silent', async () => {
+    const { row } = await run({ action: TPS, env: ON, v2: v2With(both), history: { segments: ['791-s2'], modules: [] } });
+    expect(row.seg_id).toBeNull();
   });
 });
 
@@ -381,25 +387,27 @@ describe('R9c · second clips', () => {
     expect((await run({ action: TPS, env: on15 })).row.seg_id).toBe('791-s2');
     expect((await run({ action: TPS, env: on15, subject: 'science', grade: '4' })).row.seg_id).toBe('451-s3');
   });
-  test('a repeat teacher gets a second wait clip from a different video: 790-s3 shown → 451-s1, shown, with its reason', async () => {
-    const { row } = await run({ action: WAIT, env: on15, history: { segments: ['790-s3'], modules: [] } });
-    expect(row.status).toBe('shown');
-    expect(row.seg_id).toBe('451-s1');
-    expect(row.module_id).not.toBe(790);
-    expect(row.reason_en).toContain(A.SUB_ASK['451-s1'].shows_en);
-    expect(row.reason_ur).toContain(A.SUB_ASK['451-s1'].shows_ur);
+  // R9d (COS 20261119T233941): 451-s1 has not cleared on its own later picks, so a second wait clip is not served even
+  // inside its gates; the row says why
+  test('a repeat teacher gets no second wait clip: 790-s3 shown → none, aligned:later_uncleared', async () => {
+    const { row } = await run({ action: WAIT, env: on15, subject: 'science', grade: '9', history: { segments: ['790-s3'], modules: [] } });
+    expect(row.status).toBe('none');
+    expect(row.seg_id).toBeNull();
+    expect(row.none_reason).toBe('aligned:later_uncleared');
   });
-  test('a repeat teacher walks the think-pair-share clips one video at a time, 790-s2 last, then silence', async () => {
+  // R9d: later visits get 804-s2 only (r10: 182/186 = 97.8%; 745-s1 87.4%, 794-s2 88.0%, 790-s2 76.5%)
+  test('a repeat teacher walks 791-s2 → 804-s2 (another video, with its reason), then silence', async () => {
     const seen = [];
+    let last = null;
     for (;;) {
       const { row } = await run({ action: TPS, env: on15, grade: '4', history: { segments: [...seen], modules: [] } }); // eslint-disable-line no-await-in-loop
-      if (!row.seg_id) { expect(row.none_reason).toBe('aligned:seen'); break; }
+      if (!row.seg_id) { last = row; break; }
       expect(seen.map((s) => s.split('-')[0])).not.toContain(String(row.module_id)); // never a video already shown
+      if (seen.length) expect(row.reason_en).toContain(A.SUB_ASK[row.seg_id].shows_en);
       seen.push(row.seg_id);
     }
-    expect(seen[0]).toBe('791-s2');
-    expect(seen[seen.length - 1]).toBe('790-s2');
-    expect([...seen].sort()).toEqual([...TPS_ALL].sort());
+    expect(seen).toEqual(['791-s2', '804-s2']);
+    expect(last.none_reason).toBe('aligned:later_uncleared');
   });
   test('790-s2 never follows 790-s3 (same video)', async () => {
     const others = TPS_ALL.filter((s) => s !== '790-s2');
@@ -407,8 +415,7 @@ describe('R9c · second clips', () => {
     expect(row.seg_id).toBeNull();
   });
   test.each([['1', false], ['2', false], ['3', true], ['5', true]])('794-s2 grade floor 3: Grade %s → reachable %p', async (grade, ok) => {
-    const others = TPS_ALL.filter((s) => s !== '794-s2' && s !== '790-s2');
-    const { row } = await run({ action: TPS, env: on15, grade, history: { segments: others, modules: [] } });
+    const { row } = await run({ action: TPS, env: { ...ON, VIDEO_RECO_ALLOWLIST: '794-s2' }, grade }); // first contact: 794-s2 is never a later-visit clip
     expect(row.seg_id === '794-s2').toBe(ok);
   });
   test('794-s2 with no known grade is not served (fail closed)', () => {
@@ -480,5 +487,181 @@ describe('R9c · A9b framework_unsupported', () => {
     const { row, writes } = await runFw({ framework: 'fico17_v6', env: {} });
     expect(row).toBeNull();
     expect(writes).toHaveLength(0);
+  });
+});
+
+// R9d route (a) (bd-tp4w7n.6; COS 20261119T215752, ped-align r9a 20261119T215415: later visits 259/343 = 75.5% at #5202).
+// A later visit is a pick for a teacher shown a clip before. There the card's MAIN step is served and nothing tacked on
+// to it (wait time only when the wait is the step), the subject × grade gates hold, and VIDEO_RECO_LATER_VISITS=false
+// stops it. First contact is unchanged by any of this.
+describe('R9d · later visits', () => {
+  const ALLOW15 = `${ALLOW},790-s2,804-s2,905-s5,794-s2,745-s1,451-s1`;
+  const on15 = { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW15 };
+  const after = (...segments) => ({ segments, modules: [] });
+  const WHY_WAIT = 'Next class, when a student answers "forest", ask \'Why do you think the bull lived there?\', then wait 5-7 seconds before taking an answer.';
+
+  describe('the r9a wrong picks: each judged clip is no longer served at its rank', () => {
+    const R9A = require('./fixtures/r9a-wrong-picks.json').picks;
+    test('the fixture holds the 84 r9a wrongs, 71 of them the r9 disagreements', () => {
+      expect(R9A).toHaveLength(84);
+      expect(R9A.filter((x) => x.r9_disagreement)).toHaveLength(71);
+    });
+    test.each(R9A.map((x) => [x.item, x.seg, x.rank, x]))('%s: %s at rank %i is not served', async (_, seg, rank, x) => {
+      const { row } = await run({ action: x.card, env: on15, catalogV2: C.loadV2(), history: after(...x.prior), subject: x.subject, grade: String(x.grade), lang: x.report_lang, transcriptLang: x.lesson_lang });
+      expect(row.seg_id).not.toBe(seg);
+    });
+  });
+
+  describe('wait time only as the main step', () => {
+    test('a why-after-an-answer card with a wait tacked on: 782-s1 shown, then silence (never 790-s3 for the wait)', async () => {
+      expect((await run({ action: WHY_WAIT, env: on15 })).row.seg_id).toBe('782-s1');
+      const { row } = await run({ action: WHY_WAIT, env: on15, history: after('782-s1') });
+      expect(row.seg_id).toBeNull();
+      expect(row.status).toBe('none');
+    });
+    test('…the same in Urdu: a why-question with a wait after it, at a later visit', () => {
+      const card = "اگلی کلاس میں جب کوئی بچہ ایک لفظ میں جواب دے، تو 'کیوں؟' پوچھیں اور 5-7 سیکنڈ کا wait time دیں۔";
+      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['follow_up_probe', 'wait_time']);
+      expect(A.classifyAsks(card, { later: true }).map((x) => x.move)).toEqual(['follow_up_probe']);
+    });
+    test('a wait-only card at a later visit is not dropped by the main-step rule (it ends on the cleared list)', async () => {
+      expect(A.classifyAsks(WAIT, { later: true }).map((x) => x.move)).toEqual(['wait_time']);
+      const { row } = await run({ action: WAIT, env: on15, history: after('791-s2') });
+      expect(row.none_reason).toBe('aligned:later_uncleared');
+    });
+  });
+
+  describe('the main step only', () => {
+    test('a question card with a think-pair-share after it gets no think-pair-share clip at a later visit', () => {
+      const card = 'Next class, ask \'Why do you think it happened?\', wait 5 seconds, then run a 60-second Think-Pair-Share.';
+      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['open_questions', 'wait_time', 'think_pair_share']);
+      expect(A.classifyAsks(card, { later: true }).map((x) => x.move)).toEqual(['open_questions']);
+    });
+    test('a near-miss anywhere silences a later-visit card (feedback after the pair talk)', () => {
+      const card = 'Next class, run a one-minute think-pair-share, then give praise and one next step.';
+      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['think_pair_share']);
+      expect(A.classifyAsks(card, { later: true })).toEqual([]);
+    });
+    test('…but the pair words that ARE the ask do not («pair them up», «60 seconds of pair talk»)', () => {
+      expect(A.classifyAsks('Next class, pair them up for a think-pair-share before anyone answers.', { later: true }).map((x) => x.move)).toEqual(['think_pair_share']);
+    });
+  });
+
+  describe('the subject × grade gates hold at a later visit', () => {
+    test('a wait card on a Grade 4 maths lesson: 790-s3 first (cross-gate), but not after another clip', async () => {
+      expect((await run({ action: WAIT, env: on15, subject: 'maths', grade: '4' })).row.seg_id).toBe('790-s3');
+      const { row } = await run({ action: WAIT, env: on15, subject: 'maths', grade: '4', history: after('791-s2') });
+      expect(row.seg_id).toBeNull();
+      expect(row.none_reason).toBe('aligned:no_clip');
+    });
+    test('a think-pair-share card on a Grade 4 English lesson after 791-s2: 804-s2, never 451-s3 (science 9-12)', async () => {
+      const { row } = await run({ action: TPS, env: on15, history: after('791-s2') });
+      expect(row.status).toBe('shown');
+      expect(row.seg_id).toBe('804-s2');
+    });
+    test('candidates: `later` from the history, or given; the gates hold even without the cleared list', () => {
+      const ask = { move: 'think_pair_share', sub: 'think_pair_share:think_then_pair' };
+      const ids = (ctx) => A.candidates(C.fromData(V2), ask, { languages: ['en', 'ur', 'mixed'], allow: null, ...ctx }, { subject: 'english', grade: { lo: 4, hi: 4 } }).map((c) => c.seg.seg_id);
+      expect(ids({ history: after() })).toContain('451-s3');
+      expect(ids({ history: after('791-s2'), cleared: false })).not.toContain('451-s3');
+      expect(ids({ history: null, later: true, cleared: false })).not.toContain('451-s3');
+      expect(ids({ history: after('791-s2'), cleared: false })).toContain('745-s1');
+      expect(A.laterVisit(after())).toBe(false);
+      expect(A.laterVisit({ segments: [], modules: [12] })).toBe(true);
+      expect(A.laterVisit(null)).toBe(false);
+    });
+  });
+
+  describe('VIDEO_RECO_LATER_VISITS', () => {
+    test.each([['false'], ['0'], ['off'], ['OFF ']])('%p: a teacher shown a clip before gets none, aligned:later_off', async (v) => {
+      const { row, writes } = await run({ action: WAIT, env: { ...on15, VIDEO_RECO_LATER_VISITS: v }, history: after('791-s2') });
+      expect(row.status).toBe('none');
+      expect(row.seg_id).toBeNull();
+      expect(row.none_reason).toBe('aligned:later_off');
+      expect(writes).toHaveLength(1);
+    });
+    test('off leaves first contact as it is', async () => {
+      const { row } = await run({ action: WAIT, env: { ...on15, VIDEO_RECO_LATER_VISITS: 'false' } });
+      expect(row.seg_id).toBe('790-s3');
+    });
+    test.each([[undefined], [''], ['true'], ['1']])('%p = on (today)', async (v) => {
+      const F = require('../../../bot/shared/services/coaching/video-reco/flags');
+      expect(F.videoRecoLaterVisits(v === undefined ? {} : { VIDEO_RECO_LATER_VISITS: v })).toBe(true);
+      const { row } = await run({ action: TPS, env: { ...on15, ...(v === undefined ? {} : { VIDEO_RECO_LATER_VISITS: v }) }, history: after('791-s2') });
+      expect(row.seg_id).toBe('804-s2');
+    });
+  });
+
+  describe('a grade range is a range (red7 N9)', () => {
+    const only794 = { ...ON, VIDEO_RECO_ALLOWLIST: '794-s2' };
+    test('a multigrade "1-3" lesson never gets 794-s2 (floor 3): it is not Grade 13', async () => {
+      const { row } = await run({ action: TPS, env: only794, grade: '1-3' });
+      expect(row.seg_id).not.toBe('794-s2');
+    });
+    test('"Grade 4" and "4" still read as 4: 794-s2 is reached', async () => {
+      expect((await run({ action: TPS, env: only794, grade: 'Grade 4' })).row.seg_id).toBe('794-s2');
+      expect((await run({ action: TPS, env: only794, grade: '4' })).row.seg_id).toBe('794-s2');
+    });
+  });
+
+  // red7 20261119T233631 N1-N3
+  describe('red7 N1-N3', () => {
+    test('N1: «رول پلے» (roles) silences a later-visit card: JS \\b is ASCII-only', () => {
+      const card = 'اگلی کلاس میں بچوں کو جوڑوں میں سوچنے دیں، پھر رول پلے کروائیں اور Think-Pair-Share کریں۔';
+      expect(A.classifyAsks(card).map((x) => x.move)).toContain('think_pair_share');
+      expect(A.classifyAsks(card, { later: true })).toEqual([]);
+    });
+    test('N1: «کنٹرول» is not a role', () => {
+      expect(A.classifyAsks('اگلی کلاس میں کلاس کنٹرول کے لیے Think-Pair-Share کروائیں۔', { later: true }).map((x) => x.move)).toEqual(['think_pair_share']);
+    });
+    test('N2: en/ur parity — the question a wait follows is not a question of the card\'s own', () => {
+      expect(A.classifyAsks('Next class, give 5 seconds of wait time after each question before taking answers.', { later: true }).map((x) => x.move)).toEqual(['wait_time']);
+      expect(A.classifyAsks('اگلی کلاس میں ہر سوال کے بعد 5 سیکنڈ کا wait time دیں۔', { later: true }).map((x) => x.move)).toEqual(['wait_time']);
+      expect(A.classifyAsks('اگلی کلاس میں ایک سوال کریں اور 5 سیکنڈ کا wait time دیں۔', { later: true })).toEqual([]);
+    });
+    test('N3: "Grade 3 (2024)" is Grade 3, not 3-24: 794-s2 is reached, the 6-8 reasoning clip is not', async () => {
+      expect((await run({ action: TPS, env: { ...ON, VIDEO_RECO_ALLOWLIST: '794-s2' }, grade: 'Grade 3 (2024)' })).row.seg_id).toBe('794-s2');
+      const REASON = 'Next class, after the students watch the ball roll down the ramp, ask them to explain why it slowed down.';
+      expect((await run({ action: REASON, env: ON, subject: 'science', grade: '7' })).row.seg_id).toBe('177-s4'); // control: 6-8
+      expect((await run({ action: REASON, env: ON, subject: 'science', grade: 'Grade 3 (2024)' })).row.seg_id).not.toBe('177-s4');
+    });
+  });
+
+  // COS 20261119T233941 (ped-align r10 233921, out-of-sample later picks at 58e0b433ba): a later visit gets only clips that
+  // cleared on their own later picks: 804-s2 (182/186). 745-s1, 794-s2 and 790-s2 come off; their r10 wrongs are red here.
+  describe('later visits: cleared clips only (r10)', () => {
+    const R10 = require('./fixtures/r10-wrong-later-picks.json').picks;
+    test('the fixture holds the 51 r10 later-visit wrongs; 47 are on the clips that come off', () => {
+      expect(R10).toHaveLength(51);
+      expect(R10.filter((x) => x.seg !== '804-s2')).toHaveLength(47);
+    });
+    test.each(R10.filter((x) => x.seg !== '804-s2').map((x) => [x.item, x.seg, x.rank, x]))('%s: %s at rank %i is not served', async (_, seg, rank, x) => {
+      const { row } = await run({ action: x.card, env: on15, catalogV2: C.loadV2(), history: after(...x.prior), subject: x.subject, grade: String(x.grade), lang: x.report_lang, transcriptLang: x.lesson_lang });
+      expect(row.seg_id).not.toBe(seg);
+    });
+    test('only 804-s2 carries the later-visit mark', () => {
+      expect(Object.keys(A.SUB_ASK).filter((id) => A.SUB_ASK[id].later)).toEqual(['804-s2']);
+    });
+    test.each(['745-s1', '794-s2', '790-s2', '905-s5', '451-s3', '791-s2'])('%s is never a later-visit candidate', (id) => {
+      const ask = { move: 'think_pair_share', sub: 'think_pair_share:think_then_pair' };
+      const ids = A.candidates(C.loadV2(), ask, { languages: ['en', 'ur', 'mixed'], allow: null, history: after('95-s1') }, { subject: 'english', grade: { lo: 4, hi: 4 } }).map((c) => c.seg.seg_id);
+      expect(ids).not.toContain(id);
+      expect(ids).toEqual(['804-s2']);
+    });
+  });
+
+  describe('an apostrophe inside a word is not a quote (qa-e2e 20261119T215759)', () => {
+    const SLINKY = "Next class, right after the class choruses 'Yes' to the slinky question about the hair's movement, say: 'Turn to your partner — why does the hair move forward then back? 30 seconds,' then call one pair to answer in a full sentence.";
+    test('the live sandbox card reads as think-pair-share, not silence', () => {
+      expect(A.classifyAsks(SLINKY).map((x) => x.move)).toEqual(['think_pair_share']);
+      expect(A.mainClause(SLINKY)).toMatch(/^say: 'Turn to your partner/);
+    });
+    test('…and gets 791-s2 through the engine', async () => {
+      const { row } = await run({ action: SLINKY, env: on15 });
+      expect(row.seg_id).toBe('791-s2');
+    });
+    test('a real quote that starts after a letter-apostrophe-letter word still masks its comma', () => {
+      expect(A.mainClause("Next class, when a child's answer is 'yes, ma'am', ask 'why do you think that?' and wait.")).toMatch(/^ask 'why/);
+    });
   });
 });
