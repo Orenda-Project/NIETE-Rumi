@@ -1,0 +1,2 @@
+{"ts":"2026-11-20T12:01:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"ff017ea3c7a2","branch":"bd-snkn32.63-staging","user":""}
+{"ts":"2026-11-20T12:01:52Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.63-staging: E-NOID:lesson-plan","sha":"ff017ea3c7a2","branch":"bd-snkn32.63-staging","user":""}
