@@ -34,12 +34,22 @@ export const FLOW_V7_COPY = {
   keyFocus: "Key Focus Area",
   yourBehaviours: (n: number) => `Your ${n} behaviours`,
   respectHeld: "Respect held",
+  respectNote: "a must every time; not one of the 8",
   required: "required",
   showMore: (n: number) => `Show ${n} more`,
   showFewer: "Show fewer",
   principalTitle: "Your feedback",
   principalFoot: "The choice is yours.",
   observations: "Observations",
+
+  /* the visit while the Digital Coach works */
+  listening: "Rumi is listening to the lesson",
+  listeningSub: "Usually a few minutes. This page updates by itself; you can leave.",
+
+  /* Check and send: the class question as chips (grades 6–12 pick the form) */
+  whichClass: "Which class was it?",
+  grades15: "1–5",
+  classPicksForm: "The class picks the form for this observation.",
 } as const;
 
 export type FlowV7Copy = Words<typeof FLOW_V7_COPY>;
@@ -69,16 +79,24 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   keyFocus: "اہم توجہ",
   yourBehaviours: (n: number) => `آپ کے ${n} رویے`,
   respectHeld: "احترام قائم رہا",
+  respectNote: "ہر بار لازمی؛ ۸ میں سے ایک نہیں",
   required: "لازمی",
   showMore: (n: number) => `${n} مزید دکھائیں`,
   showFewer: "کم دکھائیں",
   principalTitle: "آپ کا فیڈبیک",
   principalFoot: "فیصلہ آپ کا ہے۔",
   observations: "مشاہدات",
+
+  listening: "رومی سبق سن رہا ہے",
+  listeningSub: "عموماً چند منٹ۔ یہ صفحہ خود بدل جاتا ہے؛ آپ جا سکتے ہیں۔",
+
+  whichClass: "یہ کون سی جماعت تھی؟",
+  grades15: "۱–۵",
+  classPicksForm: "جماعت سے اس مشاہدے کا فارم طے ہوتا ہے۔",
 };
 
 export const FLOW_V7 = bilingual(FLOW_V7_COPY, FLOW_V7_COPY_UR);
 
-const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot"];
+const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "classPicksForm", "whichClass", "listening", "listeningSub", "respectNote"];
 
 export const COPY_ENTRY = { screen: "Coach · visit and feedback (v7)", module: FLOW_V7 as Bilingual<unknown>, same: [] as readonly string[], longOk: LONG_OK } as const;

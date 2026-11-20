@@ -26,7 +26,8 @@ import { LessonPlanRow } from "../observe/PlanState";
 import { Obs612Block } from "../../components/coaching/Obs612Block";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { StatusLine } from "../flow/StatusLine";
-import { DebriefDue, DebriefStage, FeedbackCard, FormStage, SendStage } from "../flow/VisitV7";
+import { AnalysingStage, DebriefDue, DebriefStage, FeedbackCard, FormStage, SendStage, StoppedStage } from "../flow/VisitV7";
+import ContinueOnWhatsApp from "../observe/ContinueOnWhatsApp";
 import { coachReportPath } from "../report/api";
 
 /**
@@ -206,7 +207,11 @@ const CoachObservation = () => {
 
           <LessonPlanRow lp={view?.lessonPlan} />
 
-          {stopped ? (
+          {stopped && v7 ? (
+            <StoppedStage text={C.stopped}>
+              {routes.coachGate && <ContinueOnWhatsApp trouble="load" />}
+            </StoppedStage>
+          ) : stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.stopped}</span>
             </Card>
@@ -222,6 +227,7 @@ const CoachObservation = () => {
           {onWhatsApp && <p className="px-1 text-[13px] text-[#6b7280]">{C.continueOnWhatsApp}</p>}
 
           {/* v7: the current step's card, on the visit */}
+          {v7 && !stopped && at === 0 && working && <AnalysingStage />}
           {v7 && !stopped && herTurn && dockStep === "form" && <FormStage to={routes.observation(id, "form")} />}
           {v7 && !stopped && herTurn && dockStep === "debrief" && <DebriefStage to={routes.observation(id, "debrief")} />}
           {v7 && mine && hasFeedback && (at >= 3 || allDone) && <FeedbackCard id={id} to={feedbackTo} />}
