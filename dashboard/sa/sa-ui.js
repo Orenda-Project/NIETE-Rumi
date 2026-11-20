@@ -196,13 +196,14 @@
       mic_ask: 'Did you hear yourself?',
       mic_yes: 'I heard myself',
       // round 28, O-115 (r28_mic_unknown): the coach's mic card in coach mode
-      micu_head: 'Microphone check: tap the button, say a few words, then listen.',
+      micu_head: 'Microphone check: tap the button, say one, two, three, then listen.',
       micu_try: 'Try the microphone',
       micu_ask: 'Did you hear the recording?',
       micu_heard: 'I heard it',
       micu_again: 'Try again',
       micu_none: 'No sound came through.',
       micu_without: 'Go on without it',
+      micu_denied: 'The microphone is blocked or missing. In Chrome, tap the lock next to the web address, then Permissions → Microphone → Allow. Then tap Try again.',
       mic_no: 'I didn’t',
       oral_try: 'Say it out loud',
       oral_heard: 'I heard you!',
@@ -309,13 +310,14 @@
       mic_speak: 'اب بولیں…',
       mic_ask: 'کیا آپ کو اپنی آواز سنائی دی؟',
       mic_yes: 'ہاں، سنائی دی',
-      micu_head: 'مائیک کی جانچ: بٹن دبائیں، چند الفاظ بولیں، پھر سنیں۔',
+      micu_head: 'مائیک کی جانچ: بٹن دبائیں، ایک، دو، تین کہیں، پھر سنیں۔',
       micu_try: 'مائیک آزمائیں',
       micu_ask: 'کیا ریکارڈ کی ہوئی آواز سنائی دی؟',
       micu_heard: 'آواز سنائی دی',
-      micu_again: 'دوبارہ کوشش',
+      micu_again: 'دوبارہ کوشش کریں',
       micu_none: 'آواز نہیں آئی۔',
       micu_without: 'مائیک کے بغیر چلیں',
+      micu_denied: 'مائیک بند ہے یا موجود نہیں۔ کروم میں ویب ایڈریس کے ساتھ تالے کا نشان دبائیں، پھر ⁨Permissions → Microphone → Allow⁩۔ پھر "دوبارہ کوشش کریں" دبائیں۔',
       mic_no: 'نہیں سنائی دی',
       oral_try: 'اونچی آواز میں بولیں',
       oral_heard: 'مجھے سنائی دیا!',
@@ -3196,7 +3198,9 @@
         var pr = st.probe || {};
         var heardOk = pr.ok && !pr.denied;
         return screen(v, 'sae-miccheck is-coach is-ask', [
-          h('h1', { class: 'sae-h1', text: heardOk ? C.micu_ask : C.micu_none }),
+          h('h1', { class: 'sae-h1', text: heardOk ? C.micu_ask : pr.denied ? C.micu_head : C.micu_none }),
+          // a blocked microphone is not a quiet one: the coach is told how to allow it
+          pr.denied ? h('p', { class: 'sae-sub sae-micu-denied', text: C.micu_denied }) : null,
           h('div', { class: 'sae-pics' }, [
             heardOk ? tileBtn(C.micu_heard, function () { micCardDone(true); }, 'is-yes') : null,
             tileBtn(C.micu_again, function () { micSt = { stage: 'idle', tries: st.tries }; probe(); }, 'is-again'),
@@ -3204,9 +3208,11 @@
         ], [without], true);
       }
       var rec = st.stage === 'rec';
+      var tryBtn = h('button', { class: 'sae-btn sae-primary sae-micu-try', type: 'button', onclick: function () { if (!busy && !rec) probe(); } },
+        [h('span', { class: 'sae-micu-glyph', 'aria-hidden': 'true', text: '🎤' }), ' ', rec ? C.mic_speak : C.micu_try]);
       return screen(v, 'sae-miccheck is-coach', [
         h('h1', { class: 'sae-h1', text: C.micu_head }),
-        btn(rec ? C.mic_speak : C.micu_try, function () { if (!rec) probe(); }, 'sae-primary sae-micu-try'),
+        tryBtn,
       ], [without], true);
     }
     function withoutBtn() {
@@ -3230,7 +3236,8 @@
       var pr = (micSt && micSt.probe) || {};
       var unmeasured = pr.measured === false && !pr.denied;
       micSt = null;
-      runner.micChecked(!!pass, unmeasured ? null : (typeof pr.peak === 'number' ? pr.peak : 0), unmeasured ? 'unmeasured' : 'auto');
+      if (pr.denied) runner.micChecked(false, null, 'denied');
+      else runner.micChecked(!!pass, unmeasured ? null : (typeof pr.peak === 'number' ? pr.peak : 0), unmeasured ? 'unmeasured' : 'auto');
       draw();
     }
     function probe() {
@@ -3255,7 +3262,8 @@
           if (r.denied) micSt.probe.ok = false;
         }
         draw();
-        playBack(r.url).then(function () { if (alive && micSt && micSt.stage === 'ask') say(line('mic_check_ask') || { en: COPY.en.mic_ask, ur: COPY.ur.mic_ask }); });
+        // the card asks "did you hear it?" only when the screen offers "heard" (a level above the floor)
+        playBack(r.url).then(function () { if (alive && micSt && micSt.stage === 'ask' && (!micCard || (micSt.probe.ok && !micSt.probe.denied))) say(line('mic_check_ask') || { en: COPY.en.mic_ask, ur: COPY.ur.mic_ask }); });
       }, function () { if (!alive) return; if (micCard) denied(); else micDone(false, 0); });
     }
     /** Play the probe back (a blob: URL from micProbe), resolving when it ends or fails. */

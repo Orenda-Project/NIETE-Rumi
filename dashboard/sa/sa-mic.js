@@ -9,8 +9,9 @@
  *                                   whether an analyser measured it, a blob URL to play back (denied: { ok: false, denied })
  *
  * o.strict on state (switch sa_r28_mic_unknown): the pre-flight's JSON "no" counts only with a measured level
- * (a number in mic_rms), else it is 'unknown'. o.keep_pass on remember (same switch): a failed check never removes a
- * pass already stored, the coach pre-flight's JSON included.
+ * (a number in mic_rms), else it is 'unknown'. o.r28 on remember (same switch): a failed check never removes a pass
+ * already stored, the coach pre-flight's JSON included; and a check with no level (rms not a number) removes the
+ * stored sa:mic_rms, so the browser keeps one level, the newest check's.
  *   SAE.mic.level(cb[, o])          a live level 0..1 to cb about 10× a second; returns stop(). It listens on the
  *                                   stream given (o.stream), else the recorder's open one (SAE.rec.stream()), else its
  *                                   own; a stream it did not open is never stopped (the recorder keeps recording).
@@ -65,8 +66,9 @@
       // A pass is kept for the phone; a failure is not, so the next run asks again (a grown-up may have fixed the
       // permission in between).
       if (ok) s.setItem(KEY_OK, '1');
-      else if (opt && opt.keep_pass ? state(s) !== 'ok' : s.getItem(KEY_OK) !== '1') s.removeItem(KEY_OK);
+      else if (opt && opt.r28 ? state(s) !== 'ok' : s.getItem(KEY_OK) !== '1') s.removeItem(KEY_OK);
       if (typeof rms === 'number') s.setItem(KEY_RMS, String(Math.round(rms * 10000) / 10000));
+      else if (opt && opt.r28) s.removeItem(KEY_RMS);
     } catch (_) { /* private tab: the check is asked again next time */ }
   }
 

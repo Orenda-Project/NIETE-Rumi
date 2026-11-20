@@ -67,7 +67,8 @@
       var m = null;
       try { m = JSON.parse(raw); } catch (_) { m = raw; }
       if (m && typeof m === 'object') { d.mic_ok = m.mic_ok === true; d.mic_rms = num(m.mic_rms); } else d.mic_ok = m === true || m === 1 || m === '1' || m === 'true';
-      if (d.mic_rms == null) d.mic_rms = num(ls.getItem('sa:mic_rms'));
+      // an unmeasured pass (sa_r28_mic_unknown: no analyser) has no level, and no older check's level stands in for it
+      if (d.mic_rms == null && !(m && typeof m === 'object' && m.how === 'unmeasured')) d.mic_rms = num(ls.getItem('sa:mic_rms'));
       var p = ls.getItem('sa:persisted');
       d.persisted = p === 'true' ? true : (p === 'false' ? false : null);
       d.voice = ls.getItem('sa:voice') || null;

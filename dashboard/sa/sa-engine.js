@@ -125,7 +125,7 @@
           if (e.type === 'task_intro') warmFor(e.task_id);
           if (e.type === 'battery_end') batteryEnd();
           // The game's mic check is kept for this phone (the coach's pre-flight writes the same keys).
-          if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms, undefined, micUnknown ? { keep_pass: true } : undefined);
+          if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms, undefined, micUnknown ? { r28: true } : undefined);
         }
         // The microphone as the runner sees it: the coach's pre-flight or an earlier mic check on this phone; in game
         // mode an unknown phone gets the engine's own mic check, in proctored mode no mic_ok means no recording.

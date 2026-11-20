@@ -48,8 +48,14 @@ export type MicCheck = { mic_ok: boolean; mic_rms: number | null; at: number; ho
 /** The engine reads the last microphone check from here. */
 export const MIC_KEY = 'sa:mic_ok';
 
-export function saveMic(m: MicCheck): void {
-  try { window.localStorage.setItem(MIC_KEY, JSON.stringify(m)); } catch { /* per-device convenience only */ }
+/** The engine's own check keeps its level here; with oneLevel (sa_r28_mic_unknown) the newest check is the only level. */
+export const MIC_RMS_KEY = 'sa:mic_rms';
+
+export function saveMic(m: MicCheck, oneLevel = false): void {
+  try {
+    window.localStorage.setItem(MIC_KEY, JSON.stringify(m));
+    if (oneLevel) window.localStorage.removeItem(MIC_RMS_KEY);
+  } catch { /* per-device convenience only */ }
 }
 
 /** A check from an earlier visit must not ride into this one's batches. */

@@ -283,7 +283,7 @@ export default function LeaderAssess() {
   };
 
   const micChecked = (mic: MicCheck) => {
-    saveMic(mic);
+    saveMic(mic, switches.r28MicUnknown === true);
     remember((m) => ({ ...m, preflight: { at: m.preflight?.at ?? Date.now(), mic } }));
   };
 

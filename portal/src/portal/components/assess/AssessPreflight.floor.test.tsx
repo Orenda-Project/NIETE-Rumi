@@ -62,3 +62,19 @@ describe("AssessPreflight with sa_r28_mic_unknown", () => {
     expect(onMic).toHaveBeenLastCalledWith({ mic_ok: true, mic_rms: 0.01, at: expect.any(Number) });
   });
 });
+
+describe("M9 (b): the pre-flight's write keeps one level per browser", () => {
+  it("ON (oneLevel): the engine's older sa:mic_rms is removed with the new check", async () => {
+    const { saveMic } = await import("../../lib/assess/visitStore");
+    window.localStorage.setItem("sa:mic_rms", "0.0056");
+    saveMic({ mic_ok: true, mic_rms: 0.31, at: 1, how: "auto" }, true);
+    expect(window.localStorage.getItem("sa:mic_rms")).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem("sa:mic_ok") as string)).toMatchObject({ mic_ok: true, mic_rms: 0.31 });
+  });
+  it("OFF-identity: the game's sa:mic_rms is left as today", async () => {
+    const { saveMic } = await import("../../lib/assess/visitStore");
+    window.localStorage.setItem("sa:mic_rms", "0.08");
+    saveMic({ mic_ok: true, mic_rms: 0.31, at: 1 });
+    expect(window.localStorage.getItem("sa:mic_rms")).toBe("0.08");
+  });
+});

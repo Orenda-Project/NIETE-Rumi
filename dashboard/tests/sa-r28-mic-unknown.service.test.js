@@ -28,12 +28,12 @@ describe('the switch', () => {
 });
 
 describe('sa-mic', () => {
-  test('M2: a failed check keeps the coach pre-flight pass (keep_pass)', () => {
+  test('M2: a failed check keeps the coach pre-flight pass (r28)', () => {
     const s = memStore({ 'sa:mic_ok': JSON.stringify({ mic_ok: true, mic_rms: 0.2, at: 1 }) });
-    mic.remember(false, 0, s, { keep_pass: true });
+    mic.remember(false, 0, s, { r28: true });
     expect(mic.state(s)).toBe('ok');
   });
-  test('OFF-identity: without keep_pass a failed check still clears a JSON pass, as today', () => {
+  test('OFF-identity: without r28 a failed check still clears a JSON pass, as today', () => {
     const s = memStore({ 'sa:mic_ok': JSON.stringify({ mic_ok: true, mic_rms: 0.2, at: 1 }) });
     mic.remember(false, 0, s);
     expect(mic.state(s)).toBe('unknown');
@@ -76,6 +76,55 @@ async function boot({ on, stored = null, mode = 'proctored' }) {
   return { e, r: e.runner, s, events };
 }
 const stopOf = (r) => (r.results().find((x) => x.task_id === REC.id) || {}).stop_reason || null;
+
+describe('M9: one level per browser, the newest check\'s (sa:mic_rms)', () => {
+  const sink = require('../sa/sink-coach');
+  const rec = require('../sa/sa-rec');
+  // the device fields one batch carries (sink-coach.js), read from this store
+  async function deviceOf(s) {
+    let body = null;
+    const f = async (u, init) => { body = JSON.parse(init.body); return { ok: true, status: 200, json: async () => ({ ackedTo: 1 }) }; };
+    await sink.create({ fetch: f, localStorage: s, window: null }).putBatch({ session_id: 'x', seq_from: 1, seq_to: 1, events: [], results: [] });
+    return body.device;
+  }
+  test('A1: a silent card go-on-without, then a pre-flight pass at 0.31 (its write clears the key): one level, 0.31', async () => {
+    const s = memStore();
+    mic.remember(false, 0.0056, s, { r28: true });
+    // the pre-flight's write with oneLevel (portal visitStore.saveMic): the JSON, and the engine's key removed
+    s.setItem('sa:mic_ok', JSON.stringify({ mic_ok: true, mic_rms: 0.31, at: 2, how: 'auto' }));
+    s.removeItem('sa:mic_rms');
+    expect((await deviceOf(s)).mic_rms).toBe(0.31);
+    expect(rec.thresholdFor(0.05, s)).toBe(rec.thresholdFor(0.05, memStore({ 'sa:mic_ok': JSON.stringify({ mic_ok: true, mic_rms: 0.31 }) })));
+  });
+  test('A2: a measured card pass at 0.25, then an unmeasured pre-flight pass: no level on the batch (absent, never 0)', async () => {
+    const s = memStore();
+    mic.remember(true, 0.25, s, { r28: true });
+    s.setItem('sa:mic_ok', JSON.stringify({ mic_ok: true, mic_rms: null, at: 2, how: 'unmeasured' }));
+    const d = await deviceOf(s); // the key is still there (no oneLevel write here): sink-coach must not fall back to it
+    expect(d.mic_ok).toBe(true);
+    expect('mic_rms' in d).toBe(false);
+  });
+  test('A3: a silent check, then an unmeasured card pass: the stale level is removed', async () => {
+    const s = memStore();
+    mic.remember(false, 0.0056, s, { r28: true });
+    mic.remember(true, null, s, { r28: true });
+    expect(s.getItem('sa:mic_rms')).toBeNull();
+    const d = await deviceOf(s);
+    expect(d.mic_ok).toBe(true);
+    expect('mic_rms' in d).toBe(false);
+  });
+  test("psych: a no-analyser pre-flight pass reaches the batch as {mic_ok: true} with no mic_rms key, not 0", async () => {
+    const d = await deviceOf(memStore({ 'sa:mic_ok': JSON.stringify({ mic_ok: true, mic_rms: null, at: 1, how: 'unmeasured' }) }));
+    expect(d.mic_ok).toBe(true);
+    expect('mic_rms' in d).toBe(false);
+  });
+  test("OFF-identity: the game's own check keeps sa:mic_rms as today (a check with no level leaves it)", () => {
+    const s = memStore({ 'sa:mic_rms': '0.08' });
+    mic.remember(true, null, s);
+    expect(s.getItem('sa:mic_rms')).toBe('0.08');
+    expect(rec.thresholdFor(0.05, s)).toBe(rec.thresholdFor(0.05, memStore({ 'sa:mic_rms': '0.08' })));
+  });
+});
 
 describe('the engine, coach mode', () => {
   test('M1: ON, a working mic and no stored flag: the coach card, not mic_unavailable', async () => {
@@ -132,7 +181,7 @@ maybe('the coach mic card (sa-ui)', () => {
   const flush = () => new Promise((r) => setTimeout(r, 20));
   const rec = { id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: 'w', target: 'a', line: 1 }] };
 
-  async function mount(probeResult, { manual = true, on = true } = {}) {
+  async function mount(probeResult, { manual = true, on = true, speak = () => Promise.resolve() } = {}) {
     const c = require('../sa/sa-core');
     const ui = require('../sa/sa-ui');
     const calls = [];
@@ -140,7 +189,7 @@ maybe('the coach mic card (sa-ui)', () => {
     const runner = c.createRunner({ battery, onEvent: (e) => calls.push(e), mic: () => 'unknown', mic_check: true });
     const el = document.getElementById('m');
     const probes = [];
-    const view = ui.mount(el, { runner, battery, lang: 'en', mode: 'proctored', manual, speak: () => Promise.resolve(),
+    const view = ui.mount(el, { runner, battery, lang: 'en', mode: 'proctored', manual, speak,
       micProbe: () => { probes.push(1); return Promise.resolve(probeResult); } });
     views.push(view);
     runner.start();
@@ -154,7 +203,7 @@ maybe('the coach mic card (sa-ui)', () => {
     return { runner, el, calls, probes };
   }
   const buttons = (el) => [...el.querySelectorAll('button')];
-  const byText = (el, t) => buttons(el).find((b) => b.textContent === t);
+  const byText = (el, t) => buttons(el).find((b) => b.textContent === t || b.textContent.replace(/^\S+ /, '') === t);
   const micEv = (calls) => (calls.find((e) => e.type === 'mic_check') || {}).value;
 
   test('a level above the floor: "I heard it" passes, with the peak and how auto', async () => {
@@ -192,14 +241,36 @@ maybe('the coach mic card (sa-ui)', () => {
     expect(micEv(x.calls)).toEqual({ ok: true, rms: null, how: 'unmeasured' });
   });
 
-  test('a denied microphone: the card once, no "I heard it", and go on without skips', async () => {
+  test('a denied microphone: the fix line (not "no sound"), no "I heard it", and go on without logs how denied', async () => {
     const x = await mount({ ok: false, rms: 0, peak: 0, measured: false, denied: true, url: null });
     byText(x.el, 'Try the microphone').click();
     await flush(); await flush();
     expect(byText(x.el, 'I heard it')).toBeUndefined();
+    expect(x.el.textContent).toContain('The microphone is blocked or missing.');
+    expect(x.el.textContent).toContain('Then tap Try again.');
+    expect(x.el.textContent).not.toContain('No sound came through.');
     byText(x.el, 'Go on without it').click();
     await flush();
-    expect(micEv(x.calls)).toEqual({ ok: false, rms: 0, how: 'auto' });
+    expect(micEv(x.calls)).toEqual({ ok: false, rms: null, how: 'denied' });
+  });
+
+  test('the voice never contradicts the screen: below the floor, no "did you hear it?" is spoken; above it, it is', async () => {
+    for (const [pr, asked] of [[{ ok: false, rms: 0.005, peak: 0.0078, measured: true, url: null }, false], [{ ok: true, rms: 0.1, peak: 0.2, measured: true, url: null }, true]]) {
+      const said = [];
+      const x = await mount(pr, { manual: false, speak: (l) => { said.push(l); return Promise.resolve(); } }); // RDF auto: Jugnu speaks
+      byText(x.el, 'Try the microphone').click();
+      await flush(); await flush(); await flush();
+      const ask = said.some((l) => JSON.stringify(l).includes('Did you hear yourself?'));
+      expect(ask).toBe(asked);
+      views.splice(0).forEach((v) => v.destroy());
+    }
+  });
+
+  test('the try button carries the mic glyph; the Urdu card says «دوبارہ کوشش کریں»', async () => {
+    const x = await mount({ ok: false, rms: 0.005, peak: 0.0078, measured: true, url: null });
+    expect(x.el.querySelector('.sae-micu-try .sae-micu-glyph')).not.toBeNull();
+    const { COPY } = require('../sa/sa-ui');
+    if (COPY) expect(COPY.ur.micu_again).toBe('دوبارہ کوشش کریں');
   });
 
   test('RDF auto: go on without needs the coach to press and hold; a tap does nothing', async () => {
