@@ -125,7 +125,14 @@ function parseOwnAnswers(body, ctx) {
     answers.goal = g.goal;
     answers.resources = resources.filter((r) => r !== 'textbook');
   }
-  if (!band) return { ok: true, answers };
+  if (!band) {
+    // bd-snkn32.63 — a 1–5 day (no 6–12 band) takes what the lesson is for too, from the primary list: never `board`.
+    if (b.purpose != null) {
+      if (!purposesOfBand('primary').includes(b.purpose)) return bad('purpose is not one of the choices');
+      answers.purpose = b.purpose;
+    }
+    return { ok: true, answers };
+  }
   if (b.purpose != null) {
     // by grade too: Grade 8 has exam practice (FDE) where 6–7 do not.
     const purposes = bandOf(grade) ? purposesOfGrade(grade) : purposesOfBand(band);

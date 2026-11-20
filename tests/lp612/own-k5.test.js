@@ -176,3 +176,36 @@ describe('k5Messages — several teaching ways', () => {
     expect(user).toMatch(/Group the children by level/);
   });
 });
+
+describe('bd-snkn32.63 — what a 1–5 lesson is for shapes the rewrite (FLN)', () => {
+  const user = (purpose) => k5Messages({
+    script: script(), answers: { ...ANSWERS, ...(purpose ? { purpose } : {}) }, lang: 'en', grade: 2, subject: 'math',
+  })[1].content;
+  it('revise: quick oral recall, then mostly practice and games, fixing the common slip', () => {
+    const t = user('revise');
+    expect(t).toMatch(/Lesson purpose: revision/);
+    expect(t).toMatch(/choral/i);
+    expect(t).toMatch(/most of the time/i);
+    expect(t).not.toMatch(/exam/i);
+  });
+  it('re-teach: starts from the usual mistake, a new way with objects or pictures, smaller steps', () => {
+    const t = user('reteach');
+    expect(t).toMatch(/Lesson purpose: re-teach/);
+    expect(t).toMatch(/mistake/i);
+    expect(t).toMatch(/objects|pictures/i);
+    expect(t).toMatch(/smaller steps/i);
+  });
+  it('teach new: build from what they know, concrete first', () => {
+    expect(user('new')).toMatch(/Lesson purpose: teach .* first time/i);
+  });
+  it('the three read differently, and none is sent when she gave none (an older portal)', () => {
+    const lines = ['new', 'revise', 'reteach'].map((p) => user(p).split('\n').find((l) => l.startsWith('Lesson purpose')));
+    expect(new Set(lines).size).toBe(3);
+    expect(user(null)).not.toMatch(/Lesson purpose/);
+  });
+  it('the outcome and the I do / We do / You do order still never move', () => {
+    const sys = k5Messages({ script: script(), answers: { ...ANSWERS, purpose: 'revise' }, lang: 'en', grade: 2, subject: 'math' })[0].content;
+    expect(sys).toMatch(/Never change: the learning outcome/);
+    expect(sys).toMatch(/I do, We do and You do, in that order/);
+  });
+});

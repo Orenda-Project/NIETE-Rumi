@@ -21,7 +21,7 @@
  * code after the reply (lp-own-fit); they never refuse and never cost another model call.
  */
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
-const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine } = require('./lp612-own-ways');
+const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, PRIMARY_PURPOSES } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
 const { k5GoalLines } = require('./lp-k5-own-goal');
 // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
@@ -84,6 +84,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   const have = a.resources.map((r) => RESOURCES[r]).filter(Boolean).join(', ');
   const lines = [
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}. Grade ${grade}.`,
+    // bd-snkn32.63 — what the day is for (only when she said: an older portal sends none, and the plan is as before).
+    ...(PRIMARY_PURPOSES[a.purpose] ? [PRIMARY_PURPOSES[a.purpose]] : []),
     // bd-snkn32.27 — only what she has: no slates (ICT works in the book), the board only when she has one.
     // bd-snkn32.30 — the load is set by her class size: fewer activities for a bigger class, whole-class checks.
     `${P.loadLine(a.size)}${a.resources.includes('board') ? ' No activity needs every child to come to the board.' : ''}`,
