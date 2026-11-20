@@ -106,7 +106,8 @@ function rank(q, rows) {
     .filter(({ r }) => { const k = outcomeOf(r).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 
-const asGoal = (r) => ({ segmentId: r.segment_id, text: outcomeOf(r), chapter: r.chapter_title || null });
+// bd-snkn32.61: a suggestion names its goal and its day, never its chapter (the chapter still helps the match).
+const asGoal = (r) => ({ segmentId: r.segment_id, text: outcomeOf(r) });
 
 /**
  * Her typed topic → { status: 'ok'|'none'|'blocked', suggestions: [≤3 goals of her grade], otherGrade? }.

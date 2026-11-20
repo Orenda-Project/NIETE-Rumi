@@ -59,8 +59,8 @@ describe('k5GoalRows: the matrix as the goal list', () => {
   });
   it('outcomeList: the official outcomes, in the book\'s order, once each, in the book\'s language', () => {
     expect(outcomeList(rows)).toEqual([
-      { segmentId: 'u_ch1_seg1', text: 'اپنے اور اپنے گھر والوں کے بارے میں بات کر سکیں۔', chapter: 'حمد' },
-      { segmentId: 'u_ch2_seg1', text: 'نظم سن کر سوالات کے زبانی جوابات دے سکیں۔', chapter: 'نعت' },
+      { segmentId: 'u_ch1_seg1', text: 'اپنے اور اپنے گھر والوں کے بارے میں بات کر سکیں۔' },
+      { segmentId: 'u_ch2_seg1', text: 'نظم سن کر سوالات کے زبانی جوابات دے سکیں۔' },
     ]);
   });
   it('an Urdu topic she types finds its day (diacritics do not matter); no shared word is no match', () => {

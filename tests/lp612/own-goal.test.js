@@ -40,9 +40,9 @@ describe('parseGoal', () => {
 describe('outcomeList', () => {
   it('one row per outcome, in the book order, each naming the first lesson that teaches it', () => {
     expect(outcomeList(rows)).toEqual([
-      { segmentId: 'g7.sci.c01.p001', text: 'List the characteristics of living things', chapter: 'Living things' },
-      { segmentId: 'g7.sci.c02.p010', text: 'Compare plant and animal cells', chapter: 'Cells' },
-      { segmentId: 'g7.sci.c03.p020', text: 'Evaporation and condensation', chapter: 'Water' },
+      { segmentId: 'g7.sci.c01.p001', text: 'List the characteristics of living things' },
+      { segmentId: 'g7.sci.c02.p010', text: 'Compare plant and animal cells' },
+      { segmentId: 'g7.sci.c03.p020', text: 'Evaporation and condensation' },
     ]);
   });
   it('is empty with no rows', () => {

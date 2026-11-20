@@ -53,8 +53,9 @@ function outcomeList(rows) {
     const key = text.toLowerCase();
     if (!text || seen.has(key)) continue;
     seen.add(key);
-    // bd-snkn32.58.1 — grades 1–5 skill rows carry their skill group and SLO code; 6–12 rows are unchanged.
-    out.push({ segmentId: r.segment_id, text, chapter: clean(r.chapter_title) || null, ...(r.group ? { group: r.group, code: r.slo_code || null } : {}) });
+    // bd-snkn32.58.1 — grades 1–5 skill rows carry their skill group and SLO code. bd-snkn32.61 (Amena 20 Nov): no
+    // chapter name goes out with a goal; the goal path shows skills, never the book's chapters.
+    out.push({ segmentId: r.segment_id, text, ...(r.group ? { group: r.group, code: r.slo_code || null } : {}) });
   }
   return out;
 }
