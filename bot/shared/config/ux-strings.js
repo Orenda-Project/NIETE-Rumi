@@ -1133,6 +1133,13 @@ const UX_STRINGS = {
     ur: '\u200FNIETE ایپ کھولیں۔\nاگر ایپ میں مسئلہ ہو تو *1* لکھ کر بھیجیں، میں یہیں واٹس\u00A0ایپ پر جاری رکھوں\u00A0گی۔',
   },
   coachNudgeButton: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
+  // bd-eqkr0n (queue #203 follow-up) — a principal on the principal app asking to observe (app-redirect 2g): the coach
+  // nudge's first line on its own, with its button's words. No "reply 1" sentence: the operator, 20 Nov, "we
+  // can even ignore the WhatsApp one for Principals". Same words as the coach's, already reviewed, under keys of their own
+  // (so the principal link needs none of the nudge's code). Imperative, so nothing assumes a gender. Body 33 en / 24 ur,
+  // button 15 en / 14 ur code points.
+  principalAppBodyObserve: { en: 'Take your observation in the app.', ur: 'اپنا مشاہدہ ایپ میں لیں۔' },
+  principalAppButtonObserve: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },

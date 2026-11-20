@@ -73,6 +73,14 @@
  *      (coach_app_link stays as it is and can be retired later). A coach who chose WhatsApp today (reply 1, or the app's
  *      "Continue on WhatsApp") gets today's flow until PKT midnight: no second nudge. Old code never reads the key, so a
  *      rollback is OFF.
+ *   2g. THE PRINCIPAL APP LINK (bd-eqkr0n, queue #203 follow-up), for observe only (PRINCIPAL_LINKS): a principal the
+ *      principal app is on for (app_settings portal_principal_app names her: true, "true" or a list holding her; AND
+ *      users.role principal: the portal's own rule, dashboard/lib/teacher-app isPrincipalAppUser) gets ONE cta_url
+ *      message, the coach nudge's line without its "reply 1" sentence and its [Open in the app] button, signed in on her
+ *      Observations page. Nothing is armed: the operator, 20 Nov, "we can even ignore the WhatsApp one for Principals",
+ *      so a "1" after it is an ordinary message. Any door that asks for observe (/observe, her bare "observe", the
+ *      menu's Observe row). Asked after the coach nudge and before the October coach link. Anyone else, or a failed
+ *      read, goes on exactly as before; old code never reads the key for the bot, so a rollback is today's flow.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -99,6 +107,8 @@ const { newJourneyId } = require('./app-journey');
 const { LEADER_ROLES } = require('./observe/observe-gate');
 // The offer state only (a leaf module): the handlers that answer it require this file, not the other way round.
 const CoachAppOffer = require('./coach-app-offer');
+const { isPrincipalRole } = require('../config/role-features');
+const { PRINCIPAL_APP_KEY, namesUser } = require('./observe/principal-app-switch');
 const { isLpWhatsappPdfOffFor } = require('./lp-whatsapp-off');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
@@ -233,6 +243,15 @@ const NUDGE_COPY = Object.freeze({
 const COACH_NUDGE_KEY = 'coach_app_nudge';
 const COACH_FULL_APP_KEY = 'portal_coach_full_app';
 
+/**
+ * bd-eqkr0n (2g) — request → the page a principal's link lands on (app-login-link.js LANDINGS), for a principal the
+ * principal app is on for. Observe only: her other requests keep their own paths. The line is the coach nudge's first
+ * sentence on its own (no way back to WhatsApp is offered), the button the nudge's words (its own keys, so this needs
+ * none of the nudge's code).
+ */
+const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe' });
+const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
+
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
@@ -307,7 +326,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY]);
+        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY, PRINCIPAL_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -495,6 +514,28 @@ async function coachNudge(feature, userId, now) {
   return 'nudge';
 }
 
+/**
+ * bd-eqkr0n (2g) — the principal link: the page to land on (PRINCIPAL_LINKS), or null for the next path. The switch is
+ * read first (no row, or one that does not name her, costs no users read); then her users row, which must say
+ * principal. `account` is the caller's memoised users read. A failed read is null: today's flow, never a guess.
+ */
+async function principalLink(feature, userId, now, account) {
+  if (!Object.prototype.hasOwnProperty.call(PRINCIPAL_LINKS, feature)) return null;
+  const values = await settingValues(now);
+  if (!namesUser(values.get(PRINCIPAL_APP_KEY), userId)) return null;
+  let a;
+  try {
+    a = await account();
+  } catch (err) {
+    let tk = null;
+    try { tk = require('./quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+    logToFile('⚠️ Principal app link: the account could not be read — the WhatsApp flow runs', { tk, feature, error: err?.message }, 'warn');
+    return null;
+  }
+  if (!a || !isPrincipalRole(a.role)) return null;
+  return PRINCIPAL_LINKS[feature];
+}
+
 /** Is this users.role in the leader family? Trim + lowercase, as the portal's isLeaderRole does. */
 function isLeaderRole(role) {
   return typeof role === 'string' && LEADER_ROLES.includes(role.trim().toLowerCase());
@@ -671,14 +712,20 @@ async function decideRedirect(feature, { userId, from, language, reason = 'unspe
       if (sent) await CoachAppOffer.armReply(userId, feature, { journeyId: journey.journeyId, now });
       return sent;
     }
+    // One users read for every question below (bd-zcgpkx): the principal, leader and teacher links share it.
+    let read = null;
+    const account = () => { if (!read) read = loadAccount(userId); return read; };
+    // bd-eqkr0n (2g) — a principal on the principal app: the app's button only, no "reply 1" offer armed.
+    const principal = await principalLink(feature, userId, now, account);
+    if (principal) {
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
+      return sendAppLink(principal, { userId, from, language, reason, journey, copy: PRINCIPAL_COPY[principal] });
+    }
     const coach = await coachLink(feature, userId, now, reason);
     if (coach) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
       return sendAppLink(coach, { userId, from, language, reason, journey });
     }
-    // One users read for both questions (bd-zcgpkx): the leader link and the teacher link share it.
-    let read = null;
-    const account = () => { if (!read) read = loadAccount(userId); return read; };
     const leader = await leaderLink(feature, userId, now, reason, account);
     if (leader) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
