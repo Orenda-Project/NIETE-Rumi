@@ -502,7 +502,9 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     if (!t) continue;
     if (t.items.length !== spec.base_n) throw new Error(`${id}: ${t.items.length} items, the r28 bank extends ${spec.base_n}`);
     const forForm = spec.ext.filter((x) => !x.grades || x.grades.some((g) => f.grades.includes(g)));
-    const ext = forForm.map((x, i) => ({ id: `${id}.${pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
+    // An entry may name its own id suffix: one id means one numeral on every form (the G1-3 number-ID cells past 42 are
+    // .c43-.c60, never the .43-.50 that G4-5 give the P6 cells).
+    const ext = forForm.map((x, i) => ({ id: `${id}.${x.id || pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
     // base_n and ext_stop only ever ride an extension: the route strips them with ext_items (withoutR28).
     if (!ext.length) throw new Error(`${id}: the r28 bank lists no extension for this form`);
     Object.assign(t, { base_n: spec.base_n, ext_items: ext, ...(spec.ext_stop ? { ext_stop: spec.ext_stop } : {}) });

@@ -142,7 +142,7 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
       const core = new Set(v3.sets.A.maths['3'].number_id.items);
       expect(jo.map((x) => String(x.show))).toEqual(jordanA.filter((n) => !core.has(n)));
       const grades45 = /G[45]\./.test(form);
-      expect([form, shown.length]).toEqual([form, grades45 ? 50 : 42]);
+      expect([form, shown.length]).toEqual([form, grades45 ? 50 : 60]); // G1-3 run on past 42 (sa-number-id-g13-60.test.js)
     }
   });
 
