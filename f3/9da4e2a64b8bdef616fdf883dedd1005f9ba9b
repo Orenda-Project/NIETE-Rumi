@@ -3,3 +3,4 @@
 {"ts":"2026-11-20T12:11:59Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
 {"ts":"2026-11-20T12:12:07Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
 {"ts":"2026-11-20T12:12:25Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
+{"ts":"2026-11-20T12:12:53Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
