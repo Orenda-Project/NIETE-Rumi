@@ -1,0 +1,2 @@
+{"ts":"2026-11-20T16:55:52Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"6814af0e5374","branch":"bd-snkn32.59.4-93292","user":""}
+{"ts":"2026-11-20T16:55:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"6814af0e5374","branch":"bd-snkn32.59.4-93292","user":""}
