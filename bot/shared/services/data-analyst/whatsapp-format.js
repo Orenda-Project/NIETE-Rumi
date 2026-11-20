@@ -25,6 +25,9 @@ const KIND_STEMS = [['investigat', 'investigate'], ['predict', 'predict'], ['for
 
 const NEXT_LINE = /^\W*next\W*:\s*(.+)$/i;
 const TAG = /^\[\s*([a-z]+)\s*\]\s*(.+)$/i;
+// The same kind written without brackets, as a model does on a live run ("analyze Does it …", "(detect) …",
+// "predict: …", "**investigate** …"): only the five kind words themselves, so "Detected gaps" stays a question.
+const LOOSE_TAG = /^[(*_`]*\s*(investigate|predict|forecast|analy[sz]e|detect)\s*[)*_`]*\s*[:—–-]?\s+(.+)$/i;
 const SUGGESTION_SHAPE = /^\W*\[\s*[a-z]+\s*\]|\|/i;
 const UNSAFE = /[<>]|https?:|www\.|@/i;
 const ASK = /^[\s`*_>-]*ask[*_]*\s*:\s*(.+?)[\s`]*$/i;
@@ -67,7 +70,7 @@ function splitNext(text) {
   const next = [];
   for (const raw of rest.split('|')) {
     const item = strip(raw.trim(), ' \t*_`"\'');
-    const tagged = item.match(TAG);
+    const tagged = item.match(TAG) || item.match(LOOSE_TAG);
     const kind = tagged ? kindOf(tagged[1]) : '';
     const q = strip((tagged ? tagged[2] : item).trim(), ' \t*_`"\'');
     if (q) next.push({ kind, question: q });
@@ -220,10 +223,19 @@ function disclosures(calls) {
 
 // ---- footer ---------------------------------------------------------------------------------------
 
-/** The absolute dates one query asked about (their tools.query_dates), or null for a non-query. */
+// A date after a strict "<" is the first day NOT counted (`created_at < '2026-11-21'` ends on the 20th).
+const EXCLUSIVE_END = /<(?!=)\s*(?:(?:DATE|TIMESTAMP|DATETIME)\s*\(?\s*)?'(\d{4}-\d{2}-\d{2})/gi;
+const dayBefore = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+
+/** The absolute dates one query asked about (their tools.query_dates), or null for a non-query. A strict "<" end
+ *  date counts as the day before it, for the footer's window. */
 function queryDates(call) {
   const args = (call && call.arguments) || {};
-  if (call.name === 'execute_query') return typeof args.sql === 'string' ? args.sql.match(ISO_DATE) || [] : null;
+  if (call.name === 'execute_query') {
+    if (typeof args.sql !== 'string') return null;
+    const exclusive = new Set([...args.sql.matchAll(EXCLUSIVE_END)].map((m) => m[1]));
+    return (args.sql.match(ISO_DATE) || []).map((d) => (exclusive.has(d) ? dayBefore(d) : d));
+  }
   if (call.name === 'query_metric') {
     return ['from_date', 'to_date', 'compare_from', 'compare_to'].map((k) => args[k]).filter((d) => typeof d === 'string' && ISO_DATE_ONLY.test(d));
   }
@@ -249,11 +261,13 @@ function rulesVersion(calls) {
   return v;
 }
 
-/** `_NIETE data · 7–13 Nov 2026 · rules v0.42.5_`, or '' when no query ran. */
-function footer(calls) {
+const karachiToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
+/** `_NIETE data · 7–13 Nov 2026 · rules v0.42.5_`, or '' when no query ran. Nothing runs past today. */
+function footer(calls, { today = karachiToday() } = {}) {
   const dated = (calls || []).map((c) => (c ? queryDates(c) : null)).filter((d) => d !== null);
   if (!dated.length) return '';
-  const dates = dated.flat().sort();
+  const dates = [...new Set(dated.flat().map((d) => (d > today ? today : d)))].sort();
   const parts = ['NIETE data'];
   if (dates.length) parts.push(humanWindow(dates[0], dates[dates.length - 1]));
   const v = rulesVersion(calls);

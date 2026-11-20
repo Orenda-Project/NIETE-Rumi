@@ -58,4 +58,13 @@ describe('systemBlocks', () => {
     expect(w).toMatch(/^ASK: /m);
     expect(w).toMatch(/NEXT:/);
   });
+  test('ICT is the default, never a reason to skip the rules: only a named other region or country is refused', () => {
+    // Live trial 20 Nov: "Are FICO scores improving since September?" was refused in one step, no rules read,
+    // because the block said "any other region, country or programme" and FICO read as a programme.
+    const w = P.WHATSAPP_PROMPT;
+    expect(w).toMatch(/Every question here is about ICT/);
+    expect(w).toMatch(/always call `get_rules` for region `niete-rumi` first/);
+    expect(w).not.toMatch(/programme, say/);
+    expect(w).toMatch(/names another region or country/);
+  });
 });
