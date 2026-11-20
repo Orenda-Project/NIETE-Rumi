@@ -126,6 +126,8 @@ const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
 // Coach reports in the app: her debrief report as a page (behind coach_reports_app; the route answers 404 when off).
 const CoachReportPage = page(() => import("./portal/coach/report/CoachReportPage"));
 const CoachWeekPage = page(() => import("./portal/coach/report/CoachWeekPage"));
+// bd-o15qnr.28.1 (v7) — My progress, read-only, from the Home tile (the page itself sends her Home with the switch off).
+const CoachProgressPage = page(() => import("./portal/coach/report/CoachProgressPage"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
@@ -357,6 +359,7 @@ const App = () => {
             <Route path="/portal/coach/observation/:id/send" element={<CoachSendReport />} />
             <Route path="/portal/coach/report/:id" element={<CoachReportPage />} />
             <Route path="/portal/coach/week/:monday" element={<CoachWeekPage />} />
+            <Route path="/portal/coach/progress" element={<CoachProgressPage />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}

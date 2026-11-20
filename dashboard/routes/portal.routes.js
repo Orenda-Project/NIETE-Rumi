@@ -2649,6 +2649,35 @@ router.get('/coach/week/:monday', ...coachReports, async (req, res) => {
   } catch (error) { return coachFail(res, 'week', error); }
 });
 
+/*
+ * bd-o15qnr.28.1 (queue #204, v7) — My progress (services/coach-progress.service.js): the coach's own week, Key Focus
+ * Area, 8 behaviours over her last 10 debriefs, latest observations and weekly reports, read-only. COACHES ONLY: the
+ * coach app v2 chain, then coach_reports_app OR the v6/v7 switch (portal_coach_flow_v2), as the debrief report's read;
+ * a principal is 404 on every switch (no weekly report, no My progress for principals). Her weekly reports are listed
+ * only when her week page opens (coach_reports_app: the week route's own gate, unchanged). The coach is ALWAYS the
+ * session user; nothing sent in names anyone.
+ */
+const CoachProgress = require('../services/coach-progress.service');
+
+async function requireCoachProgress(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  if (isPrincipalRole(req.portalUser && req.portalUser.role)) return res.status(404).json({ success: false, error: 'Not found' });
+  const reportsApp = await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId);
+  const on = reportsApp || await isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  req.coachReportsApp = reportsApp === true;
+  return next();
+}
+
+/** GET /api/portal/coach/progress — her progress (counts only), read-only. */
+router.get('/coach/progress', ...coachV2, requireCoachProgress, async (req, res) => {
+  try {
+    const progress = await CoachProgress.getCoachProgress(pgQuery, req.session.portalUserId, { weeks: req.coachReportsApp === true });
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, progress });
+  } catch (error) { return coachFail(res, 'progress', error); }
+});
+
 /** POST /api/portal/coach/week/:monday/opened | /seen — she opened her week / closed its card: the week's one row. */
 for (const what of ['opened', 'seen']) {
   router.post(`/coach/week/:monday/${what}`, ...coachReports, async (req, res) => {
