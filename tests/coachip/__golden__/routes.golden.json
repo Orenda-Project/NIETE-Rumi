@@ -369,6 +369,7 @@
           "coachipRm": "boolean",
           "loginIntlNumbers": "boolean",
           "lpOwnGoalStart": "boolean",
+          "lpOwnUnit": "boolean",
           "newUi": "boolean",
           "selfObservation": "boolean",
           "teacherHomeCard": "boolean",

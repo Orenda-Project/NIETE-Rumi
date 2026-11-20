@@ -111,7 +111,7 @@ function createOwnService(deps) {
       return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
     }
     // bd-snkn32.13: a 6–12 segment's answers are checked against its grade band's ways (a 1–5 day: the primary ones).
-    const parsed = parseOwnAnswers(answers, lessonId ? undefined : { segmentId });
+    const parsed = parseOwnAnswers(answers, lessonId ? { lessonId } : { segmentId });
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
     const ext = parseExtend(answers.extend);
     if (!ext.ok) return { outcome: 'bad_request', error: ext.error };

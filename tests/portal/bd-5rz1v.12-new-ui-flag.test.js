@@ -183,6 +183,8 @@ describe('GET /config — features.newUi', () => {
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       // The lesson plan in the app: the survey bar, real false unless portal_lp_feedback_bar names her.
       'lpFeedbackBar', 'lpMakeOwn', 'lpOwnGoalStart', 'lpOwnReviewer', 'lpOwnShelf',
+      // bd-snkn32.59 (queue #165) — A whole unit: real false unless portal_lp_own_unit names her (with Make my own on).
+      'lpOwnUnit',
       // The plan screen's slim layout, a real false unless portal_lp_viewer_slim (and the teacher app) name her.
       'lpViewerSlim',
       // Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off.
