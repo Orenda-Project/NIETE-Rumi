@@ -13,6 +13,8 @@
  * ASK lines as numbered choices a reply of 1, 2, 3 can pick, and messages under 4,096 characters.
  */
 
+const { identifiers_note: IDENTIFIERS_NOTE } = require('./vendor/data-mcp-contract.json');
+
 const MAX_MESSAGE = 4096;
 const MAX_NEXT = 3;
 const MAX_NEXT_CHARS = 200;
@@ -177,10 +179,11 @@ function compiledWords(results) {
   return lines;
 }
 
+/** Their "this contains real people" sentence (engine/serving_policy.identifiers_note), from the vendored contract. */
 function identifiersNote(columns) {
   const shown = columns.slice(0, 6).join(', ');
   const more = columns.length <= 6 ? '' : ` +${columns.length - 6} more`;
-  return `contains personal identifiers (${shown}${more}) — internal use only, do not share outside Taleemabad`;
+  return IDENTIFIERS_NOTE.replace('{columns}', () => `${shown}${more}`);
 }
 
 function disclosures(calls) {
