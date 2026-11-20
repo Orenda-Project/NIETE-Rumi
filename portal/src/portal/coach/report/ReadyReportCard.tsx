@@ -79,13 +79,18 @@ function subOf(r: ReadyDebrief, lang: Lang): string {
   return [r.teacher, cls || null, timeOf(r.at, lang)].filter(Boolean).join(" · ");
 }
 
-/** The card itself, or nothing (switch off, nothing ready). Placed first under the band on both coach Homes. */
-export function ReadyReportCard({ className }: { className?: string }) {
+/**
+ * The card itself, or nothing (switch off, nothing ready). Placed first under the band on both coach Homes.
+ * bd-o15qnr.28.1 (v7) — `skipWeek`: on a Monday the v7 Home's Focus card shows "Your week" itself, so this card leaves
+ * the week row out (one thing, once); its debrief rows are as before.
+ */
+export function ReadyReportCard({ className, skipWeek = false }: { className?: string; skipWeek?: boolean }) {
   const on = useCoachReportsApp();
-  const { reports, dismiss } = useReadyReports(on);
+  const { reports: all, dismiss } = useReadyReports(on);
   const C = useCopy(COACH_REPORT) as CoachReportCopy;
   const lang = useLang();
   const navigate = useNavigate();
+  const reports = skipWeek ? all.filter((r) => r.kind !== "week") : all;
   if (on !== true || reports.length === 0) return null;
   const shown = reports.slice(0, 2);
   const dir = lang === "ur" ? "rtl" : undefined;

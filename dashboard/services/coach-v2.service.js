@@ -826,4 +826,6 @@ module.exports = {
   getCoachVisit,
   getTeamSchedule,
   getCoachReports,
+  // bd-o15qnr.28.1 — My progress (coach-progress.service) shows where each recent observation stands, by this one rule.
+  stepOf,
 };
