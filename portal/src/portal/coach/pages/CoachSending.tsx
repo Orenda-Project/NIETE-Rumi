@@ -9,6 +9,9 @@ import { failureWords, lengthShort, planKindLabel, unreadablePart } from "../obs
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { retrySend, useSendJob } from "../observe/sender";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { ErrorCard } from "../flow/VisitV7";
+import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 
 /**
  * bd-4404s7.4 — the observation being sent (Blueprint: Coach_Sending): a ring that fills as the files go up, "Sending",
@@ -30,6 +33,9 @@ const CoachSending = () => {
   const { id = "" } = useParams();
   const job = useSendJob(id);
   const routes = useObserveRoutes();
+  // bd-o15qnr.28 (v7, board m9-errors card 2): a failed send is the red-edged card (the reason, "Nothing is lost.").
+  const v7 = useFlowV6() === true;
+  const E = useCopy(FLOW_V7_ERRORS);
   if (!job) return <Navigate to={routes.visit(id)} replace />;
 
   const failed = job.state === "failed";
@@ -74,13 +80,16 @@ const CoachSending = () => {
             {!failed && !sent && <b data-testid="send-pct" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{job.pct}%</b>}
           </span>
         </div>
-        <p className="text-2xl font-semibold" data-testid="send-state">{caption}</p>
+        {!(v7 && failed) && <p className="text-2xl font-semibold" data-testid="send-state">{caption}</p>}
         <div className="flex flex-wrap justify-center gap-2">
           {length && <StatusChip text={length} tone="info" />}
           <StatusChip text={job.teacherName} tone="info" />
           {job.planKind && <span data-testid="send-plan"><StatusChip text={C.planChip(planKindLabel(job.planKind, C))} tone="info" /></span>}
         </div>
-        {failed && (
+        {failed && v7 && (
+          <div className="w-full"><ErrorCard testId="error-couldnt-send" title={C.couldntSend} line={`${failureWords(job.errorCode, C)} ${E.nothingLost}`} /></div>
+        )}
+        {failed && !v7 && (
           <p role="alert" className="w-full rounded-2xl bg-[#fef2f1] px-3.5 py-3 text-[15px] leading-snug text-[#7a271a]">{failureWords(job.errorCode, C)}</p>
         )}
         {!failed && !sent && <LeaveNote text={L.leave} sub={C.leaveSub} />}
