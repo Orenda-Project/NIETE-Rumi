@@ -22,6 +22,18 @@ describe('NEXT and ASK lines', () => {
       { kind: 'predict', question: 'Where does it land?' },
     ]);
   });
+  test('the kind is read in every form a model writes it, never left in the question', () => {
+    const t = 'Body.\n\nNEXT: analyze Does it differ by group? | (detect) Which schools lag? | predict: When does it catch up? | **investigate** Why did it fall?';
+    expect(F.splitNext(t).next).toEqual([
+      { kind: 'analyze', question: 'Does it differ by group?' },
+      { kind: 'detect', question: 'Which schools lag?' },
+      { kind: 'predict', question: 'When does it catch up?' },
+      { kind: 'investigate', question: 'Why did it fall?' },
+    ]);
+  });
+  test('a question that merely starts with a word like "Detected" keeps it', () => {
+    expect(F.splitNext('B.\n\nNEXT: Detected gaps by sector?').next).toEqual([{ kind: '', question: 'Detected gaps by sector?' }]);
+  });
   test('a sentence that merely says "next:" mid-answer is kept', () => {
     const t = 'Next: we looked at sectors.\nThen the total.';
     expect(F.splitNext(t)).toEqual({ body: t, next: [] });
@@ -91,6 +103,16 @@ describe('footer', () => {
   test('a window across months and years, and SQL date literals', () => {
     expect(F.footer([rules(), query("WHERE d BETWEEN '2026-10-28' AND '2026-11-03'", {})])).toBe('_NIETE data · 28 Oct – 3 Nov 2026 · rules v0.42.5_');
     expect(F.footer([rules(), query("WHERE d BETWEEN '2025-12-28' AND '2026-01-03'", {})])).toBe('_NIETE data · 28 Dec 2025 – 3 Jan 2026 · rules v0.42.5_');
+  });
+  test('a strict "<" end date is exclusive, and nothing runs past today', () => {
+    // Live trial 20 Nov: `created_at < '2026-11-21'` showed "– 21 Nov", a day that had not happened yet.
+    const sql = "WHERE created_at >= '2026-11-01' AND created_at < '2026-11-21'";
+    expect(F.footer([rules(), query(sql, {})], { today: '2026-11-20' })).toBe('_NIETE data · 1–20 Nov 2026 · rules v0.42.5_');
+    const oct = "WHERE d >= DATE '2026-10-01' AND d < DATE '2026-11-01'";
+    expect(F.footer([rules(), query(oct, {})], { today: '2026-11-20' })).toBe('_NIETE data · 1–31 Oct 2026 · rules v0.42.5_');
+    expect(F.footer([rules(), query("WHERE d <= '2026-11-20'", {})], { today: '2026-11-20' })).toBe('_NIETE data · 20 Nov 2026 · rules v0.42.5_');
+    expect(F.footer([rules(), metric({ metric: 'm', from_date: '2026-11-01', to_date: '2026-11-30' }, {})], { today: '2026-11-20' }))
+      .toBe('_NIETE data · 1–20 Nov 2026 · rules v0.42.5_');
   });
   test('no query, no footer (a clarifying question or a refusal)', () => {
     expect(F.footer([rules()])).toBe('');
