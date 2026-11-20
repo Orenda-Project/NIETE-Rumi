@@ -1,0 +1,2 @@
+{"ts":"2026-11-20T01:58:40Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"17fcc10c9794","branch":"bd-zrdvmi.36-39764","user":""}
+{"ts":"2026-11-20T13:45:43Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-17fcc10c9794","sha":"17fcc10c9794","branch":"bd-zrdvmi.36-39764","user":""}
