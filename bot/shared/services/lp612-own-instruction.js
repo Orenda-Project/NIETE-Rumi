@@ -90,6 +90,8 @@ function secondaryBand(ctx) {
  *   when the segment's SLOs are mixed).
  * @returns {{ok:true, answers:object} | {ok:false, error:string}}
  */
+const { parseUnit } = require('./lp-own-unit-day');
+
 function parseOwnAnswers(body, ctx) {
   const b = body && typeof body === 'object' ? body : null;
   if (!b) return bad('answers are required');
@@ -124,6 +126,13 @@ function parseOwnAnswers(body, ctx) {
     if (hasBlockedWord(g.goal.text)) return bad('goal.text is not a school topic'); // bd-snkn32.58.2: a forged body too
     answers.goal = g.goal;
     answers.resources = resources.filter((r) => r !== 'textbook');
+  }
+  if (b.unit != null) {
+    // bd-snkn32.59 (queue #165) — a day of her unit (book start, grades 1–5): checked, then kept in her answers.
+    if (!ctx || !ctx.lessonId || answers.goal) return bad('unit is for a grades 1-5 book day');
+    const u = parseUnit(b.unit, ctx.lessonId);
+    if (!u.ok) return bad(u.error);
+    answers.unit = u.unit;
   }
   if (!band) {
     // bd-snkn32.63 — a 1–5 day (no 6–12 band) takes what the lesson is for too, from the primary list: never `board`.

@@ -458,3 +458,36 @@ Feature: Teacher lesson plans
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
     When she opens the plan and reaches its end
     Then no survey bar is drawn
+
+  # bd-snkn32.59.1 (queue #165) — Make my own → A whole unit (grades 1–5, from her book's chapters), behind the list-only
+  # portal_lp_own_unit. Written by hand like the blocks above (@draft): the demo stack cannot turn the switch on.
+  # Pinned by own/Unit.test.tsx and own/unitEdit.test.ts (portal), tests/lp612/own-unit-*.test.js and
+  # tests/portal/lp-own-unit-route.test.js.
+  @OWN07 @draft @config-gated
+  Scenario: A whole unit: chapters, period and pace give a day-by-day outline she can change and save
+    Given portal_lp_make_own and portal_lp_own_unit are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own and taps "A whole unit", then picks Grade 3 Math
+    And she taps chapter 2 then chapter 3 and picks "35 min"
+    Then the paces read "Recommended · 21 days", "Slower · 25 days" and "Faster · 17 days"
+    When she taps "See the days"
+    Then "Your days" shows 21 days, with each chapter's review and test days marked
+    When she taps ⋯ on Day 1 and "Join with next day"
+    Then the outline shows 20 days and "Undo" is on screen
+    When she taps "Save unit" and reopens the unit from "My units"
+    Then the same 20 days show, and a new unit for Grade 3 Math starts with "35 min" chosen
+
+  @OWN08 @draft @config-gated
+  Scenario: A unit day's plan is made only when she opens it; a review day opens the book's own day
+    Given demo teacher 03000000911 has a saved Grade 3 Math unit and has picked her class size and level
+    When she taps "Open plan" on a lesson day
+    Then exactly one plan is made for that day and Preparing opens
+    When she taps "Open plan" on a review day
+    Then the book's own review day opens and no plan is made
+
+  @OWN09 @draft @config-gated @negative
+  Scenario: With the unit switch off, Make my own is unchanged
+    Given portal_lp_own_unit does not name demo teacher 03000000911
+    When she opens Make my own
+    Then there is no "A whole unit" card
+    And opening a unit address takes her back, and the unit calls answer 404

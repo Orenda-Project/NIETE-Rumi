@@ -5778,6 +5778,35 @@ CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
 CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
   ON niete_gb_lp_renders (status, started_at) WHERE status = 'authoring';
 
+-- V1.10.8 (bd-snkn32.59): Make my own, a whole unit: her day-by-day outline; no plan bodies (day plans are
+-- niete_lp612_own_plans rows with answers.unit). Asked first per docs/lesson-plan-data-model-debt.md.
+CREATE TABLE IF NOT EXISTS niete_lp_own_units (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES users(id),
+  class_id         UUID REFERENCES classes(id),
+  book_stem        TEXT NOT NULL,
+  grade            SMALLINT NOT NULL CHECK (grade BETWEEN 1 AND 12),
+  subject          TEXT NOT NULL,
+  start_kind       TEXT NOT NULL CHECK (start_kind IN ('book', 'goals')),
+  chapter_from     SMALLINT,
+  chapter_to       SMALLINT,
+  goal_codes       TEXT[],
+  period_minutes   SMALLINT NOT NULL CHECK (period_minutes BETWEEN 20 AND 90),
+  pace             TEXT NOT NULL CHECK (pace IN ('recommended', 'slower', 'faster')),
+  outline          JSONB NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'archived')),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at       TIMESTAMPTZ,
+  CONSTRAINT niete_lp_own_units_book_range CHECK (start_kind <> 'book' OR (chapter_from IS NOT NULL AND chapter_to >= chapter_from)),
+  CONSTRAINT niete_lp_own_units_goals CHECK (start_kind <> 'goals' OR cardinality(goal_codes) BETWEEN 2 AND 8)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp_own_units_user
+  ON niete_lp_own_units (user_id, updated_at DESC);
+
+ALTER TABLE niete_lp_own_units ENABLE ROW LEVEL SECURITY;
+
 -- V1.9.6 (bd-snkn32): Make my own lesson plans, a teacher's fork of a 6-12 plan.
 CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),

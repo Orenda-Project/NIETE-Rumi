@@ -2858,6 +2858,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own.routes'));
 // bd-snkn32.56 — Make my own from a learning goal or topic (dark unless the list-only portal_lp_own_goal_start).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own-goal.routes'));
+// bd-snkn32.59 (queue #165): Make my own, a whole unit (grades 1-5). Dark unless the list-only portal_lp_own_unit has her.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp-own-unit.routes'));
 // bd-snkn32.42 — "Made by a teacher" shelf + the human check before a teacher's plan is listed.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-shelf.routes'));
 // bd-ik5e8j.4 — the teacher app's how-to videos (GET /help, POST /help/seen); dark unless portal_help_videos.
