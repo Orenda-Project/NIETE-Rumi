@@ -14,6 +14,8 @@ export function bandWords(C: OwnCopy, grade: number) {
     resource: (k: Resource) => (secondary ? C.resourceNames612 : C.resourceNames)[k],
     objectsHint: secondary ? C.objectsHint612 : C.objectsHint,
     purpose: (k: Purpose) => (fde && k === 'board' ? C.purposeBoardFde : C.purposes[k]),
+    /** bd-snkn32.63 — grades 1–5 revise to practise what they learned, not before a test. */
+    purposeHints: (secondary ? C.purposeHints : C.purposeHintsK5) as Partial<Record<Purpose, string>>,
     way: (k: Way) => C.ways[k],
   };
 }

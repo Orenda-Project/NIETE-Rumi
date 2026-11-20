@@ -47,10 +47,11 @@ describe('bands', () => {
     expect(waysOfBand('senior')).toContain('past_paper');
     expect(waysOfBand('senior')).toEqual(expect.arrayContaining(['worked', 'numericals', 'practical', 'concept_map', 'discussion', 'reading']));
   });
-  it('lesson purposes: board exam only for 9–12, none for primary', () => {
+  it('lesson purposes: board exam only for 9–12; primary (1–5) teach new, revise, re-teach (bd-snkn32.63)', () => {
     expect(purposesOfBand('middle')).toEqual(['new', 'revise', 'reteach']);
     expect(purposesOfBand('senior')).toEqual(['new', 'revise', 'board', 'reteach']);
-    expect(purposesOfBand('primary')).toEqual([]);
+    expect(purposesOfBand('primary')).toEqual(['new', 'revise', 'reteach']);
+    expect(purposesOfBand(null)).toEqual([]);
     expect(Object.keys(PURPOSES)).toEqual(['new', 'revise', 'board', 'reteach']);
   });
 });
@@ -100,7 +101,17 @@ describe('parseOwnAnswers for 6–12', () => {
   it('primary (no context or a grade 1–5) keeps the old ways and refuses 6–12 ones', () => {
     expect(parseOwnAnswers({ ...base, way: 'tarl' }).ok).toBe(true);
     expect(parseOwnAnswers({ ...base, way: 'worked' }, { grade: 3 }).ok).toBe(false);
-    expect(parseOwnAnswers({ ...base, way: 'tarl', purpose: 'revise' }, { grade: 3 }).answers.purpose).toBeUndefined();
+  });
+  it('bd-snkn32.63 — a 1–5 day takes what the lesson is for (new, revise, re-teach), never board exam practice', () => {
+    for (const purpose of ['new', 'revise', 'reteach']) {
+      expect(parseOwnAnswers({ ...base, way: 'tarl', purpose }).answers.purpose).toBe(purpose); // a 1–5 day: no ctx
+      expect(parseOwnAnswers({ ...base, way: 'tarl', purpose }, { grade: 3 }).answers.purpose).toBe(purpose);
+    }
+    expect(parseOwnAnswers({ ...base, way: 'tarl', purpose: 'board' }).ok).toBe(false);
+    expect(parseOwnAnswers({ ...base, way: 'tarl', purpose: 'board' }, { grade: 5 }).ok).toBe(false);
+    expect(parseOwnAnswers({ ...base, way: 'tarl', purpose: 'exam' }).ok).toBe(false);
+    expect(parseOwnAnswers({ ...base, way: 'tarl' }).answers.purpose).toBeUndefined(); // an older client sends none
+    expect(parseOwnAnswers({ ...base, way: 'tarl', focus: 'formative' }).answers.focus).toBeUndefined();
   });
 });
 

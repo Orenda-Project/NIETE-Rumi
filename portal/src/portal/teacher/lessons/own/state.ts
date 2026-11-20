@@ -119,15 +119,16 @@ export function readOwn(search: string): OwnAt | null {
 }
 
 /**
- * /.19 — the steps she walks: grades 6–12 add "what is this lesson for?" right after the pages, and
+ * /.19 — the steps she walks: every grade asks "what is this lesson for?" right after the pages or the goal (grades
+ * 1–5 since bd-snkn32.63), and
  * "which outcomes first?" only at 9–12 when the lesson's FBISE SLOs are mixed and it is not exam practice.
  */
 export function stepsFor({ grade, mixed, purpose = null, goal = false }: { grade: number; mixed: boolean; purpose?: Purpose | null; goal?: boolean }): OwnStep[] {
   // bd-snkn32.56 — a goal start: the goal screen stands where the book pages were; no "which outcomes first".
-  // Grades 1–5 (bd-snkn32.57) walk it too, still without "what is this lesson for?".
-  if (goal) return OWN_STEPS.filter((x) => x !== 'pages' && x !== 'focus' && (x !== 'purpose' || isSecondary(grade)));
+  // Grades 1–5 (bd-snkn32.57) walk it too.
+  if (goal) return OWN_STEPS.filter((x) => x !== 'pages' && x !== 'focus');
   const focus = grade >= 9 && mixed && purpose !== 'board';
-  return OWN_STEPS.filter((x) => (x === 'goal' ? false : x === 'purpose' ? isSecondary(grade) : x === 'focus' ? focus : true));
+  return OWN_STEPS.filter((x) => (x === 'goal' ? false : x === 'focus' ? focus : true));
 }
 
 const PRIMARY_STEPS = stepsFor({ grade: 1, mixed: false });
@@ -143,7 +144,7 @@ export function prevStep(step: OwnStep, steps: readonly OwnStep[] = PRIMARY_STEP
 }
 
 /**
- * The body Make my plan sends (the bot checks it again). Purpose and focus ride only when answered (grades 6–12).
+ * The body Make my plan sends (the bot checks it again). Purpose and focus ride only when answered (focus: 9–12).
  * `next`: the lesson after hers, when she adds its pages (bd-snkn32.14).
  */
 export function toAnswers(s: OwnAt, note: string, next: string | null = null) {

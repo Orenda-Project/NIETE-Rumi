@@ -44,6 +44,16 @@ const PURPOSES = {
 };
 
 /**
+ * bd-snkn32.63 — grades 1–5 (FLN, young children): the same three codes, never board exam practice. Each line keeps
+ * the outcome, the pages and the I do / We do / You do order; only how much time goes where, and how, changes.
+ */
+const PRIMARY_PURPOSES = {
+  new: 'Lesson purpose: teach this day for the first time. Start from what the children already know and do, and go concrete first: real things and pictures before symbols.',
+  revise: 'Lesson purpose: revision. The children have learned this already: keep the hook and I Do to a quick oral or choral recall, then spend most of the time on games and practice in We Do and You Do, and fix the most common slip as it comes up.',
+  reteach: 'Lesson purpose: re-teach. The children did not get this the first time: open with the usual mistake and show why it is wrong, then teach it a new way with objects or pictures, in smaller steps, with a quick check after each step.',
+};
+
+/**
  * Grade 8's exam practice (the portal's "Exam practice (FDE)"): purpose code `board`, as 9–12, so the
  * portal sends one code; at Grade 8 it reads as the FDE centralised annual exam, never FBISE.
  */
@@ -85,9 +95,9 @@ function waysOfGrade(grade) {
   return Number(grade) === 8 ? [...ways, 'exam_fde'] : ways;
 }
 
-/** The purposes offered in a band, in order (none for primary). */
+/** The purposes offered in a band, in order (primary since bd-snkn32.63: no board exam practice). */
 function purposesOfBand(band) {
-  if (band === 'middle') return ['new', 'revise', 'reteach'];
+  if (band === 'middle' || band === 'primary') return ['new', 'revise', 'reteach'];
   if (band === 'senior') return ['new', 'revise', 'board', 'reteach'];
   return [];
 }
@@ -105,6 +115,6 @@ function purposeLine(purpose, grade) {
 }
 
 module.exports = {
-  purposesOfGrade, purposeLine, PURPOSE_FDE,
+  purposesOfGrade, purposeLine, PURPOSE_FDE, PRIMARY_PURPOSES,
   SECONDARY_WAYS, PURPOSES, GRR_LINE, ROTE_LINE, YOU_DO_LINE, BOOK_MAX, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
 };
