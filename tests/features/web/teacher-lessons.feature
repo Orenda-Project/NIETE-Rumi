@@ -240,6 +240,24 @@ Feature: Teacher lesson plans
     Then /portal/fln/p/<that plan's id>?grade=3 opens
     And Send to teacher and Share link work as before
 
+  # bd-snkn32.61 — operator, 20 Nov: "doesnt make sense to show chapters, we can focus on FLN related skills and if
+  # teachers want something else, they are free to add those". Written by hand like the blocks above (@draft): the demo
+  # stack cannot turn portal_lp_own_goal_start on. Pinned by GoalStep.test.tsx (portal) and tests/lp612/own-goal*.test.js.
+
+  @OWN05 @draft @config-gated
+  Scenario: The learning-goal start shows skills only, never a chapter name, and lets her add her own goal
+    Given portal_lp_make_own and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "From a learning goal" and picks Grade 3 Math
+    Then the goals are grouped by skill such as "Adding and subtracting", with no chapter name under any goal
+    When she types "multiply" in "Search goals"
+    Then the matching goals show with no chapter name
+    When she taps "Add my own goal", types "Adding money at the shop" and taps "Check my goal"
+    Then "Use my words" shows with "Did you mean" goals below it, none naming a chapter
+    When she taps "Use my words"
+    Then the next step opens and the check screen shows her own words as the learning goal
+    And a typed goal with a blocked word gets a calm refusal and nothing to use
+
   # bd-zrdvmi.21 (18 Nov) — ICT Feedback sheet, GB tab rows 2-3 (14 Nov, portal).
   @GBS01 @draft @config-gated
   Scenario: A GB teacher sends a Gilgit-Baltistan plan she opened in the app to her WhatsApp

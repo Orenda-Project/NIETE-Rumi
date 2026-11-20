@@ -8,9 +8,10 @@ import { readConfigShared } from '../../../lib/useNewUi';
  * topic she types. Each goal names the lesson the plan is written over (its pages keep the facts right).
  */
 /** bd-snkn32.58.1 — grades 1–5 goals are skill-sized and carry their skill `group` and SLO `code`; 6–12 rows have neither. */
-export type GoalOutcome = { segmentId: string; text: string; chapter: string | null; group?: string; code?: string | null };
+/** bd-snkn32.61 — no chapter: the goal path never names the book's chapters (an older server's `chapter` is dropped). */
+export type GoalOutcome = { segmentId: string; text: string; group?: string; code?: string | null };
 /** bd-snkn32.58.2 — the typed-topic guard's answer (lp-own-goal-guard): she taps a suggestion; a refusal picks nothing. */
-export type GoalSuggestion = { segmentId: string; text: string; chapter: string | null };
+export type GoalSuggestion = { segmentId: string; text: string };
 export type GoalMatch = {
   status: 'ok' | 'none' | 'blocked';
   suggestions: GoalSuggestion[];
@@ -41,7 +42,7 @@ export async function fetchGoals(at: At): Promise<GoalOutcome[] | null> {
     return data.outcomes
       .filter((o: Partial<GoalOutcome>) => str(o?.segmentId) && str(o?.text))
       .map((o: GoalOutcome) => ({
-        segmentId: o.segmentId, text: o.text, chapter: str(o.chapter) ? o.chapter : null,
+        segmentId: o.segmentId, text: o.text,
         ...(str(o.group) ? { group: o.group, code: str(o.code) ? o.code : null } : {}),
       }));
   } catch {
@@ -50,7 +51,7 @@ export async function fetchGoals(at: At): Promise<GoalOutcome[] | null> {
 }
 
 const suggestion = (o: Partial<GoalSuggestion> | null | undefined): GoalSuggestion | null => (
-  o && str(o.segmentId) && str(o.text) ? { segmentId: o.segmentId, text: o.text, chapter: str(o.chapter) ? o.chapter : null } : null);
+  o && str(o.segmentId) && str(o.text) ? { segmentId: o.segmentId, text: o.text } : null);
 
 /** The guard's answer to her topic, or null (a malformed answer or a failure: the screen says try again). */
 export async function matchGoal(at: At, q: string): Promise<GoalMatch | null> {
