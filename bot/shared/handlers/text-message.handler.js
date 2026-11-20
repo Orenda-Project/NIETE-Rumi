@@ -163,6 +163,13 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
       catch (_) { contentLanguage = 'en'; }
     }
 
+    // lp_whatsapp_pdf_off: her programme gets the plan in the app. This path runs before every app-redirect door
+    // (the early intercept), so it sends the app link itself; a link that could not go falls through to the doors.
+    const pdfOff = await require('../services/lp-pdf-off').pdfOffLink({
+      userId: user?.id, phone: from, language: (user && user.preferred_language) || contentLanguage, reason: 'curriculum_topic',
+    });
+    if (pdfOff.off) return pdfOff.linked;
+
     const result = await handleCurriculumLessonPlan({
       userId: from,
       userDbId: user?.id, // UUID for lesson_plan_requests.user_id (required by ast_queued path)

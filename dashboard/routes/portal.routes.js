@@ -128,6 +128,8 @@ const {
   isRoleSwitchUser,
   ROLE_SWITCH_ROLES,
 } = require('../lib/feature-flags');
+// The lesson plan in the app and the activity Home (each off by default; see the file).
+const LpAppSwitches = require('../lib/lp-app-switches');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
@@ -1873,6 +1875,12 @@ router.get('/analytics/scope', requirePortalAuth, requireAnalyticsViewer, async 
   }
 });
 
+// The team view "Where teachers get to" (LP tab, Primary): the activity store only, this file's guard and scope;
+// dark unless portal_teacher_journey names the account (routes/portal-analytics-journey.routes.js).
+router.use(require('./portal-analytics-journey.routes').createAnalyticsJourneyRouter({
+  supabase, requirePortalAuth, requireAnalyticsViewer, analyticsScope,
+}));
+
 /**
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
  *
@@ -3038,6 +3046,16 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
   }
 });
 /**
+ * One survey per plan: with the survey bar on for her (portal_lp_feedback_bar, grades 1-5), she is asked at the end of
+ * the plan in the app, so the open tells the bot `inApp` and WhatsApp does not ask. Only where the bar can be drawn:
+ * her plan, not its answer key, and the teacher app v2 on for her (GET /config lpFeedbackBar). Else, or a failed read:
+ * today's — WhatsApp asks.
+ */
+const k5Survey = (userId, kind = 'lesson') => (kind !== 'lesson' ? Promise.resolve(true)
+  : Promise.all([LpAppSwitches.isLpFeedbackBarOn(supabase, userId), teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId)])
+    .then(([bar, v2]) => (bar && v2 ? 'in_app' : true), () => true));
+
+/**
  * GET /api/portal/curriculum/lp/:lesson_id/pdf?kind=lesson|answer_key
  *
  * Was a uuid lookup against curriculum_lp_ast / pre_generated_lps
@@ -3069,7 +3087,7 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     }
     // bd-5rz1v.15 — the link is minted to be opened in another app: that is an open.
     // Not awaited: logging never delays or fails the open.
-    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' });
+    k5Survey(userId, kind).then((survey) => LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' }, { survey }));
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
     console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
@@ -3113,7 +3131,7 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   // bd-5rz1v.15 — recorded only once the PDF has gone out whole (a refused link, a storage error
   // or a dropped connection is not an open). After the response, so it can never delay it.
   if (res.statusCode === 200 && res.writableFinished) {
-    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' });
+    k5Survey(userId, kind).then((survey) => LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' }, { survey }));
   }
   return undefined;
 });
@@ -9408,6 +9426,11 @@ router.get('/config', async (req, res) => {
       lpOwnReviewer,
       configRole,
       lpOwnGoalStartRaw,
+      lpFeedbackBarRaw,
+      teacherHomeActivityRaw,
+      teacherJourney,
+      lpWhatsappPdfOff,
+      lpViewerSlimRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9463,6 +9486,16 @@ router.get('/config', async (req, res) => {
       configRoleOf(userId),
       // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
       isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
+      // The survey bar at the end of the plan (rides with the teacher app), the Home's "Last 30 days" block (rides
+      // with the Home card, whose route carries it) and My journey + the team view (as it reads for her: an analytics
+      // account is not on the teacher app).
+      LpAppSwitches.isLpFeedbackBarOn(supabase, userId),
+      LpAppSwitches.isTeacherHomeActivityOn(supabase, userId),
+      LpAppSwitches.isTeacherJourneyOn(supabase, userId),
+      // lp_whatsapp_pdf_off for her programme (never throws; false = today). Its own read, so it is not a rider.
+      LpAppSwitches.isLpWhatsappPdfOffFor(supabase, userId),
+      // The plan screen's slim layout (rides with the teacher app).
+      LpAppSwitches.isLpViewerSlimOn(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9508,6 +9541,13 @@ router.get('/config', async (req, res) => {
         lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
         lpOwnReviewer,
         lpOwnGoalStart: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnGoalStartRaw,
+        lpFeedbackBar: teacherV2 && lpFeedbackBarRaw,
+        teacherHomeActivity: teacherHomeCard && teacherHomeActivityRaw,
+        teacherJourney,
+        // May the plan screen show Send on WhatsApp? false only when her programme's lesson-plan PDF is off on
+        // WhatsApp; POST /share/whatsapp checks again.
+        lpWhatsappSend: lpWhatsappPdfOff !== true,
+        lpViewerSlim: teacherV2 && lpViewerSlimRaw,
       },
     });
   } catch (error) {
@@ -9544,6 +9584,12 @@ router.get('/config', async (req, res) => {
         lpOwnShelf: false,
         lpOwnReviewer: false,
         lpOwnGoalStart: false,
+        lpFeedbackBar: false,
+        teacherHomeActivity: false,
+        teacherJourney: false,
+        // Not a switch that turns something on: true is today (the server still refuses a send that is off).
+        lpWhatsappSend: true,
+        lpViewerSlim: false,
       },
       roleSwitchRoles: [],
     });

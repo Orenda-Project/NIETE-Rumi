@@ -413,3 +413,22 @@ Feature: Teacher lesson plans
     Given the demo teacher has made today's last allowed own plan
     When she taps "Make my plan" again
     Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button
+
+  # bd-96f69c (queue #153): the survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar), written by hand.
+  # @draft: the web lane's demo data has no lesson-plan PDF in its local file store, so the viewer never reaches its
+  # last page here. Covered by portal/src/portal/teacher/lessons/FeedbackBar.test.tsx + ViewerPage tests (vitest) and
+  # tests/portal/lp-feedback-route.test.js, tests/feedback/lp-in-app-feedback*.test.js (one row per teacher per plan,
+  # trigger_mode 'in_app', the grades 1-5 column). Checked by hand on sandbox with a test teacher.
+  @LPBAR01 @draft @config-gated
+  Scenario: Teacher app v2: with the survey bar on, a grades 1-5 plan ends with "This plan · Useful · Not useful", and Useful asks In class
+    Given the teacher app v2 is on and the survey bar is on for the demo teacher
+    And she opens one of her grades 1-5 lesson plans in the viewer
+    When she reaches the end of the plan and taps "Useful"
+    Then "In class" asks "Taught it today · Planning to · Not yet" in the same place, never as a pop-up
+    And tapping "Taught it today" shows "Thanks" and saves one answer for her and this plan
+
+  @LPBAR02 @draft @config-gated @negative
+  Scenario: Teacher app v2: a plan she already answered, in the app or on WhatsApp, shows no survey bar
+    Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
+    When she opens the plan and reaches its end
+    Then no survey bar is drawn

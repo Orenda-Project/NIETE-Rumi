@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TeacherUiCopy } from './copy';
 import { FOCUS, GRID, radioKeyDown } from './styles';
@@ -26,6 +27,8 @@ export interface RatingOption {
   label?: string;
   text?: string;
   description?: string;
+  /** A neutral lucide icon drawn before the words (hidden from a screen reader: the words say it). The survey bar's 👍/👎. */
+  icon?: LucideIcon;
 }
 
 export interface RatingScaleProps {
@@ -46,10 +49,12 @@ export interface RatingScaleProps {
    */
   stacked?: boolean;
   copy?: Partial<Pick<TeacherUiCopy, 'rating' | 'notApplicable' | 'digitalCoach'>>;
+  /** While her answer saves: the choices she did not pick cannot be tapped (the picked one stays shown). */
+  disabled?: boolean;
   className?: string;
 }
 
-export function RatingScale({ value, onChange, dcValue = null, options, name, copy, className, stacked = false }: RatingScaleProps) {
+export function RatingScale({ value, onChange, dcValue = null, options, name, copy, className, stacked = false, disabled = false }: RatingScaleProps) {
   const words = { ...useKitCopy(), ...copy };
   const items: readonly RatingOption[] = options ?? KEYS.map((k) => ({ id: String(k) }));
   const ids = items.map((o) => o.id);
@@ -65,6 +70,8 @@ export function RatingScale({ value, onChange, dcValue = null, options, name, co
         const dc = dcValue !== null && String(dcValue) === k;
         const text = o.text ?? (k === 'na' ? words.notApplicable : k);
         const spoken = [text, o.label, dc ? words.digitalCoach : ''].filter(Boolean).join(', ');
+        const Icon = o.icon;
+        const off = disabled && !on;
         if (stacked) {
           return (
             <button
@@ -75,14 +82,16 @@ export function RatingScale({ value, onChange, dcValue = null, options, name, co
               aria-label={spoken}
               data-radio-key={k}
               tabIndex={on || (at === null && i === 0) ? 0 : -1}
+              disabled={off}
               onClick={() => onChange(k)}
               className={cn(
-                'flex min-h-[56px] w-full items-start gap-3 rounded-[14px] border px-3 py-2.5 text-start',
+                'flex min-h-[56px] w-full items-start gap-3 rounded-[14px] border px-3 py-2.5 text-start disabled:opacity-50',
                 on ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#e5e7eb] bg-white text-[#1d2025]',
                 dc && 'shadow-[inset_0_0_0_2px_#48b078]',
                 FOCUS,
               )}
             >
+              {Icon ? <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /> : null}
               <b aria-hidden="true" className="min-w-[2.25rem] shrink-0 text-[17px] leading-[1.35]">{text}</b>
               <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {o.label ? <span className="text-[16px] font-semibold leading-[1.35]" dir="auto">{o.label}</span> : null}
@@ -100,15 +109,18 @@ export function RatingScale({ value, onChange, dcValue = null, options, name, co
             aria-label={spoken}
             data-radio-key={k}
             tabIndex={on || (at === null && i === 0) ? 0 : -1}
+            disabled={off}
             onClick={() => onChange(options ? k : (k === 'na' ? 'na' : (Number(k) as RatingValue)))}
             className={cn(
-              'flex min-h-[56px] items-center justify-center rounded-[14px] border font-bold',
+              'flex min-h-[56px] items-center justify-center gap-2 rounded-[14px] border font-bold disabled:opacity-50',
+              Icon && 'px-2',
               k === 'na' ? 'text-[14px]' : 'text-[18px]',
               on ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#e5e7eb] bg-white text-[#374151]',
               dc && 'shadow-[inset_0_0_0_2px_#48b078]',
               FOCUS,
             )}
           >
+            {Icon ? <Icon className="h-5 w-5 shrink-0" aria-hidden="true" /> : null}
             <span aria-hidden="true">{text}</span>
           </button>
         );

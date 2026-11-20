@@ -374,7 +374,12 @@
           "teacherHomeCard": "boolean",
           "teacherHomeLook": "boolean",
           "teacherHomeOrder": "boolean",
-          "teacherV2": "boolean"
+          "teacherV2": "boolean",
+          "lpFeedbackBar": "boolean",
+          "lpViewerSlim": "boolean",
+          "lpWhatsappSend": "boolean",
+          "teacherHomeActivity": "boolean",
+          "teacherJourney": "boolean"
         },
         "success": "boolean"
       }
