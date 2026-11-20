@@ -5,7 +5,10 @@
  *
  *   GET  /lp/own/unit/chapters?grade&subject                 → { success, book, chapters: [{ number, title, days }], period }
  *   GET  /lp/own/unit/paces?grade&subject&from&to&period     → { success, counts: { recommended, slower, faster|null } }
+ *   GET  /lp/own/unit/paces?start=goals&count&period         → the same, for a goal unit of `count` goals (bd-snkn32.59.4)
  *   POST /lp/own/units  { grade, subject, classId?, from, to, period, pace, outline? }  → 201 { success, unit }
+ *   POST /lp/own/units  { start: 'goals', grade, subject, goals: [{ kind, text, code? }], period, pace, outline? }
+ *        → a unit from her goals alone: no book is read, named or stored (Amena 20 Nov), bd-snkn32.59.4
  *   GET  /lp/own/units                                       → { success, units }
  *   GET  /lp/own/units/:id                                   → { success, unit: { …, days: [{ day, kind, …, plan }], next } }
  *   PUT  /lp/own/units/:id  { pace?, period?, outline? }      → { success, unit } | 409 { outcome: 'locked' }
@@ -98,8 +101,9 @@ router.get('/lp/own/unit/chapters', requirePortalAuth, requireUnit, guarded('own
 }));
 
 router.get('/lp/own/unit/paces', requirePortalAuth, requireUnit, guarded('own unit paces', async (req, res) => {
-  const { grade, subject, from, to, period } = q(req);
-  send(res, await service().paces({ grade, subject, from: Number(from), to: Number(to), period: Number(period) }));
+  const { grade, subject, from, to, period, start, count } = q(req);
+  if (start === 'goals') return send(res, service().goalPaces({ count: Number(count), period: Number(period) }));
+  return send(res, await service().paces({ grade, subject, from: Number(from), to: Number(to), period: Number(period) }));
 }));
 
 router.post('/lp/own/units', requirePortalAuth, requireUnit, guarded('own unit create', async (req, res, userId) => {
@@ -107,8 +111,9 @@ router.post('/lp/own/units', requirePortalAuth, requireUnit, guarded('own unit c
   const out = await service().create({
     userId, grade: b.grade, subject: b.subject, classId: UUID.test(String(b.classId || '')) ? b.classId : null,
     from: Number(b.from), to: Number(b.to), period: Number(b.period), pace: b.pace, outline: b.outline,
+    ...(b.start === 'goals' ? { start: 'goals', goals: b.goals } : {}),
   });
-  logAppAction(req, 'own_unit.create', 'lesson_plan', { outcome: out.outcome, ...(out.unit ? { unitId: out.unit.id, days: out.unit.days.length } : {}) });
+  logAppAction(req, 'own_unit.create', 'lesson_plan', { outcome: out.outcome, start: b.start === 'goals' ? 'goals' : 'book', ...(out.unit ? { unitId: out.unit.id, days: out.unit.days.length } : {}) });
   send(res, out, 201);
 }));
 

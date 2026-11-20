@@ -1191,7 +1191,7 @@ niete_lp_own_units.chapter_to:smallint
 niete_lp_own_units.class_id:uuid
 niete_lp_own_units.created_at:timestamp with time zone
 niete_lp_own_units.deleted_at:timestamp with time zone
-niete_lp_own_units.goal_codes:ARRAY
+niete_lp_own_units.goals:ARRAY
 niete_lp_own_units.grade:smallint
 niete_lp_own_units.id:uuid
 niete_lp_own_units.outline:jsonb

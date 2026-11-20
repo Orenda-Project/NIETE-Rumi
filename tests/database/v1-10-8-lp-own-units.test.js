@@ -16,7 +16,7 @@ test('creates one table, keyed to her and her book, no plan bodies in it', () =>
   expect(UP).toContain('create table if not exists niete_lp_own_units');
   expect(UP).toContain('user_id uuid not null references users(id)');
   expect(UP).toContain('class_id uuid references classes(id)');
-  expect(UP).toContain('book_stem text not null');
+  expect(UP).toContain('book_stem text not null'); // V1.10.9 relaxes it for a goal unit (no book)
   expect(UP).toContain('outline jsonb not null');
   expect(UP).not.toMatch(/r2_key|html|script/);
   expect(UP).not.toMatch(/alter table niete_lp612_own_plans|niete_lp612_renders|niete_lp_assets/);
