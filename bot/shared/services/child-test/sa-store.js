@@ -26,9 +26,8 @@ const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rm
 // the ruling events a session keeps (device.events); past the cap the oldest are kept (the latest attempt's first)
 const MAX_KEPT_EVENTS = 200;
 // round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
-// (round 9 item 3: skip_instructions, the coach skipped a part's instructions; round 28: audio_recovered, a recording the
-// drain closed itself, which the reads join to its block)
-const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions', 'audio_recovered']);
+// (round 9 item 3: skip_instructions, the coach skipped a part's instructions)
+const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions']);
 
 // one row of each per attempt (sa-api.service.js ONCE_TYPES): the earliest session_start and the LATEST audio_check (one
 // per try, tries counting up, nothing after a pass). An event's attempt = the restart rows below its seq (restartAttempt

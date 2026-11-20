@@ -127,10 +127,7 @@
         if (pre && pre.skip === true) return notKeptAudio(a.task_id, pre.reason || null).then(function () { return 'skipped'; });
         if (!pre || !pre.url || !pre.key) throw new Error('no presign');
         return Promise.resolve(put(pre.url, body, mime)).then(function () {
-          var reg = { session_id: id, task_id: a.task_id, key: pre.key, bytes: bytes, duration_ms: fin.duration_ms || null };
-          // a recording the drain closed itself (no closing marker of its own): say so, and how many chunks went
-          if (fin.final_synth === true) { reg.final_synth = true; reg.parts_n = a.chunks.filter(function (c) { return c.blob != null; }).length; }
-          return sink.registerAudio(reg);
+          return sink.registerAudio({ session_id: id, task_id: a.task_id, key: pre.key, bytes: bytes, duration_ms: fin.duration_ms || null });
         });
       }).then(function (r) { return r === 'skipped' ? null : store.markChunksSynced(id, a.task_id); });
     }
