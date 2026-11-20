@@ -2,3 +2,4 @@
 {"ts":"2026-11-19T18:04:57Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-96f69c-staging: E-NODRIVER:coaching","sha":"76d578bcd43a","branch":"bd-96f69c-staging","user":""}
 {"ts":"2026-11-19T18:05:17Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"76d578bcd43a","branch":"bd-96f69c-staging","user":""}
 {"ts":"2026-11-19T18:05:20Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-96f69c-staging: E-NODRIVER:coaching","sha":"76d578bcd43a","branch":"bd-96f69c-staging","user":""}
+{"ts":"2026-11-20T01:46:53Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks engine=2.1.1","sha":"76d578bcd43a","branch":"bd-96f69c-staging","user":""}
