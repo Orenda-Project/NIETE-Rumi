@@ -1,2 +1,3 @@
 {"ts":"2026-11-20T11:36:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test spec_sync=true","sha":"da3238249075","branch":"bd-73bg47-69524","user":""}
 {"ts":"2026-11-20T11:36:12Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test owe their Gherkin","sha":"da3238249075","branch":"bd-73bg47-69524","user":""}
+{"ts":"2026-11-20T11:36:14Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"da3238249075","branch":"bd-73bg47-69524","user":""}
