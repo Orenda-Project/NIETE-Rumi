@@ -271,6 +271,14 @@ Feature: Teacher lesson plans
     Then the next step opens and the check screen shows her own words as the learning goal
     And a typed goal with a blocked word gets a calm refusal and nothing to use
 
+  @OWN06 @draft @config-gated
+  Scenario: A Grades 6–12 learning-goal list is one list with no chapter headings
+    Given portal_lp_make_own and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "From a learning goal" and picks Grade 7 General Science
+    Then her grade's learning goals show as one list, with no chapter name as a heading or under any goal
+    And "Search goals" still narrows the list as she types
+
   @LPBAR02 @draft @config-gated @negative
   Scenario: Teacher app v2: a plan she already answered, in the app or on WhatsApp, shows no survey bar
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
