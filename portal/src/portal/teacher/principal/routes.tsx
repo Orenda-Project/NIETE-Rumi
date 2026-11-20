@@ -17,6 +17,8 @@ const CoachObservation = page(() => import('../../coach/pages/CoachObservation')
 const CoachFeedbackForm = page(() => import('../../coach/reports/FeedbackForm'));
 const CoachDebrief = page(() => import('../../coach/reports/Debrief'));
 const CoachYourFeedback = page(() => import('../../coach/reports/YourFeedback'));
+// bd-o15qnr.28 (v7) — with the v6/v7 switch on for her, "Your feedback" is the one feedback page (the debrief report's).
+const PrincipalFeedbackRoute = page(() => import('./FeedbackRoute').then((m) => ({ default: m.PrincipalFeedbackRoute })));
 const CoachSendReport = page(() => import('../../coach/reports/SendReport'));
 
 const P = '/portal/teacher/principal';
@@ -46,7 +48,7 @@ const routes: TeacherRoute[] = [
   { path: `${P}/observation/:id`, element: as(<CoachObservation />) },
   { path: `${P}/observation/:id/form`, element: as(<CoachFeedbackForm />) },
   { path: `${P}/observation/:id/debrief`, element: as(<CoachDebrief />) },
-  { path: `${P}/observation/:id/feedback`, element: as(<CoachYourFeedback />) },
+  { path: `${P}/observation/:id/feedback`, element: as(<PrincipalFeedbackRoute off={<CoachYourFeedback />} />) },
   { path: `${P}/observation/:id/send`, element: as(<CoachSendReport />) },
 ];
 
