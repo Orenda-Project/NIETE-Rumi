@@ -152,6 +152,34 @@ Feature: Teacher assessment
     When she scrolls to the end, ticks Simple Writing and taps Done
     Then the drawer closes and Simple Writing is on the page at 1
 
+  # Seen (book) questions by type (bd-e5n2jf, Mubashar Zia 20 Nov): the single "as in the book" box stays until she adds
+  # a book type; the first type takes that count, each type then steps on its own, and removing the last brings the
+  # single box back. Test ids: count-seen, add-seen-type, seen-types-tray, seen-type-count-<Type>, questions-total.
+  @TA20
+  Scenario: Teacher splits her book questions by type and the paper's total holds
+    Given a Grade 4 Science teacher is on Questions with 5 book questions and 4 MCQs
+    When she taps Add a book type and ticks MCQs
+    Then the single book box is gone, book MCQs shows 5, and the total still reads 9 questions
+    When she adds True/False from the book and taps its plus
+    Then book True/False shows 2 and the total reads 11 questions
+    When she removes both book types
+    Then the single "as in the book" box is back
+    When she adds MCQs and True/False again and taps the True/False plus
+    Then Check and make lists the book types as "MCQs 5 · True/False 2" and the request carries them as seenTypes
+
+  @TA21
+  Scenario: The stem choice offers "NIETE Teaching Assistant chooses", never "Rumi chooses"
+    Given a Grade 1 English teacher has picked topics whose MCQs carry question stems
+    When she opens Questions
+    Then the stem chips start on "NIETE Teaching Assistant chooses"
+    And the word Rumi appears nowhere on the screen
+
+  @TA22
+  Scenario: Paper ready asks the teacher to check the answers before she uses them
+    Given a plain Grade 4 Science paper with an answer key is ready
+    When she opens the paper
+    Then under the paper it says "Please check the answers before you use them. Some may be wrong."
+
   @TA15
   Scenario: The old Question types and Marks and lines links land on Questions
     Given a plain New paper is under way for a Grade 4 Science class

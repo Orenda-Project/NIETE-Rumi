@@ -58,6 +58,20 @@ async function grammarTopicsPaper(page, ctx) {
   expect(/10 marks/.test(q), 'a topic paper starts at 10 marks');
   expect(/MCQs/.test(q) && /Rewrite Sentences/.test(q), 'grammar question types are suggested');
 
+  for (const id of ['MCQs', 'True/False']) {
+    const row = page.getByTestId(`seen-type-count-${id}`);
+    for (let i = 0; i < 10 && (await row.count()); i += 1) {
+      const bin = row.getByRole('button', { name: `Remove ${id}`, exact: true });
+      await ((await bin.count()) ? bin : row.getByRole('button', { name: `Fewer ${id}`, exact: true })).click();
+    }
+  }
+  expect(await page.getByTestId('count-seen').waitFor({ timeout: 5000 }).then(() => true, () => false),
+    'removing both book types should bring the single box back');
+  await pick('MCQs');
+  await pick('True/False');
+  await page.getByTestId('seen-type-count-True/False').getByRole('button', { name: 'More True/False', exact: true }).click();
+  expect(/11 questions/.test(await total()), 'after re-adding, the total should read 11 questions, got ' + (await total()));
+
   await page.getByTestId('step-next').click();
   await page.waitForURL('**' + NEW + 'check');
   const shown = await page.getByText('2 selected').waitFor({ timeout: 10000 }).then(() => true, () => false);
@@ -125,11 +139,102 @@ async function typesDrawerOnPhone(page, ctx) {
   return m;
 }
 
+// TA20–TA22 (bd-e5n2jf) — book questions by type, the "NIETE Teaching Assistant chooses" stem chip, and the answer-check
+// note on Paper ready. Reads answered by page.route, as TA18; /assessment/generate is caught, never sent.
+const G4_SCIENCE = [['MCQs', 'objective'], ['True/False', 'objective'], ['Fill in the Blanks', 'objective'],
+  ['Brief Answers', 'subjective']].map(([id, category]) => ({ id, category }));
+
+async function routeReads(page, grade, types) {
+  await page.route('**/api/portal/assessment/options**', (r) => json(r, { success: true, grades: [grade], maxQuestions: 50,
+    defaultQuestions: 15, ...(new URL(r.request().url()).searchParams.get('subject') ? { types } : { subjects: [] }) }));
+  await page.route('**/api/portal/assessment/chapters**', (r) => json(r, { success: true, chapters: [
+    { chapter_number: 1, chapter_title: 'Living Things', page_start: 1, page_end: 20, page_count: 20 }] }));
+  await page.route('**/api/portal/assessment/topics**', (r) => json(r, { success: true, topics: TOPICS }));
+}
+const seedPicks = (page, picks) => page.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [PICKS_KEY, JSON.stringify(picks)]);
+
+async function seenBookTypes(page, ctx) {
+  await asRole(page, ctx, 'teacher', 'teacherV2');
+  const sent = [];
+  await routeReads(page, 4, G4_SCIENCE);
+  await page.route('**/api/portal/assessment/generate', (r) => { sent.push(r.request().postDataJSON()); return json(r, { success: true, requestId: 'e2e-ta20' }); });
+  await page.route('**/api/portal/assessment/status/**', (r) => json(r, { success: true, status: 'processing' }));
+  await seedPicks(page, { grade: 4, subject: 'science', subjectName: 'Science', coverBy: 'chapters', chapters: [1],
+    seen: 5, typeCounts: { MCQs: 4 }, typesSeeded: true });
+  const total = () => page.getByTestId('questions-total').innerText();
+  const tray = page.getByTestId('seen-types-tray');
+  const pick = async (id) => {
+    await page.getByTestId('add-seen-type').click();
+    await tray.waitFor();
+    await tray.getByRole('checkbox', { name: id }).click();
+    await tray.getByRole('button', { name: 'Done' }).click();
+    await tray.waitFor({ state: 'detached' });
+  };
+
+  await page.goto(ctx.baseUrl + NEW + 'questions', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('count-seen').waitFor({ timeout: 10000 });
+  await pick('MCQs');
+  const mcq = page.getByTestId('seen-type-input-MCQs');
+  expect((await mcq.inputValue()) === '5', 'book MCQs should take the 5 book questions');
+  expect(await page.getByTestId('count-seen').count() === 0, 'the single book box should be gone');
+  expect(/9 questions/.test(await total()), 'the total should still read 9 questions, got ' + (await total()));
+
+  await pick('True/False');
+  await page.getByTestId('seen-type-count-True/False').getByRole('button', { name: 'More True/False', exact: true }).click();
+  const tf = page.getByTestId('seen-type-input-True/False');
+  expect((await tf.inputValue()) === '2', 'book True/False should read 2 after its plus');
+  expect(/11 questions/.test(await total()), 'the total should read 11 questions, got ' + (await total()));
+
+  await page.getByTestId('step-next').click();
+  await page.waitForURL('**' + NEW + 'check');
+  const listed = await page.getByText('MCQs 5 · True/False 2').waitFor({ timeout: 10000 }).then(() => true, () => false);
+  expect(listed, 'Check and make should list "MCQs 5 · True/False 2"');
+  await page.getByTestId('step-next').click();
+  const deadline = Date.now() + 15000;
+  while (!sent.length && Date.now() < deadline) await page.waitForTimeout(250);
+  expect(sent.length === 1, 'Make my paper should send one request');
+  const st = JSON.stringify(sent[0].seenTypes || []);
+  expect(/"MCQs"/.test(st) && /"True\/False"/.test(st), 'the request should carry seenTypes, got ' + st);
+
+  return { seenTypes: sent[0].seenTypes };
+}
+
+async function stemChipLabel(page, ctx) {
+  await asRole(page, ctx, 'teacher', 'teacherV2');
+  const types = TYPES.map((t) => (t.id === 'MCQs' ? { ...t, stems: [{ id: 's1', text: 'Choose the correct word.' }] } : t));
+  await routeReads(page, 1, types);
+  await seedPicks(page, { grade: 1, subject: 'english', subjectName: 'English', coverBy: 'chapters', chapters: [1],
+    topicScope: 'topics', topicIds: ['e2', 'e3'], typeCounts: { MCQs: 5 }, typesSeeded: true });
+  await page.goto(ctx.baseUrl + NEW + 'questions', { waitUntil: 'domcontentloaded' });
+  const chip = page.getByText('NIETE Teaching Assistant chooses').first();
+  expect(await chip.waitFor({ timeout: 10000 }).then(() => true, () => false), 'the stem chips should offer "NIETE Teaching Assistant chooses"');
+  const body = await page.evaluate(() => document.querySelector('main')?.innerText ?? document.body.innerText);
+  expect(!/\bRumi\b/.test(body), 'the word Rumi should not appear on the Questions screen');
+  return { ok: true };
+}
+
+async function checkAnswersNote(page, ctx) {
+  await asRole(page, ctx, 'teacher', 'teacherV2');
+  await page.route('**/api/portal/assessment/papers**', (r) => json(r, { success: true, total: 1, page: 1, pageSize: 20, papers: [
+    { paper_id: 'p-1', grade: 4, subject_key: 'science', subject: 'Science', chapter_number: 2, question_count: 14,
+      total_marks: 20, ready_at: '2026-10-08T05:00:00Z', version: 2, has_answer_key: true }] }));
+  await page.route('**/api/portal/assessment/paper/p-1/view', (r) => json(r, { success: true, sections: [] }));
+  await page.goto(ctx.baseUrl + '/portal/teacher/assessment/paper/p-1', { waitUntil: 'domcontentloaded' });
+  const note = page.getByTestId('check-answers');
+  expect(await note.waitFor({ timeout: 10000 }).then(() => true, () => false), 'Paper ready should show the answer-check note');
+  const text = await note.innerText();
+  expect(text === 'Please check the answers before you use them. Some may be wrong.', 'the note should read the check line, got ' + text);
+  return { text };
+}
+
 const scenarios = [
   pagesScenario("TA01", "Teacher app v2: Assessment opens", "teacher", "teacherV2", [{ path: "/portal/teacher/assessment", heading: /^Assessment$/ }]),
   pagesScenario("TA02", "Classic portal: Assessment opens", "teacher", "classic", [{ path: "/portal/assessment", heading: /^Assessment$/ }]),
   { id: 'TA18', title: 'Teacher makes a grammar-only paper on topics taught', run: grammarTopicsPaper },
   { id: 'TA19', title: 'On a phone, every question type in the drawer can be reached and Done never scrolls away', run: typesDrawerOnPhone },
+  { id: 'TA20', title: "Teacher splits her book questions by type and the paper's total holds", run: seenBookTypes },
+  { id: 'TA21', title: 'The stem choice offers "NIETE Teaching Assistant chooses", never "Rumi chooses"', run: stemChipLabel },
+  { id: 'TA22', title: 'Paper ready asks the teacher to check the answers before she uses them', run: checkAnswersNote },
 ];
 
 module.exports = { feature: "teacher-assessment", spec: 'tests/features/web/teacher-assessment.feature', scenarios };
