@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T14:09:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"f3c5116ca44f","branch":"bd-3kshar.6.1-staging","user":""}
 {"ts":"2026-11-20T14:09:57Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f3c5116ca44f","branch":"bd-3kshar.6.1-staging","user":""}
 {"ts":"2026-11-20T14:10:21Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f3c5116ca44f","branch":"bd-3kshar.6.1-staging","user":""}
+{"ts":"2026-11-20T14:12:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"f3c5116ca44f","branch":"bd-3kshar.6.1-staging","user":""}
