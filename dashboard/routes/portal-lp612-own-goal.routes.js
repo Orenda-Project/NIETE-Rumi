@@ -5,9 +5,9 @@
  * bd-snkn32.57); Make my plan itself is the same POST /lp612/own with `answers.goal` (the bot checks
  * the switch again). Mounted at /api/portal beside portal-lp612-own.routes.js.
  *
- *   GET /api/portal/lp612/own/goals?grade&subject          → { success, outcomes: [{ segmentId, text, chapter }] }
+ *   GET /api/portal/lp612/own/goals?grade&subject          → { success, outcomes: [{ segmentId, text, group?, code? }] (no chapter, bd-snkn32.61) }
  *   GET /api/portal/lp612/own/goals/match?grade&subject&q  → { success, status: ok|none|blocked, suggestions: [≤3
- *       { segmentId, text, chapter }], otherGrade?: { grade, segmentId, text, chapter }, match: top suggestion | null }
+ *       { segmentId, text }], otherGrade?: { grade, segmentId, text }, match: top suggestion | null }
  *       bd-snkn32.58.2 (queue #155 B): the typed topic goes through lp-own-goal-guard (spelling, Roman Urdu, a nearby
  *       grade's goal, blocked words); `match` stays for older app builds.
  *
