@@ -248,6 +248,28 @@ describe("the visit (v7): the line, the due day, the current step's card", () =>
   });
 });
 
+describe("the visit while the Digital Coach works, and when it stopped (v7)", () => {
+  it("analysing: Now: Analysing, and Rumi is listening, the page updates by itself", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
+    L.getObservation.mockResolvedValue(VIEW("analysing"));
+    renderVisit();
+    const card = await screen.findByTestId("stage-analysing");
+    expect(card).toHaveTextContent("Rumi is listening to the lesson");
+    expect(card).toHaveTextContent("Usually a few minutes. This page updates by itself; you can leave.");
+    expect(screen.getByTestId("status-line")).toHaveTextContent("Now: Analysing");
+  });
+
+  it("stopped: one card with a red edge and the plain line; no steps", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
+    L.getObservation.mockResolvedValue(VIEW("stopped"));
+    renderVisit();
+    const card = await screen.findByTestId("stage-stopped");
+    expect(card.className).toContain("border-[#c8331f]");
+    expect(card).toHaveTextContent("Observation stopped");
+    expect(screen.queryByTestId("stage-analysing")).toBeNull();
+  });
+});
+
 describe("v7 words", () => {
   it("every word has Urdu; none says him or her", () => {
     for (const [k, en] of Object.entries(FLOW_V7.en)) {

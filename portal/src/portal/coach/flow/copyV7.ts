@@ -41,6 +41,10 @@ export const FLOW_V7_COPY = {
   principalFoot: "The choice is yours.",
   observations: "Observations",
 
+  /* the visit while the Digital Coach works */
+  listening: "Rumi is listening to the lesson",
+  listeningSub: "Usually a few minutes. This page updates by itself; you can leave.",
+
   /* Check and send: the class question as chips (grades 6–12 pick the form) */
   whichClass: "Which class was it?",
   grades15: "1–5",
@@ -81,6 +85,9 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   principalFoot: "فیصلہ آپ کا ہے۔",
   observations: "مشاہدات",
 
+  listening: "رومی سبق سن رہا ہے",
+  listeningSub: "عموماً چند منٹ۔ یہ صفحہ خود بدل جاتا ہے؛ آپ جا سکتے ہیں۔",
+
   whichClass: "یہ کون سی جماعت تھی؟",
   grades15: "۱–۵",
   classPicksForm: "جماعت سے اس مشاہدے کا فارم طے ہوتا ہے۔",
@@ -88,6 +95,6 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
 
 export const FLOW_V7 = bilingual(FLOW_V7_COPY, FLOW_V7_COPY_UR);
 
-const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "classPicksForm", "whichClass"];
+const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "classPicksForm", "whichClass", "listening", "listeningSub"];
 
 export const COPY_ENTRY = { screen: "Coach · visit and feedback (v7)", module: FLOW_V7 as Bilingual<unknown>, same: [] as readonly string[], longOk: LONG_OK } as const;
