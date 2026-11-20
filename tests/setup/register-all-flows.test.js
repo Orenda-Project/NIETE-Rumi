@@ -120,9 +120,11 @@ describe('register-all-flows', () => {
     // removed with the pic-to-LP feature). Read the count off the tree you are on
     // rather than copying it across a cherry-pick.
     // Re-armed at 29 on 2026-11-18: FICO 6-12 Form (bd-31ziu8, ICT grades 6-12; code name FICO-S v1.1).
-    it('exports an array of all 29 registerable flow configurations (29th: FICO 6-12 Form)', () => {
+    // Re-armed at 30 on 2026-11-20: Observe Notes (bd-ra8xu.60, Observation Notes on v6 /observe visits).
+    it('exports an array of all 30 registerable flow configurations (30th: Observe Notes)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(29);
+      expect(FLOW_CONFIGS).toHaveLength(30);
+      expect(FLOW_CONFIGS.map((f) => f.name)).toContain('Observe Notes');
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

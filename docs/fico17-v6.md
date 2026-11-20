@@ -83,5 +83,33 @@ every other visit opens is unchanged.
   it stays on the DC and `fico_dc_rubric`.
 - `OBSERVE_FICO17_V6_READY`: additionally required for `/observe`.
 - `app_settings.fico_dc_rubric`: the DC on self-recordings (`shadow` stores a v6 score beside V3 and never sends it).
+- `app_settings.observation_notes` (`off` | `on`, same keys): Observation Notes on the coach's `/observe` v6 visits
+  (below). Needs `OBSERVE_NOTES_FLOW_ID` (the published `bot/docs/flows/observe-notes.json`) for the WhatsApp offer.
 
 A visit keeps the rubric it was stamped with when it started.
+
+## Observation Notes (Phase 1: an experiment, stored only)
+
+What the coach saw in the room that a recording can't hear, typed during the visit. Code:
+`bot/shared/services/observe/observation-notes.js` (store, WhatsApp Flow, informed run) and
+`bot/shared/services/coaching/frameworks/fico17-v6/informed.js` (the informed prompt and its validator).
+
+- **Where she types them.** WhatsApp: right after "Got the recording", one message opens the one-screen notes Flow
+  (`observe-notes.json`, token `obsnotes:<session id>`); one note per line. Portal: a notes panel on Record (each note
+  stamped with the recording clock) and a box on Check and send; they ride with the upload.
+- **Where they are kept** (`coaching_sessions.analysis_data`, no new column):
+  `observation_notes` `[{ id, text, typed_at, rec_time, source, typed_before_review, batch }]`;
+  `observation_notes_review_opened_at` (the first opening of the review, WhatsApp INIT or the portal draft);
+  `dc_informed` (below). The whole-blob writers (the analysis write, the review submit) carry these keys over.
+- **What the coach sees.** Her notes, word for word, at the top of every section intro of the review (a Flow whose
+  Section B posts `v6n` declares them; an older published Flow gets today's screens) and of every v6 part on the portal.
+  The pre-fill is still the BLIND analysis; the teacher's report does not change.
+- **Two scorings.** Blind = today's v6 prompt on the transcript (`autofill_analysis_data`, what the coach reviews: the
+  clean coach-vs-DC eval). Informed = the same prompt and transcript plus the notes (`fico17-v6-dc-notes-1+<sha>`),
+  run once both exist, stored only under `analysis_data.dc_informed` (levels, evidence, one label per note:
+  supports / contradicts / not_in_recording, `made_up_note_support`, `note_ids`, `runs` ≤ 3). A note quote must be in
+  that note word for word or it is dropped and counted as made-up support. The six combined indicators still get no
+  level. Notes typed after the review opened (`typed_before_review: false`) are kept but left out of the clean comparison.
+- **The eval** (read-only, run outside the bot from these keys): per indicator, blind = coach vs informed = coach,
+  how often the notes flip Rumi's level and in which direction, made-up support, notes the recording could not show.
+  Phase 2 (the informed pre-fill, the report citing a note) waits on its numbers.

@@ -6,7 +6,7 @@ import { deleteRecording } from '../../lib/recordingStore';
 import { itemId } from '../../teacher/notices/model';
 import { noticeTracker } from '../../teacher/notices/tracker';
 import { clearDraft } from '../observeDraft';
-import type { ObserveLesson } from '../../services/api';
+import type { ObserveLesson, ObserveNote } from '../../services/api';
 
 /**
  * bd-4404s7.4 — the coach's observation, sent IN THE BACKGROUND.
@@ -64,6 +64,8 @@ export interface SendArgs {
   photos: File[];
   /** bd-ra8xu.40 — the class she named on Check and send (asked only while FDE's tools are on for her). */
   lesson?: ObserveLesson | null;
+  /** bd-ra8xu.60 — her Observation Notes (typed on Record and on Check and send); absent or empty: the start has no notes. */
+  notes?: ObserveNote[];
   /** bd-33wxxi.4 — the principal app's Sending page and observation page; absent, the coach's (sendingPath, the coach's observation page). */
   waitHref?: string;
   observationHref?: (observationId: string) => string;
@@ -133,6 +135,7 @@ async function run(visitId: string): Promise<void> {
       {
         teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, audio: args.audio, plan: args.plan, photos: args.photos,
         ...(args.lesson ? { lesson: args.lesson } : {}),
+        ...(args.notes && args.notes.length ? { notes: args.notes } : {}),
         uploaded,
       },
       undefined, undefined,
@@ -149,7 +152,7 @@ async function run(visitId: string): Promise<void> {
       try { await deleteRecording(args.recordingId); } catch { /* already gone */ }
       forgetRecording(args.recordingId);
     }
-    clearDraft(visitId);
+    clearDraft(visitId); // the recording and (bd-ra8xu.60) its notes
     change(visitId, { state: 'sent', pct: 100, observationId: out.coachingSessionId, errorCode: null });
     noticeTracker.update(id, {
       state: 'ready', progress: 1, readyAt: Date.now(), observationId: out.coachingSessionId,

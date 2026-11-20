@@ -105,6 +105,8 @@ export const REPORTS_EN = {
   sayWhyNumber: "Counts and level differ",
   fixThese: "Fix these first",
   couldntTell: "Couldn't tell",
+  /* bd-ra8xu.60 — her Observation Notes (Record and Check and send), read only at the top of each v6 part */
+  notesHeading: "📝 Your Observation Notes",
 
   /*
    * bd-ra8xu.40 — an FDE (obs612) visit's form (Obs612Form). FDE's own wording (its items, levels, headings and the
@@ -320,6 +322,8 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   sayWhyNumber: "گنتی اور سطح مختلف",
   fixThese: "پہلے یہ ٹھیک کریں",
   couldntTell: "پتا نہیں چل سکا",
+  // bd-ra8xu.60 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «مشاہدے کے نوٹس» as on Record.
+  notesHeading: "📝 آپ کے مشاہدے کے نوٹس",
 
   // bd-ra8xu.40 — NEW and MACHINE-DRAFTED: awaits a native check (NATIVE-CHECK), like the rest of this file's Urdu.
   // Words reused from above where they exist: محفوظ کریں، جانچتے رہیں، مشاہدات، فیڈبیک.
@@ -445,5 +449,6 @@ export const COPY_ENTRY = {
   /** "—" and the percent formatter are rightly the same in both languages. */
   same: ["dash", "pct"],
   /** Sentences that mirror a screen's name word for word. */
-  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder"],
+  /** bd-ra8xu.60 — notesHeading: «آپ کے مشاہدے کے نوٹس» is five Urdu words for the operator's four English ones. */
+  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading"],
 };

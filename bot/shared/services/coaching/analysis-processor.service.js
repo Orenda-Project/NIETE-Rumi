@@ -620,6 +620,9 @@ class AnalysisProcessorService {
           analysis_data: {
             ...reportAnalysis,
             ...(liveMoves ? { live_moves: liveMoves } : {}),
+            // bd-ra8xu.60: Observation Notes typed while Rumi listened (and the review stamp, the informed scoring)
+            // are on the row before this lands: kept from the same fresh read, as live_moves is.
+            ...require('../observe/observation-notes').carry(fresh && fresh.analysis_data),
             ...(reflectiveCorpus ? { reflective_corpus: reflectiveCorpus } : {}),
             // bd-gr48y: persist the photo read so report transformers can flag
             // photo-aware indicators (hasPhotoAnalysis) and the report can show it.

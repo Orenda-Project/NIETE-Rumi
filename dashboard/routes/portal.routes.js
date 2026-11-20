@@ -8441,17 +8441,39 @@ router.post('/leader/observe-upload/presign', ...coachObserve, (req, res) => {
 
 /**
  * POST /api/portal/leader/observe/start
- * Body { teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * Body { teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys?, lesson?, notes? }
  * → 200 { coachingSessionId }   400 { reason: 'not_your_teacher' | 'plan_not_found' | … }
  */
 router.post('/leader/observe/start', ...coachObserve, (req, res) => {
-  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson } = req.body || {};
+  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes } = req.body || {};
   return relayToBot(res, 'observe-start', () => PortalCoachingClient.startObservation({
     userId: sessionCoach(req), teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys,
     lessonPlan: libraryPlanPick(lessonPlan),
     lesson: observeLessonPick(lesson),
+    notes: observeNotesPick(notes),
   }));
 });
+
+/**
+ * bd-ra8xu.60 — her Observation Notes as they ride to the bot: the note fields only (no ids, nothing else), text
+ * capped at 600, at most 40. The bot keeps them only for a FICO17 v6 visit while her switch is on. Absent → undefined.
+ */
+const OBSERVE_NOTE_CAP = 600;
+const OBSERVE_NOTES_MAX = 40;
+function observeNotesPick(notes) {
+  if (!Array.isArray(notes)) return undefined;
+  const str = (v) => (typeof v === 'string' ? v : undefined);
+  return notes
+    .filter((n) => n && typeof n === 'object' && typeof n.text === 'string' && n.text.trim())
+    .slice(0, OBSERVE_NOTES_MAX)
+    .map((n) => ({
+      text: Array.from(n.text).slice(0, OBSERVE_NOTE_CAP).join(''),
+      rec_time: str(n.rec_time),
+      recTime: Number.isFinite(n.recTime) ? n.recTime : undefined,
+      source: str(n.source),
+      typed_at: str(n.typed_at),
+    }));
+}
 
 /**
  * bd-ra8xu.40 — the lesson's class the coach named on Check and send ({ primary: true } for grades 1-5, or

@@ -1,5 +1,7 @@
 import type { ObserveCopy } from './copy';
 import type { PlanKind } from '../../lib/coachingUpload';
+import type { Lang } from '../../teacher/i18n';
+import { digits, isolate } from '../insights/format';
 
 /**
  * bd-4404s7.4 — small helpers for what the Observe screens say about a visit and a recording. They take the words
@@ -113,4 +115,21 @@ export function planKindOfFormat(format: string | null | undefined): PlanKind | 
   if (f === 'docx' || f === 'doc') return 'word';
   if (f === 'jpg' || f === 'jpeg' || f === 'png') return 'photo';
   return null;
+}
+
+/**
+ * bd-ra8xu.60 — the recording clock an Observation Note was typed at, as the bot keeps it ('MM:SS', its REC_TIME_RE):
+ * "18:42"; past an hour the minutes run on ("62:05"), never "1:02:05", which the bot would not read.
+ */
+export function recClock(ms: number): string {
+  const s = Math.max(0, Math.floor((Number.isFinite(ms) ? ms : 0) / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * bd-ra8xu.60 — a note's clock on screen: as kept in English; in Urdu, Urdu digits in an LTR isolate (the coach
+ * formatter's rule, and what the bot's WhatsApp review intro shows), so "12:40" never reads "40:12".
+ */
+export function noteClock(rec: string, lang: Lang): string {
+  return digits(isolate(rec, lang), lang);
 }

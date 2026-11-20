@@ -259,6 +259,9 @@ const screenOf = (code) => {
 const SCREENS = ['DOMAIN_B', ...LETTERS.flatMap((l) => [`INTRO_${l}`, ...codesOn(l).map(screenOf)])];
 // Posted by this Flow's Section B (v6f): a Section B without it is the old 5-screen Flow, which goes on to DOMAIN_C.
 const FORM_VERSION = '2';
+// bd-ra8xu.60: posted (as v6n) by the Section B of a review Flow whose section intros declare the Observation Notes
+// fields (notes_v, notes_heading, notes). The endpoint keeps it with the coach's buffered answers.
+const NOTES_FORM = '1';
 const LEGACY_SCREENS = ['DOMAIN_B', ...LETTERS.map((l) => `DOMAIN_${l}`)];
 
 /** What a v6 screen id is: { kind: 'b' | 'intro' | 'ind' | 'legacy' | null, letter?, code? }. */
@@ -373,13 +376,21 @@ function screenData(analysis, screenId, { lang = 'en', edits = null, errors = nu
     const note = [];
     if (codes.length > room.length) note.push(fill(T.v6f_intro_rumi, { k: num(codes.length - room.length, lang) }));
     if (room.length) note.push(fill(T.v6f_intro_room, { m: num(room.length, lang) }));
-    return {
+    const intro = {
       heading: `${fill(T.v6f_section, { l: L })} · ${v6.sectionName(info.letter, lang)}`,
       count_line: fill(T.v6f_intro_count, { n: num(codes.length, lang) }),
       list: codes.map((c) => `${iso(c, lang)}  ${v6.indicatorText(c, lang).name}${v6.isCombined(c) ? `  ${T.v6f_room_tag}` : ''}`).join('\n'),
       note: note.join(' '),
       next_label: fill(T.v6f_start, { l: L }),
     };
+    // bd-ra8xu.60: the coach's Observation Notes, word for word, at the top of every section intro. Only for a Flow
+    // whose Section B said it declares them (v6n): Meta refuses data keys a published screen does not declare, so a
+    // form on the Flow published before this change gets exactly the keys above.
+    if (String(e.v6n || '') === NOTES_FORM) {
+      const text = require('./observation-notes').introText(analysis, v6.langOf(lang));
+      Object.assign(intro, { notes_v: !!text, notes_heading: T.v6f_notes_heading || '', notes: text });
+    }
+    return intro;
   }
   if (info.kind !== 'ind') return null;
   const { code, letter } = info;
@@ -663,7 +674,7 @@ function messages(lang) {
 
 module.exports = {
   READY_ENV, isReady,
-  V6, FLOW_ID_ENV, MSG_EN, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
+  V6, FLOW_ID_ENV, MSG_EN, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION, NOTES_FORM,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
   optionsFor, rumiLevel, rumiNumeric, rumiChoice, followsNa, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,

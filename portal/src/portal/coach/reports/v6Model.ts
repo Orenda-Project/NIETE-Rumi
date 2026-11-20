@@ -1,4 +1,4 @@
-import type { DraftSection, V6Indicator } from "../../services/api";
+import type { DraftObservationNote, DraftSection, V6Indicator } from "../../services/api";
 import type { Values } from "./formModel";
 
 /**
@@ -73,6 +73,21 @@ export function v6Problems(section: V6Section, values: Values, minReason = MIN_R
     }
   }
   if (changed && letters(values[`chg_${section.letter}`] ?? "") < minReason) out[`chg_${section.letter}`] = "atLeast";
+  return out;
+}
+
+/**
+ * bd-ra8xu.60 — her Observation Notes on a v6 draft (GET …/draft `notes`), shown read only at the top of each v6 part:
+ * word for word, the recording clock when there is one. [] when there are none, or from an older bot without them.
+ */
+export function v6Notes(draft: { notes?: unknown } | null | undefined): DraftObservationNote[] {
+  const list: unknown[] = draft && Array.isArray(draft.notes) ? draft.notes : [];
+  const out: DraftObservationNote[] = [];
+  for (const n of list) {
+    const note = n as { text?: unknown; recTime?: unknown } | null;
+    if (!note || typeof note.text !== "string" || !note.text.trim()) continue;
+    out.push({ text: note.text, recTime: typeof note.recTime === "string" && note.recTime ? note.recTime : null });
+  }
   return out;
 }
 

@@ -229,6 +229,14 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     });
   }
 
+  // bd-ra8xu.60: Observation Notes. On a v6 visit (the stamp above; never /observe2 or FDE) with the switch on for the
+  // coach, one more message: the notes Flow, while Rumi listens and before the form. Never throws.
+  if (!observe2 && !fdeVisit) {
+    await require('./observation-notes').offerNotes({
+      observerId: user.id, to: from, session, lang, teacherName: (boundTeacher && boundTeacher.teacher_name) || null,
+    });
+  }
+
   // bd-2668: an UNBOUND capture records no teacher, so the pending-debrief list
   // can only show a date and the portal shows "Unassigned" (66 of 85 live
   // observations). Ask who was observed — after the state is already 'analyzing'

@@ -1714,6 +1714,14 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         }
       }
 
+      // bd-ra8xu.60: the Observation Notes Flow (token `obsnotes:<sessionId>`). Claimed first and unconditionally, as
+      // vqm: is, so detectFlowType's colon rule can never send it to attendance; the handler never throws.
+      if (typeof vqToken === 'string' && vqToken.startsWith('obsnotes:')) {
+        const ObservationNotes = require('./shared/services/observe/observation-notes');
+        await ObservationNotes.handleFlowReply(user, from, vqToken, responseJson, { messageId: message.id });
+        return;
+      }
+
       if (typeof vqToken === 'string' && vqToken.startsWith('vq:')) {
         try {
           const [, , questionId] = vqToken.split(':');

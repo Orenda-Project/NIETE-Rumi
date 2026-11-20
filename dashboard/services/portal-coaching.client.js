@@ -107,9 +107,9 @@ function recentPlans({ userId }) {
 // The debrief guide is one model call on its first open (the WhatsApp path's).
 const GUIDE_TIMEOUT_MS = 100_000;
 
-/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson}} args */
-function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson }) {
-  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson });
+/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes}} args */
+function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes }) {
+  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes });
 }
 /** bd-ra8xu.40 — whether Check and send asks the lesson's class (and subject): FDE's switch for this coach. */
 function observeLessonQuestion({ userId }) { return post('observe/lesson-question', { userId }); }

@@ -107,6 +107,16 @@ const ROUTES = [
   // bd-ra8xu.40: the class the coach named (asked only while FDE's switch is on for her) rides with the start.
   ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], lesson: { grade: 7, subject: 'maths', junk: 1 } }, 'startObservation',
     { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: undefined, lesson: { grade: 7, subject: 'maths' } }],
+  // bd-ra8xu.60: her Observation Notes ride with the start: the note fields only, text capped, at most 40.
+  ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], notes: [
+    { text: 'Board work', rec_time: '12:40', source: 'portal_record', typed_at: '2026-11-20T10:27:00.000Z', userId: 'x' },
+    { text: 'Back rows', recTime: 1085, source: 'portal_record' }, { text: 7 }, 'junk', { text: 'x'.repeat(700), source: 'portal_check' },
+  ] }, 'startObservation',
+  { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: undefined, lesson: undefined, notes: [
+    { text: 'Board work', rec_time: '12:40', recTime: undefined, source: 'portal_record', typed_at: '2026-11-20T10:27:00.000Z' },
+    { text: 'Back rows', rec_time: undefined, recTime: 1085, source: 'portal_record', typed_at: undefined },
+    { text: 'x'.repeat(600), rec_time: undefined, recTime: undefined, source: 'portal_check', typed_at: undefined },
+  ] }],
   ['get', '/leader/observe/lesson-question', {}, {}, 'observeLessonQuestion', { userId: 'coach-1' }],
   ['get', '/leader/observe/active', {}, {}, 'listObservations', { userId: 'coach-1' }],
   ['get', '/leader/observe/:id', { id: 'cs-1' }, {}, 'observationView', { userId: 'coach-1', coachingSessionId: 'cs-1' }],

@@ -16,7 +16,7 @@ import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { PlanSource } from "../observe/PlanState";
 import { V6Part } from "./V6Parts";
-import { MIN_REASON, v6Problems, type V6Problems } from "./v6Model";
+import { MIN_REASON, v6Notes, v6Problems, type V6Problems } from "./v6Model";
 import Obs612Form from "./Obs612Form";
 
 /**
@@ -99,6 +99,8 @@ export default function FeedbackForm() {
   const changes = useMemo(() => countChanges(start, values), [start, values]);
   const set = (k: string) => (v: string) => setValues((cur) => ({ ...cur, [k]: v }));
   const options = useMemo(() => (draft?.scale ?? []).map((o) => ({ id: o.id, label: rungName(o.title) })), [draft]);
+  // bd-ra8xu.60 — her Observation Notes, read only at the top of each v6 part (none: nothing).
+  const notes = useMemo(() => v6Notes(draft), [draft]);
   const face = (rid: string) => (rid === "na" ? C.na : rid);
 
   if (fde) return <Obs612Form id={id} draft={fde} name={name} home={home} />;
@@ -204,7 +206,7 @@ export default function FeedbackForm() {
               {section.moves.map((m) => moveCard(m, section.moves.length, draft.fidelityScale))}
             </>
           ) : section.kind === "v6" ? (
-            <V6Part section={section} values={values} start={start} set={set} readOnly={readOnly} problems={problems} minReason={minReason} />
+            <V6Part section={section} values={values} start={start} set={set} readOnly={readOnly} problems={problems} minReason={minReason} notes={notes} />
           ) : (
             <>
               {section.notes.map((n) => <p key={n.slice(0, 40)} className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{n}</p>)}
