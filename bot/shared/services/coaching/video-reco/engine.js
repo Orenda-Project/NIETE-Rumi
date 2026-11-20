@@ -795,8 +795,11 @@ async function alignedPick({ a, d, base, finish, card, nextStep, analysis, sessi
   // grade gates (aligned.js); VIDEO_RECO_LATER_VISITS off = no rank ≥ 2 pick at all
   const later = aligned.laterVisit(history);
   if (later && !videoRecoLaterVisits(d.env)) return none('aligned:later_off');
-  const asks = aligned.classifyAsks((card && card.action) || step0(nextStep, analysis), { later });
-  if (!asks.length) return none('aligned:no_ask');
+  const sentence = (card && card.action) || step0(nextStep, analysis);
+  const asks = aligned.classifyAsks(sentence, { later });
+  // R9e (cos-track 20261120T061933): a later visit's main-step rule emptying a card that has an ask says so; no_ask is a
+  // card with no move
+  if (!asks.length) return none(later && aligned.classifyAsks(sentence).length ? 'aligned:later_not_main' : 'aligned:no_ask');
   if (history && history.failed) return none('aligned:history_unread'); // fail closed: never risk a repeat
   const catalog = d.catalogV2 || require('./catalog').loadV2(); // eslint-disable-line global-require
   row.catalog_version = catalog.version; // red7 N4: the file the pick came from, not v1's

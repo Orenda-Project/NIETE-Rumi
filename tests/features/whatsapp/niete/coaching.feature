@@ -1387,6 +1387,26 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then my report arrives with no clip message, no clip on the image and no clip card
     And the video recommendation row for that session says aligned:later_off
 
+  # R9e route (c) (bd-tp4w7n.7, COS 20261119T233153; ped-align r6c on the audited prod first picks): the wait-time clip
+  # (790-s3) only when the card's ask is a wait after a question, before anyone answers; the open-question clip (95-s1) only
+  # when one open "why" question is the whole ask. A card that leads with a probe of a given answer, or a why with other
+  # steps after it, gets no clip. A later visit silenced by the main-step rule is recorded as aligned:later_not_main.
+  # Units: the R9e block of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @negative @P1 @COA111
+  Scenario: A report that asks me to probe an answer and then wait gets no wait-time clip
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the wait-time and open-question clips on the allowlist
+    When my report asks me, after a child answers, to ask "how did you solve it?" and wait a few seconds
+    Or it asks me to ask "why…?", wait, and then let pairs talk
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA112
+  Scenario: After my first clip, a card whose only step the clips cannot serve is recorded as such
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And I was already shown a clip
+    When my next report asks me to ask the class a question and wait ten seconds before anyone answers
+    Then my report arrives with no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says aligned:later_not_main
+
   # v10 A/B groups C and D only (ab_v10_enabled on; A, B and teachers outside the draw: today's caption and
   # reminder). bd-v0toag.100.8, from Quratulain's week-1 review: a G2 English ask was checked on a G5 lesson,
   # and the check judged moves that only shared the ask's practice tag. An ask now belongs to the grade and

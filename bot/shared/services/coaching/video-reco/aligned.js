@@ -107,7 +107,8 @@ const ADDRESS = /^\s*(?:\[TEACHER\]\s*[،,:]?\s*)+/u;
 const LEAD = /^\s*(?:next (?:class|lesson|time)[,،]?\s*|tomorrow[,،]?\s*|in (?:the|your) next (?:class|lesson)[,،]?\s*|اگلی (?:کلاس|بار)(?: میں)?[،,]?\s*)/iu;
 // The trigger clause («when a student answers 'X',» / «جب … ، تو») names a moment, not the ask.
 const TRIGGER_EN = /^(?:when|whenever|right after|after|before|as soon as|during|while|the moment|if|once)\b[^,،]*[,،]\s*/iu;
-const TRIGGER_UR = /^(?:جب|جیسے ہی|اگر)[^،]*،\s*(?:تو\s+)?/u;
+// …ending at its comma or, with none before it, at «تو» (r9e P76: «جب … مثال آئے تو Think-Pair-Share کروائیں: …، …»)
+const TRIGGER_UR = /^(?:جب|جیسے ہی|اگر)[^،]*?(?:،\s*(?:تو\s+)?|\s+تو\s+)/u;
 
 /** The card's main clause: its address, «Next class» and the when-clause dropped (quotes kept whole). */
 function mainClause(sentence) {
@@ -145,12 +146,17 @@ const UNSHOWN = [
 // explaining yourself» names what the teacher should NOT do, so it is no explain.
 const REFUSE_ONLY = [
   ['explain', /\bexplain (?:in (?:one|two|a|their|your|full)|your|their|why|how)\b|how would you explain|explain (?:your |their )?steps/iu],
+  // R9e (ped-align r6c, 451-s3's 4 wrongs): a pair task that is peer feedback, assigned roles or rehearsing a spelling is not
+  // 451-s3's think-then-talk
+  ['peer_feedback', /\bcompliment|\bsuggestion|تجویز/iu],
+  ['pair_roles', /\bexplainer\b|\bchecker\b|\breporter\b|\brecorder\b/iu], // not «رول پلے», a role-play (red7 N1)
+  ['rehearse', /\bspelling|ہجے/iu],
 ];
 // ped-align r5 (20261119T152426, 471 of the engine's own picks judged blind): a card whose main ask is another move gets a
 // near-miss from the open-question and wait-time clips (95-s1 87.1%, 790-s3 91.8%). Read on the WHOLE card (the moment
 // in the when-clause counts: wait time after a stumble is not 790-s3's wait after a question). COS 152504 §2.
 const NEAR_MISS = [
-  ['differentiate', /two (?:paths|versions|levels|tasks)|three (?:stations|levels)|\btiers?\b|tiered|struggl|quick(?:er)? (?:students|guessers|finishers)|early finishers|strongest|most students|for others|simpler (?:prompt|task|example)|easier|harder|stretch task|core task|challenge (?:task|set)|support set|\blevels?\b|کمزور|تیز (?:بچوں|طلبہ|بچے)|آسان|مشکل|باقی بچوں/iu],
+  ['differentiate', /two (?:paths|versions|levels|tasks)|three (?:stations|levels)|\btiers?\b|tiered|struggl|quick(?:er)? (?:students|guessers|finishers)|early finishers|strongest|most students|for others|simpler (?:prompt|task|example)|easier|harder|stretch task|core task|challenge (?:task|set)|support set|\blevels?\b|کمزور|تیز (?:بچوں|طلبہ|بچے)|آسان|مشکل(?!\s*(?:مثال|لفظ|الفاظ))|باقی بچوں/iu],
   ['stumble', /\bstumbl|\bstall|\bhesita|\bpauses? (?:on|mid)|mid-sentence|reshap|comes out broken|پر (?:کوئی بچہ )?رکے|رکے،|رک جائے|اٹک/iu],
   // played media is the main move («play the audio», «a demo on the computer»); a classroom demo is 95-s1's observed
   // phenomenon, not one
@@ -166,7 +172,7 @@ const NEAR_MISS = [
   ['board_work', /side-by-side|on the board first|بورڈ پر لکھیں/iu],
   // R9c (ped-align r6, 20261119T172641: 18 wrongs beyond 782-s1's `model`): the card's main step is another classroom
   // move with a why or a wait attached. Each pattern is a move no cleared clip shows.
-  ['representation', /\bT-chart|\barrows?\b|\bdraw\b[^.;,]{0,25}\bon the board|show it on|دو کالم بنا|sorting activity/iu],
+  ['representation', /\bT-chart|\barrows?\b|fraction bars|\bdraw\b[^.;,]{0,25}\bon the board|show it on|دو کالم بنا|sorting activity/iu],
   ['scaffold', /offer (?:\w+ ){0,3}(?:hints|choices|options)|word choices/iu],
   ['resource', /word cards|flash ?cards/iu],
   ['task_choice', /let (?:them|students|the class|children|each \w+) choose/iu],
@@ -183,15 +189,19 @@ const NEAR_MISS_FOR = new Set(['open_questions', 'wait_time']);
 // …and the near-misses that refuse one more move's clip (ped-align r6: `model` on follow_up_probe, 782-s1 183/193 →
 // 179/185; the rest from the r6 wrongs, each priced on the 1,387 judged picks at #5141, eng-rec calib/r9c)
 const NEAR_MISS_ONLY = Object.freeze({
-  follow_up_probe: new Set(['model', 'representation', 'hands_up', 'pair_work']),
+  follow_up_probe: new Set(['model', 'representation', 'hands_up', 'pair_work', 'behaviour']),
   think_pair_share: new Set(['exemplar']),
 });
+// R9e (ped-align r6c, 782-s1's wrongs): the why handed to a partner, or think time and a pair-share after the probe. 782-s1
+// only: the shared NEAR_MISS also silences open questions, wait time and every later visit. Leading the card, it silences it
+// like a route (c) refusal (r9a N0405: handing the card on to the pair-share clip was judged wrong too).
+const FOLLOW_UP_ONLY = /pair[- ]share|(?:^|[\s(])pair میں|partner (?:to|with)\b/iu;
 // one questioning ask in two steps, either order («ask why, then wait» / «wait, then ask why»)
 const QUESTION_FAMILY = new Set(['open_questions', 'follow_up_probe', 'ask_for_reasoning', 'wait_time']);
 // …and the one a given move's clip must not be read as (ped-align ALLOWLIST.md "match at this grain"; held-out wrongs)
 const REFUSE = Object.freeze({
   open_questions: ['own_words', 'differentiate', 'explain'],
-  think_pair_share: ['pair_reflection', 'peer_check', 'worksheet'],
+  think_pair_share: ['pair_reflection', 'peer_check', 'worksheet', 'peer_feedback', 'pair_roles', 'rehearse'],
   wait_time: ['silent_write', 'pair_reflection', 'peer_check', 'closure'],
   activate_prior_knowledge: ['closure', 'worksheet', 'correction'],
 });
@@ -205,7 +215,7 @@ const ASK_RX = Object.freeze({
   attention_cue: /attention (?:signal|cue)|cue to (?:regain|get) (?:their |the class'?s? )?attention|classroom cue to regain|(?:regain|get|gain) (?:the class'?s? |their )?attention|eyes on me|call[- ]and[- ]response|توجہ (?:کے لیے|لینے|حاصل)/iu,
   inquiry_opening: /\b(?:bring|hold up|show)\b[^.;]{0,30}\b(?:object|bag|jar|jars|bottle|bottles|plant|torch|mirror)\b[^.;]{0,60}\b(?:ask|question)|provocative (?:object|question)/iu,
   activate_prior_knowledge: /\b(?:ask|elicit)\b[^.;]{0,40}(?:already know|\brecall\b|remember)|what (?:do )?(?:they|you|students) (?:already )?know|prior knowledge|(?:پوچھیں|پوچھ کر)[^۔]{0,40}پہلے سے|پہلے سے (?:کیا )?(?:جانتے|معلوم)[^۔]{0,30}پوچھ|یاد (?:دلائیں|کروائیں)[^۔]{0,30}(?:پوچھ|سوال)|پہلے بچوں سے[^۔]{0,100}(?:مثالیں|پوچھیں)/iu,
-  think_pair_share: /think[- ]pair[- ]share|think[- ]pair|turn[- ](?:and|to)[- ](?:talk|tell|your|a)|pair[- ]?(?:share|talk|discussion|discuss)|\bpairs?\b[^.;]{0,25}\b(?:discuss|talk|share|agree|compare)|(?:discuss|talk|share)\w*\b[^.;]{0,20}\bwith (?:a |their |your |the )?(?:partner|neighbou?r)|جوڑی(?:وں)? میں (?:بات|گفتگو|discuss|ڈسکس)|جوڑوں میں (?:بات|گفتگو|تقسیم|discuss|ڈسکس)|pair (?:discussion|میں بات)|ساتھی سے بات/iu,
+  think_pair_share: /think[- ]pair[- ]share|think[- ]pair|turn[- ](?:and|to)[- ](?:talk|tell|your|a)|pair[- ]?(?:share|talk|discussion|discuss)|\bpairs?\b[^.;]{0,25}\b(?:discuss|talk|share|agree|compare)|(?:discuss|talk|share)\w*\b[^.;]{0,20}\bwith (?:a |their |your |the )?(?:partner|neighbou?r)|جوڑی(?:وں)? میں (?:بات|گفتگو|discuss|ڈسکس)|جوڑوں میں (?:بات|گفتگو|تقسیم|discuss|ڈسکس)|pair (?:discussion|میں بات)|ساتھی سے بات|\bthink\b[^.;۔]{0,25}\bpair\b|partner کے ساتھ[^۔]{0,40}(?:بات|discuss|summari[sz]e|شیئر)|pair میں سوچ/iu,
   wait_time: /wait[- ]time|\bwait\s+(?:\d|a few|five|ten|several)|\d+\s*(?:[-–]\s*\d+\s*)?seconds? (?:of )?(?:silence|quiet|wait|think)|(?:silence|quiet) for \d|count silently|hold (?:your )?(?:\d|wait)|سیکنڈ (?:کا|کی)? ?(?:wait|انتظار|خاموش)|خاموشی سے (?:انتظار|wait)|wait time/iu,
   question: /follow[- ]up (?:question|with|open|سوال)|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|open[- ]ended|open questions?|open (?:'|‘)?(?:why|how)|\bask\b[^.;]{0,30}\bexplain why|how do you know|how did you (?:get|know)|\bask\b[^.;]{0,25}(?:'|‘|"|“)?\s*(?:why|how|what (?:do you think|would|if|made))|why do you think|کھلا سوال|کھلے سوال|(?:کیوں|کیسے)[^۔]{0,40}پوچھ|پوچھیں[^۔]{0,30}(?:کیوں|کیسے)/iu,
 });
@@ -213,6 +223,7 @@ const ASK_RX = Object.freeze({
 const ANSWER_FIRST = /\b(?:answers?|answered|says?|said|gives?|repl(?:y|ies)|responds?|names?|labels?|repeats?|echoes|explains?)\b|جواب دے|جواب [^،]{0,20}دے|کہے|بتائے|دہرائے/iu;
 const REASONING = /(?:ask|have|let|get) (?:\w+ ){0,3}(?:to )?explain|explain (?:their|your) (?:thinking|reasoning|answer)|how do you know|how did you (?:get|know)|give (?:a|one) reason|\breasoning\b|وضاحت کریں|کیسے پتا|وجہ بتائیں/iu;
 const OPEN_NAMED = /open[- ]ended|open questions?|کھلا سوال|کھلے سوال/iu;
+const HOW_KNOW = /how did you (?:know|get|find|figure)|how do you know|کیسے پتا|کیسے پتہ|کیسے معلوم/iu;
 const OPEN_WHY = /\bwhy\b|کیوں|what do you think|what would|what if|what (?:did|do) you (?:understand|notice|see)|تمہارے خیال|آپ کے خیال|اگر آپ|کیا سمجھ/iu;
 
 /**
@@ -223,9 +234,34 @@ const OPEN_WHY = /\bwhy\b|کیوں|what do you think|what would|what if|what (?:
 function questionMove(card, main) {
   const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
   if (FOLLOW_UP.test(main)) return 'follow_up_probe';
+  // R9e (eng-rec r9e/AUDIT.md S18, S43): «ask an open-ended question like 'how did you know…?'» right after a child's answer
+  // is a follow-up on that answer, named open or not
+  if (ANSWER_FIRST.test(trigger) && HOW_KNOW.test(main)) return 'follow_up_probe';
   if (!OPEN_NAMED.test(main) && ANSWER_FIRST.test(trigger) && WHY.test(main)) return 'follow_up_probe';
   if (!OPEN_NAMED.test(main) && REASONING.test(main)) return 'ask_for_reasoning';
   return OPEN_WHY.test(main) ? 'open_questions' : null;
+}
+
+// R9e route (c) (COS 20261119T233153; ped-align r6c, the audited prod first picks): 790-s3 and 95-s1 only on their single ask.
+// 790-s3 shows think time after the teacher's question, before anyone answers. Its 64 wrongs are a probe of an answer already
+// given: a method question, staying with that child for a fuller sentence, a why aimed at the answer. A why asked while the
+// wait is stated as before answers stays (r6c 386 kept, 96.9%). 95-s1 shows one open why question. Its wrongs add a step
+// (pairs, a cold call, stems, feedback, counters) or ask the child why they did what they did (r6c 80 kept, 98.8%).
+// A card whose FIRST ask fails its rule is silent (no fall-through to the next ask's clip: COS 233153, silence is right).
+const METHOD_PROBE = /how did you (?:solve|get|find|count|know|figure|work|decide)|show (?:your|the) steps|tell us the steps|کیسے (?:حل|نکالا|پتا|پتہ|معلوم|کیا|سوچا|توڑا|بنایا|فیصلہ)|step[- ]by[- ]step/iu;
+const SAME_CHILD = /same (?:child|student)|اسی بچے|full sentence|مکمل جملے|جملہ مکمل|complete (?:their|the|his|her) (?:answer|sentence)|خود (?:جواب )?مکمل|finish (?:their|your)|say more|مزید بتا|explain/iu;
+const PRE_ANSWER = /before (?:taking|hearing|accepting|any(?:one)?|calling|answers?|they answer|students answer|responses)|جواب (?:سے|سننے سے|لینے سے|دینے سے) پہلے|جواب سے قبل/iu;
+const WHY_WORD = /\bwhy\b|کیوں/iu;
+const OTHER_STEP = /turn[- ]and[- ]talk|think[- ]pair|\bpairs?\b|partner|جوڑی|cold[- ]call|sentence[- ](?:starter|stem|frame)|\bstems?\b|next[- ]step|feedback|counters|thumbs|consolidation|extension|کسی اور|دوسرے بچے/iu;
+const OWN_WORK = /why did you|آپ نے [^؟?،]{0,15}کیوں/iu;
+// more than one question is not a single ask («دو open-ended questions», "three why questions")
+const MANY_QUESTIONS = /\b(?:two|three|2|3)\b[^.;,]{0,25}\bquestions\b|(?:دو|تین|2|3)[^۔،]{0,20}(?:questions|سوالات|سوال)/iu;
+/** The route (c) rule for a move's single ask (true = the move's clip may serve this card). */
+function singleAsk(move, card, main) {
+  if (MANY_QUESTIONS.test(main) || OWN_WORK.test(card)) return move !== 'wait_time' && move !== 'open_questions';
+  if (move === 'wait_time') return !METHOD_PROBE.test(card) && !SAME_CHILD.test(main) && (!WHY_WORD.test(main) || PRE_ANSWER.test(main));
+  if (move === 'open_questions') return !OTHER_STEP.test(main);
+  return true;
 }
 
 // R9d route (a) (COS 20261119T215752; ped-align r9a 20261119T215415, 259/343 at #5202): a later visit is a pick for a
@@ -277,6 +313,7 @@ function firstVisitAsks(sentence) {
   if (NEAR_MISS[0][1].test(card)) return []; // a differentiated task anywhere: no clip shows it (ped-align's no-clip list)
   if (off.has('label')) return [];
   const found = [];
+  const single = []; // R9e: the indexes where a move fails its route (c) rule
   for (const [id, rx] of Object.entries(ASK_RX)) {
     const x = rx.exec(main);
     if (!x) continue;
@@ -286,9 +323,12 @@ function firstVisitAsks(sentence) {
     if ((REFUSE[move] || []).some((r) => off.has(r) || only.has(r))) continue;
     if (nearMiss && NEAR_MISS_FOR.has(move)) continue;
     if (NEAR_MISS_ONLY[move] && NEAR_MISS.some(([id, rx]) => NEAR_MISS_ONLY[move].has(id) && rx.test(card))) continue;
+    if (move === 'follow_up_probe' && FOLLOW_UP_ONLY.test(card)) { single.push(x.index); continue; } // leading: silence (N0405)
+    if (!singleAsk(move, card, main)) { single.push(x.index); continue; }
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
+  if (single.some((at) => at <= Math.min(...found.map((f) => f.at)))) return []; // the card leads with a route (c) refusal
   const first = Math.min(...found.map((f) => f.at));
   if ([...off.values()].some((at) => at < first)) return []; // the card leads with a move no clip shows
   // the MAIN move decides (COS 152504 §2). A later ask is reached only past a questioning step (an open "why… then wait
