@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T14:09:16Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"6089dcc8c312","branch":"bd-zrdvmi.39-83598","user":""}
 {"ts":"2026-11-20T14:09:17Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan owe their Gherkin","sha":"6089dcc8c312","branch":"bd-zrdvmi.39-83598","user":""}
 {"ts":"2026-11-20T14:09:20Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-zrdvmi.39-83598: lesson-plan spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"6089dcc8c312","branch":"bd-zrdvmi.39-83598","user":""}
+{"ts":"2026-11-20T14:09:20Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"6089dcc8c312","branch":"bd-zrdvmi.39-83598","user":""}
