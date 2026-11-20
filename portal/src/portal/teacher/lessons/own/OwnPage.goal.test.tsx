@@ -134,10 +134,13 @@ describe('Make my own from a learning goal or topic', () => {
     fireEvent.click(await screen.findByText('Add 2-digit numbers'));
     await waitFor(() => expect(where()).toContain('seg=g4m7'));
     fireEvent.click(screen.getByTestId('own-ok'));
+    await waitFor(() => expect(where()).toContain('step=purpose')); // bd-snkn32.63: what the lesson is for, then size
+    expect(screen.queryByTestId('own-opt-board')).toBeNull();
+    fireEvent.click(screen.getByTestId('own-ok'));
     await waitFor(() => expect(where()).toContain('step=size'));
     cleanup();
     http.post.mockResolvedValue({ data: { success: true, renderId: 'own-10' } });
-    at(`${k5}&step=check&start=goal&gk=outcome&gt=Add%202-digit%20numbers&seg=g4m7&size=over70&level=behind&way=tarl`);
+    at(`${k5}&step=check&start=goal&gk=outcome&gt=Add%202-digit%20numbers&seg=g4m7&size=over70&level=behind&way=tarl&purpose=revise`);
     expect((await screen.findByTestId('own-check')).textContent).toContain(G.nothingExtra); // no book, nothing ticked
     fireEvent.click(await screen.findByTestId('own-make'));
     await waitFor(() => expect(http.post).toHaveBeenCalled());
@@ -146,6 +149,7 @@ describe('Make my own from a learning goal or topic', () => {
     expect(body).not.toHaveProperty('segment_id');
     expect(body.answers.goal).toEqual({ kind: 'outcome', text: 'Add 2-digit numbers' });
     expect(body.answers.resources).toEqual([]);
+    expect(body.answers.purpose).toBe('revise');
   });
 
   it('bd-snkn32.58.2 — a note dropped for a blocked word: one line tells her, and the plan still goes ahead', async () => {
