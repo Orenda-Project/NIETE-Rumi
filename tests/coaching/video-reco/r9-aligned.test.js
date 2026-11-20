@@ -665,3 +665,108 @@ describe('R9d · later visits', () => {
     });
   });
 });
+
+describe('R9e · route (c): 790-s3 and 95-s1 only on their single ask (COS 20261119T233153)', () => {
+  const L7 = ALLOW.split(',').filter((s) => !['790-s3', '95-s1'].includes(s)).join(',');
+  const on9 = { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW };
+  const on7 = { ...ON, VIDEO_RECO_ALLOWLIST: L7 };
+  const pick = (x, env) => run({ action: x.card, env, catalogV2: C.loadV2(), subject: x.subject, grade: x.grade ? String(x.grade) : null, lang: x.report_lang, transcriptLang: x.lesson_lang });
+
+  describe('the red set: the 81 r6c + 6 r6d wrong prod first picks are never served', () => {
+    const RED = require('./fixtures/r6c-r6d-wrong-picks.json').picks;
+    test('the fixture holds 81 r6c (9-list) and 6 r6d (7-list fall-through) wrongs', () => {
+      expect(RED.filter((x) => x.src === 'r6c')).toHaveLength(81);
+      expect(RED.filter((x) => x.src === 'r6d')).toHaveLength(6);
+    });
+    test.each(RED.map((x) => [x.item, x.seg, x.list, x]))('%s: %s is not served on the %s-list', async (_, seg, list, x) => {
+      const { row } = await pick(x, list === '7' ? on7 : on9);
+      expect(row.seg_id).not.toBe(seg);
+    });
+  });
+
+  describe('790-s3: wait after a question, the wait being pre-answer think time', () => {
+    test.each([
+      ['a generic open question, then the wait', 'Next class, when a child gives a one-word answer, ask an open-ended question and give 10 seconds of wait time before anyone answers.'],
+      ['a question, the wait stated as before answers', 'Next class, when you ask "Where did the bull live?", wait 5-8 seconds in silence before taking answers.'],
+    ])('%s → 790-s3', async (_, action) => {
+      const { row } = await run({ action, env: on9 });
+      expect(row.seg_id).toBe('790-s3');
+    });
+    test.each([
+      ['a method probe of the child\'s answer', 'Next class, when a child solves the sum, ask \'How did you solve it?\' and give 3-5 seconds of wait time.'],
+      ['staying with the same child for a full sentence', 'Next class, when a child answers in one word, give 5-7 seconds of wait time and ask an open-ended question so the same child answers in a full sentence.'],
+      ['a why probe of a given answer', 'Next class, when a child answers "forest", ask an open-ended \'why\' question and give 10 seconds of wait time.'],
+    ])('%s → no 790-s3', async (_, action) => {
+      const { row } = await run({ action, env: on9 });
+      expect(row.seg_id).not.toBe('790-s3');
+    });
+    test('a why asked to the class, the wait stated as before answers, is still 790-s3\'s ask', async () => {
+      const { row } = await run({ action: 'Next class, during the story, ask "Why do you think the bull left the forest?" and hold 5-8 seconds of wait time before taking answers.', env: { ...ON, VIDEO_RECO_ALLOWLIST: L7 + ',790-s3' } });
+      expect(row.seg_id).toBe('790-s3');
+    });
+  });
+
+  describe('95-s1: the open "why" question is the only step', () => {
+    test('a why question alone → 95-s1', async () => {
+      const { row } = await run({ action: 'Next class, after the story, ask "Why do you think the bull lived in the forest?"', env: on9 });
+      expect(row.seg_id).toBe('95-s1');
+    });
+    test.each([
+      ['why, then pairs', 'Next class, after the story, ask "Why do you think the bull lived in the forest?", then let pairs talk for one minute.'],
+      ['why, then a cold call and a next step', 'Next class, after the story, ask "Why do you think the bull lived in the forest?", then cold-call a student and give one specific next step.'],
+      ['why did you … about the child\'s own work', 'Next class, when a child changes their answer, ask "Why did you change it?"'],
+    ])('%s → no 95-s1', async (_, action) => {
+      const { row } = await run({ action, env: on9 });
+      expect(row.seg_id).not.toBe('95-s1');
+    });
+  });
+
+  describe('a card whose first ask fails its single-ask rule is silent (no fall-through to the next ask\'s clip)', () => {
+    const SEQ = 'Next class, when a child answers in one word, give 7-10 seconds of wait time and ask a follow-up question like "Can anyone think of another word?"';
+    test('7-list: no 782-s1 from the follow-up after the wait', async () => {
+      const { row } = await run({ action: SEQ, env: on7 });
+      expect(row.status).toBe('none');
+      expect(row.none_reason).toBe('aligned:no_ask');
+    });
+  });
+
+  describe('the live clips\' r6c wrongs (451-s3, 782-s1)', () => {
+    test.each([
+      ['a probe, then think and pair-share as the core', 'Next class, when a student gives a quick answer, ask \'How did you get that number?\' then give one minute to think and one minute to pair-share before the class corrects it.'],
+      ['a quiet look at a noisy group, then a why', 'Next class, when noise rises during the reading, try a quiet look at the group first, then follow up with \'Why does that happen?\' before moving on.'],
+      ['fraction bars drawn to show why', 'Next class, when a student answers 6/9 - 2/9 with 8, pause and ask \'how did you get that?\', draw quick fraction bars to show why, and give 5-8 seconds of wait time.'],
+    ])('782-s1 not for %s', async (_, action) => {
+      const { row } = await run({ action, env: on9 });
+      expect(row.seg_id).not.toBe('782-s1');
+    });
+  });
+});
+
+describe('R9e · a later visit silenced by the main-step rule says so (cos-track 20261120T061933)', () => {
+  const WHY_WAIT = 'Next class, when a student answers "forest", ask \'Why do you think the bull lived there?\', then wait 5-7 seconds before taking an answer.';
+  test('a first-visit ask, emptied on a later visit → aligned:later_not_main (not no_ask)', async () => {
+    const { row } = await run({ action: WHY_WAIT, env: ON, history: { segments: ['451-s3'], modules: [] } });
+    expect(row.status).toBe('none');
+    expect(row.none_reason).toBe('aligned:later_not_main');
+  });
+  test('a card with no move on a later visit is still aligned:no_ask', async () => {
+    const { row } = await run({ action: DIFF, env: ON, history: { segments: ['451-s3'], modules: [] } });
+    expect(row.none_reason).toBe('aligned:no_ask');
+  });
+});
+
+describe('R9e · recall: asks the classifier missed (eng-rec r9e/AUDIT.md, bucket a1)', () => {
+  test.each([
+    ['«مشکل مثال» is a hard example, not a task level (P76)', 'اگلی کلاس میں جب \'مالی\' یا \'چڑیا\' جیسی مشکل مثال آئے تو Think-Pair-Share کروائیں: ایک طالب علم وجہ بتائے کہ یہ مذکر یا مؤنث کیوں ہے، دوسرا ایک اور مثال بڑھائے، پھر دو جوڑے پوری کلاس سے اپنی بات شیئر کریں۔', 'think_pair_share'],
+    ['«30 سیکنڈ Think اور 30 سیکنڈ Pair» (S166)', 'اگلی کلاس میں، جب worked example پر کوئی بچہ ایک لفظ کہے، تو 30 سیکنڈ Think اور 30 سیکنڈ Pair کا وقت دیں تاکہ ہر بچہ اپنے partner کو بتائے کہ point کہاں رکھا اور کیوں، پھر whole-class share کروائیں۔', 'think_pair_share'],
+    ['«partner کے ساتھ … بات» before answering (P56)', 'اگلی کلاس میں، جب واقعے پر کوئی بچہ رک جائے، فوراً جواب دینے کے بجائے پہلے بچوں کو partner کے ساتھ ایک sentence میں بات summarize کرنے دیں، پھر دو بچوں کو جواب دینے کو کہیں۔', 'think_pair_share'],
+    ['an open-ended follow-up «کیسے پتا چلا؟» after an answer (S43)', 'اگلی کلاس میں جب کوئی طالب علم \'mixed fraction\' جیسا مختصر جواب دے، تو فوراً open-ended question پوچھیں کہ \'آپ کو کیسے پتا چلا؟\' تاکہ وہ اپنی reasoning بیان کریں۔', 'follow_up_probe'],
+    ['an open-ended follow-up "how did you know…?" after a wrong answer (S18)', 'Next class, when a child answers \'T for lion\', instead of correcting, ask an open-ended question like \'How did you know from the starting sound?\' so the child works it out.', 'follow_up_probe'],
+  ])('%s', (_, card, move) => {
+    expect(A.classifyAsks(card).map((x) => x.move)[0]).toBe(move);
+  });
+  test('…and the TPS card gets a TPS clip through the engine', async () => {
+    const { row } = await run({ action: 'Next class, when a child answers in one word, give 30 seconds Think and 30 seconds Pair so each child tells their partner why, then share with the whole class.', env: { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW } });
+    expect(['791-s2', '451-s3']).toContain(row.seg_id);
+  });
+});
