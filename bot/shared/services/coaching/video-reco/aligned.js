@@ -71,7 +71,9 @@ const SUB_ASKS = Object.freeze({
 const SUB_ASK = Object.freeze({
   '790-s3': { sub: 'wait_time:after_question', shows_en: 'a trainer asking a question, stopping early answers and giving everyone time to think alone first', shows_ur: 'ایک ٹرینر سوال پوچھ کر فوری جواب روکتے ہیں اور سب کو پہلے اکیلے سوچنے کا وقت دیتے ہیں' },
   '791-s2': { sub: 'think_pair_share:think_then_pair', shows_en: 'a trainer saying "first think separately… now think together", then calling on one group to answer', shows_ur: 'ایک ٹرینر کہتے ہیں "پہلے الگ الگ سوچیں… اب مل کر سوچیں"، پھر ایک گروپ سے جواب لیتے ہیں' },
-  '451-s3': { sub: 'think_pair_share:think_then_pair', shows_en: 'a class talking in pairs first, while the teacher holds back one student until the pairs have talked', shows_ur: 'ایک کلاس پہلے جوڑیوں میں بات کرتی ہے، اور ٹیچر ایک بچے کو تب تک روکتے ہیں جب تک جوڑیاں بات نہ کر لیں' },
+  // R9e-d grade_min 3 (ped-align r17, Oct 1-7 held out: Grade 1-2 16/27, Grade 3-5 37/39; an unknown grade gets no 451-s3).
+  // 451-s3 is off prod (COS 072739) until a fresh set clears it at this floor.
+  '451-s3': { sub: 'think_pair_share:think_then_pair', grade_min: 3, shows_en: 'a class talking in pairs first, while the teacher holds back one student until the pairs have talked', shows_ur: 'ایک کلاس پہلے جوڑیوں میں بات کرتی ہے، اور ٹیچر ایک بچے کو تب تک روکتے ہیں جب تک جوڑیاں بات نہ کر لیں' },
   '95-s1': { sub: 'open_questions:why_observed', shows_en: 'a teacher asking "why do you think summers are getting hotter?" about something the class has seen', shows_ur: 'ایک ٹیچر بچوں کے دیکھے ہوئے موسم پر پوچھتے ہیں: "تمہارے خیال میں گرمیاں زیادہ گرم کیوں ہو رہی ہیں؟"' },
   '782-s1': { sub: 'follow_up_probe:why_chain', shows_en: 'a teacher with two plants asking "why?" after each child\'s answer until the class reasons it out', shows_ur: 'ایک ٹیچر دو پودے دکھا کر ہر بچے کے جواب پر "کیوں؟" پوچھتے ہیں، یہاں تک کہ کلاس خود وجہ تک پہنچ جائے' },
   '177-s4': { sub: 'ask_for_reasoning:why_after_observation', shows_en: 'questions like "why did the heavier object move slower?" asked right after students watch it happen', shows_ur: 'بچوں کے دیکھنے کے فوراً بعد ایسے سوال: "بھاری چیز آہستہ کیوں چلی؟"' },
@@ -146,12 +148,6 @@ const UNSHOWN = [
 // explaining yourself» names what the teacher should NOT do, so it is no explain.
 const REFUSE_ONLY = [
   ['explain', /\bexplain (?:in (?:one|two|a|their|your|full)|your|their|why|how)\b|how would you explain|explain (?:your |their )?steps/iu],
-  // R9e (ped-align r6c, 451-s3's 4 wrongs): a pair task that is peer feedback, assigned roles or rehearsing a spelling is not
-  // 451-s3's think-then-talk
-  ['peer_feedback', /\bcompliment|\bsuggestion|تجویز/iu],
-  // explainer / checker only: «reporter», «recorder» and Partner A / B pairs were judged good as often as not (R9e-c below)
-  ['pair_roles', /\bexplainer\b|\bchecker\b/iu],
-  ['rehearse', /\bspelling|ہجے/iu],
 ];
 // ped-align r5 (20261119T152426, 471 of the engine's own picks judged blind): a card whose main ask is another move gets a
 // near-miss from the open-question and wait-time clips (95-s1 87.1%, 790-s3 91.8%). Read on the WHOLE card (the moment
@@ -173,7 +169,7 @@ const NEAR_MISS = [
   ['board_work', /side-by-side|on the board first|بورڈ پر لکھیں/iu],
   // R9c (ped-align r6, 20261119T172641: 18 wrongs beyond 782-s1's `model`): the card's main step is another classroom
   // move with a why or a wait attached. Each pattern is a move no cleared clip shows.
-  ['representation', /\bT-chart|\barrows?\b|fraction bars|\bdraw\b[^.;,]{0,25}\bon the board|show it on|دو کالم بنا|sorting activity/iu],
+  ['representation', /\bT-chart|\barrows?\b|\bdraw\b[^.;,]{0,25}\bon the board|show it on|دو کالم بنا|sorting activity/iu],
   ['scaffold', /offer (?:\w+ ){0,3}(?:hints|choices|options)|word choices/iu],
   ['resource', /word cards|flash ?cards/iu],
   ['task_choice', /let (?:them|students|the class|children|each \w+) choose/iu],
@@ -190,19 +186,15 @@ const NEAR_MISS_FOR = new Set(['open_questions', 'wait_time']);
 // …and the near-misses that refuse one more move's clip (ped-align r6: `model` on follow_up_probe, 782-s1 183/193 →
 // 179/185; the rest from the r6 wrongs, each priced on the 1,387 judged picks at #5141, eng-rec calib/r9c)
 const NEAR_MISS_ONLY = Object.freeze({
-  follow_up_probe: new Set(['model', 'representation', 'hands_up', 'pair_work', 'behaviour']),
+  follow_up_probe: new Set(['model', 'representation', 'hands_up', 'pair_work']),
   think_pair_share: new Set(['exemplar']),
 });
-// R9e (ped-align r6c, 782-s1's wrongs): the why handed to a partner, or think time and a pair-share after the probe. 782-s1
-// only: the shared NEAR_MISS also silences open questions, wait time and every later visit. Leading the card, it silences it
-// like a route (c) refusal (r9a N0405: handing the card on to the pair-share clip was judged wrong too).
-const FOLLOW_UP_ONLY = /pair[- ]share|(?:^|[\s(])pair میں|partner (?:to|with)\b/iu;
 // one questioning ask in two steps, either order («ask why, then wait» / «wait, then ask why»)
 const QUESTION_FAMILY = new Set(['open_questions', 'follow_up_probe', 'ask_for_reasoning', 'wait_time']);
 // …and the one a given move's clip must not be read as (ped-align ALLOWLIST.md "match at this grain"; held-out wrongs)
 const REFUSE = Object.freeze({
   open_questions: ['own_words', 'differentiate', 'explain'],
-  think_pair_share: ['pair_reflection', 'peer_check', 'worksheet', 'peer_feedback', 'pair_roles', 'rehearse'],
+  think_pair_share: ['pair_reflection', 'peer_check', 'worksheet'],
   wait_time: ['silent_write', 'pair_reflection', 'peer_check', 'closure'],
   activate_prior_knowledge: ['closure', 'worksheet', 'correction'],
 });
@@ -243,12 +235,15 @@ function questionMove(card, main) {
   return OPEN_WHY.test(main) ? 'open_questions' : null;
 }
 
-// R9e route (c) (COS 20261119T233153; ped-align r6c, the audited prod first picks): 790-s3 and 95-s1 only on their single ask.
-// 790-s3 shows think time after the teacher's question, before anyone answers. Its 64 wrongs are a probe of an answer already
-// given: a method question, staying with that child for a fuller sentence, a why aimed at the answer. A why asked while the
-// wait is stated as before answers stays (r6c 386 kept, 96.9%). 95-s1 shows one open why question. Its wrongs add a step
-// (pairs, a cold call, stems, feedback, counters) or ask the child why they did what they did (r6c 80 kept, 98.8%).
-// A card whose FIRST ask fails its rule is silent (no fall-through to the next ask's clip: COS 233153, silence is right).
+// R9e route (c) (COS 20261119T233153; ped-align r6c on the audited prod first picks, r14 held out): 790-s3 and 95-s1 only on
+// their single ask. 790-s3 shows think time after the teacher's question, before anyone answers; its wrongs probe an answer
+// already given (a method question, staying with that child for a fuller sentence, a why aimed at the answer). A why asked
+// while the wait is stated as before answers stays (held out 97/100). 95-s1 shows one PLANNED opening why: no step after it
+// (pairs, a cold call, stems, feedback, counters), not a why after a child's answer, after modelling or another activity
+// (held out 49/60 before these: off every list until a fresh set clears it, COS 071727).
+// A refusal takes that clip off the card only; the card's next ask still counts (R9e-d, ped-align r17: silencing the card
+// dropped live 6-list picks out of sample, 22 of 24 good). No rule here touches a live clip: the keyword exclusions R9e-b/c
+// tried on 451-s3 / 782-s1 / 177-s4 removed good picks on fresh cards (r17: 15/15) and are gone.
 const METHOD_PROBE = /how did you (?:solve|get|find|count|know|figure|work|decide)|show (?:your|the) steps|tell us the steps|کیسے (?:حل|نکالا|پتا|پتہ|معلوم|کیا|سوچا|توڑا|بنایا|فیصلہ)|step[- ]by[- ]step/iu;
 const SAME_CHILD = /same (?:child|student)|اسی بچے|full sentence|مکمل جملے|جملہ مکمل|complete (?:their|the|his|her) (?:answer|sentence)|خود (?:جواب )?مکمل|finish (?:their|your)|say more|مزید بتا|explain/iu;
 const PRE_ANSWER = /before (?:taking|hearing|accepting|any(?:one)?|calling|answers?|they answer|students answer|responses)|جواب (?:سے|سننے سے|لینے سے|دینے سے) پہلے|جواب سے قبل/iu;
@@ -257,42 +252,17 @@ const OTHER_STEP = /turn[- ]and[- ]talk|think[- ]pair|\bpairs?\b|partner|جوڑ�
 const OWN_WORK = /why did you|آپ نے [^؟?،]{0,15}کیوں/iu;
 // more than one question is not a single ask («دو open-ended questions», "three why questions")
 const MANY_QUESTIONS = /\b(?:two|three|2|3)\b[^.;,]{0,25}\bquestions\b|(?:دو|تین|2|3)[^۔،]{0,20}(?:questions|سوالات|سوال)/iu;
-// R9e-b (ped-align r14, held-out 8–29 Oct cards, 20261120T072352). 95-s1 is an animated, PLANNED opening why: not a probe of
-// a child's answer (8 of its 11 held-out wrongs) and not a why after another activity (a warm-up, a mime, pacing a metre).
 const RESPONSE = /\b(?:answers?|answered|says?|said|gives?|repl(?:y|ies)|responds?|names?|labels?|repeats?|reads?|calls? out|blurts?|chorus(?:es)?)\b|جواب|کہے|کہیں|بولے|بتائے|دہرائے|پڑھے|لیبل دے/iu;
 const AFTER_TEACHING = /\bafter (?:model(?:l)?ing|teaching|demonstrating|explaining)\b/iu;
 const LEAD_ACTIVITY = /\bfirst\b|warm[- ]?up|\bmime\b|pace out|پہلے|کرائیں|کروائیں|دکھائیں/iu;
-// 451-s3 / 791-s2 show think-then-talk as the lesson's step. R9e-c (COS 072739: a main-move rule only; ped-align r15): refused
-// where the pairs carry another task (ped-align's held-out wrongs), each priced on the 410 judged 451-s3 picks (window + Oct
-// 8-29, r9e/routec/tps_rules.js, good removed : wrong caught): a role-play (0:1), «show your steps» (0:1), a chart (3:1),
-// Partner A / B roles (3:1), the core ask «… کے بعد» the pair-share (4:1), a problem to solve or an order to build (1:2).
-// Each removes a larger wrong share than the clip's own (~6%), so the clip's rate rises. «لکھیں» (9:0) and a share-out
-// «reporter» (5:1) stay: they are think-pair-share's own steps.
-const TPS_INSIDE = /\b[Rr]ole[- ]play|رول پلے|\b[Pp]artner [AB]\b|\bchart\b|چارٹ|لگائیں|حل کروا|\bsolve\b|scenario|ترتیب بنا/u;
-const TPS_AFTER = /(?:pair[- ]?(?:share|talk|discussion)|think[- ]pair[- ]share)[^.;۔]{0,6}(?:کے بعد|کرنے کے بعد)/iu;
-const PRIOR_STEP = /\bsteps\b/iu;
-// 782-s1 shows why-probes on fluent answers; remediation of a wrong / broken / «I don't know» answer is another move (r13)
-const REMEDIATE = /\bclue\b|\bhint\b|act (?:it |them )?out|another example|non-example|کوئی اور مثال|اشارہ|checklist/iu;
 
-/**
- * The route (c) rule for a move's single ask. x: the ask's match in main. → true (the move's clip may serve the card), false
- * (refused: leading the card, it silences it) or 'drop' (only this move's clip is off; the card's next ask still counts).
- */
+/** The route (c) rule: may the wait-time (790-s3) or open-question (95-s1) clip serve this card? x: the ask's match in main. */
 function singleAsk(move, card, main, x) {
-  if (MANY_QUESTIONS.test(main) || OWN_WORK.test(card)) return move !== 'wait_time' && move !== 'open_questions';
-  const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
+  if (move !== 'wait_time' && move !== 'open_questions') return true;
+  if (MANY_QUESTIONS.test(main) || OWN_WORK.test(card)) return false;
   if (move === 'wait_time') return !METHOD_PROBE.test(card) && !SAME_CHILD.test(main) && (!WHY_WORD.test(main) || PRE_ANSWER.test(main));
-  if (move === 'open_questions') {
-    if (OTHER_STEP.test(main)) return false;
-    // a why aimed at an answer is a wait-time card's question (790-s3's kept r6c picks): drop 95-s1 only
-    return RESPONSE.test(trigger) || AFTER_TEACHING.test(trigger) || LEAD_ACTIVITY.test(main.slice(0, x.index)) ? 'drop' : true;
-  }
-  if (move === 'think_pair_share') {
-    return !TPS_INSIDE.test(main) && !TPS_AFTER.test(main) && !PRIOR_STEP.test(main.slice(0, x.index));
-  }
-  if (move === 'follow_up_probe') return !REMEDIATE.test(main);
-  if (move === 'ask_for_reasoning') return !METHOD_PROBE.test(card) && !OTHER_STEP.test(main); // 177-s4 r14: 1/3
-  return true;
+  const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
+  return !OTHER_STEP.test(main) && !RESPONSE.test(trigger) && !AFTER_TEACHING.test(trigger) && !LEAD_ACTIVITY.test(main.slice(0, x.index));
 }
 
 // R9d route (a) (COS 20261119T215752; ped-align r9a 20261119T215415, 259/343 at #5202): a later visit is a pick for a
@@ -322,8 +292,11 @@ function laterVisit(history) {
  * opts.later: a later visit (laterVisit), the main step only (above).
  */
 function classifyAsks(sentence, opts = {}) {
-  const asks = firstVisitAsks(sentence, { later: !!opts.later });
+  const asks = firstVisitAsks(sentence);
   if (!opts.later || !asks.length) return asks;
+  // the main step is the card's first ask before route (c) takes a clip off: a dropped lead never hands a later visit to
+  // the step after it (R9d: the main step only)
+  if (firstVisitAsks(sentence, { routeC: false })[0].move !== asks[0].move) return [];
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = asks[0];
   const keep = LATER_NEAR_MISS_KEEP[main.move] || new Set();
@@ -332,7 +305,7 @@ function classifyAsks(sentence, opts = {}) {
   return [main];
 }
 
-function firstVisitAsks(sentence, { later = false } = {}) {
+function firstVisitAsks(sentence, { routeC = true } = {}) {
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = mainClause(card);
   if (!main) return [];
@@ -344,7 +317,6 @@ function firstVisitAsks(sentence, { later = false } = {}) {
   if (NEAR_MISS[0][1].test(card)) return []; // a differentiated task anywhere: no clip shows it (ped-align's no-clip list)
   if (off.has('label')) return [];
   const found = [];
-  const single = []; // R9e: the indexes where a move fails its route (c) rule
   for (const [id, rx] of Object.entries(ASK_RX)) {
     const x = rx.exec(main);
     if (!x) continue;
@@ -354,18 +326,10 @@ function firstVisitAsks(sentence, { later = false } = {}) {
     if ((REFUSE[move] || []).some((r) => off.has(r) || only.has(r))) continue;
     if (nearMiss && NEAR_MISS_FOR.has(move)) continue;
     if (NEAR_MISS_ONLY[move] && NEAR_MISS.some(([id, rx]) => NEAR_MISS_ONLY[move].has(id) && rx.test(card))) continue;
-    if (move === 'follow_up_probe' && FOLLOW_UP_ONLY.test(card)) { single.push(x.index); continue; } // leading: silence (N0405)
-    const ok = singleAsk(move, card, main, x);
-    if (ok === 'drop') continue;
-    if (!ok) { single.push(x.index); continue; }
+    if (routeC && !singleAsk(move, card, main, x)) continue; // R9e route (c)
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
-  // the card leads with a route (c) refusal: silent, unless what follows is the think-pair-share the question and wait lead
-  // into («why…?, wait, then Think-Pair-Share»: ped-align r15, 451-s3 held out; 33 such picks judged good, silenced by 6d5643e550)
-  const lead = Math.min(...found.map((f) => f.at));
-  // (first visits only: a later visit serves the main step alone, R9d / r9a N0405)
-  if (single.some((at) => at <= lead) && (later || !found.every((f) => f.move === 'think_pair_share'))) return [];
   const first = Math.min(...found.map((f) => f.at));
   if ([...off.values()].some((at) => at < first)) return []; // the card leads with a move no clip shows
   // the MAIN move decides (COS 152504 §2). A later ask is reached only past a questioning step (an open "why… then wait
