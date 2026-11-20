@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T11:48:37Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment spec_sync=true","sha":"e218acae5590","branch":"bd-e5n2jf-65164","user":""}
 {"ts":"2026-11-20T11:48:38Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment spec_sync=true","sha":"e218acae5590","branch":"bd-e5n2jf-65164","user":""}
 {"ts":"2026-11-20T11:48:46Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"7a291fd1-7d9d-4bcd-a078-b48554991d19","sha":"e218acae5590","branch":"bd-e5n2jf-65164","user":""}
+{"ts":"2026-11-20T11:49:11Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"e218acae5590","branch":"bd-e5n2jf-65164","user":""}
