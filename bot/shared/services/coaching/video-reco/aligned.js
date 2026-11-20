@@ -256,11 +256,40 @@ const OTHER_STEP = /turn[- ]and[- ]talk|think[- ]pair|\bpairs?\b|partner|جوڑ�
 const OWN_WORK = /why did you|آپ نے [^؟?،]{0,15}کیوں/iu;
 // more than one question is not a single ask («دو open-ended questions», "three why questions")
 const MANY_QUESTIONS = /\b(?:two|three|2|3)\b[^.;,]{0,25}\bquestions\b|(?:دو|تین|2|3)[^۔،]{0,20}(?:questions|سوالات|سوال)/iu;
-/** The route (c) rule for a move's single ask (true = the move's clip may serve this card). */
-function singleAsk(move, card, main) {
+// R9e-b (ped-align r14, held-out 8–29 Oct cards, 20261120T072352). 95-s1 is an animated, PLANNED opening why: not a probe of
+// a child's answer (8 of its 11 held-out wrongs) and not a why after another activity (a warm-up, a mime, pacing a metre).
+const RESPONSE = /\b(?:answers?|answered|says?|said|gives?|repl(?:y|ies)|responds?|names?|labels?|repeats?|reads?|calls? out|blurts?|chorus(?:es)?)\b|جواب|کہے|کہیں|بولے|بتائے|دہرائے|پڑھے|لیبل دے/iu;
+const AFTER_TEACHING = /\bafter (?:model(?:l)?ing|teaching|demonstrating|explaining)\b/iu;
+const LEAD_ACTIVITY = /\bfirst\b|warm[- ]?up|\bmime\b|pace out|پہلے|کرائیں|کروائیں|دکھائیں/iu;
+// 451-s3 / 791-s2 show think-then-talk as the lesson's step. Held-out wrongs: the pair-talk sits inside another task (a chart
+// on the board, «show your steps» first), the pairs act roles (Partner A / B, a role-play), or the core ask comes after it
+// («pair-share کے بعد … سوال پوچھیں»).
+const TPS_AFTER = /^[^.;۔]{0,12}(?:کے بعد|کرنے کے بعد)/u;
+// case-sensitive A / B: «turn to a partner» is an article, not a role
+const TPS_INSIDE = /\b[Pp]artner [AB]\b|\b[Rr]ole[- ]play|رول پلے/u;
+// (the English "ask …, then turn to a partner" cards are 791-s2's judged-right ones: r6c 130/130; the prior step is Urdu here)
+const PRIOR_STEP = /لگائیں|لکھیں|دکھائیں|دکھانے|\bsteps\b/iu;
+// 782-s1 shows why-probes on fluent answers; remediation of a wrong / broken / «I don't know» answer is another move (r13)
+const REMEDIATE = /\bclue\b|\bhint\b|act (?:it |them )?out|another example|non-example|کوئی اور مثال|اشارہ|checklist/iu;
+
+/**
+ * The route (c) rule for a move's single ask. x: the ask's match in main. → true (the move's clip may serve the card), false
+ * (refused: leading the card, it silences it) or 'drop' (only this move's clip is off; the card's next ask still counts).
+ */
+function singleAsk(move, card, main, x) {
   if (MANY_QUESTIONS.test(main) || OWN_WORK.test(card)) return move !== 'wait_time' && move !== 'open_questions';
+  const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
   if (move === 'wait_time') return !METHOD_PROBE.test(card) && !SAME_CHILD.test(main) && (!WHY_WORD.test(main) || PRE_ANSWER.test(main));
-  if (move === 'open_questions') return !OTHER_STEP.test(main);
+  if (move === 'open_questions') {
+    if (OTHER_STEP.test(main)) return false;
+    // a why aimed at an answer is a wait-time card's question (790-s3's kept r6c picks): drop 95-s1 only
+    return RESPONSE.test(trigger) || AFTER_TEACHING.test(trigger) || LEAD_ACTIVITY.test(main.slice(0, x.index)) ? 'drop' : true;
+  }
+  if (move === 'think_pair_share') {
+    return !TPS_INSIDE.test(main) && !TPS_AFTER.test(main.slice(x.index + x[0].length)) && !PRIOR_STEP.test(main.slice(0, x.index));
+  }
+  if (move === 'follow_up_probe') return !REMEDIATE.test(main);
+  if (move === 'ask_for_reasoning') return !METHOD_PROBE.test(card) && !OTHER_STEP.test(main); // 177-s4 r14: 1/3
   return true;
 }
 
@@ -324,7 +353,9 @@ function firstVisitAsks(sentence) {
     if (nearMiss && NEAR_MISS_FOR.has(move)) continue;
     if (NEAR_MISS_ONLY[move] && NEAR_MISS.some(([id, rx]) => NEAR_MISS_ONLY[move].has(id) && rx.test(card))) continue;
     if (move === 'follow_up_probe' && FOLLOW_UP_ONLY.test(card)) { single.push(x.index); continue; } // leading: silence (N0405)
-    if (!singleAsk(move, card, main)) { single.push(x.index); continue; }
+    const ok = singleAsk(move, card, main, x);
+    if (ok === 'drop') continue;
+    if (!ok) { single.push(x.index); continue; }
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];

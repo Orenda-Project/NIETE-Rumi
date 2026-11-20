@@ -617,7 +617,8 @@ describe('R9d · later visits', () => {
   describe('red7 N1-N3', () => {
     test('N1: «رول پلے» (roles) silences a later-visit card: JS \\b is ASCII-only', () => {
       const card = 'اگلی کلاس میں بچوں کو جوڑوں میں سوچنے دیں، پھر رول پلے کروائیں اور Think-Pair-Share کریں۔';
-      expect(A.classifyAsks(card).map((x) => x.move)).toContain('think_pair_share');
+      // since R9e-b (ped-align r14: a role-play pair task on 451-s3 judged wrong held-out) the first visit is silent too
+      expect(A.classifyAsks(card)).toEqual([]);
       expect(A.classifyAsks(card, { later: true })).toEqual([]);
     });
     test('N1: «کنٹرول» is not a role', () => {
