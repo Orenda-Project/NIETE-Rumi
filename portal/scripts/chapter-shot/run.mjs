@@ -137,6 +137,10 @@ if (STATUS_ARG) FIXTURE['/lp612/status'] = JSON.parse(STATUS_ARG);
 FIXTURE['/me/grade-subjects'] = { success: true, combos: [
   { grade: 3, gradeCode: 'grade_3', subject: 'Mathematics', subjectKey: 'maths', source: 'class', featureKey: 'math', available: true },
 ] };
+// bd-snkn32.59.1 — --extra <json file>: more API answers, merged last ({ "/path/suffix": body }), e.g. the unit routes.
+const EXTRA_ARG = arg('extra', null);
+if (EXTRA_ARG) Object.assign(FIXTURE, JSON.parse((await import('node:fs')).readFileSync(EXTRA_ARG, 'utf8')));
+FIXTURE['/config'] = { ...FIXTURE['/config'], features: { ...FIXTURE['/config'].features, lpOwnUnit: FLAG } };
 const DEV = /^\/(src|node_modules|@vite|@react-refresh|@id|@fs|scripts|bot)\//;
 
 const server = await createServer({
