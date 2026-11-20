@@ -364,8 +364,9 @@ export default function LeaderAssess() {
     setDrainAt(now);
   };
   const [pendingBy, setPendingBy] = useState<Record<string, number>>({});
-  const drainDone = (sessions: Drained) => {
-    phoneHolds.current = sessions.some((x) => x.pending > 0);
+  const drainDone = (sessions: Drained, answered = true) => {
+    // a drain ended by the clock (stuck, or the cap) does not say what the phone holds: ask again on a later tick
+    phoneHolds.current = answered ? sessions.some((x) => x.pending > 0) : null;
     if (sessions.length) setPendingBy((p) => ({ ...p, ...Object.fromEntries(sessions.map((x) => [x.s, x.pending])) }));
     setDrainAt(null);
     if (pollKey) void poll(pollKey.split(','));
