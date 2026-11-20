@@ -22,7 +22,7 @@ import { pkDayMonth } from '../range';
 import { LevelBars } from './LevelBars';
 import { LibraryStep, type LibraryStepInfo } from './LibraryStep';
 import { PlanSheet } from './PlanSheet';
-import { useSendFlow, type Audio, type Plan } from './useSendFlow';
+import { useSendFlow, type Audio, type FileProblem, type Plan } from './useSendFlow';
 import { PickStage } from './PickStage';
 import { LiveMovesPanel } from './LiveMovesList';
 import { useLiveMoves } from './useLiveMoves';
@@ -63,6 +63,14 @@ function Column({ children }: { children: ReactNode }) {
 
 function Problem({ children }: { children: ReactNode }) {
   return <div className="flex justify-center"><Chip tone="error" icon={CircleAlert}>{children}</Chip></div>;
+}
+
+/** What is wrong with the recording file she picked, in a word or two (bd-bsc0ox: one the phone would not read). */
+function fileProblemWord(p: NonNullable<FileProblem>): string {
+  if (p === 'too_large') return COACHING_COPY.tooLarge;
+  if (p === 'video') return COACHING_COPY.notVideo;
+  if (p === 'wont_open') return COACHING_COPY.fileWontOpen;
+  return COACHING_COPY.notAudio;
 }
 
 export default function RecordPage() {
@@ -154,7 +162,7 @@ export default function RecordPage() {
                 <Row key={step} title={step} icon={i > 0 ? Mic : Capacitor.isNativePlatform() ? Settings : Lock} />
               ))}
             </List>
-            {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : flow.fileProblem === 'video' ? COACHING_COPY.notVideo : COACHING_COPY.notAudio}</Problem> : null}
+            {flow.fileProblem ? <Problem>{fileProblemWord(flow.fileProblem)}</Problem> : null}
             <BottomActions>
               <BottomButton icon={RotateCcw} onClick={() => { void flow.startRecording(); }}>{COACHING_COPY.tryAgain}</BottomButton>
               <BottomButton tone="outline" icon={Upload} onClick={pickAudio}>{COACHING_COPY.upload}</BottomButton>
@@ -221,7 +229,7 @@ export default function RecordPage() {
             {audioUrl ? (
               <audio ref={player} src={audioUrl} preload="metadata" onEnded={() => setPlaying(false)} className="hidden" />
             ) : null}
-            {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : flow.fileProblem === 'video' ? COACHING_COPY.notVideo : COACHING_COPY.notAudio}</Problem> : null}
+            {flow.fileProblem ? <Problem>{fileProblemWord(flow.fileProblem)}</Problem> : null}
             <LiveMovesPanel live={live} />
 
             <SectionLabel>{COACHING_COPY.optional}</SectionLabel>
@@ -284,7 +292,17 @@ export default function RecordPage() {
         ) : null}
 
         {stage === 'failed' && flow.failure ? (
-          flow.failure.kind === 'network' ? (
+          flow.failure.kind === 'network' && flow.failure.detail?.unreadable ? (
+            /* bd-bsc0ox: the phone would not read a file it was given — never "No internet"; sending again would not help. */
+            <>
+              <Hero title={COACHING_COPY.fileWontOpen} icon={FileWarning} tone="error" live />
+              <BottomActions>
+                {flow.failure.detail.part?.kind === 'lesson_plan'
+                  ? <BottomButton icon={BookOpen} onClick={() => { flow.dropPlan(); setPlanSheet(true); }}>{COACHING_COPY.changePlan}</BottomButton>
+                  : <BottomButton icon={RotateCcw} onClick={() => flow.setStage('check')}>{COACHING_COPY.changeFile}</BottomButton>}
+              </BottomActions>
+            </>
+          ) : flow.failure.kind === 'network' ? (
             <>
               <Hero
                 title={COACHING_COPY.noInternet}
