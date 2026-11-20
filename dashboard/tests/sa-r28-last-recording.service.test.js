@@ -4,9 +4,11 @@
  * stop event comes late, as on a slow phone; the screens' hooks called as sa-ui calls them).
  *
  * K5: time runs out on the last task, the screen stops the recorder (not awaited there), and the battery ends. The
- * engine's own close finds no recording running, so before this fix it went on at once: sa:battery_end was posted (the
- * coach page may unmount the frame right then) before the recorder's final marker was on the phone, and a recording
- * without its final marker is never uploaded by the sync nor by any drain. Now the battery's end waits for that stop.
+ * engine's own close found no recording running, so it went on at once: sa:battery_end was posted (the coach page may
+ * unmount the frame right then) before the recorder's final marker was on the phone, and a recording without its final
+ * marker is never uploaded by the sync nor by any drain. Now the battery's end waits for that stop (3 s at most).
+ * On the real screens the task-end card holds 1.5 s before the battery ends, so this bites only when the recorder's stop
+ * event lags past that hold (a slow phone); the test calls next() at once, which is that case.
  *
  * The end screen's "saving" (a′): after sa:battery_end the engine sends the audio and posts {type:'sa:audio_saved', s,
  * pending_audio, state} once that round is over, so the coach page knows when the last recording is acked.
