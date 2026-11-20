@@ -26,6 +26,9 @@ const teacherRef = (id) => { try { return id ? require('../services/quiz/web-qui
 const HelperAgentService = require('../services/helper-agent.service');
 const { handlePortalCommand } = require('./portal-command.handler');
 const PortalRequest = require('../services/portal-request'); // "portal" without the slash is the /portal command
+// bd-eqkr0n — a principal's bare "observe" asks the observe door (the principal app's button).
+const { isPrincipalRole } = require('../config/role-features');
+const { isBareObserveWord } = require('../services/observe/observe-gate');
 const ReadingAssessmentService = require('../services/reading-assessment.service');
 const FeatureLinkerService = require('../services/feature-linker.service');
 const FeatureIntroService = require('../services/feature-intro.service');
@@ -1013,6 +1016,13 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // does not match "/observe2", so the two commands never shadow each other.
   // Retired (app_settings.observe2_retired, default off; observe2/retire.js): the one-line notice, then the /observe
   // door below runs with "/observe", so the coach gets exactly what /observe opens. Visits already started are untouched.
+  // bd-eqkr0n (queue #203 follow-up) — a principal's bare "observe" (no slash) asks the same door as /observe, so a
+  // principal on the principal app gets the app's button (app-redirect 2g). Off the app, or anyone else: not handled,
+  // and the message goes on to the classifier exactly as before.
+  if (user?.id && isPrincipalRole(user.role) && isBareObserveWord(trimmedMessage)) {
+    if (await redirectToApp('observe', 'bare_command')) return;
+  }
+
   let observeCommand = trimmedMessage;
   if (/^\/observe2\b/i.test(trimmedMessage)) {
     const { announceIfRetired } = require('../services/observe/observe2/retire');
