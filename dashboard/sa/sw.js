@@ -156,7 +156,10 @@ var CORE = 'sa-core-' + VERSION;
 // (longer) re-made, the held sounds as the content owner picked, Urdu م and س held. v5/prompt_timings.json gives the
 // three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is retired unused;
 // the next re-voice takes v33, and SESSION never moves backwards.)
-var SESSION = 'sa-session-v32';
+// v34: the English letter-names task's lowercase t said a bare /t/ (no vowel: the letter's sound, not its name); its v4 key
+// now serves the capital T's "tee" take (same voice and loudness; a letter's name is the same in either case). No battery
+// or word timing changes. (v33 is the letter-sound prompts' re-make, open on sandbox when this was made.)
+var SESSION = 'sa-session-v34';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

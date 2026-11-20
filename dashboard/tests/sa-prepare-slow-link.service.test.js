@@ -348,7 +348,7 @@ describe('the device fields reach device_ready', () => {
 describe('the cache', () => {
   // The clips a phone holds live in this cache, so moving SESSION is a deliberate act that edits this line too.
   // It is not read from the lock: a real bump re-cuts the lock under the new name, and the check must still go red.
-  const EXPECTED_SESSION = 'sa-session-v32';
+  const EXPECTED_SESSION = 'sa-session-v34';
 
   // the worker's SESSION from its source, run as the tests load it (module.exports, no service-worker globals)
   function sessionOf(src) {
