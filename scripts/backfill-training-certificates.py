@@ -13,7 +13,7 @@ Design:
     rows, both pointing to the same level_id but different attempt_id.
   - Deterministic certificate_code derived from attempt.id — re-runs produce
     identical codes, safe to re-run.
-  - teacher_name_snapshot: users.name || first_name + last_name || phone.
+  - teacher_name_snapshot: users.name || phone.
   - level_name_snapshot: training_levels.name.
   - issued_at: attempt.completed_at.
   - pdf_r2_key: NULL (PDF generation is Layer 2).
@@ -84,9 +84,7 @@ def main():
     cur.execute("""
       SELECT a.id AS attempt_id, a.user_id, a.program_id, a.level_id, a.completed_at,
              lv.name AS level_name, lv.order_index+1 AS level_order,
-             COALESCE(u.name,
-                      NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
-                      u.phone_number) AS teacher_name
+             COALESCE(u.name, u.phone_number) AS teacher_name
       FROM training_assessment_attempts a
       JOIN training_levels lv ON lv.id = a.level_id
       JOIN users u ON u.id = a.user_id

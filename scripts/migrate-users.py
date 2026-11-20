@@ -115,15 +115,6 @@ def normalize_phone_pk(raw) -> str | None:
     return digits if re.match(r"^92\d{10}$", digits) else None
 
 
-def split_name(full):
-    if not full:
-        return None, None
-    tokens = str(full).strip().split(None, 1)
-    if not tokens:
-        return None, None
-    return tokens[0], (tokens[1] if len(tokens) > 1 else None)
-
-
 def unusable_hash() -> str:
     # Cost=4 (the minimum) is deliberate here: this is a placeholder hash of a
     # 12-char cryptographic random secret that's discarded immediately. The
@@ -302,7 +293,6 @@ def transform(user_row: dict, profiles: dict[str, dict], org_name: str, role_map
     if not phone:
         return None
 
-    first, last = split_name(user_row.get("name"))
     full_name = (user_row.get("name") or "").strip() or None
 
     # Pick primary school from teacher > principal > (none)
@@ -349,14 +339,11 @@ def transform(user_row: dict, profiles: dict[str, dict], org_name: str, role_map
     return {
         "phone_number":         phone,
         "name":                 full_name,
-        "first_name":           first,
-        "last_name":            last,
         "teacher_uuid":         str(user_row["uuid"]),
         "school_name":          school_name,
         "region":               school_region,
         "country":              "Pakistan",
         "organization":         org_name,
-        "levels":               levels,
         "grades_taught":        grades_taught,
         "portal_password_hash": unusable_hash(),
         "portal_activated":     True,
@@ -370,20 +357,17 @@ def transform(user_row: dict, profiles: dict[str, dict], org_name: str, role_map
 # ---------------------------------------------------------------------------
 UPSERT_SQL = """
 INSERT INTO users (
-    phone_number, name, first_name, last_name, teacher_uuid, school_name, region,
-    country, organization, levels, grades_taught, portal_password_hash, portal_activated,
+    phone_number, name, teacher_uuid, school_name, region,
+    country, organization, grades_taught, portal_password_hash, portal_activated,
     source, preferences
 ) VALUES %s
 ON CONFLICT (phone_number) DO UPDATE SET
     name              = COALESCE(users.name,              EXCLUDED.name),
-    first_name        = COALESCE(users.first_name,        EXCLUDED.first_name),
-    last_name         = COALESCE(users.last_name,         EXCLUDED.last_name),
     teacher_uuid      = COALESCE(users.teacher_uuid,      EXCLUDED.teacher_uuid),
     school_name       = COALESCE(users.school_name,       EXCLUDED.school_name),
     region            = COALESCE(users.region,            EXCLUDED.region),
     country           = COALESCE(users.country,           EXCLUDED.country),
     organization      = COALESCE(users.organization,      EXCLUDED.organization),
-    levels            = COALESCE(users.levels,            EXCLUDED.levels),
     grades_taught     = COALESCE(users.grades_taught,     EXCLUDED.grades_taught),
     portal_password_hash = COALESCE(users.portal_password_hash, EXCLUDED.portal_password_hash),
     portal_activated  = CASE
@@ -398,8 +382,8 @@ WHERE users.source IS NULL OR users.source = '' OR users.source LIKE 'taleemabad
 
 def upsert_batch(nconn, rows: list[dict]) -> tuple[int, int]:
     """Return (attempted, would_skip_direct). Uses psycopg2.execute_values."""
-    cols = ["phone_number", "name", "first_name", "last_name", "teacher_uuid",
-            "school_name", "region", "country", "organization", "levels",
+    cols = ["phone_number", "name", "teacher_uuid",
+            "school_name", "region", "country", "organization",
             "grades_taught", "portal_password_hash", "portal_activated",
             "source", "preferences"]
     tuples = [
