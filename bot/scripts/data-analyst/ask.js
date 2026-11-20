@@ -53,8 +53,11 @@ async function main() {
   const identity = { userId: 'terminal', email: process.env.DATA_MCP_USER_EMAIL.trim() };
   const memory = new ConversationMemory();
   let history = [];
+  let choices = [];
   const log = trace ? (event, fields) => say(`  [${event}] ${JSON.stringify(fields)}`) : () => {};
-  for (const question of questions) {
+  for (const typed of questions) {
+    // A number picks one of the last answer's numbered choices, as the WhatsApp door does (entry.js).
+    const question = /^\d{1,2}$/.test(typed.trim()) && choices[Number(typed) - 1] ? choices[Number(typed) - 1] : typed;
     const started = Date.now();
     say(`\n> ${question}\n`);
     const result = await runQuestion({ question, identity, memory, history, log });
@@ -70,6 +73,7 @@ async function main() {
     for (const m of out.messages) say(`${m}\n---`);
     const cost = Number.isFinite(result.costUsd) ? `$${result.costUsd.toFixed(3)}` : 'unpriced';
     say(`(${Math.round((Date.now() - started) / 1000)} s · ${cost} · turn ${result.turnId})`);
+    choices = out.choices;
     history = history.concat([{ role: 'user', content: question }, { role: 'assistant', content: out.body || result.text }]).slice(-12);
   }
 }
