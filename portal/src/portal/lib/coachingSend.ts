@@ -80,6 +80,12 @@ type Args = {
   saveForLater?: boolean;
   /** bd-r2uzg1.9: the waits before each extra try of a picked file's failed read (READ_RETRY_MS; tests pass zeros). */
   readWaits?: number[];
+  /**
+   * bd-tfya0m (queue #205) — the waits before each extra try of a START that got no answer (no response, or a 5xx such
+   * as a deploy restarting the bot). Absent: one try, as before (the teacher's start answers a repeat with 409). The
+   * coach's start answers a repeat of the same recording with the same observation, so its send passes waits.
+   */
+  startRetryMs?: number[];
 };
 
 type Item = { blob: Blob; filename: string; kind: "audio" | "lesson_plan" | "photo"; photo: number };
@@ -129,13 +135,40 @@ function body(err: unknown): Record<string, unknown> {
   return ((err as { response?: { data?: Record<string, unknown> } })?.response?.data) || {};
 }
 
+/** bd-tfya0m — the start got no answer: no response at all, or a 5xx (the bot or its proxy, e.g. during a deploy). */
+function unanswered(err: unknown): boolean {
+  const s = httpStatus(err);
+  return s === null || s >= 500;
+}
+
+const wait = (ms: number) => new Promise<void>((r) => { setTimeout(r, ms); });
+
+/**
+ * bd-tfya0m (queue #205) — ask for the start again while no answer comes back: once, then once after each wait. An
+ * answer (2xx, or a 4xx such as not_your_teacher) ends it at once. `onUnanswered` sees every unanswered try.
+ */
+async function startWithRetry<T>(ask: () => Promise<T>, waits: number[], onUnanswered: (err: unknown) => void): Promise<T> {
+  for (let n = 0; ; n += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return await ask();
+    } catch (err) {
+      if (!unanswered(err)) throw err;
+      onUnanswered(err);
+      if (n >= waits.length) throw err;
+      // eslint-disable-next-line no-await-in-loop
+      await wait(waits[n]);
+    }
+  }
+}
+
 /** The MIME type without its parameters ("audio/ogg; codecs=opus" → "audio/ogg"), for the failure report. */
 function bareType(type: string): string {
   return String(type || "").split(";")[0].trim();
 }
 
 export async function sendLesson(
-  { audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater, readWaits = READ_RETRY_MS }: Args,
+  { audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater, readWaits = READ_RETRY_MS, startRetryMs = [] }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
   /** bd-1d6g8o: where a failure is reported (the logs); never changes the outcome. */
@@ -220,9 +253,14 @@ export async function sendLesson(
   if (saveForLater === true) start.saveForLater = true;
 
   try {
-    return await api.startCoachingUpload(start);
+    return await startWithRetry(() => api.startCoachingUpload(start), startRetryMs, (err) => {
+      // Each unanswered try is logged as it happens, so a start that needed a second ask is visible too.
+      tell({ stage: "start", kind: null, item: 0, ...failureOf(err), sizeBytes: 0, type: "", sentBytes: 0, sentAs: "none" });
+    });
   } catch (err) {
-    tell({ stage: "start", kind: null, item: 0, ...failureOf(err), sizeBytes: 0, type: "", sentBytes: 0, sentAs: "none" });
+    if (!unanswered(err)) {
+      tell({ stage: "start", kind: null, item: 0, ...failureOf(err), sizeBytes: 0, type: "", sentBytes: 0, sentAs: "none" });
+    }
     const status = httpStatus(err);
     const b = body(err);
     if (status === 409 && (b.status === "in_progress" || b.status === "already_sent")) {

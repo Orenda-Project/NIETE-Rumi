@@ -53,6 +53,7 @@ const notesBox = () => screen.getByRole("region", { name: "📝 Your Observation
 const lines = () => within(notesBox()).getAllByTestId("observation-note");
 
 beforeEach(async () => {
+  localStorage.clear(); // bd-tfya0m: the form keeps her answers on the phone; each test starts with none
   vi.clearAllMocks();
   if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
   await act(async () => { await i18n.changeLanguage("en"); });

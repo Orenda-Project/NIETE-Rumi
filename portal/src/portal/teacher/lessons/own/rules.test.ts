@@ -73,14 +73,14 @@ describe('waysFor — the choices offered, filtered to the subject', () => {
 
 describe('isComplete — Make my plan is only offered with every answer in', () => {
   it('needs a segment, a size, a level and a way', () => {
-    expect(isComplete(at({ way: 'story' }))).toBe(true);
+    expect(isComplete(at({ way: 'story', purpose: 'new' }))).toBe(true);
     expect(isComplete(at({ way: null }))).toBe(false);
     expect(isComplete(at({ way: 'story', segment: '' }))).toBe(false);
     expect(isComplete(at({ way: 'story', size: null }))).toBe(false);
     expect(isComplete(at({ way: 'story', level: null }))).toBe(false);
   });
   it('the textbook alone is enough to have', () => {
-    expect(isComplete(at({ way: 'story', resources: [] }))).toBe(true);
+    expect(isComplete(at({ way: 'story', resources: [], purpose: 'new' }))).toBe(true);
   });
 });
 
@@ -151,7 +151,7 @@ describe('grades 6–12: a secondary set, filtered by subject, never the primary
     expect(waysFor({ grade: 8, subject: 'Science' })).not.toContain('past_paper');
     expect(waysFor({ grade: 9, subject: 'Science' })).not.toContain('exam_fde');
     expect(waysFor({ grade: 7, subject: 'Science' })).not.toContain('exam_fde');
-    expect(purposesFor(4)).toEqual([]);
+    for (const g of [1, 2, 3, 4, 5]) expect(purposesFor(g)).toEqual(['new', 'revise', 'reteach']); // bd-snkn32.63: never board
     expect(purposesFor(7)).toEqual(['new', 'revise', 'reteach']);
     expect(purposesFor(8)).toEqual(['new', 'revise', 'reteach', 'board']);
     expect(purposesFor(11)).toEqual(['new', 'revise', 'reteach', 'board']);
@@ -172,9 +172,10 @@ describe('grades 6–12: a secondary set, filtered by subject, never the primary
       for (const grade of [6, 8, 10]) expect(waysFor({ grade, subject })).toContain(g({ grade, subject }).way);
     }
   });
-  it('a 6–12 plan needs what the lesson is for; 1–5 does not', () => {
+  it('every grade needs what the lesson is for (1–5 since bd-snkn32.63)', () => {
     expect(isComplete(at({ grade: 8, way: 'worked' }))).toBe(false);
     expect(isComplete(at({ grade: 8, way: 'worked', purpose: 'revise' }))).toBe(true);
-    expect(isComplete(at({ grade: 4, way: 'story' }))).toBe(true);
+    expect(isComplete(at({ grade: 4, way: 'story' }))).toBe(false);
+    expect(isComplete(at({ grade: 4, way: 'story', purpose: 'reteach' }))).toBe(true);
   });
 });

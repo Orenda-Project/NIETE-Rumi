@@ -11,10 +11,17 @@ import { browserEnv, getApiBaseUrl } from "@/lib/runtime";
  *   new_visit.level          a teaching-level chip on New visit (level: all / primary / middle / high)
  *   home.today_start         Start recording on the Home's next-visit card
  *   observe.start            Start an observation (Concept 1's big button on Observe)
+ *   observe.schedule         bd-o15qnr.27 (v6): Schedule an observation on Observe
+ *   observe.booked_open      All booked opened on Observe
+ *   schedule.now_record      Schedule for Now → Start recording
+ *   schedule.now_upload      Schedule for Now → Upload recording
+ *   schedule.later           Schedule for Later → booked
+ *   home.focus               the Home Focus card's button
  *
  * Fire-and-forget: it never throws, never waits, never decides anything.
  */
-export type FlowAction = "schedule.cancel_tap" | "schedule.cancel_confirm" | "schedule.start" | "new_visit.level" | "home.today_start" | "observe.start";
+export type FlowAction = "schedule.cancel_tap" | "schedule.cancel_confirm" | "schedule.start" | "new_visit.level" | "home.today_start" | "observe.start"
+  | "observe.schedule" | "observe.booked_open" | "schedule.now_record" | "schedule.now_upload" | "schedule.later" | "home.focus";
 export type FlowLevel = "all" | "primary" | "middle" | "high";
 
 export function trackFlow(a: FlowAction, level?: FlowLevel): void {

@@ -88,7 +88,7 @@ describe('checkReplica', () => {
 });
 
 /**
- * Test sites (Amena, 20 Nov 2026): staging and sandbox have no paid read copy, so there the job reads the tier's own
+ * Test sites (decided 20 Nov 2026): staging and sandbox have no paid read copy, so there the job reads the tier's own
  * database. Only Railway's own RAILWAY_ENVIRONMENT_NAME of exactly 'staging' or 'sandbox' opens this; every other
  * name (production, unset, anything else) keeps the replica-only rule. A replica URL, when set, still wins.
  */

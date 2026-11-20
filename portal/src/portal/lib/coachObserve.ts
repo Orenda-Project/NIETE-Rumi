@@ -117,6 +117,13 @@ export const STEP_CHIP: Record<ObserveStep, string> = {
 type ObserveApi = Pick<typeof leader, "presignObserveUpload" | "startObservation" | "startTalk">;
 type UploadApi = Pick<typeof portal, "uploadToR2">;
 
+/**
+ * bd-tfya0m (queue #205) — an unanswered start is asked again after these waits. Production 19 Nov: a coach's recording
+ * reached R2 and no start ever reached the server. The bot answers a repeated start of the same recording with the same
+ * observation, so asking again never starts a second one.
+ */
+export const START_RETRY_MS = [2_000, 6_000];
+
 /** Send her lesson: the teacher's sendLesson, through the coach's endpoints, for this teacher. */
 export function sendObservation(
   args: {
@@ -131,13 +138,15 @@ export function sendObservation(
     notes?: ObserveNote[] | null;
     /** bd-tymy1n — what already arrived, by file (coachingSend's map): a second send sends only the rest. */
     uploaded?: WeakMap<Blob, string>;
+    /** bd-tfya0m — waits before each extra ask of an unanswered start (START_RETRY_MS; tests pass zeros). */
+    startRetryMs?: number[];
   },
   api: ObserveApi = leader,
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
-  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, notes, uploaded } = args;
-  return sendLesson({ audio, plan, photos, ...(uploaded ? { uploaded } : {}) }, {
+  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, notes, uploaded, startRetryMs = START_RETRY_MS } = args;
+  return sendLesson({ audio, plan, photos, startRetryMs, ...(uploaded ? { uploaded } : {}) }, {
     presignCoachingUpload: (a) => api.presignObserveUpload(a),
     uploadToR2: (url, blob, type, cb) => upload.uploadToR2(url, blob, type, cb),
     startCoachingUpload: (start) => api.startObservation({

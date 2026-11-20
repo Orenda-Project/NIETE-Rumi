@@ -345,13 +345,19 @@ Feature: Teacher lesson plans
     When she makes her own plan on a lesson that is not mixed
     Then OK on the teaching way goes straight to "Your plan"
 
+  # UPDATED 2026-11-20 (bd-snkn32.63): Grades 1–5 now ask what the lesson is for too (operator, 20 Nov), never exam practice.
   @MKO04 @draft @config-gated
-  Scenario: A Grade 1–5 Make my own is unchanged
+  Scenario: A Grade 1–5 teacher says what the lesson is for, from a book day or a learning goal, with no exam practice
     Given portal_teacher_v2 and portal_lp_make_own are true
     And demo teacher 03000000911 is signed in
-    When she opens Make my own on a Grade 4 Math chapter
-    Then there is no "What is this lesson for?" step and no outcomes step
-    And the teaching ways are the grades 1–5 ones, as before
+    When she opens Make my own on a Grade 4 Math chapter, picks a day and taps OK
+    Then "What is this lesson for?" offers Teach new, Revise and Re-teach, with Teach new already picked
+    And Revise says "Practise what they already learned", and there is no Board exam practice and no outcomes step
+    When she picks Re-teach and answers through the teaching way
+    Then "Your plan" shows "Lesson for: Re-teach" and the teaching ways are the grades 1–5 ones, as before
+    And POST /lp612/own carries purpose reteach
+    When she starts again from a learning goal on Grade 3 Math and picks a goal
+    Then the next screen is "What is this lesson for?" with the same three choices
 
   # Make my own, Grades 6–12: "Add the next lesson's pages" (bd-snkn32.14). Behind app_settings `portal_lp_make_own`.
   # Hand-written after the generated TL scenarios, like the FLN block: not page-health rows, so gen_page_features.py

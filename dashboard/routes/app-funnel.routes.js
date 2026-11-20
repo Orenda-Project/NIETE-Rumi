@@ -490,7 +490,13 @@ function createAppFunnelRouter({ limiter } = {}) {
 }
 
 // bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
-const COACH_FLOW_ACTIONS = ['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start'];
+// bd-o15qnr.27 (v6): observe.schedule = Observe's "Schedule an observation"; schedule.now_record / schedule.now_upload =
+// "Schedule for Now"'s Start recording / Upload recording; schedule.later = "Schedule for Later"'s Schedule; home.focus =
+// the Home Focus card's button; observe.booked_open = All booked opened on Observe.
+const COACH_FLOW_ACTIONS = [
+  'schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start',
+  'observe.schedule', 'schedule.now_record', 'schedule.now_upload', 'schedule.later', 'home.focus', 'observe.booked_open',
+];
 const COACH_FLOW_LEVELS = ['all', 'primary', 'middle', 'high'];
 
 const COACH_TROUBLE_EVENTS = { tap: 'app_funnel.trouble_tap', error: 'app_funnel.page_error' };

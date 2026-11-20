@@ -97,7 +97,21 @@ function change(visitId: string, patch: Partial<SendJob>): SendJob | null {
   return h.job;
 }
 
+/**
+ * bd-tfya0m (queue #205) — every file arrived and the start still got no answer (after its own tries): say that, not
+ * "The internet stopped" (the files are safe on the server; Try again only asks for the start). Offline stays "network":
+ * no internet is then the true reason. Anything else: errorCodeOf's answer.
+ */
+export function startCodeOf(err: unknown): string | null {
+  if (!(err instanceof SendError) || err.kind !== 'network' || !err.detail) return null;
+  const { part, offline, unreadable } = err.detail;
+  if (part === null && !offline && !unreadable) return 'start_failed';
+  return 'network';
+}
+
 const errorCodeOf = (err: unknown): string => {
+  const started = startCodeOf(err);
+  if (started === 'start_failed') return started;
   if (err instanceof SendError) {
     // bd-tymy1n (queue #179): this phone could not read a file she picked. Not the internet: say which part
     // (format.ts unreadablePart) so the page can name it and offer the way on.

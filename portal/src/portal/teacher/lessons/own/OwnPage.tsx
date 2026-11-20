@@ -141,7 +141,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
                 : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed === 'error' ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
   const title = s.step === 'check' ? C.yourPlan : s.step === 'goal' ? G.title : s.step === 'pages' ? (k5 ? C.day : C.whichLesson) : s.step === 'size' ? w.size : C[s.step];
-  const hints = C.purposeHints as Partial<Record<string, string>>;
+  const hints = w.purposeHints;
   const segName = seg ? (seg.number != null ? `${seg.lane === 'k5' ? C.dayN(seg.number) : C.lessonN(seg.number)} · ${seg.title}` : seg.title) : '—';
   const segPages = s.pg ? C.pagesShort(fmtPg(s.pg)) : seg?.lane === 'g612' ? seg.pages : null;
 
