@@ -982,7 +982,10 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   if (action === 'data_exchange') {
     // bd-slknzt: roster admin is a coach's. A principal's menu never offers it; a step from an old screen gets the menu.
     if (COACH_ONLY_STEPS.has(step) && observesOwnSchool(await _leaderMe(userId, user))) {
-      logToFile('🚫 observe-visit: roster admin refused — a principal conducts observations only', { userId, step }, 'warn');
+      // The principal's keyed reference (tk), never her raw id, on the log line (tests/setup/log-raw-ids).
+      let tkRef = null;
+      try { tkRef = require('../services/quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+      logToFile('🚫 observe-visit: roster admin refused — a principal conducts observations only', { tk: tkRef, step }, 'warn');
       return menuScreen(userId, { user });
     }
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
