@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { Languages } from "lucide-react";
+import { Languages, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CoachGate from "../CoachGate";
 import TeacherPage from "../../teacher/TeacherPage";
@@ -12,6 +12,8 @@ import { useBack } from "../../lib/useBack";
 import { takeBoot } from "@/lib/bootReads";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { getCoachReport, markOpened, problemOf, type Both, type CoachReport, type ReportProblem } from "./api";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 
 /**
  * Coach reports in the app — the coach's debrief report as a page (/portal/coach/report/:id), in the NIETE app's own
@@ -36,11 +38,11 @@ import { getCoachReport, markOpened, problemOf, type Both, type CoachReport, typ
  * in one commit (index.html starts the read at boot on this page). Fixed words come in both languages, so the language
  * pill switches the page without a second read. Opening it stamps "opened" once (no WhatsApp link follows).
  */
-export default function CoachReportPage() {
-  const C = useCopy(COACH_REPORT) as CoachReportCopy;
-  const lang = useLang();
-  const { id = "" } = useParams();
-  const back = useBack("/portal/coach");
+/**
+ * bd-o15qnr.28 (v7) — the report's read, shared by the coach's page and the principal's "Your feedback" (FeedbackPage):
+ * the boot read on a cold open, the API otherwise; "opened" stamped once it has drawn.
+ */
+export function useDebriefReport(id: string) {
   const [report, setReport] = useState<CoachReport | null>(null);
   const [problem, setProblem] = useState<ReportProblem | null>(null);
   const [tick, setTick] = useState(0);
@@ -66,11 +68,23 @@ export default function CoachReportPage() {
     }
   }, [report]);
 
+  return { report, problem, retry: () => setTick((n) => n + 1) };
+}
+
+export default function CoachReportPage() {
+  const C = useCopy(COACH_REPORT) as CoachReportCopy;
+  const lang = useLang();
+  const { id = "" } = useParams();
+  const back = useBack("/portal/coach");
+  const { report, problem, retry } = useDebriefReport(id);
+  // bd-o15qnr.28 — v7's page (the v6/v7 switch): % and stars, Key Focus Area first, the behaviours as rows. Off: as before.
+  const v7 = useFlowV6() === true;
+
   return (
     <CoachGate>
       <TeacherPage feature="reports" title={C.title} crumb={C.crumb} onBack={back} action={<LanguagePill />} testId="coach-report">
-        {report ? <ReportBodyView report={report} C={C} lang={lang} />
-          : problem ? <Problem problem={problem} C={C} onRetry={() => setTick((n) => n + 1)} />
+        {report ? <ReportBodyView report={report} C={C} lang={lang} v7={v7} />
+          : problem ? <Problem problem={problem} C={C} onRetry={retry} />
             : <ReportOutline />}
       </TeacherPage>
     </CoachGate>
@@ -126,7 +140,7 @@ export function Spark() {
 /** One entry: a round 36px tone disc, a bold name and its lines. The tones are InsightRow's: green done, amber missed. */
 function Entry({ id, tone, name, marked, children }: { id: string; tone: "good" | "grow"; name: string; marked: boolean; children?: ReactNode }) {
   return (
-    <div id={`report-entry-${id}`} data-entry={id} data-marked={marked ? "" : undefined}
+    <div id={`report-entry-${id}`} data-entry={id} data-testid="entry" data-marked={marked ? "" : undefined}
       className={cn("-mx-2.5 flex items-start gap-3 rounded-[14px] p-2.5 transition-[background-color,box-shadow] duration-300 motion-reduce:transition-none",
         marked && "bg-[#f4f5f8] shadow-[inset_3px_0_0_#33374a] rtl:shadow-[inset_-3px_0_0_#33374a]")}>
       <span aria-hidden="true" className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[17px] font-extrabold",
@@ -153,7 +167,14 @@ const isToday = (iso: string | null): boolean => {
   return k(new Date(iso)) === k(new Date());
 };
 
-export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C: CoachReportCopy; lang: Lang }) {
+export function ReportBodyView({ report: r, C, lang, v7 = false, principal = false }: {
+  report: CoachReport; C: CoachReportCopy; lang: Lang;
+  /** bd-o15qnr.28 — v7's layout (the v6/v7 switch). */
+  v7?: boolean;
+  /** bd-o15qnr.28 — the principal's "Your feedback": her own ending ("The choice is yours."). */
+  principal?: boolean;
+}) {
+  const W = useCopy(FLOW_V7) as FlowV7Copy;
   const [marked, setMarked] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -183,10 +204,12 @@ export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C:
             {r.concern?.instead ? <p dir="auto" className="m-0"><b className="font-semibold text-[#1d2025]">{C.instead}</b> <bdi>{r.concern.instead}</bdi></p> : null}
           </div>
         </section>
-        <Foot C={C} />
+        <Foot C={C} text={principal ? W.principalFoot : undefined} />
       </div>
     );
   }
+
+  if (v7) return <ReportBodyV7 r={r} C={C} W={W} lang={lang} meta={meta} principal={principal} marked={marked} goTo={goTo} />;
 
   return (
     <div className="flex flex-col gap-3" data-testid="report-body">
@@ -300,14 +323,179 @@ function Hero({ r, C, lang, meta, stars }: { r: CoachReport; C: CoachReportCopy;
   );
 }
 
-function Foot({ C }: { C: CoachReportCopy }) {
+
+/* ── bd-o15qnr.28 (queue #204, v7): the one feedback page ───────────────────────────────────────────────────────── */
+
+/** Behaviours seen as a percent of all (3 of 8 = 38%), and the 5-star row: 20% a star, to the nearest half. */
+export function debriefPercent(done: number, total: number): number {
+  return total > 0 ? Math.round((done / total) * 100) : 0;
+}
+export function starsOf(pct: number): number {
+  return Math.round((pct / 20) * 2) / 2;
+}
+
+function StarRow({ pct, label }: { pct: number; label: string }) {
+  const n = starsOf(pct);
+  return (
+    <div role="img" aria-label={label} className="flex gap-1">
+      {Array.from({ length: 5 }, (_, i) => {
+        const state = i + 1 <= n ? "on" : i + 0.5 === n ? "half" : "off";
+        return (
+          <span key={i} data-star={state} className="relative inline-flex">
+            <Star on={state === "on"} />
+            {state === "half" ? <span className="absolute inset-y-0 start-0 w-1/2 overflow-hidden"><Star on /></span> : null}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function HeroV7({ r, C, W, meta }: { r: CoachReport; C: CoachReportCopy; W: FlowV7Copy; meta: string[] }) {
+  const pct = debriefPercent(r.done, r.total);
+  return (
+    <section aria-label={C.title} className="flex flex-col gap-3 rounded-[22px] bg-[#33374a] px-[18px] pb-4 pt-[18px] text-white" data-testid="report-hero">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] font-bold uppercase tracking-[.08em] text-[#a9e3c4] rtl:normal-case rtl:tracking-normal rtl:text-[13px]">{C.eyebrow}</span>
+        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#47ba7d] text-[15px] font-black text-white">N</span>
+      </div>
+      {r.total > 0 ? (
+        <>
+          <div className="flex items-baseline gap-2.5">
+            <b data-testid="report-pct" dir="ltr" className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${pct}%`}</b>
+            <span className="text-[15px] font-semibold text-[#c6e9d5]">{W.behavioursSeen}</span>
+          </div>
+          <StarRow pct={pct} label={`${pct}%`} />
+        </>
+      ) : null}
+      <div className="border-t border-white/15 pt-2.5 text-[14px] leading-[1.45] text-[#e2e5ea]">
+        {r.header.teacher ? <b dir="auto" className="font-bold text-white">{r.header.teacher}</b> : null}
+        {meta.map((x) => <span key={x}>{" · "}<span dir="auto">{x}</span></span>)}
+      </div>
+    </section>
+  );
+}
+
+/** Two shown, then "Show N more" (and back). */
+function useShowMore<T>(items: T[], shown = 2) {
+  const [open, setOpen] = useState(false);
+  const list = open ? items : items.slice(0, shown);
+  const rest = items.length - shown;
+  return { list, open, rest, toggle: () => setOpen((o) => !o) };
+}
+
+function MoreButton({ rest, open, W, onClick }: { rest: number; open: boolean; W: FlowV7Copy; onClick: () => void }) {
+  if (rest <= 0) return null;
+  return (
+    <button type="button" onClick={onClick} aria-expanded={open}
+      className={cn("mt-1 flex min-h-[48px] w-full items-center justify-center rounded-[14px] text-[15px] font-semibold text-[#33374a]", FOCUS)}>
+      {open ? W.showFewer : W.showMore(rest)}
+    </button>
+  );
+}
+
+function ReportBodyV7({ r, C, W, lang, meta, principal, marked, goTo }: {
+  r: CoachReport; C: CoachReportCopy; W: FlowV7Copy; lang: Lang; meta: string[]; principal: boolean;
+  marked: string | null; goTo: (key: string) => void;
+}) {
+  const seenFirst = [...r.marks].sort((a, b) => Number(b.done) - Number(a.done));
+  const did = useShowMore(r.did);
+  const missed = useShowMore(r.missed);
+  return (
+    <div className="flex flex-col gap-3" data-testid="report-body">
+      <HeroV7 r={r} C={C} W={W} meta={meta} />
+
+      {r.focus ? (
+        // The operator's last comment (20 Nov ~15:02): Key Focus Area option B everywhere: a tinted card, a 6px purple
+        // start edge, a target icon and the label.
+        <section aria-label={W.keyFocus} data-testid="report-focus"
+          className="rounded-[18px] border-s-[6px] border-[#6e52e0] bg-[#f1edfd] shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+          <h3 className="m-0 flex items-center gap-2 px-4 pt-3.5 text-[12px] font-bold uppercase tracking-[.08em] text-[#6e52e0] rtl:normal-case rtl:tracking-normal rtl:text-[13px]">
+            <Target className="h-4 w-4" aria-hidden="true" />{W.keyFocus}
+          </h3>
+          <div className="px-4 pb-4 pt-2">
+            {r.focus.move ? <p dir="auto" className="m-0 text-[18px] font-semibold leading-[1.35]">{r.focus.move}</p> : null}
+            {r.focus.why ? (
+              <p dir="auto" className="m-0 mt-2.5 text-[15px] leading-[1.45] text-[#374151]">
+                <b className="font-semibold text-[#1d2025]">{C.whyThis}</b> <bdi>{r.focus.why}</bdi>
+              </p>
+            ) : null}
+            {r.focus.tryLine ? (
+              <p data-testid="report-try" className="m-0 mt-3 rounded-[14px] bg-[#f3f4f6] px-3.5 py-3 text-[16px] font-medium leading-[1.45]">
+                <b className="font-bold text-[#33374a]">{C.tryLabel}</b> {lang === "ur" ? r.focus.tryLine.ur : r.focus.tryLine.en}
+              </p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* The operator (20 Nov ~15:04): "Respect held … makes it 9. Is this a behaviour?" No: it is the must-pass check, on
+          its own line above the 8, not one of them. */}
+      {r.respectHeld ? (
+        <p data-testid="report-respect" className="m-0 flex items-center gap-2 rounded-[14px] bg-[#eaf6ef] px-3.5 py-2.5 text-[14px] font-semibold text-[#2f7a52]">
+          <Tick size={16} /><span className="min-w-0 flex-1">{W.respectHeld}<span className="font-medium"> · {W.respectNote}</span></span>
+        </p>
+      ) : null}
+
+      <section aria-label={W.yourBehaviours(r.total)} className={SECTION} data-testid="report-marks">
+        <h3 className={LABEL}>{W.yourBehaviours(r.total)}</h3>
+        <div className="[display:grid] grid-cols-2 gap-2">
+          {seenFirst.map((m) => (
+            <button key={m.key} type="button" data-testid="behaviour-row" data-seen={m.done ? "yes" : "no"} onClick={() => goTo(m.key)}
+              className={cn("flex min-h-[56px] items-center gap-2 rounded-[14px] bg-white px-2.5 py-1.5 text-start text-[14px] font-semibold leading-[1.25] text-[#1d2025]", FOCUS,
+                m.done ? "border-[1.5px] border-[#2f7a52]" : "border-[1.5px] border-dashed border-[#c4c9d2]")}>
+              <span aria-hidden="true" className={cn("flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full",
+                m.done ? "bg-[#2f7a52] text-white" : "border-[1.5px] border-dashed border-[#9ca3af]")}>
+                {m.done ? <Tick size={12} /> : null}
+              </span>
+              <span className="min-w-0 flex-1">{pick(m.name, lang)}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {r.did.length > 0 ? (
+        <section aria-label={C.did} className={SECTION} data-testid="report-did">
+          <h3 className={LABEL}>{C.did}</h3>
+          <div className="flex flex-col gap-1">
+            {did.list.map((d) => (
+              <Entry key={d.key} id={d.key} tone="good" name={pick(d.name, lang)} marked={marked === d.key}>
+                {d.line ? <p dir="auto" className="m-0 text-[15px] leading-[1.45] text-[#374151]">{d.line}</p> : null}
+              </Entry>
+            ))}
+          </div>
+          <MoreButton rest={did.rest} open={did.open} W={W} onClick={did.toggle} />
+        </section>
+      ) : null}
+
+      {r.missed.length > 0 ? (
+        <section aria-label={C.missed} className={SECTION} data-testid="report-missed">
+          <h3 className={LABEL}>{C.missed}</h3>
+          <div className="flex flex-col gap-1">
+            {missed.list.map((m) => (
+              <Entry key={m.key} id={m.key} tone="grow" name={pick(m.name, lang)} marked={marked === m.key}>
+                {m.line ? <p dir="auto" className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.what}</b> <bdi>{m.line}</bdi></p> : null}
+                {pick(m.why, lang) ? <p className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.why}</b> {pick(m.why, lang)}</p> : null}
+              </Entry>
+            ))}
+          </div>
+          <MoreButton rest={missed.rest} open={missed.open} W={W} onClick={missed.toggle} />
+        </section>
+      ) : null}
+
+      <Foot C={C} text={principal ? W.principalFoot : undefined} />
+    </div>
+  );
+}
+
+function Foot({ C, text }: { C: CoachReportCopy; text?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 px-1 pt-1.5 text-[13px] text-[#6b7280]">
       <span className="flex shrink-0 items-center gap-2 font-bold text-[#33374a]">
         <span aria-hidden="true" className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] bg-[#47ba7d] text-[12px] font-black text-white">N</span>
         NIETE
       </span>
-      <span className="text-end">{C.foot}</span>
+      <span className="text-end">{text ?? C.foot}</span>
     </div>
   );
 }
@@ -324,7 +512,7 @@ export function ReportOutline() {
   );
 }
 
-function Problem({ problem, C, onRetry }: { problem: ReportProblem; C: CoachReportCopy; onRetry: () => void }) {
+export function Problem({ problem, C, onRetry }: { problem: ReportProblem; C: CoachReportCopy; onRetry: () => void }) {
   const text = problem === "not_ready" ? C.notReady : problem === "not_yours" ? C.notYours : C.loadFailed;
   return (
     <div className={cn(SECTION, "flex flex-col items-center gap-3 py-8 text-center")} data-testid={`report-problem-${problem}`}>

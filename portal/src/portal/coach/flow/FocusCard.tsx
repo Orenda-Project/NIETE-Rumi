@@ -16,6 +16,7 @@ import { BookedRow } from "./BookedRow";
 import { FLOW_V6 } from "./copy";
 import { groupBooked, oldestFirst, waitedDays } from "./model";
 import { trackFlow } from "./track";
+import { isPkMonday, useYourWeek, YourWeekCard } from "./YourWeek";
 
 /**
  * bd-o15qnr.27 (queue #204, v6) — the Home's Focus card: ONE slot between the greeting and the tiles showing the one most
@@ -33,6 +34,10 @@ import { trackFlow } from "./track";
  * pick, the operator's own order above (named in the #204 report). No "Start an observation" on Home ("That is too much").
  * Behind portal_coach_flow_v2 with the full coach app (SlimHome decides). Reads the first reports page and today's
  * schedule (the server adds the late visits); a read that fails shows nothing it cannot back.
+ *
+ * bd-o15qnr.28.1 (queue #204, v7; #188's c8-home-monday) — on a Monday, FIRST: "Your week" (YourWeek.tsx), while last
+ * week's report is ready and not yet opened (her weekly report on). It opens the week page; once opened, the slot goes
+ * back to the order above. Any other day: exactly as above.
  */
 export function FocusCard() {
   const S = useCopy(SCHEDULE);
@@ -43,12 +48,17 @@ export function FocusCard() {
   const schedule = useLoad(() => coach.getSchedule({ from: today, to: today }), [today]);
   const waiting = useMemo(() => oldestFirst(reports.data?.waiting), [reports.data]);
   const g = useMemo(() => groupBooked(schedule.data, today), [schedule.data, today]);
+  const yourWeek = useYourWeek(isPkMonday());
 
   const reportsIn = !!reports.data || reports.failed;
   const scheduleIn = !!schedule.data || schedule.failed;
 
   let body: JSX.Element | null = null;
-  if (waiting.length > 0) {
+  if (yourWeek.state === "ready") {
+    body = <YourWeekCard ready={yourWeek.ready} week={yourWeek.week} />;
+  } else if (yourWeek.state === "loading") {
+    body = <Loading />;
+  } else if (waiting.length > 0) {
     const r = waiting[0];
     const step = (r.step in F.continueStep ? r.step : "analysing") as keyof typeof F.continueStep;
     body = (

@@ -27,17 +27,19 @@ import { trackFlow } from "./track";
 
 const PILL = "flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-xl px-3.5 text-[15px] font-semibold leading-tight rtl:leading-[1.8]";
 
-function RecordPill({ v }: { v: CoachVisit }) {
+function RecordPill({ v, to }: { v: CoachVisit; to?: (v: CoachVisit) => string }) {
   const S = useCopy(SCHEDULE);
   return (
-    <Link to={recordPath(v.id)} onClick={() => trackFlow("schedule.start")} className={cn(PILL, "bg-[#33374a] text-white", FOCUS)}>
+    <Link to={to ? to(v) : recordPath(v.id)} onClick={() => trackFlow("schedule.start")} className={cn(PILL, "bg-[#33374a] text-white", FOCUS)}>
       <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full bg-[#ff4d3d]" />{S.record}
     </Link>
   );
 }
 
-export function BookedRow({ v, today, actions = false, onCancel, first = false }: {
+export function BookedRow({ v, today, actions = false, onCancel, first = false, recordTo }: {
   v: CoachVisit; today: string; actions?: boolean; onCancel?: (v: CoachVisit) => void; first?: boolean;
+  /** bd-o15qnr.28 — where Record goes for someone who is not the coach (a principal: her record screen for that teacher) */
+  recordTo?: (v: CoachVisit) => string;
 }) {
   const S = useCopy(SCHEDULE);
   const O = useCopy(OBSERVE);
@@ -57,11 +59,11 @@ export function BookedRow({ v, today, actions = false, onCancel, first = false }
             timeTone={late ? "overdue" : undefined} action="none"
             chip={late ? { text: S.daysLate(daysBetween(day, today)), tone: "waiting" } : null} />
         </div>
-        {!actions && canRecord && <RecordPill v={v} />}
+        {!actions && canRecord && <RecordPill v={v} to={recordTo} />}
       </div>
       {actions && (
         <div role="group" aria-label={O.observation} className="flex flex-wrap gap-2 pb-3 pe-3.5 ps-[72px]">
-          {canRecord ? <RecordPill v={v} /> : (
+          {canRecord ? <RecordPill v={v} to={recordTo} /> : (
             <Link to={reschedulePath(v)} className={cn(PILL, "border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
               <CalendarDays className="h-5 w-5 shrink-0" aria-hidden="true" />{O.reschedule}
             </Link>

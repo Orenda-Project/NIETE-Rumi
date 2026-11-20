@@ -137,4 +137,5 @@ async function readyCoachWeek(query, coachId, now = new Date()) {
   return { kind: 'week', id: monday, monday, friday: b.friday, at: b.toIso, debriefs: n };
 }
 
-module.exports = { SQL, CARD_DAYS, shapeWeek, getCoachWeek, markCoachWeek, readyCoachWeek };
+// LATEST: bd-o15qnr.28.1 — My progress (coach-progress.service) reads these same rows and needs to know a read was full.
+module.exports = { SQL, CARD_DAYS, LATEST, shapeWeek, getCoachWeek, markCoachWeek, readyCoachWeek };

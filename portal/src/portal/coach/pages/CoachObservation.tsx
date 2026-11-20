@@ -24,6 +24,11 @@ import { pkTime } from "../reports/data";
 import { OBSERVATION_STEPS } from "../reports/paths";
 import { LessonPlanRow } from "../observe/PlanState";
 import { Obs612Block } from "../../components/coaching/Obs612Block";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { StatusLine } from "../flow/StatusLine";
+import { AnalysingStage, DebriefDue, DebriefStage, FeedbackCard, FormStage, SendStage, StoppedStage } from "../flow/VisitV7";
+import ContinueOnWhatsApp from "../observe/ContinueOnWhatsApp";
+import { coachReportPath } from "../report/api";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -99,6 +104,10 @@ const CoachObservation = () => {
   }, []);
 
   const back = useBack(routes.reports);
+  // bd-o15qnr.28 (queue #204, v7; the v6/v7 switch): the status line (option A), the debrief's due day, and the current
+  // step's card ON the visit (#188: "Actions live on the visit only"); the feedback is the report's own top card opening
+  // the ONE feedback page (the coach's debrief report; the principal's "Your feedback"). Off: this page as on production.
+  const v7 = useFlowV6() === true;
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";
@@ -138,7 +147,10 @@ const CoachObservation = () => {
   }));
 
   const time = data ? pkTime(data.date) : null;
-  const dock = dockStep ? (
+  // v7: the one feedback page — the coach's debrief report, or (the principal app's routes) its "Your feedback".
+  const feedbackTo = routes.coachGate ? coachReportPath(id) : routes.observation(id, "feedback");
+  const hasFeedback = !!view?.talk.feedback;
+  const dock = dockStep && !v7 ? (
     <Link to={routes.observation(id, dockStep)} data-testid="obs-dock"
       className={cn("flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
       {labels[at]}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
@@ -195,24 +207,40 @@ const CoachObservation = () => {
 
           <LessonPlanRow lp={view?.lessonPlan} />
 
-          {stopped ? (
+          {stopped && v7 ? (
+            <StoppedStage text={C.stopped}>
+              {routes.coachGate && <ContinueOnWhatsApp trouble="load" />}
+            </StoppedStage>
+          ) : stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.stopped}</span>
             </Card>
+          ) : v7 ? (
+            <>
+              <StatusLine at={at} />
+              {herTurn && dockStep === "debrief" && <DebriefDue visitDay={pkDayOf(data.date ?? null)} />}
+            </>
           ) : (
             <ProgressSteps heading={C.steps} steps={steps} done={allDone} doneLabel={waitingTap ? C.waitingTeacher(first) : C.reportSentOn(sentOn)}
               copy={{ stepsCount: () => bidi(kit.stepOf(Math.min(at + 1, labels.length), labels.length)) }} />
           )}
           {onWhatsApp && <p className="px-1 text-[13px] text-[#6b7280]">{C.continueOnWhatsApp}</p>}
 
+          {/* v7: the current step's card, on the visit */}
+          {v7 && !stopped && at === 0 && working && <AnalysingStage />}
+          {v7 && !stopped && herTurn && dockStep === "form" && <FormStage to={routes.observation(id, "form")} />}
+          {v7 && !stopped && herTurn && dockStep === "debrief" && <DebriefStage to={routes.observation(id, "debrief")} />}
+          {v7 && mine && hasFeedback && (at >= 3 || allDone) && <FeedbackCard id={id} to={feedbackTo} />}
+          {v7 && !stopped && herTurn && dockStep === "send" && <SendStage name={first} to={routes.observation(id, "send")} />}
+
           {/* Once the debrief is coached, what she made opens here — her feedback included (it sits inside Debrief). */}
-          {(allDone || at >= 3) && mine && (
+          {(allDone || at >= 3 || (v7 && at >= 2)) && mine && (
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.whatYouMade}</h2>
               <div className={LIST_CARD} data-testid="what-you-made">
                 <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={routes.observation(id, "form")} />
                 {view?.talk.guide && <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={routes.observation(id, "debrief")} />}
-                {view?.talk.feedback && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={routes.observation(id, "feedback")} />}
+                {view?.talk.feedback && !v7 && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={routes.observation(id, "feedback")} />}
               </div>
             </>
           )}

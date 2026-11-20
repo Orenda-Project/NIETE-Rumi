@@ -153,6 +153,7 @@ describe("the Home, switch on: the Focus card, then one Observe tile", () => {
     expect(within(card).getByRole("link", { name: /ڈی بریف جاری رکھیں/ })).toBeInTheDocument();
   });
 
+  // bd-o15qnr.28.1 (v7): My progress sits right after Observe on the same switch (flow/v7week.test.tsx pins it).
   it("one Observe tile in place of Schedule and Observe: it opens the Observe screen, with what waits on her", async () => {
     config(true);
     home([]);
@@ -161,7 +162,7 @@ describe("the Home, switch on: the Focus card, then one Observe tile", () => {
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href")))
-      .toEqual(["/portal/coach/observe", "/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training"]));
+      .toEqual(["/portal/coach/observe", "/portal/coach/progress", "/portal/coach/people", "/portal/coach/coach-training", "/portal/coach/training"]));
     expect(tiles.querySelectorAll("a")[0].textContent).toContain("Observe");
     await waitFor(() => expect(tiles.querySelectorAll("a")[0].textContent).toContain("2 waiting"));
   });
