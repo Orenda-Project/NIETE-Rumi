@@ -312,9 +312,9 @@ describe('R9b · the card\'s main move decides (r5 wrong picks)', () => {
   test.each(R5.map((x) => [x.id, x.seg, x]))('%s never gets %s again', (_, seg, x) => {
     expect(pickFor(x)).not.toBe(seg);
   });
-  test('the open "why… then wait" card is one ask in two steps, and since R9e route (c) it is silent: a why aimed at a given answer is not 790-s3\'s pre-answer wait, and a sequence is not 95-s1\'s single ask (COS 20261119T233153)', () => {
+  test('the open "why… then wait" card is one ask in two steps; since R9e route (c) the wait is not 790-s3\'s pre-answer wait (a why aimed at a given answer), so only the question reads (COS 20261119T233153)', () => {
     const card = 'Next class, when a student answers a fractions question in just one word, wait 5 to 7 seconds, then ask an open-ended \'why\' question to stretch their thinking.';
-    expect(A.classifyAsks(card).map((x) => x.move)).toEqual([]);
+    expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['open_questions']);
   });
   test('after a non-questioning main move nothing later is served («ask what they already know, then wait»)', () => {
     expect(A.classifyAsks('Next class, before the new topic, ask what students already know about plants, give wait time, then link their answers.').map((x) => x.move)).toEqual(['activate_prior_knowledge']);
@@ -445,15 +445,8 @@ describe('R9c · r6 wrong picks are silent (incl. the 782-s1 model exclusion)', 
     }
     return null;
   };
-  // R9e recall: S0807's «Think 30 seconds, Pair 60 seconds» now reads as think-pair-share (ped-align's own label for it); its
-  // judged-wrong 782-s1 stays off, and the 791-s2 it now gets is in eng-rec r9e new_picks_unjudged.jsonl for ped-align
-  const READ_NOW = { S0807: 'think_pair_share' };
-  test.each(R6.filter((x) => !READ_NOW[x.item]).map((x) => [x.item, x.seg, x]))('%s (%s) → silence', (_, seg, x) => {
+  test.each(R6.map((x) => [x.item, x.seg, x]))('%s (%s) → silence', (_, seg, x) => {
     expect(pickFor(x)).toBeNull();
-  });
-  test.each(R6.filter((x) => READ_NOW[x.item]).map((x) => [x.item, x.seg, x]))('%s: %s is not served (R9e reads its own ask)', (_, seg, x) => {
-    expect(pickFor(x)).not.toBe(seg);
-    expect(A.classifyAsks(x.card)[0].move).toBe(READ_NOW[x.item]);
   });
   test.each([
     ['a plain follow-up', 'Next class, when a student says the car drinks petrol, ask \'Why do you think that?\', then explain.'],
@@ -542,10 +535,9 @@ describe('R9d · later visits', () => {
   describe('the main step only', () => {
     test('a question card with a think-pair-share after it gets no think-pair-share clip at a later visit', () => {
       const card = 'Next class, ask \'Why do you think it happened?\', wait 5 seconds, then run a 60-second Think-Pair-Share.';
-      // R9e route (c): why → wait → pairs is not 95-s1's single ask, nor 790-s3's; each refusal takes only that clip off, so a
-      // first visit's think-pair-share serves (R9e-d). A later visit serves the main step alone (the why), so nothing.
-      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['think_pair_share']);
-      expect(A.classifyAsks(card, { later: true }).map((x) => x.move)).toEqual([]);
+      // R9e route (c): the wait after a why is not 790-s3's pre-answer wait, so it drops out; the question still leads
+      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['open_questions', 'think_pair_share']);
+      expect(A.classifyAsks(card, { later: true }).map((x) => x.move)).toEqual(['open_questions']);
     });
     test('a near-miss anywhere silences a later-visit card (feedback after the pair talk)', () => {
       const card = 'Next class, run a one-minute think-pair-share, then give praise and one next step.';
@@ -676,7 +668,7 @@ describe('R9d · later visits', () => {
   });
 });
 
-describe('R9e · route (c): 790-s3 and 95-s1 only on their single ask (COS 20261119T233153)', () => {
+describe('R9e · route (c): 790-s3 only on its single ask (COS 20261119T233153 / 20261120T074359)', () => {
   const L7 = ALLOW.split(',').filter((s) => !['790-s3', '95-s1'].includes(s)).join(',');
   const on9 = { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW };
   const on7 = { ...ON, VIDEO_RECO_ALLOWLIST: L7 };
@@ -688,10 +680,10 @@ describe('R9e · route (c): 790-s3 and 95-s1 only on their single ask (COS 20261
       expect(RED.filter((x) => x.src === 'r6c')).toHaveLength(81);
       expect(RED.filter((x) => x.src === 'r6d')).toHaveLength(6);
     });
-    // R9e-d (ped-align r17, COS 072900): only the route (c) clips (790-s3, 95-s1, off prod) are asserted. The live clips' 14
-    // (451-s3 / 782-s1 r6c, the r6d fall-throughs) are served as on base: the keyword exclusions fitted to them removed good
-    // picks on fresh cards (r17: 15/15, live 6-list 22 of 24) and were taken out.
-    const ROUTE_C = (x) => x.src === 'r6c' && (x.seg === '790-s3' || x.seg === '95-s1');
+    // COS 20261120T074359: #5244 carries only what held out: 790-s3's route (c) narrowing (97/100) and 782-s1's recall. Only
+    // 790-s3's 64 are asserted. The 95-s1 wrongs (95-s1 off every list), the live clips' (451-s3 / 782-s1) and the r6d
+    // fall-throughs are as on base: the keyword exclusions fitted to them removed good picks on fresh cards (ped-align r17).
+    const ROUTE_C = (x) => x.src === 'r6c' && x.seg === '790-s3';
     // 14 the rules cannot separate from the judged-right picks around them without fitting single cards (eng-rec r9e/REPORT.md):
     // 10 on 790-s3 and 1 on 95-s1 (both still >= 95% on their kept picks: 367/377, 76/77), and 3 r6d fall-throughs on the 7-list
     // (no fall-through at all costs 60 judged-good prod picks for these 3). Pinned, so a change that moves one shows here.
@@ -730,21 +722,6 @@ describe('R9e · route (c): 790-s3 and 95-s1 only on their single ask (COS 20261
     });
   });
 
-  describe('95-s1: the open "why" question is the only step', () => {
-    test('a why question alone → 95-s1', async () => {
-      const { row } = await run({ action: 'Next class, after the story, ask "Why do you think the bull lived in the forest?"', env: on9 });
-      expect(row.seg_id).toBe('95-s1');
-    });
-    test.each([
-      ['why, then pairs', 'Next class, after the story, ask "Why do you think the bull lived in the forest?", then let pairs talk for one minute.'],
-      ['why, then a cold call and a next step', 'Next class, after the story, ask "Why do you think the bull lived in the forest?", then cold-call a student and give one specific next step.'],
-      ['why did you … about the child\'s own work', 'Next class, when a child changes their answer, ask "Why did you change it?"'],
-    ])('%s → no 95-s1', async (_, action) => {
-      const { row } = await run({ action, env: on9 });
-      expect(row.seg_id).not.toBe('95-s1');
-    });
-  });
-
   describe('a refusal takes that clip off the card, not the card (R9e-d; ped-align r17)', () => {
     const SEQ = 'Next class, when a child solves the sum, ask \'How did you solve it?\', wait 5 seconds, then let pairs talk for one minute.';
     test('the refused wait is dropped; the pairs that follow still count', () => {
@@ -772,48 +749,11 @@ describe('R9e · a later visit silenced by the main-step rule says so (cos-track
   });
 });
 
-describe('R9e · recall: asks the classifier missed (eng-rec r9e/AUDIT.md, bucket a1)', () => {
+describe('R9e · recall: the 782-s1 follow-up the classifier missed (eng-rec r9e/AUDIT.md, bucket a1; held out 59/60)', () => {
   test.each([
-    ['«مشکل مثال» is a hard example, not a task level (P76)', 'اگلی کلاس میں جب \'مالی\' یا \'چڑیا\' جیسی مشکل مثال آئے تو Think-Pair-Share کروائیں: ایک طالب علم وجہ بتائے کہ یہ مذکر یا مؤنث کیوں ہے، دوسرا ایک اور مثال بڑھائے، پھر دو جوڑے پوری کلاس سے اپنی بات شیئر کریں۔', 'think_pair_share'],
-    ['«30 سیکنڈ Think اور 30 سیکنڈ Pair» (S166)', 'اگلی کلاس میں، جب worked example پر کوئی بچہ ایک لفظ کہے، تو 30 سیکنڈ Think اور 30 سیکنڈ Pair کا وقت دیں تاکہ ہر بچہ اپنے partner کو بتائے کہ point کہاں رکھا اور کیوں، پھر whole-class share کروائیں۔', 'think_pair_share'],
-    ['«partner کے ساتھ … بات» before answering (P56)', 'اگلی کلاس میں، جب واقعے پر کوئی بچہ رک جائے، فوراً جواب دینے کے بجائے پہلے بچوں کو partner کے ساتھ ایک sentence میں بات summarize کرنے دیں، پھر دو بچوں کو جواب دینے کو کہیں۔', 'think_pair_share'],
     ['an open-ended follow-up «کیسے پتا چلا؟» after an answer (S43)', 'اگلی کلاس میں جب کوئی طالب علم \'mixed fraction\' جیسا مختصر جواب دے، تو فوراً open-ended question پوچھیں کہ \'آپ کو کیسے پتا چلا؟\' تاکہ وہ اپنی reasoning بیان کریں۔', 'follow_up_probe'],
     ['an open-ended follow-up «کیسے پتا چلا؟» after a wrong answer (S18)', 'اگلی کلاس میں جب کوئی بچہ \'T for lion\' جیسا جواب دے، فوراً درست کرنے کے بجائے ایک open-ended question پوچھیں جیسے \'آپ کو starting sound سے کیسے پتا چلا؟\' تاکہ بچہ خود سوچ کر لفظ بنائے۔', 'follow_up_probe'],
   ])('%s', (_, card, move) => {
     expect(A.classifyAsks(card).map((x) => x.move)[0]).toBe(move);
-  });
-  test('…and the TPS card gets a TPS clip through the engine', async () => {
-    const { row } = await run({ action: 'Next class, when a child answers in one word, give 30 seconds Think and 30 seconds Pair so each child tells their partner why, then share with the whole class.', env: { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW } });
-    expect(['791-s2', '451-s3']).toContain(row.seg_id);
-  });
-});
-
-describe('R9e-b · held-out wrongs (ped-align r14, 8–29 Oct prod cards; r13) are never served', () => {
-  const on9 = { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW };
-  const HELD = require('./fixtures/r13-r14-wrong-picks.json').picks;
-  // 790-s3's 3 held-out wrongs: 97/100 out of sample, inside the bar (ped-align 072352 supports keeping 790-s3 as it is)
-  const KEPT = HELD.filter((x) => x.seg === '790-s3').map((x) => x.item);
-  const pick = (x) => run({ action: x.card, env: on9, catalogV2: C.loadV2(), subject: x.subject, grade: x.grade ? String(x.grade) : null, lang: x.report_lang, transcriptLang: x.lesson_lang });
-  test('the fixture holds r14\'s 22 and r13\'s 3 wrongs', () => {
-    expect(HELD.filter((x) => x.src === 'r14')).toHaveLength(22);
-    expect(HELD.filter((x) => x.src === 'r13')).toHaveLength(3);
-  });
-  // R9e-d: route (c) clips only; the 451-s3 / 177-s4 / 782-s1 refusals were taken out (ped-align r17: they removed good picks)
-  test.each(HELD.filter((x) => (x.seg === '95-s1' || x.seg === '790-s3') && !KEPT.includes(x.item)).map((x) => [x.item, x.seg, x]))('%s: %s is not served', async (_, seg, x) => {
-    const { row } = await pick(x);
-    expect(row.seg_id).not.toBe(seg);
-  });
-  test.each([
-    ['a why after an answer drops 95-s1 only: the wait before answers still reads', 'Next class, when a child answers "forest", ask "Why do you think the bull lived there?" and wait 5-8 seconds before taking answers.', 'wait_time'],
-  ])('%s', (_, card, move) => {
-    expect(A.classifyAsks(card).map((x) => x.move)).toContain(move);
-  });
-});
-
-describe('R9e-d · 451-s3 has a grade floor of 3 (ped-align r17, Oct 1-7 held out: Grade 1-2 16/27, Grade 3-5 37/39)', () => {
-  const ask = { move: 'think_pair_share', sub: 'think_pair_share:think_then_pair' };
-  const ids = (grade) => A.candidates(C.loadV2(), ask, { languages: ['en', 'ur', 'mixed'], allow: new Set(['451-s3']), history: { segments: [], modules: [] } }, { subject: 'urdu', grade }).map((c) => c.seg.seg_id);
-  test.each([[{ lo: 1, hi: 1 }, []], [{ lo: 2, hi: 2 }, []], [null, []], [{ lo: 3, hi: 3 }, ['451-s3']], [{ lo: 5, hi: 5 }, ['451-s3']]])('grade %j → %j', (grade, want) => {
-    expect(ids(grade)).toEqual(want);
   });
 });

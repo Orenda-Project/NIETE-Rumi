@@ -1387,15 +1387,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then my report arrives with no clip message, no clip on the image and no clip card
     And the video recommendation row for that session says aligned:later_off
 
-  # R9e route (c) (bd-tp4w7n.7, COS 20261119T233153; ped-align r6c on the audited prod first picks): the wait-time clip
-  # (790-s3) only when the card's ask is a wait after a question, before anyone answers; the open-question clip (95-s1) only
-  # when one planned opening "why" question is the whole ask. A probe of a given answer, or a why with other steps after it,
-  # gets neither clip (the card's next ask, e.g. its pair talk, still can). A later visit silenced by the main-step rule is
-  # recorded as aligned:later_not_main.
-  # Units: the R9e block of tests/coaching/video-reco/r9-aligned.test.js.
+  # R9e route (c) (bd-tp4w7n.7, COS 20261119T233153 / 20261120T074359; ped-align r6c, r14 held out 97/100): the wait-time
+  # clip (790-s3) only when the card's ask is a wait after a question, before anyone answers. A probe of a given answer
+  # gets no wait-time clip (the card's next ask, e.g. its pair talk, still can). A later visit silenced by the main-step
+  # rule is recorded as aligned:later_not_main. Units: the R9e block of tests/coaching/video-reco/r9-aligned.test.js.
   @e2e @wip @draft @config-gated @negative @P1 @COA111
   Scenario: A report that asks me to probe an answer and then wait gets no wait-time clip
-    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the wait-time and open-question clips on the allowlist
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the wait-time clip on the allowlist
     When my report asks me, after a child answers, to ask "how did you solve it?" and wait a few seconds
     Then my report arrives with no clip message, no clip on the image and no clip card
 
