@@ -17,7 +17,8 @@ export function MyUnits() {
       <h2 className="mx-1 text-[20px] font-light">{U.myUnits}</h2>
       {list.map((u) => (
         <ListRow key={u.id} variant="card" glyph={<CalendarRange className="h-6 w-6" strokeWidth={2} aria-hidden="true" />}
-          label={`${U.chapterN(u.chapter_from)}${u.chapter_to !== u.chapter_from ? ` – ${u.chapter_to}` : ''}`}
+          label={u.start_kind === 'goals' ? U.goalUnitLabel(u.goals?.[0] ?? '', u.goals?.length ?? 0) // bd-snkn32.59.4: no chapter
+            : `${U.chapterN(u.chapter_from ?? 0)}${u.chapter_to !== u.chapter_from ? ` – ${u.chapter_to}` : ''}`}
           subtitle={`${U.unitDays(u.days)} · ${U.minutes(u.period_minutes)}`} to={unitUrl(u.id)} />
       ))}
     </section>

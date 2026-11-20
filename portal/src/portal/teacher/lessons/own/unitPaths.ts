@@ -8,6 +8,8 @@ import { PACES, PERIODS, type Pace } from './unitApi';
  */
 export const LESSONS_UNIT = `${LESSONS_HOME}/unit`;
 export const LESSONS_UNIT_NEW = `${LESSONS_HOME}/unit/new`;
+/** bd-snkn32.59.4 — a unit from her learning goals (no textbook): grade, subject, period, pace in the address. */
+export const LESSONS_UNIT_GOALS = `${LESSONS_HOME}/unit/goals`;
 /** Make my own's class picker for a unit (NewLessonPage, start=unit). */
 export const OWN_UNIT = `${OWN_START}&start=unit`;
 
@@ -44,3 +46,19 @@ export function readUnitNew(search: string): UnitNewAt | null {
 }
 
 export const unitUrl = (id: string) => `${LESSONS_UNIT}?id=${encodeURIComponent(id)}`;
+
+/** bd-snkn32.59.4 — the goals screen's address: no chapter ever (a goal unit has no book). Her goals stay on the page. */
+export type UnitGoalsAt = { grade: number; subject: string; period?: number; pace?: Pace };
+
+export function unitGoalsUrl(a: UnitGoalsAt): string {
+  const q = new URLSearchParams({ grade: String(a.grade), subject: a.subject });
+  if (a.period != null) q.set('period', String(a.period));
+  if (a.pace) q.set('pace', a.pace);
+  return `${LESSONS_UNIT_GOALS}?${q.toString()}`;
+}
+
+export function readUnitGoals(search: string): UnitGoalsAt | null {
+  const n = readUnitNew(search);
+  if (!n) return null;
+  return { grade: n.grade, subject: n.subject, ...(n.period != null ? { period: n.period } : {}), ...(n.pace ? { pace: n.pace } : {}) };
+}

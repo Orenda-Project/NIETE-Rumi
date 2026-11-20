@@ -9,7 +9,8 @@
  */
 
 export type UnitKind = 'lesson' | 'practice' | 'review' | 'test';
-export type UnitDay = { kind: UnitKind; chapter: number; lesson_ids: string[]; topic: string; part?: 1 | 2 };
+/** `covers` (bd-snkn32.59.4): a goal unit's review or check day, the goals it covers [first, last]; lesson_ids are goal keys there. */
+export type UnitDay = { kind: UnitKind; chapter: number; lesson_ids: string[]; topic: string; part?: 1 | 2; covers?: [number, number] };
 export type EditState = { days: UnitDay[]; past: UnitDay[][] };
 export type EditOp = { op: 'move'; at: number; dir: 1 | -1 } | { op: 'join'; at: number } | { op: 'split'; at: number } | { op: 'undo' };
 export type EditResult = { ok: true; state: EditState } | { ok: false; error: string };

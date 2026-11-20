@@ -18,8 +18,10 @@ export type UnitChapter = { number: number; title: string; days: number };
 export type PaceCounts = { recommended: number; slower: number; faster: number | null };
 export type UnitPlan = { ownId: string; status: string } | null;
 export type UnitViewDay = UnitDay & { day: number; plan: UnitPlan };
+/** bd-snkn32.59.4 — a goal unit (start_kind 'goals') has her goals' words and no book, no chapter. */
 export type Unit = {
-  id: string; grade: number; subject: string; book_stem: string; chapter_from: number; chapter_to: number;
+  id: string; grade: number; subject: string; book_stem: string | null; chapter_from: number | null; chapter_to: number | null;
+  start_kind?: 'book' | 'goals'; goals?: string[] | null;
   period_minutes: number; pace: Pace; status: string; days: UnitViewDay[]; next: number;
 };
 export type UnitRow = Omit<Unit, 'days' | 'next'> & { days: number; created_at?: string };
@@ -54,6 +56,29 @@ export async function unitPaces(q: { grade: number; subject: string; from: numbe
 export async function createUnit(b: { grade: number; subject: string; from: number; to: number; period: number; pace: Pace }): Promise<Unit | null> {
   try {
     const { data } = await api.post('/lp/own/units', b);
+    return data?.unit ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** bd-snkn32.59.4 — her goals as sent: words (and an official code when she picked one), never a book day. */
+export type UnitGoal = { kind: 'outcome' | 'topic'; text: string; code?: string };
+export const MIN_GOALS = 2;
+export const MAX_GOALS = 8;
+
+export async function goalPaces(q: { count: number; period: number }): Promise<PaceCounts | null> {
+  try {
+    const { data } = await api.get('/lp/own/unit/paces', { params: { start: 'goals', ...q } });
+    return data?.counts ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createGoalUnit(b: { grade: number; subject: string; goals: UnitGoal[]; period: number; pace: Pace }): Promise<Unit | null> {
+  try {
+    const { data } = await api.post('/lp/own/units', { start: 'goals', ...b });
     return data?.unit ?? null;
   } catch {
     return null;

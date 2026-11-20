@@ -5784,13 +5784,13 @@ CREATE TABLE IF NOT EXISTS niete_lp_own_units (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id          UUID NOT NULL REFERENCES users(id),
   class_id         UUID REFERENCES classes(id),
-  book_stem        TEXT NOT NULL,
+  book_stem        TEXT,
   grade            SMALLINT NOT NULL CHECK (grade BETWEEN 1 AND 12),
   subject          TEXT NOT NULL,
   start_kind       TEXT NOT NULL CHECK (start_kind IN ('book', 'goals')),
   chapter_from     SMALLINT,
   chapter_to       SMALLINT,
-  goal_codes       TEXT[],
+  goals            TEXT[],
   period_minutes   SMALLINT NOT NULL CHECK (period_minutes BETWEEN 20 AND 90),
   pace             TEXT NOT NULL CHECK (pace IN ('recommended', 'slower', 'faster')),
   outline          JSONB NOT NULL,
@@ -5799,7 +5799,9 @@ CREATE TABLE IF NOT EXISTS niete_lp_own_units (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at       TIMESTAMPTZ,
   CONSTRAINT niete_lp_own_units_book_range CHECK (start_kind <> 'book' OR (chapter_from IS NOT NULL AND chapter_to >= chapter_from)),
-  CONSTRAINT niete_lp_own_units_goals CHECK (start_kind <> 'goals' OR cardinality(goal_codes) BETWEEN 2 AND 8)
+  -- V1.10.9 (bd-snkn32.59.4): a goal unit is her goals' words with no book; a book unit names its book.
+  CONSTRAINT niete_lp_own_units_goals CHECK (start_kind <> 'goals' OR (cardinality(goals) BETWEEN 2 AND 8 AND book_stem IS NULL AND chapter_from IS NULL)),
+  CONSTRAINT niete_lp_own_units_book CHECK (start_kind <> 'book' OR book_stem IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp_own_units_user
@@ -5857,7 +5859,10 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
     (library_decision IS NULL) = (library_decided_at IS NULL) AND (library_decision IS NULL) = (library_decided_by IS NULL)
   ),
   CONSTRAINT niete_lp612_own_plans_library_reason CHECK (library_reject_reason IS NULL OR library_decision = 'rejected'),
-  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1),
+  -- V1.10.9 (bd-snkn32.59.4): a goal-unit day names neither (no textbook).
+  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (
+    num_nonnulls(segment_id, lesson_id) = 1 OR (segment_id IS NULL AND lesson_id IS NULL AND answers->'unit'->>'start' = 'goals')
+  ),
   CONSTRAINT niete_lp612_own_plans_edit_round CHECK (
     (parent_own_id IS NULL AND edit_round IS NULL AND edit_request IS NULL)
     OR (parent_own_id IS NOT NULL AND edit_round IN (1, 2) AND edit_request IS NOT NULL)

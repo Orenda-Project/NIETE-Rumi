@@ -11,9 +11,14 @@
  * plan already (ready, or still being made) is opened, never made again.
  */
 const { buildOutline, paceCounts } = require('./lp-own-unit-outline');
+const G = require('./lp-own-unit-goals');
 const { checkOutline } = require('./lp-own-unit-edit');
 
 const K5_MAX_GRADE = 5;
+const SUBJECT = /^[a-z_]{2,40}$/;
+/** bd-snkn32.59.4 — a goal unit's goals as stored (her words, in her order) → the outline's goal list. */
+const storedGoals = (row) => (row.goals || []).map((text) => ({ text }));
+const isGoals = (row) => row.start_kind === 'goals';
 const bad = (error) => ({ outcome: 'bad_request', error });
 
 function createUnitService(deps) {
@@ -53,6 +58,38 @@ function createUnitService(deps) {
     return { outcome: 'ok', counts: paceCounts(q) };
   }
 
+  /** bd-snkn32.59.4 — a goal unit's day count per pace: it depends only on how many goals she has. */
+  function goalPaces({ count, period }) {
+    const n = Number(count);
+    if (!Number.isInteger(n) || n < G.MIN_GOALS || n > G.MAX_GOALS) return bad('goals_count');
+    const goals = Array.from({ length: n }, (_, i) => ({ text: `goal ${i + 1}` }));
+    const probe = G.buildGoalOutline({ goals, pace: 'recommended', period });
+    if (!probe.ok) return bad(probe.error);
+    return { outcome: 'ok', counts: G.goalPaceCounts({ goals, period }) };
+  }
+
+  /** bd-snkn32.59.4 — a unit from her goals alone: no book is read, named or stored (Amena 20 Nov). */
+  async function createFromGoals({ userId, grade, subject, classId, goals, period, pace, outline }) {
+    const g = Number(grade);
+    if (!Number.isInteger(g) || g < 1 || g > K5_MAX_GRADE || typeof subject !== 'string' || !SUBJECT.test(subject)) return bad('grade 1-5 and subject');
+    const parsed = G.parseUnitGoals(goals);
+    if (!parsed.ok) return bad(parsed.error);
+    const built = G.buildGoalOutline({ goals: parsed.goals, pace, period });
+    if (!built.ok) return bad(built.error);
+    let days = built.days;
+    if (outline !== undefined) {
+      const ok = checkOutline(outline, built.days);
+      if (!ok.ok) return bad(ok.error);
+      days = outline;
+    }
+    const row = await d.store.insert({
+      user_id: userId, class_id: typeof classId === 'string' && classId ? classId : null, book_stem: null, grade: g, subject,
+      start_kind: 'goals', goals: parsed.goals.map((x) => x.text), period_minutes: Number(period), pace, outline: days,
+    });
+    if (!row || !row.id) return { outcome: 'error' };
+    return { outcome: 'ok', unit: await view(userId, row) };
+  }
+
   /** The unit as the portal shows it: its days numbered, each with its plan (if made) and the next day to teach. */
   async function view(userId, row) {
     const made = await d.store.dayPlans(userId, row.id);
@@ -63,7 +100,8 @@ function createUnitService(deps) {
     return { ...rest, days, next };
   }
 
-  async function create({ userId, grade, subject, classId, from, to, period, pace, outline }) {
+  async function create({ userId, grade, subject, classId, from, to, period, pace, outline, start, goals }) {
+    if (start === 'goals') return createFromGoals({ userId, grade, subject, classId, goals, period, pace, outline });
     const b = bookOf(grade, subject);
     if (b.error) return b.error;
     const built = buildOutline({ book: b.book, from, to, pace, period, bookMinutes: await minutesFor(b.book, from) });
@@ -105,11 +143,15 @@ function createUnitService(deps) {
     const row = await d.store.get(userId, id);
     if (!row) return { outcome: 'not_found' };
     if ((await d.store.dayPlans(userId, id)).length) return { outcome: 'locked' };
-    const b = bookOf(row.grade, row.subject);
-    if (b.error) return b.error;
     const p = pace === undefined ? row.pace : pace;
     const m = period === undefined ? row.period_minutes : Number(period);
-    const built = buildOutline({ book: b.book, from: row.chapter_from, to: row.chapter_to, pace: p, period: m, bookMinutes: await minutesFor(b.book, row.chapter_from) });
+    let built;
+    if (isGoals(row)) built = G.buildGoalOutline({ goals: storedGoals(row), pace: p, period: m });
+    else {
+      const b = bookOf(row.grade, row.subject);
+      if (b.error) return b.error;
+      built = buildOutline({ book: b.book, from: row.chapter_from, to: row.chapter_to, pace: p, period: m, bookMinutes: await minutesFor(b.book, row.chapter_from) });
+    }
     if (!built.ok) return bad(built.error);
     let days = built.days;
     if (outline !== undefined) {
@@ -134,10 +176,19 @@ function createUnitService(deps) {
     const days = row.outline;
     if (!Number.isInteger(n) || n < 1 || n > days.length) return bad('day is not in this unit');
     const at = days[n - 1];
-    if (at.kind === 'review' || at.kind === 'test') return { outcome: 'book', lessonId: at.lesson_ids[0] };
+    if (!isGoals(row) && (at.kind === 'review' || at.kind === 'test')) return { outcome: 'book', lessonId: at.lesson_ids[0] };
     const already = (await d.store.dayPlans(userId, id)).find((p) => p.day_no === n && p.status !== 'failed');
     if (already) return { outcome: 'made', ownId: already.id, status: already.status };
     const recap = recapOf(days, n - 1);
+    if (isGoals(row)) {
+      // bd-snkn32.59.4 — every day of a goal unit is made from her goals alone (review and check days too).
+      const unit = {
+        unit_id: row.id, day_no: n, of: days.length, kind: at.kind, period: row.period_minutes, start: 'goals',
+        grade: row.grade, subject: row.subject, lang: row.subject === 'urdu' ? 'ur' : 'en', goals: G.goalsOfDay(at, row.goals || []),
+        ...(recap ? { recap: String(recap).slice(0, 400) } : {}),
+      };
+      return d.makeDay({ userId, lessonId: null, answers: { ...(answers || {}), unit } });
+    }
     const unit = {
       unit_id: row.id,
       day_no: n,
@@ -153,7 +204,7 @@ function createUnitService(deps) {
     return d.makeDay({ userId, lessonId, answers: { ...(answers || {}), unit } });
   }
 
-  return { chapters, paces, create, list, read, update, openDay };
+  return { chapters, paces, goalPaces, create, list, read, update, openDay };
 }
 
 module.exports = { createUnitService };

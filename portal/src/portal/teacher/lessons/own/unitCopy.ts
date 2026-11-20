@@ -60,6 +60,23 @@ export const UNIT_COPY = {
   close: 'Close',
   /* your class, for the plans */
   yourClass: 'Your class',
+  /* bd-snkn32.59.4 — a unit from her learning goals, no textbook (Amena 20 Nov) */
+  startFrom: 'Start from',
+  fromChapters: 'Book chapters',
+  fromGoals: 'Learning goals',
+  goalsHint: 'Select 2 to 8 goals, in any order. No textbook needed.',
+  yourGoals: 'Your goals',
+  goalsPicked: (n: number) => `${n} of 8`,
+  remove: 'Remove',
+  goalPaceHints: {
+    recommended: 'A day for each goal, a review after every 3, then a check day',
+    slower: '+1 practice day after each goal',
+    faster: 'No review in the middle. The last review and check day stay.',
+  },
+  reviewGoals: (a: number, b: number) => `Goals ${a}–${b}`,
+  checkGoals: 'All goals',
+  checkDay: 'Check',
+  goalUnitLabel: (first: string, n: number) => (n > 1 ? `${first} · ${n - 1} more` : first),
 };
 
 export const UNIT_COPY_UR: Words<typeof UNIT_COPY> = {
@@ -111,6 +128,22 @@ export const UNIT_COPY_UR: Words<typeof UNIT_COPY> = {
   split: 'دو دنوں میں بانٹیں',
   close: 'بند کریں',
   yourClass: 'آپ کی کلاس',
+  startFrom: 'کہاں سے شروع کریں',
+  fromChapters: 'کتاب کے ابواب',
+  fromGoals: 'سیکھنے کے مقاصد',
+  goalsHint: 'کسی بھی ترتیب میں 2 سے 8 مقاصد چنیں۔ کتاب کی ضرورت نہیں۔',
+  yourGoals: 'آپ کے مقاصد',
+  goalsPicked: (n: number) => `8 میں سے ${n}`,
+  remove: 'ہٹائیں',
+  goalPaceHints: {
+    recommended: 'ہر مقصد کا ایک دن، ہر 3 کے بعد دہرائی، پھر جانچ کا دن',
+    slower: 'ہر مقصد کے بعد ایک مشق کا دن',
+    faster: 'درمیان میں دہرائی نہیں۔ آخری دہرائی اور جانچ کا دن باقی۔',
+  },
+  reviewGoals: (a: number, b: number) => `مقاصد ${a} تا ${b}`,
+  checkGoals: 'تمام مقاصد',
+  checkDay: 'جانچ',
+  goalUnitLabel: (first: string, n: number) => (n > 1 ? `${first} · مزید ${n - 1}` : first),
 };
 
 export const UNIT = bilingual(UNIT_COPY, UNIT_COPY_UR);
@@ -120,5 +153,5 @@ export const UNIT_COPY_ENTRY: CopyEntry = {
   screen: 'Lesson Plans · Make my own · a whole unit',
   module: UNIT as Bilingual<unknown>,
   same: [],
-  longOk: ['wholeUnitHint', 'pickHint', 'periodQ', 'periodSaved', 'paceHints', 'couldNotMake', 'madeHint', 'locked', 'couldNotSave', 'couldNotOpen', 'limit', 'join', 'split', 'progress', 'summary', 'part', 'paceDays'],
+  longOk: ['wholeUnitHint', 'pickHint', 'periodQ', 'periodSaved', 'paceHints', 'couldNotMake', 'madeHint', 'locked', 'couldNotSave', 'couldNotOpen', 'limit', 'join', 'split', 'progress', 'summary', 'part', 'paceDays', 'goalsHint', 'goalPaceHints', 'goalUnitLabel'],
 };

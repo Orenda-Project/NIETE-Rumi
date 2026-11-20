@@ -136,3 +136,45 @@ test('a bad unit id is 404; a bad outline is 400', async () => {
   expect((await call('GET', '/api/portal/lp/own/units/nope')).status).toBe(404);
   expect((await call('POST', '/api/portal/lp/own/units', { ...UNIT, outline: [{ kind: 'party' }] })).status).toBe(400);
 });
+
+// bd-snkn32.59.4 (queue #165, phase 2) — Amena 20 Nov: "pls dont link the textbook for learning goals".
+const GOALS = { start: 'goals', grade: 3, subject: 'math', period: 35, pace: 'recommended',
+  goals: [{ kind: 'outcome', text: 'Add 2-digit numbers', code: 'M-03-AD-02' }, { kind: 'topic', text: 'Telling the time' }, { kind: 'topic', text: 'Sharing equally' }, { kind: 'topic', text: 'Coins and notes' }] };
+
+test('goal unit: pace counts from the number of goals; saved with no book, no chapter', async () => {
+  await start();
+  const p = await call('GET', '/api/portal/lp/own/unit/paces?start=goals&count=4&period=35');
+  expect(p.body).toEqual({ success: true, counts: { recommended: 7, slower: 11, faster: 6 } });
+  const made = await call('POST', '/api/portal/lp/own/units', { ...GOALS, from: 2, to: 3 });
+  expect(made.status).toBe(201);
+  expect(rows[0]).toMatchObject({ start_kind: 'goals', book_stem: null, goals: ['Add 2-digit numbers', 'Telling the time', 'Sharing equally', 'Coins and notes'] });
+  expect(rows[0].chapter_from).toBeUndefined();
+  expect(JSON.stringify(rows[0].outline)).not.toMatch(/grade_\d|_seg|pages/);
+  expect(logged.find((l) => l.action === 'own_unit.create').detail.start).toBe('goals');
+});
+
+test('goal unit: every day is made from her goals (the check day too), never a book day', async () => {
+  await start();
+  const { body } = await call('POST', '/api/portal/lp/own/units', GOALS);
+  const id = body.unit.id;
+  await call('POST', `/api/portal/lp/own/units/${id}/days/2/open`, { answers: ANSWERS });
+  expect(posted[0].body.lessonId).toBeNull();
+  expect(posted[0].body.answers.unit).toMatchObject({ start: 'goals', day_no: 2, kind: 'lesson', grade: 3, subject: 'math', lang: 'en', goals: ['Telling the time'], recap: 'Add 2-digit numbers' });
+  const check = await call('POST', `/api/portal/lp/own/units/${id}/days/7/open`, { answers: ANSWERS });
+  expect(check.status).toBe(202);
+  expect(posted[1].body.answers.unit).toMatchObject({ kind: 'test', goals: GOALS.goals.map((g) => g.text) });
+});
+
+test('goal unit: a blocked word or one goal only is refused, nothing written', async () => {
+  await start();
+  expect((await call('POST', '/api/portal/lp/own/units', { ...GOALS, goals: [...GOALS.goals.slice(0, 1), { kind: 'topic', text: 'sex' }] })).status).toBe(400);
+  expect((await call('POST', '/api/portal/lp/own/units', { ...GOALS, goals: GOALS.goals.slice(0, 1) })).status).toBe(400);
+  expect(rows).toHaveLength(0);
+});
+
+test('goal unit: a GB teacher gets 404 (Make my own stays off for GB)', async () => {
+  jest.doMock('../../bot/shared/services/lp-own-gb', () => ({ isGbTeacher: async () => true }));
+  await start();
+  expect((await call('POST', '/api/portal/lp/own/units', GOALS)).status).toBe(404);
+  expect(rows).toHaveLength(0);
+});
