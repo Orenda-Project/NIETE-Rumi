@@ -59,7 +59,9 @@ export function UnitPage() {
   async function open(n: number) {
     if (!unit || busy) return;
     const day = unit.days[n - 1];
-    const ready = day.kind === 'review' || day.kind === 'test' || (day.plan && day.plan.status !== 'failed');
+    // bd-snkn32.59.4 — a goal unit has no book day to open: its review and check days are made like any day.
+    const goals = unit.start_kind === 'goals';
+    const ready = (!goals && (day.kind === 'review' || day.kind === 'test')) || (day.plan && day.plan.status !== 'failed');
     if (!ready && (!cls.size || !cls.level)) { setNote(U.yourClass); return; }
     setBusy(true);
     const size = cls.size as Size;
@@ -70,7 +72,8 @@ export function UnitPage() {
     if (!r) { setNote(U.couldNotOpen); return; }
     if (r.kind === 'refused') { setNote(U.limit); return; }
     if (r.kind === 'book') { navigate(openUrl({ plan: `k5:${r.lessonId}`, title: day.topic, grade: unit.grade })); return; }
-    navigate(lessonsUrl('preparing', { grade: unit.grade, subject: unit.subject, chapter: String(day.chapter), lesson: day.lesson_ids[0], render: r.ownId, title: `${U.dayN(n)} · ${day.topic}` }));
+    const label = day.covers ? (day.kind === 'test' ? U.checkGoals : U.reviewGoals(day.covers[0], day.covers[1])) : day.topic;
+    navigate(lessonsUrl('preparing', { grade: unit.grade, subject: unit.subject, ...(goals ? {} : { chapter: String(day.chapter) }), lesson: day.lesson_ids[0], render: r.ownId, title: `${U.dayN(n)} · ${label}` }));
   }
 
   const dock = !unit ? null : editing ? (

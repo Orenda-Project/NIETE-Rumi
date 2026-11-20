@@ -11,7 +11,8 @@ import { LoadState } from '../LoadState';
 import { RadioList } from './Options';
 import { UNIT } from './unitCopy';
 import { MAX_CHAPTERS, PACES, PERIODS, createUnit, unitChapters, unitPaces, useLpOwnUnit, type Pace, type PaceCounts } from './unitApi';
-import { OWN_UNIT, readUnitNew, unitNewUrl, unitUrl } from './unitPaths';
+import { OWN_UNIT, readUnitNew, unitGoalsUrl, unitNewUrl, unitUrl } from './unitPaths';
+import { useLpOwnGoalStart } from './goalApi';
 
 /**
  * bd-snkn32.59.1 (queue #165, mockups 4 and 5) — a new unit: the first and last chapter of her book (at most 3), her
@@ -21,6 +22,7 @@ import { OWN_UNIT, readUnitNew, unitNewUrl, unitUrl } from './unitPaths';
 export function UnitNewPage() {
   const U = useCopy(UNIT);
   const on = useLpOwnUnit();
+  const goalOn = useLpOwnGoalStart(); // bd-snkn32.59.4 — "Learning goals" (no textbook) needs the goal start too
   const navigate = useNavigate();
   const at = readUnitNew(useLocation().search);
   const [load] = useLoad(at ? () => unitChapters(at.grade, at.subject) : null, at ? `${at.grade}:${at.subject}` : '');
@@ -69,6 +71,10 @@ export function UnitNewPage() {
   return (
     <TeacherPage crumb={U.wholeUnit} title={U.chapters} backTo={OWN_UNIT} testId="unit-new"
       dock={<DockButton testId="unit-see-days" disabled={!ready || busy} onClick={() => { void make(); }}>{U.seeDays}</DockButton>}>
+      {goalOn ? (
+        <ChoiceChips label={U.startFrom} options={[{ key: 'book', label: U.fromChapters }, { key: 'goals', label: U.fromGoals }]} value="book"
+          onChange={(k) => { if (k === 'goals') navigate(unitGoalsUrl({ grade: at.grade, subject: at.subject, ...(period != null ? { period } : {}) }), { replace: true }); }} />
+      ) : null}
       <LoadState status={load.status} empty={!!book && !book.chapters.length} onRetry={() => go({})} />
       {book ? (
         <div className="flex flex-col gap-5">

@@ -23,12 +23,17 @@ import { GOAL_TEXT_MAX, type GoalPick } from './state';
  * through the guard; when her grade has a day close to it she may "Use my words" (kind topic, over that day), or tap a
  * "Did you mean" goal; another grade's goal and a refusal work as before; with no day behind it nothing can be picked.
  */
+/*
+ * bd-snkn32.59.4 (queue #165) — `free`: a goal UNIT has no textbook at all (Amena 20 Nov), so her own words need no
+ * day behind them: "Use my words" shows for any checked goal that is not refused (spelling and grade suggestions
+ * still shown first), and the box clears after each pick so she can add the next one.
+ */
 type Group = { key: string; label: string; rows: { i: number; o: GoalOutcome }[] };
 
 const fold = (s: string) => s.replace(/\p{M}+/gu, '').toLowerCase();
 
-export function GoalStep({ at, goal, onPick }: {
-  at: { grade: number; subject: string }; goal: GoalPick;
+export function GoalStep({ at, goal, onPick, free = false }: {
+  at: { grade: number; subject: string }; goal: GoalPick; free?: boolean;
   onPick: (goal: { kind: 'outcome' | 'topic'; text: string }, segmentId: string) => void;
 }) {
   const G = useCopy(GOAL);
@@ -88,12 +93,13 @@ export function GoalStep({ at, goal, onPick }: {
     setBusy(false);
     if (!m || m.status === 'blocked') { setMissed(m ? 'blocked' : 'none'); return; }
     setGuard(m);
-    if (!m.suggestions.length && !m.otherGrade) setMissed('none');
+    if (!m.suggestions.length && !m.otherGrade && !free) setMissed('none');
   }
-  const pickGoal = (g: { segmentId: string; text: string }) => onPick({ kind: 'outcome', text: g.text }, g.segmentId);
   const clear = () => { setTopic(''); setGuard(null); setMissed(null); setOwnOpen(false); };
+  const pickGoal = (g: { segmentId: string; text: string }) => { onPick({ kind: 'outcome', text: g.text }, g.segmentId); if (free) clear(); };
   // her own words stand on her grade's closest day (the guard's first suggestion); none, and they cannot be used
-  const mineOver = guard?.status === 'ok' ? guard.suggestions[0] : undefined;
+  const mineOver = free ? (guard && guard.status !== 'blocked' ? { segmentId: '' } : undefined)
+    : guard?.status === 'ok' ? guard.suggestions[0] : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,7 +161,7 @@ export function GoalStep({ at, goal, onPick }: {
           {mineOver ? (
             <div className="flex flex-col gap-2" data-testid="own-goal-mine">
               <span dir="auto" className="text-[16px] text-[#111827]">{topic.trim()}</span>
-              <button type="button" onClick={() => onPick({ kind: 'topic', text: topic.trim() }, mineOver.segmentId)} className={`${OUTLINE_WIDE} ${FOCUS}`}>{G.useMine}</button>
+              <button type="button" onClick={() => { onPick({ kind: 'topic', text: topic.trim() }, mineOver.segmentId); if (free) clear(); }} className={`${OUTLINE_WIDE} ${FOCUS}`}>{G.useMine}</button>
             </div>
           ) : null}
         </div>
