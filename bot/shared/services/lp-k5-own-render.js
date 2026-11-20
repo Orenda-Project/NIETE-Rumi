@@ -34,7 +34,9 @@ const SUBJECT_UR = { urdu: 'اردو', 'social studies (urdu)': 'معاشرتی 
 const subjectFor = (subject, ur) => (ur && !/[\u0600-\u06FF]/.test(String(subject || ''))
   ? SUBJECT_UR[String(subject || '').trim().toLowerCase()] || subject : subject);
 
-const URDU_CSS = '[dir=rtl] .hd h1{line-height:1.9}.n,.t,bdi{unicode-bidi:isolate}[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
+// bd-snkn32.58.8 — the goal takes its direction from its own text: an English official goal in an Urdu plan reads
+// left to right with its full stop at the end (it printed ".Multiply by 2" in the RTL header).
+const URDU_CSS = '[dir=rtl] .hd h1{line-height:1.9}.n,.t,bdi{unicode-bidi:isolate}.goal{unicode-bidi:isolate}[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
   + '[dir=rtl] .say::before{content:"کہیں: "}[dir=rtl] .sec{border-inline-start-width:7px}';
 
 /**
@@ -139,7 +141,7 @@ function renderK5Own(script, { lang = 'en', grade, subject, way, pages = null, f
   const day = has(m.day) ? `${W.day} ${esc(num(m.day))}${has(m.total) ? ` ${W.of} ${esc(num(m.total))}` : ''}` : '';
   const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(num(grade ?? m.grade ?? ''))} · ${esc(subjectFor(subject || m.subject || '', ur))}</b></span>`
     + `<span>${day}${has(m.minutes) ? ` · ${esc(num(m.minutes))} ${W.min}` : ''}${pageSpan(pages, ur, num)} · ${W.mine}</span></div>`
-    + `<h1>${esc(m.topic || '')}</h1><div class="goal">${esc(s.goal || '')}</div></div>`
+    + `<h1>${esc(m.topic || '')}</h1><div class="goal" dir="auto">${esc(s.goal || '')}</div></div>`
     + (has(way) ? `<div class="info"><b>${W.way}</b><span>${esc(way)}</span></div>` : '');
   const body = [
     section('open', W.open, null, opening(s, W)),
