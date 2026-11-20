@@ -48,12 +48,12 @@ describe('systemBlocks', () => {
     expect(blocks[1].text).toContain("## Today's date");
     expect(blocks[2].text).toBe(P.WHATSAPP_PROMPT);
   });
-  test('the WhatsApp block: ICT only, WhatsApp formatting, nothing drawn, no files, numbered asks', () => {
+  test('the WhatsApp block: ICT only, WhatsApp formatting, a chart image, no files, asks by tap', () => {
     const w = P.WHATSAPP_PROMPT;
     expect(w).toMatch(/ICT/);
     expect(w).toMatch(/niete-rumi/);
     expect(w).toMatch(/WhatsApp/);
-    expect(w).toMatch(/no chart/i);
+    expect(w).toMatch(/chart image/i);
     expect(w).toMatch(/save_query_results/);
     expect(w).toMatch(/^ASK: /m);
     expect(w).toMatch(/NEXT:/);
@@ -67,4 +67,12 @@ describe('systemBlocks', () => {
     expect(w).not.toMatch(/programme, say/);
     expect(w).toMatch(/names another region or country/);
   });
+});
+
+test('round 2: the answer is one or two lines beside a chart, with no NEXT line (the buttons replace it)', () => {
+  const w = P.WHATSAPP_PROMPT;
+  expect(w).toMatch(/one or two short lines/i);
+  expect(w).toMatch(/drawn as a chart image/i);
+  expect(w).toMatch(/Leave out the `NEXT:` line/);
+  expect(w).not.toMatch(/numbered follow-ups/);
 });

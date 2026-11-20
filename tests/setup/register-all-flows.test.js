@@ -120,7 +120,8 @@ describe('register-all-flows', () => {
       // Re-armed at 27 on 2026-11-11: FDE's grade 6-12 observation form (Obs 6-12 FDE Form, bd-pni007).
       // Re-armed at 29 on 2026-11-13: Observe2 Check v6 Coach and Obs 6-12 Lesson Class (bd-ra8xu.50).
       // Re-armed at 30 on 2026-11-18: FICO 6-12 Form (bd-31ziu8, ICT grades 6-12; code name FICO-S v1.1).
-      expect(FLOW_CONFIGS).toHaveLength(30);
+      // Re-armed at 31 on 2026-11-21: Data Question, the data analyst's question form (bd-bhgw20.1).
+      expect(FLOW_CONFIGS).toHaveLength(31);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

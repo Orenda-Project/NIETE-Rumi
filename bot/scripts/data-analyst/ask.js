@@ -10,6 +10,7 @@
  *   ... --follow-up "and by sector?"     a second question in the same conversation
  *   ... --trace                          print each tool call and the size of its result
  *   ... --raw                            also print the model's own text, before the WhatsApp rendering
+ *   ... --png <dir>                      write each answer's chart to <dir>/answer-<n>.png (as WhatsApp would get it)
  *
  * Reads .env (DATA_MCP_URL, DATA_MCP_USER_EMAIL, ANTHROPIC_API_KEY). Set DATA_MCP_SURFACE=whatsapp-dev
  * so the data team's audit trail can tell a trial from a real WhatsApp question. Spends one answer's
@@ -24,16 +25,18 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 const { isConfigured } = require('../../shared/services/data-analyst/switch');
 const { ConversationMemory } = require('../../shared/services/data-analyst/memory');
 const { runQuestion } = require('../../shared/services/data-analyst/answering');
-const { renderAnswer } = require('../../shared/services/data-analyst/whatsapp-format');
+const { composeReply, footer } = require('../../shared/services/data-analyst/whatsapp-format');
+const { chartSpecs, renderChartPng } = require('../../shared/services/data-analyst/chart');
 
 // Straight to the terminal: the bot's structured logger takes over console.log and would wrap the answer in a log line.
 const say = (text) => fs.writeSync(1, `${text}\n`);
 
 function argsOf(argv) {
-  const out = { questions: [], trace: false, raw: false };
+  const out = { questions: [], trace: false, raw: false, png: '' };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--trace') out.trace = true;
     else if (argv[i] === '--raw') out.raw = true;
+    else if (argv[i] === '--png') out.png = argv[++i];
     else if (argv[i] === '--follow-up') out.questions.push(argv[++i]);
     else out.questions.push(argv[i]);
   }
@@ -41,7 +44,7 @@ function argsOf(argv) {
 }
 
 async function main() {
-  const { questions, trace, raw } = argsOf(process.argv.slice(2));
+  const { questions, trace, raw, png } = argsOf(process.argv.slice(2));
   if (!questions.length || questions.some((q) => !q)) {
     console.error('usage: node bot/scripts/data-analyst/ask.js "<question>" [--follow-up "<question>"] [--trace]');
     process.exit(2);
@@ -69,11 +72,24 @@ async function main() {
       }
     }
     if (raw) say(`--- model text ---\n${result.text}\n--- WhatsApp ---`);
-    const out = renderAnswer({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText, asked: question });
-    for (const m of out.messages) say(`${m}\n---`);
+    const specs = chartSpecs(result.calls, question);
+    let chart = null;
+    if (specs.length && png) {
+      chart = await renderChartPng(specs[0], { footer: footer(result.calls).replace(/^_|_$/g, '') });
+      if (chart) {
+        fs.mkdirSync(png, { recursive: true });
+        const file = path.join(png, `answer-${questions.indexOf(typed) + 1}.png`);
+        fs.writeFileSync(file, chart);
+        say(`[chart: ${specs[0].kind}, ${file}]`);
+      }
+    } else if (specs.length) say(`[chart: ${specs[0].kind} — add --png <dir> to render it]`);
+    const out = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText, hasChart: Boolean(chart || specs.length) });
+    for (const m of out.before) say(`${m}\n---`);
+    if (out.asks.length) say(`${out.caption}\n${out.asks.map((a) => `${a.question}: ${a.options.join(' | ')}`).join('\n')}\n---`);
+    else say(`${out.caption}\n[Ask another] [Main menu]\n---`);
     const cost = Number.isFinite(result.costUsd) ? `$${result.costUsd.toFixed(3)}` : 'unpriced';
     say(`(${Math.round((Date.now() - started) / 1000)} s · ${cost} · turn ${result.turnId})`);
-    choices = out.choices;
+    choices = out.asks.flatMap((a) => a.options.map((o) => `${a.question.replace(/[?:\s]+$/, '')}: ${o}`));
     history = history.concat([{ role: 'user', content: question }, { role: 'assistant', content: out.body || result.text }]).slice(-12);
   }
 }
