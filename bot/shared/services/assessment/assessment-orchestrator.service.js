@@ -903,7 +903,7 @@ async function process(job) {
       try {
         const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(stored.keyKey), 3600);
         answerKeySent = !!(await WhatsAppService.sendDocumentByLink(
-          phone, keyUrl, stored.keyName, `Answer key · ${caption}`));
+          phone, keyUrl, stored.keyName, resolveUx('assessmentKeyCaption', { user, params: { title: caption } })));
         logToFile(answerKeySent ? '[assessment] answer key delivered' : '[assessment] answer key send returned falsy',
           { userId, requestId, paperId, key: stored.keyKey });
       } catch (err) {
