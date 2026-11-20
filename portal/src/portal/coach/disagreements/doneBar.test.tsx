@@ -10,7 +10,7 @@ import { disagreements } from "./api";
 import { DoneBar, DoneBadge } from "./doneBar";
 
 /**
- * bd-tbprit.12 — Rifat's footer: "✓ Mark as done" with "Tap when you have coached her. The card moves to Done.";
+ * bd-tbprit.12 — Rifat's footer: "✓ Mark as done" with "Tap when you have coached the teacher. The card moves to Done.";
  * on a done card the ✓ Done badge and "Move back to To do". Either tap, once saved, goes back to the list with
  * "<name> moved to Done." / "<name> is back in To do."; a failed save stays put and says so.
  */
@@ -41,7 +41,7 @@ beforeEach(() => {
 describe("DoneBar", () => {
   it("open card: Mark as done with its hint, no badge; a tap saves and goes to the list saying she moved", async () => {
     renderBar(false);
-    expect(screen.getByText("Tap when you have coached her. The card moves to Done.")).toBeInTheDocument();
+    expect(screen.getByText("Tap when you have coached the teacher. The card moves to Done.")).toBeInTheDocument();
     expect(screen.queryByTestId("done-badge")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "✓ Mark as done" }));
     await waitFor(() => expect(D.visited).toHaveBeenCalledWith(ID));
@@ -51,7 +51,7 @@ describe("DoneBar", () => {
   it("done card: the ✓ Done badge and Move back to To do, which undoes it", async () => {
     renderBar(true);
     expect(screen.getByTestId("done-badge")).toHaveTextContent("✓ Done");
-    expect(screen.queryByText(/Tap when you have coached her/)).toBeNull();
+    expect(screen.queryByText(/Tap when you have coached the teacher/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Move back to To do" }));
     await waitFor(() => expect(D.undone).toHaveBeenCalledWith(ID));
     expect(D.visited).not.toHaveBeenCalled();

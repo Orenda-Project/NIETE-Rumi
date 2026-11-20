@@ -1224,7 +1224,8 @@ export const leader = {
 
   // bd-2676 — book a visit from the portal (Riffat R33: clearing WhatsApp
   // storage used to lose the schedule). Create + cancel only, no edit.
-  createSchedule: async (input: { teacherExtId: string; date: string; slot?: string }):
+  // bd-o15qnr.27 (v6): `now: true` = "Schedule for Now" (the coach is in the class): the server sends no notice or invite.
+  createSchedule: async (input: { teacherExtId: string; date: string; slot?: string; now?: boolean }):
     Promise<{ success: boolean; id?: string; updated?: boolean }> => {
     const response = await api.post('/leader/schedules', input);
     return response.data;
