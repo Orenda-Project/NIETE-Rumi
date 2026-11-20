@@ -409,6 +409,12 @@ bd-ra8xu.40: an option may also carry `text` (drawn instead of the id, e.g. "N/A
 them). Picked indigo, the Digital Coach's ringed green, the same radiogroup and keys as the squares.
 An option may carry `icon` (a neutral lucide icon drawn before its words, hidden from a screen reader), and `disabled` makes every choice but
 the picked one untappable while an answer saves. The lesson-plan survey bar uses both (Useful / Not useful in a row; In class stacked).
+bd-o15qnr.28 (v7, #188's canvas m9-ff-v6): `look="radio"` draws one full-width 56px row per rung: a radio dot at the start, the rung's
+name (`label`, else `text`) and its `description`; the picked row tinted `#f4f5f8` with a filled indigo dot; the Digital Coach's row edged
+purple (`#6e52e0`, soft halo) with `dcTag` drawn at its end ("Rumi", hidden from a screen reader). Options marked `aside` (N/A, Couldn't
+tell) follow as pills, each in a 56px target, in the same radiogroup (arrow keys run on into them). Spoken: the name, then
+`copy.digitalCoach` on the Digital Coach's ("Proficient, Rumi's level"). The Feedback Form (FICO17 v6, older FICO, FICO-S, FDE) uses it
+behind the v6/v7 switch; without `look` nothing changes.
 
 ### `SlotGroup`
 | Prop | Type | Default |

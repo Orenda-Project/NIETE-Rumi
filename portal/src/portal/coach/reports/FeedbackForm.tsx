@@ -19,6 +19,9 @@ import { PlanSource } from "../observe/PlanState";
 import { V6Part } from "./V6Parts";
 import { MIN_REASON, v6Problems, type V6Problems } from "./v6Model";
 import Obs612Form from "./Obs612Form";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
+import { DockV7, FormChips, IndicatorV7, Legend, PartTitle, SaveTrayV7, V6PartV7, v7Changes, v7Crumb } from "./FormV7";
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -34,6 +37,10 @@ import Obs612Form from "./Obs612Form";
  *
  * bd-ra8xu.40 — an FDE (obs612) visit's draft says `kind: 'obs612'`: its form is FDE's, not this review form, and
  * Obs612Form fills it (the FICO draft has no `kind` and is unchanged).
+ *
+ * bd-o15qnr.28 (v7) — on the v6/v7 switch (useFlowV6: a coach on portal_coach_flow_v2, or a principal on the principal
+ * app it names) the same form is drawn in the v7 look (FormV7.tsx; #188's boards m9-ff-v6, m9-ff-save, p9-ff-v6): same
+ * state, keys, rules and save. Off (or while /config is read), today's screen, unchanged.
  */
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 
@@ -59,6 +66,8 @@ export default function FeedbackForm() {
   const { id = "" } = useParams();
   const routes = useObserveRoutes();
   const navigate = useNavigate();
+  const v7 = useFlowV6() === true;
+  const W7 = useCopy(FLOW_V7) as FlowV7Copy;
   const { view } = useObservationView(id);
   const home = routes.observation(id);
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
@@ -201,12 +210,79 @@ export default function FeedbackForm() {
     );
   };
 
-  return (
-    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form">
+  // Drawn the same in both looks.
+  const movesPart = (s: Extract<DraftSection, { kind: "moves" }>, d: ObservationDraft) => (
+    <>
+      <PlanSource lp={view?.lessonPlan} />
+      {s.header && <p className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{s.header}</p>}
+      {s.moves.length === 0 && s.fallback && <p className={cn(LIST_CARD, "p-3.5 text-[15px] leading-relaxed")} dir="auto">{s.fallback}</p>}
+      {s.moves.map((m) => moveCard(m, s.moves.length, d.fidelityScale))}
+    </>
+  );
+  const problemBox = problem && (
+    <div role="alert" className="flex flex-col gap-1.5 rounded-2xl bg-[#fee4e2] p-4 text-[16px] font-semibold text-[#c8331f]">
+      {problem}
+      {refused.length > 0 && (
+        <ul className="m-0 flex list-disc flex-col gap-1 ps-5 text-[15px] font-normal">
+          {refused.map((r) => <li key={r} dir="auto">{r}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+  const loadAndEmpty = (
+    <>
       <LoadState status={load} empty={false} onRetry={() => setTick((n) => n + 1)} />
       {noAnalysis && (
         <p data-testid="no-analysis" role="alert" className="rounded-2xl bg-[#fef3c7] px-4 py-4 text-[16px] font-semibold text-[#b45309]">{C.noAnalysis}</p>
       )}
+    </>
+  );
+
+  // bd-o15qnr.28 — the v7 look (FormV7.tsx): the same parts, keys, rules and save as below.
+  if (v7) {
+    const dockV7 = draft ? (
+      <DockV7 single={last && readOnly}>
+        <BottomButton tone="outline" onClick={back}>{C.back}</BottomButton>
+        {!last
+          ? <BottomButton onClick={() => { if (partOk()) go(part + 1); }}>{C.next}</BottomButton>
+          : readOnly ? null : <BottomButton onClick={() => { if (partOk()) setConfirm(true); }}>{C.saveForm}</BottomButton>}
+      </DockV7>
+    ) : undefined;
+    return (
+      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={back} dock={dockV7} testId="coach-feedback-form">
+        {loadAndEmpty}
+        <div ref={top} />
+        {draft && section && (
+          <>
+            <FormChips label={draft.rubric?.label} />
+            <StepBar total={total} current={part + 1} label={C.partOf(part + 1, total)} />
+            {readOnly && <p className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.readOnly}</p>}
+            <PartTitle text={`${section.letter}. ${section.title}`} />
+            {!readOnly && section.kind !== "moves" && <Legend principal={!routes.coachGate} />}
+            {section.kind === "moves" ? (
+              movesPart(section, draft)
+            ) : section.kind === "v6" ? (
+              <V6PartV7 section={section} values={values} start={start} set={set} readOnly={readOnly} problems={problems} minReason={minReason} />
+            ) : (
+              <>
+                {section.notes.map((n) => <p key={n.slice(0, 40)} className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{n}</p>)}
+                {section.indicators.map((ind) => (
+                  <IndicatorV7 key={ind.id} ind={ind} scale={draft.scale} values={values} start={start} set={set} readOnly={readOnly} dc={!draft.saved} />
+                ))}
+              </>
+            )}
+            {problemBox}
+          </>
+        )}
+        <SaveTrayV7 open={confirm} saving={saving} onSave={save} onClose={() => { if (!saving) setConfirm(false); }}
+          counts={v7Changes(draft ?? { sections: [], saved: false }, start, values)} />
+      </ReportsFrame>
+    );
+  }
+
+  return (
+    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form">
+      {loadAndEmpty}
       <div ref={top} />
       {draft && section && (
         <>
@@ -223,12 +299,7 @@ export default function FeedbackForm() {
           {readOnly && <p className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.readOnly}</p>}
           <h2 className="mx-1 mt-1 text-[22px] font-semibold leading-[1.2]" dir="auto">{section.letter}. {section.title}</h2>
           {section.kind === "moves" ? (
-            <>
-              <PlanSource lp={view?.lessonPlan} />
-              {section.header && <p className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{section.header}</p>}
-              {section.moves.length === 0 && section.fallback && <p className={cn(LIST_CARD, "p-3.5 text-[15px] leading-relaxed")} dir="auto">{section.fallback}</p>}
-              {section.moves.map((m) => moveCard(m, section.moves.length, draft.fidelityScale))}
-            </>
+            movesPart(section, draft)
           ) : section.kind === "v6" ? (
             <V6Part section={section} values={values} start={start} set={set} readOnly={readOnly} problems={problems} minReason={minReason} />
           ) : (
@@ -237,16 +308,7 @@ export default function FeedbackForm() {
               {section.indicators.map(indicatorCard)}
             </>
           )}
-          {problem && (
-            <div role="alert" className="flex flex-col gap-1.5 rounded-2xl bg-[#fee4e2] p-4 text-[16px] font-semibold text-[#c8331f]">
-              {problem}
-              {refused.length > 0 && (
-                <ul className="m-0 flex list-disc flex-col gap-1 ps-5 text-[15px] font-normal">
-                  {refused.map((r) => <li key={r} dir="auto">{r}</li>)}
-                </ul>
-              )}
-            </div>
-          )}
+          {problemBox}
         </>
       )}
 

@@ -18,13 +18,13 @@ import { changedFromRumi, type V6Problem, type V6Problems, type V6Section } from
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 const NUMBER = "h-14 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-[18px] font-semibold tabular-nums text-[#1d2025]";
 
-function problemText(C: ReportsCopy, p: V6Problem | undefined, min: number): string | null {
+export function problemText(C: ReportsCopy, p: V6Problem | undefined, min: number): string | null {
   if (!p) return null;
   if (p === "atLeast") return C.atLeast(min);
   return C[p];
 }
 
-function Problem({ text }: { text: string | null }) {
+export function Problem({ text }: { text: string | null }) {
   return text ? <p role="alert" className="m-0 text-[14px] font-semibold text-[#c8331f]">{text}</p> : null;
 }
 
