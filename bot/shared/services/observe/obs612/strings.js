@@ -173,7 +173,7 @@ const FICO_S = {
     form_failed: "I couldn't open the FICO 6-12 form just now. Please send /observe again in a minute; your visit is saved.",
 
     // Queue #184: the form arrives pre-filled by the Digital Coach (fico_s_dc). `starred`: ['E3 Notebooks & …'].
-    form_body_dc: (g, subjectLabel, starred = []) => `Grade ${g} · ${subjectLabel}. Rumi has listened to the lesson and filled in the FICO 6-12 form from the recording. Check each level and its evidence: keep it, or change it and say why.${starred.length ? `\n\n★ ${starred.join(', ')}: yours alone. Rumi never scores these; set them from what you saw.` : ''}`,
+    form_body_dc: (g, subjectLabel, starred = []) => `Grade ${g} · ${subjectLabel}. The NIETE Teaching Assistant has listened to the lesson and filled in the FICO 6-12 form from the recording. Check each level and its evidence: keep it, or change it and say why.${starred.length ? `\n\n★ ${starred.join(', ')}: yours alone. The NIETE Teaching Assistant never scores these; set them from what you saw.` : ''}`,
   },
   ur: {
     class_body: (name) => (name
@@ -194,7 +194,7 @@ const FICO_S = {
     form_not_ready: '⁦FICO 6-12⁩ فارم ابھی یہاں چالو نہیں، اس لیے نہیں کھل سکا۔ آپ کی ریکارڈنگ محفوظ ہے۔ براہِ کرم اپنی پروگرام ٹیم کو بتائیں۔',
     form_failed: 'ابھی ⁦FICO 6-12⁩ فارم نہیں کھل سکا۔ ایک منٹ بعد دوبارہ ⁦/observe⁩ بھیجیں؛ آپ کا وزٹ محفوظ ہے۔',
 
-    form_body_dc: (g, subjectLabel, starred = []) => `جماعت ${urDigits(g)} · ${subjectLabel}۔ Rumi نے سبق سنا اور ریکارڈنگ سے ⁦FICO 6-12⁩ فارم بھر دیا ہے۔ ہر لیول اور اس کا ثبوت دیکھیں: ٹھیک ہو تو رہنے دیں، ورنہ بدلیں اور وجہ لکھیں۔${starred.length ? `\n\n★ ${starred.map((c) => `\u2066${c}\u2069`).join('، ')}: یہ صرف آپ بھریں گے۔ Rumi انہیں کبھی نہیں جانچتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔` : ''}`,
+    form_body_dc: (g, subjectLabel, starred = []) => `جماعت ${urDigits(g)} · ${subjectLabel}۔ \u2066NIETE\u2069 ٹیچنگ اسسٹنٹ نے سبق سنا اور ریکارڈنگ سے ⁦FICO 6-12⁩ فارم بھر دیا ہے۔ ہر لیول اور اس کا ثبوت دیکھیں: ٹھیک ہو تو رہنے دیں، ورنہ بدلیں اور وجہ لکھیں۔${starred.length ? `\n\n★ ${starred.map((c) => `\u2066${c}\u2069`).join('، ')}: یہ صرف آپ بھریں گے۔ \u2066NIETE\u2069 ٹیچنگ اسسٹنٹ انہیں کبھی نہیں جانچتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔` : ''}`,
   },
 };
 
