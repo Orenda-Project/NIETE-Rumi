@@ -1,3 +1,4 @@
 {"ts":"2026-11-19T17:25:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=child-test spec_sync=true","sha":"10730f9a4cc5","branch":"bd-snkn32.56.1-05633","user":""}
 {"ts":"2026-11-19T18:03:36Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (tag-only renumber @CT284/@CT285 -> @CT300/@CT301 to remove a duplicate id; no scenario text or behaviour changed)","sha":"10730f9a4cc5","branch":"bd-snkn32.56.1-05633","user":""}
 {"ts":"2026-11-19T18:03:36Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-10730f9a4cc5","sha":"10730f9a4cc5","branch":"bd-snkn32.56.1-05633","user":""}
+{"ts":"2026-11-20T01:47:23Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks engine=2.1.1","sha":"10730f9a4cc5","branch":"bd-snkn32.56.1-05633","user":""}
