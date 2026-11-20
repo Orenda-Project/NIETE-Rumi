@@ -13,6 +13,9 @@
  *   POST /api/internal/attendance/register/send  { userId, listId, month }
  *
  * userId is the portal SESSION's teacher; the portal never takes it from its own request.
+ *
+ * bd-33wxxi.10 — `staff: true` (any route) lets the principal's teacher register (listId "staff") in. The
+ * portal sends it only for a principal the principal app is on for; the service still checks her users row.
  */
 const express = require('express');
 const { logToFile } = require('../utils/logger');
@@ -21,6 +24,9 @@ const { requireInternalKey } = require('../middleware/require-internal-key');
 const router = express.Router();
 
 const STATUS = { NOT_FOUND: 404, BAD_DATE: 400, BAD_MONTH: 400, EMPTY_ROSTER: 409 };
+
+/** Only a literal true lets the staff register in. */
+const staffOf = (b) => b.staff === true;
 
 function attendanceRoute(name, call) {
   return async (req, res) => {
@@ -40,20 +46,20 @@ function attendanceRoute(name, call) {
 }
 
 router.post('/attendance/classes', requireInternalKey,
-  attendanceRoute('classes', (P, b) => P.listClasses({ userId: b.userId, date: b.date == null ? undefined : b.date })));
+  attendanceRoute('classes', (P, b) => P.listClasses({ userId: b.userId, date: b.date == null ? undefined : b.date, staff: staffOf(b) })));
 router.post('/attendance/roster', requireInternalKey,
-  attendanceRoute('roster', (P, b) => P.roster({ userId: b.userId, listId: b.listId })));
+  attendanceRoute('roster', (P, b) => P.roster({ userId: b.userId, listId: b.listId, staff: staffOf(b) })));
 router.post('/attendance/mark', requireInternalKey,
   attendanceRoute('mark', (P, b) => P.mark({
-    userId: b.userId, listId: b.listId, date: b.date, absentIds: b.absentIds, leaveIds: b.leaveIds,
+    userId: b.userId, listId: b.listId, date: b.date, absentIds: b.absentIds, leaveIds: b.leaveIds, staff: staffOf(b),
   })));
 router.post('/attendance/day', requireInternalKey,
-  attendanceRoute('day', (P, b) => P.day({ userId: b.userId, listId: b.listId, date: b.date })));
+  attendanceRoute('day', (P, b) => P.day({ userId: b.userId, listId: b.listId, date: b.date, staff: staffOf(b) })));
 router.post('/attendance/month', requireInternalKey,
-  attendanceRoute('month', (P, b) => P.month({ userId: b.userId, listId: b.listId, month: b.month })));
+  attendanceRoute('month', (P, b) => P.month({ userId: b.userId, listId: b.listId, month: b.month, staff: staffOf(b) })));
 router.post('/attendance/register', requireInternalKey,
-  attendanceRoute('register', (P, b) => P.registerFile({ userId: b.userId, listId: b.listId, month: b.month })));
+  attendanceRoute('register', (P, b) => P.registerFile({ userId: b.userId, listId: b.listId, month: b.month, staff: staffOf(b) })));
 router.post('/attendance/register/send', requireInternalKey,
-  attendanceRoute('register-send', (P, b) => P.sendRegister({ userId: b.userId, listId: b.listId, month: b.month })));
+  attendanceRoute('register-send', (P, b) => P.sendRegister({ userId: b.userId, listId: b.listId, month: b.month, staff: staffOf(b) })));
 
 module.exports = router;
