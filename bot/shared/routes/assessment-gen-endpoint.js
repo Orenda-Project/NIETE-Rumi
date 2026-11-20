@@ -1633,6 +1633,16 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     return confirmScreen(state);
   }
 
+  // bd-e5n2jf: Seen has its own screens, because Meta's routing model must be
+  // acyclic and Both cannot loop COUNTS → TYPES. They run the TYPES/COUNTS
+  // handlers in the Seen phase; the plain screens on Both are the Unseen pass.
+  if (screenId === 'SEEN_TYPES' || screenId === 'SEEN_COUNTS') {
+    if (state.seenTypesFlow) state.phase = 'seen';
+    screenId = screenId.slice('SEEN_'.length);
+  } else if ((screenId === 'TYPES' || screenId === 'COUNTS') && inSeen(state) && state.contentSource === 'both') {
+    state.phase = 'unseen';
+  }
+
   // ── TYPES → COUNTS ───────────────────────────────────────────────────────
   // The types she ticked no longer go straight to the recap. She names how many
   // of each next, which is the whole point of picking them separately: a total
@@ -1868,7 +1878,7 @@ function typesScreen(state, error = '') {
   // The limit rides the caption, so she reads it before she ticks, not after a
   // bounce. English and Urdu offer 18 types for 8 count boxes (bd-5jmnfj.4.18).
   const kind = inSeen(state) ? 'Seen' : 'Unseen';
-  return screen('TYPES', {
+  return screen(inSeen(state) ? 'SEEN_TYPES' : 'TYPES', {
     heading: `${kind} questions: which types?`,
     types_label: `${kind} question types`,
     summary: `${summaryOf(state)} · Pick up to ${QuestionTypes.MAX_TYPE_SLOTS}`,
@@ -1952,7 +1962,7 @@ function countsScreen(state, error = '', errorSlot = null) {
   // the line above Continue. (A TextInput-level `error-message` is rejected by
   // Meta in this Flow version.)
   data.error_messages = (errorSlot && picked[errorSlot - 1]) ? { [`count_${errorSlot}`]: error } : {};
-  return screen('COUNTS', data);
+  return screen(seenPhase ? 'SEEN_COUNTS' : 'COUNTS', data);
 }
 
 /** The Seen number: one box. On Both it comes first, before the Unseen types. */
@@ -2170,7 +2180,12 @@ async function handleBack(userId, screenId, flowToken) {
   // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her
   // two screens back would quietly discard the picks and counts she just made.
   if (screenId === 'COUNTS') return typesScreen(state);
-  if (screenId === 'SEEN_COUNT') return questionsScreen(state);
+  if (screenId === 'SEEN_COUNT' || screenId === 'SEEN_TYPES') return questionsScreen(state);
+  if (screenId === 'SEEN_COUNTS') {
+    state.phase = 'seen';
+    await writeSession(flowToken, state);
+    return typesScreen(state);
+  }
   if (state.seenTypesFlow && !state.legacyCounts && state.contentSource !== 'unseen') {
     // bd-e5n2jf: Seen types → Seen counts → (Both: Unseen types → Unseen counts) → CONFIRM.
     if (screenId === 'CONFIRM') return countsScreen(state);
