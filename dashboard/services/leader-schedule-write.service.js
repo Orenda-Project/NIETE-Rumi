@@ -140,6 +140,12 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
   const { rows: patch } = await query(PATCH_SQL, [leaderUserId, teacherExtId]);
   const teacher = patch && patch[0];
   if (!teacher) throw new Error('That teacher is not in your patch');
+  // bd-sf8ioj (queue #199) — never a visit with the person booking. A coach-app holding of her own school puts a
+  // principal in her own patch (the principal branch above already leaves her out); the booking screens no longer
+  // offer her, and a hand-posted number of her own is refused here.
+  if (teacher.teacher_user_id && String(teacher.teacher_user_id) === String(leaderUserId)) {
+    throw new Error('You cannot book a visit with yourself');
+  }
 
   const schoolExtId = teacher.school_ext_id;
   // No EMIS and no holding key: nothing to book under. Say so plainly rather than let the database's not-null
