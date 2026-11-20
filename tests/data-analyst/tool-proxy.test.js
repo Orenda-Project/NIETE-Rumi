@@ -146,7 +146,7 @@ describe('compiled first', () => {
     expect(mcp.calls.filter((c) => c.name === 'execute_query')).toHaveLength(0);
     await expect(p.dispatch('execute_query', { sql, question: 'x' })).resolves.toBe(OK_ROWS);
   });
-  test('query_metric blanks are normalised and the default ICT program left out', async () => {
+  test('query_metric blanks are normalised and the program is always ICT, explicitly', async () => {
     const mcp = fakeMcp({ get_rules: RULES });
     const p = make(mcp);
     await p.dispatch('get_rules', { region: 'niete-rumi', domain: 'lesson_plans' });
@@ -154,7 +154,7 @@ describe('compiled first', () => {
       filters: [{ name: 'sector', values: ['Tarnol'] }], by: 'sector', program: 'NIETE-RUMI', sql: 'DROP' });
     const sent = mcp.calls.find((c) => c.name === 'query_metric').args;
     expect(sent).toMatchObject({ metric: 'lp_users', filters: { sector: ['Tarnol'] }, by: ['sector'] });
-    expect(sent.program).toBeUndefined();
+    expect(sent.program).toBe('niete-rumi');
     expect(sent.sql).toBeUndefined();
   });
   test('unreadable filters are refused with their words, nothing runs', async () => {
@@ -247,4 +247,28 @@ test('a compiled answer of real size (live: 20,298 chars) is remembered, so the 
   const again = JSON.parse(await p.dispatch('query_metric', { ...args, rule_version: 'v0.42.5' }));
   expect(again.reused_from_this_thread).toBe(true);
   expect(mcp.calls.filter((c) => c.name === 'query_metric')).toHaveLength(1);
+});
+
+describe('ICT by default on our side (the operator, 21 Nov: always Islamabad, always niete, never rumi)', () => {
+  test('a rules fetch with no region and no path asks for niete-rumi, never the bare index', async () => {
+    const mcp = fakeMcp({ get_rules: RULES });
+    const p = make(mcp);
+    await p.dispatch('get_rules', {});
+    await p.dispatch('get_rules', { domain: 'coaching' });
+    expect(mcp.calls.map((c) => c.args.region)).toEqual(['niete-rumi', 'niete-rumi']);
+  });
+  test('a fetch by path is left as it is', async () => {
+    const mcp = fakeMcp({ get_rules: RULES });
+    await make(mcp).dispatch('get_rules', { path: 'niete-rumi/coaching/fico-scores-rules.md' });
+    expect(mcp.calls[0].args.region).toBeUndefined();
+    expect(mcp.calls[0].args.path).toBe('niete-rumi/coaching/fico-scores-rules.md');
+  });
+  test('every compiled figure is asked as program niete-rumi, explicitly', async () => {
+    const mcp = fakeMcp({ get_rules: RULES });
+    const p = make(mcp);
+    await p.dispatch('get_rules', { region: 'niete-rumi', domain: 'lesson_plans' });
+    await p.dispatch('query_metric', { metric: 'lp_users' });
+    await p.dispatch('query_metric', { metric: 'lp_users', program: 'NIETE-RUMI', from_date: '2026-11-01' });
+    expect(mcp.calls.filter((c) => c.name === 'query_metric').map((c) => c.args.program)).toEqual(['niete-rumi', 'niete-rumi']);
+  });
 });

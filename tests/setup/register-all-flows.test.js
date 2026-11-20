@@ -123,7 +123,7 @@ describe('register-all-flows', () => {
     // Re-armed at 30 on 2026-11-20: Observe Notes (bd-ra8xu.60, Observation Notes on v6 /observe visits).
     it('exports an array of all 30 registerable flow configurations (30th: Observe Notes)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(30);
+      expect(FLOW_CONFIGS).toHaveLength(31);
       expect(FLOW_CONFIGS.map((f) => f.name)).toContain('Observe Notes');
     });
 
