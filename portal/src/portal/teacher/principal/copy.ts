@@ -12,6 +12,7 @@
  */
 import { bilingual, type Bilingual, type Words } from '../i18n';
 import type { CopyEntry } from '../copyRegistry';
+import { COPY_ENTRY as V6_ENTRY } from './copyV6';
 
 export const PRINCIPAL_COPY = {
   ownLesson: 'My own lesson',
@@ -30,3 +31,6 @@ export const PRINCIPAL_COPY_UR: Words<typeof PRINCIPAL_COPY> = {
 export const PRINCIPAL: Bilingual<typeof PRINCIPAL_COPY> = bilingual(PRINCIPAL_COPY, PRINCIPAL_COPY_UR);
 
 export const COPY_ENTRY: CopyEntry = { screen: 'Principal app', module: PRINCIPAL as Bilingual<unknown> };
+
+// bd-o15qnr.28 — the v6/v7 Home, Observe and My observations words (copyV6.ts), under the same Urdu checks.
+export const COPY_ENTRIES: readonly CopyEntry[] = [V6_ENTRY as CopyEntry];
