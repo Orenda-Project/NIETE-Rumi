@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-47'); // sa-47: the slow-link drain + already-scored ack, and the unknown-mic check (SESSION v32 kept)
+    expect(sw.CORE).toBe('sa-core-sa-48'); // sa-48: the letter-sound picker's re-made prompts and the your-turn lines (SESSION v33)
   });
 });
 
