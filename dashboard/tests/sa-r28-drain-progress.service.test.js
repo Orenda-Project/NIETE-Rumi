@@ -95,6 +95,39 @@ describe('D1: the drain says how it moves', () => {
     expect(seen).toEqual([['ack', 1], ['ack', 1], ['bytes', 1], ['bytes', 4], ['ack', 1]]);
   });
 
+  test('a refusal is not progress: a refused batch, a refused presign, a refused register say nothing', async () => {
+    const s = await phoneWithRecording('child-1');
+    const seen = [];
+    const sink = {
+      putBatch: async () => ({ ok: false }),
+      presignAudio: async () => ({ url: 'https://r2/u', key: 'k' }),
+      registerAudio: async () => { throw refused('upload_missing'); },
+    };
+    const put = async (url, body, mime, onBytes) => { onBytes(4); };
+    const sync = { create: (o) => syncMod.create(Object.assign({}, o, { put, join: (c) => c.map((x) => x.blob).join('') })) };
+    await drain({ store: s, sync, sink: () => sink, online: () => true, timers, onProgress: (k, n) => seen.push([k, n]) });
+    // only the accepted presign and the bytes: no ack for the refused batch or the refused register
+    expect(seen).toEqual([['ack', 1], ['bytes', 4]]);
+    const t = await phoneWithRecording('child-2');
+    const seen2 = [];
+    const sink2 = { putBatch: async () => ({ ok: false }), presignAudio: async () => { throw refused('bad_task'); }, registerAudio: async () => ({}) };
+    await drain({ store: t, sync, sink: () => sink2, online: () => true, timers, onProgress: (k, n) => seen2.push([k, n]) });
+    expect(seen2).toEqual([]);
+  });
+
+  test('a register found already scored is progress (the recording leaves the phone)', async () => {
+    const s = await phoneWithRecording('child-1');
+    const seen = [];
+    const sink = {
+      putBatch: async (b) => ({ ok: true, acked_to: b.seq_to }),
+      presignAudio: async () => ({ url: 'https://r2/u', key: 'k' }),
+      registerAudio: async () => { throw refused('already_scored'); },
+    };
+    const sync = { create: (o) => syncMod.create(Object.assign({}, o, { put: async () => {}, join: (c) => c.map((x) => x.blob).join('') })) };
+    await drain({ store: s, sync, sink: () => sink, online: () => true, timers, onProgress: (k) => seen.push(k) });
+    expect(seen).toEqual(['ack', 'ack', 'ack']);
+  });
+
   test("the default upload counts bytes by XMLHttpRequest's upload events when asked", async () => {
     const sent = [];
     class FakeXHR {

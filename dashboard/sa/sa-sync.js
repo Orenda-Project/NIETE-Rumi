@@ -18,7 +18,8 @@
  * A register refused as already_scored (the server keeps this task's recording under this session's own key and has
  * scored it) marks the recording synced: it can never be used again, so it neither stays on the phone nor goes up
  * again. Any other refusal stays a failure (the portal uploader's rule).
- * onProgress(kind, n): 'ack' after each server answer (batch, presign, register), 'bytes' (sent so far) while a
+ * onProgress(kind, n): 'ack' after each answer the server accepted (a batch acknowledged, a presign with its url or a
+ * skip, a register that kept the recording or found it already scored; never a refusal), 'bytes' (sent so far) while a
  * recording uploads; with it the upload goes by XMLHttpRequest, whose upload events count the bytes (the drain page).
  *
  * flushEvents() sends the events and results alone, at once, even while recordings upload (the battery's end).
@@ -68,7 +69,7 @@
     var put = o.put || defaultPut;
     var join = o.join || defaultJoin;
     var progress = typeof o.onProgress === 'function' ? o.onProgress : null;
-    var answered = function (r) { if (progress) progress('ack', 1); return r; };
+    var ack = function () { if (progress) progress('ack', 1); };
     var timers = o.timers || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (h) { clearTimeout(h); } };
     var st = { state: 'pending', pending_events: 0, pending_audio: 0, last_ok_at: null, last_error: null };
     var running = null;
@@ -108,8 +109,9 @@
       return Promise.resolve(sink.putBatch({
         session_id: id, seq_from: ev.length ? ev[0].seq : null, seq_to: ev.length ? seqTo : null,
         events: ev.map(clean), results: p.results.map(stamp),
-      })).then(answered).then(function (r) {
+      })).then(function (r) {
         if (!r || r.ok === false) throw new Error('batch refused');
+        ack();
         var acked = typeof r.acked_to === 'number' ? Math.min(r.acked_to, seqTo) : seqTo;
         var sent = p.results.map(function (x) { return x.task_id; });
         var had = sent.filter(function (t) { return notKept[t]; });
@@ -144,9 +146,10 @@
       var body = join(a.chunks.filter(function (c) { return c.blob != null; }), mime);
       var bytes = body && (body.size != null ? body.size : body.length) || 0;
       var onBytes = progress ? function (n) { progress('bytes', n); } : undefined;
-      return Promise.resolve(sink.presignAudio({ session_id: id, task_id: a.task_id, mime: mime, bytes: bytes })).then(answered).then(function (pre) {
-        if (pre && pre.skip === true) return notKeptAudio(a.task_id, pre.reason || null).then(function () { return 'skipped'; });
+      return Promise.resolve(sink.presignAudio({ session_id: id, task_id: a.task_id, mime: mime, bytes: bytes })).then(function (pre) {
+        if (pre && pre.skip === true) { ack(); return notKeptAudio(a.task_id, pre.reason || null).then(function () { return 'skipped'; }); }
         if (!pre || !pre.url || !pre.key) throw new Error('no presign');
+        ack();
         return Promise.resolve(put(pre.url, body, mime, onBytes)).then(function () {
           return Promise.resolve(sink.registerAudio({ session_id: id, task_id: a.task_id, key: pre.key, bytes: bytes, duration_ms: fin.duration_ms || null }))
             .then(null, function (e) {
@@ -154,7 +157,7 @@
               if (e && e.reason === 'already_scored') return 'already_scored';
               throw e;
             });
-        }).then(answered);
+        }).then(function (r) { ack(); return r; });
       }).then(function (r) { return r === 'skipped' ? null : store.markChunksSynced(id, a.task_id); });
     }
 
