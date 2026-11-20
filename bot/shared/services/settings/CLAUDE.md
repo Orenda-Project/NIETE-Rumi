@@ -1,6 +1,6 @@
 # settings — Shared app_settings switch cache and the page-switch snapshot
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=b10466eace2c gen=e0c3d74dda0f overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=fa3039f1c318 gen=7e689a649cbf overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `switch-cache.js` — cachedSwitch: one read per TTL, last good on failure
@@ -14,8 +14,8 @@
 | `switch-cache.js` | Cached app_settings switch reader so a settings outage costs one read per TTL, serving last good value |
 
 ## Who reads this (generated)
-- `settings-snapshot.js` ← imported by `bot/shared/services/child-test/app/add-child-switch.js:10:0634a325` · `bot/shared/services/child-test/app/all-grades-switch.js:9:0634a325` (+32)
-- `switch-cache.js` ← imported by `bot/shared/services/classes/class-vocabulary.service.js:42:9cf59a45` · `bot/shared/services/coaching/iab-unreflected-switch.js:19:9cf59a45` (+8)
+- `settings-snapshot.js` ← imported by `bot/shared/services/child-test/app/add-child-switch.js:10:0634a325` · `bot/shared/services/child-test/app/all-grades-switch.js:9:0634a325` (+44)
+- `switch-cache.js` ← imported by `bot/shared/services/classes/class-vocabulary.service.js:42:9cf59a45` · `bot/shared/services/coaching/duplicate-check-switch.js:24:9cf59a45` (+15)
 
 ## Never (human)
 - A failed read serves the last good value else off (`bot/shared/services/settings/switch-cache.js:8`)
@@ -23,6 +23,8 @@
 
 ## Tests (generated)
 - `bot/tests/child-test/sa-any-school.test.js` (settings-snapshot.js)
+- `bot/tests/child-test/sa-per-visit.test.js` (settings-snapshot.js)
+- `bot/tests/child-test/sa-practice-first.test.js` (settings-snapshot.js)
 - `bot/tests/quiz/web-quiz/web-quiz-page-keep.test.js` (settings-snapshot.js)
 - `bot/tests/settings/switch-cache.test.js` (switch-cache.js)
 

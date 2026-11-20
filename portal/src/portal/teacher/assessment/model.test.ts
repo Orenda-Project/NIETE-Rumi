@@ -131,6 +131,31 @@ describe('fromSpec — Change choices after a paper failed', () => {
   });
 });
 
+describe('Seen per-type counts (bd-e5n2jf, Mubashar Zia 20 Nov)', () => {
+  it('seen only: sends her Seen types, the paper is their sum, no Unseen types', () => {
+    const s = toSpec(base({ seen: 0, seenTypeCounts: { MCQs: 3, 'True/False': 2 }, typeCounts: {} }));
+    expect(s).toMatchObject({ contentSource: 'seen', questionCount: 5, seenCount: null, questionTypes: [],
+      seenTypes: [{ id: 'MCQs', count: 3 }, { id: 'True/False', count: 2 }] });
+  });
+
+  it('both: the Seen sum is the seen count, the paper is Seen plus Unseen', () => {
+    const p = base({ seenTypeCounts: { MCQs: 3, 'True/False': 0 }, typeCounts: { 'Brief Answers': 4 } });
+    expect(questionTotal(p)).toBe(7);
+    expect(sourceOf(p)).toBe('both');
+    expect(toSpec(p)).toMatchObject({ contentSource: 'both', questionCount: 7, seenCount: 3,
+      seenTypes: [{ id: 'MCQs', count: 3 }], questionTypes: [{ id: 'Brief Answers', count: 4 }] });
+  });
+
+  it('without Seen types the request has no seenTypes key (unchanged)', () => {
+    expect('seenTypes' in toSpec(base({ seen: 5 }))).toBe(false);
+  });
+
+  it('fromSpec restores her Seen types', () => {
+    const p = base({ seenTypeCounts: { MCQs: 3 }, typeCounts: { 'Brief Answers': 4 } });
+    expect(fromSpec(toSpec(p), 'Science')).toMatchObject({ seen: 3, seenTypeCounts: { MCQs: 3 }, typeCounts: { 'Brief Answers': 4 } });
+  });
+});
+
 describe('days (Pakistan)', () => {
   it('names an instant\'s Pakistan day', () => {
     // 20:00 UTC on 7 Oct is 01:00 on 8 Oct in Pakistan.

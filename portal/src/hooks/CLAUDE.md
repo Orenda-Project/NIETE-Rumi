@@ -1,6 +1,6 @@
 # hooks — Small shared React hooks: toasts, mobile breakpoint, marketing funnel tracking
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/hooks kg=5bfd285c63ed gen=bbed4e1925d8 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/hooks kg=dd99380aa7e7 gen=4997d9aa5c54 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `use-toast.ts` — toast store behind components/ui/toaster.tsx
@@ -15,7 +15,7 @@
 | `useFunnelTracking.ts` | useTrackPageVisit hook: records a funnel page visit on mount via lib/funnelTracking; used by the marketing pages |
 
 ## Who reads this (generated)
-- `use-toast.ts` ← imported by `portal/src/components/ui/toaster.tsx:1:687d908e` · `portal/src/portal/components/AssessmentGeneratorPanel.tsx:62:bf8ab455` (+36)
+- `use-toast.ts` ← imported by `portal/src/components/ui/toaster.tsx:1:687d908e` · `portal/src/portal/components/AssessmentGeneratorPanel.tsx:62:bf8ab455` (+37)
 - `use-mobile.tsx` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:4:fc48607c` · `portal/src/components/ui/sidebar.tsx:6:0a197eed`
 - `useFunnelTracking.ts` ← imported by `portal/src/pages/Index.tsx:10:05abea4b`
 

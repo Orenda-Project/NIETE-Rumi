@@ -14,6 +14,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `constants.js` | Named constants every COACHIP nightly stage reads, incl. PIPELINE_VERSION and the PROD_WRITES_ALLOWED guard. |
 | `env.js` | COACHIP environment assertion before any write, and the dry run's read-only client; prod stays read-only in code. |
 | `facts.js` | COACHIP stage 1: pure functions that detect the FICO instrument, de-duplicate sessions and hash inputs. |
+| `field-form-rubric.js` | (unmapped) |
 | `gloss.js` | COACHIP moment one-liner generation with five code gates, one retry then blocked; never logs names or quotes. |
 | `job.js` | Runs the COACHIP nightly pipeline stage by stage (facts to glosses) against a Supabase or in-memory store. |
 | `legs.js` | COACHIP stage 4: code-computed legs (minutes over plan, check-signal evaluator, step checks); pure. |
@@ -43,6 +44,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `constants.js` ← imported by `dashboard/lib/insights/circle.js:16:642d7dc6` · `dashboard/lib/insights/env.js:9:642d7dc6` · `dashboard/lib/insights/facts.js:8:642d7dc6` · `dashboard/lib/insights/job.js:14:642d7dc6` (+12: `python3 kg/kg.py who-reads constants.js`)
 - `env.js` ← imported by `dashboard/jobs/coachip-nightly.js:25:61874984`
 - `facts.js` ← imported by `dashboard/lib/insights/job.js:16:1f70f462` · `dashboard/lib/insights/model.js:11:a9f54701` · `dashboard/lib/insights/purge.js:22:f9e07106`
+- `field-form-rubric.js` ← imported by `dashboard/services/coach-school-card.service.js:58:51148e44` · `dashboard/lib/insights/facts.js:10:dde7da74`
 - `gloss.js` ← imported by `dashboard/lib/insights/model-stage.js:14:65ff0992`
 - `job.js` ← imported by `dashboard/jobs/coachip-nightly.js:154:d8ac42db`
 - `legs.js` ← imported by `dashboard/lib/insights/job.js:20:86bd823c`
@@ -69,6 +71,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `clips.js` ← `dashboard/tests/insights/clips.service.test.js`
 - `constants.js` ← `dashboard/tests/insights/job.service.test.js` · `dashboard/tests/insights/purge.service.test.js` · `dashboard/tests/insights/rollups.service.test.js` · `dashboard/tests/insights/windows.service.test.js` · `tests/coachip/coachip-job-runs-env-ref.test.js`
 - `facts.js` ← `dashboard/tests/insights/facts.service.test.js` · `dashboard/tests/insights/fixtures/moments.js` · `dashboard/tests/insights/fixtures/rollups.js`
+- `field-form-rubric.js` ← `dashboard/tests/insights/facts.service.test.js`
 - `gloss.js` ← `dashboard/tests/insights/gloss.service.test.js`
 - `job.js` ← `dashboard/tests/insights/job.service.test.js` · `tests/coachip/coachip-job-runs-env-ref.test.js`
 - `legs.js` ← `dashboard/tests/insights/legs.service.test.js`
@@ -80,11 +83,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `purge.js` ← `dashboard/tests/insights/purge.service.test.js`
 - `ranking.js` ← `dashboard/tests/insights/ranking.service.test.js`
 - `reconcile.js` ← `dashboard/tests/insights/reconcile.service.test.js`
-- `results.js` ← `dashboard/tests/insights/results.service.test.js`
+- `results.js` ← `dashboard/tests/insights/results-r28.service.test.js` · `dashboard/tests/insights/results-seed.service.test.js` · `dashboard/tests/insights/results.service.test.js`
 - `rollups.js` ← `dashboard/tests/insights/rollups.service.test.js`
 - `safety.js` ← `dashboard/tests/insights/model-concurrency.service.test.js`
 - `scheduler.js` ← `dashboard/tests/insights/scheduler.service.test.js`
-- `seed.js` ← `dashboard/tests/insights/seed.service.test.js`
+- `seed.js` ← `dashboard/tests/insights/results-seed.service.test.js` · `dashboard/tests/insights/seed.service.test.js`
 - `signals.js` ← `dashboard/tests/insights/rollups.service.test.js` · `dashboard/tests/insights/signals.service.test.js`
 - `source.js` ← `dashboard/tests/insights/source.service.test.js`
 - `store.js` ← `dashboard/tests/insights/clip-stage.service.test.js` · `dashboard/tests/insights/job.service.test.js` · `dashboard/tests/insights/model-concurrency.service.test.js` · `dashboard/tests/insights/model-stage.gloss-reuse.service.test.js` · `dashboard/tests/insights/model-stage.phonics-reuse.service.test.js` · `dashboard/tests/insights/purge.service.test.js` (+2: `python3 kg/kg.py who-reads dashboard/lib/insights/store.js`)

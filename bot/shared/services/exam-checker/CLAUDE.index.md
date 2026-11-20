@@ -43,6 +43,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `exam-checker.orchestrator.js` ← `tests/exam-checker/confirm-students-flow.test.js`
 - `grading.service.js` ← `tests/exam-checker/grading-service.test.js`
+- `index.js` ← `bot/tests/handlers/exam-checker-text-reply.test.js`
 
 ## Related (all, generated)
 - docs: `bot/shared/services/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # qa — the shared engine link, the web lane, ledger masking and the scheduled LaunchAgent
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=8f41bbd9e993 gen=c1e35c0aa9b5 overflow=5 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=b89469b336a2 gen=5b3b8fac7c78 overflow=5 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `link-engine.sh` — borrow the shared E2E engine from rumi-agent-home and point git at `.githooks` (`npm install` runs it)
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- env read here: `CHECK_ONLY` · `CI` · `COMMIT` · `DATA` · `DB_POOL_MIN` · `DB_POOL_SIZE` · `E2E_BOT_PORT` · `E2E_ENGINE` · `E2E_NO_COMMIT` · `E2E_TRIGGER` · `E2E_WEB_PARALLEL` · `LOCAL_DB_PG_BIN` (+10)
+- env read here: `CHECK_ONLY` · `CI` · `COMMIT` · `DATA` · `DB_POOL_MIN` · `DB_POOL_SIZE` · `E2E_BOT_PORT` · `E2E_ENGINE` · `E2E_NO_COMMIT` · `E2E_TRIGGER` · `E2E_WEB_PARALLEL` · `E2E_WEB_SHARDS` (+11)
 
 ## Never (human)
 - Copy an engine file back in here: the harness is borrowed through `link-engine.sh`, and `engine-bridge.test.sh` fails on a copy (bd-9157r.1)

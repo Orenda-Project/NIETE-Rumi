@@ -192,6 +192,8 @@
       "screen": {
         "screen": "TYPES",
         "data": {
+          "heading": "Unseen questions: which types?",
+          "types_label": "Unseen question types",
           "summary": "Grade 3 · Maths · Pages 4-14 · Pick up to 8",
           "types": [
             {
@@ -245,6 +247,7 @@
       "screen": {
         "screen": "COUNTS",
         "data": {
+          "heading": "Unseen questions: how many of each?",
           "summary": "Grade 3 · Maths · Pages 4-14",
           "hint": "Up to 50 questions in total.",
           "error": "",

@@ -19,6 +19,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `model.ts` | Pure Attendance rules: class grouping and search, status counts, mark payload, date window; invents no counts |
 | `paths.ts` | Path builders for Attendance pages under /portal/teacher/attendance: mark, view, download |
 | `routes.tsx` | Registers lazy Attendance pages (selector, mark, view, download) under /portal/teacher/attendance via TeacherGate |
+| `staff.test.tsx` | (unmapped) |
 | `ui.tsx` | Shared Attendance pieces: search box, load state, class status chip, class card and the Change tray |
 
 ## Who reads this (all, generated)
@@ -26,18 +27,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `DownloadPage.tsx` ← imported by `portal/src/portal/teacher/attendance/routes.tsx:7:87039563`
 - `MarkPage.tsx` ← imported by `portal/src/portal/teacher/attendance/routes.tsx:8:84e5180d`
 - `ViewPage.tsx` ← imported by `portal/src/portal/teacher/attendance/routes.tsx:9:e533376c`
-- `api.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:9:4c2f1710` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:9:57ed9a4b` · `portal/src/portal/teacher/attendance/MarkPage.tsx:8:4c83c2c4` · `portal/src/portal/teacher/attendance/ViewPage.tsx:8:32ef9503`
-- `copy.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:10:ec07487d` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:10:ec07487d` · `portal/src/portal/teacher/attendance/MarkPage.tsx:9:b5a3bda7` · `portal/src/portal/teacher/attendance/ViewPage.tsx:9:ec07487d` (+2: `python3 kg/kg.py who-reads copy.ts`)
-- `model.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:12:320700ef` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:12:80bfb06a` · `portal/src/portal/teacher/attendance/MarkPage.tsx:13:74d4b72c` · `portal/src/portal/teacher/attendance/ViewPage.tsx:11:49cbd52d` (+2: `python3 kg/kg.py who-reads model.ts`)
-- `paths.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:13:ad1dfc51` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:13:b69e9cbc` · `portal/src/portal/teacher/attendance/MarkPage.tsx:14:1f10d335` · `portal/src/portal/teacher/attendance/ViewPage.tsx:12:939b34aa` (+1: `python3 kg/kg.py who-reads paths.ts`)
-- `ui.tsx` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:14:aadffca0` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:14:7aebb0c3` · `portal/src/portal/teacher/attendance/MarkPage.tsx:15:c179e94b` · `portal/src/portal/teacher/attendance/ViewPage.tsx:13:7aebb0c3`
+- `api.ts` ← imported by `portal/src/portal/teacher/attendance/DownloadPage.tsx:9:b8315a9c` · `portal/src/portal/teacher/attendance/MarkPage.tsx:8:23c4530a` · `portal/src/portal/teacher/attendance/ViewPage.tsx:8:4b871c4b` · `portal/src/portal/teacher/attendance/ui.tsx:9:4c2f1710`
+- `copy.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:9:ec07487d` · `portal/src/portal/teacher/attendance/MarkPage.tsx:9:dee5da98` · `portal/src/portal/teacher/attendance/model.ts:6:6a283727` · `portal/src/portal/teacher/attendance/ui.tsx:7:8f48fd77`
+- `model.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:11:5be71c60` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:11:849961a5` · `portal/src/portal/teacher/attendance/MarkPage.tsx:14:74d4b72c` · `portal/src/portal/teacher/attendance/ViewPage.tsx:10:fff2be2b` (+2: `python3 kg/kg.py who-reads model.ts`)
+- `paths.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:12:ad1dfc51` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:12:3fd9cc25` · `portal/src/portal/teacher/attendance/MarkPage.tsx:15:1f10d335` · `portal/src/portal/teacher/attendance/ViewPage.tsx:11:939b34aa` (+2: `python3 kg/kg.py who-reads paths.ts`)
+- `ui.tsx` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:13:4dd4933b` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:13:28e4722c` · `portal/src/portal/teacher/attendance/MarkPage.tsx:16:0e90e997` · `portal/src/portal/teacher/attendance/ViewPage.tsx:12:28e4722c`
 
 ## Tests (all, generated)
-- `AttendanceHub.tsx` ← `portal/src/portal/teacher/attendance/attendance.ur.test.tsx`
-- `MarkPage.tsx` ← `portal/src/portal/teacher/attendance/mark-names.test.tsx`
-- `copy.ts` ← `portal/src/portal/teacher/attendance/attendance.ur.test.tsx` · `portal/src/portal/teacher/attendance/checks.test.tsx`
+- `AttendanceHub.tsx` ← `portal/src/portal/teacher/attendance/attendance.ur.test.tsx` · `portal/src/portal/teacher/attendance/staff.test.tsx`
+- `DownloadPage.tsx` ← `portal/src/portal/teacher/attendance/staff.test.tsx`
+- `MarkPage.tsx` ← `portal/src/portal/teacher/attendance/mark-names.test.tsx` · `portal/src/portal/teacher/attendance/staff.test.tsx`
+- `ViewPage.tsx` ← `portal/src/portal/teacher/attendance/staff.test.tsx`
+- `copy.ts` ← `portal/src/portal/teacher/attendance/attendance.ur.test.tsx` · `portal/src/portal/teacher/attendance/checks.test.tsx` · `portal/src/portal/teacher/attendance/staff.test.tsx`
 - `model.ts` ← `portal/src/portal/teacher/attendance/attendance.ur.test.tsx` · `portal/src/portal/teacher/attendance/model.test.ts`
-- `paths.ts` ← `portal/src/portal/teacher/attendance/checks.test.tsx`
+- `paths.ts` ← `portal/src/portal/teacher/attendance/checks.test.tsx` · `portal/src/portal/teacher/attendance/staff.test.tsx`
 - `routes.tsx` ← `portal/src/portal/teacher/attendance/checks.test.tsx`
 - `ui.tsx` ← `portal/src/portal/components/loadingStates.test.tsx` · `portal/src/portal/teacher/attendance/checks.test.tsx`
 

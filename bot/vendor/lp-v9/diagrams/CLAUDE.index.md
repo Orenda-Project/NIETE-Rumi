@@ -13,8 +13,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `types_manifest.json` | Machine-readable roster of 32 diagram kinds, aliases and spec conventions, verified against the live registry by a test |
 
 ## Who reads this (all, generated)
-- `index.js` ← imported by `bot/shared/services/quiz/transcript-quiz-figure-gates.js:18:b36a893b` · `bot/shared/services/quiz/transcript-quiz-figure.js:32:ac38be60` · `bot/vendor/lp-v9/lib/template.js:2456:8c75da09` · `bot/vendor/lp-v9/lint_lp.js:595:9063ca2d`
-- `types_manifest.json` ← imported by `bot/shared/services/quiz/transcript-quiz-figure.js:34:0cde44c6` · `bot/vendor/lp-v9/lint_lp.js:2209:be119a43`
+- `index.js` ← imported by `bot/shared/services/assessment/paper-diagram.js:19:67435837` · `bot/shared/services/quiz/transcript-quiz-figure-gates.js:18:b36a893b` · `bot/shared/services/quiz/transcript-quiz-figure.js:32:ac38be60` · `bot/vendor/lp-v9/lib/template.js:2471:8c75da09` (+1: `python3 kg/kg.py who-reads index.js`)
+- `types_manifest.json` ← imported by `bot/shared/services/quiz/transcript-quiz-figure.js:34:0cde44c6` · `bot/vendor/lp-v9/lint_lp.js:2236:be119a43`
 
 ## Tests (all, generated)
 - `index.js` ← `tests/lp612/visual-contract.test.js` · `tests/quiz/base-ten-thousands.test.js` · `tests/quiz/pictogram-school-bag.test.js` · `tests/quiz/pictograms-lesson-objects.test.js` · `tests/quiz/quiz-author-gates-figures.test.js` · `tests/quiz/transcript-quiz-figure-adaptive-scale.test.js` (+8: `python3 kg/kg.py who-reads bot/vendor/lp-v9/diagrams/index.js`)

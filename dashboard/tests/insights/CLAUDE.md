@@ -1,7 +1,7 @@
 # insights — Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests/insights kg=50ae949fbb4f gen=3b5b8b96ba6c overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests/insights kg=29d2bd778eca gen=4565b266a2dd overflow=16 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `job.service.test.js` — end-to-end run on a fictional tier; the best map of the stage chain
@@ -15,13 +15,13 @@ Full index: `CLAUDE.index.md`
 | `fixtures/` | → (no door; 5 files: 0 test + 5 support) |
 | `rollups.service.test.js` | Tests rollups (insights/rollups): every row passes the SQL CHECKs; 4/8-week denominators; shared schools counted once |
 | `model*` | 4 files; most used `model-concurrency.service.test.js`: bd-sex15q.43: tests COACHIP_MODEL_CONCURRENCY so at most N model calls are in flight and the spend ledger holds |
+| `results*` | 3 files; most used `results-seed.service.test.js`: (unmapped) |
+| `facts.service.test.js` | Tests the CoachIP allow-list reader (insights/facts): a Proxy proves forbidden analysis_data keys are never read |
 | `job.service.test.js` | Tests the nightly CoachIP job (insights/job): read-only dry run, writes no DB row, emits codes and counts only |
 | `purge.service.test.js` | bd-sex15q.36: tests --purge-clips retention in insights/purge, a year after the last window that showed the clip |
 | `seed.service.test.js` | Tests buildSeedRows (insights/seed): 30 weaknesses, 77 interventions, crosswalk rows, parents before children |
 | `signals.service.test.js` | Tests signal evaluators (insights/signals): each seeded primary crosswalk row has an evaluator or is out of scope |
-| `facts.service.test.js` | Tests the CoachIP allow-list reader (insights/facts): a Proxy proves forbidden analysis_data keys are never read |
-| `gloss.service.test.js` | Tests buildGlossInput (insights/gloss): only the prompt's keys, never evidence, quote or name fields (Proxy-checked) |
-| … | 19 more → `CLAUDE.index.md` |
+| … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

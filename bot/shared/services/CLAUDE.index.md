@@ -34,6 +34,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `schools/` | School lookup from the schools table and the legacy-migration transforms → `schools/CLAUDE.md` |
 | `settings/` | Shared app_settings switch cache and the page-switch snapshot → `settings/CLAUDE.md` |
 | `status/` | Decision for the /status reply before anything is sent → `status/CLAUDE.md` |
+| `teacher-activity/` | (no description yet) → `teacher-activity/CLAUDE.md` |
 | `training/` | Teacher training: modules, quizzes, certificates, I-SAPS exams and grading → `training/CLAUDE.md` |
 | `tts/` | Voice gateway for all voice notes: routing, providers, Ogg Opus and text prep → `tts/CLAUDE.md` |
 | `video/` | Student video pipeline: script, images, animation, assembly, watermark, queue → `video/CLAUDE.md` |
@@ -43,6 +44,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `app-redirect.service.js` | Per-feature app_settings switches that send a teacher to the app instead of serving a feature on WhatsApp |
 | `assessment-entry.service.js` | Single door that opens the assessment generator Flow, shared by text handler and menu rows |
 | `attendance-entry.service.js` | Single door into attendance: turns the router's decision into WhatsApp messages (openAttendance, respondToDecision) |
+| `attendance-keywords.js` | (unmapped) |
 | `attendance-portal.service.js` | Class attendance service for the teacher portal sharing marking rules with the WhatsApp Flow (bd-fmf24g.7) |
 | `attendance-register-delivery.service.js` | I/O for delivering the monthly teacher attendance register (R2 store, WhatsApp send) to the principal |
 | `attendance-register.service.js` | Pure builder of the cumulative monthly teacher-attendance register workbook buffer |
@@ -52,6 +54,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `aws-textract.service.js` | Lazy AWS Textract wrapper used as optional OCR fallback for the exam checker (Mistral is primary) |
 | `bandit.service.js` | Thompson-sampling multi-armed bandit choosing best message variants for suggestions and A/B tests |
 | `book-curriculum.service.js` | (unmapped) |
+| `coach-app-nudge.service.js` | (unmapped) |
+| `coach-app-offer.js` | (unmapped) |
+| `coach-handoff-code.js` | (unmapped) |
 | `coach-school-target.js` | Landing-target resolver for a coach's school-card /go token (school page or My schools) |
 | `coach-voice-note-retention.service.js` | Sweeps coach-visit voice notes from R2 30 days after saving unless the coach already closed the visit (bd-v0toag.67) |
 | `coaching-orchestrator.service.js` | Coaching orchestrator: facade over the coaching microservices for the classroom observation workflow |
@@ -78,6 +83,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `grounded-lp-render.service.js` | Turns a curriculum_lp_ast row into a delivered PDF via Gamma, cache and serve; shared by handler and worker |
 | `helper-agent.service.js` | LLM helper agent that detects stuck users and recovers dead-end conversations |
 | `homework-lookup.service.js` | Reads homework_chapters to resolve grade x subject x chapters selection into R2 keys for the bundle worker |
+| `howto-first-touch.service.js` | (unmapped) |
+| `inbound-media-failed.service.js` | (unmapped) |
 | `inbound-typing.js` | Typing indicator for one inbound message, shown only while a message reply is genuinely coming (bd-0wrn4) |
 | `language-detector.service.js` | Detects the primary language of user text, trusting Soniox languages and falling back to an LLM |
 | `lesson-plan-lifecycle.service.js` | Records a lesson-plan ask's path, stages, outcome and log id in lesson_plan_requests; others write it too |
@@ -94,6 +101,30 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-describe-fln.js` | Describes an FLN Reading Hour/Numeracy plan (name, level, minutes) for lp-describe from the sidecar index |
 | `lp-describe.service.js` | Resolves lesson plan keys (k5, g612, fln) to names for the portal activity lists via /api/internal/lp/describe |
 | `lp-feedback.service.js` | Post-delivery 'Was this useful?' micro-survey for lesson plans, ported from main bot, English/Urdu only |
+| `lp-in-app-answer.js` | (unmapped) |
+| `lp-in-app-feedback.service.js` | (unmapped) |
+| `lp-k5-own-author.js` | (unmapped) |
+| `lp-k5-own-close.js` | (unmapped) |
+| `lp-k5-own-fonts.js` | (unmapped) |
+| `lp-k5-own-goal.js` | (unmapped) |
+| `lp-k5-own-html.js` | (unmapped) |
+| `lp-k5-own-pages.js` | (unmapped) |
+| `lp-k5-own-render.js` | (unmapped) |
+| `lp-k5-own-source.js` | (unmapped) |
+| `lp-k5-own.js` | (unmapped) |
+| `lp-own-book.js` | (unmapped) |
+| `lp-own-edit-guard.js` | (unmapped) |
+| `lp-own-edit-instruction.js` | (unmapped) |
+| `lp-own-fit.js` | (unmapped) |
+| `lp-own-gb.js` | (unmapped) |
+| `lp-own-goal-check.js` | (unmapped) |
+| `lp-own-goal-guard.js` | (unmapped) |
+| `lp-own-goal-skills.js` | (unmapped) |
+| `lp-own-mine.js` | (unmapped) |
+| `lp-own-period.js` | (unmapped) |
+| `lp-own-recent.js` | (unmapped) |
+| `lp-own-sections.js` | (unmapped) |
+| `lp-pdf-off.js` | (unmapped) |
 | `lp-shelf.service.js` | Redis shelf of a teacher's last 5 delivered lesson plans powering multi-plan Q&A |
 | `lp-v10-card.service.js` | Serves the v10 coaching-test card to plan-arm v10 schools, else the v9 lesson (bd-v0toag.50.1) |
 | `lp-v8-browse.service.js` | Surface-neutral v8 K-5 lesson catalogue browse (grades, subjects, chapters, lessons, PDF url) for Flow and portal |
@@ -102,6 +133,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-v8-lifecycle.service.js` | Records a portal/app grades 1-5 lesson ask into the lesson-plan lifecycle row (source niete_v8_segment) |
 | `lp-vision-ocr.service.js` | Vision OCR for scanned or photo lesson plans where pdf-parse finds nothing and Textract fails (bd-o1m1m) |
 | `lp-voicenote-script.service.js` | Reads the .txt script stored beside each v8 voicenote on R2 so LP Q&A knows what the teacher heard |
+| `lp-whatsapp-off.js` | (unmapped) |
 | `lp612-author.service.js` | Authors a 6-12 lp_doc (schema 3.0) from a segment through the v9 revision ladder, ported from the Python pipeline |
 | `lp612-browse.service.js` | Surface-neutral browse of the 6-12 lesson-plan corpus (5,466 segments) for WhatsApp and portal |
 | `lp612-catalog.service.js` | Builds the 6-12 menu tree grade, subject, chapter, subtopic in the textbook's own order |
@@ -115,18 +147,40 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp612-feedback.shared.js` | Shared ids, windows and lookups for the 6-12 survey's outbound and inbound halves (bd-86ivw, bd-2dpco) |
 | `lp612-gb-delivery.service.js` | (unmapped) |
 | `lp612-gb-shelf.service.js` | (unmapped) |
+| `lp612-key-repair.js` | (unmapped) |
 | `lp612-latin-honorific.js` | Normalises Latin PBUH/SAW honorifics to the house stamp so they pass religious gate G5c (bd-b7txa) |
 | `lp612-lifecycle.service.js` | Writes the lesson-plan lifecycle row for a Grades 6-12 ask across WhatsApp and portal outcomes |
 | `lp612-overlay-backfill.service.js` | Backfill driver walking niete_lp612_renders to top up and re-render cached Urdu lessons in R2 (bd-idneu) |
 | `lp612-overlay-repair.service.js` | Repairs one cached Urdu 6-12 render back onto its own R2 objects and row (repairRow, bd-0t9ce) |
 | `lp612-overlay-topup.service.js` | Tops up one cached Urdu overlay in memory after overlayTargets widened to titles and headers (bd-idneu) |
+| `lp612-owed.store.js` | (unmapped) |
+| `lp612-own-accuracy.js` | (unmapped) |
+| `lp612-own-approval.js` | (unmapped) |
+| `lp612-own-change.js` | (unmapped) |
+| `lp612-own-close.js` | (unmapped) |
+| `lp612-own-extend.js` | (unmapped) |
+| `lp612-own-extend.store.js` | (unmapped) |
+| `lp612-own-gloss.js` | (unmapped) |
+| `lp612-own-goal.js` | (unmapped) |
+| `lp612-own-goal.store.js` | (unmapped) |
+| `lp612-own-grr.js` | (unmapped) |
 | `lp612-own-instruction.js` | (unmapped) |
+| `lp612-own-library.js` | (unmapped) |
+| `lp612-own-offer.js` | (unmapped) |
+| `lp612-own-pages.js` | (unmapped) |
+| `lp612-own-rating.js` | (unmapped) |
+| `lp612-own-review.js` | (unmapped) |
+| `lp612-own-reviewer.js` | (unmapped) |
+| `lp612-own-rubric.js` | (unmapped) |
+| `lp612-own-slo.js` | (unmapped) |
+| `lp612-own-ways.js` | (unmapped) |
 | `lp612-own.service.js` | (unmapped) |
 | `lp612-pagetruth.service.js` | Page-truth retrieval: hands the 6-12 author the exact textbook pages it asked for or fails by name |
 | `lp612-render-policy.service.js` | Single policy for which render defects may still reach a teacher (final render, timeout recovery, Urdu overlay) |
 | `lp612-render.service.js` | Renders a 6-12 lp_doc to self-contained HTML and A4 PDF via the vendored lp-v9 renderer |
 | `lp612-serving.service.js` | 6-12 serving: finds or authors a render for (segment, lang, template version) with R2 cache and waiters |
 | `menu-match.service.js` | Reads a message no door caught against the user's live menu so the fallthrough classifier can open the right feature |
+| `menu-request.js` | (unmapped) |
 | `menu.service.js` | Menu service: builds and sends the role-shaped WhatsApp menu rows and handles refused taps |
 | `mms-inference.service.js` | HTTP client for the MMS-ASR microservice (Balochi, Sindhi, Pashto speech recognition) |
 | `name-extractor.service.js` | GPT-4o-mini extraction of student names and attendance status from transcripts |
@@ -150,6 +204,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `region.service.js` | (unmapped) |
 | `registration-invite.service.js` | The one registration Flow invite sender used by every door that offers the form |
 | `roster-entry.service.js` | Single door opening the class-roster builder Flow, applying the leader gate |
+| `sandbox-tester.js` | (unmapped) |
 | `session.service.js` | Message dedup and user tracking with Redis persistence and in-memory fallback |
 | `settings-group.js` | Shared app_settings reader: one query for a host switch and the rider switches that join its group |
 | `share-send.service.js` | 'Send on WhatsApp' from portal screens: template-only sendShare behind /api/internal/share/send (bd-fmf24g.30) |
@@ -179,211 +234,280 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `anthropic-native-facade.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:34:44428436` · `bot/shared/services/llm-client.js:36:e526dad9`
-- `app-journey.js` ← imported by `dashboard/routes/app-funnel.routes.js:28:37e01298` · `bot/shared/services/app-login-link.js:28:fd343b89` · `bot/shared/services/app-redirect.service.js:88:67227909`
-- `app-login-link.js` ← imported by `bot/shared/handlers/flow-response.handler.js:634:3bc2979c` · `bot/shared/handlers/portal-command.handler.js:18:3bc2979c` · `dashboard/routes/app-login.routes.js:19:e76d249c` · `bot/shared/services/app-redirect.service.js:84:7886d7d9` (+4: `python3 kg/kg.py who-reads app-login-link.js`)
-- `app-redirect.service.js` ← imported by `bot/shared/handlers/image-message.handler.js:28:3ba5ce5f` · `bot/shared/handlers/text-message.handler.js:233:1cbd4c53` · `bot/shared/handlers/voice-message.handler.js:44:3ba5ce5f` · `bot/whatsapp-bot.js:372:a39e1540` (+9: `python3 kg/kg.py who-reads app-redirect.service.js`)
-- `assessment-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1470:1e0f47b4` · `bot/shared/services/menu.service.js:345:bad9701d`
-- `attendance-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2570:76808684` · `bot/shared/services/menu.service.js:309:468756cd`
-- `attendance-portal.service.js` ← imported by `bot/shared/routes/internal-attendance.routes.js:31:3d954556`
-- `attendance-register-delivery.service.js` ← imported by `bot/shared/routes/attendance-marking-endpoint.js:43:1e56a351` · `bot/shared/services/attendance-portal.service.js:233:2be74a81`
-- `attendance-register.service.js` ← imported by `bot/shared/services/attendance-portal.service.js:234:2daf067f` · `bot/shared/services/attendance-register-delivery.service.js:21:77f5610e`
-- `attendance-router.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:59:4ce546e7` · `bot/whatsapp-bot.js:241:8e987bdd` · `bot/shared/services/attendance-entry.service.js:34:d7d94258`
-- `attendance-write.service.js` ← imported by `bot/shared/routes/attendance-marking-endpoint.js:39:d809cab7` · `bot/shared/services/attendance-portal.service.js:232:a3404b7b` · `bot/shared/services/attendance-register-delivery.service.js:22:c8fb07f4`
-- `audio.service.js` ← imported by `bot/shared/handlers/voice-message.handler.js:10:5930b957` · `bot/whatsapp-bot.js:2564:37ebc6ce` · `bot/shared/services/child-test/scoring/stt.js:15:15df7ce8` · `bot/shared/services/coaching/fidelity/section-b-backfill.service.js:108:15df7ce8` (+10: `python3 kg/kg.py who-reads audio.service.js`)
+- `app-journey.js` ← imported by `dashboard/routes/app-funnel.routes.js:28:37e01298` · `dashboard/routes/coach-handoff.routes.js:27:99f78cd8` · `bot/shared/services/app-login-link.js:28:fd343b89` · `bot/shared/services/app-redirect.service.js:106:67227909`
+- `app-login-link.js` ← imported by `bot/shared/handlers/flow-response.handler.js:638:3bc2979c` · `bot/shared/handlers/portal-command.handler.js:18:3bc2979c` · `dashboard/routes/app-login.routes.js:19:e76d249c` · `bot/shared/services/app-redirect.service.js:102:7886d7d9` (+5: `python3 kg/kg.py who-reads app-login-link.js`)
+- `app-redirect.service.js` ← imported by `bot/shared/handlers/image-message.handler.js:30:3ba5ce5f` · `bot/shared/handlers/text-message.handler.js:245:1cbd4c53` · `bot/shared/handlers/voice-message.handler.js:44:3ba5ce5f` · `bot/whatsapp-bot.js:374:a39e1540` (+13: `python3 kg/kg.py who-reads app-redirect.service.js`)
+- `assessment-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1502:1e0f47b4` · `bot/shared/services/menu.service.js:345:bad9701d`
+- `attendance-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2602:76808684` · `bot/shared/services/menu.service.js:309:468756cd`
+- `attendance-keywords.js` ← imported by `bot/shared/services/attendance-router.service.js:54:1d399aad` · `bot/shared/services/menu-request.js:30:c3202cf3`
+- `attendance-portal.service.js` ← imported by `bot/shared/routes/internal-attendance.routes.js:37:3d954556`
+- `attendance-register-delivery.service.js` ← imported by `bot/shared/routes/attendance-marking-endpoint.js:43:1e56a351` · `bot/shared/services/attendance-portal.service.js:428:2be74a81`
+- `attendance-register.service.js` ← imported by `bot/shared/services/attendance-portal.service.js:39:2daf067f` · `bot/shared/services/attendance-register-delivery.service.js:21:77f5610e`
+- `attendance-router.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:63:4ce546e7` · `bot/whatsapp-bot.js:243:8e987bdd` · `bot/shared/services/attendance-entry.service.js:34:d7d94258`
+- `attendance-write.service.js` ← imported by `bot/shared/routes/attendance-marking-endpoint.js:39:d809cab7` · `bot/shared/services/attendance-portal.service.js:427:47f344d1` · `bot/shared/services/attendance-register-delivery.service.js:22:c8fb07f4`
+- `audio.service.js` ← imported by `bot/shared/handlers/voice-message.handler.js:10:5930b957` · `bot/whatsapp-bot.js:2616:37ebc6ce` · `bot/shared/services/child-test/scoring/stt.js:15:15df7ce8` · `bot/shared/services/coaching/fidelity/section-b-backfill.service.js:108:15df7ce8` (+10: `python3 kg/kg.py who-reads audio.service.js`)
 - `aws-textract.service.js` ← imported by `bot/workers/lesson-plan-extraction.worker.js:17:56d91229`
 - `book-curriculum.service.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:26:185129c9` · `bot/shared/routes/internal-api.routes.js:147:f52c9062` · `bot/shared/routes/pakistan-lp-endpoint.js:64:185129c9` · `bot/shared/services/assessment/assessment-browse.service.js:28:3340ca38` (+6: `python3 kg/kg.py who-reads book-curriculum.service.js`)
-- `coach-school-target.js` ← imported by `dashboard/routes/app-login.routes.js:182:6122db69` · `bot/shared/services/app-login-link.js:87:8073ef41` · `bot/shared/services/app-redirect.service.js:176:bd821bbb` · `bot/shared/services/schools/school-card-door.js:24:b36819a3`
-- `coach-voice-note-retention.service.js` ← imported by `bot/workers/sqs-worker.js:1858:f8d51159`
-- `coaching-orchestrator.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:16:73c527bb` · `bot/shared/handlers/voice-message.handler.js:14:73c527bb` · `bot/whatsapp-bot.js:23:eeb29561` · `bot/workers/sqs-worker.js:38:96db3cf9` (+2: `python3 kg/kg.py who-reads coaching-orchestrator.service.js`)
-- `content.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:9:056d2128` · `bot/shared/handlers/voice-message.handler.js:12:056d2128` · `bot/workers/lesson-plan-generation.worker.js:20:5c4b2dec` · `bot/shared/services/grounded-lp-render.service.js:26:8099762c`
-- `context.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:12:4abb92f2`
-- `conversation-resume.service.js` ← imported by `bot/whatsapp-bot.js:770:adbc7a8c` · `bot/workers/sqs-worker.js:2119:45970460` · `bot/shared/services/teacher-state.service.js:29:7f79f69f`
-- `conversation-state.service.js` ← imported by `bot/shared/handlers/flow-response.handler.js:50:10ab1f64` · `bot/shared/handlers/text-message.handler.js:19:10ab1f64` · `bot/shared/handlers/voice-message.handler.js:15:10ab1f64` · `bot/shared/routes/attendance-marking-endpoint.js:41:10ab1f64` (+10: `python3 kg/kg.py who-reads conversation-state.service.js`)
+- `coach-app-nudge.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:882:c8797429`
+- `coach-app-offer.js` ← imported by `bot/shared/services/app-redirect.service.js:109:0f50f19a` · `bot/shared/services/coach-app-nudge.service.js:37:f21434ed` · `bot/shared/services/observe/coach-report-whatsapp.service.js:159:0f457bdf`
+- `coach-handoff-code.js` ← imported by `dashboard/routes/app-funnel.routes.js:503:1f0e3ccf` · `dashboard/routes/coach-handoff.routes.js:26:97c6e174` · `bot/shared/services/coach-app-nudge.service.js:35:e325c13c` · `bot/shared/services/coach-app-offer.js:16:4251d759`
+- `coach-school-target.js` ← imported by `dashboard/routes/app-login.routes.js:182:6122db69` · `bot/shared/services/app-login-link.js:94:8073ef41` · `bot/shared/services/app-redirect.service.js:200:bd821bbb` · `bot/shared/services/schools/school-card-door.js:24:b36819a3`
+- `coach-voice-note-retention.service.js` ← imported by `bot/workers/sqs-worker.js:1864:f8d51159`
+- `coaching-orchestrator.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:17:73c527bb` · `bot/shared/handlers/voice-message.handler.js:14:73c527bb` · `bot/whatsapp-bot.js:23:eeb29561` · `bot/workers/sqs-worker.js:38:96db3cf9` (+2: `python3 kg/kg.py who-reads coaching-orchestrator.service.js`)
+- `content.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:10:056d2128` · `bot/shared/handlers/voice-message.handler.js:12:056d2128` · `bot/workers/lesson-plan-generation.worker.js:20:5c4b2dec` · `bot/shared/services/grounded-lp-render.service.js:26:8099762c`
+- `context.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:13:4abb92f2`
+- `conversation-resume.service.js` ← imported by `bot/whatsapp-bot.js:781:adbc7a8c` · `bot/workers/sqs-worker.js:2125:45970460` · `bot/shared/services/teacher-state.service.js:29:7f79f69f`
+- `conversation-state.service.js` ← imported by `bot/shared/handlers/flow-response.handler.js:50:10ab1f64` · `bot/shared/handlers/text-message.handler.js:20:10ab1f64` · `bot/shared/handlers/voice-message.handler.js:15:10ab1f64` · `bot/shared/routes/attendance-marking-endpoint.js:41:10ab1f64` (+10: `python3 kg/kg.py who-reads conversation-state.service.js`)
 - `curriculum-lp-ast.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:33:d8d77c9b` · `bot/workers/lesson-plan-generation.worker.js:25:19e3c52a` · `bot/shared/services/grounded-lp-render.service.js:27:e50f22ed`
-- `e2e-cassette.js` ← imported by `bot/shared/services/audio.service.js:705:33e33272` · `bot/shared/services/coaching/reflective-questions/llm-router.service.js:82:9787844f` · `bot/shared/services/elevenlabs.service.js:102:33e33272` · `bot/shared/services/llm-client.js:893:33e33272` (+1: `python3 kg/kg.py who-reads e2e-cassette.js`)
+- `e2e-cassette.js` ← imported by `bot/shared/services/audio.service.js:705:33e33272` · `bot/shared/services/coaching/reflective-questions/llm-router.service.js:82:9787844f` · `bot/shared/services/elevenlabs.service.js:102:33e33272` · `bot/shared/services/llm-client.js:899:33e33272` (+1: `python3 kg/kg.py who-reads e2e-cassette.js`)
 - `elevenlabs.service.js` ← imported by `bot/shared/services/audio.service.js:920:b4cae654` · `bot/shared/services/tts/providers/elevenlabs.provider.js:27:d9b47a9f` · `bot/shared/services/tts/providers/openai.provider.js:14:d9b47a9f`
-- `feature-intro.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:30:a2c580e4` · `bot/shared/services/feature-keyword-detector.service.js:16:cdad3fb7` · `bot/shared/services/feature-linker.service.js:25:cdad3fb7` · `bot/shared/services/first-touch/door.keys.js:25:ab6dc515` (+5: `python3 kg/kg.py who-reads feature-intro.service.js`)
-- `feature-keyword-detector.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2752:18efb081` · `bot/whatsapp-bot.js:1273:0e4847c5`
-- `feature-linker.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:29:e1a3c9dc` · `bot/whatsapp-bot.js:1258:a7e67306` · `bot/workers/lesson-plan-generation.worker.js:23:9cffe26b` · `bot/shared/services/coaching/report-generator.service.js:29:a1aeaf86` (+1: `python3 kg/kg.py who-reads feature-linker.service.js`)
-- `feature-registration.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:11:4ac5f445` · `bot/shared/handlers/voice-message.handler.js:13:4ac5f445` · `bot/workers/lesson-plan-generation.worker.js:24:bca137f5` · `bot/workers/video-generation.worker.js:23:bca137f5` (+2: `python3 kg/kg.py who-reads feature-registration.service.js`)
-- `fln-go-target.js` ← imported by `dashboard/routes/app-login.routes.js:190:98eb7896` · `bot/shared/services/app-login-link.js:86:a5c5865b`
+- `feature-intro.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:34:a2c580e4` · `bot/shared/services/feature-keyword-detector.service.js:16:cdad3fb7` · `bot/shared/services/feature-linker.service.js:25:cdad3fb7` · `bot/shared/services/first-touch/door.keys.js:25:ab6dc515` (+5: `python3 kg/kg.py who-reads feature-intro.service.js`)
+- `feature-keyword-detector.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2784:18efb081` · `bot/whatsapp-bot.js:1284:0e4847c5`
+- `feature-linker.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:33:e1a3c9dc` · `bot/whatsapp-bot.js:1269:a7e67306` · `bot/workers/lesson-plan-generation.worker.js:23:9cffe26b` · `bot/shared/services/coaching/report-generator.service.js:29:a1aeaf86` (+1: `python3 kg/kg.py who-reads feature-linker.service.js`)
+- `feature-registration.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:12:4ac5f445` · `bot/shared/handlers/voice-message.handler.js:13:4ac5f445` · `bot/workers/lesson-plan-generation.worker.js:24:bca137f5` · `bot/workers/video-generation.worker.js:23:bca137f5` (+2: `python3 kg/kg.py who-reads feature-registration.service.js`)
+- `fln-go-target.js` ← imported by `dashboard/routes/app-login.routes.js:190:98eb7896` · `bot/shared/services/app-login-link.js:93:a5c5865b`
 - `fln-index.service.js` ← imported by `bot/shared/services/lp-describe-fln.js:86:db3ad3d8`
 - `fln-keys.js` ← imported by `bot/shared/routes/internal-fln-send.routes.js:27:e18774a9` · `dashboard/routes/portal-fln-send.routes.js:28:059e0c71` · `bot/shared/services/fln-send.service.js:22:1ef9db28`
 - `fln-send.service.js` ← imported by `bot/shared/routes/internal-fln-send.routes.js:53:aba2f7b8`
 - `fln-send.strings.js` ← imported by `bot/shared/services/fln-send.service.js:21:89e30e13`
 - `flow-encryption.service.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:25:59b33e9c` · `bot/shared/routes/exam-confirm-endpoint.js:22:59b33e9c` · `bot/shared/routes/flow-endpoint.routes.js:15:59b33e9c`
 - `gb-k5-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1346:65e808d6`
-- `gb-lp-serving.service.js` ← imported by `bot/scripts/gb-seed-renders.js:22:3718e7f6` · `bot/workers/gb-lp-author.worker.js:39:3718e7f6` · `bot/shared/services/gb-k5-browse.service.js:22:738955ca` · `bot/shared/services/lp612-feedback-taps.service.js:27:1eaf4df0` (+1: `python3 kg/kg.py who-reads gb-lp-serving.service.js`)
-- `gpt5-mini.service.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:22:139682f2` · `bot/shared/services/coaching/coaching-card/commitment-card.service.js:19:742a30d9` · `bot/shared/services/coaching/portal-class-check.js:87:00d7566c` · `bot/shared/services/coaching/reflective-conversation.service.js:18:139682f2` (+8: `python3 kg/kg.py who-reads gpt5-mini.service.js`)
+- `gb-lp-serving.service.js` ← imported by `bot/scripts/gb-seed-renders.js:22:3718e7f6` · `bot/scripts/gb-seed-traces.js:19:3718e7f6` · `bot/workers/gb-lp-author.worker.js:39:3718e7f6` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:71:e0feffdf` (+5: `python3 kg/kg.py who-reads gb-lp-serving.service.js`)
+- `gpt5-mini.service.js` ← imported by `bot/scripts/fico17-v6-replay.js:457:7e969592` · `bot/shared/services/coaching/analysis-processor.service.js:22:139682f2` · `bot/shared/services/coaching/coaching-card/commitment-card.service.js:19:742a30d9` · `bot/shared/services/coaching/frameworks/fico17-v6/informed.js:181:ab1c862e` (+12: `python3 kg/kg.py who-reads gpt5-mini.service.js`)
 - `grounded-lp-render.service.js` ← imported by `bot/workers/lesson-plan-generation.worker.js:26:3ff30fe0`
-- `helper-agent.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:25:ecc0c851`
+- `helper-agent.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:26:ecc0c851`
 - `homework-lookup.service.js` ← imported by `bot/shared/routes/homework-request-endpoint.js:27:19bf3392`
-- `inbound-typing.js` ← imported by `bot/shared/handlers/text-message.handler.js:33:b4760a90` · `bot/whatsapp-bot.js:11:2545a79b` · `bot/shared/services/app-redirect.service.js:83:5640278f` · `bot/shared/services/coaching/classroom-photo/add-another.service.js:138:084c17b5` (+8: `python3 kg/kg.py who-reads inbound-typing.js`)
-- `language-detector.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:10:58e3d002` · `bot/shared/handlers/voice-message.handler.js:1051:58e3d002` · `bot/shared/services/audio.service.js:269:d428b494`
-- `lesson-plan-lifecycle.service.js` ← imported by `bot/shared/database/bot-helpers.js:448:e9f9e707` · `bot/shared/handlers/lesson-plan-v2.handler.js:41:b2eb0530` · `bot/shared/routes/homework-request-endpoint.js:28:b2eb0530` · `bot/shared/routes/pakistan-lp-endpoint.js:919:f66c13d3` (+10: `python3 kg/kg.py who-reads lesson-plan-lifecycle.service.js`)
-- `lesson-plan-queue.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:34:5ecc6bb0` · `bot/shared/handlers/text-message.handler.js:31:5ecc6bb0` · `bot/shared/handlers/voice-message.handler.js:18:5ecc6bb0` · `bot/shared/routes/internal-api.routes.js:63:5ecc6bb0` (+2: `python3 kg/kg.py who-reads lesson-plan-queue.service.js`)
+- `howto-first-touch.service.js` ← imported by `bot/whatsapp-bot.js:756:46fdfdb9`
+- `inbound-media-failed.service.js` ← imported by `bot/whatsapp-bot.js:139:76749825`
+- `inbound-typing.js` ← imported by `bot/shared/handlers/text-message.handler.js:37:b4760a90` · `bot/whatsapp-bot.js:11:2545a79b` · `bot/shared/services/app-redirect.service.js:101:5640278f` · `bot/shared/services/coaching/classroom-photo/add-another.service.js:138:084c17b5` (+8: `python3 kg/kg.py who-reads inbound-typing.js`)
+- `language-detector.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:11:58e3d002` · `bot/shared/handlers/voice-message.handler.js:1051:58e3d002` · `bot/shared/services/audio.service.js:269:d428b494`
+- `lesson-plan-lifecycle.service.js` ← imported by `bot/shared/database/bot-helpers.js:448:e9f9e707` · `bot/shared/handlers/lesson-plan-v2.handler.js:41:b2eb0530` · `bot/shared/routes/homework-request-endpoint.js:28:b2eb0530` · `bot/shared/routes/pakistan-lp-endpoint.js:943:f66c13d3` (+10: `python3 kg/kg.py who-reads lesson-plan-lifecycle.service.js`)
+- `lesson-plan-queue.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:34:5ecc6bb0` · `bot/shared/handlers/text-message.handler.js:35:5ecc6bb0` · `bot/shared/handlers/voice-message.handler.js:18:5ecc6bb0` · `bot/shared/routes/internal-api.routes.js:63:5ecc6bb0` (+2: `python3 kg/kg.py who-reads lesson-plan-queue.service.js`)
 - `lesson-plan-template.service.js` ← imported by `bot/shared/services/content.service.js:5:16d8038c`
 - `lesson-planning.service.js` ← imported by `bot/shared/services/menu.service.js:10:d3ba9a89`
 - `lesson-plans-web-link.js` ← imported by `bot/shared/services/lp-browse-entry.service.js:59:7166726d`
-- `llm-client.js` ← imported by `bot/shared/handlers/text-message.handler.js:63:7dd19154` · `bot/shared/utils/word-grid-generator.js:22:7dd19154` · `bot/workers/lesson-plan-extraction.worker.js:11:3b73f0a2` · `dashboard/routes/hcp.routes.js:882:4243a38a` (+38: `python3 kg/kg.py who-reads llm-client.js`)
+- `llm-client.js` ← imported by `bot/scripts/fico17-v6-replay.js:459:e80ae029` · `bot/shared/handlers/text-message.handler.js:67:7dd19154` · `bot/shared/utils/word-grid-generator.js:22:7dd19154` · `bot/workers/lesson-plan-extraction.worker.js:11:3b73f0a2` (+42: `python3 kg/kg.py who-reads llm-client.js`)
 - `lp-ab-ch310.service.js` ← imported by `bot/shared/services/lp-v8-browse.service.js:145:03030987` · `bot/shared/services/lp-v8-delivery.service.js:31:03030987` · `bot/shared/services/quiz/lp-app-opens.store.js:58:a7d6d323`
-- `lp-app-open-survey.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1523:1cf81e98`
-- `lp-browse-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:49:1f8c74df` · `bot/shared/handlers/voice-message.handler.js:40:fcd207bc` · `bot/workers/lesson-plan-generation.worker.js:31:882d6fc7` · `bot/shared/services/first-touch/maker.fallback.js:61:25dfa8e0` (+1: `python3 kg/kg.py who-reads lp-browse-entry.service.js`)
-- `lp-context.service.js` ← imported by `bot/shared/calls/call-context.repo.js:82:ac2a5137` · `bot/shared/handlers/text-message.handler.js:13:11a033c2` · `bot/shared/handlers/voice-message.handler.js:6:11a033c2`
+- `lp-app-open-survey.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1523:1cf81e98` · `bot/shared/services/lp-in-app-feedback.service.js:30:dddbd7da`
+- `lp-browse-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:53:1f8c74df` · `bot/shared/handlers/voice-message.handler.js:40:fcd207bc` · `bot/workers/lesson-plan-generation.worker.js:31:882d6fc7` · `bot/shared/services/first-touch/maker.fallback.js:61:25dfa8e0` (+1: `python3 kg/kg.py who-reads lp-browse-entry.service.js`)
+- `lp-context.service.js` ← imported by `bot/shared/calls/call-context.repo.js:82:ac2a5137` · `bot/shared/handlers/text-message.handler.js:14:11a033c2` · `bot/shared/handlers/voice-message.handler.js:6:11a033c2`
 - `lp-delivery-marker.service.js` ← imported by `bot/shared/services/lp-v8-delivery.service.js:30:f19cde34`
 - `lp-describe-fln.js` ← imported by `bot/shared/services/lp-describe.service.js:111:8615c728`
 - `lp-describe.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1489:fda5e1c1`
-- `lp-feedback.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:35:3284ce37` · `bot/shared/handlers/text-message.handler.js:32:3284ce37` · `bot/whatsapp-bot.js:882:cc5f2ea1` · `bot/workers/homework-bundle.worker.js:215:3cf8c555` (+3: `python3 kg/kg.py who-reads lp-feedback.service.js`)
-- `lp-shelf.service.js` ← imported by `bot/shared/services/attendance-router.service.js:336:27fa99fb` · `bot/shared/services/coaching/coaching-session.service.js:37:782730e3` · `bot/shared/services/lp-context.service.js:50:27fa99fb` · `bot/shared/services/lp-v8-delivery.service.js:26:27fa99fb` (+5: `python3 kg/kg.py who-reads lp-shelf.service.js`)
+- `lp-feedback.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:35:3284ce37` · `bot/shared/handlers/text-message.handler.js:36:3284ce37` · `bot/whatsapp-bot.js:893:cc5f2ea1` · `bot/workers/homework-bundle.worker.js:215:3cf8c555` (+3: `python3 kg/kg.py who-reads lp-feedback.service.js`)
+- `lp-in-app-answer.js` ← imported by `bot/shared/services/lp-feedback.service.js:323:818e3c7d`
+- `lp-in-app-feedback.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1549:65d3ccf1`
+- `lp-k5-own-author.js` ← imported by `bot/workers/lp612-own.worker.js:290:6c027bbb`
+- `lp-k5-own-close.js` ← imported by `bot/workers/lp612-own.worker.js:39:e05bd162`
+- `lp-k5-own-fonts.js` ← imported by `bot/workers/lp612-own.worker.js:246:a0e4e520`
+- `lp-k5-own-goal.js` ← imported by `bot/shared/services/lp-k5-own.js:26:5ddff658` · `bot/shared/services/lp-own-goal-skills.js:13:8b9112d4` · `bot/shared/services/lp612-own-goal.store.js:14:5cfb1e85`
+- `lp-k5-own-html.js` ← imported by `bot/shared/services/lp-k5-own-source.js:14:d9298442`
+- `lp-k5-own-pages.js` ← imported by `bot/shared/services/lp-k5-own-source.js:19:380fb620` · `bot/shared/services/lp-k5-own.js:25:9863b4b0` · `bot/shared/services/lp-own-book.js:14:8ba8dd40` · `bot/shared/services/lp612-own.service.js:35:7732e0b7`
+- `lp-k5-own-render.js` ← imported by `bot/workers/lp612-own.worker.js:245:e4d5f852`
+- `lp-k5-own-source.js` ← imported by `bot/workers/lp612-own.worker.js:288:cadc62ee` · `bot/shared/services/lp-own-book.js:150:0c4b2340` · `bot/shared/services/lp612-own.service.js:248:783ed81c`
+- `lp-k5-own.js` ← imported by `bot/workers/lp612-own.worker.js:123:5c24ad10` · `bot/shared/services/lp-k5-own-author.js:12:18cd1f1a` · `bot/shared/services/lp-own-edit-instruction.js:10:f0331560`
+- `lp-own-book.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:81:0e9139da` · `bot/workers/lp612-own.worker.js:289:874a5835`
+- `lp-own-edit-guard.js` ← imported by `bot/workers/lp612-own.worker.js:36:a36fd928` · `bot/shared/services/lp-own-mine.js:7:63c53b22` · `bot/shared/services/lp-own-sections.js:10:b14bfc75` · `bot/shared/services/lp612-own-change.js:12:f6a49870` (+1: `python3 kg/kg.py who-reads lp-own-edit-guard.js`)
+- `lp-own-edit-instruction.js` ← imported by `bot/workers/lp612-own.worker.js:35:7a5fe054` · `bot/shared/services/lp-k5-own-author.js:24:0366982a`
+- `lp-own-fit.js` ← imported by `bot/shared/services/lp-k5-own-author.js:14:a706416d` · `bot/shared/services/lp-k5-own.js:37:904ba46f`
+- `lp-own-gb.js` ← imported by `dashboard/lib/lp-app-switches.js:24:cc7aa9a7` · `dashboard/routes/portal-lp612-own-goal.routes.js:21:cc7aa9a7` · `dashboard/routes/portal-lp612-own.routes.js:26:31b9eba3` · `dashboard/routes/portal-lp612-shelf.routes.js:22:31b9eba3` (+3: `python3 kg/kg.py who-reads lp-own-gb.js`)
+- `lp-own-goal-check.js` ← imported by `bot/workers/lp612-own.worker.js:40:4ce403b0`
+- `lp-own-goal-guard.js` ← imported by `dashboard/routes/portal-lp612-own-goal.routes.js:26:5a80930c` · `bot/shared/services/lp612-own-instruction.js:21:5b471741`
+- `lp-own-goal-skills.js` ← imported by `bot/shared/services/lp612-own-goal.store.js:15:c26edaf0`
+- `lp-own-mine.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:97:48c1d73f` · `bot/shared/routes/internal-lp612-shelf.routes.js:28:0dbadd72` · `bot/shared/services/lp-own-recent.js:8:9afacf1f` · `bot/shared/services/lp612-own-library.js:70:f983e0a0`
+- `lp-own-period.js` ← imported by `bot/shared/services/lp-k5-own-author.js:13:f68900a5` · `bot/shared/services/lp-k5-own.js:28:b2850748` · `bot/shared/services/lp-own-fit.js:20:b2850748` · `bot/shared/services/lp612-own-instruction.js:18:4e8660ba`
+- `lp-own-recent.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:118:c2d1e7aa` · `bot/shared/services/observe/observe-own-plans.js:51:ce3fa0eb`
+- `lp-own-sections.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:135:7fc5217a`
+- `lp-pdf-off.js` ← imported by `bot/shared/handlers/text-message.handler.js:185:2bab7272` · `bot/shared/services/lp-v8-delivery.service.js:37:135607f4` · `bot/shared/services/lp612-serving.service.js:775:0667e338`
+- `lp-shelf.service.js` ← imported by `bot/shared/services/attendance-router.service.js:320:27fa99fb` · `bot/shared/services/coaching/coaching-session.service.js:37:782730e3` · `bot/shared/services/lp-context.service.js:50:27fa99fb` · `bot/shared/services/lp-v8-delivery.service.js:26:27fa99fb` (+5: `python3 kg/kg.py who-reads lp-shelf.service.js`)
 - `lp-v10-card.service.js` ← imported by `bot/shared/services/lp-v8-browse.service.js:189:f38c1148` · `bot/shared/services/lp-v8-delivery.service.js:34:f38c1148`
-- `lp-v8-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1344:5d3f1493` · `bot/shared/services/share-send.service.js:98:ddbe5c42`
-- `lp-v8-catalog.service.js` ← imported by `bot/scripts/sync-sheet-lps.js:326:ad6186c2` · `bot/shared/calls/call-tools.repo.js:138:3feaf5e3` · `bot/shared/routes/pakistan-lp-endpoint.js:57:3feaf5e3` · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:46:1f46c9ff` (+16: `python3 kg/kg.py who-reads lp-v8-catalog.service.js`)
-- `lp-v8-delivery.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:58:7d11cb01` · `bot/shared/services/lp-app-open-survey.service.js:155:4ef7ad19` · `bot/shared/services/lp-v8-browse.service.js:54:8f3e780a`
-- `lp-v8-lifecycle.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1443:ba6311e7` · `bot/shared/services/lp-app-open-survey.service.js:169:850b9634`
-- `lp-vision-ocr.service.js` ← imported by `bot/workers/lesson-plan-extraction.worker.js:321:64ef8abe`
+- `lp-v8-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1344:5d3f1493` · `bot/shared/services/gb-k5-browse.service.js:29:0516ea24` · `bot/shared/services/share-send.service.js:102:ddbe5c42`
+- `lp-v8-catalog.service.js` ← imported by `bot/scripts/sync-sheet-lps.js:326:ad6186c2` · `bot/shared/calls/call-tools.repo.js:138:3feaf5e3` · `bot/shared/routes/pakistan-lp-endpoint.js:57:3feaf5e3` · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:46:1f46c9ff` (+20: `python3 kg/kg.py who-reads lp-v8-catalog.service.js`)
+- `lp-v8-delivery.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:58:7d11cb01` · `bot/shared/services/lp-app-open-survey.service.js:173:4ef7ad19` · `bot/shared/services/lp-in-app-feedback.service.js:108:4ef7ad19` · `bot/shared/services/lp-k5-own-source.js:72:6e727678` (+1: `python3 kg/kg.py who-reads lp-v8-delivery.service.js`)
+- `lp-v8-lifecycle.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1443:ba6311e7` · `bot/shared/services/lp-app-open-survey.service.js:187:850b9634`
+- `lp-vision-ocr.service.js` ← imported by `bot/workers/lesson-plan-extraction.worker.js:338:64ef8abe`
 - `lp-voicenote-script.service.js` ← imported by `bot/shared/calls/call-tools.repo.js:171:48bb8c99` · `bot/shared/services/lp-context.service.js:52:d25986e6`
-- `lp612-author.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:33:d4fc58e9` · `bot/workers/lp612-author.worker.js:42:6e456921` · `bot/workers/lp612-own.worker.js:149:491af8f8` · `bot/shared/services/lp612-overlay-topup.service.js:48:e73cab30`
-- `lp612-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2350:0eea3dc6`
+- `lp-whatsapp-off.js` ← imported by `bot/shared/services/app-redirect.service.js:112:3e6732ff` · `bot/shared/services/lp-feedback.service.js:231:fb07ff6b` · `bot/shared/services/lp-pdf-off.js:13:3e6732ff` · `bot/shared/services/lp612-feedback.service.js:139:fb07ff6b`
+- `lp612-author.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:33:d4fc58e9` · `bot/workers/lp612-author.worker.js:42:6e456921` · `bot/workers/lp612-own.worker.js:287:491af8f8` · `bot/shared/services/lp612-overlay-topup.service.js:48:e73cab30`
+- `lp612-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2437:0eea3dc6`
 - `lp612-catalog.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:62:22b61272` · `bot/shared/services/lp612-gb-delivery.service.js:26:669d8a81` · `bot/shared/services/lp612-gb-shelf.service.js:22:669d8a81` · `bot/shared/services/lp612-serving.service.js:48:6a71a39f`
-- `lp612-curriculum.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:70:d4c08505` · `bot/shared/services/gb-k5-browse.service.js:20:68554a04` · `bot/shared/services/gb-lp-serving.service.js:34:87d0d857` · `bot/shared/services/lp612-gb-shelf.service.js:23:f84f6eb4`
-- `lp612-deliveries.store.js` ← imported by `bot/workers/lp612-author.worker.js:60:3082da04` · `bot/shared/services/lp612-browse.service.js:52:e2c4a7ac` · `bot/shared/services/lp612-serving.service.js:883:e2c4a7ac` · `bot/shared/services/portal-ready-whatsapp.service.js:49:e2c4a7ac` (+1: `python3 kg/kg.py who-reads lp612-deliveries.store.js`)
+- `lp612-curriculum.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:70:d4c08505` · `bot/shared/services/gb-k5-browse.service.js:26:68554a04` · `bot/shared/services/gb-lp-serving.service.js:38:87d0d857` · `bot/shared/services/lp612-gb-shelf.service.js:23:f84f6eb4`
+- `lp612-deliveries.store.js` ← imported by `bot/workers/lp612-author.worker.js:62:3082da04` · `bot/workers/lp612-redeliver.js:16:3082da04` · `bot/shared/services/lp612-browse.service.js:52:e2c4a7ac` · `bot/shared/services/lp612-serving.service.js:890:e2c4a7ac` (+2: `python3 kg/kg.py who-reads lp612-deliveries.store.js`)
 - `lp612-edit-intent.service.js` ← imported by `bot/shared/services/lp612-edit-router.service.js:32:e914c6c9`
-- `lp612-edit-router.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:52:bdc1c464`
-- `lp612-fbise-tags.js` ← imported by `bot/shared/services/lp612-render.service.js:45:687c87a1`
-- `lp612-feedback-taps.service.js` ← imported by `bot/shared/services/lp612-feedback.service.js:61:d4c10cb1`
-- `lp612-feedback.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:351:f215d166` · `bot/whatsapp-bot.js:894:c634cdc4` · `bot/shared/services/lp-app-open-survey.service.js:199:83b4d372` · `bot/shared/services/lp612-serving.service.js:911:83b4d372`
+- `lp612-edit-router.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:56:bdc1c464`
+- `lp612-fbise-tags.js` ← imported by `bot/shared/services/lp612-render.service.js:46:687c87a1`
+- `lp612-feedback-taps.service.js` ← imported by `bot/shared/services/lp-in-app-feedback.service.js:134:2483eb4f` · `bot/shared/services/lp612-feedback.service.js:61:d4c10cb1`
+- `lp612-feedback.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:363:f215d166` · `bot/whatsapp-bot.js:905:c634cdc4` · `bot/shared/services/lp-app-open-survey.service.js:217:83b4d372` · `bot/shared/services/lp612-serving.service.js:918:83b4d372`
 - `lp612-feedback.shared.js` ← imported by `bot/shared/services/lp612-feedback-taps.service.js:19:59304a35` · `bot/shared/services/lp612-feedback.service.js:58:59304a35`
-- `lp612-gb-delivery.service.js` ← imported by `bot/shared/services/gb-k5-browse.service.js:21:b56c059c` · `bot/shared/services/gb-lp-serving.service.js:33:993b02df` · `bot/shared/services/lp612-feedback-taps.service.js:15:993b02df` · `bot/shared/services/lp612-serving.service.js:54:993b02df`
+- `lp612-gb-delivery.service.js` ← imported by `bot/shared/services/gb-k5-browse.service.js:27:b56c059c` · `bot/shared/services/gb-lp-serving.service.js:37:993b02df` · `bot/shared/services/lp612-feedback-taps.service.js:15:993b02df` · `bot/shared/services/lp612-serving.service.js:54:993b02df`
 - `lp612-gb-shelf.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:71:46bff532`
-- `lp612-latin-honorific.js` ← imported by `bot/shared/services/lp612-author.service.js:63:7ec38464`
-- `lp612-lifecycle.service.js` ← imported by `bot/workers/lp612-author.worker.js:58:bde1dd20` · `bot/shared/services/lp612-serving.service.js:49:a8df427c`
+- `lp612-key-repair.js` ← imported by `bot/shared/services/lp612-author.service.js:35:6fa7f50c`
+- `lp612-latin-honorific.js` ← imported by `bot/shared/services/lp612-author.service.js:64:7ec38464`
+- `lp612-lifecycle.service.js` ← imported by `bot/workers/lp612-author.worker.js:60:bde1dd20` · `bot/shared/services/lp612-serving.service.js:49:a8df427c`
 - `lp612-overlay-backfill.service.js` ← imported by `bot/scripts/lp612-overlay-backfill.js:35:08b31d88`
 - `lp612-overlay-repair.service.js` ← imported by `bot/shared/services/lp612-overlay-backfill.service.js:48:32b41bda`
 - `lp612-overlay-topup.service.js` ← imported by `bot/shared/services/lp612-overlay-backfill.service.js:47:48f1fe6f` · `bot/shared/services/lp612-overlay-repair.service.js:48:d97d8e6d`
-- `lp612-own-instruction.js` ← imported by `bot/workers/lp612-own.worker.js:24:c7e23b15` · `bot/shared/services/lp612-own.service.js:28:6be91fcc`
-- `lp612-own.service.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:22:96f4c730` · `bot/shared/services/lp612-browse.service.js:305:737aba8a`
-- `lp612-pagetruth.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:36:7d55c82f` · `bot/workers/lp612-author.worker.js:56:7d55c82f` · `bot/shared/services/lp612-author.service.js:55:81b1bba6` · `bot/shared/services/lp612-overlay-repair.service.js:49:a64bf527`
-- `lp612-render-policy.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:35:e8bd95e8` · `bot/workers/lp612-author.worker.js:47:e131a457` · `bot/shared/services/lp612-author.service.js:45:b9e75058` · `bot/shared/services/lp612-overlay-repair.service.js:47:7aa43d77`
-- `lp612-render.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:34:0dc19ead` · `bot/workers/lp612-author.worker.js:48:0dc19ead` · `bot/workers/lp612-own.worker.js:150:af8c1b5e` · `bot/shared/services/lp612-overlay-repair.service.js:46:5c340dcb`
-- `lp612-serving.service.js` ← imported by `bot/scripts/lp612-sidecar-audit.js:30:38e05100` · `bot/shared/routes/internal-api.routes.js:2460:80eb21d7` · `bot/shared/routes/pakistan-lp-endpoint.js:63:9efae5ef` · `bot/workers/lp612-author.worker.js:57:38e05100` (+7: `python3 kg/kg.py who-reads lp612-serving.service.js`)
-- `menu-match.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:21:69e67cb7` · `bot/shared/handlers/voice-message.handler.js:1330:69e67cb7`
-- `menu.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:20:fea99352` · `bot/shared/handlers/voice-message.handler.js:16:fea99352` · `bot/whatsapp-bot.js:1572:6d596f17` · `bot/shared/services/child-test/conversation/machine.js:1659:3178da40` (+3: `python3 kg/kg.py who-reads menu.service.js`)
+- `lp612-owed.store.js` ← imported by `bot/workers/lp612-author.worker.js:63:a5640d54` · `bot/workers/lp612-redeliver.js:17:a5640d54`
+- `lp612-own-accuracy.js` ← imported by `bot/workers/lp612-own.worker.js:303:61edca64` · `bot/shared/services/lp612-own-reviewer.js:18:61f822c0`
+- `lp612-own-approval.js` ← imported by `bot/shared/routes/internal-lp612-shelf.routes.js:39:d1ad2adf`
+- `lp612-own-change.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:52:756c1d75`
+- `lp612-own-close.js` ← imported by `bot/workers/lp612-author.worker.js:50:41c76390` · `bot/workers/lp612-own.worker.js:38:a8d7ef7f` · `bot/shared/services/lp-k5-own-close.js:19:23fad469` · `bot/shared/services/lp-k5-own-render.js:11:f9c5211d`
+- `lp612-own-extend.js` ← imported by `bot/workers/lp612-own.worker.js:37:6935a261` · `bot/shared/services/lp612-own.service.js:34:8d853289`
+- `lp612-own-extend.store.js` ← imported by `bot/workers/lp612-own.worker.js:285:44b21a9a` · `bot/shared/services/lp612-own.service.js:245:4e835002`
+- `lp612-own-gloss.js` ← imported by `bot/shared/services/lp612-own-close.js:18:bbbbf365` · `bot/shared/services/lp612-own-instruction.js:19:c2e59729`
+- `lp612-own-goal.js` ← imported by `dashboard/routes/portal-lp612-own-goal.routes.js:25:c783eb10` · `bot/shared/services/lp-own-goal-guard.js:19:f7886aee` · `bot/shared/services/lp612-own-instruction.js:20:e9544cd1`
+- `lp612-own-goal.store.js` ← imported by `dashboard/routes/portal-lp612-own-goal.routes.js:24:6b599f5f` · `bot/shared/services/lp612-own.service.js:269:d01854d3`
+- `lp612-own-grr.js` ← imported by `bot/workers/lp612-own.worker.js:197:1c33c92a`
+- `lp612-own-instruction.js` ← imported by `bot/workers/lp612-own.worker.js:33:c7e23b15` · `bot/shared/services/lp-k5-own.js:23:549287dc` · `bot/shared/services/lp612-own.service.js:32:6be91fcc`
+- `lp612-own-library.js` ← imported by `bot/shared/routes/internal-lp612-shelf.routes.js:31:36896ea7` · `bot/shared/services/lp612-browse.service.js:316:f90aa70c`
+- `lp612-own-offer.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:72:1a2913fb`
+- `lp612-own-pages.js` ← imported by `bot/workers/lp612-own.worker.js:34:1e62deb6` · `bot/shared/services/lp612-own-instruction.js:16:2a9470d8` · `bot/shared/services/lp612-own.service.js:36:d4895548`
+- `lp612-own-rating.js` ← imported by `bot/shared/routes/internal-lp612-own-rating.routes.js:17:6bd31797`
+- `lp612-own-review.js` ← imported by `bot/shared/services/lp612-own-approval.js:19:5d3a3270` · `bot/shared/services/lp612-own-reviewer.js:17:8b673a24`
+- `lp612-own-reviewer.js` ← imported by `bot/workers/lp612-own.worker.js:302:0f4e9966`
+- `lp612-own-rubric.js` ← imported by `bot/shared/services/lp612-own-review.js:19:84891436`
+- `lp612-own-slo.js` ← imported by `dashboard/routes/portal-lp612-own.routes.js:164:c3d0f1ff` · `bot/shared/services/lp612-own-instruction.js:17:a1e166ee`
+- `lp612-own-ways.js` ← imported by `bot/shared/services/lp-k5-own.js:24:138642e8` · `bot/shared/services/lp-own-edit-instruction.js:11:b1108ccf` · `bot/shared/services/lp612-own-instruction.js:15:2119fa8f`
+- `lp612-own.service.js` ← imported by `bot/shared/routes/internal-lp612-own.routes.js:34:96f4c730` · `bot/workers/lp612-own.worker.js:276:57be2f25` · `bot/shared/services/lp-own-sections.js:65:a5d30cf5` · `bot/shared/services/lp612-browse.service.js:313:28856a3d` (+1: `python3 kg/kg.py who-reads lp612-own.service.js`)
+- `lp612-pagetruth.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:36:7d55c82f` · `bot/workers/lp612-author.worker.js:58:7d55c82f` · `bot/shared/services/gb-k5-browse.service.js:30:9ae0e736` · `bot/shared/services/lp612-author.service.js:56:81b1bba6` (+1: `python3 kg/kg.py who-reads lp612-pagetruth.service.js`)
+- `lp612-render-policy.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:35:e8bd95e8` · `bot/workers/lp612-author.worker.js:47:e131a457` · `bot/shared/services/lp612-author.service.js:46:b9e75058` · `bot/shared/services/lp612-overlay-repair.service.js:47:7aa43d77` (+1: `python3 kg/kg.py who-reads lp612-render-policy.service.js`)
+- `lp612-render.service.js` ← imported by `bot/workers/gb-lp-author.worker.js:34:0dc19ead` · `bot/workers/lp612-author.worker.js:48:0dc19ead` · `bot/workers/lp612-own.worker.js:292:af8c1b5e` · `bot/shared/services/lp612-overlay-repair.service.js:46:5c340dcb`
+- `lp612-serving.service.js` ← imported by `bot/scripts/lp612-sidecar-audit.js:30:38e05100` · `bot/shared/routes/internal-api.routes.js:2543:80eb21d7` · `bot/shared/routes/pakistan-lp-endpoint.js:63:9efae5ef` · `bot/workers/lp612-author.worker.js:59:38e05100` (+8: `python3 kg/kg.py who-reads lp612-serving.service.js`)
+- `menu-match.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:22:69e67cb7` · `bot/shared/handlers/voice-message.handler.js:1330:69e67cb7`
+- `menu-request.js` ← imported by `bot/shared/handlers/text-message.handler.js:8:1f181839`
+- `menu.service.js` ← imported by `bot/shared/handlers/flow-response.handler.js:805:fea99352` · `bot/shared/handlers/text-message.handler.js:21:fea99352` · `bot/shared/handlers/voice-message.handler.js:16:fea99352` · `bot/whatsapp-bot.js:1583:6d596f17` (+5: `python3 kg/kg.py who-reads menu.service.js`)
 - `mms-inference.service.js` ← imported by `bot/shared/services/audio.service.js:1256:0934c6da`
-- `openai.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:8:c5599cb0` · `bot/shared/handlers/voice-message.handler.js:5:c5599cb0` · `bot/whatsapp-bot.js:22:eaa7b0f5` · `bot/shared/services/video/video-orchestrator.service.js:12:ef319d24` (+1: `python3 kg/kg.py who-reads openai.service.js`)
+- `openai.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:9:c5599cb0` · `bot/shared/handlers/voice-message.handler.js:5:c5599cb0` · `bot/whatsapp-bot.js:22:eaa7b0f5` · `bot/shared/services/video/video-orchestrator.service.js:12:ef319d24` (+1: `python3 kg/kg.py who-reads openai.service.js`)
 - `outbound-echo.js` ← imported by `bot/shared/services/whatsapp.service.js:91:5b56d093`
-- `oxbridge-lp.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:36:229efb42` · `bot/shared/routes/pakistan-lp-endpoint.js:55:229efb42` · `bot/whatsapp-bot.js:930:952a6e2d`
-- `pdf-report.service.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:28:d0116dd0` · `bot/shared/services/coaching/report-renderers/renderer-registry.js:94:8152b12c`
-- `phoneless-inbound.js` ← imported by `bot/shared/handlers/text-message.handler.js:545:ffaf3041` · `bot/whatsapp-bot.js:663:127fb763`
-- `portal-invite.service.js` ← imported by `bot/whatsapp-bot.js:24:0517431a` · `scripts/create-analytics-user.js:369:0439c6ca`
-- `portal-link-token.js` ← imported by `dashboard/routes/iab-probe.routes.js:24:d70d7b6f` · `dashboard/routes/portal-link.routes.js:28:d70d7b6f` · `bot/shared/services/observe/coach-report-whatsapp.service.js:37:16728406` · `bot/shared/services/portal-ready-whatsapp.service.js:48:8ce3f3b2` (+1: `python3 kg/kg.py who-reads portal-link-token.js`)
+- `oxbridge-lp.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:36:229efb42` · `bot/shared/routes/pakistan-lp-endpoint.js:55:229efb42` · `bot/whatsapp-bot.js:941:952a6e2d`
+- `pdf-report.service.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:28:d0116dd0` · `bot/shared/services/coaching/report-renderers/renderer-registry.js:110:8152b12c`
+- `phoneless-inbound.js` ← imported by `bot/shared/handlers/text-message.handler.js:563:ffaf3041` · `bot/whatsapp-bot.js:665:127fb763`
+- `portal-invite.service.js` ← imported by `bot/whatsapp-bot.js:24:0517431a` · `scripts/create-analytics-user.js:478:0439c6ca`
+- `portal-link-token.js` ← imported by `dashboard/routes/iab-probe.routes.js:24:d70d7b6f` · `dashboard/routes/portal-link.routes.js:28:d70d7b6f` · `bot/shared/services/observe/coach-report-whatsapp.service.js:43:16728406` · `bot/shared/services/portal-ready-whatsapp.service.js:48:8ce3f3b2` (+1: `python3 kg/kg.py who-reads portal-link-token.js`)
 - `portal-ready-templates.js` ← imported by `bot/shared/services/portal-ready-whatsapp.service.js:51:25333a99`
-- `portal-ready-whatsapp.service.js` ← imported by `bot/workers/sqs-worker.js:2088:00dfe717`
-- `portal-request.js` ← imported by `bot/shared/handlers/text-message.handler.js:27:31641614` · `bot/shared/services/student-ingress.js:54:f15788b2`
-- `portal-web-link.js` ← imported by `bot/shared/services/lesson-plans-web-link.js:12:1591a293` · `bot/shared/services/observe/coach-report-whatsapp.service.js:38:fd62558d` · `bot/shared/services/portal-ready-templates.js:17:285fd07e` · `bot/shared/services/portal-ready-whatsapp.service.js:52:ced84025` (+1: `python3 kg/kg.py who-reads portal-web-link.js`)
+- `portal-ready-whatsapp.service.js` ← imported by `bot/workers/sqs-worker.js:2094:00dfe717`
+- `portal-request.js` ← imported by `bot/shared/handlers/text-message.handler.js:28:31641614` · `bot/shared/services/student-ingress.js:54:f15788b2`
+- `portal-web-link.js` ← imported by `bot/shared/services/lesson-plans-web-link.js:12:1591a293` · `bot/shared/services/observe/coach-report-whatsapp.service.js:44:fd62558d` · `bot/shared/services/portal-ready-templates.js:17:285fd07e` · `bot/shared/services/portal-ready-whatsapp.service.js:52:ced84025` (+1: `python3 kg/kg.py who-reads portal-web-link.js`)
 - `pregen-lookup.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:32:84436122`
-- `reaction-only-taps.js` ← imported by `bot/whatsapp-bot.js:699:3e9a4b98`
-- `reading-assessment.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:28:d507b8b8` · `bot/shared/handlers/voice-message.handler.js:677:d507b8b8` · `bot/whatsapp-bot.js:25:dcc1f3ca`
-- `redis-comprehension.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1732:d7e6f29b` · `bot/shared/handlers/voice-message.handler.js:317:d7e6f29b` · `bot/whatsapp-bot.js:1148:081b24ae` · `bot/shared/services/reading/analysis.service.js:1223:aca19c51`
-- `region-features.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:35:f7f1b1e6`
-- `region-registry.js` ← imported by `bot/shared/routes/registration-endpoint.js:808:590329aa` · `dashboard/routes/portal.routes.js:137:4bbcbf46` · `bot/shared/services/book-curriculum.service.js:36:b5042450` · `bot/shared/services/observe/observe-teacher-admin.service.js:96:596aa740` (+2: `python3 kg/kg.py who-reads region-registry.js`)
-- `region.service.js` ← imported by `dashboard/services/teacher-region.service.js:12:a154b7de` · `scripts/seed-gb-roster.js:22:993d5b1b`
-- `registration-invite.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:47:ade62736` · `bot/shared/services/feature-registration.service.js:29:763ca180`
+- `reaction-only-taps.js` ← imported by `bot/whatsapp-bot.js:701:3e9a4b98`
+- `reading-assessment.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:32:d507b8b8` · `bot/shared/handlers/voice-message.handler.js:677:d507b8b8` · `bot/whatsapp-bot.js:25:dcc1f3ca`
+- `redis-comprehension.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1764:d7e6f29b` · `bot/shared/handlers/voice-message.handler.js:317:d7e6f29b` · `bot/whatsapp-bot.js:1159:081b24ae` · `bot/shared/services/reading/analysis.service.js:1223:aca19c51`
+- `region-features.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:39:f7f1b1e6`
+- `region-registry.js` ← imported by `bot/shared/routes/registration-endpoint.js:831:590329aa` · `dashboard/routes/portal.routes.js:149:4bbcbf46` · `bot/shared/services/book-curriculum.service.js:36:b5042450` · `bot/shared/services/coaching/fde-region.js:46:596aa740` (+6: `python3 kg/kg.py who-reads region-registry.js`)
+- `region.service.js` ← imported by `dashboard/services/teacher-region.service.js:12:a154b7de` · `scripts/seed-gb-roster.js:22:993d5b1b` · `bot/shared/services/lp-own-gb.js:12:654f9ed1` · `bot/shared/services/teacher-activity/teacher-activity-run.service.js:27:897810fb`
+- `registration-invite.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:51:ade62736` · `bot/shared/services/feature-registration.service.js:29:763ca180`
 - `roster-entry.service.js` ← imported by `bot/shared/handlers/roster-command.js:46:e3c22766` · `bot/shared/services/menu.service.js:366:eee93c89`
+- `sandbox-tester.js` ← imported by `bot/scripts/onboarding/sandbox-tester.js:14:78578250`
 - `session.service.js` ← imported by `bot/whatsapp-bot.js:21:7247c8f3`
 - `settings-group.js` ← imported by `bot/shared/services/quiz/reminder-live-preview-flag.js:12:46648006` · `bot/shared/services/quiz/report-fold-flag.js:13:46648006` · `bot/shared/services/quiz/report-send-check.js:29:46648006`
 - `share-send.service.js` ← imported by `bot/shared/routes/internal-share.routes.js:20:83adb6c5` · `bot/shared/services/coaching/report-window-send.js:33:55fb21f8`
 - `soniox-cleanup.service.js` ← imported by `bot/workers/sqs-worker.js:43:9ab11df9` · `bot/workers/stale-session.worker.js:29:9ab11df9`
-- `speaker-roles.js` ← imported by `bot/shared/services/audio.service.js:1040:ec33d74c` · `bot/shared/services/coaching/diarization-from-tokens.js:188:3ac10b56` · `bot/shared/services/observe/observe-debrief.service.js:1200:e6ddab8e`
+- `speaker-roles.js` ← imported by `bot/shared/services/audio.service.js:1040:ec33d74c` · `bot/shared/services/coaching/diarization-from-tokens.js:188:3ac10b56` · `bot/shared/services/observe/observe-debrief.service.js:1173:e6ddab8e`
 - `student-ingress-cache.js` ← imported by `bot/shared/handlers/flow-response.handler.js:578:85d00890` · `bot/shared/services/feature-registration.service.js:310:53dafd0e` · `bot/shared/services/quiz/student-identity.service.js:31:f57de5ef` · `bot/shared/services/student-ingress.js:57:65786137`
 - `student-ingress-identity.js` ← imported by `bot/shared/services/first-touch/role.service.js:197:9ae4fd22` · `bot/shared/services/quiz/web-quiz-student-join.js:281:35981347` · `bot/shared/services/student-ingress.js:62:c9c14994`
-- `student-ingress.js` ← imported by `bot/whatsapp-bot.js:718:f618e183` · `bot/shared/services/quiz/web-quiz-bind.service.js:416:e69d4bfb` · `bot/shared/services/quiz/web-quiz-sample-ping.js:184:0f250d66` · `bot/shared/services/quiz/web-quiz-student-join.js:262:0f250d66`
+- `student-ingress.js` ← imported by `bot/whatsapp-bot.js:720:f618e183` · `bot/shared/services/quiz/web-quiz-bind.service.js:416:e69d4bfb` · `bot/shared/services/quiz/web-quiz-sample-ping.js:184:0f250d66` · `bot/shared/services/quiz/web-quiz-student-join.js:262:0f250d66`
 - `student-list.service.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:16:98592a4c` · `bot/shared/services/classes/class.service.js:1174:6386fcb5`
-- `student-mode.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:62:b46e21b0` · `bot/shared/services/first-touch/role.service.js:112:3811ab7d` · `bot/shared/services/quiz/child-phone-bindings.repo.js:215:3811ab7d` · `bot/shared/services/quiz/teacher-self-test.js:21:d770fefc` (+1: `python3 kg/kg.py who-reads student-mode.service.js`)
-- `student-video-feedback.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:865:e0e119d1` · `bot/shared/routes/student-videos-endpoint.js:24:e0e119d1` · `bot/whatsapp-bot.js:1382:0f5046fc` · `bot/shared/services/quiz/video-quiz.service.js:344:5cfea78e`
-- `student-videos-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1602:bbd1f59c` · `bot/shared/services/first-touch/maker.fallback.js:54:28a048e1` · `bot/shared/services/menu.service.js:351:7ed9c54b`
-- `teacher-audience.js` ← imported by `dashboard/lib/feature-flags.js:20:9b983ff1` · `dashboard/routes/portal-fln-links.routes.js:21:9ba34ce7` · `bot/shared/services/app-redirect.service.js:86:3173f550`
-- `teacher-books.service.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:108:4ed29d95` · `bot/shared/routes/internal-api.routes.js:135:3e07b9c8` · `bot/shared/routes/pakistan-lp-endpoint.js:61:4ed29d95`
-- `teacher-state.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2415:0df0a522` · `bot/shared/routes/status-flow-endpoint.js:18:0df0a522`
+- `student-mode.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:66:b46e21b0` · `bot/shared/services/first-touch/role.service.js:112:3811ab7d` · `bot/shared/services/quiz/child-phone-bindings.repo.js:215:3811ab7d` · `bot/shared/services/quiz/teacher-self-test.js:21:d770fefc` (+1: `python3 kg/kg.py who-reads student-mode.service.js`)
+- `student-video-feedback.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:895:e0e119d1` · `bot/shared/routes/student-videos-endpoint.js:24:e0e119d1` · `bot/whatsapp-bot.js:1393:0f5046fc` · `bot/shared/services/quiz/video-quiz.service.js:345:5cfea78e`
+- `student-videos-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1634:bbd1f59c` · `bot/shared/services/first-touch/maker.fallback.js:54:28a048e1` · `bot/shared/services/menu.service.js:351:7ed9c54b`
+- `teacher-audience.js` ← imported by `dashboard/lib/feature-flags.js:20:9b983ff1` · `dashboard/routes/portal-fln-links.routes.js:21:9ba34ce7` · `bot/shared/services/app-redirect.service.js:104:3173f550` · `bot/shared/services/coach-app-nudge.service.js:33:b88e473c` (+2: `python3 kg/kg.py who-reads teacher-audience.js`)
+- `teacher-books.service.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:108:4ed29d95` · `bot/shared/routes/internal-api.routes.js:135:3e07b9c8` · `bot/shared/routes/pakistan-lp-endpoint.js:61:4ed29d95` · `dashboard/lib/fln-access.js:26:35b254bd` (+2: `python3 kg/kg.py who-reads teacher-books.service.js`)
+- `teacher-state.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2447:0df0a522` · `bot/shared/routes/status-flow-endpoint.js:18:0df0a522`
 - `topic-matching.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:31:eb311e53`
 - `urdu-tts-normalizer.js` ← imported by `bot/shared/services/elevenlabs.service.js:12:f0d2f0da` · `bot/shared/services/tts/text/normalizers.js:11:66d7ccd2`
-- `vision.service.js` ← imported by `bot/shared/handlers/image-message.handler.js:21:b1ec372a` · `bot/shared/services/coaching/classroom-photo/photo-analysis.service.js:68:2eae021b`
-- `voice-attendance.service.js` ← imported by `bot/shared/handlers/voice-message.handler.js:223:c0bd7698` · `bot/shared/routes/attendance-marking-endpoint.js:40:c0bd7698` · `bot/whatsapp-bot.js:267:70727e95` · `bot/shared/services/attendance-entry.service.js:35:93821dfa`
+- `vision.service.js` ← imported by `bot/shared/handlers/image-message.handler.js:23:b1ec372a` · `bot/shared/services/coaching/classroom-photo/photo-analysis.service.js:68:2eae021b`
+- `voice-attendance.service.js` ← imported by `bot/shared/handlers/voice-message.handler.js:223:c0bd7698` · `bot/shared/routes/attendance-marking-endpoint.js:40:c0bd7698` · `bot/whatsapp-bot.js:269:70727e95` · `bot/shared/services/attendance-entry.service.js:35:93821dfa`
 - `webhook-signature.js` ← imported by `bot/whatsapp-bot.js:75:6186fb81`
-- `whatsapp-send-pacer.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:287:559aed18` · `bot/shared/routes/observe-mewaka-endpoint.js:112:559aed18` · `bot/shared/routes/pakistan-lp-endpoint.js:54:559aed18` · `bot/shared/routes/student-videos-endpoint.js:26:559aed18` (+2: `python3 kg/kg.py who-reads whatsapp-send-pacer.js`)
+- `whatsapp-send-pacer.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:287:559aed18` · `bot/shared/routes/observe-mewaka-endpoint.js:125:559aed18` · `bot/shared/routes/pakistan-lp-endpoint.js:54:559aed18` · `bot/shared/routes/student-videos-endpoint.js:26:559aed18` (+2: `python3 kg/kg.py who-reads whatsapp-send-pacer.js`)
 - `whatsapp-sent-ids.js` ← imported by `bot/workers/quiz-job-handler.js:176:00b42930` · `bot/shared/services/quiz/video-quiz-report.service.js:49:6e4da814` · `bot/shared/services/whatsapp.service.js:254:7726bc50`
 - `whatsapp-status-pricing.js` ← imported by `bot/whatsapp-bot.js:59:b880f62b`
-- `whatsapp.service.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:11:1bba4f75` · `bot/shared/handlers/flow-response.handler.js:53:1bba4f75` · `bot/shared/handlers/image-message.handler.js:20:1bba4f75` · `bot/shared/handlers/lesson-plan-v2.handler.js:39:1bba4f75` (+165: `python3 kg/kg.py who-reads whatsapp.service.js`)
+- `whatsapp.service.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:11:1bba4f75` · `bot/shared/handlers/flow-response.handler.js:53:1bba4f75` · `bot/shared/handlers/image-message.handler.js:22:1bba4f75` · `bot/shared/handlers/lesson-plan-v2.handler.js:39:1bba4f75` (+179: `python3 kg/kg.py who-reads whatsapp.service.js`)
 - `whisper-chunk-planner.js` ← imported by `bot/shared/services/audio.service.js:21:a993baaf`
-- column `attendance_sessions.absent_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:294:1005c9e6`
-- column `attendance_sessions.leave_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:294:1005c9e6`
-- column `attendance_sessions.list_id` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:911:d6a88d45` · `bot/shared/services/attendance-portal.service.js:294:1005c9e6` · `bot/shared/services/attendance-register-delivery.service.js:81:83bce7c1`
-- column `attendance_sessions.present_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:294:1005c9e6`
-- column `attendance_sessions.session_date` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:912:c60302f6` · `bot/shared/services/attendance-portal.service.js:296:608de445` · `bot/shared/services/attendance-register-delivery.service.js:80:127e29e3`
-- column `attendance_sessions.session_type` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:913:ed3685ce` · `bot/shared/services/attendance-portal.service.js:297:2ec35670`
-- column `attendance_sessions.user_id` (written by `attendance-write.service.js`) ← read by `dashboard/services/teacher-home-order.service.js:237:57e1664c`
-- column `coach_visit_requests.updated_at` (written by `coach-voice-note-retention.service.js`) ← read by `dashboard/services/coach-disagreements.service.js:258:a1c017d3`
-- column `coach_visit_requests.voice_note_key` (written by `coach-voice-note-retention.service.js`) ← read by `dashboard/services/coach-disagreements.service.js:256:f9788955` · `dashboard/services/coach-visit-request.js:192:687f8c28`
-- column `coaching_sessions.analysis_data` (written by `coaching-orchestrator.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` · `bot/shared/routes/observe2-check-endpoint.js:297:ed6f6cd9` · `bot/shared/routes/transcript-quiz-flow-endpoint.js:285:4fa90499` (+34: `python3 kg/kg.py who-reads coaching_sessions.analysis_data`)
-- column `coaching_sessions.conversation_state` (written by `coaching-orchestrator.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:2064:a619795a` · `bot/workers/stale-session.worker.js:141:134f4724` · `dashboard/routes/portal.routes.js:8025:e2da0b61` · `bot/scripts/generate-coaching-excel.js:38:950960b9` (+9: `python3 kg/kg.py who-reads coaching_sessions.conversation_state`)
-- column `coaching_sessions.status` (written by `coaching-orchestrator.service.js`, `teacher-state.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` · `bot/shared/handlers/text-message.handler.js:1953:21a55915` · `bot/shared/handlers/voice-message.handler.js:772:21a55915` (+40: `python3 kg/kg.py who-reads coaching_sessions.status`)
-- column `coaching_sessions.updated_at` (written by `coaching-orchestrator.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:2064:a619795a` · `bot/workers/stale-session.worker.js:1243:f827ae3c` · `bot/shared/services/coaching/lp-coaching/lp-step.service.js:193:6d171412` · `bot/shared/services/coaching/portal-class-check.js:181:5720b09e` (+3: `python3 kg/kg.py who-reads coaching_sessions.updated_at`)
+- column `app_settings.key` (written by `sandbox-tester.js`) ← read by `bot/shared/config/feature-flags.js:108:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `dashboard/lib/analytics-lists.js:186:8f3e60a7` (+151: `python3 kg/kg.py who-reads app_settings.key`)
+- column `app_settings.value` (written by `sandbox-tester.js`) ← read by `bot/shared/config/feature-flags.js:107:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `dashboard/lib/analytics-lists.js:186:8f3e60a7` (+151: `python3 kg/kg.py who-reads app_settings.value`)
+- column `attendance_sessions.absent_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:488:1005c9e6`
+- column `attendance_sessions.leave_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:488:1005c9e6`
+- column `attendance_sessions.list_id` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:911:d6a88d45` · `bot/shared/services/attendance-portal.service.js:488:1005c9e6` · `bot/shared/services/attendance-register-delivery.service.js:81:83bce7c1`
+- column `attendance_sessions.present_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:488:1005c9e6`
+- column `attendance_sessions.session_date` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:912:c60302f6` · `bot/shared/services/attendance-portal.service.js:490:608de445` · `bot/shared/services/attendance-register-delivery.service.js:80:127e29e3`
+- column `attendance_sessions.session_type` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:913:ed3685ce` · `bot/shared/services/attendance-portal.service.js:491:2ec35670`
+- column `attendance_sessions.user_id` (written by `attendance-write.service.js`) ← read by `dashboard/services/teacher-home-order.service.js:241:57e1664c`
+- column `coach_visit_requests.updated_at` (written by `coach-voice-note-retention.service.js`) ← read by `dashboard/services/coach-disagreements.service.js:261:a1c017d3`
+- column `coach_visit_requests.voice_note_key` (written by `coach-voice-note-retention.service.js`) ← read by `dashboard/services/coach-disagreements.service.js:259:f9788955` · `dashboard/services/coach-visit-request.js:194:687f8c28`
+- column `coaching_sessions.analysis_data` (written by `coaching-orchestrator.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` · `bot/shared/routes/observe2-check-endpoint.js:346:ed6f6cd9` · `bot/shared/routes/transcript-quiz-flow-endpoint.js:286:4fa90499` (+35: `python3 kg/kg.py who-reads coaching_sessions.analysis_data`)
+- column `coaching_sessions.conversation_state` (written by `coaching-orchestrator.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:2096:a619795a` · `bot/workers/stale-session.worker.js:141:134f4724` · `dashboard/routes/portal.routes.js:8253:e2da0b61` · `bot/scripts/generate-coaching-excel.js:38:950960b9` (+9: `python3 kg/kg.py who-reads coaching_sessions.conversation_state`)
+- column `coaching_sessions.status` (written by `coaching-orchestrator.service.js`, `teacher-state.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` · `bot/shared/handlers/text-message.handler.js:1985:21a55915` · `bot/shared/handlers/voice-message.handler.js:772:21a55915` (+43: `python3 kg/kg.py who-reads coaching_sessions.status`)
+- column `coaching_sessions.updated_at` (written by `coaching-orchestrator.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:2096:a619795a` · `bot/workers/stale-session.worker.js:1243:f827ae3c` · `bot/shared/services/coaching/frameworks/fico17-v6/late-write.js:48:d2d332ea` · `bot/shared/services/coaching/lp-coaching/lp-step.service.js:197:6d171412` (+4: `python3 kg/kg.py who-reads coaching_sessions.updated_at`)
 - column `lesson_plan_requests.retry_count` (written by `lesson-plan-queue.service.js`) ← read by `bot/shared/services/monitoring/lesson-plan-health.service.js:336:5809b3eb`
 - column `lesson_plan_requests.source` (written by `lesson-plan-queue.service.js`) ← read by `bot/shared/services/lp-v8-lifecycle.service.js:51:9a74e573` · `bot/shared/services/monitoring/lesson-plan-health.service.js:336:5809b3eb`
 - column `lesson_plan_requests.status` (written by `lesson-plan-queue.service.js`, `teacher-state.service.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:347:184894e4` · `bot/shared/services/lp-v8-lifecycle.service.js:54:df52c07a` · `bot/shared/services/monitoring/lesson-plan-health.service.js:336:5809b3eb` · `bot/shared/services/teacher-state.service.js:99:28233e00`
 - column `lesson_plan_requests.textbook_metadata` (written by `lesson-plan-queue.service.js`) ← read by `bot/shared/services/monitoring/lesson-plan-health.service.js:336:5809b3eb`
 - column `lesson_plan_requests.topic` (written by `lesson-plan-queue.service.js`) ← read by `bot/shared/services/teacher-state.service.js:257:6012f2a7`
 - column `lesson_plan_requests.user_id` (written by `lesson-plan-queue.service.js`) ← read by `bot/shared/services/lp-v8-lifecycle.service.js:50:219f5683` · `bot/shared/services/monitoring/lesson-plan-health.service.js:349:b19b951d` · `bot/shared/services/teacher-state.service.js:100:219f5683`
-- column `lesson_plans.content` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:164:15e5b797` · `bot/shared/services/lp-feedback.service.js:273:e461c55d` · `bot/shared/services/quiz/quiz-orchestrator.service.js:248:15e5b797`
-- column `lesson_plans.grade` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/routes/quiz-flow-endpoint.js:164:d69ad1fa` · `dashboard/routes/portal.routes.js:2718:bfdc3284` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:164:15e5b797` · `bot/shared/services/first-touch/maker.prefill.js:111:a5945708` (+3: `python3 kg/kg.py who-reads lesson_plans.grade`)
-- column `lesson_plans.subject` (written by `lp-v8-delivery.service.js`) ← read by `dashboard/routes/portal.routes.js:2718:bfdc3284` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:164:15e5b797` · `bot/shared/services/first-touch/maker.prefill.js:111:a5945708` · `bot/shared/services/lp-feedback.service.js:273:e461c55d` (+2: `python3 kg/kg.py who-reads lesson_plans.subject`)
-- column `lesson_plans.topic` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/database/bot-helpers.js:419:5950c690` · `bot/shared/routes/quiz-flow-endpoint.js:164:d69ad1fa` · `dashboard/routes/portal-teacher-home.routes.js:152:b5b1a628` · `dashboard/routes/portal.routes.js:2718:bfdc3284` (+4: `python3 kg/kg.py who-reads lesson_plans.topic`)
-- column `lesson_plans.type` (written by `lp-v8-delivery.service.js`) ← read by `dashboard/database/queries.js:723:e125cbb9` · `dashboard/routes/portal.routes.js:2718:bfdc3284` · `bot/shared/services/lp-feedback.service.js:273:e461c55d`
-- column `lesson_plans.user_id` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/database/bot-helpers.js:420:219f5683` · `bot/shared/routes/quiz-flow-endpoint.js:165:219f5683` · `dashboard/database/queries.js:822:400b923c` · `dashboard/routes/portal-teacher-home.routes.js:147:acedf831` (+9: `python3 kg/kg.py who-reads lesson_plans.user_id`)
-- column `lp_feedback.useful` (written by `lp-feedback.service.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:162:6689cf6d`
-- column `lp_feedback.user_id` (written by `lp-feedback.service.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:124:e89767c0`
-- column `reading_assessments.grade_level` (written by `reading-assessment.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1765:28adfbcc` · `bot/shared/handlers/voice-message.handler.js:442:d5870428` · `bot/whatsapp-bot.js:1215:d5870428` · `dashboard/routes/portal.routes.js:8523:6033d135`
-- column `reading_assessments.language` (written by `reading-assessment.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1765:28adfbcc` · `bot/shared/handlers/voice-message.handler.js:352:41c35e65` · `dashboard/routes/portal.routes.js:8523:6033d135`
-- column `reading_assessments.passage_type` (written by `reading-assessment.service.js`) ← read by `dashboard/routes/portal.routes.js:8523:6033d135`
-- column `reading_assessments.status` (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:518:1099729a` · `bot/workers/stale-session.worker.js:279:99a7da90` · `dashboard/database/queries.js:755:a69ef692` · `dashboard/routes/portal.routes.js:8525:a69ef692` (+3: `python3 kg/kg.py who-reads reading_assessments.status`)
-- column `reading_assessments.student_identifier` (written by `reading-assessment.service.js`) ← read by `dashboard/routes/portal.routes.js:8523:6033d135`
-- column `reading_assessments.user_id` (written by `reading-assessment.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:519:a819c701` · `bot/workers/stale-session.worker.js:280:219f5683` · `dashboard/database/queries.js:824:0a954284` · `dashboard/routes/portal.routes.js:8524:219f5683` (+4: `python3 kg/kg.py who-reads reading_assessments.user_id`)
-- column `student_lists.is_active` (written by `student-list.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:389:f8c426e2` · `bot/shared/routes/quiz-flow-endpoint.js:128:f8c426e2` · `bot/whatsapp-bot.js:1472:f8c426e2` · `bot/shared/services/attendance-portal.service.js:247:f8c426e2` (+12: `python3 kg/kg.py who-reads student_lists.is_active`)
-- column `students.is_active` (written by `student-list.service.js`, `student-mode.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:332:f8c426e2` · `bot/shared/routes/edit-class-endpoint.js:47:f8c426e2` · `bot/shared/services/attendance-register-delivery.service.js:121:3d987916` · `bot/shared/services/attendance-router.service.js:128:f8c426e2` (+24: `python3 kg/kg.py who-reads students.is_active`)
-- column `users.portal_invite_expires_at` (written by `feature-registration.service.js`, `portal-invite.service.js`) ← read by `dashboard/routes/portal.routes.js:446:74e8e3d0` · `bot/shared/services/portal-invite.service.js:203:d17654ef`
-- column `users.portal_invite_token` (written by `feature-registration.service.js`, `portal-invite.service.js`) ← read by `dashboard/routes/portal.routes.js:447:53285ac9` · `bot/shared/services/portal-invite.service.js:204:53285ac9`
-- column `users.registration_completed` (written by `feature-registration.service.js`) ← read by `bot/shared/database/queries.js:106:fef21f32` · `dashboard/database/queries.js:765:d3561f41` · `dashboard/routes/hcp.routes.js:223:a3c35625` · `dashboard/routes/portal.routes.js:644:b547e081` (+4: `python3 kg/kg.py who-reads users.registration_completed`)
+- column `lesson_plans.content` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:227:15e5b797` · `bot/shared/services/lp-feedback.service.js:279:e461c55d` · `bot/shared/services/quiz/quiz-orchestrator.service.js:248:15e5b797`
+- column `lesson_plans.grade` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/routes/quiz-flow-endpoint.js:164:d69ad1fa` · `dashboard/routes/portal.routes.js:2859:bfdc3284` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:227:15e5b797` · `bot/shared/services/first-touch/maker.prefill.js:111:a5945708` (+3: `python3 kg/kg.py who-reads lesson_plans.grade`)
+- column `lesson_plans.subject` (written by `lp-v8-delivery.service.js`) ← read by `dashboard/routes/portal.routes.js:2859:bfdc3284` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:227:15e5b797` · `bot/shared/services/first-touch/maker.prefill.js:111:a5945708` · `bot/shared/services/lp-feedback.service.js:279:e461c55d` (+2: `python3 kg/kg.py who-reads lesson_plans.subject`)
+- column `lesson_plans.topic` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/database/bot-helpers.js:419:5950c690` · `bot/shared/routes/quiz-flow-endpoint.js:164:d69ad1fa` · `dashboard/routes/portal-teacher-home.routes.js:160:b5b1a628` · `dashboard/routes/portal.routes.js:2859:bfdc3284` (+4: `python3 kg/kg.py who-reads lesson_plans.topic`)
+- column `lesson_plans.type` (written by `lp-v8-delivery.service.js`) ← read by `dashboard/database/queries.js:723:e125cbb9` · `dashboard/routes/portal.routes.js:2859:bfdc3284` · `bot/shared/services/lp-feedback.service.js:279:e461c55d`
+- column `lesson_plans.user_id` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/database/bot-helpers.js:420:219f5683` · `bot/shared/routes/quiz-flow-endpoint.js:165:219f5683` · `dashboard/database/queries.js:822:400b923c` · `dashboard/routes/portal-teacher-home.routes.js:155:acedf831` (+11: `python3 kg/kg.py who-reads lesson_plans.user_id`)
+- column `lp_feedback.lesson_plan_id` (written by `lp-feedback.service.js`) ← read by `bot/shared/services/lp-in-app-answer.js:22:be882615` · `bot/shared/services/lp-in-app-feedback.service.js:78:fb820125`
+- column `lp_feedback.trigger_mode` (written by `lp-feedback.service.js`) ← read by `bot/shared/services/lp-in-app-answer.js:22:be882615`
+- column `lp_feedback.useful` (written by `lp-feedback.service.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:162:6689cf6d` · `bot/shared/services/lp-in-app-answer.js:21:806094e8`
+- column `lp_feedback.user_id` (written by `lp-feedback.service.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:124:e89767c0` · `bot/shared/services/lp-in-app-answer.js:22:be882615` · `bot/shared/services/lp-in-app-feedback.service.js:78:fb820125`
+- column `reading_assessments.grade_level` (written by `reading-assessment.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1797:28adfbcc` · `bot/shared/handlers/voice-message.handler.js:442:d5870428` · `bot/whatsapp-bot.js:1226:d5870428` · `dashboard/routes/portal.routes.js:8794:6033d135`
+- column `reading_assessments.language` (written by `reading-assessment.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1797:28adfbcc` · `bot/shared/handlers/voice-message.handler.js:352:41c35e65` · `dashboard/routes/portal.routes.js:8794:6033d135`
+- column `reading_assessments.passage_type` (written by `reading-assessment.service.js`) ← read by `dashboard/routes/portal.routes.js:8794:6033d135`
+- column `reading_assessments.status` (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:518:1099729a` · `bot/workers/stale-session.worker.js:279:99a7da90` · `dashboard/database/queries.js:755:a69ef692` · `dashboard/routes/portal.routes.js:8796:a69ef692` (+3: `python3 kg/kg.py who-reads reading_assessments.status`)
+- column `reading_assessments.student_identifier` (written by `reading-assessment.service.js`) ← read by `dashboard/routes/portal.routes.js:8794:6033d135`
+- column `reading_assessments.user_id` (written by `reading-assessment.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:519:a819c701` · `bot/workers/stale-session.worker.js:280:219f5683` · `dashboard/database/queries.js:824:0a954284` · `dashboard/routes/portal.routes.js:8795:219f5683` (+4: `python3 kg/kg.py who-reads reading_assessments.user_id`)
+- column `student_lists.is_active` (written by `student-list.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:389:f8c426e2` · `bot/shared/routes/quiz-flow-endpoint.js:128:f8c426e2` · `bot/whatsapp-bot.js:1483:f8c426e2` · `bot/shared/services/attendance-portal.service.js:441:f8c426e2` (+12: `python3 kg/kg.py who-reads student_lists.is_active`)
+- column `students.is_active` (written by `student-list.service.js`, `student-mode.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:332:f8c426e2` · `bot/shared/routes/edit-class-endpoint.js:47:f8c426e2` · `bot/shared/services/attendance-register-delivery.service.js:121:3d987916` · `bot/shared/services/attendance-router.service.js:112:f8c426e2` (+24: `python3 kg/kg.py who-reads students.is_active`)
+- column `user_feature_first_use.feature` (written by `howto-first-touch.service.js`) ← read by `dashboard/routes/portal-help.routes.js:43:2bc7b60c` · `bot/shared/services/app-redirect.service.js:579:98ff1da5` · `bot/shared/services/feature-intro.service.js:56:197de208`
+- column `user_feature_first_use.user_id` (written by `howto-first-touch.service.js`) ← read by `dashboard/routes/portal-help.routes.js:43:2bc7b60c` · `bot/shared/services/app-redirect.service.js:578:219f5683` · `bot/shared/services/feature-intro.service.js:55:219f5683`
+- column `user_feature_first_use.video_shown_at` (written by `howto-first-touch.service.js`) ← read by `bot/shared/services/app-redirect.service.js:577:69c690ed`
+- column `users.language_locked` (written by `sandbox-tester.js`) ← read by `bot/shared/routes/registration-endpoint.js:105:713d0c02` · `dashboard/routes/portal.routes.js:9354:6505fa79` · `scripts/language-floor-flip.js:314:1ecb6fd7`
+- column `users.name` (written by `sandbox-tester.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:247:774e00e5` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` (+66: `python3 kg/kg.py who-reads users.name`)
+- column `users.phone_number` (written by `sandbox-tester.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/observe-visit-flow.handler.js:1249:9e1a4c71` · `bot/shared/routes/homework-request-endpoint.js:56:0b64c13f` (+98: `python3 kg/kg.py who-reads users.phone_number`)
+- column `users.portal_activated` (written by `sandbox-tester.js`) ← read by `dashboard/routes/portal.routes.js:385:af8b00f9` · `bot/scripts/deployment/get-portal-test-tokens.js:46:0cecdbb4` · `bot/shared/services/portal-invite.service.js:203:d17654ef` · `bot/shared/services/quiz/web-quiz-student-join.js:264:4a7f1445`
+- column `users.portal_invite_expires_at` (written by `feature-registration.service.js`, `portal-invite.service.js`) ← read by `dashboard/routes/portal.routes.js:460:74e8e3d0` · `bot/shared/services/portal-invite.service.js:203:d17654ef`
+- column `users.portal_invite_token` (written by `feature-registration.service.js`, `portal-invite.service.js`) ← read by `dashboard/routes/portal.routes.js:461:53285ac9` · `bot/shared/services/portal-invite.service.js:204:53285ac9`
+- column `users.portal_password_hash` (written by `sandbox-tester.js`) ← read by `dashboard/routes/portal.routes.js:385:af8b00f9`
+- column `users.preferred_language` (written by `sandbox-tester.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:767:6d7fc8d6` · `bot/shared/routes/assessment-gen-endpoint.js:1051:578cc074` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` (+83: `python3 kg/kg.py who-reads users.preferred_language`)
+- column `users.registration_completed` (written by `feature-registration.service.js`) ← read by `bot/shared/database/queries.js:106:fef21f32` · `dashboard/database/queries.js:765:d3561f41` · `dashboard/routes/hcp.routes.js:223:a3c35625` · `dashboard/routes/portal.routes.js:658:b547e081` (+4: `python3 kg/kg.py who-reads users.registration_completed`)
 - column `users.registration_started_at` (written by `registration-invite.service.js`) ← read by `bot/shared/services/feature-registration.service.js:53:8579cb74`
 - table `ab_test_variants` whole row (`*`) (written by `bandit.service.js`) ← read by `dashboard/index.js:1122:d2b02c3e`?
-- table `coaching_sessions` whole row (`*`) (written by `coaching-orchestrator.service.js`, `teacher-state.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1951:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `dashboard/database/queries.js:738:7a0c163a`? (+11: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` whole row (`*`) (written by `coaching-orchestrator.service.js`, `teacher-state.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:165:d2b02c3e`? · `dashboard/database/queries.js:738:7a0c163a`? (+11: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `curriculum_lp_ast` whole row (`*`) (written by `curriculum-lp-ast.service.js`) ← read by `bot/scripts/migration/survey-lp-counts.js:22:fdae4b2f`? · `bot/scripts/render/render-one-lp.js:115:d61f3f19`? · `bot/scripts/render/render-v7-lp.js:56:94380945`?
 - table `lesson_plan_requests` whole row (`*`) (written by `lesson-plan-queue.service.js`, `teacher-state.service.js`) ← read by `bot/scripts/requeue-lesson-plan.js:42:d2b02c3e`?
 - table `lesson_plans` whole row (`*`) (written by `lp-v8-delivery.service.js`) ← read by `dashboard/database/queries.js:722:7a0c163a`? · `bot/shared/services/feature-registration.service.js:140:7a0c163a`?
-- table `reading_assessments` whole row (`*`) (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:8598:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
-- table `students` whole row (`*`) (written by `student-mode.service.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
+- table `reading_assessments` whole row (`*`) (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:8869:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
+- table `students` whole row (`*`) (written by `student-mode.service.js`) ← read by `bot/shared/services/student-list.service.js:367:d2b02c3e`?
 - table `textbook_toc` whole row (`*`) (written by `toc-loading.service.js`) ← read by `bot/shared/services/topic-matching.service.js:39:46cc8fc8`?
-- table `users` whole row (`*`) (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:275:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `users` whole row (`*`) (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`, `sandbox-tester.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:289:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `ab_test_variants` (written by `bandit.service.js`) ← read by `dashboard/index.js:1121:f4ca97a1`?
-- table `assessment_requests` (written by `portal-ready-whatsapp.service.js`) ← read by `dashboard/routes/portal.routes.js:1157:b7d7c184`? · `dashboard/services/teacher-home-order.service.js:236:b5e302a6`? · `bot/shared/services/assessment/assessment-browse.service.js:262:b7d7c184`? · `bot/shared/services/assessment/assessment-feedback.service.js:70:10ae5357`? (+4: `python3 kg/kg.py who-reads assessment_requests`)
-- table `attendance_records` (written by `attendance-write.service.js`) ← read by `bot/shared/services/attendance-portal.service.js:319:cfe741c3`?
-- table `attendance_sessions` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:909:2a982732`? · `dashboard/routes/portal.routes.js:1396:70a65915`? · `dashboard/services/teacher-home-order.service.js:237:57e1664c`? · `bot/shared/services/attendance-portal.service.js:293:2a982732`? (+1: `python3 kg/kg.py who-reads attendance_sessions`)
-- table `coach_visit_requests` (written by `coach-voice-note-retention.service.js`) ← read by `dashboard/routes/coach-card.routes.js:33:d4b16243`? · `dashboard/routes/portal.routes.js:2364:1fdcb761`? · `dashboard/services/coach-disagreement-plan.js:29:9ee72eab`? · `dashboard/services/coach-disagreements.service.js:137:b161c5cf`? (+1: `python3 kg/kg.py who-reads coach_visit_requests`)
-- table `coaching_sessions` (written by `coaching-orchestrator.service.js`, `teacher-state.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1950:5911672a`? · `bot/shared/handlers/voice-message.handler.js:769:5911672a`? (+87: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `app_settings` (written by `sandbox-tester.js`) ← read by `bot/shared/config/feature-flags.js:106:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? · `bot/shared/config/web-quiz-brand.js:127:110366bd`? · `dashboard/lib/analytics-lists.js:185:8d5282ae`? (+152: `python3 kg/kg.py who-reads app_settings`)
+- table `assessment_requests` (written by `portal-ready-whatsapp.service.js`) ← read by `dashboard/routes/portal.routes.js:1171:b7d7c184`? · `dashboard/services/teacher-home-order.service.js:240:b5e302a6`? · `bot/shared/services/assessment/assessment-browse.service.js:262:b7d7c184`? · `bot/shared/services/assessment/assessment-feedback.service.js:70:10ae5357`? (+3: `python3 kg/kg.py who-reads assessment_requests`)
+- table `attendance_records` (written by `attendance-write.service.js`) ← read by `bot/shared/services/attendance-portal.service.js:513:cfe741c3`?
+- table `attendance_sessions` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:909:2a982732`? · `dashboard/routes/portal.routes.js:1410:70a65915`? · `dashboard/services/teacher-home-order.service.js:241:57e1664c`? · `bot/shared/services/attendance-portal.service.js:487:2a982732`? (+1: `python3 kg/kg.py who-reads attendance_sessions`)
+- table `coach_visit_requests` (written by `coach-voice-note-retention.service.js`) ← read by `dashboard/routes/coach-card.routes.js:33:d4b16243`? · `dashboard/routes/portal.routes.js:2502:1fdcb761`? · `dashboard/services/coach-disagreement-plan.js:29:9ee72eab`? · `dashboard/services/coach-disagreements.service.js:140:b161c5cf`? (+1: `python3 kg/kg.py who-reads coach_visit_requests`)
+- table `coaching_sessions` (written by `coaching-orchestrator.service.js`, `teacher-state.service.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1982:5911672a`? (+97: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `curriculum_lp_ast` (written by `curriculum-lp-ast.service.js`) ← read by `bot/scripts/migration/import-tbcore-lps.js:279:fe1db9e9`? · `bot/scripts/migration/survey-lp-inventory.js:37:fe1db9e9`?
 - table `lesson_plan_requests` (written by `lesson-plan-lifecycle.service.js`, `lesson-plan-queue.service.js`, `teacher-state.service.js`) ← read by `bot/shared/routes/homework-request-endpoint.js:230:f61b5e94`? · `bot/workers/homework-bundle.worker.js:129:956ee1e9`? · `bot/scripts/requeue-lesson-plan.js:41:f61b5e94`? · `bot/shared/services/lesson-plan-queue.service.js:55:f61b5e94`? (+3: `python3 kg/kg.py who-reads lesson_plan_requests`)
-- table `lesson_plans` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/database/bot-helpers.js:418:611f2601`? · `bot/shared/routes/quiz-flow-endpoint.js:163:611f2601`? · `bot/workers/homework-bundle.worker.js:183:611f2601`? · `bot/workers/quiz-job-handler.js:351:611f2601`? (+12: `python3 kg/kg.py who-reads lesson_plans`)
-- table `lp_feedback` (written by `lp-feedback.service.js`) ← read by `bot/scripts/migration/apply-017-lp-feedback.js:74:3f0e2a4e`? · `bot/shared/services/assessment/assessment-feedback.service.js:123:278f8d63`?
-- table `niete_lp612_deliveries` (written by `portal-ready-whatsapp.service.js`) ← read by `bot/shared/services/lp-app-open-survey.service.js:101:e6842ada`? · `bot/shared/services/share-send.service.js:135:57a90568`?
-- table `niete_lp612_own_plans` (written by `lp612-own.service.js`) ← read by `bot/workers/lp612-own.worker.js:139:ed14122b`?
-- table `niete_lp612_renders` (written by `lp612-serving.service.js`) ← read by `bot/shared/services/coaching/portal-lesson-plan-library.service.js:122:3534712c`?
-- table `niete_lp_downloads` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/calls/call-tools.repo.js:128:bdffbacd`? · `bot/shared/services/coaching/analysis-processor.service.js:93:bdffbacd`? · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:53:bdffbacd`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:100:bdffbacd`? (+7: `python3 kg/kg.py who-reads niete_lp_downloads`)
-- table `reading_assessments` (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1764:4337985e`? · `bot/shared/handlers/voice-message.handler.js:351:4337985e`? · `bot/whatsapp-bot.js:1214:4337985e`? (+11: `python3 kg/kg.py who-reads reading_assessments`)
+- table `lesson_plans` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/database/bot-helpers.js:418:611f2601`? · `bot/shared/routes/quiz-flow-endpoint.js:163:611f2601`? · `bot/workers/homework-bundle.worker.js:183:611f2601`? · `bot/workers/quiz-job-handler.js:351:611f2601`? (+14: `python3 kg/kg.py who-reads lesson_plans`)
+- table `lp_feedback` (written by `lp-feedback.service.js`, `lp-in-app-feedback.service.js`) ← read by `bot/scripts/migration/apply-017-lp-feedback.js:74:3f0e2a4e`? · `bot/shared/services/assessment/assessment-feedback.service.js:123:278f8d63`? · `bot/shared/services/lp-feedback.service.js:316:5cdfa157`? · `bot/shared/services/lp-in-app-answer.js:21:806094e8`? (+1: `python3 kg/kg.py who-reads lp_feedback`)
+- table `niete_gb_lp_renders` (written by `gb-lp-serving.service.js`) ← read by `bot/shared/services/coaching/portal-lesson-plan-library.service.js:128:a28b359c`?
+- table `niete_lp612_deliveries` (written by `portal-ready-whatsapp.service.js`) ← read by `bot/shared/services/lp-app-open-survey.service.js:115:e6842ada`? · `bot/shared/services/share-send.service.js:158:57a90568`?
+- table `niete_lp612_own_plans` (written by `lp612-own-reviewer.js`, `lp612-own.service.js`) ← read by `bot/workers/lp612-own.worker.js:267:ed14122b`? · `bot/shared/services/lp-own-mine.js:43:ed14122b`? · `bot/shared/services/lp-own-recent.js:27:ed14122b`? · `bot/shared/services/lp612-own-library.js:55:4a802f85`? (+3: `python3 kg/kg.py who-reads niete_lp612_own_plans`)
+- table `niete_lp612_renders` (written by `lp612-serving.service.js`) ← read by `bot/workers/lp612-redeliver.js:26:9a59cdee`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:138:3534712c`?
+- table `niete_lp_downloads` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/calls/call-tools.repo.js:128:bdffbacd`? · `bot/shared/services/coaching/analysis-processor.service.js:93:bdffbacd`? · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:53:bdffbacd`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:103:bdffbacd`? (+7: `python3 kg/kg.py who-reads niete_lp_downloads`)
+- table `reading_assessments` (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1796:4337985e`? · `bot/shared/handlers/voice-message.handler.js:351:4337985e`? · `bot/whatsapp-bot.js:1225:4337985e`? (+11: `python3 kg/kg.py who-reads reading_assessments`)
 - table `student_lists` (written by `student-list.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:298:8479d615`? · `bot/shared/routes/attendance-setup-endpoint.js:174:8479d615`? · `bot/shared/routes/edit-class-endpoint.js:33:8479d615`? · `bot/shared/routes/quiz-flow-endpoint.js:125:8479d615`? (+23: `python3 kg/kg.py who-reads student_lists`)
-- table `students` (written by `student-list.service.js`, `student-mode.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? · `bot/shared/routes/roster-flow-endpoint.js:775:3776d591`? · `bot/shared/routes/student-videos-endpoint.js:266:d71c8cd6`? (+42: `python3 kg/kg.py who-reads students`)
-- table `teacher_attendance_records` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? · `dashboard/routes/portal.routes.js:1412:271b593d`? · `dashboard/services/attendance-repository.service.js:118:cac7d040`? (+1: `python3 kg/kg.py who-reads teacher_attendance_records`)
+- table `students` (written by `student-list.service.js`, `student-mode.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? · `bot/shared/routes/roster-flow-endpoint.js:782:3776d591`? · `bot/shared/routes/student-videos-endpoint.js:266:d71c8cd6`? (+43: `python3 kg/kg.py who-reads students`)
+- table `teacher_attendance_records` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? · `dashboard/routes/portal.routes.js:1426:271b593d`? · `dashboard/services/attendance-repository.service.js:122:cac7d040`? (+2: `python3 kg/kg.py who-reads teacher_attendance_records`)
 - table `textbook_toc` (written by `toc-loading.service.js`) ← read by `bot/scripts/import-assessment-topics.js:139:2986a134`? · `bot/scripts/migration/survey-lp-inventory.js:83:10cc8589`? · `scripts/assessment/eval-run.js:80:5ce6536d`? · `bot/shared/services/assessment/assessment-browse.service.js:109:10cc8589`? (+1: `python3 kg/kg.py who-reads textbook_toc`)
-- table `user_feature_first_use` (written by `app-redirect.service.js`, `feature-intro.service.js`) ← read by `bot/shared/services/app-redirect.service.js:454:f6f893d9`? · `bot/shared/services/feature-intro.service.js:53:f6f893d9`?
-- table `users` (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+188: `python3 kg/kg.py who-reads users`)
-- env `ANTHROPIC_API_KEY` read at `bot/shared/services/llm-client.js:912:5bd0a625`
+- table `user_feature_first_use` (written by `app-redirect.service.js`, `feature-intro.service.js`, `howto-first-touch.service.js`) ← read by `dashboard/routes/portal-help.routes.js:43:2bc7b60c`? · `bot/shared/services/app-redirect.service.js:576:f6f893d9`? · `bot/shared/services/feature-intro.service.js:53:f6f893d9`? · `bot/shared/services/howto-first-touch.service.js:95:d0819fe4`?
+- table `users` (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`, `sandbox-tester.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+208: `python3 kg/kg.py who-reads users`)
+- env `ANTHROPIC_API_KEY` read at `bot/shared/services/llm-client.js:918:5bd0a625`
 - env `APP_SETTINGS_FLAG_TTL_MS` read at `bot/shared/services/webhook-signature.js:45:7b1a7c4a`
 - env `APP_URL` read at `bot/shared/services/llm-client.js:278:a6f65934`
 - env `ASSESSMENT_GEN_FLOW_ID` read at `bot/shared/services/assessment-entry.service.js:60:8d81faaf`
@@ -417,7 +541,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `GRAPH_API_VERSION` read at `bot/shared/services/whatsapp.service.js:64:ddcada1f`
 - env `INBOUND_TYPING_DEFER_MS` read at `bot/shared/services/inbound-typing.js:103:f3a2211b`
 - env `INBOUND_TYPING_QUIET_HOLD_MS` read at `bot/shared/services/inbound-typing.js:91:a13362bb`
-- env `INTERNAL_API_KEY` read at `bot/shared/services/app-login-link.js:108:237d5f3b` · `bot/shared/services/fln-keys.js:36:237d5f3b` · `bot/shared/services/portal-link-token.js:66:3d849406`
+- env `INTERNAL_API_KEY` read at `bot/shared/services/app-login-link.js:115:237d5f3b` · `bot/shared/services/fln-keys.js:36:237d5f3b` · `bot/shared/services/portal-link-token.js:66:3d849406`
 - env `LLM_DIRECT_FALLBACK_MODEL` read at `bot/shared/services/llm-client.js:138:eb940686`
 - env `LLM_FALLBACK_OFF` read at `bot/shared/services/llm-client.js:239:b0507923`
 - env `LLM_JOB_MODELS` read at `bot/shared/services/llm-client.js:394:8f569dc1`
@@ -425,16 +549,17 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `LLM_MODEL` read at `bot/shared/services/llm-client.js:42:8ac80d3e`
 - env `LLM_PROVIDER` read at `bot/shared/services/llm-client.js:41:50f26a4f`
 - env `LLM_REQUEST_TIMEOUT_MS` read at `bot/shared/services/llm-client.js:85:95d13c97`
-- env `LP612_AUTHOR_ROUNDS` read at `bot/shared/services/lp612-author.service.js:107:5dafcae7`
+- env `LP612_AUTHOR_ROUNDS` read at `bot/shared/services/lp612-author.service.js:108:5dafcae7`
 - env `LP612_DELIVER_TRUNCATED` read at `bot/shared/services/lp612-render-policy.service.js:81:8e14b516`
 - env `LP612_PAGE_TRUTH_DIR` read at `bot/shared/services/lp612-pagetruth.service.js:181:1eda2971`
-- env `LP612_RENDER_CONCURRENCY` read at `bot/shared/services/lp612-render.service.js:92:a31d9c3f`
-- env `LP612_RENDER_EXPECTED_MS` read at `bot/shared/services/lp612-render.service.js:145:3f753759`
+- env `LP612_RENDER_CONCURRENCY` read at `bot/shared/services/lp612-render.service.js:93:a31d9c3f`
+- env `LP612_RENDER_EXPECTED_MS` read at `bot/shared/services/lp612-render.service.js:146:3f753759`
 - env `LP_CONTEXT_V2_ENABLED` read at `bot/shared/services/lp-context.service.js:739:2e821a33`
-- env `LP_GB_AUTHOR_ENABLED` read at `bot/shared/services/gb-lp-serving.service.js:49:976578db`
-- env `LP_GB_STRANDED_MS` read at `bot/shared/services/gb-lp-serving.service.js:50:c0271ba8`
-- env `LP_GB_TEMPLATE_VERSION` read at `bot/shared/services/gb-lp-serving.service.js:45:5bfb394c`
+- env `LP_GB_AUTHOR_ENABLED` read at `bot/shared/services/gb-lp-serving.service.js:53:976578db`
+- env `LP_GB_STRANDED_MS` read at `bot/shared/services/gb-lp-serving.service.js:54:c0271ba8`
+- env `LP_GB_TEMPLATE_VERSION` read at `bot/shared/services/gb-lp-serving.service.js:49:5bfb394c`
 - env `LP_LIFECYCLE_PATHS` read at `bot/shared/services/lesson-plan-lifecycle.service.js:123:cdca6d3a`
+- env `MENU_KEYWORD_ROUTING` read at `bot/shared/services/menu-request.js:87:15813b57`
 - env `OPENAI_API_KEY` read at `bot/shared/services/llm-client.js:245:610da071`
 - env `OPENROUTER_API_KEY` read at `bot/shared/services/llm-client.js:172:d9fb0214`
 - env `PAKISTAN_LP_FLOW_ID` read at `bot/shared/services/lp-browse-entry.service.js:78:f3637211`
@@ -450,7 +575,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `ROSTER_FLOW_ID` read at `bot/shared/services/roster-entry.service.js:44:0d3c39c9`
 - env `STUDENT_VIDEOS_FLOW_ID` read at `bot/shared/services/student-videos-entry.service.js:26:0389e3b2`
 - env `SUPABASE_SERVICE_ROLE_KEY` read at `bot/shared/services/redis-comprehension.service.js:21:90118d4a`
-- env `SUPABASE_URL` read at `bot/shared/services/app-login-link.js:96:a60b88ec` · `bot/shared/services/e2e-cassette.js:42:2e19eb18` · `bot/shared/services/fln-keys.js:24:a60b88ec` · `bot/shared/services/redis-comprehension.service.js:20:e84bc099`
+- env `SUPABASE_URL` read at `bot/shared/services/app-login-link.js:103:a60b88ec` · `bot/shared/services/e2e-cassette.js:42:2e19eb18` · `bot/shared/services/fln-keys.js:24:a60b88ec` · `bot/shared/services/redis-comprehension.service.js:20:e84bc099`
 - env `WA_OUTBOUND_ECHO_TO` read at `bot/shared/services/outbound-echo.js:32:987ad6d1`
 - env `WA_PAIR_BURST` read at `bot/shared/services/whatsapp-send-pacer.js:119:8f7e42c1`
 - env `WA_PAIR_INTERVAL_MS` read at `bot/shared/services/whatsapp-send-pacer.js:118:32fbd416`
@@ -466,19 +591,22 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `anthropic-native-facade.js` ← `tests/llm/anthropic-facade-translation.test.js` · `tests/llm/direct-lane-system-note-position.test.js` · `tests/llm/facade-dated-model-price.test.js` · `tests/llm/haiku-5-5-direct-lane.test.js` · `tests/llm/job-override-hardening.test.js` · `tests/llm/sonnet-5-5-price.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/anthropic-native-facade.js`)
 - `app-journey.js` ← `tests/app-funnel/app-login-journey.test.js` · `tests/app-funnel/journey-token.test.js` · `tests/app-funnel/route-parity.test.js` · `tests/app-redirect/app-link-leader-lesson-plan.test.js`
-- `app-login-link.js` ← `bot/tests/first-touch/teacher-home.portal-link.test.js` · `tests/app-funnel/app-login-journey.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-funnel/journey-token.test.js` · `tests/app-redirect/app-link-coach-school-card-door.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` (+26: `python3 kg/kg.py who-reads bot/shared/services/app-login-link.js`)
-- `app-redirect.service.js` ← `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/handlers/reversed-slash-command.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-coach.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/services/app-redirect.service.js`)
+- `app-login-link.js` ← `bot/tests/first-touch/teacher-home.portal-link.test.js` · `tests/app-funnel/app-login-journey.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-funnel/journey-token.test.js` · `tests/app-redirect/app-link-coach-school-card-door.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` (+32: `python3 kg/kg.py who-reads bot/shared/services/app-login-link.js`)
+- `app-redirect.service.js` ← `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/handlers/reversed-slash-command.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-coach.test.js` (+13: `python3 kg/kg.py who-reads bot/shared/services/app-redirect.service.js`)
 - `assessment-entry.service.js` ← `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `tests/app-redirect/app-redirect-routing.test.js` · `tests/handlers/feature-doors.test.js`
 - `attendance-entry.service.js` ← `tests/handlers/feature-doors.test.js`
-- `attendance-portal.service.js` ← `tests/attendance/bd-fmf24g.7-attendance-portal.test.js`
-- `attendance-register-delivery.service.js` ← `tests/attendance/register-delivery-temp-race.test.js` · `tests/attendance/register-delivery.test.js` · `tests/attendance/student-flow-four-asks.test.js`
+- `attendance-portal.service.js` ← `tests/attendance/bd-33wxxi.10-staff-register.test.js` · `tests/attendance/bd-fmf24g.7-attendance-portal.test.js`
+- `attendance-register-delivery.service.js` ← `tests/attendance/bd-33wxxi.10-staff-register.test.js` · `tests/attendance/register-delivery-temp-race.test.js` · `tests/attendance/register-delivery.test.js` · `tests/attendance/student-flow-four-asks.test.js`
 - `attendance-register.service.js` ← `tests/attendance/monthly-register.test.js` · `tests/attendance/student-flow-four-asks.test.js`
 - `attendance-router.service.js` ← `bot/tests/lp-v8/lp-shelf-flush-points.test.js` · `tests/attendance/attendance-no-class-creation.test.js` · `tests/attendance/attendance-router.test.js` · `tests/attendance/completion-classified-from-token.test.js` · `tests/attendance/empty-roster-dead-end.test.js` · `tests/attendance/enrollment-roster-source.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/attendance-router.service.js`)
-- `attendance-write.service.js` ← `tests/attendance/attendance-write.test.js`
-- `audio.service.js` ← `bot/tests/observe/bd-tju8f-audio-wall.test.js` · `bot/tests/quiz/one-voice-missing-keys.test.js` · `bot/tests/quiz/web-quiz/challenge-counted-meta.test.js` · `bot/tests/quiz/web-quiz/challenge-read-quality.test.js` · `bot/tests/quiz/web-quiz/challenge-record-guards.test.js` · `bot/tests/quiz/web-quiz/challenge-serve-v2.test.js` (+19: `python3 kg/kg.py who-reads bot/shared/services/audio.service.js`)
+- `attendance-write.service.js` ← `tests/attendance/attendance-write.test.js` · `tests/identity/bd-apnnh2.15-lists-skip-retired.test.js`
+- `audio.service.js` ← `bot/tests/observe/bd-tju8f-audio-wall.test.js` · `bot/tests/quiz/one-voice-missing-keys.test.js` · `bot/tests/quiz/web-quiz/challenge-counted-meta.test.js` · `bot/tests/quiz/web-quiz/challenge-read-quality.test.js` · `bot/tests/quiz/web-quiz/challenge-record-guards.test.js` · `bot/tests/quiz/web-quiz/challenge-serve-v2.test.js` (+20: `python3 kg/kg.py who-reads bot/shared/services/audio.service.js`)
 - `aws-textract.service.js` ← `tests/coaching/bd-0wws3e-lp-pdf-nul-and-corpus-link.test.js`
-- `book-curriculum.service.js` ← `tests/lp-v8/gb-portal-lane.test.js` · `tests/region/book-curriculum.test.js`
-- `coach-school-target.js` ← `tests/app-redirect/app-link-coach-school-card.test.js` · `tests/app-redirect/app-login-coach-school.test.js`
+- `book-curriculum.service.js` ← `tests/books/gb-grades-6-10.test.js` · `tests/lp-v8/gb-follows-ict.test.js` · `tests/lp-v8/gb-portal-lane.test.js` · `tests/region/book-curriculum.test.js`
+- `coach-app-nudge.service.js` ← `tests/app-redirect/coach-app-nudge-reply.test.js` · `tests/app-redirect/coach-app-nudge.test.js`
+- `coach-app-offer.js` ← `tests/app-redirect/principal-app-observe.test.js`
+- `coach-handoff-code.js` ← `tests/portal/coach-handoff-route.test.js`
+- `coach-school-target.js` ← `tests/app-redirect/app-link-coach-school-card.test.js` · `tests/app-redirect/app-login-coach-school.test.js` · `tests/portal/bd-97daxo.22-gb-school-without-emis.test.js`
 - `coach-voice-note-retention.service.js` ← `bot/tests/services/coach-voice-note-retention.test.js` · `bot/tests/workers/coach-voice-note-sweep.test.js`
 - `coaching-orchestrator.service.js` ← `bot/tests/observe/bd-2kxxa2-media-target.test.js` · `bot/tests/observe/bd-o8nt4-principal-self-coaching.test.js` · `tests/coaching/bd-59840-honest-wait-no-ack.test.js` · `tests/coaching/bd-fmf24g.9-teacher-class.test.js` · `tests/coaching/meta-bill-nc1-confirm-carries-wait.test.js` · `tests/handlers/bd-c5reix-doors-keep-recording.test.js` (+3: `python3 kg/kg.py who-reads bot/shared/services/coaching-orchestrator.service.js`)
 - `content.service.js` ← `tests/lesson-plan-lifecycle/grounded-path.test.js`
@@ -497,54 +625,103 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fln-send.strings.js` ← `tests/routes/fln-send.service.test.js`
 - `flow-encryption.service.js` ← `tests/child-test/L14/check-play.test.js` · `tests/child-test/L6/endpoint.test.js` · `tests/e2e-mock/flow-emulator.test.js` · `tests/setup/flow-encryption-method-conformance.test.js` · `tests/whatsapp/webhook-signature.test.js`
 - `gb-lp-serving.service.js` ← `tests/lp612/gb-lp-serving.test.js` · `tests/lp612/gb-lp-v10-card-worker.test.js`
-- `gpt5-mini.service.js` ← `bot/tests/coaching/reflective-question-english-contract.test.js` · `bot/tests/observe/bd-2kxxa3-debrief-transcription-failure.test.js` · `bot/tests/observe/bd-7vcy1p-debrief-recipient.test.js` · `bot/tests/observe/bd-c3uq9-notes-language.test.js` · `bot/tests/observe/bd-dy7hs-one-language-owner.test.js` · `bot/tests/observe/bd-zpyf0-confirm-names-recipient.test.js` (+36: `python3 kg/kg.py who-reads bot/shared/services/gpt5-mini.service.js`)
+- `gpt5-mini.service.js` ← `bot/tests/coaching/reflective-question-english-contract.test.js` · `bot/tests/observe/bd-2kxxa3-debrief-transcription-failure.test.js` · `bot/tests/observe/bd-7vcy1p-debrief-recipient.test.js` · `bot/tests/observe/bd-c3uq9-notes-language.test.js` · `bot/tests/observe/bd-dy7hs-one-language-owner.test.js` · `bot/tests/observe/bd-r2uzg1-14-confirm-names-school.test.js` (+47: `python3 kg/kg.py who-reads bot/shared/services/gpt5-mini.service.js`)
 - `helper-agent.service.js` ← `bot/tests/i18n/slash-command-bidi.test.js` · `tests/menu/stale-menu-wait.test.js` · `tests/registration/front-door-invite.test.js`
 - `homework-lookup.service.js` ← `tests/homework/homework-flow.test.js`
+- `howto-first-touch.service.js` ← `bot/tests/howto/howto-first-touch.test.js`
+- `inbound-media-failed.service.js` ← `tests/whatsapp/inbound-media-failed.test.js`
 - `inbound-typing.js` ← `tests/meta-bill-cut/fx3-silent-turn-typing.test.js` · `tests/meta-bill-cut/fx4-round3.test.js` · `tests/meta-bill-cut/fx6-round4.test.js` · `tests/whatsapp/inbound-typing-scope.test.js`
 - `language-detector.service.js` ← `tests/handlers/voice-language-floor.test.js` · `tests/llm/single-source-e2e.test.js`
 - `lesson-plan-lifecycle.service.js` ← `tests/lesson-plan-lifecycle/queue-own-row-read-failed.test.js` · `tests/lesson-plan-lifecycle/vocabulary.test.js` · `tests/lesson-plan-lifecycle/writer.test.js` · `tests/lp612/gb-k5-lifecycle-ids.test.js`
 - `lesson-plan-queue.service.js` ← `bot/tests/lp-v8/bd-oak77-cutover-inflight.test.js` · `tests/app-redirect/app-link-leader-lessons-rescue.test.js` · `tests/fflp/queue-worker.test.js` · `tests/lesson-plan-lifecycle/generation-failed-attempts.test.js` · `tests/lesson-plan-lifecycle/grounded-path.test.js` · `tests/lesson-plan-lifecycle/queue-own-row-read-failed.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/services/lesson-plan-queue.service.js`)
 - `lesson-plan-template.service.js` ← `bot/tests/services/lesson-plan-template.grounded.test.js` · `tests/textbook-lp-v2/lesson-plan-template.test.js`
 - `lesson-plans-web-link.js` ← `tests/lp-v8/web-lessons-link.test.js`
-- `llm-client.js` ← `bot/tests/llm-cost-attributed.test.js` · `bot/tests/llm-cost-recorded.test.js` · `bot/tests/llm-fallback-armed.test.js` · `bot/tests/llm-vendor-fallback.test.js` · `bot/tests/quiz/web-quiz/challenge-counted-meta.test.js` · `bot/tests/quiz/web-quiz/challenge-read-quality.test.js` (+69: `python3 kg/kg.py who-reads bot/shared/services/llm-client.js`)
+- `llm-client.js` ← `bot/tests/assessment/generate-exam-bad-json.test.js` · `bot/tests/assessment/generate-exam-religious.test.js` · `bot/tests/llm-cost-attributed.test.js` · `bot/tests/llm-cost-recorded.test.js` · `bot/tests/llm-fallback-armed.test.js` · `bot/tests/llm-vendor-fallback.test.js` (+76: `python3 kg/kg.py who-reads bot/shared/services/llm-client.js`)
 - `lp-ab-ch310.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `tests/quiz/lp-app-opens-served-and-listed.test.js`
-- `lp-app-open-survey.service.js` ← `tests/lesson-plan-lifecycle/v8-portal-path.test.js` · `tests/lp-v8/app-open-survey-fln.test.js` · `tests/lp-v8/app-open-survey.test.js`
+- `lp-app-open-survey.service.js` ← `tests/lesson-plan-lifecycle/v8-portal-path.test.js` · `tests/lp-v8/app-open-survey-fln.test.js` · `tests/lp-v8/app-open-survey-k5-as-g612.test.js` · `tests/lp-v8/app-open-survey.test.js`
 - `lp-browse-entry.service.js` ← `bot/tests/first-touch/maker-fallback.test.js` · `bot/tests/lp-v8/bd-hgwfo-gamma-door.test.js` · `tests/app-redirect/app-redirect-routing.test.js` · `tests/lp-v8/meta-bill-nl3-redirect-in-flow.test.js` · `tests/lp-v8/web-lessons-link.test.js`
 - `lp-context.service.js` ← `bot/tests/lp-v8/bd-wpupy-followup-context.test.js` · `bot/tests/lp-v8/lp-context-app-opens.test.js` · `bot/tests/lp-v8/lp-context-builder.test.js` · `bot/tests/lp-v8/lp-context-gate.test.js` · `bot/tests/lp-v8/religious-reverence.test.js` · `tests/lp612/context-one-screen.test.js`
 - `lp-delivery-marker.service.js` ← `bot/tests/lp-v8/bd-wpupy-delivery-marker.test.js`
 - `lp-describe.service.js` ← `tests/portal/fln-readers.test.js`
-- `lp-feedback.service.js` ← `bot/scripts/e2e/lp-feedback-e2e.js` · `bot/tests/handlers/portal-bare-word.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/voicenote-survey.test.js` · `bot/tests/services/lp-feedback.service.test.js` · `tests/lp-v8/app-open-survey.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/lp-feedback.service.js`)
+- `lp-feedback.service.js` ← `bot/scripts/e2e/lp-feedback-e2e.js` · `bot/tests/handlers/portal-bare-word.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/voicenote-survey.test.js` · `bot/tests/services/lp-feedback.service.test.js` · `tests/feedback/lp-in-app-feedback.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/services/lp-feedback.service.js`)
+- `lp-in-app-answer.js` ← `tests/feedback/lp-in-app-answer.test.js`
+- `lp-in-app-feedback.service.js` ← `tests/feedback/lp-in-app-feedback.test.js`
+- `lp-k5-own-author.js` ← `tests/lp612/own-fits-one-period.test.js` · `tests/lp612/own-goal-k5-fix.test.js` · `tests/lp612/own-k5-author.test.js` · `tests/lp612/own-materials.test.js` · `tests/lp612/own-you-do-alone.test.js`
+- `lp-k5-own-close.js` ← `tests/lp612/own-k5-close.test.js`
+- `lp-k5-own-fonts.js` ← `tests/lp612/own-k5-fonts.test.js`
+- `lp-k5-own-goal.js` ← `tests/lp612/own-goal-k5.test.js`
+- `lp-k5-own-html.js` ← `tests/lp612/own-k5-html.test.js`
+- `lp-k5-own-pages.js` ← `tests/lp612/own-k5-pages.test.js`
+- `lp-k5-own-render.js` ← `tests/lp612/own-k5-close.test.js` · `tests/lp612/own-k5-goal-bidi.test.js` · `tests/lp612/own-k5-layout.test.js` · `tests/lp612/own-k5-pages-wiring.test.js` · `tests/lp612/own-k5.test.js`
+- `lp-k5-own-source.js` ← `tests/lp612/own-k5-pages-wiring.test.js` · `tests/lp612/own-k5-source.test.js`
+- `lp-k5-own.js` ← `tests/lp612/own-board-negation.test.js` · `tests/lp612/own-fits-one-period.test.js` · `tests/lp612/own-goal-k5.test.js` · `tests/lp612/own-k5-close.test.js` · `tests/lp612/own-k5-html.test.js` · `tests/lp612/own-k5-pages-wiring.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/services/lp-k5-own.js`)
+- `lp-own-book.js` ← `tests/lp612/own-book.test.js`
+- `lp-own-edit-guard.js` ← `tests/lp612/own-edit-guard.test.js` · `tests/lp612/own-unified-rules.test.js`
+- `lp-own-edit-instruction.js` ← `tests/lp612/own-edit-instruction.test.js` · `tests/lp612/own-goal-k5-fix.test.js` · `tests/lp612/own-unified-rules.test.js`
+- `lp-own-fit.js` ← `tests/lp612/own-fit.test.js`
+- `lp-own-gb.js` ← `tests/lp612/bd-2zopnc-own-gb.test.js`
+- `lp-own-goal-check.js` ← `tests/lp612/own-goal-check.test.js`
+- `lp-own-goal-guard.js` ← `tests/lp612/own-goal-guard.test.js`
+- `lp-own-goal-skills.js` ← `tests/lp612/own-goal-skills.test.js`
+- `lp-own-mine.js` ← `tests/lp612/own-mine.test.js`
+- `lp-own-period.js` ← `tests/lp612/own-fit.test.js` · `tests/lp612/own-fits-one-period.test.js` · `tests/lp612/own-period.test.js` · `tests/lp612/own-slate-context.test.js`
+- `lp-own-recent.js` ← `tests/lp612/own-recent.test.js`
+- `lp-own-sections.js` ← `tests/lp612/own-sections.test.js`
+- `lp-pdf-off.js` ← `tests/lp-whatsapp-off/lp-pdf-off.test.js`
 - `lp-shelf.service.js` ← `bot/tests/lp-v8/lp-shelf-flush-points.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `tests/quiz/lp-shelf.test.js`
-- `lp-v10-card.service.js` ← `tests/lp-v8/lp-v10-card.test.js`
-- `lp-v8-browse.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/books/internal-api-shelf.test.js` · `tests/lp-v8/gb-portal-lane.test.js` · `tests/lp-v8/lp-v10-card-wiring.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-browse.service.js`)
-- `lp-v8-catalog.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/endpoint-items.test.js` (+35: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-catalog.service.js`)
-- `lp-v8-delivery.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/live-schema-limits.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/voicenote-delivery.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-delivery.service.js`)
+- `lp-v10-card.service.js` ← `tests/lp-v8/leader-reader-pdf.test.js` · `tests/lp-v8/lp-v10-card.test.js` · `tests/lp-v8/lp-v10-served-once.test.js`
+- `lp-v8-browse.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/books/internal-api-shelf.test.js` · `tests/lp-v8/gb-follows-ict.test.js` · `tests/lp-v8/gb-portal-lane.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-browse.service.js`)
+- `lp-v8-catalog.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/endpoint-items.test.js` (+42: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-catalog.service.js`)
+- `lp-v8-delivery.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/live-schema-limits.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/voicenote-delivery.test.js` (+7: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-delivery.service.js`)
 - `lp-v8-lifecycle.service.js` ← `tests/lesson-plan-lifecycle/v8-portal-path.test.js`
 - `lp-vision-ocr.service.js` ← `tests/coaching/lp-vision-ocr.test.js`
-- `lp-voicenote-script.service.js` ← `bot/tests/lp-v8/lp-shelf-plumbing.test.js`
-- `lp612-author.service.js` ← `tests/lp612/author-advisory-prompt.test.js` · `tests/lp612/author-brief-gender-neutral.test.js` · `tests/lp612/author-ladder-stop.test.js` · `tests/lp612/author-religious-marks-blocking.test.js` · `tests/lp612/author-render-gate.test.js` · `tests/lp612/author-schema-tier.test.js` (+29: `python3 kg/kg.py who-reads bot/shared/services/lp612-author.service.js`)
-- `lp612-browse.service.js` ← `tests/books/internal-api-shelf.test.js` · `tests/lp612/lp612-curriculum.test.js` · `tests/lp612/own-status-fallback.test.js` · `tests/lp612/portal-browse.test.js` · `tests/lp612/portal-claim.test.js` · `tests/lp612/subject-order.test.js`
-- `lp612-catalog.service.js` ← `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `tests/lp612/catalog-grades-cap.test.js` · `tests/lp612/catalog-long-names.test.js` · `tests/lp612/catalog-row-consistency.test.js` · `tests/lp612/catalog-rowcap.test.js` · `tests/lp612/catalog-urdu-furniture.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/services/lp612-catalog.service.js`)
+- `lp-voicenote-script.service.js` ← `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/voicenote-off.test.js`
+- `lp-whatsapp-off.js` ← `tests/feedback/lp-whatsapp-off.test.js`
+- `lp612-author.service.js` ← `tests/lp612/author-advisory-prompt.test.js` · `tests/lp612/author-brief-gender-neutral.test.js` · `tests/lp612/author-brief-poem-paraphrase.test.js` · `tests/lp612/author-brief-reading-step.test.js` · `tests/lp612/author-key-repair.test.js` · `tests/lp612/author-ladder-stop.test.js` (+33: `python3 kg/kg.py who-reads bot/shared/services/lp612-author.service.js`)
+- `lp612-browse.service.js` ← `tests/books/gb-upper-book-list.test.js` · `tests/books/internal-api-shelf.test.js` · `tests/lp612/lp612-curriculum.test.js` · `tests/lp612/own-status-fallback.test.js` · `tests/lp612/own-status-shelf-fallback.test.js` · `tests/lp612/portal-browse.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/services/lp612-browse.service.js`)
+- `lp612-catalog.service.js` ← `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `tests/books/gb-grades-6-10.test.js` · `tests/books/gb-upper-book-list.test.js` · `tests/lp612/bd-iceyyu-catalog-lead.test.js` · `tests/lp612/bd-iceyyu-endpoint-own.test.js` · `tests/lp612/catalog-grades-cap.test.js` (+10: `python3 kg/kg.py who-reads bot/shared/services/lp612-catalog.service.js`)
 - `lp612-curriculum.service.js` ← `tests/lp612/gb-k5-curriculum.test.js`
 - `lp612-deliveries.store.js` ← `tests/lesson-plan-lifecycle/lp612-leader.test.js` · `tests/lesson-plan-lifecycle/lp612-worker-portal.test.js` · `tests/lp612/delivery-ledger.test.js` · `tests/lp612/portal-claim.test.js`
 - `lp612-edit-intent.service.js` ← `tests/llm/job-override-hardening.test.js` · `tests/lp612/edit-router-new-request.test.js`
 - `lp612-edit-router.service.js` ← `tests/lp612/edit-router-new-request.test.js` · `tests/lp612/edit-router.test.js`
 - `lp612-fbise-tags.js` ← `tests/lp612/fbise-slo-chips.test.js`
-- `lp612-feedback.service.js` ← `tests/lp-v8/app-open-survey-fln.test.js` · `tests/lp-v8/app-open-survey.test.js` · `tests/lp-v8/meta-bill-nl1-survey-acks.test.js` · `tests/lp612/feedback.test.js` · `tests/lp612/gb-feedback-format.test.js` · `tests/lp612/used-in-class-journey.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/services/lp612-feedback.service.js`)
+- `lp612-feedback.service.js` ← `tests/lp-v8/app-open-survey-fln.test.js` · `tests/lp-v8/app-open-survey.test.js` · `tests/lp-v8/meta-bill-nl1-survey-acks.test.js` · `tests/lp-whatsapp-off/survey-off.test.js` · `tests/lp612/feedback.test.js` · `tests/lp612/gb-feedback-format.test.js` (+3: `python3 kg/kg.py who-reads bot/shared/services/lp612-feedback.service.js`)
 - `lp612-gb-delivery.service.js` ← `tests/lp612/gb-k5-urdu.test.js`
 - `lp612-gb-shelf.service.js` ← `tests/lp612/gb-k5-coming-soon.test.js`
+- `lp612-key-repair.js` ← `tests/lp612/key-repair.test.js`
 - `lp612-latin-honorific.js` ← `tests/lp612/latin-honorific-normalise.test.js`
 - `lp612-lifecycle.service.js` ← `tests/lesson-plan-lifecycle/lp612-leader.test.js` · `tests/lesson-plan-lifecycle/lp612-path.test.js` · `tests/lp612/gb-k5-lifecycle-ids.test.js`
 - `lp612-overlay-backfill.service.js` ← `tests/lp612/overlay-backfill-over-cap.e2e.test.js` · `tests/lp612/overlay-backfill-over-cap.test.js` · `tests/lp612/overlay-backfill.e2e.test.js` · `tests/lp612/overlay-backfill.test.js` · `tests/lp612/overlay-topup-religious-gate.e2e.test.js` · `tests/lp612/overlay-topup-urdu-gate.e2e.test.js`
 - `lp612-overlay-topup.service.js` ← `tests/lp612/overlay-backfill-over-cap.e2e.test.js` · `tests/lp612/overlay-backfill-over-cap.test.js` · `tests/lp612/overlay-backfill.e2e.test.js` · `tests/lp612/overlay-backfill.test.js` · `tests/lp612/overlay-topup.e2e.test.js` · `tests/lp612/overlay-topup.test.js`
-- `lp612-own-instruction.js` ← `tests/lp612/own-instruction.test.js`
-- `lp612-own.service.js` ← `tests/lp612/own-service.test.js`
-- `lp612-pagetruth.service.js` ← `bot/tests/services/lp612-figures-missing-queryable.test.js` · `tests/lp612/page-cap.test.js` · `tests/lp612/pagetruth.test.js` · `tests/lp612/stage-figures.test.js` · `tests/lp612/wide-segment-blast-radius.test.js` · `tests/lp612/wide-segment-delivery.test.js`
+- `lp612-owed.store.js` ← `tests/lp612/owed-redelivery.test.js`
+- `lp612-own-accuracy.js` ← `tests/lp612/own-goal-accuracy.test.js` · `tests/lp612/own-goal-check.test.js`
+- `lp612-own-approval.js` ← `tests/lp612/own-approval.test.js`
+- `lp612-own-change.js` ← `tests/lp612/own-change-service.test.js`
+- `lp612-own-close.js` ← `tests/lp612/own-close.test.js`
+- `lp612-own-extend.js` ← `tests/lp612/own-extend.test.js`
+- `lp612-own-extend.store.js` ← `tests/lp612/own-extend-store.test.js`
+- `lp612-own-gloss.js` ← `tests/lp612/own-gloss.test.js` · `tests/lp612/own-worker-close.test.js`
+- `lp612-own-goal.js` ← `tests/lp612/own-goal-k5.test.js` · `tests/lp612/own-goal-skills.test.js` · `tests/lp612/own-goal.test.js`
+- `lp612-own-goal.store.js` ← `tests/lp612/own-goal-k5.test.js` · `tests/lp612/own-goal-skills.test.js` · `tests/lp612/own-goal-store.test.js`
+- `lp612-own-grr.js` ← `tests/lp612/own-grr-gate.test.js`
+- `lp612-own-instruction.js` ← `tests/lp612/own-612-pages.test.js` · `tests/lp612/own-fits-one-period.test.js` · `tests/lp612/own-gloss.test.js` · `tests/lp612/own-goal-instruction.test.js` · `tests/lp612/own-goal-k5.test.js` · `tests/lp612/own-goal-note-guard.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/lp612-own-instruction.js`)
+- `lp612-own-library.js` ← `tests/lp612/own-library-rule.test.js` · `tests/lp612/own-library-shelf.test.js` · `tests/lp612/own-library.test.js`
+- `lp612-own-offer.js` ← `tests/lp612/bd-fwz1uy-endpoint-own-k5.test.js` · `tests/lp612/bd-iceyyu-endpoint-own.test.js` · `tests/lp612/bd-iceyyu-own-offer.test.js`
+- `lp612-own-pages.js` ← `tests/lp612/own-612-pages.test.js`
+- `lp612-own-rating.js` ← `tests/lp612/own-rating.test.js`
+- `lp612-own-review.js` ← `tests/lp612/own-goal-accuracy.test.js` · `tests/lp612/own-goal-k5.test.js` · `tests/lp612/own-review-calibrated.test.js` · `tests/lp612/own-review-k5.test.js` · `tests/lp612/own-review.test.js` · `tests/lp612/own-reviewer.test.js`
+- `lp612-own-reviewer.js` ← `tests/lp612/own-goal-accuracy.test.js` · `tests/lp612/own-goal-k5.test.js` · `tests/lp612/own-reviewer.test.js`
+- `lp612-own-rubric.js` ← `tests/lp612/own-review-calibrated.test.js`
+- `lp612-own-slo.js` ← `tests/lp612/own-ways.test.js` · `tests/portal/lp612-own-slo-route.test.js`
+- `lp612-own-ways.js` ← `tests/lp612/own-fits-one-period.test.js` · `tests/lp612/own-unified-rules.test.js` · `tests/lp612/own-ways.test.js` · `tests/lp612/own-you-do-alone.test.js`
+- `lp612-own.service.js` ← `tests/lp612/own-612-pages.test.js` · `tests/lp612/own-change-service.test.js` · `tests/lp612/own-extend.test.js` · `tests/lp612/own-goal-note-guard.test.js` · `tests/lp612/own-goal-service.test.js` · `tests/lp612/own-k5-pages-wiring.test.js` (+3: `python3 kg/kg.py who-reads bot/shared/services/lp612-own.service.js`)
+- `lp612-pagetruth.service.js` ← `bot/tests/services/lp612-figures-missing-queryable.test.js` · `tests/lp-v8/gb-follows-ict.test.js` · `tests/lp612/page-cap.test.js` · `tests/lp612/pagetruth.test.js` · `tests/lp612/stage-figures.test.js` · `tests/lp612/wide-segment-blast-radius.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/lp612-pagetruth.service.js`)
 - `lp612-render-policy.service.js` ← `tests/lp612/never-fail-delivery.test.js`
-- `lp612-render.service.js` ← `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/figure-repair-telemetry.test.js` · `tests/lp612/overflow-absorb.test.js` · `tests/lp612/overlay-backfill-driver.test.js` · `tests/lp612/overlay-backfill-over-cap.e2e.test.js` · `tests/lp612/overlay-backfill-over-cap.test.js` (+11: `python3 kg/kg.py who-reads bot/shared/services/lp612-render.service.js`)
-- `lp612-serving.service.js` ← `bot/tests/services/lp612-renderid-join.test.js` · `tests/lesson-plan-lifecycle/lp612-leader.test.js` · `tests/lesson-plan-lifecycle/lp612-path.test.js` · `tests/lp612/author-worker.test.js` · `tests/lp612/bd-lafr9-onescreen-latex.test.js` · `tests/lp612/bd-oak77-11-reaper-checkpoint.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/services/lp612-serving.service.js`)
+- `lp612-render.service.js` ← `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/figure-repair-telemetry.test.js` · `tests/lp612/overflow-absorb.test.js` · `tests/lp612/overlay-backfill-driver.test.js` · `tests/lp612/overlay-backfill-over-cap.e2e.test.js` · `tests/lp612/overlay-backfill-over-cap.test.js` (+12: `python3 kg/kg.py who-reads bot/shared/services/lp612-render.service.js`)
+- `lp612-serving.service.js` ← `bot/tests/services/lp612-renderid-join.test.js` · `tests/lesson-plan-lifecycle/lp612-leader.test.js` · `tests/lesson-plan-lifecycle/lp612-path.test.js` · `tests/lp-whatsapp-off/lp612-deliver-pdf-off.test.js` · `tests/lp612/author-worker.test.js` · `tests/lp612/bd-lafr9-onescreen-latex.test.js` (+26: `python3 kg/kg.py who-reads bot/shared/services/lp612-serving.service.js`)
 - `menu-match.service.js` ← `tests/menu-match/classifier-reads-live-menu.test.js`
-- `menu.service.js` ← `bot/tests/bug-003-false-promise.test.js` · `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/maker-fallback.test.js` · `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/first-touch/one-door-menu-row.test.js` · `bot/tests/handlers/portal-bare-word.test.js` (+18: `python3 kg/kg.py who-reads bot/shared/services/menu.service.js`)
+- `menu-request.js` ← `tests/handlers/menu-word-request.test.js`
+- `menu.service.js` ← `bot/tests/bug-003-false-promise.test.js` · `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/maker-fallback.test.js` · `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/first-touch/one-door-menu-row.test.js` · `bot/tests/handlers/portal-bare-word.test.js` (+19: `python3 kg/kg.py who-reads bot/shared/services/menu.service.js`)
 - `name-extractor.service.js` ← `bot/tests/services/name-extractor.test.js`
 - `openai.service.js` ← `bot/tests/bug-003-false-promise.test.js` · `bot/tests/bug-014-video-language.test.js` · `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/lp-v8/bd-eb1ec-context-language-pin.test.js` · `bot/tests/lp-v8/bd-lp-writeout-max-tokens.test.js` · `bot/tests/lp-v8/bd-wpupy-context-position.test.js` (+18: `python3 kg/kg.py who-reads bot/shared/services/openai.service.js`)
 - `outbound-echo.js` ← `tests/child-test/L12/outbound-echo.test.js`?
@@ -559,22 +736,23 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `reaction-only-taps.js` ← `tests/meta-bill-cut/fx7-reaction-only-taps.test.js`
 - `reading-assessment.service.js` ← `bot/tests/menu/issue-56-reading-assessment.test.js`
 - `redis-comprehension.service.js` ← `tests/handlers/voice-note-temp-collision.test.js`
-- `region-features.service.js` ← `bot/tests/handlers/try-curriculum-lp-serve.test.js` · `bot/tests/lp-v8/bd-oak77-route-all.test.js` · `tests/lp-v8/bd-oak77-9-route-all.test.js` · `tests/region/region-features.test.js`
-- `region-registry.js` ← `tests/assessment/assessment-flow-curriculum.test.js` · `tests/books/lp-flow-shelf.test.js` · `tests/region/book-curriculum.test.js` · `tests/region/region-for-user.test.js` · `tests/region/region-registry.test.js` · `tests/registration/bd-97daxo6-organization-from-region.test.js`
+- `region-features.service.js` ← `bot/tests/handlers/try-curriculum-lp-serve.test.js` · `bot/tests/lp-v8/bd-oak77-route-all.test.js` · `tests/lp-v8/bd-oak77-9-route-all.test.js` · `tests/lp-whatsapp-off/curriculum-intercept-pdf-off.test.js` · `tests/region/region-features.test.js`
+- `region-registry.js` ← `tests/assessment/assessment-flow-curriculum.test.js` · `tests/books/lp-flow-shelf.test.js` · `tests/region/book-curriculum.test.js` · `tests/region/region-for-user.test.js` · `tests/region/region-registry.test.js` · `tests/registration/bd-97daxo6-organization-from-region.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/region-registry.js`)
 - `region.service.js` ← `tests/region/region-for-user.test.js`
 - `registration-invite.service.js` ← `tests/registration/front-door-invite.test.js` · `tests/registration/registration-invite.service.test.js`
+- `sandbox-tester.js` ← `bot/tests/onboarding/sandbox-tester.test.js`
 - `settings-group.js` ← `bot/tests/quiz/report-send-checked.test.js` · `bot/tests/services/settings-group.test.js`
-- `share-send.service.js` ← `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `tests/coaching/video-reco/r8-clip-template.test.js` · `tests/lesson-plan-lifecycle/share-path.test.js` · `tests/portal/bd-fmf24g.30-share-send.test.js`
+- `share-send.service.js` ← `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `tests/coaching/video-reco/r8-clip-template.test.js` · `tests/lesson-plan-lifecycle/share-path.test.js` · `tests/portal/bd-644bcx-share-paper-id.test.js` · `tests/portal/bd-9br45q-share-transient-retry.test.js` · `tests/portal/bd-fmf24g.30-share-send.test.js`
 - `soniox-cleanup.service.js` ← `tests/coaching/feat106-soniox-cleanup.test.js`
 - `speaker-roles.js` ← `bot/tests/observe/bd-ri5o9-debrief-speaker-roles.test.js` · `tests/coaching/bd-s192t-roles-threading.test.js`
 - `student-ingress-cache.js` ← `bot/tests/first-touch/door-keys.test.js`
 - `student-ingress-identity.js` ← `bot/tests/quiz/web-quiz/web-quiz-student-join-waves.test.js`
 - `student-ingress.js` ← `bot/tests/first-touch/door-cache.test.js` · `bot/tests/first-touch/door-known.golden.test.js` · `bot/tests/first-touch/door-off.golden.test.js` · `bot/tests/first-touch/door-on.test.js` · `bot/tests/first-touch/one-door-child-word.test.js` · `bot/tests/quiz/student-ingress-after-remember.test.js` (+11: `python3 kg/kg.py who-reads bot/shared/services/student-ingress.js`)
-- `student-list.service.js` ← `bot/tests/services/student-list.test.js` · `tests/classes/class-service.test.js`
+- `student-list.service.js` ← `bot/tests/services/student-list.test.js` · `tests/classes/add-students-example.test.js` · `tests/classes/class-service.test.js`
 - `student-mode.service.js` ← `bot/tests/quiz/web-quiz/child-identity-store.test.js` · `tests/quiz/student-mode-decide.test.js`
 - `student-video-feedback.service.js` ← `bot/tests/quiz/video-quiz-post-quiz-telemetry.test.js` · `bot/tests/student-video-feedback.test.js` · `tests/student-videos/student-videos-flow.test.js`
 - `student-videos-entry.service.js` ← `bot/tests/first-touch/maker-fallback.test.js` · `tests/handlers/feature-doors.test.js`
-- `teacher-books.service.js` ← `tests/assessment/english-medium-gk-sst-menu.test.js` · `tests/books/chapter-pages.test.js` · `tests/books/grade-not-covered.test.js` · `tests/books/internal-api-shelf.test.js` · `tests/books/lp-flow-shelf.test.js` · `tests/books/teacher-books.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/teacher-books.service.js`)
+- `teacher-books.service.js` ← `tests/assessment/english-medium-gk-sst-menu.test.js` · `tests/books/chapter-pages.test.js` · `tests/books/gb-grades-6-10.test.js` · `tests/books/gb-upper-book-list.test.js` · `tests/books/grade-not-covered.test.js` · `tests/books/internal-api-shelf.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/services/teacher-books.service.js`)
 - `teacher-state.service.js` ← `tests/conversation-state/cross-flow-safety.test.js` · `tests/status/status-flow.test.js` · `tests/status/status-internal-ids.test.js` · `tests/status/status-lp612-visibility.test.js` · `tests/status/status-task-count.test.js` · `tests/status/status-training-visibility.test.js`
 - `toc-loading.service.js` ← `tests/textbook-lp-v2/toc-loading.test.js`
 - `topic-matching.service.js` ← `bot/tests/handlers/lesson-plan-v2.handler.test.js` · `bot/tests/services/topic-matching.service.test.js` · `tests/textbook-lp-v2/topic-matching.test.js`
@@ -585,9 +763,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whatsapp-send-pacer.js` ← `tests/assessment/assessment-rebuild-sync-budget.test.js` · `tests/whatsapp/password-reset-sync-budget.test.js` · `tests/whatsapp/send-pacing.redis.test.js` · `tests/whatsapp/send-pacing.test.js` · `tests/whatsapp/send-sync-budget.test.js`
 - `whatsapp-sent-ids.js` ← `bot/tests/quiz/report-delivery-send.test.js`
 - `whatsapp-status-pricing.js` ← `bot/tests/whatsapp-status-pricing.test.js`
-- `whatsapp.service.js` ← `bot/scripts/e2e/lp-feedback-e2e.js` · `bot/tests/coaching/bd-v0toag-106-report-window-template.test.js` · `bot/tests/coaching/bd-v0toag-124-commit-prompt-template.test.js` · `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/maker-empty.golden.test.js` (+321: `python3 kg/kg.py who-reads bot/shared/services/whatsapp.service.js`)
+- `whatsapp.service.js` ← `bot/scripts/e2e/lp-feedback-e2e.js` · `bot/tests/coaching/bd-v0toag-106-report-window-template.test.js` · `bot/tests/coaching/bd-v0toag-124-commit-prompt-template.test.js` · `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/maker-empty.golden.test.js` (+350: `python3 kg/kg.py who-reads bot/shared/services/whatsapp.service.js`)
 - `whisper-chunk-planner.js` ← `tests/coaching/feat106-whisper-chunking.test.js`
 
 ## Related (all, generated)
 - skills: `ab-testing`? · `coaching`? · `cross-agent-safety`? · `debugging`? · `digital-coach`? · `reading-assessment`? · `registration`?
-- docs: `AGENTS.md`? · `CLAUDE.md`? · `bot/README.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/LP_PATHS.md`? · `docs/agent-customization.md`? · `docs/app-funnel-telemetry.md`? · `docs/architecture.md`? · `docs/customization.md`? · `docs/e2e-cassette.md`? · `docs/e2e-mock-lane.md`? · `docs/features/homework.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/model-switching.md`? · `docs/qa-automation.md`? · `docs/roadmap/audio-lp.md`? · `docs/student-mode.md`? · `infrastructure/templates/drafts/README.md`? · `infrastructure/templates/share/README.md`? · `tests/features/whatsapp/niete/_suite.md`?
+- docs: `AGENTS.md`? · `CLAUDE.md`? · `bot/README.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/LP_PATHS.md`? · `docs/agent-customization.md`? · `docs/app-funnel-telemetry.md`? · `docs/architecture.md`? · `docs/customization.md`? · `docs/e2e-cassette.md`? · `docs/e2e-mock-lane.md`? · `docs/features/homework.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/lp612/make-my-own-testers/README.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/model-switching.md`? · `docs/qa-automation.md`? · `docs/roadmap/audio-lp.md`? · `docs/student-mode.md`? · `infrastructure/templates/drafts/README.md`? · `infrastructure/templates/share/README.md`? · `tests/features/whatsapp/niete/_suite.md`?

@@ -1,7 +1,7 @@
 # assess — Coach Learning-assessment support: results maths, copy, offline visit store
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib/assess kg=3641db5ce7cc gen=19b1edd553ee overflow=40 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib/assess kg=118e867f963e gen=86e1fe96aef8 overflow=54 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `copy.ts` — all coach-facing en/ur strings; dashboardCopy.ts and reviewCopy.ts follow the same shape
@@ -12,16 +12,17 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `copy.ts` | All coach-facing Urdu/English strings for the Learning assessment page, plus Urdu-digit and bidi helpers |
+| `copy*` | 3 files; most used `copy.ts`: All coach-facing Urdu/English strings for the Learning assessment page, plus Urdu-digit and bidi helpers |
 | `blocks.ts` | Learning assessment: which battery block (B1..B5, full, RDF variants) a child takes; rotates by Pakistan day |
+| `guessFloor.test.ts` | (unmapped) |
 | `visitStore.ts` | localStorage memory of one assessment visit (per school and PKT day): queued outcomes, mic check, children done |
-| … | 20 more → `CLAUDE.index.md` |
+| … | 26 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/components/assess/AssessEngineSlot.tsx:2:c94dcd90` · `portal/src/portal/components/assess/AssessOtherPhone.tsx:4:71d3bb00` (+8)
 - `visitStore.ts` ← imported by `portal/src/portal/components/assess/AssessOfflineCard.tsx:4:e86a76f0` · `portal/src/portal/components/assess/AssessPreflight.tsx:4:38086f51` (+4)
 - `blocks.ts` ← imported by `portal/src/portal/components/assess/AssessEngineSlot.tsx:3:91b77f58` · `portal/src/portal/components/assess/AssessOtherPhone.tsx:5:91b77f58` (+2)
-- … 14 more → `CLAUDE.index.md`
+- … 17 more → `CLAUDE.index.md`
 
 ## Never (human)
 - en and ur copy must carry every key, Urdu digits for numbers (copy.ts:8)
@@ -30,9 +31,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
-- `portal/src/portal/lib/assess/cohortStats.test.ts` (cohortStats.ts, exampleCohort.ts, rwpNorms.ts)
-- `portal/src/portal/lib/assess/realCohort.test.ts` (cohortStats.ts, realCohort.ts)
-- … 8 more → `CLAUDE.index.md`
+- `portal/src/portal/lib/assess/guessFloor.test.ts` (cohortStats.ts, exampleCohort.ts, guessFloor.ts, realCohort.ts)
+- `portal/src/portal/lib/assess/cohortStats.r28.test.ts` (cohortStats.ts, dashboardCopy.ts, exampleCohort.ts)
+- … 17 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

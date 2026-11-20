@@ -1,7 +1,7 @@
 # roster — /roster pipeline: decrypt photo, vision-extract rows, edit lines, store photos
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=aeb395291592 gen=22a05839ca62 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=a4081ed3aa8d gen=7ca03a62bd05 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `roster-extraction.service.js` — register photo to structured rows
@@ -14,7 +14,7 @@ Full index: `CLAUDE.index.md`
 | `roster*` | 4 files; most used `roster-media.js`: Decrypts WhatsApp PhotoPicker media (CDN url plus encryption metadata) for the roster Flow |
 
 ## Who reads this (generated)
-- `roster-media.js` ← imported by `bot/shared/routes/observe2-form-endpoint.js:359:6c4c2981` · `bot/shared/routes/roster-flow-endpoint.js:40:6c4c2981` (+1)
+- `roster-media.js` ← imported by `bot/shared/routes/observe2-form-endpoint.js:384:6c4c2981` · `bot/shared/routes/roster-flow-endpoint.js:40:6c4c2981` (+1)
 - `roster-extraction.service.js` ← imported by `bot/shared/routes/roster-flow-endpoint.js:41:a2c77a01`
 - `roster-lines.js` ← imported by `bot/shared/routes/roster-flow-endpoint.js:42:832a6d37`
 - `roster-storage.js` ← imported by `bot/shared/routes/roster-flow-endpoint.js:43:e3122f53`

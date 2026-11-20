@@ -28,6 +28,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `r6c_fix.test.tsx` | (unmapped) |
 | `r6c_results.test.tsx` | (unmapped) |
 | `routing.flagOff.test.tsx` | Pins coach routing with COACHIP off versus on: home, menu, reachable pages (B7/B8) |
+| `showName.test.tsx` | (unmapped) |
 
 ## Who reads this (all, generated)
 - (none)

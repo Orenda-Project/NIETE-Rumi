@@ -38,22 +38,22 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `CoachingMain.tsx` ← imported by `portal/src/portal/pages/PortalCoaching.tsx:16:a7844c9e`
 - `LessonView.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:17:46cbb2c3`
-- `LevelBars.tsx` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:15:5264df61` · `portal/src/portal/teacher/coaching/SendPage.tsx:10:5264df61` · `portal/src/portal/newui/coaching/RecordPage.tsx:22:26baa4bf`
+- `LevelBars.tsx` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:17:5264df61` · `portal/src/portal/teacher/coaching/SendPage.tsx:10:5264df61` · `portal/src/portal/newui/coaching/RecordPage.tsx:22:26baa4bf`
 - `LibraryStep.tsx` ← imported by `portal/src/portal/newui/coaching/PlanSheet.tsx:10:f7ec9085` · `portal/src/portal/newui/coaching/RecordPage.tsx:23:a7962333`
-- `LiveMovesList.tsx` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:28:f3f0a8dd` · `portal/src/portal/teacher/coaching/NewObservation.tsx:16:b6cdfcae` · `portal/src/portal/teacher/coaching/SendPage.tsx:13:b6cdfcae` · `portal/src/portal/newui/coaching/RecordPage.tsx:27:130c6055`
+- `LiveMovesList.tsx` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:28:f3f0a8dd` · `portal/src/portal/teacher/coaching/NewObservation.tsx:18:b6cdfcae` · `portal/src/portal/teacher/coaching/SendPage.tsx:13:b6cdfcae` · `portal/src/portal/newui/coaching/RecordPage.tsx:27:130c6055`
 - `LogoutWhileRecording.tsx` ← imported by `portal/src/portal/lib/recordingSession.tsx:3:ad060b75`
 - `MoveTapSheet.tsx` ← imported by `portal/src/portal/newui/coaching/LiveMovesList.tsx:7:007feb81`
 - `PickStage.tsx` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:29:f7e7c349` · `portal/src/portal/newui/coaching/RecordPage.tsx:26:96dac6de`
-- `PlanSheet.tsx` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:17:83b1e0f3` · `portal/src/portal/newui/coaching/RecordPage.tsx:24:7e784f3a`
+- `PlanSheet.tsx` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:19:83b1e0f3` · `portal/src/portal/newui/coaching/RecordPage.tsx:24:7e784f3a`
 - `RecordPage.tsx` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:26:3888a37e`
 - `SendSheet.tsx` ← imported by `portal/src/portal/newui/coaching/CoachingMain.tsx:23:6574d9ad`
-- `coachingApi.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:14:db7c37b9` · `portal/src/portal/newui/coaching/PickStage.tsx:9:8763fd6d` · `portal/src/portal/newui/coaching/PlanSheet.tsx:9:8763fd6d`
+- `coachingApi.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:16:db7c37b9` · `portal/src/portal/newui/coaching/PickStage.tsx:9:8763fd6d` · `portal/src/portal/newui/coaching/PlanSheet.tsx:9:8763fd6d`
 - `lessonRows.ts` ← imported by `portal/src/portal/newui/coaching/CoachingMain.tsx:24:dddb345c` · `portal/src/portal/newui/coaching/LessonView.tsx:26:4be89a8a`
 - `liveCopy.ts` ← imported by `portal/src/portal/newui/coaching/LiveMovesList.tsx:8:4bdfa8a6` · `portal/src/portal/newui/coaching/MoveTapSheet.tsx:4:4bdfa8a6` · `portal/src/portal/newui/coaching/PickStage.tsx:11:4bdfa8a6`
-- `liveEligible.ts` ← imported by `portal/src/portal/components/coaching/CoachingHome.tsx:18:52cc7c5c` · `portal/src/portal/pages/PortalCoachingRecord.tsx:30:837ca0f3` · `portal/src/portal/newui/coaching/CoachingMain.tsx:13:8c9b671e` · `portal/src/portal/newui/coaching/useSendFlow.ts:11:e9cd450b`
+- `liveEligible.ts` ← imported by `portal/src/portal/components/coaching/CoachingHome.tsx:18:52cc7c5c` · `portal/src/portal/pages/PortalCoachingRecord.tsx:30:837ca0f3` · `portal/src/portal/newui/coaching/CoachingMain.tsx:13:8c9b671e` · `portal/src/portal/newui/coaching/useSendFlow.ts:12:e9cd450b`
 - `pickerWords.ts` ← imported by `portal/src/portal/teacher/coaching/copy.ts:19:6c7e6daa` · `portal/src/portal/newui/coaching/LibraryStep.tsx:11:1d044371` · `portal/src/portal/newui/coaching/PickStage.tsx:10:79f377e8` · `portal/src/portal/newui/coaching/PlanSheet.tsx:11:1d044371` (+1: `python3 kg/kg.py who-reads pickerWords.ts`)
-- `useLiveMoves.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:27:21db6050` · `portal/src/portal/teacher/coaching/NewObservation.tsx:18:0c3ada55` · `portal/src/portal/teacher/coaching/SendPage.tsx:12:0c3ada55` · `portal/src/portal/newui/coaching/LiveMovesList.tsx:6:784e449b` (+1: `python3 kg/kg.py who-reads useLiveMoves.ts`)
-- `useSendFlow.ts` ← imported by `portal/src/portal/pages/legacyLive.ts:2:0faa2c0f` · `portal/src/portal/teacher/coaching/NewObservation.tsx:19:27d04c12` · `portal/src/portal/teacher/coaching/SendPage.tsx:11:02cdb913` · `portal/src/portal/teacher/coaching/draft.ts:3:27d04c12` (+2: `python3 kg/kg.py who-reads useSendFlow.ts`)
+- `useLiveMoves.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:27:21db6050` · `portal/src/portal/teacher/coaching/NewObservation.tsx:20:0c3ada55` · `portal/src/portal/teacher/coaching/SendPage.tsx:12:0c3ada55` · `portal/src/portal/newui/coaching/LiveMovesList.tsx:6:784e449b` (+1: `python3 kg/kg.py who-reads useLiveMoves.ts`)
+- `useSendFlow.ts` ← imported by `portal/src/portal/pages/legacyLive.ts:2:0faa2c0f` · `portal/src/portal/teacher/coaching/NewObservation.tsx:21:27d04c12` · `portal/src/portal/teacher/coaching/SendPage.tsx:11:02cdb913` · `portal/src/portal/teacher/coaching/draft.ts:3:27d04c12` (+2: `python3 kg/kg.py who-reads useSendFlow.ts`)
 
 ## Tests (all, generated)
 - `CoachingMain.tsx` ← `portal/src/portal/newui/coaching/CoachingMain.test.tsx`?
@@ -69,7 +69,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `liveCopy.ts` ← `portal/src/portal/newui/coaching/liveCopy.test.ts`
 - `liveEligible.ts` ← `portal/src/portal/components/coaching/CoachingHome.live.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` · `portal/src/portal/newui/coaching/liveEligible.test.ts` · `portal/src/portal/pages/PortalCoachingRecord.live.test.tsx`
 - `useLiveMoves.ts` ← `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` · `portal/src/portal/newui/coaching/useLiveMoves.test.ts` · `portal/src/portal/pages/PortalCoachingRecord.live.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/SendPage.live.test.tsx`
-- `useSendFlow.ts` ← `portal/src/portal/newui/coaching/useLiveMoves.test.ts` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/picker.ur.test.tsx`
+- `useSendFlow.ts` ← `portal/src/portal/newui/coaching/useLiveMoves.test.ts` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/picker.ur.test.tsx`
 
 ## Related (all, generated)
 - docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/lib/live/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `portal/src/portal/newui/checks/CLAUDE.md`?

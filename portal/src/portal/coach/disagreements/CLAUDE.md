@@ -1,7 +1,7 @@
 # disagreements — Coach view of teachers who answered Not accurate, with coaching suggestion
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/disagreements kg=7690c1d484c6 gen=b7b943fda877 overflow=56 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/disagreements kg=7690c1d484c6 gen=b7b943fda877 overflow=57 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `DisagreementsPage.tsx` — To do and Done list; `DisagreementCard.tsx` is one teacher

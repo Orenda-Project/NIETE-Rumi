@@ -7,7 +7,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `__golden__/` | Byte-exact switch-OFF response goldens recorded on the base code before each switch → `__golden__/CLAUDE.md` |
-| `fixtures/` | → (no door; 45 files: 0 test + 45 support) |
+| `fixtures/` | → (no door; 47 files: 0 test + 47 support) |
 | `insights/` | Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks → `insights/CLAUDE.md` |
 | `queue/` | → (no door; 2 tests) |
 | `support/` | Shared helper for the SA Urdu fit tests, not a test file itself → `support/CLAUDE.md` |
@@ -26,6 +26,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `code-chunker.test.js` | Code Chunker Service TDD Tests for AST-based code chunking Tests function extraction, metadata, and error handling |
 | `cut-link-off-harness.js` | Harness that mounts portal-static-cache and edge-mounts with the cut-link switch off, to record or replay its golden |
 | `cut-link-page.service.test.js` | Tests quiz_cut_link_page: a cut-short or junk link on door, join and teacher pages gets an explaining page when on |
+| `database-context-pooler.service.test.js` | (unmapped) |
 | `edge-mounts-golden.service.test.js` | Pins that dashboard/routes/edge-mounts builds the golden stack (same layers, same order) and makes no network call |
 | `edge-mounts-order.service.test.js` | Pins that every edge router in edge-mounts has a page here and forwarding order does not change any answer |
 | `edge-relay-harness.js` | Harness driving every bot-relay router with a fake bot to capture response headers; used by edge-security-headers test |
@@ -68,6 +69,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz-teacher-mount.service.test.js` | Pins that the teacher-home edge is mounted live in dashboard/index.js ahead of static handlers and the SPA catch-all |
 | `quiz-teacher-server-timing.service.test.js` | Tests quiz-teacher.routes passes the bot's Server-Timing header through on /api/th/home and /api/th/library only |
 | `redis-cache.test.js` | Tests services/redis-cache.service: GitHub API cache hits, misses, TTL, fallback and invalidation |
+| `sa-audio-check-fit.service.test.js` | (unmapped) |
 | `sa-check-tap-early.service.test.js` | SA child test: a picture tapped early in the audio check passes or fails cleanly (sa-core, sa-ui) |
 | `sa-check-words-clips.service.test.js` | Tests the audio check's words carry clips in the battery, engine and store (sa-core, sa-engine, sa-store) |
 | `sa-clip-429.service.test.js` | SA offline: opening/transition lines prepared first; a 429 clip is retried once after a pause (sa-offline, sa-page) |
@@ -99,7 +101,50 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-onecell-timeup.service.test.js` | Tests sa-core: a timed one-at-a-time task ends as time_up at the cell reached, not via the last-word screen |
 | `sa-opening-gate.service.test.js` | Tests sa-offline prepareSession onLines: opening lines are reported once available before task clips (sa-page, sa-ui) |
 | `sa-page.service.test.js` | Tests sa-page: strict link read, block ordering, drain of a finished child's data after the network returns |
+| `sa-prepare-slow-link.service.test.js` | (unmapped) |
 | `sa-prepare.service.test.js` | Tests sa-offline prepare: clips on phone vs phone speech (tts) for a missing clip; persist granted kept |
+| `sa-r10-audio.service.test.js` | (unmapped) |
+| `sa-r10-fluency-no-practice.service.test.js` | (unmapped) |
+| `sa-r10-hint.service.test.js` | (unmapped) |
+| `sa-r10-numfit.service.test.js` | (unmapped) |
+| `sa-r10-switches.service.test.js` | (unmapped) |
+| `sa-r10-timing.service.test.js` | (unmapped) |
+| `sa-r10-urfit.service.test.js` | (unmapped) |
+| `sa-r12-intro-once.service.test.js` | (unmapped) |
+| `sa-r13-oral-rule.service.test.js` | (unmapped) |
+| `sa-r13-whole-stop.service.test.js` | (unmapped) |
+| `sa-r20-auto-stop.service.test.js` | (unmapped) |
+| `sa-r20-portal-switch.service.test.js` | (unmapped) |
+| `sa-r28-base-served.service.test.js` | (unmapped) |
+| `sa-r28-ceiling-core.service.test.js` | (unmapped) |
+| `sa-r28-clip-stall.service.test.js` | (unmapped) |
+| `sa-r28-cue-guard.service.test.js` | (unmapped) |
+| `sa-r28-drain-progress.service.test.js` | (unmapped) |
+| `sa-r28-end-task-copy.service.test.js` | (unmapped) |
+| `sa-r28-last-recording.service.test.js` | (unmapped) |
+| `sa-r28-letter-name-se.service.test.js` | (unmapped) |
+| `sa-r28-letter-pick.service.test.js` | (unmapped) |
+| `sa-r28-letter-sound-triple.service.test.js` | (unmapped) |
+| `sa-r28-mcq-auto-phone.service.test.js` | (unmapped) |
+| `sa-r28-mcq-auto-practice.service.test.js` | (unmapped) |
+| `sa-r28-mcq-first-choice.service.test.js` | (unmapped) |
+| `sa-r28-mcq-nowrap.service.test.js` | (unmapped) |
+| `sa-r28-mcq.service.test.js` | (unmapped) |
+| `sa-r28-mic-unknown.service.test.js` | (unmapped) |
+| `sa-r28-off-identity.service.test.js` | (unmapped) |
+| `sa-r28-oral-variant.service.test.js` | (unmapped) |
+| `sa-r28-pick-auto-offer.service.test.js` | (unmapped) |
+| `sa-r28-pick-auto-practice.service.test.js` | (unmapped) |
+| `sa-r28-pick-back.service.test.js` | (unmapped) |
+| `sa-r28-pick-ended.service.test.js` | (unmapped) |
+| `sa-r28-prompt-timings-offline.service.test.js` | (unmapped) |
+| `sa-r28-reach.service.test.js` | (unmapped) |
+| `sa-r28-served-stamp.service.test.js` | (unmapped) |
+| `sa-r28-skip-wait.service.test.js` | (unmapped) |
+| `sa-r28-story-clock.service.test.js` | (unmapped) |
+| `sa-r28-switches.service.test.js` | (unmapped) |
+| `sa-r28-timings-index.service.test.js` | (unmapped) |
+| `sa-r28-v5-clips.service.test.js` | (unmapped) |
 | `sa-r4-cell-pace-cap.service.test.js` | Tests sa_cell_pace 10 s cap in sa-core: continuous voice moves on at 10 s; next cell gets its own 10 s |
 | `sa-r4-cell-pace.service.test.js` | Tests sa_cell_pace in sa-core/sa-engine: silent child moves at 5 s, trying child waits 3 s after last voice |
 | `sa-r4-coach-last-word.service.test.js` | Tests sa-core last-word marking: lastWord keeps how/suggested on the result; old call unchanged |
@@ -148,11 +193,19 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r8-switch-hold.service.test.js` | Tests sa_r8_switch_hold: failed switch reads answer OFF without a header; ON keeps variants and v4 voice |
 | `sa-r8-switches.service.test.js` | Tests round 8 battery switches in sa-battery-switches and engine routes: ON sets battery.ui flags |
 | `sa-r8-timeup-continue.service.test.js` | Tests r8_timeup_continue in sa-core: time up on a cell continues to the next part of the same language |
+| `sa-r9-audio.service.test.js` | (unmapped) |
+| `sa-r9-comp.service.test.js` | (unmapped) |
+| `sa-r9-question-time.service.test.js` | (unmapped) |
+| `sa-r9-scroll-cue-line.service.test.js` | (unmapped) |
+| `sa-r9-scroll.service.test.js` | (unmapped) |
+| `sa-r9-skip.service.test.js` | (unmapped) |
+| `sa-r9-switches.service.test.js` | (unmapped) |
 | `sa-rdf-w3-forms.service.test.js` | Tests RDF auto/manual W3 forms on the battery route: off gives no W3 list; on gives 17 W3 tasks and coach line |
 | `sa-rec-mercy.service.test.js` | Tests sa-rec silent-mic mercy at 12 s and early_stop_silence at 20 s; a voice at 8 s triggers neither |
 | `sa-rec.service.test.js` | Tests sa-rec: recorder type choice, chunk collection, stop closes the file with duration |
 | `sa-sink-coach.service.test.js` | Tests sink-coach.js: batch, presign, register go to the relay with cookie; signed-out coach throws so sync retries |
 | `sa-store.service.test.js` | Tests sa-store: events/results/chunks pending until synced, IndexedDB failure falls back to memory |
+| `sa-sw-carry.service.test.js` | (unmapped) |
 | `sa-sw-session.service.test.js` | Tests the sw.js session cache version (sa-session-v7) and that activate deletes older caches |
 | `sa-switch.service.test.js` | Tests sa-switch flapping-reader hold: both SA routers (sa-engine, sa-game) do not flap on a failed read |
 | `sa-sync-events-first.service.test.js` | Tests sa-sync ordering: battery_end events acked before a second recording is presigned |
@@ -177,6 +230,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-ur-tile-ink.service.test.js` | Tests ink fit of Urdu tap-task tiles across every served Urdu form |
 | `sa-ur-word-tile-ink.service.test.js` | Tests ink fit of Urdu last-word passages (all variants) and grids across served forms |
 | `sa-voice-gate.service.test.js` | Tests sa-voice clip fetch gate: six at a time, a 429 clip retried after a pause, twice refused is missing |
+| `sa-voice-late-none.service.test.js` | (unmapped) |
 | `sa-voice-tabswitch.service.test.js` | Tests sa-voice when the page is hidden and shown: pause waits, resume continues, a stuck pause ends the line in 10 s |
 | `sa-voice-tashdeed.service.test.js` | Tests the sa_voice_tashdeed switch and that tashdeed takes exist on disk |
 | `sa-voice-v2-copy.service.test.js` | Tests that every sa-ui copyLine text has a v2 clip with sound in both languages |
@@ -515,4 +569,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `portal/src/lib/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `docs/testing/bd-60105-name-sweep.md`? · `portal/src/lib/CLAUDE.md`?
