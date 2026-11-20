@@ -27,6 +27,8 @@ export function UnitDayRow({ U, n, day, days, plan, editing, onEdit, onOpen, bus
   const can = canEdit(days, at);
   const any = can.up || can.down || can.join || can.split;
   const pick = (op: EditOp) => { setMenu(false); onEdit(op); };
+  // bd-snkn32.59.4 — a goal unit's review and check days are named by the goals they cover (they have no book topic).
+  const label = day.covers ? (day.kind === 'test' ? U.checkGoals : U.reviewGoals(day.covers[0], day.covers[1])) : day.topic;
   const item = (label: string, op: EditOp, ok: boolean, id: string) => (ok ? (
     <button key={id} type="button" data-testid={`unit-menu-${id}`} onClick={() => pick(op)}
       className={cn('flex min-h-[56px] w-full items-center rounded-2xl border border-[#e5e7eb] bg-white px-4 text-start text-[16px] font-semibold', FOCUS)}>
@@ -38,9 +40,9 @@ export function UnitDayRow({ U, n, day, days, plan, editing, onEdit, onOpen, bus
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-2">
           <b className="text-[14px] text-[#6b7280]">{U.dayN(n)}</b>
-          {day.kind !== 'lesson' ? <span className={cn('rounded-full px-2 text-[12px] font-semibold', KIND_TONE[day.kind])}>{U.kinds[day.kind]}</span> : null}
+          {day.kind !== 'lesson' ? <span className={cn('rounded-full px-2 text-[12px] font-semibold', KIND_TONE[day.kind])}>{day.covers && day.kind === 'test' ? U.checkDay : U.kinds[day.kind]}</span> : null}
         </span>
-        <span dir="auto" className="text-[16px] font-semibold text-[#111827]">{day.topic}{day.part ? ` ${U.part(day.part)}` : ''}</span>
+        <span dir="auto" className="text-[16px] font-semibold text-[#111827]">{label}{day.part ? ` ${U.part(day.part)}` : ''}</span>
         {day.kind === 'lesson' || day.kind === 'practice' ? <span className="text-[13px] text-[#6b7280]">{plan ? U.made : U.notMade}</span> : null}
       </span>
       {editing && any ? (

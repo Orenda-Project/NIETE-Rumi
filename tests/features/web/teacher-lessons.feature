@@ -491,3 +491,24 @@ Feature: Teacher lesson plans
     When she opens Make my own
     Then there is no "A whole unit" card
     And opening a unit address takes her back, and the unit calls answer 404
+
+  @OWN10 @draft @config-gated
+  Scenario: A whole unit from learning goals has no textbook: her goals become days, review and check days included
+    Given portal_lp_make_own, portal_lp_own_unit and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "A whole unit", picks Grade 3 Math and taps "Learning goals"
+    Then no chapter is asked for or shown
+    When she selects two goals from the skill list and adds her own goal "Telling the time" with "Add my own goal" and "Use my words"
+    Then "Your goals" lists the three goals in the order she added them
+    And the paces read "Recommended · 5 days" and "Slower · 8 days", with no faster pace
+    When she taps "See the days"
+    Then "Your days" shows a day for each goal, then a review of "Goals 1–3" and an "All goals" check day
+    When she opens the check day after picking her class
+    Then one plan is made from her three goals alone, with no book page in it
+
+  @OWN11 @draft @config-gated @negative
+  Scenario: A goal with a blocked word is refused and a unit needs at least two goals
+    Given demo teacher 03000000911 is on the "Learning goals" screen of a new unit
+    When she adds her own goal with a word that is not a school topic
+    Then she is told it is not a school topic and nothing is added
+    And "See the days" stays off until she has two goals

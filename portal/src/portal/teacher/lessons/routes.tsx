@@ -3,7 +3,7 @@ import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_OWN, LESS
 import { lazyPage as page } from '@/lib/lazyPage';
 import { LESSONS_CHANGE } from './own/change';
 import { LESSONS_CHECK } from './shelf/flag';
-import { LESSONS_UNIT, LESSONS_UNIT_NEW } from './own/unitPaths';
+import { LESSONS_UNIT, LESSONS_UNIT_GOALS, LESSONS_UNIT_NEW } from './own/unitPaths';
 
 // bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
 const ChaptersPage = page(() => import('./ChaptersPage').then((m) => ({ default: m.ChaptersPage })));
@@ -18,6 +18,7 @@ const OwnPage = page(() => import('./own/OwnPage').then((m) => ({ default: m.Own
 const ChangePage = page(() => import('./own/ChangePage').then((m) => ({ default: m.ChangePage })));
 const UnitNewPage = page(() => import('./own/UnitNewPage').then((m) => ({ default: m.UnitNewPage })));
 const UnitPage = page(() => import('./own/UnitPage').then((m) => ({ default: m.UnitPage })));
+const UnitGoalsPage = page(() => import('./own/UnitGoalsPage').then((m) => ({ default: m.UnitGoalsPage })));
 const ReviewPage = page(() => import('./shelf/ReviewPage').then((m) => ({ default: m.ReviewPage })));
 
 /**
@@ -45,6 +46,8 @@ const routes: TeacherRoute[] = [
   // bd-snkn32.59.1 (queue #165) — A whole unit (dark unless lpOwnUnit): hers too.
   { path: LESSONS_UNIT_NEW, element: <UnitNewPage /> },
   { path: LESSONS_UNIT, element: <UnitPage /> },
+  // bd-snkn32.59.4 — a unit from her learning goals (no textbook): dark unless lpOwnUnit AND lpOwnGoalStart.
+  { path: LESSONS_UNIT_GOALS, element: <UnitGoalsPage /> },
   // bd-snkn32.42 — the staff check before a teacher's plan is listed (only for portal_lp_own_reviewers; 404 for the rest).
   { path: LESSONS_CHECK, element: <ReviewPage />, leaders: true },
 ];
