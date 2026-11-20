@@ -542,8 +542,9 @@ describe('R9d · later visits', () => {
   describe('the main step only', () => {
     test('a question card with a think-pair-share after it gets no think-pair-share clip at a later visit', () => {
       const card = 'Next class, ask \'Why do you think it happened?\', wait 5 seconds, then run a 60-second Think-Pair-Share.';
-      // R9e route (c): why → wait → pairs is a sequence, not 95-s1's single ask; it leads the card, so the card is silent
-      expect(A.classifyAsks(card).map((x) => x.move)).toEqual([]);
+      // R9e route (c): why → wait → pairs is not 95-s1's single ask. R9e-c (ped-align r15, COS 072739): on a first visit the
+      // think-pair-share the question and wait lead into serves; a later visit still serves the main step alone, so nothing
+      expect(A.classifyAsks(card).map((x) => x.move)).toEqual(['think_pair_share']);
       expect(A.classifyAsks(card, { later: true }).map((x) => x.move)).toEqual([]);
     });
     test('a near-miss anywhere silences a later-visit card (feedback after the pair talk)', () => {
@@ -691,7 +692,9 @@ describe('R9e · route (c): 790-s3 and 95-s1 only on their single ask (COS 20261
     // 14 the rules cannot separate from the judged-right picks around them without fitting single cards (eng-rec r9e/REPORT.md):
     // 10 on 790-s3 and 1 on 95-s1 (both still >= 95% on their kept picks: 367/377, 76/77), and 3 r6d fall-throughs on the 7-list
     // (no fall-through at all costs 60 judged-good prod picks for these 3). Pinned, so a change that moves one shows here.
-    const KEPT = ['r6c-004', 'r6c-016', 'r6c-018', 'r6c-029', 'r6c-042', 'r6c-047', 'r6c-051', 'r6c-058', 'r6c-064', 'r6c-067', 'r6c-073', 'r6d-083', 'r6d-085', 'r6d-087'];
+    // R9e-c: r6d-086 joins 085/087: «open question, wait, then Think-Pair-Share» reaches 451-s3 again on a first visit (ped-align
+    // r15: that card shape judged good on 451-s3 held out; COS 072739)
+    const KEPT = ['r6c-004', 'r6c-016', 'r6c-018', 'r6c-029', 'r6c-042', 'r6c-047', 'r6c-051', 'r6c-058', 'r6c-064', 'r6c-067', 'r6c-073', 'r6d-083', 'r6d-085', 'r6d-086', 'r6d-087'];
     test.each(RED.filter((x) => !KEPT.includes(x.item)).map((x) => [x.item, x.seg, x.list, x]))('%s: %s is not served on the %s-list', async (_, seg, list, x) => {
       const { row } = await pick(x, list === '7' ? on7 : on9);
       expect(row.seg_id).not.toBe(seg);
@@ -811,5 +814,23 @@ describe('R9e-b · held-out wrongs (ped-align r14, 8–29 Oct prod cards; r13) a
     ['a why after an answer drops 95-s1 only: the wait before answers still reads', 'Next class, when a child answers "forest", ask "Why do you think the bull lived there?" and wait 5-8 seconds before taking answers.', 'wait_time'],
   ])('%s', (_, card, move) => {
     expect(A.classifyAsks(card).map((x) => x.move)).toContain(move);
+  });
+});
+
+describe('R9e-c · 451-s3 as a main-move rule (COS 20261120T072739; ped-align r15)', () => {
+  // The judged 451-s3 picks whose 7-list pick moves between c82f00b045 and this rule: c82f00b045 silenced 67 judged-good picks
+  // (the «why…?, wait, then Think-Pair-Share» cards and the Partner A / B / reporter / «لکھیں» / «… کے بعد» refusals); it kept 2
+  // that are wrong. The 4 the rule costs (2 good off, 2 wrong back) are in eng-rec r9e/REPORT.md, not asserted here.
+  const L7 = { ...ON, VIDEO_RECO_ALLOWLIST: '177-s4,3-s2,451-s3,481-s2,722-s2,782-s1,791-s2' };
+  const MOVES = require('./fixtures/r9ec-451-moves.json').picks;
+  const pick = (x) => run({ action: x.card, env: L7, catalogV2: C.loadV2(), subject: x.subject, grade: x.grade ? String(x.grade) : null, lang: x.report_lang, transcriptLang: x.lesson_lang });
+  // (4 more move to 791-s2: their 451-s3 pair was judged, the 791-s2 one is not; listed for ped-align, not asserted)
+  test.each(MOVES.filter((x) => x.verdict !== 'wrong' && x.after === '451-s3').map((x) => [x.item, x.after, x.src, x]))('%s: judged good, gets %s again (%s)', async (_, after, __, x) => {
+    const { row } = await pick(x);
+    expect(row.seg_id).toBe(after);
+  });
+  test.each(MOVES.filter((x) => x.verdict === 'wrong' && !x.after).map((x) => [x.item, x.src, x]))('%s: judged wrong, no longer served (%s)', async (_, __, x) => {
+    const { row } = await pick(x);
+    expect(row.seg_id).not.toBe('451-s3');
   });
 });
