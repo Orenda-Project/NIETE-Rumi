@@ -98,6 +98,10 @@ describe("coach v2 routes", () => {
 
   it("every v2 page gates itself through CoachPage", () => {
     const ui = readFileSync(resolve(__dirname, "ui.tsx"), "utf8");
-    expect(ui).toMatch(/<CoachGate>\s*<PortalLayout[ >]/);
+    // bd-slknzt — the gate follows the Observe routes (as ObservePage / ReportsFrame): the coach app's default routes
+    // gate every page; only the principal app's routes (PrincipalObserve, coachGate false) draw the frame bare.
+    expect(ui).toMatch(/const \{ coachGate \} = useObserveRoutes\(\);/);
+    expect(ui).toMatch(/const page = \(\s*<PortalLayout[ >]/);
+    expect(ui).toMatch(/return coachGate \? <CoachGate>\{page\}<\/CoachGate> : page;/);
   });
 });
