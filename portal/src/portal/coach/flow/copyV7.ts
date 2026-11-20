@@ -34,6 +34,7 @@ export const FLOW_V7_COPY = {
   keyFocus: "Key Focus Area",
   yourBehaviours: (n: number) => `Your ${n} behaviours`,
   respectHeld: "Respect held",
+  respectNote: "a must every time; not one of the 8",
   required: "required",
   showMore: (n: number) => `Show ${n} more`,
   showFewer: "Show fewer",
@@ -78,6 +79,7 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   keyFocus: "اہم توجہ",
   yourBehaviours: (n: number) => `آپ کے ${n} رویے`,
   respectHeld: "احترام قائم رہا",
+  respectNote: "ہر بار لازمی؛ ۸ میں سے ایک نہیں",
   required: "لازمی",
   showMore: (n: number) => `${n} مزید دکھائیں`,
   showFewer: "کم دکھائیں",
@@ -95,6 +97,6 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
 
 export const FLOW_V7 = bilingual(FLOW_V7_COPY, FLOW_V7_COPY_UR);
 
-const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "classPicksForm", "whichClass", "listening", "listeningSub"];
+const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "classPicksForm", "whichClass", "listening", "listeningSub", "respectNote"];
 
 export const COPY_ENTRY = { screen: "Coach · visit and feedback (v7)", module: FLOW_V7 as Bilingual<unknown>, same: [] as readonly string[], longOk: LONG_OK } as const;

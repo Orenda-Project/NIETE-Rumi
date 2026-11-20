@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { Languages } from "lucide-react";
+import { Languages, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CoachGate from "../CoachGate";
 import TeacherPage from "../../teacher/TeacherPage";
@@ -401,17 +401,19 @@ function ReportBodyV7({ r, C, W, lang, meta, principal, marked, goTo }: {
   const seenFirst = [...r.marks].sort((a, b) => Number(b.done) - Number(a.done));
   const did = useShowMore(r.did);
   const missed = useShowMore(r.missed);
-  const row = "flex min-h-[52px] w-full items-center gap-2.5 border-t border-[#f0f1f3] px-1 py-2 text-start text-[15px] font-semibold leading-[1.3] first:border-t-0";
   return (
     <div className="flex flex-col gap-3" data-testid="report-body">
       <HeroV7 r={r} C={C} W={W} meta={meta} />
 
       {r.focus ? (
-        <section aria-label={W.keyFocus} data-testid="report-focus" className="overflow-hidden rounded-[18px] border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
-          <h3 className="m-0 flex items-center gap-2 bg-[#6e52e0] px-4 py-2 text-[12px] font-bold uppercase tracking-[.08em] text-white rtl:normal-case rtl:tracking-normal rtl:text-[13px]">
-            <Spark />{W.keyFocus}
+        // The operator's last comment (20 Nov ~15:02): Key Focus Area option B everywhere: a tinted card, a 6px purple
+        // start edge, a target icon and the label.
+        <section aria-label={W.keyFocus} data-testid="report-focus"
+          className="rounded-[18px] border-s-[6px] border-[#6e52e0] bg-[#f1edfd] shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+          <h3 className="m-0 flex items-center gap-2 px-4 pt-3.5 text-[12px] font-bold uppercase tracking-[.08em] text-[#6e52e0] rtl:normal-case rtl:tracking-normal rtl:text-[13px]">
+            <Target className="h-4 w-4" aria-hidden="true" />{W.keyFocus}
           </h3>
-          <div className="p-4">
+          <div className="px-4 pb-4 pt-2">
             {r.focus.move ? <p dir="auto" className="m-0 text-[18px] font-semibold leading-[1.35]">{r.focus.move}</p> : null}
             {r.focus.why ? (
               <p dir="auto" className="m-0 mt-2.5 text-[15px] leading-[1.45] text-[#374151]">
@@ -427,27 +429,26 @@ function ReportBodyV7({ r, C, W, lang, meta, principal, marked, goTo }: {
         </section>
       ) : null}
 
+      {/* The operator (20 Nov ~15:04): "Respect held … makes it 9. Is this a behaviour?" No: it is the must-pass check, on
+          its own line above the 8, not one of them. */}
+      {r.respectHeld ? (
+        <p data-testid="report-respect" className="m-0 flex items-center gap-2 rounded-[14px] bg-[#eaf6ef] px-3.5 py-2.5 text-[14px] font-semibold text-[#2f7a52]">
+          <Tick size={16} /><span>{W.respectHeld}</span><span className="font-medium">· {W.respectNote}</span>
+        </p>
+      ) : null}
+
       <section aria-label={W.yourBehaviours(r.total)} className={SECTION} data-testid="report-marks">
         <h3 className={LABEL}>{W.yourBehaviours(r.total)}</h3>
-        <div className="flex flex-col">
-          {r.respectHeld != null ? (
-            <div data-testid="behaviour-row" data-seen={r.respectHeld ? "yes" : "no"} className={row}>
-              <span aria-hidden="true" className={cn("flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full",
-                r.respectHeld ? "bg-[#2f7a52] text-white" : "border-[1.5px] border-dashed border-[#9ca3af]")}>
-                {r.respectHeld ? <Tick size={12} /> : null}
-              </span>
-              <span className="min-w-0 flex-1">{W.respectHeld}</span>
-              <span className={cn(PILL, "bg-[#e8e9f0] text-[#33374a]")}>{W.required}</span>
-            </div>
-          ) : null}
+        <div className="[display:grid] grid-cols-2 gap-2">
           {seenFirst.map((m) => (
             <button key={m.key} type="button" data-testid="behaviour-row" data-seen={m.done ? "yes" : "no"} onClick={() => goTo(m.key)}
-              className={cn(row, FOCUS)}>
+              className={cn("flex min-h-[56px] items-center gap-2 rounded-[14px] bg-white px-2.5 py-1.5 text-start text-[14px] font-semibold leading-[1.25] text-[#1d2025]", FOCUS,
+                m.done ? "border-[1.5px] border-[#2f7a52]" : "border-[1.5px] border-dashed border-[#c4c9d2]")}>
               <span aria-hidden="true" className={cn("flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full",
                 m.done ? "bg-[#2f7a52] text-white" : "border-[1.5px] border-dashed border-[#9ca3af]")}>
                 {m.done ? <Tick size={12} /> : null}
               </span>
-              <span className={cn("min-w-0 flex-1", !m.done && "font-medium text-[#4b5563]")}>{pick(m.name, lang)}</span>
+              <span className="min-w-0 flex-1">{pick(m.name, lang)}</span>
             </button>
           ))}
         </div>

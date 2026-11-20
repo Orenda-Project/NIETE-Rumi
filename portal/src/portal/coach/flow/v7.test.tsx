@@ -148,15 +148,28 @@ describe("the one feedback page (v7)", () => {
     expect(screen.getByTestId("report-focus")).toHaveTextContent("Key Focus Area");
   });
 
-  it("Your 8 behaviours: Respect held first (required), then the seen ones, then the rest; no 3 of 8 chip", async () => {
+  it("Respect held is its own green line above the 8 (not one of them); the 8 boxes, seen first; no 3 of 8 chip", async () => {
     renderReport();
     const marks = await screen.findByTestId("report-marks");
+    const respect = screen.getByTestId("report-respect");
+    expect(respect).toHaveTextContent("Respect held");
+    expect(respect).toHaveTextContent("a must every time; not one of the 8");
+    expect(marks.contains(respect)).toBe(false);
+    expect(respect.compareDocumentPosition(marks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const rows = within(marks).getAllByTestId("behaviour-row");
-    expect(rows[0]).toHaveTextContent("Respect held");
-    expect(rows[0]).toHaveTextContent("required");
-    expect(rows.slice(1, 4).map((r) => r.getAttribute("data-seen"))).toEqual(["yes", "yes", "yes"]);
-    expect(rows.slice(4).every((r) => r.getAttribute("data-seen") === "no")).toBe(true);
+    expect(rows.length).toBe(8);
+    expect(marks.textContent).not.toContain("Respect held");
+    expect(rows.slice(0, 3).map((r) => r.getAttribute("data-seen"))).toEqual(["yes", "yes", "yes"]);
+    expect(rows.slice(3).every((r) => r.getAttribute("data-seen") === "no")).toBe(true);
     expect(marks.textContent).not.toMatch(/3 of 8/);
+  });
+
+  it("Key Focus Area is option B: a tinted card with a purple start edge (not a band)", async () => {
+    renderReport();
+    const focus = await screen.findByTestId("report-focus");
+    expect(focus.className).toContain("bg-[#f1edfd]");
+    expect(focus.className).toContain("border-s-[6px]");
+    expect(focus).toHaveTextContent("Key Focus Area");
   });
 
   it("well and missed: 2 shown, then Show N more", async () => {
