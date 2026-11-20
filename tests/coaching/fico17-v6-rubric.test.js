@@ -71,7 +71,8 @@ describe('FICO17 v6 rubric data', () => {
   test('the combined titles are the spec\'s (§7.3)', () => {
     expect(v6.TITLES.C3).toEqual(['Took whoever answered', 'Chose who answered once', 'Chose who answered 2+ times', '2+ named children answered']);
     expect(v6.TITLES.C5).toEqual(['Over 3 min, no signal', 'Signal, 2-3 min', 'Under 2 min', 'Switched without being told']);
-    expect(v6.TITLES.D2).toEqual(['No child spoke', 'Only 1-2 children', '3-5 children', '6+, and 2+ quiet ones later']);
+    // bd-ra8xu.61 (operator 13 Nov, option A 19 Nov): D2 in words, no counts.
+    expect(v6.TITLES.D2).toEqual(['No child spoke', 'Only a few children', 'Many, not most of the class', 'Most of the class']);
   });
 
   test('the DC prompt version carries the rubric data hash', () => {
