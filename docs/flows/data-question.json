@@ -1,0 +1,68 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "id": "DATA_QUESTION",
+      "title": "NIETE Data",
+      "terminal": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Ask about ICT schools in plain words: teachers, lesson plans, coach visits, FICO scores, quizzes, attendance. Or pick a common question."
+          },
+          {
+            "type": "Form",
+            "name": "ask",
+            "children": [
+              {
+                "type": "TextArea",
+                "name": "question",
+                "label": "Your question",
+                "required": false,
+                "max-length": 400,
+                "helper-text": "For example: coach visits in Tarnol this month"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "pick",
+                "label": "Or pick one",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "pick_1",
+                    "title": "Lesson plans last week"
+                  },
+                  {
+                    "id": "pick_2",
+                    "title": "Coach visits this month"
+                  },
+                  {
+                    "id": "pick_3",
+                    "title": "Active teachers this week"
+                  },
+                  {
+                    "id": "pick_4",
+                    "title": "FICO trend since Sep"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Ask",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "question": "${form.question}",
+                    "pick": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -252,6 +252,16 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // The data analyst's question (services/data-analyst/entry.js): one text box and four quick picks, opened by
+    // "data" for someone on the data_analyst_whatsapp switch. STATIC — no endpoint: the answer comes back on our own
+    // `dataq:` token. Leaving DATA_ANALYST_FLOW_ID unset sends the four picks as a list instead (the rollback lever).
+    name: 'Data Question',
+    jsonPath: path.join(FLOWS_DIR, 'data-question.json'),
+    type: 'navigate',
+    envVar: 'DATA_ANALYST_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // The name-and-class screen a child opens from a quiz link, before
     // question 1. STATIC — no endpoint: every word on it (title, heading, both
     // labels and helper lines, the button) is navigate-mode screen data the bot

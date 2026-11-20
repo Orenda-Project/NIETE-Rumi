@@ -1,44 +1,60 @@
 'use strict';
 /**
- * The door into data mode on the NIETE bot, asked before the ordinary text handler.
+ * The data analyst on the NIETE bot, with no data mode (the operator, 21 Nov 01:08: "I like D the most
+ * honestly. Alongside 'data' to a flow"; a sticky mode is forgotten because the line saying how to leave
+ * scrolls away).
  *
- * Someone the `data_analyst_whatsapp` switch names sends "data"; from then on their text messages are
- * questions for the data team's governed MCP, until "menu" or 30 minutes idle. Everyone else, and
- * every message outside data mode, returns false and reaches the text handler exactly as before.
- * Data-mode messages never reach that handler, so they stay out of `conversations` (which feeds
- * "what teachers ask").
- *
- * One question at a time per person (a Redis lock), 30 a day. The answer is sent in the same request
- * after Meta was already acked ("Looking into it" first; an answer takes about a minute, 4 at most).
- * Session state (the last 6 turns, the conversation's queries and rule reads, the numbered choices)
- * lives in Redis, so it survives a second web replica; with Redis down, data mode cannot start.
+ * Only for someone the `data_analyst_whatsapp` switch names (switch.js), and only on a tier with the env set:
+ *   - "data" alone opens the question Flow (one text box, four quick picks), or, where no Flow is registered
+ *     yet (DATA_ANALYST_FLOW_ID unset), a list of the same four picks;
+ *   - any other text: the bot's own words go to the ordinary handler untouched; the rest is read by a cheap
+ *     classifier (classifier.js): a data question is answered straight away, a normal one goes to the
+ *     ordinary handler, and an unsure one is asked with two buttons, "Data answer" / "Normal";
+ *   - every answer is one bubble: the chart (chart.js) with one or two lines and "Ask another" / "Main menu",
+ *     or the text with the same two buttons when there is nothing to draw.
+ * A follow-up window stays open for ten minutes after an answer (its history and figures, so "and by
+ * sector?" builds on the last answer), then closes by itself. One question at a time, 30 a day.
+ * Everything else, and everyone else, reaches the ordinary bot exactly as before.
  */
 
 const { isConfigured, dataAnalystIdentity } = require('./switch');
 const { ConversationMemory } = require('./memory');
-const { renderAnswer } = require('./whatsapp-format');
+const { composeReply, footer } = require('./whatsapp-format');
+const { chartSpecs } = require('./chart');
+const { isClearlyNormal } = require('./classifier');
 
-const SESSION_TTL_S = 30 * 60;
+const FOLLOW_UP_WINDOW_S = 10 * 60;
+const PENDING_TTL_S = 10 * 60;
 const LOCK_TTL_S = 5 * 60;
 const DAILY_LIMIT = 30;
 const HISTORY_TURNS = 6;
+const FLOW_SCREEN = 'DATA_QUESTION';
+const FLOW_TOKEN_PREFIX = 'dataq:';
+
+/** The four quick picks, the same in the Flow (docs/flows/data-question.json) and in the no-Flow list. */
+const QUICK_PICKS = Object.freeze([
+  { id: 'pick_1', title: 'Lesson plans last week', question: 'How many teachers got a lesson plan last week, by sector?' },
+  { id: 'pick_2', title: 'Coach visits this month', question: 'How many coach visits were held this month, by sector?' },
+  { id: 'pick_3', title: 'Active teachers this week', question: 'How many teachers were active on the assistant this week, by sector?' },
+  { id: 'pick_4', title: 'FICO trend since Sep', question: 'How are FICO scores moving month by month since September?' },
+]);
+
+const BUTTONS = Object.freeze([{ id: 'da_another', title: 'Ask another' }, { id: 'da_menu', title: 'Main menu' }]);
+const ROUTE_BUTTONS = Object.freeze([{ id: 'da_route_data', title: 'Data answer' }, { id: 'da_route_normal', title: 'Normal' }]);
 
 const TEXTS = Object.freeze({
-  welcome: '📊 *NIETE Data*\n'
-    + 'Ask me about ICT schools in plain words: teachers, lesson plans, coaching visits, FICO scores, quizzes, attendance.\n'
-    + 'I answer from the same governed data as the Data Analyst on Slack. Each answer takes about a minute. Send *menu* to go back.',
   looking: '🔎 Looking into it. About a minute.',
-  left: 'Left data mode. Send *data* any time to ask again.',
   busy: "I'm still working on your last question. Send this one again once that answer arrives.",
-  limit: `You've asked ${DAILY_LIMIT} questions today, the daily limit here. Ask again tomorrow.`,
+  limit: `You've asked ${DAILY_LIMIT} data questions today, the daily limit here. Ask again tomorrow.`,
   failed: "The data service isn't reachable right now, so I couldn't answer that. Please try again in a few minutes.",
-  cannotStart: "Data mode can't start right now. Please try again in a few minutes.",
+  unsure: 'Should I answer this from the ICT data, or pass it to the normal assistant?',
+  pick: 'Ask me about ICT schools in plain words, any time. Or pick a common question:',
+  flowHeader: 'NIETE Data',
+  flowBody: 'Ask about ICT schools in plain words, or pick a common question.',
 });
 
-const ENTER = new Set(['data']);
-const LEAVE = new Set(['menu', 'exit']);
-
-const sessionKey = (userId) => `data_analyst:session:${userId}`;
+const convKey = (userId) => `data_analyst:conv:${userId}`;
+const pendingKey = (userId) => `data_analyst:pending:${userId}`;
 const lockName = (userId) => `data_analyst:${userId}`;
 
 function karachiDay(now) {
@@ -53,65 +69,66 @@ function defaultDeps() {
     supabase: require('../../config/supabase'),
     redis: require('../cache/railway-redis.service'),
     whatsapp: WhatsAppService,
+    classify: (text, ctx) => require('./classifier').classify(text, { ...ctx, model: process.env.DATA_ANALYST_CLASSIFIER_MODEL || undefined }),
+    flowId: process.env.DATA_ANALYST_FLOW_ID,
     runQuestion: (args) => require('./answering').runQuestion(args),
+    renderChart: (spec, opts) => require('./chart').renderChartPng(spec, opts),
     now: () => new Date(),
     log: (event, fields) => logToFile(event, { event, ...fields }),
   };
 }
 
-async function save(redis, userId, session) {
-  return redis.set(sessionKey(userId), session, SESSION_TTL_S);
+async function identityOf(user, deps) {
+  if (!user || !user.id || !isConfigured(deps.env)) return null;
+  return dataAnalystIdentity(deps.supabase, user.id, { env: deps.env });
 }
 
-/**
- * @param {{user: {id: string}|null, from: string, messageBody: string, correlationId?: string}} msg
- * @param {object} [deps] injected in tests
- * @returns {Promise<boolean>} true when data mode took the message
- */
-async function maybeHandleDataAnalyst({ user, from, messageBody }, deps = defaultDeps()) {
-  const { env, supabase, redis, whatsapp, now } = deps;
-  const log = deps.log || (() => {});
-  if (!user || !user.id || typeof messageBody !== 'string' || !isConfigured(env)) return false;
-  const identity = await dataAnalystIdentity(supabase, user.id, { env });
-  if (!identity) return false;
+/** "data", "Ask another": the question Flow, or the four picks as a list where no Flow is registered. */
+async function offerQuestion(user, from, deps) {
+  const flowId = String((deps.flowId !== undefined ? deps.flowId : deps.env && deps.env.DATA_ANALYST_FLOW_ID) || '').trim();
+  if (flowId) {
+    const sent = await deps.whatsapp.sendFlow(from, {
+      flowId, header: TEXTS.flowHeader, body: TEXTS.flowBody, buttonText: 'Ask', screen: FLOW_SCREEN,
+      flowToken: `${FLOW_TOKEN_PREFIX}${user.id}:${Date.now()}`,
+    });
+    if (sent) return;
+  }
+  await deps.whatsapp.sendInteractiveMessage(from, {
+    body: { text: TEXTS.pick },
+    action: {
+      button: 'Pick a question',
+      sections: [{ title: 'Common questions', rows: QUICK_PICKS.map((p, i) => ({ id: `da_pick_${i + 1}`, title: p.title, description: p.question.slice(0, 72) })) }],
+    },
+  });
+}
 
-  const text = messageBody.trim();
-  const word = text.toLowerCase();
-  const session = await redis.get(sessionKey(user.id));
-
-  if (!session || typeof session !== 'object') {
-    if (!ENTER.has(word)) return false;
-    const fresh = { v: 1, startedAt: now().toISOString(), history: [], memory: new ConversationMemory().toJSON(), choices: [] };
-    if (!(await save(redis, user.id, fresh))) {
-      await whatsapp.sendMessage(from, TEXTS.cannotStart);
-      return true;
+async function sendAsks(from, caption, asks, deps) {
+  const choices = [];
+  const rows = [];
+  for (const a of asks) {
+    const q = a.question.replace(/[?:\s]+$/, '').trim();
+    for (const o of a.options) {
+      if (rows.length >= 10) break;
+      choices.push(q ? `${q}: ${o}` : o);
+      rows.push({ id: `da_opt_${choices.length}`, title: [...o].slice(0, 24).join(''), description: [...o].length > 24 ? [...o].slice(0, 72).join('') : undefined });
     }
-    log('data_analyst.entered', {});
-    await whatsapp.sendMessage(from, TEXTS.welcome);
-    return true;
   }
+  const body = [caption, ...asks.map((a) => (a.question ? `*${a.question}*` : ''))].filter(Boolean).join('\n\n').slice(0, 1024);
+  await deps.whatsapp.sendInteractiveMessage(from, {
+    body: { text: body },
+    action: { button: 'Choose', sections: [{ title: 'Options', rows: rows.map((r) => (r.description ? r : { id: r.id, title: r.title })) }] },
+  });
+  return choices;
+}
 
-  if (LEAVE.has(word)) {
-    await redis.delete(sessionKey(user.id));
-    log('data_analyst.left', {});
-    await whatsapp.sendMessage(from, TEXTS.left);
-    return true;
-  }
-  if (ENTER.has(word)) {
-    await save(redis, user.id, session);
-    await whatsapp.sendMessage(from, TEXTS.welcome);
-    return true;
-  }
-  if (!text) return true;
-
-  const choices = Array.isArray(session.choices) ? session.choices : [];
-  const pick = /^\d{1,2}$/.test(word) ? choices[Number(word) - 1] : undefined;
-  const question = typeof pick === 'string' && pick ? pick : text;
-
+/** One governed answer, delivered as one bubble with buttons. Always answers something; never throws past here. */
+async function answer(question, { user, from, identity }, deps) {
+  const { redis, whatsapp, now } = deps;
+  const log = deps.log || (() => {});
   const lockId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   if (!(await redis.acquireLock(lockName(user.id), lockId, LOCK_TTL_S))) {
     await whatsapp.sendMessage(from, TEXTS.busy);
-    return true;
+    return;
   }
   try {
     const countKey = `data_analyst:count:${user.id}:${karachiDay(now())}`;
@@ -119,34 +136,139 @@ async function maybeHandleDataAnalyst({ user, from, messageBody }, deps = defaul
     await redis.expire(countKey, 2 * 24 * 3600);
     if (Number.isFinite(asked) && asked > DAILY_LIMIT) {
       await whatsapp.sendMessage(from, TEXTS.limit);
-      return true;
+      return;
     }
-    await save(redis, user.id, session); // a long answer must not let the session idle out under it
     await whatsapp.sendMessage(from, TEXTS.looking);
-
-    const memory = ConversationMemory.fromJSON(session.memory);
-    const history = Array.isArray(session.history) ? session.history : [];
+    const conv = (await redis.get(convKey(user.id))) || {};
+    const memory = ConversationMemory.fromJSON(conv.memory);
+    const history = Array.isArray(conv.history) ? conv.history : [];
     let result;
     try {
       result = await deps.runQuestion({ question, identity, memory, history, log });
     } catch (e) {
       log('data_analyst.failed', { error: String(e && e.message).slice(0, 300) });
       await whatsapp.sendMessage(from, TEXTS.failed);
-      return true;
+      return;
     }
-    const rendered = renderAnswer({
-      text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly,
-      knownText: result.knownText || '', asked: question,
-    });
-    for (const m of rendered.messages) await whatsapp.sendMessage(from, m);
-
-    const nextHistory = history.concat([{ role: 'user', content: question }, { role: 'assistant', content: rendered.body || result.text }])
-      .slice(-HISTORY_TURNS * 2);
-    await save(redis, user.id, { ...session, history: nextHistory, memory: memory.toJSON(), choices: rendered.choices, lastAt: now().toISOString() });
-    return true;
+    const specs = chartSpecs(result.calls, question);
+    const foot = footer(result.calls).replace(/^_|_$/g, '');
+    const png = specs.length ? await deps.renderChart(specs[0], { footer: foot }) : null;
+    const reply = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText || '', hasChart: Boolean(png) });
+    let choices = [];
+    if (reply.asks.length) {
+      choices = await sendAsks(from, reply.caption, reply.asks, deps);
+    } else {
+      for (const m of reply.before) await whatsapp.sendMessage(from, m);
+      let sent = false;
+      if (png) {
+        sent = await whatsapp.sendImageBufferWithButtons(from, png, reply.caption, [...BUTTONS]);
+        if (!sent) {
+          await whatsapp.sendImageFromBuffer(from, png, '');
+        }
+      }
+      if (!sent) await whatsapp.sendInteractiveButtons(from, { body: reply.caption, buttons: [...BUTTONS] });
+    }
+    log('data_analyst.delivered', { chart: Boolean(png), asks: reply.asks.length, kind: specs[0] ? specs[0].kind : null });
+    const nextHistory = history.concat([{ role: 'user', content: question }, { role: 'assistant', content: reply.body || result.text }]).slice(-HISTORY_TURNS * 2);
+    await redis.set(convKey(user.id), {
+      history: nextHistory, memory: memory.toJSON(), choices, lastAnswer: String(reply.body || '').slice(0, 600), lastAt: now().toISOString(),
+    }, FOLLOW_UP_WINDOW_S);
   } finally {
     await redis.releaseLock(lockName(user.id), lockId);
   }
 }
 
-module.exports = { maybeHandleDataAnalyst, TEXTS, DAILY_LIMIT, SESSION_TTL_S };
+/**
+ * A text message, before the ordinary text handler.
+ * @returns {Promise<boolean>} true when the data analyst took it
+ */
+async function maybeHandleDataAnalyst({ user, from, messageBody }, deps = defaultDeps()) {
+  if (typeof messageBody !== 'string') return false;
+  const identity = await identityOf(user, deps);
+  if (!identity) return false;
+  const text = messageBody.trim();
+  if (text.toLowerCase() === 'data') {
+    await offerQuestion(user, from, deps);
+    return true;
+  }
+  const conv = await deps.redis.get(convKey(user.id));
+  const recentAnswer = conv && typeof conv.lastAnswer === 'string' ? conv.lastAnswer : '';
+  if (isClearlyNormal(text, { allowShort: Boolean(recentAnswer) })) return false;
+  const verdict = await deps.classify(text, { recentAnswer });
+  (deps.log || (() => {}))('data_analyst.classified', { verdict, followUp: Boolean(recentAnswer) });
+  if (verdict === 'data') {
+    await answer(text, { user, from, identity }, deps);
+    return true;
+  }
+  if (verdict === 'unsure') {
+    await deps.redis.set(pendingKey(user.id), { text }, PENDING_TTL_S);
+    await deps.whatsapp.sendInteractiveButtons(from, { body: TEXTS.unsure, buttons: [...ROUTE_BUTTONS] });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * A button or list tap whose id starts `da_`.
+ * @returns {Promise<{handled: boolean, normalText?: string}>} normalText: hand these words to the ordinary text handler
+ */
+async function handleDataAnalystButton({ user, from, buttonId }, deps = defaultDeps()) {
+  const id = String(buttonId || '');
+  if (!id.startsWith('da_')) return { handled: false };
+  const identity = await identityOf(user, deps);
+  if (!identity) return { handled: false };
+  if (id === 'da_menu') return { handled: true, normalText: 'menu' };
+  if (id === 'da_another') {
+    await offerQuestion(user, from, deps);
+    return { handled: true };
+  }
+  if (id === 'da_route_data' || id === 'da_route_normal') {
+    const pending = await deps.redis.get(pendingKey(user.id));
+    await deps.redis.delete(pendingKey(user.id));
+    const text = pending && typeof pending.text === 'string' ? pending.text : '';
+    if (!text) return { handled: true };
+    if (id === 'da_route_normal') return { handled: true, normalText: text };
+    await answer(text, { user, from, identity }, deps);
+    return { handled: true };
+  }
+  const pick = /^da_pick_(\d+)$/.exec(id);
+  if (pick) {
+    const p = QUICK_PICKS[Number(pick[1]) - 1];
+    if (p) await answer(p.question, { user, from, identity }, deps);
+    return { handled: true };
+  }
+  const opt = /^da_opt_(\d+)$/.exec(id);
+  if (opt) {
+    const conv = await deps.redis.get(convKey(user.id));
+    const choice = conv && Array.isArray(conv.choices) ? conv.choices[Number(opt[1]) - 1] : null;
+    if (typeof choice === 'string' && choice) await answer(choice, { user, from, identity }, deps);
+    else await offerQuestion(user, from, deps);
+    return { handled: true };
+  }
+  return { handled: false };
+}
+
+/**
+ * The question Flow's reply (nfm_reply). Ours only on a `dataq:` token.
+ * @returns {Promise<boolean>}
+ */
+async function handleDataAnalystFlowReply({ user, from, responseJson }, deps = defaultDeps()) {
+  const token = String((responseJson && responseJson.flow_token) || '');
+  if (!token.startsWith(FLOW_TOKEN_PREFIX)) return false;
+  const identity = await identityOf(user, deps);
+  if (!identity) return true; // our token, but no longer on the switch: claimed so no other Flow handler misreads it
+  const typed = String(responseJson.question || '').trim();
+  const pick = QUICK_PICKS.find((p) => p.id === responseJson.pick);
+  const question = typed || (pick ? pick.question : '');
+  if (!question) {
+    await offerQuestion(user, from, deps);
+    return true;
+  }
+  await answer(question, { user, from, identity }, deps);
+  return true;
+}
+
+module.exports = {
+  maybeHandleDataAnalyst, handleDataAnalystButton, handleDataAnalystFlowReply,
+  TEXTS, QUICK_PICKS, BUTTONS, DAILY_LIMIT, FOLLOW_UP_WINDOW_S, FLOW_TOKEN_PREFIX,
+};
