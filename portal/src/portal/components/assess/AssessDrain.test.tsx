@@ -24,7 +24,7 @@ describe("AssessDrain", () => {
     }
     expect(onDone).not.toHaveBeenCalled();
     post({ type: "sa:drained", sessions: [{ s: "s1", pending_events: 0, pending_audio: 0 }] });
-    expect(onDone).toHaveBeenCalledWith([{ s: "s1", pending: 0 }]);
+    expect(onDone).toHaveBeenCalledWith([{ s: "s1", pending: 0 }], true);
   });
 
   it("30 s with no progress ends it", () => {
@@ -34,7 +34,7 @@ describe("AssessDrain", () => {
     act(() => { vi.advanceTimersByTime(29_000); });
     expect(onDone).not.toHaveBeenCalled();
     act(() => { vi.advanceTimersByTime(1_500); });
-    expect(onDone).toHaveBeenCalledWith([]);
+    expect(onDone).toHaveBeenCalledWith([], false);
   });
 
   it("a frame that never reports progress (an older engine) keeps today's 60 s cap", () => {
@@ -43,7 +43,7 @@ describe("AssessDrain", () => {
     act(() => { vi.advanceTimersByTime(59_000); });
     expect(onDone).not.toHaveBeenCalled();
     act(() => { vi.advanceTimersByTime(1_500); });
-    expect(onDone).toHaveBeenCalledWith([]);
+    expect(onDone).toHaveBeenCalledWith([], false);
   });
 
   it("10 minutes is the hard cap, however it moves", () => {

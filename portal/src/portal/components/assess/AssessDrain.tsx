@@ -26,12 +26,14 @@ function pendingOf(x: unknown): { s: string; pending: number } | null {
   return { s: o.s, pending: typeof o.pending === 'number' ? o.pending : num(o.pending_events) + num(o.pending_audio) };
 }
 
-export default function AssessDrain({ onDone }: { onDone: (sessions: Drained) => void }) {
+/** onDone(sessions, answered): answered false when the page's own clock ended it (no sa:drained), so what the phone
+ *  holds is not known. */
+export default function AssessDrain({ onDone }: { onDone: (sessions: Drained, answered: boolean) => void }) {
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
   useEffect(() => {
     let over = false;
-    const end = (sessions: Drained = []) => { if (!over) { over = true; doneRef.current(sessions); } };
+    const end = (sessions: Drained = [], answered = false) => { if (!over) { over = true; doneRef.current(sessions, answered); } };
     let idle = window.setTimeout(() => end(), DRAIN_SILENT_MS);
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: unknown; sessions?: unknown } | null;
@@ -43,7 +45,7 @@ export default function AssessDrain({ onDone }: { onDone: (sessions: Drained) =>
       }
       if (d.type !== 'sa:drained') return;
       const list = Array.isArray(d.sessions) ? d.sessions : [];
-      end(list.map(pendingOf).filter((x): x is { s: string; pending: number } => x !== null));
+      end(list.map(pendingOf).filter((x): x is { s: string; pending: number } => x !== null), true);
     };
     window.addEventListener('message', onMessage);
     const t = window.setTimeout(() => end(), DRAIN_MAX_MS);

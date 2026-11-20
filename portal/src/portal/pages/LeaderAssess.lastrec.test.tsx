@@ -121,6 +121,17 @@ describe("LeaderAssess: the coach page sends whatever the phone holds", () => {
     expect(await screen.findByTestId("assess-drain-frame")).toBeInTheDocument();
   });
 
+  it("a drain that ends with no answer (stuck, or the cap) is not 'nothing held': it runs again on a later tick", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage();
+    await screen.findByTestId("assess-drain-frame");
+    // no sa:drained: the frame is ended by the page's own clock (60 s for a frame that never reports progress)
+    await act(async () => { vi.advanceTimersByTime(61_000); });
+    await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
+    await act(async () => { vi.advanceTimersByTime(31_000); });
+    expect(await screen.findByTestId("assess-drain-frame")).toBeInTheDocument();
+  });
+
   it("a reloaded page: a child the list calls completed is not 'sent' before the status poll answers", async () => {
     // a child tested here earlier: the visit's memory holds the session, sent at Start
     renderPage();
