@@ -39,6 +39,7 @@ const { extractJsonFromResponse } = require('./assessment-json.util');
 const { applyStems } = require('./topics/stem-prompt');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 const Gen = require('./assessment-generation.service');
+const SeenTypes = require('./seen-types');
 const SubjectConfig = require('./subject-config');
 const PROMPTS = require('./ict-prompts.json');
 const Rules = require('./free-secondary-rules');
@@ -104,14 +105,14 @@ function postProcess(examJson, { grade, plan, totalMarks }) {
   Gen.normaliseAnswers(examJson);
   if (appliesToGrade(grade)) capBlooms(examJson);
   applyStems(examJson, plan.questionTypes);
-  const removedSeen = Gen.trimSeen(examJson, plan.seenTarget);
+  const removedSeen = plan.seenTypes ? SeenTypes.trim(examJson, plan.seenTypes) : Gen.trimSeen(examJson, plan.seenTarget);
   const marksRemoved = Gen.enforceMarksBudget(examJson, totalMarks);
   return { removedSeen, marksRemoved };
 }
 
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference, contentSource = 'unseen', questionCount,
-    questionTypes = [], includeAnswerKey = false, totalMarks = null, seenCount = null, slos = null,
+    questionTypes = [], includeAnswerKey = false, totalMarks = null, seenCount = null, seenTypes = null, slos = null,
     chapterTitle = null, keySeed = null } = args;
   const checkOpts = { grade, lessonTitle: chapterTitle };
 
@@ -125,7 +126,7 @@ async function generateExam(args) {
   // The teacher's count is kept (a7 ruling on A5e): sizing only converts and lightens items.
   const sized = Rules.sizeTypes(questionTypes, grade);
   const sizedCount = questionCount;
-  const plan = Gen.planCounts({ contentSource, questionCount: sizedCount, questionTypes: sized.types, seenCount });
+  const plan = Gen.planCounts({ contentSource, questionCount: sizedCount, questionTypes: sized.types, seenCount, seenTypes });
   const pool = Pool.poolTypes(sized.types);
   const keepMcqs = (sized.types.find((t) => t.id === 'mcq') || {}).count || 0;
   let pooled = 0;
@@ -143,7 +144,7 @@ async function generateExam(args) {
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
       questionCount: sizedCount + pool.extra, questionTypes: pool.types,
-      totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, slos,
+      totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, seenTypes, slos,
       standardMarks: false }) }, // 6-12 sizes its own marks (Rules.sizeTypes)
   ];
   logToFile('[assessment] generating (grades 6-12 free)', {
