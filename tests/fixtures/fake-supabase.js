@@ -14,7 +14,8 @@
  *   .from(t).select(cols, { count: 'exact', head: true })   → { data: [], count }
  *   .from(t).insert(rowOrRows).select().single()
  *   .from(t).update(patch).eq(c,v)
- *   .from(t).upsert(rowOrRows)
+ *   .from(t).upsert(rowOrRows[, { onConflict: 'a,b' }])
+ *            .gte(c,v).lte(c,v)   (bd-33wxxi.10 — date windows: the month's teacher_attendance_records)
  * A builder is thenable, so `await` without a terminal works like PostgREST.
  *
  * IT ALSO MODELS POSTGREST'S RESPONSE-ROW CAP. A real PostgREST answers at most
@@ -40,6 +41,8 @@ function matches(row, filters) {
     if (kind === 'in') return val.includes(row[col]);
     if (kind === 'isNull') return row[col] === null || row[col] === undefined;
     if (kind === 'notNull') return row[col] !== null && row[col] !== undefined;
+    if (kind === 'gte') return row[col] !== null && row[col] !== undefined && row[col] >= val;
+    if (kind === 'lte') return row[col] !== null && row[col] !== undefined && row[col] <= val;
     return true;
   });
 }
@@ -80,6 +83,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
     let rangeTo = null;
     let countMode = null;
     let headOnly = false;
+    let conflictCols = null;
 
     const fail = () => (failures[name] ? { data: null, error: { message: failures[name] } } : null);
 
@@ -92,9 +96,11 @@ function createFakeSupabase(seed = {}, opts = {}) {
         const inserted = incoming.map((r) => ({ id: r.id || nextId(name), ...r }));
         for (const row of inserted) {
           if (mode === 'upsert') {
-            // Crude but sufficient: replace a row sharing every key of the payload
-            // except timestamps. Real upsert conflict targets are not modelled.
-            const existing = table(name).find((e) => Object.keys(r0Keys(row)).every((k) => e[k] === row[k]));
+            // With { onConflict: 'a,b' } (bd-33wxxi.10): the row sharing those columns is
+            // replaced, as PostgREST's ON CONFLICT does. Without one, crude but sufficient:
+            // replace a row sharing every key of the payload except timestamps.
+            const keys = conflictCols || Object.keys(r0Keys(row));
+            const existing = table(name).find((e) => keys.every((k) => e[k] === row[k]));
             if (existing) {
               Object.assign(existing, row);
               continue;
@@ -156,11 +162,17 @@ function createFakeSupabase(seed = {}, opts = {}) {
         return api;
       },
       insert(p) { mode = 'insert'; payload = p; return api; },
-      upsert(p) { mode = 'upsert'; payload = p; return api; },
+      upsert(p, o = {}) {
+        mode = 'upsert'; payload = p;
+        if (o && typeof o.onConflict === 'string') conflictCols = o.onConflict.split(',').map((c) => c.trim()).filter(Boolean);
+        return api;
+      },
       update(p) { mode = 'update'; payload = p; return api; },
       delete() { mode = 'delete'; return api; },  // removes matching rows, see resolveRows
       eq(col, val) { filters.push(['eq', col, val]); return api; },
       in(col, vals) { filters.push(['in', col, vals]); return api; },
+      gte(col, val) { filters.push(['gte', col, val]); return api; },
+      lte(col, val) { filters.push(['lte', col, val]); return api; },
       is(col) { filters.push(['isNull', col, null]); return api; },
       not(col) { filters.push(['notNull', col, null]); return api; },
       order(col, o = {}) { order = { col, ascending: o.ascending !== false }; return api; },

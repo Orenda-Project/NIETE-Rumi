@@ -1,28 +1,32 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { CalendarDays, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TeacherPage from '../TeacherPage';
 import { TEACHER_BASE } from '../paths';
 import { GradeSubjectButton, StatusChip } from '../ui';
 import { CARD, FOCUS, GRID, LIST_CARD } from '../ui/styles';
-import { getClasses, useRead } from './api';
 import { ATTENDANCE } from './copy';
 import { useCopy, useLang } from '../i18n';
-import { classButton, dayLabel, selectorGroups, type AttendanceClass } from './model';
+import { classButton, dayLabel, onlyStaff, selectorGroups, STAFF, type AttendanceClass } from './model';
 import { downloadPath, markPath, viewPath } from './paths';
-import { classChip, LoadState, SearchBox } from './ui';
+import { classChip, LoadState, SearchBox, useClassesRead, useSizeWord } from './ui';
 
 /**
  * bd-fmf24g.7 — the teacher v2 Attendance page (v28 canvas Attendance.dc.html): the CLASS SELECTOR is
  * the first screen. Her classes from GET /teacher/attendance/classes — today's not-marked ones first,
  * then the marked ones with their count — searchable by class or subject; a class opens its roll call.
  * View and Download sit on top and open on her first class (each has Change).
+ *
+ * bd-33wxxi.10 — a principal's teachers are a register too (listId "staff", first in the list, "8 teachers").
+ * When they are her ONLY register, this page is skipped: she lands on their roll call (replace, so Back from
+ * there goes Home, not back here).
  */
 export function AttendanceHub() {
   const lang = useLang();
   const C = useCopy(ATTENDANCE);
-  const read = useRead('classes', () => getClasses());
+  const read = useClassesRead();
+  const size = useSizeWord();
   const [q, setQ] = useState('');
   const classes: AttendanceClass[] = read.data?.classes || [];
   const groups = useMemo(() => selectorGroups(classes, q), [classes, q]);
@@ -45,7 +49,7 @@ export function AttendanceHub() {
               grade={b.grade}
               section={b.section}
               subject={b.subject}
-              sub={C.students(c.students)}
+              sub={size(c)}
               chip={classChip(c, C)}
               to={markPath(c.listId)}
             />
@@ -55,6 +59,7 @@ export function AttendanceHub() {
     </section>
   ) : null);
 
+  if (onlyStaff(read.data?.classes)) return <Navigate to={markPath(STAFF)} replace />;
   return (
     <TeacherPage
       title={C.title}
