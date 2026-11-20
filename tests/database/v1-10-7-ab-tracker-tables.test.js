@@ -22,6 +22,7 @@ const OBJECTS = fs.readFileSync(path.join(ROOT, 'supabase/baseline/schema.object
 
 const TABLES = ['ab_card_lock', 'ab_assignment', 'ab_refresh_log', 'ab_rollup_unit_period', 'ab_stop_state'];
 const READS = ['ab_tracker_live_tests', 'ab_tracker_metric_rows'];
+const HELPERS = ['ab_tracker_unit_teachers'];
 const WRITES = ['ab_tracker_refresh_open', 'ab_tracker_upsert_rollup', 'ab_tracker_refresh_close'];
 
 /** The body of one function, from its CREATE to the closing $$. */
@@ -70,9 +71,9 @@ test('reads are STABLE, security invoker, 30 s, and only read', () => {
   }
 });
 
-test('the metric reader knows the three database measures and refuses any other', () => {
+test('the metric reader knows the four database measures and refuses any other', () => {
   const b = body('ab_tracker_metric_rows');
-  for (const m of ['plan_fidelity', 'teachers_coming_back', 'child_quiz_objectives_secured']) expect(b).toContain(`'${m}'`);
+  for (const m of ['plan_fidelity', 'teachers_coming_back', 'child_quiz_objectives_secured', 'send_failures']) expect(b).toContain(`'${m}'`);
   expect(b).toMatch(/raise exception 'ab_tracker_metric_rows: unknown metric/);
   expect(b).toContain("at time zone 'asia/karachi'");
   expect(b).toContain('returns jsonb');
@@ -90,8 +91,14 @@ test('writes are 15 s and touch only ab_ tables; the upsert is batched and cappe
   expect(up).toMatch(/jsonb_array_length\(p_rows\) > 2000/);
 });
 
+test('the teacher helper is plain STABLE sql with no SET, so it is inlined into each measure query', () => {
+  const b = body('ab_tracker_unit_teachers');
+  expect(b).toMatch(/language sql stable security invoker as \$\$/);
+  expect(b).not.toMatch(/\bset \w+ =|insert into|delete from/);
+});
+
 test('only service_role may call any function', () => {
-  for (const f of [...READS, ...WRITES]) {
+  for (const f of [...READS, ...WRITES, ...HELPERS]) {
     expect(UP).toMatch(new RegExp(`revoke all on function public\\.${f}\\([^)]*\\) from public, anon, authenticated`));
     expect(UP).toMatch(new RegExp(`grant execute on function public\\.${f}\\([^)]*\\) to service_role`));
   }
@@ -103,7 +110,7 @@ test('one transaction from the runner, PostgREST reloads, no BEGIN/COMMIT', () =
 });
 
 test('the rollback drops exactly what the migration made, functions first, and nothing else', () => {
-  for (const f of [...READS, ...WRITES]) expect(DOWN).toContain(`drop function if exists public.${f}(`);
+  for (const f of [...READS, ...WRITES, ...HELPERS]) expect(DOWN).toContain(`drop function if exists public.${f}(`);
   for (const t of TABLES) expect(DOWN).toContain(`drop table if exists public.${t}`);
   for (const m of DOWN.matchAll(/drop (?:table|function) if exists (?:public\.)?(\w+)/g)) expect(m[1]).toMatch(/^ab_/);
   expect(DOWN.indexOf('drop function')).toBeLessThan(DOWN.indexOf('drop table'));
@@ -114,5 +121,5 @@ test('the mock-lane baseline carries the tables and functions', () => {
     expect(BASELINE).toContain(`create table public.${t} (`);
     expect(OBJECTS).toContain(`${t}.id:uuid`);
   }
-  for (const f of [...READS, ...WRITES]) expect(BASELINE).toContain(`create function public.${f}(`);
+  for (const f of [...READS, ...WRITES, ...HELPERS]) expect(BASELINE).toContain(`create function public.${f}(`);
 });

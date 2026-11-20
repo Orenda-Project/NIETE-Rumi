@@ -99,15 +99,7 @@ BEGIN
   IF p_to < p_from OR p_to - p_from > 62 THEN RAISE EXCEPTION 'ab_tracker_metric_rows: the window must be 1 to 63 days'; END IF;
 
   IF p_metric_id = 'plan_fidelity' THEN
-    WITH t AS (
-      SELECT u.id AS teacher_id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
-       WHERE v_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-      UNION ALL
-      SELECT u.id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
-       WHERE v_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-    ), x AS (
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
       SELECT t.arm, t.unit_id, t.block, (c.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
              (c.analysis_data #>> '{lp_fidelity,fidelity_pct}')::double precision AS v
         FROM t JOIN public.coaching_sessions c ON c.user_id = t.teacher_id
@@ -121,15 +113,7 @@ BEGIN
         FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
 
   ELSIF p_metric_id = 'teachers_coming_back' THEN
-    WITH t AS (
-      SELECT u.id AS teacher_id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
-       WHERE v_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-      UNION ALL
-      SELECT u.id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
-       WHERE v_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-    ), took AS (
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), took AS (
       SELECT d.user_id AS teacher_id, d.created_at AS at
         FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
        WHERE d.status = 'sent' AND d.created_at >= v_from AND d.created_at < v_to
@@ -146,15 +130,7 @@ BEGIN
         FROM wk JOIN t ON t.teacher_id = wk.teacher_id GROUP BY t.arm, t.unit_id, t.block, wk.wk) r;
 
   ELSIF p_metric_id = 'child_quiz_objectives_secured' THEN
-    WITH t AS (
-      SELECT u.id AS teacher_id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
-       WHERE v_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-      UNION ALL
-      SELECT u.id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
-       WHERE v_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-    ), s AS (
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), s AS (
       SELECT t.arm, t.unit_id, t.block, qs.id AS session_id, qs.student_id,
              (qs.created_at AT TIME ZONE 'Asia/Karachi')::date AS d
         FROM t JOIN public.quizzes q ON q.teacher_id = t.teacher_id
@@ -178,6 +154,17 @@ BEGIN
       SELECT kid.arm, kid.unit_id, kid.block, 'day' AS period_kind, kid.d AS period, count(*) AS n,
              sum(kid.v) AS s, sum(kid.v * kid.v) AS ss
         FROM kid GROUP BY kid.arm, kid.unit_id, kid.block, kid.d) r;
+
+  ELSIF p_metric_id = 'send_failures' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
+      SELECT t.arm, t.unit_id, t.block, (d.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
+             CASE WHEN d.status = 'sent' THEN 0.0 ELSE 1.0 END::double precision AS v
+        FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
+       WHERE d.created_at >= v_from AND d.created_at < v_to
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT x.arm, x.unit_id, x.block, 'day' AS period_kind, x.d AS period, count(*) AS n, sum(x.v) AS s, sum(x.v * x.v) AS ss
+        FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
 
   ELSE
     RAISE EXCEPTION 'ab_tracker_metric_rows: unknown metric %', p_metric_id;
@@ -228,6 +215,25 @@ $$;
 
 
 ALTER FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) OWNER TO postgres;
+
+--
+-- Name: ab_tracker_unit_teachers(text, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) RETURNS TABLE(teacher_id uuid, unit_id uuid, arm text, block text)
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
+   WHERE p_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+  UNION ALL
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
+   WHERE p_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) OWNER TO postgres;
 
 --
 -- Name: ab_tracker_upsert_rollup(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
@@ -15021,6 +15027,14 @@ GRANT ALL ON FUNCTION public.ab_tracker_refresh_close(p_refresh_id uuid, p_statu
 
 REVOKE ALL ON FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) TO service_role;
+
+
+--
+-- Name: FUNCTION ab_tracker_unit_teachers(p_test_id text, p_kind text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) TO service_role;
 
 
 --

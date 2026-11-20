@@ -31,8 +31,8 @@ const LOOKBACK_DAYS = 4;
 const BATCH_ROWS = 1000;
 const PAUSE_MS = 500;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
-/** The measures this job can read from the database; the rest (send failures: Axiom) come from elsewhere. */
-const DB_METRICS = { plan_fidelity: 'day', teachers_coming_back: 'week', child_quiz_objectives_secured: 'day' };
+/** The measures this job can read from the database (ab_tracker_metric_rows); any other is skipped and counted. */
+const DB_METRICS = { plan_fidelity: 'day', teachers_coming_back: 'week', child_quiz_objectives_secured: 'day', send_failures: 'day' };
 
 /** Minutes after Pakistan midnight to start, or null (off). The 90-minute window must end by midnight. */
 function parseSwitch(value) {
