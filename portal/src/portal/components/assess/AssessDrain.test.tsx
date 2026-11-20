@@ -4,6 +4,7 @@ import AssessDrain from "./AssessDrain";
 
 // D1: the drain frame may need minutes to send an offline battery on a slow link. The coach page ends it on
 // sa:drained, after 30 s with no progress (no sa:drain_progress: no server answer, no upload bytes), or at 10 minutes.
+// A frame that never reports progress (an engine before sa-47) keeps the old 60 s cap.
 // A fixed minute cut an upload that was still moving, and the next drain started that recording again from zero.
 
 const post = (data: unknown) => act(() => {
@@ -36,11 +37,13 @@ describe("AssessDrain", () => {
     expect(onDone).toHaveBeenCalledWith([]);
   });
 
-  it("a frame that never says anything ends after 30 s", () => {
+  it("a frame that never reports progress (an older engine) keeps today's 60 s cap", () => {
     const onDone = vi.fn();
     render(<AssessDrain onDone={onDone} />);
-    act(() => { vi.advanceTimersByTime(30_500); });
-    expect(onDone).toHaveBeenCalledTimes(1);
+    act(() => { vi.advanceTimersByTime(59_000); });
+    expect(onDone).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1_500); });
+    expect(onDone).toHaveBeenCalledWith([]);
   });
 
   it("10 minutes is the hard cap, however it moves", () => {
@@ -56,6 +59,7 @@ describe("AssessDrain", () => {
   it("progress from another origin does not keep it alive", () => {
     const onDone = vi.fn();
     render(<AssessDrain onDone={onDone} />);
+    post({ type: "sa:drain_progress", acks: 1, bytes: 0 });
     act(() => { vi.advanceTimersByTime(20_000); });
     act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:drain_progress" }, origin: "https://evil.example" })); });
     act(() => { vi.advanceTimersByTime(11_000); });

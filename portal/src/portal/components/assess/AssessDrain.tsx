@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 export const DRAIN_SRC = '/sa/play.html?drain=1&embed=1';
 /** No new server answer and no upload bytes for this long: the drain is stuck, end it. */
 export const DRAIN_IDLE_MS = 30_000;
+/** A frame that has not reported progress yet (an engine older than sa-47 never does): today's cap. */
+export const DRAIN_SILENT_MS = 60_000;
 /** Never longer than this, however it moves. */
 export const DRAIN_MAX_MS = 10 * 60_000;
 
@@ -10,7 +12,8 @@ export const DRAIN_MAX_MS = 10 * 60_000;
  * A hidden same-origin frame on the engine's drain mode: it sends every session this phone still holds
  * (a child whose network came back after the hand-back, when that child's own engine page was gone).
  * Done on `sa:drained`, or after 30 s without progress (the frame's `sa:drain_progress`: a server answer, or bytes
- * of an upload sent), or at 10 minutes. A slow upload that is moving is not cut.
+ * of an upload sent), or at 10 minutes. A slow upload that is moving is not cut. Until the frame first reports
+ * progress the cap stays 60 s, so this page is safe beside an engine that does not report it.
  */
 export type Drained = { s: string; pending: number }[];
 
@@ -29,7 +32,7 @@ export default function AssessDrain({ onDone }: { onDone: (sessions: Drained) =>
   useEffect(() => {
     let over = false;
     const end = (sessions: Drained = []) => { if (!over) { over = true; doneRef.current(sessions); } };
-    let idle = window.setTimeout(() => end(), DRAIN_IDLE_MS);
+    let idle = window.setTimeout(() => end(), DRAIN_SILENT_MS);
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: unknown; sessions?: unknown } | null;
       if (e.origin !== window.location.origin || !d) return;
