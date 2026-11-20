@@ -441,6 +441,27 @@ async function selfLessonStep(userId, user) {
   return { screen: 'SUCCESS', data: _success('', '', { action: 'self_dc', params }) };
 }
 
+/**
+ * bd-slknzt (queue #203) — the /observe menu's roster admin, a coach's alone. The operator, 20 Nov: "on WhatsApp for the
+ * principal, the /observe is showing some buttons that dont make sense for principal e.g. Add or Remove school. Only
+ * coaches can do that. The principal can just conduct observations." A principal's menu keeps the observation rows
+ * (work waiting, My schedule, Schedule new observation, My own lesson) and loses these.
+ */
+const COACH_ONLY_MENU_ROWS = Object.freeze(new Set(['manage', 'manage_teachers']));
+
+/**
+ * The steps behind those two rows: Add or remove a school (search, add, remove) and Manage teachers (add, move, remove,
+ * edit). A principal who sends one (a Flow left open on yesterday's menu) is answered with the menu, never a roster write.
+ */
+const COACH_ONLY_STEPS = Object.freeze(new Set([
+  'add_search_open', 'add_search', 'add_school', 'manage_search', 'manage', 'remove_school',
+  'teacher_school_open', 'teacher_action_open', 'teacher_action_pick',
+  'teacher_add_open', 'teacher_add_lookup', 'teacher_add_named', 'teacher_add_commit',
+  'teacher_remove_open', 'teacher_remove_check', 'teacher_remove_commit',
+  'teacher_edit_open', 'teacher_edit_field', 'teacher_edit_route', 'teacher_edit_name_commit',
+  'teacher_edit_level_commit', 'teacher_edit_role_commit', 'teacher_edit_phone_check', 'teacher_edit_phone_commit',
+]));
+
 async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
@@ -533,15 +554,19 @@ async function menuScreen(userId, opts = {}) {
     },
   ];
   if (ownSchool) {
-    // Manage teachers lists leader_schools holdings only, so a principal whose one school is their own would open an
-    // empty list: it is left out for them (a school-link guard, not a flow difference). Scheduling rows are the
-    // coach's (bd-31ziu8: "It has to be the same as coach").
-    items = items.filter((i) => !(i.id === 'manage_teachers' && holdings === 0));
+    // bd-slknzt: a principal conducts observations only: no roster admin (COACH_ONLY_MENU_ROWS). Scheduling rows stay
+    // the coach's (bd-31ziu8: "It has to be the same as coach").
+    items = items.filter((i) => !COACH_ONLY_MENU_ROWS.has(i.id));
   }
   // bd-9bppaz: a principal's own lesson, after the observe rows and before the roster admin. It needs no school.
   // The profile is read once, above: a failed read (me null) shows no row and is never retried here.
   const self = me ? await _selfLessonRow(userId, me) : null;
-  if (!schoolCount) {
+  if (!schoolCount && ownSchool && self) {
+    // bd-slknzt: a principal with no school is not offered "add your first school" (a coach's action): nothing to
+    // schedule or observe yet, so her own lesson only. (No self row either: the observation rows, never an empty list.)
+    return { screen: 'MENU', data: { items: [self] } };
+  }
+  if (!schoolCount && !ownSchool) {
     // Nothing to debrief, schedule or observe until she has a school. Show the
     // one action that gets her unstuck, and say why the rest is missing.
     const only = items.filter((i) => i.id === 'manage');   // teacher admin needs a school first
@@ -549,7 +574,12 @@ async function menuScreen(userId, opts = {}) {
     if (self) only.push(self);
     return { screen: 'MENU', data: { items: only } };
   }
-  if (self) items.splice(items.findIndex((i) => i.id === 'manage'), 0, self);
+  if (self) {
+    // Before the roster admin; a principal has none (bd-slknzt), so it goes last (findIndex -1 would splice it in
+    // before the LAST row).
+    const at = items.findIndex((i) => i.id === 'manage');
+    items.splice(at === -1 ? items.length : at, 0, self);
+  }
   return { screen: 'MENU', data: { items } };
 }
 
@@ -950,6 +980,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   const _flowLang = observeLang(user || {});
 
   if (action === 'data_exchange') {
+    // bd-slknzt: roster admin is a coach's. A principal's menu never offers it; a step from an old screen gets the menu.
+    if (COACH_ONLY_STEPS.has(step) && observesOwnSchool(await _leaderMe(userId, user))) {
+      logToFile('🚫 observe-visit: roster admin refused — a principal conducts observations only', { userId, step }, 'warn');
+      return menuScreen(userId, { user });
+    }
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
     if (step === 'self_dc') return selfLessonStep(userId, user);
