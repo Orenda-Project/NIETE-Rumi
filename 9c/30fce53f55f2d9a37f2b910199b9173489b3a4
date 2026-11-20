@@ -3,3 +3,5 @@
 {"ts":"2026-11-20T10:46:53Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-9c30fce53f55","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
 {"ts":"2026-11-20T11:25:04Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
 {"ts":"2026-11-20T11:25:05Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
+{"ts":"2026-11-20T11:30:56Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
+{"ts":"2026-11-20T11:34:03Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (promotion to main of #5148/#5075, already spec-synced and driven on sandbox/staging; this session only reset the branch and resolves a require-line merge conflict)","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
