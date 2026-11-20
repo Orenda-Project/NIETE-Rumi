@@ -18,13 +18,18 @@
  * The teacher is ALWAYS the session's user. Dark unless portal_teacher_v2 is on for her (404, and
  * nothing is asked of the bot). Rules live in the bot (services/attendance-portal.service.js),
  * reached through services/teacher-attendance.service.js.
+ *
+ * bd-33wxxi.10 — THE STAFF REGISTER: `:listId` may also be "staff", the principal's teachers, ONLY for a
+ * principal the principal app is on for (lib/teacher-app isPrincipalAppUser: the portal_principal_app switch
+ * names her AND users.role principal). For her, /classes and every "staff" call tell the bot `{ staff: true }`;
+ * anyone else naming "staff" is 404 before the bot is asked, and a teacher's calls reach the bot as before.
  */
 
 const express = require('express');
 const supabase = require('../config/supabase');
 const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
 // bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
-const { teacherAppOnFor } = require('../lib/teacher-app');
+const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 const pool = require('../config/database');
 const Attendance = require('../services/teacher-attendance.service');
 const GradeSubjects = require('../services/grade-subjects.service');
@@ -34,6 +39,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const STATUS = { NOT_FOUND: 404, BAD_DATE: 400, BAD_MONTH: 400, EMPTY_ROSTER: 409 };
+/** bd-33wxxi.10 — the principal's teacher register's listId (the bot's attendance-portal STAFF). */
+const STAFF = 'staff';
 
 // The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
 const { requirePortalAuth } = require('../lib/portal-auth');
@@ -49,8 +56,26 @@ async function requireTeacherV2(req, res, next) {
   return next();
 }
 
-function requireListId(req, res, next) {
-  if (!UUID.test(String((req.params && req.params.listId) || ''))) {
+/** bd-33wxxi.10 — may this user open the staff register? The principal app on for her AND role principal. Fail-closed. */
+async function staffAllowed(userId) {
+  try {
+    return await isPrincipalAppUser(supabase, userId);
+  } catch (error) {
+    return false; // a failed read is OFF, as every flag read is
+  }
+}
+
+/** The bot's extra argument: `{ staff: true }` for the staff register's user, nothing at all otherwise. */
+const staffArg = (req) => (req.attendanceStaff ? [{ staff: true }] : []);
+
+async function requireListId(req, res, next) {
+  const listId = String((req.params && req.params.listId) || '');
+  if (listId === STAFF) {
+    if (!(await staffAllowed(req.session.portalUserId))) return res.status(404).json({ success: false, error: 'Not found' });
+    req.attendanceStaff = true;
+    return next();
+  }
+  if (!UUID.test(listId)) {
     return res.status(400).json({ success: false, error: 'Unknown class.' });
   }
   return next();
@@ -87,15 +112,16 @@ router.get('/teacher/attendance/classes', ...guard, (req, res, next) => {
   if (raw !== undefined && !realDate(raw)) return res.status(400).json({ success: false, error: 'date must be YYYY-MM-DD' });
   return next();
 }, answer('classes', async (userId, req) => {
+  if (await staffAllowed(userId)) req.attendanceStaff = true;
   const [out, lang] = await Promise.all([
-    Attendance.classes(userId, (req.query && req.query.date) || null),
+    Attendance.classes(userId, (req.query && req.query.date) || null, ...staffArg(req)),
     GradeSubjects.defaultDeps((sql, params) => pool.query(sql, params)).language(userId),
   ]);
   return out && out.code ? out : { ...out, classes: Attendance.withNames(out.classes, lang) };
 }));
 
 router.get('/teacher/attendance/classes/:listId/roster', ...guardList,
-  answer('roster', (userId, req) => Attendance.roster(userId, req.params.listId)));
+  answer('roster', (userId, req) => Attendance.roster(userId, req.params.listId, ...staffArg(req))));
 
 router.post('/teacher/attendance/classes/:listId/mark', ...guardList, (req, res, next) => {
   const b = req.body || {};
@@ -105,12 +131,12 @@ router.post('/teacher/attendance/classes/:listId/mark', ...guardList, (req, res,
   return next();
 }, answer('mark', (userId, req) => Attendance.mark(userId, req.params.listId, {
   date: req.body.date, absentIds: idList(req.body.absentIds), leaveIds: idList(req.body.leaveIds),
-})));
+}, ...staffArg(req))));
 
 router.get('/teacher/attendance/classes/:listId/day', ...guardList, (req, res, next) => {
   if (!realDate(req.query && req.query.date)) return res.status(400).json({ success: false, error: 'date must be YYYY-MM-DD' });
   return next();
-}, answer('day', (userId, req) => Attendance.day(userId, req.params.listId, req.query.date)));
+}, answer('day', (userId, req) => Attendance.day(userId, req.params.listId, req.query.date, ...staffArg(req))));
 
 function requireMonth(from) {
   return (req, res, next) => {
@@ -121,10 +147,10 @@ function requireMonth(from) {
 }
 
 router.get('/teacher/attendance/classes/:listId/month', ...guardList, requireMonth((req) => req.query && req.query.month),
-  answer('month', (userId, req) => Attendance.month(userId, req.params.listId, req.query.month)));
+  answer('month', (userId, req) => Attendance.month(userId, req.params.listId, req.query.month, ...staffArg(req))));
 
 router.get('/teacher/attendance/classes/:listId/register', ...guardList, requireMonth((req) => req.query && req.query.month),
-  answer('register', (userId, req) => Attendance.registerFile(userId, req.params.listId, req.query.month), (res, out) => {
+  answer('register', (userId, req) => Attendance.registerFile(userId, req.params.listId, req.query.month, ...staffArg(req)), (res, out) => {
     const name = out.fileName || 'Attendance register.xlsx';
     res.setHeader('Content-Type', XLSX);
     res.setHeader('Content-Disposition', `attachment; filename="register.xlsx"; filename*=UTF-8''${encodeURIComponent(name)}`);
@@ -132,7 +158,7 @@ router.get('/teacher/attendance/classes/:listId/register', ...guardList, require
   }));
 
 router.post('/teacher/attendance/classes/:listId/register/send', ...guardList, requireMonth((req) => req.body && req.body.month),
-  answer('register-send', (userId, req) => Attendance.sendRegister(userId, req.params.listId, req.body.month), (res, out) => {
+  answer('register-send', (userId, req) => Attendance.sendRegister(userId, req.params.listId, req.body.month, ...staffArg(req)), (res, out) => {
     if (out && out.delivered) return res.json({ success: true, delivered: true });
     return res.status(502).json({ success: false, delivered: false, error: (out && out.error) || 'not_delivered' });
   }));
