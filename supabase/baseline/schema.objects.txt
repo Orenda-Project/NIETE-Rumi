@@ -2,6 +2,59 @@
 _coltypes.column_name:name
 _coltypes.data_type:character varying
 _coltypes.udt_name:name
+ab_assignment.arm:text
+ab_assignment.assigned_at:timestamp with time zone
+ab_assignment.block:text
+ab_assignment.created_at:timestamp with time zone
+ab_assignment.id:uuid
+ab_assignment.test_id:text
+ab_assignment.unit_id:uuid
+ab_assignment.updated_at:timestamp with time zone
+ab_card_lock.created_at:timestamp with time zone
+ab_card_lock.ended_at:timestamp with time zone
+ab_card_lock.first_seen:timestamp with time zone
+ab_card_lock.id:uuid
+ab_card_lock.metric_ids:text[]
+ab_card_lock.read_on:date
+ab_card_lock.sha256:text
+ab_card_lock.start_on:date
+ab_card_lock.test_id:text
+ab_card_lock.unit_kind:text
+ab_card_lock.updated_at:timestamp with time zone
+ab_refresh_log.created_at:timestamp with time zone
+ab_refresh_log.detail:jsonb
+ab_refresh_log.finished_at:timestamp with time zone
+ab_refresh_log.id:uuid
+ab_refresh_log.started_at:timestamp with time zone
+ab_refresh_log.status:text
+ab_refresh_log.tests:integer
+ab_refresh_log.updated_at:timestamp with time zone
+ab_refresh_log.watermark:date
+ab_rollup_unit_period.arm:text
+ab_rollup_unit_period.block:text
+ab_rollup_unit_period.created_at:timestamp with time zone
+ab_rollup_unit_period.id:uuid
+ab_rollup_unit_period.metric_id:text
+ab_rollup_unit_period.n:bigint
+ab_rollup_unit_period.period:date
+ab_rollup_unit_period.period_kind:text
+ab_rollup_unit_period.pulled_at:timestamp with time zone
+ab_rollup_unit_period.refresh_id:uuid
+ab_rollup_unit_period.s:double precision
+ab_rollup_unit_period.ss:double precision
+ab_rollup_unit_period.test_id:text
+ab_rollup_unit_period.unit_id:uuid
+ab_rollup_unit_period.updated_at:timestamp with time zone
+ab_stop_state.as_of:timestamp with time zone
+ab_stop_state.created_at:timestamp with time zone
+ab_stop_state.id:uuid
+ab_stop_state.reviewed_by_role:text
+ab_stop_state.rule_id:text
+ab_stop_state.state:text
+ab_stop_state.test_id:text
+ab_stop_state.threshold:double precision
+ab_stop_state.updated_at:timestamp with time zone
+ab_stop_state.value:double precision
 ab_test_events.created_at:timestamp with time zone
 ab_test_events.event_data:jsonb
 ab_test_events.event_type:text
@@ -755,6 +808,12 @@ feature_suggestions.user_id:uuid
 feature_suggestions.was_clicked:boolean
 feature_suggestions.was_shown:boolean
 fn:_bd_a21ks_probe()
+fn:ab_tracker_live_tests()
+fn:ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date)
+fn:ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb)
+fn:ab_tracker_refresh_open(p_tests integer, p_watermark date)
+fn:ab_tracker_unit_teachers(p_test_id text, p_kind text)
+fn:ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb)
 fn:acquire_assessment_lock(p_assessment_id uuid, p_expected_status character varying)
 fn:acquire_broadcast_lock(p_broadcast_id uuid)
 fn:add_soft_delete(p_table text)
