@@ -246,10 +246,11 @@ const COACH_FULL_APP_KEY = 'portal_coach_full_app';
 /**
  * bd-eqkr0n (2g) — request → the page a principal's link lands on (app-login-link.js LANDINGS), for a principal the
  * principal app is on for. Observe only: her other requests keep their own paths. The line is the coach nudge's first
- * sentence on its own (no way back to WhatsApp is offered), the button the nudge's.
+ * sentence on its own (no way back to WhatsApp is offered), the button the nudge's words (its own keys, so this needs
+ * none of the nudge's code).
  */
 const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe' });
-const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'coachNudgeButton'] });
+const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
 
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
@@ -526,7 +527,9 @@ async function principalLink(feature, userId, now, account) {
   try {
     a = await account();
   } catch (err) {
-    logToFile('⚠️ Principal app link: the account could not be read — the WhatsApp flow runs', { tk: CoachAppOffer.tkOf(userId), feature, error: err?.message }, 'warn');
+    let tk = null;
+    try { tk = require('./quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+    logToFile('⚠️ Principal app link: the account could not be read — the WhatsApp flow runs', { tk, feature, error: err?.message }, 'warn');
     return null;
   }
   if (!a || !isPrincipalRole(a.role)) return null;
