@@ -1,2 +1,3 @@
 {"ts":"2026-11-20T12:11:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
 {"ts":"2026-11-20T12:11:47Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
+{"ts":"2026-11-20T12:11:59Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"f39da4e2a64b","branch":"bd-snkn32.63-tags","user":""}
