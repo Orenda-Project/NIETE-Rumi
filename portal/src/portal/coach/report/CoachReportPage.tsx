@@ -433,7 +433,7 @@ function ReportBodyV7({ r, C, W, lang, meta, principal, marked, goTo }: {
           its own line above the 8, not one of them. */}
       {r.respectHeld ? (
         <p data-testid="report-respect" className="m-0 flex items-center gap-2 rounded-[14px] bg-[#eaf6ef] px-3.5 py-2.5 text-[14px] font-semibold text-[#2f7a52]">
-          <Tick size={16} /><span>{W.respectHeld}</span><span className="font-medium">· {W.respectNote}</span>
+          <Tick size={16} /><span className="min-w-0 flex-1">{W.respectHeld}<span className="font-medium"> · {W.respectNote}</span></span>
         </p>
       ) : null}
 
