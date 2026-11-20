@@ -42,7 +42,7 @@ const OWN_LANG = 'en';
 const K5_TV = 'k5_own_v1';
 /** Her status read. Plus the AI reviewer's library verdict (V1.9.9) and her change chain's root (V1.9.8). */
 const OWN_READ = 'id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at, '
-  + 'parent_own_id, library_eligible, review_score';
+  + 'parent_own_id, library_eligible, review_score, answers'; // answers: a goal-unit day's band (bd-snkn32.59.4), never sent out
 
 /** Queue her row's job; a queue that fails marks the row failed, so it never counts (shared with lp612-own-change). */
 async function queueOwn(d, row, key, correlationId) {

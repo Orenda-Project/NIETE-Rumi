@@ -133,3 +133,22 @@ describe('the job for a goal unit day', () => {
     expect(d.patchOwn.mock.calls.at(-1)[1]).toMatchObject({ status: 'failed', error_code: 'OWN_GOAL_UNSURE' });
   });
 });
+
+describe('"Change this plan" on a goal unit day', () => {
+  const { bandOf } = require('../../bot/shared/services/lp-own-edit-guard');
+  it('is a grades 1–5 plan (its parts, its stored script), though it names no book day', () => {
+    expect(bandOf({ lesson_id: null, segment_id: null, answers: { unit: { start: 'goals' } } })).toBe('k5');
+    expect(bandOf({ lesson_id: null, segment_id: 'grade_7_x', answers: {} })).toBe('g612');
+  });
+  it('the change row names no book day and is queued under the unit', async () => {
+    const { createChangeService } = require('../../bot/shared/services/lp612-own-change');
+    const root = { id: 'r1', user_id: 'u1', segment_id: null, lesson_id: null, lang: 'en', template_version: 'k5_own_v1', status: 'ready', r2_key: 'lp612/own-k5/en/unit_x_d2/h.pdf', answers: { unit: { start: 'goals' } } };
+    const queued = [];
+    const d = { selectOwn: async () => root, listChain: async () => [root], countToday: async () => 0, env: {},
+      insertOwn: jest.fn(async (row) => ({ id: 'c1', ...row })), queueJob: async (key) => { queued.push(key); }, log: jest.fn(), patchOwn: jest.fn() };
+    const out = await createChangeService(d).requestChange({ userId: 'u1', ownId: 'r1', part: 'i_do', text: 'Use bottle caps to count' });
+    expect(out.outcome).toBe('queued');
+    expect(d.insertOwn.mock.calls[0][0].lesson_id).toBeNull();
+    expect(queued[0]).toBe('unit_r1');
+  });
+});
