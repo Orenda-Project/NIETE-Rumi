@@ -37,6 +37,9 @@ const LAST_ONLY = new Set(['audio_check']);
 // round 28: the recorder's stop, one per task and attempt (the LAST), outside the cap like AUDIT: bounded by the task
 // count, so it displaces no other row and is never dropped (sa-api.service.js LAST_PER_TASK)
 const LAST_PER_TASK = new Set(['record_stop']);
+// round 28: the microphone check's answer, one per attempt (the LAST: a retry overwrites), outside the cap the same way
+// (sa-api.service.js LAST_PER_ATTEMPT)
+const LAST_PER_ATTEMPT = new Set(['mic_check']);
 
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];
@@ -54,12 +57,13 @@ function keepEvents(had, events) {
       if (LAST_ONLY.has(e.type) || !pick.has(k)) pick.set(k, e);
     }
     if (LAST_PER_TASK.has(e.type)) pick.set(`${attempt}|${e.type}|${e.task_id}`, e);
+    if (LAST_PER_ATTEMPT.has(e.type)) pick.set(`${attempt}|${e.type}`, e);
   }
   const stays = new Set(pick.values());
-  const once = (e) => FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type) || LAST_PER_TASK.has(e.type);
+  const once = (e) => FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type) || LAST_PER_TASK.has(e.type) || LAST_PER_ATTEMPT.has(e.type);
   const sorted = list.filter((e) => !once(e) || stays.has(e));
-  const uncapped = (e) => AUDIT.has(e.type) || LAST_PER_TASK.has(e.type);
-  // the cap (AUDIT and LAST_PER_TASK rows never count): the latest attempt's rows first, oldest first within an attempt,
+  const uncapped = (e) => AUDIT.has(e.type) || LAST_PER_TASK.has(e.type) || LAST_PER_ATTEMPT.has(e.type);
+  // the cap (AUDIT, LAST_PER_TASK and LAST_PER_ATTEMPT rows never count): the latest attempt's rows first, oldest first within an attempt,
   // so an ended attempt (below a restart) gives way to the one the coach is running; the row stays in seq order
   const ranked = sorted.filter((e) => !uncapped(e))
     .sort((x, y) => (attemptOfRow.get(y) - attemptOfRow.get(x)) || (x.seq - y.seq));
