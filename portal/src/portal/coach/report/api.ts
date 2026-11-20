@@ -109,3 +109,27 @@ export async function getCoachWeek(monday: string): Promise<CoachWeek> {
 export async function markWeek(monday: string, what: "opened" | "seen"): Promise<void> {
   try { await api.post(`/coach/week/${encodeURIComponent(monday)}/${what}`); } catch { /* a missed stamp only means one WhatsApp link may follow */ }
 }
+
+/**
+ * bd-o15qnr.28.1 (queue #204, v7) — My progress (GET /api/portal/coach/progress, services/coach-progress.service.js):
+ * the session coach's own, read-only, counts only. `weeks` is null when her week page does not open for her.
+ */
+export interface CoachProgress {
+  week: { monday: string; friday: string; complete: number; target: number };
+  focus: { key: string; name: Both; last10: Count; doneAt: number; window: number } | null;
+  /** Her 8 behaviours over the last `window` debriefs, most seen first. */
+  behaviours: (Count & { key: string; name: Both })[];
+  window: number;
+  /** Respect held in every one of those debriefs (the must-pass check, not one of the 8). */
+  respectAll: boolean;
+  /** The 3 most recent; `step` is coach-v2's (analysing · draft · talk · report · sent); `debrief` once there is one. */
+  observations: { id: string; at: string | null; teacher: string | null; step: string; debrief: { done: number; total: number } | null }[];
+  weeks: { monday: string; friday: string; complete: number; target: number }[] | null;
+}
+
+export async function getCoachProgress(): Promise<CoachProgress> {
+  const res = await api.get("/coach/progress");
+  return res.data.progress as CoachProgress;
+}
+
+export const COACH_PROGRESS_PATH = "/portal/coach/progress";
