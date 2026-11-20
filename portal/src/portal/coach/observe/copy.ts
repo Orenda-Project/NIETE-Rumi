@@ -184,6 +184,8 @@ export const OBSERVE_COPY = {
     photoUnreadable: (n = 0) => `Photo ${n} could not be read on this phone. Send without it.`,
     planUnreadable: 'The lesson plan could not be read on this phone. Send without it.',
     recordingUnreadable: 'The recording could not be read on this phone. Select the file again.',
+    /* bd-tfya0m — every file arrived, the start got no answer after its own tries */
+    startFailed: 'Your recording arrived, but the observation did not start. Tap Try again.',
   },
 
   /** Short weekday and month names, for "Tue 6 Oct" (index 0 = Sunday / January). */
@@ -348,6 +350,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
     photoUnreadable: (n = 0) => `تصویر ${n} اس فون پر نہیں کھل سکی۔ اس کے بغیر بھیجیں۔`,
     planUnreadable: 'لیسن پلان اس فون پر نہیں کھل سکا۔ اس کے بغیر بھیجیں۔',
     recordingUnreadable: 'ریکارڈنگ اس فون پر نہیں کھل سکی۔ فائل دوبارہ چنیں۔',
+    startFailed: 'آپ کی ریکارڈنگ پہنچ گئی، مگر مشاہدہ شروع نہیں ہوا۔ دوبارہ کوشش کریں دبائیں۔',
   },
 
   weekdays: ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'],

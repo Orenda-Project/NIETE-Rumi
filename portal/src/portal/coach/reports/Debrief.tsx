@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Check, Compass, MessageCircle, Sparkles } from "lucide-react";
@@ -128,29 +128,34 @@ export default function Debrief() {
 
   useEffect(() => { canRecordHere().then(setCanRecord).catch(() => { /* the recorder says if it cannot */ }); }, []);
 
+  // The guide's ask, and its own asks again after a 5xx or no answer (GUIDE_RETRY_MS) before it says it did not load.
+  const askGuide = useCallback((attempt: number) => {
+    leader.getTalkGuide(id)
+      .then((r) => { if (mounted.current) { setGuide(r.guide || null); setGuideState("ready"); } })
+      .catch((err) => {
+        if (!mounted.current) return;
+        const code = (err as { response?: { status?: number } })?.response?.status;
+        if (code === 409) { setGuideState("not_ready"); return; }
+        // A 5xx or no answer: the guide may still be being written; ask again before saying it did not load.
+        if ((code === undefined || code >= 500) && attempt < GUIDE_RETRY_MS.length) {
+          retryTimer.current = setTimeout(() => askGuide(attempt + 1), GUIDE_RETRY_MS[attempt]);
+          return;
+        }
+        setGuideState("failed");
+      });
+  }, [id]);
+
   // The guide: kept on the observation once written; otherwise asked for (the first ask can take a minute).
   useEffect(() => {
     if (!view || asked.current) return;
     if (view.talk.guide) { asked.current = true; setGuide(view.talk.guide); setGuideState("ready"); return; }
     if (!hers) { asked.current = true; setGuideState("ready"); return; }
     asked.current = true;
-    const ask = (attempt: number) => {
-      leader.getTalkGuide(id)
-        .then((r) => { if (mounted.current) { setGuide(r.guide || null); setGuideState("ready"); } })
-        .catch((err) => {
-          if (!mounted.current) return;
-          const code = (err as { response?: { status?: number } })?.response?.status;
-          if (code === 409) { setGuideState("not_ready"); return; }
-          // A 5xx or no answer: the guide may still be being written; ask again before saying it did not load.
-          if ((code === undefined || code >= 500) && attempt < GUIDE_RETRY_MS.length) {
-            retryTimer.current = setTimeout(() => ask(attempt + 1), GUIDE_RETRY_MS[attempt]);
-            return;
-          }
-          setGuideState("failed");
-        });
-    };
-    ask(0);
-  }, [view, hers, id]);
+    askGuide(0);
+  }, [view, hers, askGuide]);
+
+  // bd-tfya0m (queue #205) — "Guide did not load" is never the end: Try again asks once more (with its own asks again).
+  const guideAgain = () => { setGuideState("loading"); askGuide(0); };
 
   const send = async (audio: Pending) => {
     setPending(audio);
@@ -201,7 +206,13 @@ export default function Debrief() {
               <p className="text-[15px] text-[#6b7280]" dir="auto">{N.leave}</p>
             </div>
           )}
-          {guideState === "failed" && <Note tone="amber">{C.guideFailed}</Note>}
+          {guideState === "failed" && (
+            <div data-testid="guide-failed" role="alert" className="flex items-center gap-3 rounded-2xl bg-[#fef3c7] p-4 text-[#b45309]">
+              <span className="flex-1 text-[16px] font-semibold">{C.guideFailed}</span>
+              <button type="button" onClick={guideAgain}
+                className={cn("min-h-[48px] rounded-xl bg-white px-4 text-[15px] font-semibold text-[#33374a]", FOCUS)}>{C.retry}</button>
+            </div>
+          )}
           {guideState === "not_ready" && <Note tone="amber">{C.saveFormFirst}</Note>}
           {guideState === "ready" && guide && <GuideBlock guide={guide} />}
           {step === "listening" && <Note>{C.listeningTalk}</Note>}
