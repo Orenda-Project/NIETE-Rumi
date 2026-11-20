@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T18:03:40Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
 {"ts":"2026-11-20T18:03:44Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
 {"ts":"2026-11-20T18:03:58Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"0c35fb65-49a8-4054-82c7-d1f9114b1f9c","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
+{"ts":"2026-11-20T18:04:00Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
