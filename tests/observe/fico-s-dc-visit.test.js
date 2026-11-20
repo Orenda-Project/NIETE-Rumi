@@ -129,7 +129,7 @@ describe('the analysis landed: the form is pre-filled and sent', () => {
     expect(flow[0]).toBe('923000000001');
     expect(flow[1].flowId).toBe('F-FICOS');
     expect(flow[1].flowToken).toBe('coach-1:obs612:form-dc:fs');
-    expect(flow[1].body).toMatch(/Rumi has listened to the lesson/);
+    expect(flow[1].body).toMatch(/The NIETE Teaching Assistant has listened to the lesson/);
     expect(flow[1].body).toMatch(/★ E3: yours alone/);
     expect(flow[1].body).not.toMatch(/C3/);
   });
@@ -159,14 +159,14 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
     expect(r.screen).toBe('FS_A_ONE');
     expect(r.data.init).toMatchObject({ lv_A1: '3', ev_A1: expect.stringMatching(/^Rumi heard A1/) });
     expect(r.data.rumi_v).toBe(true);
-    expect(r.data.rumi_line).toMatch(/^Rumi chose 3 · Proficient from the recording/);
+    expect(r.data.rumi_line).toMatch(/^The NIETE Teaching Assistant chose 3 · Proficient from the recording/);
     expect(r.data.chg_v).toBe(true);
   });
 
   test('a changed level with no reason is refused; with a reason of 20+ it goes on', async () => {
     const bad = await ex('form-dc', 'FS_A_ONE', { lv_A1: '2', ev_A1: 'Rumi heard A1 clearly in the lesson. [01:05] "Words for A1"', chg_A1: 'no' });
     expect(bad.screen).toBe('FS_A_ONE');
-    expect(bad.data.error_messages).toEqual({ chg_A1: expect.stringMatching(/You changed a level Rumi set/) });
+    expect(bad.data.error_messages).toEqual({ chg_A1: expect.stringMatching(/You changed the level from the recording/) });
     const ok = await ex('form-dc', 'FS_A_ONE', { lv_A1: '2', ev_A1: 'Rumi heard A1 clearly in the lesson. [01:05] "Words for A1"', chg_A1: 'The objective was on the board but never said aloud.' });
     expect(ok.screen).toBe('FS_A_TWO');
     const kept = await ex('form-dc', 'FS_A_TWO', { lv_A2: '3', ev_A2: 'Rumi heard A2 clearly in the lesson. [01:05] "Words for A2"', chg_A2: '' });
@@ -178,7 +178,7 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
     expect(r.screen).toBe('FS_INTRO_D');
     const d1 = await ex('form-dc', 'FS_INTRO_D', {});
     expect(d1.data.init.lv_D1).toBe('');
-    expect(d1.data.rumi_line).toMatch(/Rumi could not set a level from the recording \(student answers were too garbled\)/);
+    expect(d1.data.rumi_line).toMatch(/The NIETE Teaching Assistant could not set a level from the recording \(student answers were too garbled\)/);
   });
 
   test('E3 is starred: marked, never pre-filled, no change box; the form cannot go on without it', async () => {
@@ -186,7 +186,7 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
     expect(e3.screen).toBe('FS_E_THREE');
     expect(e3.data.heading).toBe('★ E3 · Notebooks & written feedback');
     expect(e3.data.star_v).toBe(true);
-    expect(e3.data.star_line).toMatch(/Rumi never scores this one/);
+    expect(e3.data.star_line).toMatch(/The NIETE Teaching Assistant never scores this one/);
     expect(e3.data.rumi_v).toBe(false);
     expect(e3.data.init).toEqual({ lv_E3: '', ev_E3: '' });
     const stay = await ex('form-dc', 'FS_E_THREE', { lv_E3: '', ev_E3: '' });
@@ -215,7 +215,7 @@ describe('the review: Rumi\'s line, a reason for a change, E3 starred', () => {
   test('Urdu: Rumi\'s line and the starred line in Urdu', () => {
     const dc = FsDc.dcOf(formRow('form-dc'));
     const a1 = FS.screenData('FS_A_ONE', {}, 'ur', { dc });
-    expect(a1.rumi_line).toMatch(/^Rumi نے ریکارڈنگ سے/);
+    expect(a1.rumi_line).toMatch(/^\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ نے ریکارڈنگ سے/);
     expect(a1.lbl_chg).toBe('تبدیلی کی وجہ');
     expect(FS.screenData('FS_E_THREE', {}, 'ur', { dc }).star_line).toMatch(/^★ ستارے والا اشاریہ/);
   });

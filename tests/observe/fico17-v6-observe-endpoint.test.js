@@ -109,7 +109,7 @@ describe('v6 visit', () => {
   test('a changed DC level with no reason is refused; with a reason it goes on to D', async () => {
     let res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { ...goodC(), r_C1: '4' } });
     expect(res.screen).toBe('DOMAIN_C');
-    expect(res.data.err_note).toMatch(/changed a level Rumi set/);
+    expect(res.data.err_note).toMatch(/changed the level from the recording/);
     expect(res.data.s_C1).toBe('4');
     res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { ...goodC(), r_C1: '4', chg_C: 'She asked why and followed it up.' } });
     expect(res.screen).toBe('DOMAIN_D');
