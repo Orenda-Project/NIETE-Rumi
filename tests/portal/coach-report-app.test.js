@@ -218,10 +218,15 @@ function findRoute(router, method, path) {
 
 async function call(method, path, { params = {}, userId = ME } = {}) {
   const stack = findRoute(loadRoutes(), method, path);
-  const gateAt = stack.findIndex((h) => h.name === 'requireCoachV2');
-  if (gateAt < 0) throw new Error(`${path} has no requireCoachV2`);
+  // bd-o15qnr.28 (v7): the debrief report's read and stamps take the observer gate (a coach on the coach app, or a
+  // principal on the principal app) and coach_reports_app OR the v6/v7 switch; the week and the Home card keep the coach
+  // app's gates. Either pair is a real gate: the walk starts at it.
+  const COACH_GATES = ['requireCoachV2', 'requireCoachV2OrPrincipalApp'];
+  const REPORT_GATES = ['requireCoachReports', 'requireCoachReportsOrFlow'];
+  const gateAt = stack.findIndex((h) => COACH_GATES.includes(h.name));
+  if (gateAt < 0) throw new Error(`${path} has no coach-app gate`);
   const names = stack.map((h) => h.name);
-  if (!names.includes('requireCoachReports')) throw new Error(`${path} has no requireCoachReports`);
+  if (!names.some((n) => REPORT_GATES.includes(n))) throw new Error(`${path} has no reports gate`);
   let statusCode = 200;
   let payload = null;
   const res = { status(c) { statusCode = c; return this; }, json(b) { payload = b; return this; }, set() { return this; } };
