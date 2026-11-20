@@ -100,7 +100,9 @@
 //   session cache's entry whose bytes hash to the new lock's sha1 for its path; nothing else is kept). SESSION unchanged:
 //   the carry needs no record from an earlier worker, so it works on the bump it ships with.
 // sa-45: the letter-sound picker's prompt clips re-made (SESSION v32); no worker code changes.
-var VERSION = 'sa-45';
+// sa-46: sa-engine.js (the last recording: the battery's end waits for a recorder stop under way, and tells the page when
+//   the audio is acked). SESSION unchanged: no clip or battery changed.
+var VERSION = 'sa-46';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
