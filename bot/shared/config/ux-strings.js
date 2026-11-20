@@ -3601,8 +3601,8 @@ const UX_STRINGS = {
     ur: '{title}\nورژن {version} (ورژن {parent} سے) · {count} سوال · {marks} نمبر\n\nدوبارہ بدلنے کے لیے بٹن دبائیں۔ ہر ورژن ویسا ہی محفوظ رہتا ہے۔',
   },
   assessmentKeyCaption: {
-    en: 'Answer key · {title}',
-    ur: 'جوابی کلید · {title}',
+    en: 'Answer key · {title}\nPlease check the answers before you use them. Some may be wrong.',
+    ur: 'جوابی کلید · {title}\nاستعمال سے پہلے جوابات ایک بار ضرور چیک کر لیں، کوئی جواب غلط بھی ہو سکتا ہے۔',
   },
   assessmentVersionMaking: {
     en: '📝 Making your new version — a few seconds.',

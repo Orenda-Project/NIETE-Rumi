@@ -64,6 +64,8 @@ export type Picks = {
   seen: number;
   /** The unseen types on the page, type id → how many, in the order she added them. A 0 is a row she emptied. */
   typeCounts: Record<string, number>;
+  /** bd-e5n2jf: the seen types, type id → how many (Mubashar Zia, 20 Nov). Absent/empty = the single \`seen\` box. */
+  seenTypeCounts?: Record<string, number>;
   /** The first visit to Questions for this class has filled in the default mix (a class change clears it). */
   typesSeeded: boolean;
   /** null = no limit. */
@@ -123,16 +125,32 @@ export function unseenTotal(p: Pick<Picks, 'typeCounts'>): number {
   return chosenTypes(p).reduce((s, [, n]) => s + n, 0);
 }
 
+/** The seen types with a count, in her order (bd-e5n2jf). */
+export function chosenSeenTypes(p: Pick<Picks, 'seenTypeCounts'>): Array<[string, number]> {
+  return Object.entries(p.seenTypeCounts ?? {}).filter(([, n]) => n > 0);
+}
+
+/** Whether she is counting seen questions by type (any seen type row on the page). */
+export function seenByType(p: Pick<Picks, 'seenTypeCounts'>): boolean {
+  return Object.keys(p.seenTypeCounts ?? {}).length > 0;
+}
+
+/** How many seen questions: her seen types added up, or the single seen box. */
+export function seenTotal(p: Pick<Picks, 'seen' | 'seenTypeCounts'>): number {
+  return seenByType(p) ? chosenSeenTypes(p).reduce((s, [, n]) => s + n, 0) : Math.max(0, p.seen);
+}
+
 /** How many questions on the paper: the seen ones and the unseen ones. */
-export function questionTotal(p: Pick<Picks, 'seen' | 'typeCounts'>): number {
-  return Math.max(0, p.seen) + unseenTotal(p);
+export function questionTotal(p: Pick<Picks, 'seen' | 'typeCounts' | 'seenTypeCounts'>): number {
+  return seenTotal(p) + unseenTotal(p);
 }
 
 /** Where the paper's questions come from, as the bot names it. */
-export function sourceOf(p: Pick<Picks, 'seen' | 'typeCounts'>): Source {
+export function sourceOf(p: Pick<Picks, 'seen' | 'typeCounts' | 'seenTypeCounts'>): Source {
   const unseen = unseenTotal(p);
-  if (p.seen > 0 && unseen > 0) return 'both';
-  return p.seen > 0 ? 'seen' : 'unseen';
+  const seen = seenTotal(p);
+  if (seen > 0 && unseen > 0) return 'both';
+  return seen > 0 ? 'seen' : 'unseen';
 }
 
 /** The kinds a first visit starts with, in this order: the objective ones a teacher marks fastest (the bot's DEFAULT_MIX). */
@@ -255,6 +273,8 @@ export type V2Spec = {
   contentSource: Source;
   seenCount: number | null;
   questionTypes: Array<{ id: string; count: number; stems?: string[] }>;
+  /** bd-e5n2jf: her per-type seen counts; absent = the single seen total (today's request). */
+  seenTypes?: Array<{ id: string; count: number }>;
   totalMarks: number | null;
   answerLines: boolean;
   outputFormat: 'pdf';
@@ -312,9 +332,11 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     pageRanges: byChapters ? null : rangesText(p.ranges),
     questionCount: questionTotal(p),
     contentSource: source,
-    seenCount: source === 'both' ? p.seen : null,
+    seenCount: source === 'both' ? seenTotal(p) : null,
     // A seen-only paper sends none: the server holds any types it is sent to the paper's whole count.
     questionTypes: source === 'seen' ? [] : chosenTypes(p).map(([id, count]) => ({ id, count, ...stemsOf(id) })),
+    ...(source !== 'unseen' && chosenSeenTypes(p).length
+      ? { seenTypes: chosenSeenTypes(p).map(([id, count]) => ({ id, count })) } : {}),
     totalMarks: p.marks,
     answerLines: p.answerLines,
     // Word stays off: its flag (assessment_docx_enabled) is false in production.
@@ -336,6 +358,7 @@ export type AnySpec = {
   contentSource?: Source;
   seenCount?: number | null;
   questionTypes?: Array<string | { id: string; count: number }>;
+  seenTypes?: Array<{ id: string; count: number }> | null;
   totalMarks?: number | null;
   answerLines?: boolean;
   compact?: boolean;
@@ -373,6 +396,7 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
   const pattern = spec.pattern ?? null;
   // An older request with no per-type counts (the auto mix) comes back without types: Questions fills in the default mix.
   const typed = source !== 'seen' && counted.length > 0;
+  const seenTyped = source !== 'unseen' ? (spec.seenTypes ?? []).filter((t) => t && t.count > 0) : [];
   return {
     ...newPicks(spec.questionCount),
     grade: spec.grade,
@@ -384,6 +408,10 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
     seen: source === 'both' ? (spec.seenCount ?? 0) : source === 'seen' ? spec.questionCount : 0,
     typeCounts: typed ? Object.fromEntries(counted.map((t) => [t.id, t.count])) : {},
     typesSeeded: typed || source === 'seen',
+    ...(seenTyped.length ? {
+      seen: seenTyped.reduce((s, t) => s + t.count, 0),
+      seenTypeCounts: Object.fromEntries(seenTyped.map((t) => [t.id, t.count])),
+    } : {}),
     marks: spec.totalMarks ?? null,
     answerLines: spec.answerLines !== false,
     ...(spec.compact === true ? { compact: true } : {}),

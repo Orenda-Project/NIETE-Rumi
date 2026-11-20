@@ -3602,6 +3602,7 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       questionCount: body.questionCount,
       // bd-fmf24g.6 — Mix's book count and the marks budget, as the WhatsApp Flow sends them.
       seenCount: body.seenCount ?? null,
+      seenTypes: body.seenTypes,
       totalMarks: body.totalMarks ?? null,
       questionTypes: body.questionTypes,
       includeAnswerKey: body.includeAnswerKey,

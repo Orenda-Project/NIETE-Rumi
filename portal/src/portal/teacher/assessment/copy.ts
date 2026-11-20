@@ -108,6 +108,9 @@ export const ASSESSMENT_V2_COPY = {
   unseenQuestions: 'Unseen questions',
   asInBook: 'As in the book',
   addType: 'Add a type',
+  addSeenType: 'Add a book type',
+  seenTypeCount: (name: string) => `Number of book ${name}`,
+  seenTypesTitle: 'Book types',
   wholePaper: 'Whole paper',
   typesCap: (n: number, max: number) => `${n} of ${max} types`,
   fewerOf: (name: string) => `Fewer ${name}`,
@@ -116,7 +119,7 @@ export const ASSESSMENT_V2_COPY = {
   // bd-6clakk.12 — the stem chips under a type on a topic paper.
   stemsLabel: 'Question wording',
   stemsFor: (name: string) => `Question wording for ${name}`,
-  rumiChooses: 'Rumi chooses',
+  rumiChooses: 'NIETE Teaching Assistant chooses',
   seenShort: (n: number) => `${n} seen`,
   unseenShort: (n: number) => `${n} unseen`,
   /**
@@ -206,6 +209,8 @@ export const ASSESSMENT_V2_COPY = {
   ready: 'Ready',
   download: 'Download',
   answerKey: 'Answer key',
+  // bd-e5n2jf: an answer key can be wrong (Amena, 20 Nov).
+  checkAnswers: 'Please check the answers before you use them. Some may be wrong.',
   key: 'Answer key',
   /* Paper ready shows the paper in the viewer (bd-7tgiyc): Answer key swaps it for the key, this swaps it back */
   backToPaper: 'Back to paper',
@@ -443,6 +448,9 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   unseenQuestions: 'نئے سوال',
   asInBook: 'جیسے کتاب میں ہیں',
   addType: 'قسم شامل کریں',
+  addSeenType: 'کتاب کی قسم شامل کریں',
+  seenTypeCount: (name: string) => `کتاب کے ${name} کی تعداد`,
+  seenTypesTitle: 'کتاب کی قسمیں',
   wholePaper: 'پورا پرچہ',
   typesCap: (n: number, max: number) => `${n}/${max} اقسام`,
   fewerOf: (name: string) => `${name} کم کریں`,
@@ -450,7 +458,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   removeType: (name: string) => `${name} ہٹائیں`,
   stemsLabel: 'سوال کی ہدایت',
   stemsFor: (name: string) => `${name} کی ہدایت`,
-  rumiChooses: 'رومی چنے گا',
+  rumiChooses: '⁦NIETE⁩ ٹیچنگ اسسٹنٹ چنے گا',
   seenShort: (n: number) => `کتاب کے ${n}`,
   unseenShort: (n: number) => `نئے ${n}`,
   why: {
@@ -533,6 +541,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   ready: 'تیار',
   download: 'ڈاؤن لوڈ',
   answerKey: 'جوابی کلید',
+  checkAnswers: 'استعمال سے پہلے جوابات ایک بار ضرور چیک کر لیں، کوئی جواب غلط بھی ہو سکتا ہے۔',
   key: 'جوابی کلید',
   // Paper ready's viewer: machine-drafted, needs fluent-Urdu review.
   backToPaper: 'پرچے پر واپس',
@@ -703,5 +712,7 @@ export const COPY_ENTRY: CopyEntry = {
     // Questions: the one line that says what is asked, in the operator's own words (20 Oct), not a label.
     'askCount',
     // Topics: the question and the two choices' one-line explanations.
-    'topicsAsk', 'wholeChapterSub', 'chooseTopicsSub'],
+    'topicsAsk', 'wholeChapterSub', 'chooseTopicsSub',
+    // The answer-key warning under the paper's actions: one sentence, not a label (bd-e5n2jf).
+    'checkAnswers'],
 };

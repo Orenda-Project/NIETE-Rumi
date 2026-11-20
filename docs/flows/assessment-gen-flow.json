@@ -21,7 +21,8 @@
     ],
     "CONFIRM": [],
     "COUNTS": [
-      "CONFIRM"
+      "CONFIRM",
+      "TYPES"
     ],
     "SEEN_COUNT": [
       "TYPES",
@@ -406,7 +407,8 @@
                   "name": "data_exchange",
                   "payload": {
                     "content_source": "${form.content_source}",
-                    "total_marks": "${form.total_marks}"
+                    "total_marks": "${form.total_marks}",
+                    "seen_types": true
                   }
                 }
               }
@@ -523,6 +525,14 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Unseen questions: which types?"
+        },
+        "types_label": {
+          "type": "string",
+          "__example__": "Unseen question types"
         }
       },
       "layout": {
@@ -534,7 +544,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Unseen questions: which types?"
+                "text": "${data.heading}"
               },
               {
                 "type": "TextCaption",
@@ -548,7 +558,7 @@
               {
                 "type": "CheckboxGroup",
                 "name": "question_types",
-                "label": "Unseen question types",
+                "label": "${data.types_label}",
                 "required": true,
                 "data-source": "${data.types}"
               },
@@ -686,6 +696,10 @@
         "error_messages": {
           "type": "object",
           "__example__": {}
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Unseen questions: how many of each?"
         }
       },
       "layout": {
@@ -697,7 +711,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Unseen questions: how many of each?"
+                "text": "${data.heading}"
               },
               {
                 "type": "TextCaption",
