@@ -177,6 +177,43 @@ export const ATTENDANCE_V2_COPY_UR: AttendanceCopy = {
 /** Attendance's words in both languages. */
 export const ATTENDANCE = bilingual(ATTENDANCE_V2_COPY, ATTENDANCE_V2_COPY_UR);
 
+/**
+ * bd-33wxxi.10 — a principal's TEACHERS as a register (listId "staff"): the words that say teachers where a
+ * class says students. The screens merge these over ATTENDANCE for that register only (ui.tsx useListWords),
+ * so every other word is the class screens' own. `staffName` is the register's name on its card and in search;
+ * `done` is Saved's button when her teachers are her only register (it goes Home).
+ * Urdu: ٹیچر / ٹیچرز is the ontology's word for teacher (decided 2026-10-09) and the coach app's plural;
+ * مکمل is the app's Done. MACHINE-DRAFTED, awaiting the same human review as the rest of Attendance.
+ */
+export const ATTENDANCE_STAFF_COPY = {
+  staffName: 'Teacher attendance',
+  students: (n: number) => `${n} teachers`,
+  searchStudent: 'Search teacher',
+  noStudent: 'No teacher found',
+  noStudents: 'No teachers yet',
+  studentsTitle: 'Teachers',
+  allStudents: (n: number) => `All ${n} teachers`,
+  viewTitle: 'Teacher attendance',
+  done: 'Done',
+};
+
+export type AttendanceStaffCopy = Words<typeof ATTENDANCE_STAFF_COPY>;
+
+export const ATTENDANCE_STAFF_COPY_UR: AttendanceStaffCopy = {
+  staffName: 'ٹیچرز کی حاضری',
+  students: (n: number) => `${n} ٹیچرز`,
+  searchStudent: 'ٹیچر ڈھونڈیں',
+  noStudent: 'کوئی ٹیچر نہیں ملا',
+  noStudents: 'ابھی کوئی ٹیچر نہیں',
+  studentsTitle: 'ٹیچرز',
+  allStudents: (n: number) => `تمام ${n} ٹیچرز`,
+  viewTitle: 'ٹیچرز کی حاضری',
+  done: 'مکمل',
+};
+
+/** The teachers' register's words in both languages. */
+export const ATTENDANCE_STAFF = bilingual(ATTENDANCE_STAFF_COPY, ATTENDANCE_STAFF_COPY_UR);
+
 /** Urdu month and short weekday names (Sunday first), for model.ts monthLabel/dayLabel. */
 export const ATTENDANCE_MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'] as const;
 export const ATTENDANCE_WEEKDAYS_UR = ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'] as const;
@@ -190,3 +227,8 @@ export const COPY_ENTRY: CopyEntry = {
   // "Sent on WhatsApp": five words in Urdu (واٹس ایپ is one name).
   longOk: ['sent'],
 };
+
+/** bd-33wxxi.10 — the teachers' register's words join the same checks (copyRegistry reads COPY_ENTRIES too). */
+export const COPY_ENTRIES: readonly CopyEntry[] = [
+  { screen: 'Attendance: teachers', module: ATTENDANCE_STAFF as Bilingual<unknown> },
+];

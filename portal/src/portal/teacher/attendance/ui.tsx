@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CalendarDays, Download, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GradeSubjectButton, Tray, type ChipData } from '../ui';
-import { FOCUS, LIST_CARD } from '../ui/styles';
-import { ATTENDANCE, ATTENDANCE_V2_COPY, type AttendanceCopy } from './copy';
+import { CARD, FOCUS, GRID, LIST_CARD } from '../ui/styles';
+import { ATTENDANCE, ATTENDANCE_STAFF, ATTENDANCE_V2_COPY, type AttendanceCopy, type AttendanceStaffCopy } from './copy';
 import { useCopy } from '../i18n';
-import { classButton, selectorGroups, type AttendanceClass } from './model';
+import { getClasses, useRead } from './api';
+import { classButton, isStaff, selectorGroups, withStaffName, type AttendanceClass } from './model';
+import { downloadPath, viewPath } from './paths';
 import { SkeletonList } from '../../components/Skeleton';
 
 /**
@@ -13,6 +16,59 @@ import { SkeletonList } from '../../components/Skeleton';
  * chip, the class card at the top of a page, and the "Change" tray (the same searchable class list
  * as the selector).
  */
+
+/** bd-33wxxi.10 — a register's words: the class words, with the teachers' words over them for "staff". */
+export type ListWords = AttendanceCopy & Pick<AttendanceStaffCopy, 'done' | 'staffName'>;
+
+export function wordsFor(listId: string, C: AttendanceCopy, S: AttendanceStaffCopy): ListWords {
+  return isStaff(listId) ? { ...C, ...S } : { ...C, done: S.done, staffName: S.staffName };
+}
+
+/** The words for the register a page is about (`:listId`). */
+export function useListWords(listId: string): ListWords {
+  const C = useCopy(ATTENDANCE);
+  const S = useCopy(ATTENDANCE_STAFF);
+  return wordsFor(listId, C, S);
+}
+
+/** "32 students" for a class, "8 teachers" for her teachers. */
+export function useSizeWord() {
+  const C = useCopy(ATTENDANCE);
+  const S = useCopy(ATTENDANCE_STAFF);
+  return (c: AttendanceClass) => (isStaff(c.listId) ? S.students(c.students) : C.students(c.students));
+}
+
+/** Her registers (GET …/classes), the teachers' one named in her language. Every Attendance page reads this. */
+export function useClassesRead() {
+  const read = useRead('classes', () => getClasses());
+  const S = useCopy(ATTENDANCE_STAFF);
+  const data = useMemo(
+    () => (read.data ? { ...read.data, classes: withStaffName(read.data.classes, S.staffName) } : null),
+    [read.data, S.staffName],
+  );
+  return { ...read, data };
+}
+
+/** The hub's View · Download pair, for the page that stands in for the hub (her teachers' roll call, option B). */
+export function ViewDownloadPair({ listId }: { listId: string }) {
+  const C = useCopy(ATTENDANCE);
+  return (
+    <nav className={cn(GRID, 'grid-cols-2 gap-2.5')} aria-label={C.title}>
+      <Link to={viewPath(listId)} className={cn(CARD, 'flex min-h-[72px] items-center gap-3 px-3 text-[16px] font-semibold', FOCUS)}>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e8e9f0] text-[#33374a]">
+          <CalendarDays className="h-6 w-6" aria-hidden="true" />
+        </span>
+        {C.view}
+      </Link>
+      <Link to={downloadPath(listId)} className={cn(CARD, 'flex min-h-[72px] items-center gap-3 px-3 text-[16px] font-semibold', FOCUS)}>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e8e9f0] text-[#33374a]">
+          <Download className="h-6 w-6" aria-hidden="true" />
+        </span>
+        {C.download}
+      </Link>
+    </nav>
+  );
+}
 
 export function classChip(c: AttendanceClass, C: AttendanceCopy = ATTENDANCE_V2_COPY): ChipData {
   return c.marked && c.present != null
@@ -72,13 +128,14 @@ export function ClassCard({ cls, to, onPress, chip = true }: {
   cls: AttendanceClass; to?: string; onPress?: () => void; chip?: boolean;
 }) {
   const C = useCopy(ATTENDANCE);
+  const size = useSizeWord();
   const b = classButton(cls);
   return (
     <GradeSubjectButton
       grade={b.grade}
       section={b.section}
       subject={b.subject}
-      sub={C.students(cls.students)}
+      sub={size(cls)}
       chip={chip ? classChip(cls, C) : undefined}
       to={to}
       onPress={onPress}
@@ -91,6 +148,7 @@ export function ClassTray({ open, onClose, classes, currentId, to }: {
   open: boolean; onClose: () => void; classes: AttendanceClass[]; currentId: string; to: (listId: string) => string;
 }) {
   const C = useCopy(ATTENDANCE);
+  const size = useSizeWord();
   const [q, setQ] = useState('');
   const shown = useMemo(() => {
     const g = selectorGroups(classes, q);
@@ -112,7 +170,7 @@ export function ClassTray({ open, onClose, classes, currentId, to }: {
                   grade={b.grade}
                   section={b.section}
                   subject={b.subject}
-                  sub={C.students(c.students)}
+                  sub={size(c)}
                   chip={classChip(c, C)}
                   state={c.listId === currentId ? 'selected' : 'default'}
                   to={to(c.listId)}
