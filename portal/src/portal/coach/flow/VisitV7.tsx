@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -123,5 +123,29 @@ export function FormStage({ to }: { to: string }) {
     <Link to={to} data-testid="stage-form" className={cn(BIG, "w-full bg-[#33374a] text-white", FOCUS)}>
       {W.fillTheForm}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
     </Link>
+  );
+}
+
+/** bd-o15qnr.28 (v7, board m9-analysing) — while the Digital Coach listens: one plain card; the page asks again by itself. */
+export function AnalysingStage() {
+  const W = useCopy(FLOW_V7) as FlowV7Copy;
+  return (
+    <section data-testid="stage-analysing" className={cn(LIST_CARD, "flex items-start gap-3 p-4")}>
+      <span aria-hidden="true" className="mt-1 flex h-3 w-3 shrink-0 rounded-full bg-[#f59e0b] motion-safe:animate-pulse" />
+      <span className="flex min-w-0 flex-col gap-1">
+        <b className="text-[17px] font-semibold">{W.listening}</b>
+        <span className="text-[15px] text-[#4b5563]">{W.listeningSub}</span>
+      </span>
+    </section>
+  );
+}
+
+/** bd-o15qnr.28 (v7, board m9-errors: "red edge, one plain line, one button that fixes it") — a stopped observation. */
+export function StoppedStage({ text, children }: { text: string; children?: ReactNode }) {
+  return (
+    <section data-testid="stage-stopped" role="alert" className={cn(LIST_CARD, "flex flex-col gap-3 border-2 border-[#c8331f] p-4")}>
+      <b className="text-[16px] font-semibold text-[#1d2025]">{text}</b>
+      {children}
+    </section>
   );
 }
