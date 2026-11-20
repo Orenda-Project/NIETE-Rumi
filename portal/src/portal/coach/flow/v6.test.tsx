@@ -422,6 +422,26 @@ describe("Record, switch on: the recording keeps going while the coach moves rou
     expect(rec.session.start).not.toHaveBeenCalled();
   });
 
+  it("came back to a running recording, then it stops: no second recording starts (sandbox film, 20 Nov)", async () => {
+    rec.session = rec.make({ active: true, returnTo: "/portal/coach/visit/v1/record", recordingId: "rec-1" });
+    const view = render(
+      <MemoryRouter initialEntries={["/portal/coach/visit/v1/record"]}>
+        <Routes><Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} /></Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole("timer");
+    const started = rec.session.start;
+    // the provider after Stop: nothing recording, a new session object (as setLive(IDLE) gives)
+    rec.session = rec.make({ active: false, returnTo: null, recordingId: null, start: started });
+    view.rerender(
+      <MemoryRouter initialEntries={["/portal/coach/visit/v1/record"]}>
+        <Routes><Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} /></Routes>
+      </MemoryRouter>,
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    expect(started).not.toHaveBeenCalled();
+  });
+
   it("Stop asks, then the recording goes to Check and send", async () => {
     // the session as the provider gives it once recording (the mock does not re-render on start)
     rec.session = rec.make({ active: true, returnTo: "/portal/coach/visit/v1/record", recordingId: "rec-1" });
