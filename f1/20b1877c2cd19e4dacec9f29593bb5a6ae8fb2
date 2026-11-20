@@ -3,3 +3,4 @@
 {"ts":"2026-11-20T16:41:30Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"f120b1877c2c","branch":"bd-zrdvmi.36-39764","user":""}
 {"ts":"2026-11-20T16:41:34Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.36-39764: E-DUPID:child-test;E-NODRIVER:registration;E-NOID:lesson-plan","sha":"f120b1877c2c","branch":"bd-zrdvmi.36-39764","user":""}
 {"ts":"2026-11-20T16:41:41Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"f120b1877c2c","branch":"bd-zrdvmi.36-39764","user":""}
+{"ts":"2026-11-20T16:43:16Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons,portal-smoke spec_sync=true","sha":"f120b1877c2c","branch":"bd-zrdvmi.36-39764","user":""}
