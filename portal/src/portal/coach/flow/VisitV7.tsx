@@ -140,12 +140,35 @@ export function AnalysingStage() {
   );
 }
 
-/** bd-o15qnr.28 (v7, board m9-errors: "red edge, one plain line, one button that fixes it") — a stopped observation. */
-export function StoppedStage({ text, children }: { text: string; children?: ReactNode }) {
+/**
+ * bd-o15qnr.28 (v7, board m9-errors: "Same card on every screen: red edge, one plain line, one button that fixes it") — the
+ * error card: a title, at most one plain line, and the button(s) that fix it (children).
+ */
+export function ErrorCard({ testId, title, line, children }: { testId: string; title: string; line?: string; children?: ReactNode }) {
   return (
-    <section data-testid="stage-stopped" role="alert" className={cn(LIST_CARD, "flex flex-col gap-3 border-2 border-[#c8331f] p-4")}>
-      <b className="text-[16px] font-semibold text-[#1d2025]">{text}</b>
+    <section data-testid={testId} role="alert" className={cn(LIST_CARD, "flex flex-col gap-3 border-2 border-[#c8331f] p-4")}>
+      <span className="flex flex-col gap-1">
+        <b className="text-[16px] font-semibold text-[#1d2025]">{title}</b>
+        {line && <span className="text-[15px] text-[#4b5563]">{line}</span>}
+      </span>
       {children}
     </section>
+  );
+}
+
+/** A stopped observation (board m9-errors). */
+export function StoppedStage({ text, children }: { text: string; children?: ReactNode }) {
+  return <ErrorCard testId="stage-stopped" title={text}>{children}</ErrorCard>;
+}
+
+const ERROR_BUTTON = "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8]";
+
+/** A fixing button inside an ErrorCard: the app's dark button, or (`quiet`) the white one under it. */
+export function ErrorAction({ onClick, quiet = false, children }: { onClick: () => void; quiet?: boolean; children: ReactNode }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={cn(ERROR_BUTTON, quiet ? "border border-[#e5e7eb] bg-white text-[#33374a]" : "bg-[#33374a] text-white", FOCUS)}>
+      {children}
+    </button>
   );
 }
