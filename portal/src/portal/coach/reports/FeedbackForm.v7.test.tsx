@@ -139,9 +139,13 @@ const renderPage = (principal = false) => render(
   </ObserveRoutesProvider>,
 );
 const next = () => fireEvent.click(screen.getByRole("button", { name: "Next part" }));
+/** The dock's Back (the header has its own round Back). */
+const dockButton = (name: string) => within(screen.getByTestId("form-dock")).getByRole("button", { name });
 const toPartC = async () => { await screen.findByText("No lesson plan was provided."); next(); await screen.findByText("Who got to answer"); };
 const group = (name: string) => within(screen.getByRole("radiogroup", { name }));
 const card = (name: string) => screen.getByText(name).closest("section") as HTMLElement;
+/** A kit chip's text on an Urdu page, without the isolates the kit puts round its Latin runs (bidi.ts). */
+const unisolated = (t: string) => t.replace(/[\u2066-\u2069]/g, "");
 /** The page as markup, its React ids made stable (useId counts across a file). */
 const html = () => document.body.innerHTML.replace(/:r[0-9a-z]+:/g, ":r:");
 
@@ -254,7 +258,7 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it", () => {
     expect(screen.getByRole("heading", { name: "Feedback Form" })).toBeInTheDocument();
     const chip = screen.getByTestId("rubric-label");
     expect(chip).toHaveTextContent("FICO17 v6");
-    expect(chip).toHaveAttribute("data-chip");
+    expect(within(chip).getByText("FICO17 v6").closest("[data-chip]")).not.toBeNull(); // the kit's StatusChip
     expect(screen.getByRole("img", { name: "Part 1 of 4" })).toBeInTheDocument();
   });
 
@@ -320,8 +324,8 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it", () => {
   it("the dock: Back and Next part", async () => {
     renderPage();
     await toPartC();
-    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
-    expect(screen.getByTestId("form-dock")).toContainElement(screen.getByRole("button", { name: "Next part" }));
+    expect(dockButton("Back")).toBeInTheDocument();
+    expect(dockButton("Next part")).toBeInTheDocument();
   });
 
   it("the Save tray: N ratings · what changed from Rumi's, Save and continue, Keep checking, Next: Record the debrief", async () => {
@@ -396,9 +400,9 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it", () => {
     expect(within(card("Who got to answer")).getByLabelText("یہ سطح کیوں (کم از کم 20 حروف)")).toBeInTheDocument();
     expect(group("Who got to answer").getAllByTestId("level-aside").map((p) => p.textContent)).toEqual(["لاگو نہیں · No question asked", "پتا نہیں چل سکا"]);
     fireEvent.click(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Developing" }));
-    expect(await screen.findByText("Proficient سے بدلا گیا")).toBeInTheDocument();
+    expect(await screen.findByText((t) => unisolated(t) === "Proficient سے بدلا گیا")).toBeInTheDocument();
     expect(screen.getByLabelText("آپ نے کیوں بدلا")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "واپس" })).toBeInTheDocument();
+    expect(dockButton("واپس")).toBeInTheDocument();
   });
 
   it("an older FICO review takes the same look: the Digital Coach's level tagged Rumi until saved", async () => {
@@ -419,7 +423,7 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
   beforeEach(() => {
     flow.on = true;
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(2026, 10, 20, 10, 58));
+    vi.setSystemTime(new Date("2026-11-20T05:58:00Z")); // 10:58 AM in Pakistan, the portal's clock
   });
 
   it("FDE: the tool as a chip, no Rumi levels, levels as radio rows, Back and Next part (no Save draft)", async () => {
@@ -433,10 +437,10 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
     expect(screen.queryByText("Rumi")).toBeNull();
     expect(screen.getByRole("radiogroup", { name: "Model or drawing" })).toHaveAttribute("data-look", "radio");
     expect(group("Model or drawing").getByRole("radio", { name: "Level 2" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Next part" })).toBeInTheDocument();
+    expect(dockButton("Back")).toBeInTheDocument();
+    expect(dockButton("Next part")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save draft" })).toBeNull();
-    expect(screen.queryByText(/^Saved /)).toBeNull();
+    expect(screen.queryByText(/^Saved \d/)).toBeNull(); // nothing saved here yet
   });
 
   it("Next saves the part: Saved <time> in the chip row; the score is a count, never a %", async () => {
@@ -462,11 +466,11 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
     next();
     await screen.findByText("Feedback");
     fireEvent.change(screen.getByLabelText("Feedback for the teacher"), { target: { value: "Use the fraction bar again tomorrow." } });
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(dockButton("Back"));
     await screen.findByText("Teaching the concept");
     expect(L.saveObs612Form).toHaveBeenCalledTimes(2);
     expect(L.saveObs612Form.mock.calls[1][1]).toMatchObject({ m1: "1", fb_line: "Use the fraction bar again tomorrow." });
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(dockButton("Back"));
     expect(await screen.findByText("observation page")).toBeInTheDocument();
     expect(L.saveObs612Form).toHaveBeenCalledTimes(2);
   });
