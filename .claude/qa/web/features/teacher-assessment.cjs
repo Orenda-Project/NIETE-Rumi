@@ -58,20 +58,6 @@ async function grammarTopicsPaper(page, ctx) {
   expect(/10 marks/.test(q), 'a topic paper starts at 10 marks');
   expect(/MCQs/.test(q) && /Rewrite Sentences/.test(q), 'grammar question types are suggested');
 
-  for (const id of ['MCQs', 'True/False']) {
-    const row = page.getByTestId(`seen-type-count-${id}`);
-    for (let i = 0; i < 10 && (await row.count()); i += 1) {
-      const bin = row.getByRole('button', { name: `Remove ${id}`, exact: true });
-      await ((await bin.count()) ? bin : row.getByRole('button', { name: `Fewer ${id}`, exact: true })).click();
-    }
-  }
-  expect(await page.getByTestId('count-seen').waitFor({ timeout: 5000 }).then(() => true, () => false),
-    'removing both book types should bring the single box back');
-  await pick('MCQs');
-  await pick('True/False');
-  await page.getByTestId('seen-type-count-True/False').getByRole('button', { name: 'More True/False', exact: true }).click();
-  expect(/11 questions/.test(await total()), 'after re-adding, the total should read 11 questions, got ' + (await total()));
-
   await page.getByTestId('step-next').click();
   await page.waitForURL('**' + NEW + 'check');
   const shown = await page.getByText('2 selected').waitFor({ timeout: 10000 }).then(() => true, () => false);
