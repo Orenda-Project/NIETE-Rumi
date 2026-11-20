@@ -348,11 +348,15 @@ export default function LeaderAssess() {
   }, [keepServerId]);
 
   // A finished child whose rows are still on the phone: the engine's page is gone, so a hidden drain frame sends them.
+  // The frame sends every session the phone holds, any school, any day. So it also runs once when the page
+  // opens, and again while its last answer left anything on the phone, not only for this visit's children.
   const [drainAt, setDrainAt] = useState<number | null>(null);
   const lastDrain = useRef(0);
   const drainNeeded = useRef(false);
+  /** Does the phone hold anything unsent? null until the first drain answers. */
+  const phoneHolds = useRef<boolean | null>(null);
   const maybeDrain = (now_ = false) => {
-    if (!drainNeeded.current || drainAt !== null || step.kind === 'engine') return;
+    if (!(drainNeeded.current || phoneHolds.current !== false) || drainAt !== null || step.kind === 'engine') return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const now = Date.now();
     if (!now_ && now - lastDrain.current < DRAIN_EVERY_MS) return;
@@ -361,6 +365,7 @@ export default function LeaderAssess() {
   };
   const [pendingBy, setPendingBy] = useState<Record<string, number>>({});
   const drainDone = (sessions: Drained) => {
+    phoneHolds.current = sessions.some((x) => x.pending > 0);
     if (sessions.length) setPendingBy((p) => ({ ...p, ...Object.fromEntries(sessions.map((x) => [x.s, x.pending])) }));
     setDrainAt(null);
     if (pollKey) void poll(pollKey.split(','));
@@ -685,7 +690,11 @@ export default function LeaderAssess() {
   const syncOf = (c: SaChild): SyncItem['state'] => {
     const id = sessionOf(c)?.id;
     if (id && remote[id] === 'audio') return 'audio';
-    if (c.sessionStatus === 'completed' || (id && remote[id] === 'sent')) return 'sent';
+    // The list's 'completed' says nothing of the audio; a child polled here is unknown until the poll answers
+    const unpolled = Boolean(id && remote[id] === undefined && sentIds.includes(id));
+    if ((c.sessionStatus === 'completed' && !unpolled) || (id && remote[id] === 'sent')) return 'sent';
+    // offline the poll cannot answer, so the audio may well be on the phone: say so (a coach is told to wait for it)
+    if (c.sessionStatus === 'completed' && unpolled) return typeof navigator !== 'undefined' && navigator.onLine === false ? 'phone' : 'sending';
     if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
     if (id && (pendingBy[id] ?? 0) > 0) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';
