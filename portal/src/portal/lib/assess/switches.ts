@@ -40,6 +40,8 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           iosMic: s.iosMic === true,
           // round 12: the RDF rows' microphone note opens the check again
           rdfMicCheck: s.rdfMicCheck === true,
+          // round 28, O-115: the mic check's pass needs a level above the floor
+          r28MicUnknown: s.r28MicUnknown === true,
         });
       })
       .catch(() => { /* off */ });

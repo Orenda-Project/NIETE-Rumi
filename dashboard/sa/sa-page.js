@@ -27,7 +27,7 @@
   var FORM_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
   var SESSION_RX = /^[A-Za-z0-9_-]{6,64}$/;
   // This build of the page, logged on device_ready (round 28): always sw.js VERSION in the same tree (a test pins the two).
-  var VERSION = 'sa-46';
+  var VERSION = 'sa-47';
 
   // the server's MAX_EVENT_DATA (sa-api.service.js): a longer value is not kept at all
   var MAX_VALUE = 300;
@@ -423,7 +423,7 @@
    * network came back after the hand-back would never send. drain() lists every coach (proctored) session in the
    * phone's store with something unsent, and runs the same sync for each, one after another, through the coach sink.
    *   o: { store, sync (SAE.sync), mode ('proctored' default | 'game'), sink(id) → a sink or null, exclude (the session
-   *        this page runs), online, timers }
+   *        this page runs), online, timers, onProgress (the sync's: each server answer, the bytes of an upload) }
    * → Promise<[{ s, state, pending_events, pending_audio }]>. A game session goes through its own kept run token (the
    * game sink for that id); none kept → state 'no_sink', left on the phone.
    */
@@ -438,7 +438,7 @@
           if (!p.events.length && !p.results.length && !p.chunks.some(function (c) { return c.final; })) return null;
           var sink = o.sink(id);
           if (!sink) { out.push({ s: id, state: 'no_sink', pending_events: p.events.length + p.results.length, pending_audio: p.chunks.filter(function (c) { return c.final; }).length }); return null; }
-          var sy = o.sync.create({ store: o.store, sink: sink, session_id: id, online: o.online, timers: o.timers });
+          var sy = o.sync.create({ store: o.store, sink: sink, session_id: id, online: o.online, timers: o.timers, onProgress: o.onProgress });
           return sy.flush().then(function (st) {
             if (sy.stop) sy.stop();
             out.push({ s: id, state: st.state, pending_events: st.pending_events, pending_audio: st.pending_audio });
@@ -448,14 +448,30 @@
     });
   }
 
-  /** The drain page (/sa/play.html?drain=1&embed=1): no screen, no session; drain, then tell the coach page once. */
+  var PROGRESS_EVERY_MS = 1000;
+  /**
+   * The drain page (/sa/play.html?drain=1&embed=1): no screen, no session; drain, then tell the coach page once.
+   * While it works it tells the coach page {type:'sa:drain_progress', acks, bytes} on each server answer and, at most
+   * once a second, as an upload's bytes go out, so a slow upload that is moving is never cut.
+   */
   function bootDrain(SAE, p) {
     var store = SAE.store;
     var sink = function () { return SAE.sinks.coach(); };
+    var tell = p.embed && root.parent && root.parent !== root;
+    var acks = 0;
+    var bytes = 0;
+    var last = 0;
+    var onProgress = !tell ? null : function (kind, n) {
+      if (kind === 'ack') acks += 1; else bytes = n;
+      var now = Date.now();
+      if (kind !== 'ack' && now - last < PROGRESS_EVERY_MS) return;
+      last = now;
+      root.parent.postMessage({ type: 'sa:drain_progress', acks: acks, bytes: bytes }, root.location.origin);
+    };
     return store.open().then(function (st) {
-      return drain({ store: st, sync: SAE.sync, sink: sink });
+      return drain({ store: st, sync: SAE.sync, sink: sink, onProgress: onProgress });
     }).then(function (sessions) { return sessions; }, function () { return []; }).then(function (sessions) {
-      if (p.embed && root.parent && root.parent !== root) {
+      if (tell) {
         root.parent.postMessage({ type: 'sa:drained', sessions: sessions }, root.location.origin);
       }
       return sessions;
@@ -545,5 +561,5 @@
     });
   }
 
-  return { VERSION: VERSION, otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, swapWatch: swapWatch, deferrable: deferrable, clipPrompted: clipPrompted, lockDown: lockDown, drain: drain, boot: boot };
+  return { VERSION: VERSION, otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, swapWatch: swapWatch, deferrable: deferrable, clipPrompted: clipPrompted, lockDown: lockDown, drain: drain, bootDrain: bootDrain, boot: boot };
 }));
