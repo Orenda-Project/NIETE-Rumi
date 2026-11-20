@@ -102,6 +102,26 @@ describe("Debrief — a slow guide is asked for again, not given up on", () => {
     expect(L.getTalkGuide).toHaveBeenCalledTimes(GUIDE_RETRY_MS.length + 1);
   });
 
+  /**
+   * bd-tfya0m (queue #205) — production 19 Nov: a coach's guide ask came back 502 at 10 s while the bot restarted for a
+   * deploy; the coach left, and the teacher's report was never sent. "Guide did not load" now carries Try again, which asks
+   * once more (the guide is kept on the observation once written, so it comes back at once).
+   */
+  it("'did not load' has Try again, which asks again and shows the guide", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    L.getTalkGuide.mockRejectedValue(fail(502));
+    renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    for (const ms of GUIDE_RETRY_MS) await act(async () => { await vi.advanceTimersByTimeAsync(ms + 100); });
+    const note = await screen.findByText("Guide did not load");
+    L.getTalkGuide.mockResolvedValueOnce({ guide: GUIDE });
+    const again = within(note.closest("[data-testid='guide-failed']") as HTMLElement).getByRole("button", { name: "Try again" });
+    fireEvent.click(again);
+    expect(await screen.findByTestId("talk-guide")).toBeInTheDocument();
+    expect(L.getTalkGuide).toHaveBeenCalledTimes(GUIDE_RETRY_MS.length + 2);
+    expect(screen.queryByText("Guide did not load")).toBeNull();
+  });
+
   it("409 (the form is not saved yet): said at once, no second ask", async () => {
     L.getTalkGuide.mockRejectedValue(fail(409));
     renderPage();

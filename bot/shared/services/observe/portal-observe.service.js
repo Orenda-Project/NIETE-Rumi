@@ -99,6 +99,8 @@ function withDefaults(deps = {}) {
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
+    // bd-tfya0m — the wait before the report's one more ask of the queue (tests pass 0).
+    retryWaitMs: () => 2000,
   };
   const d = {};
   for (const [name, load] of Object.entries(lazy)) {
@@ -112,6 +114,18 @@ function withDefaults(deps = {}) {
 
 const notFound = () => ({ status: 'not_found' });
 const notReady = (reason) => ({ status: 'not_ready', reason });
+
+/**
+ * bd-tfya0m (queue #205) — does this observation have the analysis its draft is made from? Production 19 Nov: a
+ * WhatsApp observation left at awaiting_observer_review with analysis_data null showed an empty form, and every save
+ * threw "Cannot read properties of null (reading 'domains')" (applyObserverEdits) → the portal's 502. On production
+ * (20 Nov, 60 days) the only reviewable leader observations without an analysis object were 2 such rows; an FDE
+ * (obs612) or FICO-S form keeps its own and is answered before this is asked.
+ */
+function hasAnalysis(row) {
+  const ad = row && row.analysis_data;
+  return !!ad && typeof ad === 'object' && !Array.isArray(ad);
+}
 
 async function loadCoach(d, userId) {
   const { data } = await d.supabase
@@ -673,6 +687,7 @@ async function getDraft({ userId, coachingSessionId }, deps) {
   const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: FDE's form, its own module
   if (fde.isFdeSession(row)) return fde.portalDraft({ userId, row });
   if (!READABLE_STATUSES.includes(row.status)) return notReady('not_ready');
+  if (!hasAnalysis(row)) return notReady('no_analysis');
   const editable = EDITABLE_STATUSES.includes(row.status) && !REPORT_OUT.includes(deliveryOf(row).status);
 
   const pack = d.pack();
@@ -862,6 +877,7 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false }, d
   }
   if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
+  if (!hasAnalysis(row)) return notReady('no_analysis');
 
   const isV6 = !!require('./observe-fico17-v6').visitFramework(row);
   const keyRx = isV6 ? V6_EDIT_KEY_RX : EDIT_KEY_RX;
@@ -1013,6 +1029,32 @@ async function retryTalk({ userId, coachingSessionId }, deps) {
 // ── the report ─────────────────────────────────────────────────────────────
 
 /**
+ * bd-tfya0m (queue #205) — queue a report phase, asking the queue once more if it fails (e.g. unreachable while a
+ * deploy restarts things). Still failing: the delivery is marked send_failed — the page's "Report not sent" with Try
+ * again (which makes the report again) — so it is never left "preparing" or "sending" with no job behind it, and the
+ * coach is answered queue_failed (502). The send never happened, so nothing reaches the teacher twice.
+ */
+async function queueReportPhase(d, coachingSessionId, opts) {
+  for (let n = 0; n < 2; n += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await d.queue.queueObserveTeacherReport(coachingSessionId, { ...opts, dedupNonce: d.newId() });
+      return true;
+    } catch (err) {
+      d.log('❌ portal observe: report could not be queued', { coachingSessionId, phase: opts.phase, attempt: n + 1, error: err && err.message }, 'error');
+      // eslint-disable-next-line no-await-in-loop
+      if (n === 0 && d.retryWaitMs > 0) await new Promise((r) => { setTimeout(r, d.retryWaitMs); });
+    }
+  }
+  try {
+    await d.send.mergeTeacherDelivery(coachingSessionId, { status: 'send_failed', send_requested_at: null });
+  } catch (err) {
+    d.log('❌ portal observe: report could not be marked not sent', { coachingSessionId, error: err && err.message }, 'error');
+  }
+  return false;
+}
+
+/**
  * startSendFlow's bound branch, minus the chat: the teacher the observation is
  * bound to is the recipient, the roster learns her, and the preview phase is
  * queued — marked as the portal's, so the worker sends the coach nothing.
@@ -1038,9 +1080,8 @@ async function previewReport({ userId, coachingSessionId }, deps) {
   await d.send.mergeTeacherDelivery(coachingSessionId, {
     teacher_name: picked.name, teacher_phone: picked.phone, status: 'previewing', channel: 'portal', send_requested_at: null,
   });
-  await d.queue.queueObserveTeacherReport(coachingSessionId, {
-    from: coach && coach.phone_number, phase: 'preview', channel: 'portal', dedupNonce: d.newId(),
-  });
+  const queued = await queueReportPhase(d, coachingSessionId, { from: coach && coach.phone_number, phase: 'preview', channel: 'portal' });
+  if (!queued) return { status: 'queue_failed', coachingSessionId };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');
   return { status: 'ok' };
 }
@@ -1055,9 +1096,8 @@ async function sendReport({ userId, coachingSessionId }, deps) {
 
   const coach = await loadCoach(d, userId);
   await d.send.mergeTeacherDelivery(coachingSessionId, { send_requested_at: d.now().toISOString(), channel: 'portal' });
-  await d.queue.queueObserveTeacherReport(coachingSessionId, {
-    from: coach && coach.phone_number, phase: 'deliver', channel: 'portal', dedupNonce: d.newId(),
-  });
+  const queued = await queueReportPhase(d, coachingSessionId, { from: coach && coach.phone_number, phase: 'deliver', channel: 'portal' });
+  if (!queued) return { status: 'queue_failed', coachingSessionId };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');
   return { status: 'ok' };
 }
