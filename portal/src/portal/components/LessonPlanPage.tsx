@@ -71,7 +71,7 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
   width: number;
   ratio: number;
   onRatio: (page: number, ratio: number) => void;
-  onFailed: (page: number) => void;
+  onFailed: (page: number, err?: unknown) => void;
   mark?: StepMark | null;
 }) => {
   const box = useRef<HTMLDivElement>(null);
@@ -121,7 +121,7 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
         await draw(1, RETRY_CANVAS_PIXELS);
       }
     })().catch((err) => {
-      if (!cancelled && !isCancel(err)) onFailed(pageNumber);
+      if (!cancelled && !isCancel(err)) onFailed(pageNumber, err);
     });
     return () => {
       cancelled = true;
