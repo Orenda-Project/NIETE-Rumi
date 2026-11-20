@@ -1,2 +1,3 @@
 {"ts":"2026-11-20T16:55:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"01d2ac2b3424","branch":"bd-e5n2jf-main","user":""}
 {"ts":"2026-11-20T16:55:43Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"01d2ac2b3424","branch":"bd-e5n2jf-main","user":""}
+{"ts":"2026-11-20T18:13:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (bd-e5n2jf promotion copy from the superseded bd-e5n2jf-main branch, replaced by bd-e5n2jf-main-v2 / PR 5307; exam-generator specs are synced and driven on the sandbox lineage where the change was written)","sha":"01d2ac2b3424","branch":"bd-e5n2jf-main-v2","user":""}
