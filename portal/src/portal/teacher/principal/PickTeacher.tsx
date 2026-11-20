@@ -21,6 +21,11 @@ import type { CoachReport } from "../../coach/types";
 import { getPrincipalSchoolCard } from "./api";
 import { PRINCIPAL } from "./copy";
 import { principalNewVisitPath } from "./observe";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { FOCUS } from "../ui/styles";
+import { COACHING_NEW } from "../coaching/paths";
+import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
 
 /**
  * bd-33wxxi.4 — "One of my teachers" → Pick the teacher (#55, Observations A): her own school's teachers (GET
@@ -31,6 +36,8 @@ import { principalNewVisitPath } from "./observe";
  * scheduled, so nothing goes to the teacher.
  * Her row naming no school: "No school".
  */
+const WHOSE = "flex min-h-[48px] items-center justify-center rounded-xl px-3 text-center text-[15px] font-semibold leading-tight rtl:leading-[1.8]";
+
 export function PickTeacher() {
   const O = useCopy(OBSERVATIONS);
   const B = useCopy(OBSERVE);
@@ -46,6 +53,7 @@ export function PickTeacher() {
   const card = dataOf(cardLoad);
   const reports = dataOf(reportsLoad);
   const today = pkToday();
+  const v6 = useFlowV6() === true;
 
   // Her latest observation of each teacher, newest first (the reports come newest first).
   const latest = useMemo(() => {
@@ -78,6 +86,14 @@ export function PickTeacher() {
   return (
     <TeacherPage feature="observations" title={B.pickTheTeacher} crumb={`${O.title} · ${P.oneTeacher}`} backTo={OBS_HOME}
       testId="principal-pick">
+      {/* bd-o15qnr.28 (v6/v7, #188's board p7-pick): whose lesson — one of her teachers (this list) or her own (Digital
+          Coaching's New observation, the teacher app's flow) */}
+      {v6 && (
+        <div data-testid="pick-whose" role="group" aria-label={B.pickTheTeacher} className="mb-1 grid grid-cols-2 gap-2">
+          <span aria-current="true" className={cn(WHOSE, "bg-[#33374a] text-white")}>{P.oneTeacher}</span>
+          <Link to={COACHING_NEW} className={cn(WHOSE, "border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>{P.ownLesson}</Link>
+        </div>
+      )}
       {!card ? <LoadState status={cardLoad.status} empty={false} onRetry={retryCard} /> : null}
       {card && !card.school ? <EmptyRow icon={<span>·</span>} testId="pick-no-school">{People.noSchool}</EmptyRow> : null}
       {card?.school ? (
