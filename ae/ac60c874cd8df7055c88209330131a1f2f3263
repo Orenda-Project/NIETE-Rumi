@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T02:09:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,portal-smoke spec_sync=true","sha":"aeac60c874cd","branch":"bd-snkn32.59-39278","user":""}
 {"ts":"2026-11-20T02:09:17Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,portal-login,portal-smoke spec_sync=true","sha":"aeac60c874cd","branch":"bd-snkn32.59-39278","user":""}
 {"ts":"2026-11-20T02:12:37Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,portal-login=none-needed (only an optional answers.unit is accepted from a new dark portal route; WhatsApp lesson-plan and login behaviour unchanged)","sha":"aeac60c874cd","branch":"bd-snkn32.59-39278","user":""}
+{"ts":"2026-11-20T02:12:37Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"a50c7ea5-5c3f-4e55-8bae-ae66f7f85984","sha":"aeac60c874cd","branch":"bd-snkn32.59-39278","user":""}
