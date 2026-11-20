@@ -19,6 +19,8 @@ import { useChildTestSa } from "../../lib/useChildTestSa";
 import { COACH_PROFILE } from "../profile/copy";
 import { useFlowV2 } from "../flow/useCoachFlowV2";
 import { FocusCard } from "../flow/FocusCard";
+import { isPkMonday } from "../flow/YourWeek";
+import { FLOW_V7_WEEK } from "../flow/copyV7week";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
@@ -48,6 +50,10 @@ import { FocusCard } from "../flow/FocusCard";
  *
  * bd-o15qnr.27 (queue #204, v6) — that card is now the Focus card (flow/FocusCard.tsx): the one most important thing, an
  * observation waiting on her first, else today's booked visits, else Schedule an observation. One Observe tile.
+ *
+ * bd-o15qnr.28.1 (queue #204, v7; #188's LOCK round, My progress option B) — on the same switch: a "My progress" tile right
+ * after Observe (its read-only page, report/CoachProgressPage.tsx), and on a Monday the Focus card shows "Your week" (the
+ * ready card above then leaves its week row out). Coaches only: the principal's Home is its own.
  */
 
 export const courseCount = (lib: Library | null): number | null =>
@@ -73,6 +79,7 @@ export default function SlimHome() {
   const assess = useChildTestSa() === true;
   const P = useCopy(COACH_PROFILE);
   const flowV2 = useFlowV2() === true && fullApp;
+  const K = useCopy(FLOW_V7_WEEK);
 
   return (
     <CoachGate>
@@ -91,7 +98,7 @@ export default function SlimHome() {
         )}
       >
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
-        <ReadyReportCard />
+        <ReadyReportCard skipWeek={flowV2 && isPkMonday()} />
         {/* bd-o15qnr.27 (v6): the Focus card, the one most important thing (flow/FocusCard.tsx) */}
         {flowV2 && <FocusCard />}
         <FeatureMotionProvider>
@@ -105,6 +112,8 @@ export default function SlimHome() {
                 )}
                 <FeatureTile feature="observations" label={W.tiles.observe} to="/portal/coach/observe" compact
                   chip={home ? { text: W.chips.waiting(home.counts.waiting), tone: home.counts.waiting > 0 ? "waiting" : "info" } : null} />
+                {/* bd-o15qnr.28.1 (v7): My progress, right after Observe */}
+                {flowV2 && <FeatureTile feature="reports" label={K.progressTitle} to="/portal/coach/progress" compact />}
               </>
             )}
             {assess && <FeatureTile feature="learningAssessment" label={P.assess} to="/portal/leader/assess" compact />}

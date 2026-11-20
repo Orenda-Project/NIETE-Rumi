@@ -14,7 +14,11 @@ import { CancelVisitTray } from "../schedule/CancelVisitTray";
 import { FROM_OBSERVE } from "../../teacher/menu";
 import { dayMonth, dayShort, daysShort, pct } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
-import { useSendJob } from "../observe/sender";
+import { retrySend, useSendJob } from "../observe/sender";
+import { unreadablePart } from "../observe/format";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { ErrorAction, ErrorCard } from "../flow/VisitV7";
+import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { SCHOOL_CARD } from "../card/copy";
 import { PRINCIPAL } from "../../teacher/principal/copy";
@@ -71,6 +75,14 @@ const CoachVisit = () => {
   const [asking, setAsking] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const job = useSendJob(id);
+  // bd-o15qnr.28 (v7, board m9-errors card 1): an observation that did not reach the server says so here, with the fix.
+  const v7 = useFlowV6() === true;
+  const E = useCopy(FLOW_V7_ERRORS);
+  const notSent = v7 && job?.state === "failed";
+  const sendAgain = () => {
+    if (!unreadablePart(job?.errorCode ?? null)) retrySend(id);
+    navigate(routes.sending(id));
+  };
   const visit = data?.visit;
   const teacher = data?.teacher;
   const counts = data?.counts;
@@ -124,7 +136,12 @@ const CoachVisit = () => {
         <>
           {upcoming && visit.teacherExtId && (
             <div role="group" aria-label={C.observation} className="mt-1">
-              {sendingNow ? (
+              {notSent && job ? (
+                <ErrorCard testId="error-not-sent" title={E.notSentYet}
+                  line={E.savedOnPhone(job.durationMs ? Math.max(1, Math.round(job.durationMs / 60_000)) : null)}>
+                  <ErrorAction onClick={sendAgain}>{E.sendItNow}</ErrorAction>
+                </ErrorCard>
+              ) : sendingNow ? (
                 <Link to={routes.sending(id)} data-testid="sending-link"
                   className="flex min-h-[76px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 text-[17px] font-semibold">
                   <span className="flex-1">{C.sendingNow} · {job.pct}%</span>

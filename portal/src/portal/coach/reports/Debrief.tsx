@@ -27,6 +27,9 @@ import { REPORTS } from "./copy";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { ErrorAction, ErrorCard } from "../flow/VisitV7";
+import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 
 /**
  * bd-4404s7.5 — Debrief, step 3 of 5 (Blueprint Coach_Debrief): the guide for her talk with the teacher — the one the
@@ -156,6 +159,9 @@ export default function Debrief() {
 
   // bd-tfya0m (queue #205) — "Guide did not load" is never the end: Try again asks once more (with its own asks again).
   const guideAgain = () => { setGuideState("loading"); askGuide(0); };
+  // bd-o15qnr.28 (v7, board m9-errors card 3): no guide is the red-edged card — record anyway, Try again, or record now.
+  const v7 = useFlowV6() === true;
+  const E = useCopy(FLOW_V7_ERRORS);
 
   const send = async (audio: Pending) => {
     setPending(audio);
@@ -206,7 +212,13 @@ export default function Debrief() {
               <p className="text-[15px] text-[#6b7280]" dir="auto">{N.leave}</p>
             </div>
           )}
-          {guideState === "failed" && (
+          {guideState === "failed" && v7 && (
+            <ErrorCard testId="guide-failed" title={E.noGuide} line={E.noGuideLine}>
+              <ErrorAction onClick={guideAgain}>{C.retry}</ErrorAction>
+              {hers && <ErrorAction quiet onClick={() => setStage(canRecord ? "recording" : "micBlocked")}>{E.recordWithoutGuide}</ErrorAction>}
+            </ErrorCard>
+          )}
+          {guideState === "failed" && !v7 && (
             <div data-testid="guide-failed" role="alert" className="flex items-center gap-3 rounded-2xl bg-[#fef3c7] p-4 text-[#b45309]">
               <span className="flex-1 text-[16px] font-semibold">{C.guideFailed}</span>
               <button type="button" onClick={guideAgain}
