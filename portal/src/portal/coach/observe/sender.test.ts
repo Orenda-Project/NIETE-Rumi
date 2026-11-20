@@ -13,7 +13,7 @@ vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() },
 import { deleteRecording } from "../../lib/recordingStore";
 import { SendError } from "../../lib/coachingSend";
 import { noticeTracker } from "../../teacher/notices/tracker";
-import { setDraft, getDraft, clearDraft } from "../observeDraft";
+import { setDraft, getDraft, clearDraft, setNotes, getNotes } from "../observeDraft";
 import { getJob, resetSender, retrySend, sendingPath, startSend, type SendArgs } from "./sender";
 
 const send = lib.sendObservation as ReturnType<typeof vi.fn>;
@@ -66,6 +66,22 @@ describe("startSend", () => {
       teacherExtId: "923001110001", schoolExtId: "niete:110", audio: { filename: "Observation 6 Oct 11.30.webm" },
       plan: { kind: "library", pick: { assetId: "a1" } }, photos: [photo],
     });
+  });
+
+  // bd-ra8xu.60 — her Observation Notes go to the pipeline with the files (none: no key), and let go once it is sent.
+  it("Observation Notes go to the pipeline only when there are some, and are let go once it is sent", async () => {
+    const notes = [{ text: "Board work", rec_time: "12:40", source: "portal_record" as const, typed_at: "2026-10-06T04:30:00.000Z" }];
+    setNotes("v1", notes);
+    const p = pending();
+    startSend(args({ notes }));
+    expect(send.mock.calls[0][0].notes).toEqual(notes);
+    p.done({ coachingSessionId: "cs-1" });
+    await settle();
+    expect(getNotes("v1")).toEqual([]);
+    resetSender();
+    pending();
+    startSend(args({ notes: [] }));
+    expect(send.mock.calls[1][0]).not.toHaveProperty("notes");
   });
 
   it("progress is real: the job and the strip carry the pipeline's percent", () => {

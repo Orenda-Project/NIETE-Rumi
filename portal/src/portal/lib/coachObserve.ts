@@ -10,7 +10,7 @@
  */
 
 import { leader, portal } from "../services/api";
-import type { CoachObservationView, ObserveLesson, ObserveStep } from "../services/api";
+import type { CoachObservationView, ObserveLesson, ObserveNote, ObserveStep } from "../services/api";
 import { sendLesson, SendError, type PlanChoice } from "./coachingSend";
 
 type EntryCopy = {
@@ -127,6 +127,8 @@ export function sendObservation(
     photos: File[];
     /** bd-ra8xu.40 — the class she named on Check and send; absent when it was not asked. */
     lesson?: ObserveLesson | null;
+    /** bd-ra8xu.60 — her Observation Notes (Record and Check and send); the start carries them only when there is one. */
+    notes?: ObserveNote[] | null;
     /** bd-tymy1n — what already arrived, by file (coachingSend's map): a second send sends only the rest. */
     uploaded?: WeakMap<Blob, string>;
   },
@@ -134,11 +136,13 @@ export function sendObservation(
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
-  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, uploaded } = args;
+  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, notes, uploaded } = args;
   return sendLesson({ audio, plan, photos, ...(uploaded ? { uploaded } : {}) }, {
     presignCoachingUpload: (a) => api.presignObserveUpload(a),
     uploadToR2: (url, blob, type, cb) => upload.uploadToR2(url, blob, type, cb),
-    startCoachingUpload: (start) => api.startObservation({ ...start, teacherExtId, schoolExtId: schoolExtId || null, ...(lesson ? { lesson } : {}) }),
+    startCoachingUpload: (start) => api.startObservation({
+      ...start, teacherExtId, schoolExtId: schoolExtId || null, ...(lesson ? { lesson } : {}), ...(notes && notes.length ? { notes } : {}),
+    }),
   }, onProgress);
 }
 

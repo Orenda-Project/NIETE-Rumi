@@ -1,0 +1,82 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "id": "NOTES",
+      "title": "Observation Notes · مشاہدے کے نوٹس",
+      "terminal": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "What did you see in the room?"
+        },
+        "who": {
+          "type": "string",
+          "__example__": "Ms Hina"
+        },
+        "who_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "help": {
+          "type": "string",
+          "__example__": "Write what the recording can't hear. They are read beside the recording."
+        },
+        "lbl": {
+          "type": "string",
+          "__example__": "Your notes"
+        },
+        "helper": {
+          "type": "string",
+          "__example__": "Any language, one note per line. Write before you open the form."
+        },
+        "save": {
+          "type": "string",
+          "__example__": "Save notes"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextCaption",
+            "text": "${data.who}",
+            "visible": "${data.who_v}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.help}"
+          },
+          {
+            "type": "Form",
+            "name": "notes_form",
+            "children": [
+              {
+                "type": "TextArea",
+                "name": "notes",
+                "label": "${data.lbl}",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "${data.helper}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.save}",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "notes": "${form.notes}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

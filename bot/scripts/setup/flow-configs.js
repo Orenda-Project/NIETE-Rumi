@@ -361,6 +361,16 @@ const FLOW_CONFIGS = [
     envVar: 'CHILD_TEST_REVIEW_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // bd-ra8xu.60 — Observation Notes on a v6 /observe visit: one static screen, every word navigate-mode screen data in
+    // the coach's language (observation-notes.js offerNotes); Save completes, and the reply arrives as an nfm_reply on
+    // the obsnotes:<session id> token (handleFlowReply). Sent only while app_settings.observation_notes is on.
+    name: 'Observe Notes',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/observe-notes.json'),
+    type: 'navigate',
+    envVar: 'OBSERVE_NOTES_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

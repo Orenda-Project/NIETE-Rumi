@@ -375,6 +375,8 @@ export const COACHING_COPY = {
   /** bd-i0u6n2 — a video in the recording slot (Digital Coaching is audio only). */
   notVideo: 'Video, not audio',
   tooLarge: 'Too large',
+  /** bd-bsc0ox — the phone would not read a file she picked (the Android app loses picked files). */
+  fileWontOpen: 'File will not open',
 
   /* ── /portal/coaching/new: record ─────────────────────────────────────── */
   recordTitle: 'Record live lecture',

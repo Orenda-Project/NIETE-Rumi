@@ -47,7 +47,12 @@ export type LessonsAt = {
   pick?: string;
   /** bd-snkn32.58.3 — `goal`: a goal plan, checked against her goal before it is shown (Preparing says so). */
   check?: string;
+  /** bd-m8zwt1.8 — her OWN plan: the address of her own answers (check screen), where Try again takes her. */
+  back?: string;
 };
+
+/** Only an address inside Make my own is kept as `back`: never another page or site. */
+const ownBack = (v: string | null) => (v && v.startsWith(`${LESSONS_OWN}?`) ? v : null);
 
 export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   const q = new URLSearchParams({ grade: String(at.grade), subject: at.subject });
@@ -58,6 +63,7 @@ export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   if (at.title) q.set('title', at.title);
   if (at.pick) q.set('pick', at.pick);
   if (at.check) q.set('check', at.check);
+  if (ownBack(at.back ?? null)) q.set('back', at.back as string);
   return `${LESSONS_HOME}/${view}?${q.toString()}`;
 }
 
@@ -72,6 +78,8 @@ export function readAt(search: string): LessonsAt | null {
     const v = q.get(k);
     if (v) at[k] = v;
   }
+  const back = ownBack(q.get('back'));
+  if (back) at.back = back;
   return at;
 }
 

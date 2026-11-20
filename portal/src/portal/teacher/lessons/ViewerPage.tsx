@@ -158,8 +158,12 @@ export function ViewerPage() {
     />
   );
 
-  const feedbackBar = feedbackOn && readyKey === key && source.lane === 'k5' && source.assetKind === 'lesson' && !leader && !inDc && !state?.own
-    ? <FeedbackBar plan={{ kind: 'k5', ref: source.lessonId }} />
+  // bd-m8zwt1.16 — grades 1-5 decide, not the lane: a GB grades 1-5 plan opens on the 6-12 lane (a render id).
+  const barPlan = source.lane === 'k5' ? { kind: 'k5' as const, ref: source.lessonId }
+    : source.lane === 'g612' && source.renderId && dc?.grade != null && dc.grade <= 5 ? { kind: 'g612' as const, ref: source.renderId }
+      : null;
+  const feedbackBar = feedbackOn && readyKey === key && barPlan && (source.lane !== 'k5' || source.assetKind === 'lesson') && !leader && !inDc && !state?.own
+    ? <FeedbackBar plan={barPlan} />
     : null;
 
   if (slim) {

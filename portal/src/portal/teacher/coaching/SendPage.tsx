@@ -18,6 +18,7 @@ import { ConfirmTray } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { COACHING } from './copy';
+import { notSentTitle } from './notSent';
 import { clearDraft, holdDraft, isSavedAudio, peekDraft, planKeyOf } from './draft';
 import { Action, Dock } from './parts';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
@@ -118,6 +119,12 @@ export function SendPage() {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const audioInput = useRef<HTMLInputElement>(null);
   const pickAudio = () => audioInput.current?.click();
+  // bd-bsc0ox: 'wont_open' — the phone would not read the recording she picked (useSendFlow reads it at the pick).
+  const fileLine = flow.fileProblem ? (
+    <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">
+      {flow.fileProblem === 'too_large' ? C.tooLarge : flow.fileProblem === 'video' ? C.notVideo : flow.fileProblem === 'wont_open' ? C.fileWontOpen : C.notAudio}
+    </p>
+  ) : null;
 
   const back = () => {
     // While recording, Back simply goes back: the lesson carries on, and the bar leads here again.
@@ -174,7 +181,7 @@ export function SendPage() {
             {/* bd-idkgm2 — ICT feedback row 18: what to do, in her language. */}
             <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{micLine}</p>
           </Status>
-          {flow.fileProblem ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{flow.fileProblem === 'too_large' ? C.tooLarge : flow.fileProblem === 'video' ? C.notVideo : C.notAudio}</p> : null}
+          {fileLine}
           <Dock>
             <Action icon={RotateCcw} onClick={() => { void retryMic(); }}>{C.tryAgain}</Action>
             <Action tone="outline" icon={Upload} onClick={pickAudio}>{C.uploadRecording}</Action>
@@ -222,7 +229,21 @@ export function SendPage() {
       ) : null}
 
       {stage === 'failed' && flow.failure ? (
-        flow.failure.kind === 'network' ? (
+        flow.failure.kind === 'network' && flow.failure.detail?.unreadable ? (
+          /* bd-bsc0ox (queue #200): the phone would not read a file it was given — about the file, never "No internet";
+             sending it again would not help. The recording: pick it again here. A plan or photo: back to the page. */
+          <>
+            <Status title={notSentTitle(flow.failure, C)} tone="error">
+              <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{C.fileWontOpen}</p>
+            </Status>
+            {fileLine}
+            <Dock>
+              {flow.failure.detail.part?.kind === 'audio'
+                ? <Action icon={Upload} onClick={pickAudio}>{C.changeFile}</Action>
+                : <Action to={COACHING_NEW} state={KEEP}>{C.title}</Action>}
+            </Dock>
+          </>
+        ) : flow.failure.kind === 'network' ? (
           <>
             <Status title={C.noInternet} tone="error">{audio?.recordingId ? <span className="text-[14px] text-[#2f7a52]">{C.savedOnPhone}</span> : null}</Status>
             <Dock><Action icon={RotateCcw} onClick={() => { void flow.send(null); }}>{C.tryAgain}</Action></Dock>

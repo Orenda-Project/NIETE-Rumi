@@ -4892,9 +4892,16 @@ const CLASS_FLOW_STRINGS = {
     en: 'Add students to {class}',
     ur: '{class} میں طلبہ شامل کریں',
   },
+  // bd-r2uzg1.18.11 — the grey line under the /class Flow's Add students box. A Flow
+  // TextArea has no placeholder, so this helper-text is where the worked example goes
+  // (served as `add_hint`; no Flow republish). Cap 80 code points, kept under 75.
+  // The example comes LAST, after a colon, with no full stop after it, so what she
+  // copies is exactly a line the parser reads as child + father; Urdu names in Urdu
+  // script with ولد, as a register writes them. tests/classes/add-students-example
+  // feeds each example through the real parser.
   classAddStudentsHint: {
-    en: 'One name per line. Father\'s name after a comma or "s/o" if you have it. Numbering is fine.',
-    ur: 'ہر سطر پر ایک نام۔ والد کا نام کوما یا "s/o" کے بعد لکھیں۔ نمبر لگانا ٹھیک ہے۔',
+    en: 'One name per line. With the father\'s name, write: Ali Raza s/o Imran Raza',
+    ur: 'ہر سطر پر ایک نام۔ والد کے نام کے ساتھ یوں لکھیں: علی رضا ولد عمران رضا',
   },
   classStudentsField: {
     en: 'Student names',

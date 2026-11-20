@@ -96,6 +96,9 @@ function withDefaults(deps = {}) {
     }),
     // Does the principal app's switch (portal_principal_app) name this principal? (the portal's rule)
     principalApp: () => require('./principal-app-switch').isOnPrincipalApp,
+    // bd-ra8xu.60 — Observation Notes: the coach's switch, and the notes store.
+    notesOn: () => require('./observation-notes-switch').isOn,
+    observationNotes: () => require('./observation-notes'),
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
@@ -324,7 +327,20 @@ async function startFdeVisit(d, { userId, session, ownerUserId, teacher, schoolE
  * Whether Check and send asks the lesson's class (and, for grades 6-12, its subject): the obs612 switch for this coach,
  * as WhatsApp's visit planner asks it after Start. The words are the portal's; this gives the keys.
  */
+/**
+ * What Check and send asks (the class, FDE's switch) and, bd-ra8xu.60, whether Record and Check and send show the
+ * Observation Notes box for her (`observationNotes: true`, the coach's observation_notes switch; absent when off, so
+ * the answer is byte-identical to before while the switch is off).
+ */
 async function lessonQuestion({ userId }, deps) {
+  const out = await classQuestion({ userId }, deps);
+  if (!out || out.status !== 'ok') return out;
+  let observationNotes = false;
+  try { observationNotes = !!(await withDefaults(deps).notesOn(userId)); } catch (_) { observationNotes = false; }
+  return observationNotes ? { ...out, observationNotes: true } : out;
+}
+
+async function classQuestion({ userId }, deps) {
   if (!userId) return { status: 'invalid', reason: 'no_user' };
   const d = withDefaults(deps);
   const coach = await loadCoach(d, userId);
@@ -359,7 +375,7 @@ async function lessonQuestion({ userId }, deps) {
  */
 async function startPortalObservation({
   userId, teacherExtId, schoolExtId = null, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [],
-  lesson: lessonArg = undefined,
+  lesson: lessonArg = undefined, notes = null,
 }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
   if (!userId) return { status: 'invalid', reason: 'no_user' };
@@ -430,6 +446,17 @@ async function startPortalObservation({
   // bd-ra8xu.40: the visit's rubric, decided ONCE here as observe-capture decides it on WhatsApp.
   const { v6Stamp, fdeLesson } = await decideStamp(d, coach, ownerUserId, lesson, schoolExtId);
 
+  // bd-ra8xu.60: the Observation Notes typed on Record (with the recording clock) and on Check and send go on the new
+  // row itself: only for a visit stamped v6, while her switch is on. Anything else is dropped (and logged).
+  let observationNotes = [];
+  const typed = Array.isArray(notes) ? notes : [];
+  if (typed.length) {
+    let on = false;
+    try { on = !!v6Stamp && !!(await d.notesOn(userId)); } catch (_) { on = false; }
+    if (on) observationNotes = d.observationNotes.initialNotes(d.observationNotes.fromClient(typed, { now: d.now() }), `portal:${key}`);
+    else d.log('📝 portal observe: Observation Notes dropped (not a v6 visit, or the switch is off)', { count: typed.length, v6: !!v6Stamp });
+  }
+
   const startedAt = d.now().toISOString();
   const planKey = lessonPlanKey || libraryPdfKey;
   // Field for field what lesson-plan-processor writes (handleLessonPlanUpload,
@@ -466,6 +493,7 @@ async function startPortalObservation({
         : {}),
       // FICO17 v6 (the coach switch): stamped on the row itself, before transcription is queued.
       ...(v6Stamp ? { framework: v6Stamp, framework_selection_reason: 'coach_rubric_switch' } : {}),
+      ...(observationNotes.length ? { analysis_data: { observation_notes: observationNotes } } : {}),
       created_at: startedAt,
     })
     .select()
@@ -693,6 +721,8 @@ async function getDraft({ userId, coachingSessionId }, deps) {
       sections: [...(b ? [b.section] : []), ...v6Sections(row.analysis_data || {}, lang)],
       saved: row.status === 'observer_review_complete',
       editable,
+      // bd-ra8xu.60: her Observation Notes, word for word, shown read-only at the top of each part.
+      notes: v6Notes(d, userId, coachingSessionId, row, editable),
     };
   }
   let scale = pack.scaleOptions || null;
@@ -712,6 +742,22 @@ async function getDraft({ userId, coachingSessionId }, deps) {
     saved: row.status === 'observer_review_complete',
     editable,
   };
+}
+
+/**
+ * bd-ra8xu.60 — a v6 review's Observation Notes as the form shows them ([{ text, recTime }]), and, the first time an
+ * editable review is opened while her switch is on, the review-opened stamp (beside the response, never awaited).
+ */
+function v6Notes(d, userId, coachingSessionId, row, editable) {
+  const N = d.observationNotes;
+  const list = N.notesOf(row.analysis_data || {}).filter((n) => n && n.text).map((n) => ({ text: n.text, recTime: n.rec_time || null }));
+  if (editable && !(row.analysis_data || {})[N.REVIEW_KEY]) {
+    Promise.resolve()
+      .then(() => d.notesOn(userId))
+      .then((on) => (on ? N.markReviewOpened(coachingSessionId) : null))
+      .catch(() => null);
+  }
+  return list;
 }
 
 /**
@@ -819,13 +865,15 @@ function v6Sections(analysis, lang = 'en') {
       kind: 'v6',
       indicators: sec.codes.map((code) => {
         const saved = (edits && edits[`r_${code}`]) || '';
+        // Per-indicator N/A (19 Nov): N/A is on the list where the table offers it; an old review's N/A elsewhere is kept so it shows.
         const keep = saved === 'NA' || saved === 'IE' ? saved : null;
         const options = O.optionsFor(code, { keep, lang }).map((o) => ({ id: o.id, title: o.title, description: o.description || '' }));
         const base = { id: code, field: code, name: v6.indicatorText(code, lang).name, options };
         if (v6.isCombined(code)) {
           return { ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '' };
         }
-        const rumi = O.rumiNumeric(analysis, code);
+        // Rumi's choice, ringed on the page: 1-4, or N/A on C2 (per-indicator N/A, 19 Nov) when Rumi heard no wrong answer.
+        const rumi = O.rumiChoice(analysis, code);
         return {
           ...base,
           kind: 'dc',

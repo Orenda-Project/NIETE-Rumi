@@ -1,5 +1,6 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
-import type { V6Indicator, V6Option } from "../../services/api";
+import type { DraftObservationNote, V6Indicator, V6Option } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { RatingScale, StatusChip } from "../../teacher/ui";
 import type { RatingOption } from "../../teacher/ui/RatingScale";
@@ -7,6 +8,7 @@ import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import { changedFromRumi, type V6Problem, type V6Problems, type V6Section } from "./v6Model";
+import { NotesList } from "../observe/ObservationNotes";
 
 /**
  * bd-ra8xu.40 — one part (C, D or F) of a FICO17 v6 visit on the Feedback Form: what the WhatsApp v6 review Flow shows on
@@ -14,6 +16,10 @@ import { changedFromRumi, type V6Problem, type V6Problems, type V6Section } from
  * words, as the Flow's radio list); the Digital Coach's level is ringed. Rumi's 11 keep his evidence and "to improve"
  * editable; the six are set from the room, with Rumi's evidence above (read only) and a reason; D2 takes its two counts;
  * the part asks "why you changed it" once one of Rumi's levels on it is changed. The rubric's words are DATA (the bot's).
+ *
+ * bd-ra8xu.60 (queue #127) — her Observation Notes (Record, Check and send), read only at the top of every v6 part under
+ * "📝 Your Observation Notes", one per line with the recording clock first, word for word: what the room showed that the
+ * recording could not hear, beside the levels she sets. None: nothing. They change no field and no rule.
  */
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 const NUMBER = "h-14 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-[18px] font-semibold tabular-nums text-[#1d2025]";
@@ -31,7 +37,8 @@ function Problem({ text }: { text: string | null }) {
 /** A level's face on the kit's scale: its number, or N/A / Couldn't tell; the rubric's title and words beside it. */
 export function v6RatingOptions(options: readonly V6Option[], C: ReportsCopy): RatingOption[] {
   return options.map((o) => {
-    if (o.id === "NA") return { id: o.id, text: C.na, label: o.title.replace(/^N\/A\s*·\s*/, ""), description: o.description || undefined };
+    // The bot's N/A title is "N/A · <its words>" (Urdu "لاگو نہیں · …", 19 Nov): the scale shows C.na, the words beside it.
+    if (o.id === "NA") return { id: o.id, text: C.na, label: o.title.replace(/^(N\/A|لاگو نہیں)\s*·\s*/, ""), description: o.description || undefined };
     if (o.id === "IE") return { id: o.id, text: C.couldntTell, description: o.description || undefined };
     return { id: o.id, label: o.title, description: o.description || undefined };
   });
@@ -58,9 +65,22 @@ function TextField({ id, label, value, onChange, readOnly, problem }: {
   );
 }
 
-export function V6Part({ section, values, start, set, readOnly, problems, minReason }: {
+/** bd-ra8xu.60 — the notes block at the top of a v6 part; nothing when there are none. */
+function V6Notes({ notes }: { notes: readonly DraftObservationNote[] }) {
+  const C = useCopy(REPORTS);
+  const heading = useId();
+  if (!notes.length) return null;
+  return (
+    <section aria-labelledby={heading} data-testid="v6-notes" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
+      <h3 id={heading} className="m-0 text-[15px] font-semibold text-[#4b5563]">{C.notesHeading}</h3>
+      <NotesList notes={notes} />
+    </section>
+  );
+}
+
+export function V6Part({ section, values, start, set, readOnly, problems, minReason, notes = [] }: {
   section: V6Section; values: Values; start: Values; set: (k: string) => (v: string) => void;
-  readOnly: boolean; problems: V6Problems; minReason: number;
+  readOnly: boolean; problems: V6Problems; minReason: number; notes?: readonly DraftObservationNote[];
 }) {
   const C = useCopy(REPORTS);
   const why = (k: string) => problemText(C, problems[k], minReason);
@@ -85,6 +105,7 @@ export function V6Part({ section, values, start, set, readOnly, problems, minRea
 
   return (
     <>
+      <V6Notes notes={notes} />
       {section.indicators.map((ind) => (
         <section key={ind.id} data-testid="indicator" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
           <div className="flex flex-wrap items-center gap-2.5">

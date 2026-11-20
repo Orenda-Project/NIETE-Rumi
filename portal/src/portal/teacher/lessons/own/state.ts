@@ -29,6 +29,9 @@ export const GOAL_KINDS = ['outcome', 'topic'] as const;
 export type GoalKind = (typeof GOAL_KINDS)[number];
 export type GoalPick = { kind: GoalKind | null; text: string };
 export const GOAL_TEXT_MAX = 120;
+/** bd-m8zwt1.3 — a picked official outcome (up to 371 characters) is never cut; only a typed topic is held to 120. */
+export const OUTCOME_TEXT_MAX = 400;
+const goalMax = (kind: GoalKind | null) => (kind === 'outcome' ? OUTCOME_TEXT_MAX : GOAL_TEXT_MAX);
 
 export type OwnAt = {
   grade: number;
@@ -73,7 +76,7 @@ export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; cha
   if (s.goal) {
     q.set('start', 'goal');
     if (s.goal.kind) q.set('gk', s.goal.kind);
-    if (s.goal.text) q.set('gt', s.goal.text.slice(0, GOAL_TEXT_MAX));
+    if (s.goal.text) q.set('gt', s.goal.text.slice(0, goalMax(s.goal.kind)));
   }
   return `${LESSONS_OWN}?${q.toString()}`;
 }
@@ -96,7 +99,7 @@ export function readOwn(search: string): OwnAt | null {
   const focus = grade >= 9 && purpose !== 'board' ? pick(FOCI, q.get('focus')) : null;
   // bd-snkn32.57 — every grade (1–5 since 19 Nov: "we are an FLN company first").
   const goal: GoalPick | null = q.get('start') === 'goal'
-    ? { kind: pick(GOAL_KINDS, q.get('gk')), text: (q.get('gt') ?? '').trim().slice(0, GOAL_TEXT_MAX) } : null;
+    ? ((kind) => ({ kind, text: (q.get('gt') ?? '').trim().slice(0, goalMax(kind)) }))(pick(GOAL_KINDS, q.get('gk'))) : null;
   const ext = isSecondary(grade) && !goal ? pick(EXTENDS, q.get('ext')) : null;
   return {
     grade, subject, chapter,

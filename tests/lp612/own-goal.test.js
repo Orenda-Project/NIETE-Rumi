@@ -72,3 +72,18 @@ describe('goalLines', () => {
     expect(goalLines({ kind: 'outcome', text: 'Compare plant and animal cells' }).join('\n')).toMatch(/only facts the pages support/i);
   });
 });
+
+// bd-m8zwt1.3 (queue #164): official goals run to 371 characters; a picked one must never be cut (it is printed at the
+// top of her plan and checked against). A typed topic keeps its 120-character cap.
+describe('bd-m8zwt1.3 goal length', () => {
+  const { parseGoal } = require('../../bot/shared/services/lp612-own-goal');
+  test('a picked outcome keeps its full text up to 400 characters', () => {
+    const long = `Students will be able to ${'arrange numbers in ascending and descending order '.repeat(6)}`.trim();
+    expect(long.length).toBeGreaterThan(300);
+    expect(parseGoal({ kind: 'outcome', text: long }).goal.text).toBe(long);
+    expect(parseGoal({ kind: 'outcome', text: 'x'.repeat(900) }).goal.text).toHaveLength(400);
+  });
+  test('a typed topic is still cut at 120', () => {
+    expect(parseGoal({ kind: 'topic', text: 'y'.repeat(300) }).goal.text).toHaveLength(120);
+  });
+});

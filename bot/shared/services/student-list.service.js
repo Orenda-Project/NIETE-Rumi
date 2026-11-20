@@ -12,8 +12,9 @@ class StudentListService {
   /**
    * Parse raw student text into structured data
    * Handles multiple formats:
-   * - "Name, Father Name" (comma separated)
-   * - "Name s/o Father Name" or "Name d/o Father Name"
+   * - "Name, Father Name" (comma separated; the Urdu comma "،" too)
+   * - "Name s/o Father Name" or "Name d/o Father Name" (Urdu: "ولد" / "بنت"),
+   *   also with a comma before it: "Name, s/o Father Name"
    * - "Name" (no father name)
    * - Numbered lists: "1. Name, Father"
    * - Bullet lists: "- Name, Father"
@@ -54,17 +55,21 @@ class StudentListService {
       let studentName = null;
       let fatherName = null;
 
-      // Try s/o or d/o format first
-      const soDoMatch = cleaned.match(/^(.+?)\s+[sd]\/o\s+(.+)$/i);
+      // Try s/o or d/o format first — and the Urdu ولد / بنت a register writes for the
+      // same thing, which is what the Add students hint's Urdu example shows
+      // (bd-r2uzg1.18.11).
+      const soDoMatch = cleaned.match(/^(.+?)\s+(?:[sd]\/o|ولد|بنت)\s+(.+)$/i);
+      // A comma: the English one, or the Urdu keyboard's ، (U+060C).
+      const comma = cleaned.search(/[,،]/);
       if (soDoMatch) {
-        studentName = soDoMatch[1].trim();
+        // "Ali Raza, s/o Imran Raza" — a comma AND s/o — must not leave the comma on the child.
+        studentName = soDoMatch[1].replace(/[\s,،]+$/, '').trim();
         fatherName = soDoMatch[2].trim();
       }
-      // Try comma separated format
-      else if (cleaned.includes(',')) {
-        const parts = cleaned.split(',');
-        studentName = parts[0].trim();
-        fatherName = parts.slice(1).join(',').trim() || null;
+      // Try comma separated format: the child before the first comma, the father after it
+      else if (comma >= 0) {
+        studentName = cleaned.slice(0, comma).trim();
+        fatherName = cleaned.slice(comma + 1).trim() || null;
       }
       // Just student name
       else {

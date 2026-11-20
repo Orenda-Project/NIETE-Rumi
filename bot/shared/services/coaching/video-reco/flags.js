@@ -74,7 +74,15 @@ function videoRecoAligned(env = process.env) {
   return on(env.VIDEO_RECO_ALIGNED);
 }
 
+/**
+ * R9d later visits (COS 20261119T215752): aligned picks for a teacher who has been shown a clip before (rank ≥ 2). Only an
+ * explicit off (false/0/off) stops them, so unset = today's behaviour (on). Off = silence after a teacher's first clip.
+ */
+function videoRecoLaterVisits(env = process.env) {
+  return !['false', '0', 'off'].includes(String(env.VIDEO_RECO_LATER_VISITS || '').trim().toLowerCase());
+}
+
 module.exports = {
-  videoRecoAligned, videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage,
+  videoRecoAligned, videoRecoLaterVisits, videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage,
   videoRecoClipTemplate,
 };

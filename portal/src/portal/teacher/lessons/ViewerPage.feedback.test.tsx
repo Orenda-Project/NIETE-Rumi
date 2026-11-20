@@ -85,3 +85,22 @@ describe("the survey bar on the plan page", () => {
     expect(asked()).toHaveLength(0);
   });
 });
+
+// bd-m8zwt1.16 (queue #164): a GB grades 1-5 plan opens on the 6-12 lane (a render id), so the bar never showed for GB
+// grades 1-5 teachers. Grades 1-5 decide, not the lane; a grades 6-12 plan still gets no bar in this release.
+describe("the survey bar on a grades 1-5 plan that opens on the 6-12 lane (GB)", () => {
+  const GB = { source: { lane: "g612", renderId: "rnd-gb-3", assetKind: "lesson" }, title: "Fractions" };
+  const dc = (grade: number) => ({ grade, subjectKey: "math", plan: "g612:seg", lang: "ur" });
+  it("grade 3: the bar, asked for this render", async () => {
+    open({ lessonPlan: GB, dc: dc(3) });
+    await screen.findByTestId("lp-feedback");
+    expect(asked()[0][1]).toEqual(expect.objectContaining({ params: { kind: "g612", ref: "rnd-gb-3" } }));
+  });
+  it("grade 7: no bar, nothing asked", async () => {
+    open({ lessonPlan: GB, dc: dc(7) });
+    await settle();
+    expect(screen.queryByTestId("lp-feedback")).toBeNull();
+    expect(asked()).toHaveLength(0);
+  });
+});
+

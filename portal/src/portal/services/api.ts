@@ -826,8 +826,20 @@ export type CoachObservationView = {
 
 /** bd-ra8xu.40 — the class of the observed lesson, named on Check and send: grades 1-5, or a grade 6-12 class and its subject. */
 export type ObserveLesson = { primary: true } | { grade: number; subject?: string };
-/** bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer. */
-export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[]; subjectGrades?: number[] };
+/**
+ * bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer.
+ * bd-ra8xu.60 — `observationNotes: true`: her observation_notes switch is on, so Record and Check and send take Observation
+ * Notes. Absent means off (the answer is byte-identical to before while it is off).
+ */
+export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[]; subjectGrades?: number[]; observationNotes?: boolean };
+/**
+ * bd-ra8xu.60 — one Observation Note as POST /leader/observe/start takes it: what she saw that the recording cannot hear.
+ * `rec_time` is the recording clock ('MM:SS') when typed on Record; absent for one added on Check and send. Text at most
+ * 600 characters, at most 40 notes (the dashboard and the bot cap them again).
+ */
+export type ObserveNote = { text: string; rec_time?: string; source: 'portal_record' | 'portal_check'; typed_at: string };
+/** bd-ra8xu.60 — a note as a FICO17 v6 draft returns it (GET /leader/observe/:id/draft `notes`), to show read only. */
+export type DraftObservationNote = { text: string; recTime: string | null };
 
 export type DraftOption = { id: string; title: string };
 export type DraftIndicator = {
@@ -860,6 +872,8 @@ export type RubricLabel = { id: string; label: string };
 export type ObservationDraft = {
   scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean;
   kind?: 'fico17_v6'; rubric?: RubricLabel | null; minReason?: number;
+  /** bd-ra8xu.60 — a v6 visit's Observation Notes, word for word ([] when none; absent from an older bot). */
+  notes?: DraftObservationNote[];
 };
 
 /**
@@ -1237,6 +1251,8 @@ export const leader = {
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' } | { ownId: string };
     /** bd-ra8xu.40 — the class she named (asked only while FDE's tools are on for her). */
     lesson?: ObserveLesson;
+    /** bd-ra8xu.60 — her Observation Notes; sent only when there is at least one (no key otherwise). */
+    notes?: ObserveNote[];
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/leader/observe/start', args);
     return response.data;
