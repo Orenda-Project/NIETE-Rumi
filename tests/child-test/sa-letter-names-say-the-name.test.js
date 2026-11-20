@@ -31,6 +31,12 @@ const RETIRED = {
   w: '717a7be1f2111c8819c4fea6ed59ed0e55145325', y: '859bd11e85d4c2cb51a8bd7085e5d7160adba141',
   z: 'fea53e72cf370309e34c9080fcc8e5688a314ba0',
 };
+// First new takes of L, X and z: the voice's raw output began mid-sound (no silence before the voice), so a phone that
+// wakes its speaker late drops the start of the name. Each is re-taken with a clean lead-in.
+const STARTS_MID_SOUND = {
+  L: '6983fa42b2bb2cffa699e82a8512a25c76d00eaa', X: 'b0acae5aa6fd7fa7b752c011ca6a2032c1e65ad2',
+  z: '98281055b6e457b6f85adf17d344279b922a2cc9',
+};
 // The lowercase keys that now serve their capital's take, and B, which serves the lowercase b's take.
 const SAME_AS = { a: 'A', d: 'D', e: 'E', f: 'F', g: 'G', h: 'H', i: 'I', m: 'M', n: 'N', o: 'O', r: 'R', s: 'S', t: 'T', u: 'U', B: 'b' };
 
@@ -48,6 +54,10 @@ describe('the English letter-names prompts say the letter\'s name', () => {
 
   it('no key serves a retired take', () => {
     for (const [L, old] of Object.entries(RETIRED)) expect([L, sha1(keyOf(L))]).not.toEqual([L, old]);
+  });
+
+  it('no key serves a take that starts mid-sound', () => {
+    for (const [L, cut] of Object.entries(STARTS_MID_SOUND)) expect([L, sha1(keyOf(L))]).not.toEqual([L, cut]);
   });
 
   it('a lowercase key serves its capital\'s take (and B the lowercase b\'s)', () => {
