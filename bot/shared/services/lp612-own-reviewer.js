@@ -45,7 +45,8 @@ function createOwnReviewer(deps) {
   async function review(ownId, correlationId = null) {
     try {
       const row = await d.selectRow(ownId);
-      if (!row || row.status !== 'ready') return null;
+      // bd-snkn32.59.4 — a goal-unit day (no segment, no book day) has no lesson shelf to join: not reviewed.
+      if (!row || row.status !== 'ready' || (!row.segment_id && !row.lesson_id)) return null;
       const key = planKeyFor(row);
       if (!key) return null;
       const plan = await d.readPlan(key);
