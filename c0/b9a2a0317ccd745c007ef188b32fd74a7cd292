@@ -1,0 +1,2 @@
+{"ts":"2026-11-20T12:29:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment spec_sync=true","sha":"c0b9a2a0317c","branch":"bd-e5n2jf-65164","user":""}
+{"ts":"2026-11-20T12:29:59Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment spec_sync=true","sha":"c0b9a2a0317c","branch":"bd-e5n2jf-65164","user":""}
