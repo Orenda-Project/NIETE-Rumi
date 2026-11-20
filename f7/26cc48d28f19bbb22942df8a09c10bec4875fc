@@ -3,3 +3,5 @@
 {"ts":"2026-11-18T00:52:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"f726cc48d28f","branch":"bd-xkkw9.2-sandbox","user":""}
 {"ts":"2026-11-19T01:10:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"f726cc48d28f","branch":"bd-xkkw9.2-sandbox","user":""}
 {"ts":"2026-11-19T01:10:29Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.1.1","sha":"f726cc48d28f","branch":"bd-xkkw9.2-sandbox","user":""}
+{"ts":"2026-11-20T01:47:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"f726cc48d28f","branch":"bd-xkkw9.2-sandbox","user":""}
+{"ts":"2026-11-20T01:47:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"f726cc48d28f","branch":"bd-xkkw9.2-sandbox","user":""}
