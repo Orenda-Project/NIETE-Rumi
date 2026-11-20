@@ -287,7 +287,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -504,7 +504,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -721,7 +721,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1003,7 +1003,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1220,7 +1220,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1437,7 +1437,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1654,7 +1654,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -1871,7 +1871,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2153,7 +2153,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2370,7 +2370,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2592,7 +2592,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -2809,7 +2809,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3026,7 +3026,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3243,7 +3243,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3460,7 +3460,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3677,7 +3677,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -3959,7 +3959,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -4176,7 +4176,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -4393,7 +4393,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -4610,7 +4610,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -4892,7 +4892,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -5109,7 +5109,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
@@ -5326,7 +5326,7 @@
         },
         "help_chg": {
           "type": "string",
-          "__example__": "Only if you changed Rumi's level (20+ characters)."
+          "__example__": "Only if you changed the level from the recording (20+ characters)."
         },
         "look_for": {
           "type": "string",
