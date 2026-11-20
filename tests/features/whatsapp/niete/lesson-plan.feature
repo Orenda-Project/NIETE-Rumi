@@ -201,7 +201,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # into the repo as data (bot/vendor/lp-v9/g5c_cleared_names.json). A name the review did not
     # decide is still withheld, which is the scenario below.
 
-  @e2e @content-driven @P1
+  @e2e @L25 @no-mock-driver @content-driven @P1
   Scenario: A history plan naming Zahiruddin Muhammad Babur is delivered in Urdu, not swapped for English
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -1262,7 +1262,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.30 (G3 English tester: "cannot be covered in one class … large number of students").
     # Unit: tests/lp612/own-period.test.js, tests/lp612/own-fits-one-period.test.js.
 
-  @e2e @config-gated @P1
+  @e2e @L26 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 6-12 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 6-12 lesson
     When I make my own plan for my class
@@ -1273,7 +1273,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.48 (shelf reviewer 5D: success criteria + self-prediction). Unit: tests/lp612/own-close.test.js,
     # tests/lp612/own-worker-close.test.js.
 
-  @e2e @slow @P1
+  @e2e @L27 @no-mock-driver @slow @P1
   Scenario: A ready-made Grades 6-12 plan ends with the same "Before they write" step
     Given a Grades 6-12 lesson that has not been made yet for this version
     When I ask for its ready-made plan and it arrives
@@ -1283,7 +1283,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the plan stays within its page limit whenever it fitted without the step
     # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
 
-  @e2e @config-gated @P1
+  @e2e @L28 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 1-5 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 1-5 day
     When I make my own plan for my class
@@ -1294,7 +1294,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.52, queue #134 B (shelf reviewer 5D: 146 of 276 grades 1-5 own plans scored 1-2). Unit:
     # tests/lp612/own-k5-close.test.js.
 
-  @e2e @config-gated @P2
+  @e2e @L29 @no-mock-driver @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson
     When I make my own plan for my class
