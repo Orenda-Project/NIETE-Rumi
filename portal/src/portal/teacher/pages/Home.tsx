@@ -23,6 +23,8 @@ import { StatusChip } from "../ui";
 import { PEOPLE } from "../../coach/people/copy";
 import { usePrincipalApp } from "../principal/usePrincipalApp";
 import { SchoolHomeCard } from "../principal/SchoolHomeCard";
+import { PrincipalHomeV6 } from "../principal/HomeV6";
+import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -72,6 +74,10 @@ export default function Home() {
   // and her school's card. Everyone else: nothing passed, so the look draws exactly what it drew.
   const principalApp = usePrincipalApp(user);
   const P = useCopy(PEOPLE);
+  // bd-o15qnr.28 (queue #204) — a principal on the principal app whom the v6/v7 switch names: her Home in the coach
+  // flow's look (principal/HomeV6.tsx, #188's board p9-home). Everyone else: the trees below, unchanged.
+  const flowV6 = useFlowV6();
+  if (principalApp && flowV6 === true) return <PrincipalHomeV6 />;
   // The new look (portal_teacher_home_look, only ever on with the card's switch): its own tree; the two below are untouched.
   if (sw.card && sw.look) {
     return (
