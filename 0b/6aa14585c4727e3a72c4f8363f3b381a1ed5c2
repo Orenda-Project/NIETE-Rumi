@@ -1,0 +1,3 @@
+{"ts":"2026-11-20T16:43:25Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"0b6aa14585c4","branch":"bd-zrdvmi.36-39764","user":""}
+{"ts":"2026-11-20T16:43:27Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons,portal-smoke spec_sync=true","sha":"0b6aa14585c4","branch":"bd-zrdvmi.36-39764","user":""}
+{"ts":"2026-11-20T16:43:36Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"0b6aa14585c4","branch":"bd-zrdvmi.36-39764","user":""}
