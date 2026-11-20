@@ -1,4 +1,4 @@
--- V1.10.6 — "Make my own → A whole unit": niete_lp_own_units (bd-snkn32.59, queue #165).
+-- V1.10.8 — "Make my own → A whole unit": niete_lp_own_units (bd-snkn32.59, queue #165).
 -- Versioned migration. Applied per environment, in order, from infrastructure/supabase/migrations.
 --
 -- WHY. A teacher plans several days together: a chapter range of her book (or, later, 2-8 official goals), her
@@ -14,7 +14,7 @@
 -- OWNER (D7): NIETE-Rumi platform (bd-snkn32.59).
 -- DATA. New empty table. LOAD. One row per saved unit, one update per outline change; reads by (user_id) index.
 -- SECURITY. Service role only (RLS on, no policies), like niete_lp612_own_plans. Soft delete: deleted_at (D9).
--- IDEMPOTENT. IF NOT EXISTS throughout. Rollback: ROLLBACK_V1.10.6__lp_own_units.sql
+-- IDEMPOTENT. IF NOT EXISTS throughout. Rollback: ROLLBACK_V1.10.8__lp_own_units.sql
 -- One RPC call from the migration runner = one transaction; no BEGIN/COMMIT.
 
 CREATE TABLE IF NOT EXISTS niete_lp_own_units (

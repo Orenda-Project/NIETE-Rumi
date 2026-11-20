@@ -5451,7 +5451,7 @@ CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
 CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
   ON niete_gb_lp_renders (status, started_at) WHERE status = 'authoring';
 
--- V1.10.6 (bd-snkn32.59): Make my own, a whole unit: her day-by-day outline; no plan bodies (day plans are
+-- V1.10.8 (bd-snkn32.59): Make my own, a whole unit: her day-by-day outline; no plan bodies (day plans are
 -- niete_lp612_own_plans rows with answers.unit). Asked first per docs/lesson-plan-data-model-debt.md.
 CREATE TABLE IF NOT EXISTS niete_lp_own_units (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),

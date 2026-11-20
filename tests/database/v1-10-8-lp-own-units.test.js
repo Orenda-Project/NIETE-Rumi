@@ -1,6 +1,6 @@
 'use strict';
 /**
- * V1.10.6 — "Make my own → A whole unit" (bd-snkn32.59, queue #165). SQL-text contract test (no database).
+ * V1.10.8 — "Make my own → A whole unit" (bd-snkn32.59, queue #165). SQL-text contract test (no database).
  * One small table holds her unit's outline; the day plans stay rows of niete_lp612_own_plans (answers.unit).
  */
 const fs = require('fs');
@@ -8,8 +8,8 @@ const path = require('path');
 
 const DIR = path.join(__dirname, '../../infrastructure/supabase/migrations');
 const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8').replace(/--[^\n]*/g, '').replace(/\s+/g, ' ').toLowerCase();
-const UP = read('V1.10.6__lp_own_units.sql');
-const DOWN = read('ROLLBACK_V1.10.6__lp_own_units.sql');
+const UP = read('V1.10.8__lp_own_units.sql');
+const DOWN = read('ROLLBACK_V1.10.8__lp_own_units.sql');
 const MIRROR = fs.readFileSync(path.join(__dirname, '../../infrastructure/supabase/00_complete-schema.sql'), 'utf8').toLowerCase().replace(/\s+/g, ' ');
 
 test('creates one table, keyed to her and her book, no plan bodies in it', () => {
