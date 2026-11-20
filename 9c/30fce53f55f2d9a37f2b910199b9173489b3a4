@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T10:26:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
 {"ts":"2026-11-20T10:46:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (cherry-pick to main; its scenarios came with it from staging, where they were synced and driven)","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
 {"ts":"2026-11-20T10:46:53Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-9c30fce53f55","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
+{"ts":"2026-11-20T11:25:04Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9c30fce53f55","branch":"bd-73bg47-69524","user":""}
