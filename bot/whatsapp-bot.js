@@ -721,6 +721,18 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       await require('./shared/services/howto-first-touch.service').maybeSendHowtoFirstTouch({ user, from, correlationId });
     }
 
+    // The data analyst on WhatsApp (services/data-analyst/entry.js): someone the data_analyst_whatsapp switch
+    // names sends "data" and asks ICT data questions until "menu" or 30 min idle, answered from the data team's
+    // governed MCP. Off unless DATA_MCP_URL (and its address and model key) are set; everyone else, and every
+    // message outside data mode, falls through to the text handler unchanged. A failure here never stops it.
+    if (user && messageType === 'text' && messageBody) {
+      try {
+        if (await require('./shared/services/data-analyst/entry').maybeHandleDataAnalyst({ user, from, messageBody, correlationId })) return;
+      } catch (err) {
+        logError('data analyst door failed (non-fatal)', { error: err.message });
+      }
+    }
+
     // Route to appropriate handler based on message type
     if (messageType === 'text' && messageBody) {
       await handleTextMessage(message, from, messageBody, user);
