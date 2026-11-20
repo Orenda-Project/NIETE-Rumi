@@ -4,6 +4,7 @@
  * calls, with the coach's own session cookie (same origin). The engine never sees a coach credential.
  *
  * A signed-out coach (401/403) or a switched-off route (404) is a failure the sync retries later: nothing is lost.
+ * A refused call's error carries the answer's reason (.reason), when it has one.
  * Every batch carries the phone's device fields (mic_ok, mic_rms, persisted, voice) from the mic check and
  * SAE.prepare's localStorage keys, its viewport (vw / vh in whole CSS px, dpr to 2 decimals), its user agent (ua) and the
  * engine the service worker served the page (bundle_v: its sa-core-* cache, sw.js CORE); a presign's {skip, reason} comes
@@ -94,8 +95,13 @@
         headers: hdr({ 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify(body),
       })).then(function (res) {
-        if (!res.ok) { var e = new Error('coach sink ' + path + ' ' + res.status); e.status = res.status; throw e; }
-        return res.json();
+        if (res.ok) return res.json();
+        var e = new Error('coach sink ' + path + ' ' + res.status);
+        e.status = res.status;
+        // a refusal's reason (e.g. already_scored) rides on the error, for the sync to tell it apart
+        return Promise.resolve(typeof res.json === 'function' ? res.json() : null).then(function (b) {
+          if (b && typeof b.reason === 'string') e.reason = b.reason;
+        }, function () {}).then(function () { throw e; });
       });
     }
 
