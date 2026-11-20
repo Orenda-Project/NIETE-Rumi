@@ -49,6 +49,11 @@ export default function ObservePage({
   bare?: boolean;
   /** The "reports waiting" line under the header (off while recording). */
   banner?: boolean;
+  /**
+   * bd-o15qnr.27 (v6) — the way back to WhatsApp (#166) is off on the v6 Observe screen. Production has no WhatsApp strip on
+   * the Observe screens (#166 is not on main), so here the prop is accepted and changes nothing.
+   */
+  whatsapp?: boolean;
   children: ReactNode;
 }) {
   const { user, loading } = useAuth();

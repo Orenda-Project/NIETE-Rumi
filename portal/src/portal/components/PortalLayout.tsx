@@ -118,7 +118,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
           <NoticeHost userKey={user.phoneNumber} bare={bare} aboveBar={showBar} local={!teacherV2} />
         )}
       </main>
-      {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}
+      {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} v2Menu={v2Frame} />}
     </div>
     </AuthContext.Provider>
   );

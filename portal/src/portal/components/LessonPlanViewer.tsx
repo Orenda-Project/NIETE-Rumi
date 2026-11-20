@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { AlertTriangle, ChevronLeft, ExternalLink, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { loadPdfjs } from '../lib/pdfjs';
+import { onlineNow, reportViewerFailure, viewerReasonOf, type LpViewerFailure } from '../lib/lpViewerReport';
 import { RecordingContinuesChip } from './RecordingBar';
 import { useStepJump, useStepMark } from './stepMark';
 import { PAGE_STYLE, PdfPage, type PdfDocLike } from './LessonPlanPage';
@@ -134,9 +135,15 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
   }, [key, toast]);
 
   const failed = useRef(false);
-  const fail = useCallback(() => {
+  // bd-zrdvmi.21 — what the report says about this plan's file: its size, page count and page 1's shape, as known.
+  const fileFacts = useRef({ t0: 0, sizeBytes: 0, pages: 0, pageWidth: 0, pageHeight: 0 });
+  const fail = useCallback((stage?: LpViewerFailure['stage'], err?: unknown) => {
     if (failed.current) return;
     failed.current = true;
+    if (stage) {
+      const { t0, ...facts } = fileFacts.current;
+      reportViewerFailure({ stage, lane: source.lane, ...viewerReasonOf(err), ...facts, elapsedMs: Date.now() - t0, online: onlineNow() });
+    }
     setState('failed');
     // Today's way, by itself, so nobody is left looking at a blank screen —
     // unless a lesson is recording (another app in front would silence it).
@@ -154,21 +161,27 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
     setProgress(null);
     setDoc(null);
     setRatios({});
+    let stage: LpViewerFailure['stage'] = 'download';
+    fileFacts.current = { t0: Date.now(), sizeBytes: 0, pages: 0, pageWidth: 0, pageHeight: 0 };
     (async () => {
       const bytes = await fetchLessonPlanPdf(source, (p) => { if (!cancelled) setProgress(p); });
       if (cancelled) return;
+      fileFacts.current.sizeBytes = bytes.byteLength;
+      stage = 'reader';
       const pdfjs = await loadPdfjs();
       if (cancelled) return;
+      stage = 'read';
       const task = pdfjs.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false });
       loaded = (await task.promise) as unknown as PdfDocLike;
       if (cancelled) { void loaded.destroy(); return; }
+      fileFacts.current.pages = loaded.numPages;
       setDoc(loaded);
       setState('ready');
       readyRef.current?.();
     })().catch((err) => {
       if (cancelled) return;
       if (err instanceof LessonPlanNotReady) { notReadyRef.current(); return; }
-      fail();
+      fail(stage, err);
     });
     return () => {
       cancelled = true;
@@ -198,7 +211,16 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
     setRatios((r) => (r[page] === ratio ? r : { ...r, [page]: ratio }));
   }, []);
   // A first page that cannot be drawn means nothing will be: fall back.
-  const onFailed = useCallback((page: number) => { if (page === 1) fail(); }, [fail]);
+  const onFailed = useCallback((page: number, err?: unknown) => {
+    if (page !== 1) return;
+    // Page 1's shape, for the report: a very tall single page is far more work to draw on a low-end phone.
+    const shaped = doc ? doc.getPage(1).then((p) => {
+      const v = p.getViewport({ scale: 1 });
+      fileFacts.current.pageWidth = Math.round(v.width);
+      fileFacts.current.pageHeight = Math.round(v.height);
+    }).catch(() => {}) : Promise.resolve();
+    void shaped.then(() => fail('draw', err));
+  }, [fail, doc]);
 
   const fitWidth = boxWidth > 0 ? boxWidth : 360;
   const pageWidth = Math.round(fitWidth * ZOOMS[zoom]);

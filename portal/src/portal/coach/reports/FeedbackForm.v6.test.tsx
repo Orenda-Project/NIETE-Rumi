@@ -62,6 +62,7 @@ const toPartC = async () => { await screen.findByText("No lesson plan was provid
 const level = (indName: string, optTitle: RegExp) => fireEvent.click(within(screen.getByRole("radiogroup", { name: indName })).getByRole("radio", { name: optTitle }));
 
 beforeEach(() => {
+  localStorage.clear(); // bd-tfya0m: the form keeps her answers on the phone; each test starts with none
   vi.clearAllMocks();
   L.getObservation.mockResolvedValue(VIEW);
   L.getObservationDraft.mockResolvedValue(DRAFT());

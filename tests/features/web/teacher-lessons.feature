@@ -258,3 +258,13 @@ Feature: Teacher lesson plans
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
     When she opens the plan and reaches its end
     Then no survey bar is drawn
+
+  # bd-zrdvmi.21 (18 Nov) — ICT Feedback sheet, GB tab row 3 (14 Nov, portal). Failure record only; Send on WhatsApp (GBS01) is not on main.
+  @GBS02 @draft @negative
+  Scenario: When the reader cannot show a plan, it says which step failed in the logs
+    Given the teacher app v2 is on
+    And demo teacher 03000000911 is signed in
+    And the plan's file request fails or the plan cannot be drawn on her phone
+    When she opens a plan
+    Then the viewer shows "Can't show it here" with Open in another app
+    And the portal logs one lp_viewer.failed with the step, the lane and the file's size, and no plan name

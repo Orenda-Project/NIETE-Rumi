@@ -13,6 +13,12 @@ export const PAGE_STYLE = 'mx-auto shrink-0 bg-white shadow-sm';
 
 /** ~16 MB of pixels per page canvas at most, however far she zooms. */
 const MAX_CANVAS_PIXELS = 4_000_000;
+/**
+ * bd-zrdvmi.29 — a page that fails to draw gets one more try on a lighter canvas: one canvas pixel per screen pixel
+ * (no sharpening for the phone's screen), and at most this many. GB plans are one very tall page drawn on one big
+ * canvas, and in WhatsApp's browser they were handed to another app ~3x as often as ICT plans.
+ */
+export const RETRY_CANVAS_PIXELS = 2_000_000;
 
 type ViewportLike = { width: number; height: number; convertToViewportRectangle?: (r: number[]) => number[] };
 type AnnotationLike = { subtype?: string; url?: string; rect?: number[] };
@@ -65,7 +71,7 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
   width: number;
   ratio: number;
   onRatio: (page: number, ratio: number) => void;
-  onFailed: (page: number) => void;
+  onFailed: (page: number, err?: unknown) => void;
   mark?: StepMark | null;
 }) => {
   const box = useRef<HTMLDivElement>(null);
@@ -97,17 +103,25 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
       const base = page.getViewport({ scale: 1 });
       onRatio(pageNumber, base.height / base.width);
       page.getAnnotations?.().then((list) => { if (!cancelled) setLinks(pageLinks(list, base)); }).catch(() => { /* no links, page still shows */ });
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      let scale = (width / base.width) * dpr;
-      const pixels = base.width * scale * base.height * scale;
-      if (pixels > MAX_CANVAS_PIXELS) scale *= Math.sqrt(MAX_CANVAS_PIXELS / pixels);
-      const viewport = page.getViewport({ scale });
-      c.width = Math.floor(viewport.width);
-      c.height = Math.floor(viewport.height);
-      task = page.render({ canvas: c, viewport });
-      await task.promise;
+      const draw = async (dpr: number, cap: number) => {
+        let scale = (width / base.width) * dpr;
+        const pixels = base.width * scale * base.height * scale;
+        if (pixels > cap) scale *= Math.sqrt(cap / pixels);
+        const viewport = page!.getViewport({ scale });
+        c.width = Math.floor(viewport.width);
+        c.height = Math.floor(viewport.height);
+        task = page!.render({ canvas: c, viewport });
+        await task.promise;
+      };
+      try {
+        await draw(Math.min(window.devicePixelRatio || 1, 2), MAX_CANVAS_PIXELS);
+      } catch (err) {
+        if (cancelled || isCancel(err)) throw err;
+        c.width = 0; c.height = 0; // let the big canvas go before the lighter one
+        await draw(1, RETRY_CANVAS_PIXELS);
+      }
     })().catch((err) => {
-      if (!cancelled && !isCancel(err)) onFailed(pageNumber);
+      if (!cancelled && !isCancel(err)) onFailed(pageNumber, err);
     });
     return () => {
       cancelled = true;

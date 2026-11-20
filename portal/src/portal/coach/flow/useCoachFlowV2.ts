@@ -71,6 +71,30 @@ export function useFlowV2(): boolean | null {
   return useCoachFlowV2(userKey);
 }
 
+/**
+ * bd-o15qnr.27 (queue #204, v6) — the screens a coach and a principal share (Schedule for Now / Later, the recording that
+ * keeps going while she moves round the app): on for a coach on this switch (`coachFlowV2`) or a principal on the
+ * principal app the same switch names (`principalFlowV2`, the operator 20 Nov: "For the Coach and the Principal both").
+ * Same literal-true, fail-closed rule; null while /config is read (the shared read, so no extra request).
+ */
+export function flowV6On(cfg: unknown): boolean {
+  const features = (cfg as { features?: unknown } | null | undefined)?.features;
+  if (!features || typeof features !== "object") return false;
+  const f = features as { coachFlowV2?: unknown; principalFlowV2?: unknown };
+  return f.coachFlowV2 === true || f.principalFlowV2 === true;
+}
+
+export function useFlowV6(): boolean | null {
+  const userKey = useContext(AuthContext)?.user?.phoneNumber || null;
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    readConfigShared().then(flowV6On).catch(() => false).then((value) => { if (live) setOn(value); });
+    return () => { live = false; };
+  }, [userKey]);
+  return on;
+}
+
 /** Tests only: forget the remembered answer and the shared /config read. */
 export function resetCoachFlowV2Memory(): void {
   remember(null);

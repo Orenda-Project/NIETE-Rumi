@@ -2305,6 +2305,9 @@ router.get('/leader/observations', requirePortalAuth, requireLeaderRole, async (
 router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (req, res) => {
   try {
     const { teacherExtId, date, slot } = req.body || {};
+    // bd-o15qnr.27 (queue #204, v6) — "Schedule for Now": the coach is already in the class, so the teacher gets no
+    // "visit scheduled" WhatsApp and the coach no calendar invite (#188's audit, finding 4). Only a literal true.
+    const now = !!req.body && req.body.now === true;
     const result = await createSchedule(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
@@ -2317,8 +2320,8 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
     // saved and answered already; the client never throws. A same-slot re-book
     // re-times the invite but is not news to the teacher (moved:false).
     // bd-o15qnr.8: a past-dated booking records a visit that already happened —
-    // nothing is sent.
-    if (result && result.id && !result.past) {
+    // nothing is sent. bd-o15qnr.27: nor is a booking for now.
+    if (result && result.id && !result.past && !now) {
       ObserveNotice.notifyTeacher({
         scheduleId: result.id,
         leaderUserId: req.session.portalUserId,
@@ -9509,6 +9512,10 @@ router.get('/config', async (req, res) => {
         schoolCard: coachV2 && schoolCardRaw,
         coachFullApp: coachV2 && coachFullAppRaw,
         coachFlowV2: coachV2 && coachFullAppRaw && coachFlowV2Raw,
+        // bd-o15qnr.27 (queue #204, v6) — the same switch for a principal on the principal app (the operator 20 Nov: "For the
+        // Coach and the Principal both ... On Portal"): Pick the teacher → When? (Now / Later) and the recording that keeps
+        // going. Its own key so the coach-only screens never read it.
+        principalFlowV2: principal && principalApp === true && coachFlowV2Raw === true,
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
@@ -9549,6 +9556,7 @@ router.get('/config', async (req, res) => {
         schoolCard: false,
         coachFullApp: false,
         coachFlowV2: false,
+        principalFlowV2: false,
         roleSwitch: false,
         principalApp: false,
         helpVideos: false,

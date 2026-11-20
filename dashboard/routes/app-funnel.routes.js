@@ -234,6 +234,47 @@ function createAppFunnelRouter({ limiter } = {}) {
    * play-back, the track's settings) and then what the coach answered. The user comes from the SESSION; the phone, its
    * major version and its browser are classed here from the user agent, which is never stored. Only known values pass.
    */
+  /**
+   * bd-zrdvmi.21 — ICT Feedback sheet, GB row 3: the lesson-plan reader's "Can't show it here" (components/
+   * LessonPlanViewer via lib/lpViewerReport.ts). The server answered every file request with 200, so the failure is in
+   * the phone: which step (download, loading the reader, reading the file, drawing page 1), the HTTP status or the
+   * browser's reason, the file's size and page 1's shape, how long it ran, online or not. Teacher from the SESSION.
+   */
+  router.post(
+    '/funnel/lp-viewer-failed',
+    requireSession,
+    express.text({ type: 'text/*', limit: '2kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).end();
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const pick = (v, allowed) => (allowed.includes(v) ? v : 'unknown');
+      const status = Number(body.status);
+      const { journeyId, ...base } = who(req, now);
+      emit('lp_viewer.failed', {
+        ...base,
+        journeyId,
+        feature: 'lesson_plan',
+        browser: browserClass(req, body.b),
+        stage: pick(body.stage, LP_VIEWER_STAGES),
+        lane: pick(body.lane, LP_VIEWER_LANES),
+        reason: pick(body.reason, LP_VIEWER_REASONS),
+        status: body.status != null && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+        errName: body.errName == null ? null : (typeof body.errName === 'string' && /^[A-Za-z]{1,40}$/.test(body.errName) ? body.errName : 'unknown'),
+        sizeBytes: clampInt(body.sizeBytes, 200 * 1024 * 1024),
+        pages: clampInt(body.pages, 10000),
+        pageWidth: clampInt(body.pageWidth, 100000),
+        pageHeight: clampInt(body.pageHeight, 100000),
+        elapsedMs: clampInt(body.elapsedMs, 60 * 60 * 1000),
+        online: typeof body.online === 'boolean' ? body.online : null,
+      });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   router.post(
     '/funnel/mic-check',
     requireSession,
@@ -385,7 +426,13 @@ function createAppFunnelRouter({ limiter } = {}) {
 }
 
 // bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
-const COACH_FLOW_ACTIONS = ['schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start'];
+// bd-o15qnr.27 (v6): observe.schedule = Observe's "Schedule an observation"; schedule.now_record / schedule.now_upload =
+// "Schedule for Now"'s Start recording / Upload recording; schedule.later = "Schedule for Later"'s Schedule; home.focus =
+// the Home Focus card's button; observe.booked_open = All booked opened on Observe.
+const COACH_FLOW_ACTIONS = [
+  'schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start',
+  'observe.schedule', 'schedule.now_record', 'schedule.now_upload', 'schedule.later', 'home.focus', 'observe.booked_open',
+];
 const COACH_FLOW_LEVELS = ['all', 'primary', 'middle', 'high'];
 
 
@@ -453,6 +500,10 @@ function micPhone(req) {
   return { os, osMajor, engine };
 }
 
+// bd-zrdvmi.21 — the lesson-plan reader's failure steps (portal lib/lpViewerReport.ts).
+const LP_VIEWER_STAGES = ['download', 'reader', 'read', 'draw'];
+const LP_VIEWER_LANES = ['k5', 'g612', 'paper'];
+const LP_VIEWER_REASONS = ['http', 'network', 'timeout', 'abort', 'unknown'];
 // bd-bmc9a0.1: 'read' + 'unreadable' — a picked file the phone could not read, before any upload.
 const DC_UPLOAD_STAGES = ['pick', 'read', 'presign', 'upload', 'start'];
 const DC_UPLOAD_KINDS = ['audio', 'lesson_plan', 'photo'];
