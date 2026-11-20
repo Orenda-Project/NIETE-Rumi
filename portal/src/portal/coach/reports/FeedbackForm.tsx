@@ -11,6 +11,7 @@ import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
+import { dropForm, heldForm, keepForm, restoreOver } from "./formKeep";
 import { countChanges, initialValues, isObs612Draft, rungName, titleOf, type Values } from "./formModel";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
@@ -86,7 +87,14 @@ export default function FeedbackForm() {
         if (!live) return;
         const d: ObservationDraft | Obs612Draft = got;
         if (isObs612Draft(d)) { setFde(d); setLoad("ok"); return; }
-        const v = initialValues(d); setDraft(d); setStart(v); setValues(v); setLoad("ok");
+        const v = initialValues(d);
+        // bd-tfya0m — her answers kept on this phone (a reload, or a Save that came back 502) are laid back over the
+        // bot's, on the part she was on; a read-only form (the report is out) never takes them.
+        const kept = d.editable === false ? null : heldForm(id);
+        if (d.editable === false) dropForm(id);
+        setDraft(d); setStart(v); setValues(restoreOver(v, kept));
+        if (kept) setPart(Math.max(0, Math.min(kept.part, d.sections.length - 1)));
+        setLoad("ok");
       })
       .catch((err) => {
         if (!live) return;
@@ -99,6 +107,13 @@ export default function FeedbackForm() {
 
   const name = teacherNameOf(view);
   const readOnly = !!draft && draft.editable === false;
+
+  // bd-tfya0m — keep every change on this phone as she makes it (only while something differs from the bot's).
+  useEffect(() => {
+    if (!draft || readOnly || !id) return;
+    const changed = Object.keys(values).some((k) => values[k] !== start[k]);
+    if (changed) keepForm(id, values, part); else dropForm(id);
+  }, [draft, readOnly, id, values, start, part]);
   const sections = draft?.sections ?? [];
   const total = sections.length;
   const section: DraftSection | undefined = sections[Math.min(part, Math.max(0, total - 1))];
@@ -129,6 +144,7 @@ export default function FeedbackForm() {
     setProblem(null);
     try {
       await leader.saveObservationDraft(id, values);
+      dropForm(id); // the bot has them now
       navigate(home, { replace: true });
     } catch (err) {
       const res = (err as { response?: { status?: number; data?: { reason?: string; errors?: Record<string, string> } } })?.response;

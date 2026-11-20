@@ -49,6 +49,7 @@ const renderPage = () => render(
 const next = () => fireEvent.click(screen.getByRole("button", { name: "Next part" }));
 
 beforeEach(() => {
+  localStorage.clear(); // bd-tfya0m: the form keeps her answers on the phone; each test starts with none
   vi.clearAllMocks();
   L.getObservation.mockResolvedValue(VIEW);
   L.getObservationDraft.mockResolvedValue(DRAFT());
