@@ -15,6 +15,13 @@
  * whose result is not written yet is kept in localStorage (sa:notkept:<session>) until that result is acknowledged,
  * so a reload in between does not lose the mark.
  *
+ * A register refused as already_scored (the server keeps this task's recording under this session's own key and has
+ * scored it) marks the recording synced: it can never be used again, so it neither stays on the phone nor goes up
+ * again. Any other refusal stays a failure (the portal uploader's rule).
+ * onProgress(kind, n): 'ack' after each answer the server accepted (a batch acknowledged, a presign with its url or a
+ * skip, a register that kept the recording or found it already scored; never a refusal), 'bytes' (sent so far) while a
+ * recording uploads; with it the upload goes by XMLHttpRequest, whose upload events count the bytes (the drain page).
+ *
  * flushEvents() sends the events and results alone, at once, even while recordings upload (the battery's end).
  * status() → { state: 'synced'|'pending'|'offline'|'error', pending_events, pending_audio, last_ok_at }
  * UMD: window.SAE.sync in the browser, module.exports under Node.
@@ -32,15 +39,27 @@
   function defaultJoin(chunks, mime) {
     return new root.Blob(chunks.map(function (c) { return c.blob; }), { type: mime });
   }
-  function defaultPut(url, body, mime) {
+  function defaultPut(url, body, mime, onBytes) {
+    if (onBytes && root.XMLHttpRequest) {
+      return new Promise(function (resolve, reject) {
+        var x = new root.XMLHttpRequest();
+        x.open('PUT', url);
+        x.setRequestHeader('Content-Type', mime);
+        if (x.upload) x.upload.onprogress = function (e) { onBytes(e.loaded); };
+        x.onload = function () { if (x.status >= 200 && x.status < 300) resolve(); else reject(new Error('upload ' + x.status)); };
+        x.onerror = function () { reject(new Error('upload network')); };
+        x.onabort = function () { reject(new Error('upload aborted')); };
+        x.send(body);
+      });
+    }
     return root.fetch(url, { method: 'PUT', body: body, headers: { 'Content-Type': mime } }).then(function (r) {
       if (!r.ok) throw new Error('upload ' + r.status);
     });
   }
 
   /**
-   * create({ store, sink, session_id, onStatus, online, put, join, timers, localStorage }) → sync.
-   * online() (default navigator.onLine), put(url, body, mime) the audio upload, join(chunks, mime) → body.
+   * create({ store, sink, session_id, onStatus, onProgress, online, put, join, timers, localStorage }) → sync.
+   * online() (default navigator.onLine), put(url, body, mime, onBytes) the audio upload, join(chunks, mime) → body.
    */
   function create(o) {
     var store = o.store;
@@ -49,6 +68,8 @@
     var online = o.online || function () { return !root.navigator || root.navigator.onLine !== false; };
     var put = o.put || defaultPut;
     var join = o.join || defaultJoin;
+    var progress = typeof o.onProgress === 'function' ? o.onProgress : null;
+    var ack = function () { if (progress) progress('ack', 1); };
     var timers = o.timers || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (h) { clearTimeout(h); } };
     var st = { state: 'pending', pending_events: 0, pending_audio: 0, last_ok_at: null, last_error: null };
     var running = null;
@@ -90,6 +111,7 @@
         events: ev.map(clean), results: p.results.map(stamp),
       })).then(function (r) {
         if (!r || r.ok === false) throw new Error('batch refused');
+        ack();
         var acked = typeof r.acked_to === 'number' ? Math.min(r.acked_to, seqTo) : seqTo;
         var sent = p.results.map(function (x) { return x.task_id; });
         var had = sent.filter(function (t) { return notKept[t]; });
@@ -123,12 +145,19 @@
       var mime = head.mime || 'audio/webm';
       var body = join(a.chunks.filter(function (c) { return c.blob != null; }), mime);
       var bytes = body && (body.size != null ? body.size : body.length) || 0;
+      var onBytes = progress ? function (n) { progress('bytes', n); } : undefined;
       return Promise.resolve(sink.presignAudio({ session_id: id, task_id: a.task_id, mime: mime, bytes: bytes })).then(function (pre) {
-        if (pre && pre.skip === true) return notKeptAudio(a.task_id, pre.reason || null).then(function () { return 'skipped'; });
+        if (pre && pre.skip === true) { ack(); return notKeptAudio(a.task_id, pre.reason || null).then(function () { return 'skipped'; }); }
         if (!pre || !pre.url || !pre.key) throw new Error('no presign');
-        return Promise.resolve(put(pre.url, body, mime)).then(function () {
-          return sink.registerAudio({ session_id: id, task_id: a.task_id, key: pre.key, bytes: bytes, duration_ms: fin.duration_ms || null });
-        });
+        ack();
+        return Promise.resolve(put(pre.url, body, mime, onBytes)).then(function () {
+          return Promise.resolve(sink.registerAudio({ session_id: id, task_id: a.task_id, key: pre.key, bytes: bytes, duration_ms: fin.duration_ms || null }))
+            .then(null, function (e) {
+              // the server only answers already_scored after it checked the key is the one minted for this task here
+              if (e && e.reason === 'already_scored') return 'already_scored';
+              throw e;
+            });
+        }).then(function (r) { ack(); return r; });
       }).then(function (r) { return r === 'skipped' ? null : store.markChunksSynced(id, a.task_id); });
     }
 
