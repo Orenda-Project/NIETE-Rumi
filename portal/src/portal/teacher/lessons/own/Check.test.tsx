@@ -29,12 +29,13 @@ describe('Check', () => {
     expect(t).toContain('What level is your class at?');
     expect(t).toContain(OWN_COPY.grrLine);
   });
-  it('Grade 4: Children, no purpose row, the day label', () => {
-    show('grade=4&subject=Math&chapter=1&seg=d&size=up30&level=behind&way=cpa', { k5: true, pagesLabel: 'Day 2 · Adding' });
+  it('Grade 4: Children, the purpose row (bd-snkn32.63), the day label', () => {
+    show('grade=4&subject=Math&chapter=1&seg=d&size=up30&level=behind&way=cpa&purpose=revise', { k5: true, pagesLabel: 'Day 2 · Adding' });
     const t = document.body.textContent ?? '';
     expect(t).toContain('Children in class');
     expect(t).toContain('Day 2 · Adding');
-    expect(t).not.toContain(OWN_COPY.purposeLabel);
+    expect(t).toContain(OWN_COPY.purposeLabel);
+    expect(t).toContain(OWN_COPY.purposes.revise);
     expect(t).toContain('Things → pictures → numbers (CPA)');
   });
   it('the outcomes row only when chosen; the next lesson when added', () => {

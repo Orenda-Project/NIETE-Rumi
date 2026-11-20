@@ -1,7 +1,7 @@
 import { ChosenSoFar } from '../../ui';
 import { FOCUS } from '../../ui/styles';
 import type { OwnCopy } from './copy';
-import { isSecondary, type Resource } from './rules';
+import type { Resource } from './rules';
 import { ownUrl, type OwnAt } from './state';
 import type { Refusal } from './change';
 import { bandWords } from './bandCopy';
@@ -36,7 +36,7 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
           goal ? { label: goal.label, value: goal.value, sub: `${gradeLabel} · ${subject} · ${goal.sub}`, to: at('goal') }
             : { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${subject}`, to: at('pages') },
           ...(nextLabel && s.ext ? [{ label: C.nextLesson, value: C.extends[s.ext], sub: nextLabel, to: at('pages') }] : []),
-          ...(isSecondary(s.grade) ? [{ label: C.purposeLabel, value: s.purpose ? w.purpose(s.purpose) : '—', to: at('purpose') }] : []),
+          { label: C.purposeLabel, value: s.purpose ? w.purpose(s.purpose) : '—', to: at('purpose') }, // every grade (bd-snkn32.63)
           ...(s.focus ? [{ label: C.focusLabel, value: C.foci[s.focus], to: at('focus') }] : []),
           { label: w.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },

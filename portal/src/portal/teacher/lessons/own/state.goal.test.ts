@@ -40,8 +40,8 @@ describe('the walk with a goal', () => {
   it('the goal screen replaces the book pages, and no "which outcomes first"', () => {
     expect(stepsFor({ grade: 10, mixed: true, purpose: 'new', goal: true })).toEqual(['goal', 'purpose', 'size', 'level', 'resources', 'way', 'check']);
   });
-  it('grades 1–5: the goal screen replaces the day\'s pages (bd-snkn32.57)', () => {
-    expect(stepsFor({ grade: 3, mixed: false, goal: true })).toEqual(['goal', 'size', 'level', 'resources', 'way', 'check']);
+  it('grades 1–5: the goal screen replaces the day\'s pages (bd-snkn32.57), then what the lesson is for (bd-snkn32.63)', () => {
+    expect(stepsFor({ grade: 3, mixed: false, goal: true })).toEqual(['goal', 'purpose', 'size', 'level', 'resources', 'way', 'check']);
   });
   it('without a goal, as before', () => {
     expect(stepsFor({ grade: 10, mixed: false })).toEqual(['pages', 'purpose', 'size', 'level', 'resources', 'way', 'check']);
