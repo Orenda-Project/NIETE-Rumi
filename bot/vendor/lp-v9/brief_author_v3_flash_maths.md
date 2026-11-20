@@ -960,6 +960,14 @@ that repeats any of them is rejected.
     and the central idea, give the poem stanza by stanza (or two lines at a time for a short poem):
     the poet's words, then the same idea in plain everyday words, and have pupils say or write one
     stanza's paraphrase themselves. Never print a paraphrase only as homework or only in the key.
+<!-- VENDOR DIVERGENCE (bd-zrdvmi.17, 2026-11-19; SYNC.md §3.41): rule 13 below is a LOCAL-ONLY edit,
+  not a straight re-vendor — it was not fixed upstream first. -->
+13. **A reading lesson gives the reading its own timed step, before the questions.** *"There is no
+    reading time in it"* came back on a G6 Urdu comprehension plan that said "we will read the text"
+    and went straight to the questions. When the lesson reads a passage, story, poem or text from the
+    book, give the reading a step of its own with minutes before the questions: who reads (teacher
+    models, then pupils read aloud in turns or silently), which pages or paragraphs, and one thing the
+    pupils look for while they read. Never fold the reading into a single line inside the question step.
 
 Teachers also told us, positively, what they want: the closed heading system; the teaching flow first, then the reference block =
 resources; **examples not explanations of how to explain**; exam-format practice ("for English,
