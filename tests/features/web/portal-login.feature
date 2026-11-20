@@ -147,3 +147,19 @@ Feature: Portal sign-in
     And she taps Log in
     Then the page says "Couldn't log in"
     And she is still on /portal/analytics/login
+
+  # bd-zrdvmi.28 (operator, 19 Nov: "Links last 7 days"). The run mints the links by hand with this run's signAppLink,
+  # its clock set back, since a real 7-day wait is not a test (driver: .claude/qa/web/features/portal-login.cjs PL19).
+  @PL19
+  Scenario: A one-tap link works for 7 days; after that it opens the get-a-new-link page with its button
+    # app-login-link.js TTL_S = 7 days (was 24 h); app-login.routes.js renders the en+ur page with a wa.me button
+    # that types /portal to this deployment's bot. Unit proof: tests/app-redirect/app-link-seven-days.test.js.
+    Given a /go link for the demo teacher with the target lesson_plan, minted 6 days ago
+    And the teacher app v2 is on for the demo teacher
+    When the demo teacher opens that link in the browser
+    Then she settles on /portal/teacher/lessons, signed in, without typing a password
+    Given a /go link for the demo teacher with the target lesson_plan, minted 7 days and 1 minute ago
+    When the demo teacher opens that link in the browser
+    Then the "get a new link" page opens and nobody is signed in
+    And it says "Links last 7 days." in English and "لنک ۷ دن تک چلتا ہے۔" in Urdu
+    And its "Get a new link" button opens WhatsApp to this deployment's bot with /portal typed
