@@ -997,6 +997,12 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+  // bd-eqkr0n (queue #203 follow-up) — a principal on the principal app asking to observe (app-redirect 2g): ONE line and
+  // a button, no way back to WhatsApp (the operator, 20 Nov, "we can even ignore the WhatsApp one for Principals"). The
+  // coach nudge's words on staging/sandbox ("Take your observation in the app." / [Open in the app]). Imperative, so
+  // nothing assumes a gender. Body 33 en / 24 ur, button 15 en / 14 ur code points.
+  principalAppBodyObserve: { en: 'Take your observation in the app.', ur: 'اپنا مشاہدہ ایپ میں لیں۔' },
+  principalAppButtonObserve: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },

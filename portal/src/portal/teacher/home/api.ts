@@ -1,5 +1,6 @@
 import api from '../../services/api';
 import { peekBoot, takeBoot } from '@/lib/bootReads';
+import type { BandKey } from '../../lib/scoreBands';
 
 /**
  * What the Home card reads and writes: GET /api/portal/me/home and POST /api/portal/me/home/tap
@@ -50,10 +51,24 @@ export type HomeData = {
   quizHome: string | null;
   /** Draw the "Quizzes" tile (portal_teacher_home_quiz_tile on for her): only ever true with a quiz home to open. */
   quizTile?: boolean;
+  /** The "Last 30 days" block (portal_teacher_home_activity; counted twice a day, read from Redis): absent = no block. */
+  activity?: HomeActivity;
+};
+
+export type ActivityCount = { now: number; prev: number };
+export type HomeActivity = {
+  updatedAt: string;
+  slot: 'day' | 'night';
+  tiles: { opened: ActivityCount; taught: ActivityCount; coached: ActivityCount; quizzes: ActivityCount; papers: ActivityCount };
+  /** Band keys of her previous and latest report, at most two lines. */
+  trend: { indicator: string; from: BandKey; to: BandKey }[];
+  tip: { sessionId: string; text: string } | null;
 };
 
 /** What a tap names in the log: the card's rung or a chip. Nothing with a name, a phone or free text. */
-export type TapKind = HomeCardKind | 'chip_coach' | 'chip_obs' | 'lp_quiz' | 'coach_quiz' | 'quiz_tile';
+export type TapKind = HomeCardKind | 'chip_coach' | 'chip_obs' | 'lp_quiz' | 'coach_quiz' | 'quiz_tile'
+  // the "Last 30 days" block and the My journey row
+  | 'act_opened' | 'act_taught' | 'act_coached' | 'act_quiz_papers' | 'act_trend' | 'act_tip' | 'journey';
 
 const KINDS: readonly HomeCardKind[] = ['class', 'coach_report', 'lesson', 'observation', 'first_plan'];
 const TILE_KEYS: readonly HomeTileKey[] = [
@@ -89,6 +104,28 @@ function readScores(v: unknown): HomeScores {
   return { coach: readScore(s.coach), observation: readScore(s.observation) };
 }
 
+const BANDS: readonly BandKey[] = ['excellent', 'good', 'average', 'below_average', 'needs_support'];
+const ACTIVITY_TILES = ['opened', 'taught', 'coached', 'quizzes', 'papers'] as const;
+const isCount = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0;
+
+/** The "Last 30 days" block, or undefined when it is absent or unreadable (no block, never a guess). */
+function readActivity(v: unknown): HomeActivity | undefined {
+  if (!isObj(v) || !str(v.updatedAt) || !Number.isFinite(Date.parse(v.updatedAt as string)) || !isObj(v.tiles)) return undefined;
+  const raw = v.tiles;
+  if (!ACTIVITY_TILES.every((k) => isObj(raw[k]) && isCount((raw[k] as Record<string, unknown>).now) && isCount((raw[k] as Record<string, unknown>).prev))) return undefined;
+  const tiles = Object.fromEntries(ACTIVITY_TILES.map((k) => {
+    const t = raw[k] as { now: number; prev: number };
+    return [k, { now: t.now, prev: t.prev }];
+  })) as HomeActivity['tiles'];
+  const trend = (Array.isArray(v.trend) ? v.trend : [])
+    .filter((t): t is { indicator: string; from: BandKey; to: BandKey } => isObj(t) && !!str(t.indicator)
+      && BANDS.includes(t.from as BandKey) && BANDS.includes(t.to as BandKey))
+    .slice(0, 2)
+    .map((t) => ({ indicator: t.indicator, from: t.from, to: t.to }));
+  const tip = isObj(v.tip) && str(v.tip.sessionId) && str(v.tip.text) ? { sessionId: v.tip.sessionId as string, text: v.tip.text as string } : null;
+  return { updatedAt: v.updatedAt as string, slot: v.slot === 'night' ? 'night' : 'day', tiles, trend, tip };
+}
+
 /** The order the server sent, kept only when it names every tile once; otherwise null (Home keeps its own). */
 function readOrder(v: unknown): HomeTileKey[] | null {
   if (!Array.isArray(v) || v.length !== TILE_KEYS.length) return null;
@@ -101,6 +138,7 @@ export function readHome(body: unknown): HomeData | null {
   if (!isObj(body) || body.success !== true) return null;
   const order = readOrder(body.order);
   const quizHome = typeof body.quizHome === 'string' && QUIZ_HOME.test(body.quizHome) ? body.quizHome : null;
+  const activity = readActivity(body.activity);
   return {
     now: str(body.now) ?? new Date().toISOString(),
     order: order ?? [...TILE_KEYS],
@@ -109,6 +147,7 @@ export function readHome(body: unknown): HomeData | null {
     scores: readScores(body.scores),
     quizHome,
     quizTile: body.quizTile === true && !!quizHome,
+    ...(activity ? { activity } : {}),
   };
 }
 

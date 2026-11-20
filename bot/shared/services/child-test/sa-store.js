@@ -34,6 +34,9 @@ const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_re
 // moves an ended attempt's rows below one `restart`), so every attempt keeps its own pair.
 const FIRST_ONLY = new Set(['session_start']);
 const LAST_ONLY = new Set(['audio_check']);
+// round 28: the recorder's stop, one per task and attempt (the LAST), outside the cap like AUDIT: bounded by the task
+// count, so it displaces no other row and is never dropped (sa-api.service.js LAST_PER_TASK)
+const LAST_PER_TASK = new Set(['record_stop']);
 
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];
@@ -50,15 +53,18 @@ function keepEvents(had, events) {
       const k = `${attempt}|${e.type}`;
       if (LAST_ONLY.has(e.type) || !pick.has(k)) pick.set(k, e);
     }
+    if (LAST_PER_TASK.has(e.type)) pick.set(`${attempt}|${e.type}|${e.task_id}`, e);
   }
   const stays = new Set(pick.values());
-  const sorted = list.filter((e) => !(FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) || stays.has(e));
-  // the cap (AUDIT rows never count): the latest attempt's rows first, oldest first within an attempt, so an ended
-  // attempt (below a restart) gives way to the one the coach is running; the row stays in seq order
-  const ranked = sorted.filter((e) => !AUDIT.has(e.type))
+  const once = (e) => FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type) || LAST_PER_TASK.has(e.type);
+  const sorted = list.filter((e) => !once(e) || stays.has(e));
+  const uncapped = (e) => AUDIT.has(e.type) || LAST_PER_TASK.has(e.type);
+  // the cap (AUDIT and LAST_PER_TASK rows never count): the latest attempt's rows first, oldest first within an attempt,
+  // so an ended attempt (below a restart) gives way to the one the coach is running; the row stays in seq order
+  const ranked = sorted.filter((e) => !uncapped(e))
     .sort((x, y) => (attemptOfRow.get(y) - attemptOfRow.get(x)) || (x.seq - y.seq));
   const kept = new Set(ranked.slice(0, MAX_KEPT_EVENTS));
-  return sorted.filter((e) => AUDIT.has(e.type) || kept.has(e));
+  return sorted.filter((e) => uncapped(e) || kept.has(e));
 }
 
 function fail(where, error, extra) {

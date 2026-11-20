@@ -218,9 +218,20 @@
         }
         function endVoice() { if (cancelVoice) { try { cancelVoice(); } catch (_) { /* ended */ } cancelVoice = null; } }
         // A recording still open when the phone goes back (the last spoken answer, a coach's early end) is closed
-        // first, so its final marker is on the phone before the last flush and it goes up with it.
+        // first, so its final marker is on the phone before the last flush and it goes up with it. One the screen has
+        // already stopped (time up on the last task) is waited for: its final marker is still being written
+        // (a recorder whose stop never comes is not waited for past STOP_WAIT_MS).
+        var stopping = null;
+        var STOP_WAIT_MS = 3000;
         function closeRecording() {
-          if (!rec || !rec.recording || !rec.recording()) return null;
+          if (!rec || !rec.recording || !rec.recording()) {
+            if (!stopping) return null;
+            var was = stopping;
+            return new Promise(function (ok) {
+              var t = setTimeout(ok, STOP_WAIT_MS);
+              was.then(function () { clearTimeout(t); ok(); });
+            });
+          }
           if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
           endVoice();
           return Promise.resolve(rec.stop()).then(null, function () { return null; });
@@ -269,11 +280,13 @@
             discardFor = null;
             return Promise.resolve(rec.discard()).then(function () { if (sync) sync.poke(); return null; }, function () { return null; });
           }
-          return rec.stop().then(function (meta) {
+          var done = rec.stop().then(function (meta) {
             if (meta) runner.log('record_stop', { task_id: t.id, item_id: item ? item.id : undefined, value: { duration_ms: meta.duration_ms, parts: meta.parts } });
             if (sync) sync.poke();
             return meta;
           });
+          stopping = done.then(null, function () { return null; });
+          return done;
         }
         // sa_coach_last_word: the word heard last in the passage's recording, from the server once the clip is up (it
         // answers pending until then: asked again every few seconds for up to 30 s). null: the coach taps it.
@@ -337,7 +350,11 @@
         // s}: the page drops its corner hold and shows "Next child" as sending), the recording is closed, the events and
         // results go up ahead of the audio, and {type:'sa:battery_end', s} follows once the server has them (the page
         // enables "Next child", the child is complete). A failed send (offline) still ends it: the rows stay queued.
+        // Then the audio goes, and {type:'sa:audio_saved', s, pending_audio, state} says how that round
+        // ended (pending_audio 0: the last recording is acked; offline or a failed upload: still on the phone), so the
+        // page's end screen shows "saving" until then, for a few seconds at most.
         var ended = null;
+        var saved = null;
         function batteryEnd() {
           var w = deps.win || root;
           if (ended || !opts.embed || !w.parent || w.parent === w || !w.location) return;
@@ -346,7 +363,18 @@
           var send = function () { return sync ? (sync.flushEvents ? sync.flushEvents() : sync.flush()) : null; };
           ended = writes.then(closeRecording).then(send).then(null, function () { return null; }).then(function () {
             post('sa:battery_end');
-            if (sync) sync.poke();
+          });
+          saved = ended.then(function () { return sync ? sync.flush() : null; }).then(null, function () { return null; }).then(function (st) {
+            st = st || (sync ? sync.status() : null) || {};
+            w.parent.postMessage({ type: 'sa:audio_saved', s: sessionId, pending_audio: st.pending_audio || 0, state: st.state || 'local' }, w.location.origin);
+          });
+        }
+        // A coach hold after the end waits for the audio too, but never more than this.
+        var SAVE_WAIT_MS = 10000;
+        function savedOrLate() {
+          return new Promise(function (ok) {
+            var t = setTimeout(ok, SAVE_WAIT_MS);
+            saved.then(function () { clearTimeout(t); ok(); });
           });
         }
         // Embedded in the coach page: its own corner hold asks the engine to end the run ({type:'sa:coach_end', s}).
@@ -374,7 +402,7 @@
             runner.log('end_test', { task_id: on ? on.id : undefined, value: { by: 'coach', mode: manual ? 'coach_led' : 'auto' } });
           }
           if (ended) {
-            ended.then(function () {
+            ended.then(savedOrLate).then(function () {
               if (win.parent && win.parent !== win) win.parent.postMessage({ type: 'sa:done', s: sessionId, reason: 'complete' }, win.location.origin);
             });
             return;

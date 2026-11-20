@@ -61,6 +61,7 @@ const en = {
   holdNext: "Next child (coach)",
   holdNextHint: "Press and hold",
   holdSending: "Sending…",
+  holdSaving: "Saving the last recording…",
   // round 7b (sa_end_test_restart / sa_end_section): the coach's controls are a tap and a short question
   endTestAsk: (name: string) => `End ${name}'s test? You can restart it from the list.`,
   endTestYes: "End test",
@@ -296,6 +297,7 @@ const ur: Copy = {
   holdNext: "اگلا بچہ (کوچ)",
   holdNextHint: "دبا کر رکھیں",
   holdSending: "بھیج رہے ہیں…",
+  holdSaving: "آخری ریکارڈنگ محفوظ ہو رہی ہے…",
   endTestAsk: (name: string) => `⁨${name}⁩ کا جائزہ ختم کریں؟ فہرست سے دوبارہ شروع کر سکتے ہیں۔`,
   endTestYes: "ختم کریں",
   keepGoing: "جاری رکھیں",

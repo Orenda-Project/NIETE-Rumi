@@ -2842,6 +2842,20 @@ Feature: NIETE (ICT) Teacher Training
     # go.routes.js teacherPlays: the maker prefill's grade (Grade 2 when none), one_door.practice{grade}.
     # Unit: bot/tests/first-touch/one-door-go-routes.test.js. @wip.
 
+  @web @quiz @config-gated @wip @draft @P1 @T1185 @no-mock-driver
+  Scenario: With web_quiz_practice_your_turn on, a teacher trying it as a student reads a storybook page aloud
+    Given app_settings "web_quiz_practice_play" and "web_quiz_practice_your_turn" are true, and live reading is on
+    And I opened "Try it as a student" from my quiz home
+    When I open a storybook and tap "Your turn"
+    Then the page listens and lights the words as I read, as it does for a child, and says how many words I read
+    And the microphone notice says nothing is kept
+    And the speech key is counted against my own day (app_settings "web_quiz_live_read_preview_keys_per_day", 40 when absent) and the day's read budget, never against a child
+    And nothing is written under any child: no story event, no key row, no recording
+    But with "web_quiz_practice_your_turn" off or absent the preview's book has no "Your turn" and its key is refused, as before
+    # bd-21q0kr. web-quiz-stories.js practiceBook(turn); web-quiz-live-read-keys.js previewKey; web-quiz-live-read-preview.js
+    # (Redis wq:lr:pv:<day>:<teacher>, one Lua add-and-check); web-quiz-challenge.js countAlso adds the preview keys.
+    # Unit: bot/tests/quiz/web-quiz/practice-your-turn.test.js. Web lane: web-quiz-child-page @WQ262.
+
   @e2e @quiz @wip @draft @P2 @T1181
   Scenario: A child who sends the class quiz code again mid-quiz gets the same quiz back, not a new one
     Given a child on a known handset has joined a class quiz from its link and answered question 1

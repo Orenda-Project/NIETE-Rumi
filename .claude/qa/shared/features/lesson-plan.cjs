@@ -1,5 +1,5 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* lesson-plan.feature — 10 @e2e scenarios in one process. */
+/* lesson-plan.feature — @e2e scenarios in one process. */
 // Fixtures live in the tracked fixtures tree, NOT a results dir: results are untracked (this PR
 // gitignores them) and 2026-08-26-all is EMPTY on a fresh checkout — every upload then fails with
 // NO_SEND_BUTTON and aborts the feature (L05/L06/L07/L09 unrecorded, 2026-09-02, twice).
@@ -267,4 +267,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   if (r11.ran) rec('L11', L11, r11.value.storeLink && r11.value.messages === 1 && !r11.value.lpMenu ? 'PASS' : 'FAIL', r11.value, r11.value.ms);
   else rec('L11', L11, 'BLOCKED',
       { reason: REDIRECT_BLOCKED, setAppSetting: r11.reason }, 0);
+  // bd-96f69c.8 — lp_whatsapp_pdf_off per programme (../niete_lp_whatsapp_off_case.cjs); L15 is @no-mock-driver.
+  if (want('L13')) {
+    const L13 = 'With lesson-plan PDFs off on WhatsApp for my programme, asking for a lesson plan sends me one app link';
+    const x = await require('../niete_lp_whatsapp_off_case.cjs').sendLpWithPdfOff(api, ['ict'], CARD), e = x.value || {};
+    if (x.ran) rec('L13', L13, ...V(e.appLink && e.messages === 1 && !e.card && !e.pdf, e), x.ms); else rec('L13', L13, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: x.reason }, 0);
+  }
+  if (want('L14')) {
+    const L14 = "With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged";
+    const x = await require('../niete_lp_whatsapp_off_case.cjs').sendLpWithPdfOff(api, ['gb'], CARD), e = x.value || {};
+    if (x.ran) rec('L14', L14, ...V(e.card && !e.appLink, e), x.ms); else rec('L14', L14, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: x.reason }, 0);
+  }
 };

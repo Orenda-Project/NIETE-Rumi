@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
-import { DEFAULT_RANGE, pkToday, type DateRange } from '../../newui/range';
+import { pkToday, rangeFromSearch, type DateRange } from '../../newui/range';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { ClassPicker, DateRangeBar, HistoryList, KpiTiles, type GradeSubjectPair, type TeacherUiCopy } from '../ui';
 import { useKitCopy } from '../ui/useKitCopy';
@@ -36,7 +37,9 @@ function datesOf(range: DateRange, kit: TeacherUiCopy) {
 export function LessonsAllPage() {
   const C = useCopy(LESSONS);
   const kit = useKitCopy();
-  const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
+  // The range in the address (Home's tiles open their 30 days: ?range=custom&from=&to=); else This month.
+  const { search } = useLocation();
+  const [range, setRange] = useState<DateRange>(() => rangeFromSearch(new URLSearchParams(search)));
   const [pair, setPair] = useState<GradeSubjectPair | null>(null);
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
 
