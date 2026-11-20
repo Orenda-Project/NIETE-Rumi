@@ -725,8 +725,12 @@ export type PortalConfig = {
     lpOwnShelf?: boolean;
     /** bd-snkn32.42 — this user approves plans for the shelf (portal_lp_own_reviewers, list-only; fail-closed). */
     lpOwnReviewer?: boolean;
+    /** Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off (absent = today). */
+    lpWhatsappSend?: boolean;
     /** bd-ik5e8j.4 — the help videos: the "?" and More → How to use (portal_help_videos, with the teacher app on; fail-closed). */
     helpVideos?: boolean;
+    /** The survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar, with the teacher app on; fail-closed). */
+    lpFeedbackBar?: boolean;
   };
   /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
   roleSwitchRoles?: string[];

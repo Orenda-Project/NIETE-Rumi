@@ -96,9 +96,11 @@ type Props = {
   onNotReady: () => void;
   /** v10 coaching test: the plan step (1–5) to outline, and her taps so far (a new one takes her there). */
   highlight?: { step: number; jump: number };
+  /** Said once its pages are there (never while loading, failed or not ready): what follows the plan can be drawn. */
+  onReady?: () => void;
 };
 
-const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own', highlight }: Props) => {
+const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own', highlight, onReady }: Props) => {
   const { toast } = useToast();
   const { source, title } = view;
   const key = sourceKey(source);
@@ -117,6 +119,8 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
   recordingRef.current = recording;
   const notReadyRef = useRef(onNotReady);
   notReadyRef.current = onNotReady;
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
 
   const openOutside = useCallback(async () => {
     try {
@@ -160,6 +164,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
       if (cancelled) { void loaded.destroy(); return; }
       setDoc(loaded);
       setState('ready');
+      readyRef.current?.();
     })().catch((err) => {
       if (cancelled) return;
       if (err instanceof LessonPlanNotReady) { notReadyRef.current(); return; }

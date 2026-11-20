@@ -11,5 +11,6 @@ const scenarios = [
   pagesScenario("TH03", "Classic portal: her dashboard greets her by name", "teacher", "classic", [{ path: "/portal/dashboard", heading: /^Salaam, Ayesha/ }]),
 ];
 scenarios.push(...require("../flows/teacher-home-look.cjs"));
+scenarios.push(...require("../flows/teacher-home-activity.cjs"));
 
 module.exports = { feature: "teacher-home", spec: 'tests/features/web/teacher-home.feature', scenarios };

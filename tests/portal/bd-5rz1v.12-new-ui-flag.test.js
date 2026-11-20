@@ -181,12 +181,19 @@ describe('GET /config — features.newUi', () => {
       // bd-o15qnr.26 — the coach visit flow v2, a real false unless portal_coach_flow_v2 (with v2 and the full app) names her.
       'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'helpVideos',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
-      'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
+      // The lesson plan in the app: the survey bar, real false unless portal_lp_feedback_bar names her.
+      'lpFeedbackBar', 'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
+      // The plan screen's slim layout, a real false unless portal_lp_viewer_slim (and the teacher app) name her.
+      'lpViewerSlim',
+      // Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off.
+      'lpWhatsappSend',
       'newUi',
       // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
       'observeOnPortal',
       // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
-      'principalApp', 'roleSwitch', 'schoolCard', 'selfObservation', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
+      'principalApp', 'roleSwitch', 'schoolCard', 'selfObservation',
+      // The activity Home and My journey: real false unless portal_teacher_home_activity / portal_teacher_journey name her.
+      'teacherHomeActivity', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherJourney', 'teacherV2',
     ]);
   });
 });

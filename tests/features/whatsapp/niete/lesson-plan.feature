@@ -80,6 +80,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The same open also books the coaching ask a WhatsApp-delivered Grades 1–5 plan books (coaching.feature
     # @COA80/@COA81; tests/lp-v8/lp-coaching-ask-app-open.test.js).
 
+  @e2e @config-gated @no-mock-driver @slow @P1
+  Scenario: My own Grades 1–5 plan read in the teacher app gets the Grades 1–5 survey, and my answer is kept
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I messaged the bot within the last 24 hours
+    And I made my own version of a Grades 1–5 lesson plan in the teacher app
+    When I open that plan in the teacher app
+    Then about 30 seconds later the chat receives the Grades 1–5 "Was it useful?" survey with "👍 Yes, useful" and "👎 Not really"
+    And tapping 👍 stores my answer against that lesson plan, not lost
+    # bd-h7nsmx: the app's 6-12 routes also serve own and shelf Grades 1–5 plans and record those opens as 'g612'
+    # with a Grades 1–5 lesson id. The 6-12 survey's tap then broke a database link and the answer was lost
+    # (~17 a day on live, 18 Nov 2026). The lesson id now decides which survey is asked.
+    # Unit: tests/lp-v8/app-open-survey-k5-as-g612.test.js.
+
   # ─────────────────────── Business rules / valid variations ───────────────────────
 
   @e2e @i18n @P2
@@ -1008,3 +1021,42 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
+
+  # ADDED 2026-11-19 (bd-96f69c.8): per-programme WhatsApp switches. lp_whatsapp_pdf_off / lp_whatsapp_survey_off hold
+  # a list of programmes ("ict", "gb"); a teacher's programme is "gb" when she is a GB teacher, else "ict". No row = today.
+  # Unit: tests/lp-whatsapp-off/, tests/app-redirect/lp-pdf-off-door.test.js, tests/feedback/lp-whatsapp-off.test.js.
+  @e2e @config-gated @P1 @L13
+  Scenario: With lesson-plan PDFs off on WhatsApp for my programme, asking for a lesson plan sends me one app link
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the ICT programme
+    When I send "/lp"
+    Then I get one message with an "open in the app" button carrying my own sign-in link
+    And no lesson-plan menu opens and no PDF arrives
+
+  @e2e @config-gated @negative @P1 @L14
+  Scenario: With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the GB programme only
+    When I send "/lp"
+    Then the Lesson Plans card opens as before
+    And no app link is sent
+
+  @e2e @config-gated @no-mock-driver @P2 @L15
+  Scenario: With the WhatsApp survey off for my programme, a delivered lesson plan is not followed by "Was this useful?"
+    Given the NIETE bot chat is open
+    And the lesson-plan survey on WhatsApp is switched off for the ICT programme
+    When a lesson plan is delivered to me
+    Then no "Was this useful?" buttons follow it
+    # @no-mock-driver: the survey is scheduled 30 s after a full PDF render; the mock lane does not render plans.
+    # Unit: tests/feedback/lp-whatsapp-off.test.js (both sendFeedbackPrompt guards, ICT and GB).
+
+  # ADDED 2026-11-19 (bd-96f69c.9, sceptic pass): one answer per plan across the app and WhatsApp.
+  @e2e @config-gated @no-mock-driver @P1 @L16
+  Scenario: A lesson I already rated in the app is not rated a second time from WhatsApp
+    Given the NIETE bot chat is open
+    And I answered "Useful" for a grades 1-5 lesson in the teacher app
+    When I tap "Not useful" on the WhatsApp survey that came with the same lesson's PDF
+    Then the bot only thanks me
+    And my answer stays the one I gave in the app, with no second answer saved
+    # @no-mock-driver: the app answer needs the portal session and the survey's 30 s timer; the mock lane drives neither.
+    # Unit: tests/feedback/lp-in-app-feedback.test.js ("an app answer counts for a later WhatsApp tap").

@@ -13,6 +13,7 @@ import { Breakdown, SectorCard, SectorGrid } from '../SectorCards';
 import { regionParam, useSchoolsView } from '../view';
 import { GROUP_COLOR, gradeColor, HER_GREEN, KPI_LOOK, subjectColor, TABLE_COLOR, type KpiLook } from './lpLook';
 import { chip, ofTeachers, toggleRegion, type TabProps } from './shared';
+import { JourneySection } from '../journey/JourneySection';
 
 /**
  * The LP Engagement tab, in the ICT dashboard's sections and order (her LPEngagement.jsx), with ACTIVE / NON-ACTIVE
@@ -105,6 +106,9 @@ export function LpTab(p: TabProps) {
       {lp.data && (lp.status === 'ready' || lp.status === 'loading') ? (
         <LpBody p={p} data={lp.data} busy={lp.status === 'loading'} />
       ) : null}
+
+      {/* "Where teachers get to" (Primary only): its own read from the activity store; absent when its switch is off. */}
+      {band === 'primary' ? <JourneySection region={region} /> : null}
     </div>
   );
 }
