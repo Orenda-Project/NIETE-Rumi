@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T04:38:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks engine=2.1.1","sha":"32182ce1930f","branch":"bd-snkn32.58.8-stg","user":""}
+{"ts":"2026-11-20T04:51:14Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.58.8-stg: E-NODRIVER:coaching","sha":"32182ce1930f","branch":"bd-snkn32.58.8-stg","user":""}
