@@ -202,10 +202,13 @@ function SessionRecorder({ visit, session, onBlocked, notesOn }: {
   const ms = useRecordingClock(session);
   const level = useMicLevel(session.stream, mine && !session.paused);
 
-  // Start once, only when nothing is recording (coming back finds it running; another one running is never taken over).
+  // Decide ONCE, on arrival: start only when nothing is recording (coming back finds it running; another one running is
+  // never taken over). Never again on this screen: when Stop ends the session, "nothing is recording" must not start a
+  // second one (seen on sandbox, 20 Nov: back via the Recording bar, Stop, and a new recording began).
   useEffect(() => {
-    if (asked.current || session.active) return;
+    if (asked.current) return;
     asked.current = true;
+    if (session.active) return;
     void session.start({ returnTo: here }).then((r) => { if (r === "micBlocked") onBlocked(); });
   }, [session, here, onBlocked]);
 
