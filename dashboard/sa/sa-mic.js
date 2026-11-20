@@ -5,7 +5,12 @@
  *   SAE.mic.state(store)            'ok' | 'no' | 'unknown' from localStorage sa:mic_ok ('1'/'0', or the coach
  *                                   pre-flight's JSON {ok|mic_ok, mic_rms}; an earlier game mic check on this phone)
  *   SAE.mic.remember(ok, rms)       sa:mic_ok ('1'/'0') and sa:mic_rms
- *   SAE.mic.probe(ms[, o])          Promise<{ ok, rms, url }>: record ms (2 s), the level's RMS, a blob URL to play back
+ *   SAE.mic.probe(ms[, o])          Promise<{ ok, rms, peak, measured, url }>: record ms (2 s), the level's RMS and peak,
+ *                                   whether an analyser measured it, a blob URL to play back (denied: { ok: false, denied })
+ *
+ * o.strict on state (switch sa_r28_mic_unknown): the pre-flight's JSON "no" counts only with a measured level
+ * (a number in mic_rms), else it is 'unknown'. o.keep_pass on remember (same switch): a failed check never removes a
+ * pass already stored, the coach pre-flight's JSON included.
  *   SAE.mic.level(cb[, o])          a live level 0..1 to cb about 10× a second; returns stop(). It listens on the
  *                                   stream given (o.stream), else the recorder's open one (SAE.rec.stream()), else its
  *                                   own; a stream it did not open is never stopped (the recorder keeps recording).
@@ -35,7 +40,7 @@
     try { return root.localStorage; } catch (_) { return null; }
   }
 
-  function state(store) {
+  function state(store, opt) {
     var s = ls(store);
     var v = null;
     try { v = s ? s.getItem(KEY_OK) : null; } catch (_) { v = null; }
@@ -47,20 +52,20 @@
       if (o && typeof o === 'object') {
         var ok = o.ok != null ? o.ok : o.mic_ok;
         if (ok === true) return 'ok';
-        if (ok === false) return 'no';
+        if (ok === false) return opt && opt.strict && typeof o.mic_rms !== 'number' ? 'unknown' : 'no';
       }
     } catch (_) { /* not JSON */ }
     return 'unknown';
   }
 
-  function remember(ok, rms, store) {
+  function remember(ok, rms, store, opt) {
     var s = ls(store);
     try {
       if (!s) return;
       // A pass is kept for the phone; a failure is not, so the next run asks again (a grown-up may have fixed the
       // permission in between).
       if (ok) s.setItem(KEY_OK, '1');
-      else if (s.getItem(KEY_OK) !== '1') s.removeItem(KEY_OK);
+      else if (opt && opt.keep_pass ? state(s) !== 'ok' : s.getItem(KEY_OK) !== '1') s.removeItem(KEY_OK);
       if (typeof rms === 'number') s.setItem(KEY_RMS, String(Math.round(rms * 10000) / 10000));
     } catch (_) { /* private tab: the check is asked again next time */ }
   }
@@ -131,7 +136,7 @@
           stopStream(stream);
           var rms = samples.length ? samples.reduce(function (a, b) { return a + b; }, 0) / samples.length : 0;
           var url = chunks.length ? root.URL.createObjectURL(new root.Blob(chunks, { type: chunks[0].type || 'audio/webm' })) : null;
-          resolve({ ok: !an || peak > FLOOR, rms: Math.round(rms * 10000) / 10000, peak: Math.round(peak * 10000) / 10000, url: url });
+          resolve({ ok: !an || peak > FLOOR, rms: Math.round(rms * 10000) / 10000, peak: Math.round(peak * 10000) / 10000, measured: !!an, url: url });
         }
         if (mr) {
           mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
@@ -142,7 +147,7 @@
       });
     }, function () {
       if (ctx) { try { ctx.close(); } catch (_) { /* closed */ } }
-      return { ok: false, rms: 0, peak: 0, url: null };
+      return { ok: false, rms: 0, peak: 0, measured: false, denied: true, url: null };
     });
   }
 

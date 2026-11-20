@@ -800,7 +800,7 @@ export default function LeaderAssess() {
       </fieldset>
     );
   } else if (step.kind === 'preflight') {
-    content = <AssessPreflight copy={copy} onMic={micChecked} onReady={preflightDone} micRequired={switches.micRequired} iosMic={switches.iosMic === true} />;
+    content = <AssessPreflight copy={copy} onMic={micChecked} onReady={preflightDone} micRequired={switches.micRequired} iosMic={switches.iosMic === true} floor={switches.r28MicUnknown === true} />;
   } else if (step.kind === 'link') {
     content = (
       <AssessOtherPhone copy={copy} serverId={step.serverId} childNo={step.child.childNo} lang={lang}

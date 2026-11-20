@@ -158,6 +158,8 @@ const SA_SWITCHES = {
   rdfMicCheck: 'sa_r12_rdf_mic_check',
   // round 20: End this section in RDF auto too (portal components/assess/AssessEngineSlot.tsx; the engine reads its own copy)
   r20AutoEndSection: 'sa_r20_auto_end_section',
+  // round 28, O-115: the pre-flight's "I heard it" needs a level above the floor (portal components/assess/AssessPreflight.tsx)
+  r28MicUnknown: 'sa_r28_mic_unknown',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);

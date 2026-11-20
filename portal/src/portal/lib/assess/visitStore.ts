@@ -42,7 +42,8 @@ export type VisitMemory = {
   elsewhere: Record<string, string>;
 };
 
-export type MicCheck = { mic_ok: boolean; mic_rms: number; at: number };
+/** how (sa_r28_mic_unknown): 'auto' a measured level, 'unmeasured' a phone with no analyser (mic_rms null). */
+export type MicCheck = { mic_ok: boolean; mic_rms: number | null; at: number; how?: 'auto' | 'unmeasured' };
 
 /** The engine reads the last microphone check from here. */
 export const MIC_KEY = 'sa:mic_ok';

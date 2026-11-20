@@ -71,7 +71,9 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 28, A11 (screen fit): the scroll cue's self-hold, the language toggle in a 44 px bar
   'r28CueGuard', 'r28ToggleFit', 'r28CheckFit',
   // round 28: the coach's hold menu's Urdu End this task
-  'r28EndTaskCopy'];
+  'r28EndTaskCopy',
+  // round 28, O-115: an unknown microphone in coach mode is tried
+  'r28MicUnknown'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
