@@ -107,6 +107,10 @@ function createOwnService(deps) {
   }
 
   async function requestOwn({ userId, segmentId, lessonId, answers, correlationId = null } = {}) {
+    if (userId && !segmentId && !lessonId && answers && answers.unit && answers.unit.start === 'goals') {
+      // bd-snkn32.59.4 (queue #165) — a day of her GOAL unit: no segment, no book day (lp-own-unit-request).
+      return require('./lp-own-unit-request').requestGoalUnitDay({ ...d, now }, queue, { userId, answers, correlationId, tv: K5_TV });
+    }
     if (!userId || (!segmentId === !lessonId)) {
       return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
     }
@@ -267,6 +271,7 @@ function liveDeps() {
     listChain: (rootId, userId) => listChain(supabase, rootId, userId),
     countToday: (userId, since) => countToday(supabase, userId, since),
     goalStartOn: (userId) => require('./lp612-own-goal.store').goalStartOn(supabase, userId),
+    unitOn: (userId) => require('./lp-own-unit.store').unitOn(supabase, userId), // bd-snkn32.59.4
     log: (msg, meta) => logToFile(msg, meta),
   };
 }

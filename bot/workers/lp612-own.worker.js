@@ -38,6 +38,7 @@ const Extend = require('../shared/services/lp612-own-extend');
 const { finishOwnDoc } = require('../shared/services/lp612-own-close');
 const { addK5Close } = require('../shared/services/lp-k5-own-close');
 const { goalGate } = require('../shared/services/lp-own-goal-check');
+const { goalDay } = require('../shared/services/lp-own-unit-day');
 
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
 const PARENT_WAIT_MS = 12 * 60 * 1000;
@@ -116,7 +117,7 @@ function createOwnWorker(deps) {
 
   /** bd-snkn32.4 — a grades 1–5 day. Throws stop(...) on every failure, like the 6-12 path. */
   async function processK5(row, correlationId, startFrom) {
-    const day = await d.loadK5(row.lesson_id);
+    const day = row.lesson_id ? await d.loadK5(row.lesson_id) : goalDay(row); // bd-snkn32.59.4: a goal unit day has no book day
     if (!day) throw stop('NO_PARENT', 'the day has no stored plan to start from');
     const script = startFrom || day.script; // bd-snkn32.15: a change rewrites her latest plan; the day gives its meta
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
@@ -142,7 +143,7 @@ function createOwnWorker(deps) {
     }
     const hash = require('crypto').createHash('sha256')
       .update(JSON.stringify({ a: row.answers, s: out.script, e: row.edit_request || undefined })).digest('hex').slice(0, 16);
-    const base = `lp612/own-k5/${day.lang}/${row.lesson_id}/${hash}`;
+    const base = `lp612/own-k5/${day.lang}/${row.lesson_id || day.key}/${hash}`;
     const pdfKey = keys().assertKeyInPrefix(`${base}.pdf`);
     await d.upload(pdf, pdfKey, 'application/pdf');
     try {
@@ -177,7 +178,7 @@ function createOwnWorker(deps) {
   async function make(row, ownId, correlationId) {
     try {
       const base = row.parent_own_id ? await changeBase(row) : null;
-      if (row.lesson_id) { await processK5(row, correlationId, base); return true; }
+      if (row.lesson_id || goalDay(row)) { await processK5(row, correlationId, base); return true; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
