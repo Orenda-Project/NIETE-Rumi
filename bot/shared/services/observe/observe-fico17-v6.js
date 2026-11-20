@@ -37,7 +37,7 @@ const MSG_EN = {
   v6_write_why: 'Write why you chose this level (at least 20 characters).',
   v6_check_numbers: 'Check the two numbers.',
   v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
-  v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',
+  v6_change_why: 'You changed the level from the recording. Write why (at least 20 characters).',
   v6_fix_heading: 'Please fix these before you go on:',
 };
 
@@ -196,7 +196,7 @@ function combinedBody(analysis, code) {
   const lines = [ind.definition || ''];
   lines.push('');
   if (starredIn(analysis, code)) {
-    lines.push('★ Starred: yours alone. Rumi does not listen for this one; set the level from what you saw.');
+    lines.push('★ Starred: yours alone. The NIETE Teaching Assistant does not listen for this one; set the level from what you saw.');
   } else if (code === 'D2') {
     const a = ce.student_turns_first_half;
     const b = ce.student_turns_second_half;

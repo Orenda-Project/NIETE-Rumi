@@ -222,7 +222,7 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
   test('changing a level Rumi set needs a reason on that screen', async () => {
     let res = await post({ _screen: 'IND_C_ONE', r_C1: '4' });
     expect(res.screen).toBe('IND_C_ONE');
-    expect(res.data.err_note).toMatch(/changed a level Rumi set/);
+    expect(res.data.err_note).toMatch(/changed the level from the recording/);
     res = await post({ _screen: 'IND_C_ONE', r_C1: '4', chg_C1: 'She asked why and followed it up.' });
     expect(res.screen).toBe('IND_C_TWO');
   });
