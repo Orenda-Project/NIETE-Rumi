@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T14:34:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"57f38689e8a0","branch":"HEAD","user":""}
+{"ts":"2026-11-20T14:43:18Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (shared files only; no page a signed-out or default user sees changes)","sha":"57f38689e8a0","branch":"bd-snkn32.59-39278","user":""}
