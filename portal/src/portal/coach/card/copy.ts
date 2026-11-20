@@ -133,9 +133,9 @@ export const SCHOOL_CARD_EN = {
   first: "first",
   byTeacherHead: "By teacher",
   mostFirst: {
-    lp: "Most first · tap a teacher for her lesson plans",
-    papers: "Most first · tap a teacher for her assessments",
-    training: "Most first · tap a teacher for her training",
+    lp: "Most first · tap a teacher for their lesson plans",
+    papers: "Most first · tap a teacher for their assessments",
+    training: "Most first · tap a teacher for their training",
   },
   noneYet: {
     lp: { today: "No lesson plans today yet", week: "No lesson plans this week yet", month: "No lesson plans this month yet" },
@@ -177,12 +177,12 @@ export const SCHOOL_CARD_EN = {
   avgLine: (n: number) => `Avg ${n}%`,
   byPractice: "Average by practice",
   across: {
-    dc: (n: number, max: number) => `Across her ${n} ${plural(n, "report", "reports")} · out of ${max}`,
-    coach: (n: number, max: number) => `Across her ${n} ${plural(n, "observation", "observations")} · out of ${max}`,
+    dc: (n: number, max: number) => `Across ${n} ${plural(n, "report", "reports")} · out of ${max}`,
+    coach: (n: number, max: number) => `Across ${n} ${plural(n, "observation", "observations")} · out of ${max}`,
   },
   scoredIn: (k: number, n: number) => `Scored in ${k} of ${n} (the others had no lesson plan)`,
   noLpLinked: "No lesson plan linked, so this section was not scored",
-  herList: { dc: "Her reports", coach: "Her observations" },
+  herList: { dc: "Their reports", coach: "Their observations" },
   noKind: {
     dc: { today: "No DC observations today", week: "No DC observations this week", month: "No DC observations this month" },
     coach: { today: "No coach observations today", week: "No coach observations this week", month: "No coach observations this month" },
@@ -227,7 +227,7 @@ export const SCHOOL_CARD_EN = {
   /** The report card's five lesson steps (bot report-card.js STEPS), in order: Lesson Plan Fidelity's rows (bd-dgfkgs.3). */
   stepNames: ["Opening", "Explanation", "We Do", "You Do", "Check"],
   noPlan: "No lesson plan linked",
-  reflection: "Her reflection",
+  reflection: "The teacher's reflection",
   gradeSubject: (grade: string, subject: string) => `${grade} · ${subject}`,
 };
 

@@ -48,13 +48,18 @@ export function CoachAttention() {
 }
 
 export default function ObservePage({
-  title, crumb, backTo, onBack, feature, dock, bare = false, banner = true, trouble = null, children,
+  title, crumb, backTo, onBack, feature, dock, bare = false, banner = true, whatsapp = true, trouble = null, children,
 }: {
   title: ReactNode; crumb?: ReactNode; backTo?: string; onBack?: () => void; feature?: AnyFeature; dock?: ReactNode;
   /** No menu: a screen where one stray tap must not leave (recording). */
   bare?: boolean;
   /** The "reports waiting" line under the header (off while recording). */
   banner?: boolean;
+  /**
+   * bd-o15qnr.27 (v6) — the way back to WhatsApp (#166). Off on the v6 Observe screen only (the operator on v5: "remove
+   * this button. No need once this is live."); every other Observe screen keeps it.
+   */
+  whatsapp?: boolean;
   /** bd-9652yj — this screen failed (the microphone, a send): the way back to WhatsApp becomes a full button. */
   trouble?: TroubleKind | null;
   children: ReactNode;
@@ -69,7 +74,7 @@ export default function ObservePage({
   const page = (
     <TroubleContext.Provider value={signal}>
       <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}>
-        {routes.coachGate && <ContinueOnWhatsApp trouble={trouble ?? signalled} bare={bare} />}
+        {routes.coachGate && whatsapp && <ContinueOnWhatsApp trouble={trouble ?? signalled} bare={bare} />}
         {banner && !bare && routes.coachGate && <CoachAttention />}
         {children}
       </TeacherPage>

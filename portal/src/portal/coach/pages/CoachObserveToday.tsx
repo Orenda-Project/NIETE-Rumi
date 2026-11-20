@@ -1,10 +1,10 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { CalendarDays, Clock, Inbox } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { CalendarClock, CalendarPlus, ChevronDown, ChevronUp, Clock, Inbox, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { coach } from "../../services/api";
+import { coach, leader } from "../../services/api";
 import { useCopy, useLang } from "../../teacher/i18n";
-import { HistoryRow } from "../../teacher/ui";
+import { HistoryRow, addDays } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { todayLabel } from "../../teacher/format";
@@ -14,88 +14,141 @@ import type { CoachReport, CoachVisit } from "../types";
 import ObservePage from "../observe/ObservePage";
 import { OBSERVE } from "../observe/copy";
 import { SCHEDULE } from "../schedule/copy";
-import { recordPath } from "../schedule/VisitCard";
+import { CancelVisitTray } from "../schedule/CancelVisitTray";
 import { REPORTS } from "../reports/copy";
 import { reportChip, reportHref } from "../reports/ReportRows";
 import { trackFlow } from "../flow/track";
+import { FLOW_V6 } from "../flow/copy";
+import { BookedRow } from "../flow/BookedRow";
+import { groupBooked, oldestFirst, waitedDays } from "../flow/model";
 
 /**
- * bd-o15qnr.26 (queue #177, rebuilt to #188's Concept 1 "Today and Needs you"; the operator 19 Nov ~19:45: "right now the
- * main thing is the coach app redesign") — the coach's ONE Observe screen, behind portal_coach_flow_v2. One phone screen
- * tall, in the order a coach works (#188's facts: 92% of visits are booked the same day; 3-6 observations wait on each):
+ * bd-o15qnr.27 (queue #204, v6; the operator 20 Nov ~13:30: "ok v6 looks good. Lets get this built.") — the coach's ONE
+ * Observe screen, behind portal_coach_flow_v2, in the app's own look (#188's canvas, page v6): the kit's page header
+ * (Back circle, the feature tile, today's date as the crumb, the 26px light title), kit rows and the app's buttons.
  *
- *   Start an observation   the big button: New visit in book-now mode (school, teacher, then record; no day and time)
- *   Booked for today       today's visits still to do, each with Record (one tap to its record step)
- *   Needs you              observations waiting on her, OLDEST first: three, then See all N (Reports' waiting list)
- *   two rows               Booked visits (late, today, ahead; its late count) and History (her observations; how many)
+ *   Schedule an observation   the dark button: school → teacher → Schedule for Now / Schedule for Later (New visit)
+ *   Booked for today          today's visits still to do, each with Record; under them All booked (N late · N more),
+ *                             which opens IN PLACE: Late and Coming up, every visit with Record / Reschedule and Cancel
+ *                             (Cancel asks first), Team schedule, Hide. ?booked=open opens it at once (the Home's link,
+ *                             and the old Booked visits address)
+ *   Needs you                 observations waiting on her, OLDEST first: two, then See all N opening in place
+ *   History                   her observations (how many in all)
  *
- * It asks for today only (the server adds every late visit) and the first reports page: light on a slow link. The way
- * back to WhatsApp (#166) is on top, as on every Observe screen (ObservePage).
+ * Not on this screen (the operator on v5): the WhatsApp button ("remove this button. No need once this is live."), and the
+ * yellow "N observations need you" bar (Needs you right under the header says the same). Booked is apart from Schedule
+ * an observation (round 5: "The 'Booked for Today' should be disconnected from the Start an Observation button").
+ *
+ * Reads today to 90 days ahead (the server adds every late visit however old) and the first reports page.
  */
 
-const NEEDS_SHOWN = 3;
-
-/** Whole days between two Pakistan days (YYYY-MM-DD). */
-function dayDiff(from: string, to: string): number {
-  return Math.max(0, Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000));
-}
-
-const ROW_LINK = cn("flex min-h-[60px] items-center gap-3 px-4 text-[16px] font-semibold", FOCUS);
+const NEEDS_SHOWN = 2;
+const DAYS_AHEAD = 90;
 
 const CoachObserveToday = () => {
   const S = useCopy(SCHEDULE);
   const O = useCopy(OBSERVE);
   const R = useCopy(REPORTS);
+  const F = useCopy(FLOW_V6);
   const lang = useLang();
   const today = karachiDay();
-  const schedule = useLoad(() => coach.getSchedule({ from: today, to: today }), [today]);
+  const [params] = useSearchParams();
+  const schedule = useLoad(() => coach.getSchedule({ from: today, to: addDays(today, DAYS_AHEAD) }), [today]);
   const reports = useLoad(() => coach.getReports({ page: 1 }), []);
+  const [bookedOpen, setBookedOpen] = useState(params.get("booked") === "open");
+  const [needsOpen, setNeedsOpen] = useState(false);
+  const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
+  const [asking, setAsking] = useState<CoachVisit | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const todays = useMemo(() => (schedule.data?.visits || [])
-    .filter((v) => v.scheduledFor === today && v.status === "upcoming")
-    .sort((a, b) => ((a.scheduledSlot || "~") < (b.scheduledSlot || "~") ? -1 : 1)), [schedule.data, today]);
-  const late = useMemo(() => {
-    const seen = new Set<string>();
-    return (schedule.data?.overdue || []).filter((v) => !seen.has(v.id) && seen.add(v.id) && (v.scheduledFor || "") < today).length;
-  }, [schedule.data, today]);
-  const waiting = useMemo(() => [...(reports.data?.waiting || [])]
-    .sort((a, b) => ((a.createdAt || "") < (b.createdAt || "") ? -1 : 1)), [reports.data]);
+  const g = useMemo(() => groupBooked(schedule.data, today, gone), [schedule.data, today, gone]);
+  const waiting = useMemo(() => oldestFirst(reports.data?.waiting), [reports.data]);
+  const more = g.late.length + g.coming.length;
 
-  const waitedDays = (r: CoachReport) => (r.createdAt ? dayDiff(karachiDay(new Date(r.createdAt)), today) : 0);
+  const askCancel = (v: CoachVisit) => { trackFlow("schedule.cancel_tap"); setAsking(v); };
+  const confirmCancel = async () => {
+    if (!asking) return;
+    const id = asking.id;
+    trackFlow("schedule.cancel_confirm");
+    setBusy(true);
+    try {
+      await leader.cancelSchedule(id);
+      setGone((prev) => new Set(prev).add(id));
+    } catch {
+      /* the visit stays, as on the visit page */
+    } finally {
+      setBusy(false);
+      setAsking(null);
+    }
+  };
+  const toggleBooked = () => {
+    if (!bookedOpen) trackFlow("observe.booked_open");
+    setBookedOpen((o) => !o);
+  };
+  const cancel = bookedOpen ? askCancel : undefined;
+  const group = (label: string, testId: string, visits: CoachVisit[], warn = false) => visits.length > 0 && (
+    <div data-testid={testId} className="border-t border-[#e5e7eb]">
+      <h3 className="m-0 flex items-center gap-2 px-4 pb-1 pt-3 text-[15px] font-semibold text-[#4b5563]">
+        {label}<StatusChip text={String(visits.length)} tone={warn ? "waiting" : "info"} />
+      </h3>
+      {visits.map((v, i) => <BookedRow key={v.id} v={v} today={today} actions onCancel={askCancel} first={i === 0} />)}
+    </div>
+  );
+
+  const shownWaiting = needsOpen ? waiting : waiting.slice(0, NEEDS_SHOWN);
 
   return (
-    <ObservePage title={O.observe} crumb={todayLabel(new Date(), lang)} backTo="/portal/coach" feature="observations">
-      <div data-testid="observe-today" className="flex flex-col gap-3">
-        {/* Start an observation, with today's booked teachers one tap away */}
-        <section className={cn(LIST_CARD, "flex flex-col")}>
-          <div className="flex flex-col gap-2 p-3">
-            <Link to="/portal/coach/new-visit?now=1" onClick={() => trackFlow("observe.start")}
-              className={cn("flex min-h-[64px] items-center justify-center gap-3 rounded-2xl bg-[#33374a] px-4 py-2 text-[18px] font-semibold leading-tight text-white rtl:leading-[1.8]", FOCUS)}>
-              <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_4px_rgba(255,77,61,0.25)]" />
-              {S.startObservation}
-            </Link>
-            <p className="m-0 text-center text-[14px] text-[#6b7280]">{S.startSub}</p>
-          </div>
-          {todays.length > 0 && (
-            <div data-testid="booked-today" className="border-t border-[#e5e7eb]">
-              <h2 className="m-0 px-4 pb-1 pt-2.5 text-[13px] font-bold uppercase tracking-wide text-[#6b7280]">{S.bookedToday}</h2>
-              {todays.map((v: CoachVisit) => (
-                <div key={v.id} className="flex items-center gap-2 border-t border-[#f3f4f6] pe-3">
-                  <div className="min-w-0 flex-1">
-                    <HistoryRow lead="person" title={v.teacherName || S.dash} extra={v.schoolName || undefined} time={v.scheduledSlot} action="none" />
-                  </div>
-                  <Link to={recordPath(v.id)} onClick={() => trackFlow("schedule.start")}
-                    className={cn("flex min-h-[48px] shrink-0 items-center gap-2 rounded-xl bg-[#33374a] px-3.5 text-[15px] font-semibold text-white", FOCUS)}>
-                    <span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#ff4d3d]" />{S.record}
-                  </Link>
+    <ObservePage title={O.observe} crumb={todayLabel(new Date(), lang)} backTo="/portal/coach" feature="observations" banner={false} whatsapp={false}>
+      <div data-testid="observe-v6" className="flex flex-col gap-2.5">
+        {/* Schedule an observation: the whole flow, Now or Later at its end */}
+        <section className="flex flex-col gap-2">
+          <Link to="/portal/coach/new-visit" onClick={() => trackFlow("observe.schedule")}
+            className={cn("flex min-h-[56px] items-center justify-center gap-2.5 rounded-2xl bg-[#33374a] px-4 py-2 text-[17px] font-semibold leading-tight text-white rtl:leading-[1.8]", FOCUS)}>
+            <CalendarPlus className="h-5 w-5 shrink-0" aria-hidden="true" />{F.scheduleObservation}
+          </Link>
+          <p className="m-0 text-center text-[14px] text-[#6b7280]">{F.scheduleSub}</p>
+        </section>
+
+        {/* Booked for today, then All booked opening in place */}
+        <section data-testid="booked-today" className="flex flex-col gap-2">
+          <SectionLabel count={schedule.data ? g.today.length : undefined}>{S.bookedToday}</SectionLabel>
+          {schedule.failed && <Failed onRetry={schedule.reload} />}
+          {!schedule.data && !schedule.failed && <Loading />}
+          {schedule.data && (
+            <div className={LIST_CARD}>
+              {g.today.length === 0 && (
+                <div className="flex min-h-[64px] items-center gap-3 px-4 text-[15px] font-semibold text-[#6b7280]">
+                  <CalendarClock className="h-5 w-5 shrink-0" aria-hidden="true" />{F.noVisitsToday}
                 </div>
-              ))}
+              )}
+              {g.today.map((v, i) => <BookedRow key={v.id} v={v} today={today} actions={bookedOpen} onCancel={cancel} first={i === 0} />)}
+              {bookedOpen && group(S.late, "booked-late", g.late, true)}
+              {bookedOpen && group(S.comingUp, "booked-coming", g.coming)}
+              {bookedOpen && (
+                <Link to="/portal/coach/team" className={cn("flex min-h-[56px] items-center justify-center gap-2 border-t border-[#e5e7eb] px-4 text-[15px] font-semibold text-[#be185d]", FOCUS)}>
+                  <Users className="h-5 w-5 shrink-0" aria-hidden="true" />{S.teamSchedule}
+                </Link>
+              )}
+              {(more > 0 || bookedOpen || g.today.length > 0) && (
+                <button type="button" onClick={toggleBooked} aria-expanded={bookedOpen}
+                  className={cn("flex min-h-[56px] w-full items-center gap-2 border-t border-[#e5e7eb] px-4 text-start text-[16px] font-semibold text-[#33374a]", FOCUS)}>
+                  {bookedOpen ? (
+                    <><span className="flex-1 text-center">{F.hide}</span><ChevronUp className="h-5 w-5" aria-hidden="true" /></>
+                  ) : (
+                    <>
+                      <span className="flex-1">{F.allBooked}</span>
+                      {g.late.length > 0 && <StatusChip text={S.lateN(g.late.length)} tone="waiting" />}
+                      {more > 0 && <span className="text-[14px] font-medium text-[#6b7280]">{F.nMore(more)}</span>}
+                      <ChevronDown className="h-5 w-5 text-[#6b7280]" aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </section>
-        {schedule.failed && <Failed onRetry={schedule.reload} />}
 
-        {/* Needs you: oldest first */}
+        {/* Needs you: oldest first, two, then all of them here */}
         <section data-testid="needs-you" className="flex flex-col gap-2">
           <SectionLabel count={reports.data ? waiting.length : undefined} countTone={waiting.length ? "warn" : "info"}>{S.needsYou}</SectionLabel>
           {reports.failed && <Failed onRetry={reports.reload} />}
@@ -107,28 +160,24 @@ const CoachObserveToday = () => {
           )}
           {waiting.length > 0 && (
             <div className={LIST_CARD}>
-              {waiting.slice(0, NEEDS_SHOWN).map((r, i) => (
+              {shownWaiting.map((r: CoachReport, i) => (
                 <HistoryRow key={r.id} lead="person" first={i === 0} title={r.teacherName || S.dash}
-                  extra={S.waitingSince(waitedDays(r))} chip={reportChip(r, R)} to={reportHref(r)} />
+                  extra={S.waitingSince(waitedDays(r, today))} chip={reportChip(r, R)} to={reportHref(r)} />
               ))}
               {waiting.length > NEEDS_SHOWN && (
-                <Link to="/portal/coach/reports?show=waiting" className={cn("flex min-h-[56px] items-center justify-center gap-1 border-t border-[#e5e7eb] text-[15px] font-semibold text-[#33374a]", FOCUS)}>
-                  {S.seeAllN(waiting.length)}<Chevron />
-                </Link>
+                <button type="button" onClick={() => setNeedsOpen((o) => !o)} aria-expanded={needsOpen}
+                  className={cn("flex min-h-[56px] w-full items-center justify-center gap-1 border-t border-[#e5e7eb] text-[15px] font-semibold text-[#33374a]", FOCUS)}>
+                  {needsOpen ? S.showFewer : S.seeAllN(waiting.length)}
+                  {needsOpen ? <ChevronUp className="h-5 w-5" aria-hidden="true" /> : <ChevronDown className="h-5 w-5" aria-hidden="true" />}
+                </button>
               )}
             </div>
           )}
         </section>
 
-        {/* Booked visits and History */}
-        <nav aria-label={O.observe} className={LIST_CARD}>
-          <Link to="/portal/coach/schedule" className={ROW_LINK}>
-            <CalendarDays className="h-5 w-5 shrink-0 text-[#be185d]" aria-hidden="true" />
-            <span className="flex-1">{S.bookedVisits}</span>
-            {late > 0 && <StatusChip text={S.lateN(late)} tone="waiting" />}
-            <Chevron />
-          </Link>
-          <Link to="/portal/coach/reports" className={cn(ROW_LINK, "border-t border-[#e5e7eb]")}>
+        {/* History */}
+        <nav aria-label={S.history} className={cn(LIST_CARD, "mt-1")}>
+          <Link to="/portal/coach/reports" className={cn("flex min-h-[60px] items-center gap-3 px-4 text-[16px] font-semibold", FOCUS)}>
             <Clock className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />
             <span className="flex-1">{S.history}</span>
             {reports.data && <span className="text-[14px] font-medium text-[#6b7280]">{S.inAllN(reports.data.all.total)}</span>}
@@ -136,6 +185,9 @@ const CoachObserveToday = () => {
           </Link>
         </nav>
       </div>
+
+      <CancelVisitTray open={!!asking} teacherName={asking?.teacherName} slot={asking?.scheduledSlot} busy={busy}
+        onKeep={() => setAsking(null)} onConfirm={() => { void confirmCancel(); }} />
     </ObservePage>
   );
 };
