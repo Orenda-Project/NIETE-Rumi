@@ -794,6 +794,20 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
 
+      // The data analyst's buttons (services/data-analyst/entry.js): Ask another, Main menu, Data answer / Normal, a quick
+      // pick, a clarifying option. A hand-back (Main menu, Normal) runs the ordinary text handler with those words.
+      if (buttonId.startsWith('da_')) {
+        try {
+          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId });
+          if (r.handled) {
+            if (r.normalText) await handleTextMessage(message, from, r.normalText, user);
+            return;
+          }
+        } catch (err) {
+          logError('data analyst button failed (non-fatal)', { error: err.message });
+        }
+      }
+
       // /feedback's three topic buttons (nfb_topic_<topic>): the tap opens the one-message report. false (switch off,
       // no user) → the chain below runs as before.
       if (buttonId.startsWith('nfb_topic_')) {
@@ -1699,6 +1713,17 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       // to be guessed at. The token is ours by construction.
       const vqToken = responseJson.flow_token || message.interactive?.nfm_reply?.flow_token || '';
 
+      // The data analyst's question Flow (token `dataq:<userId>:<ts>`, services/data-analyst/entry.js). Claimed first and
+      // unconditionally, as vqm: is, so detectFlowType's colon rule can never send it to attendance.
+      if (typeof vqToken === 'string' && vqToken.startsWith('dataq:')) {
+        try {
+          await require('./shared/services/data-analyst/entry').handleDataAnalystFlowReply({ user, from, responseJson: { ...responseJson, flow_token: vqToken } });
+        } catch (err) {
+          logError('data analyst Flow reply failed (non-fatal)', { error: err.message });
+        }
+        return;
+      }
+
       if (typeof vqToken === 'string' && vqToken.startsWith('vqjoin:')) {
         try {
           const VideoQuizShare = require('./shared/services/quiz/video-quiz-share.service');
@@ -2063,6 +2088,19 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       const listReply = message.interactive.list_reply;
       const listId = listReply.id;
       logToFile('📋 Interactive list item selected', { listId, from });
+
+      // The data analyst's quick picks and clarifying options (da_pick_*, da_opt_*), as on the button branch.
+      if (listId.startsWith('da_')) {
+        try {
+          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId: listId });
+          if (r.handled) {
+            if (r.normalText) await handleTextMessage(message, from, r.normalText, user);
+            return;
+          }
+        } catch (err) {
+          logError('data analyst list pick failed (non-fatal)', { error: err.message });
+        }
+      }
 
       // Child test (bd-s1oo0.4): a child, an alternate or a school tapped on the child-test list.
       if (user && listId.startsWith('ctst_')) {
