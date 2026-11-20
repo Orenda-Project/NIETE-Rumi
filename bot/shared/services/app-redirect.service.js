@@ -64,6 +64,16 @@
  *      among their leader_schools, else exactly one school-search hit among them, else My schools
  *      (schools/school-card-door.js). Always ONE message, never a list, a menu or a Flow. Not covered → false, and the
  *      text handler goes on exactly as before. Old code never reads the key for the bot: a rollback is OFF.
+ *   2f. THE COACH APP NUDGE (bd-9652yj, queue #166 option B), for /menu and /observe (the menu's Observe row too): ONE
+ *      cta_url message, the coach-app page's button [Open in the app] and a line that says "If the app gives trouble,
+ *      reply 1 and I'll carry on here on WhatsApp" (coach-app-nudge.service owns the reply, the day's choice and the app's
+ *      way back). Its OWN switch, `coach_app_nudge`: true → every coach the portal shows the FULL coach app to; a JSON
+ *      list of users.id → only those. Either way the portal's own rule must hold: users.role coach, portal_coach_v2 on for
+ *      them (true or a list holding them) AND portal_coach_full_app on for them (true or a list holding them). Any other
+ *      value — "coaches", "teachers", an object, false, no row — is OFF, and so is a failed read. Asked BEFORE 2b
+ *      (coach_app_link stays as it is and can be retired later). A coach who chose WhatsApp today (reply 1, or the app's
+ *      "Continue on WhatsApp") gets today's flow until PKT midnight: no second nudge. Old code never reads the key, so a
+ *      rollback is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -87,6 +97,8 @@ const { isTeachersValue, isTeacherRole, isCoachRole } = require('./teacher-audie
 const { isRegistered } = require('../utils/registration-status');
 const { newJourneyId } = require('./app-journey');
 const { LEADER_ROLES } = require('./observe/observe-gate');
+// The offer state only (a leaf module): the handlers that answer it require this file, not the other way round.
+const CoachAppOffer = require('./coach-app-offer');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -158,11 +170,12 @@ function funnelEvent(name, props) {
 }
 
 /** Mint the journey and log what she asked for. `verdict` is 'link' (a link goes out) or 'whatsapp' (she keeps the flow). */
-function startJourney({ userId, feature, door, verdict, why, audience = 'teacher', match }) {
+function startJourney({ userId, feature, door, verdict, why, audience = 'teacher', match, offer }) {
   const journeyId = newJourneyId();
   // `match` (the School card only): how the school was found — emis | name | several | no_match | no_query | no_schools.
+  // `offer` (the coach app nudge only): 'reply1', the way back to WhatsApp the message carries.
   funnelEvent('app_funnel.command', { journeyId, userId, feature, door, verdict, ...(why ? { why } : {}), audience,
-    ...(match ? { match } : {}) });
+    ...(match ? { match } : {}), ...(offer ? { offer } : {}) });
   return { journeyId, feature, door, userId, audience };
 }
 
@@ -205,6 +218,19 @@ const COACH_LINK_TRUE_OR_LIST = Object.freeze(['school_card']);
 const COACH_LINK_DOORS = Object.freeze({ teacher_training: ['command', 'chip', 'menu', 'training_door'], school_card: ['command'] });
 /** The coach app's own switch (dashboard/lib/feature-flags.js PORTAL_COACH_V2_KEY): true or a list of users.id. */
 const COACH_APP_KEY = 'portal_coach_v2';
+
+/**
+ * bd-9652yj — the coach app nudge (2f): request → the coach-app page (app-login-link.js COACH_LANDINGS) and its words.
+ * Its switch is its own; the portal's full-app switch (dashboard/lib/feature-flags.js PORTAL_COACH_FULL_APP_KEY) is read
+ * with the portal's rule (true, or a list holding them).
+ */
+const NUDGE_LINKS = Object.freeze({ observe: 'coach_observe', menu: 'coach_menu' });
+const NUDGE_COPY = Object.freeze({
+  coach_observe: ['coachNudgeBodyObserve', 'coachNudgeButton'],
+  coach_menu: ['coachNudgeBodyHome', 'coachNudgeButton'],
+});
+const COACH_NUDGE_KEY = 'coach_app_nudge';
+const COACH_FULL_APP_KEY = 'portal_coach_full_app';
 
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
@@ -283,7 +309,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY]);
+        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -415,6 +441,57 @@ async function coachLink(feature, userId, now, reason) {
     return null;
   }
   return COACH_LINKS[feature];
+}
+
+/**
+ * bd-9652yj — is this coach covered by the nudge (2f)? The switch first (true, or a list holding them), so nobody off it
+ * pays a users read; then the portal's rule: role coach, on the coach app, on the full app. `note.why` says why not, for
+ * someone the switch covers. Throws on a failed users read (the caller treats that as off).
+ */
+async function nudgeCovers(values, userId, note = {}) {
+  const flag = values.get(COACH_NUDGE_KEY);
+  if (!isOn(flag) && !listHas(flag, userId)) return false;
+  const a = await loadAccount(userId);
+  const on = (key) => { const v = values.get(key); return listHas(v, userId) || isOn(v); };
+  if (!a) note.why = 'no_account';
+  else if (!isCoachRole(a.role)) note.why = 'not_a_coach';
+  else if (!on(COACH_APP_KEY)) note.why = 'not_on_coach_app';
+  else if (!on(COACH_FULL_APP_KEY)) note.why = 'not_on_full_app';
+  return !note.why;
+}
+
+/** Is the nudge on for this coach? The report-ready line asks it. Fails closed: any failure is false. */
+async function isCoachNudged(userId, { now = Date.now() } = {}) {
+  if (!userId) return false;
+  try {
+    return await nudgeCovers(await settingValues(now), userId);
+  } catch (err) {
+    logToFile('⚠️ Coach app nudge: the check failed — treated as off', { tk: CoachAppOffer.tkOf(userId), error: err?.message }, 'warn');
+    return false;
+  }
+}
+
+/**
+ * The nudge's decision for a request: 'nudge' (send it), 'whatsapp_today' (she chose WhatsApp today: today's flow, no
+ * link at all), or null (not this coach's matter: the October coach link and everything below decide as before).
+ */
+async function coachNudge(feature, userId, now) {
+  if (!Object.prototype.hasOwnProperty.call(NUDGE_LINKS, feature)) return null;
+  const values = await settingValues(now);
+  const flag = values.get(COACH_NUDGE_KEY);
+  if (!isOn(flag) && !listHas(flag, userId)) return null;
+  const note = {};
+  try {
+    if (!(await nudgeCovers(values, userId, note))) {
+      logToFile('↩️ Coach app nudge: not for this user — today\'s path', { tk: CoachAppOffer.tkOf(userId), feature, why: note.why });
+      return null;
+    }
+  } catch (err) {
+    logToFile('⚠️ Coach app nudge: the account could not be read — today\'s path', { tk: CoachAppOffer.tkOf(userId), feature, error: err?.message }, 'warn');
+    return null;
+  }
+  if (await CoachAppOffer.choseWhatsappToday(userId)) return 'whatsapp_today';
+  return 'nudge';
 }
 
 /** Is this users.role in the leader family? Trim + lowercase, as the portal's isLeaderRole does. */
@@ -571,6 +648,20 @@ async function shapeLink(onLink, journey) {
 
 async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now(), onLink = null } = {}) {
   if (userId && from) {
+    // bd-9652yj (2f) — the coach app nudge, before the October coach link.
+    const nudge = await coachNudge(feature, userId, now);
+    if (nudge === 'whatsapp_today') {
+      startJourney({ userId, feature, door: reason, verdict: 'whatsapp', why: 'chose_whatsapp_today', audience: 'coach' });
+      return false;
+    }
+    if (nudge === 'nudge') {
+      const landing = NUDGE_LINKS[feature];
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach', offer: 'reply1' });
+      const sent = await sendAppLink(landing, { userId, from, language, reason, journey, copy: NUDGE_COPY[landing] });
+      // The offer is armed only when the message went: a coach who got nothing runs today's flow (false), not a wait.
+      if (sent) await CoachAppOffer.armReply(userId, feature, { journeyId: journey.journeyId, now });
+      return sent;
+    }
     const coach = await coachLink(feature, userId, now, reason);
     if (coach) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
@@ -659,6 +750,7 @@ module.exports = {
   FLAG_TTL_MS,
   isRedirectEnabled,
   isOnTeacherApp,
+  isCoachNudged,
   redirectIfFlagged,
   openSchoolCard,
   _resetForTests,

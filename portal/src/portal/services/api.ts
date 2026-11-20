@@ -1330,6 +1330,14 @@ export const coach = {
     const response = await api.get('/coach/team', { params });
     return response.data;
   },
+  /**
+   * bd-9652yj (queue #166) — "Continue on WhatsApp": a 5-character code the bot reads to carry on with this visit
+   * (dashboard/routes/coach-handoff.routes.js). code null: no code today; the chat still opens.
+   */
+  handoff: async (body: { screen: string; visitId?: string }): Promise<{ success: boolean; code: string | null; bot?: string | null }> => {
+    const response = await api.post('/coach/handoff', body, { timeout: 4000 });
+    return response.data;
+  },
   /** bd-rlxkkt.9 — Coach Training: the modules she marked done ({ module key: ISO time }). */
   getCoachTrainingProgress: async (): Promise<{ success: boolean; done: Record<string, string> }> => {
     const response = await api.get('/coach/coach-training/progress');

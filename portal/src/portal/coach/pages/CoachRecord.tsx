@@ -152,7 +152,7 @@ const CoachRecord = () => {
 
   if (!visit || blocked) {
     return (
-      <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)}
+      <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)} trouble={blocked ? "mic" : null}
         crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
         {failed && <Failed onRetry={reload} />}
         {!data && !failed && <Loading />}
