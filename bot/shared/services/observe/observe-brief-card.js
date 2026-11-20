@@ -101,10 +101,10 @@ const BRIEF_STRINGS = {
     ar: 'هذا إرشاد لدعم زيارتك — وليس درجة أو ترتيباً.',
   },
   first_visit: {
-    en: 'First visit with this teacher on Rumi. Start by getting to know the class — say hello, watch a lesson, and use the moves above to open the conversation.',
-    ur: 'رومی پر اس استاد کے ساتھ پہلا دورہ۔ کلاس کو جاننے سے آغاز کریں — سلام کریں، ایک سبق دیکھیں، اور بات چیت شروع کرنے کے لیے اوپر دیے گئے طریقے استعمال کریں۔',
-    sw: 'Ziara ya kwanza na mwalimu huyu kwenye Rumi. Anza kwa kufahamiana na darasa — salimia, tazama somo, na tumia hatua zilizo hapo juu kuanzisha mazungumzo.',
-    ar: 'الزيارة الأولى لهذا المعلم على رومي. ابدأ بالتعرف على الصف — ألقِ التحية، وشاهد درساً، واستخدم الخطوات أعلاه لبدء الحوار.',
+    en: 'First visit with this teacher. Start by getting to know the class — say hello, watch a lesson, and use the moves above to open the conversation.',
+    ur: 'اس استاد کے ساتھ پہلا دورہ۔ کلاس کو جاننے سے آغاز کریں — سلام کریں، ایک سبق دیکھیں، اور بات چیت شروع کرنے کے لیے اوپر دیے گئے طریقے استعمال کریں۔',
+    sw: 'Ziara ya kwanza na mwalimu huyu. Anza kwa kufahamiana na darasa — salimia, tazama somo, na tumia hatua zilizo hapo juu kuanzisha mazungumzo.',
+    ar: 'الزيارة الأولى لهذا المعلم. ابدأ بالتعرف على الصف — ألقِ التحية، وشاهد درساً، واستخدم الخطوات أعلاه لبدء الحوار.',
   },
 };
 
