@@ -169,6 +169,8 @@ describe('Paper page', () => {
     expect(await screen.findByRole('button', { name: new RegExp(C.answerKey) })).toBeTruthy();
     expect(screen.getByRole('link', { name: new RegExp(C.edit) })).toBeTruthy();
     expect(screen.getByRole('link', { name: new RegExp(C.versions) })).toBeTruthy();
+    // bd-e5n2jf (Amena, 20 Nov): an answer key can be wrong, so the page tells her to check it.
+    expect(screen.getByTestId('check-answers').textContent).toBe(C.checkAnswers);
     // bd-fmf24g.30: Send on WhatsApp is in the dock, locked while no template is configured; Open in another app is the paper's PDF.
     const send = await screen.findByTestId('share-send');
     expect(send.textContent).toContain('Send on WhatsApp');
@@ -182,6 +184,7 @@ describe('Paper page', () => {
     expect(await screen.findByRole('button', { name: new RegExp(C.download) })).toBeTruthy();
     expect(screen.queryByRole('button', { name: new RegExp(C.answerKey) })).toBeNull();
     expect(screen.queryByRole('link', { name: new RegExp(C.edit) })).toBeNull();
+    expect(screen.queryByTestId('check-answers')).toBeNull();
   });
 });
 
