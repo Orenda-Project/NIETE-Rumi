@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { leader } from "../../services/api";
@@ -11,6 +11,12 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
 import { rungName } from "./formModel";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
+import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
+import { clockOf } from "../../teacher/ui";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
+import { DockV7, FormChips, PartNote, PartTitle, v7Crumb } from "./FormV7";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -28,6 +34,12 @@ import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
  *
  * Words: FDE's own (items, levels, headings, labels it prints) come from the API, in English as FDE printed them; ours
  * are REPORTS.fde (en/ur).
+ *
+ * bd-o15qnr.28 (v7; #188's boards m9-ff-fico-s, m9-ff-fde) — on the v6/v7 switch (useFlowV6) the same form in the v7
+ * look, saved part by part: the rubric, the tool and the class's grade as a chip; "Saved 10:58 AM" beside it once a part
+ * is saved; each item's levels as the kit's radio rows; Back and Next part, and BOTH save what changed on the part (no
+ * "Save draft": nothing is left unsaved by moving); FDE says it has no Rumi levels; a score is a count, never a %
+ * (the operator, 20 Nov: only the debrief score is a %). Off (or while /config is read), today's screen, unchanged.
  */
 type Values = Record<string, string>;
 type Errors = Record<string, Obs612ErrorCode>;
@@ -56,6 +68,12 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   const C = useCopy(REPORTS);
   const W = C.fde;
   const navigate = useNavigate();
+  const v7 = useFlowV6() === true;
+  const F = useCopy(FORM_V7) as FormV7Copy;
+  const W7 = useCopy(FLOW_V7) as FlowV7Copy;
+  const kit = useKitCopy();
+  // bd-o15qnr.28 — when a part was last saved here (an ISO stamp), for the v7 look's "Saved 10:58 AM".
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [draft, setDraft] = useState<Obs612Draft>(first);
   const [values, setValues] = useState<Values>(() => valuesOf(first));
   const [part, setPart] = useState(0);
@@ -83,6 +101,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     const d = await leader.saveObs612Form(id, values, false);
     setDraft(d);
     setValues(valuesOf(d));
+    setSavedAt(new Date().toISOString());
     return d;
   };
   const failed = (err: unknown, fallback: string) => {
@@ -160,7 +179,32 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     }
   };
 
-  const dock = readOnly ? (
+  // bd-o15qnr.28 — v7: Back saves what changed on the part first (as Next does), then goes back.
+  const stored = valuesOf(draft);
+  const dirty = Object.keys(values).some((k) => (values[k] ?? "") !== (stored[k] ?? ""));
+  const backSaving = async () => {
+    if (readOnly || !dirty) { back(); return; }
+    setBusy(true);
+    try {
+      await store();
+      setBusy(false);
+      back();
+    } catch (err) {
+      failed(err, C.saveFailed);
+      setBusy(false);
+    }
+  };
+
+  const dock = v7 ? (
+    <DockV7 single={readOnly && last}>
+      <BottomButton tone="outline" onClick={backSaving} disabled={busy}>{C.back}</BottomButton>
+      {readOnly
+        ? (!last ? <BottomButton onClick={next}>{C.next}</BottomButton> : null)
+        : last
+          ? <BottomButton onClick={askSubmit} disabled={busy}>{W.submit}</BottomButton>
+          : <BottomButton onClick={next} disabled={busy}>{C.next}</BottomButton>}
+    </DockV7>
+  ) : readOnly ? (
     <>
       <BottomButton tone="outline" onClick={back}>{C.back}</BottomButton>
       {!last && <BottomButton onClick={next}>{C.next}</BottomButton>}
@@ -197,6 +241,12 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     let choices = null;
     if (readOnly) {
       choices = v ? <StatusChip text={titleOf(f, v)} tone="info" className="self-start" /> : null;
+    } else if (v7) {
+      // bd-o15qnr.28 — every item's choices as the kit's radio rows (FDE's own titles and level words, as data).
+      choices = (
+        <RatingScale look="radio" name={groupName} value={v || null} onChange={(k) => set(f.name)(String(k))}
+          options={opts.map((o) => ({ id: o.id, label: o.title, description: o.description }))} />
+      );
     } else if (f.kind === "points") {
       choices = (
         <>
@@ -226,8 +276,18 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     }
     return (
       <section key={f.name} data-testid="fde-item" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5", bad && BAD)}>
-        <StatusChip text={label} tone="score" className="self-start" />
-        {f.text ? <p className="m-0 text-[16px] font-semibold leading-snug" dir="auto">{f.text}</p> : null}
+        {v7 ? (
+          // bd-o15qnr.28 — v7: the code chip and FDE's words for the item on one line (m9-ff-fde, m9-ff-fico-s).
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusChip text={label} tone="score" />
+            {f.text ? <p className="m-0 min-w-0 flex-1 text-[16px] font-semibold leading-[1.3]" dir="auto">{f.text}</p> : null}
+          </div>
+        ) : (
+          <>
+            <StatusChip text={label} tone="score" className="self-start" />
+            {f.text ? <p className="m-0 text-[16px] font-semibold leading-snug" dir="auto">{f.text}</p> : null}
+          </>
+        )}
         {choices}
         {errorLine(f)}
       </section>
@@ -280,7 +340,10 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   };
 
   const partView = (p: Obs612Part, i: number) => {
-    if (p.type === "heading") return <h2 key={i} className="mx-1 mt-1 text-[20px] font-semibold leading-[1.25]" dir="auto">{p.text}</h2>;
+    if (p.type === "heading") {
+      if (v7) return <PartTitle key={i} text={p.text} />;
+      return <h2 key={i} className="mx-1 mt-1 text-[20px] font-semibold leading-[1.25]" dir="auto">{p.text}</h2>;
+    }
     if (p.type === "sub") return <h3 key={i} className="mx-1 mt-2 text-[16px] font-semibold text-[#4b5563]" dir="auto">{p.role ? W.subs[p.role] : p.text}</h3>;
     if (p.type === "context") {
       return (
@@ -311,7 +374,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       return (
         <section key={i} data-testid="fde-score" className={cn(LIST_CARD, "flex flex-col gap-1 p-3.5")}>
           <span className="text-[13px] font-semibold text-[#6b7280]">{W.scoreSoFar}</span>
-          <b className="text-[20px] font-bold tabular-nums" dir="ltr">{`${p.total} / ${p.max} (${p.pct}%)`}</b>
+          <b className="text-[20px] font-bold tabular-nums" dir="ltr">{v7 ? `${p.total} / ${p.max}` : `${p.total} / ${p.max} (${p.pct}%)`}</b>
           {p.band ? (
             <span className="flex items-baseline gap-2 text-[14px]">
               <span className="text-[#6b7280]">{W.rating}</span>
@@ -323,6 +386,40 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     }
     return field(p);
   };
+
+  if (v7) {
+    const items = section ? fieldsOf(section.parts).some((f) => f.role === "item") : false;
+    // FDE (not FICO-S, which has Rumi's levels): said once, under the part's title.
+    const noteAt = !readOnly && items && draft.tool !== "ficos" ? Math.max(0, section.parts.findIndex((p) => p.type === "heading")) : -1;
+    const chip = [draft.label, draft.toolName && draft.toolName !== draft.label ? draft.toolName : null, draft.grade ? F.gradeShort(draft.grade) : null]
+      .filter(Boolean).join(" · ");
+    const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
+    return (
+      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={backSaving} dock={dock} testId="coach-fde-form">
+        <div ref={top} />
+        {section && (
+          <>
+            <FormChips label={chip} saved={saved} extra={draft.sealed ? <StatusChip text={W.submitted} tone="done" tick /> : null} />
+            <StepBar total={total} current={part + 1} label={C.partOf(part + 1, total)} />
+            {readOnly && !draft.sealed ? <p className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.readOnly}</p> : null}
+            {section.parts.map((p, i) => (
+              <Fragment key={i}>
+                {partView(p, i)}
+                {i === noteAt ? <PartNote text={F.noRumiLevels} /> : null}
+              </Fragment>
+            ))}
+            {!readOnly ? <PartNote text={F.savedPartByPart} /> : null}
+            {note && (
+              <div role={note.ok ? "status" : "alert"} className={cn(NOTE, note.ok ? "bg-[#eaf6ef] text-[#2f7a52]" : "bg-[#fee4e2] text-[#c8331f]")}>{note.text}</div>
+            )}
+          </>
+        )}
+
+        <ConfirmTray open={confirm} title={W.submitTitle} warning={W.noChangesAfter} onClose={() => setConfirm(false)}
+          confirmLabel={W.yesSubmit} onConfirm={submit} cancelLabel={C.keepChecking} testId="fde-submit-tray" />
+      </ReportsFrame>
+    );
+  }
 
   return (
     <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-fde-form">
