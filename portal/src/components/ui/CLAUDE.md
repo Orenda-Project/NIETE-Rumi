@@ -1,7 +1,7 @@
 # ui — shadcn/ui primitives (Radix wrappers); generated style, mostly unused by the portal
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components/ui kg=f2be15fc625d gen=fa2c3275210b overflow=56 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components/ui kg=28fff381cc73 gen=87246bb500c3 overflow=56 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `button.tsx` — most used primitive, with `dialog.tsx`, `card.tsx`, `input.tsx`
@@ -26,7 +26,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `button.tsx` ← imported by `portal/src/components/FinalCTA.tsx:1:35ef1d8e` · `portal/src/components/Hero.tsx:1:35ef1d8e` (+37)
-- `skeleton.tsx` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:3:4fb2980f` · `portal/src/portal/analytics/views/CoachingTab.tsx:2:4fb2980f` (+6)
+- `skeleton.tsx` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:3:4fb2980f` · `portal/src/portal/analytics/views/CoachingTab.tsx:2:4fb2980f` (+7)
 - `input.tsx` ← imported by `portal/src/portal/components/AssessmentGeneratorPanel.tsx:55:360d469c` · `portal/src/portal/components/assessment-edit/AddQuestionFields.tsx:4:360d469c` (+3)
 - `label.tsx` ← imported by `portal/src/portal/components/AssessmentGeneratorPanel.tsx:57:b47a9bee` · `portal/src/portal/components/AssessmentPapersPanel.tsx:24:b47a9bee` (+3)
 - … 17 more → `CLAUDE.index.md`

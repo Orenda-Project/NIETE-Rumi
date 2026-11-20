@@ -1,7 +1,7 @@
 # calls — Live voice-call stack: WhatsApp calling, WebRTC, Realtime model, call tools
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/calls kg=f407a013e0ac gen=6c066a926772 overflow=47 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/calls kg=6ab4f2595b76 gen=efa98f0d3b24 overflow=48 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `call-engine.js` — session registry and lifecycle
@@ -25,7 +25,7 @@ Full index: `CLAUDE.index.md`
 - `pcm.js` ← imported by `bot/shared/calls/call-session.js:24:622cbac9` · `bot/shared/calls/realtime-client.js:18:91a2cc1d` (+1)
 - `ambience.js` ← imported by `bot/calls-server.js:33:009fa362` · `bot/shared/calls/rtc-peer.js:28:aed2d4c9`
 - `budget-governor.js` ← imported by `bot/calls-server.js:41:b45119b4` · `bot/shared/calls/call-log.service.js:20:1ab2d1b1`
-- … 42 more → `CLAUDE.index.md`
+- … 43 more → `CLAUDE.index.md`
 
 ## Never (human)
 - The five call-tool finders call requireCaller, which throws on a missing caller id (call-tools.repo.js:36)

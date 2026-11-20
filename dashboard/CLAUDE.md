@@ -1,7 +1,7 @@
 # dashboard — Express server: admin pages, teacher/coach portal API, child-quiz edge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard kg=4b89cafcaa61 gen=399f24e97c3b overflow=24 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard kg=56d0a304f8e2 gen=6c7b300a5abd overflow=24 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — app wiring: sessions, limits, every router mount, admin pages, portal build serving
@@ -12,15 +12,15 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 13 sub-dirs, each with `CLAUDE.md` | `data/` · `database/` · `docs/` · `lib/` · `middleware/` · `public/` · `routes/` · `sa/` · `scripts/` · `services/` · `supabase/` · `tests/` · `views/` |
-| 5 sub-dirs without a door | `config/` (2) · `jobs/` (1) · `portal-frontend/` (1) · `sa-game/` (2) · `workers/` (1) |
+| 14 sub-dirs, each with `CLAUDE.md` | `config/` · `data/` · `database/` · `docs/` · `lib/` · `middleware/` · `public/` · `routes/` · `sa/` · `scripts/` · `services/` · `supabase/` · `tests/` · `views/` |
+| 4 sub-dirs without a door | `jobs/` (1) · `portal-frontend/` (1) · `sa-game/` (2) · `workers/` (1) |
 | `index.js` | Main Express app: sessions, CORS, limits, mounts every router and admin page, serves the portal build; 3.8k lines. |
 | … | 31 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `index.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
-- column `coaching_sessions.analysis_data` (written by `index.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:53:c286009d` (+34)
-- table `coaching_sessions` whole row (`*`) (written by `index.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? (+7)
+- table `coaching_sessions` (written by `index.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+98)
+- column `coaching_sessions.analysis_data` (written by `index.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` (+36)
+- table `coaching_sessions` whole row (`*`) (written by `index.js`) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+7)
 - … 29 more → `CLAUDE.index.md`
 
 ## Never (human)

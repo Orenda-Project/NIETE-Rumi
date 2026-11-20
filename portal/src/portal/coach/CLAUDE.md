@@ -1,7 +1,7 @@
 # coach — Coach app v2 root: gate, flag hook, shared UI, copy and time rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=fcace1dcbabb gen=ec37384f94c4 overflow=41 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=de3db68a2d80 gen=d64c6007fc4e overflow=55 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachGate.tsx` — only a coach with portal_coach_v2 sees /portal/coach screens
@@ -12,17 +12,16 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 12 sub-dirs, each with `CLAUDE.md` | `analytics/` · `card/` · `disagreements/` · `home/` · `insights/` · `observe/` · `pages/` · `people/` · `profile/` · `reports/` · `schedule/` · `training/` |
+| 16 sub-dirs, each with `CLAUDE.md` | `analytics/` · `card/` · `coachTraining/` · `disagreements/` · `feedback/` · `flow/` · `home/` · `insights/` · `observe/` · `pages/` · `people/` · `profile/` · `report/` · `reports/` · `schedule/` · `training/` |
 | `ui.tsx` | Coach app v2 building blocks: Card, Chip, PendingBanner, CoachPage, useLoad, 56px targets (bd-o15qnr) |
 | `types.ts` | TypeScript shapes of /api/portal/coach/* answers from dashboard/services/coach-v2.service.js (bd-o15qnr) |
-| `useCoachV2.ts` | Hook reading /config for portal_coach_v2; null while loading, true only for literal true (bd-o15qnr) |
-| … | 21 more → `CLAUDE.index.md` |
+| … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `ui.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:11:3065a692` · `portal/src/portal/coach/card/DaysUsedPage.tsx:4:a108a8ec` (+40)
-- `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/coach/analytics/model.ts:1:ed880149` (+19)
-- `CoachGate.tsx` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:9:561961fe` · `portal/src/portal/coach/disagreements/frame.tsx:5:561961fe` (+9)
-- `time.ts` ← imported by `portal/src/portal/coach/home/VisitCards.tsx:5:6e4fb0ef` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:8:2855461c` (+6)
+- `ui.tsx` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:3:89e0875d` · `portal/src/portal/teacher/principal/NewVisit.tsx:4:47b54df2` (+53)
+- `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/teacher/principal/NewVisit.tsx:6:f956b29a` (+27)
+- `CoachGate.tsx` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:9:561961fe` · `portal/src/portal/coach/coachTraining/CoachTrainingModulePage.tsx:3:561961fe` (+14)
+- `time.ts` ← imported by `portal/src/portal/teacher/principal/observe.tsx:6:8ff16d19` · `portal/src/portal/coach/flow/BookedRow.tsx:11:6e4fb0ef` (+12)
 - … 3 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -32,8 +31,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `portal/src/portal/coach/CoachGate.test.tsx` (CoachGate.tsx, useCoachV2.ts)
-- `portal/src/portal/coach/pages/CoachRound3.test.tsx` (copy.ts, time.ts)
-- … 28 more → `CLAUDE.index.md`
+- `portal/src/portal/coach/flow/v6.test.tsx` (observeDraft.ts, time.ts)
+- … 40 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/home/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

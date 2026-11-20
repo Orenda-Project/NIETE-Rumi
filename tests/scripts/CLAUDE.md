@@ -1,6 +1,6 @@
 # scripts — Tests scripts/smoke-test.js, plus the tiny modules it loads as fixtures
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/scripts kg=4b18609709eb gen=a2bc3649fcf2 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/scripts kg=040a3de005fd gen=c5c12784bae4 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `smoke-test.test.js` — smoke-test loads the bot entry, workers and routes (bd-v0toag.71)
@@ -12,6 +12,8 @@
 | path | purpose |
 |---|---|
 | `fixtures/` | → (no door; 4 files: 0 test + 4 support) |
+| `fico17-v6-replay.test.js` | (unmapped) |
+| `load-school-districts.test.js` | (unmapped) |
 | `smoke-test.test.js` | bd-v0toag.71: pins scripts/smoke-test.js loading the bot entry, workers and routes and failing on any load error |
 
 ## Who reads this (generated)

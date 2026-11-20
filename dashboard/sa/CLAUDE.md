@@ -1,7 +1,7 @@
 # sa — Self-administered reading/maths battery engine served at /sa/*, offline-first
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=27f15ff595ec gen=ecf04af94bc3 overflow=94 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=873e7720744b gen=9faf491ef987 overflow=136 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-page.js` — boot of /sa/play.html, the page both coach and game open
@@ -9,24 +9,21 @@ Full index: `CLAUDE.index.md`
 - `sw.js` — service worker keeping the battery and clips on the phone
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
-## Result fields (human)
-- A scored answer of the letter picker (`sa_r28_letter_pick`) or the spoken MCQ (`sa_r28_mcq`) carries, beside `tap_ms`, `replays`, `tap_ms_src`: `since_fold_ms` = integer ms from this item's last coach-fold close to the scored tap (the ghost guard's recorded close, sa-ui.js `ghostGuard`), or `null` when no fold closed on the item (RDF auto always `null`). Not on practice items; both switches OFF, the key is absent. It reaches `responses` with the answer (sa-store.js keeps answers whole).
-
 ## Children (generated)
 | path | purpose |
 |---|---|
 | `img/` | → (no door; 14 files) |
-| `v1/` | → (no door; 1311 files) |
-| `v2/` | → (no door; 1311 files) |
-| `v3/` | → (no door; 24 files) |
+| `v1/` | → (no door; 1375 files) |
+| `v2/` | → (no door; 1375 files) |
+| `v3/` | → (no door; 27 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
+| `v5/` | → (no door; 109 files) |
 | `sa*` | 12 files; most used `sa-core.js`: Pure runner: one child through a timed EGRA/EGMA battery; normalize() battery JSON, ordered events, no DOM/timers |
 | `sw.js` | Battery service worker (scope /sa/): network-first engine files, cache-first battery and clips; offline prepare |
 | `sink-coach.js` | Coach sink: battery putBatch/presign/register via portal relay /api/portal/leader/child-test/sa/session/:id/* |
+| `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with |
 | `sink-game.js` | Game sink: battery sync via /api/sa-game/s/* with run token st and x-wq-device header; openSession/forGame helpers |
-| `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with. sw.js (sa-42+) also reads it at install: on a SESSION bump the new cache copies an older cache's entry only when the entry's own bytes hash to the new lock's sha1 for its path (never a battery file); activate repeats the pass, then deletes the older cache |
-| `demo-battery.json` | Demo battery (coach G3 set A, ur) with welcome/audio-check lines and tasks; default form of the QA page run.html |
-| … | 15 more → `CLAUDE.index.md` |
+| … | 17 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -37,17 +34,10 @@ Full index: `CLAUDE.index.md`
 - sa-page.js VERSION and sw.js VERSION are bumped together; dashboard/tests/sa-r28-served-stamp fails on a one-sided bump
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
-## Result fields (human)
-- A pick task's result (sa-core.js finish): presented, unavailable, of_all; unrated: true under 6 presented (lost clips); under sa_r28_letter_pick, unrated_why: 'ended' when the coach ended it (coach_end / end_section) with presented < of_all. unrated = absent from the ladder (level.js partOf), never pending, never 0; stored whole in responses[0] (bot sa-store.js putResults), passed to Results as unratedWhy (sa-api.service.js shapeTask), drawn with copy key unrated_ended
-
-## Event fields (human)
-- device_ready.value.page / sw / session (round 28): page = sa-page.js VERSION (the code that ran); sw = the VERSION of each worker that answered the prepare replies ('a+b' in reply order); session = the sa-session-* cache holding the clips, from one { type: 'held' } ask after the last clip step (sw.js heldIn; 2 s cap in the page; not waited for when a refusal is coming). Names are joined, never cut: three → 'a+b+…'. null = no reply said (a worker before sa-42, none, or 2 s gone). page ≠ sw = "version mixed"
-- worker_swap { from, to, task } (sa-page.js swapWatch, kept by the server): a newer worker took the page over mid-session (controllerchange); to = its VERSION by the same held ask (no urls), or null
-
 ## Tests (generated)
-- `dashboard/tests/sa-r4-coach-last-word.service.test.js` (sa-core.js, sa-engine.js, sa-store.js, sa-ui.js, sink-coach.js)
-- `dashboard/tests/sa-r8-offline-hunks.service.test.js` (sa-core.js, sa-engine.js, sa-offline.js, sa-store.js, sa-voice.js)
-- … 90 more → `CLAUDE.index.md`
+- `dashboard/tests/sa-r28-mic-unknown.service.test.js` (sa-core.js, sa-engine.js, sa-mic.js, sa-rec.js, sa-store.js, sa-ui.js, sink-coach.js)
+- `dashboard/tests/sa-r13-whole-stop.service.test.js` (sa-core.js, sa-engine.js, sa-page.js, sa-store.js, sa-ui.js)
+- … 130 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`?

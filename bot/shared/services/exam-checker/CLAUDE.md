@@ -1,7 +1,7 @@
 # exam-checker — Exam-paper checker: OCR, grading, annotation and delivery behind one orchestrator
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/exam-checker kg=afd7dfbde28f gen=afee97bf140d overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/exam-checker kg=539ee641d5d4 gen=32aa9a67ddc3 overflow=18 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `exam-checker.orchestrator.js` — thin coordinator of the whole workflow
@@ -16,8 +16,7 @@ Full index: `CLAUDE.index.md`
 | `annotation.service.js` | Draws grades, ticks, margin feedback and score circle onto exam images with Canvas (Caveat, Nastaliq fonts) |
 | `delivery.service.js` | Sends graded exam results and annotated images to the teacher on WhatsApp |
 | `exam-checker.orchestrator.js` | Thin coordinator of the exam-checking workflow: delegates OCR, grading, annotation, delivery; owns session states |
-| `feedback.service.js` | Generates Hattie Feed Up/Back/Forward pedagogical feedback for graded exam answers |
-| … | 5 more → `CLAUDE.index.md` |
+| … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `exam-session.service.js` ← imported by `bot/shared/routes/exam-confirm-endpoint.js:30:bf50eaaf` · `bot/shared/services/exam-checker/exam-checker.orchestrator.js:55:40627fc8` (+1)
@@ -31,8 +30,9 @@ _None found in code comments, tests or git log for this directory._
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
+- `bot/tests/handlers/exam-checker-text-reply.test.js` (index.js)
 - `tests/exam-checker/confirm-students-flow.test.js` (exam-checker.orchestrator.js)
-- `tests/exam-checker/grading-service.test.js` (grading.service.js)
+- … 1 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`?

@@ -1,6 +1,7 @@
 # types — Shared TypeScript shapes of portal API answers
+Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/types kg=4c97cc080cb0 gen=eda82ad19b17 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/types kg=d93ab0c458e0 gen=c60f6d5e8acd overflow=4 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal.ts` — User, dashboard and coaching types used across the portal
@@ -18,8 +19,8 @@
 | `childTestSa.parse.test.ts` | Parse check that childTestSa.ts compiles, as type-only files are never bundled |
 
 ## Who reads this (generated)
-- `portal.ts` ← imported by `portal/src/portal/analytics/BandToggle.tsx:2:9e2fef83` · `portal/src/portal/analytics/Filters.tsx:5:1b25621f` (+59)
-- `childTestSa.ts` ← imported by `portal/src/portal/components/assess/AssessOfflineCard.tsx:5:cfeccff9` · `portal/src/portal/components/assess/offlineReady.ts:4:dc0245f2` (+11)
+- `portal.ts` ← imported by `portal/src/portal/analytics/BandToggle.tsx:2:9e2fef83` · `portal/src/portal/analytics/Filters.tsx:5:1b25621f` (+61)
+- `childTestSa.ts` ← imported by `portal/src/portal/components/assess/AssessOfflineCard.tsx:5:cfeccff9` · `portal/src/portal/components/assess/offlineReady.ts:4:dc0245f2` (+12)
 - `childTest.ts` ← imported by `portal/src/portal/components/childTest/BlockRecorder.tsx:3:80210b47` · `portal/src/portal/components/childTest/CheckForm.tsx:3:067da7be` (+4)
 - `readingAssessment.ts` ← imported by `portal/src/portal/services/api.ts:9:8f1c6e95` · `portal/src/portal/pages/PortalReadingAssessmentDetail.tsx:6:7a1053dd` (+1)
 
@@ -28,11 +29,12 @@
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
+- `portal/src/portal/analytics/MoawinView.test.tsx` (portal.ts)
 - `portal/src/portal/components/childTest/BlockRecorder.test.tsx` (childTest.ts)
+- `portal/src/portal/lib/assess/cohortStats.r28.test.ts` (childTestSa.ts)
+- `portal/src/portal/lib/assess/guessFloor.test.ts` (childTestSa.ts)
 - `portal/src/portal/lib/assess/realCohort.test.ts` (childTestSa.ts)
-- `portal/src/portal/lib/childTest/checkDraft.test.ts` (childTest.ts)
-- `portal/src/portal/teacher/analytics/model.test.ts` (portal.ts)
-- `portal/src/portal/teacher/classes/model.test.ts` (portal.ts)
+- … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`?

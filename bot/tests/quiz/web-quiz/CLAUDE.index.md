@@ -65,6 +65,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `one-attempt-first-completed.test.js` | Pins oneAttemptPerChild rule first_completed for the web quiz; default stays latest completed |
 | `phone-binder.test.js` | Pins the phone binder: JUGNU- code saves a child's place, STOP erases it, door and /quiz read the binding |
 | `practice-play-routes.test.js` | Pins web_quiz_practice_play: a "Try it as a student" hub token opens read-only content; off, routes refuse it |
+| `practice-your-turn.test.js` | (unmapped) |
 | `presend-pdf-unchanged.test.js` | Pins that the pre-send teacher PDF stays byte-identical (hash per language) despite the web report change (W37 12b) |
 | `quiz-report-renders.golden.js` | Builds the teacher report QUIZ renders (EN/UR, screen/PDF, class-tab rows) compared against the committed golden |
 | `quiz-report-renders.test.js` | Pins that 60 teacher quiz-report renders, class tab and message pages stay byte-identical (sha256) to the golden |
@@ -140,6 +141,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-audio-ask-plan.test.js` | Pins web_quiz_audio_ask_plan: link mint and page open ask for the same one clip job under the live plan |
 | `web-quiz-audio-cap-one.test.js` | Pins web_quiz_audio_cap_one: one-voice recordings count toward web_quiz_audio_daily_cap |
 | `web-quiz-audio-claim.test.js` | Pins web_quiz_audio_claim: one recording per quiz at a time so two jobs do not pay for the same clips twice |
+| `web-quiz-audio-settings-failed.test.js` | (unmapped) |
 | `web-quiz-bank-voice.test.js` | Pins that a video-bank quiz with NULL language is voiced by its own script (Urdu gets Soniox voice, never default) |
 | `web-quiz-bind-events-envelope.test.js` | Pins web_quiz_events_v2 envelope {w, ev_v, kid_v, kid} on bind_confirm/bound/refused/undo events, no phone or code |
 | `web-quiz-bind-page-mint-reuse.test.js` | Pins "Keep my place" idempotency: a second Yes within the hour returns the same code, one row, one bind_confirm |
@@ -172,6 +174,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-challenge-early.test.js` | Pins web_quiz_challenge_early: a friend's challenge page read runs in the class-link waits, same answer with fewer waits |
 | `web-quiz-challenge-fold.test.js` | Pins web_quiz_challenge_fold: a friend's challenge door answer carries the challenger's score line first when switch |
 | `web-quiz-challenge-keep.test.js` | Pins web_quiz_challenge_keep_audio: off scores and deletes the reading; on uploads it to a dated kept/ prefix with |
+| `web-quiz-challenge-late-result.test.js` | (unmapped) |
 | `web-quiz-challenge-lazy-route.test.js` | Pins that the web-quiz router still loads and answers 503 on Challenge routes when web-quiz-challenge.js is absent |
 | `web-quiz-challenge-lazy.test.js` | Pins that the router boots without the child-test item bank/scorer; exercises needing them answer 503 unavailable |
 | `web-quiz-challenge-line-keep.test.js` | Pins web_quiz_challenge_line_keep: page answer tells the client to keep each number with its word on one line |
@@ -248,6 +251,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-feedback.test.js` | Pins cleanWrongFeedback: wrong-pick feedback shown/voiced on the web page is trimmed from WhatsApp-shaped video-bank |
 | `web-quiz-figure-phone.test.js` | Pins that web page figures stay readable at phone size (344 px box, labels at least 11 px) |
 | `web-quiz-figure.test.js` | Pins figureFor: the page gets the figure drawing as inline SVG with alt text, not the WhatsApp question card PNG |
+| `web-quiz-finish-teacher-card.test.js` | (unmapped) |
 | `web-quiz-finish-timing.test.js` | Pins that finishSession logs one web_quiz.finish_timing line per call with per-step durations, on answer or throw |
 | `web-quiz-fix-who-roll.test.js` | Pins the teacher's reconcile actions on a typed child: 'Add to class' enrols with next free list number |
 | `web-quiz-fixture.modules.json` | List of two source files (web-quiz-fixture.js, web-quiz-in-chunks.js) the fixture/test-child tests treat as one module |

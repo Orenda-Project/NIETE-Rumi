@@ -15,6 +15,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `class-round-internal.routes.js` | /api/internal/tr/round/* routes for the class round's locked mode on the teacher's phone (web_quiz_class_round) |
 | `edit-class-endpoint.js` | Edit-class Flow endpoint: add (paste parser), remove or rename students on an existing class roster |
 | `exam-confirm-endpoint.js` | Exam-Checker "Confirm Students" Flow endpoint; flow token is the exam session id, shows detected students |
+| `fico-s-endpoint.js` | (unmapped) |
 | `flow-endpoint.routes.js` | Express router for encrypted WhatsApp Flow data exchange; dispatches by flow to the per-flow endpoint handlers |
 | `homework-request-endpoint.js` | Homework request Flow endpoint: grade, subject, chapters selection that enqueues homework_bundle_generation jobs |
 | `internal-api.routes.js` | Internal service-to-service API (/api/internal, x-api-key) used by the portal: LP enqueue, training, classes etc. |
@@ -22,8 +23,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `internal-assessment-view.routes.js` | Internal route returning a finished paper's questions for the portal paper page (bd-fmf24g.31) |
 | `internal-attendance.routes.js` | Internal routes for teacher-portal attendance: classes, roster, mark (bd-fmf24g.7) |
 | `internal-fln-send.routes.js` | POST /api/internal/fln/send: resolves teachers' phone/language in the bot and queues an FLN plan send |
+| `internal-lp612-own-rating.routes.js` | (unmapped) |
 | `internal-lp612-own.routes.js` | (unmapped) |
+| `internal-lp612-shelf.routes.js` | (unmapped) |
 | `internal-share.routes.js` | POST /api/internal/share/send: portal asks the bot to send a shared item, returning the real send status (bd-fmf24g.30) |
+| `obs612-endpoint.js` | (unmapped) |
 | `observe-mewaka-endpoint.js` | data_exchange endpoint for the editable MEWAKA Flow that reads a pre-computed draft and buffers coach edits (FEAT-053) |
 | `observe2-check-endpoint.js` | /observe2 check Flow endpoint: coach confirms moments heard in the recording, saved per screen |
 | `observe2-form-endpoint.js` | /observe2 live field-form Flow endpoint: PART_ONE onward with rule validation and per-screen saves |
@@ -48,29 +52,33 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-internal.routes.js` | /api/internal/wq/* routes for the web child quiz, forwarded by the portal; logic lives in web-quiz.service |
 
 ## Who reads this (all, generated)
-- `assessment-gen-endpoint.js` ← imported by `bot/shared/handlers/flow-response.handler.js:1124:f26aaaa5` · `bot/shared/routes/flow-endpoint.routes.js:99:c504850d`
-- `attendance-marking-endpoint.js` ← imported by `bot/shared/handlers/voice-message.handler.js:235:70b1b9d8` · `bot/shared/services/attendance-portal.service.js:231:31792ed6` · `bot/shared/routes/flow-endpoint.routes.js:23:21407e82`
+- `assessment-gen-endpoint.js` ← imported by `bot/shared/handlers/flow-response.handler.js:1159:f26aaaa5` · `bot/shared/routes/flow-endpoint.routes.js:99:c504850d`
+- `attendance-marking-endpoint.js` ← imported by `bot/shared/handlers/voice-message.handler.js:235:70b1b9d8` · `bot/shared/services/attendance-portal.service.js:426:31792ed6` · `bot/shared/routes/flow-endpoint.routes.js:23:21407e82`
 - `attendance-setup-endpoint.js` ← imported by `bot/shared/routes/edit-class-endpoint.js:16:c48898bc` · `bot/shared/routes/flow-endpoint.routes.js:31:04047618`
-- `child-test-app.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:3249:035459fa`
-- `child-test-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:264:61a47844`
+- `child-test-app.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:3336:035459fa`
+- `child-test-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:341:61a47844`
 - `class-manager-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:40:674712ff` · `bot/shared/routes/internal-api.routes.js:917:c9308276`
 - `class-round-internal.routes.js` ← imported by `bot/shared/routes/teacher-report-internal.routes.js:381:91363601`
 - `edit-class-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:27:b2049111`
 - `exam-confirm-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:89:f65ee467`
+- `fico-s-endpoint.js` ← imported by `bot/shared/services/observe/obs612/portal.js:179:0bf983b4` · `bot/shared/routes/obs612-endpoint.js:37:42ba4a3a`
 - `flow-endpoint.routes.js` ← imported by `bot/whatsapp-bot.js:74:d7fbe472`
 - `homework-request-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:74:25e6b28a`
 - `internal-api.routes.js` ← imported by `bot/whatsapp-bot.js:97:1d86e7c5`
-- `internal-assessment-edit.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2267:003972a3`
-- `internal-assessment-view.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2269:709cea0b`
-- `internal-attendance.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2271:39a302ca`
-- `internal-fln-send.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2275:617e0662`
-- `internal-lp612-own.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2274:d0e5a57f`
-- `internal-share.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2273:b5701d16`
+- `internal-assessment-edit.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2352:003972a3`
+- `internal-assessment-view.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2354:709cea0b`
+- `internal-attendance.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2356:39a302ca`
+- `internal-fln-send.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2362:617e0662`
+- `internal-lp612-own-rating.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2360:f90f1a35`
+- `internal-lp612-own.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2359:d0e5a57f`
+- `internal-lp612-shelf.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2361:052b686e`
+- `internal-share.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2358:b5701d16`
+- `obs612-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:321:47cfb098`
 - `observe-mewaka-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:17:83181884`
 - `observe2-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:244:8b919590`
 - `observe2-form-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:211:c6cd7916`
 - `pakistan-lp-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:104:c2320130`
-- `pakistan-lp-telemetry.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:73:90f7c5d5`
+- `pakistan-lp-telemetry.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:75:90f7c5d5`
 - `quiz-flow-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:79:bad578f0`
 - `registration-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:45:86ecb70b`
 - `remark-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:54:408b6908`
@@ -78,12 +86,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `settings-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:50:1dc88f9e`
 - `status-flow-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:59:4be5d08d`
 - `story-teacher-internal.routes.js` ← imported by `bot/whatsapp-bot.js:91:081d037f`
-- `student-quiz-flow-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:1028:8110cd15`
+- `student-quiz-flow-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:1106:8110cd15`
 - `student-videos-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:64:5e16580d`
 - `teacher-class-week-internal.routes.js` ← imported by `bot/shared/routes/teacher-jugnu-internal.routes.js:26:7a036f82`
 - `teacher-jugnu-internal.routes.js` ← imported by `bot/shared/routes/teacher-report-internal.routes.js:35:576e7567`
 - `teacher-report-internal.routes.js` ← imported by `bot/whatsapp-bot.js:89:caceaeec`
-- `teacher-training-endpoint.js` ← imported by `bot/shared/services/training/content-delivery.service.js:634:04257baa` · `bot/shared/services/training/quiz-delivery.service.js:456:a60b25cc` · `scripts/settle-certificates.js:184:4c795c2d` · `scripts/smoke-test-training-flow.js:17:c9f6adc0` (+2: `python3 kg/kg.py who-reads teacher-training-endpoint.js`)
+- `teacher-training-endpoint.js` ← imported by `bot/shared/services/training/content-delivery.service.js:634:04257baa` · `bot/shared/services/training/quiz-delivery.service.js:457:a60b25cc` · `scripts/settle-certificates.js:190:4c795c2d` · `scripts/smoke-test-training-flow.js:33:c9f6adc0` (+2: `python3 kg/kg.py who-reads teacher-training-endpoint.js`)
 - `training-msq-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:84:b54f59fd`
 - `transcript-quiz-flow-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:69:a66341c9`
 - `web-quiz-class-link.routes.js` ← imported by `bot/shared/routes/web-quiz-internal.routes.js:429:c54db84d`
@@ -92,61 +100,65 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `lesson_plan_requests.topic` (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/teacher-state.service.js:257:6012f2a7`
 - column `lesson_plan_requests.user_id` (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lp-v8-lifecycle.service.js:50:219f5683` · `bot/shared/services/monitoring/lesson-plan-health.service.js:349:b19b951d` · `bot/shared/services/teacher-state.service.js:100:219f5683`
 - column `student_lists.academic_year` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/classes/class.service.js:207:329e027c`
-- column `student_lists.class_name` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:244:99d94161` · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82` · `bot/shared/services/attendance-router.service.js:88:99d94161` · `bot/shared/services/classes/class.service.js:207:329e027c` (+15: `python3 kg/kg.py who-reads student_lists.class_name`)
-- column `student_lists.section` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:244:99d94161` · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82` · `bot/shared/services/attendance-router.service.js:88:99d94161` · `bot/shared/services/quiz/quiz-orchestrator.service.js:49:68c7e306` (+11: `python3 kg/kg.py who-reads student_lists.section`)
-- column `student_lists.user_id` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:246:219f5683` · `bot/shared/services/attendance-router.service.js:89:219f5683` · `bot/shared/services/classes/class.service.js:207:329e027c` · `bot/shared/services/coaching/video-reco/store.js:109:156b265d` (+13: `python3 kg/kg.py who-reads student_lists.user_id`)
-- column `students.is_active` (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-register-delivery.service.js:121:3d987916` · `bot/shared/services/attendance-router.service.js:128:f8c426e2` · `bot/shared/services/child-test/store.js:109:2a331b02` · `bot/shared/services/classes/class.service.js:858:c0410edf` (+23: `python3 kg/kg.py who-reads students.is_active`)
+- column `student_lists.class_name` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:438:99d94161` · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82` · `bot/shared/services/attendance-router.service.js:72:99d94161` · `bot/shared/services/classes/class.service.js:207:329e027c` (+15: `python3 kg/kg.py who-reads student_lists.class_name`)
+- column `student_lists.section` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:438:99d94161` · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82` · `bot/shared/services/attendance-router.service.js:72:99d94161` · `bot/shared/services/quiz/quiz-orchestrator.service.js:49:68c7e306` (+11: `python3 kg/kg.py who-reads student_lists.section`)
+- column `student_lists.user_id` (written by `attendance-setup-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:440:219f5683` · `bot/shared/services/attendance-router.service.js:73:219f5683` · `bot/shared/services/classes/class.service.js:207:329e027c` · `bot/shared/services/coaching/video-reco/store.js:110:156b265d` (+13: `python3 kg/kg.py who-reads student_lists.user_id`)
+- column `students.is_active` (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-register-delivery.service.js:121:3d987916` · `bot/shared/services/attendance-router.service.js:112:f8c426e2` · `bot/shared/services/child-test/store.js:109:2a331b02` · `bot/shared/services/classes/class.service.js:858:c0410edf` (+23: `python3 kg/kg.py who-reads students.is_active`)
 - column `students.student_name` (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-register-delivery.service.js:111:1715c2d9` · `bot/shared/services/child-test/check-flow/check-store.js:157:651ac2c6` · `bot/shared/services/child-test/store.js:109:2a331b02` · `bot/shared/services/classes/class.service.js:858:c0410edf` (+27: `python3 kg/kg.py who-reads students.student_name`)
-- column `users.preferences` (written by `settings-endpoint.js`) ← read by `bot/shared/handlers/flow-response.handler.js:763:6d7fc8d6` · `bot/shared/services/coaching/frameworks/framework-selector.js:65:ff3cc75a` · `bot/shared/services/coaching/video-reco/clip-pref.js:49:03cf518a` · `dashboard/routes/coach-training-progress.routes.js:46:03cf518a` (+1: `python3 kg/kg.py who-reads users.preferences`)
+- column `users.preferences` (written by `settings-endpoint.js`) ← read by `bot/shared/handlers/flow-response.handler.js:767:6d7fc8d6` · `bot/shared/services/coaching/frameworks/framework-selector.js:65:ff3cc75a` · `bot/shared/services/coaching/video-reco/clip-pref.js:49:03cf518a` · `dashboard/routes/coach-training-progress.routes.js:46:03cf518a` (+1: `python3 kg/kg.py who-reads users.preferences`)
 - table `lesson_plan_requests` whole row (`*`) (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:325:d2b02c3e`? · `bot/scripts/requeue-lesson-plan.js:42:d2b02c3e`?
-- table `student_lists` whole row (`*`) (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:263:d2b02c3e`?
-- table `students` whole row (`*`) (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
-- table `users` whole row (`*`) (written by `settings-endpoint.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:275:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
-- table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1950:5911672a`? · `bot/shared/handlers/voice-message.handler.js:769:5911672a`? (+86: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `student_lists` whole row (`*`) (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:268:d2b02c3e`?
+- table `students` whole row (`*`) (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:367:d2b02c3e`?
+- table `users` whole row (`*`) (written by `settings-endpoint.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:289:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1982:5911672a`? (+96: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `lesson_plan_requests` (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:55:f61b5e94`? · `bot/shared/services/lp-v8-lifecycle.service.js:48:f61b5e94`? · `bot/shared/services/monitoring/lesson-plan-health.service.js:335:c661c05e`? · `bot/shared/services/teacher-state.service.js:98:f61b5e94`? (+2: `python3 kg/kg.py who-reads lesson_plan_requests`)
-- table `student_lists` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:243:8479d615`? · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82`? · `bot/shared/services/attendance-router.service.js:87:8479d615`? · `bot/shared/services/classes/class.service.js:206:8479d615`? (+24: `python3 kg/kg.py who-reads student_lists`)
-- table `students` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-register-delivery.service.js:111:1715c2d9`? · `bot/shared/services/attendance-router.service.js:125:2f35b0c2`? · `bot/shared/services/child-test/check-flow/check-store.js:157:651ac2c6`? · `bot/shared/services/child-test/store.js:107:70f88e69`? (+42: `python3 kg/kg.py who-reads students`)
-- table `users` (written by `registration-endpoint.js`, `settings-endpoint.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+188: `python3 kg/kg.py who-reads users`)
-- table `video_quiz_deliveries` (written by `student-videos-endpoint.js`) ← read by `bot/shared/services/quiz/video-quiz.service.js:196:46908910`?
+- table `student_lists` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:437:8479d615`? · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82`? · `bot/shared/services/attendance-router.service.js:71:8479d615`? · `bot/shared/services/classes/class.service.js:206:8479d615`? (+24: `python3 kg/kg.py who-reads student_lists`)
+- table `students` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-register-delivery.service.js:111:1715c2d9`? · `bot/shared/services/attendance-router.service.js:109:2f35b0c2`? · `bot/shared/services/child-test/check-flow/check-store.js:157:651ac2c6`? · `bot/shared/services/child-test/store.js:107:70f88e69`? (+43: `python3 kg/kg.py who-reads students`)
+- table `users` (written by `registration-endpoint.js`, `settings-endpoint.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+208: `python3 kg/kg.py who-reads users`)
+- table `video_quiz_deliveries` (written by `student-videos-endpoint.js`) ← read by `bot/shared/services/quiz/video-quiz.service.js:197:46908910`?
 - env `INTERNAL_API_KEY` read at `bot/shared/routes/child-test-app.routes.js:27:72cfc094`
 - env `REGION_TIME_ZONE` read at `bot/shared/routes/attendance-marking-endpoint.js:51:46900523`
-- env `SUPABASE_URL` read at `bot/shared/routes/teacher-training-endpoint.js:47:34d32b0a`
+- env `SUPABASE_URL` read at `bot/shared/routes/teacher-training-endpoint.js:50:34d32b0a`
 
 ## Tests (all, generated)
-- `assessment-gen-endpoint.js` ← `tests/assessment/assessment-answer-key-always.test.js` · `tests/assessment/assessment-chapter-cap.test.js` · `tests/assessment/assessment-chat-ack.test.js` · `tests/assessment/assessment-counts-seen-and-legacy.test.js` · `tests/assessment/assessment-docx-flag.test.js` · `tests/assessment/assessment-edit-findable.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/routes/assessment-gen-endpoint.js`)
+- `assessment-gen-endpoint.js` ← `tests/assessment/assessment-answer-key-always.test.js` · `tests/assessment/assessment-chapter-cap.test.js` · `tests/assessment/assessment-chat-ack.test.js` · `tests/assessment/assessment-counts-seen-and-legacy.test.js` · `tests/assessment/assessment-docx-flag.test.js` · `tests/assessment/assessment-edit-findable.test.js` (+27: `python3 kg/kg.py who-reads bot/shared/routes/assessment-gen-endpoint.js`)
 - `attendance-marking-endpoint.js` ← `tests/attendance/absent-then-leave.test.js` · `tests/attendance/class-screen-query-cost.test.js` · `tests/attendance/completion-classified-from-token.test.js` · `tests/attendance/empty-roster-dead-end.test.js` · `tests/attendance/empty-roster-renders.test.js` · `tests/attendance/enrollment-roster-source.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/routes/attendance-marking-endpoint.js`)
 - `attendance-setup-endpoint.js` ← `tests/attendance/class-setup-endpoint.test.js` · `tests/classes/academic-sessions.test.js`
 - `child-test-app.routes.js` ← `tests/child-test/L7/app-internal.routes.test.js`
 - `child-test-check-endpoint.js` ← `tests/child-test/L14/check-play.test.js` · `tests/child-test/L21/check-message.test.js` · `tests/child-test/L6/endpoint.test.js`
-- `class-manager-endpoint.js` ← `tests/attendance/completion-classified-from-token.test.js` · `tests/classes/class-display.test.js` · `tests/classes/class-manager-endpoint.test.js` · `tests/classes/one-edit-screen.test.js` · `tests/classes/roster-add-failure-named.test.js` · `tests/classes/roster-empty-class.test.js` (+3: `python3 kg/kg.py who-reads bot/shared/routes/class-manager-endpoint.js`)
+- `class-manager-endpoint.js` ← `tests/attendance/completion-classified-from-token.test.js` · `tests/classes/add-students-example.test.js` · `tests/classes/class-display.test.js` · `tests/classes/class-manager-endpoint.test.js` · `tests/classes/one-edit-screen.test.js` · `tests/classes/roster-add-failure-named.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/routes/class-manager-endpoint.js`)
 - `edit-class-endpoint.js` ← `tests/attendance/edit-class-enrolls.test.js` · `tests/database/bd-rbtpr-ledger-gaps.test.js`
 - `exam-confirm-endpoint.js` ← `tests/exam-checker/confirm-students-flow.test.js`
 - `homework-request-endpoint.js` ← `tests/homework/homework-flow.test.js` · `tests/lesson-plan-lifecycle/homework-path.test.js`
-- `internal-api.routes.js` ← `tests/assessment/assessment-grade-gate-routes.test.js` · `tests/assessment/board-wiring/board-create.test.js` · `tests/assessment/board-wiring/board-options.test.js` · `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create-race.test.js` · `tests/assessment/fde-create.test.js` (+45: `python3 kg/kg.py who-reads bot/shared/routes/internal-api.routes.js`)
-- `internal-assessment-edit.routes.js` ← `tests/assessment/assessment-edit-routes.test.js` · `tests/assessment/fde-edit-marks.test.js` · `tests/assessment/fde-edit.test.js` · `tests/assessment/fde-status-versions.test.js`
+- `internal-api.routes.js` ← `tests/assessment/assessment-grade-gate-routes.test.js` · `tests/assessment/board-wiring/board-create.test.js` · `tests/assessment/board-wiring/board-options.test.js` · `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create-race.test.js` · `tests/assessment/fde-create.test.js` (+52: `python3 kg/kg.py who-reads bot/shared/routes/internal-api.routes.js`)
+- `internal-assessment-edit.routes.js` ← `tests/assessment/assessment-edit-routes.test.js` · `tests/assessment/fde-edit-marks.test.js` · `tests/assessment/fde-edit.test.js` · `tests/assessment/fde-remove-only.test.js` · `tests/assessment/fde-status-versions.test.js`
 - `internal-assessment-view.routes.js` ← `tests/assessment/assessment-paper-view-routes.test.js`
+- `internal-attendance.routes.js` ← `tests/attendance/bd-33wxxi.10-staff-register.test.js`
 - `internal-fln-send.routes.js` ← `tests/portal/fln-send-routes.test.js` · `tests/routes/internal-fln-send.test.js`
-- `internal-lp612-own.routes.js` ← `tests/lp612/own-internal-route.test.js`
-- `observe-mewaka-endpoint.js` ← `bot/tests/observe/bd-9tqqi-cancel-terminal.test.js` · `bot/tests/observe/bd-rw4so-endpoint-refusal-logged.test.js` · `bot/tests/observe/observe-endpoint-hots.test.js` · `bot/tests/observe/observe-endpoint.test.js` · `tests/whatsapp/send-sync-budget.test.js`
-- `observe2-check-endpoint.js` ← `tests/child-test/L4/observe2-offer.test.js` · `tests/observe2/check-endpoint.test.js` · `tests/observe2/coach-notes-brief.test.js` · `tests/observe2/end-of-visit.test.js` · `tests/observe2/external-plan.test.js` · `tests/observe2/heard-empty.test.js` (+10: `python3 kg/kg.py who-reads bot/shared/routes/observe2-check-endpoint.js`)
-- `observe2-form-endpoint.js` ← `tests/observe2/classroom-photos.test.js` · `tests/observe2/coach-notes-form.test.js` · `tests/observe2/external-plan.test.js` · `tests/observe2/form-endpoint.test.js` · `tests/observe2/lesson-plan-and-fidelity.test.js` · `tests/observe2/materials-used.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/routes/observe2-form-endpoint.js`)
-- `pakistan-lp-endpoint.js` ← `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/flow-response-telemetry.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/books/chapter-pages.test.js` · `tests/books/gb-lane-wins.test.js` (+16: `python3 kg/kg.py who-reads bot/shared/routes/pakistan-lp-endpoint.js`)
+- `internal-lp612-own-rating.routes.js` ← `tests/lp612/own-rating.test.js`
+- `internal-lp612-own.routes.js` ← `tests/lp612/own-internal-route.test.js` · `tests/lp612/own-mine-route.test.js` · `tests/lp612/own-pages-route.test.js` · `tests/lp612/own-recent-route.test.js`
+- `internal-lp612-shelf.routes.js` ← `tests/lp612/own-shelf-internal-route.test.js`
+- `obs612-endpoint.js` ← `tests/observe/fico-s-dc-visit.test.js` · `tests/observe/fico-s-form.test.js` · `tests/observe/obs612-endpoint.test.js` · `tests/observe/obs612-portal.test.js`
+- `observe-mewaka-endpoint.js` ← `bot/tests/observe/bd-9tqqi-cancel-terminal.test.js` · `bot/tests/observe/bd-rw4so-endpoint-refusal-logged.test.js` · `bot/tests/observe/observe-endpoint-hots.test.js` · `bot/tests/observe/observe-endpoint.test.js` · `tests/observe/bd-ra8xu.58-v6-refusal-and-answers.test.js` · `tests/observe/fico17-v6-coach-form.test.js` (+3: `python3 kg/kg.py who-reads bot/shared/routes/observe-mewaka-endpoint.js`)
+- `observe2-check-endpoint.js` ← `tests/child-test/L4/observe2-offer.test.js` · `tests/observe2/check-endpoint.test.js` · `tests/observe2/coach-notes-brief.test.js` · `tests/observe2/end-of-visit.test.js` · `tests/observe2/external-plan.test.js` · `tests/observe2/fico17-v6-check.test.js` (+19: `python3 kg/kg.py who-reads bot/shared/routes/observe2-check-endpoint.js`)
+- `observe2-form-endpoint.js` ← `tests/observe2/c5-relabel.test.js` · `tests/observe2/classroom-photos.test.js` · `tests/observe2/coach-notes-form.test.js` · `tests/observe2/external-plan.test.js` · `tests/observe2/form-endpoint.test.js` · `tests/observe2/lesson-plan-and-fidelity.test.js` (+12: `python3 kg/kg.py who-reads bot/shared/routes/observe2-form-endpoint.js`)
+- `pakistan-lp-endpoint.js` ← `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/flow-response-telemetry.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/books/chapter-pages.test.js` · `tests/books/gb-grades-6-10.test.js` (+19: `python3 kg/kg.py who-reads bot/shared/routes/pakistan-lp-endpoint.js`)
 - `pakistan-lp-telemetry.js` ← `bot/tests/lp-v8/flow-response-telemetry.test.js`
 - `quiz-flow-endpoint.js` ← `bot/tests/quiz/web-quiz/story-teacher.test.js` · `tests/quiz/quiz-flow-endpoint.test.js`
-- `registration-endpoint.js` ← `bot/tests/registration/bd-2404-role-persistence.test.js` · `bot/tests/registration/bd-2480-2773-persist-per-screen.test.js` · `tests/identity/identity-events.would-match.test.js` · `tests/registration/bd-97daxo6-organization-from-region.test.js` · `tests/registration/bd-oak77-6-completion-sets-flag.test.js` · `tests/registration/bd-x7aprz2-flow-v5-json.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/routes/registration-endpoint.js`)
+- `registration-endpoint.js` ← `bot/tests/registration/bd-2404-role-persistence.test.js` · `bot/tests/registration/bd-2480-2773-persist-per-screen.test.js` · `tests/identity/identity-events.would-match.test.js` · `tests/registration/bd-97daxo6-organization-from-region.test.js` · `tests/registration/bd-oak77-6-completion-sets-flag.test.js` · `tests/registration/bd-x7aprz2-flow-v5-json.test.js` (+8: `python3 kg/kg.py who-reads bot/shared/routes/registration-endpoint.js`)
 - `remark-endpoint.js` ← `bot/tests/services/remark-init-roster.test.js` · `tests/remark/remark-flow-contract.test.js`
-- `roster-flow-endpoint.js` ← `tests/database/bd-a21ks-actor-ledger.test.js` · `tests/roster/roster-class-details.test.js` · `tests/roster/roster-class-teacher-required.test.js` · `tests/roster/roster-edit-save-identity.test.js` · `tests/roster/roster-endpoint-save.test.js` · `tests/roster/roster-endpoint-status.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/routes/roster-flow-endpoint.js`)
+- `roster-flow-endpoint.js` ← `tests/database/bd-a21ks-actor-ledger.test.js` · `tests/identity/bd-apnnh2.15-lists-skip-retired.test.js` · `tests/roster/roster-class-details.test.js` · `tests/roster/roster-class-teacher-required.test.js` · `tests/roster/roster-edit-save-identity.test.js` · `tests/roster/roster-endpoint-save.test.js` (+7: `python3 kg/kg.py who-reads bot/shared/routes/roster-flow-endpoint.js`)
 - `settings-endpoint.js` ← `tests/settings/settings-flow.test.js` · `tests/settings/settings-language-writer.test.js`
 - `status-flow-endpoint.js` ← `tests/status/status-flow.test.js` · `tests/status/status-lp612-visibility.test.js` · `tests/status/status-task-count.test.js` · `tests/status/status-training-visibility.test.js`
 - `story-teacher-internal.routes.js` ← `bot/tests/quiz/web-quiz/story-teacher-page-csp.test.js` · `bot/tests/quiz/web-quiz/story-teacher.test.js`
 - `student-quiz-flow-endpoint.js` ← `bot/tests/quiz/student-quiz-flow-endpoint.test.js`
 - `student-videos-endpoint.js` ← `bot/tests/quiz/web-quiz/video-bank-order.test.js` · `bot/tests/routes/student-videos-endpoint-child.test.js` · `bot/tests/routes/student-videos-endpoint.test.js` · `tests/quiz/child-quiz-fewer-bubbles.test.js` · `tests/student-videos/student-videos-flow.test.js` · `tests/whatsapp/send-sync-budget.test.js`
 - `teacher-report-internal.routes.js` ← `bot/tests/quiz/web-quiz/class-round-amend.test.js` · `bot/tests/quiz/web-quiz/class-round-endcard.test.js` · `bot/tests/quiz/web-quiz/class-round-golden.test.js` · `bot/tests/quiz/web-quiz/class-round-lines.test.js` · `bot/tests/quiz/web-quiz/class-round-paused-card.test.js` · `bot/tests/quiz/web-quiz/class-round.test.js` (+12: `python3 kg/kg.py who-reads bot/shared/routes/teacher-report-internal.routes.js`)
-- `teacher-training-endpoint.js` ← `bot/tests/routes/training-module-unlock-logic.test.js` · `bot/tests/routes/training-unlock-axes.test.js` · `tests/fixtures/delegate-training-to-bot.js` · `tests/training/bd-arghnv-certify-every-provider.test.js` · `tests/training/capstone-reachable.test.js` · `tests/training/certificate-flow-entry.test.js` (+16: `python3 kg/kg.py who-reads bot/shared/routes/teacher-training-endpoint.js`)
+- `teacher-training-endpoint.js` ← `bot/tests/routes/training-module-unlock-logic.test.js` · `bot/tests/routes/training-unlock-axes.test.js` · `tests/fixtures/delegate-training-to-bot.js` · `tests/training/bd-arghnv-certify-every-provider.test.js` · `tests/training/bd-fj1fdi-certified-level-not-chain-locked.test.js` · `tests/training/bd-r2uzg1-10-one-level-number.test.js` (+20: `python3 kg/kg.py who-reads bot/shared/routes/teacher-training-endpoint.js`)
 - `training-msq-endpoint.js` ← `tests/training/quiz-multi-select-flow.test.js`
-- `transcript-quiz-flow-endpoint.js` ← `bot/tests/quiz/lp-quiz-queue-failed.test.js` · `bot/tests/quiz/report-not-through.test.js` · `bot/tests/quiz/transcript-quiz-flow-action-empty.test.js` · `bot/tests/quiz/transcript-quiz-flow-class-labels.test.js` · `bot/tests/quiz/transcript-quiz-flow-endpoint.test.js` · `tests/quiz/lp-quiz-downstream-parity.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/routes/transcript-quiz-flow-endpoint.js`)
+- `transcript-quiz-flow-endpoint.js` ← `bot/tests/quiz/lp-quiz-queue-failed.test.js` · `bot/tests/quiz/report-not-through.test.js` · `bot/tests/quiz/transcript-quiz-flow-action-empty.test.js` · `bot/tests/quiz/transcript-quiz-flow-class-labels.test.js` · `bot/tests/quiz/transcript-quiz-flow-endpoint.test.js` · `tests/quiz/lp-quiz-downstream-parity.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/routes/transcript-quiz-flow-endpoint.js`)
 - `web-quiz-class-link.routes.js` ← `bot/tests/quiz/web-quiz/web-quiz-class-link.test.js`
-- `web-quiz-internal.routes.js` ← `bot/tests/quiz/web-quiz/all-grades-shelves.test.js` · `bot/tests/quiz/web-quiz/challenge-story-readalong.test.js` · `bot/tests/quiz/web-quiz/challenge-story-serve.test.js` · `bot/tests/quiz/web-quiz/class-round-endcard.test.js` · `bot/tests/quiz/web-quiz/practice-play-routes.test.js` · `bot/tests/quiz/web-quiz/teacher-join-queue.test.js` (+60: `python3 kg/kg.py who-reads bot/shared/routes/web-quiz-internal.routes.js`)
+- `web-quiz-internal.routes.js` ← `bot/tests/quiz/web-quiz/all-grades-shelves.test.js` · `bot/tests/quiz/web-quiz/challenge-story-readalong.test.js` · `bot/tests/quiz/web-quiz/challenge-story-serve.test.js` · `bot/tests/quiz/web-quiz/class-round-endcard.test.js` · `bot/tests/quiz/web-quiz/practice-play-routes.test.js` · `bot/tests/quiz/web-quiz/practice-your-turn.test.js` (+61: `python3 kg/kg.py who-reads bot/shared/routes/web-quiz-internal.routes.js`)
 
 ## Related (all, generated)
 - skills: `registration`?

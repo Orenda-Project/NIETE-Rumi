@@ -1,6 +1,6 @@
 # helpers — Shared harnesses and doubles for the lp612 E2E and unit suites
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612/helpers kg=d8b76ebb4be0 gen=6e2faa3e1ca5 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612/helpers kg=1047b2c2a5f4 gen=7b9c0436e3b4 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp612-db-double.js` — PostgREST double used where requestLesson and the worker run together
@@ -11,8 +11,8 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `religious-e2e.js` | Test helper: shared E2E harness for the religious-marks delivery suites (bd-c61xh), llm-client and author doubled |
 | `religious-marks.js` | Test helper: shared harness for RELIGIOUS_MARKS unit suites, split out of the false-positives test (bd-xo6mb) |
+| `religious-e2e.js` | Test helper: shared E2E harness for the religious-marks delivery suites (bd-c61xh), llm-client and author doubled |
 | `lp612-db-double.js` | Test helper: PostgREST double for the lp612 lane with per-call canned results; used by requestLesson and worker E2Es |
 | `overlay-chrome-e2e.js` | Test helper (bd-yhd16): E2E harness running the Urdu-tap chain for real with model, R2, PostgREST, SQS and Meta doubled |
 | `overlay-chrome.js` | Test helper (bd-yhd16): fixtures for the Urdu-chrome reuse gate, varying whether ur_overlay carries provenance pointers |

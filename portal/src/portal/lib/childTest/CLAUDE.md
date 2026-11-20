@@ -1,7 +1,7 @@
 # childTest — Coach child-test block machine, check form, local recordings and uploader
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib/childTest kg=0e917685948b gen=8f7ebb4b0d92 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib/childTest kg=9c396a20e17b gen=238534306c70 overflow=11 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `blockMachine.ts` — pure reducer for one block (ready, recording, review, sending, sent)
@@ -16,7 +16,8 @@ Full index: `CLAUDE.index.md`
 | `recordings.ts` | bd-s1oo0.7: IndexedDB chunk store for child-test recordings and maths-strip photos until they reach R2 |
 | `checkDraft.test.ts` | bd-s1oo0.7: pins checkDraft: confident values kept, doubtful left empty, ai_marks-shaped coach marks, empty form |
 | `uploader.ts` | bd-s1oo0.7: uploads a stored child-test item (presign, PUT to R2, attach to block); deletes the copy only on success |
-| … | 6 more → `CLAUDE.index.md` |
+| `blockMachine.ts` | bd-s1oo0.7: pure reducer for one child-test block (ready, recording, review, sending, sent) with the timed minute |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/components/childTest/BlockRecorder.tsx:4:9a63f4a8` · `portal/src/portal/components/childTest/CheckForm.tsx:4:9a63f4a8` (+2)
@@ -35,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/lib/CLAUDE.md`?

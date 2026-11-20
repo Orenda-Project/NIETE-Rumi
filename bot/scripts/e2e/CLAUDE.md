@@ -1,7 +1,7 @@
 # e2e — The local mock E2E lane: fake Graph API, local Postgres, local R2, stack scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e kg=9577b3ca0ffe gen=9b6c656e466f overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e kg=251d62d468ad gen=a0293df77fed overflow=11 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `local-stack.sh` — start the bot from one pinned commit
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `flow-inventory.js` | Fetches each published Flow JSON by id, stores it as a fixture, records drift against repo copies and a component census |
 | `local*` | 13 files; most used `local-stack.sh`: Starts the bot from one pinned commit in a detached worktree behind the mock Graph API for the E2E mock lane; up/down/r… |
 | `lp612-doc.js` | Puts or removes one Grades 6-12 lesson document in the lane's R2 bucket so backfilled deliveries have renders to point… |
-| … | 29 more → `CLAUDE.index.md` |
+| … | 31 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

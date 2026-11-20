@@ -1,7 +1,7 @@
 # assessment-edit — Editing a made exam paper: question forms, local draft, version list
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-edit kg=1fb4c71ed29e gen=cdeea0d2d7cb overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-edit kg=2249ab1552a2 gen=d5386e6a850d overflow=9 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `AssessmentEditor.tsx` — edit, remove, restore, add questions and save as a new version
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `draft.ts` ← imported by `portal/src/portal/teacher/assessment/EditPages.tsx:10:8ba0e596` · `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:16:082ec0da`
+- `draft.ts` ← imported by `portal/src/portal/teacher/assessment/EditPages.tsx:11:8ba0e596` · `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:16:082ec0da`
 - `AddQuestionFields.tsx` ← imported by `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:11:0e92a0a5`
 - `AssessmentEditor.tsx` ← imported by `portal/src/portal/components/AssessmentPapersPanel.tsx:29:13d6e7c7`
 - `AssessmentVersionsDialog.tsx` ← imported by `portal/src/portal/components/AssessmentPapersPanel.tsx:30:ad6b99df`

@@ -1,7 +1,7 @@
 # tests — Jest suite for the dashboard server: web-quiz edge, SA runner, leader services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests kg=f8ae3d0ba004 gen=9164831c7630 overflow=456 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests kg=6d500f0ca281 gen=0289e9e0da6d overflow=508 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `web-quiz-edge.service.test.js` — start here: the portal edge pages and bot relay pattern; Run: cd dashboard && ./run-tests.sh tests/<file> --maxWorkers=2 (jest.config.js testRegex)
@@ -13,14 +13,16 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `__golden__/` | Byte-exact switch-OFF response goldens recorded on the base code before each switch → `__golden__/CLAUDE.md` |
-| `fixtures/` | → (no door; 45 files: 0 test + 45 support) |
+| `fixtures/` | → (no door; 47 files: 0 test + 47 support) |
 | `insights/` | Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks → `insights/CLAUDE.md` |
 | `queue/` | → (no door; 2 tests) |
 | `support/` | Shared helper for the SA Urdu fit tests, not a test file itself → `support/CLAUDE.md` |
 | `__snapshots__/` | → (not mapped: excluded; 3 files) |
 | `wq*` | 4 files; most used `wq-page-harness.js`: Shared harness for web quiz page tests: runs public/wq/wq.js and wq.css in a vm with fakes |
 | `wqc-page-harness.js` | Shared harness running public/wq/wq-challenge.js whole in a vm with a fake DOM, fetch and media |
-| … | 493 more → `CLAUDE.index.md` |
+| `sa-r13-whole-stop.service.test.js` | (unmapped) |
+| `sa-r13-oral-rule.service.test.js` | (unmapped) |
+| … | 545 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -34,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? (+3)
+- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? (+4)

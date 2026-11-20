@@ -1,7 +1,7 @@
 # analytics — Teacher Analytics page (More > Analytics) and the principal's My school view
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/analytics kg=73833ae1b592 gen=9eb569cb33db overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/analytics kg=a6959f607831 gen=671b764dfde2 overflow=22 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `AnalyticsPage.tsx` — page at /portal/teacher/analytics: tiles from /progress and /my-analytics
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | … | 11 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:6:ee0fbe19` · `portal/src/portal/coach/analytics/model.ts:4:27fcf88e` (+5)
-- `model.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:8:c1135b8e` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:27:74d4b72c` (+3)
-- `paths.ts` ← imported by `portal/src/portal/teacher/analytics/SchoolView.tsx:14:d1cdb2f6` · `portal/src/portal/teacher/analytics/routes.tsx:2:ac2d7d9e` (+1)
+- `copy.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:6:ee0fbe19` · `portal/src/portal/coach/analytics/model.ts:4:27fcf88e` (+6)
+- `model.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:8:c1135b8e` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:32:74d4b72c` (+3)
+- `SchoolView.tsx` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:12:08ef2178` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:15:e08819ef` (+1)
 - … 5 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`?

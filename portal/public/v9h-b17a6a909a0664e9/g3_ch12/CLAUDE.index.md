@@ -11,11 +11,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g3_ch12_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch12 seg3 (en): Diving Deeper: Pinky's Poetic Puzzle + What's Happening? |
 | `g3_ch12_English_seg4.v9.html` | Hosted v9 lesson page G3 English ch12 seg4 (en): Share and Sparkle: Culture Circle + Debate over Rainy Day |
 | `g3_ch12_English_seg5.v9.html` | Hosted v9 lesson page G3 English ch12 seg5 (en): Grammar: Preposition Parade (position) |
+| `g3_ch12_English_seg5_partA.v9.html` | (unmapped) |
+| `g3_ch12_English_seg5_partB.v9.html` | (unmapped) |
 | `g3_ch12_English_seg6.v9.html` | Hosted v9 lesson page G3 English ch12 seg6 (en): Future Festivities Forecast (future tense) |
 | `g3_ch12_English_seg7.v9.html` | Hosted v9 lesson page G3 English ch12 seg7 (en): Imagination Canvas + Connect and Create: A Pinky's (+ more topics) |
 | `g3_ch12_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch12 seg1 (en): Reading & writing time: analogue & digital clocks |
 | `g3_ch12_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch12 seg2 (en): a.m. / p.m. + Practice, Discovery + Skill Sharpener |
 | `g3_ch12_Maths_seg3.v9.html` | Hosted v9 lesson page G3 Math ch12 seg3 (en): Time word problems + reading the calendar (days & dates) |
+| `g3_ch12_Maths_seg3_partA.v9.html` | (unmapped) |
+| `g3_ch12_Maths_seg3_partB.v9.html` | (unmapped) |
 | `g3_ch12_Maths_seg4.v9.html` | Hosted v9 lesson page G3 Math ch12 seg4 (en): Time problems: Daily Planner + Skill Sharpener |
 | `g3_ch12_Maths_seg5.v9.html` | Hosted v9 lesson page G3 Math ch12 seg5 (en): Connect and Create: Planning a Future Event |
 | `g3_ch12_Urdu_seg1.v9.html` | Hosted v9 lesson page G3 Urdu ch12 seg1 (ur): نئے الفاظ، جملہ سازی اور ارکان سازی |

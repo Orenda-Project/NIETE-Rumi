@@ -1,7 +1,7 @@
 # attendance — Teacher Attendance: class selector, roll call, month view, register download
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/attendance kg=3230debcf137 gen=c6358c5a378b overflow=19 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/attendance kg=b6b69509408f gen=3fe895718874 overflow=21 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `AttendanceHub.tsx` — selector page; `MarkPage.tsx` — roll call; `routes.tsx` — all under /portal/teacher/attendance
@@ -12,16 +12,16 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `copy.ts` | English and Urdu words, month and weekday names for Attendance screens, registered as COPY_ENTRY |
+| `staff.test.tsx` | (unmapped) |
 | `model.ts` | Pure Attendance rules: class grouping and search, status counts, mark payload, date window; invents no counts |
-| `checks.test.tsx` | Style and copy guard for Attendance pages: logical start/end, motion-safe, copy.ts words, 56px targets (bd-fmf24g.7) |
 | `paths.ts` | Path builders for Attendance pages under /portal/teacher/attendance: mark, view, download |
-| … | 10 more → `CLAUDE.index.md` |
+| `checks.test.tsx` | Style and copy guard for Attendance pages: logical start/end, motion-safe, copy.ts words, 56px targets (bd-fmf24g.7) |
+| … | 11 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:10:ec07487d` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:10:ec07487d` (+4)
-- `model.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:12:320700ef` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:12:80bfb06a` (+4)
-- `paths.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:13:ad1dfc51` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:13:b69e9cbc` (+3)
+- `model.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:11:5be71c60` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:11:849961a5` (+4)
+- `paths.ts` ← imported by `portal/src/portal/teacher/attendance/AttendanceHub.tsx:12:ad1dfc51` · `portal/src/portal/teacher/attendance/DownloadPage.tsx:12:3fd9cc25` (+4)
+- `api.ts` ← imported by `portal/src/portal/teacher/attendance/DownloadPage.tsx:9:b8315a9c` · `portal/src/portal/teacher/attendance/MarkPage.tsx:8:23c4530a` (+2)
 - … 6 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -30,9 +30,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
+- `portal/src/portal/teacher/attendance/staff.test.tsx` (AttendanceHub.tsx, DownloadPage.tsx, MarkPage.tsx, ViewPage.tsx, copy.ts, paths.ts)
 - `portal/src/portal/teacher/attendance/checks.test.tsx` (copy.ts, paths.ts, routes.tsx, ui.tsx)
-- `portal/src/portal/teacher/attendance/attendance.ur.test.tsx` (AttendanceHub.tsx, copy.ts, model.ts)
-- … 5 more → `CLAUDE.index.md`
+- … 7 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`?

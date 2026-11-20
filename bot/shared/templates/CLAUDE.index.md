@@ -30,7 +30,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `weekly-usage.template.js` | Meta UTILITY template definitions for the v10 weekly usage report; skipped if unapproved (bd-v0toag.32) |
 
 ## Who reads this (all, generated)
-- `class-round.page.js` ← imported by `bot/shared/routes/class-round-internal.routes.js:28:173dbdb7` · `bot/shared/services/quiz/web-quiz-challenge.js:1689:3b23e4a6` · `bot/shared/services/quiz/web-quiz-class-round.js:34:640ef483`
+- `class-round.page.js` ← imported by `bot/shared/routes/class-round-internal.routes.js:28:173dbdb7` · `bot/shared/services/quiz/web-quiz-challenge.js:1706:3b23e4a6` · `bot/shared/services/quiz/web-quiz-class-round.js:34:640ef483`
 - `coach-visit-request.template.js` ← imported by `bot/scripts/register-coach-visit-request-template.js:20:738c66b8` · `dashboard/services/coach-visit-request.js:17:88b16cc3`
 - `fa-video.template.js` ← imported by `bot/scripts/broadcast-fa-video.js:17:7621a3f2` · `bot/scripts/register-fa-video-template.js:17:7621a3f2` · `bot/shared/services/fa-video/broadcast.js:19:91bb5376`
 - `latin-runs.js` ← imported by `bot/shared/services/coaching/coaching-card/card-template.js:23:4338d9d6` · `bot/shared/services/coaching/report-v2/hero-report.template.js:16:4338d9d6` · `bot/shared/services/coaching/report-v2/slim-card.template.js:14:4338d9d6` · `bot/shared/services/coaching/video-reco/card-image.js:14:4338d9d6` (+3: `python3 kg/kg.py who-reads latin-runs.js`)
@@ -44,7 +44,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `teacher-report-v21.parts.js` ← imported by `bot/shared/templates/teacher-report.page.js:38:afca39ae`
 - `teacher-report.page.js` ← imported by `bot/shared/routes/class-round-internal.routes.js:27:4ac1d3ce` · `bot/shared/routes/teacher-jugnu-internal.routes.js:25:4ac1d3ce` · `bot/shared/routes/teacher-report-internal.routes.js:34:11adb375` · `bot/shared/services/quiz/teacher-report-gate.js:24:9f080e6b` (+2: `python3 kg/kg.py who-reads teacher-report.page.js`)
 - `teacher-stories.page.js` ← imported by `bot/shared/routes/story-teacher-internal.routes.js:18:7f122ff1`
-- `transcript-quiz-teacher.template.js` ← imported by `bot/shared/services/quiz/transcript-quiz-generate.service.js:618:922a235e`
+- `transcript-quiz-teacher.template.js` ← imported by `bot/shared/services/quiz/transcript-quiz-generate.service.js:619:922a235e`
 - `video-quiz-leaderboard.template.js` ← imported by `bot/shared/services/quiz/student-quiz.service.js:313:80b46d19` · `bot/shared/services/quiz/video-quiz-report.service.js:1074:4523b264`
 - `video-quiz-report.template.js` ← imported by `bot/shared/services/quiz/video-quiz-report.service.js:1184:0e84884f`
 - `video-quiz-scorecard.template.js` ← imported by `bot/shared/services/quiz/video-quiz-scorecard.service.js:56:4a1a51ea` · `bot/shared/templates/video-quiz-leaderboard.template.js:58:de6c3e96`

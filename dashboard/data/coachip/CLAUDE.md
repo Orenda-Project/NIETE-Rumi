@@ -1,6 +1,6 @@
 # coachip — COACHIP library, copy and crosswalk JSON loaded by services and the nightly seed
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/data/coachip kg=a8d992175352 gen=fd199d153ee6 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/data/coachip kg=fcbb4ac9a758 gen=d3c61d0892fd overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `INTERVENTIONS.json` — frozen v1 intervention library (34 weaknesses)
@@ -25,6 +25,7 @@
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
+- `dashboard/tests/insights/results-seed.service.test.js` (INTERVENTIONS.json, copy.json, crosswalk.json)
 - `dashboard/tests/insights/rollups.service.test.js` (INTERVENTIONS.json, crosswalk.json)
 - `dashboard/tests/insights/seed.service.test.js` (INTERVENTIONS.json, crosswalk.json)
 - `dashboard/tests/insights/signals.service.test.js` (INTERVENTIONS.json, crosswalk.json)

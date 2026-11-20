@@ -25,6 +25,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `purge.service.test.js` | bd-sex15q.36: tests --purge-clips retention in insights/purge, a year after the last window that showed the clip |
 | `ranking.service.test.js` | Tests intervention ranking (insights/ranking): prevalence x weight product, top two ranked, sector-share thresholds |
 | `reconcile.service.test.js` | Tests reconcile (insights/reconcile): one row per phase in plan order and hand-counted skipped/graded counts |
+| `results-r28.service.test.js` | (unmapped) |
+| `results-seed.service.test.js` | (unmapped) |
 | `results.service.test.js` | Tests buildResultCells (insights/results): W-LN letter-name rule, tested floor, below-bar logic for child results |
 | `rollups.service.test.js` | Tests rollups (insights/rollups): every row passes the SQL CHECKs; 4/8-week denominators; shared schools counted once |
 | `run-lock-pooler.service.test.js` | bd-sex15q.19: tests the CoachIP run lock behind pgbouncer transaction pooling (needs scripts/coachip_lock_harness.sh) |

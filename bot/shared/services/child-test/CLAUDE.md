@@ -1,7 +1,7 @@
 # child-test — Child learning-assessment (EGRA/EGMA): draw, coach chat, scoring, check Flow
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test kg=899b0deb9e89 gen=1df7d57bdf54 overflow=110 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test kg=7d2f36663455 gen=73d237cc5a59 overflow=120 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `store.js` — main reader/writer of child_test_draws/sessions/blocks (check-flow, sa/score touch them)
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `students` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+43)
+- table `students` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+44)
 - column `students.id` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:317:d73b0171` · `bot/shared/routes/edit-class-endpoint.js:45:dc16e319` (+42)
 - column `students.student_name` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:317:d73b0171` · `bot/shared/routes/edit-class-endpoint.js:45:dc16e319` (+29)
 - … 21 more → `CLAUDE.index.md`
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/e2e-mock/child-test-v3-sim-real.test.js` (item-bank.js, store.js, tasks.js)
 - `tests/e2e-mock/child-test-v3-visit.test.js` (item-bank.js, store.js, tasks.js)
-- … 82 more → `CLAUDE.index.md`
+- … 92 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/CLAUDE.md`?
