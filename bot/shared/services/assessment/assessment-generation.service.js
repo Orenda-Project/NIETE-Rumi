@@ -24,6 +24,7 @@ const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
 const { seenCategoryLine, keepSeenCategories } = require('./seen-categories');
+const SeenTypes = require('./seen-types');
 const PaperDiagram = require('./paper-diagram');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 const { standardMarks } = require('./standard-marks');
@@ -234,8 +235,16 @@ function _rescale(types, target) {
  * Jobs queued before the count travelled with them carry only the types, whose
  * counts summed to the number she typed — so the total is derived from those.
  */
-function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [], seenCount = null }) {
+function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [], seenCount = null, seenTypes = null }) {
   const typed = questionTypes.reduce((s, t) => s + _count(t), 0);
+  // bd-e5n2jf — her per-type Seen counts, when set, ARE the Seen size; jobs without them are unchanged.
+  const seenList = contentSource === 'unseen' ? null : SeenTypes.clean(seenTypes);
+  if (seenList) {
+    const seenN = SeenTypes.total(seenList);
+    return contentSource === 'seen'
+      ? { total: seenN, seenTarget: seenN, unseenTarget: 0, questionTypes: [], seenTypes: seenList }
+      : { total: seenN + typed, seenTarget: seenN, unseenTarget: typed, questionTypes, seenTypes: seenList };
+  }
   const total = Number(questionCount) > 0 ? Number(questionCount) : typed;
   if (contentSource === 'seen') {
     return { total, seenTarget: total, unseenTarget: 0, questionTypes: [] };
@@ -294,8 +303,8 @@ const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark per a
 
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
                            contentSource, questionCount, questionTypes = [], totalMarks = null,
-                           seenCount = null, slos = null, standardMarks: askStandard = true }) {
-  const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
+                           seenCount = null, seenTypes = null, slos = null, standardMarks: askStandard = true }) {
+  const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount, seenTypes });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
   const describe = (list) => list.map((q) => `${_count(q)} ${q.id}`).join(', ');
@@ -305,7 +314,9 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
     if (objective.length) items.push(`Unseen Objective questions — ${describe(objective)}`);
     if (subjective.length) items.push(`Unseen Subjective questions — ${describe(subjective)}`);
   }
-  if (contentSource === 'both') {
+  if (plan.seenTypes) {
+    items.push(...SeenTypes.promptItems(plan.seenTypes));
+  } else if (contentSource === 'both') {
     items.push(`Seen questions — at most ${plan.seenTarget}, taken directly from the textbook's own `
       + 'exercises on these pages (if the pages hold fewer usable exercise questions, add unseen '
       + 'questions instead so the total below is still met)' + seenCategoryLine(questionTypes));
@@ -628,7 +639,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null, slos = null, avoidQuestions = [] } = args;
+          totalMarks = null, seenCount = null, seenTypes = null, slos = null, avoidQuestions = [] } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -640,7 +651,7 @@ async function generateExam(args) {
   // when the settings moved the call, so llm-client stands this paper's own model behind the moved
   // one: Urdu and English papers run different models, and only this call site knows which.
   const ownModel = resolveModelForJob('assessment.generate', { family }).model;
-  const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
+  const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount, seenTypes });
   const honestBlooms = appliesToGrade(grade);
 
   const messages = [
@@ -648,7 +659,7 @@ async function generateExam(args) {
     // Islamiat is a religious subject, so it carries none.
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '')
       + (key === 'islamiat' ? '' : `\n\n${RULE.religious}`) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, seenTypes, slos }) + avoidNote(avoidQuestions) },
   ];
 
   logToFile('[assessment] generating', {
@@ -751,9 +762,10 @@ async function generateExam(args) {
   const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);
   if (stemMisses.length) logToFile('[assessment] questions without a ticked stem', { misses: stemMisses });
   // bd-ipoxhx.1 — a Both paper's book questions stay inside the categories she chose.
-  const offCategory = contentSource === 'both' ? keepSeenCategories(examJson, questionTypes) : 0;
+  // Her Seen types, when set, decide the Seen categories themselves (bd-e5n2jf).
+  const offCategory = contentSource === 'both' && !plan.seenTypes ? keepSeenCategories(examJson, questionTypes) : 0;
   if (offCategory > 0) logToFile('[assessment] dropped seen questions outside her categories', { removed: offCategory });
-  const removedSeen = trimSeen(examJson, plan.seenTarget);
+  const removedSeen = plan.seenTypes ? SeenTypes.trim(examJson, plan.seenTypes) : trimSeen(examJson, plan.seenTarget);
   // bd-ipoxhx.7 — standard marks before the budget is measured, so an inflated MCQ never costs a question.
   const marksStandardised = standardMarks(examJson);
   if (marksStandardised > 0) logToFile('[assessment] set marks to the standard', { changed: marksStandardised });

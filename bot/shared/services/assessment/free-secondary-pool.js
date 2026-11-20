@@ -49,11 +49,20 @@ function scores(examJson, issuesOf) {
   return (item) => count.get(numberOf.get(item)) || 0;
 }
 
-/** Drops section MCQs until `keep` are left, the most-flagged first. Mutates the paper. */
+/**
+ * The MCQs the pool works on: every section MCQ outside the Seen branch. The pool is the extra
+ * Unseen MCQs the writer was asked for; the book's own (Seen) MCQs are never culled by it (bd-e5n2jf).
+ */
+function unseenMcqs(examJson) {
+  const seen = new Set(examJson?.seen ? sectionMcqs(examJson.seen).map((m) => m.item) : []);
+  return sectionMcqs(examJson).filter((m) => !seen.has(m.item));
+}
+
+/** Drops Unseen section MCQs until `keep` are left, the most-flagged first. Mutates the paper. */
 function select(examJson, keep, issuesOf) {
   let dropped = 0;
   const spares = [];
-  for (let mcqs = sectionMcqs(examJson); mcqs.length > keep; mcqs = sectionMcqs(examJson)) {
+  for (let mcqs = unseenMcqs(examJson); mcqs.length > keep; mcqs = unseenMcqs(examJson)) {
     const score = scores(examJson, issuesOf);
     const letters = new Map();
     mcqs.forEach(({ item }) => { const k = keyIndex(item); letters.set(k, (letters.get(k) || 0) + 1); });
@@ -76,7 +85,7 @@ function select(examJson, keep, issuesOf) {
  */
 function swapLeaks(examJson, spares, issuesOf) {
   let swapped = 0;
-  sectionMcqs(examJson).forEach(({ list, item }) => {
+  unseenMcqs(examJson).forEach(({ list, item }) => {
     const n = (items(examJson).find((e) => e.item === item) || {}).n;
     const issues = issuesOf(examJson);
     if (!issues.some((i) => i.n === n && i.check === 'cross-leak')) return;
