@@ -2,3 +2,4 @@
 {"ts":"2026-11-20T12:10:34Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"79554d5e2998","branch":"bd-snkn32.63-staging","user":""}
 {"ts":"2026-11-20T12:10:48Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"79554d5e2998","branch":"bd-snkn32.63-staging","user":""}
 {"ts":"2026-11-20T12:26:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (commit is itself the spec: id tags @L25-@L29 + @no-mock-driver on five scenarios; no product code, nothing a teacher sees changes)","sha":"79554d5e2998","branch":"bd-snkn32.63-stg2","user":""}
+{"ts":"2026-11-20T12:26:54Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"88d5bb5a-dc97-4612-b296-ede041166874","sha":"79554d5e2998","branch":"bd-snkn32.63-stg2","user":""}
