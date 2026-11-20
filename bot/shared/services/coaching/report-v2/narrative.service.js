@@ -183,7 +183,7 @@ function v6RowLine(row, code) {
   const { v6LevelOf, v6EvidenceOf, v6NextLevel } = require('../target-resolver');
   const name = V6.indicator(code).name;
   const lv = v6LevelOf(row);
-  if (lv === 'NA') return `  · ${name}: not applicable in this lesson — not a low mark; never diagnose it or name it as missing.`;
+  if (lv === 'NA') return `  · ${name}: not applicable in this lesson (${V6.naSentence(code, 'en')}) — not a low mark; never diagnose it or name it as missing.`;
   if (lv === 'IE') return `  · ${name}: couldn't tell from this lesson — not a low mark; never diagnose it or name it as missing.`;
   if (typeof lv !== 'number') return `  · ${name}: no level for this lesson — not part of the score; never diagnose it or name it as missing.`;
   const ev = clipText(v6EvidenceOf(row), V6_CLIP_EVIDENCE);

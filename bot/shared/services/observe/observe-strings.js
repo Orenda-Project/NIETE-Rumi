@@ -378,6 +378,8 @@ const STRINGS = {
     v6f_change_help: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     v6f_why: 'اس لیول کی وجہ',
     v6f_why_help: 'کم از کم ۲۰ حروف: آپ نے کلاس میں کیا دیکھا۔',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required. DRAFT.
+    v6f_why_help_na: 'لیول کے لیے کم از کم ۲۰ حروف۔ لاگو نہیں کے لیے ایک دو لفظ کافی ہیں۔',
     v6f_from_recording: 'ریکارڈنگ سے',
     v6f_coach_adds: 'کوچ شامل کرتا ہے:',
     v6f_next: 'آگے',
@@ -484,6 +486,12 @@ const STRINGS = {
     coach_report_try_lines: {
       elicited_if_then: '"اگلی بار آپ کیا مختلف کریں؟ اپنے الفاظ میں بتائیں۔"',
     },
+    // bd-9652yj (queue #166) — for a coach on the coach app nudge: the report-ready message's way back (reply 1 sends
+    // today's WhatsApp report card), the line when that card cannot be sent, and the line that opens a visit resumed
+    // from the app's "Continue on WhatsApp". The "1" is what she types (the bot also takes ۱).
+    coach_report_reply1_line: 'رپورٹ نہیں کھل رہی؟ *1* لکھ کر بھیجیں، میں یہیں بھیج دوں\u00A0گی۔',
+    coach_report_here_failed: 'یہ رپورٹ ابھی یہاں نہیں کھل سکی۔ اپنے مشاہدے دیکھنے کے لیے /observe لکھیں۔',
+    handoff_resume_intro: 'آئیے آپ کا دورہ یہیں واٹس\u00A0ایپ پر جاری رکھتے\u00A0ہیں۔',
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'آپ کی ہفتہ وار کوچنگ رپورٹ تیار ہے: آپ کا ہفتہ، اور اگلے ہفتے کا فوکس۔ یہ صرف آپ کے لیے ہے۔',
     coach_week_link_button: 'میرا ہفتہ کھولیں',
@@ -762,6 +770,8 @@ const STRINGS = {
     v6f_change_help: "Only if you changed Rumi's level (20+ characters).",
     v6f_why: 'Why this level',
     v6f_why_help: 'At least 20 characters: what you saw in the room.',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required.
+    v6f_why_help_na: 'For a level, 20+ characters on what you saw. For N/A, a word or two.',
     v6f_from_recording: 'From the recording',
     v6f_coach_adds: 'Coach adds:',
     v6f_next: 'Next',
@@ -887,6 +897,10 @@ const STRINGS = {
     coach_report_try_lines: {
       elicited_if_then: '“Next time, what will you do differently? Tell me in your own words.”',
     },
+    // bd-9652yj (queue #166) — see the Urdu block.
+    coach_report_reply1_line: "Report not opening? Reply *1* and I'll send it here.",
+    coach_report_here_failed: 'I could not open that report here just now. Type /observe to see your observations.',
+    handoff_resume_intro: "Let's carry on with your visit here on WhatsApp.",
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'Your weekly coaching report is ready: your week, and your focus for next week. It is just for you.',
     coach_week_link_button: 'Open my week',

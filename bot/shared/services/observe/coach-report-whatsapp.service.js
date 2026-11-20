@@ -25,6 +25,12 @@
  * (coach-report-target.js: `coach_report:<id>` or `coach_week:<Monday>`); it opens that
  * report and nothing else. The message never names the teacher (messages get forwarded).
  *
+ * THE WAY BACK (bd-9652yj, queue #166). For a coach on the coach app nudge (app-redirect isCoachNudged), the button
+ * message carries one more line, "Report not opening? Reply 1 and I'll send it here.", and arms the reply-1 offer for
+ * that report (coach-app-offer armReply 'report'); her "1" comes back to sendReportCardHere, which sends today's
+ * WhatsApp report card. The template is unchanged (its words cannot change without Meta). A failed nudge check is
+ * today's message exactly.
+ *
  * PRE-MERGE CLASSES. G: outside the window a template only. M: the button text is inside 20 code points (test). N: every
  * failure logged at error. P: first run 90 s after boot, owned by the worker that owns `main`. R: bounded per tick,
  * narrow JSON slices, the coach_report_notice.sql partial index; OFF costs one app_settings read per tick.
@@ -143,12 +149,58 @@ async function claim(sessionId) {
   return Array.isArray(data) && data.length >= 1;
 }
 
-async function sendButton(phone, lang, url, kind = 'debrief') {
-  const w = words(lang, kind);
+/** Is the coach app nudge on for this coach (the report's way back)? Never throws: a failure is no, today's words. */
+async function nudgedCoach(coachId) {
+  if (!coachId) return false;
   try {
-    return (await WhatsAppService.sendCtaUrl(phone, { body: w.body, buttonText: w.button, url })) === true;
+    return (await require('../app-redirect.service').isCoachNudged(coachId)) === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** `report` ({ coachId, sessionId }): a debrief report, whose message carries the way back for a nudged coach. */
+async function sendButton(phone, lang, url, kind = 'debrief', report = null) {
+  const w = words(lang, kind);
+  const wayBack = kind === 'debrief' && report && await nudgedCoach(report.coachId);
+  const body = wayBack ? `${w.body}\n\n${observeStrings(lang).coach_report_reply1_line}` : w.body;
+  let sent = false;
+  try {
+    sent = (await WhatsAppService.sendCtaUrl(phone, { body, buttonText: w.button, url })) === true;
   } catch (err) {
     errorLog('the button send threw', { error: err.message });
+    return false;
+  }
+  if (sent && wayBack) {
+    try {
+      await require('../coach-app-offer').armReply(report.coachId, 'report', { sessionId: report.sessionId });
+    } catch (_) { /* the line asked for a reply the bot will not take: she still has the button and the Home card */ }
+  }
+  return sent;
+}
+
+/**
+ * bd-9652yj — reply 1 to the report line: today's WhatsApp report card (the picture, else the text card) for this
+ * report, only when it is hers and coached. True when it went; false otherwise (the caller says where to find it).
+ */
+async function sendReportCardHere({ sessionId, user, from, lang = null } = {}) {
+  try {
+    if (!sessionId || !user || !user.id || !from) return false;
+    const { data, error } = await supabase.from('coaching_sessions')
+      .select('id, observer_user_id, analysis_data')
+      .eq('id', sessionId)
+      .maybeSingle();
+    if (error || !data || data.observer_user_id !== user.id) return false;
+    const analysis = data.analysis_data || {};
+    const feedback = analysis.observer_debrief && analysis.observer_debrief.feedback;
+    if (!feedback) return false;
+    const l = lang || require('./observe-strings').observeLang(user);
+    const { sendCoachReportPicture } = require('./coach-report-card');
+    const sent = await sendCoachReportPicture(from, feedback, observeStrings(l), analysis.framework, l);
+    if (sent) logSent('here', sessionId, user.id, l);
+    return sent === true;
+  } catch (err) {
+    errorLog('the report card could not be sent here', { sessionId, error: err.message });
     return false;
   }
 }
@@ -184,7 +236,7 @@ async function sendReportLinkNow({ sessionId, coachId, phone, lang }) {
       return 'no_link';
     }
     if (!(await claim(sessionId))) return 'not_claimed';
-    if (!(await sendButton(phone, l, url))) {
+    if (!(await sendButton(phone, l, url, 'debrief', { coachId, sessionId }))) {
       errorLog('Meta refused the report link — not retried; the text card goes instead', { sessionId });
       return 'failed';
     }
@@ -259,7 +311,9 @@ async function runSweep({ now = Date.now(), limit = PER_TICK, windowOpen = defau
         if (!url) { errorLog('no link to send (PORTAL_URL or signing secret missing)', { sessionId: r.id }); counts.failed += 1; continue; }
         if (!(await claim(r.id))) continue; // opened a moment ago, or another sweep won
         counts.claimed += 1;
-        const sent = open ? await sendButton(u.phone_number, lang, url) : await sendTemplate(u.phone_number, lang, r.observer_user_id, r.id);
+        const sent = open
+          ? await sendButton(u.phone_number, lang, url, 'debrief', { coachId: r.observer_user_id, sessionId: r.id })
+          : await sendTemplate(u.phone_number, lang, r.observer_user_id, r.id);
         if (!sent) {
           errorLog('Meta refused the report link — not retried', { sessionId: r.id, how: open ? 'button' : 'template' });
           counts.failed += 1;
@@ -399,6 +453,6 @@ function scheduleSweep({ worker, queues, runSweep: run = runSweep, runWeeklySwee
 }
 
 module.exports = {
-  coachReportsOn, reportLinkUrl, linkUrl, sendReportLinkNow, runSweep, runWeeklySweep, inWeeklyWindow, scheduleSweep,
+  coachReportsOn, reportLinkUrl, linkUrl, sendReportLinkNow, sendReportCardHere, runSweep, runWeeklySweep, inWeeklyWindow, scheduleSweep,
   SETTING_SWITCH, SETTING_TEMPLATE, TEMPLATE_DEFAULT, WAIT_MS, LOOKBACK_MS,
 };

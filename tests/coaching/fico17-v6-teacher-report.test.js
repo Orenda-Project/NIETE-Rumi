@@ -17,13 +17,13 @@ function levels() {
 }
 
 describe('v6 teacher report (option A)', () => {
-  test('lists the DC levels with v6 name, title and level text; NA left out; IE one line', () => {
+  test('lists the DC levels with v6 name, title and level text; C2 N/A in its own words (per-indicator N/A, 19 Nov); IE one line', () => {
     const r = buildTeacherReport(levels());
     expect(r.rubric).toBe('fico17_v6');
-    expect(r.rows.map((x) => x.code)).toEqual(['C1', 'C4', 'C6', 'C8', 'D1', 'D5', 'F1', 'F2', 'F3', 'F4']);
+    expect(r.rows.map((x) => x.code)).toEqual(['C1', 'C2', 'C4', 'C6', 'C8', 'D1', 'D5', 'F1', 'F2', 'F3', 'F4']);
     expect(r.text).toContain('Quality of Questions Asked by the Teacher: Level 4 of 4 (Highly Effective)');
     expect(r.text).toContain(v6.levelText('C1', 4));
-    expect(r.text).not.toContain('Helping when a child is wrong');
+    expect(r.text).toContain('Helping when a child is wrong: N/A: No child was wrong in this transcript.');
     expect(r.text).toContain("Accuracy of content: The recording didn't cover this part of the lesson.");
     expect(r.rows.find((x) => x.code === 'F1').title).toBeUndefined();
   });

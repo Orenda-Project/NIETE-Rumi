@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage from "../../teacher/TeacherPage";
 import { useCopy, useFollowPreferredLanguage } from "../../teacher/i18n";
@@ -9,6 +9,8 @@ import CoachGate from "../CoachGate";
 import { readPending, type Pending } from "../ui";
 import { OBSERVE } from "./copy";
 import { useObserveRoutes } from "./observeRoutes";
+import ContinueOnWhatsApp from "./ContinueOnWhatsApp";
+import { TroubleContext, type TroubleKind } from "./trouble";
 
 /**
  * bd-4404s7.4 — the frame of every Observe screen: the coach gate, the kit's page frame (TeacherPage: the header card, the
@@ -17,6 +19,10 @@ import { useObserveRoutes } from "./observeRoutes";
  *
  * The banner is hidden while the ready (or failed) banner of a sent observation shows above the menu, so the two never
  * stack (the notices host decides when that is; here it only looks).
+ *
+ * bd-9652yj (queue #166) — the coach app's way back to WhatsApp (ContinueOnWhatsApp) sits first, under the header, on
+ * every coach-app Observe screen: a slim strip, or a full green button when the screen failed. A screen says it failed
+ * with `trouble` (the microphone, a send), or its shared `Failed` card says so through TroubleContext (a load).
  */
 
 function useAnnouncing(): boolean {
@@ -42,24 +48,32 @@ export function CoachAttention() {
 }
 
 export default function ObservePage({
-  title, crumb, backTo, onBack, feature, dock, bare = false, banner = true, children,
+  title, crumb, backTo, onBack, feature, dock, bare = false, banner = true, trouble = null, children,
 }: {
   title: ReactNode; crumb?: ReactNode; backTo?: string; onBack?: () => void; feature?: AnyFeature; dock?: ReactNode;
   /** No menu: a screen where one stray tap must not leave (recording). */
   bare?: boolean;
   /** The "reports waiting" line under the header (off while recording). */
   banner?: boolean;
+  /** bd-9652yj — this screen failed (the microphone, a send): the way back to WhatsApp becomes a full button. */
+  trouble?: TroubleKind | null;
   children: ReactNode;
 }) {
   const { user, loading } = useAuth();
   useFollowPreferredLanguage(!loading && !!user);
   const routes = useObserveRoutes();
+  const [signalled, setSignalled] = useState<TroubleKind | null>(null);
+  const signal = useCallback((kind: TroubleKind | null) => setSignalled(kind), []);
   // bd-33wxxi.4 — the principal app's screens: no coach gate (TeacherGate ran) and no coach "reports waiting" banner.
+  // bd-9652yj — nor the way back to WhatsApp: it resumes a coach's booked visit.
   const page = (
-    <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}>
-      {banner && !bare && routes.coachGate && <CoachAttention />}
-      {children}
-    </TeacherPage>
+    <TroubleContext.Provider value={signal}>
+      <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}>
+        {routes.coachGate && <ContinueOnWhatsApp trouble={trouble ?? signalled} bare={bare} />}
+        {banner && !bare && routes.coachGate && <CoachAttention />}
+        {children}
+      </TeacherPage>
+    </TroubleContext.Provider>
   );
   return routes.coachGate ? <CoachGate>{page}</CoachGate> : page;
 }

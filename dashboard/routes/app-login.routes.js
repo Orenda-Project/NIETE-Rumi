@@ -215,4 +215,4 @@ function createAppLoginRouter({
   return router;
 }
 
-module.exports = { createAppLoginRouter, newLinkUrl, waMeLink };
+module.exports = { createAppLoginRouter, newLinkUrl, waMeLink, botNumber };
