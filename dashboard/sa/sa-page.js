@@ -428,23 +428,75 @@
    * game sink for that id); none kept → state 'no_sink', left on the phone.
    */
   function drain(o) {
+    var now = o.now || function () { return Date.now(); };
     return o.store.sessions().then(function (rows) {
       var mode = o.mode === 'game' ? 'game' : 'proctored';
-      var ids = rows.filter(function (r) { return r && r.session_id && r.session_id !== o.exclude && (r.mode === 'game') === (mode === 'game'); })
-        .map(function (r) { return r.session_id; });
+      var mine = rows.filter(function (r) { return r && r.session_id && r.session_id !== o.exclude && (r.mode === 'game') === (mode === 'game'); });
       var out = [];
-      return ids.reduce(function (chain, id) {
-        return chain.then(function () { return o.store.pending(id); }).then(function (p) {
-          if (!p.events.length && !p.results.length && !p.chunks.some(function (c) { return c.final; })) return null;
+      return mine.reduce(function (chain, row) {
+        var id = row.session_id;
+        var orphans = null;
+        return chain.then(function () { return closeOrphans(o.store, row, now()); }).then(function (n) { orphans = n; return o.store.pending(id); }).then(function (p) {
+          var tally = function (x) {
+            if (orphans.recovered) x.recovered = orphans.recovered;
+            if (orphans.kept) x.orphan_kept = orphans.kept;
+            return x;
+          };
+          if (!p.events.length && !p.results.length && !p.chunks.some(function (c) { return c.final; })) {
+            if (orphans.kept) out.push(tally({ s: id, state: 'orphan_kept', pending_events: 0, pending_audio: 0 }));
+            return null;
+          }
           var sink = o.sink(id);
-          if (!sink) { out.push({ s: id, state: 'no_sink', pending_events: p.events.length + p.results.length, pending_audio: p.chunks.filter(function (c) { return c.final; }).length }); return null; }
+          if (!sink) { out.push(tally({ s: id, state: 'no_sink', pending_events: p.events.length + p.results.length, pending_audio: p.chunks.filter(function (c) { return c.final; }).length })); return null; }
           var sy = o.sync.create({ store: o.store, sink: sink, session_id: id, online: o.online, timers: o.timers });
           return sy.flush().then(function (st) {
             if (sy.stop) sy.stop();
-            out.push({ s: id, state: st.state, pending_events: st.pending_events, pending_audio: st.pending_audio });
+            out.push(tally({ s: id, state: st.state, pending_events: st.pending_events, pending_audio: st.pending_audio }));
           });
         });
       }, Promise.resolve()).then(function () { return out; });
+    });
+  }
+
+  /** A session is still running when it has not ended and logged something in the last ORPHAN_IDLE_MS. */
+  var ORPHAN_IDLE_MS = 10 * 60 * 1000;
+  /**
+   * A recording whose closing marker never reached the phone (the page was killed before the recorder's stop was
+   * written) is never sent: the sync sends only a recording marked final. Its chunks are still here, so the drain closes
+   * it itself when its task ran out of time (stop_reason time_up) or its session is over (ended, or silent for
+   * ORPHAN_IDLE_MS), never in a session still running: a closing marker with final_synth (the sync's register call then
+   * says final_synth and parts_n), and one kept event audio_recovered { parts_n } for the reads. Any other such take is
+   * left on the phone and counted. → Promise<{ recovered, kept }>
+   */
+  function closeOrphans(store, row, at) {
+    var id = row.session_id;
+    return Promise.all([store.chunks(id), store.events(id), store.results(id)]).then(function (v) {
+      var by = {};
+      v[0].forEach(function (c) { (by[c.task_id] = by[c.task_id] || []).push(c); });
+      var open = Object.keys(by).filter(function (k) { return !by[k].some(function (c) { return c.final; }) && by[k].some(function (c) { return !c.synced; }); });
+      if (!open.length) return { recovered: 0, kept: 0 };
+      var last = v[1].reduce(function (m, e) { var t = e.at ? Date.parse(e.at) : NaN; return Number.isFinite(t) && t > m ? t : m; }, 0);
+      var over = row.ended === true || (last > 0 && at - last >= ORPHAN_IDLE_MS);
+      var running = !over;
+      var seq = v[1].reduce(function (m, e) { return Math.max(m, e.seq || 0); }, 0);
+      var n = { recovered: 0, kept: 0 };
+      return open.reduce(function (chain, recId) {
+        var taskId = String(recId).split('/')[0];
+        var res = v[2].filter(function (r) { return r.task_id === taskId; })[0];
+        var timeUp = !!res && res.stop_reason === 'time_up';
+        if (running || !(timeUp || over)) { n.kept++; return chain; }
+        var c = by[recId];
+        var head = c[0];
+        var parts = c.filter(function (x) { return x.blob != null; }).length;
+        var top = c.reduce(function (m, x) { return Math.max(m, x.part); }, 0);
+        n.recovered++;
+        seq++;
+        var ev = { session_id: id, seq: seq, at: new Date(at).toISOString(), type: 'audio_recovered', task_id: taskId, value: { parts_n: parts } };
+        if (recId !== taskId) ev.item_id = String(recId).slice(taskId.length + 1);
+        return chain.then(function () {
+          return store.putChunk(id, recId, top + 1, null, { mime: head.mime, ext: head.ext, final: true, final_synth: true, duration_ms: null });
+        }).then(function () { return store.appendEvent(ev); });
+      }, Promise.resolve()).then(function () { return n; });
     });
   }
 

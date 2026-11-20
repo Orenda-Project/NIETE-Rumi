@@ -693,7 +693,8 @@ export default function LeaderAssess() {
     // The list's 'completed' says nothing of the audio; a child polled here is unknown until the poll answers
     const unpolled = Boolean(id && remote[id] === undefined && sentIds.includes(id));
     if ((c.sessionStatus === 'completed' && !unpolled) || (id && remote[id] === 'sent')) return 'sent';
-    if (c.sessionStatus === 'completed' && unpolled) return 'sending';
+    // offline the poll cannot answer, so the audio may well be on the phone: say so (a coach is told to wait for it)
+    if (c.sessionStatus === 'completed' && unpolled) return typeof navigator !== 'undefined' && navigator.onLine === false ? 'phone' : 'sending';
     if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
     if (id && (pendingBy[id] ?? 0) > 0) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';

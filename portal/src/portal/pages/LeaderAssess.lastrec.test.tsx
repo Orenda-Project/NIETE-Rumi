@@ -140,4 +140,26 @@ describe("LeaderAssess: the coach page sends whatever the phone holds", () => {
     expect(bar).not.toHaveTextContent(/\bsent\b/);
     expect(bar).toHaveTextContent("sending");
   });
+
+  it("offline, a reloaded page: a completed child whose status cannot be asked reads 'on phone', never 'sending'", async () => {
+    renderPage();
+    await chooseSchool();
+    await screen.findByText("Ayan Testwala");
+    const s = await startChild();
+    saDone(s);
+    await screen.findByTestId("assess-child-d1");
+    cleanup();
+    api.getList.mockResolvedValue({ list: { ...LIST, children: [child(1, { status: "tested", sessionId: s, sessionStatus: "completed" }), ...LIST.children.slice(1)] } });
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    try {
+      renderPage();
+      await chooseSchool();
+      await screen.findByText("Ayan Testwala");
+      const bar = screen.getByTestId("assess-visit-bar");
+      expect(bar).toHaveTextContent("on phone");
+      expect(bar).not.toHaveTextContent("sending");
+    } finally {
+      online.mockRestore();
+    }
+  });
 });

@@ -499,7 +499,10 @@ const REACH_TYPES = ['cards_reach', 'options_reach'];
 // LATEST sound check (one per try, tries counting up, nothing after a pass: the last is the pass or the last miss).
 const ONCE_TYPES = ['session_start', 'audio_check'];
 const LATEST_ONCE = 'audio_check';
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES];
+// audio_recovered { task_id, item_id?, value: { parts_n } }: round 28, a recording whose closing marker never reached the
+// phone, closed and sent by the drain (sa-page.js closeOrphans); parts_n = the 1 s chunks sent, so a read can size the cut.
+const RECOVERY_TYPES = ['audio_recovered'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES, ...RECOVERY_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 // a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
 const MAX_PRACTICE_PER_TASK = 4;
