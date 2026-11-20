@@ -3,7 +3,7 @@
  * bd-snkn32.56 (queue #134 E) — the goal start's two reads for the Make my own form, both dark unless the teacher app,
  * Make my own AND the list-only portal_lp_own_goal_start are on for her (404 otherwise; the user is the session's):
  *
- *   GET /api/portal/lp612/own/goals?grade&subject          → { success, outcomes: [{ segmentId, text, chapter }] }
+ *   GET /api/portal/lp612/own/goals?grade&subject          → { success, outcomes: [{ segmentId, text }] (no chapter names, bd-snkn32.61) }
  *   GET /api/portal/lp612/own/goals/match?grade&subject&q  → { success, match: { segmentId, title } | null }
  */
 const http = require('http');
@@ -65,8 +65,8 @@ test('her grade and subject\'s outcomes, in book order, each naming its lesson',
   expect(r.body).toEqual({
     success: true,
     outcomes: [
-      { segmentId: 'grade_7_general_science.c01.p001', text: 'Compare plant and animal cells', chapter: 'Cells' },
-      { segmentId: 'grade_7_general_science.c03.p020', text: 'Describe the water cycle', chapter: 'Water' },
+      { segmentId: 'grade_7_general_science.c01.p001', text: 'Compare plant and animal cells' },
+      { segmentId: 'grade_7_general_science.c03.p020', text: 'Describe the water cycle' },
     ],
   });
 });
@@ -131,7 +131,7 @@ describe('the typed-topic guard', () => {
     await start();
     const r = (await get('/api/portal/lp612/own/goals/match?grade=3&subject=math&q=multiplcation%20by%202')).body;
     expect(r.status).toBe('ok');
-    expect(r.suggestions).toEqual([{ segmentId: 'd2', text: 'Multiply 2 digit numbers by 1 digit number.', chapter: 'Times' }]);
+    expect(r.suggestions).toEqual([{ segmentId: 'd2', text: 'Multiply 2 digit numbers by 1 digit number.' }]);
     expect(r.match).toEqual({ segmentId: 'd2', title: 'Multiply 2 digit numbers by 1 digit number.' });
   });
 

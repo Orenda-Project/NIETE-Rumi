@@ -110,8 +110,8 @@ describe('wired in (bd-snkn32.58.1): the grades 1–5 store and outcomeList hand
       ['Multiply 2 digit numbers by 1 digit number.', 'mul_div', 'M-03-MU-04'],
     ]);
   });
-  it('a 6–12 row has no group: the outcome shape is unchanged', () => {
+  it('a 6–12 row has no group, and no goal carries a chapter name (bd-snkn32.61)', () => {
     expect(outcomeList([{ segment_id: 'a', chapter_title: 'Cells', slo_descriptions: ['Compare cells'] }]))
-      .toEqual([{ segmentId: 'a', text: 'Compare cells', chapter: 'Cells' }]);
+      .toEqual([{ segmentId: 'a', text: 'Compare cells' }]);
   });
 });

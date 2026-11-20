@@ -270,6 +270,24 @@ Feature: Teacher lesson plans
     Then the Make my own steps open
     And with portal_lp_make_own false, or for a coach, the screen shows the single "New lesson plan" card as before
 
+  # bd-snkn32.61 — operator, 20 Nov: "doesnt make sense to show chapters, we can focus on FLN related skills and if
+  # teachers want something else, they are free to add those". Written by hand like the blocks above (@draft): the demo
+  # stack cannot turn portal_lp_own_goal_start on. Pinned by GoalStep.test.tsx (portal) and tests/lp612/own-goal*.test.js.
+
+  @OWN05 @draft @config-gated
+  Scenario: The learning-goal start shows skills only, never a chapter name, and lets her add her own goal
+    Given portal_lp_make_own and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "From a learning goal" and picks Grade 3 Math
+    Then the goals are grouped by skill such as "Adding and subtracting", with no chapter name under any goal
+    When she types "multiply" in "Search goals"
+    Then the matching goals show with no chapter name
+    When she taps "Add my own goal", types "Adding money at the shop" and taps "Check my goal"
+    Then "Use my words" shows with "Did you mean" goals below it, none naming a chapter
+    When she taps "Use my words"
+    Then the next step opens and the check screen shows her own words as the learning goal
+    And a typed goal with a blocked word gets a calm refusal and nothing to use
+
   # bd-2zopnc — operator, 16 Nov: Make my own and the "Made by a teacher" shelf are not live for GB. Pinned by
   # tests/portal/lp612-own-route.test.js, lp612-shelf-route.test.js, lp612-own-shelf-config-flag.test.js.
   @OWN03 @draft @config-gated @negative

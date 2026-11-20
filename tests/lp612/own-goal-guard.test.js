@@ -66,10 +66,10 @@ describe('guardTopic: did you mean', () => {
   it('Urdu typed in Urdu: "اسم"', () => {
     expect(G.guardTopic('اسم', { rows: G3_URDU }).suggestions[0].segmentId).toBe('u2');
   });
-  it('suggestions carry the goal text and chapter, once each', () => {
+  it('suggestions carry the goal text, once each, and never a chapter name (bd-snkn32.61)', () => {
     const r = G.guardTopic('multiply', { rows: G3_MATHS });
     expect(r.suggestions.map((s) => s.segmentId)).toEqual(['d2', 'd3']);
-    expect(r.suggestions[0]).toEqual({ segmentId: 'd2', text: G3_MATHS[1].slo_descriptions[0], chapter: 'Multiplication' });
+    expect(r.suggestions[0]).toEqual({ segmentId: 'd2', text: G3_MATHS[1].slo_descriptions[0] });
   });
 });
 
