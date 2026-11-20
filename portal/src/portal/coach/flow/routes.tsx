@@ -4,7 +4,6 @@ import CoachScheduling from "../pages/CoachScheduling";
 import CoachSchedule from "../pages/CoachSchedule";
 import CoachObserve from "../pages/CoachObserve";
 import CoachObservePick from "../pages/CoachObservePick";
-import CoachVisits from "../pages/CoachVisits";
 import CoachObserveToday from "../pages/CoachObserveToday";
 import ObservePage from "../observe/ObservePage";
 import { SCHEDULE } from "../schedule/copy";
@@ -17,7 +16,7 @@ import { useFlowV2 } from "./useCoachFlowV2";
  *
  *   address                       switch on (Concept 1, "Today and Needs you")   switch off (today, unchanged)
  *   /portal/coach/observe         the one Observe screen (CoachObserveToday)      the Observe hub (two tiles)
- *   /portal/coach/schedule        Booked visits (CoachVisits)                     My schedule (CoachSchedule, the week)
+ *   /portal/coach/schedule        → Observe, All booked open (v6)                 My schedule (CoachSchedule, the week)
  *   /portal/coach/scheduling      → /portal/coach/observe                         the Schedule hub (three tiles)
  *   /portal/coach/observe/pick    → /portal/coach/observe                         Take observation's list (Earlier folded)
  *
@@ -38,7 +37,8 @@ function pick(on: JSX.Element, off: JSX.Element) {
   };
 }
 
-export const ScheduleRoute = pick(<CoachVisits />, <CoachSchedule />);
+// bd-o15qnr.27 (v6): Booked visits opens in place on Observe ("All booked"); the old address opens it there.
+export const ScheduleRoute = pick(<Navigate to="/portal/coach/observe?booked=open" replace />, <CoachSchedule />);
 export const SchedulingRoute = pick(<Navigate to="/portal/coach/observe" replace />, <CoachScheduling />);
 export const ObservePickRoute = pick(<Navigate to="/portal/coach/observe" replace />, <CoachObservePick />);
 export const ObserveRoute = pick(<CoachObserveToday />, <CoachObserve />);

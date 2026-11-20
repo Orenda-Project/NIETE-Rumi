@@ -17,12 +17,8 @@ import { useCoachFeatureReady } from "../training/useCoachFullApp";
 import { ReadyReportCard } from "../report/ReadyReportCard";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 import { COACH_PROFILE } from "../profile/copy";
-import { SectionLabel } from "../ui";
-import { CurrentVisit } from "../home/VisitCards";
-import { OBSERVE } from "../observe/copy";
-import { karachiDay } from "../time";
 import { useFlowV2 } from "../flow/useCoachFlowV2";
-import { trackFlow } from "../flow/track";
+import { FocusCard } from "../flow/FocusCard";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
@@ -49,6 +45,9 @@ import { trackFlow } from "../flow/track";
  * with the full coach app): a Today card above the tiles (her visits today with their count; the next one still to do
  * carries Start recording, straight to its record step; the rest are rows opening their visit; no visits today, no
  * card), and the first two tiles open the one Schedule list and her observations ("Observations", the menu's word).
+ *
+ * bd-o15qnr.27 (queue #204, v6) — that card is now the Focus card (flow/FocusCard.tsx): the one most important thing, an
+ * observation waiting on her first, else today's booked visits, else Schedule an observation. One Observe tile.
  */
 
 export const courseCount = (lib: Library | null): number | null =>
@@ -73,11 +72,7 @@ export default function SlimHome() {
   // The Learning assessment tile: only for a literal true (fail-closed, as the guard and the More row read it).
   const assess = useChildTestSa() === true;
   const P = useCopy(COACH_PROFILE);
-  const O = useCopy(OBSERVE);
   const flowV2 = useFlowV2() === true && fullApp;
-  // Concept 1 (the operator on #188's canvas, 19 Nov: "Just show her the next visit here only. So the buttons are higher
-  // up on the page"): the next visit, only when it is today (Start recording is for today).
-  const next = flowV2 && home?.next && home.next.scheduledFor === karachiDay() && home.next.status === "upcoming" ? home.next : null;
 
   return (
     <CoachGate>
@@ -97,12 +92,8 @@ export default function SlimHome() {
       >
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
         <ReadyReportCard />
-        {next && (
-          <section data-testid="home-next" className="mt-1 flex flex-col gap-2.5">
-            <SectionLabel>{O.nextVisit}</SectionLabel>
-            <CurrentVisit v={next} W={W} start={{ onPress: () => trackFlow("home.today_start") }} />
-          </section>
-        )}
+        {/* bd-o15qnr.27 (v6): the Focus card, the one most important thing (flow/FocusCard.tsx) */}
+        {flowV2 && <FocusCard />}
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className={`mt-2 ${tileGrid(true)}`}>
             {fullApp && (

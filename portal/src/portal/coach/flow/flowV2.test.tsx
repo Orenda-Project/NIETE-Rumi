@@ -81,138 +81,18 @@ beforeEach(() => {
   C.getHome.mockResolvedValue({ success: true, home: { today: [], next: null, counts: { week: 5, overdue: 2, waiting: 1, inProgress: 0, teachers: 20, schools: 6 } } });
 });
 
-describe("Booked visits (Concept 1), switch on: late, today, ahead; history lives in History", () => {
-  it("asks for today to 90 ahead (the server adds every late visit); the done past is History's", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    expect(C.getSchedule).toHaveBeenCalledWith({ from: today, to: addDays(today, 90) });
-  });
-
-  it("Late · Today · Ahead, in that order, every group open, no Earlier (no week strip)", async () => {
-    renderAt("/portal/coach/schedule");
-    const list = await screen.findByTestId("visit-list");
-    const groups = Array.from(list.querySelectorAll("[data-group]")).map((g) => g.getAttribute("data-group"));
-    expect(groups).toEqual(["overdue", "today", "coming"]);
-    expect(within(list.querySelector('[data-group="overdue"]') as HTMLElement).getByRole("heading", { level: 2 })).toHaveTextContent(/^Late/);
-    expect(within(list.querySelector('[data-group="coming"]') as HTMLElement).getAllByRole("heading", { level: 2 })[0]).toHaveTextContent(/^Ahead/);
-    expect(list.querySelector("[aria-expanded]")).toBeNull();
-    expect(within(list).queryByText(/^Done Teacher \d+$/)).toBeNull();
-    // the week strip is gone (risk 2: dropped)
-    expect(screen.queryByRole("group", { name: SCHEDULE_COPY.week })).toBeNull();
-  });
-
-  it("each group says how many it holds", async () => {
-    renderAt("/portal/coach/schedule");
-    const list = await screen.findByTestId("visit-list");
-    const count = (g: string) => within(list.querySelector(`[data-group="${g}"]`) as HTMLElement).getAllByTestId("section-count")[0].textContent;
-    expect(count("overdue")).toBe("2");
-    expect(count("today")).toBe("3");
-    expect(count("coming")).toBe("2");
-  });
-
-  it("an overdue or today's visit: Start recording (its record step) and Cancel visit; coming up: Reschedule and Cancel visit", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    const rabia = screen.getByTestId("visit-o1");
-    expect(within(rabia).getByRole("link", { name: /Start recording/ })).toHaveAttribute("href", "/portal/coach/visit/o1/record");
-    expect(within(rabia).getByRole("button", { name: /Cancel visit/ })).toBeInTheDocument();
-    expect(within(rabia).getByText("5 days late")).toBeInTheDocument();
-    const kiran = screen.getByTestId("visit-t2");
-    expect(within(kiran).getByRole("link", { name: /Start recording/ })).toHaveAttribute("href", "/portal/coach/visit/t2/record");
-    const huma = screen.getByTestId("visit-c1");
-    expect(within(huma).queryByRole("link", { name: /Start recording/ })).toBeNull();
-    const reschedule = within(huma).getByRole("link", { name: /Reschedule/ });
-    expect(reschedule.getAttribute("href")).toMatch(/^\/portal\/coach\/new-visit\?/);
-    expect(reschedule.getAttribute("href")).toContain("visit=c1");
-    expect(within(huma).getByRole("button", { name: /Cancel visit/ })).toBeInTheDocument();
-  });
-
-  it("the row buttons leave room for two Nastaliq lines (Urdu Start recording wraps; it spilled out on sandbox)", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    const row = screen.getByTestId("visit-t2");
-    for (const el of [within(row).getByRole("link", { name: /Start recording/ }), within(row).getByRole("button", { name: /Cancel visit/ })]) {
-      expect(el.className.split(/\s+/)).toEqual(expect.arrayContaining(["min-h-[56px]", "py-2", "leading-tight", "rtl:leading-[1.8]"]));
-    }
-  });
-
-  it("a done visit has no buttons and opens its observation", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    const farah = screen.getByText("Farah Naz").closest("a") as HTMLElement;
-    expect(farah).toHaveAttribute("href", "/portal/coach/observation/sess-farah");
-    expect(within(screen.getByTestId("visit-t1")).queryByRole("button", { name: /Cancel visit/ })).toBeNull();
-  });
-
-  it("Start recording on a row is counted (schedule.start)", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    fireEvent.click(within(screen.getByTestId("visit-t2")).getByRole("link", { name: /Start recording/ }));
-    expect(trackFlow).toHaveBeenCalledWith("schedule.start");
-  });
-
-  it("titled Booked visits under Observe; Book ahead (New visit with day and time); Team schedule; WhatsApp on top", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Booked visits");
-    expect(screen.getByRole("link", { name: /Book ahead/ })).toHaveAttribute("href", "/portal/coach/new-visit");
-    expect(screen.getByRole("link", { name: /Team schedule/ })).toHaveAttribute("href", "/portal/coach/team");
-    expect(screen.getByTestId("continue-on-whatsapp")).toBeInTheDocument();
-  });
-
-  it("no visits at all: one slim row, never an empty card", async () => {
-    C.getSchedule.mockResolvedValue({ success: true, from: today, to: today, overdue: [], visits: [] });
-    renderAt("/portal/coach/schedule");
-    expect(await screen.findByText(SCHEDULE_COPY.noVisits)).toBeInTheDocument();
-  });
-});
-
-describe("Cancel visit on a row: asks, then the visit leaves the list", () => {
-  it("Cancel visit opens the tray (Keep visit / Cancel visit); Keep closes it and nothing is sent", async () => {
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    fireEvent.click(within(screen.getByTestId("visit-t3")).getByRole("button", { name: /Cancel visit/ }));
-    const tray = await screen.findByRole("dialog");
-    expect(within(tray).getByText(/Asma Batool/)).toBeInTheDocument();
-    expect(trackFlow).toHaveBeenCalledWith("schedule.cancel_tap");
-    fireEvent.click(within(tray).getByRole("button", { name: OBSERVE_COPY.keepVisit }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(L.cancelSchedule).not.toHaveBeenCalled();
-    expect(screen.getByTestId("visit-t3")).toBeInTheDocument();
-  });
-
-  it("confirm: the same server cancel as the visit page (leader.cancelSchedule), then the row is gone", async () => {
-    L.cancelSchedule.mockResolvedValue({ success: true, cancelled: true });
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    fireEvent.click(within(screen.getByTestId("visit-t3")).getByRole("button", { name: /Cancel visit/ }));
-    const tray = await screen.findByRole("dialog");
-    fireEvent.click(within(tray).getByRole("button", { name: OBSERVE_COPY.cancelVisit }));
-    await waitFor(() => expect(L.cancelSchedule).toHaveBeenCalledWith("t3"));
-    await waitFor(() => expect(screen.queryByTestId("visit-t3")).toBeNull());
-    expect(trackFlow).toHaveBeenCalledWith("schedule.cancel_confirm");
-    // the rest stay, and Today counts one fewer
-    expect(screen.getByTestId("visit-t2")).toBeInTheDocument();
-    const todayGroup = screen.getByTestId("visit-list").querySelector('[data-group="today"]') as HTMLElement;
-    expect(within(todayGroup).getAllByTestId("section-count")[0].textContent).toBe("2");
-  });
-
-  it("the server refuses: the tray closes and the visit stays", async () => {
-    L.cancelSchedule.mockRejectedValue(new Error("400"));
-    renderAt("/portal/coach/schedule");
-    await screen.findByTestId("visit-list");
-    fireEvent.click(within(screen.getByTestId("visit-o2")).getByRole("button", { name: /Cancel visit/ }));
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: OBSERVE_COPY.cancelVisit }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByTestId("visit-o2")).toBeInTheDocument();
-  });
-});
+/*
+ * bd-o15qnr.27 (queue #204, v6): Booked visits is no longer its own page. Its list (Late · Today · Coming up, Record /
+ * Reschedule / Cancel, Cancel asking first) opens in place on Observe under "All booked", and /portal/coach/schedule
+ * opens Observe with it open. Those tests are in ./v6.test.tsx.
+ */
 
 describe("old addresses, switch on: WhatsApp and old links keep working", () => {
   it.each([
     ["/portal/coach/scheduling", "/portal/coach/observe"],
     ["/portal/coach/observe/pick", "/portal/coach/observe"],
-  ])("%s → %s (Concept 1: Observe is the one screen)", async (from, to) => {
+    ["/portal/coach/schedule", "/portal/coach/observe\\?booked=open"],
+  ])("%s → %s (Observe is the one screen; v6: Booked visits open in place)", async (from, to) => {
     renderAt(from);
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(new RegExp(`^${to}$`)));
   });

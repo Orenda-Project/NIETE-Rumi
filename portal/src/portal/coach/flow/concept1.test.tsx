@@ -81,74 +81,10 @@ beforeEach(() => {
   });
 });
 
-describe("Observe, switch on: Today and Needs you, one short screen", () => {
-  it("a big Start an observation, into New visit's book-now mode, counted", async () => {
-    renderAt("/portal/coach/observe");
-    const start = await screen.findByRole("link", { name: /Start an observation/ });
-    expect(start).toHaveAttribute("href", "/portal/coach/new-visit?now=1");
-    fireEvent.click(start);
-    expect(trackFlow).toHaveBeenCalledWith("observe.start");
-  });
-
-  it("asks only for today (and the late ones the server adds), never the month", async () => {
-    renderAt("/portal/coach/observe");
-    await screen.findByTestId("observe-today");
-    expect(C.getSchedule).toHaveBeenCalledWith({ from: today, to: today });
-    expect(C.getReports).toHaveBeenCalledWith({ page: 1 });
-  });
-
-  it("Booked for today: today's visits still to do, each with Record to its record step; done and late ones are not here", async () => {
-    renderAt("/portal/coach/observe");
-    const booked = await screen.findByTestId("booked-today");
-    expect(within(booked).getByText("Kiran Shahzadi")).toBeInTheDocument();
-    expect(within(booked).getByText("Asma Batool")).toBeInTheDocument();
-    expect(within(booked).queryByText("Farah Naz")).toBeNull();
-    expect(within(booked).queryByText("Rabia Nawaz")).toBeNull();
-    const records = within(booked).getAllByRole("link", { name: /Record/ });
-    expect(records.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/visit/t2/record", "/portal/coach/visit/t3/record"]);
-    fireEvent.click(records[0]);
-    expect(trackFlow).toHaveBeenCalledWith("schedule.start");
-  });
-
-  it("Needs you: oldest first, three shown with how long each has waited and its step; See all 4", async () => {
-    renderAt("/portal/coach/observe");
-    const needs = await screen.findByTestId("needs-you");
-    expect(within(needs).getAllByTestId("section-count")[0]).toHaveTextContent("4");
-    const rows = within(needs).getAllByRole("link").filter((a) => (a.getAttribute("href") || "").startsWith("/portal/coach/observation/"));
-    expect(rows.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/observation/r2", "/portal/coach/observation/r4", "/portal/coach/observation/r3"]);
-    expect(rows[0]).toHaveTextContent("Lubna Arif");
-    expect(rows[0]).toHaveTextContent("17 days waiting");
-    expect(rows[0]).toHaveTextContent("Debrief");
-    expect(rows[1]).toHaveTextContent("3 days waiting");
-    expect(rows[2]).toHaveTextContent("Since yesterday");
-    expect(within(needs).getByRole("link", { name: /See all 4/ })).toHaveAttribute("href", "/portal/coach/reports?show=waiting");
-  });
-
-  it("three or fewer waiting: no See all; none: one slim row", async () => {
-    C.getReports.mockResolvedValue({ success: true, waiting: [], inProgress: [], all: { total: 0, page: 1, pageSize: 20, items: [] } });
-    renderAt("/portal/coach/observe");
-    const needs = await screen.findByTestId("needs-you");
-    expect(within(needs).getByText("Nothing waiting")).toBeInTheDocument();
-    expect(within(needs).queryByRole("link", { name: /See all/ })).toBeNull();
-  });
-
-  it("two rows: Booked visits (with how many are late) and History (with how many in all)", async () => {
-    renderAt("/portal/coach/observe");
-    await screen.findByTestId("observe-today");
-    const booked = screen.getByRole("link", { name: /Booked visits/ });
-    expect(booked).toHaveAttribute("href", "/portal/coach/schedule");
-    expect(booked).toHaveTextContent("2 late");
-    const history = screen.getByRole("link", { name: /History/ });
-    expect(history).toHaveAttribute("href", "/portal/coach/reports");
-    expect(history).toHaveTextContent("38 in all");
-  });
-
-  it("the way back to WhatsApp stays on top (#166)", async () => {
-    renderAt("/portal/coach/observe");
-    await screen.findByTestId("observe-today");
-    expect(screen.getByTestId("continue-on-whatsapp")).toBeInTheDocument();
-  });
-});
+/*
+ * bd-o15qnr.27 (queue #204): the Observe screen and "Start an observation" (book-now mode) are v6 now: Schedule an
+ * observation → school → teacher → Schedule for Now / Schedule for Later. Their tests are in ./v6.test.tsx.
+ */
 
 /* ── Start an observation: New visit in book-now mode ─────────────────────────────────────────────────────────────── */
 
@@ -161,42 +97,6 @@ const PEOPLE = {
   schools: [{ schoolExtId: "S1", name: "IMS G-7/3", teachers: 2, daysSinceVisit: 41 }],
   teachers: [teacher("a", "S1"), teacher("b", "S1")],
 };
-
-describe("Start an observation: school, teacher, then straight to recording", () => {
-  beforeEach(() => { C.getPeople.mockResolvedValue(PEOPLE); });
-
-  it("two steps, not three; the picks keep now=1", async () => {
-    renderAt("/portal/coach/new-visit?now=1");
-    expect(await screen.findByText("Step 1 of 2")).toBeInTheDocument();
-    expect(screen.getByText("IMS G-7/3").closest("a")?.getAttribute("href")).toContain("now=1");
-  });
-
-  it("picking the teacher books her for now (today, this half hour) and opens the record step", async () => {
-    C.getSchedule.mockResolvedValue({ success: true, from: today, to: today, overdue: [], visits: [] });
-    L.createSchedule.mockResolvedValue({ success: true, id: "new-1" });
-    renderAt("/portal/coach/new-visit?now=1&school=S1");
-    const link = (await screen.findByTestId("teacher-a")).querySelector("a") as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toContain("now=1");
-    fireEvent.click(link);
-    await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith({ teacherExtId: "a", date: today, slot: karachiSlotNow() }));
-    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach\/visit\/new-1\/record$/));
-  });
-
-  it("she is already booked today: no second booking, her visit's record step", async () => {
-    C.getSchedule.mockResolvedValue({ success: true, from: today, to: today, overdue: [], visits: [{ ...v("t9", today, "09:00", "upcoming", "Teacher a"), teacherExtId: "a" }] });
-    renderAt("/portal/coach/new-visit?now=1&school=S1&teacher=a");
-    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach\/visit\/t9\/record$/));
-    expect(L.createSchedule).not.toHaveBeenCalled();
-  });
-
-  it("the booking fails: she stays, with the reason and Try again", async () => {
-    C.getSchedule.mockResolvedValue({ success: true, from: today, to: today, overdue: [], visits: [] });
-    L.createSchedule.mockRejectedValue({ response: { data: { error: "Teacher not found" } } });
-    renderAt("/portal/coach/new-visit?now=1&school=S1&teacher=a");
-    expect(await screen.findByText("Teacher not found")).toBeInTheDocument();
-    expect(screen.getByTestId("where")).toHaveTextContent("/portal/coach/new-visit");
-  });
-});
 
 describe("New visit, switch on: the canvas's two removals", () => {
   beforeEach(() => { C.getPeople.mockResolvedValue(PEOPLE); });
