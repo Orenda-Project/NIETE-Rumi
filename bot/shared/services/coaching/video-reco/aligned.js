@@ -83,18 +83,26 @@ const SUB_ASK = Object.freeze({
   // close video 790 and with it 790-s3 (red7 N1). 794-s2 is write-alone-then-four: never below Grade 3 (4 of 24 G1–2
   // votes wrong). 778-s2 is held (red7 HOLD 175254: the transcript shows a check-in, not a question and a held wait).
   '790-s2': { sub: 'think_pair_share:think_then_pair', tier: 2, shows_en: 'a trainer asking everyone to think of the answer alone first, then put heads together and agree on the best answer', shows_ur: 'ایک ٹرینر سب سے کہتے ہیں کہ پہلے اکیلے ذہن میں جواب سوچیں، پھر مل کر بہترین جواب طے کریں' },
-  '804-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'adult participants thinking and writing alone, then talking in pairs, then sharing the pair\'s ideas at the board', shows_ur: 'بڑے شرکاء پہلے اکیلے سوچ کر لکھتے ہیں، پھر جوڑی میں بات کرتے ہیں، پھر جوڑی کے خیالات بورڈ پر سب کو بتاتے ہیں' },
+  '804-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, later: true, shows_en: 'adult participants thinking and writing alone, then talking in pairs, then sharing the pair\'s ideas at the board', shows_ur: 'بڑے شرکاء پہلے اکیلے سوچ کر لکھتے ہیں، پھر جوڑی میں بات کرتے ہیں، پھر جوڑی کے خیالات بورڈ پر سب کو بتاتے ہیں' },
   '905-s5': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'a teacher giving students 2 minutes to settle three facts on their own, then pairs to discuss their story', shows_ur: 'ایک ٹیچر طلبہ کو 2 منٹ دیتے ہیں کہ خود تین باتیں طے کریں، پھر جوڑی میں اپنی کہانی پر بات کریں' },
   '794-s2': { sub: 'think_pair_share:think_then_pair', tier: 1, grade_min: 3, shows_en: 'a trainer asking everyone to write their answer alone, then after a minute moving into groups of four to compare and correct', shows_ur: 'ایک ٹرینر سب سے پہلے اکیلے جواب لکھواتے ہیں، پھر ایک منٹ بعد چار کے گروپ میں جواب ملا کر درست کرواتے ہیں' },
   '745-s1': { sub: 'think_pair_share:think_then_pair', tier: 1, shows_en: 'adult participants each listing five qualities of a good teacher, then making one list in pairs, then in fours', shows_ur: 'بڑے شرکاء پہلے اکیلے اچھے ٹیچر کی پانچ خوبیاں لکھتے ہیں، پھر جوڑی میں ایک فہرست بناتے ہیں، پھر چار کے گروپ میں' },
   '451-s1': { sub: 'wait_time:after_question', tier: 1, shows_en: 'a teacher setting the rule of 10 seconds to think and no calling out, then holding back a student who wants to answer first', shows_ur: 'ایک ٹیچر اصول بتاتے ہیں: سوچنے کے 10 سیکنڈ اور بیچ میں کوئی نہ بولے، پھر جلدی جواب دینے والے ایک بچے کو روکتے ہیں' },
 });
 
+// R9d (COS 20261119T233941; ped-align r10 233921, fresh later picks at #5219 58e0b433ba): `later` marks the clips a later
+// visit may get, each cleared on its own out-of-sample later picks. 804-s2 182/186 = 97.8%; off: 745-s1 167/191, 794-s2
+// 110/125, 790-s2 26/34 (the card asks a quick oral pair routine; these clips show written lists, group correction, a
+// trainer describing it). A clip earns the mark only by a later-pick re-score at >= 95% / 0 ⛔.
+
 // --- 1. the card's ask -------------------------------------------------------------------------------------------------
 
 // Quoted spans (the card's example question) are masked while the clause is cut, so a comma inside a quote never ends it.
 const QUOTE = /'[^'\n]{0,160}'|‘[^’\n]{0,160}’|"[^"\n]{0,160}"|“[^”\n]{0,160}”|«[^»\n]{0,160}»/gu;
-const mask = (s) => s.replace(QUOTE, (q) => q[0] + '·'.repeat(Math.max(0, [...q].length - 2)) + q[q.length - 1]);
+// an apostrophe between two letters («the hair's movement») is text, not a quote mark (qa-e2e 20261119T215759): it would
+// pair with the card's real quote and leave it unmasked. ʼ (U+02BC) keeps the length, so mainClause's offsets hold.
+const APOSTROPHE = /(?<=\p{L})'(?=\p{L})/gu;
+const mask = (s) => s.replace(APOSTROPHE, 'ʼ').replace(QUOTE, (q) => q[0] + '·'.repeat(Math.max(0, [...q].length - 2)) + q[q.length - 1]);
 const ADDRESS = /^\s*(?:\[TEACHER\]\s*[،,:]?\s*)+/u;
 const LEAD = /^\s*(?:next (?:class|lesson|time)[,،]?\s*|tomorrow[,،]?\s*|in (?:the|your) next (?:class|lesson)[,،]?\s*|اگلی (?:کلاس|بار)(?: میں)?[،,]?\s*)/iu;
 // The trigger clause («when a student answers 'X',» / «جب … ، تو») names a moment, not the ask.
@@ -220,11 +228,44 @@ function questionMove(card, main) {
   return OPEN_WHY.test(main) ? 'open_questions' : null;
 }
 
+// R9d route (a) (COS 20261119T215752; ped-align r9a 20261119T215415, 259/343 at #5202): a later visit is a pick for a
+// teacher who has been shown a clip before (the r9a rank ≥ 2). There, only the card's MAIN step is served, and wait time
+// only when the wait is that step with no question of the card's own («ask 'why…?', wait 5 s» is the question's card:
+// r9a 451-s1 45/98). A near-miss anywhere on the card silences it (r9a: the TPS wrongs are a pair-share tacked onto
+// feedback, a video, roles, a definition), except the pair-work words that ARE the think-pair-share ask.
+// «after each question» / «ہر سوال کے بعد» is the question the wait follows, in either language (red7 N2): only asking one counts
+const QUESTION_STEP = /\b(?:ask|asks|asking|pose)\b|open[- ]ended|\bwhy\b|\bhow\b|\?|؟|پوچھ|کیوں|کیسے|سوال کر/iu;
+const LATER_NEAR_MISS_KEEP = Object.freeze({ think_pair_share: new Set(['pair_work', 'timed_pairs']) });
+// …and three main steps the r9a wrongs name in Urdu (fitted on those 4 cards, later visits only): roles, a played video,
+// a classmate's opinion of an answer
+const LATER_NEAR_MISS = [
+  ['roles', /(?<![\p{L}\p{M}])رول(?![\p{L}\p{M}])|کردار تقسیم/u], // JS \b is ASCII-only, even with /u (red7 N1)
+  ['played_video', /\bvideo\b[^۔.]{0,15}چلائ|ویڈیو[^۔.]{0,15}چلائ/iu],
+  ['peer_opinion', /جواب پر رائے/u],
+];
+
+/** A later visit (rank ≥ 2): the teacher has been shown a clip before. */
+function laterVisit(history) {
+  return !!history && ((history.segments || []).length > 0 || (history.modules || []).length > 0);
+}
+
 /**
  * The card's asks, in the order its main clause names them → [{ move, sub, at }] (empty = silence). One why-family ask at
  * most. The report asked every move named; a clip that shows any one of them, at its sub-ask, shows what was asked.
+ * opts.later: a later visit (laterVisit), the main step only (above).
  */
-function classifyAsks(sentence) {
+function classifyAsks(sentence, opts = {}) {
+  const asks = firstVisitAsks(sentence);
+  if (!opts.later || !asks.length) return asks;
+  const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
+  const main = asks[0];
+  const keep = LATER_NEAR_MISS_KEEP[main.move] || new Set();
+  if ([...NEAR_MISS, ...LATER_NEAR_MISS].some(([id, rx]) => !keep.has(id) && rx.test(card))) return [];
+  if (main.move === 'wait_time' && QUESTION_STEP.test(mask(mainClause(card)).replace(/wait[- ]time/giu, ''))) return [];
+  return [main];
+}
+
+function firstVisitAsks(sentence) {
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = mainClause(card);
   if (!main) return [];
@@ -321,11 +362,14 @@ function videoKey(module) {
  * subject, then the narrower grade band, then seg id (stable).
  * @param {object} catalog  catalog.fromData(v2 data)
  * @param {{move, sub}} ask
- * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null}} ctx
+ * @param {{languages:string[], history:{segments:string[], modules:number[]}, allow:Set<string>|null, later?:boolean, cleared?:boolean}} ctx
  * @param {{subject:string|null, grade:{lo,hi}|null}} lesson
  */
 function candidates(catalog, ask, ctx = {}, lesson = {}) {
   if (!catalog || !ask) return [];
+  // the cross-gate (GATE_FREE) was judged on first clips; a later visit keeps the subject × grade gates (COS 215752)
+  const later = ctx.later !== undefined ? !!ctx.later : laterVisit(ctx.history);
+  const clearedOnly = later && ctx.cleared !== false; // `cleared: false` = the gates only (the engine's none reason)
   const langs = new Set(ctx.languages || []);
   const h = ctx.history || {};
   const seenSegs = new Set((h.segments || []).map(String));
@@ -343,10 +387,11 @@ function candidates(catalog, ask, ctx = {}, lesson = {}) {
   const out = [];
   for (const module of catalog.modules || []) {
     if (seenVideos.has(videoKey(module))) continue;
-    if (!GATE_FREE.has(ask.move) && (!subjectOk(module, lesson) || !gradeOk(module, lesson))) continue;
+    if ((later || !GATE_FREE.has(ask.move)) && (!subjectOk(module, lesson) || !gradeOk(module, lesson))) continue;
     for (const seg of module.segments || []) {
       const rec = SUB_ASK[String(seg.seg_id)];
       if (!rec || rec.sub !== ask.sub) continue;
+      if (clearedOnly && !rec.later) continue;
       if (ctx.allow && !ctx.allow.has(String(seg.seg_id))) continue;
       if (seenSegs.has(String(seg.seg_id))) continue;
       if (rec.grade_min && !(lesson && lesson.grade && Number(lesson.grade.lo) >= rec.grade_min)) continue; // unknown grade: no
@@ -374,4 +419,4 @@ function reasonFor(ask, seg) {
   return { reason_en: line('en'), reason_ur: line('ur') };
 }
 
-module.exports = { GATE_FREE, classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
+module.exports = { GATE_FREE, laterVisit, classifyAsk, classifyAsks, mainClause, candidates, reasonFor, contractOk, videoKey, SUB_ASKS, SUB_ASK };
