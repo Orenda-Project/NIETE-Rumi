@@ -114,7 +114,8 @@ describe('v6 visit', () => {
     res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { ...goodC(), r_C1: '4', chg_C: 'She asked why and followed it up.' } });
     expect(res.screen).toBe('DOMAIN_D');
     expect(res.data.cb_D2).toContain('30 student turns in the first half and 12');
-    expect(res.data.cb_D3).toContain('no child-to-child talk');
+    // Per-indicator N/A (19 Nov, option A): D3 has no N/A; an old analysis's D3 N/A reads as the plain "did not find this".
+    expect(res.data.cb_D3).toContain('The recording did not find this in the lesson.');
   });
 
   test('applyObserverEdits stores every level with rubric, prompt_version and set_by, and v6 totals', async () => {
