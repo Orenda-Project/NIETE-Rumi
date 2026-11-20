@@ -1092,6 +1092,73 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When my coaching report arrives
     Then no "watch this" message, no clip on the image, and no clip card on my report page
 
+  # R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): behind VIDEO_RECO_ALIGNED (unset = the picks above, unchanged). Only a
+  # chapter that SHOWS a teacher doing what the report asked (lib's catalogue v2: demonstration / modelled, the shown move
+  # and its sub-ask), never one already shown and never from a video already shown; else no clip. Units:
+  # tests/coaching/video-reco/r9-aligned.test.js; matcher calibration outputs/lanes/eng-rec/calib/ (VIDREC team folder).
+  @e2e @wip @draft @config-gated @P1 @COA104
+  Scenario: A wait-time card gets the clip that shows a teacher holding the silence, and says so
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And my report says to wait a few seconds in silence after asking a question
+    When the clip arrives
+    Then it is the chapter where a trainer asks a question and gives everyone time to think alone first
+    And the reason says "Your report asked you to wait a few seconds after a question before anyone answers" and what the clip shows
+    And the clip plays only the part that shows it, not the whole chapter
+
+  @e2e @wip @draft @config-gated @P1 @COA105
+  Scenario: A teacher who has already watched the best clip gets the next one from a different video
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And I was already shown a think-pair-share clip
+    When my next report asks me again to let students talk in pairs first
+    Then the clip is a think-pair-share chapter from a different video
+    And it is never the clip I already got
+
+  @e2e @wip @draft @config-gated @negative @P1 @COA106
+  Scenario: A card no clip shows stays silent rather than getting a near-miss
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    When my report asks me to replace "Do you understand?" with "explain it in your own words"
+    Or it asks for two versions of the task for students to choose from
+    Or I have already been shown every clip that shows what it asks
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
+  # R9c (bd-tp4w7n.5, COS 20261119T174101 / 174509): six second clips behind the same flag and the env allowlist (the 9
+  # first clips keep their place), and a recorded skip for an own report the engine cannot read. Units: the R9c blocks
+  # of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @negative @P1 @COA107
+  Scenario: A teacher who already watched the wait-time clip gets no second one until a second clip has cleared
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
+    And I was already shown the wait-time clip
+    When my next report asks me again to wait a few seconds after a question
+    Then my report arrives with no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says aligned:later_uncleared
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA108
+  Scenario: My own report on an observation form the clips cannot read gets no clip, and the skip is recorded
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And my own recording was scored on a form other than FICO
+    When my coaching report arrives
+    Then it has no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says framework_unsupported with the form's name
+
+  # R9d route (a) (bd-tp4w7n.6, COS 20261119T215752 / 233941; ped-align r9a, r10): a later visit (a teacher already
+  # shown a clip) gets a clip only for the card's main step, within the clip's subject and grade, only from the clips
+  # cleared on later picks (today 804-s2, a think-pair-share with children), and
+  # VIDEO_RECO_LATER_VISITS=false stops later-visit clips. Units: the R9d block of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @negative @P1 @COA109
+  Scenario: After my first clip, a wait tacked onto another step gets no wait-time clip
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
+    And I was already shown a clip
+    When my next report asks me to ask "why?" and then wait a few seconds
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA110
+  Scenario: With later visits switched off, a teacher who already got a clip gets no other
+    Given VIDEO_RECO_ALIGNED is on and VIDEO_RECO_LATER_VISITS is false for the NIETE sandbox bot
+    And I was already shown a clip
+    When my next report asks me to wait a few seconds after a question
+    Then my report arrives with no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says aligned:later_off
+
   @e2e @draft @P2
   Scenario: The chapter's close-out lessons are named for what they are in the lesson list
     Given I am choosing which lesson my recording was for

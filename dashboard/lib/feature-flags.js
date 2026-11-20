@@ -542,7 +542,12 @@ async function isCoachObservationOn(supabase, userId) {
   return isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
 }
 
+// The lesson plan in the app and the activity Home have their own switches, kept in lib/lp-app-switches.js (this file is
+// over the 300-line limit): portal_lp_feedback_bar, portal_teacher_home_activity, portal_teacher_journey,
+// lp_whatsapp_pdf_off, lp_whatsapp_survey_off. They read through readFlagRow / isFlagEnabledForUser below.
+
 module.exports = {
+  readFlagRow,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,

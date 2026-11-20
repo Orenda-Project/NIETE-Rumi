@@ -64,6 +64,14 @@
  *      among their leader_schools, else exactly one school-search hit among them, else My schools
  *      (schools/school-card-door.js). Always ONE message, never a list, a menu or a Flow. Not covered → false, and the
  *      text handler goes on exactly as before. Old code never reads the key for the bot: a rollback is OFF.
+ *   2g. THE PRINCIPAL APP LINK (bd-eqkr0n, queue #203 follow-up), for observe only (PRINCIPAL_LINKS): a principal the
+ *      principal app is on for (app_settings portal_principal_app names her: true, "true" or a list holding her; AND
+ *      users.role principal: the portal's own rule, dashboard/lib/teacher-app isPrincipalAppUser) gets ONE cta_url
+ *      message, "Take your observation in the app." and [Open in the app], signed in on her Observations page. No way
+ *      back to WhatsApp is offered (the operator, 20 Nov: "we can even ignore the WhatsApp one for Principals"). Any
+ *      door that asks for observe (/observe, her bare "observe", the menu's Observe row). Asked before the October
+ *      coach link. Anyone else, or a failed read, goes on exactly as before; old code never reads the key for the bot,
+ *      so a rollback is today's flow.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -87,6 +95,9 @@ const { isTeachersValue, isTeacherRole, isCoachRole } = require('./teacher-audie
 const { isRegistered } = require('../utils/registration-status');
 const { newJourneyId } = require('./app-journey');
 const { LEADER_ROLES } = require('./observe/observe-gate');
+const { isLpWhatsappPdfOffFor } = require('./lp-whatsapp-off');
+const { isPrincipalRole } = require('../config/role-features');
+const { PRINCIPAL_APP_KEY, namesUser } = require('./observe/principal-app-switch');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -210,6 +221,13 @@ const COACH_APP_KEY = 'portal_coach_v2';
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
 /** bd-a73p5m — request → the page a leader's link lands on (app-login-link.js LEADER_LANDINGS), behind LEADER_LP_KEY. */
+/**
+ * bd-eqkr0n (2g) — request → the page a principal's link lands on (app-login-link.js LANDINGS), for a principal the
+ * principal app is on for. Observe only: her other requests keep their own paths. No way back to WhatsApp is offered.
+ */
+const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe' });
+const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
+
 const LEADER_LINKS = Object.freeze({ lesson_plan: 'leader_lessons' });
 const LEADER_LP_KEY = 'leader_app_lesson_plan';
 /** The doors that mean "open lesson plans": typed "lesson plan", the chip, the menu row and its number. */
@@ -281,7 +299,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY]);
+        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, PRINCIPAL_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -353,6 +371,9 @@ async function linkVerdict(feature, userId, now, note = {}, sharedAccount = null
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
   if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return null;
+  // lp_whatsapp_pdf_off: her programme is listed, so a lesson plan is the app link whatever her switch says (no Flow,
+  // no PDF, no Play Store notice). Not listed, absent or malformed: the rules below, as before.
+  if (feature === 'lesson_plan' && await isLpWhatsappPdfOffFor(userId)) return 'link';
   const values = await settingValues(now);
   const flag = values.get(key);
   const pilot = listHas(flag, userId);
@@ -413,6 +434,28 @@ async function coachLink(feature, userId, now, reason) {
     return null;
   }
   return COACH_LINKS[feature];
+}
+
+/**
+ * bd-eqkr0n (2g) — the principal link: the page to land on (PRINCIPAL_LINKS), or null for the next path. The switch is
+ * read first (no row, or one that does not name her, costs no users read); then her users row, which must say
+ * principal. `account` is the caller's memoised users read. A failed read is null: today's flow, never a guess.
+ */
+async function principalLink(feature, userId, now, account) {
+  if (!Object.prototype.hasOwnProperty.call(PRINCIPAL_LINKS, feature)) return null;
+  const values = await settingValues(now);
+  if (!namesUser(values.get(PRINCIPAL_APP_KEY), userId)) return null;
+  let a;
+  try {
+    a = await account();
+  } catch (err) {
+    let tk = null;
+    try { tk = require('./quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+    logToFile('⚠️ Principal app link: the account could not be read — the WhatsApp flow runs', { tk, feature, error: err?.message }, 'warn');
+    return null;
+  }
+  if (!a || !isPrincipalRole(a.role)) return null;
+  return PRINCIPAL_LINKS[feature];
 }
 
 /** Is this users.role in the leader family? Trim + lowercase, as the portal's isLeaderRole does. */
@@ -569,14 +612,20 @@ async function shapeLink(onLink, journey) {
 
 async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now(), onLink = null } = {}) {
   if (userId && from) {
+    // One users read for every question below (bd-zcgpkx): the principal, leader and teacher links share it.
+    let read = null;
+    const account = () => { if (!read) read = loadAccount(userId); return read; };
+    // bd-eqkr0n (2g) — a principal on the principal app: the app's button only.
+    const principal = await principalLink(feature, userId, now, account);
+    if (principal) {
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
+      return sendAppLink(principal, { userId, from, language, reason, journey, copy: PRINCIPAL_COPY[principal] });
+    }
     const coach = await coachLink(feature, userId, now, reason);
     if (coach) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
       return sendAppLink(coach, { userId, from, language, reason, journey });
     }
-    // One users read for both questions (bd-zcgpkx): the leader link and the teacher link share it.
-    let read = null;
-    const account = () => { if (!read) read = loadAccount(userId); return read; };
     const leader = await leaderLink(feature, userId, now, reason, account);
     if (leader) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
@@ -648,6 +697,16 @@ async function openSchoolCard({ userId, from, language, query = '', now = Date.n
   });
 }
 
+/**
+ * The lesson-plan app link on its own, for a PDF send already in flight when her programme is on lp_whatsapp_pdf_off
+ * (lp-pdf-off.js): a Flow tap, a worker's waiter, a typed curriculum topic. true when it went; false = nothing sent.
+ */
+async function sendLessonPlanLink({ userId, from, language, reason = 'lp_pdf_off' } = {}) {
+  if (!userId || !from) return false;
+  const journey = startJourney({ userId, feature: 'lesson_plan', door: reason, verdict: 'link', why: 'lp_pdf_off' });
+  return sendAppLink('lesson_plan', { userId, from, language, reason, journey });
+}
+
 function _resetForTests() { flagCache = null; }
 
 module.exports = {
@@ -659,5 +718,6 @@ module.exports = {
   isOnTeacherApp,
   redirectIfFlagged,
   openSchoolCard,
+  sendLessonPlanLink,
   _resetForTests,
 };

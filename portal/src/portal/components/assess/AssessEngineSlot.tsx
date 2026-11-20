@@ -16,6 +16,11 @@ import { keepScreenOn } from '../../lib/keepAwake';
  * finishes the child as complete, and nothing after the end can read as coach_end. When the engine first says
  * sa:battery_ending (its last answers are still going to the server), the hold shows disabled as "Sending…" until
  * sa:battery_end, or for 20 s at most (offline: the rows stay queued on the phone and go later).
+ *
+ * The last recording: after sa:battery_end the engine sends the audio and says sa:audio_saved when that round
+ * is over. Until then, for 10 s at most, Next child shows disabled as "Saving the last recording…", and a coach's hold
+ * waits for it the same way, so the frame is not unmounted mid-upload. Offline it comes at once (the audio stays on
+ * the phone, and the coach page sends it later).
  */
 
 const HOLD_MS = 3000;
@@ -23,6 +28,7 @@ const HOLD_MS = 3000;
 export type FinishReason = 'done' | 'complete' | 'coach_end' | 'handback' | 'offline' | 'not_started';
 const COACH_END_WAIT_MS = 3000;
 const SENDING_MAX_MS = 20_000;
+const SAVING_MAX_MS = 10_000;
 
 type Props = {
   sessionId: string;
@@ -112,6 +118,10 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
   /** running → ending (sa:battery_ending: the last answers are being sent) → ended (sa:battery_end). */
   const [batteryEnded, setBatteryEnded] = useState<'running' | 'ending' | 'ended'>('running');
   const batteryEndedRef = useRef(false);
+  /** After sa:battery_end, until sa:audio_saved or SAVING_MAX_MS: the time the saving ends at, else null. */
+  const [saving, setSaving] = useState(false);
+  const savingUntil = useRef<number | null>(null);
+  const savedEnd = () => { savingUntil.current = null; setSaving(false); };
 
   const finish = (reason: FinishReason) => {
     if (ended.current) return;
@@ -131,7 +141,8 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     try {
       frame.current?.contentWindow?.postMessage({ type: 'sa:coach_end', s: sessionId }, window.location.origin);
     } catch { /* no engine to ask */ }
-    coachEnding.current = window.setTimeout(() => finish(batteryEndedRef.current ? 'complete' : 'coach_end'), COACH_END_WAIT_MS);
+    const left = savingUntil.current === null ? 0 : savingUntil.current - Date.now();
+    coachEnding.current = window.setTimeout(() => finish(batteryEndedRef.current ? 'complete' : 'coach_end'), Math.max(COACH_END_WAIT_MS, left));
   };
   useEffect(() => () => { if (coachEnding.current !== null) window.clearTimeout(coachEnding.current); }, []);
 
@@ -149,6 +160,11 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: unknown; s?: unknown; reason?: unknown } | null;
       if (e.origin !== window.location.origin || !d || d.s !== sessionId) return;
+      if (d.type === 'sa:audio_saved') { savedEnd(); return; }
+      if (d.type === 'sa:battery_end' && !ended.current && savingUntil.current === null) {
+        savingUntil.current = Date.now() + SAVING_MAX_MS;
+        setSaving(true);
+      }
       if ((d.type === 'sa:battery_end' || d.type === 'sa:battery_ending') && handbackV2) {
         batteryEndedRef.current = true;
         if (d.type === 'sa:battery_end') setBatteryEnded('ended');
@@ -174,6 +190,13 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     const t = window.setTimeout(() => setBatteryEnded('ended'), SENDING_MAX_MS);
     return () => window.clearTimeout(t);
   }, [batteryEnded]);
+
+  // the audio's answer that never comes (a lost message, an old engine) keeps no one waiting
+  useEffect(() => {
+    if (!saving) return undefined;
+    const t = window.setTimeout(savedEnd, SAVING_MAX_MS);
+    return () => window.clearTimeout(t);
+  }, [saving]);
 
   useEffect(() => {
     let release: (() => Promise<void>) | null = null;
@@ -227,8 +250,8 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
       />
       {batteryEnded !== 'running' ? (
         <div data-testid="assess-hold-next" className="fixed inset-x-4 bottom-4 mx-auto max-w-md" style={{ zIndex: 1001 }}>
-          <HoldButton label={copy.holdNext} hint={batteryEnded === 'ending' ? copy.holdSending : copy.holdNextHint}
-            disabled={batteryEnded === 'ending'} onDone={coachEnd} />
+          <HoldButton label={copy.holdNext} hint={batteryEnded === 'ending' ? copy.holdSending : saving ? copy.holdSaving : copy.holdNextHint}
+            disabled={batteryEnded === 'ending' || saving} onDone={coachEnd} />
         </div>
       ) : (
         // top-start: the engine's full-width bottom buttons and its top-end dev Jump and sync dot stay clear

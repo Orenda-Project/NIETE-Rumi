@@ -483,7 +483,8 @@ const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repea
 // flapping network would fill the session's cap; device.offline already says it).
 // voice_late_none { task, ms }: the 'none' verdict landed inside a timed task; the refusal waited for its end.
 // voice_deferred_end { task, ms, by }: how that wait ended ('task_end', or the phase that ended the task), just before the refusal.
-const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry', 'voice_late_none', 'voice_deferred_end'];
+// worker_swap { from, to, task }: round 28, a newer worker took the page over mid-session (its clips come from then on).
+const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry', 'voice_late_none', 'voice_deferred_end', 'worker_swap'];
 // practice_answer { item_id, value: { value, ok, try } }: each practice tap (sa-core.js practiceAnswer). Retry once, then
 // the answer is shown: at most 2 per answerable practice item, 4 per part (the grid / keypad / choice parts have two; the
 // letter-sound picker and the story questions one). Not behind any switch.
@@ -498,7 +499,10 @@ const REACH_TYPES = ['cards_reach', 'options_reach'];
 // LATEST sound check (one per try, tries counting up, nothing after a pass: the last is the pass or the last miss).
 const ONCE_TYPES = ['session_start', 'audio_check'];
 const LATEST_ONCE = 'audio_check';
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES];
+// record_stop { task_id, item_id?, value: { duration_ms, parts } }: round 28, the recorder's stop, logged only once the
+// recording's closing marker is on the phone. One per task, the last (sa-store.js keepEvents keeps it outside the cap).
+const LAST_PER_TASK = ['record_stop'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES, ...LAST_PER_TASK];
 const MAX_EVENT_DATA = 300; // characters of JSON
 // a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
 const MAX_PRACTICE_PER_TASK = 4;
@@ -640,14 +644,17 @@ function keptEvent(e) {
 }
 
 /** The events the session keeps, in batch order: KEPT types, a part's practice taps up to MAX_PRACTICE_PER_TASK, the
- *  first session_start and the last audio_check of the batch (ONCE_TYPES). */
+ *  first session_start and the last audio_check of the batch (ONCE_TYPES), and the last record_stop of each task. */
 function keptEvents(events) {
   const practice = new Map();
   const once = new Set();
   const lastCheck = events.reduce((m, e) => (e && e.type === LATEST_ONCE ? e : m), null);
+  const lastOfTask = new Map();
+  for (const e of events) if (e && LAST_PER_TASK.includes(e.type)) lastOfTask.set(`${e.type}|${e.task_id}`, e);
   return events.filter((e) => {
     if (!KEPT.includes(e.type)) return false;
     if (e.type === LATEST_ONCE) return e === lastCheck;
+    if (LAST_PER_TASK.includes(e.type)) return lastOfTask.get(`${e.type}|${e.task_id}`) === e;
     if (ONCE_TYPES.includes(e.type)) {
       if (once.has(e.type)) return false;
       once.add(e.type);

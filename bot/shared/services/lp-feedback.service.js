@@ -187,6 +187,12 @@ function scheduleFeedbackPrompt(opts) {
 // ─── 2. Send prompt ───────────────────────────────────────────────────────
 
 async function sendFeedbackPrompt({ lessonPlanId, userId, phone, context }) {
+  // lp_whatsapp_survey_off: her programme is asked in the app, not here. Checked in the delayed send, so the delivery
+  // pays nothing for it; absent, malformed or another programme listed → asked as today.
+  if (await require('./lp-whatsapp-off').isLpWhatsappSurveyOffFor(userId)) {
+    logToFile('LP Feedback: prompt skipped — the WhatsApp survey is off for her programme', { lessonPlanId });
+    return;
+  }
   const language = await _resolveLanguage(userId, context && context.language);
   const body = _promptBody(language, context && context.triggerMode);
   const buttons = _promptButtons(language, lessonPlanId);
@@ -253,6 +259,15 @@ async function handleFeedbackButton(buttonId, phone) {
     .eq('lesson_plan_id', lessonPlanId)
     .eq('user_id', lp.user_id)
     .maybeSingle();
+
+  // She answered this lesson in the app already (its own lesson_plans row): the app answer stands, no second row.
+  const inApp = existing ? null : await require('./lp-in-app-answer')
+    .answeredInApp(lp.user_id, meta.v8 && meta.v8.lesson_id).catch(() => null);
+  if (inApp) {
+    logToFile('LP Feedback: already answered in the app', { lessonPlanId, existingId: inApp.id });
+    await WhatsAppService.sendMessage(phone, _ackYes(language));
+    return true;
+  }
 
   if (existing) {
     if (existing.useful !== useful) {

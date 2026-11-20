@@ -765,6 +765,12 @@ async function deliverRender({
   // reads them.
   askedAt, generatedAt, correlationId,
 }) {
+  // lp_whatsapp_pdf_off: HER programme (never the book's) gets the plan in the app, so this send — a cache hit, a
+  // waiter, a re-delivery, the GB lane — becomes the app link: no summary, no PDF, no survey, and no throw.
+  if (phone && userId) {
+    const pdfOff = await require('./lp-pdf-off').pdfOffLink({ userId, phone, language: lang, reason: 'lp612_send' });
+    if (pdfOff.off) return { appLink: pdfOff.linked };
+  }
   // bd-rj6w0n.14.16: a GB K-5 plan (the v10 card PDF) goes exactly like ICT's; only its caption is GB's.
   const gb = GbDelivery.isGbK5Segment(segment);
   let url;

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, Search } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import { coach } from "../services/api";
 import CoachGate from "./CoachGate";
+import { useObserveRoutes } from "./observe/observeRoutes";
 import { COACH_COPY as C } from "./copy";
 import { splitSlot } from "./time";
 import { useCopy } from "../teacher/i18n";
@@ -107,45 +108,49 @@ export function CoachPage({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  // bd-slknzt (queue #203) — the principal app draws the coach's booking screens (New visit, My schedule; bd-31ziu8) in
+  // this frame, inside its own routes (PrincipalObserve: coachGate false, TeacherGate already ran). There, as on
+  // ObservePage, no coach gate (it admits a coach only, so it sent every principal to My Patch and Home) and no coach
+  // "reports waiting" line. The coach app's default routes keep both.
+  const { coachGate } = useObserveRoutes();
   const circle = (
     <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
       <ChevronLeft className="h-5 w-5" aria-hidden="true" />
     </span>
   );
-  return (
-    <CoachGate>
-      <PortalLayout bare={bare}>
-        <div className="mx-auto flex w-full max-w-xl flex-col text-[#1d2025]">
-          {banner && !bare && <div className="pt-2"><PendingBanner /></div>}
-          {backTo || onBack ? (
-            <header className="flex items-center gap-1 pb-2 pt-2">
-              {onBack
-                ? <button type="button" onClick={onBack} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</button>
-                : <BackLink to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</BackLink>}
-              <div className="min-w-0 flex-1">
-                {crumb && <div className="truncate text-[13px] font-medium text-[#6b7280]">{crumb}</div>}
-                <h1 className="truncate text-[26px] font-light leading-tight tracking-[-0.01em]">{title}</h1>
-              </div>
-              {action}
-            </header>
-          ) : (
-            <header className="flex flex-col gap-3 px-1 pb-2 pt-4">
-              <div className="flex flex-col gap-1">
-                <h1 className="text-[32px] font-light leading-tight tracking-[-0.015em]">{title}</h1>
-                {subtitle && <p data-testid="page-subtitle" className="text-[17px] font-medium text-[#4b5563]">{subtitle}</p>}
-              </div>
-              {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
-            </header>
-          )}
-          {(backTo || onBack) && chips && <div className="flex flex-wrap gap-2 px-1 pb-2">{chips}</div>}
-          <div className="flex flex-col gap-3 pb-4">{children}</div>
-          {dock && (
-            <div className="sticky bottom-20 z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">{dock}</div>
-          )}
-        </div>
-      </PortalLayout>
-    </CoachGate>
+  const page = (
+    <PortalLayout bare={bare}>
+      <div className="mx-auto flex w-full max-w-xl flex-col text-[#1d2025]">
+        {banner && !bare && coachGate && <div className="pt-2"><PendingBanner /></div>}
+        {backTo || onBack ? (
+          <header className="flex items-center gap-1 pb-2 pt-2">
+            {onBack
+              ? <button type="button" onClick={onBack} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</button>
+              : <BackLink to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</BackLink>}
+            <div className="min-w-0 flex-1">
+              {crumb && <div className="truncate text-[13px] font-medium text-[#6b7280]">{crumb}</div>}
+              <h1 className="truncate text-[26px] font-light leading-tight tracking-[-0.01em]">{title}</h1>
+            </div>
+            {action}
+          </header>
+        ) : (
+          <header className="flex flex-col gap-3 px-1 pb-2 pt-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-[32px] font-light leading-tight tracking-[-0.015em]">{title}</h1>
+              {subtitle && <p data-testid="page-subtitle" className="text-[17px] font-medium text-[#4b5563]">{subtitle}</p>}
+            </div>
+            {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
+          </header>
+        )}
+        {(backTo || onBack) && chips && <div className="flex flex-wrap gap-2 px-1 pb-2">{chips}</div>}
+        <div className="flex flex-col gap-3 pb-4">{children}</div>
+        {dock && (
+          <div className="sticky bottom-20 z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">{dock}</div>
+        )}
+      </div>
+    </PortalLayout>
   );
+  return coachGate ? <CoachGate>{page}</CoachGate> : page;
 }
 
 export function PageChip({ children }: { children: ReactNode }) {

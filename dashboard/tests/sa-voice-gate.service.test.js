@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-41'); // sa-41: the round-28 release on top of the hotfix (sa-40: a late "no voice" inside a timed task waits for its end)
+    expect(sw.CORE).toBe('sa-core-sa-46'); // sa-46: the last recording waited for at the battery's end (SESSION v32 kept)
   });
 });
 

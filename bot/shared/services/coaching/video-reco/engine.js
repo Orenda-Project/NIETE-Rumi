@@ -16,7 +16,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoAligned, videoRecoLaterVisits } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const { OPTED_OUT } = require('./clip-pref');
 const target = require('./target');
@@ -24,6 +24,7 @@ const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
 const silence = require('./silence');
+const aligned = require('./aligned');
 const { composeReason, stripBidi } = require('./copy');
 const { leadingVocative, vocativeNames, relabelRecall } = require('./copy-rules');
 const terms = require('./urdu-terms');
@@ -42,11 +43,16 @@ class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
 }
 
-/** The lesson's own grade (subject_resolution.grade), else null. */
+/**
+ * The lesson's own grade (subject_resolution.grade), else null. The first grade or range only: «1-3» (a multigrade class)
+ * is {lo: 1, hi: 3}, never 13 (red7 N9); «Grade 3 (2024)» is 3 (red7 N3). Outside 0–12 is unknown.
+ */
 function analysisGrade(analysis) {
   const g = analysis && analysis.subject_resolution && analysis.subject_resolution.grade;
-  const n = parseInt(String(g === null || g === undefined ? '' : g).replace(/[^0-9]/g, ''), 10);
-  return Number.isFinite(n) ? { lo: n, hi: n } : null;
+  const m = /(?<!\d)(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?(?!\d)/.exec(String(g === null || g === undefined ? '' : g));
+  if (!m) return null;
+  const lo = Number(m[1]); const hi = m[2] === undefined ? lo : Number(m[2]);
+  return lo <= 12 && hi <= 12 && lo <= hi ? { lo, hi } : null;
 }
 
 /** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
@@ -292,6 +298,11 @@ async function compute(a, d, state) {
     return store.write({ ...row, engine_ms: engineMs });
   };
   state.base = base;
+
+  // R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): aligned mode decides alone. The card's ask → a demonstration / modelled
+  // chapter that shows it at its sub-ask (aligned.js), from a video this teacher has not seen; else silence. No model call,
+  // no rescue clip, no fallback to another move.
+  if (videoRecoAligned(d.env)) return alignedPick({ a, d, base, finish, card, nextStep, analysis, session, history, bands, clipsStopped, arm, hasPref, language, transcriptLanguage });
 
   // An unknown indicator is no longer a none here: the shortlist's step-text route takes it (SPEC v1.3 R3).
   if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') {
@@ -770,6 +781,80 @@ async function compute(a, d, state) {
   }
 }
 
+/** R9 aligned mode (see compute): one row, a pick or a none whose reason names the gate. */
+async function alignedPick({ a, d, base, finish, card, nextStep, analysis, session, history, bands, clipsStopped, arm, hasPref, language, transcriptLanguage }) {
+  const row = { ...base, route: 'aligned', attempts: 0, candidates: [] };
+  const none = (why) => finish({ ...row, status: 'none', none_reason: why });
+  const lines = prompt.transcriptLines(session);
+  // the report itself must be a lesson for any clip to attach to it (the same silences as every other mode)
+  if (!lines.length) return none('no_moments');
+  if (silence.degenerate(lines)) return none('no_moments:degenerate');
+  if (silence.notLesson(lines, { durationS: session.audio_duration_seconds })) return none('no_moments:not_lesson');
+  if (silence.testPeriod(lines)) return none('no_moments:test_period');
+  // R9d (COS 20261119T215752): a later visit (a clip shown before) serves the card's main step only, inside the subject ×
+  // grade gates (aligned.js); VIDEO_RECO_LATER_VISITS off = no rank ≥ 2 pick at all
+  const later = aligned.laterVisit(history);
+  if (later && !videoRecoLaterVisits(d.env)) return none('aligned:later_off');
+  const asks = aligned.classifyAsks((card && card.action) || step0(nextStep, analysis), { later });
+  if (!asks.length) return none('aligned:no_ask');
+  if (history && history.failed) return none('aligned:history_unread'); // fail closed: never risk a repeat
+  const catalog = d.catalogV2 || require('./catalog').loadV2(); // eslint-disable-line global-require
+  row.catalog_version = catalog.version; // red7 N4: the file the pick came from, not v1's
+  const sr = (analysis && analysis.subject_resolution) || {};
+  const lesson = { subject: sr.code && (sr.confidence === 'high' || sr.confidence === 'medium') ? sr.code : null, grade: gradeOf(analysis, bands) };
+  const ctx = { languages: hasPref ? [language, transcriptLanguage, 'mixed'].filter(Boolean) : [language, 'mixed'], allow: videoRecoAllowlist(d.env) };
+  let hit = null;
+  let ask = null;
+  let seenOnly = false;
+  for (const x of asks) {
+    const fresh = aligned.candidates(catalog, x, { ...ctx, history }, lesson);
+    if (fresh.length) { hit = fresh[0]; ask = x; break; }
+    if (aligned.candidates(catalog, x, { ...ctx, history: null, later, cleared: false }, lesson).length) seenOnly = true;
+  }
+  // R9d: a later visit whose only fresh clips have not cleared on later picks (aligned.js `later`) says so
+  const uncleared = !hit && later && asks.some((x) => aligned.candidates(catalog, x, { ...ctx, history, cleared: false }, lesson).length);
+  if (!hit) return none(uncleared ? 'aligned:later_uncleared' : seenOnly ? 'aligned:seen' : 'aligned:no_clip');
+  const said = aligned.reasonFor(ask, hit.seg);
+  if (!said) return none('aligned:no_clip');
+  const usable = hit.seg.quality.usable;
+  return finish({
+    ...row,
+    candidates: [{ seg_id: hit.seg.seg_id, route: 'aligned', ask: ask.sub }],
+    status: videoRecoMode(d.env) === 'shadow' || arm !== 'video' ? 'shadow' : (clipsStopped ? 'none' : 'shown'),
+    module_id: hit.module.module_id,
+    seg_id: hit.seg.seg_id,
+    start_s: usable.start_s,
+    end_s: usable.end_s,
+    language_match: (hit.seg.language || hit.module.language) === language ? 'preferred' : 'mixed',
+    chapter_language: hit.seg.language || hit.module.language || null,
+    alias_kind: ask.sub,
+    reason_en: said.reason_en,
+    reason_ur: said.reason_ur,
+    moment_at: null,
+    moment_quote: null,
+    moment_source: 'aligned',
+    confidence: null,
+    none_reason: videoRecoMode(d.env) !== 'shadow' && arm === 'video' && clipsStopped ? OPTED_OUT : null,
+  });
+}
+
+/** R9c A9b: the one row for an own report the engine cannot read (no reads, no pick). */
+async function frameworkUnsupported(args, d0, env) {
+  const store = d0.store || require('./store'); // eslint-disable-line global-require
+  return store.write({
+    coaching_session_id: args.coachingSessionId,
+    user_id: args.session.user_id,
+    arm: assignArm(args.session.user_id, env),
+    observation_type: args.observationType || 'self',
+    experiment: videoRecoAbEnabled(env) ? AB_SALT : null,
+    route: 'aligned',
+    module_id: null,
+    seg_id: null,
+    status: 'none',
+    none_reason: `framework_unsupported:${args.analysis.framework || 'none'}`,
+  });
+}
+
 /**
  * @param {object} a
  * @param {object} a.session            coaching_sessions row (+ users.preferred_language, users.name)
@@ -789,7 +874,10 @@ async function recommendForReport(args = {}) {
   try {
     if (!videoRecoEnabled(env)) return null;
     if (isLeaderObservation(args)) return null; // queue #186: a HITL visit's report carries no training clip
-    if (!args.analysis || args.analysis.framework !== 'fico' || !args.session || !args.coachingSessionId) return null;
+    if (!args.analysis || !args.session || !args.coachingSessionId) return null;
+    // R9c A9b (COS 20261119T143330): a teacher's own report on a framework the engine cannot read is a `none` row that
+    // names it, so the A/B counts it; flag off = today (no row)
+    if (args.analysis.framework !== 'fico') return videoRecoAligned(env) ? await frameworkUnsupported(args, d0, env) : null;
     // A snapshot taken before the first await: the report goes on rendering (and may add to the analysis) while this runs.
     const snap = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
     a = { ...args, analysis: snap(args.analysis), nextStep: snap(args.nextStep), card: snap(args.card), loop: snap(args.loop) };

@@ -19,6 +19,10 @@
  * flips) is read from the network even when a copy is kept, and keeps that copy when the network fails; bytes counts
  * what came over the network. postMessage({ type: 'check', urls }) answers { ok, cached, missing[] } from the phone
  * alone, fetching nothing.
+ * A SESSION bump keeps what did not change (carry, at install and again at activate): the new SESSION's cache copies an
+ * older cache's entry if, and only if, the entry's own bytes hash to the sha1 the new clips.lock.json names for its path.
+ * Anything else is fetched by the next prepare; a battery file is never carried. activate deletes the older cache only
+ * after its second pass settled.
  */
 'use strict';
 
@@ -89,9 +93,16 @@
 //   the preparation took).
 // sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
 //   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
-// sa-41: the production release of round 28 on top of the slow-link hotfix: one VERSION above every merged one, and
-//   the release's one SESSION bump, v30 (the letter-names practice example's name re-voiced).
-var VERSION = 'sa-41';
+// sa-42: round 28, sa-page.js and sa-offline.js and this worker (device_ready names the build that ran: the page's own
+//   VERSION, the VERSION of each worker that prepared it, and the session cache the clips were found in, asked for on its
+//   own 'held' message; worker_swap marks a newer worker taking the page over mid-session).
+// sa-43: this worker and sa-page.js (a SESSION bump keeps what did not change: install, then activate, copies an older
+//   session cache's entry whose bytes hash to the new lock's sha1 for its path; nothing else is kept). SESSION unchanged:
+//   the carry needs no record from an earlier worker, so it works on the bump it ships with.
+// sa-45: the letter-sound picker's prompt clips re-made (SESSION v32); no worker code changes.
+// sa-46: sa-engine.js (the last recording: the battery's end waits for a recorder stop under way, and tells the page when
+//   the audio is acked). SESSION unchanged: no clip or battery changed.
+var VERSION = 'sa-46';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -137,7 +148,12 @@ var CORE = 'sa-core-' + VERSION;
 // «آواز بولیں»), each with its clip at the new text's key.
 // v30: the letter-names practice example's name «ثے» re-voiced under its v4 key: the take said "see" ([siː]), now "say"
 // ([seː]), heard so on repeated listens; levelled like the other v4 clips. No word timings change.
-var SESSION = 'sa-session-v30';
+// v32: the letter-sound picker's 24 prompts (scored and practice, English and Urdu) say each sound three times: one
+// recorded sound copied three times with the same gap, so no letter gets a clue; English t (a real /t/ burst) and d
+// (longer) re-made, the held sounds as the content owner picked, Urdu م and س held. v5/prompt_timings.json gives the
+// three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is retired unused;
+// the next re-voice takes v33, and SESSION never moves backwards.)
+var SESSION = 'sa-session-v32';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
@@ -229,6 +245,26 @@ function prefetch(urls, o) {
   return Promise.all(workers).then(function () { return urls.filter(function (u) { return missing.indexOf(u) >= 0; }); });
 }
 
+/**
+ * The sa-session-* cache holding most of urls (the one the clips are read from), or null when none holds any. On a deploy
+ * day the worker answering can be newer than the cache the clips are in, so this is looked up, not taken from SESSION.
+ * Only the 'held' message runs it: a prepare reply never waits on it.
+ */
+function heldIn(urls, cachesApi) {
+  if (!urls.length) return Promise.resolve(null);
+  return cachesApi.keys().then(function (keys) {
+    return Promise.all(keys.filter(function (k) { return k.indexOf('sa-session-') === 0; }).map(function (k) {
+      return cachesApi.open(k).then(function (c) {
+        return Promise.all(urls.map(function (u) { return c.match(u, { ignoreSearch: true }); }));
+      }).then(function (hits) { return { name: k, n: hits.filter(Boolean).length }; });
+    }));
+  }).then(function (held) {
+    var best = null;
+    held.forEach(function (h) { if (h.n > 0 && (!best || h.n > best.n)) best = h; });
+    return best ? best.name : null;
+  }).then(null, function () { return null; });
+}
+
 /** A response worth keeping: 2xx, and the type the URL is (a clip is audio, a battery JSON, an engine file not HTML). */
 function cacheable(url, res) {
   if (!res || !res.ok) return false;
@@ -247,6 +283,97 @@ function installOne(cache, url, fetchFn) {
   return Promise.resolve().then(function () { return fetchFn(url, { cache: 'no-cache' }); })
     .then(function (res) { return cacheable(url, res) ? cache.put(url, res) : null; })
     .catch(function () { return null; });
+}
+
+// The lock this SESSION's files were taken under (clips.lock.json, served beside this worker).
+var LOCK_FILE = 'clips.lock.json';
+var CARRY_AT_ONCE = 8;
+
+/** The lock's name for a URL the worker keeps ('dashboard/sa/v4/ur/x.mp3'); null for a battery file or a path outside /sa/. */
+function lockPath(url) {
+  var p = new URL(url).pathname;
+  if (p.indexOf('/sa/') !== 0 || p.indexOf('/sa/batteries/') === 0) return null;
+  return 'dashboard' + p;
+}
+
+function hex(buf) {
+  var b = new Uint8Array(buf);
+  var s = '';
+  for (var i = 0; i < b.length; i++) s += (b[i] < 16 ? '0' : '') + b[i].toString(16);
+  return s;
+}
+
+/**
+ * carry(io) → Promise<{ kept, lock }>, never rejects. A SESSION bump keeps what did not change: the SESSION cache takes an
+ * entry of an older sa-session-* cache if, and only if, the entry's own bytes hash (SHA-1) to the new lock's sha1 for its
+ * path (a short, corrupt or re-voiced copy is not kept). Anything else is left for the next prepare to fetch; a battery
+ * file is never carried (it changes under one URL when a switch flips). io.seen (a Set, kept across calls) names the
+ * entries an earlier pass already looked at, so a second pass reads only what an older cache gained since. The lock is
+ * read only when an older SESSION cache is there, and is used only when it names this SESSION.
+ * io: { session, keys(), open(name), lock() → Promise<lock|null>, digest(ArrayBuffer) → Promise<hex sha1>, seen?, limit? }.
+ */
+function carry(io) {
+  var kept = 0;
+  var now = null;
+  var seen = io.seen || new Set();
+  function copyFrom(dst, src, name) {
+    return src.keys().then(function (reqs) {
+      var queue = reqs.filter(function (req) { return !seen.has(name + ' ' + req.url); });
+      function one(req) {
+        // settled = never worth reading again; an entry whose bytes did not match is read again (the old worker may
+        // re-fetch it under the same URL before activate)
+        function settled() { seen.add(name + ' ' + req.url); }
+        var p = lockPath(req.url);
+        var want = p && now.files[p];
+        if (!want) return settled();
+        return dst.match(req).then(function (have) {
+          if (have) return settled();
+          return src.match(req).then(function (res) {
+            if (!res || !cacheable(req.url, res)) return null;
+            return res.clone().arrayBuffer().then(io.digest).then(function (h) {
+              if (h !== want) return null;
+              return dst.put(req, res).then(function () { kept += 1; settled(); });
+            });
+          });
+        });
+      }
+      function worker() {
+        var req = queue.shift();
+        if (req === undefined) return null;
+        return Promise.resolve().then(function () { return one(req); }).then(null, function () { return null; }).then(worker);
+      }
+      var workers = [];
+      for (var i = 0; i < Math.min(io.limit || CARRY_AT_ONCE, queue.length); i++) workers.push(worker());
+      return Promise.all(workers);
+    });
+  }
+  return Promise.resolve().then(function () { return io.keys(); }).then(function (keys) {
+    // newest older SESSION first: an entry taken from it is not taken again from an older one
+    var olds = keys.filter(function (k) { return k.indexOf('sa-session-') === 0 && k !== io.session; })
+      .sort(function (a, b) { return (parseInt(b.slice(12), 10) || 0) - (parseInt(a.slice(12), 10) || 0); });
+    if (!olds.length) return { kept: 0, lock: null };
+    return io.lock().then(function (l) {
+      if (!l || l.session !== io.session || !l.files) return { kept: 0, lock: null };
+      now = l;
+      return io.open(io.session).then(function (dst) {
+        return olds.reduce(function (chain, name) {
+          return chain.then(function () { return io.open(name).then(function (src) { return copyFrom(dst, src, name); }); })
+            .then(null, function () { return null; });
+        }, Promise.resolve());
+      }).then(function () { return { kept: kept, lock: now }; });
+    });
+  }).then(null, function () { return { kept: kept, lock: now }; });
+}
+
+/** The lock served beside this worker (prefetch's stall guard and one retry), or null. */
+function readLock(url, io) {
+  var got = null;
+  return prefetch([url], {
+    fetch: io.fetch, abort: io.abort, limit: 1,
+    match: function () { return null; },
+    ok: function (u, res) { return !!res && res.ok && String((res.headers && res.headers.get && res.headers.get('content-type')) || '').indexOf('json') >= 0; },
+    put: function (u, res) { return res.json().then(function (j) { got = j; }); },
+  }).then(function () { return got; }, function () { return null; });
 }
 
 /** Which way a request is answered: 'core' | 'static' | null (not ours). */
@@ -284,7 +411,7 @@ function prepareReply(d, urls, port, io) {
     onDone: function () { done += 1; },
   }).then(function (missing) {
     clearInterval(tick);
-    port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes });
+    port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes, sw: VERSION });
   }, function (err) {
     clearInterval(tick);
     throw err;
@@ -292,17 +419,58 @@ function prepareReply(d, urls, port, io) {
 }
 
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, prepareReply: prepareReply, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION, VERSION: VERSION, IDLE_MS: IDLE_MS, PROGRESS_MS: PROGRESS_MS, PREFETCH_AT_ONCE: PREFETCH_AT_ONCE };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, carry: carry, readLock: readLock, lockPath: lockPath, prepareReply: prepareReply, heldIn: heldIn, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION, VERSION: VERSION, IDLE_MS: IDLE_MS, PROGRESS_MS: PROGRESS_MS, PREFETCH_AT_ONCE: PREFETCH_AT_ONCE };
 } else {
+  // The SESSION carry: install copies what an older SESSION cache holds unchanged, while the old worker still serves; activate
+  // makes a second pass (what the old worker kept since, e.g. a prepare it answered during the install) and only then
+  // deletes the older caches, so a clip a page was told is ready is never lost in the swap.
+  // activate reads no network (fetches wait while a worker activates): its pass uses the lock install read and checked.
+  // A waiting worker is stopped when idle (a slow link holds activation for minutes) and its globals go with it, so
+  // install also keeps that lock in this worker's CORE cache, under a key no request is answered from, and activate reads
+  // it back from there. With no lock (none served, or one naming another SESSION) activate carries nothing, as install did.
+  var installLock = null;
+  var carrySeen = new Set();
+  var CARRY_LOCK_KEY = '/sa/carry/lock.json';
+  function heldLock() {
+    if (installLock) return Promise.resolve(installLock);
+    return caches.open(CORE).then(function (c) { return c.match(new URL(CARRY_LOCK_KEY, self.location.href).href); })
+      .then(function (res) { return res ? res.json() : null; })
+      .then(function (l) { return l && l.session === SESSION && l.files ? l : null; }, function () { return null; });
+  }
+  function keepLock(l) {
+    return caches.open(CORE).then(function (c) {
+      return c.put(new URL(CARRY_LOCK_KEY, self.location.href).href,
+        new Response(JSON.stringify(l), { headers: { 'content-type': 'application/json' } }));
+    }).then(null, function () { return null; });
+  }
+  function carryNow(atActivate) {
+    return carry({
+      session: SESSION,
+      seen: carrySeen,
+      keys: function () { return caches.keys(); },
+      open: function (n) { return caches.open(n); },
+      lock: function () {
+        if (atActivate) return heldLock();
+        return readLock(new URL('/sa/' + LOCK_FILE, self.location.href).href, {
+          fetch: function (u, init) { return fetch(u, Object.assign({ cache: 'no-cache' }, init || {})); },
+          abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
+        });
+      },
+      digest: function (buf) { return crypto.subtle.digest('SHA-1', buf).then(hex); },
+    }).then(function (r) {
+      if (!atActivate && r.lock) { installLock = r.lock; return keepLock(r.lock).then(function () { return r; }); }
+      return r;
+    });
+  }
   self.addEventListener('install', function (e) {
-    e.waitUntil(caches.open(CORE).then(function (c) {
+    e.waitUntil(Promise.all([caches.open(CORE).then(function (c) {
       // One by one: a file the game lane has not shipped yet must not stop the worker installing.
       return Promise.all(CORE_FILES.map(function (f) { return installOne(c, new URL('/sa/' + f, self.location.href).href, fetch); }));
-    }).then(function () { return self.skipWaiting(); }));
+    }), carryNow()]).then(function () { return self.skipWaiting(); }));
   });
 
   self.addEventListener('activate', function (e) {
-    e.waitUntil(caches.keys().then(function (keys) {
+    e.waitUntil(carryNow(true).then(function () { return caches.keys(); }).then(function (keys) {
       return Promise.all(keys.filter(function (k) { return (k.indexOf('sa-core-') === 0 && k !== CORE) || (k.indexOf('sa-session-') === 0 && k !== SESSION); }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); }));
   });
@@ -344,8 +512,13 @@ if (typeof module === 'object' && module.exports) {
   self.addEventListener('message', function (e) {
     var d = e.data || {};
     var port = e.ports && e.ports[0];
-    if ((d.type !== 'prepare' && d.type !== 'check') || !port) return;
+    if ((d.type !== 'prepare' && d.type !== 'check' && d.type !== 'held') || !port) return;
     var urls = (d.urls || []).filter(function (u) { return typeof u === 'string'; });
+    // which build this is and where the clips are (device_ready, worker_swap); the page caps its wait at 2 s
+    if (d.type === 'held') {
+      e.waitUntil(heldIn(urls, caches).then(function (session) { port.postMessage({ sw: VERSION, session: session }); }));
+      return;
+    }
     if (d.type === 'check') {
       e.waitUntil(Promise.all(urls.map(function (u) {
         return caches.match(u, { ignoreSearch: true }).then(function (hit) { return hit ? null : u; }, function () { return u; });
@@ -364,7 +537,7 @@ if (typeof module === 'object' && module.exports) {
         abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
       });
     }).then(null, function (err) {
-      port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err) });
+      port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err), sw: VERSION });
     }));
   });
 }

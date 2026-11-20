@@ -54,6 +54,10 @@ const LANDINGS = Object.freeze({
   assessment_topic_nudge: '/portal/teacher/assessment/new/class',
   // bd-iceyyu — not a command: the "Make my own" row on the lesson-plan Flow. Opens Make my own on that 6-12 chapter.
   lp_make_own: '/portal/teacher/lessons/own',
+  // bd-eqkr0n — not a command of hers: a principal on the principal app asking to observe (app-redirect 2g). Her
+  // Observations page (My own lesson, One of my teachers, what she sent); /go lands it because the teacher app is on for
+  // her (dashboard/lib/teacher-app teacherAppOnFor), else the legacy landing, like every teacher page.
+  principal_observe: '/portal/teacher/observations',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';

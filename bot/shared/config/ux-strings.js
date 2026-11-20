@@ -268,6 +268,12 @@ const UX_STRINGS = {
     en: 'Your report gives you one thing to try next class. This clip shows one way to do it.',
     ur: 'آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے: {title}۔', // R7j: card_frame_other_ur
   },
+  // R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): an aligned clip's reason names what the report asked and what the clip
+  // shows. {ask} and {shows} are aligned.js SUB_ASKS / SUB_ASK lines (gender-neutral); {n} is the usable span in seconds.
+  videoRecoAlignedReason: {
+    en: 'Your report asked you to {ask}. This {n}-second clip shows {shows}.',
+    ur: 'آپ کی رپورٹ میں کہا گیا تھا کہ {ask}۔ اس {n} سیکنڈ کے کلپ میں دیکھیں: {shows}۔',
+  },
 
   // R7d (panel §4, §6.6: 46 rows attributed the card's script to the clip): the clip half of a reason, written from the
   // chapter's own title, never from the model. {title} is the chapter title in the reader's language.
@@ -991,6 +997,12 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+  // bd-eqkr0n (queue #203 follow-up) — a principal on the principal app asking to observe (app-redirect 2g): ONE line and
+  // a button, no way back to WhatsApp (the operator, 20 Nov, "we can even ignore the WhatsApp one for Principals"). The
+  // coach nudge's words on staging/sandbox ("Take your observation in the app." / [Open in the app]). Imperative, so
+  // nothing assumes a gender. Body 33 en / 24 ur, button 15 en / 14 ur code points.
+  principalAppBodyObserve: { en: 'Take your observation in the app.', ur: 'اپنا مشاہدہ ایپ میں لیں۔' },
+  principalAppButtonObserve: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
