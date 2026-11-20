@@ -2606,6 +2606,20 @@ async function requireCoachReports(req, res, next) {
 const coachReports = [...coachV2, requireCoachReports];
 const COACH_REPORT_STATUS = { forbidden: 403, not_found: 404, not_ready: 409 };
 
+// bd-o15qnr.28 (queue #204, v7) — ONE feedback page for coaches AND principals: the visit's feedback opens the debrief
+// report. Its read and its "opened" stamp also open for anyone the v6/v7 switch (portal_coach_flow_v2) names: a coach
+// on the coach app (coach_reports_app or not), or a principal on the principal app (observerReads decides which). Fail
+// closed as before; the service still checks the report is the session user's own. The week stays coachReports.
+async function requireCoachReportsOrFlow(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  const principal = req.observerRole === 'principal';
+  const on = (!principal && await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId))
+    || await isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+const debriefReports = [...observerReads, requireCoachReportsOrFlow];
+
 /** GET /api/portal/coach/reports/ready — what her Home card shows: her coached debriefs she has not opened or closed. */
 router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
   try {
@@ -2620,7 +2634,7 @@ router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
 });
 
 /** GET /api/portal/coach/report/:id — her debrief report; another coach's is 403, a missing one 404, uncoached 409. */
-router.get('/coach/report/:id', ...coachReports, async (req, res) => {
+router.get('/coach/report/:id', ...debriefReports, async (req, res) => {
   try {
     const out = await CoachReport.getCoachReport(pgQuery, req.session.portalUserId, req.params.id);
     if (out.status !== 'ok') return res.status(COACH_REPORT_STATUS[out.status] || 404).json({ success: false, error: out.status });
@@ -2651,7 +2665,7 @@ for (const what of ['opened', 'seen']) {
 
 /** POST /api/portal/coach/report/:id/opened | /seen — she opened it (any door) / closed the Home card with ✕. Once, hers only. */
 for (const what of ['opened', 'seen']) {
-  router.post(`/coach/report/:id/${what}`, ...coachReports, async (req, res) => {
+  router.post(`/coach/report/:id/${what}`, ...debriefReports, async (req, res) => {
     try {
       const stamped = await CoachReport.markCoachReport(pgQuery, req.session.portalUserId, req.params.id, what);
       return res.json({ success: true, stamped });
