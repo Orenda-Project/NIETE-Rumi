@@ -4870,6 +4870,38 @@ CREATE TABLE public.niete_lp612_deliveries (
 
 
 --
+-- Name: niete_lp_own_units; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.niete_lp_own_units (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    class_id uuid,
+    book_stem text NOT NULL,
+    grade smallint NOT NULL,
+    subject text NOT NULL,
+    start_kind text NOT NULL,
+    chapter_from smallint,
+    chapter_to smallint,
+    goal_codes text[],
+    period_minutes smallint NOT NULL,
+    pace text NOT NULL,
+    outline jsonb NOT NULL,
+    status text DEFAULT 'active'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT niete_lp_own_units_book_range CHECK (((start_kind <> 'book'::text) OR ((chapter_from IS NOT NULL) AND (chapter_to >= chapter_from)))),
+    CONSTRAINT niete_lp_own_units_goals CHECK (((start_kind <> 'goals'::text) OR ((cardinality(goal_codes) >= 2) AND (cardinality(goal_codes) <= 8)))),
+    CONSTRAINT niete_lp_own_units_grade_check CHECK (((grade >= 1) AND (grade <= 12))),
+    CONSTRAINT niete_lp_own_units_pace_check CHECK ((pace = ANY (ARRAY['recommended'::text, 'slower'::text, 'faster'::text]))),
+    CONSTRAINT niete_lp_own_units_period_minutes_check CHECK (((period_minutes >= 20) AND (period_minutes <= 90))),
+    CONSTRAINT niete_lp_own_units_start_kind_check CHECK ((start_kind = ANY (ARRAY['book'::text, 'goals'::text]))),
+    CONSTRAINT niete_lp_own_units_status_check CHECK ((status = ANY (ARRAY['active'::text, 'done'::text, 'archived'::text])))
+);
+
+
+--
 -- Name: niete_lp612_own_plans; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7542,6 +7574,22 @@ ALTER TABLE ONLY public.niete_lp612_deliveries
 
 
 --
+-- Name: niete_lp_own_units niete_lp_own_units_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp_own_units
+    ADD CONSTRAINT niete_lp_own_units_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: niete_lp612_renders niete_lp612_renders_cache_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9553,6 +9601,13 @@ CREATE INDEX idx_lesson_plans_user_created ON public.lesson_plans USING btree (u
 --
 
 CREATE INDEX idx_lp612_deliveries_user_recent ON public.niete_lp612_deliveries USING btree (user_id, delivered_at DESC);
+
+
+--
+-- Name: idx_lp_own_units_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp_own_units_user ON public.niete_lp_own_units USING btree (user_id, updated_at DESC);
 
 
 --

@@ -206,9 +206,10 @@ export { OWN_COPY_ENTRY } from './own/copy';
 import { OWN_COPY_ENTRY as OWN_ENTRY } from './own/copy';
 import { RATE_COPY_ENTRY as RATE_ENTRY } from './own/rateCopy';
 import { GOAL_COPY_ENTRY as GOAL_ENTRY } from './own/goalCopy';
+import { UNIT_COPY_ENTRY as UNIT_ENTRY } from './own/unitCopy';
 /** bd-snkn32.42 — the "Made by a teacher" words (lessons/shelf/copy.ts), registered the same way. */
 export { SHELF_COPY_ENTRY } from './shelf/copy';
 import { SHELF_COPY_ENTRY as SHELF_ENTRY } from './shelf/copy';
 /** The survey bar at the end of a plan in the viewer (lessons/feedbackCopy.ts). */
 import { FEEDBACK_COPY_ENTRY as FEEDBACK_ENTRY } from './feedbackCopy';
-export const COPY_ENTRIES: readonly CopyEntry[] = [OWN_ENTRY, SHELF_ENTRY, RATE_ENTRY, GOAL_ENTRY, FEEDBACK_ENTRY];
+export const COPY_ENTRIES: readonly CopyEntry[] = [OWN_ENTRY, SHELF_ENTRY, RATE_ENTRY, GOAL_ENTRY, FEEDBACK_ENTRY, UNIT_ENTRY];

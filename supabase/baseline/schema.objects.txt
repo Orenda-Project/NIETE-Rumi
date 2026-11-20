@@ -1185,6 +1185,23 @@ niete_lp_opens.plan_kind:text
 niete_lp_opens.plan_ref:text
 niete_lp_opens.source:text
 niete_lp_opens.user_id:uuid
+niete_lp_own_units.book_stem:text
+niete_lp_own_units.chapter_from:smallint
+niete_lp_own_units.chapter_to:smallint
+niete_lp_own_units.class_id:uuid
+niete_lp_own_units.created_at:timestamp with time zone
+niete_lp_own_units.deleted_at:timestamp with time zone
+niete_lp_own_units.goal_codes:ARRAY
+niete_lp_own_units.grade:smallint
+niete_lp_own_units.id:uuid
+niete_lp_own_units.outline:jsonb
+niete_lp_own_units.pace:text
+niete_lp_own_units.period_minutes:smallint
+niete_lp_own_units.start_kind:text
+niete_lp_own_units.status:text
+niete_lp_own_units.subject:text
+niete_lp_own_units.updated_at:timestamp with time zone
+niete_lp_own_units.user_id:uuid
 nietemigrated_observation_answers.answer_text:text
 nietemigrated_observation_answers.created:timestamp with time zone
 nietemigrated_observation_answers.deleted_at:timestamp with time zone
