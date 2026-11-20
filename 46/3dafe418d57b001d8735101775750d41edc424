@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T18:00:37Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"463dafe418d5","branch":"bd-e5n2jf-main-v2","user":""}
 {"ts":"2026-11-20T18:00:38Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"463dafe418d5","branch":"bd-e5n2jf-main-v2","user":""}
 {"ts":"2026-11-20T18:13:33Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (orphaned earlier cherry-pick of the Flow JSON commit, superseded by 73da653b14 on bd-e5n2jf-main-v2; exam-generator specs are owned on the sandbox lineage where 8ac65c3fc6 landed)","sha":"463dafe418d5","branch":"bd-e5n2jf-main-v2","user":""}
+{"ts":"2026-11-20T18:13:34Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-463dafe418d5","sha":"463dafe418d5","branch":"bd-e5n2jf-main-v2","user":""}
