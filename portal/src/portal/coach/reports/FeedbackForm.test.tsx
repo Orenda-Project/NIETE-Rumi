@@ -180,3 +180,18 @@ describe("Feedback Form, lesson-plan part: the source of the moves", () => {
     expect(screen.queryByTestId("plan-source")).toBeNull();
   });
 });
+
+/**
+ * bd-tfya0m (queue #205) — production 19 Nov: a WhatsApp observation left at "Check the draft" with no analysis opened
+ * as an empty form, and every Save came back "Could not save" (the bot threw on the missing analysis: 502). The bot now
+ * answers 409 no_analysis; the form says plainly there is no report to check, with no form, no Save and no Try again.
+ */
+describe("Feedback Form — an observation with no analysis", () => {
+  it("says there is no report to check, and shows no form", async () => {
+    L.getObservationDraft.mockRejectedValue(Object.assign(new Error("HTTP 409"), { response: { status: 409, data: { reason: "no_analysis" } } }));
+    renderPage();
+    expect(await screen.findByTestId("no-analysis")).toHaveTextContent("No report to check");
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next part" })).toBeNull();
+  });
+});

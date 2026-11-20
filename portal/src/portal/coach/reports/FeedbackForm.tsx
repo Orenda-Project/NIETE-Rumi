@@ -63,6 +63,8 @@ export default function FeedbackForm() {
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
   const [fde, setFde] = useState<Obs612Draft | null>(null);
   const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
+  // bd-tfya0m — the bot answered 409 no_analysis: this observation has no draft to check (no form, no Save).
+  const [noAnalysis, setNoAnalysis] = useState(false);
   const [tick, setTick] = useState(0);
   const [start, setStart] = useState<Values>({});
   const [values, setValues] = useState<Values>({});
@@ -86,7 +88,12 @@ export default function FeedbackForm() {
         if (isObs612Draft(d)) { setFde(d); setLoad("ok"); return; }
         const v = initialValues(d); setDraft(d); setStart(v); setValues(v); setLoad("ok");
       })
-      .catch(() => { if (live) setLoad("error"); });
+      .catch((err) => {
+        if (!live) return;
+        const res = (err as { response?: { status?: number; data?: { reason?: string } } })?.response;
+        if (res?.status === 409 && res.data?.reason === "no_analysis") { setNoAnalysis(true); setLoad("ok"); return; }
+        setLoad("error");
+      });
     return () => { live = false; };
   }, [id, tick]);
 
@@ -183,6 +190,9 @@ export default function FeedbackForm() {
   return (
     <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form">
       <LoadState status={load} empty={false} onRetry={() => setTick((n) => n + 1)} />
+      {noAnalysis && (
+        <p data-testid="no-analysis" role="alert" className="rounded-2xl bg-[#fef3c7] px-4 py-4 text-[16px] font-semibold text-[#b45309]">{C.noAnalysis}</p>
+      )}
       <div ref={top} />
       {draft && section && (
         <>
