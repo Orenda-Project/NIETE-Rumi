@@ -69,37 +69,95 @@ describe("the menu, switch on (Concept 1: one Observe entry)", () => {
   });
 });
 
-describe("the Home, switch on: only the next visit, then one Observe tile", () => {
-  it("Next visit: today's next one alone, with Start recording straight to its record step (no other visits listed)", async () => {
+/*
+ * bd-o15qnr.27 (queue #204, v6) — the Home's Focus card: ONE slot under the greeting showing the one most important thing
+ * (the operator on #188's round 5: "if the coach has a pending debreif or something, that should be shown here instead.
+ * That is more important. If no pending stuff, then we can show this. If none are booked, then we can show the Schedule
+ * an Observation"). Order: (1) the oldest observation waiting on her, (2) today's booked visits, (3) nothing booked.
+ * A waiting review comes first even when a visit is due within the hour (#188's current pick, his stated order).
+ * No "Start an observation" on Home ("That is too much").
+ */
+const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
+const waitingReport = (id: string, name: string, step: string, ago: number) => ({
+  id, createdAt: daysAgo(ago), teacherName: name, teacherPhone: null, teacherExtId: null, schoolName: "IMSG (I-V) G-7/3", schoolExtId: null,
+  status: "x", step, score: null, portal: true,
+});
+function reports(waiting: ReturnType<typeof waitingReport>[]) {
+  net.answers.set("/coach/reports", { success: true, waiting, inProgress: [], all: { total: 12, page: 1, pageSize: 20, items: [] } });
+}
+function schedule(visits: ReturnType<typeof visit>[], overdue: ReturnType<typeof visit>[] = []) {
+  net.answers.set("/coach/schedule", { success: true, from: today, to: today, visits, overdue });
+}
+
+describe("the Home, switch on: the Focus card, then one Observe tile", () => {
+  it("(1) something waits on her: the oldest, its step and the four segments, its button, and how many more", async () => {
     config(true);
-    home([visit("t1", "08:30", "done", "Farah Naz"), visit("t2", "10:00", "upcoming", "Kiran Shahzadi"), visit("t3", "12:00", "upcoming", "Asma Batool")],
-      visit("t2", "10:00", "upcoming", "Kiran Shahzadi"));
+    home([]);
+    reports([waitingReport("r1", "Saima Riaz", "draft", 1), waitingReport("r2", "Lubna Arif", "talk", 17), waitingReport("r3", "Huma Ijaz", "report", 3)]);
+    schedule([visit("t2", "10:00", "upcoming", "Kiran Shahzadi")]);
     await renderApp("/portal/coach");
-    const card = await screen.findByTestId("home-next");
-    expect(card).toHaveTextContent("Next visit");
-    const current = within(card).getByTestId("visit-current");
-    expect(current).toHaveTextContent("Kiran Shahzadi");
-    const start = within(current).getByRole("link", { name: /Start recording/ });
-    expect(start).toHaveAttribute("href", "/portal/coach/visit/t2/record");
-    fireEvent.click(start);
+    const card = await screen.findByTestId("focus-waiting");
+    expect(card).toHaveTextContent("Waiting for you");
+    expect(within(card).getByTestId("section-count")).toHaveTextContent("3");
+    expect(card).toHaveTextContent("Lubna Arif");
+    expect(card).toHaveTextContent("17 days waiting");
+    expect(within(card).getByTestId("report-segments")).toBeInTheDocument();
+    const go = within(card).getByRole("link", { name: /Continue the Debrief/ });
+    expect(go).toHaveAttribute("href", "/portal/coach/observation/r2");
+    fireEvent.click(go);
     const { trackFlow } = await import("../flow/track");
-    expect(trackFlow).toHaveBeenCalledWith("home.today_start");
-    expect(screen.queryByText("Asma Batool")).toBeNull();
-    expect(screen.queryByText("Farah Naz")).toBeNull();
+    expect(trackFlow).toHaveBeenCalledWith("home.focus");
+    expect(within(card).getByRole("link", { name: /2 more waiting/ })).toHaveAttribute("href", "/portal/coach/reports?show=waiting");
+    // one thing only: no booked rows while a review waits, and never Start an observation on Home
+    expect(screen.queryByTestId("focus-booked")).toBeNull();
+    expect(screen.queryByText(/Start an observation/)).toBeNull();
   });
 
-  it("the next visit is another day: no card (Start recording is for today)", async () => {
+  it("(2) nothing waiting, visits booked today: those still to do with Record, then All booked with the late count", async () => {
     config(true);
-    home([], { ...visit("t4", "09:00", "upcoming", "Nadia Perveen"), scheduledFor: "2099-01-01" });
+    home([]);
+    reports([]);
+    schedule([visit("t1", "08:30", "done", "Farah Naz"), visit("t2", "10:00", "upcoming", "Kiran Shahzadi"), visit("t3", "12:00", "upcoming", "Asma Batool")],
+      [{ ...visit("o1", "10:00", "upcoming", "Rabia Nawaz"), scheduledFor: "2000-01-01" }]);
     await renderApp("/portal/coach");
-    await screen.findByTestId("feature-tiles");
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByTestId("home-next")).toBeNull();
+    const card = await screen.findByTestId("focus-booked");
+    expect(card).toHaveTextContent("Booked for today");
+    expect(within(card).getByTestId("section-count")).toHaveTextContent("2");
+    expect(within(card).queryByText("Farah Naz")).toBeNull();
+    expect(within(card).getAllByRole("link", { name: /^Record/ }).map((a) => a.getAttribute("href")))
+      .toEqual(["/portal/coach/visit/t2/record", "/portal/coach/visit/t3/record"]);
+    const all = within(card).getByRole("link", { name: /All booked/ });
+    expect(all).toHaveAttribute("href", "/portal/coach/observe?booked=open");
+    expect(all).toHaveTextContent("1 late");
+  });
+
+  it("(3) nothing waiting, nothing booked today: one line and Schedule an observation", async () => {
+    config(true);
+    home([]);
+    reports([]);
+    schedule([visit("t1", "08:30", "done", "Farah Naz")]);
+    await renderApp("/portal/coach");
+    const card = await screen.findByTestId("focus-empty");
+    expect(card).toHaveTextContent("No visits booked today");
+    expect(within(card).getByRole("link", { name: /Schedule an observation/ })).toHaveAttribute("href", "/portal/coach/new-visit");
+  });
+
+  it("in Urdu: آپ کے منتظر and ڈی بریف جاری رکھیں", async () => {
+    config(true);
+    home([]);
+    reports([waitingReport("r2", "Lubna Arif", "talk", 17)]);
+    schedule([]);
+    await renderApp("/portal/coach", "ur");
+    const card = await screen.findByTestId("focus-waiting");
+    expect(card).toHaveTextContent("آپ کے منتظر");
+    expect(within(card).getByRole("link", { name: /ڈی بریف جاری رکھیں/ })).toBeInTheDocument();
   });
 
   it("one Observe tile in place of Schedule and Observe: it opens the Observe screen, with what waits on her", async () => {
     config(true);
     home([]);
+    reports([]);
+    schedule([]);
     await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href")))
@@ -118,6 +176,7 @@ describe("switch off (or absent): today's menu and Home exactly", () => {
     await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href")).slice(0, 2))
       .toEqual(["/portal/coach/scheduling", "/portal/coach/observe"]));
     expect(screen.queryByTestId("home-today")).toBeNull();
+    expect(screen.queryByTestId("focus-card")).toBeNull();
     const nav = screen.getByTestId("teacher-nav");
     await waitFor(() => expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toEqual(["Home", "Schedule", "Observe", "Lesson Plans", "More"]));
   });
