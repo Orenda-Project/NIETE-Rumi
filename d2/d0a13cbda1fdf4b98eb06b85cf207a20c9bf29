@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T11:13:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"d2d0a13cbda1","branch":"ab-tracker-main-carry","user":""}
+{"ts":"2026-11-22T11:13:11Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe owe their Gherkin","sha":"d2d0a13cbda1","branch":"ab-tracker-main-carry","user":""}
