@@ -337,7 +337,7 @@
       "name": "How many children spoke",
       "was": "Participation Breadth",
       "kind": "combined",
-      "definition": "How many different children speak across the lesson, and whether children silent early on speak later.",
+      "definition": "How much of the class speaks during the lesson: a few children, many, or most of the class. A child counts when they speak on their own (answer, read out, ask a question); chorus answers do not count.",
       "levels": [
         {
           "n": 1,
@@ -346,25 +346,25 @@
         },
         {
           "n": 2,
-          "text": "Only the same one or two children speak.",
-          "example": "(coach) \"Only Ali and Sara answered all lesson; 30 student turns, almost all theirs.\""
+          "text": "Only a few children speak.",
+          "example": "(coach) \"The same few children in the front row answered every question; the rest only joined the chorus.\""
         },
         {
           "n": 3,
-          "text": "Three to five different children speak.",
-          "example": "(coach) \"4 different children answered, all from the front rows.\""
+          "text": "Many children speak, but a large part of the class never does.",
+          "example": "(coach) \"Many children answered, front rows and back, but the same ones all lesson; a large part of the class never spoke.\""
         },
         {
           "n": 4,
-          "text": "Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half.",
-          "example": "(coach) \"9 different children spoke, including 2 from the back row who were quiet until the group activity.\""
+          "text": "Most of the class speaks at least once.",
+          "example": "(coach) \"After the pair talk, most of the class answered at least once, back rows too.\""
         }
       ],
       "na_rule": null,
       "na_link": null,
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson.",
-      "combined_evidence": "The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because every level counts different children.",
-      "coach_adds": "how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification.",
+      "combined_evidence": "The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because the transcript cannot tell children apart.",
+      "coach_adds": "how much of the class spoke on their own. The coach sets the final level with a written justification.",
       "starred": false,
       "levels_for": "coach"
     },

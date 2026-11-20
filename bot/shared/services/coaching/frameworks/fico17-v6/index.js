@@ -84,7 +84,7 @@ const TITLES = {
   C7: ['No pair or group task', 'Groups, each works alone', 'Shared task, one product', 'Roles and report back'],
   C8: ['No book or object mentioned', 'Shown only, not used', 'Children used them, linked', 'Child explained with them'],
   D1: ['One-word answers only', 'Longer, but only repeated', '2+ answers gave reasons', "Child's own example or link"],
-  D2: ['No child spoke', 'Only 1-2 children', '3-5 children', '6+, and 2+ quiet ones later'],
+  D2: ['No child spoke', 'Only a few children', 'Many, not most of the class', 'Most of the class'], // in words, no counts (bd-ra8xu.61)
   D3: ['No child spoke to another', 'Once', '2+ times', 'Reasons, one shared answer'],
   D4: ['Silent or waited', 'Only answered when sure', 'Tried while unsure, 2+', 'Tried unasked or again'],
   D5: ['No question of their own', 'Task questions only', 'A question about the idea', '2+, one beyond the lesson'],
