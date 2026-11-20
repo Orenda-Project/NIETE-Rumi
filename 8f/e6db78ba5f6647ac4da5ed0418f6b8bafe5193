@@ -1,2 +1,3 @@
 {"ts":"2026-11-20T13:58:17Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"8fe6db78ba5f","branch":"bd-3kshar.6.1-82003","user":""}
 {"ts":"2026-11-20T13:58:18Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe owe their Gherkin","sha":"8fe6db78ba5f","branch":"bd-3kshar.6.1-82003","user":""}
+{"ts":"2026-11-20T13:58:20Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"8fe6db78ba5f","branch":"bd-3kshar.6.1-82003","user":""}
