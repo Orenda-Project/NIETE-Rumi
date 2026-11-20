@@ -149,7 +149,8 @@ const REFUSE_ONLY = [
   // R9e (ped-align r6c, 451-s3's 4 wrongs): a pair task that is peer feedback, assigned roles or rehearsing a spelling is not
   // 451-s3's think-then-talk
   ['peer_feedback', /\bcompliment|\bsuggestion|تجویز/iu],
-  ['pair_roles', /\bexplainer\b|\bchecker\b|\breporter\b|\brecorder\b/iu], // not «رول پلے», a role-play (red7 N1)
+  // explainer / checker only: «reporter», «recorder» and Partner A / B pairs were judged good as often as not (R9e-c below)
+  ['pair_roles', /\bexplainer\b|\bchecker\b/iu],
   ['rehearse', /\bspelling|ہجے/iu],
 ];
 // ped-align r5 (20261119T152426, 471 of the engine's own picks judged blind): a card whose main ask is another move gets a
@@ -261,14 +262,15 @@ const MANY_QUESTIONS = /\b(?:two|three|2|3)\b[^.;,]{0,25}\bquestions\b|(?:دو|�
 const RESPONSE = /\b(?:answers?|answered|says?|said|gives?|repl(?:y|ies)|responds?|names?|labels?|repeats?|reads?|calls? out|blurts?|chorus(?:es)?)\b|جواب|کہے|کہیں|بولے|بتائے|دہرائے|پڑھے|لیبل دے/iu;
 const AFTER_TEACHING = /\bafter (?:model(?:l)?ing|teaching|demonstrating|explaining)\b/iu;
 const LEAD_ACTIVITY = /\bfirst\b|warm[- ]?up|\bmime\b|pace out|پہلے|کرائیں|کروائیں|دکھائیں/iu;
-// 451-s3 / 791-s2 show think-then-talk as the lesson's step. Held-out wrongs: the pair-talk sits inside another task (a chart
-// on the board, «show your steps» first), the pairs act roles (Partner A / B, a role-play), or the core ask comes after it
-// («pair-share کے بعد … سوال پوچھیں»).
-const TPS_AFTER = /^[^.;۔]{0,12}(?:کے بعد|کرنے کے بعد)/u;
-// case-sensitive A / B: «turn to a partner» is an article, not a role
-const TPS_INSIDE = /\b[Pp]artner [AB]\b|\b[Rr]ole[- ]play|رول پلے/u;
-// (the English "ask …, then turn to a partner" cards are 791-s2's judged-right ones: r6c 130/130; the prior step is Urdu here)
-const PRIOR_STEP = /لگائیں|لکھیں|دکھائیں|دکھانے|\bsteps\b/iu;
+// 451-s3 / 791-s2 show think-then-talk as the lesson's step. R9e-c (COS 072739: a main-move rule only; ped-align r15): refused
+// where the pairs carry another task (ped-align's held-out wrongs), each priced on the 410 judged 451-s3 picks (window + Oct
+// 8-29, r9e/routec/tps_rules.js, good removed : wrong caught): a role-play (0:1), «show your steps» (0:1), a chart (3:1),
+// Partner A / B roles (3:1), the core ask «… کے بعد» the pair-share (4:1), a problem to solve or an order to build (1:2).
+// Each removes a larger wrong share than the clip's own (~6%), so the clip's rate rises. «لکھیں» (9:0) and a share-out
+// «reporter» (5:1) stay: they are think-pair-share's own steps.
+const TPS_INSIDE = /\b[Rr]ole[- ]play|رول پلے|\b[Pp]artner [AB]\b|\bchart\b|چارٹ|لگائیں|حل کروا|\bsolve\b|scenario|ترتیب بنا/u;
+const TPS_AFTER = /(?:pair[- ]?(?:share|talk|discussion)|think[- ]pair[- ]share)[^.;۔]{0,6}(?:کے بعد|کرنے کے بعد)/iu;
+const PRIOR_STEP = /\bsteps\b/iu;
 // 782-s1 shows why-probes on fluent answers; remediation of a wrong / broken / «I don't know» answer is another move (r13)
 const REMEDIATE = /\bclue\b|\bhint\b|act (?:it |them )?out|another example|non-example|کوئی اور مثال|اشارہ|checklist/iu;
 
@@ -286,7 +288,7 @@ function singleAsk(move, card, main, x) {
     return RESPONSE.test(trigger) || AFTER_TEACHING.test(trigger) || LEAD_ACTIVITY.test(main.slice(0, x.index)) ? 'drop' : true;
   }
   if (move === 'think_pair_share') {
-    return !TPS_INSIDE.test(main) && !TPS_AFTER.test(main.slice(x.index + x[0].length)) && !PRIOR_STEP.test(main.slice(0, x.index));
+    return !TPS_INSIDE.test(main) && !TPS_AFTER.test(main) && !PRIOR_STEP.test(main.slice(0, x.index));
   }
   if (move === 'follow_up_probe') return !REMEDIATE.test(main);
   if (move === 'ask_for_reasoning') return !METHOD_PROBE.test(card) && !OTHER_STEP.test(main); // 177-s4 r14: 1/3
@@ -320,7 +322,7 @@ function laterVisit(history) {
  * opts.later: a later visit (laterVisit), the main step only (above).
  */
 function classifyAsks(sentence, opts = {}) {
-  const asks = firstVisitAsks(sentence);
+  const asks = firstVisitAsks(sentence, { later: !!opts.later });
   if (!opts.later || !asks.length) return asks;
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = asks[0];
@@ -330,7 +332,7 @@ function classifyAsks(sentence, opts = {}) {
   return [main];
 }
 
-function firstVisitAsks(sentence) {
+function firstVisitAsks(sentence, { later = false } = {}) {
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = mainClause(card);
   if (!main) return [];
@@ -359,7 +361,11 @@ function firstVisitAsks(sentence) {
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
-  if (single.some((at) => at <= Math.min(...found.map((f) => f.at)))) return []; // the card leads with a route (c) refusal
+  // the card leads with a route (c) refusal: silent, unless what follows is the think-pair-share the question and wait lead
+  // into («why…?, wait, then Think-Pair-Share»: ped-align r15, 451-s3 held out; 33 such picks judged good, silenced by 6d5643e550)
+  const lead = Math.min(...found.map((f) => f.at));
+  // (first visits only: a later visit serves the main step alone, R9d / r9a N0405)
+  if (single.some((at) => at <= lead) && (later || !found.every((f) => f.move === 'think_pair_share'))) return [];
   const first = Math.min(...found.map((f) => f.at));
   if ([...off.values()].some((at) => at < first)) return []; // the card leads with a move no clip shows
   // the MAIN move decides (COS 152504 §2). A later ask is reached only past a questioning step (an open "why… then wait
