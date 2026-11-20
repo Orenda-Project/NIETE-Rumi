@@ -6,7 +6,7 @@
  * Nothing here is new design. WHICH result is drawn follows the data team's own rules
  * (charting/select.py and slackbot/charts.py: refusals, column roles, the total-row backstop, the
  * shape table, trend first); HOW it is drawn is their Data Studio's SVG (studio/svg.py, the
- * "taleemabad" theme: a trend is a line with halftone dots under it, a breakdown is a row of track
+ * house theme: a trend is a line with halftone dots under it, a breakdown is a row of track
  * bars each ending in a station). Every number on the picture came from a query payload. The card
  * around it is rendered by the bot's own htmlToImage (Chromium, base64 fonts, as the observe and
  * quiz cards are). Every path here returns "no chart" rather than throw: a chart is never worth an
@@ -219,7 +219,7 @@ function chartSpecs(calls, question) {
   return specs.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
 }
 
-// ---- drawing (their studio/svg.py, "taleemabad" theme) --------------------------------------------
+// ---- drawing (their studio/svg.py, house theme) ---------------------------------------------------
 
 const INK = '#1A1A1A';
 const MUTE = '#767676';
