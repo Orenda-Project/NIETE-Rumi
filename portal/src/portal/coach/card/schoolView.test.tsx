@@ -269,7 +269,7 @@ describe("a box's details page opens with the box's numbers and the tile's chart
     expect(bars).toHaveAttribute("dir", "ltr");
     expect(Array.from(bars.querySelectorAll("[data-bar]")).map((b) => b.getAttribute("data-bar"))).toEqual(["count", "count", "count", "future", "future"]);
     expect(screen.getByTestId("by-teacher-head")).toHaveTextContent("By teacher");
-    expect(screen.getByTestId("by-teacher-head")).toHaveTextContent("Most first · tap a teacher for her lesson plans");
+    expect(screen.getByTestId("by-teacher-head")).toHaveTextContent("Most first · tap a teacher for their lesson plans");
     expect(screen.getByTestId("teacher-grid")).toBeInTheDocument();
     expect(screen.queryByTestId("grid-summary")).toBeNull();
     // Back returns to the card on the same period

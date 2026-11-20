@@ -520,7 +520,7 @@ describe("her Digital Coaching page", () => {
     await renderApp(`/portal/coach/teacher/${EXT}/dc`);
     await screen.findByTestId("scores-summary");
     expect(screen.getByTestId("practices-head")).toHaveTextContent("Average by practice");
-    expect(screen.getByTestId("practices-head")).toHaveTextContent("Across her 2 reports · out of 2");
+    expect(screen.getByTestId("practices-head")).toHaveTextContent("Across 2 reports · out of 2");
     const sections = screen.getAllByTestId("practice-section");
     expect(sections.map((x) => x.getAttribute("data-code"))).toEqual(["B", "C", "D", "F"]);
     // bd-dgfkgs.2 (operator, 30 Oct): every domain starts closed; she taps one to see its practices
@@ -570,7 +570,7 @@ describe("her Digital Coaching page", () => {
     on();
     const { container } = await renderApp(`/portal/coach/teacher/${EXT}/dc`);
     await screen.findByTestId("scores-summary");
-    expect(screen.getByTestId("reports-head")).toHaveTextContent("Her reports");
+    expect(screen.getByTestId("reports-head")).toHaveTextContent("Their reports");
     const rows = screen.getAllByTestId("report-row");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByTestId("history-lead")).toBeInTheDocument();
@@ -604,13 +604,13 @@ describe("her Coach observations page", () => {
     expect(sum).toHaveTextContent("2 observations");
     expect(within(sum).getByTestId("detail-chart").querySelectorAll('[data-point="square"]')).toHaveLength(1);
     // the practices are averaged across her scored observations only: the field-form visit is not one of them
-    expect(screen.getByTestId("practices-head")).toHaveTextContent("Across her 1 observation · out of 2");
+    expect(screen.getByTestId("practices-head")).toHaveTextContent("Across 1 observation · out of 2");
     const b = screen.getAllByTestId("practice-section")[0];
     expect(b).toHaveTextContent("Not scored");
     expect(b).toHaveTextContent("No lesson plan linked, so this section was not scored");
     // nothing to open, so nothing that looks tappable
     expect(within(b).queryByRole("button")).toBeNull();
-    expect(screen.getByTestId("reports-head")).toHaveTextContent("Her observations");
+    expect(screen.getByTestId("reports-head")).toHaveTextContent("Their observations");
     const rows = screen.getAllByTestId("report-row");
     expect(rows[0]).toHaveTextContent("Unitary Method");
     expect(rows[0]).toHaveTextContent("Yesterday · Coach Zulu");

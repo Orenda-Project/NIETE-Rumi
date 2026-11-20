@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, CalendarDays, Check, MicOff, Pause, Play, Square } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
@@ -12,7 +12,10 @@ import { lengthShort } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { setDraft } from "../observeDraft";
-import { useCoachRecording } from "../../lib/useCoachRecording";
+import { useCoachRecording, useMicLevel } from "../../lib/useCoachRecording";
+import { useRecordingClock, useRecordingSession, type RecordingSession } from "../../lib/recordingSession";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { FLOW_V6 } from "../flow/copy";
 import { useRecordingBackGuard } from "../../lib/useRecordingBackGuard";
 import { rememberRecording } from "../../lib/coachObserve";
 import { SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
@@ -140,17 +143,145 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
   );
 }
 
+/**
+ * bd-o15qnr.27 (queue #204, v6; the operator 20 Nov ~13:32: "In the observation recording screen the user should be able
+ * to neviaget around the app if they want.") — with portal_coach_flow_v2 on, the recording is the app's recording
+ * session (lib/recordingSession, the provider above every route; the teacher app's lessons have used it since
+ * bd-5rz1v.10), not this page's: the screen keeps the app's menu, leaving it does NOT stop the recording, and every other
+ * page shows the Recording bar (PortalLayout → RecordingBar: "Recording · 12:34", back here). Coming back finds it
+ * running. Stop asks once, then Check and send has the recording, as before.
+ *
+ * One recording at a time: while another observation records, this screen says so and goes back to that one (a second
+ * start would hand the running recording to this visit). The chunks are on the phone as they record
+ * (LessonRecorder, unchanged), and the recording is remembered as this teacher's, so a reload can still send it.
+ * Switch off: the Recorder below, exactly as on production (no menu; leaving stops it, so Back asks).
+ */
+function SessionRecorder({ visit, session, onBlocked }: {
+  visit: CoachVisit; session: RecordingSession; onBlocked: () => void;
+}) {
+  const routes = useObserveRoutes();
+  const C = useCopy(OBSERVE);
+  const F = useCopy(FLOW_V6);
+  const navigate = useNavigate();
+  const here = routes.record(visit.id);
+  const [asking, setAsking] = useState(false);
+  const elsewhere = session.active && !!session.returnTo && session.returnTo !== here;
+  const mine = session.active && session.returnTo === here;
+  const asked = useRef(false);
+  const remembered = useRef<string | null>(null);
+  const ms = useRecordingClock(session);
+  const level = useMicLevel(session.stream, mine && !session.paused);
+
+  // Start once, only when nothing is recording (coming back finds it running; another one running is never taken over).
+  useEffect(() => {
+    if (asked.current || session.active) return;
+    asked.current = true;
+    void session.start({ returnTo: here }).then((r) => { if (r === "micBlocked") onBlocked(); });
+  }, [session, here, onBlocked]);
+
+  // Whose recording this is, the moment it has an id (a reload can still send it).
+  useEffect(() => {
+    if (!mine || !session.recordingId || remembered.current === session.recordingId) return;
+    remembered.current = session.recordingId;
+    rememberRecording(session.recordingId, {
+      teacherExtId: visit.teacherExtId || "", schoolExtId: visit.schoolExtId || null, teacherName: visit.teacherName || "",
+    });
+  }, [mine, session.recordingId, visit.teacherExtId, visit.schoolExtId, visit.teacherName]);
+
+  const stop = async () => {
+    setAsking(false);
+    const out = await session.finish();
+    if (!out) return;
+    setDraft(visit.id, {
+      blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs, recordingId: out.id,
+      label: C.observationOf(visit.teacherName || C.dash), sub: [lengthShort(out.durationMs, C), C.justNow].filter(Boolean).join(" · "),
+    });
+    navigate(routes.check(visit.id), { replace: true });
+  };
+
+  const crumb = <><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</>;
+
+  if (elsewhere) {
+    return (
+      <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(visit.id)} crumb={crumb}>
+        <Card className="flex flex-col items-center gap-4 p-5 text-center" data-testid="recording-elsewhere">
+          <StatusChip text={C.recording} tone="error" />
+          <h2 className="text-xl font-semibold">{F.recordingElsewhere}</h2>
+          <Link to={session.returnTo as string}
+            className="flex h-14 w-full items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{F.backToRecording}</Link>
+        </Card>
+      </ObservePage>
+    );
+  }
+
+  const live = mine && !session.paused;
+  return (
+    <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(visit.id)} crumb={crumb}
+      dock={(
+        <>
+          <button type="button" onClick={() => (session.paused ? session.resume() : session.pause())} disabled={!mine}
+            className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025] disabled:opacity-60">
+            {session.paused ? <Play className="h-5 w-5 fill-current" aria-hidden="true" /> : <Pause className="h-5 w-5 fill-current" aria-hidden="true" />}{session.paused ? C.resume : C.pause}
+          </button>
+          <button type="button" onClick={() => setAsking(true)} disabled={!mine}
+            className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#c8331f] text-base font-semibold text-white disabled:opacity-60">
+            <Square className="h-5 w-5 fill-current" aria-hidden="true" />{C.stop}
+          </button>
+        </>
+      )}>
+      <div className="flex flex-col items-center gap-6 pt-3">
+        <div role="timer" aria-label={C.recordingTime}
+          className="flex h-60 w-60 flex-col items-center justify-center gap-2.5 rounded-full border-[12px] border-[#fee4e2] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
+          {session.paused ? <StatusChip text={C.paused} tone="info" /> : <StatusChip text={C.recording} tone="error" />}
+          <span className="text-[54px] font-light leading-none tracking-[-0.02em] tabular-nums">{clockText(ms)}</span>
+        </div>
+        <LevelMeter level={level} live={live} />
+        <p className="m-0 text-center text-[15px] text-[#4b5563]" data-testid="keeps-recording">{F.keepsRecording}</p>
+        {session.screenWentOff && (
+          <div className="flex w-full gap-2.5 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.screenOff}</span>
+          </div>
+        )}
+        <Card className="w-full overflow-hidden" data-testid="linked-visit">
+          <HistoryRow lead="person" title={visit.teacherName || C.dash} extra={visit.schoolName || undefined} action="none" />
+          <div className="flex min-h-[56px] items-center gap-2.5 border-t border-[#e5e7eb] px-4 py-3">
+            <CalendarDays className="h-5 w-5 text-[#6b7280]" aria-hidden="true" />
+            <span className="flex flex-1 items-center gap-2 text-[15px] font-medium">{C.visitAt("")}<TimeStamp time={visit.scheduledSlot} tone="next" size={15} /></span>
+            <StatusChip text={C.linked} tone="done" tick />
+          </div>
+        </Card>
+      </div>
+
+      <ConfirmTray
+        open={asking}
+        title={C.stopAsk}
+        onClose={() => setAsking(false)}
+        line={C.recordedFor(lengthShort(ms, C) || C.underMinute)}
+        warning={ms < SHORT_RECORDING_SECONDS * 1000 ? C.shortNote : undefined}
+        confirmLabel={C.yesStop}
+        confirmIcon={Check}
+        onConfirm={() => { void stop(); }}
+        cancelLabel={C.keepRecording}
+      />
+    </ObservePage>
+  );
+}
+
 const CoachRecord = () => {
   const C = useCopy(OBSERVE);
   const { id = "" } = useParams();
   const routes = useObserveRoutes();
+  // Read before any recorder starts: while the switch is read (null), the page waits (never the old recorder first).
+  const flowRead = useFlowV6(); // a coach on the flow switch, or a principal on the principal app it names
+  const v6 = flowRead === true;
+  const session = useRecordingSession();
   const { data, failed, reload } = useLoad(() => routes.loadVisit(id), [id]);
   const [attempt, setAttempt] = useState(0);
   const [blocked, setBlocked] = useState(false);
   const block = useCallback(() => setBlocked(true), []);
   const visit = data?.visit;
 
-  if (!visit || blocked) {
+  if (!visit || blocked || flowRead === null) {
     return (
       <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)}
         crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
@@ -172,6 +303,8 @@ const CoachRecord = () => {
   }
   // Only an upcoming visit is recorded; a done or cancelled one goes back to its page.
   if (visit.status !== "upcoming" || !visit.teacherExtId) return <Navigate to={routes.visit(id)} replace />;
+  // bd-o15qnr.27 (v6): the recording that keeps going while she moves round the app; switch off, production's Recorder.
+  if (v6 && session) return <SessionRecorder key={attempt} visit={visit} session={session} onBlocked={block} />;
   return <Recorder key={attempt} visit={visit} onBlocked={block} />;
 };
 
