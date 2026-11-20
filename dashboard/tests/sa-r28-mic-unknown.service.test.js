@@ -263,12 +263,15 @@ maybe('the coach mic card (sa-ui)', () => {
     expect(x.el.textContent).not.toContain('Microphone check: tap the button');
     expect(body.firstElementChild.classList.contains('sae-micu-denied')).toBe(true);
     expect(body.querySelector('.sae-pics .is-again').textContent).toBe('Try again');
+    // the card's own layout hook (one full-width Try again, tighter gaps): only on the blocked-mic ask screen
+    expect(x.el.querySelector('.sae-miccheck.is-coach.is-ask').classList.contains('is-denied')).toBe(true);
     // a quiet microphone is not a blocked one: its heading stays
     const q = await mount({ ok: false, rms: 0.005, peak: 0.0078, measured: true, url: null });
     byText(q.el, 'Try the microphone').click();
     await flush(); await flush();
     expect(q.el.querySelector('.sae-miccheck.is-ask .sae-h1').textContent).toBe('No sound came through.');
     expect(q.el.querySelector('.sae-micu-denied')).toBeNull();
+    expect(q.el.querySelector('.sae-miccheck.is-denied')).toBeNull();
   });
 
   test('the voice never contradicts the screen: below the floor, no "did you hear it?" is spoken; above it, it is', async () => {

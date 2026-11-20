@@ -3197,7 +3197,7 @@
       if (st.stage === 'ask') {
         var pr = st.probe || {};
         var heardOk = pr.ok && !pr.denied;
-        return screen(v, 'sae-miccheck is-coach is-ask', [
+        return screen(v, 'sae-miccheck is-coach is-ask' + (pr.denied ? ' is-denied' : ''), [
           // a blocked microphone is not a quiet one: the coach is told how to allow it. That line takes the heading's
           // place, so it and «دوبارہ کوشش کریں» sit above the fixed «مائیک کے بغیر چلیں» on a 360-wide phone
           pr.denied ? h('p', { class: 'sae-sub sae-micu-denied', text: C.micu_denied })
