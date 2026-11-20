@@ -790,3 +790,25 @@ describe('R9e · recall: asks the classifier missed (eng-rec r9e/AUDIT.md, bucke
     expect(['791-s2', '451-s3']).toContain(row.seg_id);
   });
 });
+
+describe('R9e-b · held-out wrongs (ped-align r14, 8–29 Oct prod cards; r13) are never served', () => {
+  const on9 = { ...ON, VIDEO_RECO_ALLOWLIST: ALLOW };
+  const HELD = require('./fixtures/r13-r14-wrong-picks.json').picks;
+  // 790-s3's 3 held-out wrongs: 97/100 out of sample, inside the bar (ped-align 072352 supports keeping 790-s3 as it is)
+  const KEPT = HELD.filter((x) => x.seg === '790-s3').map((x) => x.item);
+  const pick = (x) => run({ action: x.card, env: on9, catalogV2: C.loadV2(), subject: x.subject, grade: x.grade ? String(x.grade) : null, lang: x.report_lang, transcriptLang: x.lesson_lang });
+  test('the fixture holds r14\'s 22 and r13\'s 3 wrongs', () => {
+    expect(HELD.filter((x) => x.src === 'r14')).toHaveLength(22);
+    expect(HELD.filter((x) => x.src === 'r13')).toHaveLength(3);
+  });
+  test.each(HELD.filter((x) => !KEPT.includes(x.item)).map((x) => [x.item, x.seg, x]))('%s: %s is not served', async (_, seg, x) => {
+    const { row } = await pick(x);
+    expect(row.seg_id).not.toBe(seg);
+  });
+  test.each([
+    ['«turn to a partner» is an article, not a Partner A / B role', 'Next class, when a student answers in one word, pause and have them turn to a partner for 30 seconds to explain why before sharing.', 'think_pair_share'],
+    ['a why after an answer drops 95-s1 only: the wait before answers still reads', 'Next class, when a child answers "forest", ask "Why do you think the bull lived there?" and wait 5-8 seconds before taking answers.', 'wait_time'],
+  ])('%s', (_, card, move) => {
+    expect(A.classifyAsks(card).map((x) => x.move)).toContain(move);
+  });
+});
