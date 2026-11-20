@@ -23,6 +23,8 @@ function load(env) {
     const saved = { ...process.env };
     delete process.env.NIETE_SUPABASE_REPLICA_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_URL;
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
     Object.assign(process.env, env);
     try { mod = require('../../bot/shared/config/supabase-replica-only'); } finally { process.env = saved; }
   });
@@ -82,5 +84,55 @@ describe('checkReplica', () => {
 
   test('no client → refused without a call', async () => {
     await expect(M.checkReplica(null)).resolves.toEqual({ ok: false, reason: 'no_replica' });
+  });
+});
+
+/**
+ * Test sites (Amena, 20 Nov 2026): staging and sandbox have no paid read copy, so there the job reads the tier's own
+ * database. Only Railway's own RAILWAY_ENVIRONMENT_NAME of exactly 'staging' or 'sandbox' opens this; every other
+ * name (production, unset, anything else) keeps the replica-only rule. A replica URL, when set, still wins.
+ */
+describe('test sites read their own database', () => {
+  const PRIMARY = 'https://example-primary.supabase.co';
+
+  test.each(['staging', 'sandbox'])('%s with no replica URL → a client on SUPABASE_URL that passes the check', async (tier) => {
+    const M = load({ RAILWAY_ENVIRONMENT_NAME: tier, SUPABASE_URL: PRIMARY, SUPABASE_SERVICE_ROLE_KEY: 'k' });
+    const c = M.replicaClient();
+    expect(c).not.toBeNull();
+    expect(mockCreated).toHaveLength(1);
+    expect(mockCreated[0].url).toBe(PRIMARY);
+    await expect(M.checkReplica(c)).resolves.toEqual({ ok: true, tier: 'test_site' });
+    expect(c.rpc).not.toHaveBeenCalled();
+    expect(mockPrimaryLoaded).toBe(0);
+  });
+
+  test.each([
+    ['production', { RAILWAY_ENVIRONMENT_NAME: 'production' }],
+    ['no tier name', {}],
+    ['a look-alike name', { RAILWAY_ENVIRONMENT_NAME: 'staging-prod' }],
+    ['upper case', { RAILWAY_ENVIRONMENT_NAME: 'STAGING' }],
+  ])('%s with no replica URL → null, never the primary', (_, env) => {
+    const M = load({ ...env, SUPABASE_URL: PRIMARY, SUPABASE_SERVICE_ROLE_KEY: 'k' });
+    expect(M.replicaClient()).toBeNull();
+    expect(mockCreated).toHaveLength(0);
+  });
+
+  test('staging with a replica URL → the replica, and the check still asks the server', async () => {
+    const M = load({ RAILWAY_ENVIRONMENT_NAME: 'staging', NIETE_SUPABASE_REPLICA_URL: REPLICA, SUPABASE_URL: PRIMARY, SUPABASE_SERVICE_ROLE_KEY: 'k' });
+    const c = M.replicaClient();
+    expect(mockCreated[0].url).toBe(REPLICA);
+    c.rpc.mockResolvedValue({ data: false, error: null });
+    await expect(M.checkReplica(c)).resolves.toEqual({ ok: false, reason: 'not_replica' });
+  });
+
+  test('staging with no SUPABASE_URL → null', () => {
+    const M = load({ RAILWAY_ENVIRONMENT_NAME: 'staging', SUPABASE_SERVICE_ROLE_KEY: 'k' });
+    expect(M.replicaClient()).toBeNull();
+  });
+
+  test('a client from elsewhere on a test site still has to pass the server check', async () => {
+    const M = load({ RAILWAY_ENVIRONMENT_NAME: 'staging', SUPABASE_URL: PRIMARY, SUPABASE_SERVICE_ROLE_KEY: 'k' });
+    const other = { rpc: jest.fn(async () => ({ data: false, error: null })) };
+    await expect(M.checkReplica(other)).resolves.toEqual({ ok: false, reason: 'not_replica' });
   });
 });
