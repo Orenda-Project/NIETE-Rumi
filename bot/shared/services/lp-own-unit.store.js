@@ -10,7 +10,7 @@
 
 const UNIT_KEY = 'portal_lp_own_unit';
 const TABLE = 'niete_lp_own_units';
-const COLUMNS = 'id, user_id, class_id, book_stem, grade, subject, start_kind, chapter_from, chapter_to, period_minutes, pace, outline, status, created_at, updated_at';
+const COLUMNS = 'id, user_id, class_id, book_stem, grade, subject, start_kind, chapter_from, chapter_to, goals, period_minutes, pace, outline, status, created_at, updated_at';
 const LIST_MAX = 50;
 
 function listOf(v) {
