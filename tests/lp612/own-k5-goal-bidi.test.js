@@ -55,7 +55,8 @@ describe('bd-snkn32.58.8 — the goal line keeps its own direction', () => {
 
   const maybe = chromium ? test : test.skip;
   maybe('Chromium: the English goal\'s full stop prints at its right end in an Urdu plan; Urdu stays RTL', async () => {
-    const browser = await chromium.launch();
+    let browser; // CI has playwright-core without its browser: the runner's Chrome, as own-k5-layout does
+    try { browser = await chromium.launch(); } catch (_) { browser = await chromium.launch({ channel: 'chrome' }); }
     try {
       const page = await browser.newPage();
       const side = async (goal) => {
