@@ -1,19 +1,25 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, Plus, User } from "lucide-react";
+import { BellOff, CalendarDays, Check, MessageCircle, Plus, Upload, User } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { coach, leader } from "../../services/api";
 import {
-  CoachPage, Card, SectionLabel, RowText, SearchBox, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, formatPhone,
+  CoachPage, Card, Chevron, SectionLabel, RowText, SearchBox, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, formatPhone,
 } from "../ui";
-import { isAllowedSlot, karachiDay, karachiSlotNow } from "../time";
+import { formatSlot, isAllowedSlot, karachiDay, karachiSlotNow } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
 import { ChosenSoFar, DayStrip, HistoryList, HistoryRow, StatStrip, StatusChip, StepBar, TimePicker } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { useCopy } from "../../teacher/i18n";
+import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
+import { OBSERVE } from "../observe/copy";
+import { FLOW_V6 } from "../flow/copy";
+import ObservePage from "../observe/ObservePage";
+import { recordPath } from "../schedule/VisitCard";
 import { SCHEDULE } from "../schedule/copy";
 import { BookedList, ClashAlert } from "../schedule/BookedList";
 import { bookedOn, clashesAt, dayLong, sinceText, sinceTone, timeWords } from "../schedule/model";
-import { LevelChips, atLevel, levelCounts, useLevel, withLevel, type TeachingLevel } from "../people/level";
+import { LevelChips, atLevel, levelCounts, useLevel, useLevelNames, withLevel, type TeachingLevel } from "../people/level";
 import { useFlowV2 } from "../flow/useCoachFlowV2";
 import { trackFlow } from "../flow/track";
 
@@ -52,17 +58,24 @@ const pct = (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 1
 /**
  * bd-o15qnr.26 — with the visit flow v2 switch on (the operator on #188's canvas, 19 Nov): no last-visit legend and no
  * "Last visit" label ("Remove this legend-like line from here"; each row keeps its chip), no Profile button on a teacher
- * ("Not sure if we need this button here"; the row picks her). `steps` is 2 in Start an observation's book-now mode.
+ * ("Not sure if we need this button here"; the row picks the teacher). `v6` (bd-o15qnr.27): the school search, and teacher rows
+ * with the level and phone instead of the numbers.
  */
-type StepLook = { trimmed?: boolean; steps?: number };
+type StepLook = { trimmed?: boolean; steps?: number; v6?: boolean };
 
-function SchoolStep({ schools, onPick, chips, trimmed = false, steps = 3 }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string; chips?: ReactNode } & StepLook) {
+function SchoolStep({ schools, onPick, chips, trimmed = false, steps = 3, v6 = false }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string; chips?: ReactNode } & StepLook) {
   const c = useCopy(SCHEDULE);
+  const F = useCopy(FLOW_V6);
+  const [q, setQ] = useState("");
+  // bd-o15qnr.27 (v6): a school-name search over the list (#188's v6 board, step 1)
+  const needle = q.trim().toLowerCase();
+  const shown = v6 && needle ? schools.filter((s) => (s.name || "").toLowerCase().includes(needle)) : schools;
   return (
     <>
       {chips}
       <StepBar total={steps} current={1} label={c.stepOfN(1, steps)} />
       <SectionLabel>{c.pickSchool}</SectionLabel>
+      {v6 && <SearchBox value={q} onChange={setQ} placeholder={F.schoolSearch} />}
       {!trimmed && (
         <>
           <p className="mx-1 -mt-1.5 text-[13px] font-semibold text-[#6b7280]">{c.lastVisit}</p>
@@ -75,7 +88,7 @@ function SchoolStep({ schools, onPick, chips, trimmed = false, steps = 3 }: { sc
       )}
       <HistoryList showMore={false} groups={[{
         day: "",
-        items: [...schools].sort(bySince).map((s) => ({
+        items: [...shown].sort(bySince).map((s) => ({
           id: s.schoolExtId,
           lead: "school" as const,
           title: s.name || c.dash,
@@ -88,12 +101,16 @@ function SchoolStep({ schools, onPick, chips, trimmed = false, steps = 3 }: { sc
   );
 }
 
-function TeacherStep({ school, teachers, linkFor, chips, changeTo = NEW_VISIT, trimmed = false, steps = 3 }: {
+function TeacherStep({ school, teachers, linkFor, chips, changeTo = NEW_VISIT, trimmed = false, steps = 3, v6 = false, bookedToday }: {
   school: CoachSchool | undefined; teachers: CoachTeacher[]; linkFor: (t: CoachTeacher) => string;
   /** bd-o15qnr.26 — the teaching-level chips (flow v2) and Change keeping the level */
   chips?: ReactNode; changeTo?: string;
+  /** bd-o15qnr.27 (v6) — teacherExtId → today's booked slot, for the "Booked 10:30 AM" chip */
+  bookedToday?: ReadonlyMap<string, string | null>;
 } & StepLook) {
   const c = useCopy(SCHEDULE);
+  const F = useCopy(FLOW_V6);
+  const levelNames = useLevelNames();
   const [q, setQ] = useState("");
   const shown = teachers.filter((t) => personMatches(t.name, t.phone, q)).sort(bySince);
   return (
@@ -105,7 +122,20 @@ function TeacherStep({ school, teachers, linkFor, chips, changeTo = NEW_VISIT, t
       <SectionLabel>{c.pickTeacher}</SectionLabel>
       <SearchBox value={q} onChange={setQ} placeholder={c.searchPlaceholder} />
       {!trimmed && <p className="mx-1 text-[13px] font-semibold text-[#6b7280]">{c.lastVisit}</p>}
-      {shown.map((t) => (
+      {v6 && shown.map((t) => {
+        // bd-o15qnr.27 (v6, #188's board): the name, the level and the phone, and when the teacher was last visited (or
+        // the time booked today); the numbers stay on the teacher's own page. The row picks the teacher.
+        const booked = t.teacherExtId ? bookedToday?.get(t.teacherExtId) : undefined;
+        return (
+          <div key={t.teacherExtId || t.name} data-testid={`teacher-${t.teacherExtId}`} className={LIST_CARD}>
+            <HistoryRow lead="person" title={t.name}
+              extra={[levelNames(t.levels), formatPhone(t.phone || t.teacherExtId)].filter(Boolean).join(" · ") || undefined}
+              chip={booked !== undefined ? { text: F.bookedAt(formatSlot(booked)), tone: "info" } : { text: sinceText(t.daysSinceVisit, c), tone: sinceTone(t.daysSinceVisit) }}
+              to={linkFor(t)} />
+          </div>
+        );
+      })}
+      {!v6 && shown.map((t) => (
         <div key={t.teacherExtId || t.name} data-testid={`teacher-${t.teacherExtId}`}
           className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           <HistoryRow lead="person" title={t.name} extra={formatPhone(t.phone || t.teacherExtId) ?? undefined}
@@ -134,9 +164,11 @@ const COACH_LINKS: NewVisitLinks = {
   schedule: "/portal/coach/schedule",
 };
 
-export function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone, links = COACH_LINKS }: {
+export function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone, links = COACH_LINKS, note }: {
   teacher: CoachTeacher | undefined; schoolName: string | null; visitId: string | null; initialSlot: string | null;
   onDone: (when: { date: string; slot: string }) => void; links?: NewVisitLinks;
+  /** bd-o15qnr.27 (v6, Schedule for Later) — one line above Schedule: who gets told ("Mehwish Ali gets a WhatsApp message.") */
+  note?: ReactNode;
 }) {
   const c = useCopy(SCHEDULE);
   const kit = useKitCopy();
@@ -185,6 +217,7 @@ export function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone, li
       <div data-testid="time-picker"><TimePicker value={slot} onChange={setSlot} caption={dayLong(date, c)} tone={clashing.length > 0 ? "overdue" : undefined} /></div>
       {clashing.length > 0 && <ClashAlert time={timeWords(slot, kit)} visits={clashing} />}
       {error && <Card className="border-[#fde68a] bg-[#fffbeb] p-3.5 text-[15px] font-semibold text-[#b45309]" role="alert">{error}</Card>}
+      {note}
       <div className="sticky bottom-20 z-10 -mx-4 flex bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">
         <BottomButton onClick={submit} disabled={saving || !isAllowedSlot(slot) || !teacher?.teacherExtId}>
           <Check className="h-5 w-5" aria-hidden="true" />{saving ? c.saving : c.schedule}
@@ -221,46 +254,147 @@ export function Done({ teacher, schoolName, when, links = COACH_LINKS }: {
 }
 
 /**
- * bd-o15qnr.26 (Concept 1) — Start an observation's last step: the teacher she picked is booked for NOW (today, this half
- * hour in Pakistan, the same server booking as New visit) and the record step opens. Already booked today: that visit's
- * record step, no second booking. A refused booking says why, with Try again; she stays here.
+ * bd-o15qnr.27 (queue #204, v6) — step 3 of Schedule an observation: When? (#188's canvas, v6; the operator on v5:
+ * "Schedule for Now" / "Schedule for Later").
+ *
+ *   Schedule for Now     the coach is in the class: Start recording or Upload recording. The visit is booked for today,
+ *                        this half hour in Pakistan, with `now: true`, so the teacher gets NO "visit scheduled" WhatsApp and
+ *                        the coach no calendar invite (the server skips both). Already booked today: that visit, no second
+ *                        booking. A refused booking says why, with Try again.
+ *   Schedule for Later   the app's own day-and-time picker (TimeStep: the day strip, 7:00 AM to 6:30 PM every half hour;
+ *                        the operator: "We are fine with the current UI for picker"); the teacher gets the WhatsApp message.
+ *
+ * The teacher is named, never "him" or "her" (the operator: "Teachers are both genders").
  */
-function StartNow({ teacher }: { teacher: CoachTeacher }) {
+export function WhenStep({ teacher, schoolName, changeTo, laterTo, onNow }: {
+  teacher: CoachTeacher; schoolName: string | null; changeTo: string; laterTo: string;
+  /**
+   * Where Now goes (the principal app: that teacher's record or upload screen; it books nothing, as the principal app
+   * never has). Absent: the coach's quiet booking for now, then that visit's record or upload step.
+   */
+  onNow?: (kind: "record" | "upload") => Promise<string>;
+}) {
   const c = useCopy(SCHEDULE);
+  const O = useCopy(OBSERVE);
+  const F = useCopy(FLOW_V6);
+  const levelNames = useLevelNames();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const started = useRef(-1);
+  const [busy, setBusy] = useState<"record" | "upload" | null>(null);
+  const [error, setError] = useState<{ kind: "record" | "upload"; text: string } | null>(null);
 
-  useEffect(() => {
-    if (started.current === attempt || !teacher.teacherExtId) return;
-    started.current = attempt;
+  const go = async (kind: "record" | "upload") => {
+    if (!teacher.teacherExtId || busy) return;
+    trackFlow(kind === "record" ? "schedule.now_record" : "schedule.now_upload");
+    setBusy(kind);
+    setError(null);
     const today = karachiDay();
-    (async () => {
-      try {
-        const booked = await coach.getSchedule({ from: today, to: today });
-        const mine = (booked?.visits || []).find((v) => v.teacherExtId === teacher.teacherExtId && v.scheduledFor === today && v.status === "upcoming");
-        const id = mine?.id || (await leader.createSchedule({ teacherExtId: teacher.teacherExtId as string, date: today, slot: karachiSlotNow() })).id;
-        if (!id) throw new Error(c.loadFailed);
-        navigate(`/portal/coach/visit/${id}/record`, { replace: true });
-      } catch (err: unknown) {
-        setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || c.loadFailed);
-      }
-    })();
-  }, [attempt, teacher.teacherExtId, navigate, c.loadFailed]);
+    try {
+      if (onNow) { navigate(await onNow(kind), { replace: true }); return; }
+      const booked = await coach.getSchedule({ from: today, to: today });
+      const mine = (booked?.visits || []).find((v) => v.teacherExtId === teacher.teacherExtId && v.scheduledFor === today && v.status === "upcoming");
+      const id = mine?.id || (await leader.createSchedule({ teacherExtId: teacher.teacherExtId, date: today, slot: karachiSlotNow(), now: true })).id;
+      if (!id) throw new Error(c.loadFailed);
+      navigate(kind === "record" ? recordPath(id) : `/portal/coach/visit/${id}/attach`, { replace: true });
+    } catch (err: unknown) {
+      setError({ kind, text: (err as { response?: { data?: { error?: string } } })?.response?.data?.error || c.loadFailed });
+      setBusy(null);
+    }
+  };
 
-  if (!error) return <Loading />;
+  const name = teacher.name;
+  const sub = [schoolName, levelNames(teacher.levels)].filter(Boolean).join(" · ");
+  const BIG = "flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8] disabled:opacity-60";
   return (
-    <Card className="flex items-center gap-3 border-[#fde68a] bg-[#fffbeb] p-4" role="alert">
-      <span className="flex-1 text-[15px] font-semibold text-[#b45309]">{error}</span>
-      <button type="button" onClick={() => { setError(null); setAttempt((n) => n + 1); }}
-        className="min-h-[48px] rounded-xl bg-white px-4 text-sm font-semibold text-[#33374a]">{c.retry}</button>
-    </Card>
+    <>
+      <StepBar total={3} current={3} label={c.stepOfN(3, 3)} />
+      <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }}
+        items={[{ label: c.teacher, value: name || c.dash, sub: sub || undefined, to: changeTo }]} />
+      <SectionLabel>{F.when}</SectionLabel>
+
+      <section data-testid="when-now" className={cn(LIST_CARD, "flex flex-col gap-3 p-4")}>
+        <div className="flex flex-col gap-1">
+          <h2 className="m-0 text-[18px] font-semibold text-[#1d2025]">{F.forNow}</h2>
+          <p className="m-0 text-[15px] text-[#4b5563]">{F.forNowSub}</p>
+        </div>
+        <button type="button" onClick={() => { void go("record"); }} disabled={!!busy}
+          className={cn(BIG, "bg-[#33374a] text-white", FOCUS)}>
+          <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
+          {busy === "record" ? c.saving : O.startRecording}
+        </button>
+        <button type="button" onClick={() => { void go("upload"); }} disabled={!!busy}
+          className={cn(BIG, "border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
+          <Upload className="h-5 w-5 shrink-0" aria-hidden="true" />{busy === "upload" ? c.saving : O.uploadRecording}
+        </button>
+        {error && (
+          <div className="flex items-center gap-3 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-3" role="alert">
+            <span className="flex-1 text-[15px] font-semibold text-[#b45309]">{error.text}</span>
+            <button type="button" onClick={() => { void go(error.kind); }}
+              className="min-h-[48px] rounded-xl bg-white px-4 text-sm font-semibold text-[#33374a]">{c.retry}</button>
+          </div>
+        )}
+        <p className="m-0 flex items-center gap-2 text-[14px] text-[#6b7280]">
+          <BellOff className="h-4 w-4 shrink-0" aria-hidden="true" /><span>{F.noMessage(name)}</span>
+        </p>
+      </section>
+
+      <section data-testid="when-later" className={cn(LIST_CARD, "flex flex-col")}>
+        <div className="flex flex-col gap-1 p-4 pb-2">
+          <h2 className="m-0 text-[18px] font-semibold text-[#1d2025]">{F.forLater}</h2>
+          <p className="m-0 text-[15px] text-[#4b5563]">{F.forLaterSub(name)}</p>
+        </div>
+        <Link to={laterTo} className={cn("flex min-h-[56px] items-center gap-3 border-t border-[#e5e7eb] px-4 text-[16px] font-semibold text-[#33374a]", FOCUS)}>
+          <CalendarDays className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="flex-1">{c.pickDayTime}</span>
+          <Chevron />
+        </Link>
+      </section>
+    </>
   );
+}
+
+/** bd-o15qnr.27 (v6) — Later's "Observation scheduled": who and when, who is told, then Done (Observe) or Schedule another. */
+export function ScheduledV6({ teacher, schoolName, when, doneTo = "/portal/coach/observe", anotherTo = NEW_VISIT, line }: {
+  teacher: CoachTeacher | undefined; schoolName: string | null; when: { date: string; slot: string };
+  /** bd-o15qnr.27 — the principal app's own links and line (no Observe there); absent: the coach's. */
+  doneTo?: string; anotherTo?: string; line?: string;
+}) {
+  const c = useCopy(SCHEDULE);
+  const F = useCopy(FLOW_V6);
+  return (
+    <>
+      <div className="flex flex-col items-center gap-5 pt-8">
+        <span className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#eaf6ef] text-[#48b078]" aria-hidden="true"><Check className="h-14 w-14" /></span>
+        <h2 className="text-center text-[30px] font-light">{F.observationScheduled}</h2>
+      </div>
+      <Card className="overflow-hidden">
+        <HistoryRow lead="person" action="none" title={teacher?.name || c.dash} extra={[dayLong(when.date, c), schoolName].filter(Boolean).join(" · ") || undefined}
+          time={when.slot} timeTone="done" />
+        <p className="m-0 flex items-start gap-2 border-t border-[#e5e7eb] px-4 py-3 text-[14px] text-[#4b5563]">
+          <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#48b078]" aria-hidden="true" /><span>{line ?? F.scheduledLine(teacher?.name)}</span>
+        </p>
+      </Card>
+      <div className="flex gap-2.5 pt-2">
+        <BottomLink to={anotherTo} tone="outline"><Plus className="h-5 w-5" aria-hidden="true" />{F.scheduleAnother}</BottomLink>
+        <BottomLink to={doneTo}>{F.done}</BottomLink>
+      </div>
+    </>
+  );
+}
+
+/**
+ * bd-o15qnr.27 (v6) — Schedule an observation draws in the app's own page frame (the Observe screens' ObservePage: the kit's
+ * TeacherPage header with the feature tile and the crumb), with no WhatsApp strip and no yellow bar (#188's v6 boards).
+ * Switch off, and Reschedule: the coach frame, as on production.
+ */
+function Frame({ v6, title, crumb, backTo, children }: { v6: boolean; title: ReactNode; crumb: ReactNode; backTo: string; children: ReactNode }) {
+  if (v6) return <ObservePage title={title} crumb={crumb} backTo={backTo} feature="observations" banner={false} whatsapp={false}>{children}</ObservePage>;
+  return <CoachPage title={title} crumb={crumb} backTo={backTo}>{children}</CoachPage>;
 }
 
 const CoachNewVisit = () => {
   const c = useCopy(SCHEDULE);
+  const O = useCopy(OBSERVE);
+  const F = useCopy(FLOW_V6);
   const [params] = useSearchParams();
   const schoolExt = params.get("school");
   const teacherExt = params.get("teacher");
@@ -294,40 +428,61 @@ const CoachNewVisit = () => {
   }, [data, everyone, level]);
   const shownSchool = school && level ? { ...school, teachers: teachers.length } : school;
 
-  // bd-o15qnr.26 (Concept 1) — Start an observation: New visit's school and teacher, then straight to recording (?now=1,
-  // carried by every link here). Only with the flow v2 switch on.
-  const now = flow && params.get("now") === "1";
-  const withNow = (path: string) => {
-    if (!now) return path;
-    const [base, query = ""] = path.split("?");
-    const p = new URLSearchParams(query);
-    p.set("now", "1");
-    return `${base}?${p.toString()}`;
-  };
-  const steps = now ? 2 : 3;
+  // bd-o15qnr.27 (queue #204, v6) — with the switch on, New visit is "Schedule an observation", under Observe: school,
+  // teacher, then When? (Schedule for Now / Schedule for Later; ?when=later opens the day and time). Concept 1's
+  // book-now mode (?now=1) is gone: an old link with it simply opens this flow. Reschedule keeps its own screen.
+  const v6 = flow && !visitId;
+  const later = v6 && params.get("when") === "later";
+  const steps = 3;
+  const today = karachiDay();
+  const bookedRead = useLoad(() => (v6 && schoolExt && !teacherExt ? coach.getSchedule({ from: today, to: today }) : Promise.resolve(null)), [v6, schoolExt, teacherExt, today]);
+  const bookedToday = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const v of bookedRead.data?.visits || []) {
+      if (v.teacherExtId && v.scheduledFor === today && v.status === "upcoming" && !m.has(v.teacherExtId)) m.set(v.teacherExtId, v.scheduledSlot);
+    }
+    return m;
+  }, [bookedRead.data, today]);
+  const schoolPath = withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt || "")}`, level);
+  const teacherPath = withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt || "")}&teacher=${encodeURIComponent(teacherExt || "")}`, level);
+  const laterPath = `${teacherPath}${teacherPath.includes("?") ? "&" : "?"}when=later`;
 
-  const back = visitId ? `/portal/coach/visit/${visitId}` : teacherExt ? withNow(withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt || "")}`, level)) : schoolExt ? withNow(withLevel(NEW_VISIT, level)) : now ? "/portal/coach/observe" : "/portal/coach/scheduling";
-  const crumb = visitId ? `${c.crumb} · ${c.reschedule}` : c.crumb;
+  const back = visitId ? `/portal/coach/visit/${visitId}`
+    : later ? teacherPath
+      : teacherExt ? schoolPath
+        : schoolExt ? withLevel(NEW_VISIT, level)
+          : v6 ? "/portal/coach/observe" : "/portal/coach/scheduling";
+  const crumb = visitId ? `${c.crumb} · ${c.reschedule}` : v6 ? O.observe : c.crumb;
+  const onLaterDone = (when: { date: string; slot: string }) => { trackFlow("schedule.later"); setDone(when); };
 
   return (
-    <CoachPage title={visitId ? c.reschedule : now ? c.startObservation : c.newVisit} crumb={crumb} backTo={back}>
+    <Frame v6={v6} title={visitId ? c.reschedule : v6 ? F.scheduleObservation : c.newVisit} crumb={crumb} backTo={back}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
-      {data && done && <Done teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} when={done} />}
+      {data && done && v6 && <ScheduledV6 teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} when={done} />}
+      {data && done && !v6 && <Done teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} when={done} />}
       {data && !done && !schoolExt && !teacherExt && (
-        <SchoolStep schools={schools} chips={chipsFor(levelCounts(everyone))} trimmed={flow} steps={steps}
-          onPick={(s) => withNow(withLevel(`${NEW_VISIT}?school=${encodeURIComponent(s.schoolExtId)}`, level))} />
+        <SchoolStep schools={schools} chips={chipsFor(levelCounts(everyone))} trimmed={flow} steps={steps} v6={v6}
+          onPick={(s) => withLevel(`${NEW_VISIT}?school=${encodeURIComponent(s.schoolExtId)}`, level)} />
       )}
       {data && !done && schoolExt && !teacherExt && (
-        <TeacherStep school={shownSchool} teachers={teachers} chips={chipsFor(levelCounts(schoolTeachers))} changeTo={withNow(withLevel(NEW_VISIT, level))}
-          trimmed={flow} steps={steps}
-          linkFor={(t) => withNow(withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt)}&teacher=${encodeURIComponent(t.teacherExtId || "")}`, level))} />
+        <TeacherStep school={shownSchool} teachers={teachers} chips={chipsFor(levelCounts(schoolTeachers))} changeTo={withLevel(NEW_VISIT, level)}
+          trimmed={flow} steps={steps} v6={v6} bookedToday={bookedToday}
+          linkFor={(t) => withLevel(`${NEW_VISIT}?school=${encodeURIComponent(schoolExt)}&teacher=${encodeURIComponent(t.teacherExtId || "")}`, level)} />
       )}
-      {data && !done && teacherExt && now && teacher && <StartNow teacher={teacher} />}
-      {data && !done && teacherExt && !now && (
-        <TimeStep teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} visitId={visitId} initialSlot={initialSlot} onDone={setDone} />
+      {data && !done && teacherExt && v6 && !later && teacher && (
+        <WhenStep teacher={teacher} schoolName={teacher.schoolName || school?.name || null} changeTo={schoolPath} laterTo={laterPath} />
       )}
-    </CoachPage>
+      {data && !done && teacherExt && (!v6 || later) && (
+        <TimeStep teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} visitId={visitId} initialSlot={initialSlot}
+          onDone={v6 ? onLaterDone : setDone}
+          note={v6 ? (
+            <p className="m-0 flex items-center gap-2 px-1 text-[14px] text-[#4b5563]">
+              <MessageCircle className="h-4 w-4 shrink-0 text-[#48b078]" aria-hidden="true" /><span>{F.whatsappMessage(teacher?.name)}</span>
+            </p>
+          ) : undefined} />
+      )}
+    </Frame>
   );
 };
 
