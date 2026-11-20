@@ -125,12 +125,27 @@ CREATE OR REPLACE FUNCTION public.ab_tracker_live_tests() RETURNS jsonb
      AND c.read_on + 14 >= (now() AT TIME ZONE 'Asia/Karachi')::date
 $$;
 
+-- The test's teachers: a school unit = the school's teachers; a teacher unit = the teacher. Deleted and test accounts
+-- out. Plain STABLE SQL with no SET, so the planner inlines it into each measure's query (indexes on users stay usable).
+CREATE OR REPLACE FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text)
+  RETURNS TABLE (teacher_id uuid, unit_id uuid, arm text, block text)
+  LANGUAGE sql STABLE SECURITY INVOKER
+  AS $$
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
+   WHERE p_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+  UNION ALL
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
+   WHERE p_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+$$;
+
 -- One test x one measure x a window of Pakistan days -> jsonb rows {arm, unit_id, block, period_kind, period, n, s, ss}.
--- The test's teachers: for a school unit, the school's teachers; for a teacher unit, the teacher. Deleted and test
--- accounts out. The measures (workspace catalogue .claude/skills/ab-testing/reference/metrics/<id>.sql says the same):
+-- The measures (workspace catalogue .claude/skills/ab-testing/reference/metrics/<id>.sql says the same):
 --   plan_fidelity                  unit x day: scored lesson-plan fidelity of AI-coach and coach-visit sessions (0-100)
 --   teachers_coming_back           unit x week (Monday): distinct teachers who took a plan (WhatsApp send or app open)
 --   child_quiz_objectives_secured  unit x day, child level: each child's share of quiz objectives secured that day
+--   send_failures                  unit x day: lesson-plan sends, 1 = failed (a stop-rule measure)
 CREATE OR REPLACE FUNCTION public.ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date)
   RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY INVOKER SET statement_timeout = '30s'
@@ -146,15 +161,7 @@ BEGIN
   IF p_to < p_from OR p_to - p_from > 62 THEN RAISE EXCEPTION 'ab_tracker_metric_rows: the window must be 1 to 63 days'; END IF;
 
   IF p_metric_id = 'plan_fidelity' THEN
-    WITH t AS (
-      SELECT u.id AS teacher_id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
-       WHERE v_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-      UNION ALL
-      SELECT u.id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
-       WHERE v_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-    ), x AS (
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
       SELECT t.arm, t.unit_id, t.block, (c.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
              (c.analysis_data #>> '{lp_fidelity,fidelity_pct}')::double precision AS v
         FROM t JOIN public.coaching_sessions c ON c.user_id = t.teacher_id
@@ -168,15 +175,7 @@ BEGIN
         FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
 
   ELSIF p_metric_id = 'teachers_coming_back' THEN
-    WITH t AS (
-      SELECT u.id AS teacher_id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
-       WHERE v_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-      UNION ALL
-      SELECT u.id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
-       WHERE v_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-    ), took AS (
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), took AS (
       SELECT d.user_id AS teacher_id, d.created_at AS at
         FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
        WHERE d.status = 'sent' AND d.created_at >= v_from AND d.created_at < v_to
@@ -193,15 +192,7 @@ BEGIN
         FROM wk JOIN t ON t.teacher_id = wk.teacher_id GROUP BY t.arm, t.unit_id, t.block, wk.wk) r;
 
   ELSIF p_metric_id = 'child_quiz_objectives_secured' THEN
-    WITH t AS (
-      SELECT u.id AS teacher_id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
-       WHERE v_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-      UNION ALL
-      SELECT u.id, a.unit_id, a.arm, a.block
-        FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
-       WHERE v_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
-    ), s AS (
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), s AS (
       SELECT t.arm, t.unit_id, t.block, qs.id AS session_id, qs.student_id,
              (qs.created_at AT TIME ZONE 'Asia/Karachi')::date AS d
         FROM t JOIN public.quizzes q ON q.teacher_id = t.teacher_id
@@ -226,6 +217,17 @@ BEGIN
              sum(kid.v) AS s, sum(kid.v * kid.v) AS ss
         FROM kid GROUP BY kid.arm, kid.unit_id, kid.block, kid.d) r;
 
+  ELSIF p_metric_id = 'send_failures' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
+      SELECT t.arm, t.unit_id, t.block, (d.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
+             CASE WHEN d.status = 'sent' THEN 0.0 ELSE 1.0 END::double precision AS v
+        FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
+       WHERE d.created_at >= v_from AND d.created_at < v_to
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT x.arm, x.unit_id, x.block, 'day' AS period_kind, x.d AS period, count(*) AS n, sum(x.v) AS s, sum(x.v * x.v) AS ss
+        FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
+
   ELSE
     RAISE EXCEPTION 'ab_tracker_metric_rows: unknown metric %', p_metric_id;
   END IF;
@@ -233,6 +235,8 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.ab_tracker_unit_teachers(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_unit_teachers(text, text) TO service_role;
 REVOKE ALL ON FUNCTION public.ab_tracker_live_tests() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ab_tracker_live_tests() TO service_role;
 REVOKE ALL ON FUNCTION public.ab_tracker_metric_rows(text, text, date, date) FROM PUBLIC, anon, authenticated;

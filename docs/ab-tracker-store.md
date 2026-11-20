@@ -26,8 +26,8 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   claim) and once per Pakistan date (marker `ab_tracker:v1:run:<date>`, 36 h).
 - **Reads (replica, 30 s each, one at a time, 0.5 s apart):** `ab_tracker_live_tests()`, then per test and database
   measure `ab_tracker_metric_rows(test, measure, from, to)`: daily measures from 4 days back (or the start) to
-  yesterday, weekly ones from that Monday. Measures: `plan_fidelity` (day), `teachers_coming_back` (week),
-  `child_quiz_objectives_secured` (day, child level). Other measures (send failures: Axiom) are skipped and counted.
+  yesterday, weekly ones from that Monday. Measures: `plan_fidelity` (day), `teachers_coming_back` (week), `send_failures` (day),
+  `child_quiz_objectives_secured` (day, child level). Any other measure is skipped and counted.
 - **Writes (primary, 15 s each, one at a time):** `ab_tracker_refresh_open`, `ab_tracker_upsert_rollup` (≤ 1,000 rows a
   call; the function refuses > 2,000), `ab_tracker_refresh_close`. A failed read → `partial`, no marker; the next tick
   inside the window runs again.
@@ -36,4 +36,4 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
 ## Switching off
 
 Delete the `ab_tracker_rollup_enabled` row (the next tick is off). To remove everything: the rollback file drops the
-five tables and five functions and nothing else.
+five tables and six functions and nothing else.

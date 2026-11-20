@@ -22,7 +22,7 @@ const Job = require('../../bot/shared/services/ab-tracker/ab-tracker-rollup.serv
 const U = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const AT = (hhmm, date = '2026-11-21') => new Date(Date.parse(`${date}T${hhmm}:00+05:00`));
 const TESTS = [
-  { test_id: 'ict-ch9-plans', unit_kind: 'school', metric_ids: ['plan_fidelity', 'teachers_coming_back', 'send_failures'],
+  { test_id: 'ict-ch9-plans', unit_kind: 'school', metric_ids: ['plan_fidelity', 'teachers_coming_back', 'teacher_rating_external'],
     start_on: '2026-11-10', read_on: '2026-12-05', units: 3 },
 ];
 
@@ -132,7 +132,7 @@ test('a run: reads on the replica, writes only ab_tracker_* on the primary, in o
   expect(r.outcome).toBe('ran');
   expect(reader.calls[0][0]).toBe('db_is_replica');
   const reads = reader.calls.map((c) => c[0]);
-  expect(reads.filter((n) => n === 'ab_tracker_metric_rows')).toHaveLength(2); // send_failures is not a database measure
+  expect(reads.filter((n) => n === 'ab_tracker_metric_rows')).toHaveLength(2); // teacher_rating_external is not a database measure
   expect(writer.calls.map((c) => c[0])).toEqual(['ab_tracker_refresh_open', 'ab_tracker_upsert_rollup', 'ab_tracker_refresh_close']);
   expect(writer.calls[1][1].p_refresh_id).toBe('refresh-1');
   expect(writer.calls[1][1].p_rows.every((x) => x.test_id === 'ict-ch9-plans')).toBe(true);
