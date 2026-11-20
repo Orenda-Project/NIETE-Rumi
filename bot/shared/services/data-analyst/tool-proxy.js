@@ -200,10 +200,7 @@ function metricArguments(args) {
     if (key === 'filters') v = normaliseFilters(v);
     else if (key === 'by') v = normaliseBy(v);
     else if (typeof v === 'string') v = v.trim();
-    if (key === 'program' && typeof v === 'string') {
-      v = v.toLowerCase();
-      if (v === ICT_PROGRAM) v = '';
-    }
+    if (key === 'program') v = ICT_PROGRAM; // our side asks every compiled figure as ICT, explicitly (outsideIct refused any other)
     const empty = v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length) || (isObj(v) && !Object.keys(v).length);
     if (!empty) out[key] = v;
   }
@@ -389,6 +386,9 @@ class ToolProxy {
     }
 
     if (name === 'get_rules') {
+      // Our side always means ICT (the operator, 21 Nov: "always assume the region is Islamabad and always niete"):
+      // a fetch naming no region and no file asks for niete-rumi, never the bare index, which carries no word meanings.
+      if (!String(args.path || '').trim() && !String(args.region || '').trim()) args.region = ICT_PROGRAM;
       const key = rulesKey(args);
       if (this.rulesServed.has(key)) {
         const note = T.ALREADY_FETCHED.replace('{what}', () => key);
