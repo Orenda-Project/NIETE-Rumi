@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T08:48:21Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=leader-portal,portal-smoke spec_sync=true","sha":"46402700d324","branch":"bd-snkn32.61-staging","user":""}
+{"ts":"2026-11-20T08:51:48Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"leader-portal=none-needed (this session changed no leader-portal file; the marker came from fast-forwarding to staging head 46402700, an already-merged change from another bead)","sha":"46402700d324","branch":"bd-snkn32.61-staging","user":""}
