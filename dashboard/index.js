@@ -2846,6 +2846,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
 // bd-tacnwy — internal testers switch their OWN profile type (POST /me/role); 404 unless on portal_role_switch.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-role-switch.routes'));
+// bd-9652yj (queue #166) — the coach app's "Continue on WhatsApp": a short code for the visit she is on.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/coach-handoff.routes'));
 // bd-pw1ccr.26 — teacher Home's "Make my paper" card while her topic-end nudge is held (window shut).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-topic-paper.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
