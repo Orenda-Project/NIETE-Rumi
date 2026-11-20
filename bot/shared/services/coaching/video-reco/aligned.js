@@ -71,9 +71,7 @@ const SUB_ASKS = Object.freeze({
 const SUB_ASK = Object.freeze({
   '790-s3': { sub: 'wait_time:after_question', shows_en: 'a trainer asking a question, stopping early answers and giving everyone time to think alone first', shows_ur: 'ایک ٹرینر سوال پوچھ کر فوری جواب روکتے ہیں اور سب کو پہلے اکیلے سوچنے کا وقت دیتے ہیں' },
   '791-s2': { sub: 'think_pair_share:think_then_pair', shows_en: 'a trainer saying "first think separately… now think together", then calling on one group to answer', shows_ur: 'ایک ٹرینر کہتے ہیں "پہلے الگ الگ سوچیں… اب مل کر سوچیں"، پھر ایک گروپ سے جواب لیتے ہیں' },
-  // R9e-d grade_min 3 (ped-align r17, Oct 1-7 held out: Grade 1-2 16/27, Grade 3-5 37/39; an unknown grade gets no 451-s3).
-  // 451-s3 is off prod (COS 072739) until a fresh set clears it at this floor.
-  '451-s3': { sub: 'think_pair_share:think_then_pair', grade_min: 3, shows_en: 'a class talking in pairs first, while the teacher holds back one student until the pairs have talked', shows_ur: 'ایک کلاس پہلے جوڑیوں میں بات کرتی ہے، اور ٹیچر ایک بچے کو تب تک روکتے ہیں جب تک جوڑیاں بات نہ کر لیں' },
+  '451-s3': { sub: 'think_pair_share:think_then_pair', shows_en: 'a class talking in pairs first, while the teacher holds back one student until the pairs have talked', shows_ur: 'ایک کلاس پہلے جوڑیوں میں بات کرتی ہے، اور ٹیچر ایک بچے کو تب تک روکتے ہیں جب تک جوڑیاں بات نہ کر لیں' },
   '95-s1': { sub: 'open_questions:why_observed', shows_en: 'a teacher asking "why do you think summers are getting hotter?" about something the class has seen', shows_ur: 'ایک ٹیچر بچوں کے دیکھے ہوئے موسم پر پوچھتے ہیں: "تمہارے خیال میں گرمیاں زیادہ گرم کیوں ہو رہی ہیں؟"' },
   '782-s1': { sub: 'follow_up_probe:why_chain', shows_en: 'a teacher with two plants asking "why?" after each child\'s answer until the class reasons it out', shows_ur: 'ایک ٹیچر دو پودے دکھا کر ہر بچے کے جواب پر "کیوں؟" پوچھتے ہیں، یہاں تک کہ کلاس خود وجہ تک پہنچ جائے' },
   '177-s4': { sub: 'ask_for_reasoning:why_after_observation', shows_en: 'questions like "why did the heavier object move slower?" asked right after students watch it happen', shows_ur: 'بچوں کے دیکھنے کے فوراً بعد ایسے سوال: "بھاری چیز آہستہ کیوں چلی؟"' },
@@ -109,8 +107,7 @@ const ADDRESS = /^\s*(?:\[TEACHER\]\s*[،,:]?\s*)+/u;
 const LEAD = /^\s*(?:next (?:class|lesson|time)[,،]?\s*|tomorrow[,،]?\s*|in (?:the|your) next (?:class|lesson)[,،]?\s*|اگلی (?:کلاس|بار)(?: میں)?[،,]?\s*)/iu;
 // The trigger clause («when a student answers 'X',» / «جب … ، تو») names a moment, not the ask.
 const TRIGGER_EN = /^(?:when|whenever|right after|after|before|as soon as|during|while|the moment|if|once)\b[^,،]*[,،]\s*/iu;
-// …ending at its comma or, with none before it, at «تو» (r9e P76: «جب … مثال آئے تو Think-Pair-Share کروائیں: …، …»)
-const TRIGGER_UR = /^(?:جب|جیسے ہی|اگر)[^،]*?(?:،\s*(?:تو\s+)?|\s+تو\s+)/u;
+const TRIGGER_UR = /^(?:جب|جیسے ہی|اگر)[^،]*،\s*(?:تو\s+)?/u;
 
 /** The card's main clause: its address, «Next class» and the when-clause dropped (quotes kept whole). */
 function mainClause(sentence) {
@@ -153,7 +150,7 @@ const REFUSE_ONLY = [
 // near-miss from the open-question and wait-time clips (95-s1 87.1%, 790-s3 91.8%). Read on the WHOLE card (the moment
 // in the when-clause counts: wait time after a stumble is not 790-s3's wait after a question). COS 152504 §2.
 const NEAR_MISS = [
-  ['differentiate', /two (?:paths|versions|levels|tasks)|three (?:stations|levels)|\btiers?\b|tiered|struggl|quick(?:er)? (?:students|guessers|finishers)|early finishers|strongest|most students|for others|simpler (?:prompt|task|example)|easier|harder|stretch task|core task|challenge (?:task|set)|support set|\blevels?\b|کمزور|تیز (?:بچوں|طلبہ|بچے)|آسان|مشکل(?!\s*(?:مثال|لفظ|الفاظ))|باقی بچوں/iu],
+  ['differentiate', /two (?:paths|versions|levels|tasks)|three (?:stations|levels)|\btiers?\b|tiered|struggl|quick(?:er)? (?:students|guessers|finishers)|early finishers|strongest|most students|for others|simpler (?:prompt|task|example)|easier|harder|stretch task|core task|challenge (?:task|set)|support set|\blevels?\b|کمزور|تیز (?:بچوں|طلبہ|بچے)|آسان|مشکل|باقی بچوں/iu],
   ['stumble', /\bstumbl|\bstall|\bhesita|\bpauses? (?:on|mid)|mid-sentence|reshap|comes out broken|پر (?:کوئی بچہ )?رکے|رکے،|رک جائے|اٹک/iu],
   // played media is the main move («play the audio», «a demo on the computer»); a classroom demo is 95-s1's observed
   // phenomenon, not one
@@ -208,7 +205,7 @@ const ASK_RX = Object.freeze({
   attention_cue: /attention (?:signal|cue)|cue to (?:regain|get) (?:their |the class'?s? )?attention|classroom cue to regain|(?:regain|get|gain) (?:the class'?s? |their )?attention|eyes on me|call[- ]and[- ]response|توجہ (?:کے لیے|لینے|حاصل)/iu,
   inquiry_opening: /\b(?:bring|hold up|show)\b[^.;]{0,30}\b(?:object|bag|jar|jars|bottle|bottles|plant|torch|mirror)\b[^.;]{0,60}\b(?:ask|question)|provocative (?:object|question)/iu,
   activate_prior_knowledge: /\b(?:ask|elicit)\b[^.;]{0,40}(?:already know|\brecall\b|remember)|what (?:do )?(?:they|you|students) (?:already )?know|prior knowledge|(?:پوچھیں|پوچھ کر)[^۔]{0,40}پہلے سے|پہلے سے (?:کیا )?(?:جانتے|معلوم)[^۔]{0,30}پوچھ|یاد (?:دلائیں|کروائیں)[^۔]{0,30}(?:پوچھ|سوال)|پہلے بچوں سے[^۔]{0,100}(?:مثالیں|پوچھیں)/iu,
-  think_pair_share: /think[- ]pair[- ]share|think[- ]pair|turn[- ](?:and|to)[- ](?:talk|tell|your|a)|pair[- ]?(?:share|talk|discussion|discuss)|\bpairs?\b[^.;]{0,25}\b(?:discuss|talk|share|agree|compare)|(?:discuss|talk|share)\w*\b[^.;]{0,20}\bwith (?:a |their |your |the )?(?:partner|neighbou?r)|جوڑی(?:وں)? میں (?:بات|گفتگو|discuss|ڈسکس)|جوڑوں میں (?:بات|گفتگو|تقسیم|discuss|ڈسکس)|pair (?:discussion|میں بات)|ساتھی سے بات|\bthink\b[^.;۔]{0,25}\bpair\b|partner کے ساتھ[^۔]{0,40}(?:بات|discuss|summari[sz]e|شیئر)|pair میں سوچ/iu,
+  think_pair_share: /think[- ]pair[- ]share|think[- ]pair|turn[- ](?:and|to)[- ](?:talk|tell|your|a)|pair[- ]?(?:share|talk|discussion|discuss)|\bpairs?\b[^.;]{0,25}\b(?:discuss|talk|share|agree|compare)|(?:discuss|talk|share)\w*\b[^.;]{0,20}\bwith (?:a |their |your |the )?(?:partner|neighbou?r)|جوڑی(?:وں)? میں (?:بات|گفتگو|discuss|ڈسکس)|جوڑوں میں (?:بات|گفتگو|تقسیم|discuss|ڈسکس)|pair (?:discussion|میں بات)|ساتھی سے بات/iu,
   wait_time: /wait[- ]time|\bwait\s+(?:\d|a few|five|ten|several)|\d+\s*(?:[-–]\s*\d+\s*)?seconds? (?:of )?(?:silence|quiet|wait|think)|(?:silence|quiet) for \d|count silently|hold (?:your )?(?:\d|wait)|سیکنڈ (?:کا|کی)? ?(?:wait|انتظار|خاموش)|خاموشی سے (?:انتظار|wait)|wait time/iu,
   question: /follow[- ]up (?:question|with|open|سوال)|(?:ask|pose) (?:an? |one )?(?:open[- ]ended )?follow[- ]up|probing question|probe (?:their|the|a|each) (?:answer|thinking|reasoning|idea)|open[- ]ended|open questions?|open (?:'|‘)?(?:why|how)|\bask\b[^.;]{0,30}\bexplain why|how do you know|how did you (?:get|know)|\bask\b[^.;]{0,25}(?:'|‘|"|“)?\s*(?:why|how|what (?:do you think|would|if|made))|why do you think|کھلا سوال|کھلے سوال|(?:کیوں|کیسے)[^۔]{0,40}پوچھ|پوچھیں[^۔]{0,30}(?:کیوں|کیسے)/iu,
 });
@@ -227,42 +224,29 @@ const OPEN_WHY = /\bwhy\b|کیوں|what do you think|what would|what if|what (?:
 function questionMove(card, main) {
   const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
   if (FOLLOW_UP.test(main)) return 'follow_up_probe';
-  // R9e (eng-rec r9e/AUDIT.md S18, S43): «ask an open-ended question like 'how did you know…?'» right after a child's answer
-  // is a follow-up on that answer, named open or not
+  // R9e (eng-rec r9e/AUDIT.md S18, S43; ped-align r14 782-s1 held out 59/60): «ask an open-ended question like 'how did you
+  // know…?'» right after a child's answer is a follow-up on that answer, named open or not
   if (ANSWER_FIRST.test(trigger) && HOW_KNOW.test(main)) return 'follow_up_probe';
   if (!OPEN_NAMED.test(main) && ANSWER_FIRST.test(trigger) && WHY.test(main)) return 'follow_up_probe';
   if (!OPEN_NAMED.test(main) && REASONING.test(main)) return 'ask_for_reasoning';
   return OPEN_WHY.test(main) ? 'open_questions' : null;
 }
 
-// R9e route (c) (COS 20261119T233153; ped-align r6c on the audited prod first picks, r14 held out): 790-s3 and 95-s1 only on
-// their single ask. 790-s3 shows think time after the teacher's question, before anyone answers; its wrongs probe an answer
-// already given (a method question, staying with that child for a fuller sentence, a why aimed at the answer). A why asked
-// while the wait is stated as before answers stays (held out 97/100). 95-s1 shows one PLANNED opening why: no step after it
-// (pairs, a cold call, stems, feedback, counters), not a why after a child's answer, after modelling or another activity
-// (held out 49/60 before these: off every list until a fresh set clears it, COS 071727).
-// A refusal takes that clip off the card only; the card's next ask still counts (R9e-d, ped-align r17: silencing the card
-// dropped live 6-list picks out of sample, 22 of 24 good). No rule here touches a live clip: the keyword exclusions R9e-b/c
-// tried on 451-s3 / 782-s1 / 177-s4 removed good picks on fresh cards (r17: 15/15) and are gone.
+// R9e route (c) (COS 20261119T233153 / 20261120T074359; ped-align r6c, r14 held out 97/100): the wait-time clips serve only a
+// wait after a question as pre-answer think time, which is what 790-s3 shows. Not a probe of an answer already given (a method
+// question, staying with that child for a fuller sentence, a why aimed at the answer unless the wait is stated as before
+// answers), and not more than one question. A refusal takes the wait-time clip off the card only; the card's next ask still
+// counts, as before.
 const METHOD_PROBE = /how did you (?:solve|get|find|count|know|figure|work|decide)|show (?:your|the) steps|tell us the steps|کیسے (?:حل|نکالا|پتا|پتہ|معلوم|کیا|سوچا|توڑا|بنایا|فیصلہ)|step[- ]by[- ]step/iu;
 const SAME_CHILD = /same (?:child|student)|اسی بچے|full sentence|مکمل جملے|جملہ مکمل|complete (?:their|the|his|her) (?:answer|sentence)|خود (?:جواب )?مکمل|finish (?:their|your)|say more|مزید بتا|explain/iu;
 const PRE_ANSWER = /before (?:taking|hearing|accepting|any(?:one)?|calling|answers?|they answer|students answer|responses)|جواب (?:سے|سننے سے|لینے سے|دینے سے) پہلے|جواب سے قبل/iu;
 const WHY_WORD = /\bwhy\b|کیوں/iu;
-const OTHER_STEP = /turn[- ]and[- ]talk|think[- ]pair|\bpairs?\b|partner|جوڑی|cold[- ]call|sentence[- ](?:starter|stem|frame)|\bstems?\b|next[- ]step|feedback|counters|thumbs|consolidation|extension|کسی اور|دوسرے بچے/iu;
 const OWN_WORK = /why did you|آپ نے [^؟?،]{0,15}کیوں/iu;
-// more than one question is not a single ask («دو open-ended questions», "three why questions")
 const MANY_QUESTIONS = /\b(?:two|three|2|3)\b[^.;,]{0,25}\bquestions\b|(?:دو|تین|2|3)[^۔،]{0,20}(?:questions|سوالات|سوال)/iu;
-const RESPONSE = /\b(?:answers?|answered|says?|said|gives?|repl(?:y|ies)|responds?|names?|labels?|repeats?|reads?|calls? out|blurts?|chorus(?:es)?)\b|جواب|کہے|کہیں|بولے|بتائے|دہرائے|پڑھے|لیبل دے/iu;
-const AFTER_TEACHING = /\bafter (?:model(?:l)?ing|teaching|demonstrating|explaining)\b/iu;
-const LEAD_ACTIVITY = /\bfirst\b|warm[- ]?up|\bmime\b|pace out|پہلے|کرائیں|کروائیں|دکھائیں/iu;
-
-/** The route (c) rule: may the wait-time (790-s3) or open-question (95-s1) clip serve this card? x: the ask's match in main. */
-function singleAsk(move, card, main, x) {
-  if (move !== 'wait_time' && move !== 'open_questions') return true;
-  if (MANY_QUESTIONS.test(main) || OWN_WORK.test(card)) return false;
-  if (move === 'wait_time') return !METHOD_PROBE.test(card) && !SAME_CHILD.test(main) && (!WHY_WORD.test(main) || PRE_ANSWER.test(main));
-  const trigger = mask(card).slice(0, Math.max(0, card.length - main.length));
-  return !OTHER_STEP.test(main) && !RESPONSE.test(trigger) && !AFTER_TEACHING.test(trigger) && !LEAD_ACTIVITY.test(main.slice(0, x.index));
+/** Route (c): may a wait-time clip serve this card? */
+function waitAsked(card, main) {
+  if (MANY_QUESTIONS.test(main) || OWN_WORK.test(card) || METHOD_PROBE.test(card) || SAME_CHILD.test(main)) return false;
+  return !WHY_WORD.test(main) || PRE_ANSWER.test(main);
 }
 
 // R9d route (a) (COS 20261119T215752; ped-align r9a 20261119T215415, 259/343 at #5202): a later visit is a pick for a
@@ -294,8 +278,8 @@ function laterVisit(history) {
 function classifyAsks(sentence, opts = {}) {
   const asks = firstVisitAsks(sentence);
   if (!opts.later || !asks.length) return asks;
-  // the main step is the card's first ask before route (c) takes a clip off: a dropped lead never hands a later visit to
-  // the step after it (R9d: the main step only)
+  // the main step is the card's first ask before route (c) takes the wait-time clip off: a dropped lead never hands a later
+  // visit to the step after it (R9d: the main step only)
   if (firstVisitAsks(sentence, { routeC: false })[0].move !== asks[0].move) return [];
   const card = stripBidi(String(sentence || '')).replace(/\s+/g, ' ').trim();
   const main = asks[0];
@@ -323,10 +307,10 @@ function firstVisitAsks(sentence, { routeC = true } = {}) {
     const move = id === 'question' ? questionMove(card, main) : id;
     if (!move) continue;
     if (move === 'wait_time' && !QUESTION_NEAR.test(card)) continue;
+    if (routeC && move === 'wait_time' && !waitAsked(card, main)) continue; // R9e route (c)
     if ((REFUSE[move] || []).some((r) => off.has(r) || only.has(r))) continue;
     if (nearMiss && NEAR_MISS_FOR.has(move)) continue;
     if (NEAR_MISS_ONLY[move] && NEAR_MISS.some(([id, rx]) => NEAR_MISS_ONLY[move].has(id) && rx.test(card))) continue;
-    if (routeC && !singleAsk(move, card, main, x)) continue; // R9e route (c)
     found.push({ move, at: x.index });
   }
   if (!found.length) return [];
