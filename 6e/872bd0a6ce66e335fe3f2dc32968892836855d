@@ -2,3 +2,4 @@
 {"ts":"2026-11-20T04:51:58Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: attendance owe their Gherkin","sha":"6e872bd0a6ce","branch":"bd-96f69c-staging-r","user":""}
 {"ts":"2026-11-20T04:53:15Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-96f69c-staging: coach-portal web lane spec: NOT UPDATED e2e: missing","sha":"6e872bd0a6ce","branch":"bd-96f69c-staging-r","user":""}
 {"ts":"2026-11-20T05:04:03Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"6e872bd0a6ce","branch":"bd-96f69c-staging-r","user":""}
+{"ts":"2026-11-20T05:04:10Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-96f69c-staging-r: E-NODRIVER:coaching","sha":"6e872bd0a6ce","branch":"bd-96f69c-staging-r","user":""}
