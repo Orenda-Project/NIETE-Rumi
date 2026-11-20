@@ -2162,6 +2162,37 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     }
     seenCount = seen.count;
   }
+  // bd-e5n2jf — Seen per-type counts (Mubashar Zia, 20 Nov): on Seen and Mix she may say how many of
+  // each type come from the book, from the same list as Unseen. Seen: the paper is their sum. Mix:
+  // their sum is the Seen part. Absent, the single Seen number above is used, as before.
+  let seenTypes = null;
+  let paperCount = parsed.count;
+  if ((contentSource === 'seen' || contentSource === 'both')
+      && Array.isArray(body.seenTypes) && body.seenTypes.length) {
+    const allowed = QuestionTypes.forSubject(subject, grade).filter((t) => t.category !== 'board').map((t) => t.id);
+    seenTypes = [];
+    for (const t of body.seenTypes) {
+      const id = String((t && t.id) || '').trim();
+      const n = Number(t && t.count);
+      if (!allowed.includes(id)) {
+        return res.status(400).json({ success: false, error: `${id || 'That type'} is not a question type for this subject.` });
+      }
+      if (!Number.isInteger(n) || n < 1) {
+        return res.status(400).json({ success: false, error: `How many ${id}? Type a number of 1 or more.` });
+      }
+      seenTypes.push({ id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) });
+    }
+    const seenSum = QuestionTypes.parseQuestionCount(seenTypes.reduce((s, t) => s + t.count, 0));
+    if (!seenSum.ok) return res.status(400).json({ success: false, error: seenSum.message });
+    if (contentSource === 'seen') {
+      paperCount = seenSum.count;
+    } else {
+      if (seenSum.count >= parsed.count) {
+        return res.status(400).json({ success: false, error: 'Leave room for new questions.' });
+      }
+      seenCount = seenSum.count;
+    }
+  }
   // The questions the types are for: the whole paper, less the ones lifted from the book on Mix.
   const unseenTarget = parsed.count - (seenCount || 0);
 
@@ -2231,10 +2262,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
     contentSource,
-    questionCount: parsed.count,
+    questionCount: paperCount,
     seenCount,
     totalMarks: budget.marks,
     questionTypes: types,
+    ...(seenTypes ? { seenTypes } : {}),
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,

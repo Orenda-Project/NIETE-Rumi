@@ -11,10 +11,11 @@ import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  FDE_STEPS, MAX_TOTAL_MARKS, MAX_TYPES, STEPS, TOPIC_STEPS, checkPages, chosenTypes, defaultTypeCounts, isFde, questionTotal, toSpec,
+  FDE_STEPS, MAX_TOTAL_MARKS, MAX_TYPES, STEPS, TOPIC_STEPS, checkPages, chosenSeenTypes, chosenTypes, defaultTypeCounts, isFde, questionTotal, seenTotal, toSpec,
   unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
+import { SeenTypes } from './SeenTypes';
 import { StemChips } from './StemChips';
 import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
@@ -423,7 +424,7 @@ export function QuestionsStep() {
   const seedNow = !needsClass && !p.typesSeeded && types.status === 'ok';
   useEffect(() => {
     if (!seedNow) return;
-    set((cur) => (cur.typesSeeded ? {} : { typeCounts: defaultTypeCounts(offered, Math.max(1, defaultCount - cur.seen)), typesSeeded: true }));
+    set((cur) => (cur.typesSeeded ? {} : { typeCounts: defaultTypeCounts(offered, Math.max(1, defaultCount - seenTotal(cur))), typesSeeded: true }));
   }, [seedNow, offered, defaultCount, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
@@ -475,7 +476,7 @@ export function QuestionsStep() {
 
   const totalLine = (
     <span data-testid="questions-total">
-      {C.join(C.questionsCount(total), C.seenShort(p.seen), C.unseenShort(unseen), marks !== null ? C.marksCount(marks) : null)}
+      {C.join(C.questionsCount(total), C.seenShort(seenTotal(p)), C.unseenShort(unseen), marks !== null ? C.marksCount(marks) : null)}
     </span>
   );
 
@@ -484,24 +485,7 @@ export function QuestionsStep() {
       <h2 className="mx-1 mt-3 text-[20px] font-bold leading-snug">{C.askCount}</h2>
 
       <p className={GROUP}>{C.seenQuestions}</p>
-      <ListCard label={C.seenQuestions}>
-        <CountRow
-          first
-          name={C.asInBook}
-          ariaName={C.typeCount(C.seenQuestions)}
-          value={String(p.seen)}
-          dim={p.seen === 0}
-          error={over && p.seen > 0}
-          onType={(d) => set({ seen: num(d) })}
-          onLess={() => set({ seen: Math.max(0, p.seen - 1) })}
-          onMore={() => set({ seen: p.seen + 1 })}
-          canLess={p.seen > 0}
-          canMore={!full}
-          lessLabel={C.fewerOf(C.seenQuestions)}
-          moreLabel={C.moreOf(C.seenQuestions)}
-          testId="count-seen"
-        />
-      </ListCard>
+      <SeenTypes p={p} set={set} offered={offered} status={types.status} retry={retry} full={full} over={over} />
 
       <p className={GROUP}>{C.unseenQuestions}</p>
       <ListCard label={C.unseenQuestions}>
@@ -621,10 +605,12 @@ function PlainCheck() {
     : (p.ranges.length ? C.pageRange(p.ranges[0][0], p.ranges[0][1]) : C.pages);
   // One Questions row: the count, then its seen / unseen parts, then the unseen types (as she chose them on Questions).
   const unseen = unseenTotal(p);
+  const seenLine = chosenSeenTypes(p).map(([id, n]) => `${id} ${n}`).join(' · ');
   const typesLine = chosenTypes(p).map(([id, n]) => `${id} ${n}`).join(' · ');
   const questionsSub = (
     <>
-      <span className="block">{C.join(C.seenShort(p.seen), C.unseenShort(unseen))}</span>
+      <span className="block">{C.join(C.seenShort(seenTotal(p)), C.unseenShort(unseen))}</span>
+      {seenLine && <span className="block">{`${C.seenTypesTitle}: ${seenLine}`}</span>}
       {typesLine && <span className="block">{typesLine}</span>}
     </>
   );
