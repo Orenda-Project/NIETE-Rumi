@@ -152,8 +152,12 @@ function listObservations({ userId }) { return post('observe/list', { userId });
 function observationView({ userId, coachingSessionId }) { return post('observe/view', { userId, coachingSessionId }); }
 function getObservationDraft({ userId, coachingSessionId }) { return post('observe/draft', { userId, coachingSessionId }); }
 // bd-ra8xu.40 — `submit` (true only) submits an FDE (obs612) visit's form; a FICO save posts what it always posted.
-function saveObservationDraft({ userId, coachingSessionId, edits, submit }) {
-  return post('observe/draft/save', { userId, coachingSessionId, edits, ...(submit === true ? { submit: true } : {}) });
+// bd-o15qnr.32 — `evidenceReview` (the v7 form's evidence option B) posts as evidence_review only when given.
+function saveObservationDraft({ userId, coachingSessionId, edits, submit, evidenceReview }) {
+  return post('observe/draft/save', {
+    userId, coachingSessionId, edits, ...(submit === true ? { submit: true } : {}),
+    ...(evidenceReview ? { evidence_review: evidenceReview } : {}),
+  });
 }
 // bd-tfya0m: the guide is built once and kept on the observation (an ask while it is written shares that write), so
 // a guide ask that never reached the bot is asked once more.
