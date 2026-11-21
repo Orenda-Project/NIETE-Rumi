@@ -4,7 +4,8 @@
  *                                file after the primary has painted). Never a test button here.
  *   WQREMIND.landing(root, ctx)  the /remind/:code page (edge-rendered; this file boots it from #wq-remind-boot). After
  *                                Done: the Play door to /q/<code>, and "Send one now" only when ctx.test (sandbox QA).
- *   ctx = {code, lang, chips, chip?, test?, host?}
+ *   ctx = {code, lang, chips, chip?, test?, host?, src?}   src: where it is mounted ('class_link' under the standing
+ *                                link's chips; else the result screen), sent on every step as src (landing: 'landing')
  *
  * First GET /api/wqpush/key: a 404 means the switch is off, so any of our workers (/sw.js) is unregistered and nothing
  * is drawn. Never drawn beside an install card (#wqp-inst non-empty or [data-door="install"]), never on a class phone
@@ -162,12 +163,13 @@
     var code = CODE_RX.test(String(ctx.code || '')) ? String(ctx.code) : '';
     var host = String(ctx.host || window.location.host || '').replace(/[^A-Za-z0-9.:-]/g, '');
     var landing = mode === 'landing';
+    var src = landing ? 'landing' : ctx.src === 'class_link' ? 'class_link' : 'result';
     var key = null;
     var busy = false;
     var iab = false;
 
     function ev(step, extra) {
-      var b = { step: step, lang: lang };
+      var b = { step: step, lang: lang, src: src };
       if (iab) b.iab = true;
       if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
       post('e', b);

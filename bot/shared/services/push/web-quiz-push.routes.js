@@ -9,7 +9,7 @@
  *   POST /subscribe    {sub, code, lang, chips, chip?, rotate_from?} → {ok:1} | 409 {err:'class_phone'} | 400 {err:'bad_sub'}
  *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint}   → {ok:1}
  *   POST /test         {endpoint} → {ok:1, sent, status} (web_quiz_push_test only)
- *   POST /e            {step, how?, iab?, lang?, ok?} → {ok:1}: a page step, allow-listed enums only
+ *   POST /e            {step, how?, iab?, lang?, ok?, src?} → {ok:1}: a page step, allow-listed enums only
  *   POST /delivered    {tag} → {ok:1}: the worker showed a reminder (the funnel's delivered step)
  *   POST /portal/subscribe|unsubscribe|test   the teacher card (portal_push_remind): the edge adds user_id from its session
  */
