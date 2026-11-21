@@ -868,7 +868,7 @@ async function send(row, { now } = {}) {
   // quiz_offer_closed_window on: a closed-window skip says on its row and its event that nothing reached the teacher
   // (held_path 'none'), so the funnel can count it. Off = the skip exactly as before.
   if (reason === 'window_closed' && (await ClosedWindow.settings()).trace) {
-    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason, at: 'send', held_path: 'none' });
+    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, reason, at: 'send', held_path: 'none' });
     return { skipped: reason, context: { held_path: 'none' } };
   }
   if (reason) return skip(reason);
