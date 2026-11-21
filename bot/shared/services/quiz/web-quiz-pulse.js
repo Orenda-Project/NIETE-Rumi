@@ -47,13 +47,15 @@ function fresh(list, t) {
 }
 
 /** Record one right answer. Returns false (and stores nothing) for an event it cannot show. */
-function push({ shareCodeId, sessionId, first, qn, invited = false } = {}) {
+function push({ shareCodeId, sessionId, first, qn, qid = null, invited = false } = {}) {
   if (!shareCodeId || !sessionId || !Number.isInteger(qn) || qn < 1) return false;
   const name = invited ? null : String(first || '').trim().split(/\s+/)[0].slice(0, FIRST_MAX);
   if (!invited && !name) return false;
   const t = now();
   const list = fresh(rings.get(shareCodeId) || [], t);
-  list.push(invited ? { h: hashOf(sessionId), first: null, invited: true, qn, at: t } : { h: hashOf(sessionId), first: name, qn, at: t });
+  // web_quiz_order_seed: each child sits their own order, so the event also names its question (each page shows its own number)
+  const q = typeof qid === 'string' && qid ? { qid } : {};
+  list.push(invited ? { h: hashOf(sessionId), first: null, invited: true, qn, ...q, at: t } : { h: hashOf(sessionId), first: name, qn, ...q, at: t });
   rings.delete(shareCodeId); // re-insert: newest activity last
   rings.set(shareCodeId, list.length > RING_MAX ? list.slice(-RING_MAX) : list);
   while (rings.size > CODES_MAX) rings.delete(rings.keys().next().value);
@@ -87,7 +89,8 @@ function since({ shareCodeId, sessionId, sinceMs = 0, max = SINCE_MAX } = {}) {
   for (let i = live.length - 1; i >= 0 && out.length < max; i -= 1) {
     const e = live[i];
     if (e.at <= after || e.h === mine) continue;
-    out.push(e.invited ? { first: null, invited: true, qn: e.qn, at: e.at } : { first: e.first, qn: e.qn, at: e.at });
+    const q = e.qid ? { qid: e.qid } : {};
+    out.push(e.invited ? { first: null, invited: true, qn: e.qn, ...q, at: e.at } : { first: e.first, qn: e.qn, ...q, at: e.at });
   }
   return out;
 }

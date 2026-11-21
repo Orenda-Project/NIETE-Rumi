@@ -1019,7 +1019,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function pulseFeed(list) {
     if (!list || !list.length) return;
     list.forEach(function (e) { if (e && e.at > PULSE.since) PULSE.since = e.at; });
-    if (!pulseOn()) return;
+    // web_quiz_order_seed: a question this child was not served is not theirs to number
+    list = list.filter(function (e) { return !e || !e.qid || QS.some(function (q) { return q.qid === e.qid; }); });
+    if (!list.length || !pulseOn()) return;
     PULSE.pend = { e: list[0], n: list.length, got: Date.now() };
     pulseTry();
   }
@@ -1054,7 +1056,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var t = document.createElement('div');
     t.className = 'wq-pulse';
     t.setAttribute('aria-hidden', 'true');
-    var pl = T.pulse(e.invited ? null : e.first, e.qn);
+    // web_quiz_order_seed: the classmate's question by its id, under this child's own number for it
+    var qn = e.qn;
+    if (e.qid) for (var pi = 0; pi < QS.length; pi++) if (QS[pi].qid === e.qid) { qn = pi + 1; break; }
+    var pl = T.pulse(e.invited ? null : e.first, qn);
     if (window.WQJ) t.innerHTML = esc(pl) + ' ' + IC.check; else t.textContent = pl + ' ✓';
     if (top != null) t.style.top = top + 'px';
     ROOT.appendChild(t);
@@ -2175,6 +2180,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var sameChild = S.child && child.chip && S.child.chip === child.chip;
       if (!sameChild) { S.answers = {}; S.queue = []; S.seq = 0; S.wrong = []; S.result = null; S.vt = 0; S.vdone = 0; }
       S.st = b.st; S.child = child; S.counted = b.counted !== false; S.reason = b.reason || null;
+      if (b.order || S.order) { S.order = b.order || null; applyOrder(S.order); }
       ((b.resume && b.resume.answered) || []).forEach(function (q) { if (!S.answers[q]) S.answers[q] = { slot: '?', ok: null }; });
       save();
       rememberKid(child);
@@ -2184,6 +2190,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); });
   }
 
+  // web_quiz_order_seed: the sitting's own order from the start reply ({ q: [qid…], o: { qid: [slot…] } }), kept with the
+  // session so a reload plays on in it. None (switch off, or another child's turn): the quiz's order as served. Options move
+  // as objects (slot, picture, feedback with them) and the spoken option list moves with them, so the voice reads what is shown.
+  var ORIG = null;
+  function applyOrder(ord) {
+    if (!ORIG) {
+      ORIG = { qs: QS.slice(), o: {} };
+      ORIG.qs.forEach(function (q) { ORIG.o[q.qid] = { o: (q.options || []).slice(), r: q.read && Array.isArray(q.read.opts) ? q.read.opts.slice() : null }; });
+    }
+    var byId = {};
+    ORIG.qs.forEach(function (q) { byId[q.qid] = q; });
+    var list = ord && Array.isArray(ord.q) ? ord.q.map(function (id) { return byId[id]; }).filter(Boolean) : [];
+    if (!list.length) list = ORIG.qs;
+    QS.length = 0;
+    list.forEach(function (q) { QS.push(q); });
+    N = QS.length;
+    ORIG.qs.forEach(function (q) {
+      var o0 = ORIG.o[q.qid], want = ord && ord.o && ord.o[q.qid], at = {};
+      o0.o.forEach(function (o, k) { at[o.slot] = k; });
+      var ks = o0.o.map(function (o, k) { return k; });
+      if (Array.isArray(want) && want.length === ks.length) {
+        var w = want.map(function (sl) { return at[sl]; });
+        if (w.every(function (k, j) { return k != null && w.indexOf(k) === j; })) ks = w;
+      }
+      if (q.options) q.options = ks.map(function (k) { return o0.o[k]; });
+      if (o0.r) q.read.opts = ks.map(function (k) { return o0.r[k]; });
+    });
+  }
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
   // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
   // A lesson's Quiz button on the Videos door (?to=q, web_quiz_video_shelf on) opens straight at the questions.
@@ -3852,6 +3886,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     tap('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
   }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
+  // web_quiz_order_seed: a reload plays on in the sitting's own order
+  if (S.st && S.order) applyOrder(S.order);
   if (B.view === 'schools') schools(afterResult);
   // a story has no class board: its class view (/q/<code>/class) opens the story's landing below
   else if (B.view === 'class' && !B.story) board();

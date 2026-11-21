@@ -41,6 +41,9 @@ const WAIT_UX_KEY = 'web_quiz_wait_ux';
 // The child result screen's "remind me tomorrow" (bot/shared/services/push/web-quiz-push-field.js): rides this one read,
 // so a finish makes no read for it. Only the stored JSON boolean true is on.
 const PUSH_REMIND_KEY = 'web_quiz_push_remind';
+// web_quiz_order_seed (JSON true only, read with the hub's switches: flags().orderSeed): each sitting its own question and
+// option order, a re-sit a new one (web-quiz-order-seed.js); off, the start reply has no `order` and the page keeps today's
+const ORDER_SEED_KEY = 'web_quiz_order_seed';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // A tap while offline stays on the page (web-quiz-offline-guard.js) rides this one read: only the stored JSON boolean true is on.
@@ -247,6 +250,7 @@ const SWITCHES = Object.freeze([
   ['minify',       MINIFY_KEY,            'json'],
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
+  ['orderSeed',    ORDER_SEED_KEY,        'json'],
   ['pack',         PACK_KEY,              'json'],
   ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
