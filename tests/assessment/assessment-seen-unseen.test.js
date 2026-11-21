@@ -201,7 +201,8 @@ describe('the endpoint', () => {
     test('the 50 ceiling counts Seen AND Unseen together', async () => {
       await throughSeen(45);
       await exchange('u1', 'TYPES', { question_types: ['MCQs', 'Brief Answers'] }, TOKEN);
-      const c = await exchange('u1', 'COUNTS', { count_1: '5', count_2: '2' }, TOKEN);
+      // AG row 12: the 5 MCQs are one group, so 45 + 1 + 5 Brief Answers = 51.
+      const c = await exchange('u1', 'COUNTS', { count_1: '5', count_2: '5' }, TOKEN);
       expect(c.screen).toBe('COUNTS');
       expect(c.data.error).toMatch(/50/);
     });
