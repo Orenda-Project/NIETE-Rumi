@@ -198,3 +198,20 @@ describe('web_quiz_voice_v2 on: an iPhone plays the per-quiz voice (Ogg Opus cli
     expect(h.fallbacks().map((e) => e.data.reason)).toEqual(['unsupported']);
   });
 });
+
+describe('a clip that starts late says when (audio_slow, always on): the meter for "stalled" at 5 s vs 8 s', () => {
+  test('a clip that starts at 6.2 s logs audio_slow with its start time, part, question, host and format', () => {
+    const h = harness({ gapSlow: false }); // the 8 s give-up: a clip may start between 5 and 8 s
+    h.ctx.speak('Which part of a plant takes in water?', R2_CLIP, null, { qid: 'q1aaaaaaaa', part: 'q' });
+    h.tick(6200);
+    h.clips[0].start();
+    expect(h.events.filter((e) => e.name === 'audio_slow').map((e) => e.data)).toEqual([expect.objectContaining({ ms: 6200, part: 'q', qid: 'q1aaaaaaaa', host: 'r2', fmt: 'ogg' })]);
+  });
+  test('a clip that starts within 2 s logs nothing new', () => {
+    const h = harness();
+    h.ctx.speak('Which part of a plant takes in water?', R2_CLIP, null, { qid: 'q1aaaaaaaa', part: 'q' });
+    h.tick(900);
+    h.clips[0].start();
+    expect(h.events.filter((e) => e.name === 'audio_slow')).toEqual([]);
+  });
+});

@@ -266,6 +266,8 @@ var WQI = (function () {
   function readParts(q, lang) {
     var au = q.audio || null;
     var rd = q.read || {};
+    // A reading item (read.self: the child reads the word or passage themselves) is shown, never spoken.
+    if (rd.self === true) return [];
     var parts = [];
     var fg = q.figure || {};
     // A stem that already points at the picture does not need the figure's own pointer first.
@@ -1300,6 +1302,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var started = false;
         a.addEventListener('playing', function () {
           if (!started && retry) { said(true); try { ROOT.classList.remove('wq-tap'); ROOT.classList.remove('wq-novoice'); } catch (e) {} }
+          // A clip that started late says when (always on): how many clips start between the 5 s and 8 s give-ups
+          if (!started && Date.now() - t0 > CLIP_SLOW_MS) { var fs = clipFacts(url); fs.ms = Date.now() - t0; fs.part = (meta && meta.part) || 'line'; fs.qid = meta ? meta.qid : undefined; ev('audio_slow', fs); }
           started = true;
         });
         a.onended = function () { if (!switched) end(); };
