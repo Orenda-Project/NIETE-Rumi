@@ -8578,12 +8578,17 @@ router.get('/leader/observe/:id/draft', ...coachObserve, (req, res) => (
  * POST /api/portal/leader/observe/:id/draft  Body { edits, submit? } — save her changes (the form's r_/ev_/imp_/fid_
  * keys). bd-ra8xu.40: an FDE (obs612) visit's form saves the same way, and `submit: true` submits it (400 with the
  * missing items and field errors while anything is missing). { edits } alone is passed on as before.
+ * bd-o15qnr.32: `evidence_review` (an object: the v7 form's evidence option B, per indicator) is passed on when sent;
+ * the bot checks its shape. Anything that is not an object is not passed on.
  */
 router.post('/leader/observe/:id/draft', ...coachObserve, (req, res) => {
   const edits = req.body && req.body.edits && typeof req.body.edits === 'object' ? req.body.edits : {};
   const submit = !!req.body && req.body.submit === true;
+  const er = req.body && req.body.evidence_review;
+  const evidenceReview = er && typeof er === 'object' && !Array.isArray(er) ? er : null;
   return relayToBot(res, 'observe-draft-save', () => PortalCoachingClient.saveObservationDraft({
     userId: sessionCoach(req), coachingSessionId: req.params.id, edits, ...(submit ? { submit: true } : {}),
+    ...(evidenceReview ? { evidenceReview } : {}),
   }));
 });
 
