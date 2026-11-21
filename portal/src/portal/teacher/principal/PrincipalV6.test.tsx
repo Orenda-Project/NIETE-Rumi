@@ -94,7 +94,8 @@ describe("a principal, v6 on: Pick the teacher → When?", () => {
     await waitFor(() => expect(api.leader.createSchedule).toHaveBeenCalledWith({ teacherExtId: "900001", date: expect.any(String), slot: "09:00" }));
     expect(await screen.findByText("Observation scheduled")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Schedule another/ })).toHaveAttribute("href", `${P}/pick`);
-    expect(screen.getByRole("link", { name: "Done" })).toHaveAttribute("href", `${P}/schedule`);
+    // bd-o15qnr.29 (the operator 21 Nov ~08:50): "They should land on the homepage of obsevrations", never the old My schedule
+    expect(screen.getByRole("link", { name: "Done" })).toHaveAttribute("href", "/portal/teacher/observations");
   });
 
   it("switch off: the day and time at once (production)", async () => {

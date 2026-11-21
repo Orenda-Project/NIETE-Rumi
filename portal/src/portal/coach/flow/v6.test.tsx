@@ -170,7 +170,7 @@ describe("Observe v6: the app's header, no WhatsApp button, no yellow bar", () =
 });
 
 describe("Observe v6: Booked for today, then All booked opening in place", () => {
-  it("today's visits still to do, each with Record; no Cancel while folded; done, late and later ones are not here", async () => {
+  it("today's visits still to do, each row one link to its visit (record or upload there); no Record button, no Cancel while folded", async () => {
     renderAt("/portal/coach/observe");
     const booked = await screen.findByTestId("booked-today");
     expect(within(booked).getByTestId("section-count")).toHaveTextContent("2");
@@ -179,8 +179,9 @@ describe("Observe v6: Booked for today, then All booked opening in place", () =>
     expect(within(booked).queryByText("Farah Naz")).toBeNull();
     expect(within(booked).queryByText("Rabia Nawaz")).toBeNull();
     expect(within(booked).queryByText("Nadia Perveen")).toBeNull();
-    const records = within(booked).getAllByRole("link", { name: /^Record/ });
-    expect(records.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/visit/t2/record", "/portal/coach/visit/t3/record"]);
+    // bd-o15qnr.29 (the operator 21 Nov ~08:50): "remove the button, instead show a chevron and the whole tile/card is clickable"
+    expect(within(booked).queryByRole("link", { name: /^Record/ })).toBeNull();
+    expect(rows.map((r) => within(r).getByRole("link").getAttribute("href"))).toEqual(["/portal/coach/visit/t2", "/portal/coach/visit/t3"]);
     expect(within(booked).queryByRole("button", { name: /Cancel/ })).toBeNull();
   });
 
@@ -194,7 +195,8 @@ describe("Observe v6: Booked for today, then All booked opening in place", () =>
     const late = screen.getByTestId("booked-late");
     expect(within(late).getByText("Rabia Nawaz")).toBeInTheDocument();
     expect(within(late).getByText("6 days late")).toBeInTheDocument();
-    expect(within(late).getAllByRole("link", { name: /^Record/ })[0]).toHaveAttribute("href", "/portal/coach/visit/o1/record");
+    expect(within(late).queryByRole("link", { name: /^Record/ })).toBeNull();
+    expect(within(within(late).getByTestId("booked-row-o1")).getAllByRole("link")[0]).toHaveAttribute("href", "/portal/coach/visit/o1");
     const coming = screen.getByTestId("booked-coming");
     expect(within(coming).getByText("Nadia Perveen")).toBeInTheDocument();
     expect(within(coming).getAllByRole("link", { name: /Reschedule/ })[0].getAttribute("href")).toContain("visit=c1");
