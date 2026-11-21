@@ -165,7 +165,7 @@ describe('unsubscribe / opened', () => {
 describe('payloadFor', () => {
   test('child payload: Urdu, no name, opens the quiz', () => {
     const p = Push.payloadFor({ kind: 'quiz_reminder', lang: 'ur', quiz_code: 'ABC123', student_id: 'x' });
-    expect(p).toEqual({ t: 'جگنو', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔', url: '/q/ABC123?from=push', tag: 'jugnu-remind', lang: 'ur', test: false });
+    expect(p).toEqual({ t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', url: '/q/ABC123?from=push', tag: 'jugnu-remind', lang: 'ur', test: false });
   });
   test('test payload in English; teacher payload opens the portal home', () => {
     expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'en', quiz_code: 'ABC123' }, { test: true })).toMatchObject({ t: 'Jugnu', b: 'Reminders are on.', test: true });

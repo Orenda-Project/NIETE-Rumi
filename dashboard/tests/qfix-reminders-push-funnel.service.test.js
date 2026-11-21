@@ -82,6 +82,10 @@ describe('landed: a quiz page opened from a reminder', () => {
   test('/q/<code>?from=push: one push_landed {page: quiz}', async () => {
     expect(await open('/q/ABC123?from=push')).toEqual([['web_quiz.push_landed', { page: 'quiz', kind: 'quiz_reminder', reason: 'quiz_reminder' }]]);
   });
+  test('/h/<token>?from=push (the generic reminder\'s tap): push_landed {page: hub}', async () => {
+    const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
+    expect(await open(`/h/${TOKEN}?from=push`)).toEqual([['web_quiz.push_landed', { page: 'hub', kind: 'quiz_reminder', reason: 'quiz_reminder' }]]);
+  });
   test('without from=push, or a link-preview fetch: nothing', async () => {
     expect(await open('/q/ABC123')).toEqual([]);
     expect(await open('/q/ABC123?from=push', { 'user-agent': 'WhatsApp/2.23.20.0 A' })).toEqual([]);
