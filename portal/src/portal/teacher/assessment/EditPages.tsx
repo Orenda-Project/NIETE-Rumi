@@ -260,7 +260,11 @@ export function EditPaperPage() {
       dock={dock}
       testId="assessment-edit"
     >
-      <EditSummaryCard rows={[...kept.map((v) => v.it), ...draft.added.map((a) => ({ type: a.kind }))]} />
+      <EditSummaryCard
+        rows={[...kept.map((v) => ({ ...v.it, marks: v.marks })), ...draft.added.map((a) => ({ type: a.kind, marks: a.marks }))]}
+        grade={d?.paper.grade}
+        subject={d?.paper.subject}
+      />
       {fde && <p data-testid="edit-both" className="mx-1.5 text-[15px] font-semibold text-[#33374a]">{C.editBoth}</p>}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       {bySection

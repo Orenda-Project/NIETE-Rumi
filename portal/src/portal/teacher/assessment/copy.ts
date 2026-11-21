@@ -275,6 +275,8 @@ export const ASSESSMENT_V2_COPY = {
   noLevel: 'No level',
   levelsTitle: "Bloom's levels",
   typesTitle: 'Question types',
+  fdeTarget: 'FDE target',
+  paperByMarks: 'This paper, by marks',
   share: (label: string, pct: number) => `${label} ${pct}%`,
   typeTally: (type: string, n: number) => `${type} ${n}`,
   done: 'Done',
@@ -609,6 +611,8 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   noLevel: 'سطح نہیں',
   levelsTitle: 'بلوم کی سطحیں',
   typesTitle: 'سوال کی اقسام',
+  fdeTarget: 'ایف ڈی ای کا ہدف', // machine-drafted, needs review
+  paperByMarks: 'یہ پرچہ، نمبروں کے لحاظ سے', // machine-drafted, needs review
   share: (label: string, pct: number) => `${label} ⁦${pct}%⁩`,
   typeTally: (type: string, n: number) => `${type} ⁦${n}⁩`,
   done: 'مکمل',

@@ -261,3 +261,15 @@ Feature: Teacher assessment
     And in Urdu the levels and headings show in Urdu
     And the printed paper and answer key show no levels and no summary
     And a paper whose questions carry no level shows no summary, as before
+
+  @sandbox @real-paper
+  # bd-zrdvmi.50.2 — ICT Feedback sheet, Assessment Generator row 7 point 7 (Amena 21 Nov): FDE's expected mix to compare.
+  Scenario: Edit paper shows FDE's target thinking-level mix for Grades 1-5 beside the paper's own mix by marks
+    Given a Grade 5 Maths paper whose questions carry Bloom's levels is open in Edit paper
+    Then the summary shows "FDE target" with "Remember 10%", "Understand 50%" and "Apply 40%"
+    And it shows "This paper, by marks" with the paper's own shares in the same three bands
+    When the teacher removes a question
+    Then "This paper, by marks" changes and the FDE target stays the same
+    And a Grade 1-4 paper shows FDE's target for its grade and subject from FDE's 2023-24 tables
+    And a Grade 6-12 paper, or a subject FDE gives no table for, shows no FDE target
+    And nothing stops the teacher keeping a paper that differs from the target
