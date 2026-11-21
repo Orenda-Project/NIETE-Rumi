@@ -105,7 +105,8 @@
 // sa-47: sa-page.js + sa-sync.js (the drain keeps an upload that is making progress; an already-scored recording counts as
 //   sent), sa-core.js + sa-mic.js + sa-ui.js + sink-coach.js (an unknown microphone is checked, behind its switch), and
 //   sa-engine.js. SESSION unchanged: no clip or battery changed.
-var VERSION = 'sa-47';
+// sa-48: the letter-sound picker's re-made prompts and the your-turn / picker-intro lines (SESSION v33); no worker code changes.
+var VERSION = 'sa-48';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -156,7 +157,11 @@ var CORE = 'sa-core-' + VERSION;
 // (longer) re-made, the held sounds as the content owner picked, Urdu م and س held. v5/prompt_timings.json gives the
 // three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is retired unused;
 // the next re-voice takes v33, and SESSION never moves backwards.)
-var SESSION = 'sa-session-v32';
+// v33: 13 of the picker's prompts re-made under their keys as the content owner picked them on a phone speaker (Urdu ب ل ن
+// ر ک گ چ ٹ م ش ف as a short «بَ»-like syllable, not a long «با»; English t and n), each said three times as before, with
+// their spans in v5/prompt_timings.json; the your-turn lines say «آواز میں بولیں» and the picker intro names its example
+// in the task's language, each at its text's key with its word timings (the Urdu-task intro re-made under its key).
+var SESSION = 'sa-session-v33';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

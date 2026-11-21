@@ -54,7 +54,8 @@ describe('round 28 clips under sa/v5', () => {
 
   it('no clip under sa/v5 that no battery names', () => {
     const files = ['en', 'ur'].flatMap((l) => (fs.existsSync(path.join(V5, l)) ? fs.readdirSync(path.join(V5, l)) : []).map((f) => `sa/v5/${l}/${f}`));
-    expect(files.filter((f) => !keys.has(f))).toEqual([]);
+    // a timing file beside a named clip is that clip's record (the two spliced picker intros: A08 in sa-tester-fixes)
+    expect(files.filter((f) => !keys.has(f) && !(f.endsWith('.json') && keys.has(f.replace(/\.json$/, '.mp3'))))).toEqual([]);
   });
 
   it('the clips lock covers every sa/v5 clip, so the phone keeps it offline', () => {
