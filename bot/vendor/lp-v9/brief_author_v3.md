@@ -255,6 +255,22 @@ that repeats any of them is rejected.
     and the central idea, give the poem stanza by stanza (or two lines at a time for a short poem):
     the poet's words, then the same idea in plain everyday words, and have pupils say or write one
     stanza's paraphrase themselves. Never print a paraphrase only as homework or only in the key.
+<!-- VENDOR DIVERGENCE (bd-ipoxhx.6, 2026-11-21; SYNC.md §3.42): rule 14 below is a LOCAL-ONLY edit,
+  not a straight re-vendor — it was not fixed upstream first. -->
+14. **A Science lesson gives the pupils one short hands-on activity, with safe classroom materials
+    only.** *"Add a practical activity"* came back on a G7 General Science plan (Immunity, pp.35-36)
+    whose only materials were the board and the textbook. In every science lesson (General Science,
+    Biology, Chemistry or Physics), the Activity step (`A`) carries one hands-on activity of 5-8 minutes that the
+    pupils do with their hands, in pairs or groups, inside the step's existing minutes (no new section,
+    no extra time). Root it in the book: if the pages print an activity, a figure or an experiment, adapt
+    that one; otherwise model the idea the lesson teaches. Use safe classroom materials that any
+    government classroom has or a pupil brings from home at no cost — paper, card, string, a ruler,
+    coins, chalk, a plastic bottle of water, soil, leaves, seeds, clay, their own pulse or breathing.
+    Write it as numbered steps, what the pupils notice, and one question tying it to the objective, and
+    list each material in `materials`. Never use a flame, heat, matches, any chemical, a blade or glass,
+    blood or any body fluid, mains electricity, tasting, or lab kit such as a microscope the school may
+    not have — when a topic has nothing safe to touch, the pupils build a paper model or act the process
+    out instead.
 
 Teachers also told us, positively, what they want: the closed heading system; the teaching flow first, then the reference block =
 resources; **examples not explanations of how to explain**; exam-format practice ("for English,
