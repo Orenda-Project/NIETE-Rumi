@@ -118,12 +118,12 @@ describe('what it says', () => {
     const p = Push.payloadFor({ kind: 'quiz_reminder', lang: 'en', quiz_code: 'ABC123' }, { rounds: [ROUND, { ...ROUND, class_link_code: 'P3W8TT', class_label_en: 'Class 5', class_label_ur: 'کلاس ۵' }] });
     expect(p.b).toBe("Class 3, Class 5: tonight's rounds are ready. Tap to play.");
   });
-  test('no round yet (class-link not answering): today\'s line and the quiz link', async () => {
+  test('no round yet (class-link not answering): the hub\'s own line (never a promised quiz) and the quiz link', async () => {
     setup();
     await Push.subscribe({ sub: sub('a'), device_ref: DEV_A, code: 'ABC123', lang: 'en' }, { now: at('2025-10-21T05:00:00Z') });
     const wp = webpush();
     await Push.dueTick(at('2025-10-22T13:05:00Z'), { webpush: wp });
-    expect(sentBodies(wp)[0]).toMatchObject({ b: "Today's quiz is ready. Tap to play.", url: '/q/ABC123?from=push' });
+    expect(sentBodies(wp)[0]).toMatchObject({ b: 'A game is waiting for you. Tap to play.', url: '/q/ABC123?from=push' });
     expect(logEvent).toHaveBeenCalledWith('web_quiz.push_sent', expect.objectContaining({ generic_n: 1 }));
   });
   test('names switch OFF: no child name, the students table is never read', async () => {
@@ -168,4 +168,8 @@ describe('the funnel', () => {
     expect(logEvent).toHaveBeenCalledWith('web_quiz.push_funnel_daily', out);
     expect(await Push.funnelTick(at('2025-10-22T17:30:00Z'))).toBeNull(); // once a day
   });
+});
+
+test('the generic line in Urdu is the hub\'s own', () => {
+  expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'ur', quiz_code: 'ABC123' }).b).toBe('ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔');
 });

@@ -66,11 +66,12 @@ const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 const COPY = Object.freeze({
   quiz_reminder: {
     en: {
-      t: 'Jugnu', b: "Today's quiz is ready. Tap to play.", test: 'Reminders are on.',
+      // the tap opens the child's hub (a finished quiz bounces there): the hub's own line, never a promised quiz
+      t: 'Jugnu', b: 'A game is waiting for you. Tap to play.', test: 'Reminders are on.',
       round: "{c}: tonight's round is ready. Tap to play.", rounds: "{c}: tonight's rounds are ready. Tap to play.", and: ', ',
     },
     ur: {
-      t: 'جگنو', b: 'آج کا کوئز تیار ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔',
+      t: 'جگنو', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔',
       round: '{c}: آج کا راؤنڈ تیار ہے۔ کھیلنے کے لیے دبائیں۔', rounds: '{c}: آج کے راؤنڈ تیار ہیں۔ کھیلنے کے لیے دبائیں۔', and: '، ',
     },
   },
@@ -277,7 +278,8 @@ function payloadFor(row, { test = false, rounds = [], names = [] } = {}) {
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
   const who = (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
-  const labels = [...new Set(ready.map((r) => clip(lang === 'ur' ? r.class_label_ur || r.class_label_en : r.class_label_en || r.class_label_ur)).filter(Boolean))];
+  // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
+  const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
   const list = who.length ? who : labels;
   if (!list.length) return { ...base, ...(ready.length ? { url: `/j/${ready[0].class_link_code}?from=push` } : {}) };
   const b = (list.length > 1 && !who.length ? c.rounds : c.round).replace('{c}', list.join(c.and));
@@ -309,7 +311,7 @@ async function namesFor(row, lang) {
     const by = new Map((data || []).map((r) => [String(r.id), r]));
     const first = (v) => String(v || '').trim().split(/\s+/)[0] || '';
     return ids.map((id) => by.get(String(id))).filter(Boolean)
-      .map((r) => first(lang === 'ur' && r.student_name_urdu ? r.student_name_urdu : r.student_name)).filter(Boolean);
+      .map((r) => first((lang === 'ur' && r.student_name_urdu) || r.student_name)).filter(Boolean);
   } catch (err) {
     logToFile('⚠️ web quiz push: names lookup failed — class-named reminder', { error: err && err.message });
     return [];
@@ -477,6 +479,8 @@ async function expireTick(now = Date.now()) {
 
 const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed', 'failed', 'escape', 'copy', 'ios', 'nopush', 'stop', 'test']);
 const HOWS = new Set(['intent', 'menu', 'copy']);
+// Where the ask was answered: the quiz result screen, under the standing link's chips, or the /remind/:code landing.
+const SRCS = new Set(['result', 'class_link', 'landing']);
 /** A page step event, allow-listed enums only. */
 function stepEvent(body = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
@@ -486,6 +490,7 @@ function stepEvent(body = {}) {
     ...(typeof body.iab === 'boolean' ? { iab: body.iab } : {}),
     ...(body.lang === 'en' || body.lang === 'ur' ? { lang: body.lang } : {}),
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
+    ...(SRCS.has(body.src) ? { src: body.src } : {}),
   });
   return { ok: 1 };
 }
