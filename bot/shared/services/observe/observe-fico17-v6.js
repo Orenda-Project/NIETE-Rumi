@@ -186,6 +186,109 @@ function rumiEvidenceText(analysis, code) {
   return clipWords(parts.join(' · '), PREFILL_TEXT_CAP);
 }
 
+// ── Evidence option B (bd-o15qnr.32, #204; locked by #188 21 Nov ~10:05) ───
+// The v7 form shows Rumi's evidence for each of the 11 as a summary line and its {time, quote} rows; the coach keeps,
+// edits or removes each row, adds her own lines and edits the summary. What she did is saved per indicator as
+// row.evidence_review, beside the row; ev_<code> is still the text the report, the debrief guide and WhatsApp read.
+
+const EVIDENCE_REVIEW_LIMITS = Object.freeze({ text: 1000, items: 30, scan: 200 });
+const EVIDENCE_STATUSES = ['kept', 'removed', 'edited'];
+const EVIDENCE_TIME_RX = /^\d{1,3}:\d{2}(:\d{2})?$/;
+const isPlainObject = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+const nonBlank = (s) => typeof s === 'string' && s.trim() !== '';
+
+/**
+ * Rumi's structured evidence for one of the 11, as the v7 form shows it: { because, items: [{ time, quote }] }, every
+ * quote in full and in order; null when Rumi gave nothing. levels[code] first; else the row: its evidence_items
+ * (rumi_evidence_items once a review has moved them there) and its because, unless the coach's review has put her
+ * change reason in that field (set_by 'coach').
+ */
+function rumiEvidenceOf(analysis, code) {
+  if (!v6.isDc(code)) return null;
+  const lv = ((analysis || {}).levels || {})[code];
+  const lvOk = isPlainObject(lv);
+  const row = v6Row(analysis, code) || {};
+  let because = lvOk && nonBlank(lv.because) ? lv.because.trim() : null;
+  if (!because && row.set_by !== 'coach' && nonBlank(row.because)) because = row.because.trim();
+  let list = lvOk && Array.isArray(lv.evidence) && lv.evidence.length ? lv.evidence : null;
+  if (!list) list = Array.isArray(row.rumi_evidence_items) ? row.rumi_evidence_items : (Array.isArray(row.evidence_items) ? row.evidence_items : []);
+  const items = list
+    .filter((i) => isPlainObject(i) && nonBlank(i.quote))
+    .map((i) => ({ time: nonBlank(i.time) ? i.time.trim() : null, quote: i.quote.trim() }));
+  return because || items.length ? { because, items } : null;
+}
+
+const capText = (s) => s.trim().slice(0, EVIDENCE_REVIEW_LIMITS.text);
+// An optional time: kept when it reads as a lesson time (mm:ss, or h:mm:ss), else dropped to null.
+const reviewTime = (t) => (typeof t === 'string' && EVIDENCE_TIME_RX.test(t.trim()) ? t.trim() : null);
+
+/** One row of a review, as stored; null for a row that is not one (it is dropped). */
+function reviewItem(it) {
+  if (!isPlainObject(it)) return null;
+  if (it.source === 'rumi') {
+    if (!nonBlank(it.quote) || !EVIDENCE_STATUSES.includes(it.status)) return null;
+    const out = { source: 'rumi', time: reviewTime(it.time), quote: capText(it.quote), status: it.status };
+    if (it.status === 'edited') {
+      if (!nonBlank(it.coach_text)) return null;
+      out.coach_text = capText(it.coach_text);
+    }
+    return out;
+  }
+  if (it.source === 'coach') {
+    if (!nonBlank(it.text)) return null;
+    return { source: 'coach', time: reviewTime(it.time), text: capText(it.text) };
+  }
+  return null;
+}
+
+/** One indicator's review, as stored: { summary: { rumi, coach }, items }; null when nothing in it is usable. */
+function reviewEntry(entry) {
+  if (!isPlainObject(entry)) return null;
+  const s = isPlainObject(entry.summary) ? entry.summary : {};
+  const summary = {
+    rumi: typeof s.rumi === 'string' ? capText(s.rumi) : '',
+    coach: typeof s.coach === 'string' ? capText(s.coach) : '',
+  };
+  const items = [];
+  const raw = Array.isArray(entry.items) ? entry.items.slice(0, EVIDENCE_REVIEW_LIMITS.scan) : [];
+  for (const it of raw) {
+    if (items.length >= EVIDENCE_REVIEW_LIMITS.items) break;
+    const one = reviewItem(it);
+    if (one) items.push(one);
+  }
+  return summary.rumi || summary.coach || items.length ? { summary, items } : null;
+}
+
+/**
+ * The portal's evidence_review ({ [code]: EvidenceReview }) checked strictly: the 11 DC codes only, strings only,
+ * texts capped, at most 30 rows an indicator, the status enum; anything else is dropped. null when nothing is left,
+ * and on any surprise: a bad shape never stops the save of the edits beside it. Pure; never throws.
+ */
+function sanitizeEvidenceReview(input) {
+  try {
+    if (!isPlainObject(input)) return null;
+    const out = {};
+    for (const code of Object.keys(input)) {
+      if (!v6.isDc(code)) continue;
+      const entry = reviewEntry(input[code]);
+      if (entry) out[code] = entry;
+    }
+    return Object.keys(out).length ? out : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** The coach's saved review of one indicator's evidence (row.evidence_review), checked again on the way out; or null. */
+function savedEvidenceReview(analysis, code) {
+  if (!v6.isDc(code)) return null;
+  try {
+    return reviewEntry((v6Row(analysis, code) || {}).evidence_review);
+  } catch (_) {
+    return null;
+  }
+}
+
 /** The text above a combined indicator's choice: definition, the DC's evidence, what the coach adds. */
 // Queue #184: an analysis made in starred mode names the indicators it never asked (analysis.starred).
 const starredIn = (analysis, code) => Array.isArray((analysis || {}).starred) && analysis.starred.includes(code);
@@ -556,6 +659,9 @@ function buildReview(analysis = {}, edits = {}) {
 function applyReview(v2, review, edits = {}, v1 = null) {
   let rescored = 0;
   let textChanged = 0;
+  // bd-o15qnr.32: the portal's evidence review rides in `edits` (portal-observe saveDraft puts it there, checked; it is
+  // checked again here). Absent or unusable: nothing below touches evidence_review, so the save is today's.
+  const evidenceReviews = sanitizeEvidenceReview(edits && edits.evidence_review);
   v2.rubric = V6;
   v2.framework = V6;
   v2.domains = v2.domains || {};
@@ -593,6 +699,8 @@ function applyReview(v2, review, edits = {}, v1 = null) {
           if (coachText !== rumiText.trim()) textChanged += 1;
         }
       }
+      // bd-o15qnr.32: what the coach did with Rumi's evidence, beside the row (Rumi's list stays in rumi_evidence_items).
+      if (evidenceReviews && evidenceReviews[code] && !v6.isCombined(code)) row.evidence_review = evidenceReviews[code];
       const imp = edits[`imp_${code}`];
       if (typeof imp === 'string') {
         const orig = String(((v1 && v6Row(v1, code)) || {}).improvement_sw || '');
@@ -633,4 +741,5 @@ module.exports = {
   buildReview, applyReview, messages,
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
   fieldMessages, withSectionBAnswers,
+  EVIDENCE_REVIEW_LIMITS, rumiEvidenceOf, sanitizeEvidenceReview, savedEvidenceReview,
 };
