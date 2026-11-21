@@ -75,7 +75,7 @@ describe('landed: the class link opened from a reminder', () => {
   });
 });
 
-// lead-review A14 (one noun on every child surface): the worker's own fallback, used when a payload has no body.
+// One noun on every child surface (the class line and the hub tile say quiz): the worker's own fallback, used when a payload has no body.
 describe('the worker\'s fallback text says quiz', () => {
   test.each([['en', 'A quiz is waiting for you.'], ['ur', 'ایک کوئز آپ کا انتظار کر رہا ہے۔']])('%s: "%s"', async (lang, b) => {
     let body = null;
