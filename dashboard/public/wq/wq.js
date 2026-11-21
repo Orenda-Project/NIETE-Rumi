@@ -1215,17 +1215,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // V2: an Ogg clip on a phone that cannot play Ogg Opus but plays mp3 → the same stored clip as mp3 from our origin.
   // Only a stored quiz clip's address is rewritten (its key is the name); anything else is left as it is.
-  var formatSaid = false;
-  function playable(url) {
-    var probe = document.createElement('audio');
-    var ogg = probe.canPlayType ? probe.canPlayType('audio/ogg; codecs="opus"') : 'maybe';
-    var mp3 = probe.canPlayType ? probe.canPlayType('audio/mpeg') : 'maybe';
-    var out = url;
-    if (/\.ogg(\?|$)/i.test(url) && !ogg && mp3) {
-      var m = /\/((?:quiz-audio|web-quiz\/audio)\/[A-Za-z0-9._\/-]+)\.ogg(?:[?#]|$)/.exec(url);
-      if (m && m[1].indexOf('..') < 0) out = '/wq/clip/' + m[1] + '.mp3';
+  var formatSaid = false, canFmt = null;
+  function clipAddr(url) {
+    if (!canFmt) {
+      var probe = document.createElement('audio');
+      canFmt = { ogg: probe.canPlayType ? probe.canPlayType('audio/ogg; codecs="opus"') : 'maybe', mp3: probe.canPlayType ? probe.canPlayType('audio/mpeg') : 'maybe' };
     }
-    if (!formatSaid) { formatSaid = true; ev('audio_format', { fmt: clipFacts(out).fmt, can: 'ogg' + (ogg ? 1 : 0) + 'mp3' + (mp3 ? 1 : 0) }); }
+    if (/\.ogg(\?|$)/i.test(url) && !canFmt.ogg && canFmt.mp3) {
+      var m = /\/((?:quiz-audio|web-quiz\/audio)\/[A-Za-z0-9._\/-]+)\.ogg(?:[?#]|$)/.exec(url);
+      if (m && m[1].indexOf('..') < 0) return '/wq/clip/' + m[1] + '.mp3';
+    }
+    return url;
+  }
+  function playable(url) {
+    var out = clipAddr(url);
+    if (!formatSaid) { formatSaid = true; ev('audio_format', { fmt: clipFacts(out).fmt, can: 'ogg' + (canFmt.ogg ? 1 : 0) + 'mp3' + (canFmt.mp3 ? 1 : 0) }); }
     return out;
   }
   function holdForTap(text, url, meta) {
@@ -2220,7 +2224,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function warmClips(q) {
     if (!q || warmed[q.qid] || !SOUND) return;
     warmed[q.qid] = 1;
-    clipUrls(q).forEach(function (u) { try { fetch(u, { mode: 'no-cors', credentials: 'omit' }).catch(function () {}); } catch (e) {} });
+    // V2: the address the phone will play (an iPhone without Ogg warms the mp3 twin, never the Ogg it cannot use)
+    clipUrls(q).forEach(function (u) { if (VOICE_V2) u = clipAddr(u); try { fetch(u, { mode: 'no-cors', credentials: 'omit' }).catch(function () {}); } catch (e) {} });
   }
   function ahead(i) {
     warmPics(QS[i + 1]); warmPics(QS[i + 2]);
