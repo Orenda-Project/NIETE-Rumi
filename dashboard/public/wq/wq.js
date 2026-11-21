@@ -1159,7 +1159,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var VOICE_V2 = Boolean(typeof B !== "undefined" && B && B.voice_v2); // B: the boot (a test cut of this block may have none)
   var heldLines = null; // V2: [{ text, url, meta }] the clips this screen could not play, for the next tap
   var lastGesture = -1; // when the child last touched the page (ms; -1 = not yet on this page)
+  // V2: ONE voice element, unlocked inside the child's first tap and reused for every clip. Samsung Internet and Android
+  // WebViews lock media per element until a tap plays it, so a fresh element per clip refused every clip a timer started
+  // (17–20 Nov: those browsers were 6.4% of page sessions and 67% of refusals).
+  var shared = null;
+  var SILENT = 'data:audio/mpeg;base64,//MgxAAAAANIAAAAAExBTUUzLjk5LjVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zIsQnAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//MgxE8AAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zIMR2AAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU='; // 50 ms of silence (ffmpeg anullsrc, mp3)
+  function unlock() {
+    if (shared || !VOICE_V2) return;
+    try {
+      var el = new Audio();
+      el.src = SILENT;
+      var pr = el.play();
+      if (pr && pr.then) pr.then(function () { try { el.pause(); } catch (e) {} }, function () {});
+      shared = el;
+    } catch (e) { shared = null; }
+  }
   try {
+    if (VOICE_V2) { document.addEventListener('pointerdown', unlock, true); document.addEventListener('click', unlock, true); }
     document.addEventListener('pointerdown', function () { lastGesture = Date.now(); }, true);
     document.addEventListener('keydown', function () { lastGesture = Date.now(); }, true);
     if (VOICE_V2) document.addEventListener('click', replayOnTap, true);
@@ -1264,7 +1280,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         // fires its stalled timer: that is not a missing clip, and its old line stays quiet.
         if (switched || fin || gen !== voiceGen) return;
         switched = true;
-        if (why === 'stalled' && GAP_SLOW && player) { try { player.muted = true; late.push(player); } catch (e) {} } else { try { if (player) player.pause(); } catch (e) {} }
+        if (why === 'stalled' && GAP_SLOW && player && player !== shared) { try { player.muted = true; late.push(player); } catch (e) {} } else { try { if (player) player.pause(); } catch (e) {} }
         player = null;
         // The event names the part, the question, where the clip came from and how long it took to fail; a refused start
         // names its error as a slug (notallowederror keeps the tap), a clip that errors names the browser's media error.
@@ -1286,10 +1302,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       try {
         var probe = document.createElement('audio');
         if (/\.ogg(\?|$)/i.test(url) && probe.canPlayType && !probe.canPlayType('audio/ogg; codecs="opus"')) { fallback('unsupported'); return; }
-        var a = new Audio(url);
+        // V2 with the element unlocked: the same element, its handlers replaced for this clip (a stale clip's own
+        // closures are dropped, and its rejected play() or timers are answered by the voiceGen check)
+        var reuse = VOICE_V2 && shared;
+        var a = reuse ? shared : new Audio(url);
+        if (reuse) { try { a.pause(); } catch (e) {} a.muted = false; a.src = url; a.onended = null; a.onerror = null; }
         player = a;
         var started = false;
-        a.addEventListener('playing', function () {
+        (reuse ? function (fn) { a.onplaying = fn; } : function (fn) { a.addEventListener('playing', fn); })(function () {
           if (switched) {
             if (!started && late.indexOf(a) >= 0) { var fl = clipFacts(url); fl.reason = 'stalled'; fl.ms = Date.now() - t0; fl.part = (meta && meta.part) || 'line'; fl.qid = meta ? meta.qid : undefined; ev('audio_slow', fl); }
             started = true;
