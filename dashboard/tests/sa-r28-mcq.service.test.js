@@ -2426,7 +2426,9 @@ maybeBrowser('sa_r28_mcq round 9: the coach-led phone MCQ practice fits: the pas
     await p.evaluate(() => document.querySelectorAll('.sae-mcq-opt')[3].click()); // a wrong card, held
     await snap(p, 'chosen');
     await snap(p, 'feedback', 900); // settle + press: the practice's feedback
-    await p.waitForTimeout(1600); // the retry: the same question read again
+    // coach-led, Jugnu says the practice feedback (try again) since round 28: that line ends first, then the retry reads
+    // the same question again
+    await endLine(p, 1600);
     for (let k = 0; k < 5; k++) await endLine(p, k === 0 ? 900 : 600);
     await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelectorAll('.sae-mcq-opt')[2].click()); // wrong again: the right card shown
@@ -2690,7 +2692,9 @@ maybeBrowser('sa_r28_mcq round 8: the coach-led phone practice head with the ser
     out.feedback = await p.evaluate(measure);
     out.feedback.stem_above = await stemAbove(p);
     if (shots && ui.r9_skip_instructions) await personShot(p, { path: path.join(shots, `b8_practice_feedback_${lang}_phone_coach.png`) });
-    await p.waitForTimeout(1600); // the retry: the same question read again
+    // coach-led, Jugnu says the practice feedback (try again) since round 28: that line ends first, then the retry reads
+    // the same question again
+    await endLine(p, 1600);
     for (let k = 0; k < 5; k++) await endLine(p, k === 0 ? 900 : 600);
     await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelectorAll('.sae-mcq-opt')[2].click()); // wrong again: the right card shown
