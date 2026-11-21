@@ -477,6 +477,8 @@ async function expireTick(now = Date.now()) {
 
 const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed', 'failed', 'escape', 'copy', 'ios', 'nopush', 'stop', 'test']);
 const HOWS = new Set(['intent', 'menu', 'copy']);
+// Where the ask was answered: the quiz result screen, under the standing link's chips, or the /remind/:code landing.
+const SRCS = new Set(['result', 'class_link', 'landing']);
 /** A page step event, allow-listed enums only. */
 function stepEvent(body = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
@@ -486,6 +488,7 @@ function stepEvent(body = {}) {
     ...(typeof body.iab === 'boolean' ? { iab: body.iab } : {}),
     ...(body.lang === 'en' || body.lang === 'ur' ? { lang: body.lang } : {}),
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
+    ...(SRCS.has(body.src) ? { src: body.src } : {}),
   });
   return { ok: 1 };
 }
