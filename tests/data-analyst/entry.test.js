@@ -139,6 +139,31 @@ describe('(d) no mode: data questions are answered, everything else goes on as b
     expect(chart.body).toContain('B.K: 217 reviewed · 212 complete · 5 debrief pending');
     expect(chart.body).toContain('Nilore: 127 reviewed · 122 complete · 5 debrief pending');
   });
+  test('an answer that ends with an optional question: the chart and its listed lines first, then the question as taps (bd-bhgw20.4)', async () => {
+    // Prod, 21 Nov 10:42: quick pick 2 answered, then asked "split by the v10 test groups instead?"; the chart was lost.
+    const WIDE = {
+      name: 'query_metric', arguments: { metric: 'hitl_conducted', by: ['sector'] },
+      result: JSON.stringify({ status: 'ok', rows: [{ sector: 'B.K', value: 229, reviewed: 217, complete: 212, debrief_pending: 5 }, { sector: 'Nilore', value: 131, reviewed: 127, complete: 122, debrief_pending: 5 }],
+        measures: [{ name: 'value', label: 'coach visits' }, { name: 'reviewed', label: 'visits reviewed' }, { name: 'complete', label: 'debriefs sent' }, { name: 'debrief_pending', label: 'debriefs waiting' }] }),
+    };
+    const s = setup({ answer: { text: '*360 coach visits* were held 1–21 Nov.\n• Urban-I leads.\nASK: Split by the v10 test groups instead? | Yes, split by test group | No, sector is fine', calls: [RULES, WIDE], stoppedEarly: false } });
+    await s.text('How many coach visits were held this month, by sector?');
+    const kinds = s.out.map((o) => o.kind);
+    const img = s.out.find((o) => o.kind === 'image');
+    const list = s.out.find((o) => o.kind === 'list');
+    expect(img).toBeDefined();
+    expect(kinds.indexOf('image')).toBeLessThan(kinds.indexOf('list'));
+    expect(img.caption).toContain('*360 coach visits* were held 1–21 Nov.');
+    expect(img.caption).toContain('B.K: 217 reviewed');
+    expect(list.list.body.text).toContain('Split by the v10 test groups instead?');
+    expect(list.list.body.text).not.toContain('360 coach visits'); // said once, under the chart
+    expect(list.list.action.sections[0].rows.map((r) => r.title)).toEqual(['Yes, split by test group', 'No, sector is fine']);
+  });
+  test('an answer that asks before it counts (no rows yet): the question alone, as before', async () => {
+    const s = setup({ answer: { text: 'Which period do you mean?\nASK: Which period? | This week | This month', calls: [RULES], stoppedEarly: false } });
+    await s.text('How many coach visits were held, by sector?');
+    expect(s.out.map((o) => o.kind)).toEqual(['text', 'list']);
+  });
   test('a chart that cannot be rendered falls back to the text answer', async () => {
     const s = setup({ chart: null });
     await s.text('How many teachers made a lesson plan last week, by sector?');
