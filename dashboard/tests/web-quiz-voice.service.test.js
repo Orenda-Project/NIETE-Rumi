@@ -95,7 +95,7 @@ test('a clip the browser refuses to start (autoplay before a tap) is not read by
   h.clips[0].rejectPlay(new Error('NotAllowedError'));
   await flush();
   expect(h.spoken).toEqual([]);
-  // the event's reason; since the voice fields (QFIX voice) it also names the part, host, format and timing
+  // the event's reason; since the clip facts were added it also names the part, host, format and timing
   expect(h.events).toEqual([{ name: 'audio_fallback', data: expect.objectContaining({ reason: 'reject' }) }]);
 });
 
@@ -292,7 +292,7 @@ test('a refused play() names its error in the fallback event (which rejects a ph
     await flush();
     return h.events.filter((e) => e.name === 'audio_fallback').map((e) => e.data);
   };
-  // since the voice fields (QFIX voice) the error is named whatever the switch, so refusals can be told apart
+  // since the clip facts were added the error is named whatever the switch, so refusals can be told apart
   expect(await run(true)).toEqual([expect.objectContaining({ reason: 'reject', err: 'notallowederror' })]);
   expect(await run(false)).toEqual([expect.objectContaining({ reason: 'reject', err: 'notallowederror' })]);
 });
