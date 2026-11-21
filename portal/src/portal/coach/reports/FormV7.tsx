@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
-import type { DraftIndicator, DraftOption, DraftSection, ObservationDraft, V6Indicator } from "../../services/api";
+import type { DraftIndicator, DraftOption, DraftSection, ObservationDraft } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { RatingScale, StatusChip, Tray } from "../../teacher/ui";
 import type { RatingOption } from "../../teacher/ui/RatingScale";
@@ -9,8 +9,7 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { REPORTS, type ReportsCopy } from "./copy";
 import { rungName, titleOf, type Values } from "./formModel";
-import { changedFromRumi, type V6Problems, type V6Section } from "./v6Model";
-import { Problem, problemText, v6RatingOptions } from "./V6Parts";
+import { Problem } from "./V6Parts";
 
 /**
  * bd-o15qnr.28 (queue #204, v7; #188's LOCK round, "Screens #206 found with no design", row 10) — the Feedback Form
@@ -31,11 +30,99 @@ import { Problem, problemText, v6RatingOptions } from "./V6Parts";
  *
  * Same keys, same rules, same saves as today (formModel.ts, v6Model.ts): only the look changes. Words: copyV7form.ts,
  * reports/copy.ts and flow/copyV7.ts; the rubric's levels and the bot's text are data.
+ *
+ * bd-o15qnr.31 (#188, 21 Nov) — a FICO17 v6 draft is drawn collapsed (FormV7List.tsx: sections, one row per indicator,
+ * one indicator alone, evidence option B with editing); this file keeps the pieces both share and the older FICO
+ * review's paged look. Every text box is sized to its text (AutoText: one row to start, as tall as its words, no inner
+ * scroll; each paragraph its own direction, unicode-bidi: plaintext), and a gap is a short toast (FormToast).
  */
 
 const FIELD = "w-full rounded-xl border border-[#d1d5db] bg-white px-3 py-2.5 text-[16px] leading-snug text-[#1d2025]";
 const LABEL = "text-[13px] font-bold text-[#6b7280]";
 const CARD = cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5");
+
+/** Urdu content (any Arabic-script letter): Nastaliq and right to left whatever the app's language (index.css data-urdu). */
+const URDU = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+export const urduOf = (text: string | null | undefined): { lang?: "ur"; "data-urdu"?: "" } => (URDU.test(text ?? "") ? { lang: "ur", "data-urdu": "" } : {});
+
+/**
+ * bd-o15qnr.31 — a text box sized to its text: one row to start, as tall as its words as they are typed (no inner
+ * scroll), each paragraph its own direction (English left to right, Urdu right to left; `unicode-bidi: plaintext`).
+ */
+export const AutoText = forwardRef<HTMLTextAreaElement, Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "rows" | "dir"> & { value: string }>(
+  function AutoText({ value, className, ...rest }, ref) {
+    const own = useRef<HTMLTextAreaElement | null>(null);
+    const fit = useCallback(() => {
+      const el = own.current;
+      if (!el) return;
+      el.style.height = "auto";
+      // Hidden (a closed tray): nothing to measure; the next change fits it.
+      if (!el.scrollHeight) { el.style.height = ""; return; }
+      el.style.height = `${el.scrollHeight + Math.max(0, el.offsetHeight - el.clientHeight)}px`;
+    }, []);
+    useLayoutEffect(fit, [value, fit]);
+    useEffect(() => {
+      window.addEventListener("resize", fit);
+      return () => window.removeEventListener("resize", fit);
+    }, [fit]);
+    const attach = (el: HTMLTextAreaElement | null) => {
+      own.current = el;
+      if (typeof ref === "function") ref(el);
+      else if (ref) ref.current = el;
+    };
+    return (
+      <textarea ref={attach} rows={1} dir="auto" value={value} data-autosize="" {...urduOf(value)} {...rest}
+        className={cn("min-h-[56px] resize-none overflow-hidden [unicode-bidi:plaintext]", className)} />
+    );
+  },
+);
+
+/** How long a gap's toast stays (niete-portal: nothing vanishes before she can read it); Undo's is the operator's 5 s. */
+export const GAP_MS = 10_000;
+export const UNDO_MS = 5_000;
+export type FormToastState = { text: string; ms: number; n: number; action?: { label: string; run: () => void } } | null;
+
+/** One toast at a time, gone after its time (a new one restarts the clock). */
+export function useFormToast() {
+  const [toast, setToast] = useState<FormToastState>(null);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), toast.ms);
+    return () => clearTimeout(t);
+  }, [toast]);
+  const show = useCallback((text: string, ms = GAP_MS, action?: { label: string; run: () => void }) => {
+    setToast((cur) => ({ text, ms, action, n: (cur?.n ?? 0) + 1 }));
+  }, []);
+  const hide = useCallback(() => setToast(null), []);
+  return { toast, show, hide };
+}
+
+/** The toast over the dock: a short line, and Undo when there is one. */
+export function FormToast({ toast, onDone }: { toast: FormToastState; onDone: () => void }) {
+  if (!toast) return null;
+  return (
+    <div data-testid="ff-toast" role="status" aria-live="polite"
+      className="fixed inset-x-4 bottom-[104px] z-40 mx-auto flex min-h-[56px] max-w-[420px] items-center gap-3 rounded-[14px] bg-[#1f2429] ps-4 pe-2 text-[15px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]">
+      <span className="min-w-0 flex-1" dir="auto">{toast.text}</span>
+      {toast.action ? (
+        <button type="button" onClick={() => { toast.action?.run(); onDone(); }}
+          className={cn("min-h-[56px] shrink-0 rounded-xl px-3 font-bold text-[#9be3bd]", FOCUS)}>{toast.action.label}</button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Scroll a field into view and put the focus on it (a level group: its chosen level, else the first). */
+export function focusField(id: string): boolean {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  const target = (el.matches("textarea, input, button, select, [tabindex]") ? el : null)
+    ?? el.querySelector<HTMLElement>('[role="radio"][tabindex="0"], [role="radio"], textarea, input, button')
+    ?? el;
+  target.scrollIntoView?.({ block: "center" });
+  target.focus?.({ preventScroll: true });
+  return true;
+}
 
 /** The crumb: the teacher, then where the form is (the status line's own words). */
 export function v7Crumb(W7: FlowV7Copy, name: string, filled: boolean): string {
@@ -81,7 +168,7 @@ export function DockV7({ children, single = false }: { children: ReactNode; sing
   return <div data-testid="form-dock" className={cn(GRID, "w-full gap-2.5", single ? "grid-cols-1" : "grid-cols-[1fr_2fr]")}>{children}</div>;
 }
 
-function Head({ code, name }: { code: string; name: string }) {
+export function Head({ code, name }: { code: string; name: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <StatusChip text={code} tone="score" />
@@ -90,7 +177,7 @@ function Head({ code, name }: { code: string; name: string }) {
   );
 }
 
-function TextBox({ id, label, value, onChange, readOnly, problem }: {
+export function TextBox({ id, label, value, onChange, readOnly, problem }: {
   id: string; label: string; value: string; onChange: (v: string) => void; readOnly: boolean; problem?: string | null;
 }) {
   if (readOnly) {
@@ -104,7 +191,7 @@ function TextBox({ id, label, value, onChange, readOnly, problem }: {
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className={LABEL}>{label}</label>
-      <textarea id={id} dir="auto" value={value} rows={3} onChange={(e) => onChange(e.target.value)}
+      <AutoText id={id} value={value} onChange={(e) => onChange(e.target.value)}
         aria-invalid={problem ? true : undefined} className={cn(FIELD, FOCUS, problem && "border-[#c8331f]")} />
       <Problem text={problem ?? null} />
     </div>
@@ -112,11 +199,11 @@ function TextBox({ id, label, value, onChange, readOnly, problem }: {
 }
 
 /** Rumi's evidence for one of the six: read only, dashed, never a box the coach types in. */
-function ReadOnlyBox({ label, text }: { label: string; text: string }) {
+export function ReadOnlyBox({ label, text }: { label: string; text: string }) {
   return (
     <div className="flex flex-col gap-1">
       <span className={LABEL}>{label}</span>
-      <p className="m-0 whitespace-pre-line rounded-xl border border-dashed border-[#d1d5db] bg-[#f9fafb] px-3 py-2.5 text-[14px] leading-relaxed text-[#374151]" dir="auto">{text}</p>
+      <p className="m-0 whitespace-pre-line rounded-xl border border-dashed border-[#d1d5db] bg-[#f9fafb] px-3 py-2.5 text-[14px] leading-relaxed text-[#374151] [unicode-bidi:plaintext]" dir="auto">{text}</p>
     </div>
   );
 }
@@ -124,7 +211,7 @@ function ReadOnlyBox({ label, text }: { label: string; text: string }) {
 /** N/A and Couldn't tell go after the four levels, as pills. */
 const asideOf = (o: RatingOption): RatingOption => (o.id === "NA" || o.id === "IE" || o.id === "na" ? { ...o, aside: true } : o);
 
-function Levels({ name, value, options, dc, onChange }: {
+export function Levels({ name, value, options, dc, onChange }: {
   name: string; value: string; options: RatingOption[]; dc: string | null; onChange: (v: string) => void;
 }) {
   const F = useCopy(FORM_V7) as FormV7Copy;
@@ -135,87 +222,10 @@ function Levels({ name, value, options, dc, onChange }: {
 }
 
 /** A level's words: its name, or N/A / Couldn't tell (with the indicator's own N/A words). */
-function levelWords(options: RatingOption[], id: string | null | undefined): string | null {
+export function levelWords(options: RatingOption[], id: string | null | undefined): string | null {
   const o = options.find((x) => x.id === id);
   if (!o) return id || null;
   return o.label && !o.text ? o.label : [o.text, o.label].filter(Boolean).join(" · ");
-}
-
-/** bd-ra8xu.40's v6 part (C, D or F), in the v7 look: the same fields, keys and rules as V6Part. */
-export function V6PartV7({ section, values, start, set, readOnly, problems, minReason }: {
-  section: V6Section; values: Values; start: Values; set: (k: string) => (v: string) => void;
-  readOnly: boolean; problems: V6Problems; minReason: number;
-}) {
-  const C = useCopy(REPORTS) as ReportsCopy;
-  const F = useCopy(FORM_V7) as FormV7Copy;
-  const why = (k: string) => problemText(C, problems[k], minReason);
-  const changed = section.indicators.some((ind) => changedFromRumi(ind, values));
-  const chgKey = `chg_${section.letter}`;
-
-  const card = (ind: V6Indicator) => {
-    const rk = `r_${ind.field}`;
-    const options = v6RatingOptions(ind.options, C);
-    const level = readOnly
-      ? (values[rk] ? <StatusChip text={levelWords(options, values[rk]) || C.dash} tone="info" className="self-start" /> : null)
-      : (
-        <>
-          <Levels name={ind.name} value={values[rk] || ""} options={options} dc={ind.kind === "dc" ? ind.rumi : null} onChange={set(rk)} />
-          <Problem text={why(rk)} />
-        </>
-      );
-    return (
-      <section key={ind.id} data-testid="indicator" className={CARD}>
-        <Head code={ind.id} name={ind.name} />
-        {ind.kind === "dc" && !readOnly && changedFromRumi(ind, values) && (
-          <StatusChip text={F.changedFrom(levelWords(options, ind.rumi) || C.dash)} tone="waiting" className="self-start" />
-        )}
-        {ind.kind === "combined" ? (
-          <>
-            {ind.body ? <ReadOnlyBox label={C.fromRecording} text={ind.body} /> : null}
-            {level}
-            <TextBox id={`why_${ind.field}`} label={F.whyLevelMin(minReason)} value={values[`why_${ind.field}`] ?? ""}
-              onChange={set(`why_${ind.field}`)} readOnly={readOnly} problem={why(`why_${ind.field}`)} />
-            {ind.d2 && (
-              readOnly ? (
-                <p className="m-0 text-[15px]">{`${C.d2Children}: ${values.d2_children || C.dash} · ${C.d2QuietLater}: ${values.d2_quiet_later || C.dash}`}</p>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  <div className={cn(GRID, "grid-cols-2 gap-2.5")}>
-                    {([["d2_children", C.d2Children], ["d2_quiet_later", C.d2QuietLater]] as const).map(([k, label]) => (
-                      <div key={k} className="flex flex-col gap-1">
-                        <label htmlFor={k} className={LABEL}>{label}</label>
-                        <input id={k} dir="auto" inputMode="numeric" pattern="[0-9]*" value={values[k] ?? ""} onChange={(e) => set(k)(e.target.value)}
-                          aria-invalid={problems.d2_children ? true : undefined}
-                          className={cn(FIELD, "min-h-[56px] text-[18px] font-semibold tabular-nums", FOCUS, problems.d2_children && "border-[#c8331f]")} />
-                      </div>
-                    ))}
-                  </div>
-                  <Problem text={why("d2_children")} />
-                </div>
-              )
-            )}
-          </>
-        ) : (
-          <>
-            {level}
-            <TextBox id={`ev_${ind.field}`} label={F.evidence} value={values[`ev_${ind.field}`] ?? ""} onChange={set(`ev_${ind.field}`)} readOnly={readOnly} />
-            <TextBox id={`imp_${ind.field}`} label={C.toImprove} value={values[`imp_${ind.field}`] ?? ""} onChange={set(`imp_${ind.field}`)} readOnly={readOnly} />
-          </>
-        )}
-      </section>
-    );
-  };
-
-  return (
-    <>
-      {section.indicators.map(card)}
-      {(changed || (readOnly && values[chgKey])) && (
-        <section data-testid="why-changed" className="flex flex-col gap-2.5 rounded-2xl border border-[#fde7b0] bg-[#fffbeb] p-3.5">
-          <TextBox id={chgKey} label={F.whyChanged} value={values[chgKey] ?? ""} onChange={set(chgKey)} readOnly={readOnly} problem={why(chgKey)} />
-        </section>
-      )}
-    </>
-  );
 }
 
 /** An older FICO review's indicator (bd-4404s7.5), in the v7 look; the Digital Coach's level is Rumi's until the coach saves. */

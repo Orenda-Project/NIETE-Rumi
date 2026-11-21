@@ -826,13 +826,31 @@ export type DraftMove = { k: number; plan: string; verdict: string; evidence: st
 /** bd-ra8xu.40 — a level a FICO17 v6 indicator offers: "1".."4", "NA" or "IE", its short title and the rubric's words. */
 export type V6Option = { id: string; title: string; description?: string };
 /**
+ * bd-o15qnr.31 (#188, 21 Nov ~10:05, evidence option B with editing) — the coach's review of the NIETE Teaching
+ * Assistant's evidence for one indicator, sent beside `ev_<code>` (POST …/draft `evidence_review`, keyed by code):
+ *   summary   the assistant's line and the coach's (the same when unchanged);
+ *   items     each of the assistant's quotes with what the coach did (kept / removed / edited, the edit as coach_text),
+ *             then the coach's own lines (an optional MM:SS time).
+ * `ev_<code>` is still the one text the reports read; this is the record of what changed.
+ */
+export type EvidenceReviewItem =
+  | { source: 'rumi'; time: string | null; quote: string; status: 'kept' | 'removed' | 'edited'; coach_text?: string }
+  | { source: 'coach'; time?: string | null; text: string };
+export type EvidenceReview = { summary: { rumi: string; coach: string }; items: EvidenceReviewItem[] };
+/**
  * bd-ra8xu.40 — one of the 17 on a FICO17 v6 review (the v6 Flow's screen, in the portal):
  *   'dc'        one of Rumi's 11: `rumi` is his level (null when he had none), `rating` pre-filled, evidence editable;
  *   'combined'  one of the six set from the room: `body` is the definition and Rumi's evidence (read only), blank
  *               `rating` until set, a reason (`why`); D2 also its two counts.
  */
 export type V6Indicator =
-  | { id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string }
+  | {
+    id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string;
+    /** bd-o15qnr.31 — the NIETE Teaching Assistant's own evidence: its one line and each {time MM:SS, quote}. Absent from an older bot. */
+    rumiEvidence?: { because: string | null; items: { time: string | null; quote: string }[] };
+    /** bd-o15qnr.31 — the coach's review of that evidence, as last saved; null/absent before one is saved. */
+    evidenceReview?: EvidenceReview | null;
+  }
   | { id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string } };
 export type DraftSection =
   | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
@@ -1258,9 +1276,13 @@ export const leader = {
     return response.data;
   },
 
-  /** The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. */
-  saveObservationDraft: async (id: string, edits: Record<string, string>): Promise<{ success: boolean }> => {
-    const response = await api.post(`/leader/observe/${id}/draft`, { edits });
+  /**
+   * The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. bd-o15qnr.31 — with
+   * `evidenceReview` (by indicator code) also `evidence_review`; none (or empty), today's body exactly.
+   */
+  saveObservationDraft: async (id: string, edits: Record<string, string>, evidenceReview?: Record<string, EvidenceReview>): Promise<{ success: boolean }> => {
+    const review = evidenceReview && Object.keys(evidenceReview).length ? { evidence_review: evidenceReview } : {};
+    const response = await api.post(`/leader/observe/${id}/draft`, { edits, ...review });
     return response.data;
   },
 
@@ -1268,8 +1290,9 @@ export const leader = {
    * bd-ra8xu.40 — save an FDE (obs612) visit's form (the Flow's field names), and with `submit` submit it. Answers the
    * form as it now stands. A Submit with anything missing is a 400 whose body is an Obs612Refusal (the answers are saved).
    */
-  saveObs612Form: async (id: string, values: Record<string, string>, submit = false): Promise<Obs612Draft> => {
-    const response = await api.post(`/leader/observe/${id}/draft`, submit ? { edits: values, submit: true } : { edits: values });
+  saveObs612Form: async (id: string, values: Record<string, string>, submit = false, evidenceReview?: Record<string, EvidenceReview>): Promise<Obs612Draft> => {
+    const review = evidenceReview && Object.keys(evidenceReview).length ? { evidence_review: evidenceReview } : {};
+    const response = await api.post(`/leader/observe/${id}/draft`, submit ? { edits: values, submit: true, ...review } : { edits: values, ...review });
     return response.data;
   },
 

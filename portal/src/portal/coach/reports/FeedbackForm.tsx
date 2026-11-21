@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { useNavigate, useParams } from "react-router-dom";
 import { leader } from "../../services/api";
-import type { DraftIndicator, DraftMove, DraftOption, DraftSection, Obs612Draft, ObservationDraft } from "../../services/api";
+import type { DraftIndicator, DraftMove, DraftOption, DraftSection, EvidenceReview, Obs612Draft, ObservationDraft } from "../../services/api";
 import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
@@ -21,7 +21,9 @@ import { MIN_REASON, v6Problems, type V6Problems } from "./v6Model";
 import Obs612Form from "./Obs612Form";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
-import { DockV7, FormChips, IndicatorV7, Legend, PartTitle, SaveTrayV7, V6PartV7, v7Changes, v7Crumb } from "./FormV7";
+import { AutoText, DockV7, FormChips, IndicatorV7, Legend, PartTitle, SaveTrayV7, v7Changes, v7Crumb } from "./FormV7";
+import { V6FormV7 } from "./FormV7List";
+import { dropV7 } from "./evidenceReview";
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -41,10 +43,15 @@ import { DockV7, FormChips, IndicatorV7, Legend, PartTitle, SaveTrayV7, V6PartV7
  * bd-o15qnr.28 (v7) — on the v6/v7 switch (useFlowV6: a coach on portal_coach_flow_v2, or a principal on the principal
  * app it names) the same form is drawn in the v7 look (FormV7.tsx; #188's boards m9-ff-v6, m9-ff-save, p9-ff-v6): same
  * state, keys, rules and save. Off (or while /config is read), today's screen, unchanged.
+ *
+ * bd-o15qnr.31 (#188, 21 Nov: the Feedback Form review, LOCKED ~10:05) — on the switch a FICO17 v6 draft is drawn
+ * collapsed (FormV7List.tsx: sections → one row per indicator → one indicator alone; the NIETE Teaching Assistant's
+ * evidence as rows the coach keeps, edits, removes or adds to). The same keys and the same save, with the evidence
+ * reviews beside them (`evidence_review`); every text box sized to its text.
  */
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 
-function Field({ id, label, value, onChange, readOnly }: { id: string; label: string; value: string; onChange: (v: string) => void; readOnly: boolean }) {
+function Field({ id, label, value, onChange, readOnly, auto = false }: { id: string; label: string; value: string; onChange: (v: string) => void; readOnly: boolean; auto?: boolean }) {
   if (readOnly) {
     return value ? (
       <div className="flex flex-col gap-0.5">
@@ -56,7 +63,9 @@ function Field({ id, label, value, onChange, readOnly }: { id: string; label: st
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-[13px] font-semibold text-[#6b7280]">{label}</label>
-      <textarea id={id} value={value} onChange={(e) => onChange(e.target.value)} rows={3} dir="auto" className={cn(AREA, FOCUS)} />
+      {auto
+        ? <AutoText id={id} value={value} onChange={(e) => onChange(e.target.value)} className={cn(AREA, FOCUS)} />
+        : <textarea id={id} value={value} onChange={(e) => onChange(e.target.value)} rows={3} dir="auto" className={cn(AREA, FOCUS)} />}
     </div>
   );
 }
@@ -146,12 +155,15 @@ export default function FeedbackForm() {
   const go = (n: number) => { setProblems({}); setPart(n); top.current?.scrollIntoView?.({ block: "start" }); };
   const back = () => (part > 0 ? go(part - 1) : navigate(home));
 
-  const save = async () => {
+  const save = async (review?: Record<string, EvidenceReview>) => {
     setSaving(true);
     setProblem(null);
     try {
-      await leader.saveObservationDraft(id, values);
+      // bd-o15qnr.31 — the evidence reviews only from the v7 form, and only when there are some: today's call otherwise.
+      if (review) await leader.saveObservationDraft(id, values, review);
+      else await leader.saveObservationDraft(id, values);
       dropForm(id); // the bot has them now
+      dropV7(id);
       navigate(home, { replace: true });
     } catch (err) {
       const res = (err as { response?: { status?: number; data?: { reason?: string; errors?: Record<string, string> } } })?.response;
@@ -195,28 +207,28 @@ export default function FeedbackForm() {
     );
   };
 
-  const moveCard = (m: DraftMove, n: number, scale: readonly DraftOption[]) => {
+  const moveCard = (m: DraftMove, n: number, scale: readonly DraftOption[], v7look = false) => {
     const rk = `fid_r_${m.k}`;
     const ek = `fid_e_${m.k}`;
     return (
-      <section key={m.k} data-testid="move" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
+      <section key={m.k} data-testid="move" id={v7look ? `ff-move-${m.k}` : undefined} tabIndex={v7look ? -1 : undefined} className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
         <span className="text-[13px] font-bold uppercase tracking-wide text-[#6b7280]">{C.moveOf(m.k, n)}</span>
         <p className="whitespace-pre-line text-[16px] font-semibold leading-snug" dir="auto">{m.plan}</p>
         {readOnly
           ? <StatusChip text={titleOf(scale, values[rk])} tone="info" className="self-start" />
           : <SelectField label={C.verdict} title={C.verdict} value={values[rk] || null} options={scale.map((o) => ({ value: o.id, label: o.title }))} onChange={set(rk)} />}
-        <Field id={ek} label={C.whatSeen} value={values[ek] ?? ""} onChange={set(ek)} readOnly={readOnly} />
+        <Field id={ek} label={C.whatSeen} value={values[ek] ?? ""} onChange={set(ek)} readOnly={readOnly} auto={v7look} />
       </section>
     );
   };
 
   // Drawn the same in both looks.
-  const movesPart = (s: Extract<DraftSection, { kind: "moves" }>, d: ObservationDraft) => (
+  const movesPart = (s: Extract<DraftSection, { kind: "moves" }>, d: ObservationDraft, v7look = false) => (
     <>
       <PlanSource lp={view?.lessonPlan} />
       {s.header && <p className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{s.header}</p>}
       {s.moves.length === 0 && s.fallback && <p className={cn(LIST_CARD, "p-3.5 text-[15px] leading-relaxed")} dir="auto">{s.fallback}</p>}
-      {s.moves.map((m) => moveCard(m, s.moves.length, d.fidelityScale))}
+      {s.moves.map((m) => moveCard(m, s.moves.length, d.fidelityScale, v7look))}
     </>
   );
   const problemBox = problem && (
@@ -237,6 +249,16 @@ export default function FeedbackForm() {
       )}
     </>
   );
+
+  // bd-o15qnr.31 — a FICO17 v6 draft on the switch: every section collapsed (FormV7List.tsx).
+  if (v7 && draft && sections.some((s) => s.kind === "v6")) {
+    return (
+      <V6FormV7 id={id} draft={draft} values={values} start={start} setValues={setValues} readOnly={readOnly} name={name}
+        minReason={minReason} principal={!routes.coachGate} moves={(s) => movesPart(s, draft, true)}
+        onLeave={() => navigate(home)} onSave={(review) => { void save(review); }} confirm={confirm} setConfirm={setConfirm}
+        saving={saving} problem={problemBox} head={<>{loadAndEmpty}<div ref={top} /></>} />
+    );
+  }
 
   // bd-o15qnr.28 — the v7 look (FormV7.tsx): the same parts, keys, rules and save as below.
   if (v7) {
@@ -260,10 +282,8 @@ export default function FeedbackForm() {
             <PartTitle text={`${section.letter}. ${section.title}`} />
             {!readOnly && section.kind !== "moves" && <Legend principal={!routes.coachGate} />}
             {section.kind === "moves" ? (
-              movesPart(section, draft)
-            ) : section.kind === "v6" ? (
-              <V6PartV7 section={section} values={values} start={start} set={set} readOnly={readOnly} problems={problems} minReason={minReason} />
-            ) : (
+              movesPart(section, draft, true)
+            ) : section.kind === "v6" ? null : (
               <>
                 {section.notes.map((n) => <p key={n.slice(0, 40)} className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{n}</p>)}
                 {section.indicators.map((ind) => (
@@ -274,7 +294,7 @@ export default function FeedbackForm() {
             {problemBox}
           </>
         )}
-        <SaveTrayV7 open={confirm} saving={saving} onSave={save} onClose={() => { if (!saving) setConfirm(false); }}
+        <SaveTrayV7 open={confirm} saving={saving} onSave={() => { void save(); }} onClose={() => { if (!saving) setConfirm(false); }}
           counts={v7Changes(draft ?? { sections: [], saved: false }, start, values)} />
       </ReportsFrame>
     );
@@ -315,7 +335,7 @@ export default function FeedbackForm() {
       <Tray open={confirm} title={C.saveTitle} onClose={() => { if (!saving) setConfirm(false); }}>
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-[16px] font-semibold">{changes.ratings + changes.notes === 0 ? C.noChanges : C.changesSummary(changes.ratings, changes.notes)}</p>
-          <button type="button" onClick={save} disabled={saving}
+          <button type="button" onClick={() => { void save(); }} disabled={saving}
             className={cn("flex min-h-[56px] items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white disabled:opacity-60", FOCUS)}>
             {saving ? C.saving : C.saveContinue}
           </button>
