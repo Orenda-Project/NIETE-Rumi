@@ -42,7 +42,9 @@ async function observerLang(userId) {
 // Queue #184: Rumi's pre-fill on the form row (a Digital Coach visit), for the screens' lines and the change check.
 const dcOf = (form) => require('../services/observe/obs612/fico-s-dc').dcOf(form);
 
-const done = (outcome, formId, lang, lines) => ({ screen: 'DONE', data: FS.doneData(outcome, formId, lang, lines) });
+// Queue #218: the form's own version (v1.1 or v1.2) from its row, so a form finishes on the version it was made with.
+const rubricOf = (ctx) => (ctx && ctx.form ? ctx.form.rubric_version : undefined);
+const done = (outcome, formId, lang, lines, rubric) => ({ screen: 'DONE', data: FS.doneData(outcome, formId, lang, lines, rubric) });
 const show = (screenId, draft, lang, opts) => ({ screen: screenId, data: FS.screenData(screenId, draft, lang, opts) });
 
 async function handleInit(flowToken, deps) {
@@ -52,14 +54,14 @@ async function handleInit(flowToken, deps) {
     logToFile('[fico-s] form refused at open', { formId: ctx.formId || null, refusal: ctx.refusal }, 'warn');
     return { screen: 'NOTICE', data: FS.noticeData(ctx.refusal, lang) };
   }
-  return show(FS.FIRST_SCREEN, deps.Store.draftOf(ctx.form), lang, { dc: dcOf(ctx.form) });
+  return show(FS.FIRST_SCREEN, deps.Store.draftOf(ctx.form), lang, { dc: dcOf(ctx.form), rubric: rubricOf(ctx) });
 }
 
 async function submit(ctx, step, draft, lang, deps) {
   const missing = deps.Record.whatIsMissing(ctx.form, draft);
   if (missing.length) {
     logToFile('[fico-s] Submit with answers missing', { formId: ctx.formId, missing: missing.slice(0, 10), count: missing.length }, 'warn');
-    return show(step, draft, lang, { note: FS.missingNote(missing, lang), dc: dcOf(ctx.form) });
+    return show(step, draft, lang, { note: FS.missingNote(missing, lang), dc: dcOf(ctx.form), rubric: rubricOf(ctx) });
   }
   let analysis;
   try {
@@ -75,12 +77,12 @@ async function submit(ctx, step, draft, lang, deps) {
       logToFile('[fico-s] Submit refused: the visit was cancelled', { formId: ctx.formId, sessionId: ctx.form.coaching_session_id }, 'warn');
       return done('closed', ctx.formId, lang);
     }
-    return show(step, draft, lang, { note: FS.STR[lang].submit_failed, dc: dcOf(ctx.form) });
+    return show(step, draft, lang, { note: FS.STR[lang].submit_failed, dc: dcOf(ctx.form), rubric: rubricOf(ctx) });
   }
   logToFile('[fico-s] form submitted', {
     formId: ctx.formId, sessionId: res.sessionId, pct: analysis.obs612 && analysis.obs612.result ? analysis.obs612.result.pct : null,
   });
-  const response = done('submitted', ctx.formId, lang);
+  const response = done('submitted', ctx.formId, lang, null, rubricOf(ctx));
   deps.sendSummaryLater({ coachUserId: ctx.coachUserId, sessionId: res.sessionId, analysis, formId: ctx.formId });
   return response;
 }
@@ -112,22 +114,23 @@ async function handleDataExchange(flowToken, screen, payload, deps) {
     const saved = await deps.Store.saveDraft(ctx.form, draft);
     if (!saved.ok) {
       if (saved.sealed) return done('already', ctx.formId, lang, s.refused.sealed);
-      return show(step, draft, lang, { note: s.save_failed, dc: dcOf(ctx.form) });
+      return show(step, draft, lang, { note: s.save_failed, dc: dcOf(ctx.form), rubric: rubricOf(ctx) });
     }
     ctx.form = saved.form;
   }
 
   // 2. This screen's answers.
   const dc = dcOf(ctx.form);
-  const errors = FS.checkScreen(step, draft, { dc });
+  const rubric = rubricOf(ctx);
+  const errors = FS.checkScreen(step, draft, { dc, rubric });
   if (Object.keys(errors).length) {
     const footer = FS.isSubmitScreen(step) ? s.submit : s.next;
-    return show(step, draft, lang, { errors, note: s.fix_note(footer), dc });
+    return show(step, draft, lang, { errors, note: s.fix_note(footer), dc, rubric });
   }
 
   // 3. On, or Submit.
   const next = FS.nextOf(step);
-  if (next) return show(next, draft, lang, { dc });
+  if (next) return show(next, draft, lang, { dc, rubric });
   return submit(ctx, step, draft, lang, deps);
 }
 

@@ -84,12 +84,14 @@ function lessonOf(form) {
  *                            dp_action), feedback (fb_strengths … or fb_line)
  * @param {object} [opts]     { now }
  */
-/** bd-31ziu8 — the analysis_data of a submitted FICO-S v1.1 form. */
+/** bd-31ziu8 — the analysis_data of a submitted FICO-S form, on the version the form was made with (queue #218). */
 function buildFicoS(form, lesson, d, opts) {
+  const id = lesson.rubricId;
+  const label = FicoS.labelOf(id) || FicoS.LABEL;
   const answers = {};
   const evidence = {};
   for (const c of FicoS.CODES) {
-    const v = FicoS.normLevel(d[c], c);
+    const v = FicoS.normLevel(d[c], c, id);
     if (v !== null) answers[c] = String(v);
     const ev = str(d[`ev_${c}`]);
     if (ev) evidence[c] = ev;
@@ -105,7 +107,7 @@ function buildFicoS(form, lesson, d, opts) {
     if (!FicoS.CODES.includes(code)) continue;
     focus.push({ code, action: str(d[`fs_action${suffix}`]) });
   }
-  const result = FicoS.score(answers);
+  const result = FicoS.score(answers, id);
   // Queue #184: a Digital Coach visit keeps, beside every level the observer submitted, who set it ('rumi' when the
   // observer kept Rumi's level, else 'coach'), Rumi's own level and the observer's reason for a change: the calibration
   // pairs, as v6 keeps them. The levels and evidence that count are the observer's as submitted. Starred: always 'coach'.
@@ -116,7 +118,7 @@ function buildFicoS(form, lesson, d, opts) {
     const levels = {};
     for (const c of FicoS.CODES) {
       if (answers[c] === undefined) continue;
-      const rumi = FsDc.rumiLevelOf(dcRow, c);
+      const rumi = FsDc.rumiLevelOf(dcRow, c, id);
       const kept = rumi !== null && rumi === answers[c];
       levels[c] = {
         set_by: kept ? 'rumi' : 'coach',
@@ -137,8 +139,8 @@ function buildFicoS(form, lesson, d, opts) {
     rubric_id: lesson.rubricId,
     tool: 'ficos',
     sheet: null,
-    label: FicoS.LABEL,
-    tool_title: FicoS.LABEL,
+    label,
+    tool_title: label,
     branched_from: FicoS.RUBRIC.branched_from,
     grade: lesson.grade,
     subject: lesson.subject,
@@ -160,7 +162,7 @@ function buildFicoS(form, lesson, d, opts) {
   return {
     framework: lesson.rubricId,
     rubric: lesson.rubricId,
-    rubric_label: FicoS.LABEL,
+    rubric_label: label,
     scores: { rubric: lesson.rubricId },
     obs612,
   };
@@ -247,7 +249,7 @@ function whatIsMissing(form, draft = {}) {
   const lesson = lessonOf(form);
   // bd-31ziu8: every indicator's level and evidence, and the feedback's strengths, focus and action.
   // Queue #184: a level changed from the Digital Coach's pre-fill needs its reason too.
-  if (lesson.tool === 'ficos') return require('./fico-s-flow').whatIsMissing(draft || {}, { dc: require('./fico-s-dc').dcOf(form) });
+  if (lesson.tool === 'ficos') return require('./fico-s-flow').whatIsMissing(draft || {}, { dc: require('./fico-s-dc').dcOf(form), rubric: lesson.rubricId });
   const missing = O.missingItems(lesson.rubricId, lesson.sheet, draft || {});
   if (lesson.tool === 'enur') {
     for (const f of O.TOOLS.enur.feedback) if (!str((draft || {})[`fb_${f.key}`])) missing.push(`fb_${f.key}`);

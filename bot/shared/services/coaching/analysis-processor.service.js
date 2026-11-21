@@ -282,8 +282,9 @@ class AnalysisProcessorService {
       }
       // Queue #184: FICO 6-12 for the Digital Coach (starred indicators never asked); the stamp's reason is kept.
       if (ficoSDc) {
-        framework = require('./frameworks/framework-registry').getFramework('fico_s_v1_1');
-        frameworkKey = 'fico_s_v1_1';
+        // Queue #218: on the key the visit was stamped with (v1.2 from now on; a v1.1 visit in flight keeps v1.1's id).
+        frameworkKey = session.framework;
+        framework = require('./frameworks/framework-registry').getFramework(frameworkKey);
         frameworkSelectionReason = require('../observe/obs612/fico-s-dc').REASON;
       }
       logToFile('Framework resolved', {
