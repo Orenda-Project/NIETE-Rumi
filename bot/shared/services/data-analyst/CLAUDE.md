@@ -9,7 +9,7 @@
 | path | purpose |
 |---|---|
 | `classifier.js` | is this a data question? Bot words, numbers, under 3 words: no (no model call); else a one-word Haiku verdict DATA / NORMAL / UNSURE; any failure is NORMAL |
-| `chart.js` | their `charting/select.py` rules (which result is a chart) + their Studio SVG (line with halftone, track bars), as a PNG card via `htmlToImage`; null on any failure |
+| `chart.js` | their `charting/select.py` rules (which result is a chart) + their Studio SVG (line with halftone, track bars), as a PNG card via `htmlToImage`; null on any failure. Too wide for their rules: the headline measures (≤3, named by the question, else the first) are drawn and the rest come back as `spec.rest` lines; `breakdownLines` lists every row when there is no chart |
 | `switch.js` | app_settings `data_analyst_whatsapp`: a JSON list of users.id or {id, email}; `true` is OFF; read once a minute |
 | `mcp-client.js` | JSON-RPC to their `/mcp`, with the surface header (`whatsapp`) and the asker's address on every call |
 | `prompt.js` | their SYSTEM_PROMPT verbatim, their "today" block, then one block of what WhatsApp changes |
@@ -30,6 +30,7 @@
 - Never answer outside ICT here (region `niete-rumi`): the proxy refuses other regions and programmes before the MCP, and fills program `niete-rumi` on every metric call and rules read that names none
 - Never bring back a sticky data mode (21 Nov: people forget how to leave it; the "Menu to leave" line scrolls out of sight). Every answer carries its own buttons
 - Never send the bot's own words (menu, lesson plan, observe, training, quiz…), `da_*` buttons or Flow replies to the classifier
+- Never drop a measure or a row silently: what the chart leaves out is listed under it, and with no chart every row is listed (bd-bhgw20.4)
 
 ## Tests
 - `tests/data-analyst/*.test.js` — switch, client, prompt (golden "today" cases from their code), proxy gates, loop, format, door, classifier, chart, Flow, webhook wiring
