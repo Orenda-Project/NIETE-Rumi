@@ -1,4 +1,6 @@
 'use strict';
+// the flag cache off: each test reads its own app_settings rows (an ON row cached for 30 s would answer the OFF test)
+process.env.FLAG_CACHE_TTL_MS = '0';
 /**
  * Round 7b (the tester's 27 Oct list): one app_settings switch per item, each OFF by default.
  *   Engine switches (JSON true only; the battery file carries battery.ui.<flag> while ON, nothing while OFF):
