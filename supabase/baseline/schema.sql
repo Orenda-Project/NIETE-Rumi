@@ -123,11 +123,17 @@ BEGIN
        WHERE o.plan_kind = 'k5' AND o.source IN ('viewer', 'external') AND o.opened_at >= v_from AND o.opened_at < v_to
     ), wk AS (
       SELECT DISTINCT took.teacher_id, date_trunc('week', took.at AT TIME ZONE 'Asia/Karachi')::date AS wk FROM took
+    ), hit AS (
+      SELECT t.unit_id, wk.wk, count(*) AS takers FROM wk JOIN t ON t.teacher_id = wk.teacher_id GROUP BY t.unit_id, wk.wk
+    ), roster AS (
+      SELECT t.arm, t.unit_id, t.block, count(*) AS teachers FROM t GROUP BY t.arm, t.unit_id, t.block
+    ), weeks AS (
+      SELECT g::date AS wk FROM generate_series(date_trunc('week', p_from::timestamp), p_to::timestamp, interval '1 week') g
     )
     SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
-      SELECT t.arm, t.unit_id, t.block, 'week' AS period_kind, wk.wk AS period, 1 AS n,
-             count(*)::double precision AS s, (count(*) * count(*))::double precision AS ss
-        FROM wk JOIN t ON t.teacher_id = wk.teacher_id GROUP BY t.arm, t.unit_id, t.block, wk.wk) r;
+      SELECT ro.arm, ro.unit_id, ro.block, 'week' AS period_kind, weeks.wk AS period, ro.teachers AS n,
+             (100.0 * coalesce(h.takers, 0))::double precision AS s, (10000.0 * coalesce(h.takers, 0))::double precision AS ss
+        FROM roster ro CROSS JOIN weeks LEFT JOIN hit h ON h.unit_id = ro.unit_id AND h.wk = weeks.wk) r;
 
   ELSIF p_metric_id = 'child_quiz_objectives_secured' THEN
     WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), s AS (
