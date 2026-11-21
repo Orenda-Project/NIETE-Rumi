@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T18:12:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"3d191f97da3e","branch":"bd-snkn32.59.4-staging","user":""}
+{"ts":"2026-11-21T08:17:05Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (already synced in 3d191f97 itself: OWN10, OWN11 added, validate_specs OK)","sha":"3d191f97da3e","branch":"bd-snkn32.59.4-staging","user":""}
