@@ -67,17 +67,20 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 
 // The words (jg.remind.push_* in the copy deck): a reminder never names a child.
-// {c} = the class label(s) or the children's first names, joined with `and`.
+// The child reminder (the lead's take A): the title carries the news, the body the one step. {c} = a class label, the
+// labels joined with `last` before the final one, or the children's first names joined with `and`. `t`/`b` are the
+// fallback with no class known (the tap then opens the phone's own hub): the hub's own words, never a promised quiz.
 const COPY = Object.freeze({
   quiz_reminder: {
     en: {
-      // the tap opens the child's hub (a finished quiz bounces there): the hub's own line, never a promised quiz
-      t: 'Jugnu', b: 'A game is waiting for you. Tap to play.', test: 'Reminders are on.',
-      round: "{c}: tonight's round is ready. Tap to play.", rounds: "{c}: tonight's rounds are ready. Tap to play.", and: ', ',
+      t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.', testT: 'Jugnu', test: 'Reminders are on.', tap: 'Tap to play ▶',
+      one: 'Jugnu: {c} has a new quiz', many: 'Jugnu: new quizzes for {c}', manyShort: 'Jugnu: new quizzes are ready',
+      named: '{c}: quiz time!', and: ', ', last: ' and ',
     },
     ur: {
-      t: 'جگنو', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔',
-      round: '{c}: آج کا راؤنڈ تیار ہے۔ کھیلنے کے لیے دبائیں۔', rounds: '{c}: آج کے راؤنڈ تیار ہیں۔ کھیلنے کے لیے دبائیں۔', and: '، ',
+      t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', testT: 'جگنو', test: 'یاد دہانی آن ہے۔', tap: 'کھیلنے کے لیے دبائیں ▶',
+      one: 'جگنو: {c} کا نیا کوئز آ گیا', many: 'جگنو: {c} کے نئے کوئز', manyShort: 'جگنو: نئے کوئز تیار ہیں',
+      named: '{c}: کوئز تیار ہے', and: '، ', last: ' اور ',
     },
   },
   evening_plan: {
@@ -330,26 +333,48 @@ async function markOpened({ endpoint } = {}, { now = Date.now() } = {}) {
 const LABEL_MAX = 24;
 const NAMES_MAX = 3;
 const clip = (v) => String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, LABEL_MAX);
+const TITLE_MAX = 60;   // code points: Android shows one line of title
+const cps = (v) => [...String(v)].length;
+const joinLast = (list, c) => (list.length > 1 ? `${list.slice(0, -1).join(c.and)}${c.last}${list[list.length - 1]}` : list[0] || '');
 /**
  * rounds: roundsReadyForPhone's answer for this phone (class-link), [] when none; names: the children's first names
- * (only ever passed with `names` on). Names win over class labels; either way one notification for the phone.
+ * (only ever passed with `names` on); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
+ * known, else the quiz's link is the last fallback. One notification for the phone whichever applies.
  */
-function payloadFor(row, { test = false, rounds = [], names = [] } = {}) {
+function payloadFor(row, { test = false, rounds = [], names = [], hub = null } = {}) {
   const kind = row && row.kind === 'evening_plan' ? 'evening_plan' : 'quiz_reminder';
   const lang = row && row.lang === 'en' ? 'en' : 'ur';
   const c = COPY[kind][lang];
   const code = kind === 'quiz_reminder' && CODE_RX.test(String(row.quiz_code || '')) ? row.quiz_code : null;
   const tag = kind === 'quiz_reminder' ? 'jugnu-remind' : 'niete-plan';
-  const base = { t: c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
+  const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
   const who = (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
   // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
   const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
-  const list = who.length ? who : labels;
-  if (!list.length) return { ...base, ...(ready.length ? { url: `/j/${ready[0].class_link_code}?from=push` } : {}) };
-  const b = (list.length > 1 && !who.length ? c.rounds : c.round).replace('{c}', list.join(c.and));
-  return { ...base, b, url: ready.length ? `/j/${ready[0].class_link_code}?from=push` : base.url };
+  const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
+  const url = ready.length ? `/j/${ready[0].class_link_code}?from=push` : home || base.url;
+  if (who.length) return { ...base, t: c.named.replace('{c}', who.join(c.and)), b: c.tap, url };
+  if (!labels.length) return { ...base, url };
+  const many = c.many.replace('{c}', joinLast(labels, c));
+  const t = labels.length === 1 ? c.one.replace('{c}', labels[0]) : cps(many) <= TITLE_MAX ? many : c.manyShort;
+  return { ...base, t, b: c.tap, url };
+}
+const HUB_PATH_RX = /^\/h\/[A-Za-z0-9._-]+\?from=push$/;
+
+/** The phone's own hub for the tap: the children this phone is trusted with (deviceKids), signed; null without any. */
+async function hubFor(row) {
+  if (!row || row.kind !== 'quiz_reminder' || !row.device_ref) return null;
+  try {
+    const kids = (await HubDevice.deviceKids(row.device_ref)).filter((id) => UUID_RX.test(String(id)));
+    if (!kids.length) return null;
+    const token = require('../quiz/web-quiz-token').signHub(kids, 'push_remind');
+    return token ? `/h/${token}?from=push` : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz push: hub link failed — quiz link', { error: err && err.message });
+    return null;
+  }
 }
 
 /** class-link's rounds for this phone today (PLAN §3.2); [] until that module exports roundsReadyForPhone. */
@@ -446,7 +471,8 @@ async function dueTick(now = Date.now(), opts = {}) {
     const lang = row.lang === 'en' ? 'en' : 'ur';
     const names = s.names ? await namesFor(row, lang) : [];
     const rounds = await roundsFor(row, now);
-    const out = await sendOne(row, payloadFor(row, { rounds, names }), { ...opts, now });
+    const hub = rounds.length ? null : await hubFor(row);
+    const out = await sendOne(row, payloadFor(row, { rounds, names, hub }), { ...opts, now });
     if (phone) phones.add(phone);
     if (out.sent) {
       sentBy[row.kind] = (sentBy[row.kind] || 0) + 1;

@@ -110,20 +110,20 @@ describe('what it says', () => {
     await Push.dueTick(at('2025-10-22T13:05:00Z'), { webpush: wp });
     expect(ClassLink.roundsReadyForPhone).toHaveBeenCalledWith(DEV_A, '2025-10-22');
     const [en, ur] = sentBodies(wp).sort((x) => (x.lang === 'en' ? -1 : 1));
-    expect(en).toMatchObject({ t: 'Jugnu', b: "Class 3: tonight's round is ready. Tap to play.", url: '/j/K7Q2MX?from=push' });
-    expect(ur).toMatchObject({ t: 'جگنو', b: 'کلاس ۳: آج کا راؤنڈ تیار ہے۔ کھیلنے کے لیے دبائیں۔', url: '/j/K7Q2MX?from=push' });
+    expect(en).toMatchObject({ t: 'Jugnu: Class 3 has a new quiz', b: 'Tap to play ▶', url: '/j/K7Q2MX?from=push' });
+    expect(ur).toMatchObject({ t: 'جگنو: کلاس ۳ کا نیا کوئز آ گیا', b: 'کھیلنے کے لیے دبائیں ▶', url: '/j/K7Q2MX?from=push' });
     expect(logEvent).toHaveBeenCalledWith('web_quiz.push_sent', expect.objectContaining({ n: 2, kind: 'quiz_reminder', reason: 'quiz_reminder', round_n: 2, named_n: 0, generic_n: 0 }));
   });
   test('two classes on one phone: one notification naming both', () => {
     const p = Push.payloadFor({ kind: 'quiz_reminder', lang: 'en', quiz_code: 'ABC123' }, { rounds: [ROUND, { ...ROUND, class_link_code: 'P3W8TT', class_label_en: 'Class 5', class_label_ur: 'کلاس ۵' }] });
-    expect(p.b).toBe("Class 3, Class 5: tonight's rounds are ready. Tap to play.");
+    expect(p.t).toBe('Jugnu: new quizzes for Class 3 and Class 5');
   });
   test('no round yet (class-link not answering): the hub\'s own line (never a promised quiz) and the quiz link', async () => {
     setup();
     await Push.subscribe({ sub: sub('a'), device_ref: DEV_A, code: 'ABC123', lang: 'en' }, { now: at('2025-10-21T05:00:00Z') });
     const wp = webpush();
     await Push.dueTick(at('2025-10-22T13:05:00Z'), { webpush: wp });
-    expect(sentBodies(wp)[0]).toMatchObject({ b: 'A game is waiting for you. Tap to play.', url: '/q/ABC123?from=push' });
+    expect(sentBodies(wp)[0]).toMatchObject({ t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.', url: '/q/ABC123?from=push' });
     expect(logEvent).toHaveBeenCalledWith('web_quiz.push_sent', expect.objectContaining({ generic_n: 1 }));
   });
   test('names switch OFF: no child name, the students table is never read', async () => {
@@ -133,7 +133,7 @@ describe('what it says', () => {
     await Push.subscribe({ sub: sub('a'), device_ref: DEV_A, code: 'ABC123', lang: 'en' }, { now: at('2025-10-21T05:00:00Z') });
     const wp = webpush();
     await Push.dueTick(at('2025-10-22T13:05:00Z'), { webpush: wp });
-    expect(sentBodies(wp)[0].b).not.toMatch(/Areeba/);
+    expect(JSON.stringify(sentBodies(wp)[0])).not.toMatch(/Areeba/);
     expect(read.mock.calls.map((c) => c[0])).not.toContain('students');
   });
   test('names switch ON: the children\'s first names on this phone (Urdu names for an Urdu phone)', async () => {
@@ -144,9 +144,9 @@ describe('what it says', () => {
     await Push.subscribe({ sub: sub('b'), device_ref: DEV_B, code: 'ABC123', lang: 'ur' }, { now: at('2025-10-21T05:00:00Z') });
     const wp = webpush();
     await Push.dueTick(at('2025-10-22T13:05:00Z'), { webpush: wp });
-    const bodies = sentBodies(wp).map((b) => b.b).sort();
-    expect(bodies).toContain("Areeba, Hamza: tonight's round is ready. Tap to play.");
-    expect(bodies).toContain('اریبہ، Hamza: آج کا راؤنڈ تیار ہے۔ کھیلنے کے لیے دبائیں۔');
+    const titles = sentBodies(wp).map((b) => b.t).sort();
+    expect(titles).toContain('Areeba, Hamza: quiz time!');
+    expect(titles).toContain('اریبہ، Hamza: کوئز تیار ہے');
   });
 });
 
@@ -171,5 +171,5 @@ describe('the funnel', () => {
 });
 
 test('the generic line in Urdu is the hub\'s own', () => {
-  expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'ur', quiz_code: 'ABC123' }).b).toBe('ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔');
+  expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'ur', quiz_code: 'ABC123' })).toMatchObject({ t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔' });
 });
