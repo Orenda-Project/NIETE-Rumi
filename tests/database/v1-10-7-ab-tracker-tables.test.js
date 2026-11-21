@@ -123,3 +123,18 @@ test('the mock-lane baseline carries the tables and functions', () => {
   }
   for (const f of [...READS, ...WRITES, ...HELPERS]) expect(BASELINE).toContain(`create function public.${f}(`);
 });
+
+test('teachers_coming_back is a weekly share in points: n = roster, s = 100 x takers, every week kept (bd-3kshar.6.3)', () => {
+  const branch = (sql) => {
+    const at = sql.indexOf("elsif p_metric_id = 'teachers_coming_back' then");
+    return sql.slice(at, sql.indexOf('elsif p_metric_id', at + 10));
+  };
+  for (const b of [branch(UP), branch(BASELINE)]) {
+    expect(b).toContain('roster as ( select t.arm, t.unit_id, t.block, count(*) as teachers from t');
+    expect(b).toContain("generate_series(date_trunc('week', p_from::timestamp), p_to::timestamp, interval '1 week')");
+    expect(b).toContain('ro.teachers as n');
+    expect(b).toContain('(100.0 * coalesce(h.takers, 0))::double precision as s');
+    expect(b).toContain('from roster ro cross join weeks left join hit h');
+    expect(b).not.toContain('1 as n');
+  }
+});
