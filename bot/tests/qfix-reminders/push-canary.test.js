@@ -34,6 +34,7 @@ function setup(canary) {
   const fake = makeFake({
     app_settings: settings, web_quiz_push_subscriptions: [],
     classes: [{ id: C_IN, school_id: S_IN }, { id: C_OUT, school_id: S_OUT }, { id: C_PICKED, school_id: S_OUT }],
+    schools: [{ id: S_IN, region: 'Tarnol' }, { id: S_OUT, region: 'Sihala' }],
     quiz_share_codes: [{ id: 'q1', code: 'INSCH1', class_id: C_IN }, { id: 'q2', code: 'OUTSC1', class_id: C_OUT }, { id: 'q3', code: 'PICKD1', class_id: C_PICKED }, { id: 'q4', code: 'NOCLS1', class_id: null }],
   });
   supabase.from = (t) => fake.from(t);
@@ -60,6 +61,12 @@ describe('keyFor: the ask only on canary classes while the canary is set', () =>
     setup({ class_ids: [C_PICKED] });
     expect((await Push.keyFor({ code: 'PICKD1' })).ask).toBe(true);
     expect((await Push.keyFor({ code: 'OUTSC1' })).ask).toBe(false);
+  });
+  test('sector canary ({regions}: schools.region, the ICT sector): a class of a school in that sector asks', async () => {
+    setup({ regions: ['Tarnol'] });
+    expect((await Push.keyFor({ code: 'INSCH1' })).ask).toBe(true);
+    expect((await Push.keyFor({ code: 'OUTSC1' })).ask).toBe(false);
+    expect((await Push.keyFor({ code: 'NOCLS1' })).ask).toBe(false);
   });
   test('a malformed canary value (not an object of id lists) counts as no canary', async () => {
     setup(true);
