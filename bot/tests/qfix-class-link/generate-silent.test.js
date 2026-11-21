@@ -213,3 +213,19 @@ test('an ordinary lp_v8 quiz still gets the teacher hand-off (the round path is 
   await Gen.process(QID, { quizId: QID, phone: '923000000099' });
   expect(WhatsAppService.sendMessage.mock.calls.length + WhatsAppService.sendDocument.mock.calls.length).toBeGreaterThan(0);
 });
+
+test('the report lane\'s isReportableShareCode is asked with the round\'s share code ID; the row stays meta.source evening_round', async () => {
+  seed();
+  const Report = require('../../shared/services/quiz/video-quiz-report.service');
+  const had = Report.isReportableShareCode;
+  Report.isReportableShareCode = jest.fn().mockResolvedValue(false);
+  try {
+    await Gen.process(QID, { quizId: QID, source: 'evening_round' });
+    const sc = db.quiz_share_codes[0];
+    expect(Report.isReportableShareCode).toHaveBeenCalledWith(sc.id);
+    expect(quiz().meta.source).toBe('evening_round');
+    expect(logEvent).not.toHaveBeenCalledWith('web_quiz.round_reportable', expect.anything());
+  } finally {
+    if (had) Report.isReportableShareCode = had; else delete Report.isReportableShareCode;
+  }
+});

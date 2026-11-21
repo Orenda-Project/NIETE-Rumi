@@ -543,7 +543,8 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   // 5. never a 12 h report: the report lane's own predicate, when it exports one, must agree.
   try {
     const Report = require('./video-quiz-report.service');
-    if (typeof Report.isReportableShareCode === 'function' && (await Report.isReportableShareCode(sc.code))) {
+    // isReportableShareCode(shareCodeId): the report lane's predicate (false only for a round); absent on this build -> skipped.
+    if (typeof Report.isReportableShareCode === 'function' && (await Report.isReportableShareCode(sc.id)) !== false) {
       logToFile('⚠️ evening round: the report service calls this round reportable', { quizId });
       logEvent('web_quiz.round_reportable', { class_link_code: ref.cl, round_code: sc.code });
     }

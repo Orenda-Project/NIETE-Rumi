@@ -227,6 +227,7 @@ const SWITCHES = Object.freeze([
   ['endFit',       END_FIT_KEY,           'json'],
   ['endOnce',      END_ONCE_KEY,          'json'],
   ['endShort',     END_SHORT_KEY,         'json'],
+  ['eveningRound', EVENING_ROUND_KEY,     'loose'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
   ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],
@@ -269,8 +270,6 @@ const SWITCHES = Object.freeze([
   ['home',         HOME_KEY,              'json'],
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
-  // qfix_class_link (append-only)
-  ['eveningRound', EVENING_ROUND_KEY,     'loose'],
 ]);
 const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
 
