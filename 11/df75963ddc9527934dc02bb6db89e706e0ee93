@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T11:59:53Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"11df75963ddc","branch":"bd-zrdvmi.44.1-61875","user":""}
+{"ts":"2026-11-21T11:59:54Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan owe their Gherkin","sha":"11df75963ddc","branch":"bd-zrdvmi.44.1-61875","user":""}
