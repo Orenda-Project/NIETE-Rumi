@@ -37,6 +37,13 @@ BEGIN
   END IF;
 END;
 $$;
+-- prod's shape (30 Oct 2026 catalog): portal_app_user holds SELECT on RLS tables whose only policy is
+-- auth.role() = 'service_role', false on a direct connection, so the role reads nothing from them
+CREATE TABLE public.coaching_sessions (id int);
+ALTER TABLE public.coaching_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY service_role_coaching_sessions ON public.coaching_sessions FOR ALL TO public USING (false);
+GRANT SELECT ON public.coaching_sessions TO portal_app_user;
+INSERT INTO public.coaching_sessions VALUES (1), (2), (3);
 SQL
 echo '"postgres" ""' > "$WORK/users.txt"
 cat > "$WORK/pgbouncer.ini" <<INI
