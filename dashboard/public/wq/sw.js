@@ -7,8 +7,8 @@
 
 var ICON = '/wq/jugnu/hello.webp';
 var COPY = {
-  en: { t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.', test: 'Reminders are on.', stop: 'Stop reminders' },
-  ur: { t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', test: 'یاد دہانی آن ہے۔', stop: 'یاد دہانی بند کریں' },
+  en: { t: 'Jugnu: time to play ▶', b: 'A quiz is waiting for you.', test: 'Reminders are on.', stop: 'Stop reminders' },
+  ur: { t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کوئز آپ کا انتظار کر رہا ہے۔', test: 'یاد دہانی آن ہے۔', stop: 'یاد دہانی بند کریں' },
 };
 var DB = 'wq-push';
 var STORE = 'kv';
@@ -66,7 +66,9 @@ self.addEventListener('push', function (e) {
   var lang = d.lang === 'en' ? 'en' : 'ur';
   var c = COPY[lang];
   var tag = str(d.tag, 40) || 'jugnu-remind';
-  e.waitUntil(Promise.all([self.registration.showNotification(str(d.t, 60) || c.t, {
+  // delivered is posted once the show settles and says whether it drew: a rejected show (permission revoked in the
+  // phone's settings, a bad icon) is received but never seen, and must not count as reach
+  var shown = self.registration.showNotification(str(d.t, 60) || c.t, {
     body: str(d.b, 200) || (d.test ? c.test : c.b),
     icon: ICON,
     tag: tag,
@@ -74,7 +76,13 @@ self.addEventListener('push', function (e) {
     dir: lang === 'ur' ? 'rtl' : 'ltr',
     data: { url: safeUrl(d.url) },
     actions: [{ action: 'stop', title: c.stop }],
-  }), d.test ? null : post('/api/wqpush/delivered', { tag: tag })]));
+  }).then(function () { return { shown: true }; }, function (err) { return { shown: false, err: (err && err.name) || 'Error' }; });
+  e.waitUntil(shown.then(function (r) {
+    if (d.test) return null;
+    var b = { tag: tag, shown: r.shown };
+    if (r.err) b.err = r.err;
+    return post('/api/wqpush/delivered', b);
+  }));
 });
 
 self.addEventListener('notificationclick', function (e) {

@@ -123,7 +123,7 @@ describe('what it says', () => {
     await Push.subscribe({ sub: sub('a'), device_ref: DEV_A, code: 'ABC123', lang: 'en' }, { now: at('2025-10-21T05:00:00Z') });
     const wp = webpush();
     await Push.dueTick(at('2025-10-22T13:05:00Z'), { webpush: wp });
-    expect(sentBodies(wp)[0]).toMatchObject({ t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.', url: '/q/ABC123?from=push' });
+    expect(sentBodies(wp)[0]).toMatchObject({ t: 'Jugnu: time to play ▶', b: 'A quiz is waiting for you.', url: '/q/ABC123?from=push' });
     expect(logEvent).toHaveBeenCalledWith('web_quiz.push_sent', expect.objectContaining({ generic_n: 1 }));
   });
   test('names switch OFF: no child name, the students table is never read', async () => {
@@ -171,5 +171,5 @@ describe('the funnel', () => {
 });
 
 test('the generic line in Urdu is the hub\'s own', () => {
-  expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'ur', quiz_code: 'ABC123' })).toMatchObject({ t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔' });
+  expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'ur', quiz_code: 'ABC123' })).toMatchObject({ t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کوئز آپ کا انتظار کر رہا ہے۔' });
 });
