@@ -9,9 +9,11 @@
  *   portal = portal_push_remind   && remind                   the teacher card (car C)
  *   names  = web_quiz_push_name_children && remind            the child reminder names the children on the phone
  *                                                             (first names; policy-gated, default off: class-named)
- *   canary = web_quiz_push_canary {school_ids?, class_ids?}   while set, only a quiz on a listed class (or a class of
- *                                                             a listed school) offers the ask or may subscribe; no row
- *                                                             (or not an object of id lists) = every class
+ *   canary = web_quiz_push_canary {regions?, school_ids?, class_ids?}  while set, only a quiz on a listed class, a
+ *                                                             class of a listed school, or a school in a listed region
+ *                                                             (schools.region: the ICT sector, e.g. "Tarnol") offers
+ *                                                             the ask or may subscribe; no row (or nothing listed) =
+ *                                                             every class
  *
  * Env (sandbox only; never shared with staging or prod): WQ_PUSH_VAPID_PUBLIC, WQ_PUSH_VAPID_PRIVATE,
  * WQ_PUSH_VAPID_SUBJECT (VAPID), WQ_PUSH_ENC_KEY (32 bytes base64, AES-256-GCM of the endpoint and keys),
@@ -117,6 +119,7 @@ async function switches(now = Date.now()) {
 // ─── the canary ─────────────────────────────────────────────────────────────
 
 const idList = (v) => (Array.isArray(v) ? v.map(String).filter((x) => UUID_RX.test(x)) : []);
+const nameList = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter((x) => x && x.length <= 64) : []);
 /** The canary's id lists, or null (every class). A read error keeps the last answer (else null). */
 async function canary(now = Date.now()) {
   if (canaryCache && now - canaryCache.at < TTL_MS) return canaryCache.c;
@@ -126,9 +129,11 @@ async function canary(now = Date.now()) {
     if (error) throw new Error(error.message || 'app_settings read failed');
     let v = data && data[0] ? data[0].value : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { v = null; } }
-    const schools = v && typeof v === 'object' ? idList(v.school_ids) : [];
-    const classes = v && typeof v === 'object' ? idList(v.class_ids) : [];
-    c = schools.length || classes.length ? { schools: new Set(schools), classes: new Set(classes) } : null;
+    const obj = v && typeof v === 'object' ? v : {};
+    const schools = idList(obj.school_ids);
+    const classes = idList(obj.class_ids);
+    const regions = nameList(obj.regions);
+    c = schools.length || classes.length || regions.length ? { schools: new Set(schools), classes: new Set(classes), regions: new Set(regions) } : null;
   } catch (err) {
     logToFile('⚠️ web quiz push: canary lookup failed — last answer kept', { error: err.message });
   }
@@ -151,10 +156,16 @@ async function canaryAllows(code, now = Date.now()) {
     if (error) throw new Error(error.message || 'share code read failed');
     const classId = sc && sc.class_id ? String(sc.class_id) : null;
     if (classId && c.classes.has(classId)) ok = true;
-    else if (classId && c.schools.size) {
+    else if (classId && (c.schools.size || c.regions.size)) {
       const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
       if (e2) throw new Error(e2.message || 'class read failed');
-      ok = Boolean(cl && cl.school_id && c.schools.has(String(cl.school_id)));
+      const schoolId = cl && cl.school_id ? String(cl.school_id) : null;
+      if (schoolId && c.schools.has(schoolId)) ok = true;
+      else if (schoolId && c.regions.size) {
+        const { data: sch, error: e3 } = await supabase.from('schools').select('region').eq('id', schoolId).maybeSingle();
+        if (e3) throw new Error(e3.message || 'school read failed');
+        ok = Boolean(sch && sch.region && c.regions.has(String(sch.region).trim()));
+      }
     }
   } catch (err) {
     logToFile('⚠️ web quiz push: canary class lookup failed — no ask', { error: err.message });
