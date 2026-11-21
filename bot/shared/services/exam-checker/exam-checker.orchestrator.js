@@ -127,6 +127,14 @@ class ExamCheckerOrchestrator {
       };
     }
 
+    const imageCount = session.original_images?.length || 0;
+
+    // Nothing to process yet: ask for photos, and never offer "Process now" on 0 images
+    // (bd-krhhgp: a stray text got 'You have 0 images.' + ✅ Process now, which ran OCR on nothing).
+    if (imageCount === 0 && message.buttonId !== 'ech_add_more') {
+      return this.handleStart(session, { type: message.type || 'text' }, userId);
+    }
+
     // Handle button clicks
     if (message.buttonId === 'ech_process_now') {
       await ExamSessionService.updateStatus(session.id, SESSION_STATES.PROCESSING_OCR);
@@ -483,7 +491,15 @@ class ExamCheckerOrchestrator {
   static async getSessionState(userId) {
     const ExamSessionService = require('./exam-session.service');
     const session = await ExamSessionService.getActive(userId);
-    return session ? { active: true, state: session.status, sessionId: session.id } : { active: false };
+    return session
+      ? {
+        active: true,
+        state: session.status,
+        sessionId: session.id,
+        imageCount: (session.original_images || []).length,
+        createdAt: session.created_at,
+      }
+      : { active: false };
   }
 }
 
