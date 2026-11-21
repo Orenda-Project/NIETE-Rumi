@@ -57,7 +57,7 @@ function versionOf(file) {
 const CSS = `.wqr{padding:24px var(--gutter,16px) 32px;display:grid;gap:12px;align-content:start}
 .wqr .wqr-j{margin:0 auto;width:120px;height:120px}.wqr h1{margin:0;font-size:22px;text-align:center}
 html[lang=ur] .wqr h1,html[lang=ur] .wqr p{line-height:2}
-.wqr .wqr-l{justify-self:center;width:auto;min-height:44px}`;
+.wqr .wqr-l{justify-self:center;width:auto;min-height:48px;min-width:48px}`;
 
 /** The reminder page in the child pages' look (wq.css, + the adventure look when the quiz page has it): Jugnu, the
  *  ask in this page's language only, then wq-remind.js boots the card. The other language is one small link. */
