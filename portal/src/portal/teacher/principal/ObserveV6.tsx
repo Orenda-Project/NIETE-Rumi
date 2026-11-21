@@ -3,7 +3,8 @@ import { Link, Navigate } from "react-router-dom";
 import { CalendarClock, CalendarPlus, ChevronDown, ChevronUp, Clock, Inbox, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TeacherPage from "../TeacherPage";
-import { HistoryRow } from "../ui";
+import { HistoryRow, addDays } from "../ui";
+import { StatusChip } from "../ui/StatusChip";
 import { FOCUS, LIST_CARD } from "../ui/styles";
 import { TEACHER_FRAME } from "../copy";
 import { TEACHER_UI } from "../ui/copy";
@@ -18,7 +19,7 @@ import { loadDcHistory, type DcItem } from "../coaching/api";
 import { coach } from "../../services/api";
 import { Chevron, Failed, Loading, SearchBox, SectionLabel, useLoad } from "../../coach/ui";
 import { karachiDay } from "../../coach/time";
-import type { CoachReport } from "../../coach/types";
+import type { CoachReport, CoachVisit } from "../../coach/types";
 import { SCHEDULE } from "../../coach/schedule/copy";
 import { REPORTS } from "../../coach/reports/copy";
 import { SCHOOL_CARD } from "../../coach/card/copy";
@@ -30,22 +31,24 @@ import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
 import { trackFlow } from "../../coach/flow/track";
 import { PRINCIPAL } from "./copy";
 import { PRINCIPAL_V6 } from "./copyV6";
-import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, PRINCIPAL_SCHEDULE, principalObservationPath, principalRecordPath } from "./observe";
+import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalBookedTo, principalObservationPath } from "./observe";
 
 const NEEDS_SHOWN = 2;
+const DAYS_AHEAD = 90;
 
 /**
  * bd-o15qnr.28 (queue #204) — the principal's Observe in the coach flow's look (#188's board p7-observe; the coach's own is
  * coach/pages/CoachObserveToday.tsx), behind the v6/v7 switch for a principal on the principal app:
  *
  *   Schedule an observation   the dark button → Pick the teacher ("One of my teachers, or my own lesson"; Pick offers both)
- *   Booked for today          the visits she booked for today, each with Record (her record screen for that teacher);
- *                             All booked → My schedule (her bookings, as the coach's screen shows them)
+ *   Booked for today          the visits she booked for today, each card opening that teacher's page (record OR upload:
+ *                             bd-o15qnr.29); All booked opens IN PLACE (Late, Coming up), as the coach's does, never the old
+ *                             My schedule page (the operator 21 Nov ~08:50: "not accessible from any other page")
  *   Needs you                 her observations waiting on her, OLDEST first: two, then See all N opening in place
  *   History                   how many she has made in all → My observations
  *
- * No coach-only roster actions (no Team schedule, no school step). Reads her observations (GET /coach/reports) and today's
- * bookings (GET /coach/schedule), both her own.
+ * No coach-only roster actions (no Team schedule, no school step, no Cancel). Reads her observations (GET /coach/reports)
+ * and her bookings from today to 90 days ahead, late ones too (GET /coach/schedule), both her own.
  */
 export function PrincipalObserveV6() {
   const S = useCopy(SCHEDULE);
@@ -55,11 +58,21 @@ export function PrincipalObserveV6() {
   const Frame = useCopy(TEACHER_FRAME);
   const lang = useLang();
   const today = karachiDay();
-  const schedule = useLoad(() => coach.getSchedule({ from: today, to: today }), [today]);
+  const schedule = useLoad(() => coach.getSchedule({ from: today, to: addDays(today, DAYS_AHEAD) }), [today]);
   const reports = useLoad(() => coach.getReports({ page: 1 }), []);
   const [needsOpen, setNeedsOpen] = useState(false);
+  const [bookedOpen, setBookedOpen] = useState(false);
   const g = useMemo(() => groupBooked(schedule.data, today), [schedule.data, today]);
+  const more = g.late.length + g.coming.length;
   const waiting = useMemo(() => oldestFirst(reports.data?.waiting), [reports.data]);
+  const group = (label: string, testId: string, visits: CoachVisit[], warn = false) => visits.length > 0 && (
+    <div data-testid={testId} className="border-t border-[#e5e7eb]">
+      <h3 className="m-0 flex items-center gap-2 px-4 pb-1 pt-3 text-[15px] font-semibold text-[#4b5563]">
+        {label}<StatusChip text={String(visits.length)} tone={warn ? "waiting" : "info"} />
+      </h3>
+      {visits.map((v, i) => <BookedRow key={v.id} v={v} today={today} first={i === 0} to={principalBookedTo} />)}
+    </div>
+  );
   const shownWaiting = needsOpen ? waiting : waiting.slice(0, NEEDS_SHOWN);
 
   return (
@@ -85,13 +98,24 @@ export function PrincipalObserveV6() {
                   <CalendarClock className="h-5 w-5 shrink-0" aria-hidden="true" />{F.noVisitsToday}
                 </div>
               )}
-              {g.today.map((v, i) => <BookedRow key={v.id} v={v} today={today} first={i === 0} recordTo={principalRecordPath} />)}
-              <Link to={PRINCIPAL_SCHEDULE}
-                className={cn("flex min-h-[56px] items-center gap-2 border-t border-[#e5e7eb] px-4 text-[16px] font-semibold text-[#33374a]", FOCUS)}>
-                <span className="flex-1">{F.allBooked}</span>
-                {g.late.length > 0 && <span className="text-[14px] font-medium text-[#b45309]">{S.lateN(g.late.length)}</span>}
-                <Chevron />
-              </Link>
+              {g.today.map((v, i) => <BookedRow key={v.id} v={v} today={today} first={i === 0} to={principalBookedTo} />)}
+              {bookedOpen && group(S.late, "booked-late", g.late, true)}
+              {bookedOpen && group(S.comingUp, "booked-coming", g.coming)}
+              {(more > 0 || bookedOpen) && (
+                <button type="button" onClick={() => { if (!bookedOpen) trackFlow("observe.booked_open"); setBookedOpen((o) => !o); }} aria-expanded={bookedOpen}
+                  className={cn("flex min-h-[56px] w-full items-center gap-2 border-t border-[#e5e7eb] px-4 text-start text-[16px] font-semibold text-[#33374a]", FOCUS)}>
+                  {bookedOpen ? (
+                    <><span className="flex-1 text-center">{F.hide}</span><ChevronUp className="h-5 w-5" aria-hidden="true" /></>
+                  ) : (
+                    <>
+                      <span className="flex-1">{F.allBooked}</span>
+                      {g.late.length > 0 && <StatusChip text={S.lateN(g.late.length)} tone="waiting" />}
+                      <span className="text-[14px] font-medium text-[#6b7280]">{F.nMore(more)}</span>
+                      <ChevronDown className="h-5 w-5 text-[#6b7280]" aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </section>
