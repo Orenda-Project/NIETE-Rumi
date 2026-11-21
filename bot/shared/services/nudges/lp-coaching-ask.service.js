@@ -476,7 +476,11 @@ async function send(row, { now = new Date() } = {}) {
   if (cap) return skip(row, cap);
 
   const last = user.last_message_at ? Date.parse(user.last_message_at) : NaN;
-  if (!Number.isFinite(last) || at.getTime() - last > WINDOW_MS) return skip(row, 'window_closed');
+  if (!Number.isFinite(last) || at.getTime() - last > WINDOW_MS) {
+    // quiz_offer_closed_window on: the row and the event say nothing reached the teacher (held_path 'none').
+    const ClosedWindow = require('../quiz/closed-window-offer');
+    return (await ClosedWindow.settings()).trace ? skip(row, 'window_closed', { held_path: 'none' }) : skip(row, 'window_closed');
+  }
 
   // Booked through deferQuietHours, so reaching here at night means the sweeper
   // was down for hours; a morning ask at 22:00 is stale, not deferred.

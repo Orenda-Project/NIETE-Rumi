@@ -251,8 +251,11 @@ function classLineOf(item, lang) {
   return parts.length ? oneLine(parts.join(' · '), 40) : word('shareClassFallback', lang);
 }
 
-/** The template's parameters for one item, in her language. `buttonToken`: the dc clip template's URL button (bd-22gf7p). */
-function componentsFor(item, { lang = 'en', buttonToken = null } = {}) {
+/**
+ * The template's parameters for one item, in her language. `buttonToken`: the dc clip template's URL button
+ * (bd-22gf7p). `quickReplyPayload`: the dc quiz template's one QUICK_REPLY button (quiz/closed-window-offer.js).
+ */
+function componentsFor(item, { lang = 'en', buttonToken = null, quickReplyPayload = null } = {}) {
   const text = (t) => ({ type: 'text', text: t });
   if (item.kind === 'paper' || item.kind === 'lesson') {
     const body = [titleOf(item, lang), item.grade ? String(item.grade) : '-', subjectOf(item, lang)];
@@ -267,7 +270,18 @@ function componentsFor(item, { lang = 'en', buttonToken = null } = {}) {
     { type: 'body', parameters: [text(titleOf(item, lang)), text(classLineOf(item, lang))] },
   ];
   if (buttonToken) out.push({ type: 'button', sub_type: 'url', index: '0', parameters: [text(String(buttonToken))] });
+  else if (quickReplyPayload) {
+    out.push({ type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: String(quickReplyPayload) }] });
+  }
   return out;
+}
+
+/** A usable quiz button for this send: the dc kind, a template name and a payload. Anything else = no quiz button. */
+function quizOf(kind, quiz) {
+  if (kind !== 'dc' || !quiz || typeof quiz !== 'object') return null;
+  const template = typeof quiz.template === 'string' ? quiz.template.trim() : '';
+  const payload = typeof quiz.payload === 'string' ? quiz.payload.trim() : '';
+  return template && payload ? { template, payload } : null;
 }
 
 /** A usable clip for this send: the dc kind, a template name and a token (bd-22gf7p). Anything else = no clip. */
@@ -300,12 +314,13 @@ function defaultDeps() {
  * @param {{ userId: string, kind: string, id: string }} req
  * @returns {Promise<{status:'sent', at:string}|{status:'failed'|'unavailable', reason:string}|{status:'not_found'|'bad_request'}>}
  */
-async function sendShare({ userId, kind, id, clip } = {}, deps) {
+async function sendShare({ userId, kind, id, clip, quiz } = {}, deps) {
   if (!userId || !KINDS.includes(kind) || !id || typeof id !== 'string') return { status: 'bad_request' };
   const d = deps || defaultDeps();
   const askedAt = new Date().toISOString();
   const seen = {};
-  const out = await attemptShare({ userId, kind, id, clip: clipOf(kind, clip) }, d, seen);
+  const clipButton = clipOf(kind, clip);
+  const out = await attemptShare({ userId, kind, id, clip: clipButton, quiz: clipButton ? null : quizOf(kind, quiz) }, d, seen);
   // A lesson plan she sends herself is an ask of its own: its lifecycle row (LP_LIFECYCLE_PATHS on).
   // Never throws, never changes the answer.
   if (kind === 'lesson') await recordLessonShare({ userId, id, seen, out, askedAt });
@@ -313,9 +328,9 @@ async function sendShare({ userId, kind, id, clip } = {}, deps) {
 }
 
 /** The share itself — exactly the send it always was. `seen` collects what the lifecycle row needs. */
-async function attemptShare({ userId, kind, id, clip }, d, seen) {
+async function attemptShare({ userId, kind, id, clip, quiz }, d, seen) {
   try {
-    const name = clip ? clip.template : d.templateName(kind);
+    const name = clip ? clip.template : quiz ? quiz.template : d.templateName(kind);
     if (!name) return { status: 'unavailable', reason: 'not_configured' };
 
     const user = await d.user(userId);
@@ -328,10 +343,10 @@ async function attemptShare({ userId, kind, id, clip }, d, seen) {
 
     const lang = LANGS.includes(user.preferred_language) ? user.preferred_language : 'en';
     seen.lang = lang;
-    const components = componentsFor(item, { lang, buttonToken: clip ? clip.token : null });
+    const components = componentsFor(item, { lang, buttonToken: clip ? clip.token : null, quickReplyPayload: quiz ? quiz.payload : null });
     let report = {};
     let ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
-    if (!ok && !clip && TRANSIENT.includes(Number(report.code))) { // a clip send has its own fallback (the plain report)
+    if (!ok && !clip && !quiz && TRANSIENT.includes(Number(report.code))) { // a button send has its own fallback (the plain report)
       try { logEvent('share_send.retry', { kind, userId, itemRef: item.itemRef || null, code: report.code }); } catch (_) { /* logging never decides */ }
       await (d.wait || ((ms) => new Promise((r) => setTimeout(r, ms))))(TRANSIENT_WAIT_MS);
       report = {};
@@ -339,7 +354,7 @@ async function attemptShare({ userId, kind, id, clip }, d, seen) {
     }
     // itemRef names WHAT was shared (lesson:k5:<lessonId>:<assetKind> / lesson:<segmentId>:<lang> / paper:<id> / report:<id>), so a
     // share can be matched to the lesson-open or delivery record of the same item. Ids only, never a title or a phone.
-    try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null, ...(clip ? { button: true } : {}) }); } catch (_) { /* logging never decides */ }
+    try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null, ...(clip ? { button: true } : {}), ...(quiz ? { quiz_button: true } : {}) }); } catch (_) { /* logging never decides */ }
     if (ok) return { status: 'sent', at: d.now().toISOString() };
     if (TEMPLATE_GONE.includes(Number(report.code))) return { status: 'unavailable', reason: 'template_missing' };
     return { status: 'failed', reason: 'refused', code: report.code ?? null, message: report.message ?? null }; // bd-v0toag.127

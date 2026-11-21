@@ -22,6 +22,11 @@
  *     If the button template is refused, `useFallbackImage()` first stores the hero's app-hint copy (the image the plain
  *     template's header reads), so the hint stays true on every fallback.
  * No clip → exactly the send above.
+ *
+ * Quiz button (quiz/closed-window-offer.js, switch `quiz_offer_closed_window`.report_template) — no clip button, and
+ * the session can take a transcript quiz: the report goes as the quiz sibling of the share template (same header and
+ * body, one QUICK_REPLY "Make a quiz", payload tqr_<sessionId>), and the session's quiz row is written as held
+ * (held_path 'template'). Refused → share_dc_report_v1 exactly as today. Switch off → never asked.
  */
 
 const { logToFile } = require('../../utils/logger');
@@ -32,6 +37,8 @@ function defaultDeps() {
     windowOpen: (phone) => require('../quiz/quiz-delivery.service')._hasOpenMessageWindow(phone),
     sendShare: (req) => require('../share-send.service').sendShare(req),
     markSent: (id, v) => require('./video-reco/store').markSent(id, v),
+    quizButton: (req) => require('../quiz/transcript-quiz-offer.service').reportQuizButtonFor(req),
+    holdQuiz: (req) => require('../quiz/closed-window-offer').recordHeld(req),
   };
 }
 
@@ -69,6 +76,30 @@ async function sendClipTemplate({ userId, sessionId, clip }, d) {
   return false;
 }
 
+/** The quiz sibling of the report template. True when it went (and the held row is written). */
+async function sendQuizTemplate({ userId, sessionId }, d) {
+  let quiz = null;
+  try {
+    quiz = await d.quizButton({ coachingSessionId: sessionId, userId });
+  } catch (err) {
+    logToFile('⚠️ report quiz button check failed — plain report', { sessionId, error: err && err.message }, 'warn');
+    return false;
+  }
+  if (!quiz) return false;
+  let out = null;
+  try {
+    out = await d.sendShare({ userId, kind: 'dc', id: sessionId, quiz: { template: quiz.template, payload: quiz.payload } });
+  } catch (err) {
+    out = { status: 'failed', reason: 'error', message: err && err.message };
+  }
+  const sent = !!out && out.status === 'sent';
+  logOutcome(sent ? 'coaching.report.quiz_template_sent' : 'coaching.report.quiz_template_not_sent', { userId, sessionId }, out);
+  if (sent) {
+    try { await d.holdQuiz({ session: quiz.session, heldPath: 'template' }); } catch (_) { /* the trace never decides */ }
+  }
+  return sent;
+}
+
 /** @returns {Promise<'template'|null>} 'template' when the report went as the share template. */
 async function sendReportByTemplateIfWindowClosed({ phone, userId, sessionId, clip }, deps) {
   if (!phone || !userId || !sessionId) return null;
@@ -77,6 +108,7 @@ async function sendReportByTemplateIfWindowClosed({ phone, userId, sessionId, cl
     const button = !!(clip && clip.template && clip.token);
     if (!(button && clip.promised) && await d.windowOpen(phone)) return null;
     if (button && await sendClipTemplate({ userId, sessionId, clip }, d)) return 'template';
+    if (!button && await sendQuizTemplate({ userId, sessionId }, d)) return 'template';
     const out = await d.sendShare({ userId, kind: 'dc', id: sessionId });
     const sent = !!out && out.status === 'sent';
     logOutcome(sent ? 'coaching.report.template_sent' : 'coaching.report.template_not_sent', { userId, sessionId }, out);
