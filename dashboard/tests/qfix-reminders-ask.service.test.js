@@ -17,10 +17,13 @@ const TUE = Date.parse('2025-11-25T10:00:00Z');
 const FRI = Date.parse('2025-11-28T10:00:00Z');
 const SAT = Date.parse('2025-11-29T10:00:00Z');
 const SUN = Date.parse('2025-11-30T10:00:00Z');
-function page(now = TUE) {
+function page(now = TUE, keyBody = { key: 'BPUBKEYAAAA' }) {
   const posts = [];
+  const gets = [];
+  const unregistered = [];
   const reg = { pushManager: { subscribe: async () => null, getSubscription: async () => null } };
-  const sw = { getRegistrations: async () => [], getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) };
+  const mine = { active: { scriptURL: 'https://wq.example/sw.js' }, unregister: async () => { unregistered.push(1); return true; } };
+  const sw = { getRegistrations: async () => [mine], getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) };
   const ctx = {
     console, Promise, JSON, Math, Object, Array, String, Number, Boolean, RegExp, Error, encodeURIComponent, decodeURIComponent, Uint8Array,
     Date: class extends Date { static now() { return now; } },
@@ -32,14 +35,15 @@ function page(now = TUE) {
     document: { getElementById: () => null, querySelector: () => null },
     fetch: async (url, init) => {
       if (init && init.method === 'POST') { posts.push({ url, body: JSON.parse(init.body) }); return { status: 200, json: async () => ({ ok: 1 }) }; }
-      return { status: 200, json: async () => ({ key: 'BPUBKEYAAAA' }) };
+      gets.push(url);
+      return { status: 200, json: async () => keyBody };
     },
     PushManager: function PushManager() {}, Notification: { permission: 'default', requestPermission: async () => 'default' },
   };
   ctx.window = ctx; ctx.self = ctx;
   vm.runInNewContext(SRC, ctx);
   const slot = { innerHTML: '', onclick: null, setAttribute() {}, removeAttribute() {} };
-  return { ctx, slot, html: () => slot.innerHTML, steps: () => posts.filter((p) => p.url === '/api/wqpush/e').map((p) => [p.body.step, p.body.src]) };
+  return { ctx, slot, gets, unregistered, html: () => slot.innerHTML, steps: () => posts.filter((p) => p.url === '/api/wqpush/e').map((p) => [p.body.step, p.body.src]) };
 }
 
 test('the result screen (default): shown{src: result}', async () => {
@@ -96,4 +100,38 @@ test('the worker\'s fallback line is the hub\'s own: a game is waiting', () => {
   expect(sw).toContain("b: 'A game is waiting for you. Tap to play.'");
   expect(sw).toContain("b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔'");
   expect(sw).not.toContain("Today's quiz is ready");
+});
+
+// The canary (web_quiz_push_canary): the key answer says whether THIS quiz may ask.
+describe('the canary', () => {
+  test('the key is asked with the quiz code', async () => {
+    const p = page();
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'en', chips: 1 });
+    await flush();
+    expect(p.gets).toEqual(['/api/wqpush/key?code=AB12CD']);
+  });
+  test('ask:false: no card, no step, and the phone keeps its worker', async () => {
+    const p = page(TUE, { key: 'BPUBKEYAAAA', ask: false });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'en', chips: 1 });
+    await flush();
+    expect(p.html()).toBe('');
+    expect(p.steps()).toEqual([]);
+    expect(p.unregistered).toEqual([]);
+  });
+  test('the edge passes the code on to the bot for the key only, in the page\'s code shape', async () => {
+    const http = require('http');
+    const express = require('express');
+    const { createPushRemindRouter } = require('../routes/push-remind.routes');
+    const urls = [];
+    const app = express();
+    app.use(createPushRemindRouter({ botUrl: 'http://bot.test', apiKey: 'k', on: () => true, logEvent: () => {},
+      fetchImpl: async (url) => { urls.push(url); return { status: 200, headers: { get: () => 'application/json' }, text: async () => '{"key":"B","ask":true}' }; } }));
+    const srv = await new Promise((r) => { const x = http.createServer(app).listen(0, () => r(x)); });
+    try {
+      const base = `http://127.0.0.1:${srv.address().port}`;
+      await fetch(`${base}/api/wqpush/key?code=AB12CD`);
+      await fetch(`${base}/api/wqpush/key?code=../../x`);
+      expect(urls).toEqual(['http://bot.test/api/internal/wqpush/key?code=AB12CD', 'http://bot.test/api/internal/wqpush/key']);
+    } finally { await new Promise((r) => srv.close(r)); }
+  });
 });
