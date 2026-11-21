@@ -1531,6 +1531,13 @@ function createWebQuizRouter(opts = {}) {
       }
     });
   }
+  // A page opened from the child reminder (the push's url carries ?from=push): the funnel's landed step, counts only.
+  // The reminder opens the class's standing link (/j/, its class-named text), a quiz (/q/) or the phone's own hub (/h/).
+  const pushLanded = (pg) => (req, res, next) => {
+    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder' });
+    next();
+  };
+  router.get('/j/:code', pushLanded('class_link'));
   // ── standing class link /j/<code> (web_quiz_class_link, decided by the bot): web-quiz-class-link.js ──
   let clV = null;
   const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
@@ -1683,11 +1690,6 @@ function createWebQuizRouter(opts = {}) {
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
-  // A quiz opened from the child reminder (the push's url carries ?from=push): the funnel's landed step, counts only.
-  const pushLanded = (pg) => (req, res, next) => {
-    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder' });
-    next();
-  };
   router.get('/q/:code', limiters.read, unknownCode, pushLanded('quiz'), (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
   // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens

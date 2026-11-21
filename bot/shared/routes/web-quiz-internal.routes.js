@@ -395,8 +395,9 @@ router.get('/stories/shelf/h/:token', handle((req) => Stories().shelf(req.params
 router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.params.id, req.params.token, { kid: q1(req.query.kid), device: req.get('x-wq-device') })));
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
-// first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => GradeChange.carry(PageLang.carry(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, ...((req.body || {}).keep === 1 ? { keep: true } : {}) }))))))))))));
+// first phone to open a hub link, or one the children played on, sees their names. `src`: the page URL's from= (a known
+// route only), so a phone's FIRST hub open (no cookie, so the server render asked as no phone) keeps its route too.
+router.post('/hub/:token', handle((req) => GradeChange.carry(PageLang.carry(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, src: require('../services/quiz/web-quiz-hub-play').srcOf((req.body || {}).src), ...((req.body || {}).keep === 1 ? { keep: true } : {}) }))))))))))));
 // The grown-ups sheet's Grade row, for the child a hub chip names on a phone the hub trusts (x-wq-device, never the body):
 // GET ?kid= -> {now, cls} when the sheet opens; POST {kid, grade} -> 200 {ok, grade}; 400 bad grade; 403 not this link's
 // child or another phone; 404 switch off; 429 the day's 6th.

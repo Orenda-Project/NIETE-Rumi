@@ -60,8 +60,8 @@ describe('payloadFor: take A', () => {
     expect(Push.payloadFor(row('ur'), { rounds: long }).t).toBe('جگنو: نئے کوئز تیار ہیں');
   });
   test.each([
-    ['en', 'Jugnu: time to play ▶', 'A game is waiting for you.'],
-    ['ur', 'جگنو: کھیلنے کا وقت ہے ▶', 'ایک کھیل آپ کا انتظار کر رہا ہے۔'],
+    ['en', 'Jugnu: time to play ▶', 'A quiz is waiting for you.'],
+    ['ur', 'جگنو: کھیلنے کا وقت ہے ▶', 'ایک کوئز آپ کا انتظار کر رہا ہے۔'],
   ])('no class known (%s): time to play, opening the given hub', (lang, t, b) => {
     expect(Push.payloadFor(row(lang), { hub: '/h/tok.en?from=push' })).toMatchObject({ t, b, url: '/h/tok.en?from=push' });
   });
