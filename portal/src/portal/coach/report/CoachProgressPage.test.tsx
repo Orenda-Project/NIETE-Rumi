@@ -127,12 +127,13 @@ describe("My progress (v7)", () => {
     const rows = within(list).getAllByTestId("progress-behaviour");
     expect(rows).toHaveLength(8);
     expect(rows.map((r) => r.textContent)).toEqual([
-      "Specific praise10 of 10", "Moves, not person9 of 10", "Rehearsed aloud6 of 10", "Talked less5 of 10",
-      "Asked & waited4 of 10", "One improvement3 of 10", "Teacher's own step2 of 10", "Real moment0 of 10",
+      // bd-o15qnr.34 (the operator 21 Nov ~09:15): "My progress rows: behaviours as percentages, everything else as counts"
+      "Specific praise100%", "Moves, not person90%", "Rehearsed aloud60%", "Talked less50%",
+      "Asked & waited40%", "One improvement30%", "Teacher's own step20%", "Real moment0%",
     ]);
     expect(rows.map((r) => r.getAttribute("data-tone"))).toEqual(["good", "good", "good", "low", "low", "low", "low", "low"]);
     expect(rows.map((r) => r.querySelector("[data-fill]")?.getAttribute("data-fill"))).toEqual(["100", "90", "60", "50", "40", "30", "20", "0"]);
-    expect(list.textContent).not.toMatch(/%|Respect/);
+    expect(list.textContent).not.toMatch(/Respect| of 10/);
   });
 
   it("Observations: the 3 most recent, each opening its visit, the debrief's score as a % or where it stands; See all observations", async () => {
@@ -144,8 +145,10 @@ describe("My progress (v7)", () => {
       "/portal/coach/observation/cs-3", "/portal/coach/observation/cs-2", "/portal/coach/observation/cs-1", "/portal/coach/reports/all",
     ]);
     expect(links[0]).toHaveTextContent("Lubna Arif");
-    expect(links[0]).toHaveTextContent("Thu 19 · 38%");
-    expect(links[1]).toHaveTextContent("Wed 18 · 63%");
+    // a count now, never a % (the operator 21 Nov ~09:15: everything but the behaviours as counts)
+    expect(links[0]).toHaveTextContent("Thu 19 · 3/8");
+    expect(links[1]).toHaveTextContent("Wed 18 · 5/8");
+    expect(links[0].textContent).not.toMatch(/%/);
     expect(links[2]).toHaveTextContent("Mon 16 · Debrief to do");
     expect(links[3]).toHaveTextContent("See all observations");
   });

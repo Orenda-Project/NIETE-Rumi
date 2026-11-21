@@ -25,12 +25,37 @@ describe("the v7 Feedback Form's words", () => {
   });
 
   it("the boards' words, in English and Urdu", () => {
-    expect(FORM_V7.en.rumisLevel).toBe("Rumi’s level");
+    expect(FORM_V7.en.rumisLevel).toBe("NIETE Teaching Assistant’s level");
     expect(FORM_V7.en.whyLevelMin(20)).toBe("Why this level (20 letters at least)");
     expect(FORM_V7.ur.whyLevelMin(20)).toBe("یہ سطح کیوں (کم از کم 20 حروف)");
-    expect(FORM_V7.en.changedSummary(2, 3, true)).toBe("2 levels and 3 notes changed from Rumi’s");
+    expect(FORM_V7.en.changedSummary(2, 3, true)).toBe("2 levels and 3 notes changed from the NIETE Teaching Assistant’s");
     expect(FORM_V7.en.changedSummary(1, 1, false)).toBe("1 level and 1 note changed");
     expect(FORM_V7.en.nextStep("Record the debrief")).toBe("Next: Record the debrief");
     expect(FORM_V7.ur.changedFrom("Developing")).toBe("Developing سے بدلا گیا");
+  });
+
+  // bd-o15qnr.31 (#188 canvas-ff, LOCKED 21 Nov): the collapsed form, evidence option B, the gaps toast.
+  it("the collapsed form's words (ff-outer, ff-list, ff-detail, ff-b-*), English and Urdu", () => {
+    expect(FORM_V7.en.doneOf(3, 8)).toBe("3/8 done");
+    expect(FORM_V7.en.checkedOf(3, 8)).toBe("3 of 8 checked");
+    expect(FORM_V7.ur.checkedOf(3, 8)).toBe("8 میں سے 3 دیکھ لیے");
+    expect(FORM_V7.en.saveLeft(3)).toBe("Save (3 sections to finish)");
+    expect(FORM_V7.ur.saveLeft(3)).toBe("محفوظ کریں (3 حصے باقی)");
+    expect(FORM_V7.en.nextToCheck("C4", "Children's choices")).toBe("Next to check: C4 Children's choices");
+    expect(FORM_V7.ur.nextToCheck("C4", "بچوں کے انتخاب")).toBe("اگلا: C4 بچوں کے انتخاب");
+    expect(FORM_V7.en.indicatorCrumb("Feedback Form", "C", 1, 8)).toBe("Feedback Form · C · 1 of 8");
+    expect(FORM_V7.ur.agreeNext).toBe("متفق، اگلا");
+    expect(FORM_V7.ur.addEvidence).toBe("شواہد شامل کریں");
+    expect(FORM_V7.en.needLevel(3)).toBe("3 items still need a level");
+    expect(FORM_V7.en.needLevel(1)).toBe("1 item still needs a level");
+  });
+
+  it("the AI is the NIETE Teaching Assistant, never Rumi, in both languages", () => {
+    const en = collectCopy(FORM_V7.en).map((c) => c.text).join(" ");
+    const ur = collectCopy(FORM_V7.ur).map((c) => c.text).join(" ");
+    expect(en).not.toMatch(/Rumi/);
+    expect(ur).not.toMatch(/Rumi/);
+    expect(FORM_V7.en.rumiTag).toBe("NIETE Teaching Assistant");
+    expect(FORM_V7.ur.rumiTag.replace(/[\u2066-\u2069]/g, "")).toBe("NIETE ٹیچنگ اسسٹنٹ");
   });
 });

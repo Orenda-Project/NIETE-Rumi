@@ -26,8 +26,9 @@ import { CountBar, DarkTop, FocusCount, KeyFocusCard, RespectLine, atGoal } from
  *   1 the reports' dark top card: THIS WEEK, n/12 complete observations, the twelve segments
  *   2 the Key Focus Area (option B): its name, n of her last 10 debriefs, a bar with the goal mark at 6 of 10
  *   3 Respect held on its own line (the must-pass check, not one of the 8), above the 8
- *   4 her 8 behaviours over the last 10 debriefs: "9 of 10" and a bar, green from 60%, amber below
- *   5 Observations: the 3 most recent (the debrief's own score, behaviours seen as a % — the one % the operator kept —
+ *   4 her 8 behaviours over the last 10 debriefs: "90%" and a bar, green from 60%, amber below (bd-o15qnr.34, the
+ *     operator 21 Nov ~09:15: "My progress rows: behaviours as percentages, everything else as counts")
+ *   5 Observations: the 3 most recent (the debrief's own score as a count, "3/8" —
  *     or where the visit stands, in the status line's words), each opening its visit; See all observations
  *   6 Weekly reports: each opening its week page (only when her week page opens for her)
  *
@@ -104,7 +105,7 @@ function ProgressBody({ p, K, C, lang }: { p: CoachProgress; K: FlowV7WeekCopy; 
               className={cn("flex min-h-[52px] items-center gap-3 px-3.5", i > 0 && "border-t border-[#f0f1f3]")}>
               <span className="min-w-0 flex-1 text-[15px] font-semibold leading-[1.3]">{pick(b.name, lang)}</span>
               <CountBar done={b.done} of={b.of} />
-              <span className="w-16 shrink-0 text-end text-[14px] font-bold tabular-nums"><bdi>{C.ofTotal(b.done, b.of)}</bdi></span>
+              <span className="w-16 shrink-0 text-end text-[14px] font-bold tabular-nums"><bdi>{b.of > 0 ? `${debriefPercent(b.done, b.of)}%` : C.ofTotal(b.done, b.of)}</bdi></span>
             </div>
           )) : <p className={cn(slim, "m-0")}>{K.noDebriefs}</p>}
         </div>
@@ -116,7 +117,7 @@ function ProgressBody({ p, K, C, lang }: { p: CoachProgress; K: FlowV7WeekCopy; 
           {p.observations.length ? (
             <>
               {p.observations.map((o, i) => {
-                const state = o.debrief && o.debrief.total > 0 ? `${debriefPercent(o.debrief.done, o.debrief.total)}%` : (STEP_WORD[o.step] ?? STEP_WORD.analysing)(W);
+                const state = o.debrief && o.debrief.total > 0 ? `${o.debrief.done}/${o.debrief.total}` : (STEP_WORD[o.step] ?? STEP_WORD.analysing)(W);
                 return (
                   <HistoryRow key={o.id} lead="person" first={i === 0} title={o.teacher || "—"} action="chevron"
                     to={`/portal/coach/observation/${encodeURIComponent(o.id)}`} extra={[dayOf(o.at, lang), state].filter(Boolean).join(" · ")} />

@@ -848,6 +848,10 @@ function v6Sections(analysis, lang = 'en') {
           rating: p[`s_${code}`],
           evidence: p[`e_${code}`] || '',
           improvement: p[`i_${code}`] || '',
+          // bd-o15qnr.32 (evidence option B, #204): Rumi's summary line and every {time, quote}, in full, and the
+          // coach's saved review of them; additive (null when there is none), the fields above are unchanged.
+          rumiEvidence: O.rumiEvidenceOf(analysis, code),
+          evidenceReview: O.savedEvidenceReview(analysis, code),
         };
       }),
       changeReason: p[`wc_${sec.key}`] || '',
@@ -861,8 +865,13 @@ function v6Refusals(analysis, edits, S) {
   return O.LETTERS.reduce((all, l) => ({ ...all, ...O.validateScreen(`DOMAIN_${l}`, edits, analysis, S) }), {});
 }
 
-/** Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save. */
-async function saveDraft({ userId, coachingSessionId, edits, submit = false }, deps) {
+/**
+ * Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save.
+ * bd-o15qnr.32: on a v6 visit, `evidenceReview` ({ [code]: EvidenceReview }, the v7 form's evidence option B) is
+ * checked (observe-fico17-v6.sanitizeEvidenceReview) and rides with the edits as `evidence_review` to the review's own
+ * save, which writes it beside each indicator row. Absent or unusable: the save is exactly today's.
+ */
+async function saveDraft({ userId, coachingSessionId, edits, submit = false, evidenceReview }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
@@ -891,7 +900,8 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false }, d
     const errors = v6Refusals(row.analysis_data || {}, clean, O.messages(lang));
     if (Object.keys(errors).length) return { status: 'invalid', reason: 'v6_review', errors };
   }
-  const summary = await d.draft.applyObserverEdits(coachingSessionId, clean);
+  const review = isV6 && evidenceReview !== undefined ? require('./observe-fico17-v6').sanitizeEvidenceReview(evidenceReview) : null;
+  const summary = await d.draft.applyObserverEdits(coachingSessionId, review ? { ...clean, evidence_review: review } : clean);
   if (summary && summary.refused) return { status: 'not_ready', reason: 'terminal' };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'draft');
   writeNotesAfterSave(d, userId, coachingSessionId);
