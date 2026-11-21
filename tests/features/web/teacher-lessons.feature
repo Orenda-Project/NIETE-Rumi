@@ -639,18 +639,35 @@ Feature: Teacher lesson plans
     Then no survey bar is drawn
 
   # bd-m8zwt1.15 / bd-m8zwt1.16 (queue #164 testing), pinned by FeedbackBar.test.tsx and ViewerPage.feedback.test.tsx.
+  # bd-96f69c.16 (21 Nov): grades 6-12 plans get the bar too, so the grades 7 line now expects it.
   @LPBAR03 @draft @config-gated
-  Scenario: Teacher app v2: a GB grades 1-5 plan ends with the survey bar too; a grades 6-12 plan still has none
-    Given the survey bar is on for a GB grades 1-5 teacher
+  Scenario: Teacher app v2: a GB plan ends with the survey bar, grades 3 or grades 7
+    Given the survey bar is on for a GB teacher
     When she opens a grades 3 plan and reaches its end
     Then "This plan · Useful · Not useful" is drawn
-    And a grades 7 plan shows no survey bar
+    And a grades 7 plan ends with the same survey bar
 
   @LPBAR04 @draft @config-gated @negative
   Scenario: Teacher app v2: the same plan open in two tabs follows the answer already saved
     Given she answered "Useful" for a plan in one tab
     When she taps "Not useful" for the same plan in a second tab
     Then the second tab shows what is saved ("In class"), never the "What was wrong" box
+
+  # bd-96f69c.16 (21 Nov): the survey bar on grades 6-12 plans, asked per render (kind g612). Opening one tells the bot the
+  # survey is in the app, so it sends no WhatsApp survey for that open. Pinned by ViewerPage.feedback.test.tsx,
+  # lessonPlansApi.test.ts, own/ChangePage.test.tsx (portal) and tests/portal/lp-feedback-bar-open-survey.test.js.
+  @LPBAR05 @draft @config-gated
+  Scenario: Teacher app v2: a grades 6-12 plan ends with the survey bar, and no WhatsApp survey follows the open
+    Given the teacher app v2 is on and the survey bar is on for an ICT grades 9 teacher
+    When she opens one of her grades 9 lesson plans and reaches its end
+    Then "This plan · Useful · Not useful" is drawn, asked for this plan's render
+    And her open is recorded as surveyed in the app, so the bot sends her no WhatsApp survey for it
+
+  @LPBAR06 @draft @config-gated @negative
+  Scenario: Teacher app v2: a grades 6-12 shelf plan or her own made plan shows no survey bar
+    Given the survey bar is on for an ICT grades 9 teacher
+    When she opens another teacher's plan from the shelf, or a plan she made herself
+    Then no survey bar is drawn, and nothing is asked of the survey
 
   # bd-snkn32.59.1 (queue #165) — Make my own → A whole unit (grades 1–5, from her book's chapters), behind the list-only
   # portal_lp_own_unit. Written by hand like the blocks above (@draft): the demo stack cannot turn the switch on.
