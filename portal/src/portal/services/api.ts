@@ -1099,6 +1099,8 @@ export type EditFields = {
 export type EditItem = {
   id: string; number: number | null; removed: boolean; type: string;
   section: 'objective' | 'subjective'; marks: number; text: string; fields: EditFields;
+  /** The question's Bloom's level as the bot tagged it (editor-only; ICT sheet AG rows 6-7). */
+  blooms?: string;
   subs?: { index: number; fields: EditFields }[];
 };
 export type EditPaper = { paperId: string; version: number; grade: number; subject: string;
