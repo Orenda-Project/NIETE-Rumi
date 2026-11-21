@@ -79,6 +79,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-ra-preload.js` | Read-along player preload line for the Jugnu page head, keyed by the player file hash (flag web_quiz_ra_preload). |
 | `web-quiz-static.js` | Serves /wq/* child page assets brotli-compressed once per content when web_quiz_brotli is on; else falls through. |
 | `web-quiz-story-assets.js` | GET /s/:bookId/:file storybook pictures/audio with immutable cache, memory cache and Range; flag web_quiz_stories. |
+| `web-quiz-clip-mp3.js` | GET /wq/clip/<clip key>.mp3: a per-quiz voice clip as mp3 (made from its stored .ogg) for phones without Ogg Opus; Range, memory cache; flag web_quiz_voice_v2. |
 | `web-quiz-stream.js` | Streaming compression (br/gzip, flushed per write) for the fast first page that is sent in two parts. |
 | `web-quiz-wait-ux.js` | Inline top progress bar for waits over 400 ms on the child hub page (web_quiz_wait_ux, learned from hub answer). |
 | `web-quiz.routes.js` | Child web-quiz public edge: /q/:code pages, share art, /api/wq/* forwarded to the bot, hub /h, landing /k; 2.1k lines. |

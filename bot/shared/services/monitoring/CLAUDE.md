@@ -11,6 +11,7 @@
 | path | purpose |
 |---|---|
 | `quiz-funnel-watch.service.js` | Quiz funnel watcher sending the operator one Slack DM stream with chronic-family de-duplication |
+| `web-quiz-voice-watch.service.js` | Daily alarm on the share of web-quiz page sittings that lost a read-aloud clip, posted on the funnel watcher's Slack stream; env WEB_QUIZ_VOICE_WATCH_ENABLED |
 | `lesson-plan-health.service.js` | Hourly lesson-plan health summary over lesson_plan_requests, alerting a person when a path is unhealthy |
 
 ## Who reads this (generated)
