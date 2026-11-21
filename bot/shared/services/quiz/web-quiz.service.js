@@ -692,6 +692,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (out.end_fit && require('./web-quiz-hub-flags').nowOf('endShort')) out.end_short = true;
   // web_quiz_end_once (the hub's switch cache, no read): Jugnu's end-screen line never repeats the card's heading (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('endOnce')) out.end_once = true;
+  // web_quiz_voice_v2 (the hub's switch cache, no read): no clip leaves the child in silence; iPhones get mp3 (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('voiceV2')) out.voice_v2 = true;
   // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
   // web_quiz_challenge_line_sent (the hub's switch cache, no read): the challenge line breaks only between its sentences (wq.js)
@@ -2091,6 +2093,11 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
+// QFIX voice: the voice events' own fields (wq.js clipFacts / playable), on these three names only: where the clip came
+// from (never its address), its format, the page's view state, ms since the child last touched the page (gms; -1 none),
+// and what the phone can play.
+const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format']);
+const VOICE_PROPS = Object.freeze({ host: /^(self|r2|other)$/, fmt: /^(ogg|mp3|m4a|aac|wav|other)$/, vis: /^(hidden|visible)$/, can: /^ogg[01]mp3[01]$/ });
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
 // while the switch is on, so a cached page or a switched-off deployment logs nothing new.
 const TEL_NAMES = new Set(['page_start', 'screen_enter', 'screen_leave', 'vis', 'hb', 'page_end']);
@@ -2252,6 +2259,10 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
     if (e[k] !== undefined && Number.isFinite(v)) props[k === 'n' ? 'count' : k] = v;
   }
   for (const k of EVENT_BOOLS) if (typeof e[k] === 'boolean') props[k] = e[k];
+  if (VOICE_EVENTS.has(e.n)) {
+    for (const [k, rx] of Object.entries(VOICE_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+    if (Number.isFinite(e.gms)) props.gms = e.gms;
+  }
   // The page sends answer right/wrong as 1/0: kept as a boolean (it was dropped while only booleans passed).
   if (e.ok === 1 || e.ok === 0) props.ok = e.ok === 1;
   if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);

@@ -95,7 +95,8 @@ test('a clip the browser refuses to start (autoplay before a tap) is not read by
   h.clips[0].rejectPlay(new Error('NotAllowedError'));
   await flush();
   expect(h.spoken).toEqual([]);
-  expect(h.events).toEqual([{ name: 'audio_fallback', data: { reason: 'reject' } }]);
+  // the event's reason; since the voice fields (QFIX voice) it also names the part, host, format and timing
+  expect(h.events).toEqual([{ name: 'audio_fallback', data: expect.objectContaining({ reason: 'reject' }) }]);
 });
 
 test('a clip that stalls on the current screen is given up once, after 8 s, without a second voice', async () => {
@@ -281,7 +282,7 @@ test('gap slow on: a slow clip that starts at 4 s plays as recorded, never talke
   expect(h.clips[0].paused).toBe(false);
 });
 
-test('gap slow on: a refused play() names its error in the fallback event (which rejects a phone gives); off, the event is today\'s', async () => {
+test('a refused play() names its error in the fallback event (which rejects a phone gives), gap slow on or off', async () => {
   const run = async (slow) => {
     const h = harness();
     h.ctx.ONE_VOICE = true; h.ctx.GAP_PHONE = true; h.ctx.GAP_SLOW = slow;
@@ -291,6 +292,7 @@ test('gap slow on: a refused play() names its error in the fallback event (which
     await flush();
     return h.events.filter((e) => e.name === 'audio_fallback').map((e) => e.data);
   };
-  expect(await run(true)).toEqual([{ reason: 'reject', err: 'notallowederror' }]);
-  expect(await run(false)).toEqual([{ reason: 'reject' }]);
+  // since the voice fields (QFIX voice) the error is named whatever the switch, so refusals can be told apart
+  expect(await run(true)).toEqual([expect.objectContaining({ reason: 'reject', err: 'notallowederror' })]);
+  expect(await run(false)).toEqual([expect.objectContaining({ reason: 'reject', err: 'notallowederror' })]);
 });
