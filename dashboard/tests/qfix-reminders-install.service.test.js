@@ -23,28 +23,31 @@ const TODAY = String(Math.floor((NOW + 5 * 3600000) / 86400000));
 const NO_V2 = { first: false, lantern: null, shelf: [], install: true, doors: [] }; // production today: events_v2 off
 
 // hub-play.js in a page. opts.early: the offer the head kept before this script loaded (window.__wqBip).
-function page({ store = {}, ua = CHROME_UA, early = null } = {}) {
+function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () => NOW } = {}) {
   const winL = {}; const timers = [];
   const box = { innerHTML: '', ls: {}, addEventListener(n, fn) { (box.ls[n] = box.ls[n] || []).push(fn); } };
   const ROOT = { innerHTML: '<div id="wqp-inst" class="wq-inst"></div>', querySelector: (s) => (s === '#wqp-inst' ? box : null) };
   const win = { addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: () => ({ matches: false }) };
   if (early) win.__wqBip = early;
+  if (tour) win.WQW = { up: () => tour.up };
   const ctx = {
     window: win, navigator: { userAgent: ua }, document: { head: { appendChild() {} }, createElement: () => ({}) },
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
-    setTimeout: (fn) => { timers.push(fn); return timers.length; }, Date: class extends Date { static now() { return NOW; } },
+    setTimeout: (fn) => { timers.push(fn); return timers.length; }, Date: class extends Date { static now() { return now(); } },
     JSON, Math, String, Number, Array, Object, isFinite, encodeURIComponent, Boolean,
   };
   vm.createContext(ctx);
   vm.runInContext(PLAY_SRC, ctx);
   const evs = [];
   const flush = () => { while (timers.length) timers.shift()(); };
+  const tick = () => { const t = timers.splice(0); t.forEach((fn) => fn()); };
   return {
     box, evs,
     // Chrome's offer, heard by whatever is listening on the window right now
     offer(e) { (winL.beforeinstallprompt || []).forEach((fn) => fn(e)); flush(); },
     // the hub renders and hands the slot over (wq-home.js mount → WQPLAY.install)
-    render(play = NO_V2) { win.WQPLAY.install({ lang: 'en', play }, (n, p) => evs.push([n, p]), ROOT, { h3: true }); flush(); },
+    render(play = NO_V2, extra = {}) { win.WQPLAY.install({ lang: 'en', play, ...extra }, (n, p) => evs.push([n, p]), ROOT, { h3: true }); tick(); },
+    tick,
     click(what) { box.ls.click.forEach((fn) => fn({ target: { getAttribute: (k) => (k === 'data-inst' ? what : null) } })); },
     steps: () => evs.filter(([n]) => n === 'install_prompt').map(([, p]) => p),
   };
@@ -185,5 +188,45 @@ describe('the head keeps the offer, written only with the manifest', () => {
       expect(at).toBeGreaterThan(0);
       expect(at).toBeLessThan(body.indexOf('m.rel="manifest"'));
     } finally { await new Promise((r) => srv.close(r)); }
+  });
+});
+
+// COS 173824: on a new child's second view the card was drawn UNDER the first-run tour (wq-welcome.js) and could not be
+// tapped. The card waits until the tour is done or skipped (WQW.up() false), keeping the offer.
+describe('the card never sits under the first-run tour', () => {
+  test('tour up: no card (hub{tour}); tour ends: the card fills', () => {
+    const tour = { up: true };
+    const p = page({ store: { wqp_hv_day: TODAY }, early: bip(), tour });
+    p.render(NO_V2, { welcome: { v: 1 } });
+    expect(p.box.innerHTML).toBe('');
+    expect(p.steps()[0]).toEqual({ step: 'hub', src: 'browser', reason: 'tour' });
+    p.tick(); p.tick();
+    expect(p.box.innerHTML).toBe('');
+    tour.up = false;
+    p.tick();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+  });
+  test('a tour the answer promises but has not drawn yet: wait for it, then fill after it ends', () => {
+    const tour = { up: false };
+    const p = page({ store: { wqp_hv_day: TODAY }, early: bip(), tour });
+    p.render(NO_V2, { welcome: { v: 1 } });
+    expect(p.box.innerHTML).toBe('');
+    tour.up = true; p.tick();
+    expect(p.box.innerHTML).toBe('');
+    tour.up = false; p.tick();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+  });
+  test('a promised tour that never shows (its script failed): the card after 30 s', () => {
+    let t = NOW;
+    const p = page({ store: { wqp_hv_day: TODAY }, early: bip(), now: () => t });
+    p.render(NO_V2, { welcome: { v: 1 } });
+    expect(p.box.innerHTML).toBe('');
+    t = NOW + 31000; p.tick();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+  });
+  test('no tour in the answer: the card at once, as before', () => {
+    const p = page({ store: { wqp_hv_day: TODAY }, early: bip() });
+    p.render();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
   });
 });
