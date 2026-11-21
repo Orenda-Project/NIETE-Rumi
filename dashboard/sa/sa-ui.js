@@ -3197,10 +3197,11 @@
       if (st.stage === 'ask') {
         var pr = st.probe || {};
         var heardOk = pr.ok && !pr.denied;
-        return screen(v, 'sae-miccheck is-coach is-ask', [
-          h('h1', { class: 'sae-h1', text: heardOk ? C.micu_ask : pr.denied ? C.micu_head : C.micu_none }),
-          // a blocked microphone is not a quiet one: the coach is told how to allow it
-          pr.denied ? h('p', { class: 'sae-sub sae-micu-denied', text: C.micu_denied }) : null,
+        return screen(v, 'sae-miccheck is-coach is-ask' + (pr.denied ? ' is-denied' : ''), [
+          // a blocked microphone is not a quiet one: the coach is told how to allow it. That line takes the heading's
+          // place, so it and «دوبارہ کوشش کریں» sit above the fixed «مائیک کے بغیر چلیں» on a 360-wide phone
+          pr.denied ? h('p', { class: 'sae-sub sae-micu-denied', text: C.micu_denied })
+            : h('h1', { class: 'sae-h1', text: heardOk ? C.micu_ask : C.micu_none }),
           h('div', { class: 'sae-pics' }, [
             heardOk ? tileBtn(C.micu_heard, function () { micCardDone(true); }, 'is-yes') : null,
             tileBtn(C.micu_again, function () { micSt = { stage: 'idle', tries: st.tries }; probe(); }, 'is-again'),
