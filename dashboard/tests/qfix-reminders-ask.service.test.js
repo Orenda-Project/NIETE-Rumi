@@ -95,7 +95,7 @@ describe('the ask says when the reminder comes', () => {
 });
 
 // The tap opens the child's hub (a finished quiz bounces there), so the line never promises a new quiz.
-test('the worker\'s fallback is the ruled no-class line: time to play, a quiz is waiting (A14: one noun)', () => {
+test('the worker\'s fallback is the ruled no-class line: time to play, a quiz is waiting (one noun on every child screen)', () => {
   const sw = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'sw.js'), 'utf8');
   expect(sw).toContain("t: 'Jugnu: time to play ▶', b: 'A quiz is waiting for you.'");
   expect(sw).toContain("t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کوئز آپ کا انتظار کر رہا ہے۔'");
