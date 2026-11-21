@@ -287,6 +287,34 @@ describe("one indicator alone", () => {
 
 /* ── evidence option B with editing ────────────────────────────────────────────────────────────────────────────── */
 
+/*
+ * bd-o15qnr.35 (the operator 21 Nov ~12:58, on a principal's D1: "See that empty space up above? Maybe keep the indicator
+ * name there?") — the row between Previous and Next carries the code and the name (wrapping to two lines), and the card
+ * no longer repeats them, so the levels start higher.
+ */
+describe("the indicator's name sits between Previous and Next", () => {
+  it("the nav row holds the code chip and the name; the card does not repeat them", async () => {
+    await toC1();
+    const nav = screen.getByTestId("ff-nav");
+    expect(within(nav).getByRole("button", { name: "Previous" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Next" })).toBeInTheDocument();
+    expect(within(nav).getByText("C1")).toBeInTheDocument();
+    const title = within(nav).getByRole("heading", { name: "Quality of Questions Asked by the Teacher" });
+    expect(title).toHaveAttribute("dir", "auto");
+    expect(title.className).toMatch(/line-clamp-2/);
+    const card = screen.getByTestId("ff-card");
+    expect(within(card).queryByRole("heading", { name: "Quality of Questions Asked by the Teacher" })).toBeNull();
+    expect(within(card).queryByText("C1")).toBeNull();
+  });
+
+  it("moving to the next indicator moves the title with it", async () => {
+    await toC1();
+    fireEvent.click(within(screen.getByTestId("ff-nav")).getByRole("button", { name: "Next" }));
+    const nav = await screen.findByTestId("ff-nav");
+    expect(within(nav).getByText("C2")).toBeInTheDocument();
+  });
+});
+
 describe("evidence: remove (Undo), edit, add, the summary in place", () => {
   it("⋯ → Remove hides the row and says Quote removed · Undo for 5 seconds; Undo brings it back", async () => {
     await toC1();
