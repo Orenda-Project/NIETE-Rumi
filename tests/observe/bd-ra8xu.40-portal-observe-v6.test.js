@@ -203,12 +203,13 @@ describe('saveDraft — the v6 Flow\'s rules and the v6 Flow\'s save', () => {
     expect(sent).not.toHaveProperty('junk');
   });
 
-  test('refused, with every reason, when a room level or its reason is missing — nothing is saved', async () => {
+  test('refused, with every reason, when a room level is missing — nothing is saved (the note is optional, bd-o15qnr.36)', async () => {
     const d = deps(obsRow());
     const out = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ r_C3: '', why_D3: 'too short' }) }, d);
     expect(out.status).toBe('invalid');
     expect(out.reason).toBe('v6_review');
-    expect(Object.keys(out.errors).sort()).toEqual(['r_C3', 'why_D3']);
+    // bd-o15qnr.36 (the operator 21 Nov ~14:20: "keep the note box, optional"): a short or empty note is no refusal
+    expect(Object.keys(out.errors).sort()).toEqual(['r_C3']);
     expect(out.errors.r_C3).toMatch(/Choose a level/);
     expect(d.draft.applyObserverEdits).not.toHaveBeenCalled();
   });
@@ -220,11 +221,11 @@ describe('saveDraft — the v6 Flow\'s rules and the v6 Flow\'s save', () => {
     expect(Object.keys(out.errors)).toEqual(['chg_F']);
   });
 
-  test('D2: the counts must add up, and a level off the counts needs a number in the reason', async () => {
+  test('D2: the counts must add up; a level off the counts is saved, the note optional on the portal (bd-o15qnr.36)', async () => {
     const bad = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ d2_children: '2', d2_quiet_later: '5' }) }, deps(obsRow()));
     expect(Object.keys(bad.errors)).toEqual(['d2_children']);
     const off = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ r_D2: '4', why_D2: 'Lots of children were talking in groups.' }) }, deps(obsRow()));
-    expect(Object.keys(off.errors)).toEqual(['why_D2']);
+    expect(off.status).toBe('ok');
   });
 
   test('a V3 visit still drops the v6-only keys (byte-identical save)', async () => {

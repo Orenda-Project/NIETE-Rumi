@@ -140,10 +140,8 @@ describe('combinedParts — one of the six as parts', () => {
     expect(O.combinedParts(a, 'C5', 'en')).toMatchObject({ state: 'none', found: [], naText: null, turns: null });
     expect(O.combinedParts(a, 'C7', 'en')).toMatchObject({ state: 'ie', found: [] });
     expect(O.combinedParts(a, 'D2', 'en')).toMatchObject({ state: 'd2', found: [], turns: { first: 4, second: 7 } });
-    const d3 = O.combinedParts(a, 'D3', 'en');
-    expect(d3.state).toBe('na');
-    expect(typeof d3.naText).toBe('string');
-    expect(d3.naText.length).toBeGreaterThan(0);
+    // N/A: main has no per-indicator N/A words yet, so naText is null and the portal says it
+    expect(O.combinedParts(a, 'D3', 'en')).toMatchObject({ state: 'na', naText: null });
     // nothing at all for D4 (no entry): none
     expect(O.combinedParts(a, 'D4', 'en')).toMatchObject({ state: 'none', found: [] });
   });
