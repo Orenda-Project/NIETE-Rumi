@@ -1,2 +1,3 @@
 {"ts":"2026-11-21T17:37:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=fde-board-pattern spec_sync=true","sha":"f3ed0c7eb6b7","branch":"bd-zrdvmi.50.2-82384","user":""}
 {"ts":"2026-11-21T17:37:12Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=fde-board-pattern spec_sync=true","sha":"f3ed0c7eb6b7","branch":"bd-zrdvmi.50.2-82384","user":""}
+{"ts":"2026-11-21T17:37:45Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f3ed0c7eb6b7","branch":"bd-zrdvmi.50.2-82384","user":""}
