@@ -1361,6 +1361,18 @@ duplicate.
 
 **LOCAL-ONLY divergence**: `VENDOR DIVERGENCE` comments mark the template (flow loop) and renderer sites.
 
+### 3.41 `brief_author_v3.md` + all three flash briefs — rule 13: a reading lesson times the reading before the questions (2026-11-19, bd-zrdvmi.17)
+
+ICT feedback sheet, Lesson Plan row 528: the G6 Urdu plan for chapter 10's reading lesson (pp.51-54)
+said "we will read the text" and went straight to the comprehension questions, with no time or steps
+for the reading ("اس میں ریڈنگ کا وقت شامل نہیں ہے"). No brief told the author to give the reading a
+step of its own. Rule 13 under "what teachers rejected" now does: a timed reading step before the
+questions, saying who reads, which pages, and what pupils look for. `tests/lp612/author-brief-reading-step.test.js`
+drives the real `authorLessonPlan()` and asserts the rule reaches the system prompt for the standard
+brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.28 and §3.38. Cached renders keep the old plan until re-authored.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
