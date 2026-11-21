@@ -160,6 +160,8 @@ test('the round\'s share code carries the class and the chosen teacher; the quiz
   const sc = db.quiz_share_codes[0];
   expect(sc).toMatchObject({ quiz_id: QID, class_id: CLASS, teacher_user_id: TEACHER });
   expect(quiz().meta).toMatchObject({ share_code_id: sc.id, round_code: sc.code, n_recall: 2, n_items: 7, recall_done: true, step: 'ready' });
+  // The recall items went through the generate step's own verifyKeys seam (the stub solver), without a lesson (A19).
+  expect(quiz().meta.recall_key_verify).toMatchObject({ status: 'ok', checked: 2, dropped: 0, model: 'stub-solver' });
   expect(logEvent).toHaveBeenCalledWith('web_quiz.round_written', expect.objectContaining({
     class_link_code: 'K7Q2MXTRAB', round_code: sc.code, n_items: 7, n_recall: 2, teachers_with_lp: 1, chosen: 'earliest',
   }));

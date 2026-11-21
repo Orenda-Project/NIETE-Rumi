@@ -235,6 +235,54 @@ async function rewrite({ originals, language = 'en', complete }) {
   }
 }
 
+/**
+ * The rewritten items blind-solved before any child sees them (PLAN §11 A19). The lesson items already passed
+ * runKeyVerify in the generate step; a rewrite is written after it, so it gets this solve: WITHOUT a lesson (a rewrite
+ * has none: the subject alone decides), the same two-look rule as runKeyVerify's bare pass (ambiguous and
+ * none_correct count at once, a disagree only when a second look in another shown order says so too; unsure never
+ * blocks). FAIL-CLOSED, unlike the generate step: nobody reviews a round before a child plays it, so a solver that
+ * fails keeps no rewrite (the round goes out with its lesson items). `verify` = transcript-quiz-key-verify verifyKeys.
+ * Returns { items (the kept ones), record: { status, checked, dropped, flagged:[{i, verdict}], model, cost_usd } }.
+ */
+async function verifyItems({ items, language = 'en', grade = null, subject = null, verify }) {
+  const record = { status: 'skipped', checked: 0, dropped: 0, flagged: [], model: null, cost_usd: 0 };
+  if (!items || !items.length) return { items: [], record };
+  const FLAGGED = new Set(['disagree', 'ambiguous', 'none_correct']);
+  const questions = items.map((it) => ({ question: it.question, options: it.options, correct_index: SLOTS.indexOf(it.correct) }));
+  record.checked = items.length;
+  const solve = (indices, again) => verify({ questions, indices, language, grade, subject, withLesson: false, again });
+  try {
+    const first = await solve(null, false);
+    record.model = first.model || null;
+    record.cost_usd += Number(first.costUsd) || 0;
+    const verdicts = Array.isArray(first.verdicts) ? first.verdicts : [];
+    const toConfirm = verdicts.filter((v) => v.verdict === 'disagree').map((v) => v.index);
+    let confirmed = new Set();
+    if (toConfirm.length) {
+      const again = await solve(toConfirm, true);
+      record.cost_usd += Number(again.costUsd) || 0;
+      confirmed = new Set((again.verdicts || []).filter((v) => FLAGGED.has(v.verdict)).map((v) => v.index));
+    }
+    const out = new Set();
+    verdicts.forEach((v) => {
+      if (FLAGGED.has(v.verdict) && (v.verdict !== 'disagree' || confirmed.has(v.index))) {
+        out.add(v.index);
+        record.flagged.push({ i: v.index, verdict: v.verdict });
+      }
+    });
+    record.status = 'ok';
+    record.dropped = out.size;
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    return { items: items.filter((_, i) => !out.has(i)), record };
+  } catch (err) {
+    logToFile('⚠️ evening round: recall key solve failed — no rewrite is kept (fail-closed)', { error: String((err && err.message) || err).slice(0, 200) });
+    record.status = 'error';
+    record.dropped = items.length;
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    return { items: [], record };
+  }
+}
+
 // ── reading items ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -294,5 +342,5 @@ function recallRows({ quizId, items, roundKey, chipOf = () => null, subject }) {
 }
 
 module.exports = {
-  POOL_MAX, KEY_HELD, missWindow, missesFor, rewrite, buildPrompt, checkItem, recallRows, isReadingItem, markReading, kidKey, heldIds, keyOf, pktMidnight,
+  POOL_MAX, KEY_HELD, missWindow, missesFor, rewrite, verifyItems, buildPrompt, checkItem, recallRows, isReadingItem, markReading, kidKey, heldIds, keyOf, pktMidnight,
 };

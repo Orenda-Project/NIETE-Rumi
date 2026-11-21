@@ -452,7 +452,7 @@ async function heldLessonItems(rows, meta) {
 /**
  * The round's hand-off (transcript-quiz-generate.service calls it instead of the teacher's). Idempotent per step on a
  * redelivered job: the share code is reused when meta has one, the recall pool is written once (meta.recall_done).
- * `deps` = the boundaries a test or a local run replaces: { complete (the model call), mintCode }.
+ * `deps` = the boundaries a test or a local run replaces: { complete (the rewrite call), verify (the recall blind solve), mintCode }.
  */
 async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = {}) {
   const T = require('./web-quiz-token');
@@ -513,7 +513,12 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
       }).filter(Boolean);
       const complete = deps.complete || require('./transcript-quiz-llm').completeJson;
       spent = await Recall.rewrite({ originals, language, complete });
-      items = spent.items;
+      // Every rewrite blind-solved before a child sees it (A19); a flagged one is not written.
+      const verify = deps.verify || require('./transcript-quiz-key-verify.service').verifyKeys;
+      const kv = await Recall.verifyItems({ items: spent.items, language, grade: row.grade, subject: row.subject, verify });
+      items = kv.items;
+      meta.recall_key_verify = kv.record;
+      spent.costUsd = (spent.costUsd || 0) + kv.record.cost_usd;
     }
     const rows = Recall.recallRows({
       quizId, items, roundKey, subject: row.subject, chipOf: (id) => T.chipId(sc.id, id),

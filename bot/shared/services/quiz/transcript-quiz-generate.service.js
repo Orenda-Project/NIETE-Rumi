@@ -3237,7 +3237,8 @@ async function processQuiz(quizId, payload, flight) {
   const qRows = storedQs && storedQs.length ? storedQs
     : (cachedRows || applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language }));
 
-  if (isRound) return require('./web-quiz-evening-round').afterGenerate({ quiz, quizId, meta });
+  // The round's recall items are blind-solved through the same verifyKeys seam as the lesson items above.
+  if (isRound) return require('./web-quiz-evening-round').afterGenerate({ quiz, quizId, meta }, { verify: (args) => module.exports.verifyKeys(args) });
   const Handoff = require('./transcript-quiz-handoff.service');
   const result = await Handoff.sendHandoff(quizId, phone, {
     firstSend: true,
