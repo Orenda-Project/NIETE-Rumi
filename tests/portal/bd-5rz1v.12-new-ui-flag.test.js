@@ -182,7 +182,7 @@ describe('GET /config — features.newUi', () => {
       'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'helpVideos',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       // The lesson plan in the app: the survey bar, real false unless portal_lp_feedback_bar names her.
-      'lpFeedbackBar', 'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
+      'lpFeedbackBar', 'lpMakeOwn', 'lpOwnGoalStart', 'lpOwnReviewer', 'lpOwnShelf',
       // The plan screen's slim layout, a real false unless portal_lp_viewer_slim (and the teacher app) name her.
       'lpViewerSlim',
       // Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off.

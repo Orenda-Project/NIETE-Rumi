@@ -3,6 +3,7 @@ import { useCopy } from '../../i18n';
 import { OWN } from './copy';
 import { fetchSections } from './api';
 import { ChangeEntry } from './ChangeEntry';
+import { RateCard } from './RateCard';
 import { PlanSections, type Section } from './PlanSections';
 import type { ChangeAt, Part } from './change';
 
@@ -19,6 +20,11 @@ export function OwnSections({ at }: { at: ChangeAt }) {
     void fetchSections(at.own, at.band).then((r) => { if (live) setGot(r); });
     return () => { live = false; };
   }, [at.own, at.band]);
-  if (!got) return <ChangeEntry at={at} />;
-  return <PlanSections C={C} at={at} sections={got.sections} changed={got.changed} />;
+  // bd-snkn32.11 — her rating of her own plan, under it either way.
+  return (
+    <>
+      {got ? <PlanSections C={C} at={at} sections={got.sections} changed={got.changed} /> : <ChangeEntry at={at} />}
+      <RateCard ownId={at.own} />
+    </>
+  );
 }

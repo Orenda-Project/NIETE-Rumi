@@ -118,7 +118,17 @@ function createOwnService(deps) {
     if (ext.extend && lessonId) return { outcome: 'bad_request', error: 'extend is for a grades 6-12 lesson' };
     // bd-snkn32.15: five makes + changes per Pakistan day, checked before anything is written or asked for.
     if ((await d.countToday(userId, karachiDayStart(now()))) >= dailyLimit(d.env || process.env)) return { outcome: 'daily_limit' };
-    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
+    if (parsed.answers.goal) {
+      // bd-snkn32.56 — a goal start: off for everyone but portal_lp_own_goal_start's list (checked here, fail-closed),
+      // and it is the book-less path, so no book pages and no next lesson ride with it.
+      let on = false;
+      try { on = !!d.goalStartOn && (await d.goalStartOn(userId)) === true; } catch (_) { on = false; }
+      if (!on) return { outcome: 'not_found' };
+      if (answers.pages != null || answers.extend != null) return { outcome: 'bad_request', error: 'a goal start takes no pages or next lesson' };
+    }
+    // bd-snkn32.58.2 — a note dropped for a blocked word is said back to her (the app shows one line).
+    const told = (out) => (parsed.answers.noteDropped && out && out.outcome === 'queued' ? { ...out, noteDropped: true } : out);
+    if (lessonId) return told(await requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId }));
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
@@ -147,7 +157,7 @@ function createOwnService(deps) {
     });
     if (!row || !row.id) return { outcome: 'error' };
 
-    return queue(row, segmentId, correlationId);
+    return told(await queue(row, segmentId, correlationId));
   }
 
   /** Her fork in the render row's shape (renderStatus), or null — never someone else's, never a throw. */
@@ -256,6 +266,7 @@ function liveDeps() {
     },
     listChain: (rootId, userId) => listChain(supabase, rootId, userId),
     countToday: (userId, since) => countToday(supabase, userId, since),
+    goalStartOn: (userId) => require('./lp612-own-goal.store').goalStartOn(supabase, userId),
     log: (msg, meta) => logToFile(msg, meta),
   };
 }

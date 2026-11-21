@@ -25,7 +25,7 @@ async function rewriteK5({ script, answers, edit, lang, grade, subject, dayPages
     : k5Messages({ script, answers, lang, grade, subject, dayPages, bookText });
   // bd-snkn32.30 — a make is held to her class size and the day's own period; a change keeps the old gate.
   const make = !edit && answers;
-  const opts = make ? { lang, resources: answers.resources, size: answers.size, period: periodOf(script) } : { lang };
+  const opts = make ? { lang, resources: answers.resources, size: answers.size, period: periodOf(script), noBook: !!answers.goal } : { lang };
   let kept = null; // round 1's plan when its only fault was a repair-only one
   for (let round = 1; round <= ROUNDS; round++) {
     const res = await llm.chat.completions.create({

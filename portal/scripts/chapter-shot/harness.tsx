@@ -9,7 +9,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import '@/index.css';
 import i18n from '@/i18n/config';
 import { LessonsPage } from '@/portal/teacher/lessons/LessonsPage';
-import { LESSONS_HOME } from '@/portal/teacher/lessons/paths';
+import { LESSONS_HOME, LESSONS_NEW } from '@/portal/teacher/lessons/paths';
+import { NewLessonPage } from '@/portal/teacher/lessons/NewLessonPage';
+import { PreparingPage } from '@/portal/teacher/lessons/PreparingPage';
 import { OwnPage } from '@/portal/teacher/lessons/own/OwnPage';
 import { LESSONS_OWN } from '@/portal/teacher/lessons/own/state';
 
@@ -30,6 +32,10 @@ async function start() {
           <Route path={`${LESSONS_HOME}/lessons`} element={<LessonsPage />} />
           {/* bd-snkn32.4 — the Make my own steps too (run.mjs --own) */}
           <Route path={LESSONS_OWN} element={<OwnPage />} />
+          {/* bd-snkn32.58.1 — Make my own's first screen (two starts) and its class step */}
+          <Route path={LESSONS_NEW} element={<NewLessonPage />} />
+          {/* bd-snkn32.58.3 — the waiting page (checking / refused) */}
+          <Route path={`${LESSONS_HOME}/preparing`} element={<PreparingPage />} />
           <Route path="*" element={<div data-testid="elsewhere" />} />
         </Routes>
       </MemoryRouter>

@@ -2,7 +2,8 @@
 
 The numbers on the teacher's Home ("Last 30 days"), her **My journey** page and the team's "Where teachers get to"
 view are counted **twice a day by one scheduled job** on the bot's worker, reading the **read replica only**, and kept
-in Redis. Opening Home, My journey or the team view reads Redis and **never the database**: a miss shows no numbers.
+in Redis. (The test sites, staging and sandbox, have no paid read copy, so there the job reads their own database;
+`bot/shared/config/supabase-replica-only.js` allows that only for those two Railway environment names.) Opening Home, My journey or the team view reads Redis and **never the database**: a miss shows no numbers.
 
 - Contract (key names, TTL, kinds, the shape check both sides use): `bot/shared/config/teacher-activity-contract.js`
 - Reader (portal, zero database access, fails soft): `dashboard/services/teacher-activity-store.js`

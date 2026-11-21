@@ -219,6 +219,13 @@ const PORTAL_LP_MAKE_OWN_KEY = 'portal_lp_make_own';
  * plan before it is listed: LIST-ONLY (read with isUserListedInFlag, like portal_role_switch), anything else nobody.
  */
 const PORTAL_LP_OWN_SHELF_KEY = 'portal_lp_own_shelf';
+
+/**
+ * bd-snkn32.56 — "Make my own" from a learning goal or topic (no textbook in class), grades 6-12. LIST-ONLY while it is
+ * tested with a few teachers (read with isUserListedInFlag): a JSON list of users.id; true, "teachers", absent or a
+ * failed read is nobody. Rides with portal_lp_make_own. The bot reads the same key (lp612-own-goal.store).
+ */
+const PORTAL_LP_OWN_GOAL_START_KEY = 'portal_lp_own_goal_start';
 const PORTAL_LP_OWN_REVIEWERS_KEY = 'portal_lp_own_reviewers';
 
 /**
@@ -576,6 +583,7 @@ module.exports = {
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_GOAL_START_KEY,
   PORTAL_LP_OWN_REVIEWERS_KEY,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_PRINCIPAL_APP_KEY,

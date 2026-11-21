@@ -17,6 +17,8 @@ const { pagesLine612 } = require('./lp612-own-pages');
 const { sloMix, sloCodes } = require('./lp612-own-slo');
 const { loadLine } = require('./lp-own-period');
 const { isScience, SCIENCE_GLOSS_LINE } = require('./lp612-own-gloss');
+const { parseGoal, goalLines } = require('./lp612-own-goal');
+const { hasBlockedWord } = require('./lp-own-goal-guard');
 
 const NOTE_MAX = 200;
 const FOCI = ['summative', 'formative'];
@@ -106,12 +108,31 @@ function parseOwnAnswers(body, ctx) {
   if (given.some((r) => !Object.prototype.hasOwnProperty.call(RESOURCES, r))) return bad('resources has an unknown item');
   // The textbook is always there; the rest in the list's own order, once each.
   const resources = Object.keys(RESOURCES).filter((r) => r === 'textbook' || given.includes(r));
-  const note = typeof b.note === 'string'
+  const raw = typeof b.note === 'string'
     ? b.note.replace(/["“”]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOTE_MAX)
     : '';
+  // bd-snkn32.58.2 (queue #155 B) — a note with a blocked word never reaches the model; the answers say it was dropped.
+  const dropNote = !!raw && hasBlockedWord(raw);
+  const note = dropNote ? '' : raw;
   const answers = { size: b.size, resources, level: b.level, way: picked[0], note };
+  if (dropNote) answers.noteDropped = true;
   if (picked.length > 1) answers.ways = picked;
-  if (!band) return { ok: true, answers };
+  if (b.goal != null) {
+    // bd-snkn32.56 — start from a learning goal or topic, and the class has no textbook (grades 1–5 too, bd-snkn32.57).
+    const g = parseGoal(b.goal);
+    if (!g.ok) return bad(g.error);
+    if (hasBlockedWord(g.goal.text)) return bad('goal.text is not a school topic'); // bd-snkn32.58.2: a forged body too
+    answers.goal = g.goal;
+    answers.resources = resources.filter((r) => r !== 'textbook');
+  }
+  if (!band) {
+    // bd-snkn32.63 — a 1–5 day (no 6–12 band) takes what the lesson is for too, from the primary list: never `board`.
+    if (b.purpose != null) {
+      if (!purposesOfBand('primary').includes(b.purpose)) return bad('purpose is not one of the choices');
+      answers.purpose = b.purpose;
+    }
+    return { ok: true, answers };
+  }
   if (b.purpose != null) {
     // by grade too: Grade 8 has exam practice (FDE) where 6–7 do not.
     const purposes = bandOf(grade) ? purposesOfGrade(grade) : purposesOfBand(band);
@@ -155,25 +176,27 @@ function buildOwnInstruction(answers, ctx) {
   }
   const secondary = secondaryBand(ctx);
   const have = a.resources.map((r) => (secondary ? RESOURCES_612 : RESOURCES)[r]).join(', ');
+  const goal = a.goal || null; // bd-snkn32.56: no textbook in class, so no line sends her to a book page
   const lines = [
-    'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout, and make it no longer than the lesson you were given.',
+    goal ? 'Rewrite this lesson for ONE teacher\'s own class, around her goal below. Keep the same layout, and make it no longer than the lesson you were given.'
+      : 'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout, and make it no longer than the lesson you were given.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
     // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
     'It must fit ONE class period: keep `period_minutes` as it is, and give the opening, I do, We do, You do and the check minutes that add up to exactly `period_minutes`.',
     loadLine(a.size),
-    `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
-    MATERIALS_LINE,
+    `What she has: ${have || 'nothing but the children'}. Do not use anything else (no slates, printing or electricity unless listed).`,
+    ...(goal ? goalLines(goal) : [MATERIALS_LINE]),
     way.length > 1 ? `Teaching ways (combine them): ${way.join(' ')}` : `Teaching way: ${way[0]}`,
-    'Every part still names the book page it uses. Every part has a quick check for understanding.',
-    'Activities may go beyond the book but stay rooted in the page.',
+    goal ? 'Every part has a quick check for understanding.' : 'Every part still names the book page it uses. Every part has a quick check for understanding.',
+    ...(goal ? [] : ['Activities may go beyond the book but stay rooted in the page.']),
     GRR_LINE,
     YOU_DO_LINE,
     ROTE_LINE,
   ];
   if (secondary) lines.push(...secondaryLines(a, ctx || {}));
-  if (secondary && a.pages) lines.push(pagesLine612(a.pages)); // item 14
+  if (secondary && a.pages && !goal) lines.push(pagesLine612(a.pages)); // item 14
   if (secondary && isScience(ctx)) lines.push(SCIENCE_GLOSS_LINE); // bd-snkn32.48: the reviewer's 9B
-  const book = bookLine(ctx && ctx.bookText);
+  const book = goal ? null : bookLine(ctx && ctx.bookText);
   if (book) lines.push(book);
   if (a.note) lines.push(`Her own note: "${a.note}"`);
   return lines.join('\n');

@@ -15,6 +15,9 @@
 const { getOverall } = require('./coaching-frameworks.service');
 const LpHistory = require('./lp-history.service');
 const { pkToday, pkInstantWindow } = require('../lib/pk-range');
+// One definition of "recorded in the portal", shared with the bot (portal.routes.js loads the same module: crypto
+// and a config only, no pino).
+const { isPortalSession } = require('../../bot/shared/services/coaching/portal-coaching.service');
 
 const OBSERVATION = 'leader_observation';
 const STOPPED = "('failed', 'cancelled', 'abandoned')";
@@ -135,7 +138,9 @@ async function journey(query, userId, sessionId) {
 // moment she sent the audio, analysing ones included; stopped ones left out. Only the JSON paths the
 // list shows are read — never the whole analysis_data (up to ~30 KB a row; class R).
 const HISTORY_SQL = `/* teacher-coaching:history */
-  SELECT id, created_at, status, failed_step, audio_duration_seconds,
+  SELECT id, created_at, status, failed_step, audio_duration_seconds, audio_url,
+         -- bd-sy4kcv: the reflection questions, only while one may be waiting on her (never the whole state).
+         CASE WHEN status = 'conducting_conversation' THEN conversation_state->'questions' END AS questions,
          analysis_data->'scores' AS scores,
          analysis_data->>'topic' AS topic,
          analysis_data->>'subject' AS subject,
@@ -151,13 +156,25 @@ const HISTORY_SQL = `/* teacher-coaching:history */
    ORDER BY created_at DESC
    LIMIT $4`;
 
+/** bd-sy4kcv — her portal recording at its reflection step with a question asked and not yet answered. */
+function awaitingReflection(r) {
+  if (r.status !== 'conducting_conversation' || !isPortalSession(r)) return false;
+  return (Array.isArray(r.questions) ? r.questions : []).some((q) => q && q.question && !q.answer);
+}
+
 async function readHistory(query, userId, from, to) {
   const { rows } = await query(HISTORY_SQL, [userId, from, to, HISTORY_LIMIT]);
   return (rows || []).map((r) => {
     const grade = r.grade != null && r.grade !== '' ? Number(r.grade) : null;
     const seconds = Number(r.audio_duration_seconds);
     // bd-aqotzx — the two not-a-class states the list shows; absent on every other lesson.
-    const state = r.status === 'awaiting_class_confirm' ? 'needs_answer' : r.status === 'cancelled' ? 'stopped' : undefined;
+    // bd-sy4kcv — and the two steps after the scores, so an unfinished lesson never reads as finished:
+    // her portal recording's reflection question waiting on her (a WhatsApp recording's is answered in her
+    // chat, where the portal has no box for it), and the report being made.
+    const state = r.status === 'awaiting_class_confirm' || awaitingReflection(r) ? 'needs_answer'
+      : r.status === 'generating_report' ? 'preparing'
+        : r.status === 'cancelled' ? 'stopped' : undefined;
+    const reportReady = r.status === 'completed';
     return {
       ...(state ? { state } : {}),
       id: r.id,
@@ -166,8 +183,10 @@ async function readHistory(query, userId, from, to) {
       subject: r.subject || null,
       grade: Number.isInteger(grade) ? grade : null,
       minutes: Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds / 60) : null,
-      percentage: percentOf(r.scores),
-      reportReady: r.status === 'completed',
+      // bd-sy4kcv — the scores are written at analysis_complete, before her reflection and the report: the band
+      // is shown once the report is ready, never on a lesson still waiting on her or on the report.
+      percentage: reportReady ? percentOf(r.scores) : null,
+      reportReady,
     };
   });
 }

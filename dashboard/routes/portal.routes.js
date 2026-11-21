@@ -113,6 +113,7 @@ const {
   PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_LP_OWN_SHELF_KEY,
   PORTAL_LP_OWN_REVIEWERS_KEY,
+  PORTAL_LP_OWN_GOAL_START_KEY,
   isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   isCoachObservationOn,
@@ -3417,6 +3418,12 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
     LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
       userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
     }, { renderId }));
+    // bd-snkn32.51 (queue #134 A) — an own plan: hers ('mine'; several per ownId = re-opens) or a shelf plan ('shelf').
+    if (out.shelf === true || typeof out.changesLeft === 'number') {
+      logAppAction(req, 'own_plan.opened', 'lesson_plan', {
+        whose: out.shelf === true ? 'shelf' : 'mine', ownId: renderId, band: ['k5', 'g612'].includes(out.ownBand) ? out.ownBand : null,
+      });
+    }
   }
   return undefined;
 });
@@ -9513,6 +9520,7 @@ router.get('/config', async (req, res) => {
       teacherJourney,
       lpWhatsappPdfOff,
       lpViewerSlimRaw,
+      lpOwnGoalStartRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9571,6 +9579,8 @@ router.get('/config', async (req, res) => {
       LpAppSwitches.isLpWhatsappPdfOffFor(supabase, userId),
       // The plan screen's slim layout (rides with the teacher app).
       LpAppSwitches.isLpViewerSlimOn(supabase, userId),
+      // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
+      isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9623,6 +9633,7 @@ router.get('/config', async (req, res) => {
         // WhatsApp; POST /share/whatsapp checks again.
         lpWhatsappSend: lpWhatsappPdfOff !== true,
         lpViewerSlim: teacherV2 && lpViewerSlimRaw,
+        lpOwnGoalStart: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnGoalStartRaw,
       },
     });
   } catch (error) {
@@ -9662,6 +9673,7 @@ router.get('/config', async (req, res) => {
         // Not a switch that turns something on: true is today (the server still refuses a send that is off).
         lpWhatsappSend: true,
         lpViewerSlim: false,
+        lpOwnGoalStart: false,
       },
       roleSwitchRoles: [],
     });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
@@ -16,6 +16,8 @@ import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, lessonsUrl, openUrl, readAt, type LessonsAt } from './paths';
 import { dcFor, useOpenLesson } from './useOpenLesson';
 import { ownChangeAt } from './own/change';
+import { GOAL } from './own/goalCopy';
+import { OWN_BOOK, ownUrl } from './own/state';
 
 /**
  * bd-fmf24g.3 — a grades 6–12 plan being written (v28 canvas LessonPreparing): a countdown ring over
@@ -68,6 +70,9 @@ function Preparing({ at }: { at: AtRender }) {
   const otherLessons = chapter ? lessonsUrl('lessons', { ...at, chapter }) : teacherPath('lessons');
   const { open, busy } = useOpenLesson();
   const [failed, setFailed] = useState(false);
+  // bd-snkn32.58.3 — a goal plan the check refused: another goal or the book, never Try again on the same goal.
+  const [unsure, setUnsure] = useState(false);
+  const G = useCopy(GOAL);
   // bd-ipoxhx.2 — the clock runs from when she first asked for this plan (the shell's tracker holds it), not from
   // when this page mounted: coming back carries on the countdown instead of starting again at the top.
   const [startedAt] = useState(
@@ -116,7 +121,7 @@ function Preparing({ at }: { at: AtRender }) {
           });
           return;
         }
-        if (s.state === 'failed') { setFailed(true); return; }
+        if (s.state === 'failed') { setUnsure(s.reason === 'goal_unsure'); setFailed(true); return; }
       } catch { /* keep asking */ }
       if (!live) return;
       timer = setTimeout(tick, nextPollMs(Date.now() - t0));
@@ -133,14 +138,24 @@ function Preparing({ at }: { at: AtRender }) {
   return (
     <TeacherPage feature="lessons" crumb={C.grade(at.grade)} title={title} backTo={otherLessons}>
       <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-6 text-center">
-        {failed ? (
+        {failed && unsure ? (
+          <>
+            <p className="text-[20px] font-semibold text-[#33374a]" data-testid="own-goal-unsure">{G.unsureTitle}</p>
+            <Link to={ownUrl({ grade: at.grade, subject: at.subject, step: 'goal', goal: { kind: null, text: '' } })} replace
+              className={cn('flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}>
+              {G.anotherGoal}
+            </Link>
+            <Link to={OWN_BOOK} replace className={cn(OUTLINE_WIDE, 'flex items-center justify-center', FOCUS)}>{G.fromBook}</Link>
+          </>
+        ) : failed ? (
           <>
             <p className="text-[20px] font-semibold text-[#c8331f]">{C.notPrepared}</p>
             <button
               type="button"
               disabled={busy}
               onClick={() => {
-                if (lesson) void open(lesson, at, { replace: true });
+                if (at.back) navigate(at.back, { replace: true }); // bd-m8zwt1.8: her own plan → her own answers
+                else if (lesson) void open(lesson, at, { replace: true });
                 else navigate(openUrl({ plan: `g612:${at.lesson}`, title: at.title, grade: at.grade }), { replace: true });
               }}
               className={cn('min-h-[56px] w-full rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white disabled:opacity-50', FOCUS)}
@@ -152,6 +167,7 @@ function Preparing({ at }: { at: AtRender }) {
           <>
             {left > 0 ? <Ring value={elapsed / EXPECTED_MS.lesson} text={clock(left)} /> : null}
             <p className="text-[22px] font-light text-[#1d2025]">{C.pleaseHold}</p>
+            {at.check === 'goal' ? <p className="text-[16px] text-[#4b5563]">{G.checking}</p> : null}
             <div className="flex flex-wrap justify-center gap-1.5">
               <StatusChip text={C.expectedWait} tone="waiting" />
             </div>

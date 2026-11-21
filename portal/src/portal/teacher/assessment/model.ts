@@ -28,9 +28,6 @@ export const STEPS: readonly Step[] = ['class', 'cover', 'questions', 'check'];
 /** One chapter with topics: Topics comes after Chapters (topics.ts `topicsApply`). Today's four steps otherwise. */
 export const TOPIC_STEPS: readonly Step[] = ['class', 'cover', 'topics', 'questions', 'check'];
 
-/** The Flow's MAX_TYPE_SLOTS (question-types.js): the most unseen types one paper takes. */
-export const MAX_TYPES = 8;
-
 /**
  * The FDE board pattern's New paper: Class, then Check (scope and style are trays on Check). Only when
  * /assessment/options offers the pattern for the grade and subject (`eligible`) and the pattern is picked.
@@ -187,7 +184,6 @@ export type Why =
   | { code: 'ranges' }
   | { code: 'none' }
   | { code: 'count'; max: number }
-  | { code: 'typesMax'; max: number }
   | { code: 'marks'; max: number }
   | { code: 'marksLow'; total: number }
   | { code: 'earlier'; step: Step }
@@ -197,7 +193,8 @@ export type Why =
 
 /**
  * Why she may not go on from this step, or null when she may. `max` is GET /assessment/options' maxQuestions.
- * The limits are the server's: the paper 1..max questions, up to MAX_TYPES unseen types, marks 1..MAX_TOTAL_MARKS;
+ * The limits are the server's: the paper 1..max questions, marks 1..MAX_TOTAL_MARKS; any number of the subject's types (bd-5icld3.4: the 8-type
+ * cap was the WhatsApp Flow's, which has 8 fixed count boxes; the portal draws a row per type);
  * and a marks total under the question count is held here, because the generator drops whole questions to fit a
  * budget it cannot meet. Every disabled Next / Make my paper says this beside it (ButtonWithReason).
  */
@@ -225,7 +222,6 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
       const total = questionTotal(p);
       if (total === 0) return { code: 'none' };
       if (total > max) return { code: 'count', max };
-      if (Object.keys(p.typeCounts).length > MAX_TYPES) return { code: 'typesMax', max: MAX_TYPES };
       if (p.marks !== null) {
         if (!intIn(p.marks, 1, MAX_TOTAL_MARKS)) return { code: 'marks', max: MAX_TOTAL_MARKS };
         if (p.marks < total) return { code: 'marksLow', total };

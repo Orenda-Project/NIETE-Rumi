@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { lessonPlans } from '../../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../../newui/lessons/shared';
 import { teacherPath } from '../../routes';
 import { DockButton, StepBar } from '../../ui';
 import { useCopy } from '../../i18n';
+import { useToast } from '@/hooks/use-toast';
 import TeacherPage from '../../TeacherPage';
 import { LoadState } from '../LoadState';
 import { LESSONS } from '../copy';
 import { lessonsUrl } from '../paths';
 import { OWN } from './copy';
 import {
-  FOCI, LEVELS, RESOURCES, SIZES, isComplete, purposesFor, suggestWay, waysFor, type Resource, type Way,
+  FOCI, LEVELS, RESOURCES, SIZES, isComplete, isSecondary, purposesFor, suggestWay, waysFor, type Resource, type Way,
 } from './rules';
-import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
+import { OWN_START, nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
 import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
 import { nextLesson } from './extend';
 import type { Refusal } from './change';
@@ -23,6 +24,11 @@ import { MyOwnPlans } from './MyOwnPlans';
 import { RadioList, TickList } from './Options';
 import { bandWords } from './bandCopy';
 import { Check } from './Check';
+import { getAppFunnel } from '../../../lib/appFunnel';
+import { GoalStep } from './GoalStep';
+import { GOAL } from './goalCopy';
+import { useLpOwnGoalStart } from './goalApi';
+import { FOCUS, LIST_CARD, ROW_SUB, ROW_TITLE } from '../../ui/styles';
 
 /**
  * "Make my own" lesson plan: one question per screen, one sticky OK (the WhatsApp-flow form pattern), every
@@ -50,16 +56,23 @@ export function OwnPage() {
 function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const C = useCopy(OWN);
   const L = useCopy(LESSONS);
+  const G = useCopy(GOAL);
+  // bd-snkn32.56 — "Start from a learning goal or topic" (list-only switch; grades 1–5 too, bd-snkn32.57): the goal
+  // screen replaces the pages.
+  const goalOn = useLpOwnGoalStart();
+  const goal = s.goal ?? null;
   const w = bandWords(C, s.grade);
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<Refusal | 'error' | null>(null);
-  const [lessons, retry] = useLoad(() => lessonPlans.lessons(s.grade, s.subject, s.chapter), `l:${s.grade}:${s.subject}:${s.chapter}`);
+  const [lessons, retry] = useLoad(s.chapter ? () => lessonPlans.lessons(s.grade, s.subject, s.chapter) : null, `l:${s.grade}:${s.subject}:${s.chapter}`);
   const all = dataOf(lessons) ?? [];
   const plans: PlanRow[] = all.filter(ownable).map((l) => ({ id: l.id, number: l.number, title: l.title, pages: l.pages ?? null, lane: l.lane === 'k5' ? 'k5' : 'g612' }));
   const k5 = plans.some((l) => l.lane === 'k5');
-  const seg = plans.find((l) => l.id === s.seg) ?? null;
+  // a goal's lesson may sit in another chapter: it is named by the goal, not by this chapter's list.
+  const seg = plans.find((l) => l.id === s.seg) ?? (goal && s.seg ? { id: s.seg, number: null, title: goal.text, pages: null, lane: isSecondary(s.grade) ? 'g612' as const : 'k5' as const } : null);
   const next612 = nextLesson(all, s.seg); // none on the chapter's last lesson
   const nextRow = seg?.lane === 'k5' ? plans[plans.indexOf(seg) + 1] ?? null : next612 ? plans.find((l) => l.id === next612.id) ?? null : null;
   const lesson = seg ? parseLabel(seg.pages) : null;
@@ -69,22 +82,33 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const atStart = (): PagesPick | null => (lesson ? checkBand(seg?.lane === 'k5', String((start ?? lesson).start), String((start ?? lesson).end), lesson, nextPages) : null);
   const [pickEdit, setPick] = useState<{ seg: string | null; pick: PagesPick | null } | null>(null);
   const pick = pickEdit && pickEdit.seg === s.seg ? pickEdit.pick : atStart();
-  const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
+  // bd-snkn32.58.1 — a goal start from Make my own's first screen has no chapter: its way back is that screen.
+  const chapterUrl = s.chapter ? lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter }) : OWN_START;
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
-  const askMix = s.grade >= 9 && !!s.seg;
+  const askMix = s.grade >= 9 && !!s.seg && !goal;
   const [slo] = useLoad(askMix ? () => fetchSloMix(s.seg as string) : null, `slo:${askMix ? s.seg : ''}`);
   const mix = dataOf(slo);
   const purposeNow = s.purpose ?? 'new';
-  const steps = stepsFor({ grade: s.grade, mixed: !!mix?.mixed, purpose: purposeNow });
+  const steps = stepsFor({ grade: s.grade, mixed: !!mix?.mixed, purpose: purposeNow, goal: !!goal });
   const back = prevStep(s.step, steps);
+  const toPages = s.chapter ? ownUrl({ ...s, step: 'pages', goal: undefined, seg: null }) : OWN_START;
   const n = steps.indexOf(s.step) + 1;
   const sizeNow = s.size ?? SIZES.find((x) => x === remembered()) ?? null;
   const suggestion = suggestWay({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: ['textbook', ...s.res], level: s.level, way: null, purpose: s.purpose });
   // bd-snkn32.24 — she may tick several ways; untouched, the suggestion is ticked.
   const waysNow = s.ways ?? (s.way ? [s.way] : [suggestion.way]);
 
+  // bd-snkn32.51 (queue #134 A) — each screen tells the funnel she is on it (codes only), so a drop-off has a last screen.
+  const subjectCode = s.subject.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  useEffect(() => {
+    if (on !== true) return;
+    getAppFunnel().step({ step: s.step, grade: s.grade, subject: subjectCode, band: isSecondary(s.grade) ? 'g612' : 'k5' });
+  }, [on, s.step, s.grade, subjectCode]);
+  useEffect(() => () => getAppFunnel().stepEnd(), []);
+
   // Off is a real answer (back to the chapter); unknown is not, so the frame waits for /config.
   if (on === false) return <Navigate to={chapterUrl} replace />;
+  if (goal && goalOn === false) return <Navigate to={toPages} replace />;
 
   const ok = (over: Partial<OwnAt>, enabled: boolean) => (
     <DockButton disabled={!enabled} testId="own-ok" onClick={() => go({ ...over, step: nextStep(s.step, steps) ?? s.step })}>{C.ok}</DockButton>
@@ -97,13 +121,17 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     const r = await makeOwnPlan(seg, toAnswers(s, note, next612?.id ?? null));
     setBusy(false);
     if (!r || !('renderId' in r)) { setFailed(r && 'outcome' in r ? r.outcome : 'error'); return; }
+    if (r.noteDropped) toast({ title: G.noteDropped }); // bd-snkn32.58.2: a blocked word in her note
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: r.renderId, title: seg?.title ?? C.makeMyOwn,
+      ...(goal ? { check: 'goal' } : {}), // bd-snkn32.58.3: Preparing says it is checking against her goal
+      back: ownUrl({ ...s, step: 'check' }), // bd-m8zwt1.8: Try again on a failed plan returns to her answers
     }), { replace: true });
   }
 
   const pagesOk = !!seg && (!lesson || !!pick) && (!pick?.both || !!s.ext);
-  const dock = s.step === 'pages' ? ok({ pg: pgToSend(pick, lesson, nextPages), ext: pick?.both ? s.ext : null }, pagesOk)
+  const dock = s.step === 'goal' ? ok({}, !!(goal?.kind && goal.text && s.seg))
+    : s.step === 'pages' ? ok({ pg: pgToSend(pick, lesson, nextPages), ext: pick?.both ? s.ext : null }, pagesOk)
     : s.step === 'purpose' ? ok({ purpose: purposeNow }, slo.status !== 'loading') // which step is next waits for the SLO mix
       : s.step === 'focus' ? ok({}, !!s.focus)
         : s.step === 'size' ? ok({ size: sizeNow }, !!sizeNow)
@@ -112,16 +140,26 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
               : s.step === 'way' ? ok({ way: waysNow[0] ?? null, ways: waysNow.length > 1 ? waysNow : undefined }, waysNow.length > 0)
                 : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed === 'error' ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
-  const title = s.step === 'check' ? C.yourPlan : s.step === 'pages' ? (k5 ? C.day : C.whichLesson) : s.step === 'size' ? w.size : C[s.step];
-  const hints = C.purposeHints as Partial<Record<string, string>>;
+  const title = s.step === 'check' ? C.yourPlan : s.step === 'goal' ? G.title : s.step === 'pages' ? (k5 ? C.day : C.whichLesson) : s.step === 'size' ? w.size : C[s.step];
+  const hints = w.purposeHints;
   const segName = seg ? (seg.number != null ? `${seg.lane === 'k5' ? C.dayN(seg.number) : C.lessonN(seg.number)} · ${seg.title}` : seg.title) : '—';
   const segPages = s.pg ? C.pagesShort(fmtPg(s.pg)) : seg?.lane === 'g612' ? seg.pages : null;
 
   return (
-    <TeacherPage feature="lessons" crumb={C.title} title={title} backTo={back ? ownUrl({ ...s, step: back }) : chapterUrl} dock={dock} testId={`own-${s.step}`}>
+    <TeacherPage feature="lessons" crumb={C.title} title={title} backTo={s.step === 'goal' ? toPages : back ? ownUrl({ ...s, step: back }) : chapterUrl} dock={dock} testId={`own-${s.step}`}>
       {s.step !== 'check' ? <StepBar total={steps.length - 1} current={n} /> : null}
+      {s.step === 'goal' && goal ? (
+        <GoalStep at={{ grade: s.grade, subject: s.subject }} goal={goal} onPick={(g, k) => go({ goal: g, seg: k })} />
+      ) : null}
       {s.step === 'pages' ? (
         <>
+          {goalOn === true && !s.seg ? (
+            <button type="button" data-testid="own-goal-start" onClick={() => go({ step: 'goal', goal: { kind: null, text: '' }, seg: null, pg: undefined, ext: null })}
+              className={`${LIST_CARD} flex min-h-[64px] w-full flex-col items-start justify-center gap-0.5 px-4 py-2 text-start ${FOCUS}`}>
+              <span className={ROW_TITLE}>{G.startFromGoal}</span>
+              <span className={ROW_SUB}>{G.startFromGoalHint}</span>
+            </button>
+          ) : null}
           <LoadState status={lessons.status} empty={!plans.length} onRetry={retry} />
           {plans.length ? (
             <PagesStep
@@ -150,8 +188,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       ) : null}
       {s.step === 'resources' ? (
         <TickList
-          label={C.resources} allLabel={C.tickAll} locked={['textbook']} chosen={['textbook', ...s.res]}
-          items={RESOURCES.map((k) => ({ key: k, label: w.resource(k), subtitle: k === 'objects' ? w.objectsHint : undefined }))}
+          label={C.resources} allLabel={C.tickAll} locked={goal ? [] : ['textbook']} chosen={goal ? s.res : ['textbook', ...s.res]}
+          items={RESOURCES.filter((k) => !goal || k !== 'textbook').map((k) => ({ key: k, label: w.resource(k), subtitle: k === 'objects' ? w.objectsHint : undefined }))}
           onChange={(keys) => go({ res: keys.filter((k) => k !== 'textbook') as Resource[] })}
         />
       ) : null}
@@ -167,7 +205,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         </>
       ) : null}
       {s.step === 'check' ? (
-        <Check s={s} C={C} k5={k5} nextLabel={next612 && s.ext ? next612.pages ?? next612.title : null} pagesLabel={[segName, segPages].filter(Boolean).join(' · ')} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
+        <Check s={s} C={C} k5={k5} nextLabel={next612 && s.ext ? next612.pages ?? next612.title : null} pagesLabel={[segName, segPages].filter(Boolean).join(' · ')} gradeLabel={L.grade(s.grade)}
+          goal={goal?.text ? { label: G.checkLabel, value: goal.text, sub: G.noBook, nothing: G.nothingExtra } : undefined} note={note} setNote={setNote} failed={failed} />
       ) : null}
     </TeacherPage>
   );

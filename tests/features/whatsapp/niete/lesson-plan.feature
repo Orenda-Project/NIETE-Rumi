@@ -154,7 +154,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # into the repo as data (bot/vendor/lp-v9/g5c_cleared_names.json). A name the review did not
     # decide is still withheld, which is the scenario below.
 
-  @e2e @content-driven @P1
+  @e2e @L25 @no-mock-driver @content-driven @P1
   Scenario: A history plan naming Zahiruddin Muhammad Babur is delivered in Urdu, not swapped for English
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -969,7 +969,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And no "doesn't look like a lesson plan" or "couldn't read the file" message is sent to the teacher
     And a teacher who uploaded her own plan on WhatsApp is still told, as before
 
-  @e2e @config-gated @P1
+  @e2e @L26 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 6-12 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 6-12 lesson
     When I make my own plan for my class
@@ -980,7 +980,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.48 (shelf reviewer 5D: success criteria + self-prediction). Unit: tests/lp612/own-close.test.js,
     # tests/lp612/own-worker-close.test.js.
 
-  @e2e @slow @P1
+  @e2e @L27 @no-mock-driver @slow @P1
   Scenario: A ready-made Grades 6-12 plan ends with the same "Before they write" step
     Given a Grades 6-12 lesson that has not been made yet for this version
     When I ask for its ready-made plan and it arrives
@@ -990,7 +990,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the plan stays within its page limit whenever it fitted without the step
     # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
 
-  @e2e @config-gated @P2
+  @e2e @L28 @no-mock-driver @config-gated @P1
+  Scenario: My own Grades 1-5 plan ends with a "Before they write" step
+    Given "portal_lp_make_own" is on for me and I pick a Grades 1-5 day
+    When I make my own plan for my class
+    Then in the Check part, above the exit ticket, the plan shows "Before they write"
+    And it tells me to read the day's learning outcome aloud and have pupils show thumbs up, sideways or down
+    And a plan from an Urdu book shows the same step in Urdu, headed "لکھنے سے پہلے"
+    And the exit ticket asks about the outcome in a setting the children have not seen in I Do or We Do
+    # bd-snkn32.52, queue #134 B (shelf reviewer 5D: 146 of 276 grades 1-5 own plans scored 1-2). Unit:
+    # tests/lp612/own-k5-close.test.js.
+
+  @e2e @L29 @no-mock-driver @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson
     When I make my own plan for my class
@@ -1017,8 +1028,11 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the teaching part has no homework section, only one line pointing to "Homework, in full" in the support pages
     And every homework question is printed in "Homework, in full" with its answer and its textbook source, under the homework notes
     And a lesson that fits within its teaching pages still prints its homework questions in the teaching part, unchanged
+    And when a move only trades a teaching page for a support page, the move is kept and the teaching part is a page shorter
     # bd-xkkw9.2 (queue #114, from bd-xkkw9.1): third paint in render_lp.js renderDoc, kept only when it
     # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.
+    # bd-xkkw9.4 (queue #147): a tie on the overage goes to the layout with fewer TEACH pages
+    # (render_lp.js `better`; SYNC.md §3.40). Unit: tests/lp612/over-cap-flow-groups.test.js too.
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
 

@@ -2356,6 +2356,7 @@ router.use(require('./internal-attendance.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a portal screen (template only, the real result).
 router.use(require('./internal-share.routes'));
 router.use(require('./internal-lp612-own.routes')); // bd-snkn32 Make my own — its own file; see its header.
+router.use(require('./internal-lp612-own-rating.routes')); // bd-snkn32.11 her rating of her own plan
 router.use(require('./internal-lp612-shelf.routes')); // bd-snkn32.42 shelf + human check — see its header.
 router.use(require('./internal-fln-send.routes')); // FLN Send to teacher (PR-E) — its own file; see its header.
 

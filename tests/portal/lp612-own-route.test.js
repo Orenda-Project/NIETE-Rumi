@@ -218,3 +218,10 @@ describe('POST /lp612/own/:ownId/change', () => {
     expect((await post(ASK, CHANGE)).status).toBe(502);
   });
 });
+
+test('bd-snkn32.58.2 — a dropped note is passed on to the app', async () => {
+  botAnswer = { status: 202, data: { success: true, state: 'authoring', renderId: 'own-1', noteDropped: true } };
+  await start();
+  const out = await post(BODY);
+  expect(out.body).toEqual({ success: true, state: 'authoring', renderId: 'own-1', noteDropped: true });
+});

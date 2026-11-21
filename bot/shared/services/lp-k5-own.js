@@ -21,8 +21,9 @@
  * code after the reply (lp-own-fit); they never refuse and never cost another model call.
  */
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
-const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine } = require('./lp612-own-ways');
+const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, PRIMARY_PURPOSES } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
+const { k5GoalLines } = require('./lp-k5-own-goal');
 // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
 const P = require('./lp-own-period');
 
@@ -37,6 +38,20 @@ const { EDIT_GROWTH: MAX_GROWTH, MAKE_GROWTH } = require('./lp-own-fit');
 
 /** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
 const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
+/**
+ * bd-snkn32.47 — "use the book instead of the board" (بورڈ کی بجائے) is the right thing to say, not a board use.
+ * These negated mentions are stripped before BOARD is tested, so a real use on the same line still refuses.
+ */
+const EN_B = '(?:a |the )?(?:black|white|chalk)?board\\b';
+const UR_B = '(?:بورڈ|تختہ سیاہ)';
+const NO_BOARD = new RegExp([
+  `${UR_B}\\s*(?:کی|کے)\\s*(?:بجائے|بجاے|جگہ)`,
+  `بغیر\\s*${UR_B}`,
+  `${UR_B}\\s*(?:کا\\s*)?استعمال\\s*نہ`,
+  `\\binstead of ${EN_B}`,
+  `\\b(?:no|without|don'?t use|do not use) ${EN_B}`,
+].join('|'), 'gi');
+const usesBoard = (s) => BOARD.test(s.replace(NO_BOARD, ' '));
 
 const isLanguage = (subject) => /^(urdu|english)\b/i.test(String(subject || '').trim());
 const isEarly = (grade) => Number(grade) >= 1 && Number(grade) <= 3;
@@ -50,6 +65,8 @@ function system(lang) {
     'You get the day\'s plan as JSON. Reply with the rewritten plan as JSON only, in the same JSON shape: the same top-level keys and the same field names, so the same printer can print it.',
     'Never change: the learning outcome (`goal`, `sloFull`, `sloCode`), `meta` (the day, the topic, the pages), or the section order hook → iDo → weDo → youDo → wrap. Give all five sections a `minutes` number; together they fill exactly the day\'s period (`meta.minutes`), never more.',
     'Every section keeps a quick check for understanding. Keep it no longer than the plan you were given: one action line, then short steps of one sentence each.',
+    // bd-snkn32.52 — the reviewer's 5D: the exit ticket tests the outcome in a NEW context (the close step is added by code).
+    'The exit ticket (`wrap.exitOptions`) asks the outcome in a new everyday setting the children have not seen in iDo or weDo (different objects, a different place), one short question.',
     'Always keep all five parts, hook, iDo, weDo, youDo and wrap, each with real teaching in it: change how each part is taught, never drop or empty a part. Inside a part, a field with nothing to say may be left out; never write a placeholder such as "not ready".',
     GRR_LINE, // in the make and the change alike (k5EditMessages uses this system)
     ROTE_LINE,
@@ -67,11 +84,15 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   const have = a.resources.map((r) => RESOURCES[r]).filter(Boolean).join(', ');
   const lines = [
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}. Grade ${grade}.`,
+    // bd-snkn32.63 — what the day is for (only when she said: an older portal sends none, and the plan is as before).
+    ...(PRIMARY_PURPOSES[a.purpose] ? [PRIMARY_PURPOSES[a.purpose]] : []),
     // bd-snkn32.27 — only what she has: no slates (ICT works in the book), the board only when she has one.
     // bd-snkn32.30 — the load is set by her class size: fewer activities for a bigger class, whole-class checks.
     `${P.loadLine(a.size)}${a.resources.includes('board') ? ' No activity needs every child to come to the board.' : ''}`,
-    `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
-    MATERIALS_LINE,
+    // bd-snkn32.57 — a goal start: no book in class, so her goal's lines stand where the book's did.
+    a.goal ? `What she has: ${have || 'nothing but the children'}. Use nothing else.`
+      : `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
+    ...(a.goal ? k5GoalLines(a.goal) : [MATERIALS_LINE]),
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
     ways.length > 1
       ? `Teaching ways, combined in We Do: ${ways.map((k) => WAYS[k]).join(' ')}`
@@ -83,8 +104,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   }
   const period = P.periodOf(script);
   if (period) lines.push(P.timingLine(period)); // the day's own period, never an assumed one
-  if (a.pages) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
-  const book = bookLine(bookText); // the page text, so the plan teaches from the real page
+  if (a.pages && !a.goal) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
+  const book = a.goal ? null : bookLine(bookText); // the page text, so the plan teaches from the real page
   if (book) lines.push(book);
   if (a.note) lines.push(`Her own note (follow it where it fits the outcome and these rules; do not quote it back): "${a.note}"`);
   lines.push('', 'The day\'s plan:', JSON.stringify(script));
@@ -149,7 +170,7 @@ function missingGrr(script) {
 }
 
 /** Reasons to refuse the rewrite (the hard rules); [] passes. */
-function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
+function checkK5Rewrite(orig, next, { lang, resources, size, noBook = false } = {}) {
   if (!next || typeof next !== 'object') return ['no plan'];
   const reasons = missingGrr(next).map((k) => `section ${k} is missing or empty`);
   const steps = next.iDo && next.iDo.steps;
@@ -162,8 +183,9 @@ function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
   const all = strings(next);
   if (all.some((s) => s.includes(NOT_READY_UR))) reasons.push('a part says it is not ready');
   if (Array.isArray(resources) && !resources.includes('board')) {
-    const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find((s) => BOARD.test(s));
-    if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): use the book page instead`);
+    const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find(usesBoard);
+    // bd-snkn32.57 — a book-less plan (a goal start) has no book page to fall back on.
+    if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): ${noBook ? 'say it aloud or use real objects instead' : 'use the book page instead'}`);
   }
   if (Array.isArray(resources)) {
     // bd-snkn32.28 / .44 — the whole line and the words that matched go back, so the repair round can fix that line.

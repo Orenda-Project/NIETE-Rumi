@@ -1361,6 +1361,35 @@ duplicate.
 
 **LOCAL-ONLY divergence**: `VENDOR DIVERGENCE` comments mark the template (flow loop) and renderer sites.
 
+### 3.40 Still over after §3.39: a tie goes to the shorter TEACH part — `render_lp.js` `renderDoc` (2026-11-18, bd-xkkw9.4)
+
+Builds on §3.37 and §3.39 (NIETE-only). Both move paints were kept only when over the caps by
+FEWER pages in total. A new `better(alt, cur)` keeps a move layout also when it is over by the
+SAME number of pages with fewer TEACH pages: TEACH sheds a page, Reference gains one (and may go
+one page over its own cap). Nothing is dropped; the teacher's teaching part is shorter.
+
+- Only ever asked about a lesson already over TEACH, so a lesson that fits never takes it.
+- Why: queue #147. After §3.39, 11 of the 183 stored English lessons (11-17 Nov) were still over
+  the TEACH cap; the moves were used up, but 5 fitted TEACH if Reference grew. Measured on this
+  change, real Chrome, all 183: 132 fitting lessons byte-identical; of the 51 over a cap, 7
+  change: 5 reach TEACH 4 (Reference 4; one PDF 7 -> 8 pages, the other four same length), 2 go
+  TEACH 6 -> 5 (same length). TEACH over its cap: 11 -> 6.
+- Tests: `tests/lp612/over-cap-homework-reference.test.js`, `tests/lp612/over-cap-flow-groups.test.js`.
+
+**LOCAL-ONLY divergence**: a `VENDOR DIVERGENCE` comment marks `better` in `renderDoc`.
+
+### 3.41 `brief_author_v3.md` + all three flash briefs — rule 13: a reading lesson times the reading before the questions (2026-11-19, bd-zrdvmi.17)
+
+ICT feedback sheet, Lesson Plan row 528: the G6 Urdu plan for chapter 10's reading lesson (pp.51-54)
+said "we will read the text" and went straight to the comprehension questions, with no time or steps
+for the reading ("اس میں ریڈنگ کا وقت شامل نہیں ہے"). No brief told the author to give the reading a
+step of its own. Rule 13 under "what teachers rejected" now does: a timed reading step before the
+questions, saying who reads, which pages, and what pupils look for. `tests/lp612/author-brief-reading-step.test.js`
+drives the real `authorLessonPlan()` and asserts the rule reaches the system prompt for the standard
+brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.28 and §3.38. Cached renders keep the old plan until re-authored.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

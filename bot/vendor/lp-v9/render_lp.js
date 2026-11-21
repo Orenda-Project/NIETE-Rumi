@@ -986,9 +986,24 @@ async function renderDoc(a) {
     const byP = (pp.result.probe && pp.result.probe.pagesByPart) || {};
     return (byP.teach || 0) > CAPS.max.teach;
   };
+  // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: a tie goes to the shorter TEACH part",
+  // bd-xkkw9.4). A move layout is kept when it is over by fewer pages in total — OR by the same
+  // number with fewer TEACH pages. A tie is the case where TEACH sheds a page and Reference gains
+  // one (or, when Reference had room, gains one more page and goes over ITS cap instead): nothing
+  // is dropped, and the teacher holds four teaching pages instead of five. Before, a tie kept the
+  // previous layout; on the 11 stored lessons still over after bd-xkkw9.2, 5 reach the TEACH cap
+  // this way (1 of them with a PDF one page longer) and 2 more drop from 6 to 5. Only ever asked
+  // about a lesson already over TEACH, so a lesson that fits is untouched.
+  const better = (alt, cur) => {
+    const a = overage(alt), c = overage(cur);
+    if (a !== c) return a < c;
+    const tp = (pp) => ((pp.result.probe && pp.result.probe.pagesByPart) || {}).teach || 0;
+    return tp(alt) < tp(cur);
+  };
   // bd-9mc3nz.2 — a lesson whose TEACH part is over its cap gets ONE more paint with the two
   // groups back in Reference (Reference has room: 109 over-cap lessons in 7 days, 72 fit both
-  // caps this way). It is kept only if it is over by fewer pages in total; otherwise the first
+  // caps this way). It is kept only if it is over by fewer pages in total (or as many, with a
+  // shorter TEACH: `better`, bd-xkkw9.4); otherwise the first
   // layout is painted again so the files on disk are the ones reported. A lesson that fits
   // keeps the groups in the flow, exactly as bd-a8veu.10 placed them.
   let pass = await paint(false);
@@ -996,7 +1011,7 @@ async function renderDoc(a) {
   let flowGroupsMoved = false;
   if (pass.built.flowHosted && teachOver(pass)) {
     const alt = await paint(true);
-    if (overage(alt) < overage(pass)) { pass = alt; flowGroupsMoved = true; }
+    if (better(alt, pass)) { pass = alt; flowGroupsMoved = true; }
     else pass = await paint(false);
   }
   // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: homework prints only in Reference",
@@ -1004,13 +1019,13 @@ async function renderDoc(a) {
   // in Reference (when the lesson has them in the flow) AND the homework section printed only in
   // Reference "Homework, in full", a pointer line left in the flow. Both together, because the
   // box move alone is often refused (it frees under a page) while the two together fit: that is
-  // the layout bd-xkkw9.1 measured. Same keep rule: fewer pages over in total, else the previous
+  // the layout bd-xkkw9.1 measured. Same keep rule (`better`): fewer pages over in total, else the previous
   // layout is painted again so the files on disk are the ones reported. Only a lesson whose
   // every homework item has its answer in Reference is eligible (built.homeworkMovable).
   let homeworkMoved = false;
   if (pass.built.homeworkMovable && teachOver(pass)) {
     const alt = await paint(groupsMovable || pass.noFlowHosts, true);
-    if (overage(alt) < overage(pass)) { pass = alt; homeworkMoved = true; flowGroupsMoved = alt.noFlowHosts && groupsMovable; }
+    if (better(alt, pass)) { pass = alt; homeworkMoved = true; flowGroupsMoved = alt.noFlowHosts && groupsMovable; }
     else pass = await paint(pass.noFlowHosts, false);
   }
   const { built, result } = pass;

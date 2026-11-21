@@ -11,7 +11,7 @@ import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  FDE_STEPS, MAX_TOTAL_MARKS, MAX_TYPES, STEPS, TOPIC_STEPS, checkPages, chosenSeenTypes, chosenTypes, defaultTypeCounts, isFde, questionTotal, seenTotal, toSpec,
+  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, TOPIC_STEPS, checkPages, chosenSeenTypes, chosenTypes, defaultTypeCounts, isFde, questionTotal, seenTotal, toSpec,
   unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
@@ -404,7 +404,7 @@ const GROUP_STICKY = 'sticky top-0 z-[1] -mx-3.5 bg-[#f3f4f6] px-5 py-2 text-[13
 /**
  * The paper's questions on one screen (the operator's pick, 20 Oct; design canvas "Questions · simpler", B v5): the
  * seen questions (the book's own: a count, no types), the unseen types she chose with a count each, Add a type for the
- * rest (the subject's types, Objective and Written, up to MAX_TYPES), and an optional total marks. Every number is a
+ * rest (the subject's types, Objective and Written, as many as she wants: bd-5icld3.4), and an optional total marks. Every number is a
  * box she can type in or step. The paper is what they add up to, so nothing has to match: the line above Next says it.
  */
 export function QuestionsStep() {
@@ -463,7 +463,6 @@ export function QuestionsStep() {
                 key={t.id}
                 first={i === 0}
                 checked={on}
-                disabled={!on && rows.length >= MAX_TYPES}
                 onToggle={() => (on ? remove(t.id) : add(t.id))}
                 label={<span className="min-w-0 flex-1 text-[16px] font-semibold">{t.id}</span>}
               />
@@ -562,7 +561,7 @@ export function QuestionsStep() {
             : <>{group('objective', C.objective)}{group('subjective', C.written)}</>}
         </div>
         <div data-testid="types-foot" className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
-          <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, MAX_TYPES)}</p>
+          <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, offered.length)}</p>
           <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
         </div>
       </Tray>
