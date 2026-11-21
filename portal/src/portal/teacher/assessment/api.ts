@@ -16,6 +16,8 @@ export type Catalogue = {
   byGrade: Record<number, CatalogueSubject[]>;
   maxQuestions: number;
   defaultQuestions: number;
+  /** AG row 12: the bot's grouped types and printed-item ceiling; absent from an older bot = count every item. */
+  limits?: { grouped: string[]; maxItems: number };
   /** Only while the board pattern is on (the bot's flag): the grades it serves. Absent = nothing new is drawn. */
   patternGrades?: number[];
 };
@@ -33,6 +35,7 @@ export async function loadCatalogue(): Promise<Catalogue> {
     byGrade: Object.fromEntries(per),
     maxQuestions: top.maxQuestions,
     defaultQuestions: top.defaultQuestions,
+    ...(top.groupedTypes && top.maxItems ? { limits: { grouped: top.groupedTypes, maxItems: top.maxItems } } : {}),
     ...(top.patternGrades?.length ? { patternGrades: top.patternGrades } : {}),
   };
 }
