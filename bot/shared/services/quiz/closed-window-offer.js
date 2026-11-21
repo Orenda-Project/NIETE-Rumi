@@ -22,7 +22,9 @@
  * THE SWITCH. `app_settings.quiz_offer_closed_window`, a JSON object:
  *   { "trace": true, "report_template": "share_dc_report_quiz_v1" }
  * Missing row, not an object, or unreadable = off (no trace, no button: exactly the behaviour before). A
- * report_template implies trace. Read at most every 30 seconds; a failed read is not cached (fail closed).
+ * report_template implies trace. `"dry_run": true` (the sandbox proof for a template nobody has approved yet):
+ * share-send logs `share_send.dry_run` with the button it would have sent and never calls Meta, so the report goes
+ * as the plain template, exactly as today. Read at most every 30 seconds; a failed read is not cached (fail closed).
  *
  * NOTHING HERE SENDS. Reads and the one insert; every failure is logged and answered as "off" / null.
  */
@@ -39,7 +41,7 @@ const TAP_RX = /^tqr_([0-9a-fA-F-]{36})$/;
 const HELD_REASON = 'window_closed';
 const HELD_PATHS = Object.freeze({ TEMPLATE: 'template', NONE: 'none' });
 
-const OFF = Object.freeze({ trace: false, reportTemplate: null });
+const OFF = Object.freeze({ trace: false, reportTemplate: null, dryRun: false });
 let cache = null; // { at, value }
 
 function _resetCache() { cache = null; }
@@ -52,10 +54,10 @@ function parse(value) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return OFF;
   const name = typeof v.report_template === 'string' ? v.report_template.trim() : '';
   const reportTemplate = NAME_RE.test(name) ? name : null;
-  return { trace: v.trace === true || Boolean(reportTemplate), reportTemplate };
+  return { trace: v.trace === true || Boolean(reportTemplate), reportTemplate, dryRun: v.dry_run === true };
 }
 
-/** @returns {Promise<{trace: boolean, reportTemplate: string|null}>} */
+/** @returns {Promise<{trace: boolean, reportTemplate: string|null, dryRun: boolean}>} */
 async function settings(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.value;
   try {

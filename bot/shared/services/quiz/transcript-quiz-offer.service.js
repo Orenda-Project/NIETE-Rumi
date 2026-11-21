@@ -134,7 +134,7 @@ async function scheduleOffer({ coachingSessionId, userId, phone, language, trans
  * The report template's "Make a quiz" button for this session, or null. Asked by coaching/report-window-send.js
  * only when the window is closed. The same gates the offer job applies before its window check (the flag,
  * self-coaching, transcript length, once-per-teacher) plus the switch's report_template.
- * @returns {Promise<{template: string, payload: string, session: object}|null>}
+ * @returns {Promise<{template: string, payload: string, session: object, dryRun: boolean}|null>}
  */
 async function reportQuizButtonFor({ coachingSessionId, userId }) {
   if (!enabled() || !coachingSessionId || !userId) return null;
@@ -146,7 +146,7 @@ async function reportQuizButtonFor({ coachingSessionId, userId }) {
   if (error || !session || session.user_id !== userId || session.observation_type) return null;
   if (String(session.transcript_text || '').length < MIN_TRANSCRIPT_CHARS) return null;
   if (offerMode() === 'once' && await alreadyOffered(userId)) return null;
-  return { template: closed.reportTemplate, payload: ClosedWindow.tapPayload(coachingSessionId), session };
+  return { template: closed.reportTemplate, payload: ClosedWindow.tapPayload(coachingSessionId), session, dryRun: closed.dryRun };
 }
 
 /** The survey answer brings the offer forward. Idempotent with the delayed job. */

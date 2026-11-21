@@ -207,6 +207,18 @@ describe('the report template carries "Make a quiz" (real share-send; Meta mocke
     expect(db.quizzes).toHaveLength(0);
   });
 
+  test('dry_run → Meta is never asked for the quiz sibling; the would-be button is logged; the plain report goes', async () => {
+    db.app_settings = switchRow({ report_template: QUIZ_TEMPLATE, dry_run: true });
+    WhatsAppService.sendTemplate.mockResolvedValue(true);
+    expect(await send()).toBe('template');
+    expect(WhatsAppService.sendTemplate.mock.calls.map((c) => c[1])).toEqual(['share_dc_report_v1']);
+    expect(logEvent).toHaveBeenCalledWith('share_send.dry_run', expect.objectContaining({
+      template: QUIZ_TEMPLATE, lang: 'en', body_params: 2,
+      button: { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `tqr_${SID}` }] },
+    }));
+    expect(db.quizzes).toHaveLength(0);
+  });
+
   test('switch off → the plain report template, and the session is never read for a button', async () => {
     WhatsAppService.sendTemplate.mockResolvedValue(true);
     expect(await send()).toBe('template');
