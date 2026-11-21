@@ -189,3 +189,21 @@ test('beside a chart, a list label ("By sector:") is not one of the two lines', 
   const r = F.composeReply({ text: '1,989 of 6,354 teachers got a plan.\n\nBy sector:\n• Urban-I 485 • B.K 468\n\nUrban-I and B.K lead.', calls, hasChart: true });
   expect(r.caption.split('\n\n')[0]).toBe('1,989 of 6,354 teachers got a plan.\nUrban-I and B.K lead.');
 });
+
+describe('composeReply: the measures the chart leaves out go under it (bd-bhgw20.4)', () => {
+  test('beside a chart: the headline, then the listed lines, then the footer; the model\'s own bullets still go', () => {
+    const r = F.composeReply({
+      text: '*1,135 coach visits* were held 1–21 Nov.\n• B.K: 229\n• Nilore: 131',
+      hasChart: true,
+      rest: ['B.K: 217 reviewed · 212 complete', 'Nilore: 127 reviewed · 122 complete'],
+    });
+    const lines = r.caption.split('\n').filter(Boolean);
+    expect(lines[0]).toBe('*1,135 coach visits* were held 1–21 Nov.');
+    expect(r.caption).toContain('B.K: 217 reviewed · 212 complete\nNilore: 127 reviewed · 122 complete');
+    expect(r.caption).not.toContain('• B.K: 229');
+  });
+  test('without a chart: the model\'s text stays whole and every listed row follows it', () => {
+    const r = F.composeReply({ text: 'Visits.\n• Urban-I leads.', hasChart: false, rest: ['B.K: 229', 'Nilore: 131'] });
+    expect(r.caption).toContain('Visits.\n• Urban-I leads.\n\nB.K: 229\nNilore: 131');
+  });
+});

@@ -126,14 +126,58 @@ function chartForm(payload) {
       names[`${n}_compare`] = `${l}, ${payload.compare_period}`;
     } else names[n] = l;
   }
+  const original = {};
   const rows = payload.rows.map((row) => {
     if (!isObj(row)) return row;
     const kept = Object.keys(row).filter((k) => !CHANGE_COLUMNS.has(k));
     const renamed = kept.map((k) => names[k] || k);
     const use = new Set(renamed).size < renamed.length ? kept : renamed;
+    kept.forEach((k, i) => { original[use[i]] = k; });
     return Object.fromEntries(kept.map((k, i) => [use[i], row[k]]));
   });
-  return { ...payload, rows };
+  return { ...payload, rows, columnNames: original };
+}
+
+// ---- wide results (ours, bd-bhgw20.4) ----------------------------------------------------------------
+// Their select.py draws at most three series, so a metric with five measures (coach visits by sector: visits,
+// reviewed, complete, debrief pending, awaiting review) was no chart at all. Godfather, on the operator's "we do
+// want charts" (21 Nov): chart the headline measures, at most three, the ones the question asks about, else the
+// first in the metric's own order; list every other measure under the chart, one short line per row.
+
+const GENERIC_WORDS = new Set(['value', 'values', 'count', 'counts', 'total', 'totals', 'n', 'num', 'number', 'cnt',
+  'sum', 'amount', 'the', 'of', 'and', 'a']);
+const wordsOf = (t) => String(t || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+const sameStem = (a, b) => { const k = Math.min(5, a.length, b.length); return k >= 4 && a.slice(0, k) === b.slice(0, k); };
+
+/** A measure label cut to its name: "coach visits where the coach observed …" → "coach visits". */
+function shortLabel(label) {
+  return String(label).split(/ where | that | who | - |, | \(/)[0].trim();
+}
+
+/** How a listed measure is named under the chart: its own column name, or for a bare `value`, its label's name. */
+function measureName(shown, columnNames) {
+  const original = (columnNames && columnNames[shown]) || shown;
+  if (wordsOf(original).every((w) => GENERIC_WORDS.has(w))) return shortLabel(shown).toLowerCase();
+  const h = humanise(original);
+  const first = h.split(' ')[0];
+  return first === first.toUpperCase() && /[A-Z]/.test(first) ? h : h[0].toLowerCase() + h.slice(1);
+}
+
+/** The words that say which measure this is: its column name's own words, or for a bare `value`, its label's name. */
+function distinctiveWords(shown, columnNames) {
+  const original = (columnNames && columnNames[shown]) || shown;
+  const own = wordsOf(original).filter((w) => !GENERIC_WORDS.has(w));
+  return own.length ? own : wordsOf(shortLabel(shown)).filter((w) => !GENERIC_WORDS.has(w));
+}
+
+/** The measures to draw: the ones the question names (every one of a measure's words is in it), else the first. */
+function headlineMeasures(numeric, question, columnNames) {
+  const q = wordsOf(question);
+  const asked = numeric.filter((c) => {
+    const w = distinctiveWords(c, columnNames);
+    return w.length && w.every((x) => q.some((y) => sameStem(x, y)));
+  });
+  return (asked.length ? asked : numeric.slice(0, 1)).slice(0, MAX_GROUPED_SERIES);
 }
 
 function titleFor(question, numeric, label) {
@@ -174,7 +218,7 @@ function pivotLong(columns, rows, question) {
   if (cell.size !== rows.length) return null;
   const series = kinds.map((k) => [k, dates.map((d) => cell.get(`${d}\u0000${k}`))]);
   if (series.some(([, v]) => v.some((x) => !Number.isFinite(x)))) return null;
-  return { kind: 'trend', title: titleFor(question, [measure], dateCol), labels: dates, series, subtitle: humanise(measure) };
+  return { kind: 'trend', title: titleFor(question, [measure], dateCol), labels: dates, series, subtitle: humanise(measure), rest: [] };
 }
 
 function selectChart(payload, question) {
@@ -191,18 +235,69 @@ function selectChart(payload, question) {
     if (!columns) return null;
     const labels = roles.label ? rows.map((r) => (r[roles.label] === null || r[roles.label] === undefined ? '' : String(r[roles.label]))) : [];
     if (labels.some((t) => MASKED_VALUE.test(t))) return null;
-    const kind = kindOf(rows.length, Boolean(roles.label), roles.isDate, roles.numeric.length);
+    let drawn = roles.numeric;
+    let kind = kindOf(rows.length, Boolean(roles.label), roles.isDate, drawn.length);
+    if (!kind && roles.label && drawn.length >= 2) {
+      drawn = headlineMeasures(roles.numeric, question, payload.columnNames);
+      kind = kindOf(rows.length, true, roles.isDate, drawn.length);
+      if (!kind && drawn.length > 1) {
+        drawn = drawn.slice(0, 1);
+        kind = kindOf(rows.length, true, roles.isDate, 1);
+      }
+    }
     if (!kind) return null;
+    const others = roles.numeric.filter((c) => !drawn.includes(c));
+    const rest = others.length ? rows.map((r, i) => `${roles.isDate ? axisLabel(labels[i]) : labels[i]}: ${others
+      .map((c) => `${fmt(Number(r[c]))} ${measureName(c, payload.columnNames)}`).join(' · ')}`) : [];
     return {
       kind,
-      title: titleFor(question, roles.numeric, roles.label),
+      title: titleFor(question, drawn, roles.label),
       labels,
-      series: roles.numeric.map((c) => [humanise(c), rows.map((r) => Number(r[c]))]),
+      series: drawn.map((c) => [humanise(c), rows.map((r) => Number(r[c]))]),
       subtitle: [payload.period, payload.what_was_counted].filter((x) => typeof x === 'string' && x.trim()).join(' · '),
+      rest,
     };
   } catch (_) {
     return null;
   }
+}
+
+const MAX_LISTED_ROWS = 20;
+
+/** One result's rows as lines ("B.K: 229", or "B.K: 229 coach visits · 217 reviewed"); [] when it is not a breakdown. */
+function listRows(payload) {
+  if (!isObj(payload) || (payload.status !== undefined && payload.status !== 'ok') || refusal(payload)) return [];
+  let rows = payload.rows;
+  if (!columnsOf(rows)) return [];
+  const roles = classifyColumns(columnsOf(rows), rows);
+  if (!roles || !roles.label) return [];
+  rows = withoutTotalRow(rows, roles.label, roles.isDate, roles.numeric);
+  if (rows.length < 2) return [];
+  const name = (r) => { const v = r[roles.label] === null || r[roles.label] === undefined ? '' : String(r[roles.label]); return roles.isDate ? axisLabel(v) : v; };
+  if (rows.some((r) => MASKED_VALUE.test(name(r)))) return [];
+  const one = roles.numeric.length === 1;
+  const lines = rows.slice(0, MAX_LISTED_ROWS).map((r) => `${name(r)}: ${roles.numeric
+    .map((c) => (one ? fmt(Number(r[c])) : `${fmt(Number(r[c]))} ${measureName(c, payload.columnNames)}`)).join(' · ')}`);
+  if (rows.length > MAX_LISTED_ROWS) lines.push(`… and ${rows.length - MAX_LISTED_ROWS} more`);
+  return lines;
+}
+
+/**
+ * With no chart, the app lists every row itself (bd-bhgw20.4): the model, left to it, names the top and the bottom.
+ * The last query that is a breakdown wins (the answer's own result usually comes last). Never people or ids.
+ */
+function breakdownLines(calls) {
+  let lines = [];
+  for (const c of calls || []) {
+    if (!c || (c.name !== 'execute_query' && c.name !== 'query_metric')) continue;
+    let p;
+    try { p = JSON.parse(c.result || ''); } catch (_) { continue; }
+    try {
+      const l = listRows(c.name === 'query_metric' ? chartForm(p) : p);
+      if (l.length) lines = l;
+    } catch (_) { /* not a breakdown */ }
+  }
+  return lines;
 }
 
 /** Every chartable result of an answer's queries, trend first (their chart_specs ranking). */
@@ -403,4 +498,4 @@ async function renderChartPng(spec, { footer = '', render } = {}) {
   }
 }
 
-module.exports = { chartSpecs, selectChart, chartSvg, chartCardHtml, renderChartPng, fmt, trendRange };
+module.exports = { chartSpecs, selectChart, breakdownLines, chartSvg, chartCardHtml, renderChartPng, fmt, trendRange };
