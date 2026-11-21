@@ -1283,6 +1283,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the plan stays within its page limit whenever it fitted without the step
     # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
 
+  @e2e @L30 @no-mock-driver @slow @P1
+  Scenario: A ready-made Grades 6-12 reading plan gives the reading its own minutes before any questions
+    Given a Grades 6-12 reading lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then before the first question step the plan has a reading step that says how many minutes the reading takes
+    And that step says who reads, which pages, and one thing pupils look for while reading
+    And in Urdu the same step gives the minutes in Urdu, for example "پڑھائی (۸ منٹ)"
+    # ICT sheet row 528 (bd-zrdvmi.17, bd-zrdvmi.39): grade_6_urdu.c10.p051-054.tafheem had no reading time.
+    # A plan without the minutes is sent back for a revision round (READING_TIME defect). Unit:
+    # tests/lp612/reading-step-gate.test.js, tests/lp612/author-brief-reading-step.test.js.
+
   @e2e @L28 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 1-5 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 1-5 day
