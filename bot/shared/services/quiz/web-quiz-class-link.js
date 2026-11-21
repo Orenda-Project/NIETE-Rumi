@@ -139,7 +139,7 @@ function stepOf(code, s, want) {
 // ── the phone's memory of a high pick ──────────────────────────────────────────────────────────────
 // One Redis record per (link, phone): {studentId: exp} for the children a HIGH pick named there, each kept until its
 // own exp (min(the link's expires_at, the pick + 28 days)). Only pick() writes it, only for a high pick; nothing here
-// reads or sets a confidence. Redis down → {} (the phone's memory falls back to today's 7 days).
+// reads or sets a confidence. Redis down → {}, and pick() then mints today's 7 days (it checks redisUp itself).
 const redisUp = () => {
   const redis = require('../cache/railway-redis.service');
   return redis && typeof redis.isAvailable === 'function' && redis.isAvailable() ? redis : null;
@@ -457,8 +457,9 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
   // as the link (≤ 28 days) from now; a "Whose turn?" pick of a child a high pick left on this phone keeps THAT exp (the
   // memory is never stretched by being used). Anything else (a low pick, the teacher's visit, a phone remembered only by
   // its played sessions or another hub): today's 7 days.
+  // Redis down: nothing can remember the phone, so the token keeps today's 7 days too.
   const d = T.cleanDeviceRef(deviceRef);
-  const kept = d && !step.p && cl.q === 'high' ? await memoryOf(code, d) : null;
+  const kept = d && !step.p && cl.q === 'high' && redisUp() ? await memoryOf(code, d) : null;
   const long = Boolean(kept) && (step.st === 'chips' || Boolean(kept[String(hit.id)]));
   const exp = long ? horizonExp(link, step.st === 'who' ? kept[String(hit.id)] : null) : nowS() + T.HUB_TTL_S;
   // The class's Urdu rides to the hub as the link's language (below a child's own choice and class quiz history in
