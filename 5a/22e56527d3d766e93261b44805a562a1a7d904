@@ -12,3 +12,4 @@
 {"ts":"2026-11-21T17:52:13Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-zrdvmi.50.3-82689: fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"5a22e56527d3","branch":"bd-zrdvmi.50.3-82689","user":""}
 {"ts":"2026-11-21T17:52:13Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"5a22e56527d3","branch":"bd-zrdvmi.50.3-82689","user":""}
 {"ts":"2026-11-21T17:52:22Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-zrdvmi.50.3-82689: fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"5a22e56527d3","branch":"bd-zrdvmi.50.3-82689","user":""}
+{"ts":"2026-11-21T17:52:22Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"5a22e56527d3","branch":"bd-zrdvmi.50.3-82689","user":""}
