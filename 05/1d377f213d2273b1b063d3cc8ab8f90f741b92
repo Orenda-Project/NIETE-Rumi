@@ -4,3 +4,4 @@
 {"ts":"2026-11-20T18:04:00Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
 {"ts":"2026-11-20T18:04:01Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
 {"ts":"2026-11-21T08:10:06Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
+{"ts":"2026-11-21T08:10:07Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"051d377f213d","branch":"bd-zrdvmi.28-main","user":""}
