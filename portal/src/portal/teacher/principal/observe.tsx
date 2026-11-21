@@ -29,9 +29,10 @@ export const PRINCIPAL_SCHEDULE = `${BASE}/schedule`;
 export const PRINCIPAL_MY_OBSERVATIONS = `${BASE}/observations`;
 /** bd-33wxxi.9.3 — the picked teacher's page: the coach's visit screen (Start recording / Upload recording, the Teacher card). */
 export const principalVisitPath = (ext: string) => `${BASE}/visit/${seg(ext)}`;
+/** bd-o15qnr.29 — a visit she booked opens that teacher's page (take an observation: record OR upload). */
+export const principalBookedTo = (v: { teacherExtId?: string | null }) => principalVisitPath(v.teacherExtId || "");
 export const principalCheckPath = (ext: string) => `${BASE}/observe/${seg(ext)}`;
-/** bd-o15qnr.28 — Record on a visit she booked: straight to her record screen for that teacher. */
-export const principalRecordPath = (v: { teacherExtId?: string | null }) => `${principalCheckPath(v.teacherExtId || "")}/record`;
+
 export const principalObservationPath = (id: string, screen?: ObservationScreen) =>
   `${BASE}/observation/${seg(id)}${screen ? `/${screen}` : ""}`;
 

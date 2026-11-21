@@ -23,9 +23,6 @@ import { lengthShort, madeWhen, planKindLabel } from "../observe/format";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import type { TeacherUiCopy } from "../../teacher/ui/copy";
 import ObservePage from "../observe/ObservePage";
-import { useFlowV6 } from "../flow/useCoachFlowV2";
-import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
-import { ChoiceChips } from "../../teacher/ui/ChoiceChips";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { startSend, useSendJob } from "../observe/sender";
 import { lessonFilename } from "./CoachRecord";
@@ -126,8 +123,6 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   // WhatsApp's visit planner asks after Start: it chooses the form the observation is stamped with. A question that
   // cannot be read asks nothing (today's path).
   const [question, setQuestion] = useState<ObserveLessonQuestion>({ ask: false });
-  const v7 = useFlowV6() === true;
-  const W7 = useCopy(FLOW_V7) as FlowV7Copy;
   const [grade, setGrade] = useState<string | null>(null);
   const [subject, setSubject] = useState<string | null>(null);
   const [lessonProblem, setLessonProblem] = useState<"class" | "subject" | null>(null);
@@ -248,27 +243,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
         )} />
       {isShort && <Alert>{C.shortWarning}</Alert>}
 
-      {question.ask && v7 && (
-        // bd-o15qnr.28 (v7, #188's board m9-check-class): the same question as chips — the class, then (for the grades
-        // that ask it) the subject — and one line saying the class picks the form. Same answers, same lesson sent.
-        <>
-          <SectionHeading>{W7.whichClass}</SectionHeading>
-          <div className="flex flex-col gap-1" data-testid="lesson-class">
-            <ChoiceChips label={C.classField} hideLabel value={grade}
-              options={[{ key: "primary", label: W7.grades15 }, ...(question.grades || []).map((g) => ({ key: String(g), label: String(g) }))]}
-              onChange={(v) => { setGrade(v); if (!needsSubject(v)) setSubject(null); setLessonProblem(null); }} />
-            {needsSubject(grade) && (
-              <ChoiceChips label={C.subjectField} value={subject}
-                options={(question.subjects || []).map((k) => ({ key: k, label: (C.subjects as Record<string, string>)[k] || k }))}
-                onChange={(v) => { setSubject(v); setLessonProblem(null); }} />
-            )}
-            <p className="m-0 px-1 text-[13px] text-[#6b7280]">{W7.classPicksForm}</p>
-          </div>
-          {lessonProblem === "class" && <Alert>{C.chooseClassFirst}</Alert>}
-          {lessonProblem === "subject" && <Alert>{C.chooseSubjectFirst}</Alert>}
-        </>
-      )}
-      {question.ask && !v7 && (
+      {/* bd-o15qnr.29 (the operator 21 Nov ~09:00: "it asks for Grade Subject in a weird chips type way. Make it how it used
+          to be"): the dropdowns for everyone, switch on or off (v7's chips are gone). */}
+      {question.ask && (
         <>
           <SectionHeading>{C.classAndSubject}</SectionHeading>
           <div className="flex flex-col gap-2.5" data-testid="lesson-class">

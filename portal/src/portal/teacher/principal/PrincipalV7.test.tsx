@@ -45,7 +45,7 @@ import { PrincipalMyObservations } from "./ObserveV6";
 import { PickTeacher } from "./PickTeacher";
 import { teacherPath } from "../routes";
 import { COACHING_NEW, lessonPath } from "../coaching/paths";
-import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalCheckPath, principalObservationPath } from "./observe";
+import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalObservationPath, principalVisitPath } from "./observe";
 
 vi.setConfig({ testTimeout: 40_000 });
 
@@ -137,6 +137,14 @@ describe("the principal's Home in the v6 look (p9-home)", () => {
     expect(within(empty).getByRole("link", { name: /Schedule an observation/ }).getAttribute("href")).toBe(PRINCIPAL_PICK);
   });
 
+  it("nothing waiting, booked today: each card opens its visit (chevron, no Record button)", async () => {
+    serve({ reports: { ...REPORTS, waiting: [] } });
+    at("/portal/teacher", <Home />);
+    const card = await screen.findByTestId("focus-booked");
+    expect(within(card).queryByRole("link", { name: /Record/ })).toBeNull();
+    expect(within(within(card).getByTestId("booked-row-v1")).getByRole("link").getAttribute("href")).toBe(principalVisitPath("ext-k"));
+  });
+
   it("switch off: today's principal Home (no Focus card, today's tiles)", async () => {
     serve({ features: { teacherV2: true, principalApp: true } });
     at("/portal/teacher", <Home />);
@@ -166,7 +174,10 @@ describe("the principal's Observe in the v6 look (p7-observe)", () => {
 
     const booked = await within(page).findByTestId("booked-today");
     expect(await within(booked).findByText("Kiran Shahzadi")).toBeTruthy();
-    expect(within(booked).getByRole("link", { name: /Record/ }).getAttribute("href")).toBe(`${principalCheckPath("ext-k")}/record`);
+    // bd-o15qnr.29 (the operator 21 Nov ~08:50): no Record button; a chevron and the whole card opens the take-an-observation
+    // page (her visit page for that teacher: Start recording OR Upload recording)
+    expect(within(booked).queryByRole("link", { name: /Record/ })).toBeNull();
+    expect(within(within(booked).getByTestId("booked-row-v1")).getByRole("link").getAttribute("href")).toBe(principalVisitPath("ext-k"));
 
     const needs = await within(page).findByTestId("needs-you");
     const names = () => within(needs).getAllByRole("link").map((a) => a.textContent || "");
@@ -179,6 +190,24 @@ describe("the principal's Observe in the v6 look (p7-observe)", () => {
     const history = within(page).getByRole("link", { name: /History/ });
     expect(history.getAttribute("href")).toBe(PRINCIPAL_MY_OBSERVATIONS);
     await waitFor(() => expect(within(history).getByText("9 in all")).toBeTruthy());
+  });
+
+  it("All booked opens IN PLACE (late and coming up, each card opening its visit); nothing links to the old My schedule", async () => {
+    serve();
+    const LATE = { ...VISIT, id: "v0", teacherExtId: "ext-l", teacherName: "Lubna Arif", scheduledFor: "2000-01-03" };
+    const SOON = { ...VISIT, id: "v2", teacherExtId: "ext-s", teacherName: "Sana Iqbal", scheduledFor: "2999-01-04" };
+    coachApi.getSchedule.mockResolvedValue({ success: true, visits: [VISIT, SOON], overdue: [LATE] });
+    at("/portal/teacher/observations", <PrincipalObservations />);
+    const page = await screen.findByTestId("principal-observe-v6");
+    const toggle = await within(page).findByRole("button", { name: /All booked/ });
+    expect(page.querySelector('a[href="/portal/teacher/principal/schedule"]')).toBeNull();
+    fireEvent.click(toggle);
+    const late = within(page).getByTestId("booked-late");
+    expect(within(within(late).getByTestId("booked-row-v0")).getByRole("link").getAttribute("href")).toBe(principalVisitPath("ext-l"));
+    const coming = within(page).getByTestId("booked-coming");
+    expect(within(within(coming).getByTestId("booked-row-v2")).getByRole("link").getAttribute("href")).toBe(principalVisitPath("ext-s"));
+    expect(within(page).queryByRole("link", { name: /Record/ })).toBeNull();
+    expect(page.querySelector('a[href="/portal/teacher/principal/schedule"]')).toBeNull();
   });
 
   it("switch off: today's Observe (the tiles, her teachers' observations)", async () => {
