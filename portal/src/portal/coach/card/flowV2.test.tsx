@@ -113,7 +113,7 @@ describe("the Home, switch on: the Focus card, then one Observe tile", () => {
     expect(screen.queryByText(/Start an observation/)).toBeNull();
   });
 
-  it("(2) nothing waiting, visits booked today: those still to do with Record, then All booked with the late count", async () => {
+  it("(2) nothing waiting, visits booked today: those still to do, each row one link to its visit, then All booked with the late count", async () => {
     config(true);
     home([]);
     reports([]);
@@ -124,8 +124,9 @@ describe("the Home, switch on: the Focus card, then one Observe tile", () => {
     expect(card).toHaveTextContent("Booked for today");
     expect(within(card).getByTestId("section-count")).toHaveTextContent("2");
     expect(within(card).queryByText("Farah Naz")).toBeNull();
-    expect(within(card).getAllByRole("link", { name: /^Record/ }).map((a) => a.getAttribute("href")))
-      .toEqual(["/portal/coach/visit/t2/record", "/portal/coach/visit/t3/record"]);
+    expect(within(card).queryByRole("link", { name: /^Record/ })).toBeNull();
+    expect(within(card).getAllByTestId(/^booked-row-/).map((r) => within(r).getByRole("link").getAttribute("href")))
+      .toEqual(["/portal/coach/visit/t2", "/portal/coach/visit/t3"]);
     const all = within(card).getByRole("link", { name: /All booked/ });
     expect(all).toHaveAttribute("href", "/portal/coach/observe?booked=open");
     expect(all).toHaveTextContent("1 late");

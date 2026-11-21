@@ -76,44 +76,41 @@ afterEach(() => { cleanup(); });
 
 
 /*
- * bd-o15qnr.28 (queue #204, v7; #188's board m9-check-class) — with the v6/v7 switch on, the class question is chips:
- * "Which class was it?" 1–5 · 6 · 7 … 12, then Subject (for the grades that ask it), and one line saying it picks the form.
- * Same answers as the dropdowns (the same lesson goes with the observation). Switch off: the dropdowns, as on production.
+ * bd-o15qnr.29 (the operator 21 Nov ~09:00: "it asks for Grade Subject in a weird chips type way. Make it how it used to
+ * be") — with the v6/v7 switch on, the class question is the dropdowns again, exactly as with the switch off: Class
+ * (Grade 1-5, Grade 6 … 12), then Subject for the grades that ask it. No chips. Same answers, same lesson sent.
  */
-const chip = (name: string) => screen.getByRole("radio", { name });
-
-describe("Check and send, v7: the class question as chips", () => {
+describe("Check and send, v7: the class question as it used to be (dropdowns, no chips)", () => {
   beforeEach(() => { flow.on = true; });
 
-  it("Which class was it? 1–5 and each grade as chips; the form line; no dropdown", async () => {
+  it("Class and subject, the Class dropdown; no chips, no 'Which class was it?'", async () => {
     L.getObserveLessonQuestion.mockResolvedValue(ASK);
     renderCheck();
-    expect(await screen.findByText("Which class was it?")).toBeTruthy();
-    for (const g of ["1–5", "6", "7", "8", "9", "10", "11", "12"]) expect(chip(g)).toBeTruthy();
-    expect(screen.getByText("The class picks the form for this observation.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^Class,/ })).toBeNull();
+    expect(await screen.findByText("Class and subject")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Class,/ })).toBeTruthy();
+    expect(screen.queryByText("Which class was it?")).toBeNull();
+    expect(screen.queryByRole("radio", { name: "1–5" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "7" })).toBeNull();
   });
 
-  it("7 asks the subject (chips), and both are sent", async () => {
+  it("Grade 7 asks the subject, and both are sent", async () => {
     L.getObserveLessonQuestion.mockResolvedValue(ASK);
     renderCheck();
-    await screen.findByText("Which class was it?");
-    fireEvent.click(chip("7"));
+    await choose(/^Class,/, "Grade 7");
     fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     expect(await screen.findByText("Choose the subject first")).toBeTruthy();
-    fireEvent.click(chip("Maths"));
+    await choose(/^Subject,/, "Maths");
     fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
     expect(send.mock.calls[0][0].lesson).toEqual({ grade: 7, subject: "maths" });
   });
 
-  it("1–5 is primary; 9 is the class alone (no subject asked)", async () => {
+  it("Grade 1-5 is primary; Grade 9 is the class alone (no subject asked)", async () => {
     L.getObserveLessonQuestion.mockResolvedValue(ASK);
     renderCheck();
-    await screen.findByText("Which class was it?");
-    fireEvent.click(chip("9"));
-    expect(screen.queryByRole("radiogroup", { name: "Subject" })).toBeNull();
-    fireEvent.click(chip("1–5"));
+    await choose(/^Class,/, "Grade 9");
+    expect(screen.queryByRole("button", { name: /^Subject,/ })).toBeNull();
+    await choose(/^Class,/, "Grade 1-5");
     fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
     expect(send.mock.calls[0][0].lesson).toEqual({ primary: true });
