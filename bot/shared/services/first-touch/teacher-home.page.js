@@ -357,21 +357,37 @@ var g0=store('th.grade');`],
 ]);
 const ONE_SCRIPT = swapped(SCRIPT, ONE_SWAPS, 'the one-lesson part');
 const ONE_SCRIPT_HASH = sha(ONE_SCRIPT);
+/**
+ * forward (quiz_forward_button): the send sheet's "More ways to share" (#th-native), shown only when the browser has a
+ * share sheet (navigator.share: Chrome, the teacher app; never WhatsApp's own browser, where the wa.me link is the one
+ * tap). Its tap is the step fwd_native, and what the browser reports is fwd_result {r: shared|dismissed|failed}.
+ * Anchored on the step, the sheet and the copy button, so it composes with every other part; swapped last.
+ */
+const FORWARD_SWAPS = Object.freeze([
+  ['if(x.c)o.c=x.c}', 'if(x.c)o.c=x.c;if(x.r)o.r=x.r}'],
+  ["q('#th-copied').hidden=true;q('#th-long').hidden=true;", "q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-native').hidden=!(navigator.share);"],
+  ["q('#th-copy').addEventListener('click',copy);", `q('#th-copy').addEventListener('click',copy);
+q('#th-native').addEventListener('click',function(){var x=cur;if(!x||!navigator.share)return;var o={kind:x.sendKind,id:x.id,origin:x.origin,c:x.c};step('fwd_native',o);
+function r(v){o.r=v;step('fwd_result',o)}try{navigator.share({text:x.message}).then(function(){r('shared')},function(e){r(e&&e.name==='AbortError'?'dismissed':'failed')})}catch(e){r('failed')}});`],
+]);
+const ONE_SCRIPT_FWD = swapped(ONE_SCRIPT, FORWARD_SWAPS, 'a forward part');
+const ONE_SCRIPT_FWD_HASH = sha(ONE_SCRIPT_FWD);
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Every page the switches can ask for: paged × named × early × counts × grade-fast × portal, each under its own hash.
 // The fast grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch
 // on the counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
 const SCRIPTS = new Map();
-[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => [false, true].forEach((portal) => {
+[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => [false, true].forEach((portal) => [false, true].forEach((forward) => {
   let text = wait ? SCRIPT_WAIT : paged ? SCRIPT_PAGED : SCRIPT;
   if (fast) text = wait ? swapped(SCRIPT_WAIT, FAST_SWAPS) : paged ? SCRIPT_PAGED_FAST : FAST_SCRIPT;
   if (counts) text = swapped(text, COUNTS_SWAPS, 'a story-counts part');
   if (named) text = swapped(text, NAMED_SWAPS, 'a named-item part');
   if (early) text = swapped(text, EARLY_SWAPS, 'an early-pick part');
   if (portal) text = swapped(text, PORTAL_SWAPS, 'the portal-link part');
-  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}|${portal}`, { text, hash: !fast && !counts && !named && !early && !portal ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
-})))))));
+  if (forward) text = swapped(text, FORWARD_SWAPS, 'a forward part');
+  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}|${portal}|${forward}`, { text, hash: !fast && !counts && !named && !early && !portal && !forward ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
+}))))))));
 
 /**
  * The page policy. A hash, or a list of them (the stories page has more than one inline style); `media` adds
@@ -411,7 +427,8 @@ function pageLang(tokenLang, asked) {
 const NAMED_IDS = Object.freeze(['th.kind.story', 'th.kind.quiz', 'th.again.story', 'th.again.quiz']);
 const COUNTS_IDS = Object.freeze(['th.stories.counts', 'th.stories.counts.one']);
 const ONE_IDS = Object.freeze(['th.one.say']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS].includes(id)));
+const FORWARD_IDS = Object.freeze(['th.share.more']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS, ...FORWARD_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
@@ -421,9 +438,11 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * (a coaching session id, a UUID; anything else is ignored) builds the one-lesson page (ONE_SWAPS) for that lesson.
  * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null }) {
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, forward = false }) {
   const oneId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
-  const { text: script, hash: scriptHash } = oneId ? { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH } : SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}`);
+  const fwd = forward === true;
+  const oneScript = fwd ? { text: ONE_SCRIPT_FWD, hash: ONE_SCRIPT_FWD_HASH } : { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH };
+  const { text: script, hash: scriptHash } = oneId ? oneScript : SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}|${fwd}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -478,7 +497,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <button type="button" class="th-go2" id="th-copy" data-tap="copy">${esc(str('th.copy', l))}</button>
 <p class="th-ok" id="th-copied" role="status" hidden>${esc(str('th.copied', l))}</p>
 <p class="th-note" id="th-long" role="status" hidden>${esc(str('th.copy.long', l))}</p>
-<a class="th-go" id="th-sheet-go" data-tap="share_tap">${esc(str('th.send', l))}</a>
+<a class="th-go" id="th-sheet-go" data-tap="share_tap">${esc(str('th.send', l))}</a>${fwd ? `\n<button type="button" class="th-go2" id="th-native" data-tap="share_native" hidden>${esc(str('th.share.more', l))}</button>` : ''}
 <p class="th-note">${esc(str('th.send.note1', l))}</p>
 <p class="th-note">${esc(str('th.send.note2', l))}</p>
 <p class="th-note">${esc(str('th.back.note', l))}</p>
@@ -494,5 +513,5 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 module.exports = {
   buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
   FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
-  ONE_SCRIPT, ONE_SCRIPT_HASH,
+  ONE_SCRIPT, ONE_SCRIPT_HASH, ONE_SCRIPT_FWD, FORWARD_SWAPS,
 };

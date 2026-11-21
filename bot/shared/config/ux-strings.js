@@ -4505,6 +4505,24 @@ const UX_STRINGS = {
     ur: 'آپ کی سبق کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
       + 'براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں: 📎 دبائیں، پھر ⁦*Document*⁩، ریکارڈنگ چنیں اور ⁦*Send*⁩ دبائیں۔',
   },
+
+  // ── qfix forward: one tap to the class group (first-touch/quiz-forward.js, app_settings quiz_forward_button) ──
+  // A line on messages the teacher already gets (the hand-out caption, the library share line, the six-hour message),
+  // never on the class's own message. {link} opens WhatsApp's chat picker with the class message typed in. Urdu:
+  // بھیجیں is the polite imperative (no gendered stem); "tap" and "class group" stay Latin as tqHandoffIntro has them.
+  qfix_forward_line: {
+    en: '📲 Send it to your class group in one tap:\n{link}',
+    ur: '\u200F📲 ایک tap میں class group کو بھیجیں:\n{link}',
+  },
+  // the six-hour message about several quiet quizzes: one line per quiz, under one head
+  qfix_forward_many: {
+    en: '📲 Send each to your class group in one tap:',
+    ur: '\u200F📲 ہر ایک کو ایک tap میں class group کو بھیجیں:',
+  },
+  qfix_forward_item: {
+    en: '{topic}: {link}',
+    ur: '\u200F{topic}: {link}',
+  },
 };
 
 /**
