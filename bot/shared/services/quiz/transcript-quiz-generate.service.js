@@ -648,7 +648,8 @@ async function updateQuiz(quizId, patch) {
  */
 async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}, failedMeta = null) {
   // failedMeta: the row as failed, for a start failure's next-step line (quiz-sources startFailureCopyKey).
-  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource, { meta: failedMeta }), { language: lang }));
+  // A class's evening round has no teacher to tell (its phone is the no-send marker): logged, never sent.
+  if (phone !== require('./web-quiz-evening-round').NO_SEND) await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource, { meta: failedMeta }), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
   Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason, step: extra.step });
 }
@@ -2263,7 +2264,9 @@ async function processQuiz(quizId, payload, flight) {
     session = found;
     user = session.users || {};
   }
-  const phone = payload.phone || user.phone_number;
+  // A class's evening round (web-quiz-evening-round) sends nothing: no phone, no cap, its own hand-off below.
+  const isRound = require('./web-quiz-evening-round').isEveningRound(quiz);
+  const phone = isRound ? require('./web-quiz-evening-round').NO_SEND : (payload.phone || user.phone_number);
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
@@ -2286,7 +2289,7 @@ async function processQuiz(quizId, payload, flight) {
   // THE RUNAWAY GUARD (quiz-daily-cap): at most QUIZ_DAILY_CAP quizzes made per
   // teacher per day, both streams, counted here where every path meets and before
   // any model call. A quiz resuming at the hand-off was already counted.
-  if (!(quiz.status === 'ready' && meta.step === 'ready')) {
+  if (!isRound && !(quiz.status === 'ready' && meta.step === 'ready')) {
     const capped = await DailyCap.claim(quiz.teacher_id, quizId);
     if (!capped.allowed) {
       const failedMeta = { ...meta, step: 'failed', error: 'daily_cap' };
@@ -3234,6 +3237,7 @@ async function processQuiz(quizId, payload, flight) {
   const qRows = storedQs && storedQs.length ? storedQs
     : (cachedRows || applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language }));
 
+  if (isRound) return require('./web-quiz-evening-round').afterGenerate({ quiz, quizId, meta });
   const Handoff = require('./transcript-quiz-handoff.service');
   const result = await Handoff.sendHandoff(quizId, phone, {
     firstSend: true,
