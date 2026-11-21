@@ -119,6 +119,9 @@ Feature: FDE board-pattern paper for Grade 5
     Then each question shows its level and a summary shows each level's share and each question type's count
     When the teacher removes one question and saves
     Then the new paper and its marking scheme print no levels and no summary
+    # bd-zrdvmi.50.2 (AG row 7 point 7): FDE's own target for the grade and subject sits beside the paper's mix.
+    And on a Grade 5 Science board-pattern paper the summary shows "FDE target" with "Remember 30%", "Understand 30%" and "Apply 40%"
+    And the printed paper and marking scheme show no FDE target
 
   @sandbox @real-paper @no-mock-driver
   # No mock driver: the refusal is decided on a real paper's slot-tagged items, which only a sandbox paper carries.
