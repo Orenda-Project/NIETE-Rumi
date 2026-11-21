@@ -203,7 +203,11 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // in the caption only, so it is never forwarded to the class.
   const preview = await require('./web-quiz-link').previewLink(code, { shareCodeId, teacherUserId: quiz.teacher_id });
   const previewLine = preview ? resolveUx('tqWebPreview', { language: teacherLang, params: { link: preview } }) : null;
-  const head = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
+  const head0 = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
+  // One tap to the class group (quiz_forward_button): a teacher-only line, so it rides the caption, never the
+  // forwardable; null (switch off, no link) → the caption is today's.
+  const forwardLine = await require('../first-touch/quiz-forward').lineFor({ quizId, surface: 'wa_handout', lang: teacherLang });
+  const head = forwardLine && [...`${head0}\n\n${forwardLine}`].length <= CAPTION_MAX ? `${head0}\n\n${forwardLine}` : head0;
   const promiseInCaption = Boolean(promise) && [...`${head}\n\n${promise}`].length <= CAPTION_MAX;
   const caption = promiseInCaption ? `${head}\n\n${promise}` : head;
   let pdfSent = false;

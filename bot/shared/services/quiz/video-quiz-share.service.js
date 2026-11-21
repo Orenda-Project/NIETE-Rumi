@@ -268,8 +268,10 @@ async function sendClassLink(ctx, phone, { classId = null } = {}) {
   // The report promise rides on the "forward THIS one" line, ahead of it —
   // it used to be a third message after the class message. The class message
   // stays alone and LAST, so the thing to forward is the newest bubble.
+  // One tap to the class group (quiz_forward_button): on the teacher's line, never on the class message; null → today's.
+  const forwardLine = await require('../first-touch/quiz-forward').lineFor({ codeId: minted.id, surface: 'wa_handout', lang });
   await WhatsAppService.sendMessage(phone,
-    `${ux('vqShareReportPromise', lang)}\n\n${ux('vqShareForwardThis', lang)}`);
+    `${ux('vqShareReportPromise', lang)}${forwardLine ? `\n\n${forwardLine}` : ''}\n\n${ux('vqShareForwardThis', lang)}`);
   // Sent as its own message so forwarding it carries nothing else.
   await WhatsAppService.sendMessage(phone, ux('vqClassMessage', lang, {
     teacher: minted.teacherName,
