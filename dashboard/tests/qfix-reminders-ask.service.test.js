@@ -135,3 +135,56 @@ describe('the canary', () => {
     } finally { await new Promise((r) => srv.close(r)); }
   });
 });
+
+// QF-R3: after Chrome's Allow the subscribe takes seconds (worker + push service); the card says so at once.
+describe('the wait after Allow', () => {
+  function granted() {
+    let release;
+    const subPosted = new Promise((r) => { release = r; });
+    const posts = [];
+    const sub = { endpoint: 'https://push.example/abc', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'p', auth: 'a' } }; } };
+    const reg = { pushManager: { subscribe: async () => sub, getSubscription: async () => null } };
+    const sw = { getRegistrations: async () => [], getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) };
+    const ctx = {
+      console, Promise, JSON, Math, Object, Array, String, Number, Boolean, RegExp, Error, encodeURIComponent, decodeURIComponent, Uint8Array,
+      Date: class extends Date { static now() { return TUE; } }, setTimeout, clearTimeout, Intl, atob: (s) => Buffer.from(s, 'base64').toString('binary'),
+      location: { host: 'wq.example', protocol: 'https:' }, navigator: { userAgent: UA_CHROME, serviceWorker: sw }, matchMedia: () => ({ matches: false }),
+      localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, document: { getElementById: () => null, querySelector: () => null },
+      indexedDB: undefined,
+      fetch: async (url, init) => {
+        if (init && init.method === 'POST') {
+          posts.push(url);
+          if (url === '/api/wqpush/subscribe') await subPosted;
+          return { status: 200, json: async () => ({ ok: 1 }) };
+        }
+        return { status: 200, json: async () => ({ key: 'BPUBKEYAAAA' }) };
+      },
+      PushManager: function PushManager() {}, Notification: { permission: 'default', requestPermission: async () => 'granted' },
+    };
+    ctx.window = ctx; ctx.self = ctx;
+    vm.runInNewContext(SRC, ctx);
+    const slot = { innerHTML: '', onclick: null, setAttribute() {}, removeAttribute() {} };
+    const tap = async (act) => { slot.onclick({ target: { closest: () => ({ getAttribute: (a) => (a === 'data-act' ? act : null) }) }, preventDefault() {} }); await flush(); };
+    return { ctx, slot, tap, release, posts };
+  }
+  test.each([['en', 'Turning reminders on…'], ['ur', 'یاد دہانی آن ہو رہی ہے…']])('%s: "%s" while it subscribes, then done', async (lang, wait) => {
+    const p = granted();
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
+    await flush();
+    await p.tap('yes');
+    expect(p.posts).toContain('/api/wqpush/subscribe');
+    expect(p.slot.innerHTML).toContain(wait);
+    expect(p.slot.innerHTML).toContain('aria-busy="true"');
+    p.release();
+    await flush();
+    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T[lang].remindDone);
+  });
+});
+
+// QF-R4: the /remind page's other-language link is a 48 px target.
+test('the /remind language link is at least 48×48', () => {
+  const { renderRemindPage } = require('../routes/push-remind.routes');
+  const html = renderRemindPage({ code: 'AB12CD', lang: 'ur', now: TUE });
+  expect(html).toMatch(/\.wqr \.wqr-l\{[^}]*min-height:48px/);
+  expect(html).toMatch(/\.wqr \.wqr-l\{[^}]*min-width:48px/);
+});
