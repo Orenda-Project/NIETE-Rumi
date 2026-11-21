@@ -7,8 +7,8 @@
 
 var ICON = '/wq/jugnu/hello.webp';
 var COPY = {
-  en: { t: 'Jugnu', b: "Today's quiz is ready. Tap to play.", test: 'Reminders are on.', stop: 'Stop reminders' },
-  ur: { t: 'جگنو', b: 'آج کا کوئز تیار ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔', stop: 'یاد دہانی بند کریں' },
+  en: { t: 'Jugnu', b: 'A game is waiting for you. Tap to play.', test: 'Reminders are on.', stop: 'Stop reminders' },
+  ur: { t: 'جگنو', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔', stop: 'یاد دہانی بند کریں' },
 };
 var DB = 'wq-push';
 var STORE = 'kv';

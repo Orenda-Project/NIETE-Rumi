@@ -14,11 +14,13 @@
   'use strict';
   var T = {
     en: {
-      remindTitle: 'Want Jugnu to remind you tomorrow?',
-      remindBody: 'One reminder on this phone, after school. You can stop it any time.',
+      remindTitle: 'Want Jugnu to remind you tomorrow evening?',
+      remindTitleMon: 'Want Jugnu to remind you on Monday evening?',
+      remindBody: 'One reminder on this phone, on school-day evenings. You can stop it any time.',
       remindYes: 'Yes, remind me',
       remindLater: 'Not now',
-      remindDone: 'Done. Jugnu will remind you tomorrow after school.',
+      remindDone: 'Done. Jugnu will remind you tomorrow evening.',
+      remindDoneMon: 'Done. Jugnu will remind you on Monday evening.',
       remindTest: 'Send one now',
       remindStop: 'Stop reminders',
       remindDenied: 'Reminders are off in this browser. You can turn them on in the browser settings.',
@@ -35,11 +37,13 @@
       offTitle: 'Reminders are off',
     },
     ur: {
-      remindTitle: 'کیا جگنو کل آپ کو یاد دلائے؟',
-      remindBody: 'اس فون پر، اسکول کے بعد، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
+      remindTitle: 'کیا جگنو کل شام آپ کو یاد دلائے؟',
+      remindTitleMon: 'کیا جگنو پیر کی شام آپ کو یاد دلائے؟',
+      remindBody: 'اس فون پر، اسکول کے دنوں کی شام، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
       remindYes: 'جی ہاں، یاد دلائیں',
       remindLater: 'ابھی نہیں',
-      remindDone: 'ہو گیا۔ جگنو کل اسکول کے بعد یاد دلائے گا۔',
+      remindDone: 'ہو گیا۔ جگنو کل شام یاد دلائے گا۔',
+      remindDoneMon: 'ہو گیا۔ جگنو پیر کی شام یاد دلائے گا۔',
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
       remindStop: 'یاد دہانی بند کریں',
       remindDenied: 'اس براؤزر میں یاد دہانی بند ہے۔ آپ براؤزر کی سیٹنگز سے اسے کھول سکتے ہیں۔',
@@ -58,6 +62,9 @@
   };
   var IAB_RX = /\bWA4A\/|WhatsApp|FBAN|FBAV|Instagram|; wv\)/;
   var CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+  // The reminder comes on the next school evening (Mon–Fri, PKT; the bot's nextAt): on a Friday or a Saturday that is
+  // Monday, so the ask and the done line say Monday there, and tomorrow on every other day.
+  function onMonday() { var d = new Date(Date.now() + 5 * 3600000).getUTCDay(); return d === 5 || d === 6; }
   var DAY = 864e5;
   var API = '/api/wqpush/';
 
@@ -200,11 +207,11 @@
     }
 
     var show = {
-      ask: function () { draw((landing ? '' : title(c.remindTitle)) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
+      ask: function () { draw((landing ? '' : title(onMonday() ? c.remindTitleMon : c.remindTitle)) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
       done: function () {
         pageTitle(c.onTitle);
         // the landing's one next step is Play (the primary); Stop is the small ghost; the test-send only for QA (?qa=1)
-        draw(line(c.remindDone)
+        draw(line(onMonday() ? c.remindDoneMon : c.remindDone)
           + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')
           + (landing && ctx.test === true ? btn('wq-ghost', 'test', c.remindTest) : '')
           + btn('wq-ghost', 'stop', c.remindStop));

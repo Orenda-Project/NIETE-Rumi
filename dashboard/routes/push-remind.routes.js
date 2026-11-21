@@ -33,10 +33,13 @@ const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 const POST_OPS = ['subscribe', 'unsubscribe', 'opened', 'test', 'e', 'delivered'];
 
 // The page's first paint, both languages (wq-remind.js draws the card from its own copy table).
+// The reminder comes on the next school evening, so on a Friday or Saturday (PKT) the title says Monday (wq-remind.js
+// does the same for the card).
 const COPY = {
-  en: { title: 'Want Jugnu to remind you tomorrow?', other: 'اردو' },
-  ur: { title: 'کیا جگنو کل آپ کو یاد دلائے؟', other: 'English' },
+  en: { title: 'Want Jugnu to remind you tomorrow evening?', titleMon: 'Want Jugnu to remind you on Monday evening?', other: 'اردو' },
+  ur: { title: 'کیا جگنو کل شام آپ کو یاد دلائے؟', titleMon: 'کیا جگنو پیر کی شام آپ کو یاد دلائے؟', other: 'English' },
 };
+const onMonday = (now) => [5, 6].includes(new Date(now + 5 * 60 * 60 * 1000).getUTCDay());
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -58,10 +61,10 @@ html[lang=ur] .wqr h1,html[lang=ur] .wqr p{line-height:2}
 
 /** The reminder page in the child pages' look (wq.css, + the adventure look when the quiz page has it): Jugnu, the
  *  ask in this page's language only, then wq-remind.js boots the card. The other language is one small link. */
-function renderRemindPage({ code, lang, test, qa, adv }) {
+function renderRemindPage({ code, lang, test, qa, adv, now = Date.now() }) {
   const l = lang === 'en' ? 'en' : 'ur';
   const o = l === 'en' ? 'ur' : 'en';
-  const c = COPY[l];
+  const c = { ...COPY[l], title: onMonday(now) ? COPY[l].titleMon : COPY[l].title };
   // the test-send is for QA only: the switch AND ?qa=1, so a child's walk never sees it
   const boot = { code, lang: l, test: test === true && qa === true };
   return `<!doctype html>
