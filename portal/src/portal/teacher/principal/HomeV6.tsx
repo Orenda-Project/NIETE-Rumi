@@ -23,7 +23,7 @@ import { BookedRow } from "../../coach/flow/BookedRow";
 import { groupBooked, oldestFirst, waitedDays } from "../../coach/flow/model";
 import { trackFlow } from "../../coach/flow/track";
 import { SchoolHomeCard } from "./SchoolHomeCard";
-import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalObservationPath, principalRecordPath } from "./observe";
+import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalObservationPath, principalBookedTo } from "./observe";
 
 /**
  * bd-o15qnr.28 (queue #204) — the principal's Focus card (#188's board p9-home): the coach's Focus card (coach/flow/
@@ -80,7 +80,7 @@ export function PrincipalFocus() {
       <section data-testid="focus-booked" className="flex flex-col gap-2">
         <SectionLabel count={g.today.length}>{S.bookedToday}</SectionLabel>
         <div className={LIST_CARD}>
-          {g.today.map((v, i) => <BookedRow key={v.id} v={v} today={today} first={i === 0} recordTo={principalRecordPath} />)}
+          {g.today.map((v, i) => <BookedRow key={v.id} v={v} today={today} first={i === 0} to={principalBookedTo} />)}
         </div>
       </section>
     );
