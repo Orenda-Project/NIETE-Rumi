@@ -30,7 +30,7 @@
  *   dueTick(now, {webpush})                → {sent, revoked, deduped}: due rows, ONE per phone (device_ref) a school
  *                                            day at 17:30–17:59 PKT, revoked after 3 unopened
  *   expireTick(now)                        → {expired, deleted}: runs whatever the switches say (retention)
- *   delivered({tag})                       → the funnel's delivered step (the worker showed it); the landed step
+ *   delivered({tag, shown, err})           → the funnel's delivered step (shown: the notification drew); the landed step
  *                                            (web_quiz.push_landed) is the portal's; funnelTick(now) logs the day's
  *                                            counts once after 21:00 PKT
  *
@@ -75,12 +75,12 @@ const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 const COPY = Object.freeze({
   quiz_reminder: {
     en: {
-      t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.', testT: 'Jugnu', test: 'Reminders are on.', tap: 'Tap to play ▶',
+      t: 'Jugnu: time to play ▶', b: 'A quiz is waiting for you.', testT: 'Jugnu', test: 'Reminders are on.', tap: 'Tap to play ▶',
       one: 'Jugnu: {c} has a new quiz', many: 'Jugnu: new quizzes for {c}', manyShort: 'Jugnu: new quizzes are ready',
       named: '{c}: quiz time!', and: ', ', last: ' and ',
     },
     ur: {
-      t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', testT: 'جگنو', test: 'یاد دہانی آن ہے۔', tap: 'کھیلنے کے لیے دبائیں ▶',
+      t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کوئز آپ کا انتظار کر رہا ہے۔', testT: 'جگنو', test: 'یاد دہانی آن ہے۔', tap: 'کھیلنے کے لیے دبائیں ▶',
       one: 'جگنو: {c} کا نیا کوئز آ گیا', many: 'جگنو: {c} کے نئے کوئز', manyShort: 'جگنو: نئے کوئز تیار ہیں',
       named: '{c}: کوئز تیار ہے', and: '، ', last: ' اور ',
     },
@@ -503,10 +503,15 @@ async function dueTick(now = Date.now(), opts = {}) {
 
 const TAGS = Object.freeze({ 'jugnu-remind': 'quiz_reminder', 'niete-plan': 'evening_plan' });
 /** The worker showed a reminder (sw.js push handler). Counts only. */
-function delivered({ tag } = {}) {
+function delivered({ tag, shown, err } = {}) {
   const kind = TAGS[String(tag || '')];
   if (!kind) return { status: 400, err: 'bad_tag' };
-  logEvent('web_quiz.push_delivered', { kind, reason: kind });
+  // shown: the worker's showNotification resolved (true) or rejected (false, with the error's name); an older worker
+  // sends neither, so the funnel reads shown === true as reach, never the bare event
+  const ev = { kind, reason: kind };
+  if (typeof shown === 'boolean') ev.shown = shown;
+  if (shown === false && typeof err === 'string' && /^[A-Za-z]{1,40}$/.test(err)) ev.err = err;
+  logEvent('web_quiz.push_delivered', ev);
   return { ok: 1 };
 }
 

@@ -55,7 +55,7 @@ function createRouter() {
   router.post('/opened', wrap((req) => Push.markOpened({ endpoint: body(req).endpoint })));
   router.post('/test', wrap((req) => Push.sendTest({ endpoint: body(req).endpoint })));
   router.post('/e', wrap((req) => Push.stepEvent(body(req))));
-  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag })));
+  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag, shown: body(req).shown, err: body(req).err })));
 
   // the teacher card (car C): the edge's portal session names the teacher
   router.post('/portal/subscribe', wrap((req) => {

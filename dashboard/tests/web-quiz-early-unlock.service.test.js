@@ -385,6 +385,22 @@ describe('web_quiz_early_unlock: hub.js uses the call the head started', () => {
     expect(p.hubCalls().map((c) => c.phase)).toEqual(['page']);
   });
 
+  // reminders (qfix): the route that brought the child (?from=, a known route only) rides on the FIRST hub call as
+  // `src`, in the head's early call and in hub.js's own, the same body, so the head's call is still the one used.
+  test('a reminder tap (?from=push): the head asks with src push, hub.js uses it; no head: hub.js sends it', async () => {
+    const a = page({ search: '?from=push' });
+    const b = page({ head: false, search: '?from=push' });
+    await flush(); await flush();
+    expect(a.hubCalls().map((c) => [c.phase, JSON.parse(c.init.body).src])).toEqual([['head', 'push']]);
+    expect(b.hubCalls().map((c) => [c.phase, JSON.parse(c.init.body).src])).toEqual([['page', 'push']]);
+  });
+
+  test('an unknown ?from= is never sent', async () => {
+    const p = page({ search: '?from=evil' });
+    await flush(); await flush();
+    expect(p.hubCalls().map((c) => [c.phase, Object.keys(JSON.parse(c.init.body))])).toEqual([['head', ['device_ref']]]);
+  });
+
   test('OFF (no head script): hub.js asks once, as today', async () => {
     const p = page({ head: false });
     await flush(); await flush();

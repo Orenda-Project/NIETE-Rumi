@@ -38,7 +38,7 @@ describe('delivered: the worker reports a shown reminder', () => {
     const w = worker();
     await w.push({ t: 'Jugnu', b: "Today's quiz is ready. Tap to play.", url: '/q/ABC123?from=push', tag: 'jugnu-remind', lang: 'en' });
     expect(w.shown).toHaveLength(1);
-    expect(w.posts).toEqual([['/api/wqpush/delivered', { tag: 'jugnu-remind' }]]);
+    expect(w.posts).toEqual([['/api/wqpush/delivered', { tag: 'jugnu-remind', shown: true }]]);
   });
   test('the test push ("Reminders are on."): shown, nothing reported', async () => {
     const w = worker();
