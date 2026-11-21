@@ -53,9 +53,12 @@ const FICO_S_TOOL = {
 };
 const TOOLS = { ...RUBRIC.tools, ficos: FICO_S_TOOL };
 const IDS = Object.fromEntries(Object.entries(TOOLS).map(([k, t]) => [k, t.id]));
+// Every id a stored visit may carry: this version's tools, and every FICO-S version (queue #218: a v1.1 visit keeps
+// 'fico_s_v1_1' after new ones are 'fico_s_v1_2'). Dispatchers key on these, never on IDS alone.
+const KNOWN_IDS = [...new Set([...Object.values(IDS), ...FicoS.IDS])];
 const ID_RX = /^obs612-(gen|msci|enur)-v(\d+)$/;
 
-/** Is this string an obs612 rubric id (any version), or FICO-S v1.1? */
+/** Is this string an obs612 rubric id (any version), or a FICO-S id (v1.1, v1.2)? */
 function isObs612Id(id) {
   return typeof id === 'string' && (ID_RX.test(id) || FicoS.isFicoSId(id));
 }
@@ -70,15 +73,16 @@ function toolOf(id) {
 /** Is this a FICO-S id (tool 'ficos')? */
 const isFicoS = (id) => FicoS.isFicoSId(id);
 
-/** The label a visit on this rubric shows: 'FICO-S v1.1' or 'FDE v1'; null for an id this module does not know. */
+/** The label a visit on this rubric shows: 'FICO 6-12' (v1.1), 'FICO 6-12 v1.2' or 'FDE v1'; null for an id this module does not know. */
 function labelOf(id) {
-  if (FicoS.isFicoSId(id)) return FicoS.LABEL;
+  if (FicoS.isFicoSId(id)) return FicoS.labelOf(id);
   return ID_RX.test(String(id || '')) ? LABEL : null;
 }
 
-/** The tool definition for a rubric id (this version's), else null. */
+/** The tool definition for a rubric id (this version's), else null. FICO-S: either version, with its own id and label. */
 function toolById(id) {
   const t = toolOf(id);
+  if (t === 'ficos') return { ...FICO_S_TOOL, id, title: FicoS.labelOf(id), label: FicoS.labelOf(id) };
   return t && TOOLS[t] && TOOLS[t].id === id ? TOOLS[t] : null;
 }
 
@@ -199,11 +203,13 @@ function enurSections(sheet) {
 function requiredItems(rubricId, sheet) {
   const tool = toolOf(rubricId);
   if (tool === 'ficos') {
-    // Every indicator's level (C2 may be N/A) and its evidence line (frameworks/fico-s EVIDENCE_MIN).
+    // Every indicator's level (N/A where the form's version offers it: v1.1 C2; v1.2 C2, C3) and its evidence line
+    // (frameworks/fico-s EVIDENCE_MIN).
+    const na = FicoS.naCodes(rubricId);
     return FicoS.CODES.flatMap((c) => {
       const ind = FicoS.indicator(c);
       return [
-        { key: c, section: ind.section, text: ind.name, kind: FicoS.NA_CODES.includes(c) ? 'fico_s_na' : 'fico_s' },
+        { key: c, section: ind.section, text: ind.name, kind: na.includes(c) ? 'fico_s_na' : 'fico_s' },
         { key: `ev_${c}`, section: ind.section, text: ind.name, kind: 'evidence' },
       ];
     });
@@ -286,7 +292,7 @@ function score(rubricId, sheet, answers = {}) {
   if (tool === 'ficos') {
     // frameworks/fico-s: section averages, overall % and band (the sheet's arithmetic). `missing` names levels and
     // evidence alike; the levels' own list is r.missing_levels.
-    const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, a[c]])));
+    const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, a[c]])), rubricId);
     return { ...r, tool, rubric_id: rubricId, sheet: null, missing, missing_levels: r.missing };
   }
   if (tool === 'gen') {
@@ -345,6 +351,7 @@ module.exports = {
   isFicoSGrade,
   TOOLS,
   IDS,
+  KNOWN_IDS,
   GRADES,
   PRIMARY_MAX_GRADE,
   FDE_GRADES,

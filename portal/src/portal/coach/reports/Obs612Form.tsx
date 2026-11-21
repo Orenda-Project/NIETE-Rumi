@@ -100,7 +100,19 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   const total = draft.sections.length;
   const section = draft.sections[Math.min(part, Math.max(0, total - 1))];
   const last = part >= total - 1;
-  const set = (k: string) => (v: string) => { setValues((cur) => ({ ...cur, [k]: v })); setNote(null); };
+  // Queue #218 (FICO-S v1.2): a level that follows another arrives on N/A when that one is set to its level (C3 after
+  // C1 = 1), unless the observer already chose it; they can change it. The rule is the bot's (the field's `follows`).
+  const followers = draft.sections.flatMap((s) => fieldsOf(s.parts)).filter((f) => f.follows);
+  const set = (k: string) => (v: string) => {
+    setValues((cur) => {
+      const next = { ...cur, [k]: v };
+      for (const f of followers) {
+        if (f.follows?.code === k && v === f.follows.level && !(cur[f.name] ?? "") && (f.options || []).some((o) => o.id === "NA")) next[f.name] = "NA";
+      }
+      return next;
+    });
+    setNote(null);
+  };
 
   const go = (n: number) => { setPart(n); setNote(null); top.current?.scrollIntoView?.({ block: "start" }); };
   const back = () => (part > 0 ? go(part - 1) : navigate(home));

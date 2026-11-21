@@ -898,6 +898,8 @@ export type Obs612Field = {
   input: 'radio' | 'dropdown' | 'textarea' | 'textinput' | 'number';
   kind: 'yes_no' | 'level' | 'points' | null; n: number | null; short: string | null; text: string | null;
   options: Obs612Option[] | null; required: boolean; max: number | null;
+  /** Queue #218 (FICO-S v1.2): this level arrives on N/A when the field `code` is set to `level` (C3 after C1 = 1). */
+  follows?: { code: string; level: string };
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }

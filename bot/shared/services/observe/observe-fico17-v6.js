@@ -704,6 +704,7 @@ function buildReview(analysis = {}, edits = {}) {
   [...LETTERS, ...v6.DC_CODES].forEach((k) => { const t = trimOrNull(edits[`chg_${k}`]); if (t) changeReasons[k] = t; });
   return {
     rubric: V6,
+    rubric_version: v6.RUBRIC_VERSION, // v6.1 (queue #218): a review saved from now on is a v6.1 one
     prompt_version: dcVersion,
     coach_prompt_version: v6.COACH_PROMPT_VERSION,
     levels,

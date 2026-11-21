@@ -82,6 +82,19 @@ reviews keep their level, reason and counts. The DC is unchanged: it is never as
 turns per half; only the rubric hash in its `prompt_version` moved. The `/observe2` check Flows (retired) were
 published with their level lists inside, so on Meta they show D2's old words until they are republished.
 
+## v6.1 (queue #218, 21 Nov)
+
+FICO17 v6.1 is v6 with per-indicator N/A (C2 C3 C5 D4, each in its own words: `fico17-v6/fico17_v6.na.json`), D2 in
+words, and one refinement: D4 is N/A only when the teacher asked no question at all (asked, then gave the answer, is D4's
+level 1, Not Observed). The 17 indicators and their level meanings do not change, so the key stays `fico17_v6`. Every new
+stamp carries `rubric_version: '6.1'` (`v6.stamp()`, the coach review, the DC analysis) and the small rubric label reads
+"FICO17 v6.1" (`coaching/rubric-label.js`). An observation stored before has no `rubric_version` and keeps "FICO17 v6"
+(`v6.versionOf()` reads it as `'6.0'`). Never rescored, never backfilled. Charts that compare weeks can split on it,
+because N/A rows leave the denominator.
+
+FICO-S v1.2 (grades 6-12) is the same change on the other rubric: see `frameworks/fico-s/index.js` and
+`frameworks/fico-s/fico_s_v1_2.json` (new forms are `fico_s_v1_2`, shown "FICO 6-12 v1.2"; a v1.1 form keeps v1.1).
+
 ## Switches (all off by default)
 
 - `app_settings.fico_coach_rubric`: coach visits on v6, per region / `ict` / `gb` / `user:<id>` / role. Only visits to a

@@ -67,7 +67,7 @@ describe('Framework Registry (bd-596)', () => {
 
   describe('listFrameworks()', () => {
 
-    test('SCENARIO: Lists all 6 registered framework keys (bd-ra8xu.38 adds fico17_v6 beside V3 fico)', () => {
+    test('SCENARIO: Lists all 8 registered framework keys (fico17_v6 beside V3 fico; FICO-S v1.1 and v1.2, queue #184 / #218)', () => {
       const keys = listFrameworks();
       expect(keys).toContain('oecd');
       expect(keys).toContain('hots');
@@ -75,7 +75,9 @@ describe('Framework Registry (bd-596)', () => {
       expect(keys).toContain('fico');
       expect(keys).toContain('mewaka');
       expect(keys).toContain('fico17_v6');
-      expect(keys).toHaveLength(6);
+      expect(keys).toContain('fico_s_v1_1');
+      expect(keys).toContain('fico_s_v1_2');
+      expect(keys).toHaveLength(8);
     });
   });
 });

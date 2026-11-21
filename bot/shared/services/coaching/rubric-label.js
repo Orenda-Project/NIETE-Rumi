@@ -21,19 +21,30 @@ const V5_FORM_RUBRIC = 'fico-ict-17-2026-09';
 
 // What is shown is the framework and its version only (operator 11 Nov ~18:45): no prompt version, hash, grade,
 // subject or form name. The prompt version stays in the stored record for whoever needs it.
-function v6Label() {
-  return { id: 'fico17_v6', label: 'FICO17 v6' };
+// FICO17 v6.1 (queue #218): the key stays 'fico17_v6'; a new observation is stamped rubric_version '6.1' (on its analysis,
+// its coach review or its scores) and reads 'FICO17 v6.1'. One stored before has no version and keeps 'FICO17 v6'.
+function v6VersionOf(a) {
+  if (!a || typeof a !== 'object') return null;
+  const review = a.fico17_v6_review && typeof a.fico17_v6_review === 'object' ? a.fico17_v6_review : null;
+  const v = [a.rubric_version, review && review.rubric_version, a.scores && a.scores.rubric_version]
+    .find((x) => typeof x === 'string' && /^6\.[1-9]\d*$/.test(x));
+  return v || null;
+}
+function v6Label(a = null) {
+  const v = v6VersionOf(a);
+  return { id: 'fico17_v6', label: v ? `FICO17 v${v}` : 'FICO17 v6' };
 }
 
 // bd-pni007 — FDE's grade 6-12 observation tools: 'obs612-<tool>-v<n>' (msci, enur, gen), shown as 'FDE v<n>'. The id
 // (which tool) stays in the result for debugging; the label is framework + version only, like FICO's.
 const OBS612_RX = /^obs612-(gen|msci|enur)-v(\d+)$/;
 // bd-31ziu8 — FICO-S ('fico_s_v<major>_<minor>', code name FICO-S v1.1), ICT's grade 6-12 rubric from 18 Nov, shown as
-// 'FICO 6-12' (operator 18 Nov ~17:00: the name people see).
+// 'FICO 6-12' (operator 18 Nov ~17:00: the name people see). Queue #218: v1.2 on, the version is shown ('FICO 6-12 v1.2'),
+// so a v1.1 visit and a v1.2 one can be told apart; v1.1 keeps the name it always had.
 const FICO_S_RX = /^fico_s_v(\d+)_(\d+)$/;
 function obs612Label(id) {
   const s = FICO_S_RX.exec(String(id || ''));
-  if (s) return { id, label: 'FICO 6-12' };
+  if (s) return { id, label: s[1] === '1' && s[2] === '1' ? 'FICO 6-12' : `FICO 6-12 v${s[1]}.${s[2]}` };
   const m = OBS612_RX.exec(String(id || ''));
   return m ? { id, label: `FDE v${m[2]}` } : null;
 }
@@ -81,7 +92,7 @@ function rubricLabelOf({ session = null, analysis = null, form = null } = {}) {
   const framework = String((a && a.framework) || (session && session.framework) || '').toLowerCase();
 
   // 2. FICO17 v6 (an /observe v6 visit, or a DC v6 report once the DC is switched).
-  if (framework === 'fico17_v6' || (a && a.rubric === 'fico17_v6')) return v6Label();
+  if (framework === 'fico17_v6' || (a && a.rubric === 'fico17_v6')) return v6Label(a);
 
   // 3. FICO V3 / V4.
   if (framework === 'fico') return ficoVersion(a);

@@ -21,6 +21,8 @@ const registry = {
   fico17_v6: () => require('./fico17-v6-framework'),
   // Queue #184: FICO 6-12 (FICO-S v1.1), the DC's pre-fill for an ICT grade 6-12 HITL visit; starred indicators excluded.
   fico_s_v1_1: () => require('./fico-s-framework'),
+  // Queue #218: FICO-S v1.2 (N/A on C2 and C3, a Couldn't tell line per indicator). One scorer serves both ids.
+  fico_s_v1_2: () => require('./fico-s-framework'),
   mewaka: () => require('./mewaka-framework'),
 };
 
