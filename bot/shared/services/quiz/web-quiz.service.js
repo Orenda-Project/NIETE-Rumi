@@ -2093,7 +2093,7 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
-// QFIX voice: the voice events' own fields (wq.js clipFacts / playable), on these three names only: where the clip came
+// The voice events' own fields (wq.js clipFacts / playable), on these four names only: where the clip came
 // from (never its address), its format, the page's view state, ms since the child last touched the page (gms; -1 none),
 // and what the phone can play.
 const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow']);
