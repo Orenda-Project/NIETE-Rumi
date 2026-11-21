@@ -25,10 +25,17 @@ describe("the v7 Feedback Form's words", () => {
   });
 
   it("the boards' words, in English and Urdu", () => {
-    expect(FORM_V7.en.rumisLevel).toBe("NIETE Teaching Assistant’s level");
+    expect(FORM_V7.en.rumisLevel).toBe("Digital Coach’s level"); // bd-o15qnr.36: "Digital Coach" everywhere
     expect(FORM_V7.en.whyLevelMin(20)).toBe("Why this level (20 letters at least)");
     expect(FORM_V7.ur.whyLevelMin(20)).toBe("یہ سطح کیوں (کم از کم 20 حروف)");
-    expect(FORM_V7.en.changedSummary(2, 3, true)).toBe("2 levels and 3 notes changed from the NIETE Teaching Assistant’s");
+    // bd-o15qnr.36: the note under one of the six is optional on the collapsed form
+    expect(FORM_V7.en.noteOptional).toBe("Your note (optional)");
+    expect(FORM_V7.ur.noteOptional).toBe("آپ کا نوٹ (اختیاری)");
+    expect(FORM_V7.en.legendYou).toBe("You");
+    expect(FORM_V7.en.legendDc).toBe("Digital Coach");
+    expect(FORM_V7.ur.legendYou).toBe("آپ");
+    expect(FORM_V7.ur.legendDc).toBe("ڈیجیٹل کوچ");
+    expect(FORM_V7.en.changedSummary(2, 3, true)).toBe("2 levels and 3 notes changed from the Digital Coach’s");
     expect(FORM_V7.en.changedSummary(1, 1, false)).toBe("1 level and 1 note changed");
     expect(FORM_V7.en.nextStep("Record the debrief")).toBe("Next: Record the debrief");
     expect(FORM_V7.ur.changedFrom("Developing")).toBe("Developing سے بدلا گیا");
@@ -50,12 +57,21 @@ describe("the v7 Feedback Form's words", () => {
     expect(FORM_V7.en.needLevel(1)).toBe("1 item still needs a level");
   });
 
-  it("the AI is the NIETE Teaching Assistant, never Rumi, in both languages", () => {
+  it("the AI is the Digital Coach, never Rumi or NIETE Teaching Assistant, in both languages (bd-o15qnr.36)", () => {
     const en = collectCopy(FORM_V7.en).map((c) => c.text).join(" ");
     const ur = collectCopy(FORM_V7.ur).map((c) => c.text).join(" ");
     expect(en).not.toMatch(/Rumi/);
     expect(ur).not.toMatch(/Rumi/);
-    expect(FORM_V7.en.rumiTag).toBe("NIETE Teaching Assistant");
-    expect(FORM_V7.ur.rumiTag.replace(/[\u2066-\u2069]/g, "")).toBe("NIETE ٹیچنگ اسسٹنٹ");
+    expect(en).not.toMatch(/Teaching Assistant/);
+    expect(ur).not.toMatch(/ٹیچنگ اسسٹنٹ/);
+    expect(FORM_V7.en.rumiTag).toBe("Digital Coach");
+    expect(FORM_V7.ur.rumiTag).toBe("ڈیجیٹل کوچ");
+    expect(FORM_V7.en.assistantHeard).toBe("Digital Coach heard");
+    expect(FORM_V7.ur.assistantHeard).toBe("ڈیجیٹل کوچ نے یہ سنا");
+    expect(FORM_V7.en.cantCount).toBe("The Digital Coach can't count this one. You decide.");
+    expect(FORM_V7.ur.cantCount).toBe("ڈیجیٹل کوچ اسے نہیں گن سکتا۔ آپ طے کریں۔");
+    expect(FORM_V7.en.nothingInRecording).toBe("Nothing for this in the recording");
+    expect(FORM_V7.en.youAdd("who spoke")).toBe("You add: who spoke");
+    expect(FORM_V7.ur.youAdd("X")).toBe("آپ شامل کریں: X");
   });
 });

@@ -320,6 +320,44 @@ function combinedBody(analysis, code) {
   return lines.join('\n');
 }
 
+// The rubric's closing sentence on each of the six's "coach adds" (EN and UR): the portal drops it (bd-o15qnr.36).
+const JUSTIFICATION_SENTENCE = /\s*(?:The coach sets the final level with a written justification\.?|کوچ تحریری وجہ کے ساتھ آخری لیول طے کرتا ہے۔?)\s*/g;
+
+/**
+ * bd-o15qnr.36 (#204, the operator 21 Nov ~14:20) — one of the six's "From the recording" as parts, for the portal's
+ * v7 form (additive beside `body`, which older portals and the WhatsApp Flow keep reading). In the person's language:
+ *   lookFor  the indicator's definition
+ *   state    'found' | 'none' | 'ie' | 'na' | 'starred' | 'd2'
+ *   found    every snippet the recording did find, [{ time, quote }] (as many and as clipped as the body's)
+ *   naText   the indicator's own N/A words (state 'na'), else null (always null on main: no per-indicator N/A here)
+ *   turns    D2's { first, second } student turns (state 'd2'), else null
+ *   youAdd   what the person adds, without the rubric's "The coach sets the final level with a written justification."
+ */
+function combinedParts(analysis, code, lang = 'en') {
+  const text = v6.indicatorText(code, lang) || {};
+  const ce = ((analysis || {}).combined_evidence || {})[code] || {};
+  const out = {
+    lookFor: text.definition || '',
+    state: 'none',
+    found: [],
+    naText: null,
+    turns: null,
+    youAdd: String(text.coach_adds || '').replace(JUSTIFICATION_SENTENCE, ' ').replace(/\s+/g, ' ').trim(),
+  };
+  if (starredIn(analysis, code)) return { ...out, state: 'starred' };
+  if (code === 'D2') {
+    const a = ce.student_turns_first_half;
+    const b = ce.student_turns_second_half;
+    return Number.isFinite(a) && Number.isFinite(b) ? { ...out, state: 'd2', turns: { first: a, second: b } } : out;
+  }
+  if (ce.result === 'IE') return { ...out, state: 'ie' };
+  // main: no per-indicator N/A words yet (sandbox's naSentence); the portal says "The recording didn't find this in the lesson."
+  if (ce.result === 'NA') return { ...out, state: 'na' };
+  const found = (Array.isArray(ce.items) ? ce.items : []).filter((i) => i && i.quote).slice(0, EVIDENCE_ITEMS)
+    .map((i) => ({ time: i.time || null, quote: clipWords(i.quote, QUOTE_CAP) }));
+  return found.length ? { ...out, state: 'found', found } : out;
+}
+
 // ── The screens ─────────────────────────────────────────────────────────────
 
 const letterOf = (screenId) => String(screenId || '').slice(-1);
@@ -737,7 +775,7 @@ module.exports = {
   READY_ENV, isReady,
   V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
-  optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
+  optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, combinedParts, recordingText, v6FrameworkFor, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
   fieldMessages, withSectionBAnswers,

@@ -262,13 +262,13 @@ describe("the visit (v7): the line, the due day, the current step's card", () =>
 });
 
 describe("the visit while the Digital Coach works, and when it stopped (v7)", () => {
-  it("analysing: Now: Analysing, and the NIETE Teaching Assistant is listening, the page updates by itself", async () => {
+  it("analysing: Now: Analysing, and the Digital Coach is listening, the page updates by itself", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
     L.getObservation.mockResolvedValue(VIEW("analysing"));
     renderVisit();
     const card = await screen.findByTestId("stage-analysing");
-    // bd-o15qnr.34 (the operator 21 Nov ~09:15): "NIETE Teaching Assistant" everywhere, never "Rumi"
-    expect(card).toHaveTextContent("NIETE Teaching Assistant is listening to the lesson");
+    // bd-o15qnr.36 (the operator 21 Nov ~14:20): "Digital Coach" everywhere, never "Rumi" (was NIETE Teaching Assistant, bd-o15qnr.34)
+    expect(card).toHaveTextContent("Digital Coach is listening to the lesson");
     expect(card).toHaveTextContent("Usually a few minutes. This page updates by itself; you can leave.");
     expect(screen.getByTestId("status-line")).toHaveTextContent("Now: Analysing");
   });
@@ -296,10 +296,12 @@ describe("v7 words", () => {
 });
 
 describe("the AI's name in v7's words (bd-o15qnr.34)", () => {
-  it("is NIETE Teaching Assistant, never Rumi, in English and Urdu", async () => {
+  it("is Digital Coach, never Rumi or NIETE Teaching Assistant, in English and Urdu (bd-o15qnr.36)", async () => {
     const { FLOW_V7 } = await import("./copyV7");
     const flat = (o: unknown): string => typeof o === "string" ? o : typeof o === "function" ? String((o as (...a: unknown[]) => unknown)("X", "Y")) : o && typeof o === "object" ? Object.values(o).map(flat).join(" ") : "";
     for (const lang of ["en", "ur"] as const) expect(flat((FLOW_V7 as Record<string, unknown>)[lang])).not.toMatch(/Rumi|رومی/);
-    expect(flat((FLOW_V7 as Record<string, unknown>).ur)).toMatch(/ٹیچنگ اسسٹنٹ/);
+    expect(flat((FLOW_V7 as Record<string, unknown>).ur)).toMatch(/ڈیجیٹل کوچ/);
+    expect(flat((FLOW_V7 as Record<string, unknown>).ur)).not.toMatch(/ٹیچنگ اسسٹنٹ/);
+    expect(flat((FLOW_V7 as Record<string, unknown>).en)).not.toMatch(/Teaching Assistant/);
   });
 });

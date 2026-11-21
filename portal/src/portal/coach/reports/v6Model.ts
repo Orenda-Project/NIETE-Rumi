@@ -52,8 +52,12 @@ export function changedFromRumi(ind: V6Indicator, values: Values): boolean {
   return now !== "" && now !== ind.rumi;
 }
 
-/** The reasons this part cannot go on yet, by field; {} when it may. */
-export function v6Problems(section: V6Section, values: Values, minReason = MIN_REASON): V6Problems {
+/**
+ * The reasons this part cannot go on yet, by field; {} when it may. bd-o15qnr.36 (the operator 21 Nov ~14:20: "keep the
+ * note box, optional"): with `whyOptional` (the collapsed form on the switch) the note under one of the six is never
+ * asked for, nor a number in D2's; the level and D2's counts still are. The server's portal save agrees.
+ */
+export function v6Problems(section: V6Section, values: Values, minReason = MIN_REASON, opts: { whyOptional?: boolean } = {}): V6Problems {
   const out: V6Problems = {};
   let changed = false;
   for (const ind of section.indicators) {
@@ -61,12 +65,12 @@ export function v6Problems(section: V6Section, values: Values, minReason = MIN_R
     if (ind.kind === "dc") { if (changedFromRumi(ind, values)) changed = true; continue; }
     if (!ind.options.some((o) => o.id === level)) out[`r_${ind.field}`] = "chooseLevel";
     const why = values[`why_${ind.field}`] ?? "";
-    if (letters(why) < minReason) out[`why_${ind.field}`] = "atLeast";
+    if (!opts.whyOptional && letters(why) < minReason) out[`why_${ind.field}`] = "atLeast";
     if (ind.d2) {
       const n = whole(values.d2_children);
       const q = whole(values.d2_quiet_later);
       if (n === null || q === null || q > n) out.d2_children = "checkCounts";
-      else if (/^[1-4]$/.test(level) && Number(level) !== d2Expected(n, q) && !/\d/.test(why) && !out[`why_${ind.field}`]) {
+      else if (!opts.whyOptional && /^[1-4]$/.test(level) && Number(level) !== d2Expected(n, q) && !/\d/.test(why) && !out[`why_${ind.field}`]) {
         out[`why_${ind.field}`] = "sayWhyNumber";
       }
     }
