@@ -69,7 +69,7 @@ describe('exam checker text turns always get a reply', () => {
 
   test('a plain-text step reply is still sent', async () => {
     ExamCheckerOrchestrator.process.mockResolvedValue({ text: 'Please confirm the student names in the form.' });
-    await handleExamText(msg('hello'), '923000000000', user);
+    await handleExamText(msg('ok'), '923000000000', user);
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923000000000', 'Please confirm the student names in the form.');
   });
 
