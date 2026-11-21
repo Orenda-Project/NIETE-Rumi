@@ -18,9 +18,11 @@ describe('FICO-S v1.1 — the rubric as data', () => {
   const S = require('../../bot/shared/services/coaching/frameworks/fico-s');
 
   test('id, label, version and lineage', () => {
-    expect(S.RUBRIC_KEY).toBe('fico_s_v1_1');
+    // The sheet's text is v1.1 (frozen); a new form is v1.2 from queue #218 (tests/coaching/fico-s-v1-2.test.js).
+    expect(S.BASE_KEY).toBe('fico_s_v1_1');
+    expect(S.RUBRIC.rubric).toBe('fico_s_v1_1');
     // operator 18 Nov ~17:00: people see 'FICO 6-12'; the code name stays FICO-S v1.1
-    expect(S.LABEL).toBe('FICO 6-12');
+    expect(S.labelOf('fico_s_v1_1')).toBe('FICO 6-12');
     expect(S.RUBRIC.code_name).toBe('FICO-S v1.1');
     expect(S.RUBRIC.title).toMatch(/^FICO 6-12 · /);
     expect(S.RUBRIC.version).toBe('1.1');
@@ -70,9 +72,10 @@ describe('FICO-S v1.1 — the rubric as data', () => {
     expect(S.levelName(4)).toBe('Exemplary');
   });
 
-  test('N/A only where the indicator could not happen: C2 (no answer was wrong)', () => {
-    expect(S.NA_CODES).toEqual(['C2']);
-    expect(S.normLevel('NA', 'C2')).toBe('NA');
+  test('N/A only where the indicator could not happen: C2 (no answer was wrong) on a v1.1 form', () => {
+    expect(S.naCodes('fico_s_v1_1')).toEqual(['C2']);
+    expect(S.normLevel('NA', 'C2', 'fico_s_v1_1')).toBe('NA');
+    expect(S.normLevel('NA', 'C3', 'fico_s_v1_1')).toBeNull();
     expect(S.normLevel('NA', 'C1')).toBeNull();
     expect(S.normLevel('3', 'C1')).toBe(3);
     expect(S.normLevel(5, 'C1')).toBeNull();

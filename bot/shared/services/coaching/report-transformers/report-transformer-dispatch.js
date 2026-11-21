@@ -26,7 +26,8 @@ const transformers = {
   fico17_v6: transformFICO17V6ToReportData,
   mewaka: transformMEWAKAToReportData,   // Tanzania CPD — Playwright HTML→PDF report
   // bd-pni007: FDE's grade 6-12 tools (obs612-msci-v1, obs612-enur-v1, obs612-gen-v1), never the OECD fallback.
-  ...Object.fromEntries(Object.values(OBS612.IDS).map((id) => [id, transformObs612ToReportData])),
+  // Queue #218: every FICO-S version too (KNOWN_IDS), so a v1.1 visit keeps its report after v1.2.
+  ...Object.fromEntries(OBS612.KNOWN_IDS.map((id) => [id, transformObs612ToReportData])),
 };
 
 /**

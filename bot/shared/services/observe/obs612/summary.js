@@ -72,6 +72,8 @@ const STRINGS = {
     ficosSections: (secs) => secs.filter((s) => s.average !== null).map((s) => `${s.key} ${s.average.toFixed(1)}`).join(' · '),
     ficosInd: (i) => `${i.code} ${i.name}`,
     ficosNa: (codes) => `N/A: ${codes.join(', ')}`,
+    // Queue #218: a v1.2 visit names each N/A in its own words ('N/A: C2 No answer was wrong in this lesson.').
+    ficosNaSaid: (rows) => `N/A: ${rows.map((r) => `${r.code} ${r.sentence}`).join(' ')}`,
     stop: '. ',
     enur: (v) => `${v.total} / ${v.max} · ${num(v.score_108)} / 108 · ${v.band}`,
     gen: (v) => `Yes on ${v.yes} of ${v.of}`,
@@ -110,6 +112,7 @@ const STRINGS = {
     ficosSections: (secs) => secs.filter((s) => s.average !== null).map((s) => `${ltr(s.key)} ${urDigits(s.average.toFixed(1))}`).join(' · '),
     ficosInd: (i) => `${ltr(i.code)} ${FicoS.indicatorText(i.code, 'ur').name}`,
     ficosNa: (codes) => `لاگو نہیں: ${codes.map(ltr).join('، ')}`,
+    ficosNaSaid: (rows) => `لاگو نہیں: ${rows.map((r) => `${ltr(r.code)} ${r.sentence}`).join(' ')}`,
     stop: '۔ ',
     enur: (v) => `${urDigits(v.total)} / ${urDigits(v.max)} · ${urDigits(num(v.score_108))} / ${urDigits(108)} · ${ltr(v.band)}`,
     gen: (v) => `${urDigits(v.of)} میں سے ${urDigits(v.yes)} پر ہاں`,
@@ -168,7 +171,11 @@ function resultLines(v, L) {
     if (secs) lines.push(secs);
     if (v.strongest.length && !v.even) lines.push(`${L.highest}: ${v.strongest.map(L.ficosInd).join(L.sep)} (${L.level(v.strongest[0].level)})`);
     if (v.lowest.length) lines.push(`${L.lowest}: ${v.lowest.map(L.ficosInd).join(L.sep)} (${L.level(v.lowest[0].level)})`);
-    if (f.na.length) lines.push(L.ficosNa(f.na));
+    if (f.na.length) {
+      const id = v.rubricId;
+      const said = id !== FicoS.BASE_KEY ? f.na.map((code) => ({ code, sentence: FicoS.naSentence(code, L.lang, id) })) : [];
+      lines.push(said.length && said.every((r) => r.sentence) ? L.ficosNaSaid(said) : L.ficosNa(f.na));
+    }
     return lines;
   }
   if (v.tool === 'enur') {

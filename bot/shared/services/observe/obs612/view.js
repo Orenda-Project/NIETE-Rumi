@@ -172,10 +172,11 @@ function msciView(o, r) {
 function ficosView(o) {
   const answers = o.answers || {};
   const ev = o.evidence || {};
-  const r = FicoS.score(answers);
+  const id = o.rubric_id;
+  const r = FicoS.score(answers, id);
   const indicators = FicoS.CODES.map((code) => {
     const def = FicoS.indicator(code);
-    const v = FicoS.normLevel(answers[code], code);
+    const v = FicoS.normLevel(answers[code], code, id);
     const level = typeof v === 'number' ? v : null;
     return {
       code,
@@ -183,6 +184,8 @@ function ficosView(o) {
       name: def.name,
       level,
       na: v === 'NA',
+      // Queue #218: a v1.2 N/A in its own words ("N/A · No question asked"), no number; a v1.1 visit reads as it always did.
+      naTitle: v === 'NA' && id !== FicoS.BASE_KEY ? FicoS.naTitle(code, 'en', id) : null,
       levelName: level === null ? null : FicoS.levelName(level),
       levelText: level === null ? null : def.levels[level - 1].text,
       evidence: str(ev[code]) || null,
@@ -300,7 +303,7 @@ function portalSummary(analysis) {
       })),
       ...f.indicators.map((i) => ({
         name: `${i.code} · ${i.name}`,
-        value: i.na ? 'N/A' : i.level === null ? '—' : `${i.level} · ${i.levelName}`,
+        value: i.na ? (i.naTitle || 'N/A') : i.level === null ? '—' : `${i.level} · ${i.levelName}`,
         pct: null,
         full: i.levelText || undefined,
         // Queue #184: the observer's evidence, shown under the row (it used to be in the hover title only).

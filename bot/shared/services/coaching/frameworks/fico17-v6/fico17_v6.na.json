@@ -1,7 +1,8 @@
 {
   "rubric": "fico17_v6",
+  "version": "6.1",
   "status": "approved",
-  "status_note": "Which FICO17 v6 indicators offer N/A, and its words for each. Approved by the operator 19 Nov 2026 (plan 'N/A only where it can happen, with its own label'). One rule: N/A is offered only when the thing the indicator scores could not happen in this lesson; when level 1 already describes 'nothing happened' there is no N/A (the operator's D2 example). D3 has no N/A (option A): its level 1 is 'no student speaks to another'. This file overrides the rubric's na_rule / na_link for every reader (coach form, portal, DC prompt and validator, reports); the rubric sheet itself has no N/A column yet. Coach wording says 'lesson' (the coach saw it), Digital Coach wording says 'transcript' (it read one).",
+  "status_note": "Which FICO17 v6 indicators offer N/A, and its words for each. Approved by the operator 19 Nov 2026 (plan 'N/A only where it can happen, with its own label'). One rule: N/A is offered only when the thing the indicator scores could not happen in this lesson; when level 1 already describes 'nothing happened' there is no N/A (the operator's D2 example). D3 has no N/A (option A): its level 1 is 'no student speaks to another'. This file overrides the rubric's na_rule / na_link for every reader (coach form, portal, DC prompt and validator, reports); the rubric sheet itself has no N/A column yet. Coach wording says 'lesson' (the coach saw it), Digital Coach wording says 'transcript' (it read one). v6.1 (queue #218, approved 21 Nov with #216's lists): D4 is N/A only when the teacher asked no question at all; asked and then gave the answer is D4's level 1 (Not Observed), so D4's description and note say so.",
   "ur_status": "draft",
   "ur_status_note": "The Urdu is our DRAFT, for the NIETE rubric reviewer to check; English is the fallback for any missing key.",
   "indicators": {
@@ -81,12 +82,12 @@
         "en": {
           "title": "N/A · No question asked",
           "sentence": "The teacher asked the children no question to answer.",
-          "description": "The teacher asked the children no question to answer, so no child had a question to try."
+          "description": "The teacher asked the children no question at all. If the teacher asked and then gave the answer, choose Not Observed instead."
         },
         "ur": {
           "title": "لاگو نہیں · کوئی سوال نہیں",
           "sentence": "استاد نے بچوں سے جواب کے لیے کوئی سوال نہیں پوچھا۔",
-          "description": "استاد نے بچوں سے جواب کے لیے کوئی سوال نہیں پوچھا، اس لیے بچوں کو کوشش کا موقع نہیں ملا۔"
+          "description": "استاد نے بچوں سے کوئی سوال پوچھا ہی نہیں۔ اگر استاد نے سوال پوچھ کر خود جواب دے دیا تو اس کے بجائے \"مشاہدے میں نہیں آیا\" چنیں۔"
         }
       },
       "dc": {
@@ -94,8 +95,8 @@
         "ur": "اس ٹرانسکرپٹ میں بچوں سے کوئی سوال نہیں پوچھا گیا۔"
       },
       "follow_note": {
-        "en": "You set C1 to Not Observed (no question for the children to answer), so N/A is chosen here. Change it if a child was asked.",
-        "ur": "آپ نے C1 کو \"مشاہدے میں نہیں آیا\" رکھا (بچوں سے جواب کے لیے کوئی سوال نہیں)، اس لیے یہاں \"لاگو نہیں\" چنا گیا ہے۔ اگر کسی بچے سے پوچھا گیا تھا تو بدلیں۔"
+        "en": "You set C1 to Not Observed, so N/A is chosen here. Keep N/A only if the teacher asked no question at all. If the teacher asked and then gave the answer, choose Not Observed.",
+        "ur": "آپ نے C1 کو \"مشاہدے میں نہیں آیا\" رکھا، اس لیے یہاں \"لاگو نہیں\" چنا گیا ہے۔ \"لاگو نہیں\" صرف تب رکھیں جب استاد نے کوئی سوال پوچھا ہی نہ ہو۔ اگر استاد نے سوال پوچھ کر خود جواب دے دیا تو \"مشاہدے میں نہیں آیا\" چنیں۔"
       }
     }
   },
