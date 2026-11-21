@@ -77,6 +77,7 @@ describe('FICO17 v6 rubric data', () => {
 
   test('the DC prompt version carries the rubric data hash', () => {
     expect(v6.DC_PROMPT_VERSION).toMatch(/^fico17-v6-dc-2\+[0-9a-f]{8}$/); // dc-2: N/A only on C2 (per-indicator N/A, 19 Nov)
-    expect(v6.stamp()).toEqual({ rubric: 'fico17_v6', prompt_version: v6.DC_PROMPT_VERSION });
+    // v6.1 (queue #218): every new stamp carries its rubric_version.
+    expect(v6.stamp()).toEqual({ rubric: 'fico17_v6', rubric_version: '6.1', prompt_version: v6.DC_PROMPT_VERSION });
   });
 });

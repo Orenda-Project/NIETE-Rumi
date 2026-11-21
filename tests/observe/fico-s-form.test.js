@@ -274,9 +274,18 @@ describe('what the record shows', () => {
   test('the dispatchers route a FICO-S analysis to the grade 6-12 report (never the FICO hero)', () => {
     const dispatch = require('../../bot/shared/services/coaching/report-transformers/report-transformer-dispatch');
     const src = fs.readFileSync(require.resolve('../../bot/shared/services/coaching/report-transformers/report-transformer-dispatch'), 'utf8');
-    expect(src).toMatch(/OBS612\.IDS/);
+    expect(src).toMatch(/OBS612\.KNOWN_IDS/);
     const O = require('../../bot/shared/services/coaching/frameworks/obs612');
-    expect(Object.values(O.IDS)).toContain('fico_s_v1_1');
+    // Queue #218: both FICO-S versions route to the grade 6-12 report (a v1.1 visit keeps its report).
+    expect(O.KNOWN_IDS).toEqual(expect.arrayContaining(['fico_s_v1_1', 'fico_s_v1_2']));
+    const { transformObs612ToReportData: t612 } = require('../../bot/shared/services/coaching/report-transformers/obs612-report-transformer');
+    expect(dispatch.getReportTransformer('fico_s_v1_1')).toBe(t612);
+    expect(dispatch.getReportTransformer('fico_s_v1_2')).toBe(t612);
+    const R = require('../../bot/shared/services/coaching/report-renderers/renderer-registry');
+    expect(R.heroBrandFor('fico_s_v1_1')).toBe('niete');
+    expect(R.heroBrandFor('fico_s_v1_2')).toBe('niete');
+    expect(R.getReportRenderer('fico_s_v1_1').key).toBe('obs612');
+    expect(R.getReportRenderer('fico_s_v1_2').key).toBe('obs612');
     expect(typeof dispatch).toBe('object');
   });
 });
