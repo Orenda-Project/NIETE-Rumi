@@ -40,6 +40,7 @@ const HomePre = require('./web-quiz-home-preload');
 const Pack = require('./web-quiz-pack');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
+const { createClipMp3Handler } = require('./web-quiz-clip-mp3');
 const Stream = require('./web-quiz-stream');
 // The one tap back to WhatsApp on a dead-end page (web_quiz_closed_way_back ON): the bot's signed words and its href rule.
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
@@ -1814,6 +1815,10 @@ function createWebQuizRouter(opts = {}) {
     mp3On: opts.storyMp3On, transcode: opts.storyTranscode,
     limiter: rateLimit({ ...common, max: 1200, keyGenerator: (req) => `sa:${clientIp(req)}` }),
   }));
+
+  // A per-quiz voice clip as mp3 for a phone that cannot play Ogg Opus (web-quiz-clip-mp3.js; web_quiz_voice_v2, off:
+  // the path is not ours and the request goes on exactly as today).
+  router.get(/^\/wq\/clip\/(.+)$/, limiters.read, createClipMp3Handler({ on: opts.clipMp3On, object: opts.clipObject, transcode: opts.clipTranscode, now }));
 
   // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
   // is the kind the path names, so a link can never ask for one picture under another's name or cache life.
