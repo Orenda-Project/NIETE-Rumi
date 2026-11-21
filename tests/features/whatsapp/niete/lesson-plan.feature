@@ -1294,6 +1294,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # A plan without the minutes is sent back for a revision round (READING_TIME defect). Unit:
     # tests/lp612/reading-step-gate.test.js, tests/lp612/author-brief-reading-step.test.js.
 
+  @e2e @L31 @no-mock-driver @slow @P1
+  Scenario: A ready-made Grades 6-12 poem plan paraphrases the poem in class, stanza by stanza
+    Given a Grades 6-12 poem reading lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then in the teaching step the teacher gives the poet's words and then the same idea in plain everyday words
+    And in the class practice pupils paraphrase one stanza in their own words
+    And a paraphrase only in homework, the support notes or the answer key does not count
+    # ICT sheet row 728 (bd-zrdvmi.44.1): grade_9_english.c09.p116-118.reading_comprehension ('Travel') had
+    # "No paraphrasing there". A poem plan without one is sent back for a revision round (POEM_PARAPHRASE
+    # defect). Unit: tests/lp612/poem-paraphrase-gate.test.js.
+
   @e2e @L28 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 1-5 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 1-5 day
