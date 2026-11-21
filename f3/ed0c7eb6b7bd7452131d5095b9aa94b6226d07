@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T17:37:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=fde-board-pattern spec_sync=true","sha":"f3ed0c7eb6b7","branch":"bd-zrdvmi.50.2-82384","user":""}
+{"ts":"2026-11-21T17:37:12Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=fde-board-pattern spec_sync=true","sha":"f3ed0c7eb6b7","branch":"bd-zrdvmi.50.2-82384","user":""}
