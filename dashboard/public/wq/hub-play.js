@@ -246,8 +246,20 @@
     if (reason) p.reason = reason;
     try { IEV('install_prompt', p); } catch (e) {}
   }
+  // The first-run tour (wq-welcome.js, WQW) dims the home and takes every tap: the card waits until it is done or skipped.
+  // The hub answer's `welcome` says a tour is coming (its script loads after the home paints); one that never draws (its
+  // script failed) stops being waited for after 30 s. The offer is kept meanwhile.
+  var TOUR_WAIT_MS = 30000;
+  var tourSeen = false;
+  var tourFrom = 0;
+  var tourTimer = false;
+  function tourUp() { try { return Boolean(window.WQW && typeof window.WQW.up === 'function' && window.WQW.up()); } catch (e) { return false; } }
+  function tourPending() {
+    if (tourUp()) { tourSeen = true; return true; }
+    return Boolean(IB && IB.welcome && !tourSeen && Date.now() - tourFrom < TOUR_WAIT_MS);
+  }
   // Why the card is not showing now (null: it may show).
-  function withheld() { return firstView ? 'first_view' : snoozed() ? 'snoozed' : !deferred ? 'no_bip' : null; }
+  function withheld() { return firstView ? 'first_view' : snoozed() ? 'snoozed' : !deferred ? 'no_bip' : tourPending() ? 'tour' : null; }
   // own: this script's listener heard it, so it may still hold Chrome's own banner back for the card (as it always did);
   // the head's store only keeps the event and changes nothing the browser does.
   function adopt(e, own) {
@@ -261,7 +273,9 @@
     var box = IROOT && IROOT.querySelector('#wqp-inst');
     if (!box) return;
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
-    if (withheld()) { box.innerHTML = ''; return; }
+    var why = withheld();
+    if (why === 'tour' && !tourTimer) { tourTimer = true; setTimeout(function () { tourTimer = false; fillInstall(); }, 1000); }
+    if (why) { box.innerHTML = ''; return; }
     box.innerHTML = H3
       ? '<div class="wq-icard"><div class="wq-ihead"><img class="wq-iicon" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48"><b>' + esc(L.installTitle) + '</b></div><div class="wq-ibtns">' +
         '<button type="button" class="wq-btn wq-soft wq-itint wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
@@ -310,6 +324,7 @@
     checkDay();
     if (!installWired) {
       installWired = true;
+      tourFrom = Date.now();
       // the offer that came before the hub rendered, kept by the head
       try { if (window.__wqBip) adopt(window.__wqBip, false); } catch (e) {}
       step('hub', withheld() || 'ready');
