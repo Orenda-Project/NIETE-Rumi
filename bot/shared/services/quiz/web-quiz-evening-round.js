@@ -431,6 +431,25 @@ function asWebItem(row) {
 }
 
 /**
+ * The round's lesson rows whose key is held (Recall.heldIds): the row's own id, and on a cache hit (meta.cache_donor)
+ * the donor row it was copied from (matched by external_id). Returns a Set of THIS quiz's row ids.
+ */
+async function heldLessonItems(rows, meta) {
+  if (!rows.length) return new Set();
+  const out = new Set();
+  const own = await Recall.heldIds(rows.map((r) => r.id));
+  rows.forEach((r) => { if (own.has(String(r.id))) out.add(r.id); });
+  const donorId = meta && meta.cache_donor && meta.cache_donor.quiz_id;
+  if (donorId) {
+    const { data: donorRows } = await supabase.from('quiz_questions').select('id, external_id').eq('quiz_id', donorId);
+    const held = await Recall.heldIds((donorRows || []).map((r) => r.id));
+    const heldExt = new Set((donorRows || []).filter((r) => held.has(String(r.id)) && r.external_id).map((r) => r.external_id));
+    rows.forEach((r) => { if (r.external_id && heldExt.has(r.external_id)) out.add(r.id); });
+  }
+  return out;
+}
+
+/**
  * The round's hand-off (transcript-quiz-generate.service calls it instead of the teacher's). Idempotent per step on a
  * redelivered job: the share code is reused when meta has one, the recall pool is written once (meta.recall_done).
  * `deps` = the boundaries a test or a local run replaces: { complete (the model call), mintCode }.
@@ -461,9 +480,16 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   meta.round_code = sc.code;
   const ref = { cl: meta.class_link_code || null, rc: sc.code };
 
-  // 2. the lesson items: marked as the round's, reading items marked shown-not-spoken.
+  // 2. the lesson items: marked as the round's, reading items marked shown-not-spoken; an item whose key is held
+  //    (its own, or on a cache hit the donor item it was copied from) is marked 'held' and never served.
   const { data: stored } = await supabase.from('quiz_questions').select(ROUND_ROW_COLS).eq('quiz_id', quizId).order('sort_order', { ascending: true });
-  const lessonRows = (stored || []).filter((r) => !(r.media && r.media.round === 'recall'));
+  const notRecall = (stored || []).filter((r) => !(r.media && r.media.round === 'recall'));
+  const heldExt = await heldLessonItems(notRecall, meta);
+  const lessonRows = notRecall.filter((r) => !heldExt.has(r.id));
+  for (const r of notRecall.filter((x) => heldExt.has(x.id))) {
+    // eslint-disable-next-line no-await-in-loop
+    await supabase.from('quiz_questions').update({ media: { ...(r.media || {}), round: 'held', round_key: roundKey } }).eq('id', r.id);
+  }
   let reading = 0;
   for (const r of lessonRows) {
     let next = { ...r, media: { ...(r.media || {}), round: 'lesson', round_key: roundKey, round_ref: ref } };
@@ -510,6 +536,7 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   meta = {
     ...meta, step: 'ready', round_ready_at: meta.round_ready_at || new Date().toISOString(),
     n_items: Math.min(LESSON_ITEMS, lessonRows.length) + Math.min(RECALL_ITEMS, nRecall), n_lesson: lessonRows.length, n_recall: nRecall, n_reading: reading,
+    n_held: heldExt.size,
   };
   await supabase.from('quizzes').update({ status: 'ready', meta }).eq('id', quizId);
 
@@ -548,7 +575,7 @@ const rankOf = (q) => Number((q.media.recall && q.media.recall.rank) || 99);
  */
 function selectRoundItems(questions, { studentId = null, k = null } = {}) {
   if (!Array.isArray(questions) || !questions.some(roundOf)) return questions;
-  const lesson = questions.filter((q) => roundOf(q) !== 'recall').sort((a, b) => sortOf(a) - sortOf(b)).slice(0, LESSON_ITEMS);
+  const lesson = questions.filter((q) => roundOf(q) === 'lesson').sort((a, b) => sortOf(a) - sortOf(b)).slice(0, LESSON_ITEMS);
   const pool = questions.filter((q) => roundOf(q) === 'recall').sort((a, b) => rankOf(a) - rankOf(b));
   const missed = (q) => {
     const r = q.media.recall || {};
