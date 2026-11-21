@@ -1150,10 +1150,74 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   var player = null;
   var voiceGen = 0; // bumped on every stop: a line that was stopped or replaced never speaks again
+  // web_quiz_voice_v2 (the answer's voice_v2; default off): a clip the browser refused, or one that stalled or errored
+  // where the phone has no voice to read it, leaves the words big and the speaker asking for a tap, and the child's next
+  // tap plays the lines that were missed, once. A phone that cannot play Ogg Opus (an iPhone) asks our own origin for
+  // the same stored clip as mp3 (/wq/clip/<storage key>.mp3, dashboard/routes/web-quiz-clip-mp3.js).
+  var VOICE_V2 = Boolean(typeof B !== "undefined" && B && B.voice_v2); // B: the boot (a test cut of this block may have none)
+  var heldLines = null; // V2: [{ text, url, meta }] the clips this screen could not play, for the next tap
+  var lastGesture = -1; // when the child last touched the page (ms; -1 = not yet on this page)
+  try {
+    document.addEventListener('pointerdown', function () { lastGesture = Date.now(); }, true);
+    document.addEventListener('keydown', function () { lastGesture = Date.now(); }, true);
+    if (VOICE_V2) document.addEventListener('click', replayOnTap, true);
+  } catch (e) {}
+  // A screen change or an answer stops the voice and forgets the held lines; a line replaced by the next part does not.
   function stopVoice() {
+    heldLines = null;
+    hush();
+  }
+  function hush() {
     voiceGen += 1;
     try { if (player) { player.pause(); player = null; } } catch (e) {}
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+  }
+  // What audio_fallback says about a clip (always on), so a failure can be traced to its cause: where it came from
+  // (self = our origin, r2 = storage, other), its format, the page's view state, the network, and how long since the
+  // child last touched the page (gms). Never the address itself.
+  function clipFacts(url) {
+    var f = { host: 'other', fmt: 'other', gms: lastGesture < 0 ? -1 : Date.now() - lastGesture };
+    try {
+      var u = new URL(url, location.origin);
+      f.host = u.origin === location.origin ? 'self' : /\.r2\.(cloudflarestorage\.com|dev)$/.test(u.hostname) ? 'r2' : 'other';
+      var x = /\.([a-z0-9]{2,4})$/i.exec(u.pathname);
+      if (x && /^(ogg|mp3|m4a|aac|wav)$/i.test(x[1])) f.fmt = x[1].toLowerCase();
+    } catch (e) {}
+    try { f.vis = document.visibilityState === 'hidden' ? 'hidden' : 'visible'; } catch (e) {}
+    try { var c = navigator.connection; if (c && c.effectiveType) f.net = String(c.effectiveType).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16); } catch (e) {}
+    return f;
+  }
+  // V2: an Ogg clip on a phone that cannot play Ogg Opus but plays mp3 → the same stored clip as mp3 from our origin.
+  // Only a stored quiz clip's address is rewritten (its key is the name); anything else is left as it is.
+  var formatSaid = false;
+  function playable(url) {
+    var probe = document.createElement('audio');
+    var ogg = probe.canPlayType ? probe.canPlayType('audio/ogg; codecs="opus"') : 'maybe';
+    var mp3 = probe.canPlayType ? probe.canPlayType('audio/mpeg') : 'maybe';
+    var out = url;
+    if (/\.ogg(\?|$)/i.test(url) && !ogg && mp3) {
+      var m = /\/((?:quiz-audio|web-quiz\/audio)\/[A-Za-z0-9._\/-]+)\.ogg(?:[?#]|$)/.exec(url);
+      if (m && m[1].indexOf('..') < 0) out = '/wq/clip/' + m[1] + '.mp3';
+    }
+    if (!formatSaid) { formatSaid = true; ev('audio_format', { fmt: clipFacts(out).fmt, can: 'ogg' + (ogg ? 1 : 0) + 'mp3' + (mp3 ? 1 : 0) }); }
+    return out;
+  }
+  function holdForTap(text, url, meta) {
+    heldLines = heldLines || [];
+    if (heldLines.length < 8) heldLines.push({ text: text, url: url, meta: meta });
+    try { ROOT.classList.add('wq-tap'); ROOT.classList.add('wq-novoice'); } catch (e) {}
+  }
+  // The child's next tap: after the page has handled it, if it did not start a voice of its own (the speaker, a hint,
+  // an option's sound) or move the screen on (an answer), the held lines play once, in order.
+  function replayOnTap() {
+    if (!heldLines) return;
+    var lines = heldLines, g = voiceGen;
+    heldLines = null;
+    setTimeout(function () {
+      if (g !== voiceGen) return;
+      var i = 0;
+      (function next() { if (i < lines.length) { var l = lines[i++]; speak(l.text, l.url, next, l.meta, true); } })();
+    }, 0);
   }
   // Recorded clip when the payload has one, else the phone's own voice. done() runs when it ends.
   // One voice: a clip that is only SLOW is never swapped for the phone's voice (that is a second
@@ -1165,14 +1229,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var CLIP_SLOW_MS = 2000, CLIP_GIVEUP_MS = 8000;
   // GAP_SLOW: a clip not started by 5 s is read by the phone voice (a good clip starts by ~4 s even when just recorded)
   var CLIP_GAP_SLOW_MS = 5000;
-  function speak(text, url, done, meta) {
-    stopVoice();
+  // retry (V2, replayOnTap): this line is the one replay a held line gets; its outcome is logged as audio_retry, and a
+  // second failure keeps the big words without holding the line again.
+  function speak(text, url, done, meta, retry) {
+    hush();
     if (!SOUND) { if (done) done(); return; }
     if (!url && meta) noteMissing(meta, text);
+    if (url && VOICE_V2) url = playable(url);
     var gen = voiceGen;
     var fin = false;
+    var t0 = Date.now();
     // A stopped line (cancel fires the utterance's onerror; its safety timer still runs) never calls done().
     function end() { if (!fin && gen === voiceGen) { fin = true; if (done) done(); } }
+    function said(ok) { if (retry) ev('audio_retry', { part: (meta && meta.part) || 'line', qid: meta ? meta.qid : undefined, ok: ok, ms: Date.now() - t0 }); }
+    // V2: the phone will read a line its clip could not (one voice on: only with GAP_PHONE and a voice for the language)
+    function phoneReads() { return Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance) && (!ONE_VOICE || (GAP_PHONE && hasVoice())); }
     if (url) {
       // A clip that errors, will not play here, or stalls for more than 2 s counts as missing:
       // that line falls back to the phone's own voice, and we log why.
@@ -1184,9 +1255,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         switched = true;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
-        // GAP_SLOW: a refused start names its error as the events' slug (notallowederror keeps the tap; others are read aloud)
-        ev('audio_fallback', GAP_SLOW && why === 'reject' ? { reason: why, err: String((err && err.name) || 'unknown').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'unknown' } : { reason: why });
+        // The event names the part, the question, where the clip came from and how long it took to fail; a refused start
+        // names its error as a slug (notallowederror keeps the tap), a clip that errors names the browser's media error.
+        var fx = clipFacts(url);
+        fx.reason = why; fx.part = (meta && meta.part) || 'line'; fx.qid = meta ? meta.qid : undefined; fx.ms = Date.now() - t0;
+        if (why === 'reject') fx.err = String((err && err.name) || 'unknown').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'unknown';
+        if (why === 'error' && err && err.code) fx.err = 'media_err_' + err.code;
+        ev('audio_fallback', fx);
+        said(false);
         var aborted = why === 'reject' && err && err.name === 'AbortError';
+        // V2: a refused start, or a stall or error the phone will not read, is held for the child's next tap (once)
+        if (VOICE_V2 && !retry && ((why === 'reject' && !aborted) || ((why === 'stalled' || why === 'error') && !phoneReads()))) {
+          holdForTap(text, url, meta); end(); return;
+        }
         if (why === 'stalled' && !GAP_SLOW) { end(); return; }
         if (why === 'reject' && !(GAP_SLOW && aborted)) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
         speakTts(text, end);
@@ -1197,9 +1278,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var a = new Audio(url);
         player = a;
         var started = false;
-        a.addEventListener('playing', function () { started = true; });
+        a.addEventListener('playing', function () {
+          if (!started && retry) { said(true); try { ROOT.classList.remove('wq-tap'); ROOT.classList.remove('wq-novoice'); } catch (e) {} }
+          started = true;
+        });
         a.onended = function () { if (!switched) end(); };
-        a.onerror = function () { fallback('error'); };
+        a.onerror = function () { fallback('error', a.error); };
         setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
         setTimeout(function () { if (!started) fallback('stalled'); }, GAP_SLOW ? CLIP_GAP_SLOW_MS : CLIP_GIVEUP_MS);
         var pr = a.play();
