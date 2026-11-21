@@ -272,7 +272,7 @@ function quizOf(kind, quiz) {
   if (kind !== 'dc' || !quiz || typeof quiz !== 'object') return null;
   const template = typeof quiz.template === 'string' ? quiz.template.trim() : '';
   const payload = typeof quiz.payload === 'string' ? quiz.payload.trim() : '';
-  return template && payload ? { template, payload } : null;
+  return template && payload ? { template, payload, dryRun: quiz.dryRun === true } : null;
 }
 
 /** A usable clip for this send: the dc kind, a template name and a token (bd-22gf7p). Anything else = no clip. */
@@ -335,6 +335,13 @@ async function attemptShare({ userId, kind, id, clip, quiz }, d, seen) {
     const lang = LANGS.includes(user.preferred_language) ? user.preferred_language : 'en';
     seen.lang = lang;
     const components = componentsFor(item, { lang, buttonToken: clip ? clip.token : null, quickReplyPayload: quiz ? quiz.payload : null });
+    if (quiz && quiz.dryRun) {
+      // The sandbox proof of a template nobody has approved yet: what would go, never Meta. No image link, no phone.
+      const button = components.find((c) => c.type === 'button') || null;
+      const body = components.find((c) => c.type === 'body');
+      try { logEvent('share_send.dry_run', { kind, userId, itemRef: item.itemRef || null, template: name, lang, button, body_params: body ? body.parameters.length : 0 }); } catch (_) { /* logging never decides */ }
+      return { status: 'unavailable', reason: 'dry_run' };
+    }
     let report = {};
     let ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
     if (!ok && !quiz && TRANSIENT.includes(Number(report.code))) { // the quiz sibling has its own fallback (the plain report)
