@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T11:53:26Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"e07ea04bdf98","branch":"bd-snkn32.63-69939","user":""}
+{"ts":"2026-11-21T08:10:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"e07ea04bdf98","branch":"bd-snkn32.63-69939","user":""}
