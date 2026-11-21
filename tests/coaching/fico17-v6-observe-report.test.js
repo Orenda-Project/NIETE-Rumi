@@ -53,13 +53,15 @@ describe('report data (transformer)', () => {
     expect(getReportTransformer('fico17_v6')).not.toBe(transformOECDToReportData);
   });
 
-  test('17 v6 indicators by section, NA left out, IE one line, the coach\'s levels marked', () => {
+  test('17 v6 indicators by section, NA in its own words and no score, IE one line, the coach\'s levels marked', () => {
     const rd = getReportTransformer('fico17_v6')(SESSION, 'Rabia', v6Analysis());
     expect(rd.framework).toBe('fico17_v6');
     const all = rd.goals.flatMap((g) => g.criteria);
-    const names = all.map((c) => c.name);
-    expect(names.some((n) => n.startsWith('C2 '))).toBe(false);
-    expect(names.some((n) => n.startsWith('C7 '))).toBe(false);
+    // Per-indicator N/A (19 Nov): an N/A row stays in its place with its label and no score (C2 its own words; C7, an old N/A, plainly).
+    const c2 = all.find((c) => c.name.startsWith('C2 '));
+    expect(c2).toMatchObject({ score: null, na: true, evidence: 'N/A: No child was wrong in this lesson.' });
+    const c7 = all.find((c) => c.name.startsWith('C7 '));
+    expect(c7).toMatchObject({ score: null, na: true, evidence: 'N/A: Not applicable in this lesson.' });
     const c6 = all.find((c) => c.name.startsWith('C6 '));
     expect(c6.score).toBeNull();
     expect(c6.evidence).toMatch(/couldn't tell/i);

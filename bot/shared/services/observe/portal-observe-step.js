@@ -48,7 +48,7 @@ const STOPPED = new Set(['cancelled', 'abandoned', 'failed']);
 // with the rubric id when the recording lands (obs612/visit.js), and the form is hers from then until she submits it.
 // After transcription it waits at 'obs612_form'; Submit moves it to observer_review_complete with the debrief done.
 // bd-31ziu8: FICO-S v1.1 visits are filled the same way (the same form row, the same waiting status).
-const FDE_RUBRIC_RX = /^(obs612-(gen|msci|enur)-v\d+|fico_s_v1_1)$/;
+const FDE_RUBRIC_RX = /^(obs612-(gen|msci|enur)-v\d+|fico_s_v\d+_\d+)$/; // FICO-S: v1.1, v1.2 (queue #218)
 const FDE_FORM_STATUS = 'obs612_form';
 const PAST_THE_FORM = new Set(['observer_review_complete', 'completed']);
 

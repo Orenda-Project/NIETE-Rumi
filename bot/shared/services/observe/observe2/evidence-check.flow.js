@@ -81,7 +81,8 @@ const V6_CHECK = '1';
 const COACH_CHECK = '4';
 // Set only while buildEvidenceCheckFlow({ coach2: true }) runs.
 let COACH2 = false;
-const coachOptions = (code) => V6.coachLevelOptions(code, 'en');
+// { na: false }: this copy is published with 1-4 only; the per-indicator N/A (19 Nov) is /observe's and the portal's.
+const coachOptions = (code) => V6.coachLevelOptions(code, 'en', { na: false });
 const COMBINED_SCREENS = [
   { id: 'COMBINED_ONE', title: 'From the room (1 of 3)', codes: ['C3', 'C5'] },
   { id: 'COMBINED_TWO', title: 'From the room (2 of 3)', codes: ['C7', 'D3'] },

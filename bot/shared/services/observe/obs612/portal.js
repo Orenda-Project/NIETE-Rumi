@@ -131,7 +131,7 @@ function bodyPart(key, ctx, draft) {
 }
 
 function sectionsOf(ctx, draft) {
-  if (ctx.tool === 'ficos') return FS.portalSections(draft, ctx.lang, { dc: ctx.form ? require('./fico-s-dc').dcOf(ctx.form) : null });
+  if (ctx.tool === 'ficos') return FS.portalSections(draft, ctx.lang, { dc: ctx.form ? require('./fico-s-dc').dcOf(ctx.form) : null, rubric: ctx.form ? ctx.form.rubric_version : undefined });
   return F.pathFor(ctx.tool, ctx.sheet).map((id) => {
     const s = F.screenById(id);
     const parts = [];
@@ -152,7 +152,7 @@ function sectionsOf(ctx, draft) {
 
 /** Every screen's check on the draft, as one { field: code }. */
 function errorsOf(ctx, draft) {
-  if (ctx.tool === 'ficos') return FS.errorsByKey(draft, { dc: ctx.form ? require('./fico-s-dc').dcOf(ctx.form) : null });
+  if (ctx.tool === 'ficos') return FS.errorsByKey(draft, { dc: ctx.form ? require('./fico-s-dc').dcOf(ctx.form) : null, rubric: ctx.form ? ctx.form.rubric_version : undefined });
   return Object.assign({}, ...F.pathFor(ctx.tool, ctx.sheet).map((id) => Model.checkScreen(id, draft)));
 }
 
@@ -250,7 +250,7 @@ async function portalSave({ userId, row, edits, submit = false }) {
   if (isTerminalStatus(row.status)) return { status: 'not_ready', reason: 'visit_closed' };
 
   // 1. Save first, as the Flow does: nothing she wrote is lost to a check below.
-  const fields = ctx.tool === 'ficos' ? FS.portalFields(ctx.lang) : F.pathFor(ctx.tool, ctx.sheet).flatMap((id) => F.fieldsOf(id));
+  const fields = ctx.tool === 'ficos' ? FS.portalFields(ctx.lang, { rubric: ctx.form ? ctx.form.rubric_version : undefined }) : F.pathFor(ctx.tool, ctx.sheet).flatMap((id) => F.fieldsOf(id));
   const draft = Model.mergeDraft(Store().draftOf(ctx.form), fields, cleanPosted(fields, edits));
   const saved = await Store().saveDraft(ctx.form, draft);
   if (!saved.ok) {

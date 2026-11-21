@@ -146,7 +146,8 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow({ status: 'observer_review_complete', analysis_data: a })));
     expect(ind(out, 'C7').rating).toBe('NA');
     expect(ind(out, 'C7').options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']);
-    expect(ind(out, 'C3').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
+    expect(ind(out, 'C3').options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']); // per-indicator N/A (19 Nov): C3 offers N/A
+    expect(ind(out, 'C1').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
   });
 
   test('one of the six: blank, with the definition and Rumi\'s evidence above it, and its own options', async () => {
@@ -155,7 +156,9 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     expect(c3).toMatchObject({ kind: 'combined', field: 'C3', rating: '', why: '' });
     expect(c3.body).toContain(v6.indicator('C3').definition);
     expect(c3.body).toContain('Ali, what do you think?');
-    expect(c3.options.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
+    expect(c3.options.map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA']); // per-indicator N/A (19 Nov): its own N/A
+    expect(c3.options.find((o) => o.id === 'NA').title).toBe('N/A · No question asked');
+    expect(ind(out, 'D2').options.map((o) => o.id)).toEqual(['1', '2', '3', '4']); // D2: never N/A
     expect(ind(out, 'D2').d2).toBeUndefined(); // 13 Nov: no count boxes
     expect(ind(out, 'D2').body).toContain('4 student turns in the first half');
     expect(section(out, 'v6_teacher').changeReason).toBe('');
@@ -172,6 +175,25 @@ describe('getDraft — a v6 visit gets the v6 review, not V3\'s screens', () => 
     expect(ind(out, 'C3')).toMatchObject({ rating: '3', why: WHY });
     expect(ind(out, 'D2').d2).toBeUndefined();
     expect(section(out, 'v6_teacher').changeReason).toBe('Only one open question was asked, not two.');
+  });
+
+  // bd-ra8xu.61 — D2's words changed (no counts). A review saved under the old words, with D2 counts or without, still
+  // opens on her D2 level and her reason, under today's choices.
+  test.each([
+    ['with D2 counts (an old form)', { d2_children: '7', d2_quiet_later: '2' }],
+    ['without D2 counts', { d2_children: undefined, d2_quiet_later: undefined }],
+  ])('an old review %s still opens on her D2 level and reason', async (_label, counts) => {
+    const a = v6Analysis();
+    const O = require('../../bot/shared/services/observe/observe-fico17-v6');
+    const edits = validEdits({ r_D2: '4', why_D2: '7 different children spoke, 2 quiet ones joined later.', ...counts });
+    for (const k of Object.keys(counts)) if (counts[k] === undefined) delete edits[k];
+    const review = O.buildReview(a, edits);
+    O.applyReview(a, review, edits, v6Analysis());
+    expect(a.fico17_v6_review.d2_counts).toEqual(counts.d2_children ? { children: 7, quiet_later: 2 } : null);
+    const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow({ status: 'observer_review_complete', analysis_data: a })));
+    expect(ind(out, 'D2')).toMatchObject({ rating: '4', why: '7 different children spoke, 2 quiet ones joined later.' });
+    expect(ind(out, 'D2').options.map((o) => o.description)).toEqual(v6.indicator('D2').levels.map((l) => l.text));
+    expect(ind(out, 'D2').d2).toBeUndefined();
   });
 
   test('a review saved on WhatsApp with a reason per indicator opens with those reasons as the part\'s', async () => {
@@ -220,11 +242,12 @@ describe('saveDraft — the v6 Flow\'s rules and the v6 Flow\'s save', () => {
     expect(Object.keys(out.errors)).toEqual(['chg_F']);
   });
 
-  test('D2: the counts must add up, and a level off the counts needs a number in the reason', async () => {
+  test('D2: counts an old form sends must add up; the level is the coach\'s, whatever the counts (bd-ra8xu.61)', async () => {
     const bad = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ d2_children: '2', d2_quiet_later: '5' }) }, deps(obsRow()));
     expect(Object.keys(bad.errors)).toEqual(['d2_children']);
-    const off = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ r_D2: '4', why_D2: 'Lots of children were talking in groups.' }) }, deps(obsRow()));
-    expect(Object.keys(off.errors)).toEqual(['why_D2']);
+    // 4 children, 1 quiet-then-spoke was level 3 by the old counts; the coach's 4, with a reason in words, is saved.
+    const off = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ r_D2: '4', why_D2: 'Most of the class spoke during the group work.' }) }, deps(obsRow()));
+    expect(off.status).toBe('ok');
   });
 
   test('a V3 visit still drops the v6-only keys (byte-identical save)', async () => {

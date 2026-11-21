@@ -5,11 +5,12 @@ import type { Values } from "./formModel";
  * bd-ra8xu.40 — a FICO17 v6 visit on the portal's Feedback Form: its values and its rules, the SAME as the WhatsApp v6
  * review Flow (bot/shared/services/observe/observe-fico17-v6.js validateScreen, which the bot runs again on save):
  *
- *   one of the six (combined)   r_<code> a level, why_<code> a reason of at least `minReason` letters;
+ *   one of the six (combined)   r_<code> a level, why_<code> a reason of at least `minReason` letters (none for N/A,
+ *                               which only C3 C5 D4 offer: per-indicator N/A);
  *   D2                          also d2_children and d2_quiet_later, whole numbers, quiet ≤ children; a level that is
  *                               not the one the counts give needs a number in the reason;
- *   one of Rumi's 11 (dc)       r_<code>, ev_<code>, imp_<code>; changing a level Rumi set needs chg_<letter> (the
- *                               part's "why you changed it"), at least `minReason` letters.
+ *   one of Rumi's 11 (dc)       r_<code>, ev_<code>, imp_<code>; changing Rumi's choice (a level, or N/A on C2) needs
+ *                               chg_<letter> (the part's "why you changed it"), at least `minReason` letters.
  */
 export type V6Section = Extract<DraftSection, { kind: "v6" }>;
 export type V6Problem = "chooseLevel" | "atLeast" | "checkCounts" | "sayWhyNumber";
@@ -61,7 +62,7 @@ export function v6Problems(section: V6Section, values: Values, minReason = MIN_R
     if (ind.kind === "dc") { if (changedFromRumi(ind, values)) changed = true; continue; }
     if (!ind.options.some((o) => o.id === level)) out[`r_${ind.field}`] = "chooseLevel";
     const why = values[`why_${ind.field}`] ?? "";
-    if (letters(why) < minReason) out[`why_${ind.field}`] = "atLeast";
+    if (level !== "NA" && letters(why) < minReason) out[`why_${ind.field}`] = "atLeast";
     if (ind.d2) {
       const n = whole(values.d2_children);
       const q = whole(values.d2_quiet_later);

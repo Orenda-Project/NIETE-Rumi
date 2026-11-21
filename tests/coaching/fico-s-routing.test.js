@@ -7,7 +7,7 @@
  *   - the class is asked (even with obs612_coach off), and every grade 6-12 lesson asks its subject;
  *   - a grade 6-8 lesson is FICO-S, not FDE's tool; a grade 9-12 lesson is FICO-S, not FICO17 v6;
  *   - grades 1-5 are untouched (FICO17 v6 by the coach switch);
- *   - the capture stamps coaching_sessions.framework 'fico_s_v1_1' and makes the visit's form row on it.
+ *   - the capture stamps coaching_sessions.framework with the current FICO-S id ('fico_s_v1_2' from queue #218; v1.1 before) and makes the visit's form row on it.
  * GB is untouched whatever the switch says (coaching/fde-region.js). Off (the default): everything as before.
  * The real chain is run: the switches → asksClass / handleTap → the capture's stamp → the portal's stamp.
  */
@@ -159,10 +159,10 @@ const LESSON = (grade, subject, tool, rubricId) => ({ primary: false, grade, sub
 
 describe('the rubric registry: which tool a lesson gets', () => {
   const O = () => require('../../bot/shared/services/coaching/frameworks/obs612');
-  test('FICO-S on: grades 6-12 → fico_s_v1_1 whatever the subject; grades 1-5 → none (FICO)', () => {
+  test('FICO-S on: grades 6-12 → fico_s_v1_2 whatever the subject; grades 1-5 → none (FICO)', () => {
     for (const g of [6, 7, 8, 9, 10, 11, 12]) {
-      expect(O().toolFor(g, 'maths', { ficoS: true })).toEqual({ tool: 'ficos', rubricId: 'fico_s_v1_1', sheet: null });
-      expect(O().toolFor(g, null, { ficoS: true })).toEqual({ tool: 'ficos', rubricId: 'fico_s_v1_1', sheet: null });
+      expect(O().toolFor(g, 'maths', { ficoS: true })).toEqual({ tool: 'ficos', rubricId: 'fico_s_v1_2', sheet: null });
+      expect(O().toolFor(g, null, { ficoS: true })).toEqual({ tool: 'ficos', rubricId: 'fico_s_v1_2', sheet: null });
     }
     for (const g of [1, 3, 5]) expect(O().toolFor(g, 'maths', { ficoS: true })).toBeNull();
   });
@@ -226,7 +226,7 @@ describe('/observe taps: with FICO-S a grade 6-12 class asks its subject and the
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
     mockState.value = askState();
     await Visit().handleTap(ict, '9230', 'o612:s:o:n1:10:science');
-    expect(lastLesson()).toEqual(LESSON(10, 'science', 'ficos', 'fico_s_v1_1'));
+    expect(lastLesson()).toEqual(LESSON(10, 'science', 'ficos', 'fico_s_v1_2'));
     expect(WA().sendMessage.mock.calls.map((c) => c[1]).join('\n')).toMatch(/FICO 6-12/);
   });
 
@@ -234,7 +234,7 @@ describe('/observe taps: with FICO-S a grade 6-12 class asks its subject and the
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
     mockState.value = askState();
     await Visit().handleTap(ict, '9230', 'o612:s:o:n1:7:maths');
-    expect(lastLesson()).toEqual(LESSON(7, 'maths', 'ficos', 'fico_s_v1_1'));
+    expect(lastLesson()).toEqual(LESSON(7, 'maths', 'ficos', 'fico_s_v1_2'));
   });
 
   test('grade 3 with FICO-S: a FICO lesson, as before (v6 decides)', async () => {
@@ -271,25 +271,25 @@ describe('/observe taps: with FICO-S a grade 6-12 class asks its subject and the
   });
 });
 
-describe('the capture: a FICO-S lesson stamps fico_s_v1_1 and gets its form row', () => {
+describe('the capture: a FICO-S lesson stamps fico_s_v1_2 and gets its form row', () => {
   const { startFromAudio } = require('../../bot/shared/services/observe/observe-capture.service');
   const stampOf = () => {
     const w = mockWrites.find(([op, t, p]) => op === 'update' && t === 'coaching_sessions' && p.framework);
     return w ? w[2] : null;
   };
 
-  test.each([[7, 'maths'], [10, 'science']])('ICT grade %i %s → fico_s_v1_1, the FICO-S form is sent', async (grade, subject) => {
+  test.each([[7, 'maths'], [10, 'science']])('ICT grade %i %s → fico_s_v1_2, the FICO-S form is sent', async (grade, subject) => {
     process.env.FICO_S_FLOW_ID = 'F-FICOS';
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
     mockState.value = {
-      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(grade, subject, 'ficos', 'fico_s_v1_1'),
+      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(grade, subject, 'ficos', 'fico_s_v1_2'),
       boundTeacher: { user_id: T_ICT_MIDDLE, teacher_ext_id: 'tx2', school_ext_id: 'niete:100', teacher_name: 'Rabia' },
     };
     const session = await startFromAudio({ ...row(ICT_COACH), preferred_language: 'en' }, '9230', 'audio-1', 'chat-1', 1800);
-    expect(session.framework).toBe('fico_s_v1_1');
-    expect(stampOf()).toEqual({ framework: 'fico_s_v1_1', framework_selection_reason: 'fico_s_lesson' });
+    expect(session.framework).toBe('fico_s_v1_2');
+    expect(stampOf()).toEqual({ framework: 'fico_s_v1_2', framework_selection_reason: 'fico_s_lesson' });
     expect(Store.createLessonForm).toHaveBeenCalledWith(expect.objectContaining({
-      rubricVersion: 'fico_s_v1_1', visitContext: expect.objectContaining({ grade, subject, via: 'observe' }),
+      rubricVersion: 'fico_s_v1_2', visitContext: expect.objectContaining({ grade, subject, via: 'observe' }),
     }));
     const flow = require('../../bot/shared/services/whatsapp.service').sendFlow.mock.calls[0][1];
     expect(flow.flowId).toBe('F-FICOS');
@@ -301,7 +301,7 @@ describe('the capture: a FICO-S lesson stamps fico_s_v1_1 and gets its form row'
   test('a GB coach\'s visit that named a FICO-S lesson anyway: fico17_v6, no form (GB unchanged)', async () => {
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(GB_COACH) };
     mockState.value = {
-      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(7, 'maths', 'ficos', 'fico_s_v1_1'),
+      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(7, 'maths', 'ficos', 'fico_s_v1_2'),
       boundTeacher: { user_id: T_GB_MIDDLE, teacher_ext_id: 'tx1', school_ext_id: 'niete:71657', teacher_name: 'Maryam' },
     };
     const session = await startFromAudio({ ...row(GB_COACH), preferred_language: 'en' }, '9230', 'audio-1', 'chat-1', 1800);
@@ -313,7 +313,7 @@ describe('the capture: a FICO-S lesson stamps fico_s_v1_1 and gets its form row'
     delete process.env.FICO_S_FLOW_ID;
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
     mockState.value = {
-      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(10, 'english', 'ficos', 'fico_s_v1_1'),
+      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(10, 'english', 'ficos', 'fico_s_v1_2'),
       boundTeacher: { user_id: T_ICT_MIDDLE, teacher_ext_id: 'tx2', school_ext_id: 'niete:100', teacher_name: 'Rabia' },
     };
     await startFromAudio({ ...row(ICT_COACH), preferred_language: 'en' }, '9230', 'audio-1', 'chat-1', 1800);
@@ -342,9 +342,9 @@ describe('the portal: the class question and the stamp', () => {
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH, GB_COACH) };
     const coach = row(ICT_COACH);
     const s7 = await Svc()._decideStamp(d(), coach, T_ICT_MIDDLE, { grade: 7, subject: 'maths' }, 'niete:100');
-    expect(s7.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_1', tool: 'ficos', grade: 7, subject: 'maths' });
+    expect(s7.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_2', tool: 'ficos', grade: 7, subject: 'maths' });
     const s10 = await Svc()._decideStamp(d(), coach, T_ICT_MIDDLE, { grade: 10, subject: 'science' }, 'niete:100');
-    expect(s10.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_1', grade: 10, subject: 'science' });
+    expect(s10.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_2', grade: 10, subject: 'science' });
     const s3 = await Svc()._decideStamp(d(), coach, T_ICT_PRIMARY, { primary: true }, 'niete:100');
     expect(s3.fdeLesson).toBeNull();
     expect(s3.v6Stamp).toBe('fico17_v6');
@@ -412,13 +412,13 @@ describe('fico_s_dc: a FICO 6-12 visit for the Digital Coach', () => {
     process.env.FICO_S_FLOW_ID = 'F-FICOS';
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH), fico_s_dc: ON_FOR(ICT_COACH) };
     mockState.value = {
-      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(grade, subject, 'ficos', 'fico_s_v1_1'),
+      state: 'awaiting_audio', origin: 'observe', obs612Lesson: LESSON(grade, subject, 'ficos', 'fico_s_v1_2'),
       boundTeacher: { user_id: T_ICT_MIDDLE, teacher_ext_id: 'tx2', school_ext_id: 'niete:100', teacher_name: 'Rabia' },
     };
     const session = await startFromAudio({ ...row(ICT_COACH), preferred_language: 'en' }, '9230', 'audio-1', 'chat-1', 1800);
-    expect(session.framework).toBe('fico_s_v1_1');
-    expect(stampOf()).toEqual({ framework: 'fico_s_v1_1', framework_selection_reason: 'fico_s_dc' });
-    expect(Store.createLessonForm).toHaveBeenCalledWith(expect.objectContaining({ rubricVersion: 'fico_s_v1_1' }));
+    expect(session.framework).toBe('fico_s_v1_2');
+    expect(stampOf()).toEqual({ framework: 'fico_s_v1_2', framework_selection_reason: 'fico_s_dc' });
+    expect(Store.createLessonForm).toHaveBeenCalledWith(expect.objectContaining({ rubricVersion: 'fico_s_v1_2' }));
     expect(WA().sendFlow).not.toHaveBeenCalled();
     expect(WA().sendInteractiveButtons).toHaveBeenCalled();
     delete process.env.FICO_S_FLOW_ID;
@@ -429,7 +429,7 @@ describe('fico_s_dc: a FICO 6-12 visit for the Digital Coach', () => {
     const d = { supabase: require('../../bot/shared/config/supabase'), principalApp: () => Promise.resolve(true) };
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH), fico_s_dc: ON_FOR(ICT_COACH) };
     const on = await Svc._decideStamp(d, row(ICT_COACH), T_ICT_MIDDLE, { grade: 10, subject: 'science' }, 'niete:100');
-    expect(on.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_1', dc: true });
+    expect(on.fdeLesson).toMatchObject({ rubricId: 'fico_s_v1_2', dc: true });
     FicoSSwitch._resetCache();
     mockSettings = { ...PROD_ROWS(), fico_s_coach: ON_FOR(ICT_COACH) };
     const off = await Svc._decideStamp(d, row(ICT_COACH), T_ICT_MIDDLE, { grade: 10, subject: 'science' }, 'niete:100');

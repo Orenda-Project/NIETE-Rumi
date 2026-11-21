@@ -37,9 +37,11 @@ describe('the rubric data', () => {
   });
 
   test('three tools, one id each, labelled FDE v1 (and FICO-S v1.1 registered beside them, bd-31ziu8)', () => {
-    expect(O.IDS).toEqual({ gen: 'obs612-gen-v1', msci: 'obs612-msci-v1', enur: 'obs612-enur-v1', ficos: 'fico_s_v1_1' });
+    // Queue #218: a new FICO-S visit is v1.2; a v1.1 visit keeps its id and its label.
+    expect(O.IDS).toEqual({ gen: 'obs612-gen-v1', msci: 'obs612-msci-v1', enur: 'obs612-enur-v1', ficos: 'fico_s_v1_2' });
     expect(O.labelOf('obs612-gen-v1')).toBe('FDE v1');
     expect(O.labelOf('fico_s_v1_1')).toBe('FICO 6-12');
+    expect(O.labelOf('fico_s_v1_2')).toBe('FICO 6-12 v1.2');
     expect(O.LABEL).toBe('FDE v1');
     expect(O.RUBRIC.source.letter).toBe('F.1-159/2010 (Academics)');
   });

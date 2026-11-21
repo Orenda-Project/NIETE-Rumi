@@ -39,9 +39,9 @@ function isV6Scored(x) {
 
 // bd-pni007 — FDE's grade 6-12 observation tools (obs612-<tool>-v<n>) are scored apart from FICO too. The same
 // test as the bot's coaching/frameworks/own-rubric.js: is this score on a rubric of its own (v6 or obs612)?
-// bd-31ziu8 — FICO-S v1.1 ('fico_s_v1_1', ICT grades 6-12 from 18 Nov) is a rubric of its own as well.
+// bd-31ziu8 — FICO-S ('fico_s_v1_1', ICT grades 6-12 from 18 Nov; 'fico_s_v1_2' from queue #218) is a rubric of its own as well.
 const OBS612_RX = /^obs612-(gen|msci|enur)-v\d+$/;
-const FICO_S_RX = /^fico_s_v1_1$/;
+const FICO_S_RX = /^fico_s_v\d+_\d+$/;
 const isOwnId = (v) => v === V6_RUBRIC || (typeof v === 'string' && (OBS612_RX.test(v) || FICO_S_RX.test(v)));
 function ownRubricOf(x) {
   if (!x || typeof x !== 'object') return null;

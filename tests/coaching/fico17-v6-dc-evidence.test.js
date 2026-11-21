@@ -51,11 +51,12 @@ describe('the six combined indicators: evidence, never a level', () => {
     expect(r.rows.map((x) => x.code).filter((c) => V6.isCombined(c))).toEqual([]);
   });
 
-  test("nothing found, couldn't tell, and D3's no child-to-child talk each read as a plain line", () => {
+  test("nothing found and couldn't tell each read as a plain line; D3 has no N/A any more (per-indicator N/A, 19 Nov)", () => {
     const line = (code) => r.evidence_rows.find((x) => x.code === code).line;
     expect(line('C7')).toMatch(/nothing in the recording/i);
     expect(line('D4')).toMatch(/didn't cover/i);
-    expect(line('D3')).toMatch(/no child-to-child talk/i);
+    // An old N/A on D3 (option A dropped it) reads as nothing found, never "no child-to-child talk".
+    expect(line('D3')).toMatch(/nothing in the recording/i);
   });
 
   test('the old option-A line is gone; the coach still sets the combined indicators', () => {
