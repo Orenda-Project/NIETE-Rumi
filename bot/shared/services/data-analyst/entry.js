@@ -53,6 +53,9 @@ const TEXTS = Object.freeze({
   flowBody: 'Ask about ICT schools in plain words, or pick a common question.',
 });
 
+const WORKING = '⏳';
+const DONE = '✅';
+
 const convKey = (userId) => `data_analyst:conv:${userId}`;
 const pendingKey = (userId) => `data_analyst:pending:${userId}`;
 const lockName = (userId) => `data_analyst:${userId}`;
@@ -122,7 +125,7 @@ async function sendAsks(from, caption, asks, deps) {
 }
 
 /** One governed answer, delivered as one bubble with buttons. Always answers something; never throws past here. */
-async function answer(question, { user, from, identity }, deps) {
+async function answer(question, { user, from, identity, messageId }, deps) {
   const { redis, whatsapp, now } = deps;
   const log = deps.log || (() => {});
   const lockId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -138,7 +141,12 @@ async function answer(question, { user, from, identity }, deps) {
       await whatsapp.sendMessage(from, TEXTS.limit);
       return;
     }
-    await whatsapp.sendMessage(from, TEXTS.looking);
+    // The operator, 21 Nov ~11:05: a reaction instead of "Looking into it", to cut a billed text. ⏳ on her
+    // message while it works (sole ack: pacing may not skip it), ✅ once the answer is out, off if it fails.
+    // Meta refusing it, or no message id to react to, sends the text as before.
+    const reacted = Boolean(messageId && typeof whatsapp.sendReaction === 'function'
+      && await whatsapp.sendReaction(from, messageId, WORKING, { soleAck: true }).catch(() => false));
+    if (!reacted) await whatsapp.sendMessage(from, TEXTS.looking);
     const conv = (await redis.get(convKey(user.id))) || {};
     const memory = ConversationMemory.fromJSON(conv.memory);
     const history = Array.isArray(conv.history) ? conv.history : [];
@@ -148,6 +156,7 @@ async function answer(question, { user, from, identity }, deps) {
     } catch (e) {
       log('data_analyst.failed', { error: String(e && e.message).slice(0, 300) });
       await whatsapp.sendMessage(from, TEXTS.failed);
+      if (reacted) await whatsapp.sendReaction(from, messageId, '').catch(() => false);
       return;
     }
     const specs = chartSpecs(result.calls, question);
@@ -172,7 +181,8 @@ async function answer(question, { user, from, identity }, deps) {
       }
       if (!sent) await whatsapp.sendInteractiveButtons(from, { body: reply.caption, buttons: [...BUTTONS] });
     }
-    log('data_analyst.delivered', { chart: Boolean(png), asks: reply.asks.length, kind: specs[0] ? specs[0].kind : null });
+    if (reacted) await whatsapp.sendReaction(from, messageId, DONE).catch(() => false);
+    log('data_analyst.delivered', { chart: Boolean(png), asks: reply.asks.length, kind: specs[0] ? specs[0].kind : null, reacted });
     const nextHistory = history.concat([{ role: 'user', content: question }, { role: 'assistant', content: reply.body || result.text }]).slice(-HISTORY_TURNS * 2);
     await redis.set(convKey(user.id), {
       history: nextHistory, memory: memory.toJSON(), choices, lastAnswer: String(reply.body || '').slice(0, 600), lastAt: now().toISOString(),
@@ -186,7 +196,7 @@ async function answer(question, { user, from, identity }, deps) {
  * A text message, before the ordinary text handler.
  * @returns {Promise<boolean>} true when the data analyst took it
  */
-async function maybeHandleDataAnalyst({ user, from, messageBody }, deps = defaultDeps()) {
+async function maybeHandleDataAnalyst({ user, from, messageBody, messageId }, deps = defaultDeps()) {
   if (typeof messageBody !== 'string') return false;
   const identity = await identityOf(user, deps);
   if (!identity) return false;
@@ -201,7 +211,7 @@ async function maybeHandleDataAnalyst({ user, from, messageBody }, deps = defaul
   const verdict = await deps.classify(text, { recentAnswer });
   (deps.log || (() => {}))('data_analyst.classified', { verdict, followUp: Boolean(recentAnswer) });
   if (verdict === 'data') {
-    await answer(text, { user, from, identity }, deps);
+    await answer(text, { user, from, identity, messageId }, deps);
     return true;
   }
   if (verdict === 'unsure') {
@@ -216,7 +226,7 @@ async function maybeHandleDataAnalyst({ user, from, messageBody }, deps = defaul
  * A button or list tap whose id starts `da_`.
  * @returns {Promise<{handled: boolean, normalText?: string}>} normalText: hand these words to the ordinary text handler
  */
-async function handleDataAnalystButton({ user, from, buttonId }, deps = defaultDeps()) {
+async function handleDataAnalystButton({ user, from, buttonId, messageId }, deps = defaultDeps()) {
   const id = String(buttonId || '');
   if (!id.startsWith('da_')) return { handled: false };
   const identity = await identityOf(user, deps);
@@ -232,20 +242,20 @@ async function handleDataAnalystButton({ user, from, buttonId }, deps = defaultD
     const text = pending && typeof pending.text === 'string' ? pending.text : '';
     if (!text) return { handled: true };
     if (id === 'da_route_normal') return { handled: true, normalText: text };
-    await answer(text, { user, from, identity }, deps);
+    await answer(text, { user, from, identity, messageId }, deps);
     return { handled: true };
   }
   const pick = /^da_pick_(\d+)$/.exec(id);
   if (pick) {
     const p = QUICK_PICKS[Number(pick[1]) - 1];
-    if (p) await answer(p.question, { user, from, identity }, deps);
+    if (p) await answer(p.question, { user, from, identity, messageId }, deps);
     return { handled: true };
   }
   const opt = /^da_opt_(\d+)$/.exec(id);
   if (opt) {
     const conv = await deps.redis.get(convKey(user.id));
     const choice = conv && Array.isArray(conv.choices) ? conv.choices[Number(opt[1]) - 1] : null;
-    if (typeof choice === 'string' && choice) await answer(choice, { user, from, identity }, deps);
+    if (typeof choice === 'string' && choice) await answer(choice, { user, from, identity, messageId }, deps);
     else await offerQuestion(user, from, deps);
     return { handled: true };
   }
@@ -256,7 +266,7 @@ async function handleDataAnalystButton({ user, from, buttonId }, deps = defaultD
  * The question Flow's reply (nfm_reply). Ours only on a `dataq:` token.
  * @returns {Promise<boolean>}
  */
-async function handleDataAnalystFlowReply({ user, from, responseJson }, deps = defaultDeps()) {
+async function handleDataAnalystFlowReply({ user, from, responseJson, messageId }, deps = defaultDeps()) {
   const token = String((responseJson && responseJson.flow_token) || '');
   if (!token.startsWith(FLOW_TOKEN_PREFIX)) return false;
   const identity = await identityOf(user, deps);
@@ -268,7 +278,7 @@ async function handleDataAnalystFlowReply({ user, from, responseJson }, deps = d
     await offerQuestion(user, from, deps);
     return true;
   }
-  await answer(question, { user, from, identity }, deps);
+  await answer(question, { user, from, identity, messageId }, deps);
   return true;
 }
 
