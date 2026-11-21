@@ -461,7 +461,10 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
   const kept = d && !step.p && cl.q === 'high' ? await memoryOf(code, d) : null;
   const long = Boolean(kept) && (step.st === 'chips' || Boolean(kept[String(hit.id)]));
   const exp = long ? horizonExp(link, step.st === 'who' ? kept[String(hit.id)] : null) : nowS() + T.HUB_TTL_S;
-  const token = T.sign({ k: 'h', ids: [hit.id], exp, src: 'cl', cl });
+  // The class's Urdu rides to the hub as the link's language (below a child's own choice and class quiz history in
+  // the hub's ladder); an English or unknown class adds nothing, so the hub's own order decides as before.
+  const ur = langOf(await teacherRow(link.teacher_id)) === 'ur';
+  const token = T.sign({ k: 'h', ids: [hit.id], ...(ur ? { l: 'ur' } : {}), exp, src: 'cl', cl });
   if (!token) fail(503, 'web_quiz_off');
   if (long) await remember(code, d, hit.id, exp);
   // The teacher's own preview is not a child's door: no door_tap.
