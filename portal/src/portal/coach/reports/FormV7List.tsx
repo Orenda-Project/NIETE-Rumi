@@ -13,7 +13,7 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import {
-  AutoText, DockV7, FormChips, FormToast, Head, Legend, Levels, PartTitle, ReadOnlyBox, SaveTrayV7, TextBox, UNDO_MS, focusField,
+  AutoText, DockV7, FormChips, FormToast, Legend, Levels, PartTitle, ReadOnlyBox, SaveTrayV7, TextBox, UNDO_MS, focusField,
   levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
 } from "./FormV7";
 import { Problem, problemText, V6Notes, v6RatingOptions } from "./V6Parts";
@@ -579,19 +579,23 @@ export function V6FormV7({
 
   return frame(crumb, dock, (
     <section data-testid="ff-indicator" className="flex flex-col gap-2.5">
-      <div className="flex items-center gap-2">
+      {/* bd-o15qnr.35 (the operator 21 Nov ~12:58: "See that empty space up above? Maybe keep the indicator name there?"):
+          the code and the name between Previous and Next (two lines at most), not again inside the card. */}
+      <div data-testid="ff-nav" className="flex items-center gap-2">
         <button type="button" aria-label={F.prevIndicator} disabled={index === 0} onClick={() => go(index - 1)}
-          className={cn("flex h-14 w-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40", FOCUS)}>
+          className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40", FOCUS)}>
           <ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
         </button>
-        <span className="flex-1" />
+        <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
+          <StatusChip text={ind.id} tone="score" className="shrink-0" />
+          <h3 className="m-0 line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.3] rtl:leading-[1.8]" dir="auto">{ind.name}</h3>
+        </div>
         <button type="button" aria-label={F.nextIndicator} disabled={index >= list.length - 1} onClick={() => go(index + 1)}
-          className={cn("flex h-14 w-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40", FOCUS)}>
+          className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40", FOCUS)}>
           <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
         </button>
       </div>
-      <div className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
-        <Head code={ind.id} name={ind.name} />
+      <div data-testid="ff-card" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
         {!readOnly && <Legend principal={principal} />}
         {ind.kind === "dc" && !readOnly && changedFromRumi(ind, values) && (
           <StatusChip text={F.changedFrom(levelWords(options, ind.rumi) || C.dash)} tone="waiting" className="self-start" />
