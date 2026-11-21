@@ -170,7 +170,8 @@ describe('the endpoint', () => {
 
     test('Seen may not take the whole paper', async () => {
       await exchange('u1', 'QUESTIONS', { content_source: 'both', ...NEW }, TOKEN);
-      await exchange('u1', 'SEEN_TYPES', { question_types: ['MCQs'] }, TOKEN);
+      // AG row 12: 50 MCQs are one group; 50 questions that count one each fill the paper.
+      await exchange('u1', 'SEEN_TYPES', { question_types: ['Brief Answers'] }, TOKEN);
       const res = await exchange('u1', 'SEEN_COUNTS', { count_1: '50' }, TOKEN);
       expect(res.screen).toBe('SEEN_COUNTS');
       expect(res.data.error).toMatch(/Unseen/);

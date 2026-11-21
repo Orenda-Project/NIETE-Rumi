@@ -1579,6 +1579,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       pickedTypes: null,
       questionTypes: null,
       seenCount: null,
+      seenCounted: null,
       // bd-e5n2jf: the current QUESTIONS Footer posts a static `seen_types: true`.
       // With it, Seen gets the same type + count boxes as Unseen (Mubashar Zia,
       // 20 Nov); a device still on the published Flow never sends it and keeps
@@ -1624,11 +1625,11 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       return seenCountScreen(state, message);
     }
     if (both) {
-      Object.assign(state, { seenCount: parsed.count });
+      Object.assign(state, { seenCount: parsed.count, seenCounted: null });
       await writeSession(flowToken, state);
       return typesScreen(state);
     }
-    Object.assign(state, { questionCount: parsed.count, questionTypes: null, seenCount: null });
+    Object.assign(state, { questionCount: parsed.count, questionTypes: null, seenCount: null, seenCounted: null });
     await writeSession(flowToken, state);
     return confirmScreen(state);
   }
@@ -1698,7 +1699,9 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     if (picked.length === 0) return typesScreen(state);
 
     const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
-    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, seen);
+    // AG row 12: Seen picked by type counts each group as one, like Unseen; a single Seen number counts one each.
+    const seenLimit = seen && state.seenCounted != null ? { counted: Number(state.seenCounted) || 0, items: seen } : seen;
+    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, seenLimit);
     if (!parsed.ok) {
       refused('COUNTS', state, parsed.message, { slot: parsed.slot || null, seen });
       return countsScreen(state, parsed.message, parsed.slot);
@@ -1912,16 +1915,18 @@ async function seenCountsDone(state, data, flowToken) {
   }
   const seenTypes = parsed.types.map((t) => ({ id: t.id, count: t.count, category: t.category }));
   if (state.contentSource === 'both') {
-    if (parsed.total >= QuestionTypes.MAX_QUESTIONS) {
+    if (parsed.counted >= QuestionTypes.MAX_QUESTIONS) {
       const message = `Leave room for Unseen questions — Seen can be up to ${QuestionTypes.MAX_QUESTIONS - 1}.`;
       refused('COUNTS', state, message, { phase: 'seen', total: parsed.total });
       return countsScreen(state, message);
     }
-    Object.assign(state, { seenTypes, seenCount: parsed.total, phase: 'unseen', pickedTypes: null, questionTypes: null });
+    Object.assign(state, {
+      seenTypes, seenCount: parsed.total, seenCounted: parsed.counted, phase: 'unseen', pickedTypes: null, questionTypes: null,
+    });
     await writeSession(flowToken, state);
     return typesScreen(state);
   }
-  Object.assign(state, { seenTypes, questionCount: parsed.total, seenCount: null, questionTypes: null });
+  Object.assign(state, { seenTypes, questionCount: parsed.total, seenCount: null, seenCounted: null, questionTypes: null });
   await writeSession(flowToken, state);
   return confirmScreen(state);
 }

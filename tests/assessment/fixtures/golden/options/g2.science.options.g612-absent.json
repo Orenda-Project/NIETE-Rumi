@@ -70,6 +70,17 @@
       }
     ],
     "maxQuestions": 50,
-    "defaultQuestions": 15
+    "defaultQuestions": 15,
+    "groupedTypes": [
+      "MCQs",
+      "MSQs",
+      "Fill in the Blanks",
+      "Missing Letters",
+      "True/False",
+      "Match the Column",
+      "Circle the Correct Answer",
+      "mcq"
+    ],
+    "maxItems": 100
   }
 }
