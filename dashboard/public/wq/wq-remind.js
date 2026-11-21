@@ -82,9 +82,10 @@
         .then(function (r) { return r; }, function () { return null; });
     } catch (_) { return Promise.resolve(null); }
   }
-  function getKey() {
+  // code: the quiz this ask is about; the bot answers ask:false outside the canary (web_quiz_push_canary)
+  function getKey(code) {
     try {
-      return Promise.resolve(window.fetch(API + 'key', { credentials: 'same-origin', headers: { accept: 'application/json' } }))
+      return Promise.resolve(window.fetch(API + 'key' + (code ? '?code=' + encodeURIComponent(code) : ''), { credentials: 'same-origin', headers: { accept: 'application/json' } }))
         .then(function (r) {
           if (!r) return { status: 0 };
           return Promise.resolve(r.json()).then(function (b) { return { status: r.status, body: b || {} }; }, function () { return { status: r.status, body: {} }; });
@@ -314,9 +315,11 @@
         if ((Number(ctx.chips) || 0) >= 4) return Promise.resolve();
         if (installOnScreen()) return Promise.resolve();
         if (!landing && snoozed()) return Promise.resolve();
-        return getKey().then(function (r) {
+        return getKey(code).then(function (r) {
           if (r.status === 404) return dropWorkers();
           if (r.status !== 200) return null;
+          // outside the canary: no card, no step, and any worker this phone already has stays
+          if (r.body && r.body.ask === false) return null;
           key = r.body && typeof r.body.key === 'string' ? r.body.key : null;
           var b = branch();
           if (b === 'iab') { iab = true; ev('shown'); show.iab(); return null; }

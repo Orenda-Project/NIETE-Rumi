@@ -9,12 +9,16 @@
  *   portal = portal_push_remind   && remind                   the teacher card (car C)
  *   names  = web_quiz_push_name_children && remind            the child reminder names the children on the phone
  *                                                             (first names; policy-gated, default off: class-named)
+ *   canary = web_quiz_push_canary {school_ids?, class_ids?}   while set, only a quiz on a listed class (or a class of
+ *                                                             a listed school) offers the ask or may subscribe; no row
+ *                                                             (or not an object of id lists) = every class
  *
  * Env (sandbox only; never shared with staging or prod): WQ_PUSH_VAPID_PUBLIC, WQ_PUSH_VAPID_PRIVATE,
  * WQ_PUSH_VAPID_SUBJECT (VAPID), WQ_PUSH_ENC_KEY (32 bytes base64, AES-256-GCM of the endpoint and keys),
  * WQ_PUSH_HASH_SALT (HMAC-SHA256 of the endpoint, the lookup key).
  *
- *   switches(now)                          → {remind, test, portal}
+ *   switches(now)                          → {remind, test, portal, names}
+ *   keyFor({code})                         → {key, ask}: ask false outside the canary (the page draws nothing)
  *   subscribe(input, {now})                → {ok:1} | {status:409, err:'class_phone'} | {status:400, err:'bad_sub'}
  *   unsubscribe({endpoint, by}) / markOpened({endpoint}, {now})   → {ok:1}
  *   payloadFor(row, {test, rounds, names}) → {t, b, url, tag, lang, test}: class-named when the phone's classes have
@@ -38,6 +42,7 @@ const HubDevice = require('../quiz/web-quiz-hub-device');
 
 const TABLE = 'web_quiz_push_subscriptions';
 const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children' });
+const CANARY_KEY = 'web_quiz_push_canary';
 const ENV = Object.freeze(['WQ_PUSH_VAPID_PUBLIC', 'WQ_PUSH_VAPID_PRIVATE', 'WQ_PUSH_VAPID_SUBJECT', 'WQ_PUSH_ENC_KEY', 'WQ_PUSH_HASH_SALT']);
 const OFF = Object.freeze({ remind: false, test: false, portal: false, names: false });
 const TTL_MS = 30 * 1000;
@@ -84,6 +89,10 @@ const COPY = Object.freeze({
 // ─── switches ───────────────────────────────────────────────────────────────
 
 let cache = null;
+let canaryCache = null;
+const codeCache = new Map();   // share code → {at, ok} under the current canary (10 min)
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_CACHE_MAX = 5000;
 const envReady = () => ENV.every((k) => String(process.env[k] || '').trim() !== '');
 
 async function switches(now = Date.now()) {
@@ -100,6 +109,62 @@ async function switches(now = Date.now()) {
   }
   cache = { at: now, s };
   return s;
+}
+
+// ─── the canary ─────────────────────────────────────────────────────────────
+
+const idList = (v) => (Array.isArray(v) ? v.map(String).filter((x) => UUID_RX.test(x)) : []);
+/** The canary's id lists, or null (every class). A read error keeps the last answer (else null). */
+async function canary(now = Date.now()) {
+  if (canaryCache && now - canaryCache.at < TTL_MS) return canaryCache.c;
+  let c = canaryCache ? canaryCache.c : null;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', CANARY_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    let v = data && data[0] ? data[0].value : null;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { v = null; } }
+    const schools = v && typeof v === 'object' ? idList(v.school_ids) : [];
+    const classes = v && typeof v === 'object' ? idList(v.class_ids) : [];
+    c = schools.length || classes.length ? { schools: new Set(schools), classes: new Set(classes) } : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz push: canary lookup failed — last answer kept', { error: err.message });
+  }
+  if (!canaryCache || canaryCache.c !== c) codeCache.clear();
+  canaryCache = { at: now, c };
+  return c;
+}
+
+/** May this quiz (its share code) offer the ask? Always with no canary; else its class, or its class's school, listed. */
+async function canaryAllows(code, now = Date.now()) {
+  const c = await canary(now);
+  if (!c) return true;
+  if (!CODE_RX.test(String(code || ''))) return false;
+  const k = String(code).toUpperCase();
+  const hit = codeCache.get(k);
+  if (hit && now - hit.at < CODE_TTL_MS) return hit.ok;
+  let ok = false;
+  try {
+    const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id').eq('code', k).maybeSingle();
+    if (error) throw new Error(error.message || 'share code read failed');
+    const classId = sc && sc.class_id ? String(sc.class_id) : null;
+    if (classId && c.classes.has(classId)) ok = true;
+    else if (classId && c.schools.size) {
+      const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
+      if (e2) throw new Error(e2.message || 'class read failed');
+      ok = Boolean(cl && cl.school_id && c.schools.has(String(cl.school_id)));
+    }
+  } catch (err) {
+    logToFile('⚠️ web quiz push: canary class lookup failed — no ask', { error: err.message });
+    return false;
+  }
+  if (codeCache.size >= CODE_CACHE_MAX) codeCache.clear();
+  codeCache.set(k, { at: now, ok });
+  return ok;
+}
+
+/** The page's key answer: the VAPID key, and whether this quiz may offer the ask (the canary). */
+async function keyFor({ code } = {}, { now = Date.now() } = {}) {
+  return { key: vapidPublic(), ask: await canaryAllows(code, now) };
 }
 
 // ─── crypto ─────────────────────────────────────────────────────────────────
@@ -187,6 +252,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
   const deviceRef = DEVICE_RX.test(String(input.device_ref || '')) ? input.device_ref : null;
   const chipsN = Math.max(0, Math.min(99, Number.parseInt(input.chips_n, 10) || 0));
   if (via === 'family_phone') {
+    if (!(await canaryAllows(input.code, now))) return { status: 409, err: 'canary' };
     const kids = deviceRef ? await HubDevice.deviceKids(deviceRef) : [];
     if (chipsN >= CLASS_PHONE || kids.length >= CLASS_PHONE) return { status: 409, err: 'class_phone' };
     input = { ...input, kids };
@@ -499,7 +565,7 @@ const vapidPublic = () => String(process.env.WQ_PUSH_VAPID_PUBLIC || '');
 
 module.exports = {
   switches, envReady, subscribe, unsubscribe, markOpened, payloadFor, sendOne, sendTest, dueTick, expireTick, stepEvent, vapidPublic,
-  delivered, funnelTick,
+  delivered, funnelTick, keyFor, canaryAllows,
   nextAt, spreadMin, pktDay, uaClass, hashEndpoint, encrypt, decrypt, COPY, KEYS, ENV, TABLE, UNOPENED_MAX,
-  __reset: () => { cache = null; funnelDay = null; },
+  __reset: () => { cache = null; funnelDay = null; canaryCache = null; codeCache.clear(); },
 };

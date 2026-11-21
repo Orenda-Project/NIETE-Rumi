@@ -5,7 +5,7 @@
  * phone's wq_dv cookie arrives as x-wq-device, its user agent as user-agent. The logic is web-quiz-push.service.js.
  *
  *   GET  /state        {remind, test, portal}: the edge's /remind/:code page and the portal's teacher card ask before they draw
- *   GET  /key          {key}: the VAPID public key (asked only after the Yes tap)
+ *   GET  /key?code=    {key, ask}: the VAPID public key; ask false outside the canary (web_quiz_push_canary)
  *   POST /subscribe    {sub, code, lang, chips, chip?, rotate_from?} → {ok:1} | 409 {err:'class_phone'} | 400 {err:'bad_sub'}
  *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint}   → {ok:1}
  *   POST /test         {endpoint} → {ok:1, sent, status} (web_quiz_push_test only)
@@ -45,7 +45,7 @@ function createRouter() {
   // adv: the child pages' look (web_quiz_adventure_look) from the hub switches' cache, so the landing matches the quiz page
   const advNow = () => { try { return require('../quiz/web-quiz-hub-flags').advNow() === true; } catch (_) { return false; } };
   router.get('/state', (req, res) => res.json({ remind: true, test: req.pushSwitches.test, portal: req.pushSwitches.portal, ...(advNow() ? { adv: true } : {}) }));
-  router.get('/key', (req, res) => res.json({ key: Push.vapidPublic() }));
+  router.get('/key', wrap((req) => Push.keyFor({ code: typeof req.query.code === 'string' ? req.query.code : null })));
   router.post('/subscribe', wrap((req) => {
     const b = body(req);
     return Push.subscribe({ sub: b.sub, code: b.code, lang: b.lang, chips_n: b.chips, chip: b.chip, rotate_from: b.rotate_from,
