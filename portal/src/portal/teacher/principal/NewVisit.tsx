@@ -11,6 +11,7 @@ import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
 import { trackFlow } from "../../coach/flow/track";
 import ObservePage from "../../coach/observe/ObservePage";
 import { OBSERVATIONS } from "../observations/copy";
+import { OBS_HOME } from "../observations/paths";
 import { PRINCIPAL_OBSERVE_ROUTES, PRINCIPAL_PICK, PRINCIPAL_SCHEDULE, principalNewVisitPath, principalVisit } from "./observe";
 
 /**
@@ -24,6 +25,9 @@ import { PRINCIPAL_OBSERVE_ROUTES, PRINCIPAL_PICK, PRINCIPAL_SCHEDULE, principal
  * coach's When? step: Schedule for Now goes straight to that teacher's record or upload screen (the principal app books
  * nothing for an observation, so nothing reaches the teacher), Schedule for Later is the day and time above, then
  * "Observation scheduled" with her own links. Switch off, Reschedule: as before.
+ *
+ * bd-o15qnr.29 (the operator 21 Nov ~08:50: "They should land on the homepage of obsevrations") — Done goes to Observe
+ * (Observations), never the old My schedule page.
  */
 const LINKS: NewVisitLinks = {
   changeSchool: PRINCIPAL_PICK,
@@ -73,7 +77,7 @@ export function PrincipalNewVisit() {
         {failed && <Failed onRetry={reload} />}
         {!data && !failed && <Loading />}
         {data && done && (
-          <ScheduledV6 teacher={teacher} schoolName={schoolName} when={done} doneTo={PRINCIPAL_SCHEDULE} anotherTo={PRINCIPAL_PICK}
+          <ScheduledV6 teacher={teacher} schoolName={schoolName} when={done} doneTo={OBS_HOME} anotherTo={PRINCIPAL_PICK}
             line={F.whatsappMessage(teacher?.name)} />
         )}
         {data && !done && teacher && !later && (
