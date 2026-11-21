@@ -363,9 +363,11 @@ function recTitleUrOf(out, lang) {
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live, hold = null }) {
   const urP = recTitleUrOf(out, lang);
-  // Tonight's class round for this child (null with web_quiz_evening_round off): pinned first by rank().
+  // Tonight's class round for this child, pinned first by rank(). Asked only when the hub's own switch read (just made)
+  // says web_quiz_evening_round is on: off, the slot makes no read for it.
   const Round = require('./web-quiz-evening-round');
-  const roundP = Round.roundCandidate({ token, chosenId, history, lang }).catch(() => null);
+  const roundP = require('./web-quiz-hub-flags').nowOf('eveningRound')
+    ? Round.roundCandidate({ token, chosenId, history, lang }).catch(() => null) : Promise.resolve(null);
   const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
   if (!p) return {};
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
