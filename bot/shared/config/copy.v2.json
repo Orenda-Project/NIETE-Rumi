@@ -2455,5 +2455,16 @@
    "en": 52,
    "ur": 47
   }
+ },
+ "qfix_class_link.round_title": {
+  "en": "Tonight's round",
+  "ur": "آج شام کا راؤنڈ",
+  "surface": "page.hub.next",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 15,
+   "ur": 15
+  }
  }
 }
