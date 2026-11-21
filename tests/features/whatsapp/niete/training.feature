@@ -541,6 +541,43 @@ Feature: NIETE (ICT) Teacher Training
     # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
     # scheduler in tests/quiz/report-promise-truth.test.js. @wip.
 
+  # @no-mock-driver: the late check fires at the next 07:00 PKT through the scheduled report job; the mock lane
+  # cannot move the clock. bot/tests/workers/video-quiz-report-late-finishers.test.js drives it through the worker.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1196
+  Scenario: Children who finish after my class report reach me the next morning
+    Given app_settings "video_quiz_late_report" is on with k 5
+    And my class report for a quiz went out yesterday
+    When 5 more children who had not finished it finish it after the report
+    Then at 7 in the morning I get the class report again, with those children in it
+    And I get it at most once that day, however many more finish
+    # video-quiz-report scheduleForShareCode: a join on a reported code arms the next 07:00 PKT check
+    # (armLateCheck), never a fresh 12 h chain; buildAndSend applies lateReportDecision (k children
+    # first-finished since the last report, cap_per_day). Logs report_followup{n_late,k,mode} and
+    # report_sent{trigger:'followup'}. @wip.
+
+  # @no-mock-driver: same 07:00 scheduled check as the scenario above; executed in the same worker test.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1197
+  Scenario: Fewer late finishers than the switch's k send nothing, and the switch off is today's one report
+    Given my class report for a quiz went out yesterday
+    And 4 children finished it after the report
+    When app_settings "video_quiz_late_report" is on with k 5
+    Then no second report comes, and those children are on the live report page the first report links to
+    When the switch is false, missing or unreadable
+    Then a quiz has exactly one automatic class report, as today
+    # lateReportDecision why 'below_k'; while the quiz is still being played the next 07:00 is armed again,
+    # a quiet quiz stops. Off: generate suppresses every scheduled run on a reported code (already_reported). @wip.
+
+  # @no-mock-driver: the ask is a WhatsApp Flow / list tap racing a scheduled job; executed in
+  # bot/tests/workers/video-quiz-report-late-finishers.test.js and bot/tests/quiz/report-not-through.test.js.
+  @e2e @quiz @wip @draft @no-mock-driver @P2 @T1198
+  Scenario: Asking for the report from /quiz early does not cancel the automatic class report
+    Given the NIETE bot chat is open and children have started my quiz
+    When I ask for its report from /quiz before the 12 hours are up
+    Then the report comes to my chat
+    And the automatic class report still comes at its time, with the children who finished since
+    # generate(force) stamps only the quiz row (markReportSent code:false); report_sent_at stays the automatic
+    # report's, so the 12 h run is not suppressed and late finishers count from it. @wip.
+
   @e2e @quiz @i18n @wip @draft @P2 @T75
   Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
     Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
