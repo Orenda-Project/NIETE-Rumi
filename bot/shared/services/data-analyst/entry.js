@@ -156,7 +156,11 @@ async function answer(question, { user, from, identity }, deps) {
     const reply = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText || '', hasChart: Boolean(png), rest: png && specs[0] ? specs[0].rest : breakdownLines(result.calls) });
     let choices = [];
     if (reply.asks.length) {
-      choices = await sendAsks(from, reply.caption, reply.asks, deps);
+      // An answer with rows that ends with an optional question (bd-bhgw20.4): the chart and its lines first,
+      // then the question alone as taps. A question asked before counting has no rows and goes alone, as before.
+      for (const m of reply.before) await whatsapp.sendMessage(from, m);
+      const shown = png ? await whatsapp.sendImageFromBuffer(from, png, reply.caption) : false;
+      choices = await sendAsks(from, shown ? '' : reply.caption, reply.asks, deps);
     } else {
       for (const m of reply.before) await whatsapp.sendMessage(from, m);
       let sent = false;
