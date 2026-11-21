@@ -258,6 +258,8 @@ async function loadLpQuizzes(userId, needed) {
   const { data, error } = await supabase.from('quizzes')
     .select(LP_QUIZ_SELECT)
     .eq('teacher_id', userId).in('quiz_source', PLAN_SOURCES)
+    // A class's evening round is the class's, not a quiz for the teacher to send (web-quiz-evening-round).
+    .or('meta->>source.is.null,meta->>source.neq.evening_round')
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
   if (error) logToFile('❌ transcript quiz: lp_v8 quizzes lookup failed', { userId, error: error.message }, 'error');
