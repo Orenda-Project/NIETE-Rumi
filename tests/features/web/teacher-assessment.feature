@@ -245,3 +245,17 @@ Feature: Teacher assessment
     And a Grade 1-4 paper shows FDE's target for its grade and subject from FDE's 2023-24 tables
     And a Grade 6-12 paper, or a subject FDE gives no table for, shows no FDE target
     And nothing stops the teacher keeping a paper that differs from the target
+
+  @sandbox
+  # bd-zrdvmi.50.3 — ICT Feedback sheet, Assessment Generator row 12 (Saba Kokab; Amena 21 Nov): a group of MCQs or
+  # blanks under one heading counts as one question toward the 50.
+  Scenario: A group of MCQs, blanks or true/false counts as one question toward the 50
+    Given a teacher on Questions for a Grade 5 Science paper
+    When she asks for 20 MCQs, 10 Fill in the Blanks, 10 True/False and 25 Short Questions
+    Then the total reads 28 questions and Next is open
+    And she can still add more MCQs while the paper prints fewer than 100 items
+    When she asks for 51 Short Questions
+    Then Next is held with "Questions: 1 to 50"
+    When her types add up to more than 100 printed items
+    Then Next is held with "Printed items: up to 100"
+    And on WhatsApp the same paper is accepted on the counts screen, and 51 written questions are refused naming 50

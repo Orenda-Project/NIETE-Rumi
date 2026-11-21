@@ -149,9 +149,10 @@ describe('the endpoint', () => {
     await exchange('u1', 'QUESTIONS', { content_source: 'both' }, TOKEN);
     await exchange('u1', 'SEEN_COUNT', { seen_count: '30' }, TOKEN);
     await exchange('u1', 'TYPES', { question_types: ['MCQs', 'Brief Answers'] }, TOKEN);
-    const r = await exchange('u1', 'COUNTS', { count_1: '15', count_2: '10' }, TOKEN);
+    // AG row 12: the 15 MCQs are one group, so it is the 25 written ones that take it over (30 + 1 + 25 = 56).
+    const r = await exchange('u1', 'COUNTS', { count_1: '15', count_2: '25' }, TOKEN);
     expect(r.screen).toBe('COUNTS');
-    expect(r.data.error).toMatch(/55/);
+    expect(r.data.error).toMatch(/56/);
     expect(r.data.error).toMatch(/30 Seen/);
     expect(r.data.error).toMatch(/50/);
     expect(r.data.has_error).toBe(true);

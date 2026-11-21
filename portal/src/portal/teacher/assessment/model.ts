@@ -140,6 +140,19 @@ export function seenTotal(p: Pick<Picks, 'seen' | 'seenTypeCounts'>): number {
   return seenByType(p) ? chosenSeenTypes(p).reduce((s, [, n]) => s + n, 0) : Math.max(0, p.seen);
 }
 
+/**
+ * AG row 12 (Amena 21 Nov 2026): how many questions the paper counts toward the cap. A type the bot groups under one
+ * heading (its /assessment/options `groupedTypes`) is one; any other type, and a single seen number, one each.
+ */
+export function limitTotal(p: Pick<Picks, 'seen' | 'typeCounts' | 'seenTypeCounts'>, grouped: readonly string[]): number {
+  const part = (rows: Array<[string, number]>) => rows.reduce((s, [id, n]) => s + (grouped.includes(id) ? 1 : n), 0);
+  const seen = seenByType(p) ? part(chosenSeenTypes(p)) : Math.max(0, p.seen);
+  return seen + part(chosenTypes(p));
+}
+
+/** The bot's counting rule for the cap, from /assessment/options (AG row 12). */
+export type Limits = { grouped: readonly string[]; maxItems: number };
+
 /** How many questions on the paper: the seen ones and the unseen ones. */
 export function questionTotal(p: Pick<Picks, 'seen' | 'typeCounts' | 'seenTypeCounts'>): number {
   return seenTotal(p) + unseenTotal(p);
@@ -184,6 +197,7 @@ export type Why =
   | { code: 'ranges' }
   | { code: 'none' }
   | { code: 'count'; max: number }
+  | { code: 'items'; max: number }
   | { code: 'marks'; max: number }
   | { code: 'marksLow'; total: number }
   | { code: 'earlier'; step: Step }
@@ -198,7 +212,9 @@ export type Why =
  * and a marks total under the question count is held here, because the generator drops whole questions to fit a
  * budget it cannot meet. Every disabled Next / Make my paper says this beside it (ButtonWithReason).
  */
-export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolean; offerFde?: boolean } = {}): Why | null {
+export function stepWhy(
+  step: Step, p: Picks, max: number, opts: { busy?: boolean; offerFde?: boolean; limits?: Limits } = {},
+): Why | null {
   if (isFde(p)) {
     // The board pattern: the class, and the FDE syllabus or at least one of its units; the rest the pattern fixes.
     if (step === 'class' || step === 'check') {
@@ -221,7 +237,9 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
     case 'questions': {
       const total = questionTotal(p);
       if (total === 0) return { code: 'none' };
-      if (total > max) return { code: 'count', max };
+      // AG row 12: with the bot's limits a group under one heading counts as one; without them, every item counts.
+      if ((opts.limits ? limitTotal(p, opts.limits.grouped) : total) > max) return { code: 'count', max };
+      if (opts.limits && total > opts.limits.maxItems) return { code: 'items', max: opts.limits.maxItems };
       if (p.marks !== null) {
         if (!intIn(p.marks, 1, MAX_TOTAL_MARKS)) return { code: 'marks', max: MAX_TOTAL_MARKS };
         if (p.marks < total) return { code: 'marksLow', total };
@@ -229,7 +247,7 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
       return null;
     }
     case 'check': {
-      const first = TOPIC_STEPS.slice(0, -1).find((s) => stepWhy(s, p, max) !== null);
+      const first = TOPIC_STEPS.slice(0, -1).find((s) => stepWhy(s, p, max, { limits: opts.limits }) !== null);
       return first ? { code: 'earlier', step: first } : null;
     }
     default:
