@@ -355,20 +355,23 @@ function composeReply({ text, calls = [], stoppedEarly = false, knownText = '', 
   const { body: raw } = splitNext(withoutAsks);
   const known = new Set([...urlsInResults(calls), ...urlsIn(knownText)]);
   const body = toWhatsApp(raw, known);
-  if (asks.length) return { caption: body.slice(0, MAX_BODY), before: [], asks, body };
-  // Beside a chart: the headline and one more line, never the model's own bullets (the chart is the breakdown).
-  const lead = hasChart ? body.split('\n').filter((l) => l.trim() && !/^\s*(?:[•·\-–]|\d+[.)])\s/.test(l) && !/:\s*$/.test(l)).slice(0, 2).join('\n') : body;
   // bd-bhgw20.4: beside a chart, the measures it leaves out; with no chart, every row of the breakdown.
   // One line per row under the text, from the data itself, never dropped.
   const listed = Array.isArray(rest) ? rest.filter((l) => typeof l === 'string' && l.trim()) : [];
+  // A question asked before anything was counted is the whole message. One asked after the rows (an optional
+  // split) keeps the rows: the caption below, and the question comes back as `asks` (bd-bhgw20.4).
+  if (asks.length && !hasChart && !listed.length) return { caption: body.slice(0, MAX_BODY), before: [], asks, body };
+  // Beside a chart: the headline and one more line, never the model's own bullets (the chart is the breakdown).
+  const lead = hasChart ? body.split('\n').filter((l) => l.trim() && !/^\s*(?:[•·\-–]|\d+[.)])\s/.test(l) && !/:\s*$/.test(l)).slice(0, 2).join('\n') : body;
   const shown = listed.length ? `${lead}\n\n${listed.join('\n')}` : lead;
   const head = [stoppedEarly ? INCOMPLETE : '', shown].filter(Boolean);
   const notes = disclosures(calls);
   const foot = footer(calls);
   const all = [...head, notes.length ? notes.join('\n') : '', foot].filter(Boolean).join('\n\n');
-  if (all.length <= MAX_BODY) return { caption: all, before: [], asks: [], body };
+  if (all.length <= MAX_BODY) return { caption: all, before: [], asks, body };
   const opening = [...head, notes.length ? notes.join('\n') : ''].filter(Boolean).join('\n\n');
-  return { caption: (foot ? `${foot}\n\n${NEXT_STEP}` : NEXT_STEP).slice(0, MAX_BODY), before: chunk(opening), asks: [], body };
+  const closing = asks.length ? foot : (foot ? `${foot}\n\n${NEXT_STEP}` : NEXT_STEP);
+  return { caption: (closing || NEXT_STEP).slice(0, MAX_BODY), before: chunk(opening), asks, body };
 }
 
 module.exports = { splitNext, splitAsks, toWhatsApp, disclosures, footer, renderAnswer, composeReply, chunk, queryDates };

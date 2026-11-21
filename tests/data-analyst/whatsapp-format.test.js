@@ -207,3 +207,18 @@ describe('composeReply: the measures the chart leaves out go under it (bd-bhgw20
     expect(r.caption).toContain('Visits.\n• Urban-I leads.\n\nB.K: 229\nNilore: 131');
   });
 });
+
+describe('composeReply: an answer with rows and an optional question keeps both (bd-bhgw20.4)', () => {
+  test('beside a chart: the caption is the headline and the listed lines; the question comes back as asks', () => {
+    const r = F.composeReply({ text: '*1,135 coach visits* were held.\n• Urban-I leads.\nASK: Split by test group? | Yes | No', hasChart: true, rest: ['B.K: 217 reviewed'] });
+    expect(r.asks).toHaveLength(1);
+    expect(r.caption).toContain('*1,135 coach visits* were held.');
+    expect(r.caption).toContain('B.K: 217 reviewed');
+    expect(r.caption).not.toContain('ASK:');
+  });
+  test('no chart but listed rows: the rows stay in the caption beside the question', () => {
+    const r = F.composeReply({ text: 'Visits.\nASK: Split? | Yes | No', hasChart: false, rest: ['B.K: 229'] });
+    expect(r.asks).toHaveLength(1);
+    expect(r.caption).toContain('B.K: 229');
+  });
+});
