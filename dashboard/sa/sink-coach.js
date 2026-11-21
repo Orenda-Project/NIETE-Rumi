@@ -4,6 +4,7 @@
  * calls, with the coach's own session cookie (same origin). The engine never sees a coach credential.
  *
  * A signed-out coach (401/403) or a switched-off route (404) is a failure the sync retries later: nothing is lost.
+ * A refused call's error carries the answer's reason (.reason), when it has one.
  * Every batch carries the phone's device fields (mic_ok, mic_rms, persisted, voice) from the mic check and
  * SAE.prepare's localStorage keys, its viewport (vw / vh in whole CSS px, dpr to 2 decimals), its user agent (ua) and the
  * engine the service worker served the page (bundle_v: its sa-core-* cache, sw.js CORE); a presign's {skip, reason} comes
@@ -67,7 +68,8 @@
       var m = null;
       try { m = JSON.parse(raw); } catch (_) { m = raw; }
       if (m && typeof m === 'object') { d.mic_ok = m.mic_ok === true; d.mic_rms = num(m.mic_rms); } else d.mic_ok = m === true || m === 1 || m === '1' || m === 'true';
-      if (d.mic_rms == null) d.mic_rms = num(ls.getItem('sa:mic_rms'));
+      // an unmeasured pass (sa_r28_mic_unknown: no analyser) has no level, and no older check's level stands in for it
+      if (d.mic_rms == null && !(m && typeof m === 'object' && m.how === 'unmeasured')) d.mic_rms = num(ls.getItem('sa:mic_rms'));
       var p = ls.getItem('sa:persisted');
       d.persisted = p === 'true' ? true : (p === 'false' ? false : null);
       d.voice = ls.getItem('sa:voice') || null;
@@ -94,8 +96,13 @@
         headers: hdr({ 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify(body),
       })).then(function (res) {
-        if (!res.ok) { var e = new Error('coach sink ' + path + ' ' + res.status); e.status = res.status; throw e; }
-        return res.json();
+        if (res.ok) return res.json();
+        var e = new Error('coach sink ' + path + ' ' + res.status);
+        e.status = res.status;
+        // a refusal's reason (e.g. already_scored) rides on the error, for the sync to tell it apart
+        return Promise.resolve(typeof res.json === 'function' ? res.json() : null).then(function (b) {
+          if (b && typeof b.reason === 'string') e.reason = b.reason;
+        }, function () {}).then(function () { throw e; });
       });
     }
 
