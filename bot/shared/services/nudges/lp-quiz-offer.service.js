@@ -605,6 +605,75 @@ async function prepare({ now } = {}) {
   return buildCohort({ nudgeDate, now: at });
 }
 
+// ─── one teacher's lessons for a day (the class link's evening round) ───────
+
+const PKT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The lessons each teacher took that count for `dayPkt`, by this cohort's own rule: the cutoff
+ * (a lesson taken after it is the next school day's), lesson assets only (never an answer key),
+ * no assessment segment, no held subject, and only a version that has a slide script. WhatsApp
+ * deliveries and app opens, as the build reads them. Nothing else here reads it: the class link's
+ * evening round imports it (thousands of classes at once, so it is batched), and the round is
+ * written from exactly what this offer would name.
+ *
+ * Read-only. One teacher reads only their own app opens; many read the window once, as the build
+ * does. A failed app-open read is logged and the WhatsApp lessons still count; a failed download
+ * read throws (the caller decides).
+ *
+ * @param {string[]} teacherIds  users.id
+ * @param {string} dayPkt        a PKT calendar date, YYYY-MM-DD
+ * @returns {Promise<Map<string, {key: string, grade: *, subject: *, lessons: object[]}[]>>} every id
+ *   asked for is a key; [] when it took nothing that counts
+ */
+async function lpTakenFor(teacherIds, dayPkt) {
+  const ids = [...new Set((teacherIds || []).filter((id) => typeof id === 'string' && id))];
+  const out = new Map(ids.map((id) => [id, []]));
+  if (!ids.length || !PKT_DATE_RE.test(String(dayPkt || ''))) return out;
+  const upper = PktTime.atPkt(dayPkt, cutoffHour(), 0);
+  const lower = new Date(PktTime.atPkt(dayPkt, 0, 0).getTime() - WINDOW_DAYS * 86400000);
+  const rows = [];
+  for (const part of chunks(ids)) {
+    // eslint-disable-next-line no-await-in-loop
+    rows.push(...await pagedRows('lp taken: downloads', () => supabase
+      .from('niete_lp_downloads')
+      .select('user_id, lesson_id, asset_id, version_stamp, content_hash, grade, subject, chapter_number, segment_index, created_at')
+      .in('user_id', part)
+      .eq('status', 'sent')
+      .gte('created_at', lower.toISOString())
+      .lt('created_at', upper.toISOString())));
+  }
+  let opened = [];
+  try {
+    opened = ids.length === 1
+      ? await AppOpens.teacherViewerOpensBetween(ids[0], lower.toISOString(), new Date(upper.getTime() - 1).toISOString(), 200)
+      : (await AppOpens.viewerOpensAsDownloads(lower.toISOString(), upper.toISOString())).filter((r) => out.has(r.user_id));
+  } catch (err) {
+    logToFile('lp taken: app opens unreadable — WhatsApp lessons only', { error: err.message }, 'error');
+  }
+  const taken = [...rows, ...opened].filter((r) => r.asset_id && cohortRuleDate(r.created_at) === dayPkt);
+  if (!taken.length) return out;
+  const lessonAssets = await lessonAssetIds(taken.map((r) => r.asset_id));
+  const lessons = taken.filter((r) => lessonAssets.has(r.asset_id)
+    && !String(r.lesson_id || '').endsWith(ASSESSMENT_SUFFIX)
+    && !ReligiousHold.isHeldLesson(r));
+  const sourced = lessons.length ? await SourceStore.resolvableVersions(lessons) : new Set();
+  for (const g of groupLessons(lessons.filter((r) => sourced.has(SourceStore.versionKey(r))))) {
+    if (out.has(g.userId)) out.set(g.userId, g.classes);
+  }
+  return out;
+}
+
+/**
+ * One teacher's lessons for `dayPkt` (lpTakenFor for one id).
+ * @returns {Promise<{nudgeDate: string|null, classes: object[]}>}
+ */
+async function lpTakenToday(teacherId, dayPkt) {
+  if (!teacherId || !PKT_DATE_RE.test(String(dayPkt || ''))) return { nudgeDate: dayPkt || null, classes: [] };
+  const map = await lpTakenFor([teacherId], dayPkt);
+  return { nudgeDate: dayPkt, classes: map.get(teacherId) || [] };
+}
+
 // ─── the send (the sweeper's handler for this kind) ──────────────────────────
 
 /** The free-form window a teacher opens by writing to the bot (D3). */
@@ -1221,6 +1290,9 @@ module.exports = {
   preChecks,
   sectorFor,
   buildCohort,
+  // The class link's evening round: teachers' lessons for a day, by the cohort rule.
+  lpTakenFor,
+  lpTakenToday,
   forgetEmptyDays,
   prepare,
   send,
