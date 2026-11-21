@@ -2,7 +2,9 @@
  * The standing class link at the edge (switch web_quiz_class_link, decided by the bot; OFF by default).
  *
  *   GET  /j/:code            the landing: a generic preview (og.link.* only: no class, school, teacher or child
- *                            name, no digit) and a shell; class-link.js asks the bot for each step
+ *                            name, no digit) and a shell; class-link.js asks the bot for each step. Its marker
+ *                            (?f=1 / ?from=fwd forward, ?from=push reminder, ?from=hub hub) goes to the bot as ?via=
+ *                            (web_quiz.class_link_open) and into the boot JSON, so arrive does not count it again
  *   POST /api/wq/cl/arrive   {code, device_ref, jt?}  forwarded to the bot's /api/internal/wq/cl/arrive
  *   POST /api/wq/cl/teacher  {code, s, tk}
  *   POST /api/wq/cl/letter   {code, s, letter}
@@ -19,6 +21,15 @@ const CL_CODE_RX = /^[A-HJ-NP-Z2-9]{8,16}$/;
 const JT_RX = /^[A-Za-z0-9_-]{8,600}\.[A-Za-z0-9_-]{22}$/;
 const STEPS = ['arrive', 'teacher', 'letter', 'pick'];
 
+/** The landing's marker -> the open's via, or null (unmarked: "remembered" is decided by the bot at arrive). */
+function viaOfQuery(q = {}) {
+  const from = typeof q.from === 'string' ? q.from : null;
+  if (from === 'push') return 'reminder';
+  if (from === 'hub') return 'hub';
+  if (q.f === '1' || from === 'fwd') return 'forward';
+  return null;
+}
+
 // og.link.title / og.link.desc (copy.v2.json) — the preview carries nothing else.
 const OG = {
   en: { title: "Jugnu's Challenge", desc: 'Stories and number games. Tap to play.' },
@@ -26,7 +37,7 @@ const OG = {
 };
 const BOOT_SAY = { en: 'Opening…', ur: 'کھل رہا ہے…' };
 
-function renderClassLinkPage({ lang, code, jt, origin, assetV, jsV, brand, ui, head, esc, bootJson, preview = false }) {
+function renderClassLinkPage({ lang, code, jt, via = null, origin, assetV, jsV, brand, ui, head, esc, bootJson, preview = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const og = OG[l];
   // og:url is the origin, never the code: the preview carries no digit.
@@ -35,6 +46,7 @@ function renderClassLinkPage({ lang, code, jt, origin, assetV, jsV, brand, ui, h
   if (preview) return `${top}\n<body></body>\n</html>`;
   const boot = { view: 'class_link', code, lang: l };
   if (jt) boot.jt = jt;
+  if (via) boot.via = via;
   return `${top}
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_SAY[l])}</p></div></main>
@@ -75,7 +87,8 @@ function registerClassLink(router, d) {
     const preview = d.isPreviewFetch(req);
     const jt = typeof req.query.t === 'string' && JT_RX.test(req.query.t) ? req.query.t : null;
     // The teacher card's signed token goes to the bot, which checks it: the teacher's own visit is not counted as opened.
-    const q = [preview ? 'pv=1' : null, jt ? `jt=${encodeURIComponent(jt)}` : null].filter(Boolean).join('&');
+    const via = viaOfQuery(req.query);
+    const q = [preview ? 'pv=1' : null, jt ? `jt=${encodeURIComponent(jt)}` : null, via ? `via=${encodeURIComponent(via)}` : null].filter(Boolean).join('&');
     let out;
     try {
       out = await d.callBot('GET', `/api/internal/wq/cl/${code}${q ? `?${q}` : ''}`, req, null, { route: '/api/internal/wq/cl/:code' });
@@ -87,10 +100,10 @@ function registerClassLink(router, d) {
       return d.closedPage(req, res, out.status === 404 || out.status === 410 ? 404 : 502, out.status === 404 || out.status === 410 ? 'closed' : 'off');
     }
     return res.status(200).type('html').send(renderClassLinkPage({
-      lang: out.body.lang, code, jt, origin, assetV: d.version(), jsV: d.jsVersion(), brand: d.brand(), ui: d.ui(),
+      lang: out.body.lang, code, jt, via, origin, assetV: d.version(), jsV: d.jsVersion(), brand: d.brand(), ui: d.ui(),
       head: d.head, esc: d.esc, bootJson: d.bootJson, preview,
     }));
   });
 }
 
-module.exports = { registerClassLink, renderClassLinkPage, CL_CODE_RX, OG };
+module.exports = { registerClassLink, renderClassLinkPage, viaOfQuery, CL_CODE_RX, OG };
