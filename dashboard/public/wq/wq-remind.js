@@ -19,6 +19,7 @@
       remindBody: 'One reminder on this phone, on school-day evenings. You can stop it any time.',
       remindYes: 'Yes, remind me',
       remindLater: 'Not now',
+      remindWait: 'Turning reminders on…',
       remindDone: 'Done. Jugnu will remind you tomorrow evening.',
       remindDoneMon: 'Done. Jugnu will remind you on Monday evening.',
       remindTest: 'Send one now',
@@ -42,6 +43,7 @@
       remindBody: 'اس فون پر، اسکول کے دنوں کی شام، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
       remindYes: 'جی ہاں، یاد دلائیں',
       remindLater: 'ابھی نہیں',
+      remindWait: 'یاد دہانی آن ہو رہی ہے…',
       remindDone: 'ہو گیا۔ جگنو کل شام یاد دلائے گا۔',
       remindDoneMon: 'ہو گیا۔ جگنو پیر کی شام یاد دلائے گا۔',
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
@@ -208,6 +210,8 @@
     }
 
     var show = {
+      // after Chrome's Allow: the worker and the push service take seconds, so the card says it is working at once
+      wait: function () { draw('<p class="wq-sub" role="status" aria-busy="true" style="margin:0' + fs + lh + '">' + esc(c.remindWait) + '</p>'); },
       ask: function () { draw((landing ? '' : title(onMonday() ? c.remindTitleMon : c.remindTitle)) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
       done: function () {
         pageTitle(c.onTitle);
@@ -268,6 +272,7 @@
           return null;
         }
         ev('granted');
+        show.wait();
         return subscribe().then(function (out) {
           if (out === 'ok') { ev('subscribed'); show.done(); } else if (out === 'class') { ev('failed', { ok: false }); draw(''); } else { ev('failed', { ok: false }); show.ask(); }
         });
