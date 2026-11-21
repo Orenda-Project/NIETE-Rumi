@@ -7,3 +7,4 @@
 {"ts":"2026-11-20T02:02:19Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"4621f5613847","branch":"bd-zrdvmi.32-staging","user":""}
 {"ts":"2026-11-20T02:02:32Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"4621f5613847","branch":"bd-zrdvmi.32-staging","user":""}
 {"ts":"2026-11-20T02:02:41Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"4621f5613847","branch":"bd-zrdvmi.32-staging","user":""}
+{"ts":"2026-11-21T08:10:03Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"4621f5613847","branch":"bd-zrdvmi.32-staging","user":""}
