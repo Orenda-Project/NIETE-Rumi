@@ -1,2 +1,3 @@
 {"ts":"2026-11-20T18:12:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"91ecf64669ba","branch":"bd-snkn32.59.4-staging","user":""}
 {"ts":"2026-11-21T08:17:28Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (portal unit edit guard only; WhatsApp lesson plans unchanged, as the commit Spec-Sync trailer says)","sha":"91ecf64669ba","branch":"bd-snkn32.59.4-staging","user":""}
+{"ts":"2026-11-21T08:17:29Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-91ecf64669ba","sha":"91ecf64669ba","branch":"bd-snkn32.59.4-staging","user":""}
