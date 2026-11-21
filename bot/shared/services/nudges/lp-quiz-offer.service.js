@@ -926,7 +926,7 @@ async function send(row, { now, windowTemplate = WindowClosedTemplate } = {}) {
     return { skipped: 'window_closed_template', context: { ...res, ...held } };
   }
   if (trace) {
-    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason, at: 'send', held_path: 'none' });
+    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, reason, at: 'send', held_path: 'none' });
     return { skipped: reason, context: { held_path: 'none' } };
   }
   if (reason) return skip(reason);
