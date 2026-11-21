@@ -20,7 +20,7 @@
 const { isConfigured, dataAnalystIdentity } = require('./switch');
 const { ConversationMemory } = require('./memory');
 const { composeReply, footer } = require('./whatsapp-format');
-const { chartSpecs } = require('./chart');
+const { chartSpecs, breakdownLines } = require('./chart');
 const { isClearlyNormal } = require('./classifier');
 
 const FOLLOW_UP_WINDOW_S = 10 * 60;
@@ -153,7 +153,7 @@ async function answer(question, { user, from, identity }, deps) {
     const specs = chartSpecs(result.calls, question);
     const foot = footer(result.calls).replace(/^_|_$/g, '');
     const png = specs.length ? await deps.renderChart(specs[0], { footer: foot }) : null;
-    const reply = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText || '', hasChart: Boolean(png) });
+    const reply = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText || '', hasChart: Boolean(png), rest: png && specs[0] ? specs[0].rest : breakdownLines(result.calls) });
     let choices = [];
     if (reply.asks.length) {
       choices = await sendAsks(from, reply.caption, reply.asks, deps);
