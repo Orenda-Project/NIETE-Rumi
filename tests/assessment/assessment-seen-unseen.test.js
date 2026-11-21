@@ -49,9 +49,13 @@ describe('the copy uses Seen and Unseen', () => {
     expect(headingOf('QUESTIONS')).toMatch(/Unseen/);
   });
 
-  test('the type-picking and per-type screens say they are about Unseen', () => {
-    expect(headingOf('TYPES')).toMatch(/Unseen/);
-    expect(headingOf('COUNTS')).toMatch(/Unseen/);
+  // bd-e5n2jf: TYPES and COUNTS now serve Seen too, so the endpoint names the side
+  // (assessment-seen-types-flow.test.js pins its words); the Flow keeps an Unseen example.
+  test('the type-picking and per-type screens take their Seen/Unseen heading from the endpoint', () => {
+    expect(headingOf('TYPES')).toBe('${data.heading}');
+    expect(headingOf('COUNTS')).toBe('${data.heading}');
+    expect(byId.TYPES.data.heading.__example__).toMatch(/Unseen/);
+    expect(byId.COUNTS.data.heading.__example__).toMatch(/Unseen/);
   });
 
   test('the Seen count screen says Seen', () => {
@@ -79,10 +83,12 @@ describe('the screens and routes', () => {
     expect(footer['on-click-action'].payload.seen_count).toBe('${form.seen_count}');
   });
 
-  test('QUESTIONS → SEEN_COUNT | TYPES; SEEN_COUNT → TYPES | CONFIRM; TYPES → COUNTS → CONFIRM', () => {
-    expect(FLOW.routing_model.QUESTIONS.sort()).toEqual(['SEEN_COUNT', 'TYPES']);
+  test('QUESTIONS → SEEN_COUNT | SEEN_TYPES | TYPES; SEEN_COUNT → TYPES | CONFIRM; TYPES → COUNTS → CONFIRM', () => {
+    expect(FLOW.routing_model.QUESTIONS.sort()).toEqual(['SEEN_COUNT', 'SEEN_TYPES', 'TYPES']);
     expect(FLOW.routing_model.SEEN_COUNT.sort()).toEqual(['CONFIRM', 'TYPES']);
     expect(FLOW.routing_model.TYPES).toEqual(['COUNTS']);
+    // bd-e5n2jf: Seen has its own SEEN_TYPES/SEEN_COUNTS, so COUNTS only moves forward
+    // (Meta refuses a routing model with a cycle).
     expect(FLOW.routing_model.COUNTS).toEqual(['CONFIRM']);
   });
 });

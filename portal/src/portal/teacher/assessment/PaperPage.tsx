@@ -131,6 +131,9 @@ export function PaperPage() {
           ? <PaperBody view={view} />
           : <p className="rounded-2xl border border-dashed border-[#c7cad6] bg-white p-5 text-center text-[16px] font-semibold text-[#4b5563]">{C.downloadToView}</p>}
       {rows.length > 0 && <ListCard label={C.myPapers}>{rows}</ListCard>}
+      {p.has_answer_key && (
+        <p data-testid="check-answers" className="px-2 text-center text-[14px] text-[#4b5563]">{C.checkAnswers}</p>
+      )}
       {fde && ['android-iab', 'ios-iab'].includes(browserEnv()) && (
         <p data-testid="fde-if-no-download" className="px-2 text-center text-[14px] text-[#4b5563]">{C.ifNoDownload}</p>
       )}

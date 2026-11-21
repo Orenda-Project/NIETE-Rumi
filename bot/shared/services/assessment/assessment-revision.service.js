@@ -244,11 +244,13 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
 
   let phone = knownPhone || null;
   let schoolName = null;
+  let language = null;
   try {
     const { data: user } = await supabase.from('users')
-      .select('phone_number, school_name').eq('id', userId).maybeSingle();
+      .select('phone_number, school_name, preferred_language').eq('id', userId).maybeSingle();
     phone = phone || user?.phone_number || null;
     schoolName = user?.school_name || null;
+    language = user?.preferred_language || null;
   } catch (err) {
     logToFile('[assessment-revision] user lookup failed', { userId, error: err.message });
   }
@@ -361,7 +363,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
         // No budget: nothing is waiting on this send, so it takes its turn in
         // the recipient's pacing like any other message.
         const ok = !!(await WhatsAppService.sendDocumentByLink(
-          phone, keyUrl, keyName, `Answer key · ${caption}`));
+          phone, keyUrl, keyName, resolveUx('assessmentKeyCaption', { language, params: { title: caption } })));
         logToFile(ok ? '[assessment-revision] answer key delivered' : '[assessment-revision] answer key send returned falsy',
           { userId, paperId, key: keyKey });
         return ok;
