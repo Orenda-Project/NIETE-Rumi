@@ -1,0 +1,485 @@
+{
+ "lesson_id": "grade_9_english.c09.p116-118.reading_comprehension",
+ "schema_version": "3.0",
+ "template_version": "v9",
+ "lint_profile": "full",
+ "provenance": {
+  "book_stem": "grade_9_english",
+  "grade": 9,
+  "subject": "English",
+  "medium": "en",
+  "chapter": "Unit 9 · Travel and Tourism",
+  "topic": "Reading and understanding the poem 'Travel'",
+  "printed_pages": "116-118",
+  "pdf_pages": "116-118",
+  "page_offset": 0,
+  "version": "2026-09-01",
+  "brand": {
+   "name": "NIETE Teaching Assistant",
+   "primary_hex": "#333748"
+  },
+  "source_quality_flags": [
+   "p.116 learning-outcomes list is a generic writing-skills bank, not specific to this poem — only the two SLOs actually taught are used"
+  ]
+ },
+ "notes": {
+  "supplied": [
+   "Robert Louis Stevenson's nationality (Scottish) and his roles (novelist, essayist, poet, travel writer) are stated in the book's own closing note, p.118 — reused verbatim, not invented"
+  ],
+  "defects": [
+   "the book prints no model answer for the single While-Reading question on p.117"
+  ],
+  "gaps": [
+   "the chapter prints no SLO code for either outcome taught today — homework is tagged with the objective ordinal (O1/O2) instead"
+  ]
+ },
+ "needs_human_review": false,
+ "human_review_reason": null,
+ "slo": {
+  "code": null,
+  "text_verbatim": "engage in extended discussions; explain whether predictions about the content of a text are acceptable or should be modified",
+  "source_page": "116",
+  "cognitive_level": "A",
+  "assessment_status": "Formative",
+  "command_word": "explain"
+ },
+ "lp_type": "LL-2",
+ "period_minutes": 40,
+ "board_weight": null,
+ "materials": [
+  "board marker",
+  "textbook p.116-118"
+ ],
+ "sequence": {
+  "previous": "a reading passage from the previous unit",
+  "this": "Reading and understanding the poem 'Travel' (p.116-118)",
+  "next": "Vocabulary and grammar building from the poem 'Travel' (p.117-122)",
+  "checkpoint": "Unit 9 assessment, end of chapter"
+ },
+ "objectives": {
+  "outcome": "You can predict a poem's content from its title and test the prediction against the text.",
+  "by_the_end": "By the end you can answer a short-response question naming the poem's main theme with textual evidence.",
+  "items": [
+   {
+    "text": "You can say whether your prediction matched the text, and explain why.",
+    "slo_code": "O1"
+   },
+   {
+    "text": "You can state the poem's main theme using evidence from specific lines.",
+    "slo_code": "O2"
+   }
+  ]
+ },
+ "sections": [
+  {
+   "id": "introduction",
+   "minutes": 10,
+   "warmup": {
+    "items": [
+     {
+      "ref": "W1",
+      "kind": "scaffold",
+      "q": "Look only at the title 'Travel' on the board. Before we read a word, tell your partner: what do you think this poem will be about?",
+      "a": "Any reasonable guess — journeys, foreign places, adventure. The point is that pupils commit to a prediction before reading."
+     },
+     {
+      "ref": "W2",
+      "kind": "prerequisite",
+      "q": "Name one landmark you would like to visit and say which country it is in.",
+      "a": "Any correct landmark-country pairing, e.g. the Eiffel Tower, France."
+     },
+     {
+      "ref": "W3",
+      "kind": "spaced",
+      "q": "In our last reading, what clue in the text told you what the passage was mainly about?",
+      "a": "Pupils recall using the title, opening lines or repeated key words as clues — from the previous chapter's reading."
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "type": "ask",
+     "id": "hook",
+     "hook": true,
+     "closed_by": "close-hook",
+     "question": "You have guessed what 'Travel' will be about from its title alone. The poet never actually leaves his chair in this poem — so how can it still be about travel?",
+     "look_for": "Pupils notice the poem is about imagined or wished-for travel, not a real journey — a prediction they can only confirm by reading closely."
+    },
+    {
+     "type": "keywords",
+     "page": "116",
+     "items": [
+      {
+       "word": "theme",
+       "meaning": "the main idea an author explores in a piece of writing"
+      },
+      {
+       "word": "prediction",
+       "meaning": "a guess about what a text will contain, made before or while reading"
+      }
+     ]
+    },
+    {
+     "type": "watch_out",
+     "text": "Pupils often confuse the poem's SETTING (far-off places) with its THEME (the longing to travel). Push them past 'it's about deserts and jungles' to 'it's about wanting to travel'."
+    },
+    {
+     "type": "board",
+     "text": "TITLE: 'Travel' — my prediction: ___________"
+    }
+   ]
+  },
+  {
+   "id": "development",
+   "minutes": 12,
+   "textbook_page": "117",
+   "blocks": [
+    {
+     "type": "paragraph",
+     "id": "close-hook",
+     "closes_hook": true,
+     "text": "The poet stays in one place and imagines journeys he has not taken — so this poem is about the WISH to travel, built entirely from pictures in his head. Let's test that against the text itself."
+    },
+    {
+     "type": "key_points",
+     "items": [
+      "The poem 'Travel' is by Robert Louis Stevenson, a Scottish novelist, essayist, poet and travel writer (p.118).",
+      "Lines 1-2 state the poem's wish directly: 'I should like to rise and go / Where the golden apples grow'.",
+      "The rest of the poem lists imagined places: parrot islands, Eastern cities, the Great Wall, hot forests.",
+      "A prediction made from a title is tested, then accepted or revised, by reading the actual lines."
+     ]
+    },
+    {
+     "type": "textbook_figure",
+     "id": "fig-117-globe",
+     "ref": "grade_9_english/pg_117_f0",
+     "figure_label": "p.117 figure",
+     "page": "117",
+     "caption": "as in your book, p.117",
+     "legend": "A globe with an airplane, a truck and a shipping container moving away from it on radiating lines — showing how people and goods travel to far-off places, which is exactly what the poem imagines."
+    },
+    {
+     "type": "diagram",
+     "id": "dg-poem-flow",
+     "spec": {
+      "type": "flow",
+      "direction": "lr",
+      "title": "HOW WE TEST A PREDICTION",
+      "steps": [
+       {
+        "title": "1. PREDICT",
+        "lines": [
+         "from the title alone"
+        ]
+       },
+       {
+        "title": "2. READ",
+        "lines": [
+         "lines 1-2: 'I should like to rise and go'"
+        ],
+        "color": "var(--navy)"
+       },
+       {
+        "title": "3. COMPARE",
+        "lines": [
+         "prediction vs. what the text says"
+        ]
+       },
+       {
+        "title": "4. ACCEPT or MODIFY",
+        "lines": [
+         "state the real theme: a wish to travel"
+        ],
+        "color": "var(--leaf)"
+       }
+      ],
+      "caption": "This is the sequence every pupil follows in the I-do, the we-do and the you-do today."
+     }
+    },
+    {
+     "type": "worked_example",
+     "id": "ido",
+     "title": "I do — p.117, lines 1-2",
+     "prompt": "Read the opening two lines: 'I should like to rise and go / Where the golden apples grow'. What does this tell us about the poem's theme, and does it match our prediction from the title?",
+     "steps": [
+      "'I should like to' signals a WISH, not something already happening.",
+      "'Golden apples' is an imagined, almost fairy-tale place — not a real destination.",
+      "So the theme is the LONGING to travel to faraway, wonderful places.",
+      "Compare this to the prediction on the board: if someone guessed 'adventure' or 'far-off places', the text confirms it; if someone guessed something unrelated, we now revise it."
+     ],
+     "result": "Theme so far: a wish to travel to distant, wonderful places — confirmed by the poem's own opening lines."
+    },
+    {
+     "type": "watch_out",
+     "misconception": true,
+     "text": "A pupil may say the theme is 'deserts and jungles' because those words appear often. Redirect: those are PLACES mentioned, not the THEME — ask 'why does the poet mention them?' to reach 'because he wishes he could see them'."
+    }
+   ],
+   "video": {
+    "url": "https://www.youtube.com/watch?v=kmfkQ285vk0",
+    "title": "Travel And Tourism| Class-9| Unit - 1| Introduction to tourism|Part -1| In hindi",
+    "channel": "Dream academy",
+    "checked_at": "2026-09-03T09:54:50Z"
+   }
+  },
+  {
+   "id": "activity",
+   "minutes": 11,
+   "blocks": [
+    {
+     "type": "faded_example",
+     "id": "wedo",
+     "minutes": 5,
+     "title": "We do — together on the board, p.117-118",
+     "prompt": "Read the lines about the Great Wall and the hot forests together: 'Where the Great Wall round China goes... Where are forests, hot as fire, / Wide as England, tall as a spire'. What do these lines ADD to our theme?",
+     "steps": [
+      "These are two more imagined places — China and a vast tropical forest.",
+      "Notice the poet compares them to things he knows: 'Wide as England' — he imagines the unfamiliar using the familiar.",
+      "You fill this in: does this line change our theme, or confirm it?"
+     ],
+     "answer": "It confirms the theme — the poem keeps listing distant places the poet wishes to see, each described through imagination and comparison."
+    },
+    {
+     "type": "practice",
+     "id": "youdo",
+     "mode": "independent",
+     "minutes": 6,
+     "cite": "While-Reading Question, p.117",
+     "items": [
+      {
+       "ref": "P1",
+       "tier": "support",
+       "level": "K",
+       "q": "Name two places mentioned in the poem that the poet imagines visiting.",
+       "a": "Any two of: parrot islands, Eastern cities, China/the Great Wall, hot forests, the Nile, jungles, a deserted desert city. (Accept any two named places from the poem.)"
+      },
+      {
+       "ref": "P2",
+       "tier": "core",
+       "level": "U",
+       "q": "What do you think is the main theme of this poem? (p.117, While-Reading Question)",
+       "a": "The theme is the poet's longing or wish to travel to distant, wonderful, imagined places — shown by the repeated 'Where...' structure and the opening 'I should like to rise and go'."
+      },
+      {
+       "ref": "P3",
+       "tier": "extension",
+       "level": "A",
+       "q": "Was your prediction from the warm-up acceptable, or should it be modified? Explain using one line from the poem.",
+       "a": "Pupils compare their own prediction to the confirmed theme (longing to travel) and explain using a quoted line, e.g. 'I should like to rise and go' shows it is a wish, not a real journey — so a prediction of 'an adventure story' would need modifying to 'a poem about imagining travel'."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "conclusion",
+   "minutes": 4,
+   "checkpoint": {
+    "ref": "C1",
+    "marks": 4,
+    "question": "Explain whether your prediction about the poem's content was acceptable or needed to be modified, using evidence from the text.",
+    "mark_scheme": [
+     "1 mark: states original prediction",
+     "2 marks: + names the actual theme (wish to travel to imagined places)",
+     "4 marks: + explains match/mismatch using a quoted line as evidence"
+    ]
+   },
+   "exit_ticket": [
+    {
+     "ref": "X1",
+     "q": "In one sentence, what is the theme of 'Travel'?",
+     "a": "The poet's wish/longing to travel to distant, imagined places."
+    },
+    {
+     "ref": "X2",
+     "q": "Quote one line from the poem and explain how it shows this is an imagined journey, not a real one.",
+     "a": "Any line beginning 'I should like to rise and go' or similar — accept any correctly quoted line showing wish/imagination, with a brief explanation linking it to longing rather than an actual trip."
+    }
+   ],
+   "reteach_rule": "If more than a third of the class state the theme as a list of places rather than the WISH to travel, redo the I-do on lines 1-2 before moving to vocabulary work next period.",
+   "blocks": [
+    {
+     "type": "board",
+     "text": "THEME OF 'TRAVEL': a wish to visit distant, imagined places."
+    }
+   ]
+  },
+  {
+   "id": "homework",
+   "minutes": 3,
+   "homework": {
+    "items": [
+     {
+      "ref": "H1",
+      "format": "mcq",
+      "level": "K",
+      "slo_code": "O2",
+      "marks": 1,
+      "text": "Which best describes the poet's position in the poem 'Travel'? (A) He is already travelling by ship (B) He is imagining places he wishes to visit (C) He is reading a history book (D) He is writing a letter home"
+     },
+     {
+      "ref": "H2",
+      "format": "mcq",
+      "level": "U",
+      "slo_code": "O2",
+      "marks": 1,
+      "text": "Which phrase from the poem best supports the theme of longing to travel? (A) 'Not a stir of child or mouse' (B) 'I should like to rise and go' (C) 'All its children, sweep and prince' (D) 'In all the town no spark of light'"
+     },
+     {
+      "ref": "H3",
+      "format": "short",
+      "level": "A",
+      "slo_code": "O1",
+      "marks": 3,
+      "text": "Write three sentences: state a prediction you made about this poem before reading it, say whether it was confirmed or needed modifying, and explain why, using one quoted line."
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "type": "key_points",
+     "title": "",
+     "items": [
+      "Answers are checked at the start of the next period."
+     ]
+    }
+   ]
+  }
+ ],
+ "page2": {
+  "board_final": {
+   "draw_order": [
+    "Write: TITLE: 'Travel' — my prediction: ___________",
+    "Write: THEME OF 'TRAVEL': a wish to visit distant, imagined places."
+   ],
+   "diagram": {
+    "type": "mindmap",
+    "centre": {
+     "label": "THEME: Travel"
+    },
+    "branches": [
+     {
+      "label": "WISH, not reality",
+      "leaves": [
+       "'I should like to rise and go'",
+       "imagined, not actual"
+      ]
+     },
+     {
+      "label": "PLACES NAMED",
+      "leaves": [
+       "parrot islands, China, hot forests"
+      ]
+     },
+     {
+      "label": "HOW WE KNOW",
+      "leaves": [
+       "compares unfamiliar to familiar ('wide as England')"
+      ]
+     }
+    ]
+   }
+  },
+  "homework_key": [
+   {
+    "ref": "H1",
+    "answer": "(B) He is imagining places he wishes to visit — the poem opens 'I should like to rise and go', a wish, not an account of an actual journey."
+   },
+   {
+    "ref": "H2",
+    "answer": "(B) 'I should like to rise and go' — this is the line that most directly states the poet's longing to travel."
+   },
+   {
+    "ref": "H3",
+    "answer": "Open response. A strong answer states a clear prediction (e.g. 'I predicted an adventure story'), says whether it matched (e.g. 'it needed modifying'), and explains using a quoted line (e.g. 'I should like to rise and go' shows it is about wishing to travel, not an adventure that actually happens)."
+   }
+  ],
+  "mistakes": [
+   {
+    "pupil_says": "The poem is about deserts and jungles and China.",
+    "you_ask": "Why does the poet mention all those different places — what do they have in common?"
+   },
+   {
+    "pupil_says": "The poet actually travels to all these places in the poem.",
+    "you_ask": "Look at the very first line again — what word tells you this hasn't happened yet?"
+   },
+   {
+    "pupil_says": "My prediction was wrong, so I have nothing to write.",
+    "you_ask": "What does the text show instead of what you guessed — can you explain the difference in one sentence?"
+   }
+  ],
+  "differentiation": {
+   "stuck": "Give the sentence starter: 'I predicted ___, and the poem shows ___, so my prediction was ___.'",
+   "barrier": "Pupils who cannot yet quote accurately may paraphrase the line instead, as long as the idea is correct.",
+   "early": "Ask early finishers to find a second line that supports the theme and explain how it adds to the first."
+  },
+  "exam_bank": {
+   "mcq": [
+    {
+     "q": "The phrase 'I should like to rise and go' mainly expresses:",
+     "options": [
+      "A command",
+      "A completed action",
+      "A wish",
+      "A question"
+     ],
+     "answer": "C",
+     "distractor_codes": [
+      "mistakes 'should' for an order",
+      "confuses future wish with past action",
+      "no question mark present in the line"
+     ]
+    },
+    {
+     "q": "The poem's imagined places are mostly described through:",
+     "options": [
+      "Scientific facts",
+      "Comparisons to familiar things",
+      "Direct quotations from travellers",
+      "Exact map coordinates"
+     ],
+     "answer": "B",
+     "distractor_codes": [
+      "poem contains no scientific data",
+      "poem quotes no other traveller",
+      "poem gives no coordinates, only descriptive images"
+     ]
+    }
+   ],
+   "srq": {
+    "q": "Explain whether a prediction that this poem is about 'an exciting real journey' is acceptable or should be modified, using one quotation as evidence.",
+    "marks": 4,
+    "mark_scheme": [
+     "1: identifies the prediction",
+     "2: states it should be modified",
+     "3: gives the correct theme (imagined wish to travel)",
+     "4: supports with an accurate quotation"
+    ]
+   },
+   "erq_skeleton": {
+    "q": "Discuss how Robert Louis Stevenson builds the theme of longing to travel across the poem 'Travel'.",
+    "marks_total": 8,
+    "parts": [
+     {
+      "heading": "Identify the theme and state the opening evidence for it",
+      "marks": 2
+     },
+     {
+      "heading": "Explain two further images/places and how each supports the theme",
+      "marks": 4
+     },
+     {
+      "heading": "Conclude: why does the poet imagine rather than describe a real journey?",
+      "marks": 2
+     }
+    ]
+   },
+   "how_marked": "Full marks require a quoted line as evidence, not just a paraphrase. A theme stated as a list of places with no link to 'longing/wish' scores half marks only."
+  },
+  "next_period": "Vocabulary and grammar building from the poem 'Travel' (p.117-122) — key words and sentence-level grammar from the same text.",
+  "not_going": "The direct/indirect speech transformation and the extended informative-writing outcomes listed in the chapter-opener box (p.116) are not taught today — they belong to later periods in this chapter.",
+  "coaching_lookfor": "Watch whether pupils revise their own stated prediction aloud, in their own words, rather than simply restating the theme you gave them.",
+  "coaching_reflection": "Which of my pupils defended their original prediction instead of testing it against the text, and how will I draw that out of them next time?"
+ },
+ "one_screen": "*Objective* Pupils predict what the poem 'Travel' is about from its title, then test that prediction against the actual lines, and state the poem's theme with evidence.\n\n*Warm-up* Before reading, pupils guess what 'Travel' will be about from the title alone and say their guess to a partner — no peeking at the text yet.\n\n*Worked example* Read lines 1-2 together: 'I should like to rise and go / Where the golden apples grow'. Show pupils that 'should like to' signals a WISH, not a real journey — so the theme is longing to travel, not an actual adventure.\n\n*Practice* Pupils name two imagined places from the poem, then answer the book's own While-Reading question on the main theme, then explain whether their own earlier prediction needs modifying, quoting one line as proof.\n\n*Misconception* Watch for pupils naming the THEME as a list of places (deserts, China, jungles) instead of the WISH behind them — ask 'why does he mention these?' to pull them back to longing/imagination.\n\n*Exit* Pupils write the poem's theme in one sentence and quote one line that proves it is an imagined journey, not a real one."
+}
