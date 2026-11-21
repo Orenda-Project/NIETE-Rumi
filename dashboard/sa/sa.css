@@ -450,14 +450,14 @@ button{font:inherit;color:inherit}
 }
 /* round 28, O-115 (r28_mic_unknown; the coach's mic card after a blocked try, .is-denied): the "how to allow it" line takes the
    heading's place (sa-ui.js) and runs at line-height 2.4 (the silence screen's heading, .sae-silence .sae-h1), not the Urdu fit's
-   3; 2.1 would fit too, but its Nastaliq lines touch. «دوبارہ کوشش کریں» is one full-width tile, its label on one line, and the
-   card's gap is 6 px. On the coach page at 360×640 that leaves the card's scroll box 44 px to spare, with no scroll and no cue;
+   3; 2.1 would fit too, but its Nastaliq lines touch. «دوبارہ کوشش کریں» is one full-width tile, its label on one line (never under
+   64 px: the coach's only retry; the English label alone made 48), and the card's gap is 6 px. On the coach page at 360×640 that leaves the card's scroll box 44 px to spare, with no scroll and no cue;
    before, the cue covered «دوبارہ کوشش کریں». «مائیک کے بغیر چلیں» is untouched. These classes are drawn only on that card, so
    with the switch OFF nothing here applies. */
 .is-ur-fit[lang=ur] .sae-miccheck.is-coach .sae-micu-denied{line-height:2.4;padding-top:0}
 .sae-miccheck.is-coach.is-denied .sae-body{gap:6px}
 .sae-miccheck.is-coach.is-denied .sae-pics{grid-template-columns:1fr}
-.sae-miccheck.is-coach.is-denied .sae-pics .is-again{min-height:0}
+.sae-miccheck.is-coach.is-denied .sae-pics .is-again{min-height:64px}
 /* end round 28, the check fit */
 /* Round 8 (sa_r8_story_snap, item 15; the mount's .is-r8-snap; OFF = none of this): the story is its own scroll box,
    the screen's height, made of parts one box high (sa-ui snapPack). Mandatory snapping with snap-stop always: a scroll
