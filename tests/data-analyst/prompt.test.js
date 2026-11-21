@@ -72,7 +72,16 @@ describe('systemBlocks', () => {
 test('round 2: the answer is one or two lines beside a chart, with no NEXT line (the buttons replace it)', () => {
   const w = P.WHATSAPP_PROMPT;
   expect(w).toMatch(/one or two short lines/i);
-  expect(w).toMatch(/drawn as a chart image/i);
+  expect(w).toMatch(/as a chart image/i);
   expect(w).toMatch(/Leave out the `NEXT:` line/);
   expect(w).not.toMatch(/numbered follow-ups/);
+});
+
+test('bd-bhgw20.4: the text never relies on a chart: the app shows every row (chart and listed lines, or a list); the model writes the opening lines', () => {
+  const w = P.WHATSAPP_PROMPT;
+  expect(w).toMatch(/every measure the chart leaves out/i);
+  expect(w).toMatch(/a list of every row/i);
+  expect(w).toMatch(/one or two short lines/i);
+  expect(w).not.toMatch(/no bullets/i);
+  expect(w).not.toMatch(/is drawn as a chart image\*\* by the app, under your words/);
 });
