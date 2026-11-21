@@ -1785,6 +1785,12 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
   } catch (error) {
     logToFile('Error scheduling the A/B tracker rollup (non-fatal)', { error: error && error.message }, 'error');
   }
+  try {
+    // The daily web quiz voice alarm (share of sittings that lost a clip) on the ops stream; a no-op until its env is set.
+    require('./web-quiz-voice-watch-schedule').scheduleWebQuizVoiceWatch({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the web quiz voice alarm (non-fatal)', { error: error && error.message }, 'error');
+  }
 }
 
 function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {

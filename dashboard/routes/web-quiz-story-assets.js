@@ -188,4 +188,4 @@ function createStoryAssetHandler(opts = {}) {
   };
 }
 
-module.exports = { createStoryAssetHandler, createByteLru, flagReader, r2Object, oggToMp3, FLAG_KEY, MP3_KEY };
+module.exports = { createStoryAssetHandler, createByteLru, flagReader, r2Object, oggToMp3, limiter, rangeOf, FLAG_KEY, MP3_KEY };

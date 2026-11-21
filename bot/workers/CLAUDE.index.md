@@ -23,6 +23,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sqs-worker.railway.toml` | Railway config for the SQS worker service: nixpacks build, starts node workers/sqs-worker.js |
 | `stale-session.worker.js` | 15-minute Railway cron sweeping stuck coaching sessions: reminders, auto-complete, recovery |
 | `teacher-activity-schedule.js` | (unmapped) |
+| `web-quiz-voice-watch-schedule.js` | Schedules the daily web-quiz voice alarm (hourly + boot, main-queue replicas) |
 | `video-generation.worker.js` | SQS video job: script, TTS, images, clips, assembly and delivery with checkpoint/resume |
 
 ## Who reads this (all, generated)
