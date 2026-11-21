@@ -4,3 +4,4 @@
 {"ts":"2026-11-21T16:59:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (rebased cherry-pick of sandbox #5298; WhatsApp lesson-plan flow untouched)","sha":"d581d60843f1","branch":"bd-snkn32.59.4-to-staging","user":""}
 {"ts":"2026-11-21T16:59:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (rebase only; unit scenarios OWN07-11 already committed in this branch from the sandbox PRs)","sha":"d581d60843f1","branch":"bd-snkn32.59.4-to-staging","user":""}
 {"ts":"2026-11-21T16:59:54Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-d581d60843f1","sha":"d581d60843f1","branch":"bd-snkn32.59.4-to-staging","user":""}
+{"ts":"2026-11-21T17:15:09Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"d581d60843f1","branch":"bd-snkn32.59.4-to-staging","user":""}
