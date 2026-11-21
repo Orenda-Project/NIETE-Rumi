@@ -2539,10 +2539,38 @@ function coachFail(res, where, error) {
   return res.status(500).json({ success: false, error: 'Could not load this page.' });
 }
 
+/**
+ * bd-o15qnr.30 (queue #214) — the stale-item rules ride the v6/v7 switch (portal_coach_flow_v2) for the reader: Needs
+ * you, the banner and the Home counts never offer a row the observation page refuses, and a Debrief past its due day
+ * leaves Needs you. History is unchanged. Off = as before.
+ * A failed flag read is off (today's lists).
+ */
+async function staleRulesOn(req) {
+  try {
+    return await isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, req.session && req.session.portalUserId);
+  } catch (_) { return false; }
+}
+
+/** bd-o15qnr.30 — what a list held back and why (one event per read that held any back). Never fails the request. */
+function logWithheld(where, req, withheld) {
+  if (!withheld || !withheld.length) return;
+  try {
+    telemetry.logEvent('coach_list_withheld', {
+      correlation_id: crypto.randomUUID(),
+      list: where,
+      user_uuid: req.session && req.session.portalUserId,
+      count: withheld.length,
+      rows: withheld.slice(0, 20),
+    });
+  } catch (_) { /* instrumentation only */ }
+}
+
 /** GET /api/portal/coach/home — today's visits (the current one marked) and the tile numbers. */
 router.get('/coach/home', ...coachV2, async (req, res) => {
   try {
-    const home = await CoachV2.getCoachHome(pgQuery, req.session.portalUserId, { today: coachToday(req) });
+    // bd-o15qnr.30 — the tile numbers count what the lists show (switch on: the stale-item rules).
+    const v7 = await staleRulesOn(req);
+    const home = await CoachV2.getCoachHome(pgQuery, req.session.portalUserId, { today: coachToday(req), v7 });
     return res.json({ success: true, home });
   } catch (error) { return coachFail(res, 'home', error); }
 });
@@ -2663,7 +2691,10 @@ for (const what of ['opened', 'seen']) {
 /** GET /api/portal/coach/pending — bd-o15qnr.21: { waiting, ids } — what waits on her (Feedback Form, Debrief), for the banner. */
 router.get('/coach/pending', ...coachV2, async (req, res) => {
   try {
-    const out = await CoachV2.getCoachPending(pgQuery, req.session.portalUserId);
+    // bd-o15qnr.30 — switch on: the banner counts what Needs you shows; held-back rows are logged, never sent.
+    const v7 = await staleRulesOn(req);
+    const { withheld, ...out } = await CoachV2.getCoachPending(pgQuery, req.session.portalUserId, { v7 });
+    logWithheld('pending', req, withheld);
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'pending', error); }
 });
@@ -2738,7 +2769,15 @@ router.get('/coach/observation/:id', ...observerReads, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), role: req.observerRole });
-    if (!out) return res.status(404).json({ success: false, error: 'Not found' });
+    if (!out) {
+      // bd-o15qnr.30 — a tap that cannot open: logged, so a list that still offers such a row shows up in the logs.
+      try {
+        telemetry.logEvent('coach_observation_not_openable', {
+          correlation_id: crypto.randomUUID(), user_uuid: req.session.portalUserId, session_uuid: req.params.id, role: req.observerRole || 'coach',
+        });
+      } catch (_) { /* instrumentation only */ }
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
     const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
       ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${reportKey}`)
@@ -2877,9 +2916,14 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
-    const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
-      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole,
+    // bd-o15qnr.30 (queue #214) — switch on: Needs you never offers a row the observation page refuses (the operator's
+    // 4 Oct "Pending debrief" that opened to nothing), and a Debrief past its due day leaves it; History keeps every row.
+    // Held back = logged.
+    const v7 = await staleRulesOn(req);
+    const { withheld, ...out } = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole, v7,
     });
+    logWithheld('reports', req, withheld);
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'reports', error); }
 });

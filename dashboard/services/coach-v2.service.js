@@ -38,6 +38,75 @@ const DEAD_STATUSES = ['failed', 'cancelled'];
 const SCHOOL_VISIT_WINDOW_DAYS = 90;
 
 /**
+ * bd-o15qnr.30 (queue #214) — the debrief is due 3 school days after the visit (#188's LOCK round, v7), then it leaves
+ * Needs you. School days are Monday to Saturday. The portal's coach/flow/debriefDue.ts is the twin (a test holds the
+ * two in step).
+ */
+const DEBRIEF_SCHOOL_DAYS = 3;
+const PK_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** The visit's day (YYYY-MM-DD) → the day its debrief is due (YYYY-MM-DD); Sunday is not a school day. */
+function debriefDueDay(visitDay, schoolDays = DEBRIEF_SCHOOL_DAYS) {
+  const d = new Date(`${visitDay}T00:00:00Z`);
+  let left = schoolDays;
+  while (left > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (d.getUTCDay() !== 0) left -= 1;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/** The Pakistan day (YYYY-MM-DD) of a timestamp; null when unknown. */
+function pkDayOf(value) {
+  if (!value) return null;
+  const at = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(at.getTime())) return null;
+  const parts = PK_DAY.formatToParts(at);
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * bd-o15qnr.30 (queue #214) — why a session row must not be offered to this reader, or null when it may.
+ *
+ *   no_teacher             the row names no observed teacher: getCoachObservation refuses it (404)
+ *   teacher_not_in_patch   its teacher is not in the reader's patch now (moved, removed, a test school she left):
+ *                          getCoachObservation refuses it (404) — the operator's 4 Oct "Pending debrief", 21 Nov
+ *
+ * The page's own guard, as one predicate, so a list can never offer a row its page refuses.
+ */
+function refusedBecause(r, patchIds) {
+  if (!r.user_id) return 'no_teacher';
+  if (!patchIds.has(r.user_id)) return 'teacher_not_in_patch';
+  return null;
+}
+
+/** A Debrief (step talk) past its due day — it leaves Needs you, stays in History and still opens. */
+function debriefPastDue(r, step, today) {
+  if (step !== 'talk') return false;
+  const visitDay = pkDayOf(r.created_at);
+  return !!visitDay && today > debriefDueDay(visitDay);
+}
+
+/**
+ * bd-o15qnr.30 — the stale-item rules (switch on, `v7`): the rows a list may show and the ones it holds back, with why.
+ * `open` = every live row the observation page serves; `waitingOk(row, step)` = may it sit in Needs you.
+ */
+function staleRules(liveRows, patch, today) {
+  const patchIds = new Set(patch.map((t) => t.rumiUserId).filter(Boolean));
+  const withheld = [];
+  const open = [];
+  for (const r of liveRows) {
+    const why = refusedBecause(r, patchIds);
+    if (why) withheld.push({ id: r.id, reason: why });
+    else open.push(r);
+  }
+  for (const r of open) if (debriefPastDue(r, stepOf(r), today)) withheld.push({ id: r.id, reason: 'debrief_past_due' });
+  const late = new Set(withheld.filter((w) => w.reason === 'debrief_past_due').map((w) => w.id));
+  return { open, withheld, waitingOk: (r) => !late.has(r.id) };
+}
+
+/**
  * A coach observation started in the PORTAL can be opened in the portal; one
  * captured on WhatsApp cannot (the portal's observation view refuses it).
  * Kept in step with bot/shared/services/coaching/portal-coaching.service.js
@@ -668,7 +737,11 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
   const nextRow = nextRes && nextRes.rows && nextRes.rows[0];
   const todays = schedule.visits.filter((v) => v.scheduledFor === today);
   const currentId = (todays.find((v) => v.status === 'upcoming') || {}).id;
-  const steps = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status)).map(stepOf);
+  let live = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  // bd-o15qnr.30 — switch on: the tile numbers count what the lists show (staleRules).
+  let waitingOk = () => true;
+  if (opts.v7) ({ open: live, waitingOk } = staleRules(live, patch, today));
+  const steps = live.map((r) => (waitingOk(r) ? stepOf(r) : 'late'));
   return {
     today: todays.map((v) => ({ ...v, current: v.id === currentId })),
     next: nextRow ? shapeVisit(nextRow, today) : null,
@@ -690,13 +763,20 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
  * waiting rule — newest first, with their ids. The existing COACH_SESSIONS
  * query only; nothing new is read.
  */
-async function getCoachPending(query, leaderUserId) {
+async function getCoachPending(query, leaderUserId, opts = {}) {
   const { rows } = await query(SQL.COACH_SESSIONS, [leaderUserId]);
-  const ids = (rows || [])
-    .filter((r) => !DEAD_STATUSES.includes(r.status))
-    .filter((r) => { const st = stepOf(r); return st === 'draft' || st === 'talk'; })
+  let live = (rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  // bd-o15qnr.30 — switch on: the banner counts what Needs you shows (staleRules); off: one query, as before.
+  let waitingOk = () => true;
+  let withheld;
+  if (opts.v7) {
+    const patch = await getPatchTeachers(query, leaderUserId, { role: opts.role || 'coach' });
+    ({ open: live, waitingOk, withheld } = staleRules(live, patch, opts.today || karachiToday()));
+  }
+  const ids = live
+    .filter((r) => { const st = stepOf(r); return (st === 'draft' || st === 'talk') && waitingOk(r); })
     .map((r) => r.id);
-  return { waiting: ids.length, ids };
+  return withheld ? { waiting: ids.length, ids, withheld } : { waiting: ids.length, ids };
 }
 
 /** One schedule entry of hers, with the teacher's numbers; null for anyone else's. */
@@ -784,7 +864,18 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   const teacherByUser = new Map(patch.filter((t) => t.rumiUserId).map((t) => [t.rumiUserId, {
     teacherExtId: t.teacherExtId, schoolName: t.schoolName, schoolExtId: t.emis ? `niete:${t.emis}` : null,
   }]));
-  const live = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  let live = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  // bd-o15qnr.30 (queue #214) — switch on (`v7`): Needs you and Analysing never offer a row the observation page refuses,
+  // and a Debrief past its due day leaves Needs you. History (`all`) keeps every row, as today. Off: as before.
+  let toDo = (r) => !!r;
+  let withheld;
+  if (opts.v7) {
+    const rules = staleRules(live, patch, opts.today || karachiToday());
+    const open = new Set(rules.open.map((r) => r.id));
+    withheld = rules.withheld;
+    toDo = (r) => open.has(r.id) && rules.waitingOk(r);
+  }
+  const notToDo = new Set(live.filter((r) => !toDo(r)).map((r) => r.id));
   const shaped = live.map((r) => shapeReport(r, leaderUserId, teacherByUser));
 
   const q = String(opts.q || '').trim();
@@ -802,9 +893,9 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
     });
   }
 
-  return {
-    waiting: shaped.filter((r) => r.step === 'draft' || r.step === 'talk'),
-    inProgress: shaped.filter((r) => r.step === 'analysing'),
+  const out = {
+    waiting: shaped.filter((r) => (r.step === 'draft' || r.step === 'talk') && !notToDo.has(r.id)),
+    inProgress: shaped.filter((r) => r.step === 'analysing' && !notToDo.has(r.id)),
     all: {
       total: matched.length,
       page,
@@ -812,6 +903,9 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
       items: matched.slice((page - 1) * pageSize, page * pageSize),
     },
   };
+  // What was held back and why, for the route to log (never sent to the page).
+  if (withheld) out.withheld = withheld;
+  return out;
 }
 
 module.exports = {
@@ -831,4 +925,7 @@ module.exports = {
   getCoachReports,
   // bd-o15qnr.28.1 — My progress (coach-progress.service) shows where each recent observation stands, by this one rule.
   stepOf,
+  // bd-o15qnr.30 — the debrief's due day (the portal's debriefDue.ts twin).
+  DEBRIEF_SCHOOL_DAYS,
+  debriefDueDay,
 };
