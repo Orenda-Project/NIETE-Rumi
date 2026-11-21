@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T08:11:13Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-coaching spec_sync=true","sha":"b355e123d80c","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-21T08:51:29Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-coaching=none-needed (chip wording only; web lane cannot reach an unfinished DC lesson until bd-dlatno — commit trailer from staging)","sha":"b355e123d80c","branch":"release/niete-2026-11-20","user":""}
