@@ -3398,10 +3398,13 @@ router.post('/coaching/observe/draft', requireInternalKey, portalObserveRoute('o
  * POST /api/internal/coaching/observe/draft/save  Body { userId, coachingSessionId, edits, submit? } — the Flow's edit
  * keys. bd-ra8xu.40: `submit: true` (only that) submits an FDE (obs612) visit's form; refused while anything is missing
  * (400 invalid, reason obs612_incomplete, with missing and errors). A FICO save is passed on as before, with no submit.
+ * bd-o15qnr.32: `evidence_review` (the v7 form's evidence option B, per indicator) rides as evidenceReview when sent;
+ * the service checks its shape. Without it the call is today's.
  */
 router.post('/coaching/observe/draft/save', requireInternalKey, portalObserveRoute('observe-draft-save',
   (Svc, b) => Svc.saveDraft({
     userId: b.userId, coachingSessionId: b.coachingSessionId, edits: b.edits, ...(b.submit === true ? { submit: true } : {}),
+    ...(b.evidence_review !== undefined ? { evidenceReview: b.evidence_review } : {}),
   })));
 
 /** POST /api/internal/coaching/observe/talk/guide — the debrief guide (built once; can take a model call). */
