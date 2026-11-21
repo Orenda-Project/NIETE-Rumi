@@ -459,8 +459,13 @@ function runtimeW3Task(t, lang, H) {
 //   accept (word_accept)   on the EN familiar words' items: the local forms that keep the same word, for the scorer only
 //                          (the task carries r28_accept; the route strips both from every served battery, OFF and ON)
 const R28_LINES = {
-  lp_intro: L('Now a listening game. Jugnu will say a sound like /ba/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
-    'اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the sound as a CV syllable)'),
+  // The picker intro by the TASK's language (its example: Urdu «بَ», English isolated /b/), in the battery's language.
+  // On the other language's battery the example keeps its own script, and its clip splices the shipped token there
+  // (the two A08 exemptions in sa-tester-fixes.test.js).
+  lp_intro_ur: L('Now a listening game. Jugnu will say an Urdu sound, like «بَ». Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
+    'اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the Urdu sound as a CV syllable)'),
+  lp_intro_en: L('Now a listening game. Jugnu will say a sound, like /b/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
+    'اب ایک سننے کا کھیل۔ جگنو انگریزی کی ایک آواز بولے گا، جیسے b کی آواز۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the English sound isolated)'),
   mcq_intro: L('Now some questions about the story. Jugnu will ask a question and read four answers. Each answer lights up as Jugnu reads it. When Jugnu has finished, tap the answer you think is right.',
     'اب کہانی کے بارے میں کچھ سوال۔ جگنو ایک سوال پوچھے گا اور چار جواب پڑھے گا۔ ہر جواب پڑھتے وقت روشن ہوگا۔ جب جگنو پڑھ چکے تو جو جواب ٹھیک لگے اُس پر ٹیپ کریں۔', 'r28 spoken MCQ (Tangerine SA read-aloud options)'),
 };
@@ -502,7 +507,9 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     if (!t) continue;
     if (t.items.length !== spec.base_n) throw new Error(`${id}: ${t.items.length} items, the r28 bank extends ${spec.base_n}`);
     const forForm = spec.ext.filter((x) => !x.grades || x.grades.some((g) => f.grades.includes(g)));
-    const ext = forForm.map((x, i) => ({ id: `${id}.${pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
+    // An entry may name its own id suffix: one id means one numeral on every form (the G1-3 number-ID cells past 42 are
+    // .c43-.c60, never the .43-.50 that G4-5 give the P6 cells).
+    const ext = forForm.map((x, i) => ({ id: `${id}.${x.id || pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
     // base_n and ext_stop only ever ride an extension: the route strips them with ext_items (withoutR28).
     if (!ext.length) throw new Error(`${id}: the r28 bank lists no extension for this form`);
     Object.assign(t, { base_n: spec.base_n, ext_items: ext, ...(spec.ext_stop ? { ext_stop: spec.ext_stop } : {}) });
@@ -536,8 +543,8 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
         // engine's right line (the child has linked sound and shape; repeating the sound only lengthens the practice).
         practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role, model: [spoken(MODEL.letter_sounds), sound(x)],
           feedback: { wrong: [spoken(LS.wrong[0]), sound(x)] } })),
-        script: script(R28_LINES.lp_intro), coach_text: coach('letter_pick'),
-        source: { items: 'r28:letter_pick', script: R28_LINES.lp_intro.from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
+        script: script(R28_LINES[`lp_intro_${lang}`]), coach_text: coach('letter_pick'),
+        source: { items: 'r28:letter_pick', script: R28_LINES[`lp_intro_${lang}`].from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
         deviation: 'recognition, not production: the published EGRA letter-sound task asks the child to say each sound',
       });
     }

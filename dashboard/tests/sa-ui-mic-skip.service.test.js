@@ -50,10 +50,11 @@ maybe('sa-ui mic_unavailable skip line on a DOM', () => {
     await jest.advanceTimersByTimeAsync(50);
     expect(runner.view().phase).toBe('task_end');
     expect(runner.view().result.stop_reason).toBe('mic_unavailable');
-    expect(el.querySelector('.sae-micskip').textContent).toBe('No microphone, so we skip this part');
-    const skipLines = said.filter((t) => t && t.en === 'No microphone, so we skip this part');
+    const COPY = require('../sa/sa-ui').COPY;
+    expect(el.querySelector('.sae-micskip').textContent).toBe(COPY.en.mic_skip_task);
+    const skipLines = said.filter((t) => t && t.en === COPY.en.mic_skip_task);
     expect(skipLines).toHaveLength(1);
-    expect(skipLines[0].ur).toBe('مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں');
+    expect(skipLines[0].ur).toBe(COPY.ur.mic_skip_task);
     expect(said.some((t) => t && t.en === 'Good effort, let us go on.')).toBe(false);
     await jest.advanceTimersByTimeAsync(2400);
     expect(runner.view().phase).toBe('task_end');
