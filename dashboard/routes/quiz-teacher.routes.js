@@ -6,6 +6,8 @@
  *   GET  /quiz/teacher/:token            the page shell (HTML); ?lang, and ?session (a coaching session id, a UUID: a
  *                                        Digital Coach report's "Create Quick Quiz" opens the page for that one lesson)
  *   GET  /quiz/teacher/:token/send       a library code's send (?c, ?o, ?lang): the bot marks it sent, 302 → wa.me
+ *   GET  /quiz/teacher/:token/fwd        the one tap from a WhatsApp message (a 'qf' token, no query): the bot logs the
+ *                                        tap, 302 → wa.me with the class message
  *   GET  /quiz/teacher/:token/stories    the stories page (served by the stories router on the bot); ?book (a story
  *                                        tile's book: its send sheet), ?grade (1-5) and ?lang reach it
  *   GET  /api/th/home  ?t&g&lang         the home's JSON
@@ -47,7 +49,7 @@ const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: L
 // the library code and where the send started.
 const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
 const SEND_QUERY = { c: (v) => UUID_RX.test(v), o: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), lang: LANG };
-const PAGE_KEYS = { '': { lang: LANG, session: (v) => UUID_RX.test(v) }, '/stories': PAGE_QUERY, '/send': SEND_QUERY };
+const PAGE_KEYS = { '': { lang: LANG, session: (v) => UUID_RX.test(v) }, '/stories': PAGE_QUERY, '/send': SEND_QUERY, '/fwd': {} };
 function forwardQuery(q, keys = QUERY) {
   const out = Object.keys(keys).filter((k) => typeof q[k] === 'string' && keys[k](q[k])).map((k) => `${k}=${encodeURIComponent(q[k])}`);
   return out.length ? `?${out.join('&')}` : '';
@@ -58,7 +60,7 @@ const FORM = {
   send: { kind: ONE_OF('video', 'share', 'again'), id: (v) => UUID_RX.test(v), lang: LANG },
   'quiz/make': { kind: ONE_OF('lesson', 'coaching'), id: (v) => KEY_RX.test(v), lang: LANG },
   confirm: { looseId: (v) => UUID_RX.test(v), candidateId: (v) => UUID_RX.test(v), decision: ONE_OF('same', 'no', 'unsure') },
-  step: { step: (v) => /^[a-z_]{2,30}$/.test(v), kind: ONE_OF('video', 'share', 'again', 'story'), id: (v) => UUID_RX.test(v), c: (v) => UUID_RX.test(v), origin: ONE_OF('library', 'again', 'lesson_plan', 'coaching') },
+  step: { step: (v) => /^[a-z_]{2,30}$/.test(v), kind: ONE_OF('video', 'share', 'again', 'story'), id: (v) => UUID_RX.test(v), c: (v) => UUID_RX.test(v), origin: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), r: ONE_OF('shared', 'dismissed', 'failed') },
 };
 function formBody(kind, body) {
   const out = {};
@@ -101,7 +103,8 @@ function isOff(out) {
 }
 
 // A Location the edge passes on: WhatsApp's share link, or a page of this site.
-const okLocation = (loc) => typeof loc === 'string' && (/^https:\/\/wa\.me\//.test(loc) || /^\/(quiz\/teacher|quiz\/join|m|h|r)\/[A-Za-z0-9_.%-]+(\/[a-z]+)?(\?[^\s]*)?$/.test(loc));
+// whatsapp://send?text= is the one tap's answer inside WhatsApp's own browser (the bot's /fwd)
+const okLocation = (loc) => typeof loc === 'string' && (/^https:\/\/wa\.me\//.test(loc) || /^whatsapp:\/\/send\?text=/.test(loc) || /^\/(quiz\/teacher|quiz\/join|m|h|r)\/[A-Za-z0-9_.%-]+(\/[a-z]+)?(\?[^\s]*)?$/.test(loc));
 
 function createQuizTeacherRouter(opts = {}) {
   let { callBot } = opts;
@@ -212,6 +215,7 @@ function createQuizTeacherRouter(opts = {}) {
   router.get('/quiz/teacher/:token', limiter, forwardPage());
   router.get('/quiz/teacher/:token/stories', limiter, forwardPage('/stories'));
   router.get('/quiz/teacher/:token/send', limiter, forwardPage('/send'));
+  router.get('/quiz/teacher/:token/fwd', limiter, forwardPage('/fwd'));
   router.get('/api/th/home', limiter, forwardGetJson('/api/th/home'));
   router.get('/api/th/library', limiter, forwardGetJson('/api/th/library'));
   router.get('/api/th/quiz/:id', limiter, forwardGetJson('/api/th/quiz'));
