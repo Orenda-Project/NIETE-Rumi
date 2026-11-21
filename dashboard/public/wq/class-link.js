@@ -1,6 +1,7 @@
 /* The standing class link (/j/<code>): the steps a child takes before the hub. No framework, no build step.
  * Boot JSON: {view:'class_link', code, lang, jt?}. The page holds no child until the server answers a step:
- *   arrive  → "Whose turn?" (only the children this phone played as, in this class) or the teacher step
+ *   arrive  → "Whose turn?" (only the children this phone played as, in this class, and a button to the teacher
+ *             step for a child not listed) or the teacher step
  *   teacher → the letter step (the whole alphabet of the roster's script) or the teacher step again
  *   letter  → "Is your name here?" with the first names under that letter
  *   pick    → {href: /h/<token>}: the child's hub
@@ -14,10 +15,10 @@
   var CODE = String(B.code || '');
   var JT = typeof B.jt === 'string' ? B.jt : null;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
-  // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed
+  // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed, jg.who.someone_else
   var COPY = {
-    en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here" },
-    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے' },
+    en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here", someone_else: "My name isn't here" },
+    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', someone_else: 'میرا نام یہاں نہیں' },
   };
   var T = COPY[LANG];
   var letterStep = null;
@@ -60,8 +61,10 @@
     if (r.step === 'who') {
       screen(T.turn, '<div class="wq-kids-big">' + r.kids.map(function (k) {
         return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><span class="wq-ani" aria-hidden="true">' + (ANIMALS[k.animal] || '⭐') + '</span><bdi>' + esc(k.first) + '</bdi></button>';
-      }).join('') + '</div>');
+      }).join('') + '</div>' + (r.other ? '<button class="wq-btn wq-soft" type="button" id="wq-cl-other">' + esc(T.someone_else) + '</button>' : ''));
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });
+      // A shared phone: a child who is not listed (a sibling) takes the teacher step the server sent with this one.
+      on('#wq-cl-other', function () { show({ ok: true, body: r.other }); });
       return;
     }
     if (r.step === 'teacher') {
