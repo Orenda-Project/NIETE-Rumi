@@ -990,6 +990,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the plan stays within its page limit whenever it fitted without the step
     # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
 
+  @e2e @L31 @no-mock-driver @slow @P1
+  Scenario: A ready-made Grades 6-12 poem plan paraphrases the poem in class, stanza by stanza
+    Given a Grades 6-12 poem reading lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then in the teaching step the teacher gives the poet's words and then the same idea in plain everyday words
+    And in the class practice pupils paraphrase one stanza in their own words
+    And a paraphrase only in homework, the support notes or the answer key does not count
+    # ICT sheet row 728 (bd-zrdvmi.44.1): grade_9_english.c09.p116-118.reading_comprehension ('Travel') had
+    # "No paraphrasing there". A poem plan without one is sent back for a revision round (POEM_PARAPHRASE
+    # defect). Unit: tests/lp612/poem-paraphrase-gate.test.js.
+
   @e2e @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson
