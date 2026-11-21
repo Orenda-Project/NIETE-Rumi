@@ -1187,7 +1187,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // A screen change or an answer stops the voice and forgets the held lines; a line replaced by the next part does not.
   function stopVoice() {
     heldLines = null;
+    dropLate();
     hush();
+  }
+  // A clip given up as stalled at 5 s (gap slow) keeps loading muted until the 8 s mark: if it starts, audio_slow
+  // {reason: 'stalled'} counts it and it stops, never heard. That splits a stricter "stalled" from a clip that never came.
+  var late = [];
+  function dropLate() {
+    late.forEach(function (x) { try { x.pause(); } catch (e) {} });
+    late = [];
   }
   function hush() {
     voiceGen += 1;
@@ -1235,6 +1243,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!heldLines) return;
     var lines = heldLines, g = voiceGen;
     heldLines = null;
+    dropLate();
     setTimeout(function () {
       if (g !== voiceGen) return;
       var i = 0;
@@ -1275,7 +1284,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         // fires its stalled timer: that is not a missing clip, and its old line stays quiet.
         if (switched || fin || gen !== voiceGen) return;
         switched = true;
-        try { if (player) player.pause(); } catch (e) {}
+        if (why === 'stalled' && GAP_SLOW && player) { try { player.muted = true; late.push(player); } catch (e) {} } else { try { if (player) player.pause(); } catch (e) {} }
         player = null;
         // The event names the part, the question, where the clip came from and how long it took to fail; a refused start
         // names its error as a slug (notallowederror keeps the tap), a clip that errors names the browser's media error.
@@ -1301,6 +1310,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         player = a;
         var started = false;
         a.addEventListener('playing', function () {
+          if (switched) {
+            if (!started && late.indexOf(a) >= 0) { var fl = clipFacts(url); fl.reason = 'stalled'; fl.ms = Date.now() - t0; fl.part = (meta && meta.part) || 'line'; fl.qid = meta ? meta.qid : undefined; ev('audio_slow', fl); }
+            started = true;
+            try { a.pause(); } catch (e) {}
+            late = late.filter(function (x) { return x !== a; });
+            return;
+          }
           if (!started && retry) { said(true); try { ROOT.classList.remove('wq-tap'); ROOT.classList.remove('wq-novoice'); } catch (e) {} }
           // A clip that started late says when (always on): how many clips start between the 5 s and 8 s give-ups
           if (!started && Date.now() - t0 > CLIP_SLOW_MS) { var fs = clipFacts(url); fs.ms = Date.now() - t0; fs.part = (meta && meta.part) || 'line'; fs.qid = meta ? meta.qid : undefined; ev('audio_slow', fs); }
@@ -1310,6 +1326,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         a.onerror = function () { fallback('error', a.error); };
         setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
         setTimeout(function () { if (!started) fallback('stalled'); }, GAP_SLOW ? CLIP_GAP_SLOW_MS : CLIP_GIVEUP_MS);
+        if (GAP_SLOW) setTimeout(function () { if (!started && late.indexOf(a) >= 0) { try { a.pause(); } catch (e) {} late = late.filter(function (x) { return x !== a; }); } }, CLIP_GIVEUP_MS);
         var pr = a.play();
         if (pr && pr.catch) pr.catch(function (e) { fallback('reject', e); });
         return;

@@ -215,3 +215,34 @@ describe('a clip that starts late says when (audio_slow, always on): the meter f
     expect(h.events.filter((e) => e.name === 'audio_slow')).toEqual([]);
   });
 });
+
+describe('a stalled clip that starts late anyway is counted, never heard (the meter for "stalled")', () => {
+  test('stalled at 5 s: the clip keeps loading muted; if it starts by 8 s it logs audio_slow {reason: stalled, ms} and stops, silent', () => {
+    const h = harness({ voices: [{ lang: 'en-US' }] }); // the phone reads the line at 5 s (gap slow)
+    h.ctx.speak('Which part of a plant takes in water?', R2_CLIP, null, { qid: 'q1aaaaaaaa', part: 'q' });
+    h.tick(5000); h.runTimers(5000);
+    expect(h.fallbacks().map((e) => e.data.reason)).toEqual(['stalled']);
+    expect(h.utts.map((u) => u.text)).toEqual(['Which part of a plant takes in water?']);
+    expect(h.clips[0].paused).toBe(false); // still loading
+    expect(h.clips[0].muted).toBe(true); // never heard over the phone's voice
+    h.tick(1700); h.clips[0].start();
+    expect(h.events.filter((e) => e.name === 'audio_slow').map((e) => e.data)).toEqual([expect.objectContaining({ reason: 'stalled', ms: 6700, part: 'q', qid: 'q1aaaaaaaa' })]);
+    expect(h.clips[0].paused).toBe(true);
+  });
+  test('not started by 8 s: let go, nothing more logged', () => {
+    const h = harness({ voices: [{ lang: 'en-US' }] });
+    h.ctx.speak('Which part of a plant takes in water?', R2_CLIP, null, { qid: 'q1aaaaaaaa', part: 'q' });
+    h.tick(5000); h.runTimers(5000);
+    h.tick(3000); h.runTimers(8000);
+    expect(h.clips[0].paused).toBe(true);
+    h.clips[0].start();
+    expect(h.events.filter((e) => e.name === 'audio_slow')).toEqual([]);
+  });
+  test('the next screen stops the muted clip too (no data spent on a line nobody needs)', () => {
+    const h = harness({ voices: [{ lang: 'en-US' }] });
+    h.ctx.speak('Which part of a plant takes in water?', R2_CLIP, null, { qid: 'q1aaaaaaaa', part: 'q' });
+    h.tick(5000); h.runTimers(5000);
+    h.ctx.stopVoice();
+    expect(h.clips[0].paused).toBe(true);
+  });
+});
