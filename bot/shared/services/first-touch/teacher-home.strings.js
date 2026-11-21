@@ -33,6 +33,8 @@ const STRINGS = Object.freeze({
   'th.send.note2': Object.freeze({ en: 'Once children play, the report comes as usual', ur: 'بچے کھیل لیں تو رپورٹ ہمیشہ کی طرح آئے گی' }),
   'th.back.note': Object.freeze({ en: 'After sending, come back using the button in this chat', ur: 'بھیجنے کے بعد اسی چیٹ میں بٹن دبا کر واپس آئیں' }),
   'th.copied': Object.freeze({ en: 'Copied', ur: 'کاپی ہو گیا' }),
+  // the send sheet's second way out, only where the browser has a share sheet (quiz_forward_button)
+  'th.share.more': Object.freeze({ en: 'More ways to share', ur: 'شیئر کرنے کے اور طریقے' }),
   'th.copy.long': Object.freeze({ en: 'Long-press to copy', ur: 'کاپی کرنے کے لیے دبا کر رکھیں' }),
   // the "My lessons" timeline
   'th.timeline': Object.freeze({ en: 'My lessons', ur: 'میرے اسباق' }),
