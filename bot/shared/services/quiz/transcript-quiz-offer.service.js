@@ -322,7 +322,7 @@ async function processOffer(coachingSessionId, payload = {}) {
       channel: Funnel.channelOf(payload.source || 'offer'), delivered: true,
     });
     logEvent('transcript_quiz.offered', {
-      coachingSessionId, quizId, userId: session.user_id, subject: digest.subject, language, teacherLang,
+      coachingSessionId, quizId, subject: digest.subject, language, teacherLang,
       withVideo: false, sent: true, via: 'report_button',
     });
     await module.exports.handleOfferButton(`${OFFER_YES}${quizId}`, phone, {});
@@ -462,7 +462,7 @@ async function handleReportQuizTap(payload, phone) {
     logEvent('transcript_quiz.report_tap', { coachingSessionId, outcome: 'not_owner' });
     return true;
   }
-  logEvent('transcript_quiz.report_tap', { coachingSessionId, userId: session.user_id, outcome: 'accepted' });
+  logEvent('transcript_quiz.report_tap', { coachingSessionId, outcome: 'accepted' });
   const out = await module.exports.processOffer(coachingSessionId, { phone, accepted: true, source: 'offer' });
   if (out && out.skipped && !out.quizId && !out.answered) {
     // Refused before any row (not finished, too short): the teacher still hears something true.
