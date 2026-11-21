@@ -31,3 +31,7 @@ test('the new fields are the voice events\' only: another event carrying them ke
   const out = cleanEvent({ n: 'answer', host: 'r2', fmt: 'ogg', vis: 'visible', gms: 12, can: 'ogg1mp31' });
   expect(out.props).toEqual({});
 });
+
+test('audio_slow keeps its start time, part, question, host, format and view state', () => {
+  expect(cleanEvent({ n: 'audio_slow', ms: 6200, part: 'q', qid: QID, host: 'r2', fmt: 'ogg', vis: 'visible' }).props).toMatchObject({ ms: 6200, part: 'q', qid: QID, host: 'r2', fmt: 'ogg', vis: 'visible' });
+});
