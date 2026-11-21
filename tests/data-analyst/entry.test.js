@@ -125,11 +125,26 @@ describe('(d) no mode: data questions are answered, everything else goes on as b
     expect(last.body.startsWith('*1,816 teachers* got a lesson plan last week.')).toBe(true);
     expect(last.buttons.map((b) => b.id)).toEqual(['da_another', 'da_menu']);
   });
+  test('a wide result: the chart, and the measures it leaves out listed under it (bd-bhgw20.4)', async () => {
+    const WIDE = {
+      name: 'query_metric', arguments: { metric: 'hitl_conducted', by: ['sector'] },
+      result: JSON.stringify({ status: 'ok', period: '01 Nov 2026 - 21 Nov 2026',
+        rows: [{ sector: 'B.K', value: 229, reviewed: 217, complete: 212, debrief_pending: 5 }, { sector: 'Nilore', value: 131, reviewed: 127, complete: 122, debrief_pending: 5 }],
+        measures: [{ name: 'value', label: 'coach visits' }, { name: 'reviewed', label: 'visits reviewed' }, { name: 'complete', label: 'debriefs sent' }, { name: 'debrief_pending', label: 'debriefs waiting' }] }),
+    };
+    const s = setup({ answer: { text: '*360 coach visits* were held 1–21 Nov.\n• B.K: 229\n• Nilore: 131', calls: [RULES, WIDE], stoppedEarly: false } });
+    await s.text('How many coach visits were held this month, by sector?');
+    const chart = s.out[s.out.length - 1];
+    expect(chart.kind).toBe('chart');
+    expect(chart.body).toContain('B.K: 217 reviewed · 212 complete · 5 debrief pending');
+    expect(chart.body).toContain('Nilore: 127 reviewed · 122 complete · 5 debrief pending');
+  });
   test('a chart that cannot be rendered falls back to the text answer', async () => {
     const s = setup({ chart: null });
     await s.text('How many teachers made a lesson plan last week, by sector?');
     expect(s.out[s.out.length - 1].kind).toBe('buttons');
     expect(s.out[s.out.length - 1].body).toContain('Urban-I leads');
+    expect(s.out[s.out.length - 1].body).toContain('B.K: 389\nNilore: 199\nUrban-I: 451'); // every row, from the data
   });
   test('unsure: two buttons; "Data answer" answers it, "Normal" hands the same words to the ordinary handler', async () => {
     const s = setup({ verdict: 'unsure' });

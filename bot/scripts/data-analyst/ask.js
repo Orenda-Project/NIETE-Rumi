@@ -26,7 +26,7 @@ const { isConfigured } = require('../../shared/services/data-analyst/switch');
 const { ConversationMemory } = require('../../shared/services/data-analyst/memory');
 const { runQuestion } = require('../../shared/services/data-analyst/answering');
 const { composeReply, footer } = require('../../shared/services/data-analyst/whatsapp-format');
-const { chartSpecs, renderChartPng } = require('../../shared/services/data-analyst/chart');
+const { chartSpecs, breakdownLines, renderChartPng } = require('../../shared/services/data-analyst/chart');
 
 // Straight to the terminal: the bot's structured logger takes over console.log and would wrap the answer in a log line.
 const say = (text) => fs.writeSync(1, `${text}\n`);
@@ -83,7 +83,10 @@ async function main() {
         say(`[chart: ${specs[0].kind}, ${file}]`);
       }
     } else if (specs.length) say(`[chart: ${specs[0].kind} — add --png <dir> to render it]`);
-    const out = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText, hasChart: Boolean(chart || specs.length) });
+    // As the door does (bd-bhgw20.4): beside a chart, the measures it leaves out; with no chart, every row.
+    const charted = Boolean(chart || specs.length);
+    const out = composeReply({ text: result.text, calls: result.calls, stoppedEarly: result.stoppedEarly, knownText: result.knownText,
+      hasChart: charted, rest: charted ? specs[0].rest : breakdownLines(result.calls) });
     for (const m of out.before) say(`${m}\n---`);
     if (out.asks.length) say(`${out.caption}\n${out.asks.map((a) => `${a.question}: ${a.options.join(' | ')}`).join('\n')}\n---`);
     else say(`${out.caption}\n[Ask another] [Main menu]\n---`);
