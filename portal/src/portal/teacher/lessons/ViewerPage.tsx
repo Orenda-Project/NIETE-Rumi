@@ -18,10 +18,10 @@ import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
-import { ThingToTryStrip } from './ThingToTryStrip';
 import { attachToDc, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
-import { useLessonsLeader } from './audience';
+import { ThingToTryStrip } from './ThingToTryStrip';
 import { LessonQuizButton } from '../home/LessonQuizButton';
+import { useLessonsLeader } from './audience';
 import { OwnSections } from './own/OwnSections';
 import type { ChangeAt } from './own/change';
 import { useLpWhatsappSend, useViewerSlim } from './viewerFlags';
@@ -66,12 +66,12 @@ import { useLpFeedbackBar } from './feedbackApi';
  *                                       (features.lpWhatsappSend) AND she is the teacher, not picking, not recording.
  *   no dock                             except pick's Use this lesson plan.
  *
- * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER grades 1-5 plan once it has
+ * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER plan (grades 1-12) once it has
  * loaded, in both layouts; never for a leader, in `pick` / `fromDc`, on her own made plan (it has its own rating) or on
  * the answer key.
  */
 
-type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt } | null;
+type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt; shelf?: boolean } | null;
 
 export function ViewerPage() {
   const C = useCopy(LESSONS);
@@ -90,14 +90,14 @@ export function ViewerPage() {
   const state = location.state as ViewerState;
   const view = state?.lessonPlan ?? null;
   const dc = state?.dc ?? null;
-  // The strip's plan step and her taps on it, for the plan they were read for only: another plan opened from here
-  // (the answer key) gets no highlight.
-  const [step, setStep] = useState<{ key: string; index: number | null; jump: number }>({ key: '', index: null, jump: 0 });
   const pick = state?.pick ?? null;
   const inDc = !!pick || !!state?.fromDc;
   const leader = useLessonsLeader();
-  // Hers only: Start DC observation (also not while a lesson records, or inside a DC observation).
+  // Hers only: Start DC observation and Quiz this lesson (also not while a lesson records, or inside a DC observation).
   const teacherActions = !recording && !inDc && !leader;
+  // The strip's plan step and her taps on it, for the plan they were read for only: another plan opened from here
+  // (the answer key) gets no highlight.
+  const [step, setStep] = useState<{ key: string; index: number | null; jump: number }>({ key: '', index: null, jump: 0 });
 
   const close = useCallback(() => {
     if (location.key !== 'default') navigate(-1);
@@ -158,8 +158,12 @@ export function ViewerPage() {
     />
   );
 
-  const feedbackBar = feedbackOn && readyKey === key && source.lane === 'k5' && source.assetKind === 'lesson' && !leader && !inDc && !state?.own
-    ? <FeedbackBar plan={{ kind: 'k5', ref: source.lessonId }} />
+  // bd-96f69c.16 — every 6-12 lane plan (grades 6-12, and a GB grades 1-5 plan, bd-m8zwt1.16) is asked by its render id.
+  const barPlan = source.lane === 'k5' ? { kind: 'k5' as const, ref: source.lessonId }
+    : source.lane === 'g612' && source.renderId ? { kind: 'g612' as const, ref: source.renderId }
+      : null;
+  const feedbackBar = feedbackOn && readyKey === key && barPlan && (source.lane !== 'k5' || source.assetKind === 'lesson') && !leader && !inDc && !state?.own && !state?.shelf
+    ? <FeedbackBar plan={barPlan} />
     : null;
 
   if (slim) {
@@ -225,7 +229,7 @@ export function ViewerPage() {
             {C.answerKey}
           </button>
         ) : null}
-        {recording || inDc ? null : <LessonQuizButton className={act} />}
+        {teacherActions ? <LessonQuizButton className={act} /> : null}
       </div>
       {plan}
       {feedbackBar}

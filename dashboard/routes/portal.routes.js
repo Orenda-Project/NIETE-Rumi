@@ -3136,7 +3136,7 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
   }
 });
 /**
- * One survey per plan: with the survey bar on for her (portal_lp_feedback_bar, grades 1-5), she is asked at the end of
+ * One survey per plan: with the survey bar on for her (portal_lp_feedback_bar, grades 1-12 since bd-96f69c.16), she is asked at the end of
  * the plan in the app, so the open tells the bot `inApp` and WhatsApp does not ask. Only where the bar can be drawn:
  * her plan, not its answer key, and the teacher app v2 on for her (GET /config lpFeedbackBar). Else, or a failed read:
  * today's — WhatsApp asks.
@@ -3376,9 +3376,10 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     if (isOpenHint(req.query.open) && out.state === 'ready' && out.url) {
       // bd-4joiqz — whose open it is is read after the answer, so it never delays the poll.
       const userId = req.session.portalUserId;
-      LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
+      const own = out.shelf === true || typeof out.changesLeft === 'number'; // her own plan draws no bar
+      Promise.all([LpReader.readerOf(userId), own ? true : k5Survey(userId)]).then(([reader, survey]) => LpReader.recordOpen(reader, dbQuery, {
         userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'external',
-      }, { renderId }));
+      }, { renderId, survey }));
     }
     res.json({ success: true, ...out });
   } catch (error) {
@@ -3418,9 +3419,11 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
   if (res.statusCode === 200 && res.writableFinished) {
     // bd-4joiqz — a teacher's open row and survey, or a leader's event; read after the response.
     const userId = req.session.portalUserId;
-    LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
+    // bd-96f69c.16 — the survey bar is drawn on her 6-12 plan too (not her own plan), so the app asks, not WhatsApp.
+    const own = out.shelf === true || typeof out.changesLeft === 'number';
+    Promise.all([LpReader.readerOf(userId), own ? true : k5Survey(userId)]).then(([reader, survey]) => LpReader.recordOpen(reader, dbQuery, {
       userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
-    }, { renderId }));
+    }, { renderId, survey }));
     // bd-snkn32.51 (queue #134 A) — an own plan: hers ('mine'; several per ownId = re-opens) or a shelf plan ('shelf').
     if (out.shelf === true || typeof out.changesLeft === 'number') {
       logAppAction(req, 'own_plan.opened', 'lesson_plan', {
