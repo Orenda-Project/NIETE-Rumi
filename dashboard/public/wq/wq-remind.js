@@ -45,7 +45,8 @@
       remindYes: 'ہاں',
       remindLater: 'ابھی نہیں',
       remindWait: 'یاد دہانی آن ہو رہی ہے…',
-      remindHint: 'اب نیچے Allow دبائیں',
+      // names no button: Chrome's permission dialog follows the phone's language, not the page's
+      remindHint: 'اب نیچے والے بٹن سے اجازت دیں',
       remindDone: 'ہو گیا۔ جگنو کل شام یاد دلائے گا۔',
       remindDoneMon: 'ہو گیا۔ جگنو پیر کی شام یاد دلائے گا۔',
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
