@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T18:12:23Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"5b6887eedac6","branch":"bd-snkn32.59.4-staging","user":""}
+{"ts":"2026-11-21T08:18:20Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-5b6887eedac6","sha":"5b6887eedac6","branch":"bd-snkn32.59.4-staging","user":""}
