@@ -45,19 +45,19 @@ beforeEach(() => { jest.clearAllMocks(); HubDevice.deviceKids.mockResolvedValue(
 describe('switches', () => {
   test('off without the row', async () => {
     setup({ settings: {} });
-    expect(await Push.switches()).toEqual({ remind: false, test: false, portal: false });
+    expect(await Push.switches()).toEqual({ remind: false, test: false, portal: false, names: false });
   });
   test('off when any env is missing, even with the rows on', async () => {
     const env = { ...ENV };
     delete env.WQ_PUSH_HASH_SALT;
     setup({ settings: { web_quiz_push_remind: true, web_quiz_push_test: true }, env });
-    expect(await Push.switches()).toEqual({ remind: false, test: false, portal: false });
+    expect(await Push.switches()).toEqual({ remind: false, test: false, portal: false, names: false });
   });
   test('on with the row and every env; test only under remind', async () => {
     setup({ settings: { web_quiz_push_remind: true, web_quiz_push_test: true } });
-    expect(await Push.switches()).toEqual({ remind: true, test: true, portal: false });
+    expect(await Push.switches()).toEqual({ remind: true, test: true, portal: false, names: false });
     setup({ settings: { web_quiz_push_test: true } });
-    expect(await Push.switches()).toEqual({ remind: false, test: false, portal: false });
+    expect(await Push.switches()).toEqual({ remind: false, test: false, portal: false, names: false });
   });
   test('a string "true" is off (JSON true only)', async () => {
     setup({ settings: { web_quiz_push_remind: 'yes' } });
@@ -66,13 +66,13 @@ describe('switches', () => {
 });
 
 describe('nextAt (school days, PKT)', () => {
-  test('Tue 10:00 PKT → Wed 16:00 PKT', () => {
-    expect(new Date(Push.nextAt(at('2025-10-21T05:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-22T11:00:00.000Z');
+  test('Tue 10:00 PKT → Wed 17:30 PKT (no device: no spread)', () => {
+    expect(new Date(Push.nextAt(at('2025-10-21T05:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-22T12:30:00.000Z');
   });
-  test('Fri 17:00 PKT → Mon 16:00 PKT; Sat and Sun → Mon', () => {
-    expect(new Date(Push.nextAt(at('2025-10-24T12:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-27T11:00:00.000Z');
-    expect(new Date(Push.nextAt(at('2025-10-25T06:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-27T11:00:00.000Z');
-    expect(new Date(Push.nextAt(at('2025-10-26T06:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-27T11:00:00.000Z');
+  test('Fri 17:00 PKT → Mon 17:30 PKT; Sat and Sun → Mon', () => {
+    expect(new Date(Push.nextAt(at('2025-10-24T12:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-27T12:30:00.000Z');
+    expect(new Date(Push.nextAt(at('2025-10-25T06:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-27T12:30:00.000Z');
+    expect(new Date(Push.nextAt(at('2025-10-26T06:00:00Z'), 'quiz_reminder')).toISOString()).toBe('2025-10-27T12:30:00.000Z');
   });
   test('teacher evening_plan at 18:00 PKT', () => {
     expect(new Date(Push.nextAt(at('2025-10-21T05:00:00Z'), 'evening_plan')).toISOString()).toBe('2025-10-22T13:00:00.000Z');
@@ -92,7 +92,7 @@ describe('subscribe', () => {
     expect(Push.decrypt(r.endpoint_enc)).toBe(ENDPOINT);
     expect(JSON.parse(Push.decrypt(r.keys_enc))).toEqual(SUB.keys);
     expect(r).toMatchObject({ kind: 'quiz_reminder', via: 'family_phone', device_ref: DEVICE, user_id: null, quiz_code: 'ABC123', lang: 'ur', ua_class: 'chrome_android', chips_n: 1, student_id: null });
-    expect(r.next_at).toBe('2025-10-22T11:00:00.000Z');
+    expect(r.next_at).toBe('2025-10-22T12:48:00.000Z'); // 17:30 PKT + this device's minute (18)
     expect(r.expires_at).toBe(new Date(at('2025-10-21T05:00:00Z') + 90 * 864e5).toISOString());
     expect(logEvent).toHaveBeenCalledWith('web_quiz.push_subscribed', { kind: 'quiz_reminder', via: 'family_phone', ua_class: 'chrome_android', chips_n: 1 });
   });
@@ -193,21 +193,21 @@ describe('sendOne / dueTick / expireTick', () => {
     expect(rows()[0]).toMatchObject({ revoked_by: 'gone', endpoint_enc: null });
   });
 
-  test('dueTick sends due rows only, counts, reschedules; revokes at 5 unopened', async () => {
+  test('dueTick sends due rows only, counts, reschedules; revokes at 3 unopened', async () => {
     setup();
     const t0 = at('2025-10-21T05:00:00Z');
     await Push.subscribe({ sub: SUB, device_ref: DEVICE, code: 'ABC123', lang: 'en' }, { now: t0 });
     await Push.subscribe({ sub: { ...SUB, endpoint: 'https://fcm.googleapis.com/fcm/send/two' }, device_ref: DEVICE, code: 'ABC123', lang: 'en' }, { now: t0 });
     await Push.subscribe({ sub: { ...SUB, endpoint: 'https://fcm.googleapis.com/fcm/send/three' }, device_ref: DEVICE, code: 'ABC123', lang: 'en' }, { now: t0 });
     rows()[1].next_at = '2025-10-30T11:00:00.000Z'; // not due
-    rows()[2].unopened_count = 5;
+    rows()[2].unopened_count = 3;
     const wp = webpush();
-    const out = await Push.dueTick(at('2025-10-22T11:00:30Z'), { webpush: wp });
+    const out = await Push.dueTick(at('2025-10-22T12:48:30Z'), { webpush: wp });
     expect(out).toMatchObject({ sent: 1 });
     expect(wp.sendNotification).toHaveBeenCalledTimes(1);
-    expect(rows()[0]).toMatchObject({ sent_count: 1, unopened_count: 1, last_sent_at: '2025-10-22T11:00:30.000Z', next_at: '2025-10-23T11:00:00.000Z' });
+    expect(rows()[0]).toMatchObject({ sent_count: 1, unopened_count: 1, last_sent_at: '2025-10-22T12:48:30.000Z', next_at: '2025-10-23T12:48:00.000Z' });
     expect(rows()[2]).toMatchObject({ revoked_by: 'unopened', endpoint_enc: null });
-    expect(logEvent).toHaveBeenCalledWith('web_quiz.push_sent', { n: 1, kind: 'quiz_reminder' });
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.push_sent', expect.objectContaining({ n: 1, kind: 'quiz_reminder', reason: 'quiz_reminder' }));
   });
 
   test('dueTick does nothing while the switch is off; a stale slot is rescheduled, not sent', async () => {
@@ -221,7 +221,7 @@ describe('sendOne / dueTick / expireTick', () => {
     Push.__reset();
     await Push.dueTick(at('2025-10-23T03:00:00Z'), { webpush: wp }); // 16 h late
     expect(wp.sendNotification).not.toHaveBeenCalled();
-    expect(rows()[0].next_at).toBe('2025-10-24T11:00:00.000Z');
+    expect(rows()[0].next_at).toBe('2025-10-24T12:48:00.000Z');
   });
 
   test('expireTick runs with the switch off: expires, nulls the secrets, deletes after 13 months', async () => {

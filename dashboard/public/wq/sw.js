@@ -65,15 +65,16 @@ self.addEventListener('push', function (e) {
   if (!d || typeof d !== 'object') d = {};
   var lang = d.lang === 'en' ? 'en' : 'ur';
   var c = COPY[lang];
-  e.waitUntil(self.registration.showNotification(str(d.t, 60) || c.t, {
+  var tag = str(d.tag, 40) || 'jugnu-remind';
+  e.waitUntil(Promise.all([self.registration.showNotification(str(d.t, 60) || c.t, {
     body: str(d.b, 200) || (d.test ? c.test : c.b),
     icon: ICON,
-    tag: str(d.tag, 40) || 'jugnu-remind',
+    tag: tag,
     lang: lang,
     dir: lang === 'ur' ? 'rtl' : 'ltr',
     data: { url: safeUrl(d.url) },
     actions: [{ action: 'stop', title: c.stop }],
-  }));
+  }), d.test ? null : post('/api/wqpush/delivered', { tag: tag })]));
 });
 
 self.addEventListener('notificationclick', function (e) {
