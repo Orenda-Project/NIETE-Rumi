@@ -137,7 +137,7 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-who-h{margin:14px 0 6px;font-size:17px;color:var(--navy)}
 .wq-who-sum h2{margin:0}
 .wq-who-np{padding:6px 0}
-.wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:32px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
+.wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:var(--tap);font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 /* the challenge line on the fold door (web_quiz_challenge_fold): wrapped balanced, never one word left alone */
 .wq-chline{text-wrap:balance}
@@ -366,7 +366,8 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 .wq-artprev{display:block;width:100%;aspect-ratio:1200/630;object-fit:cover;border-radius:14px;margin:8px 0;background:var(--tint)}
 
 /* No recorded clip and no phone voice for this language (Android's in-app browser has none): the words are the voice, so show them big. */
-.wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:24px;line-height:1.55;color:var(--ink,inherit)}
+.wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:30px;line-height:1.4;color:var(--ink,inherit)}
+.wq-novoice .wq-opt{font-size:26px}
 /* M16 all schools this week: my school is pinned to the top or bottom edge when scrolled away. */
 .wq-slist{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .wq-srow{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:10px 8px;font-weight:800}
@@ -470,7 +471,7 @@ a.wq-vitem{color:inherit;text-decoration:none}
 .wql-dlhelp{font-size:14px;color:var(--muted);text-align:center;margin:0}
 .wql-dlhelp a{color:var(--green-d);font-weight:800}
 /* An option's own recorded voice: tap to hear just that option (never an answer). */
-.wq-opt .wq-ohear{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--green-l);color:var(--green-d);font-size:20px;line-height:1;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(0,0,0,.04)}
+.wq-opt .wq-ohear{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:50%;display:grid;place-items:center;background:var(--green-l);color:var(--green-d);font-size:20px;line-height:1;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(0,0,0,.04)}
 .wq-opt .wq-ohear:active{transform:scale(.92)}
 .wq-opt .wq-ohear:focus-visible{outline:3px solid var(--green-d)}
 .wq-locked .wq-ohear{opacity:.45}
@@ -802,13 +803,14 @@ html.wq-ur2[lang=ur] #wq-hintbox .wq-say{font-size:17px}
 html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur);line-height:var(--ulh1);padding:10px 18px 6px;min-height:60px}
 html.wq-ur2[lang=ur] .wq-soft{font-size:17px}
 html.wq-ur2[lang=ur] .wq-ghost{font-size:16px;text-decoration-thickness:2px;text-underline-offset:.3em;text-decoration-skip-ink:all}
-html.wq-ur2[lang=ur] .wq-linkbtn{min-height:44px;font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em}
+html.wq-ur2[lang=ur] .wq-linkbtn{min-height:var(--tap);font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em}
 html.wq-ur2[lang=ur] .wq-key-go{font-family:var(--fu);font-size:20px;line-height:var(--ulh1);padding-top:.3em}
 /* the question card and its options */
 html.wq-ur2[lang=ur] .wq-qcard{padding:16px 14px 10px;gap:10px}
 html.wq-ur2[lang=ur] .wq-qtext{font-size:22px;line-height:var(--ulh);padding-inline-start:var(--upad-s)}
 html.wq-ur2[lang=ur] .wq-qtext.wq-qsmall{font-size:17px}
-html.wq-ur2[lang=ur] .wq-novoice .wq-qtext{font-size:23px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-novoice .wq-qtext{font-size:30px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-novoice .wq-opt{font-size:26px}
 html.wq-ur2[lang=ur] .wq-opts{gap:12px}
 html.wq-ur2[lang=ur] .wq-opt{font-size:20px;line-height:var(--ulh1);padding:8px 12px 6px;padding-inline-start:12px;min-height:66px}
 html.wq-ur2[lang=ur] .wq-opt .wq-lab{padding-top:.25em;padding-inline-start:var(--upad-s)}
