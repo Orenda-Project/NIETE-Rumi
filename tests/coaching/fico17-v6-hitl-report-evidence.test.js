@@ -158,8 +158,8 @@ describe('/observe v6: the teacher report (PDF / record) shows the evidence as t
     expect(crit('C3').evidence).toContain(COACH_C3);
     expect(crit('C3').evidence).not.toContain(RUMI_C3);
   });
-  test('the label is the framework and its version only', () => {
-    expect(rd.frameworkDisplayName).toBe('FICO17 v6');
+  test('the label is the framework and its version only (a review saved now is v6.1, queue #218)', () => {
+    expect(rd.frameworkDisplayName).toBe('FICO17 v6.1');
   });
 });
 

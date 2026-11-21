@@ -45,14 +45,15 @@ describe('the prompt is the rubric registry, starred indicators left out', () =>
     }
     expect(sys).not.toContain('E3');
   });
-  test('N/A is offered only where the rubric allows it (C2)', () => {
-    expect(sys).toContain(`N/A: ${S.indicator('C2').na.text}`);
-    const naLines = sys.split('\n').filter((l) => /^N\/A: /.test(l));
+  test('N/A is offered only where the rubric allows it (v1.2: C2 and C3, each its own rule)', () => {
+    for (const c of S.NA_CODES) expect(sys).toContain(`N/A when: ${S.naDcRule(c)}`);
+    const naLines = sys.split('\n').filter((l) => /^N\/A when: /.test(l));
     expect(naLines).toHaveLength(S.NA_CODES.length);
   });
   test('the prompt version names the rubric data and a version of the prompt', () => {
-    expect(fw.promptVersion).toMatch(/^fico-s-dc-3\+[0-9a-f]{8}$/); // 3: starred = E3 only, 22 asked (19 Nov ~17:00)
-    expect(fw.name).toBe('fico_s_v1_1');
+    // 3: starred = E3 only, 22 asked (19 Nov ~17:00). 4: FICO-S v1.2, a Couldn't tell line each, N/A on C2 + C3 (queue #218).
+    expect(fw.promptVersion).toMatch(/^fico-s-dc-4\+[0-9a-f]{8}$/);
+    expect(fw.name).toBe('fico_s_v1_2');
   });
 });
 
@@ -99,7 +100,7 @@ describe('the validator and the scorer', () => {
   test('the scorer stamps the rubric, never keeps a starred level, and adds up the DC levels as FICO-S does', () => {
     const a = fw.computeScores(reply({ E3: { result: 4, because: 'by mistake', evidence: [] }, C2: { result: 'NA', because: '', evidence: [] }, D1: { result: 'IE', because: 'garbled', evidence: [] } }), false);
     expect(a.levels.E3).toBeUndefined();
-    expect(a.rubric).toBe('fico_s_v1_1');
+    expect(a.rubric).toBe('fico_s_v1_2');
     expect(a.prompt_version).toBe(fw.promptVersion);
     expect(a.dc_scores.counted).toBe(S.DC_CODES.length - 2);
     expect(a.dc_scores.pct).toBe(75);
