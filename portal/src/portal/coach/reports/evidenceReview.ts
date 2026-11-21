@@ -108,8 +108,12 @@ export function removeRow(r: Review, key: string): Review {
   };
 }
 
-/** Edit a row in place; the assistant's row is "edited" unless the words are typed back to its own. */
+/**
+ * Edit a row in place; the assistant's row is "edited" unless the words are typed back to its own. A row emptied is a
+ * row removed (the server keeps an "edited" row only with the coach's words, observe-fico17-v6 sanitizeEvidenceReview).
+ */
 export function editRow(r: Review, key: string, text: string): Review {
+  if (!text.trim()) return removeRow(r, key);
   return {
     ...r,
     rows: r.rows.map((row) => {

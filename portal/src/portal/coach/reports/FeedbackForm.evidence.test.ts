@@ -67,6 +67,14 @@ describe("ev_<code>: today's one text", () => {
     expect(sameReview(start, removeRow(mine, mine.rows[3].key))).toBe(true);
   });
 
+  it("a row emptied by an edit is a row removed (the server keeps an edited row only with words)", () => {
+    const start = initialReview(IND())!;
+    const r = editRow(start, start.rows[0].key, "   ");
+    expect(reviewOut(r).items[0]).toEqual({ source: "rumi", time: "04:30", quote: "اب ہم کیا کریں گے؟", status: "removed" });
+    const mine = addRow(start, "Mine.", null);
+    expect(editRow(mine, mine.rows[3].key, "").rows).toHaveLength(3);
+  });
+
   it("a review saved before comes back with each row's status", () => {
     const r = initialReview(IND({
       evidenceReview: {
