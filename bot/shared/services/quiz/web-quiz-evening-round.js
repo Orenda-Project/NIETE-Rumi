@@ -717,10 +717,90 @@ function classLinkOpen(code, via) {
   return true;
 }
 
+// ── the teacher's live report page: "Evening rounds" (read when the teacher opens it; nothing is sent) ─────────
+
+const REPORT_DAYS = 7;
+const REPORT_MAX = 14;
+const escHtml = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/**
+ * The evening rounds of the teacher's classes over the last REPORT_DAYS days, newest first:
+ * [{ round_day, class_label, class_label_ur, topic, played, finishers:[first names, sorted], avg }] — each child once
+ * (their first finish). null when off, the teacher teaches no class, or there is no round. Never throws.
+ * Reads: class_teachers, quiz_share_codes (by class_id), quizzes, quiz_sessions, classes, students.
+ */
+async function forTeacherReport(teacherId, { now = new Date() } = {}) {
+  try {
+    if (!teacherId || !(await Flags.eveningRoundOn())) return null;
+    const { data: ct } = await supabase.from('class_teachers').select('class_id').eq('teacher_user_id', teacherId).eq('is_active', true);
+    const classIds = [...new Set((ct || []).map((r) => r.class_id).filter(Boolean))];
+    if (!classIds.length) return null;
+    const since = new Date(now.getTime() - REPORT_DAYS * 86400000).toISOString();
+    const codes = await readIn('quiz_share_codes', 'id, quiz_id, class_id, created_at', 'class_id', classIds, (q) => q.gte('created_at', since));
+    if (!codes.length) return null;
+    const quizzes = (await readIn('quizzes', 'id, topic, subject, meta', 'id', codes.map((c) => c.quiz_id))).filter(isEveningRound);
+    if (!quizzes.length) return null;
+    const mine = codes.filter((c) => quizzes.some((q) => q.id === c.quiz_id));
+    const [sessions, classes] = await Promise.all([
+      readIn('quiz_sessions', 'id, share_code_id, student_id, status, correct_answers, total_questions_answered, completed_at', 'share_code_id', mine.map((c) => c.id),
+        (q) => q.eq('status', 'completed')),
+      readIn('classes', 'id, grade_code, section', 'id', mine.map((c) => c.class_id)),
+    ]);
+    const firstFinish = new Map(); // `${code}|${student}` -> session
+    sessions.filter((x) => x.student_id && x.completed_at).sort((a, b) => String(a.completed_at).localeCompare(String(b.completed_at)))
+      .forEach((x) => { const k = `${x.share_code_id}|${x.student_id}`; if (!firstFinish.has(k)) firstFinish.set(k, x); });
+    const kidIds = [...new Set([...firstFinish.values()].map((x) => x.student_id))];
+    const students = kidIds.length ? await readIn('students', 'id, student_name', 'id', kidIds) : [];
+    const CL = require('./web-quiz-class-link');
+    const { classLabels } = require('./web-quiz-evening-round-phone');
+    const out = mine.map((c) => {
+      const q = quizzes.find((x) => x.id === c.quiz_id);
+      const cls = classes.find((x) => x.id === c.class_id) || {};
+      const labels = classLabels(cls.grade_code, cls.section);
+      const done = [...firstFinish.values()].filter((x) => x.share_code_id === c.id);
+      const pct = done.map((x) => (Number(x.total_questions_answered) > 0 ? (100 * Number(x.correct_answers || 0)) / Number(x.total_questions_answered) : null))
+        .filter((v) => v != null);
+      const finishers = done.map((x) => (students.find((st) => String(st.id) === String(x.student_id)) || {}).student_name)
+        .filter(Boolean).map((n) => CL.firstNameOf(n).shown).filter(Boolean).sort((a, b) => a.localeCompare(b));
+      return {
+        round_day: (q.meta && q.meta.round_day) || null, class_label: labels.en, class_label_ur: labels.ur, topic: q.topic || null,
+        played: done.length, finishers, avg: pct.length ? Math.round(pct.reduce((a, b) => a + b, 0) / pct.length) : null,
+      };
+    }).sort((a, b) => String(b.round_day).localeCompare(String(a.round_day))).slice(0, REPORT_MAX);
+    return out.length ? out : null;
+  } catch (err) {
+    logToFile('⚠️ evening round: teacher page section unavailable', { error: err.message });
+    return null;
+  }
+}
+
+const REPORT_WORDS = {
+  en: { title: 'Evening rounds', none: 'No child has played it yet.', played: (n) => `${n} ${n === 1 ? 'child' : 'children'} played`, avg: (n) => `average ${n}%` },
+  ur: { title: 'شام کے راؤنڈ', none: 'ابھی کسی بچے نے نہیں کھیلا۔', played: (n) => `${urNum(n)} بچوں نے کھیلا`, avg: (n) => `اوسط ${urNum(n)}٪` },
+};
+function urNum(n) { return String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]); }
+
+/** The class tab's "Evening rounds" section (HTML), '' when there is nothing to show. */
+async function reportSection(teacherId, { lang = 'en' } = {}) {
+  const rounds = await forTeacherReport(teacherId);
+  if (!rounds) return '';
+  const ur = lang === 'ur';
+  const W = REPORT_WORDS[ur ? 'ur' : 'en'];
+  const rows = rounds.map((r) => {
+    const label = ur ? r.class_label_ur : r.class_label;
+    const day = ur ? urNum(r.round_day || '') : r.round_day || '';
+    const head = [label, r.topic].filter(Boolean).map(escHtml).join(' · ');
+    const stat = r.played ? `${escHtml(W.played(r.played))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
+    const names = r.finishers.length ? `<p class="er-kids">${r.finishers.map((n) => `<bdi>${escHtml(n)}</bdi>`).join(', ')}</p>` : '';
+    return `<li class="er-round"><p class="er-head"><span class="er-day">${escHtml(day)}</span> ${head}</p><p class="er-stat">${stat}</p>${names}</li>`;
+  }).join('');
+  return `<section class="card er-rounds" id="evening-rounds"><h2>${escHtml(W.title)}</h2><ul class="er-list">${rows}</ul></section>`;
+}
+
 module.exports = {
   ROUND_SOURCE, NO_SEND, LESSON_ITEMS, RECALL_ITEMS, tileWords,
   isEveningRound, lpTakenFor, ownLpTaken, chooseLesson, subjectCanon, gradeOfCode, classesOf,
   writeRounds, tick, afterGenerate, asWebItem, selectRoundItems, roundFields, noteRound, isRoundShareCode,
-  roundsForClasses, roundCandidate, noteShown, viaOf, classLinkOpen, cacheKey, lockKey,
+  roundsForClasses, roundCandidate, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection,
   _resetCache: () => { ROUND_CODES.clear(); },
 };
