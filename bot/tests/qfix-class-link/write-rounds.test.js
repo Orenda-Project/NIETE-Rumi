@@ -83,6 +83,11 @@ function seed(settings = SWITCHES, over = {}) {
       dl(T2, 3, 'math', '2026-11-24T10:00:00Z', 'grade_3_math_ch7_seg2'), // 15:00 PKT: tomorrow's
     ],
     niete_lp_opens: [],
+    // the offers' export keeps lesson assets with a slide script only (lp-quiz-offer.service lpTakenFor)
+    niete_lp_assets: ['grade_3_english_ch4_seg2', 'grade_3_math_ch7_seg1', 'grade_5_english_ch1_seg1', 'grade_3_math_ch7_seg2']
+      .map((l) => ({ id: `a-${l}`, asset_kind: 'lesson' })),
+    niete_lp_asset_sources: ['grade_3_english_ch4_seg2', 'grade_3_math_ch7_seg1', 'grade_5_english_ch1_seg1', 'grade_3_math_ch7_seg2']
+      .map((l) => ({ lesson_id: l, version_stamp: 'v8', content_hash: `h-${l}` })),
     quizzes: [{ id: 'qold', teacher_id: T1, quiz_source: 'lp_v8', subject: 'english', grade: '3', language: 'en', status: 'sent', meta: { source: 'lp_offer' } }],
     quiz_share_codes: [{ id: 'scold', code: 'OLD234', quiz_id: 'qold', class_id: C1, teacher_user_id: T1 }],
     quiz_sessions: [
@@ -120,7 +125,8 @@ beforeEach(() => { jest.clearAllMocks(); redis._store.clear(); seed(); });
 test('one round for the linked class whose teacher took a lesson for today: the EARLIER of two teachers, the class\'s grade', async () => {
   const enqueue = jest.fn().mockResolvedValue(undefined);
   const out = await Round().writeRounds({ now: NOW, enqueue });
-  expect(out).toMatchObject({ day: '2026-11-24', queued: 1, no_lp: 1, lp_src: 'own' });
+  // the offers lane's batched export (lpTakenFor), run for real against the same tables
+  expect(out).toMatchObject({ day: '2026-11-24', queued: 1, no_lp: 1, lp_src: 'lp-quiz-offer.service:lpTakenFor' });
   expect(rounds()).toHaveLength(1);
   const q = rounds()[0];
   expect(q).toMatchObject({ teacher_id: T2, quiz_source: 'lp_v8', status: 'generating', grade: '3', subject: 'math' });
@@ -238,4 +244,15 @@ describe('the offers\' export when it is there', () => {
     expect(lpTakenFor).toHaveBeenCalledWith([T2], '2026-11-24');
     jest.dontMock('../../shared/services/nudges/lp-quiz-offer.service');
   });
+});
+
+test('the fallback read (offers\' export absent) chooses the same lesson', async () => {
+  jest.resetModules();
+  const R = require('../../shared/services/quiz/web-quiz-evening-round');
+  Object.assign(require('../../shared/config/supabase'), { from: makeFake(db).from });
+  const own = await R.ownLpTaken([T1, T2], '2026-11-24');
+  const viaExport = (await R.lpTakenFor([T1, T2], '2026-11-24')).by;
+  const pick = (by) => R.chooseLesson({ grade: 3, teachers: [{ teacherId: T1, subjects: ['english'] }, { teacherId: T2, subjects: ['maths'] }], by });
+  expect(pick(own)).toMatchObject({ teacherId: T2, subject: 'math' });
+  expect(pick(viaExport)).toMatchObject({ teacherId: T2, subject: 'math' });
 });
