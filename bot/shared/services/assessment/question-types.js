@@ -173,6 +173,21 @@ const MAX_QUESTIONS = 50;
 const DEFAULT_QUESTIONS = 15;
 
 /**
+ * ICT sheet, Assessment Generator row 12 (Amena's decision, 21 Nov 2026): a group of quick items printed under ONE
+ * heading ("Choose the correct option", i-x) counts as ONE question toward MAX_QUESTIONS; a written question counts
+ * one each. A group still holds at most MAX_QUESTIONS items, and the paper at most MAX_ITEMS printed items: the
+ * request row's own CHECK (question_count 1..100, V1.7.5), which the item total is stored against.
+ */
+const GROUPED_TYPES = ['MCQs', 'MSQs', 'Fill in the Blanks', 'Missing Letters', 'True/False', 'Match the Column',
+  'Circle the Correct Answer', 'mcq'];
+const MAX_ITEMS = 100;
+
+/** How many questions these types count toward MAX_QUESTIONS: a grouped type 1, any other type its count. */
+function limitCount(types) {
+  return (types || []).reduce((s, t) => s + (GROUPED_TYPES.includes(t.id) ? (t.count > 0 ? 1 : 0) : (Number(t.count) || 0)), 0);
+}
+
+/**
  * How many types she may pick, and therefore how many count boxes the COUNTS
  * screen holds.
  *
@@ -205,6 +220,17 @@ function parseQuestionCount(raw) {
   if (n > MAX_QUESTIONS) {
     return { ok: false, message: `A paper can hold up to ${MAX_QUESTIONS} questions. ${range}` };
   }
+  return { ok: true, count: n };
+}
+
+/**
+ * A paper's printed item total, as the app sends it: 1..MAX_ITEMS (AG row 12). The 50-question rule is then
+ * checked on limitCount() of the types, where a group under one heading counts as one.
+ */
+function parsePaperSize(raw) {
+  const n = Number(raw);
+  const range = `A paper can print 1 to ${MAX_ITEMS} items.`;
+  if (!Number.isInteger(n) || n < 1 || n > MAX_ITEMS) return { ok: false, message: range };
   return { ok: true, count: n };
 }
 
@@ -262,19 +288,28 @@ function parsePerTypeCounts(pickedIds, data, subject, grade, seenCount = 0) {
   }
 
   const total = out.reduce((s, t) => s + t.count, 0);
-  // On Both, the Seen questions she already asked for are part of the same
-  // paper, so the ceiling is checked on Seen + Unseen together.
-  const seen = Math.max(0, Number(seenCount) || 0);
-  if (total + seen > MAX_QUESTIONS) {
-    const which = seen ? ` (${seen} Seen + ${total} Unseen)` : '';
+  const counted = limitCount(out);
+  // On Both, the Seen questions she already asked for are part of the same paper, so both ceilings are checked on
+  // Seen + Unseen together. A bare number is Seen questions counted one each; { counted, items } is a Seen part
+  // that was itself counted by type (AG row 12).
+  const seenCounted = Math.max(0, Number(seenCount?.counted ?? seenCount) || 0);
+  const seenItems = Math.max(0, Number(seenCount?.items ?? seenCount) || 0);
+  if (counted + seenCounted > MAX_QUESTIONS) {
+    const which = seenCounted ? ` (${seenCounted} Seen + ${counted} Unseen)` : '';
     return {
       ok: false,
-      message: `That is ${total + seen} questions in total${which}. A paper can hold up to `
-        + `${MAX_QUESTIONS} — please lower one of the numbers.`,
+      message: `That is ${counted + seenCounted} questions in total${which}. A paper can hold up to `
+        + `${MAX_QUESTIONS} — a group of MCQs, blanks or true/false counts as one — please lower one of the numbers.`,
+    };
+  }
+  if (total + seenItems > MAX_ITEMS) {
+    return {
+      ok: false,
+      message: `That is ${total + seenItems} items to print. A paper can print up to ${MAX_ITEMS} — please lower one of the numbers.`,
     };
   }
 
-  return { ok: true, types: out, total };
+  return { ok: true, types: out, total, counted };
 }
 
 /**
@@ -320,4 +355,4 @@ function parseTotalMarks(raw) {
 
 module.exports = {
   parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE,
-  parseTotalMarks, MAX_TOTAL_MARKS, parsePerTypeCounts, MAX_TYPE_SLOTS };
+  parseTotalMarks, MAX_TOTAL_MARKS, parsePerTypeCounts, MAX_TYPE_SLOTS, GROUPED_TYPES, MAX_ITEMS, limitCount, parsePaperSize };
