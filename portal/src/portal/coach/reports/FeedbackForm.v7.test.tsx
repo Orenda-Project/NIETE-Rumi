@@ -7,6 +7,10 @@ import { resolve } from "node:path";
 import { scanCopy, scanStyle } from "../../newui/checks/source";
 
 /**
+ * bd-o15qnr.31 (#188 canvas-ff, LOCKED 21 Nov): the FICO17 v6 form on the switch is now every section collapsed (its
+ * own file: FeedbackForm.ffv7.test.tsx); the tests below follow it into a section and an indicator. The AI is the
+ * "NIETE Teaching Assistant", never "Rumi".
+ *
  * bd-o15qnr.28 (queue #204, v7; #188's LOCK round, "Screens #206 found with no design", row 10) — the Feedback Form
  * review screens in the v6/v7 look, behind the v6/v7 switch (useFlowV6: a coach on portal_coach_flow_v2, or a principal
  * on the principal app it names). Boards: m9-ff-v6 (+ -ur), m9-ff-save, m9-ff-fico-s, m9-ff-fde, p9-ff-v6.
@@ -19,7 +23,7 @@ import { scanCopy, scanStyle } from "../../newui/checks/source";
  *   Save tray     "Save Feedback Form", "17 ratings · 2 levels and 3 notes changed from Rumi's", Save and continue,
  *                 Keep checking, "Next: Record the debrief"
  *   FICO-S / FDE  saved part by part: every Next (and Back) saves, "Saved 11:42 AM" in the chip row, the line "Saved
- *                 part by part …"; FDE: "You choose every level here: no Rumi levels on this form."; levels as radio rows
+ *                 part by part …"; FDE: "You choose every level here: no NIETE Teaching Assistant levels on this form."; levels as radio rows
  *
  * Switch off (false, or null while /config is read): today's screens, byte for byte (the snapshots below were taken from
  * the code before v7 existed).
@@ -245,172 +249,202 @@ describe("switch off: today's Feedback Form, byte for byte", () => {
   });
 });
 
-/* ── switch on: FICO17 v6 (m9-ff-v6, p9-ff-v6, m9-ff-v6-ur) ─────────────────────────────────────────────────────── */
+/* ── switch on: FICO17 v6 (m9-ff-v6, p9-ff-v6, m9-ff-v6-ur; bd-o15qnr.31: every section collapsed, canvas-ff) ───────── */
 
-describe("switch on: FICO17 v6, as m9-ff-v6 draws it", () => {
+/** bd-o15qnr.31 — the collapsed form: a section from the outer view, then one indicator from its row. */
+const openSection = async (letter: string) => {
+  fireEvent.click(await screen.findByRole("button", { name: new RegExp(`${letter}\\. `) }));
+  await screen.findByTestId("ff-section");
+};
+const openIndicator = async (letter: string, code: string) => {
+  await openSection(letter);
+  fireEvent.click(within(screen.getByTestId("ff-section")).getByRole("button", { name: new RegExp(`^${code}\\b`) }));
+  await screen.findByTestId("ff-indicator");
+};
+const agree = () => fireEvent.click(dockButton("Agree and next"));
+
+describe("switch on: FICO17 v6, as m9-ff-v6 draws it (collapsed, canvas-ff)", () => {
   beforeEach(() => { flow.on = true; });
 
-  it("the header: the teacher and Now: Fill the form; the rubric as a chip; the parts", async () => {
+  it("the header: the teacher and Now: Fill the form; the rubric as a chip; the sections, collapsed", async () => {
     renderPage();
-    await screen.findByText("No lesson plan was provided.");
     expect(await screen.findByText("Lubna Arif · Now: Fill the form")).toBeInTheDocument();
     expect(screen.queryByText(/Step \d of 4/)).toBeNull();
     expect(screen.getByRole("heading", { name: "Feedback Form" })).toBeInTheDocument();
     const chip = screen.getByTestId("rubric-label");
     expect(chip).toHaveTextContent("FICO17 v6");
     expect(within(chip).getByText("FICO17 v6").closest("[data-chip]")).not.toBeNull(); // the kit's StatusChip
-    expect(screen.getByRole("img", { name: "Part 1 of 4" })).toBeInTheDocument();
+    expect(within(screen.getByTestId("ff-sections")).getAllByRole("button")).toHaveLength(4);
   });
 
-  it("one of Rumi's: the legend, his level ringed with a Rumi tag, Evidence and To improve", async () => {
+  it("one of the assistant's: the legend, its level ringed with its tag, Evidence and To improve", async () => {
     renderPage();
-    await toPartC();
+    await openIndicator("C", "C1");
     const legend = screen.getByTestId("legend");
     expect(legend).toHaveTextContent("Coach score");
-    expect(legend).toHaveTextContent("Rumi’s level");
-    expect(screen.getByRole("heading", { name: "C. What the teacher does" })).toBeInTheDocument();
+    expect(legend).toHaveTextContent("NIETE Teaching Assistant’s level");
     const c1 = group("Quality of Questions Asked by the Teacher");
     const rumi = c1.getByRole("radio", { name: /^Proficient/ });
     expect(rumi).toHaveAttribute("aria-checked", "true");
-    expect(rumi).toHaveAccessibleName("Proficient, Rumi’s level");
-    expect(within(rumi).getByText("Rumi")).toBeInTheDocument();
+    expect(rumi).toHaveAccessibleName("Proficient, NIETE Teaching Assistant’s level");
+    expect(within(rumi).getByText("NIETE Teaching Assistant")).toBeInTheDocument();
     expect(c1.getByRole("radio", { name: "Developing" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("radiogroup", { name: "Quality of Questions Asked by the Teacher" })).toHaveAttribute("data-look", "radio");
-    const c1card = within(card("Quality of Questions Asked by the Teacher"));
-    expect(c1card.getByLabelText("Evidence")).toHaveValue(EVIDENCE);
-    expect(c1card.getByLabelText("To improve")).toHaveValue("After an answer, ask “why?”.");
+    const ind = within(screen.getByTestId("ff-indicator"));
+    expect(ind.getByLabelText("Evidence")).toHaveValue(EVIDENCE); // no assistant list from this bot: today's one box
+    expect(ind.getByLabelText("To improve")).toHaveValue("After an answer, ask “why?”.");
     expect(screen.queryByText("What was seen")).toBeNull();
   });
 
-  it("a changed level says Changed from <Rumi's level>, above the levels; ONE amber Why you changed it per part", async () => {
+  it("a changed level says Changed from <the assistant's level>, above the levels; the part's ONE reason asked on it", async () => {
     renderPage();
-    await toPartC();
+    await openIndicator("C", "C1");
     expect(screen.queryByLabelText("Why you changed it")).toBeNull();
     fireEvent.click(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Developing" }));
     const chip = await screen.findByText("Changed from Proficient");
     const levels = screen.getByRole("radiogroup", { name: "Quality of Questions Asked by the Teacher" });
     expect(chip.compareDocumentPosition(levels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(group("Helping when a child is wrong").getByRole("radio", { name: "Proficient" }));
-    expect(await screen.findByText("Changed from Developing")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Why you changed it")).toHaveLength(1);
     expect(screen.getByTestId("why-changed")).toContainElement(screen.getByLabelText("Why you changed it"));
-    next();
+    fireEvent.change(screen.getByLabelText("Why you changed it"), { target: { value: "short" } });
+    fireEvent.click(within(screen.getByTestId("ff-indicator")).getByRole("button", { name: "Next" }));
+    await screen.findByText("Lubna Arif · C · 2 of 3");
+    fireEvent.click(group("Helping when a child is wrong").getByRole("radio", { name: "Proficient" }));
+    expect(await screen.findByText("Changed from Developing")).toBeInTheDocument();
+    expect(screen.getByLabelText("Why you changed it")).toHaveValue("short"); // the part's one reason (chg_C)
+    agree();
     expect(await screen.findAllByText("At least 20 letters")).not.toHaveLength(0);
   });
 
   it("one of the six: From the recording read only, the level, N/A and Couldn't tell as pills, Why this level", async () => {
     renderPage();
-    await toPartC();
-    const c3 = within(card("Who got to answer"));
+    await openIndicator("C", "C3");
+    const c3 = within(screen.getByTestId("ff-indicator"));
     expect(c3.getByText("From the recording")).toBeInTheDocument();
     expect(c3.getByText("12 children answered, mostly from the front rows.")).toBeInTheDocument();
     expect(c3.queryAllByRole("textbox")).toHaveLength(1); // only Why this level: the recording's words are read only
     const levels = group("Who got to answer");
     expect(levels.getAllByRole("radio").every((r) => r.getAttribute("aria-checked") === "false")).toBe(true);
-    expect(levels.queryByText("Rumi")).toBeNull();
+    expect(levels.queryByText("NIETE Teaching Assistant")).toBeNull();
     const pills = levels.getAllByTestId("level-aside");
     expect(pills.map((p) => p.textContent)).toEqual(["N/A · No question asked", "Couldn't tell"]);
     expect(pills[0]).toHaveAttribute("role", "radio");
     expect(c3.getByLabelText("Why this level (20 letters at least)")).toBeInTheDocument();
-    next();
+    agree();
     expect(await screen.findByText("Choose a level")).toBeInTheDocument();
     fireEvent.click(pills[1]);
     expect(pills[1]).toHaveAttribute("aria-checked", "true");
     fireEvent.change(c3.getByLabelText("Why this level (20 letters at least)"), { target: { value: WHY } });
-    next();
-    expect(await screen.findByText("How many children spoke")).toBeInTheDocument();
+    agree();
+    expect(await screen.findByText("Lubna Arif · C · 1 of 3")).toBeInTheDocument(); // on to the next yellow row
   });
 
-  it("the dock: Back and Next part", async () => {
+  it("the docks: Save on the sections, Next to check in a section, Agree and next on an indicator", async () => {
     renderPage();
-    await toPartC();
-    expect(dockButton("Back")).toBeInTheDocument();
-    expect(dockButton("Next part")).toBeInTheDocument();
+    await screen.findByTestId("ff-sections");
+    expect(dockButton("Save (3 sections to finish)")).toBeInTheDocument();
+    await openSection("C");
+    expect(dockButton("Next to check: C1 Quality of Questions Asked by the Teacher")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId("ff-section")).getByRole("button", { name: /^C2\b/ }));
+    await screen.findByTestId("ff-indicator");
+    expect(dockButton("Agree and next")).toBeInTheDocument();
   });
 
-  it("the Save tray: N ratings · what changed from Rumi's, Save and continue, Keep checking, Next: Record the debrief", async () => {
+  it("the Save tray: N ratings · what changed from the assistant's, Save and continue, Keep checking, Next: Record the debrief", async () => {
     renderPage();
-    await toPartC();
+    await openIndicator("C", "C1");
     fireEvent.click(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Developing" }));
     fireEvent.change(screen.getByLabelText("Why you changed it"), { target: { value: "The questions were all closed ones." } });
+    agree();
+    await screen.findByText("Lubna Arif · C · 2 of 3");
+    agree();
+    await screen.findByText("Lubna Arif · C · 3 of 3");
     fireEvent.click(group("Who got to answer").getByRole("radio", { name: "Developing" }));
     fireEvent.change(screen.getByLabelText("Why this level (20 letters at least)"), { target: { value: WHY } });
-    next();
-    await screen.findByText("How many children spoke");
+    agree();
+    await screen.findByTestId("ff-section");
+    fireEvent.click(dockButton("Next to check: D2 How many children spoke"));
+    await screen.findByText("Lubna Arif · D · 1 of 1");
     fireEvent.click(group("How many children spoke").getByRole("radio", { name: "Proficient" }));
     fireEvent.change(screen.getByLabelText("Why this level (20 letters at least)"), { target: { value: "Four children answered across the lesson." } });
     fireEvent.change(screen.getByLabelText("Children who spoke"), { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText("Quiet, then spoke"), { target: { value: "1" } });
-    next();
-    await screen.findByText("Accuracy of content");
+    agree();
+    await screen.findByTestId("ff-section");
+    fireEvent.click(dockButton("Next to check: F1 Accuracy of content"));
+    await screen.findByText("Lubna Arif · F · 1 of 1");
     fireEvent.change(screen.getByLabelText("Evidence"), { target: { value: "Correct facts, and one slip on dates." } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    agree();
+    await screen.findByTestId("ff-section");
+    fireEvent.click(dockButton("Done"));
+    await screen.findByTestId("ff-sections");
+    fireEvent.click(dockButton("Save"));
     const tray = within(await screen.findByRole("dialog", { name: "Save Feedback Form" }));
-    expect(tray.getByText("5 ratings · 1 level and 1 note changed from Rumi’s")).toBeInTheDocument();
+    expect(tray.getByText("5 ratings · 1 level and 1 note changed from the NIETE Teaching Assistant’s")).toBeInTheDocument();
     expect(tray.getByText("Next: Record the debrief")).toBeInTheDocument();
     fireEvent.click(tray.getByRole("button", { name: "Keep checking" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(dockButton("Save"));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Save and continue" }));
     await waitFor(() => expect(L.saveObservationDraft).toHaveBeenCalledTimes(1));
     expect(L.saveObservationDraft.mock.calls[0][1]).toMatchObject({
       r_C1: "2", chg_C: "The questions were all closed ones.", r_C3: "2", why_C3: WHY, r_D2: "3", d2_children: "4", d2_quiet_later: "1",
       r_F1: "3", ev_F1: "Correct facts, and one slip on dates.",
     });
+    expect(L.saveObservationDraft.mock.calls[0]).toHaveLength(2); // no assistant lists from this bot: today's call
     expect(await screen.findByText("observation page")).toBeInTheDocument();
   });
 
   it("read only once the teacher has the report: no levels to tap, no Save; the crumb says the form is filled", async () => {
     L.getObservationDraft.mockResolvedValue(V6({ editable: false, saved: true }));
     renderPage();
-    await screen.findByText("No lesson plan was provided.");
     expect(await screen.findByText("Lubna Arif · Form filled")).toBeInTheDocument();
-    next();
-    expect(await screen.findByText("Who got to answer")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save/ })).toBeNull();
+    await openIndicator("C", "C3");
+    expect(screen.getByText("Who got to answer")).toBeInTheDocument();
     expect(screen.queryAllByRole("radiogroup")).toEqual([]);
-    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
   it("the principal: the same form; the legend says Your level", async () => {
     renderPage(true);
-    await toPartC();
-    expect(screen.getByText("Lubna Arif · Now: Fill the form")).toBeInTheDocument();
+    await openIndicator("C", "C1");
+    expect(screen.getByText("Lubna Arif · C · 1 of 3")).toBeInTheDocument();
     const legend = screen.getByTestId("legend");
     expect(legend).toHaveTextContent("Your level");
-    expect(legend).toHaveTextContent("Rumi’s level");
+    expect(legend).toHaveTextContent("NIETE Teaching Assistant’s level");
     expect(legend).not.toHaveTextContent("Coach score");
-    expect(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Proficient, Rumi’s level" })).toBeInTheDocument();
+    expect(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Proficient, NIETE Teaching Assistant’s level" })).toBeInTheDocument();
   });
 
-  it("in Urdu (m9-ff-v6-ur): the board's words; the data stays as it came", async () => {
+  it("in Urdu (m9-ff-v6-ur, ff-*-ur): the boards' words; the data stays as it came", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderPage();
-    await screen.findByText("No lesson plan was provided.");
-    fireEvent.click(screen.getByRole("button", { name: "اگلا حصہ" }));
-    await screen.findByText("Who got to answer");
-    expect(screen.getByText("Lubna Arif · ابھی: فارم بھریں")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "حصہ 2 از 4" })).toBeInTheDocument();
+    expect(await screen.findByText("Lubna Arif · ابھی: فارم بھریں")).toBeInTheDocument();
+    await openIndicator("C", "C1");
     const legend = screen.getByTestId("legend");
     expect(legend).toHaveTextContent("کوچ اسکور");
-    expect(legend).toHaveTextContent("AI اسکور");
-    const c1 = within(card("Quality of Questions Asked by the Teacher"));
+    expect(unisolated(legend.textContent || "")).toContain("NIETE ٹیچنگ اسسٹنٹ کی سطح");
+    const c1 = within(screen.getByTestId("ff-indicator"));
     expect(c1.getByLabelText("شواہد")).toHaveValue(EVIDENCE);
     expect(c1.getByLabelText("بہتری کے لیے")).toBeInTheDocument();
-    expect(within(card("Who got to answer")).getByText("ریکارڈنگ سے")).toBeInTheDocument();
-    expect(within(card("Who got to answer")).getByLabelText("یہ سطح کیوں (کم از کم 20 حروف)")).toBeInTheDocument();
-    expect(group("Who got to answer").getAllByTestId("level-aside").map((p) => p.textContent)).toEqual(["لاگو نہیں · No question asked", "پتا نہیں چل سکا"]);
     fireEvent.click(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Developing" }));
     expect(await screen.findByText((t) => unisolated(t) === "Proficient سے بدلا گیا")).toBeInTheDocument();
     expect(screen.getByLabelText("آپ نے کیوں بدلا")).toBeInTheDocument();
-    expect(dockButton("واپس")).toBeInTheDocument();
+    expect(dockButton("متفق، اگلا")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId("ff-indicator")).getByRole("button", { name: "اگلا" }));
+    fireEvent.click(within(screen.getByTestId("ff-indicator")).getByRole("button", { name: "اگلا" }));
+    await screen.findByText("Who got to answer");
+    expect(within(screen.getByTestId("ff-indicator")).getByText("ریکارڈنگ سے")).toBeInTheDocument();
+    expect(within(screen.getByTestId("ff-indicator")).getByLabelText("یہ سطح کیوں (کم از کم 20 حروف)")).toBeInTheDocument();
+    expect(group("Who got to answer").getAllByTestId("level-aside").map((p) => p.textContent)).toEqual(["لاگو نہیں · No question asked", "پتا نہیں چل سکا"]);
   });
 
-  it("an older FICO review takes the same look: the Digital Coach's level tagged Rumi until saved", async () => {
+  it("an older FICO review keeps the paged look: the Digital Coach's level tagged as the assistant's until saved", async () => {
     L.getObservationDraft.mockResolvedValue(OLD());
     renderPage();
     await screen.findByText("Objectives shared");
     const a1 = group("Objectives shared");
-    expect(a1.getByRole("radio", { name: "Developing, Rumi’s level" })).toHaveAttribute("aria-checked", "true");
+    expect(a1.getByRole("radio", { name: "Developing, NIETE Teaching Assistant’s level" })).toHaveAttribute("aria-checked", "true");
     fireEvent.click(a1.getByRole("radio", { name: "Proficient" }));
     expect(await screen.findByText("Changed from Developing")).toBeInTheDocument();
     expect(within(card("Objectives shared")).getByLabelText("Evidence")).toHaveValue("Wrote the aim on the board.");
@@ -432,7 +466,7 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
     await screen.findByText("Teaching the concept");
     expect(screen.getByText("Lubna Arif · Now: Fill the form")).toBeInTheDocument();
     expect(screen.getByTestId("rubric-label")).toHaveTextContent("FDE v1 · Maths & Science tool · G7");
-    expect(screen.getByText("You choose every level here: no Rumi levels on this form.")).toBeInTheDocument();
+    expect(screen.getByText("You choose every level here: no NIETE Teaching Assistant levels on this form.")).toBeInTheDocument();
     expect(screen.queryByTestId("legend")).toBeNull();
     expect(screen.queryByText("Rumi")).toBeNull();
     expect(screen.getByRole("radiogroup", { name: "Model or drawing" })).toHaveAttribute("data-look", "radio");
@@ -482,7 +516,7 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
     await screen.findByText("C1 · Quality of questions");
     expect(screen.getByTestId("rubric-label")).toHaveTextContent("FICO-S v1.1 · FICO 6-12 · G9");
     expect(screen.getByText(RUMI_LINE)).toBeInTheDocument();
-    expect(screen.queryByText("You choose every level here: no Rumi levels on this form.")).toBeNull();
+    expect(screen.queryByText("You choose every level here: no NIETE Teaching Assistant levels on this form.")).toBeNull();
     expect(group("Section C · 1 of 5").getByRole("radio", { name: "Proficient" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText("Saved part by part: leave and come back without losing anything.")).toBeInTheDocument();
     next();

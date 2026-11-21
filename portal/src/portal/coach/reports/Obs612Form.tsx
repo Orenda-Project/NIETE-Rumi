@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { leader } from "../../services/api";
@@ -16,7 +16,7 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
-import { DockV7, FormChips, PartNote, PartTitle, v7Crumb } from "./FormV7";
+import { AutoText, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, useFormToast, v7Crumb } from "./FormV7";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -40,6 +40,10 @@ import { DockV7, FormChips, PartNote, PartTitle, v7Crumb } from "./FormV7";
  * is saved; each item's levels as the kit's radio rows; Back and Next part, and BOTH save what changed on the part (no
  * "Save draft": nothing is left unsaved by moving); FDE says it has no Rumi levels; a score is a count, never a %
  * (the operator, 20 Nov: only the debrief score is a %). Off (or while /config is read), today's screen, unchanged.
+ *
+ * bd-o15qnr.31 (#188, 21 Nov) — on the switch every text box is sized to its text (AutoText), and moving on with gaps
+ * ("Next part", or a refused Submit) shows a short counted toast ("2 items still need a level") AND scrolls to and
+ * focuses the first unfilled item; the inline marks stay.
  */
 type Values = Record<string, string>;
 type Errors = Record<string, Obs612ErrorCode>;
@@ -82,6 +86,15 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirm, setConfirm] = useState(false);
   const top = useRef<HTMLDivElement>(null);
+  // bd-o15qnr.31 — v7: the gaps toast, and the field to focus once the part it is on is drawn.
+  const { toast, show, hide } = useFormToast();
+  const focusNext = useRef<string | null>(null);
+  useEffect(() => {
+    const target = focusNext.current;
+    if (!target) return;
+    focusNext.current = null;
+    focusField(target);
+  });
 
   const readOnly = !draft.editable;
   const total = draft.sections.length;
@@ -117,6 +130,16 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     return out;
   });
 
+  /** v7: a counted toast for the refused fields, and the first of them (in the form's order) focused. */
+  const gaps = (errs: Errors, names: string[]) => {
+    const bad = names.filter((k) => errs[k]);
+    if (!bad.length) return false;
+    show(bad.every((k) => errs[k] === "item") ? F.needLevel(bad.length) : F.needAnswer(bad.length));
+    const f = draft.sections.flatMap((x) => fieldsOf(x.parts)).find((x) => x.name === bad[0]);
+    focusNext.current = f && f.role === "item" ? `fde-item-${f.name}` : `fde-${bad[0]}`;
+    return true;
+  };
+
   const next = async () => {
     if (readOnly) { go(part + 1); return; }
     setBusy(true);
@@ -124,6 +147,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       const d = await store();
       const names = fieldsOf(section.parts).map((f) => f.name);
       mark(d, [...names, ...Object.keys(shown)]);
+      if (v7 && gaps(d.errors, names)) return;
       if (names.some((k) => d.errors[k])) setNote({ ok: false, text: W.fixThese });
       else go(part + 1);
     } catch (err) {
@@ -149,6 +173,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   const refused = (errs: Errors, missing: string[]) => {
     setShown(errs);
     go(firstPartWith(errs));
+    if (v7) { gaps(errs, draft.sections.flatMap((x) => fieldsOf(x.parts)).map((f) => f.name)); return; }
     setNote({ ok: false, text: W.missing(Math.max(missing.length, Object.keys(errs).length)) });
   };
 
@@ -275,7 +300,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       );
     }
     return (
-      <section key={f.name} data-testid="fde-item" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5", bad && BAD)}>
+      <section key={f.name} data-testid="fde-item" id={v7 ? `fde-item-${f.name}` : undefined} className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5", bad && BAD)}>
         {v7 ? (
           // bd-o15qnr.28 — v7: the code chip and FDE's words for the item on one line (m9-ff-fde, m9-ff-fico-s).
           <div className="flex flex-wrap items-center gap-2">
@@ -326,11 +351,13 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
           ) : null}
         </div>
       );
-      return <div key={f.name} className="flex flex-col gap-1">{input}{errorLine(f)}</div>;
+      return <div key={f.name} id={v7 ? fid : undefined} className="flex flex-col gap-1">{input}{errorLine(f)}</div>;
     }
     const common = { id: fid, value: v, "aria-invalid": bad || undefined, "aria-describedby": bad ? `err-${f.name}` : undefined };
     if (f.input === "textarea") {
-      input = <textarea {...common} dir="auto" rows={3} maxLength={f.max || undefined} onChange={(e) => set(f.name)(e.target.value)} className={cn(AREA, bad && BAD, FOCUS)} />;
+      input = v7
+        ? <AutoText {...common} maxLength={f.max || undefined} onChange={(e) => set(f.name)(e.target.value)} className={cn(AREA, bad && BAD, FOCUS)} />
+        : <textarea {...common} dir="auto" rows={3} maxLength={f.max || undefined} onChange={(e) => set(f.name)(e.target.value)} className={cn(AREA, bad && BAD, FOCUS)} />;
     } else if (f.input === "number") {
       input = <input {...common} dir="auto" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={4} onChange={(e) => set(f.name)(e.target.value)} className={cn(AREA, "min-h-[56px]", bad && BAD, FOCUS)} />;
     } else {
@@ -415,6 +442,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
           </>
         )}
 
+        <FormToast toast={toast} onDone={hide} />
         <ConfirmTray open={confirm} title={W.submitTitle} warning={W.noChangesAfter} onClose={() => setConfirm(false)}
           confirmLabel={W.yesSubmit} onConfirm={submit} cancelLabel={C.keepChecking} testId="fde-submit-tray" />
       </ReportsFrame>
