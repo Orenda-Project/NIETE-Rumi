@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T18:11:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"02566c3e6982","branch":"bd-snkn32.59.4-staging","user":""}
+{"ts":"2026-11-21T08:18:18Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (smoke pages unchanged; unit card hidden with the switch off)","sha":"02566c3e6982","branch":"bd-snkn32.59.4-staging","user":""}
