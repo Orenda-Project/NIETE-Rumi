@@ -53,3 +53,9 @@ describe('round 2 wiring: buttons, list picks and the question Flow reach the da
     expect(claim).toBeLessThan(b.indexOf("startsWith('vqjoin:')"));
   });
 });
+
+test('every door call hands over the message id, so the door can react instead of texting (21 Nov)', () => {
+  const calls = SRC.match(/data-analyst\/entry'\)\.(maybeHandleDataAnalyst|handleDataAnalystButton|handleDataAnalystFlowReply)\(\{[^}]*\}/g) || [];
+  expect(calls).toHaveLength(4);
+  for (const c of calls) expect(c).toMatch(/messageId: message\.id/);
+});

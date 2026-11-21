@@ -762,7 +762,7 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
     // message outside data mode, falls through to the text handler unchanged. A failure here never stops it.
     if (user && messageType === 'text' && messageBody) {
       try {
-        if (await require('./shared/services/data-analyst/entry').maybeHandleDataAnalyst({ user, from, messageBody, correlationId })) return;
+        if (await require('./shared/services/data-analyst/entry').maybeHandleDataAnalyst({ user, from, messageBody, correlationId, messageId: message.id })) return;
       } catch (err) {
         logError('data analyst door failed (non-fatal)', { error: err.message });
       }
@@ -798,7 +798,7 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       // pick, a clarifying option. A hand-back (Main menu, Normal) runs the ordinary text handler with those words.
       if (buttonId.startsWith('da_')) {
         try {
-          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId });
+          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId, messageId: message.id });
           if (r.handled) {
             if (r.normalText) await handleTextMessage(message, from, r.normalText, user);
             return;
@@ -1717,7 +1717,7 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       // unconditionally, as vqm: is, so detectFlowType's colon rule can never send it to attendance.
       if (typeof vqToken === 'string' && vqToken.startsWith('dataq:')) {
         try {
-          await require('./shared/services/data-analyst/entry').handleDataAnalystFlowReply({ user, from, responseJson: { ...responseJson, flow_token: vqToken } });
+          await require('./shared/services/data-analyst/entry').handleDataAnalystFlowReply({ user, from, messageId: message.id, responseJson: { ...responseJson, flow_token: vqToken } });
         } catch (err) {
           logError('data analyst Flow reply failed (non-fatal)', { error: err.message });
         }
@@ -2092,7 +2092,7 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       // The data analyst's quick picks and clarifying options (da_pick_*, da_opt_*), as on the button branch.
       if (listId.startsWith('da_')) {
         try {
-          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId: listId });
+          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId: listId, messageId: message.id });
           if (r.handled) {
             if (r.normalText) await handleTextMessage(message, from, r.normalText, user);
             return;
