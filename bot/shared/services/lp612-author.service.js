@@ -60,6 +60,7 @@ const { familyForBook } = require('../config/lp612-families');
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint, overlayDefects, OVERLAY_MIN_COVERAGE } = require('../../vendor/lp-v9/lint_lp.js');
+const { poemParaphraseDefects } = require('./lp612-poem-paraphrase');
 const { normalizeLatinHonorific } = require('./lp612-latin-honorific');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
@@ -1708,7 +1709,8 @@ async function runGates(doc, renderCheck, meta = {}) {
 
   return {
     schema: [],
-    lint: r.fails.slice(),
+    // bd-zrdvmi.44.1: a poem reading lesson must paraphrase the poem in class (sheet row 728).
+    lint: [...r.fails, ...poemParaphraseDefects(doc, meta.skillType, meta.subtopic)],
     render,
     warns: r.warns.slice(),
   };
@@ -2177,6 +2179,7 @@ async function authorLessonPlan({
   // not held to OVERLAY_MISSING. See `languageDirective` and `overlayPass`.
   const ladderGateMeta = {
     correlationId, segmentId: segment.segment_id, lang: language, overlayExpected: false,
+    skillType: segment.skill_type, subtopic: segment.subtopic_title,
   };
   /**
    * Hand the caller the document we are holding. Its failure is swallowed on purpose: a
@@ -3068,7 +3071,7 @@ async function reviseLessonPlan({
   const addUsage = (u) => accumulateUsage(usage, u);
 
   // The bar. Her document's own defect count — an edit may not raise it.
-  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language });
+  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language, skillType: segment.skill_type, subtopic: segment.subtopic_title });
   const bar = blockingCost(gatesBefore);
   // bd-jddcu applies here too: her document already renders (schemaOk is true in the only case
   // this lane is called for), so a defect-count comparison ALONE could accept an edit that comes
@@ -3108,7 +3111,7 @@ async function reviseLessonPlan({
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
 
-    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language });
+    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language, skillType: segment.skill_type, subtopic: segment.subtopic_title });
     const schemaTiered = beforeSchemaOk && !schemaOk(g2);
 
     if (!schemaTiered && blockingCost(g2) <= bar) {
