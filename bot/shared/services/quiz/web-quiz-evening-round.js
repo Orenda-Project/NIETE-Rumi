@@ -635,7 +635,7 @@ async function isRoundShareCode(shareCodeId) {
 // ── the hub's tile ─────────────────────────────────────────────────────────────────────────────
 
 // copy.v2.json / ux-strings.js qfix_class_link_round_title (EN + UR); the literal is the fallback when the key is absent.
-const TILE_FALLBACK = { title: "Tonight's round", title_ur: 'آج شام کا راؤنڈ' };
+const TILE_FALLBACK = { title: "Tonight's quiz", title_ur: 'آج شام کا کوئز' };
 function tileWords() {
   try {
     const { UX_STRINGS } = require('../../config/ux-strings');
