@@ -95,10 +95,10 @@ describe('the ask says when the reminder comes', () => {
 });
 
 // The tap opens the child's hub (a finished quiz bounces there), so the line never promises a new quiz.
-test('the worker\'s fallback line is the hub\'s own: a game is waiting', () => {
+test('the worker\'s fallback is the ruled no-class line: time to play, a game is waiting', () => {
   const sw = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'sw.js'), 'utf8');
-  expect(sw).toContain("b: 'A game is waiting for you. Tap to play.'");
-  expect(sw).toContain("b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔'");
+  expect(sw).toContain("t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.'");
+  expect(sw).toContain("t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔'");
   expect(sw).not.toContain("Today's quiz is ready");
 });
 
