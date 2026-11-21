@@ -88,7 +88,7 @@ async function sendQuizTemplate({ userId, sessionId }, d) {
   if (!quiz) return false;
   let out = null;
   try {
-    out = await d.sendShare({ userId, kind: 'dc', id: sessionId, quiz: { template: quiz.template, payload: quiz.payload } });
+    out = await d.sendShare({ userId, kind: 'dc', id: sessionId, quiz: { template: quiz.template, payload: quiz.payload, dryRun: quiz.dryRun === true } });
   } catch (err) {
     out = { status: 'failed', reason: 'error', message: err && err.message };
   }
