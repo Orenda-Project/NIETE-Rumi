@@ -17,8 +17,10 @@
  *                                    spoken: `media.self_read` and, on a web item, `media.web.read.self`
  *                                    (the page's `read.self`, which wq.js readParts honours by speaking nothing).
  *
- * Suspect answer keys: a key-review module (`quiz-key-review.js` exporting suspectIds(questionIds) -> Set) is asked
- * when present, and its suspects never enter the pool; absent, nothing is excluded (suspectFilter).
+ * Held answer keys (heldIds): an item the answer-key review holds (quiz-key-review.service heldQuestionIds(db, ids),
+ * required lazily: absent on a build, nothing more is held) or one of KEY_HELD (keys known wrong until their fix
+ * runs) never enters the pool, and a round's lesson item copied from such an item is not served. The original's key
+ * as the child was graded on it is WebItems.keyFor(row) (the web key when there is one), never row.correct_option.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -55,16 +57,38 @@ function kidKey(roundKey, studentId) {
   return crypto.createHash('sha256').update(`er|${roundKey}|${studentId}`).digest('hex').slice(0, 16);
 }
 
-async function suspectFilter(questionIds) {
+// Answer keys found wrong by hand, held until their correction has run in production.
+const KEY_HELD = new Set([
+  '4e15c1a5-244a-4c0e-800c-604462bc6324', '84145763-bd45-4047-97fa-e27af748bd44', '592c37ea-2759-4c08-b062-0f7948bb2539',
+  '59140aee-aec9-4a1f-9d2b-ffe92b9585b0', '1db2d882-e3ce-41ce-ac7f-a2ef62d82025', '1c1fdb10-bf56-46f0-889b-40d251c3fdd3',
+  'd7a11f5c-d4b4-4651-9dbf-096804d9b733', '745b4dd2-f6a6-460b-8c54-5c8586c9c162', '1c89a0d7-d43b-4f8e-8a20-c25580697228',
+]);
+
+/** The ids among `questionIds` whose key is held: KEY_HELD and the key review's held items. Never throws. */
+async function heldIds(questionIds) {
+  const ids = [...new Set((questionIds || []).filter(Boolean).map(String))];
+  const held = new Set(ids.filter((id) => KEY_HELD.has(id)));
+  if (!ids.length) return held;
+  let Keys = null;
+  // eslint-disable-next-line global-require
+  try { Keys = require('./quiz-key-review.service'); } catch (_) { Keys = null; }
+  if (!Keys || typeof Keys.heldQuestionIds !== 'function') return held;
   try {
-    // eslint-disable-next-line global-require
-    const Keys = require('./quiz-key-review');
-    if (Keys && typeof Keys.suspectIds === 'function') {
-      const s = await Keys.suspectIds(questionIds);
-      return s instanceof Set ? s : new Set(s || []);
-    }
-  } catch (_) { /* no key review on this build: nothing is excluded */ }
-  return new Set();
+    const got = await Keys.heldQuestionIds(supabase, ids);
+    (got instanceof Set ? [...got] : got || []).forEach((id) => held.add(String(id)));
+  } catch (err) {
+    logToFile('⚠️ evening round: key review unreadable — the fixed list only', { error: err.message });
+  }
+  return held;
+}
+
+/** The key the child was graded on (web-quiz-items keyFor: the web key when there is one). */
+function keyOf(row) {
+  try {
+    return require('./web-quiz-items').keyFor(row) || String(row.correct_option || '').trim().toUpperCase();
+  } catch (_) {
+    return String((row && row.correct_option) || '').trim().toUpperCase();
+  }
 }
 
 /**
@@ -125,7 +149,7 @@ async function missesFor({ classId, day, enrolled = [], teacherIds = [] }) {
     }
   }
   if (!tally.size) return [];
-  const suspects = await suspectFilter([...tally.keys()]);
+  const suspects = await heldIds([...tally.keys()]);
   const ranked = [...tally.entries()].filter(([qid]) => !suspects.has(qid))
     .sort((a, b) => (b[1].kids.size - a[1].kids.size) || b[1].last.localeCompare(a[1].last) || a[0].localeCompare(b[0]));
   const want = ranked.slice(0, POOL_MAX * 2).map(([qid]) => qid);
@@ -154,7 +178,7 @@ function buildPrompt(originals, language) {
     i,
     question: String(o.question.question_text || '').slice(0, MAX_TEXT),
     options: optionsOf(o.question).map((t, k) => `${SLOTS[k]}: ${t.slice(0, 120)}`),
-    correct: String(o.question.correct_option || '').trim().toUpperCase(),
+    correct: keyOf(o.question),
     explanation: String(o.question.explanation || '').slice(0, MAX_TEXT),
     subject: (o.quiz && o.quiz.subject) || null,
     grade: (o.quiz && o.quiz.grade) || null,
@@ -270,5 +294,5 @@ function recallRows({ quizId, items, roundKey, chipOf = () => null, subject }) {
 }
 
 module.exports = {
-  POOL_MAX, missWindow, missesFor, rewrite, buildPrompt, checkItem, recallRows, isReadingItem, markReading, kidKey, suspectFilter, pktMidnight,
+  POOL_MAX, KEY_HELD, missWindow, missesFor, rewrite, buildPrompt, checkItem, recallRows, isReadingItem, markReading, kidKey, heldIds, keyOf, pktMidnight,
 };
