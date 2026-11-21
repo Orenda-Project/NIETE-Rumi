@@ -68,12 +68,12 @@ test('a made-up src falls back to result', async () => {
 // The reminder comes on the next SCHOOL evening (17:30-18:00 PKT; never Sat/Sun): the ask says when, truthfully.
 describe('the ask says when the reminder comes', () => {
   test.each([
-    ['Tue', TUE, 'en', 'Want Jugnu to remind you tomorrow evening?'],
-    ['Sun', SUN, 'en', 'Want Jugnu to remind you tomorrow evening?'],
-    ['Fri', FRI, 'en', 'Want Jugnu to remind you on Monday evening?'],
-    ['Sat', SAT, 'en', 'Want Jugnu to remind you on Monday evening?'],
-    ['Tue', TUE, 'ur', 'کیا جگنو کل شام آپ کو یاد دلائے؟'],
-    ['Fri', FRI, 'ur', 'کیا جگنو پیر کی شام آپ کو یاد دلائے؟'],
+    ['Tue', TUE, 'en', 'Jugnu can remind you tomorrow evening.'],
+    ['Sun', SUN, 'en', 'Jugnu can remind you tomorrow evening.'],
+    ['Fri', FRI, 'en', 'Jugnu can remind you on Monday evening.'],
+    ['Sat', SAT, 'en', 'Jugnu can remind you on Monday evening.'],
+    ['Tue', TUE, 'ur', 'جگنو کل شام آپ کو یاد دلا سکتا ہے۔'],
+    ['Fri', FRI, 'ur', 'جگنو پیر کی شام آپ کو یاد دلا سکتا ہے۔'],
   ])('%s %s: %s', async (_d, now, lang, title) => {
     const p = page(now);
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
@@ -187,4 +187,37 @@ test('the /remind language link is at least 48×48', () => {
   const html = renderRemindPage({ code: 'AB12CD', lang: 'ur', now: TUE });
   expect(html).toMatch(/\.wqr \.wqr-l\{[^}]*min-height:48px/);
   expect(html).toMatch(/\.wqr \.wqr-l\{[^}]*min-width:48px/);
+});
+
+// The lead's take A (one line, the score and "See my card" stay the heroes): no second paragraph on the result screen,
+// a bell on Yes a 6-year-old finds without reading, and a hint behind Chrome's English sheet.
+describe('take A: the one-line ask', () => {
+  test.each(['en', 'ur'])('%s: one line, a bell Yes and Not now; no body paragraph on the result screen', async (lang) => {
+    const p = page(TUE);
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
+    await flush();
+    const T = p.ctx.WQREMIND.T[lang];
+    expect(p.html()).not.toContain(T.remindBody);
+    expect(p.html()).toMatch(/data-act="yes"[^>]*>[^<]*(<span[^>]*>)?🔔/);
+    expect(p.html()).toContain(T.remindLater);
+  });
+  test('the /remind landing keeps the consent line', async () => {
+    const p = page(TUE);
+    p.ctx.WQREMIND.landing(p.slot, { code: 'AB12CD', lang: 'en' });
+    await flush();
+    expect(p.html()).toContain(p.ctx.WQREMIND.T.en.remindBody);
+  });
+  test.each([['en', 'Now tap Allow below'], ['ur', 'اب نیچے Allow دبائیں']])('%s: while Chrome asks, the hint "%s"', async (lang, hint) => {
+    const p = page(TUE);
+    let answer;
+    p.ctx.Notification.requestPermission = () => new Promise((r) => { answer = r; });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
+    await flush();
+    p.slot.onclick({ target: { closest: () => ({ getAttribute: (a) => (a === 'data-act' ? 'yes' : null) }) }, preventDefault() {} });
+    await flush();
+    expect(p.html()).toContain(hint);
+    answer('denied');
+    await flush();
+    expect(p.html()).not.toContain(hint);
+  });
 });
