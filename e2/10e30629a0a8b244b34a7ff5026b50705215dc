@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T17:08:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"e210e30629a0","branch":"bd-96f69c.16-80217","user":""}
+{"ts":"2026-11-21T17:08:21Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"e210e30629a0","branch":"bd-96f69c.16-80217","user":""}
