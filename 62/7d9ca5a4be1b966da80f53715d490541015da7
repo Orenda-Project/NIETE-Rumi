@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T08:11:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"627d9ca5a4be","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-21T08:57:11Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-627d9ca5a4be","sha":"627d9ca5a4be","branch":"release/niete-2026-11-20","user":""}
