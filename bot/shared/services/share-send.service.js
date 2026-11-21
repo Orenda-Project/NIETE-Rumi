@@ -339,7 +339,7 @@ async function attemptShare({ userId, kind, id, clip, quiz }, d, seen) {
       // The sandbox proof of a template nobody has approved yet: what would go, never Meta. No image link, no phone.
       const button = components.find((c) => c.type === 'button') || null;
       const body = components.find((c) => c.type === 'body');
-      try { logEvent('share_send.dry_run', { kind, userId, itemRef: item.itemRef || null, template: name, lang, button, body_params: body ? body.parameters.length : 0 }); } catch (_) { /* logging never decides */ }
+      try { logEvent('share_send.dry_run', { kind, itemRef: item.itemRef || null, template: name, lang, button, body_params: body ? body.parameters.length : 0 }); } catch (_) { /* logging never decides */ }
       return { status: 'unavailable', reason: 'dry_run' };
     }
     let report = {};
