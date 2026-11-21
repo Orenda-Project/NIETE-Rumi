@@ -48,6 +48,7 @@ const { onUnlessOff } = require('../nudges/flags');
 const SendCheck = require('./report-send-check');
 const SentIds = require('../whatsapp-sent-ids');
 const ReportDelivery = require('./report-delivery');
+const LateFlag = require('./late-report-flag');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -132,6 +133,12 @@ const scheduleClaimKey = (shareCodeId) => `vq:report:scheduled:${shareCodeId}`;
  * restores the per-join scheduling exactly.
  */
 async function scheduleForShareCode(shareCodeId) {
+  // video_quiz_late_report on: a join on a code whose report already went arms tomorrow's 07:00 late check, never a
+  // fresh 12 h chain (off: the read is never made and the join schedules as before).
+  if (await LateFlag.settings() && await readReportSentAt(shareCodeId)) {
+    await armLateCheck(shareCodeId, 'join');
+    return;
+  }
   const once = onUnlessOff('VIDEO_REPORT_SCHEDULE_ONCE');
   let claimed = false;
   if (once) {
@@ -147,6 +154,11 @@ async function scheduleForShareCode(shareCodeId) {
       logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'already_scheduled' });
       return;
     }
+  }
+  // Asked once per claim (the first join): an evening round keeps the claim, so its later joins ask nothing.
+  if (!(await isReportableShareCode(shareCodeId))) {
+    logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'not_reportable' });
+    return;
   }
   try {
     const SQSQueueService = require('../queue');
@@ -252,6 +264,99 @@ async function releaseSendClaim(shareCodeId, token) {
   }
 }
 
+/**
+ * May this share code have a 12 h class report at all? Not an evening round (quizzes.meta.source 'evening_round',
+ * written by the class link's round writer): the teacher never sent it, its children play it from the standing class
+ * link, and the teacher sees them on the live report page. Fails open (true): a missing report is the worse failure.
+ */
+async function isReportableShareCode(shareCodeId) {
+  try {
+    const { data: sc } = await supabase.from('quiz_share_codes').select('quiz_id').eq('id', shareCodeId).maybeSingle();
+    if (!sc || !sc.quiz_id) return true;
+    const { data: q } = await supabase.from('quizzes').select('meta').eq('id', sc.quiz_id).maybeSingle();
+    return !(q && q.meta && q.meta.source === 'evening_round');
+  } catch (err) {
+    logToFile('⚠️ video-quiz report: reportable check failed — treated as reportable', { shareCodeId, error: err.message });
+    return true;
+  }
+}
+
+/** The first 07:00 PKT strictly after `now`: the slot every late check lands in. */
+function nextMorningSlotUtc(now = new Date()) {
+  const pkt = new Date(now.getTime() + PKT_OFFSET_MIN * 60 * 1000);
+  let slot = Date.UTC(pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate(), 7, 0, 0) - PKT_OFFSET_MIN * 60 * 1000;
+  if (slot <= now.getTime()) slot += 24 * 60 * 60 * 1000;
+  return new Date(slot);
+}
+
+/** One late check per code per 07:00 slot, however many children join or finish before it. */
+const lateClaimKey = (shareCodeId, slotIso) => `vq:report:late:${shareCodeId}:${slotIso}`;
+
+/**
+ * video_quiz_late_report: queue the code's next 07:00 PKT check. It rides the scheduled report job unchanged (the
+ * worker re-queues on targetAt and calls generate 'scheduled'); generate sees report_sent_at and applies the late rule.
+ * Redis down → queued anyway (a second check on one slot finds the day's cap spent). Never throws.
+ */
+async function armLateCheck(shareCodeId, why) {
+  const when = nextMorningSlotUtc();
+  const targetAt = when.toISOString();
+  try {
+    const redisService = require('../cache/railway-redis.service');
+    if (!(await redisService.setNX(lateClaimKey(shareCodeId, targetAt), String(Date.now()), SCHEDULE_CLAIM_TTL_S))) {
+      return false;
+    }
+  } catch (err) {
+    logToFile('❌ video-quiz report: late check claim failed, arming anyway', { shareCodeId, error: err.message }, 'error');
+  }
+  try {
+    const SQSQueueService = require('../queue');
+    await SQSQueueService.queueJob(shareCodeId, JOB_TYPE, { shareCodeId, targetAt }, {
+      delaySeconds: Math.min(900, Math.max(60, Math.floor((when - Date.now()) / 1000))),
+      deduplicationId: `${shareCodeId}-${JOB_TYPE}-late-${targetAt}`,
+    });
+    logEvent('video_quiz.report_scheduled', { shareCodeId, targetAt, kind: 'late_check', why });
+    return true;
+  } catch (err) {
+    logToFile('❌ video-quiz report: late check not queued (non-fatal)', { shareCodeId, error: err.message }, 'error');
+    return false;
+  }
+}
+
+/**
+ * Did anyone play this code in the last day? A late check re-arms only then, so a quiet code never keeps a daily
+ * chain alive; a later join arms it again.
+ */
+function activeSince(rows, sinceMs) {
+  return (rows || []).some((s) => [s.created_at, s.completed_at]
+    .some((t) => t && new Date(t).getTime() > sinceMs));
+}
+
+/**
+ * A teacher's /quiz ask is answered without writing report_sent_at (that stamp belongs to the automatic report). A
+ * second tap that waits behind the first ask's send claim reads this short-lived marker instead.
+ */
+const askedKey = (shareCodeId) => `vq:report:asked:${shareCodeId}`;
+const ASKED_TTL_S = 10 * 60;
+
+async function markAsked(shareCodeId) {
+  try {
+    const redisService = require('../cache/railway-redis.service');
+    await redisService.set(askedKey(shareCodeId), new Date().toISOString(), ASKED_TTL_S);
+  } catch (err) {
+    logToFile('⚠️ video-quiz report: ask marker not written (a second tap may send again)', { shareCodeId, error: err.message });
+  }
+}
+
+async function askedSince(shareCodeId, sinceMs) {
+  try {
+    const redisService = require('../cache/railway-redis.service');
+    const at = await redisService.get(askedKey(shareCodeId));
+    return Boolean(at) && new Date(String(at)).getTime() >= sinceMs;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function readReportSentAt(shareCodeId) {
   const { data } = await supabase.from('quiz_share_codes')
     .select('report_sent_at').eq('id', shareCodeId).maybeSingle();
@@ -268,10 +373,13 @@ async function readReportSentAt(shareCodeId) {
  * @returns {Promise<{delivered?: boolean, claim?: object}>}
  */
 async function waitForInFlightSend(shareCodeId, sentAtBefore) {
-  const deadline = Date.now() + _sendClaimTiming.forceWaitMs;
+  const startedAt = Date.now();
+  const deadline = startedAt + _sendClaimTiming.forceWaitMs;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, _sendClaimTiming.pollMs));
     if (await readReportSentAt(shareCodeId) !== sentAtBefore) return { delivered: true };
+    // the holder was another /quiz ask: it answers without a stamp, and leaves the marker
+    if (await askedSince(shareCodeId, startedAt)) return { delivered: true };
     const claim = await takeSendClaim(shareCodeId);
     if (claim.claimed) return { claim };
   }
@@ -318,6 +426,24 @@ function followUpDecision({ reportedOn = 0, finishedSince = 0, alreadyFollowedUp
   return material
     ? { send: true, why: 'more_children_finished' }
     : { send: false, why: 'not_enough_new' };
+}
+
+/**
+ * video_quiz_late_report's rule, at the 07:00 check: one more report when at least `k` children first-finished since
+ * the last automatic report, at most `capPerDay` a day (the last late report at least 24/capPerDay hours ago, less a
+ * 2 h margin so a 07:00 send never blocks the next day's 07:00 check). Pure.
+ *
+ * K=5 by default: over 28 days of production web sittings, K=5 meant ~97 follow-ups a week reaching ~49% of late
+ * children, K=3 ~221 a week reaching ~71%; the value is the switch's JSON, so it moves without a deploy. Children
+ * below K are on the live report page every report links to.
+ */
+function lateReportDecision({ finishedSince = 0, lastFollowUpAt = null, k = 5, capPerDay = 1, now = Date.now() } = {}) {
+  const gapMs = (24 / Math.max(1, capPerDay) - 2) * 60 * 60 * 1000;
+  const last = lastFollowUpAt ? new Date(lastFollowUpAt).getTime() : NaN;
+  if (Number.isFinite(last) && now - last < gapMs) return { send: false, why: 'followup_today' };
+  return finishedSince >= k
+    ? { send: true, why: 'late_finishers' }
+    : { send: false, why: 'below_k' };
 }
 
 /**
@@ -396,9 +522,14 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     return false;
   }
 
+  // video_quiz_late_report: { k, cap_per_day } when on. A scheduled run on a reported code then applies the late rule
+  // (buildAndSend) instead of standing down; it wins over VIDEO_REPORT_SCHEDULED_FOLLOWUP.
+  // Read only for a code that already has its report, so a first report's single-flight race is today's exactly.
+  const late = force || !isFollowUp ? null : await LateFlag.settings();
+
   // One automatic report per quiz (see scheduledFollowUpOn): a scheduled run on a
   // share code that already has its report sends nothing; only /quiz (force) can.
-  if (isFollowUp && !scheduledFollowUpOn()) {
+  if (isFollowUp && !late && !scheduledFollowUpOn()) {
     logEvent('video_quiz.report_suppressed', {
       shareCodeId, reason, why: 'already_reported', sentAt: sc.report_sent_at,
     });
@@ -415,7 +546,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   }
 
   if (!onUnlessOff('VIDEO_REPORT_SEND_CLAIM')) {
-    return buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: {}, force });
+    const unguarded = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: { skip: force }, force, late });
+    if (unguarded && force) await markAsked(shareCodeId);
+    if (unguarded && !force && (late || await LateFlag.settings())) await armAfterReport(shareCodeId);
+    return unguarded;
   }
 
   // Single-flight: one caller builds and sends; the rest stand down (see SEND_CLAIM_TTL_S).
@@ -434,7 +568,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     claim = waited.claim;
   }
 
-  const stamp = { stamped: false };
+  // A teacher's /quiz ask (force) is answered without writing report_sent_at: that stamp is the automatic report's,
+  // the 12 h report still goes after an early ask, and a late finisher is counted from the automatic report.
+  const stamp = { stamped: false, skip: force };
   let sent = false;
   try {
     // The claim may have come free because the winner FINISHED: its stamp is then
@@ -445,12 +581,32 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
         : { shareCodeId, reason, why: 'already_reported' });
       return force;   // the teacher's ask was answered by the report that just went to them
     }
-    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force });
+    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force, late });
+    if (sent && force) await markAsked(shareCodeId);
     return sent;
   } finally {
     // Kept only when a report went out but report_sent_at could not be stamped:
     // then the key is the one thing stopping a racing chain from sending it again.
-    if (claim.owned && !(sent && !stamp.stamped)) await releaseSendClaim(shareCodeId, claim.token);
+    // A /quiz ask stamps nothing by design, so it always gives the claim back.
+    if (claim.owned && !(sent && !stamp.stamped && !stamp.skip)) await releaseSendClaim(shareCodeId, claim.token);
+    if (sent && !force && (late || await LateFlag.settings())) await armAfterReport(shareCodeId);
+  }
+}
+
+/**
+ * video_quiz_late_report, after an automatic report went: a child still mid-quiz (started in the last day, not
+ * finished) will finish after it, so tomorrow's 07:00 check is armed. A child who has not joined yet arms it on their
+ * join (scheduleForShareCode). Never throws.
+ */
+async function armAfterReport(shareCodeId) {
+  try {
+    const { data } = await supabase.from('quiz_sessions')
+      .select('status, created_at').eq('share_code_id', shareCodeId).is('invited_by_student_id', null);
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const playing = (data || []).some((s) => s.status !== 'completed' && s.created_at && new Date(s.created_at).getTime() > dayAgo);
+    if (playing) await armLateCheck(shareCodeId, 'after_report');
+  } catch (err) {
+    logToFile('⚠️ video-quiz report: late check not armed after the report', { shareCodeId, error: err.message });
   }
 }
 
@@ -459,7 +615,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  * early-out has passed and (unless switched off) the send claim is held.
  * `stamp.stamped` tells the caller whether report_sent_at really landed.
  */
-async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force = false }) {
+async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force = false, late = null }) {
   // quiz_report_send_checked (off by default): every send below that stamps the report counts only when WhatsApp
   // accepted it (SendCheck.send); a refusal is reportNotAccepted (not stamped, counted, retried). Off: today's sends
   // and stamps. The switch is asked only on a refusal (or for a code that already holds three refusals), after the
@@ -518,16 +674,25 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     const finishedSince = done.length - reportedOn;
     const { data: qRow } = await supabase.from('quizzes')
       .select('meta').eq('id', sc.quiz_id).maybeSingle();
-    const already = Boolean(((qRow?.meta || {}).report_followups || {})[shareCodeId]);
-    const decision = followUpDecision({ reportedOn, finishedSince, alreadyFollowedUp: already });
+    const lastFollowUp = ((qRow?.meta || {}).report_followups || {})[shareCodeId];
+    const decision = late
+      ? lateReportDecision({ finishedSince, lastFollowUpAt: lastFollowUp, k: late.k, capPerDay: late.cap_per_day })
+      : followUpDecision({ reportedOn, finishedSince, alreadyFollowedUp: Boolean(lastFollowUp) });
     if (!decision.send) {
       logEvent('video_quiz.report_suppressed', {
         shareCodeId, reason, why: decision.why, sentAt: sc.report_sent_at,
-        reportedOn, finishedSince,
+        reportedOn, finishedSince, ...(late ? { n_late: finishedSince, k: late.k } : {}),
       });
+      // Still being played (since the report, within the last day): look again at the next 07:00.
+      if (late && activeSince(noSelfTests, Math.max(sentAt, Date.now() - 24 * 60 * 60 * 1000))) {
+        await armLateCheck(shareCodeId, decision.why);
+      }
       return false;
     }
-    logEvent('video_quiz.report_followup', { shareCodeId, reportedOn, finishedSince });
+    logEvent('video_quiz.report_followup', {
+      shareCodeId, reportedOn, finishedSince,
+      ...(late ? { n_late: finishedSince, k: late.k, mode: 'second_report' } : {}),
+    });
     await supabase.from('quizzes').update({
       meta: {
         ...(qRow?.meta || {}),
@@ -608,7 +773,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
     }
     if (await givenUp(quizRow)) return false;
-    const storySent = await require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => keep(() => WhatsAppService.sendMessage(to, text)), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
+    const storySent = await require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => keep(() => WhatsAppService.sendMessage(to, text)), markSent: stamp.skip ? (id, q) => markReportSent(id, q, { code: false }) : markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
       sendChecked: (fn) => SendCheck.send(fn), notAccepted: () => reportNotAccepted(shareCodeId, sc, 'story', reason) });
     await keepIds('story');
     return storySent;
@@ -629,7 +794,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     if (!(await SendCheck.send(() => keep(() => WhatsAppService.sendMessage(teacher.phone_number, noOne))))) {
       return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
     }
-    stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc));
+    stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc), { code: !stamp.skip });
     await keepIds('quiz');
     // Stamped as a report, so counted as one — of its own kind. Unlogged, this
     // branch was 17.5% of production's report stamps (189 of 1,082) and every
@@ -892,7 +1057,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   const metaAfter = guidance && quizRow && stampId
     ? { ...(quizRow.meta || {}), report_guidance: guidance, report_guidance_at: new Date().toISOString() }
     : null;
-  stamp.stamped = await markReportSent(shareCodeId, stampId, { meta: metaAfter });
+  stamp.stamped = await markReportSent(shareCodeId, stampId, { meta: metaAfter, code: !stamp.skip });
   if (metaAfter) quizRow.meta = metaAfter;
   await keepIds('quiz');
 
@@ -905,6 +1070,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   logEvent('video_quiz.report_sent', {
     shareCodeId, quizId: sc.quiz_id, started: all.length,
     completed: done.length, average: avg, reason,
+    trigger: force ? 'teacher_request' : (isFollowUp ? 'followup' : 'auto_12h'),
     format: sentAsPdf ? 'pdf' : 'text', hadGuidance: Boolean(guidance),
   });
   Funnel.emit('report_sent', {
@@ -1528,21 +1694,25 @@ async function stampableQuizId(sc) {
  *
  * `meta`, when given, is the quiz's whole meta with the report's guidance merged
  * in (buildAndSend); it is written in the same quizzes update as the status.
+ * `code: false` (a teacher's /quiz ask) stamps only the quiz row: report_sent_at is
+ * the automatic report's, so an early ask never cancels it.
  *
  * @returns {Promise<boolean>} whether report_sent_at landed. generate() keeps its
  *   send claim when it did not, so a racing call cannot send the report again.
  */
-async function markReportSent(shareCodeId, quizId = null, { meta = null } = {}) {
+async function markReportSent(shareCodeId, quizId = null, { meta = null, code = true } = {}) {
   let stamped = false;
   try {
-    const { error } = await supabase.from('quiz_share_codes')
-      .update({ report_sent_at: new Date().toISOString() })
-      .eq('id', shareCodeId);
-    if (error) {
-      logToFile('❌ video-quiz: could not stamp report_sent_at', { shareCodeId, error: error.message }, 'error');
-      return false;
+    if (code) {
+      const { error } = await supabase.from('quiz_share_codes')
+        .update({ report_sent_at: new Date().toISOString() })
+        .eq('id', shareCodeId);
+      if (error) {
+        logToFile('❌ video-quiz: could not stamp report_sent_at', { shareCodeId, error: error.message }, 'error');
+        return false;
+      }
+      stamped = true;
     }
-    stamped = true;
     // A lesson quiz's /quiz row reads quizzes.status; "Report sent" is a
     // state of the quiz, not only of its share code.
     if (quizId) {
@@ -1968,6 +2138,7 @@ module.exports = {
   classCardsEnabled,
   CLASS_CARD_WINDOW_MS,
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate, lastRefusal,
+  isReportableShareCode, lateReportDecision, nextMorningSlotUtc, _markAsked: markAsked,
   _sendClaimTiming,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
