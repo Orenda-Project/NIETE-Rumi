@@ -137,7 +137,9 @@ function createPushRemindRouter(opts = {}) {
     if (!botUrl || !apiKey) return res.status(404).json({ error: 'not_found' });
     let out;
     try {
-      out = await callBot(req.method, `/api/internal/wqpush/${op}`, req, req.method === 'GET' ? null : (req.body || {}), { route: `/api/internal/wqpush/${op}` });
+      // the key's ask depends on the quiz (the canary): its code rides along, only in the page's own code shape
+      const q = op === 'key' && CODE_RX.test(String(req.query.code || '')) ? `?code=${req.query.code}` : '';
+      out = await callBot(req.method, `/api/internal/wqpush/${op}${q}`, req, req.method === 'GET' ? null : (req.body || {}), { route: `/api/internal/wqpush/${op}` });
     } catch (_) {
       return res.status(503).json({ error: 'unavailable' });
     }
