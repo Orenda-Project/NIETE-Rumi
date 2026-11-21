@@ -1651,7 +1651,12 @@ function createWebQuizRouter(opts = {}) {
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
-  router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
+  // A quiz opened from the child reminder (the push's url carries ?from=push): the funnel's landed step, counts only.
+  const pushLanded = (pg) => (req, res, next) => {
+    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder' });
+    next();
+  };
+  router.get('/q/:code', limiters.read, unknownCode, pushLanded('quiz'), (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
   // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens
   // this child's own hub, marked ?from=hs so the hub open carries the home-screen route (hub_open.src).

@@ -120,23 +120,26 @@ test('the finish field rides the hub switches\' cache: {} cold, off, or without 
   expect(pushField()).toEqual({});
 });
 
-test('the worker schedules the due tick behind WEB_QUIZ_PUSH_SEND_ENABLED and the expiry tick ungated', async () => {
+test('the worker schedules the due and funnel ticks behind WEB_QUIZ_PUSH_SEND_ENABLED and the expiry tick ungated', async () => {
   const { schedulePushTicks } = require('../../workers/push-ticks');
   const intervals = [];
   const timeouts = [];
   const due = jest.fn(async () => ({}));
   const expire = jest.fn(async () => ({}));
+  const funnel = jest.fn(async () => null);
   let env = true;
-  schedulePushTicks({ setIntervalFn: (fn, ms) => intervals.push([fn, ms]), setTimeoutFn: (fn, ms) => { timeouts.push([fn, ms]); }, dueTick: due, expireTick: expire, envReady: () => env });
+  schedulePushTicks({ setIntervalFn: (fn, ms) => intervals.push([fn, ms]), setTimeoutFn: (fn, ms) => { timeouts.push([fn, ms]); }, dueTick: due, expireTick: expire, envReady: () => env, funnelTick: funnel });
   for (const [fn] of timeouts) await fn();
   delete process.env.WEB_QUIZ_PUSH_SEND_ENABLED;
   for (const [fn] of intervals) await fn();
   expect(due).not.toHaveBeenCalled();
+  expect(funnel).not.toHaveBeenCalled();
   expect(expire).toHaveBeenCalled();
   process.env.WEB_QUIZ_PUSH_SEND_ENABLED = '1';
   for (const [fn] of intervals) await fn();
   expect(due).toHaveBeenCalled();
-  expect(intervals.map(([, ms]) => ms).sort((a, b) => a - b)).toEqual([60 * 1000, 6 * 60 * 60 * 1000]);
+  expect(funnel).toHaveBeenCalled();
+  expect(intervals.map(([, ms]) => ms).sort((a, b) => a - b)).toEqual([60 * 1000, 60 * 60 * 1000, 6 * 60 * 60 * 1000]);
   // a tier without the push env (and so without the table) is inert: the expiry tick does nothing
   env = false;
   expire.mockClear();
