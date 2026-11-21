@@ -1,2 +1,3 @@
 {"ts":"2026-11-21T17:03:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"24ddd0c65e79","branch":"bd-96f69c.16-80217","user":""}
 {"ts":"2026-11-21T17:04:00Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-96f69c.16-80217: portal-login web lane spec: NOT UPDATED e2e: missing;teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"24ddd0c65e79","branch":"bd-96f69c.16-80217","user":""}
+{"ts":"2026-11-21T17:04:01Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"24ddd0c65e79","branch":"bd-96f69c.16-80217","user":""}
