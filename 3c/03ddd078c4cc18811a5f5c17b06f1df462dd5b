@@ -1,2 +1,3 @@
 {"ts":"2026-11-21T08:11:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"3c03ddd078c4","branch":"release/niete-2026-11-20","user":""}
 {"ts":"2026-11-21T08:51:09Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,portal-login,teacher-lessons=none-needed (logging only: no screen, message or reply changes — the commit's own Spec-Sync trailer from staging, carried by cherry-pick -x)","sha":"3c03ddd078c4","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-21T08:57:10Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-3c03ddd078c4","sha":"3c03ddd078c4","branch":"release/niete-2026-11-20","user":""}
