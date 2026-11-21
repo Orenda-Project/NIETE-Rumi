@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T16:52:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"b8610c491483","branch":"HEAD","user":""}
+{"ts":"2026-11-21T17:00:04Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (rebase onto newer staging of sandbox cherry-picks #5289/#5292/#5298; specs OWN07-11 already committed in this branch; WhatsApp flow untouched; unit screens switched off)","sha":"b8610c491483","branch":"bd-snkn32.59.4-to-staging","user":""}
