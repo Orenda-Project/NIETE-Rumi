@@ -234,7 +234,8 @@ describe('a clip that will not play while one voice is on (web_quiz_voice_gap_sl
     expect(utts).toEqual([]); // no 8 s timer with the switch on
     h.runTimers(5000);
     expect(utts.map((u) => u.text)).toEqual(['Option A']);
-    expect(h.clips[0].paused).toBe(true);
+    // never heard over the phone's voice: stopped, or (since the late-start meter) still loading muted until 8 s
+    expect(h.clips[0].paused || h.clips[0].muted).toBe(true);
   });
   test('on: a refused start (NotAllowedError) keeps the tap, never the phone voice', async () => {
     const { h, utts, cls } = setup({ slow: true });
