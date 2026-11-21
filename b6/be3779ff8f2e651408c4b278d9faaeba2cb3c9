@@ -1,0 +1,3 @@
+{"ts":"2026-11-21T17:36:48Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"b6be3779ff8f","branch":"bd-zrdvmi.50.2-82384","user":""}
+{"ts":"2026-11-21T17:36:49Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"b6be3779ff8f","branch":"bd-zrdvmi.50.2-82384","user":""}
+{"ts":"2026-11-21T17:36:55Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: fde-board-pattern owe their Gherkin","sha":"b6be3779ff8f","branch":"bd-zrdvmi.50.2-82384","user":""}
