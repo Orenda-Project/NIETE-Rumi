@@ -363,15 +363,21 @@ function recTitleUrOf(out, lang) {
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live, hold = null }) {
   const urP = recTitleUrOf(out, lang);
+  // Tonight's class round for this child (null with web_quiz_evening_round off): pinned first by rank().
+  const Round = require('./web-quiz-evening-round');
+  const roundP = Round.roundCandidate({ token, chosenId, history, lang }).catch(() => null);
   const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
   if (!p) return {};
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
   // the verdicts were read for the Trail's stops; the corner offers only the ones still waiting this month
-  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch, recTitleUr: await urP });
+  const round = await roundP;
+  const built = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch, recTitleUr: await urP });
+  const candidates = round ? [round, ...built] : built;
   // hold: the child welcome is up over this home (web-quiz-child-welcome.js): its Next stop is not an untapped show
   const hw = hold ? ((await hold) || {}).welcome : null;
   const held = Boolean(hw && !hw.replay); // the replay's step 4 is the child's own tap: counted as today
   const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live, ...(held ? { hold: true } : {}) });
+  if (round && next) Round.noteShown(next, round);
   return next ? { next } : {};
 }
 
