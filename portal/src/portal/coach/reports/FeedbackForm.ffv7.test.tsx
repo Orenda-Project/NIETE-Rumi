@@ -22,7 +22,7 @@ import { scanCopy, scanStyle } from "../../newui/checks/source";
  *                   for 5 s, an "edited" tag); "Add evidence" adds the coach's own line with a dark "You" tag
  *   saved           ev_<code> as today's server reads it, plus `evidence_review` per indicator
  *   every box       sized to its text (auto-grow), each paragraph its own direction
- *   the name        "NIETE Teaching Assistant", never "Rumi"
+ *   the name        "Digital Coach", never "Rumi" (bd-o15qnr.36; was "NIETE Teaching Assistant")
  */
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
@@ -201,16 +201,16 @@ describe("a section: one row per indicator", () => {
 /* ── one indicator (ff-detail, ff-b-*) ─────────────────────────────────────────────────────────────────────────── */
 
 describe("one indicator alone", () => {
-  it("the crumb, prev/next, the level (the NIETE Teaching Assistant's ringed), the evidence rows and To improve", async () => {
+  it("the crumb, prev/next, the level (the Digital Coach's ringed), the evidence rows and To improve", async () => {
     const ind = within(await toC1());
     expect(screen.getByText("Lubna Arif · C · 1 of 3")).toBeInTheDocument();
     expect(ind.getByRole("button", { name: "Previous" })).toBeDisabled();
     expect(ind.getByRole("button", { name: "Next" })).toBeEnabled();
-    const rumi = group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Proficient, NIETE Teaching Assistant’s level" });
+    const rumi = group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Proficient, Digital Coach’s level" });
     expect(rumi).toHaveAttribute("aria-checked", "true");
-    expect(within(rumi).getByText("NIETE Teaching Assistant")).toBeInTheDocument();
+    expect(within(rumi).getByText("Digital Coach")).toBeInTheDocument();
     const ev = within(screen.getByTestId("ff-evidence"));
-    expect(ev.getByText("NIETE Teaching Assistant heard")).toBeInTheDocument();
+    expect(ev.getByText("Digital Coach heard")).toBeInTheDocument();
     expect(ev.getByTestId("ff-summary")).toHaveTextContent(BECAUSE);
     const rows = quoteRows();
     expect(rows).toHaveLength(3);
@@ -252,17 +252,17 @@ describe("one indicator alone", () => {
     openRow("C3");
     await screen.findByTestId("ff-indicator");
     fireEvent.click(dock().getByRole("button", { name: "Agree and next" }));
-    expect(await screen.findByTestId("ff-toast")).toHaveTextContent("2 items still need an answer");
+    // bd-o15qnr.36: the note is optional, so only the level is missing
+    expect(await screen.findByTestId("ff-toast")).toHaveTextContent("1 item still needs a level");
     expect(screen.getByText("Choose a level")).toBeInTheDocument();
-    expect(screen.getByText("At least 20 letters")).toBeInTheDocument();
+    expect(screen.queryByText("At least 20 letters")).toBeNull();
     const radios = group("Who got to answer").getAllByRole("radio");
     expect(radios).toContain(document.activeElement);
     expect(screen.getByText("Lubna Arif · C · 3 of 3")).toBeInTheDocument(); // it stays
     fireEvent.click(group("Who got to answer").getByRole("radio", { name: "Developing" }));
-    fireEvent.change(screen.getByLabelText("Why this level (20 letters at least)"), { target: { value: "short" } });
+    fireEvent.change(screen.getByLabelText("Your note (optional)"), { target: { value: "short" } });
     fireEvent.click(dock().getByRole("button", { name: "Agree and next" }));
-    await waitFor(() => expect(screen.getByTestId("ff-toast")).toHaveTextContent("1 item still needs an answer"));
-    expect(screen.getByLabelText("Why this level (20 letters at least)")).toHaveFocus();
+    await waitFor(() => expect(screen.queryByText("Lubna Arif · C · 3 of 3")).toBeNull()); // a short note is fine
   });
 
   it("a level that needs one: '1 item still needs a level'", async () => {
@@ -286,6 +286,34 @@ describe("one indicator alone", () => {
 });
 
 /* ── evidence option B with editing ────────────────────────────────────────────────────────────────────────────── */
+
+/*
+ * bd-o15qnr.35 (the operator 21 Nov ~12:58, on a principal's D1: "See that empty space up above? Maybe keep the indicator
+ * name there?") — the row between Previous and Next carries the code and the name (wrapping to two lines), and the card
+ * no longer repeats them, so the levels start higher.
+ */
+describe("the indicator's name sits between Previous and Next", () => {
+  it("the nav row holds the code chip and the name; the card does not repeat them", async () => {
+    await toC1();
+    const nav = screen.getByTestId("ff-nav");
+    expect(within(nav).getByRole("button", { name: "Previous" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Next" })).toBeInTheDocument();
+    expect(within(nav).getByText("C1")).toBeInTheDocument();
+    const title = within(nav).getByRole("heading", { name: "Quality of Questions Asked by the Teacher" });
+    expect(title).toHaveAttribute("dir", "auto");
+    expect(title.className).toMatch(/line-clamp-2/);
+    const card = screen.getByTestId("ff-card");
+    expect(within(card).queryByRole("heading", { name: "Quality of Questions Asked by the Teacher" })).toBeNull();
+    expect(within(card).queryByText("C1")).toBeNull();
+  });
+
+  it("moving to the next indicator moves the title with it", async () => {
+    await toC1();
+    fireEvent.click(within(screen.getByTestId("ff-nav")).getByRole("button", { name: "Next" }));
+    const nav = await screen.findByTestId("ff-nav");
+    expect(within(nav).getByText("C2")).toBeInTheDocument();
+  });
+});
 
 describe("evidence: remove (Undo), edit, add, the summary in place", () => {
   it("⋯ → Remove hides the row and says Quote removed · Undo for 5 seconds; Undo brings it back", async () => {
@@ -364,13 +392,13 @@ const finishRest = async () => {
   fireEvent.click(dock().getByRole("button", { name: "Agree and next" })); // C2 → C3
   await screen.findByText("Lubna Arif · C · 3 of 3");
   fireEvent.click(group("Who got to answer").getByRole("radio", { name: "Developing" }));
-  fireEvent.change(screen.getByLabelText("Why this level (20 letters at least)"), { target: { value: WHY } });
+  fireEvent.change(screen.getByLabelText("Your note (optional)"), { target: { value: WHY } });
   fireEvent.click(dock().getByRole("button", { name: "Agree and next" })); // C done → back to the section
   await screen.findByTestId("ff-section");
   fireEvent.click(dock().getByRole("button", { name: /^Next to check: D2/ }));
   await screen.findByText("Lubna Arif · D · 1 of 1");
   fireEvent.click(group("How many children spoke").getByRole("radio", { name: "Proficient" }));
-  fireEvent.change(screen.getByLabelText("Why this level (20 letters at least)"), { target: { value: "Four children answered across the lesson." } });
+  fireEvent.change(screen.getByLabelText("Your note (optional)"), { target: { value: "Four children answered across the lesson." } });
   fireEvent.change(screen.getByLabelText("Children who spoke"), { target: { value: "4" } });
   fireEvent.change(screen.getByLabelText("Quiet, then spoke"), { target: { value: "1" } });
   fireEvent.click(dock().getByRole("button", { name: "Agree and next" }));
@@ -484,14 +512,13 @@ describe("the time chip", () => {
 /* ── principal, Urdu, read only, the name, the boxes ───────────────────────────────────────────────────────────── */
 
 describe("the principal, Urdu and the rest", () => {
-  it("the principal: the same form; the legend says Your level; no score", async () => {
+  it("the principal: the same form; the legend says You · Digital Coach; no score", async () => {
     renderPage(true);
     await openSection(/C\. What the teacher does/);
     openRow("C1");
     await screen.findByTestId("ff-indicator");
     const legend = screen.getByTestId("legend");
-    expect(legend).toHaveTextContent("Your level");
-    expect(legend).toHaveTextContent("NIETE Teaching Assistant’s level");
+    expect((legend.textContent || "").replace(/\s+/g, " ").trim()).toBe("You · Digital Coach"); // bd-o15qnr.36
     expect(screen.queryByText(/%/)).toBeNull();
     expect(screen.getByRole("button", { name: "Add evidence" })).toBeInTheDocument();
   });
@@ -506,7 +533,7 @@ describe("the principal, Urdu and the rest", () => {
     expect(screen.getByText("3 میں سے 0 دیکھ لیے")).toBeInTheDocument();
     openRow("C1");
     await screen.findByTestId("ff-indicator");
-    expect(screen.getByText((t) => unisolated(t) === "NIETE ٹیچنگ اسسٹنٹ نے یہ سنا")).toBeInTheDocument();
+    expect(screen.getByText((t) => unisolated(t) === "ڈیجیٹل کوچ نے یہ سنا")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "شواہد شامل کریں" })).toBeInTheDocument();
     expect(dock().getByRole("button", { name: "متفق، اگلا" })).toBeInTheDocument();
     expect(within(quoteRows()[0]).getByText(`“${Q1}”`)).toHaveAttribute("data-urdu");

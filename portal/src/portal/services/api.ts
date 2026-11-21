@@ -837,12 +837,29 @@ export type EvidenceReview = { summary: { rumi: string; coach: string }; items: 
 export type V6Indicator =
   | {
     id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string;
-    /** bd-o15qnr.31 — the NIETE Teaching Assistant's own evidence: its one line and each {time MM:SS, quote}. Absent from an older bot. */
+    /** bd-o15qnr.31 — the Digital Coach's own evidence: its one line and each {time MM:SS, quote}. Absent from an older bot. */
     rumiEvidence?: { because: string | null; items: { time: string | null; quote: string }[] };
     /** bd-o15qnr.31 — the coach's review of that evidence, as last saved; null/absent before one is saved. */
     evidenceReview?: EvidenceReview | null;
   }
-  | { id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string } };
+  | {
+    id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string };
+    /** bd-o15qnr.36 — the "From the recording" box as parts (observe-fico17-v6.combinedParts). Absent from an older bot: `body`. */
+    recording?: V6Recording;
+  };
+/**
+ * bd-o15qnr.36 — one of the six's "From the recording", in the person's language: what to look for, the state, every
+ * snippet the recording did find, the indicator's own N/A words, D2's counts, and what the person adds (without the
+ * rubric's "sets the final level with a written justification").
+ */
+export interface V6Recording {
+  lookFor: string;
+  state: 'found' | 'none' | 'ie' | 'na' | 'starred' | 'd2';
+  found: { time: string | null; quote: string }[];
+  naText: string | null;
+  turns: { first: number; second: number } | null;
+  youAdd: string;
+}
 export type DraftSection =
   | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
   | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] }
