@@ -10,8 +10,10 @@
  * page refused (two 404s at 03:49Z on 21 Nov).
  *
  * Behind the v6/v7 switch (portal_coach_flow_v2; off = today, byte for byte):
- *   1 a row the observation page would refuse (no teacher, or the teacher is not in her patch) is in NO list —
- *     not Needs you, not the Home's Focus card, not the pending banner, not History — and the route logs it
+ *   1 a row the observation page would refuse (no teacher, or the teacher is not in her patch) is not offered as
+ *     something to do — not Needs you, not the Home's Focus card, not the pending banner, not Analysing, not the Home
+ *     counts — and the route logs it. History keeps every row as today (her record; how it shows them is the
+ *     operator's call, parked with the rules table)
  *   2 the agreed v7 rule: a Debrief is due 3 school days after the visit, then it leaves Needs you (it stays in History,
  *     and the visit still takes the recording)
  */
@@ -81,11 +83,12 @@ describe('switch ON: a row the observation page would refuse is in no list', () 
     const out = await SVC.getCoachReports(fake(), ME, { role: 'principal', v7: true, today: TODAY });
     expect(ids(out.waiting)).toEqual(['form-today', 'debrief-due']);
   });
-  test('in progress and History drop them too (a History tap would 404 the same way)', async () => {
+  test('in progress drops them too; History keeps every row, as today (her record; its treatment is the operator\'s call)', async () => {
     const out = await SVC.getCoachReports(fake(), ME, { role: 'principal', v7: true, today: TODAY });
     expect(ids(out.inProgress)).toEqual([]);
-    expect(ids(out.all.items)).toEqual(['form-today', 'debrief-due', 'debrief-late', 'sent-mine']);
-    expect(out.all.total).toBe(4);
+    const off = await SVC.getCoachReports(fake(), ME, { role: 'principal' });
+    expect(ids(out.all.items)).toEqual(ids(off.all.items));
+    expect(out.all.total).toBe(ROWS.length);
   });
   test('what was held back is named, with why, for the route to log', async () => {
     const out = await SVC.getCoachReports(fake(), ME, { role: 'principal', v7: true, today: TODAY });
@@ -103,10 +106,10 @@ describe('switch ON: a row the observation page would refuse is in no list', () 
     await SVC.getCoachReports(q, ME, { role: 'principal', v7: true, today: TODAY });
     expect(q.calls.some((c) => c.sql === PRINCIPAL_PATCH_SQL)).toBe(true);
   });
-  test('every row it keeps, the observation page serves (the two rules are one)', async () => {
+  test('every row Needs you and Analysing keep, the observation page serves (the two rules are one)', async () => {
     const q = fake();
     const out = await SVC.getCoachReports(q, ME, { role: 'principal', v7: true, today: TODAY });
-    for (const r of out.all.items) {
+    for (const r of [...out.waiting, ...out.inProgress]) {
       const row = ROWS.find((x) => x.id === r.id);
       const page = await SVC.getCoachObservation(async (sql) => {
         if (sql === SVC.SQL.OBSERVATION_BY_ID) return { rows: [{ ...row, observation_type: 'leader_observation', observer_user_id: ME }] };

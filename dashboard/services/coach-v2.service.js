@@ -865,12 +865,17 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
     teacherExtId: t.teacherExtId, schoolName: t.schoolName, schoolExtId: t.emis ? `niete:${t.emis}` : null,
   }]));
   let live = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
-  // bd-o15qnr.30 (queue #214) — switch on (`v7`): no list offers a row the observation page refuses, and a Debrief past
-  // its due day leaves Needs you (kept in History). Off: every row, as before.
-  let waitingOk = () => true;
+  // bd-o15qnr.30 (queue #214) — switch on (`v7`): Needs you and Analysing never offer a row the observation page refuses,
+  // and a Debrief past its due day leaves Needs you. History (`all`) keeps every row, as today. Off: as before.
+  let toDo = (r) => !!r;
   let withheld;
-  if (opts.v7) ({ open: live, waitingOk, withheld } = staleRules(live, patch, opts.today || karachiToday()));
-  const late = new Set(live.filter((r) => !waitingOk(r)).map((r) => r.id));
+  if (opts.v7) {
+    const rules = staleRules(live, patch, opts.today || karachiToday());
+    const open = new Set(rules.open.map((r) => r.id));
+    withheld = rules.withheld;
+    toDo = (r) => open.has(r.id) && rules.waitingOk(r);
+  }
+  const notToDo = new Set(live.filter((r) => !toDo(r)).map((r) => r.id));
   const shaped = live.map((r) => shapeReport(r, leaderUserId, teacherByUser));
 
   const q = String(opts.q || '').trim();
@@ -889,8 +894,8 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   }
 
   const out = {
-    waiting: shaped.filter((r) => (r.step === 'draft' || r.step === 'talk') && !late.has(r.id)),
-    inProgress: shaped.filter((r) => r.step === 'analysing'),
+    waiting: shaped.filter((r) => (r.step === 'draft' || r.step === 'talk') && !notToDo.has(r.id)),
+    inProgress: shaped.filter((r) => r.step === 'analysing' && !notToDo.has(r.id)),
     all: {
       total: matched.length,
       page,

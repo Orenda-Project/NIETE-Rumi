@@ -2540,8 +2540,9 @@ function coachFail(res, where, error) {
 }
 
 /**
- * bd-o15qnr.30 (queue #214) — the stale-item rules ride the v6/v7 switch (portal_coach_flow_v2) for the reader: a list
- * never offers a row the observation page refuses, and a Debrief past its due day leaves Needs you. Off = as before.
+ * bd-o15qnr.30 (queue #214) — the stale-item rules ride the v6/v7 switch (portal_coach_flow_v2) for the reader: Needs
+ * you, the banner and the Home counts never offer a row the observation page refuses, and a Debrief past its due day
+ * leaves Needs you. History is unchanged. Off = as before.
  * A failed flag read is off (today's lists).
  */
 async function staleRulesOn(req) {
@@ -2915,8 +2916,9 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
-    // bd-o15qnr.30 (queue #214) — switch on: no list offers a row the observation page refuses (the operator's 4 Oct
-    // "Pending debrief" that opened to nothing), and a Debrief past its due day leaves Needs you. Held back = logged.
+    // bd-o15qnr.30 (queue #214) — switch on: Needs you never offers a row the observation page refuses (the operator's
+    // 4 Oct "Pending debrief" that opened to nothing), and a Debrief past its due day leaves it; History keeps every row.
+    // Held back = logged.
     const v7 = await staleRulesOn(req);
     const { withheld, ...out } = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
       page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole, v7,
