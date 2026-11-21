@@ -14,12 +14,13 @@
   'use strict';
   var T = {
     en: {
-      remindTitle: 'Want Jugnu to remind you tomorrow evening?',
-      remindTitleMon: 'Want Jugnu to remind you on Monday evening?',
+      remindTitle: 'Jugnu can remind you tomorrow evening.',
+      remindTitleMon: 'Jugnu can remind you on Monday evening.',
       remindBody: 'One reminder on this phone, on school-day evenings. You can stop it any time.',
-      remindYes: 'Yes, remind me',
+      remindYes: 'Yes',
       remindLater: 'Not now',
       remindWait: 'Turning reminders on…',
+      remindHint: 'Now tap Allow below',
       remindDone: 'Done. Jugnu will remind you tomorrow evening.',
       remindDoneMon: 'Done. Jugnu will remind you on Monday evening.',
       remindTest: 'Send one now',
@@ -38,12 +39,13 @@
       offTitle: 'Reminders are off',
     },
     ur: {
-      remindTitle: 'کیا جگنو کل شام آپ کو یاد دلائے؟',
-      remindTitleMon: 'کیا جگنو پیر کی شام آپ کو یاد دلائے؟',
+      remindTitle: 'جگنو کل شام آپ کو یاد دلا سکتا ہے۔',
+      remindTitleMon: 'جگنو پیر کی شام آپ کو یاد دلا سکتا ہے۔',
       remindBody: 'اس فون پر، اسکول کے دنوں کی شام، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
-      remindYes: 'جی ہاں، یاد دلائیں',
+      remindYes: 'ہاں',
       remindLater: 'ابھی نہیں',
       remindWait: 'یاد دہانی آن ہو رہی ہے…',
+      remindHint: 'اب نیچے Allow دبائیں',
       remindDone: 'ہو گیا۔ جگنو کل شام یاد دلائے گا۔',
       remindDoneMon: 'ہو گیا۔ جگنو پیر کی شام یاد دلائے گا۔',
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
@@ -212,7 +214,15 @@
     var show = {
       // after Chrome's Allow: the worker and the push service take seconds, so the card says it is working at once
       wait: function () { draw('<p class="wq-sub" role="status" aria-busy="true" style="margin:0' + fs + lh + '">' + esc(c.remindWait) + '</p>'); },
-      ask: function () { draw((landing ? '' : title(onMonday() ? c.remindTitleMon : c.remindTitle)) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
+      // while Chrome's permission sheet is up (it is in English): where to tap
+      hint: function () { draw('<p class="wq-sub" role="status" style="margin:0' + fs + lh + '">' + esc(c.remindHint) + '</p>'); },
+      // the result screen (take A): one line, then 🔔 Yes and Not now on one row, so the score and "See my card" stay the
+      // heroes; the /remind landing keeps the consent line under its own question
+      ask: function () {
+        var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(c.remindYes) + '</button>';
+        var row = '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + yes + btn('wq-ghost', 'later', c.remindLater) + '</div>';
+        draw(landing ? line(c.remindBody) + row : title(onMonday() ? c.remindTitleMon : c.remindTitle) + row);
+      },
       done: function () {
         pageTitle(c.onTitle);
         // the landing's one next step is Play (the primary); Stop is the small ghost; the test-send only for QA (?qa=1)
@@ -260,6 +270,7 @@
       if (busy) return;
       busy = true;
       ev('yes');
+      show.hint();
       var asked = new Promise(function (resolve) {
         var r = window.Notification.requestPermission(resolve);
         if (r && typeof r.then === 'function') r.then(resolve, function () { resolve('default'); });
