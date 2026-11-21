@@ -47,7 +47,7 @@ function fakeSupabase(value) {
   return { reads, from(table) { const q = { select: () => q, eq: (c, v) => { reads.push({ table, c, v }); return q; }, maybeSingle: async () => ({ data: value === undefined ? null : { value }, error: null }) }; return q; } };
 }
 
-function setup({ verdict = 'data', answer, env = ENV, chart = Buffer.from('PNG'), switchValue = [ME] } = {}) {
+function setup({ verdict = 'data', answer, env = ENV, chart = Buffer.from('PNG'), switchValue = [ME], reactOk = true } = {}) {
   SW._resetCache();
   const out = [];
   const asked = [];
@@ -59,6 +59,7 @@ function setup({ verdict = 'data', answer, env = ENV, chart = Buffer.from('PNG')
     sendImageFromBuffer: async (to, png, caption) => { out.push({ kind: 'image', caption }); return true; },
     sendFlow: async (to, f) => { out.push({ kind: 'flow', flow: f }); return true; },
     sendInteractiveMessage: async (to, l) => { out.push({ kind: 'list', list: l }); return true; },
+    sendReaction: async (to, id, emoji, opts) => { out.push({ kind: 'reaction', id, emoji, soleAck: Boolean(opts && opts.soleAck) }); return reactOk; },
   };
   const deps = {
     env, supabase: fakeSupabase(switchValue), redis: fakeRedis(), whatsapp: wa,
@@ -72,8 +73,8 @@ function setup({ verdict = 'data', answer, env = ENV, chart = Buffer.from('PNG')
     now: () => new Date('2026-11-21T08:00:00Z'),
     log: () => {},
   };
-  const text = (body, user = { id: ME }) => E.maybeHandleDataAnalyst({ user, from: FROM, messageBody: body }, deps);
-  const tap = (buttonId, user = { id: ME }) => E.handleDataAnalystButton({ user, from: FROM, buttonId }, deps);
+  const text = (body, user = { id: ME }, messageId) => E.maybeHandleDataAnalyst({ user, from: FROM, messageBody: body, messageId }, deps);
+  const tap = (buttonId, user = { id: ME }, messageId) => E.handleDataAnalystButton({ user, from: FROM, buttonId, messageId }, deps);
   const flow = (responseJson, user = { id: ME }) => E.handleDataAnalystFlowReply({ user, from: FROM, responseJson }, deps);
   return { deps, out, asked, classified, text, tap, flow };
 }
@@ -261,5 +262,40 @@ describe('a clarifying question is answered by tapping', () => {
     s.deps.runQuestion = async (args) => { s.asked.push(args); return { text: 'ok', calls: [RULES], stoppedEarly: false }; };
     await expect(s.tap('da_opt_1')).resolves.toEqual({ handled: true });
     expect(s.asked[s.asked.length - 1].question).toBe('Which active: Used the assistant');
+  });
+});
+
+describe('a reaction instead of "Looking into it" (the operator, 21 Nov ~11:05: "to reduce cost")', () => {
+  test('with the message id: ⏳ on her message, no text, then ✅ on it once the answer is out', async () => {
+    const s = setup();
+    await s.text('How many teachers made a lesson plan last week, by sector?', { id: ME }, 'wamid.Q1');
+    expect(s.out[0]).toEqual({ kind: 'reaction', id: 'wamid.Q1', emoji: '⏳', soleAck: true });
+    expect(s.out.some((o) => o.kind === 'text' && o.text === E.TEXTS.looking)).toBe(false);
+    const chartAt = s.out.findIndex((o) => o.kind === 'chart');
+    expect(chartAt).toBeGreaterThan(0);
+    expect(s.out[s.out.length - 1]).toEqual({ kind: 'reaction', id: 'wamid.Q1', emoji: '✅', soleAck: false });
+  });
+  test('a tapped quick pick reacts on the tap', async () => {
+    const s = setup();
+    await s.tap('da_pick_2', { id: ME }, 'wamid.TAP');
+    expect(s.out[0]).toMatchObject({ kind: 'reaction', id: 'wamid.TAP', emoji: '⏳' });
+  });
+  test('Meta refuses the reaction: the text, as before', async () => {
+    const s = setup({ reactOk: false });
+    await s.text('How many teachers made a lesson plan last week, by sector?', { id: ME }, 'wamid.Q1');
+    expect(s.out[1]).toEqual({ kind: 'text', text: E.TEXTS.looking });
+    expect(s.out.filter((o) => o.kind === 'reaction' && o.emoji === '✅')).toHaveLength(0);
+  });
+  test('no message id (an older caller): the text, as before', async () => {
+    const s = setup();
+    await s.text('How many teachers made a lesson plan last week, by sector?');
+    expect(s.out[0]).toEqual({ kind: 'text', text: E.TEXTS.looking });
+  });
+  test('the answer fails: the ⏳ comes off and the failure text is sent', async () => {
+    const s = setup({ answer: new Error('mcp down') });
+    await s.text('How many teachers made a lesson plan last week, by sector?', { id: ME }, 'wamid.Q1');
+    expect(s.out.map((o) => o.kind)).toEqual(['reaction', 'text', 'reaction']);
+    expect(s.out[1].text).toBe(E.TEXTS.failed);
+    expect(s.out[2]).toMatchObject({ id: 'wamid.Q1', emoji: '' });
   });
 });
