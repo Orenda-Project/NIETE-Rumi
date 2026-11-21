@@ -32,9 +32,9 @@ const SESSIONS = 'coaching_sessions';
 
 const has = (v) => v !== undefined && v !== null && String(v).trim() !== '';
 
-/** Is this session a FICO 6-12 visit stamped for the Digital Coach at its start? */
+/** Is this session a FICO 6-12 visit (any version: v1.1 or v1.2) stamped for the Digital Coach at its start? */
 function isDcVisit(session) {
-  return Boolean(session) && session.framework === S.RUBRIC_KEY && session.framework_selection_reason === REASON;
+  return Boolean(session) && S.isFicoSId(session.framework) && session.framework_selection_reason === REASON;
 }
 
 /** Rumi's reply kept on the form row (answers.fico_s_dc), or null on a visit Rumi did not pre-fill. */
@@ -43,13 +43,16 @@ function dcOf(form) {
   return dc && dc.levels ? dc : null;
 }
 
-/** Rumi's level for one indicator as the form stores levels ('1'..'4' | 'NA'), or null (couldn't tell, none, starred). */
-function rumiLevelOf(dc, code) {
+/**
+ * Rumi's level for one indicator as the form stores levels ('1'..'4' | 'NA'), or null (couldn't tell, none, starred).
+ * `rubric`: the form's version (an N/A the form's version does not offer is no level: a v1.1 form never gets C3 N/A).
+ */
+function rumiLevelOf(dc, code, rubric = S.RUBRIC_KEY) {
   if (!dc || !dc.levels || S.isStarred(code)) return null;
   const row = dc.levels[code];
   if (!row) return null;
-  if (row.result === 'NA') return S.NA_CODES.includes(code) ? 'NA' : null;
-  const n = S.normLevel(row.result, code);
+  if (row.result === 'NA') return S.naCodes(rubric).includes(code) ? 'NA' : null;
+  const n = S.normLevel(row.result, code, rubric);
   return typeof n === 'number' ? String(n) : null;
 }
 
@@ -57,7 +60,7 @@ function rumiLevelOf(dc, code) {
  * The form's draft with Rumi's pre-fill under it (pure). For every non-starred indicator Rumi set: the level and the
  * Evidence box, only where the observer has not written one. Returns { draft, dc } where dc is what the form row keeps.
  */
-function prefillDraft(draft, analysis, { now = Date.now() } = {}) {
+function prefillDraft(draft, analysis, { now = Date.now(), rubric = S.RUBRIC_KEY } = {}) {
   const fw = require('../../coaching/frameworks/fico-s-framework');
   const out = { ...(draft || {}) };
   const levels = {};
@@ -66,7 +69,7 @@ function prefillDraft(draft, analysis, { now = Date.now() } = {}) {
     const row = src[code];
     if (!row) continue;
     levels[code] = { result: row.result === undefined ? null : row.result, because: String(row.because || ''), evidence: Array.isArray(row.evidence) ? row.evidence : [] };
-    const lv = rumiLevelOf({ levels }, code);
+    const lv = rumiLevelOf({ levels }, code, rubric);
     if (lv !== null && !has(out[code])) out[code] = lv;
     const ev = fw.prefillEvidence(row);
     if (ev && !has(out[`ev_${code}`])) out[`ev_${code}`] = ev;
@@ -84,8 +87,8 @@ function prefillDraft(draft, analysis, { now = Date.now() } = {}) {
  * Is a changed level explained? (pure) The observer's level differs from Rumi's and the reason is under 20 characters
  * → false. No Rumi level (none, couldn't tell, starred) or the same level → true.
  */
-function changeExplained(dc, code, draft) {
-  const rumi = rumiLevelOf(dc, code);
+function changeExplained(dc, code, draft, rubric = S.RUBRIC_KEY) {
+  const rumi = rumiLevelOf(dc, code, rubric);
   if (rumi === null) return true;
   const mine = (draft || {})[code];
   if (!has(mine) || String(mine) === rumi) return true;
@@ -117,7 +120,7 @@ async function onAnalysisReady(session, { from = null, deps = {} } = {}) {
       logToFile('❌ fico-s dc: analysis ready but the visit has no FICO 6-12 form row', { sessionId }, 'error');
       return { ok: false, why: 'no form' };
     }
-    const { draft, dc } = prefillDraft(((form.answers || {}).obs612) || {}, session.analysis_data || {});
+    const { draft, dc } = prefillDraft(((form.answers || {}).obs612) || {}, session.analysis_data || {}, { rubric: form.rubric_version });
     let current = form;
     if (!form.sealed_at) {
       const answers = { ...(form.answers || {}), obs612: draft, fico_s_dc: dc };

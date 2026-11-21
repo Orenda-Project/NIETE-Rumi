@@ -14,20 +14,27 @@
  * the classroom photos' description (text|both) and the lesson plan when the visit has them: FICO 6-12 asks about the
  * written objective (A1), resources (B5) and checking learning (E1, E2), which a transcript alone often cannot show.
  *
- * What the DC returns: levels.<code> = { result: 1-4 | 'NA' (C2 only) | 'IE' ("couldn't tell"), because, evidence:
+ * What the DC returns: levels.<code> = { result: 1-4 | 'NA' (C2, C3) | 'IE' ("couldn't tell"), because, evidence:
  * [{ time, quote }] } for every non-starred indicator. Nothing here is shown as a FICO-S score on its own: it is the
  * pre-fill the observer reviews (observe/obs612), and the observer's submitted level is the one that counts.
+ *
+ * FICO-S v1.2 (queue #218, dc-4): each indicator carries its own "Couldn't tell" line (fico-s/fico_s_v1_2.json dc_ie; it
+ * was one generic rule), and N/A is allowed on C2 and C3 only, each with its own rule. IE stays the Digital Coach's only.
+ * One scorer serves both ids (framework-registry): a v1.1 visit analysed now gets this prompt, and its form keeps only
+ * what v1.1 offers (obs612/fico-s-dc rumiLevelOf drops a C3 N/A there).
  */
 
 const crypto = require('crypto');
 const fs = require('fs');
 const S = require('./fico-s');
 
-const RUBRIC_SHA8 = crypto.createHash('sha256').update(fs.readFileSync(S.RUBRIC_FILE)).digest('hex').slice(0, 8);
+// The hash follows the rubric data: v1.1's text and what v1.2 adds to it.
+const RUBRIC_SHA8 = crypto.createHash('sha256').update(fs.readFileSync(S.RUBRIC_FILE)).update(fs.readFileSync(S.V12_FILE)).digest('hex').slice(0, 8);
 // Bump the number when the prompt's wording (not the rubric data) changes; the hash follows the rubric data.
 // 2 (19 Nov ~14:15): the HITL-only indicators starred too (C3 C5 C7 D2 D3 E2 E3), so 16 are asked.
 // 3 (19 Nov ~17:00): starred = E3 only, so the Digital Coach is asked 22 indicators (2 asked 16; 1 was the first cut).
-const DC_PROMPT_VERSION = `fico-s-dc-3+${RUBRIC_SHA8}`;
+// 4 (21 Nov, FICO-S v1.2): a "Couldn't tell" line per indicator (was one generic rule); N/A on C2 and C3, each its own rule.
+const DC_PROMPT_VERSION = `fico-s-dc-4+${RUBRIC_SHA8}`;
 const RESULTS = [1, 2, 3, 4, 'NA', 'IE'];
 const TIME_RE = /^\d{1,3}:\d{2}$/;
 const NEAR_SECONDS = 30;
@@ -54,7 +61,10 @@ function renderIndicator(code) {
     const ex = (ind.examples || []).find((e) => e.n === l.n);
     if (ex) lines.push(`   Example (not from this lesson): ${ex.text}`);
   }
-  if (ind.na && ind.na.allowed) lines.push(`N/A: ${ind.na.text}`);
+  const na = S.naDcRule(code);
+  if (na) lines.push(`N/A when: ${na}`);
+  const ie = S.ieLine(code);
+  if (ie) lines.push(`Couldn't tell ("IE") when: ${ie}`);
   return lines.join('\n');
 }
 
@@ -63,7 +73,7 @@ const SCHEMA = () => `{
   "levels": {
 ${S.DC_CODES.map((c, i) => {
     if (i === 0) return `    "${c}": {"result": 3, "because": "one short line on why this level", "evidence": [{"time": "12:40", "quote": "exact words from the transcript"}]}`;
-    if (c === 'C2') return `    "${c}": {"result": "NA", "because": "...", "evidence": []}`;
+    if (S.NA_CODES.includes(c) && c === S.NA_CODES[0]) return `    "${c}": {"result": "NA", "because": "...", "evidence": []}`;
     if (i === 1) return `    "${c}": {"result": "IE", "because": "what the recording could not show", "evidence": []}`;
     return `    "${c}": {...}`;
   }).join(',\n')}
@@ -93,9 +103,9 @@ teacher's lesson plan. Use them only for what they show; the lesson as taught is
 For each indicator below, choose the ONE level (1-4) whose description best fits the whole lesson.
 Levels build on each other: level 4 means level 3 is met plus the extra step. Give the lower level if unsure.
 Score only what the transcript, the photos or the plan show. Never infer that something "probably happened".
-If neither the transcript nor a photo can show what the indicator looks for (something only seen in the room,
-such as seating, gestures or work that was not read aloud), return "IE" ("couldn't tell") and say why in "because".
-Return "NA" only where an indicator has an N/A line and that line applies.
+Each indicator has a "Couldn't tell" line: when it applies (the transcript, the photos and the plan cannot show what
+the indicator looks for), return "IE" ("couldn't tell") and say why in "because". "IE" is not a low level.
+Return "NA" only for an indicator with an "N/A when" line, and only when that line applies.
 Give 1-3 evidence items, each a timestamp and the exact words from the transcript (none when the result is "IE").
 Write "because" in English, in one short line, about what happened in this lesson.
 
@@ -252,7 +262,7 @@ function getScoringConstants() {
 
 module.exports = {
   name: S.RUBRIC_KEY,
-  version: '1.1',
+  version: S.versionOf(S.RUBRIC_KEY),
   rubric: S.RUBRIC_KEY,
   promptVersion: DC_PROMPT_VERSION,
   displayName: 'FICO 6-12',

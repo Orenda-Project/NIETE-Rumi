@@ -41,6 +41,12 @@ const NA_FILE = path.join(__dirname, 'fico17_v6.na.json');
 const NA_TABLE = JSON.parse(fs.readFileSync(NA_FILE, 'utf8'));
 
 const RUBRIC_KEY = 'fico17_v6';
+// FICO17 v6.1 (queue #218, the operator's go 21 Nov after approving #216's lists): the same 17 indicators and level
+// meanings (so the key stays 'fico17_v6'), with N/A only on C2 C3 C5 D4 in their own words, D2 in words, and D4's N/A
+// only when no question was asked at all. Every new stamp carries rubric_version '6.1'; an observation stored before has
+// no version field and is v6 ('6.0'), shown as 'FICO17 v6'. Never rescored, never backfilled.
+const RUBRIC_VERSION = '6.1';
+const LABEL = 'FICO17 v6.1';
 const RUBRIC_SHA8 = crypto.createHash('sha256').update(fs.readFileSync(RUBRIC_FILE)).digest('hex').slice(0, 8);
 // dc-2 (per-indicator N/A, 19 Nov): the prompt allows N/A only on C2 (and C5's evidence), and the validator refuses it elsewhere.
 const DC_PROMPT_VERSION = `fico17-v6-dc-2+${RUBRIC_SHA8}`;
@@ -255,9 +261,23 @@ function coachLevelOptions(code, lang = 'en', { na = true } = {}) {
 /** The ids a coach may choose on one indicator: '1'-'4', and 'NA' where the table allows it. */
 function coachIds(code) { return naAllowed(code) ? ['1', '2', '3', '4', 'NA'] : ['1', '2', '3', '4']; }
 
-/** The stamp every stored v6 score carries. */
+/** The stamp every stored v6 score carries (v6.1: with its rubric_version). */
 function stamp(kind = 'dc') {
-  return { rubric: RUBRIC_KEY, prompt_version: kind === 'coach' ? COACH_PROMPT_VERSION : DC_PROMPT_VERSION };
+  return { rubric: RUBRIC_KEY, rubric_version: RUBRIC_VERSION, prompt_version: kind === 'coach' ? COACH_PROMPT_VERSION : DC_PROMPT_VERSION };
+}
+
+/**
+ * Which v6 an observation was scored with: '6.1' when stamped so, '6.0' for a v6 one stored before v6.1 (no field),
+ * null when it is not a v6 observation at all. Reads an analysis, its scores, its coach review, or a review alone.
+ */
+function versionOf(x) {
+  if (!x || typeof x !== 'object') return null;
+  const review = x.fico17_v6_review && typeof x.fico17_v6_review === 'object' ? x.fico17_v6_review : null;
+  const stamped = [x.rubric_version, review && review.rubric_version, x.scores && x.scores.rubric_version]
+    .find((v) => typeof v === 'string' && /^6\.\d+$/.test(v));
+  if (stamped) return stamped;
+  const isV6 = x.rubric === RUBRIC_KEY || x.framework === RUBRIC_KEY || (x.scores && x.scores.rubric === RUBRIC_KEY) || Boolean(review);
+  return isV6 ? '6.0' : null;
 }
 
 /** A level as stored: 1-4, 'NA' or 'IE'; anything else is null. */
@@ -289,7 +309,7 @@ function totals(levels = {}) {
 }
 
 module.exports = {
-  RUBRIC, RUBRIC_KEY, RUBRIC_SHA8, RUBRIC_FILE, DC_PROMPT_VERSION, COACH_PROMPT_VERSION,
+  RUBRIC, RUBRIC_KEY, RUBRIC_VERSION, LABEL, versionOf, RUBRIC_SHA8, RUBRIC_FILE, DC_PROMPT_VERSION, COACH_PROMPT_VERSION,
   CODES, DC_CODES, COMBINED_CODES, STARRED_CODES, isStarred, LEVEL_LABELS, SECTIONS, DOMAIN_OF, TITLES, DRAFT_TITLE_CODES,
   JUSTIFICATION_MIN, cp, clip, indicator, isDc, isCombined, levelText, levelOptions, stamp, normLevel, isJustified, totals,
   URDU, langOf, levelName, indicatorText, sectionName, coachLevelOptions, coachIds,
