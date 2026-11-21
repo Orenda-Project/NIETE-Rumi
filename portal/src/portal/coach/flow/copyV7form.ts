@@ -12,6 +12,11 @@
  * ff-b-removed, ff-b-add (+ -p, -ur). The AI is the "NIETE Teaching Assistant" (Urdu as the bot spells it,
  * observe-strings.js v6f_rumi_chose), never "Rumi". Urdu MACHINE-DRAFTED: NATIVE-CHECK (the -ur boards' words where
  * they had them).
+ *
+ * bd-o15qnr.36 (#204, the operator 21 Nov ~14:20-14:30) — the AI is the "Digital Coach" (Urdu ڈیجیٹل کوچ) on these
+ * screens, no longer "NIETE Teaching Assistant"; the legend reads "You · Digital Coach"; the six combined indicators'
+ * box: "The Digital Coach can't count this one. You decide.", "Nothing for this in the recording", "You add: …", the
+ * note optional. Urdu MACHINE-DRAFTED: NATIVE-CHECK.
  */
 import { bilingual, type Bilingual, type Words } from "../../teacher/i18n";
 
@@ -21,27 +26,39 @@ const notesEn = (n: number) => (n === 1 ? "1 note" : `${n} notes`);
 export const FORM_V7_COPY = {
   /* the legend: whose level is which (the coach's "Coach score", reports/copy.ts; the principal's own) */
   yourLevel: "Your level",
-  /* bd-o15qnr.31: the AI is the NIETE Teaching Assistant on this form, never "Rumi" (EN + UR) */
-  rumisLevel: "NIETE Teaching Assistant’s level",
-  /* the words at the end of the assistant's row */
-  rumiTag: "NIETE Teaching Assistant",
+  /* bd-o15qnr.36: the AI is the Digital Coach on this form, never "Rumi" (EN + UR; was NIETE Teaching Assistant) */
+  rumisLevel: "Digital Coach’s level",
+  /* the words at the end of the Digital Coach's row */
+  rumiTag: "Digital Coach",
+  /* the legend: "You · Digital Coach", the coach's and the principal's alike */
+  legendYou: "You",
+  legendDc: "Digital Coach",
 
   /* one indicator */
   evidence: "Evidence",
   changedFrom: (was: string) => `Changed from ${was}`,
   whyLevelMin: (n: number) => `Why this level (${n} letters at least)`,
   whyChanged: "Why you changed it",
+  /* bd-o15qnr.36: one of the six — the Digital Coach can't count it */
+  cantCount: "The Digital Coach can't count this one. You decide.",
+  nothingInRecording: "Nothing for this in the recording",
+  recIe: "The recording couldn't show this.",
+  recNa: "The recording didn't find this in the lesson.",
+  recStarred: "★ Starred: the Digital Coach doesn't listen for this one.",
+  d2Turns: (a: number, b: number) => `${a} student turns in the first half and ${b} in the second. It can't tell how many different children spoke.`,
+  youAdd: (t: string) => `You add: ${t}`,
+  noteOptional: "Your note (optional)",
 
   /* the Save tray */
   ratings: (n: number) => (n === 1 ? "1 rating" : `${n} ratings`),
   changedSummary: (levels: number, notes: number, fromRumi: boolean) =>
-    `${levelsEn(levels)} and ${notesEn(notes)} changed${fromRumi ? " from the NIETE Teaching Assistant’s" : ""}`,
+    `${levelsEn(levels)} and ${notesEn(notes)} changed${fromRumi ? " from the Digital Coach’s" : ""}`,
   nextStep: (step: string) => `Next: ${step}`,
 
   /* FICO-S v1.1 and FDE: saved part by part */
   savedAt: (time: string) => `Saved ${time}`,
   savedPartByPart: "Saved part by part: leave and come back without losing anything.",
-  noRumiLevels: "You choose every level here: no NIETE Teaching Assistant levels on this form.",
+  noRumiLevels: "You choose every level here: no Digital Coach levels on this form.",
   gradeShort: (g: number) => `G${g}`,
 
   /* bd-o15qnr.31 (#188, 21 Nov: the Feedback Form review, LOCKED ~10:05) — every section collapsed */
@@ -58,7 +75,7 @@ export const FORM_V7_COPY = {
   nextIndicator: "Next",
   agreeNext: "Agree and next",
   /* evidence option B with editing */
-  assistantHeard: "NIETE Teaching Assistant heard",
+  assistantHeard: "Digital Coach heard",
   editSummary: "Edit the summary",
   done: "Done",
   more: "More: edit or remove",
@@ -84,25 +101,35 @@ export const FORM_V7_COPY = {
 
 export type FormV7Copy = Words<typeof FORM_V7_COPY>;
 
-// NATIVE-CHECK (bd-o15qnr.28 + bd-o15qnr.31, machine-drafted; the m9-ff-v6-ur and ff-*-ur boards' words where they had them)
+// NATIVE-CHECK (bd-o15qnr.28 + bd-o15qnr.31 + bd-o15qnr.36, machine-drafted; the m9-ff-v6-ur and ff-*-ur boards' words where they had them)
 export const FORM_V7_COPY_UR: FormV7Copy = {
   yourLevel: "آپ کی سطح",
-  rumisLevel: "\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ کی سطح",
-  rumiTag: "\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ",
+  rumisLevel: "ڈیجیٹل کوچ کی سطح",
+  rumiTag: "ڈیجیٹل کوچ",
+  legendYou: "آپ",
+  legendDc: "ڈیجیٹل کوچ",
 
   evidence: "شواہد",
   changedFrom: (was: string) => `${was} سے بدلا گیا`,
   whyLevelMin: (n: number) => `یہ سطح کیوں (کم از کم ${n} حروف)`,
   whyChanged: "آپ نے کیوں بدلا",
+  cantCount: "ڈیجیٹل کوچ اسے نہیں گن سکتا۔ آپ طے کریں۔",
+  nothingInRecording: "ریکارڈنگ میں اس کے لیے کچھ نہیں",
+  recIe: "ریکارڈنگ سے یہ معلوم نہیں ہو سکا۔",
+  recNa: "ریکارڈنگ کو سبق میں یہ نہیں ملا۔",
+  recStarred: "★ ستارے والا: ڈیجیٹل کوچ اسے نہیں سنتا۔",
+  d2Turns: (a: number, b: number) => `پہلے آدھے حصے میں طلبہ ${a} بار بولے اور دوسرے میں ${b} بار۔ ریکارڈنگ یہ نہیں بتا سکتی کہ کتنے مختلف بچے بولے۔`,
+  youAdd: (t: string) => `آپ شامل کریں: ${t}`,
+  noteOptional: "آپ کا نوٹ (اختیاری)",
 
   ratings: (n: number) => `${n} ریٹنگ`,
   changedSummary: (levels: number, notes: number, fromRumi: boolean) =>
-    `${levels} ${levels === 1 ? "سطح" : "سطحیں"} اور ${notes} نوٹ${fromRumi ? " \u2066NIETE\u2069 ٹیچنگ اسسٹنٹ سے" : ""} بدلے گئے`,
+    `${levels} ${levels === 1 ? "سطح" : "سطحیں"} اور ${notes} نوٹ${fromRumi ? " ڈیجیٹل کوچ سے" : ""} بدلے گئے`,
   nextStep: (step: string) => `اگلا: ${step}`,
 
   savedAt: (time: string) => `${time} پر محفوظ`,
   savedPartByPart: "حصہ حصہ محفوظ ہوتا ہے: جا کر واپس آئیں، کچھ ضائع نہیں ہو گا۔",
-  noRumiLevels: "یہاں ہر سطح آپ چنیں: اس فارم پر \u2066NIETE\u2069 ٹیچنگ اسسٹنٹ کی سطحیں نہیں۔",
+  noRumiLevels: "یہاں ہر سطح آپ چنیں: اس فارم پر ڈیجیٹل کوچ کی سطحیں نہیں۔",
   gradeShort: (g: number) => `جماعت ${g}`,
 
   doneOf: (n: number, m: number) => `${n}/${m} مکمل`,
@@ -117,7 +144,7 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   prevIndicator: "پچھلا",
   nextIndicator: "اگلا",
   agreeNext: "متفق، اگلا",
-  assistantHeard: "\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ نے یہ سنا",
+  assistantHeard: "ڈیجیٹل کوچ نے یہ سنا",
   editSummary: "خلاصہ بدلیں",
   done: "مکمل",
   more: "مزید: بدلیں یا ہٹائیں",
@@ -146,6 +173,7 @@ export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
 const LONG_OK: readonly string[] = [
   "whyLevelMin", "changedSummary", "savedPartByPart", "noRumiLevels",
   "saveLeft", "nextToCheck", "indicatorCrumb", "playAt", "pauseAt", "needLevel", "needAnswer", "toCheck",
+  "cantCount", "nothingInRecording", "recIe", "recNa", "recStarred", "d2Turns", "youAdd",
 ];
 const SAME: readonly string[] = [];
 

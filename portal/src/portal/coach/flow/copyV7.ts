@@ -43,7 +43,7 @@ export const FLOW_V7_COPY = {
   observations: "Observations",
 
   /* the visit while the Digital Coach works */
-  listening: "NIETE Teaching Assistant is listening to the lesson",
+  listening: "Digital Coach is listening to the lesson", // bd-o15qnr.36 (was NIETE Teaching Assistant)
   listeningSub: "Usually a few minutes. This page updates by itself; you can leave.",
 
   /* Check and send: the class question as chips (grades 6–12 pick the form) */
@@ -84,7 +84,7 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   principalFoot: "فیصلہ آپ کا ہے۔",
   observations: "مشاہدات",
 
-  listening: "\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ سبق سن رہا ہے",
+  listening: "ڈیجیٹل کوچ سبق سن رہا ہے",
   listeningSub: "عموماً چند منٹ۔ یہ صفحہ خود بدل جاتا ہے؛ آپ جا سکتے ہیں۔",
 
 };

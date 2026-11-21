@@ -142,14 +142,17 @@ export function FormChips({ label, saved, extra }: { label?: string | null; save
   );
 }
 
-/** Whose level is which: the coach's filled, Rumi's ringed purple. */
-export function Legend({ principal }: { principal: boolean }) {
-  const C = useCopy(REPORTS) as ReportsCopy;
+/**
+ * Whose level is which: yours filled, the Digital Coach's ringed purple. bd-o15qnr.36 (the operator 21 Nov ~14:20):
+ * it reads "You · Digital Coach", the coach's and the principal's alike.
+ */
+export function Legend(_props: { principal: boolean }) {
   const F = useCopy(FORM_V7) as FormV7Copy;
   return (
-    <div data-testid="legend" className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[13px] font-medium text-[#4b5563]">
-      <span className="flex items-center gap-1.5"><i aria-hidden="true" className="h-3 w-3 rounded-full bg-[#33374a]" />{principal ? F.yourLevel : C.legendYours}</span>
-      <span className="flex items-center gap-1.5"><i aria-hidden="true" className="h-3 w-3 rounded-full border-[3px] border-[#6e52e0]" />{F.rumisLevel}</span>
+    <div data-testid="legend" className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[13px] font-medium text-[#4b5563]">
+      <span className="flex items-center gap-1.5"><i aria-hidden="true" className="h-3 w-3 rounded-full bg-[#33374a]" />{F.legendYou}</span>
+      <span aria-hidden="true" className="text-[#9ca3af]">{" · "}</span>
+      <span className="flex items-center gap-1.5"><i aria-hidden="true" className="h-3 w-3 rounded-full border-[3px] border-[#6e52e0]" />{F.legendDc}</span>
     </div>
   );
 }
