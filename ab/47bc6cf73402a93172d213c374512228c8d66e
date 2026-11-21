@@ -1,1 +1,2 @@
 {"ts":"2026-11-20T18:12:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"ab47bc6cf734","branch":"bd-snkn32.59.4-staging","user":""}
+{"ts":"2026-11-21T08:18:17Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (WhatsApp lesson plans unchanged; a goal-unit day is made only from the portal unit route behind list-only portal_lp_own_unit)","sha":"ab47bc6cf734","branch":"bd-snkn32.59.4-staging","user":""}
