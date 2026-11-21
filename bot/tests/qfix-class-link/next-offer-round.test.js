@@ -92,7 +92,7 @@ const pickToken = (kid = KID) => T.sign({ k: 'h', ids: [kid], exp: Math.floor(Da
 test('a class child arriving from the class link with a round today: next.primary is Tonight\'s round, ahead of the teacher\'s pending quiz', async () => {
   seed();
   const out = await Hub.hub(pickToken(), A);
-  expect(out.next).toMatchObject({ kind: 'quiz', variant: 'evening_round', rank_src: 'pinned', title: "Tonight's round", title_ur: 'آج شام کا راؤنڈ', minutes: 5 });
+  expect(out.next).toMatchObject({ kind: 'quiz', variant: 'evening_round', rank_src: 'pinned', title: "Tonight's quiz", title_ur: 'آج شام کا کوئز', minutes: 5 });
   const k = T.chipId('sc-r', KID);
   expect(out.next.href).toBe(`/q/RND234?k=${k}`);
   expect(logEvent).toHaveBeenCalledWith('web_quiz.round_shown', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2 });
@@ -141,7 +141,7 @@ test('a child who finished the round, a child of no class, the switch off: no ro
 });
 
 test('rank(): an evening_round candidate is the primary in every arm, its rule named', () => {
-  const round = { kind: 'quiz', variant: 'evening_round', id: 'r1', href: '/q/RND234?k=x', title: "Tonight's round", rule: 'evening_round', sent_at: new Date().toISOString() };
+  const round = { kind: 'quiz', variant: 'evening_round', id: 'r1', href: '/q/RND234?k=x', title: "Tonight's quiz", rule: 'evening_round', sent_at: new Date().toISOString() };
   const teacher = { kind: 'quiz', variant: 'new', id: 't1', href: '/q/T?k=y', title: 'From your teacher', rule: 'teacher_quiz', sent_at: new Date().toISOString() };
   for (const arm of ['rank', 'rand', 'ctrl']) {
     const r = NO.rank('home', [teacher, round], { arm, seed: 's', now: new Date().toISOString() });
