@@ -180,6 +180,9 @@ const PACK_KEY = 'web_quiz_pack';
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
 // The busy page asks again by itself (2 s, 4 s, 8 s) only with this on too: the same read, JSON true only.
 const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
+// qfix_class_link: the class evening round (web-quiz-evening-round-flags.js owns its meaning; read here so the hub's
+// next slot asks for tonight's round without a read of its own when it is off).
+const EVENING_ROUND_KEY = 'web_quiz_evening_round';
 const TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
@@ -261,6 +264,8 @@ const SWITCHES = Object.freeze([
   ['home',         HOME_KEY,              'json'],
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
+  // qfix_class_link (append-only)
+  ['eveningRound', EVENING_ROUND_KEY,     'loose'],
 ]);
 // 'pct' = the JSON object {"pct": N} as a whole number 0-100; anything else is 0
 const pctOf = (v) => (v && typeof v === 'object' && Number.isFinite(v.pct) ? Math.max(0, Math.min(100, Math.floor(v.pct))) : 0);

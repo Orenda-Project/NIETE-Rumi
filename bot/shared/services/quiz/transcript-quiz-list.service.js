@@ -253,17 +253,18 @@ async function hasEligibleLessons(userId) {
  * one page of the union can ever show (the union's top N lies within the top N
  * of each half). Filtered on the owner in the query, never afterwards.
  */
+const ROUND_SLACK = 5;
 async function loadLpQuizzes(userId, needed) {
   if (!userId) return [];
   const { data, error } = await supabase.from('quizzes')
     .select(LP_QUIZ_SELECT)
     .eq('teacher_id', userId).in('quiz_source', PLAN_SOURCES)
-    // A class's evening round is the class's, not a quiz for the teacher to send (web-quiz-evening-round).
-    .or('meta->>source.is.null,meta->>source.neq.evening_round')
     .order('created_at', { ascending: false })
-    .limit(Math.max(1, needed));
+    .limit(Math.max(1, needed) + ROUND_SLACK);
   if (error) logToFile('❌ transcript quiz: lp_v8 quizzes lookup failed', { userId, error: error.message }, 'error');
-  return data || [];
+  // A class's evening round is the class's, not a quiz for the teacher to send (web-quiz-evening-round): left out,
+  // and the list is still `needed` long when there were rounds among the newest.
+  return (data || []).filter((q) => !(q && q.meta && q.meta.source === 'evening_round')).slice(0, Math.max(1, needed));
 }
 
 /**
