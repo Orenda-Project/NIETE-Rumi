@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T08:11:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"5e020cad74ee","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-21T08:51:28Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-assessment,fde-board-pattern=none-needed (no web scenario asserts the 8-type cap; board-pattern papers do not use the drawer — commit trailers from staging)","sha":"5e020cad74ee","branch":"release/niete-2026-11-20","user":""}
