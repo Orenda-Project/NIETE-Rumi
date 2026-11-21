@@ -35,13 +35,25 @@ const RUBRIC = JSON.parse(fs.readFileSync(RUBRIC_FILE, 'utf8'));
 // The coach-facing Urdu (level names, indicator names, definitions, level texts, what the coach adds). The rubric sheet
 // is English only, so this is a reviewed DRAFT (status in the file); English is the fallback for any missing key.
 const URDU = JSON.parse(fs.readFileSync(path.join(__dirname, 'fico17_v6.ur.json'), 'utf8'));
+// Per-indicator N/A (operator-approved 19 Nov): which indicators offer N/A and its words for each, en + Urdu draft. It overrides
+// the rubric's na_rule / na_link for every reader: N/A only where the thing scored could not happen in the lesson.
+const NA_FILE = path.join(__dirname, 'fico17_v6.na.json');
+const NA_TABLE = JSON.parse(fs.readFileSync(NA_FILE, 'utf8'));
 
 const RUBRIC_KEY = 'fico17_v6';
+// FICO17 v6.1 (queue #218, the operator's go 21 Nov after approving #216's lists): the same 17 indicators and level
+// meanings (so the key stays 'fico17_v6'), with N/A only on C2 C3 C5 D4 in their own words, D2 in words, and D4's N/A
+// only when no question was asked at all. Every new stamp carries rubric_version '6.1'; an observation stored before has
+// no version field and is v6 ('6.0'), shown as 'FICO17 v6'. Never rescored, never backfilled.
+const RUBRIC_VERSION = '6.1';
+const LABEL = 'FICO17 v6.1';
 const RUBRIC_SHA8 = crypto.createHash('sha256').update(fs.readFileSync(RUBRIC_FILE)).digest('hex').slice(0, 8);
-const DC_PROMPT_VERSION = `fico17-v6-dc-1+${RUBRIC_SHA8}`;
+// dc-2 (per-indicator N/A, 19 Nov): the prompt allows N/A only on C2 (and C5's evidence), and the validator refuses it elsewhere.
+const DC_PROMPT_VERSION = `fico17-v6-dc-2+${RUBRIC_SHA8}`;
 // The coach's own scoring has no model; its stamp names the rubric data it was scored against. coach-2 (13 Nov):
-// the coach chooses 1-4 only (no N/A, no Couldn't tell, no D2 counts), so a coach-2 review can be told from a coach-1.
-const COACH_PROMPT_VERSION = `fico17-v6-coach-2+${RUBRIC_SHA8}`;
+// the coach chose 1-4 only. coach-3 (19 Nov): 1-4, plus N/A on C2 C3 C5 D4 only, each with its own label,
+// so a coach-3 review can be told from a coach-2 one.
+const COACH_PROMPT_VERSION = `fico17-v6-coach-3+${RUBRIC_SHA8}`;
 
 const CODES = RUBRIC.indicators.map((i) => i.code);
 const BY_CODE = Object.fromEntries(RUBRIC.indicators.map((i) => [i.code, i]));
@@ -78,7 +90,7 @@ const TITLES = {
   C7: ['No pair or group task', 'Groups, each works alone', 'Shared task, one product', 'Roles and report back'],
   C8: ['No book or object mentioned', 'Shown only, not used', 'Children used them, linked', 'Child explained with them'],
   D1: ['One-word answers only', 'Longer, but only repeated', '2+ answers gave reasons', "Child's own example or link"],
-  D2: ['No child spoke', 'Only 1-2 children', '3-5 children', '6+, and 2+ quiet ones later'],
+  D2: ['No child spoke', 'Only a few children', 'Many, not most of the class', 'Most of the class'], // in words, no counts (bd-ra8xu.61)
   D3: ['No child spoke to another', 'Once', '2+ times', 'Reasons, one shared answer'],
   D4: ['Silent or waited', 'Only answered when sure', 'Tried while unsure, 2+', 'Tried unasked or again'],
   D5: ['No question of their own', 'Task questions only', 'A question about the idea', '2+, one beyond the lesson'],
@@ -89,13 +101,6 @@ const TITLES = {
 };
 // Whether a draft title still needs the rubric owner's check.
 const DRAFT_TITLE_CODES = DC_CODES.slice();
-
-// The not-applicable options each combined indicator offers (§7.3), with their descriptions.
-const NA_OPTIONS = {
-  C5: { title: 'No switch', description: 'The class did not change activity.' },
-  C7: { title: 'No group task', description: 'Everyone worked alone or as one class.' },
-  D3: { title: 'No child-to-child talk', description: BY_CODE.D3.na_rule },
-};
 
 const cp = (s) => Array.from(String(s || '')).length;
 
@@ -117,21 +122,96 @@ function levelText(code, n) {
   return l ? l.text : null;
 }
 
+/** The coach's language for v6 text: 'ur' or 'en'. */
+const langOf = (lang) => (String(lang || '').toLowerCase().startsWith('ur') ? 'ur' : 'en');
+
+// ── N/A, per indicator (per-indicator N/A, 19 Nov) ─────────────────────────────────────────
+// The indicators that offer N/A (C2 C3 C5 D4), in rubric order. Every other indicator never offers it: its level 1
+// already describes "nothing happened" (operator 13 Nov, D2).
+const NA_CODES = CODES.filter((c) => NA_TABLE.indicators[c] && NA_TABLE.indicators[c].allowed === true);
+// Where the Digital Coach may answer N/A itself: a level on C2 (Part 1); C5's evidence (Part 2). Nowhere else.
+const DC_NA_LEVEL_CODES = NA_CODES.filter((c) => NA_TABLE.indicators[c].dc_level === true);
+const DC_NA_EVIDENCE_CODES = NA_CODES.filter((c) => !!NA_TABLE.indicators[c].dc_evidence_rule);
+
+function naAllowed(code) { return NA_CODES.includes(code); }
+function naRow(code) { return naAllowed(code) ? NA_TABLE.indicators[code] : null; }
+const pick = (byLang, lang) => (byLang && (byLang[langOf(lang)] || byLang.en)) || null;
+
+/** An indicator's N/A choice in a language ({ id: 'NA', title ≤ 30, description ≤ 300 }), or null where it has none. */
+function naOption(code, lang = 'en') {
+  const row = naRow(code);
+  if (!row) return null;
+  const w = pick(row.coach, lang);
+  return { id: 'NA', title: clip(w.title, 30), description: clip(w.description, 300) };
+}
+
 /**
- * The option list for one indicator's level choice: 1-4 with the v6 level text as the description (≤ 300),
- * then the indicator's NA option when it has one, then "Couldn't tell" when asked for (DC indicators only).
+ * The one sentence that says why an indicator is N/A ("No child was wrong in this lesson."), for reports. `by`: 'coach'
+ * (the lesson, the default) or 'dc' (the transcript). An N/A saved where none is offered now (an old review) gets the
+ * plain "Not applicable in this lesson." Null for an unknown code.
+ */
+function naSentence(code, lang = 'en', { by = 'coach' } = {}) {
+  if (!BY_CODE[code]) return null;
+  const row = naRow(code);
+  if (!row) return pick(NA_TABLE.legacy, lang).sentence;
+  return by === 'dc' ? pick(row.dc, lang) : pick(row.coach, lang).sentence;
+}
+
+/** The N/A option an old review keeps on an indicator that no longer offers one (so its choice still shows). */
+function legacyNaOption(lang = 'en') {
+  const w = pick(NA_TABLE.legacy, lang);
+  return { id: 'NA', title: clip(w.title, 30), description: clip(w.description, 300) };
+}
+
+/** The Flow's note when Rumi chose N/A (C2), in a language; null where Rumi cannot. */
+function naRumiNote(code, lang = 'en') {
+  const row = naRow(code);
+  return row && row.rumi_note ? pick(row.rumi_note, lang) : null;
+}
+
+/** { code, level } an indicator's N/A follows (C3 and D4: C1 at level 1), or null. */
+function naFollows(code) {
+  const row = naRow(code);
+  return row && row.follows ? { code: row.follows.code, level: Number(row.follows.level) } : null;
+}
+
+/** The note shown when an N/A was chosen because of another indicator (C3/D4 after C1 = 1); null otherwise. */
+function naFollowNote(code, lang = 'en') {
+  const row = naRow(code);
+  return row && row.follow_note ? pick(row.follow_note, lang) : null;
+}
+
+/** The rule the DC is given for an N/A: { level } on C2, { evidence } on C5; null elsewhere. */
+function naDcRule(code) {
+  const row = naRow(code);
+  if (!row) return null;
+  if (row.dc_level === true && row.dc_rule) return { level: row.dc_rule };
+  if (row.dc_evidence_rule) return { evidence: row.dc_evidence_rule };
+  return null;
+}
+
+// /observe2 ONLY (retired on prod 14 Nov; its check Flows are published, so their option lists must not change by a
+// byte): the N/A each combined indicator offered there (§7.3). No /observe, portal, DC or report path reads this; they
+// all read the approved table above (per-indicator N/A, 19 Nov).
+const OBSERVE2_NA_OPTIONS = {
+  C5: { title: 'No switch', description: 'The class did not change activity.' },
+  C7: { title: 'No group task', description: 'Everyone worked alone or as one class.' },
+  D3: { title: 'No child-to-child talk', description: BY_CODE.D3.na_rule },
+};
+
+/**
+ * /observe2's option list for one indicator's level choice (its shared check Flow): 1-4 with the v6 short titles and
+ * level text (≤ 300), then that Flow's N/A on C5 C7 D3, then "Couldn't tell" when asked for. Unchanged by per-indicator N/A.
  */
 function levelOptions(code, { couldntTell = false } = {}) {
   const ind = BY_CODE[code];
   if (!ind) return [];
   const out = ind.levels.map((l, i) => ({ id: String(l.n), title: TITLES[code][i], description: clip(l.text, 300) }));
-  if (NA_OPTIONS[code]) out.push({ id: 'NA', title: NA_OPTIONS[code].title, description: clip(NA_OPTIONS[code].description, 300) });
+  const na = OBSERVE2_NA_OPTIONS[code];
+  if (na) out.push({ id: 'NA', title: na.title, description: clip(na.description, 300) });
   if (couldntTell) out.push({ id: 'IE', title: "Couldn't tell", description: clip(`Use when ${ind.couldnt_tell}`, 300) });
   return out;
 }
-
-/** The coach's language for v6 text: 'ur' or 'en'. */
-const langOf = (lang) => (String(lang || '').toLowerCase().startsWith('ur') ? 'ur' : 'en');
 
 /** A level's name ('Proficient' / 'ماہر'), from the rubric's level labels. */
 function levelName(n, lang = 'en') {
@@ -165,18 +245,39 @@ function sectionName(letter, lang = 'en') {
 /**
  * The coach's (HITL) choices for one indicator, on every coach path (/observe, /observe2, portal), operator 13 Nov:
  * ids 1-4, the title is the level's name (Not Observed / Developing / Proficient / Highly Effective), the description
- * the rubric sheet's level text word for word. No N/A and no Couldn't tell: the coach was in the room. The Digital
- * Coach keeps its own options (levelOptions). Per-indicator N/A is a later follow-up.
+ * the rubric sheet's level text word for word. No Couldn't tell: the coach was in the room. N/A (per-indicator N/A, 19 Nov) only on
+ * the indicators the approved table allows (C2 C3 C5 D4), last, with that indicator's own words.
  */
-function coachLevelOptions(code, lang = 'en') {
+function coachLevelOptions(code, lang = 'en', { na = true } = {}) {
   const t = indicatorText(code, lang);
   if (!t) return [];
-  return t.levels.map((text, i) => ({ id: String(i + 1), title: clip(levelName(i + 1, lang), 30), description: clip(text, 300) }));
+  const out = t.levels.map((text, i) => ({ id: String(i + 1), title: clip(levelName(i + 1, lang), 30), description: clip(text, 300) }));
+  // `na: false`: /observe2's coach copy (retired, its Flow published with 1-4 only) keeps exactly what it had.
+  const opt = na ? naOption(code, lang) : null;
+  if (opt) out.push(opt);
+  return out;
 }
 
-/** The stamp every stored v6 score carries. */
+/** The ids a coach may choose on one indicator: '1'-'4', and 'NA' where the table allows it. */
+function coachIds(code) { return naAllowed(code) ? ['1', '2', '3', '4', 'NA'] : ['1', '2', '3', '4']; }
+
+/** The stamp every stored v6 score carries (v6.1: with its rubric_version). */
 function stamp(kind = 'dc') {
-  return { rubric: RUBRIC_KEY, prompt_version: kind === 'coach' ? COACH_PROMPT_VERSION : DC_PROMPT_VERSION };
+  return { rubric: RUBRIC_KEY, rubric_version: RUBRIC_VERSION, prompt_version: kind === 'coach' ? COACH_PROMPT_VERSION : DC_PROMPT_VERSION };
+}
+
+/**
+ * Which v6 an observation was scored with: '6.1' when stamped so, '6.0' for a v6 one stored before v6.1 (no field),
+ * null when it is not a v6 observation at all. Reads an analysis, its scores, its coach review, or a review alone.
+ */
+function versionOf(x) {
+  if (!x || typeof x !== 'object') return null;
+  const review = x.fico17_v6_review && typeof x.fico17_v6_review === 'object' ? x.fico17_v6_review : null;
+  const stamped = [x.rubric_version, review && review.rubric_version, x.scores && x.scores.rubric_version]
+    .find((v) => typeof v === 'string' && /^6\.\d+$/.test(v));
+  if (stamped) return stamped;
+  const isV6 = x.rubric === RUBRIC_KEY || x.framework === RUBRIC_KEY || (x.scores && x.scores.rubric === RUBRIC_KEY) || Boolean(review);
+  return isV6 ? '6.0' : null;
 }
 
 /** A level as stored: 1-4, 'NA' or 'IE'; anything else is null. */
@@ -208,8 +309,10 @@ function totals(levels = {}) {
 }
 
 module.exports = {
-  RUBRIC, RUBRIC_KEY, RUBRIC_SHA8, RUBRIC_FILE, DC_PROMPT_VERSION, COACH_PROMPT_VERSION,
-  CODES, DC_CODES, COMBINED_CODES, STARRED_CODES, isStarred, LEVEL_LABELS, SECTIONS, DOMAIN_OF, TITLES, DRAFT_TITLE_CODES, NA_OPTIONS,
+  RUBRIC, RUBRIC_KEY, RUBRIC_VERSION, LABEL, versionOf, RUBRIC_SHA8, RUBRIC_FILE, DC_PROMPT_VERSION, COACH_PROMPT_VERSION,
+  CODES, DC_CODES, COMBINED_CODES, STARRED_CODES, isStarred, LEVEL_LABELS, SECTIONS, DOMAIN_OF, TITLES, DRAFT_TITLE_CODES,
   JUSTIFICATION_MIN, cp, clip, indicator, isDc, isCombined, levelText, levelOptions, stamp, normLevel, isJustified, totals,
-  URDU, langOf, levelName, indicatorText, sectionName, coachLevelOptions,
+  URDU, langOf, levelName, indicatorText, sectionName, coachLevelOptions, coachIds,
+  NA_TABLE, NA_FILE, NA_CODES, DC_NA_LEVEL_CODES, DC_NA_EVIDENCE_CODES, naAllowed, naOption, naSentence, legacyNaOption,
+  naRumiNote, naFollows, naFollowNote, naDcRule,
 };

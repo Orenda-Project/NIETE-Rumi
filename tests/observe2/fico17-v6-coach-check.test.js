@@ -96,7 +96,8 @@ describe('the coach\'s copy of the check Flow', () => {
     for (const id of ['COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO']) {
       for (const r of comps(screen(copy, id)).filter((c) => c.type === 'RadioButtonsGroup' && /^(cmb_|[CDF]\d_final)/.test(c.name))) {
         const code = r.name.replace(/^cmb_/, '').slice(0, 2);
-        expect(r['data-source']).toEqual(V6.coachLevelOptions(code, 'en'));
+        // The per-indicator N/A (19 Nov) is /observe's and the portal's; this published copy keeps 1-4 only.
+        expect(r['data-source']).toEqual(V6.coachLevelOptions(code, 'en', { na: false }));
       }
     }
     const json = JSON.stringify(copy);

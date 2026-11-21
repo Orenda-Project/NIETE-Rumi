@@ -1,0 +1,115 @@
+{
+  "rubric": "fico17_v6",
+  "version": "6.1",
+  "status": "approved",
+  "status_note": "Which FICO17 v6 indicators offer N/A, and its words for each. Approved by the operator 19 Nov 2026 (plan 'N/A only where it can happen, with its own label'). One rule: N/A is offered only when the thing the indicator scores could not happen in this lesson; when level 1 already describes 'nothing happened' there is no N/A (the operator's D2 example). D3 has no N/A (option A): its level 1 is 'no student speaks to another'. This file overrides the rubric's na_rule / na_link for every reader (coach form, portal, DC prompt and validator, reports); the rubric sheet itself has no N/A column yet. Coach wording says 'lesson' (the coach saw it), Digital Coach wording says 'transcript' (it read one). v6.1 (queue #218, approved 21 Nov with #216's lists): D4 is N/A only when the teacher asked no question at all; asked and then gave the answer is D4's level 1 (Not Observed), so D4's description and note say so.",
+  "ur_status": "draft",
+  "ur_status_note": "The Urdu is our DRAFT, for the NIETE rubric reviewer to check; English is the fallback for any missing key.",
+  "indicators": {
+    "C2": {
+      "allowed": true,
+      "dc_level": true,
+      "dc_rule": "no child gives a wrong or incomplete answer anywhere in the transcript.",
+      "coach": {
+        "en": {
+          "title": "N/A · No child was wrong",
+          "sentence": "No child was wrong in this lesson.",
+          "description": "No child was wrong in this lesson, so there was nothing to help with."
+        },
+        "ur": {
+          "title": "لاگو نہیں · کوئی غلط جواب نہیں",
+          "sentence": "اس سبق میں کوئی بچہ غلط نہیں تھا۔",
+          "description": "اس سبق میں کوئی بچہ غلط نہیں تھا، اس لیے مدد کا موقع نہیں آیا۔"
+        }
+      },
+      "dc": {
+        "en": "No child was wrong in this transcript.",
+        "ur": "اس ٹرانسکرپٹ میں کوئی بچہ غلط نہیں تھا۔"
+      },
+      "rumi_note": {
+        "en": "Rumi found no child was wrong in the recording, so it chose N/A. If a child was wrong, choose the level you saw.",
+        "ur": "Rumi کو ریکارڈنگ میں کوئی بچہ غلط نہیں ملا، اس لیے \"لاگو نہیں\" چنا گیا ہے۔ اگر کوئی بچہ غلط تھا تو جو لیول آپ نے دیکھا وہ چنیں۔"
+      }
+    },
+    "C3": {
+      "allowed": true,
+      "follows": { "code": "C1", "level": 1 },
+      "coach": {
+        "en": {
+          "title": "N/A · No question asked",
+          "sentence": "The teacher asked the children no question to answer.",
+          "description": "The teacher asked the children no question to answer, so no child was chosen."
+        },
+        "ur": {
+          "title": "لاگو نہیں · کوئی سوال نہیں",
+          "sentence": "استاد نے بچوں سے جواب کے لیے کوئی سوال نہیں پوچھا۔",
+          "description": "استاد نے بچوں سے جواب کے لیے کوئی سوال نہیں پوچھا، اس لیے کسی بچے کو چنا نہیں گیا۔"
+        }
+      },
+      "dc": {
+        "en": "No question to the children in this transcript.",
+        "ur": "اس ٹرانسکرپٹ میں بچوں سے کوئی سوال نہیں پوچھا گیا۔"
+      },
+      "follow_note": {
+        "en": "You set C1 to Not Observed (no question for the children to answer), so N/A is chosen here. Change it if a child was asked.",
+        "ur": "آپ نے C1 کو \"مشاہدے میں نہیں آیا\" رکھا (بچوں سے جواب کے لیے کوئی سوال نہیں)، اس لیے یہاں \"لاگو نہیں\" چنا گیا ہے۔ اگر کسی بچے سے پوچھا گیا تھا تو بدلیں۔"
+      }
+    },
+    "C5": {
+      "allowed": true,
+      "dc_evidence_rule": "the class stays on one activity for the whole transcript.",
+      "coach": {
+        "en": {
+          "title": "N/A · Class never switched",
+          "sentence": "The class stayed on one activity all lesson.",
+          "description": "The class stayed on one activity all lesson, so there was no change to time."
+        },
+        "ur": {
+          "title": "لاگو نہیں · سرگرمی نہیں بدلی",
+          "sentence": "کلاس پورے سبق میں ایک ہی سرگرمی پر رہی۔",
+          "description": "کلاس پورے سبق میں ایک ہی سرگرمی پر رہی، اس لیے تبدیلی کا وقت نہیں ناپا جا سکا۔"
+        }
+      },
+      "dc": {
+        "en": "No change of activity in this transcript.",
+        "ur": "اس ٹرانسکرپٹ میں سرگرمی کی کوئی تبدیلی نہیں ملی۔"
+      }
+    },
+    "D4": {
+      "allowed": true,
+      "follows": { "code": "C1", "level": 1 },
+      "coach": {
+        "en": {
+          "title": "N/A · No question asked",
+          "sentence": "The teacher asked the children no question to answer.",
+          "description": "The teacher asked the children no question at all. If the teacher asked and then gave the answer, choose Not Observed instead."
+        },
+        "ur": {
+          "title": "لاگو نہیں · کوئی سوال نہیں",
+          "sentence": "استاد نے بچوں سے جواب کے لیے کوئی سوال نہیں پوچھا۔",
+          "description": "استاد نے بچوں سے کوئی سوال پوچھا ہی نہیں۔ اگر استاد نے سوال پوچھ کر خود جواب دے دیا تو اس کے بجائے \"مشاہدے میں نہیں آیا\" چنیں۔"
+        }
+      },
+      "dc": {
+        "en": "No question to the children in this transcript.",
+        "ur": "اس ٹرانسکرپٹ میں بچوں سے کوئی سوال نہیں پوچھا گیا۔"
+      },
+      "follow_note": {
+        "en": "You set C1 to Not Observed, so N/A is chosen here. Keep N/A only if the teacher asked no question at all. If the teacher asked and then gave the answer, choose Not Observed.",
+        "ur": "آپ نے C1 کو \"مشاہدے میں نہیں آیا\" رکھا، اس لیے یہاں \"لاگو نہیں\" چنا گیا ہے۔ \"لاگو نہیں\" صرف تب رکھیں جب استاد نے کوئی سوال پوچھا ہی نہ ہو۔ اگر استاد نے سوال پوچھ کر خود جواب دے دیا تو \"مشاہدے میں نہیں آیا\" چنیں۔"
+      }
+    }
+  },
+  "legacy": {
+    "en": {
+      "title": "N/A",
+      "sentence": "Not applicable in this lesson.",
+      "description": "Saved as N/A before N/A was offered only where it can happen."
+    },
+    "ur": {
+      "title": "لاگو نہیں",
+      "sentence": "اس سبق میں لاگو نہیں۔",
+      "description": "یہ \"لاگو نہیں\" اس وقت محفوظ ہوا جب یہ ہر انڈیکیٹر پر دستیاب تھا۔"
+    }
+  }
+}

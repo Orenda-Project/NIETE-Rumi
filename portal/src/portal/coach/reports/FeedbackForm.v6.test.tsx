@@ -122,6 +122,26 @@ describe("Feedback Form — FICO17 v6 (bd-ra8xu.40)", () => {
     expect(await screen.findByText("How many children spoke")).toBeInTheDocument();
   });
 
+  it("N/A (per-indicator N/A, 19 Nov): its own words, Rumi's N/A ringed, and an N/A needs no 20-letter reason", async () => {
+    const C2_OPTS = lv(["Wrong answer ignored", "Marked wrong", "Reason 2+ times", "Child fixed it"], [{ id: "NA", title: "N/A · No child was wrong" }]);
+    const C3_OPTS = lv(["Took whoever answered", "Chose once", "Chose 2+ times", "2+ named answered"], [{ id: "NA", title: "N/A · No question asked" }]);
+    const d = DRAFT();
+    (d.sections[1] as any).indicators = [
+      { id: "C2", field: "C2", name: "Helping when a child is wrong", kind: "dc", options: C2_OPTS, rumi: "NA", rating: "NA", evidence: "No student answer is clearly wrong.", improvement: "" },
+      { id: "C3", field: "C3", name: "Who got to answer", kind: "combined", options: C3_OPTS, body: "How the teacher chooses who answers.", rating: "", why: "" },
+    ];
+    L.getObservationDraft.mockResolvedValue(d);
+    renderPage();
+    await toPartC();
+    const c2 = within(screen.getByRole("radiogroup", { name: "Helping when a child is wrong" }));
+    const na = c2.getByRole("radio", { name: /No child was wrong/ });
+    expect(na).toHaveAttribute("aria-checked", "true");
+    expect(na).toHaveAccessibleName(/Digital Coach/);
+    level("Who got to answer", /No question asked/);
+    next();
+    expect(await screen.findByText("How many children spoke")).toBeInTheDocument();
+  });
+
   it("D2 takes its two counts; a level off the counts needs a number in the reason", async () => {
     renderPage();
     await toPartC();
