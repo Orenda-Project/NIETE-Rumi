@@ -10,7 +10,8 @@
  *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
  *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
  *   arrive({code, device_ref, jt})  a device that played as (or whose hub was opened for) a child enrolled in this class →
- *                                   "Whose turn?" with ONLY those children; any other device → "Tap your teacher's name"
+ *                                   "Whose turn?" with ONLY those children (and `other`: the teacher step, for a child
+ *                                   not listed); any other device → "Tap your teacher's name"
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
  *                                   letters present); a wrong one → the teacher step again, no children
  *   letter({code, s, letter})       the chips whose canon first name starts with that letter, FIRST NAMES ONLY
@@ -336,17 +337,23 @@ async function arrive({ code, device_ref: deviceRef, jt } = {}) {
   const kids = await rosterKids(link);
   const lang = langOf(await teacherRow(link.teacher_id));
   const mine = await rememberedInClass(link, deviceRef, kids);
+  const teachers = await teacherChips(link);
+  const teacherStep = teachers.length
+    ? { step: 'teacher', s: stepToken(code, { st: 'teacher', ...(practice ? { p: 1 } : {}) }), teachers: teachers.map(({ tk, name }) => ({ tk, name })) }
+    : null;
   if (mine.length) {
     const script = scriptOf(kids, lang);
     return {
       step: 'who',
       s: stepToken(code, { st: 'who', ...(practice ? { p: 1 } : {}) }),
       kids: mine.map((k) => ({ chip: kidChip(code, k.id), first: firstNameOf(shownName(k, script)).shown, animal: T.animalFor(k.id) })),
+      // A shared phone: a child who is not listed (a sibling) takes the stranger path from here, the teacher step a
+      // fresh phone gets. Their high pick joins this phone's record, so the next "Whose turn?" lists them too.
+      other: teacherStep,
     };
   }
-  const teachers = await teacherChips(link);
-  if (!teachers.length) return notFound();
-  return { step: 'teacher', s: stepToken(code, { st: 'teacher', ...(practice ? { p: 1 } : {}) }), teachers: teachers.map(({ tk, name }) => ({ tk, name })) };
+  if (!teacherStep) return notFound();
+  return teacherStep;
 }
 
 async function teacher({ code, s, tk } = {}) {
