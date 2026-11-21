@@ -4605,6 +4605,13 @@ const UX_STRINGS = {
   // generic words, with no kind and no question count; {mascot} = the brand's mascot name in the page's language.
   quizHeadGuessTitle: { en: 'Quiz', ur: 'کوئز' },
   quizHeadGuessDesc: { en: '{mascot} reads it with you', ur: '{mascot} کے ساتھ پڑھیں' },
+
+  // ─── qfix_class_link (append-only): the class evening round's tile on the child's hub ───────────────────
+  // copy.v2.json qfix_class_link.round_title; a 5-minute round written from the class's lesson of the day.
+  qfix_class_link_round_title: {
+    en: "Tonight's round",
+    ur: 'آج شام کا راؤنڈ',
+  },
 };
 
 /**
