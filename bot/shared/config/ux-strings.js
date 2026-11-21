@@ -2588,14 +2588,14 @@ const UX_STRINGS = {
   // the date of the lesson, and carries the link. Never a phone number.
   tqStudentMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
-    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً ۵ منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   // The same message when the link opens the WEB quiz page, which asks only the
   // child's name (the WhatsApp quiz asks name and class). Chosen where the link
   // is chosen (transcript-quiz-handoff). Urdu: پوچھا جائے گا is passive, no gendered stem.
   tqStudentMessageWeb: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name first.',
-    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
+    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً ۵ منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
   },
   // WHEN the class report comes, as video-quiz-report schedules it: 12 hours
   // after the first child joins, moved to 07:00 PKT when that lands at night.
@@ -4502,15 +4502,15 @@ const UX_STRINGS = {
   // ── qfix forward: one tap to the class group (first-touch/quiz-forward.js, app_settings quiz_forward_button) ──
   // A line on messages the teacher already gets (the hand-out caption, the library share line, the six-hour message),
   // never on the class's own message. {link} opens WhatsApp's chat picker with the class message typed in. Urdu:
-  // بھیجیں is the polite imperative (no gendered stem); "tap" and "class group" stay Latin as tqHandoffIntro has them.
+  // بھیجیں is the polite imperative (no gendered stem); Urdu script throughout, as the cta_url button says کلاس گروپ.
   qfix_forward_line: {
     en: '📲 Send it to your class group in one tap:\n{link}',
-    ur: '\u200F📲 ایک tap میں class group کو بھیجیں:\n{link}',
+    ur: '\u200F📲 ایک ٹیپ میں کلاس گروپ کو بھیجیں:\n{link}',
   },
   // the six-hour message about several quiet quizzes: one line per quiz, under one head
   qfix_forward_many: {
     en: '📲 Send each to your class group in one tap:',
-    ur: '\u200F📲 ہر ایک کو ایک tap میں class group کو بھیجیں:',
+    ur: '\u200F📲 ہر ایک کو ایک ٹیپ میں کلاس گروپ کو بھیجیں:',
   },
   qfix_forward_item: {
     en: '{topic}: {link}',
@@ -5222,7 +5222,18 @@ function languageLabelFor(code) {
   return row ? row.languageDescription : 'English';
 }
 
+/**
+ * A number for Urdu prose (language-protocol §9.4): ۰–۹ in an Urdu string, the value as it is otherwise. For a param,
+ * never a template: `digitsFor(n, lang)`. null/undefined → ''.
+ */
+function digitsFor(value, language) {
+  if (value === null || value === undefined) return '';
+  const s = String(value);
+  return clampLanguage(language) === 'ur' ? s.replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d))) : s;
+}
+
 module.exports = {
+  digitsFor,
   UX_STRINGS,
   LP612_ETA,
   resolveUx,

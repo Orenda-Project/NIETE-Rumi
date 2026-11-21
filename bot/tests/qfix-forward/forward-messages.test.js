@@ -100,10 +100,14 @@ describe('the hand-out PDF caption', () => {
     expect([...cap].length).toBeLessThanOrEqual(1024);
   });
 
-  test('Urdu teacher → the Urdu line (RLM-led, Nastaliq words, Latin terms of record kept)', async () => {
+  test('Urdu teacher → the Urdu line in Urdu script like the button (qa-design 180032), and the count in Urdu digits', async () => {
     settings = [{ key: 'quiz_forward_button', value: true }];
     await Handoff.sendHandoff(QUIZ, PHONE, { prepared: bundle('ur') });
-    expect(caption()).toMatch(/ایک tap میں class group/);
+    expect(caption()).toMatch(/\u200F📲 ایک ٹیپ میں کلاس گروپ کو بھیجیں:/);
+    expect(caption()).not.toMatch(/tap میں|class group کو/);
+    // language-protocol §9.4: Urdu digits in Urdu prose (the intro's question count)
+    expect(caption()).toMatch(/[۰-۹]+ سوالات/);
+    expect(caption()).not.toMatch(/[0-9]+ سوالات/);
     expect(WebQuizToken.verify(FWD_RX.exec(caption())[1], 'qf')).toMatchObject({ l: 'ur' });
   });
 
