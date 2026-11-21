@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T13:00:21Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"d63060a49359","branch":"bd-zrdvmi.44-live","user":""}
+{"ts":"2026-11-21T13:00:39Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.44-live: E-DUPID:child-test;E-NODRIVER:registration;E-NOID:lesson-plan","sha":"d63060a49359","branch":"bd-zrdvmi.44-live","user":""}
