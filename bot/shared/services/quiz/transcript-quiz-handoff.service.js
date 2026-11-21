@@ -17,7 +17,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { resolveUx } = require('../../config/ux-strings');
+const { resolveUx, digitsFor } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
 const { isPlanQuiz, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
@@ -192,7 +192,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
   const intro = resolveUx(handoffIntroKey(quiz.quiz_source), {
     language: teacherLang,
-    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
+    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: digitsFor(qRows.length, teacherLang) },
   });
   // The report promise (first send only) rides in the PDF's caption — or in the
   // text that stands in for it — instead of costing a message of its own after
