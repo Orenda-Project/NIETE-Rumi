@@ -66,11 +66,12 @@ const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 const COPY = Object.freeze({
   quiz_reminder: {
     en: {
-      t: 'Jugnu', b: "Today's quiz is ready. Tap to play.", test: 'Reminders are on.',
+      // the tap opens the child's hub (a finished quiz bounces there): the hub's own line, never a promised quiz
+      t: 'Jugnu', b: 'A game is waiting for you. Tap to play.', test: 'Reminders are on.',
       round: "{c}: tonight's round is ready. Tap to play.", rounds: "{c}: tonight's rounds are ready. Tap to play.", and: ', ',
     },
     ur: {
-      t: 'جگنو', b: 'آج کا کوئز تیار ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔',
+      t: 'جگنو', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔',
       round: '{c}: آج کا راؤنڈ تیار ہے۔ کھیلنے کے لیے دبائیں۔', rounds: '{c}: آج کے راؤنڈ تیار ہیں۔ کھیلنے کے لیے دبائیں۔', and: '، ',
     },
   },
