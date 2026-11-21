@@ -266,6 +266,8 @@ var WQI = (function () {
   function readParts(q, lang) {
     var au = q.audio || null;
     var rd = q.read || {};
+    // A reading item (read.self: the child reads the word or passage themselves) is shown, never spoken.
+    if (rd.self === true) return [];
     var parts = [];
     var fg = q.figure || {};
     // A stem that already points at the picture does not need the figure's own pointer first.
