@@ -2,3 +2,4 @@
 {"ts":"2026-11-21T11:52:13Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"d6b4c2b62de9","branch":"release/niete-2026-11-20","user":""}
 {"ts":"2026-11-21T11:52:21Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"d6b4c2b62de9","branch":"release/niete-2026-11-20","user":""}
 {"ts":"2026-11-21T11:52:28Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-smoke owe their Gherkin","sha":"d6b4c2b62de9","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-21T11:52:34Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"b2c5f8bd-21f8-4cf4-babf-e3bea3b1137d","sha":"d6b4c2b62de9","branch":"release/niete-2026-11-20","user":""}
