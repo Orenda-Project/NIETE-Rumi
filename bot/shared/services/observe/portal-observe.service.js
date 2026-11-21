@@ -885,7 +885,8 @@ function v6Sections(analysis, lang = 'en') {
         const options = O.optionsFor(code, { keep, lang }).map((o) => ({ id: o.id, title: o.title, description: o.description || '' }));
         const base = { id: code, field: code, name: v6.indicatorText(code, lang).name, options };
         if (v6.isCombined(code)) {
-          return { ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '' };
+          // bd-o15qnr.36: `recording` (the box as parts, in the person's language) beside today's `body`; additive.
+          return { ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '', recording: O.combinedParts(analysis, code, lang) };
         }
         // Rumi's choice, ringed on the page: 1-4, or N/A on C2 (per-indicator N/A, 19 Nov) when Rumi heard no wrong answer.
         const rumi = O.rumiChoice(analysis, code);
@@ -907,10 +908,17 @@ function v6Sections(analysis, lang = 'en') {
   });
 }
 
-/** The v6 Flow's refusals for the whole review (every C/D/F screen), as { field: message }; {} when it may be saved. */
+/**
+ * The v6 Flow's refusals for the whole review (every C/D/F screen), as { field: message }; {} when it may be saved.
+ * bd-o15qnr.36 (#204, the operator 21 Nov ~14:20: "keep the note box, optional"): on the portal the note under one of
+ * the six is optional, so its "write why" refusal is dropped here; the WhatsApp Flow's own check is unchanged.
+ */
 function v6Refusals(analysis, edits, S) {
   const O = require('./observe-fico17-v6');
-  return O.LETTERS.reduce((all, l) => ({ ...all, ...O.validateScreen(`DOMAIN_${l}`, edits, analysis, S) }), {});
+  const v6 = require('../coaching/frameworks/fico17-v6');
+  const all = O.LETTERS.reduce((acc, l) => ({ ...acc, ...O.validateScreen(`DOMAIN_${l}`, edits, analysis, S) }), {});
+  for (const code of v6.COMBINED_CODES) delete all[`why_${code}`];
+  return all;
 }
 
 /**
