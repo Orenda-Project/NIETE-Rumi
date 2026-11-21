@@ -225,12 +225,13 @@ describe('saveDraft — the v6 Flow\'s rules and the v6 Flow\'s save', () => {
     expect(sent).not.toHaveProperty('junk');
   });
 
-  test('refused, with every reason, when a room level or its reason is missing — nothing is saved', async () => {
+  test('refused, with every reason, when a room level is missing — nothing is saved (the note is optional, bd-o15qnr.36)', async () => {
     const d = deps(obsRow());
     const out = await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: validEdits({ r_C3: '', why_D3: 'too short' }) }, d);
     expect(out.status).toBe('invalid');
     expect(out.reason).toBe('v6_review');
-    expect(Object.keys(out.errors).sort()).toEqual(['r_C3', 'why_D3']);
+    // bd-o15qnr.36 (the operator 21 Nov ~14:20: "keep the note box, optional"): a short or empty note is no refusal
+    expect(Object.keys(out.errors).sort()).toEqual(['r_C3']);
     expect(out.errors.r_C3).toMatch(/Choose a level/);
     expect(d.draft.applyObserverEdits).not.toHaveBeenCalled();
   });
