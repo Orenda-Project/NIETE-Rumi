@@ -1548,6 +1548,22 @@ brief and each flash sibling (red 4/4 before, green after).
 
 **LOCAL-ONLY divergence**, as §3.28 and §3.38. Cached renders keep the old plan until re-authored.
 
+### 3.42 `brief_author_v3.md` + all three flash briefs — rule 14: a Science lesson carries a short hands-on activity, safe classroom materials only (2026-11-21, bd-ipoxhx.6)
+
+ICT feedback sheet, Lesson Plans (6 - 12) row 8: the G7 General Science plan for chapter 3, Immunity
+(pp.35-36), had no practical activity, and the reviewer asked for short hands-on activities in topics
+like it. No 6-12 Science plan checked carried one; materials were the board and the textbook. Amena
+ruled 21 Nov 2026 (queue #177): *"Yes, safe classroom materials only"*. Rule 14 under "what teachers
+rejected" now says: every General Science, Biology, Chemistry or Physics lesson carries one 5-8 minute
+hands-on activity inside the Activity step's existing minutes, rooted in the book's own activity or
+figure, with no-cost classroom materials listed in `materials`, and never a flame, heat, chemicals,
+blades/glass, blood or body fluids, mains electricity, tasting or lab kit. (The reviewer's own example,
+a blood-stained cloth under a microscope, is exactly what the rule rules out.)
+`tests/lp612/author-brief-science-hands-on.test.js` drives the real `authorLessonPlan()` and asserts the
+rule reaches the system prompt for the standard brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.38 and §3.41. Cached renders keep the old plan until re-authored.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
