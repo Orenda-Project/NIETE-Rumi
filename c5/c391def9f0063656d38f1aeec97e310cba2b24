@@ -1,0 +1,2 @@
+{"ts":"2026-11-21T08:11:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"c5c391def9f0","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-21T08:51:29Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (ask-to-delivered flow unchanged and specified; removes a rare AI failure that cannot be triggered on demand — commit trailer from staging)","sha":"c5c391def9f0","branch":"release/niete-2026-11-20","user":""}
