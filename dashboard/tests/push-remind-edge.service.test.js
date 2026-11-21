@@ -293,7 +293,7 @@ describe('wq-remind.js (fake DOM)', () => {
     const p = page({ key: { status: 404, body: { error: 'not_found' } }, regs: [mine, other] });
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
     await flush();
-    expect(p.gets).toEqual(['/api/wqpush/key']);
+    expect(p.gets).toEqual(['/api/wqpush/key?code=AB12CD']); // the canary's ask is per quiz
     expect(mine.unregister).toHaveBeenCalled();
     expect(other.unregister).not.toHaveBeenCalled();
     expect(p.slot.innerHTML).toBe('');

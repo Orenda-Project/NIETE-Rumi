@@ -9,12 +9,18 @@
  *   portal = portal_push_remind   && remind                   the teacher card (car C)
  *   names  = web_quiz_push_name_children && remind            the child reminder names the children on the phone
  *                                                             (first names; policy-gated, default off: class-named)
+ *   canary = web_quiz_push_canary {regions?, school_ids?, class_ids?}  while set, only a quiz on a listed class, a
+ *                                                             class of a listed school, or a school in a listed region
+ *                                                             (schools.region: the ICT sector, e.g. "Tarnol") offers
+ *                                                             the ask or may subscribe; no row (or nothing listed) =
+ *                                                             every class
  *
  * Env (sandbox only; never shared with staging or prod): WQ_PUSH_VAPID_PUBLIC, WQ_PUSH_VAPID_PRIVATE,
  * WQ_PUSH_VAPID_SUBJECT (VAPID), WQ_PUSH_ENC_KEY (32 bytes base64, AES-256-GCM of the endpoint and keys),
  * WQ_PUSH_HASH_SALT (HMAC-SHA256 of the endpoint, the lookup key).
  *
- *   switches(now)                          → {remind, test, portal}
+ *   switches(now)                          → {remind, test, portal, names}
+ *   keyFor({code})                         → {key, ask}: ask false outside the canary (the page draws nothing)
  *   subscribe(input, {now})                → {ok:1} | {status:409, err:'class_phone'} | {status:400, err:'bad_sub'}
  *   unsubscribe({endpoint, by}) / markOpened({endpoint}, {now})   → {ok:1}
  *   payloadFor(row, {test, rounds, names}) → {t, b, url, tag, lang, test}: class-named when the phone's classes have
@@ -38,6 +44,7 @@ const HubDevice = require('../quiz/web-quiz-hub-device');
 
 const TABLE = 'web_quiz_push_subscriptions';
 const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children' });
+const CANARY_KEY = 'web_quiz_push_canary';
 const ENV = Object.freeze(['WQ_PUSH_VAPID_PUBLIC', 'WQ_PUSH_VAPID_PRIVATE', 'WQ_PUSH_VAPID_SUBJECT', 'WQ_PUSH_ENC_KEY', 'WQ_PUSH_HASH_SALT']);
 const OFF = Object.freeze({ remind: false, test: false, portal: false, names: false });
 const TTL_MS = 30 * 1000;
@@ -62,17 +69,20 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 
 // The words (jg.remind.push_* in the copy deck): a reminder never names a child.
-// {c} = the class label(s) or the children's first names, joined with `and`.
+// The child reminder (the lead's take A): the title carries the news, the body the one step. {c} = a class label, the
+// labels joined with `last` before the final one, or the children's first names joined with `and`. `t`/`b` are the
+// fallback with no class known (the tap then opens the phone's own hub): the hub's own words, never a promised quiz.
 const COPY = Object.freeze({
   quiz_reminder: {
     en: {
-      // the tap opens the child's hub (a finished quiz bounces there): the hub's own line, never a promised quiz
-      t: 'Jugnu', b: 'A game is waiting for you. Tap to play.', test: 'Reminders are on.',
-      round: "{c}: tonight's round is ready. Tap to play.", rounds: "{c}: tonight's rounds are ready. Tap to play.", and: ', ',
+      t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.', testT: 'Jugnu', test: 'Reminders are on.', tap: 'Tap to play ▶',
+      one: 'Jugnu: {c} has a new quiz', many: 'Jugnu: new quizzes for {c}', manyShort: 'Jugnu: new quizzes are ready',
+      named: '{c}: quiz time!', and: ', ', last: ' and ',
     },
     ur: {
-      t: 'جگنو', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔',
-      round: '{c}: آج کا راؤنڈ تیار ہے۔ کھیلنے کے لیے دبائیں۔', rounds: '{c}: آج کے راؤنڈ تیار ہیں۔ کھیلنے کے لیے دبائیں۔', and: '، ',
+      t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', testT: 'جگنو', test: 'یاد دہانی آن ہے۔', tap: 'کھیلنے کے لیے دبائیں ▶',
+      one: 'جگنو: {c} کا نیا کوئز آ گیا', many: 'جگنو: {c} کے نئے کوئز', manyShort: 'جگنو: نئے کوئز تیار ہیں',
+      named: '{c}: کوئز تیار ہے', and: '، ', last: ' اور ',
     },
   },
   evening_plan: {
@@ -84,6 +94,10 @@ const COPY = Object.freeze({
 // ─── switches ───────────────────────────────────────────────────────────────
 
 let cache = null;
+let canaryCache = null;
+const codeCache = new Map();   // share code → {at, ok} under the current canary (10 min)
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_CACHE_MAX = 5000;
 const envReady = () => ENV.every((k) => String(process.env[k] || '').trim() !== '');
 
 async function switches(now = Date.now()) {
@@ -100,6 +114,71 @@ async function switches(now = Date.now()) {
   }
   cache = { at: now, s };
   return s;
+}
+
+// ─── the canary ─────────────────────────────────────────────────────────────
+
+const idList = (v) => (Array.isArray(v) ? v.map(String).filter((x) => UUID_RX.test(x)) : []);
+const nameList = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter((x) => x && x.length <= 64) : []);
+/** The canary's id lists, or null (every class). A read error keeps the last answer (else null). */
+async function canary(now = Date.now()) {
+  if (canaryCache && now - canaryCache.at < TTL_MS) return canaryCache.c;
+  let c = canaryCache ? canaryCache.c : null;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', CANARY_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    let v = data && data[0] ? data[0].value : null;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { v = null; } }
+    const obj = v && typeof v === 'object' ? v : {};
+    const schools = idList(obj.school_ids);
+    const classes = idList(obj.class_ids);
+    const regions = nameList(obj.regions);
+    c = schools.length || classes.length || regions.length ? { schools: new Set(schools), classes: new Set(classes), regions: new Set(regions) } : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz push: canary lookup failed — last answer kept', { error: err.message });
+  }
+  if (!canaryCache || canaryCache.c !== c) codeCache.clear();
+  canaryCache = { at: now, c };
+  return c;
+}
+
+/** May this quiz (its share code) offer the ask? Always with no canary; else its class, or its class's school, listed. */
+async function canaryAllows(code, now = Date.now()) {
+  const c = await canary(now);
+  if (!c) return true;
+  if (!CODE_RX.test(String(code || ''))) return false;
+  const k = String(code).toUpperCase();
+  const hit = codeCache.get(k);
+  if (hit && now - hit.at < CODE_TTL_MS) return hit.ok;
+  let ok = false;
+  try {
+    const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id').eq('code', k).maybeSingle();
+    if (error) throw new Error(error.message || 'share code read failed');
+    const classId = sc && sc.class_id ? String(sc.class_id) : null;
+    if (classId && c.classes.has(classId)) ok = true;
+    else if (classId && (c.schools.size || c.regions.size)) {
+      const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
+      if (e2) throw new Error(e2.message || 'class read failed');
+      const schoolId = cl && cl.school_id ? String(cl.school_id) : null;
+      if (schoolId && c.schools.has(schoolId)) ok = true;
+      else if (schoolId && c.regions.size) {
+        const { data: sch, error: e3 } = await supabase.from('schools').select('region').eq('id', schoolId).maybeSingle();
+        if (e3) throw new Error(e3.message || 'school read failed');
+        ok = Boolean(sch && sch.region && c.regions.has(String(sch.region).trim()));
+      }
+    }
+  } catch (err) {
+    logToFile('⚠️ web quiz push: canary class lookup failed — no ask', { error: err.message });
+    return false;
+  }
+  if (codeCache.size >= CODE_CACHE_MAX) codeCache.clear();
+  codeCache.set(k, { at: now, ok });
+  return ok;
+}
+
+/** The page's key answer: the VAPID key, and whether this quiz may offer the ask (the canary). */
+async function keyFor({ code } = {}, { now = Date.now() } = {}) {
+  return { key: vapidPublic(), ask: await canaryAllows(code, now) };
 }
 
 // ─── crypto ─────────────────────────────────────────────────────────────────
@@ -187,6 +266,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
   const deviceRef = DEVICE_RX.test(String(input.device_ref || '')) ? input.device_ref : null;
   const chipsN = Math.max(0, Math.min(99, Number.parseInt(input.chips_n, 10) || 0));
   if (via === 'family_phone') {
+    if (!(await canaryAllows(input.code, now))) return { status: 409, err: 'canary' };
     const kids = deviceRef ? await HubDevice.deviceKids(deviceRef) : [];
     if (chipsN >= CLASS_PHONE || kids.length >= CLASS_PHONE) return { status: 409, err: 'class_phone' };
     input = { ...input, kids };
@@ -264,26 +344,48 @@ async function markOpened({ endpoint } = {}, { now = Date.now() } = {}) {
 const LABEL_MAX = 24;
 const NAMES_MAX = 3;
 const clip = (v) => String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, LABEL_MAX);
+const TITLE_MAX = 60;   // code points: Android shows one line of title
+const cps = (v) => [...String(v)].length;
+const joinLast = (list, c) => (list.length > 1 ? `${list.slice(0, -1).join(c.and)}${c.last}${list[list.length - 1]}` : list[0] || '');
 /**
  * rounds: roundsReadyForPhone's answer for this phone (class-link), [] when none; names: the children's first names
- * (only ever passed with `names` on). Names win over class labels; either way one notification for the phone.
+ * (only ever passed with `names` on); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
+ * known, else the quiz's link is the last fallback. One notification for the phone whichever applies.
  */
-function payloadFor(row, { test = false, rounds = [], names = [] } = {}) {
+function payloadFor(row, { test = false, rounds = [], names = [], hub = null } = {}) {
   const kind = row && row.kind === 'evening_plan' ? 'evening_plan' : 'quiz_reminder';
   const lang = row && row.lang === 'en' ? 'en' : 'ur';
   const c = COPY[kind][lang];
   const code = kind === 'quiz_reminder' && CODE_RX.test(String(row.quiz_code || '')) ? row.quiz_code : null;
   const tag = kind === 'quiz_reminder' ? 'jugnu-remind' : 'niete-plan';
-  const base = { t: c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
+  const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
   const who = (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
   // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
   const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
-  const list = who.length ? who : labels;
-  if (!list.length) return { ...base, ...(ready.length ? { url: `/j/${ready[0].class_link_code}?from=push` } : {}) };
-  const b = (list.length > 1 && !who.length ? c.rounds : c.round).replace('{c}', list.join(c.and));
-  return { ...base, b, url: ready.length ? `/j/${ready[0].class_link_code}?from=push` : base.url };
+  const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
+  const url = ready.length ? `/j/${ready[0].class_link_code}?from=push` : home || base.url;
+  if (who.length) return { ...base, t: c.named.replace('{c}', who.join(c.and)), b: c.tap, url };
+  if (!labels.length) return { ...base, url };
+  const many = c.many.replace('{c}', joinLast(labels, c));
+  const t = labels.length === 1 ? c.one.replace('{c}', labels[0]) : cps(many) <= TITLE_MAX ? many : c.manyShort;
+  return { ...base, t, b: c.tap, url };
+}
+const HUB_PATH_RX = /^\/h\/[A-Za-z0-9._-]+\?from=push$/;
+
+/** The phone's own hub for the tap: the children this phone is trusted with (deviceKids), signed; null without any. */
+async function hubFor(row) {
+  if (!row || row.kind !== 'quiz_reminder' || !row.device_ref) return null;
+  try {
+    const kids = (await HubDevice.deviceKids(row.device_ref)).filter((id) => UUID_RX.test(String(id)));
+    if (!kids.length) return null;
+    const token = require('../quiz/web-quiz-token').signHub(kids, 'push_remind');
+    return token ? `/h/${token}?from=push` : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz push: hub link failed — quiz link', { error: err && err.message });
+    return null;
+  }
 }
 
 /** class-link's rounds for this phone today (PLAN §3.2); [] until that module exports roundsReadyForPhone. */
@@ -380,7 +482,8 @@ async function dueTick(now = Date.now(), opts = {}) {
     const lang = row.lang === 'en' ? 'en' : 'ur';
     const names = s.names ? await namesFor(row, lang) : [];
     const rounds = await roundsFor(row, now);
-    const out = await sendOne(row, payloadFor(row, { rounds, names }), { ...opts, now });
+    const hub = rounds.length ? null : await hubFor(row);
+    const out = await sendOne(row, payloadFor(row, { rounds, names, hub }), { ...opts, now });
     if (phone) phones.add(phone);
     if (out.sent) {
       sentBy[row.kind] = (sentBy[row.kind] || 0) + 1;
@@ -499,7 +602,7 @@ const vapidPublic = () => String(process.env.WQ_PUSH_VAPID_PUBLIC || '');
 
 module.exports = {
   switches, envReady, subscribe, unsubscribe, markOpened, payloadFor, sendOne, sendTest, dueTick, expireTick, stepEvent, vapidPublic,
-  delivered, funnelTick,
+  delivered, funnelTick, keyFor, canaryAllows,
   nextAt, spreadMin, pktDay, uaClass, hashEndpoint, encrypt, decrypt, COPY, KEYS, ENV, TABLE, UNOPENED_MAX,
-  __reset: () => { cache = null; funnelDay = null; },
+  __reset: () => { cache = null; funnelDay = null; canaryCache = null; codeCache.clear(); },
 };

@@ -57,7 +57,7 @@ function versionOf(file) {
 const CSS = `.wqr{padding:24px var(--gutter,16px) 32px;display:grid;gap:12px;align-content:start}
 .wqr .wqr-j{margin:0 auto;width:120px;height:120px}.wqr h1{margin:0;font-size:22px;text-align:center}
 html[lang=ur] .wqr h1,html[lang=ur] .wqr p{line-height:2}
-.wqr .wqr-l{justify-self:center;width:auto;min-height:44px}`;
+.wqr .wqr-l{justify-self:center;width:auto;min-height:48px;min-width:48px}`;
 
 /** The reminder page in the child pages' look (wq.css, + the adventure look when the quiz page has it): Jugnu, the
  *  ask in this page's language only, then wq-remind.js boots the card. The other language is one small link. */
@@ -137,7 +137,9 @@ function createPushRemindRouter(opts = {}) {
     if (!botUrl || !apiKey) return res.status(404).json({ error: 'not_found' });
     let out;
     try {
-      out = await callBot(req.method, `/api/internal/wqpush/${op}`, req, req.method === 'GET' ? null : (req.body || {}), { route: `/api/internal/wqpush/${op}` });
+      // the key's ask depends on the quiz (the canary): its code rides along, only in the page's own code shape
+      const q = op === 'key' && CODE_RX.test(String(req.query.code || '')) ? `?code=${req.query.code}` : '';
+      out = await callBot(req.method, `/api/internal/wqpush/${op}${q}`, req, req.method === 'GET' ? null : (req.body || {}), { route: `/api/internal/wqpush/${op}` });
     } catch (_) {
       return res.status(503).json({ error: 'unavailable' });
     }

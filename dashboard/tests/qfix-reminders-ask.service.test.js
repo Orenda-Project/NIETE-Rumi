@@ -17,10 +17,13 @@ const TUE = Date.parse('2025-11-25T10:00:00Z');
 const FRI = Date.parse('2025-11-28T10:00:00Z');
 const SAT = Date.parse('2025-11-29T10:00:00Z');
 const SUN = Date.parse('2025-11-30T10:00:00Z');
-function page(now = TUE) {
+function page(now = TUE, keyBody = { key: 'BPUBKEYAAAA' }) {
   const posts = [];
+  const gets = [];
+  const unregistered = [];
   const reg = { pushManager: { subscribe: async () => null, getSubscription: async () => null } };
-  const sw = { getRegistrations: async () => [], getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) };
+  const mine = { active: { scriptURL: 'https://wq.example/sw.js' }, unregister: async () => { unregistered.push(1); return true; } };
+  const sw = { getRegistrations: async () => [mine], getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) };
   const ctx = {
     console, Promise, JSON, Math, Object, Array, String, Number, Boolean, RegExp, Error, encodeURIComponent, decodeURIComponent, Uint8Array,
     Date: class extends Date { static now() { return now; } },
@@ -32,14 +35,15 @@ function page(now = TUE) {
     document: { getElementById: () => null, querySelector: () => null },
     fetch: async (url, init) => {
       if (init && init.method === 'POST') { posts.push({ url, body: JSON.parse(init.body) }); return { status: 200, json: async () => ({ ok: 1 }) }; }
-      return { status: 200, json: async () => ({ key: 'BPUBKEYAAAA' }) };
+      gets.push(url);
+      return { status: 200, json: async () => keyBody };
     },
     PushManager: function PushManager() {}, Notification: { permission: 'default', requestPermission: async () => 'default' },
   };
   ctx.window = ctx; ctx.self = ctx;
   vm.runInNewContext(SRC, ctx);
   const slot = { innerHTML: '', onclick: null, setAttribute() {}, removeAttribute() {} };
-  return { ctx, slot, html: () => slot.innerHTML, steps: () => posts.filter((p) => p.url === '/api/wqpush/e').map((p) => [p.body.step, p.body.src]) };
+  return { ctx, slot, gets, unregistered, html: () => slot.innerHTML, steps: () => posts.filter((p) => p.url === '/api/wqpush/e').map((p) => [p.body.step, p.body.src]) };
 }
 
 test('the result screen (default): shown{src: result}', async () => {
@@ -64,12 +68,12 @@ test('a made-up src falls back to result', async () => {
 // The reminder comes on the next SCHOOL evening (17:30-18:00 PKT; never Sat/Sun): the ask says when, truthfully.
 describe('the ask says when the reminder comes', () => {
   test.each([
-    ['Tue', TUE, 'en', 'Want Jugnu to remind you tomorrow evening?'],
-    ['Sun', SUN, 'en', 'Want Jugnu to remind you tomorrow evening?'],
-    ['Fri', FRI, 'en', 'Want Jugnu to remind you on Monday evening?'],
-    ['Sat', SAT, 'en', 'Want Jugnu to remind you on Monday evening?'],
-    ['Tue', TUE, 'ur', 'کیا جگنو کل شام آپ کو یاد دلائے؟'],
-    ['Fri', FRI, 'ur', 'کیا جگنو پیر کی شام آپ کو یاد دلائے؟'],
+    ['Tue', TUE, 'en', 'Jugnu can remind you tomorrow evening.'],
+    ['Sun', SUN, 'en', 'Jugnu can remind you tomorrow evening.'],
+    ['Fri', FRI, 'en', 'Jugnu can remind you on Monday evening.'],
+    ['Sat', SAT, 'en', 'Jugnu can remind you on Monday evening.'],
+    ['Tue', TUE, 'ur', 'جگنو کل شام آپ کو یاد دلا سکتا ہے۔'],
+    ['Fri', FRI, 'ur', 'جگنو پیر کی شام آپ کو یاد دلا سکتا ہے۔'],
   ])('%s %s: %s', async (_d, now, lang, title) => {
     const p = page(now);
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
@@ -91,9 +95,129 @@ describe('the ask says when the reminder comes', () => {
 });
 
 // The tap opens the child's hub (a finished quiz bounces there), so the line never promises a new quiz.
-test('the worker\'s fallback line is the hub\'s own: a game is waiting', () => {
+test('the worker\'s fallback is the ruled no-class line: time to play, a game is waiting', () => {
   const sw = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'sw.js'), 'utf8');
-  expect(sw).toContain("b: 'A game is waiting for you. Tap to play.'");
-  expect(sw).toContain("b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔ کھیلنے کے لیے دبائیں۔'");
+  expect(sw).toContain("t: 'Jugnu: time to play ▶', b: 'A game is waiting for you.'");
+  expect(sw).toContain("t: 'جگنو: کھیلنے کا وقت ہے ▶', b: 'ایک کھیل آپ کا انتظار کر رہا ہے۔'");
   expect(sw).not.toContain("Today's quiz is ready");
+});
+
+// The canary (web_quiz_push_canary): the key answer says whether THIS quiz may ask.
+describe('the canary', () => {
+  test('the key is asked with the quiz code', async () => {
+    const p = page();
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'en', chips: 1 });
+    await flush();
+    expect(p.gets).toEqual(['/api/wqpush/key?code=AB12CD']);
+  });
+  test('ask:false: no card, no step, and the phone keeps its worker', async () => {
+    const p = page(TUE, { key: 'BPUBKEYAAAA', ask: false });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'en', chips: 1 });
+    await flush();
+    expect(p.html()).toBe('');
+    expect(p.steps()).toEqual([]);
+    expect(p.unregistered).toEqual([]);
+  });
+  test('the edge passes the code on to the bot for the key only, in the page\'s code shape', async () => {
+    const http = require('http');
+    const express = require('express');
+    const { createPushRemindRouter } = require('../routes/push-remind.routes');
+    const urls = [];
+    const app = express();
+    app.use(createPushRemindRouter({ botUrl: 'http://bot.test', apiKey: 'k', on: () => true, logEvent: () => {},
+      fetchImpl: async (url) => { urls.push(url); return { status: 200, headers: { get: () => 'application/json' }, text: async () => '{"key":"B","ask":true}' }; } }));
+    const srv = await new Promise((r) => { const x = http.createServer(app).listen(0, () => r(x)); });
+    try {
+      const base = `http://127.0.0.1:${srv.address().port}`;
+      await fetch(`${base}/api/wqpush/key?code=AB12CD`);
+      await fetch(`${base}/api/wqpush/key?code=../../x`);
+      expect(urls).toEqual(['http://bot.test/api/internal/wqpush/key?code=AB12CD', 'http://bot.test/api/internal/wqpush/key']);
+    } finally { await new Promise((r) => srv.close(r)); }
+  });
+});
+
+// QF-R3: after Chrome's Allow the subscribe takes seconds (worker + push service); the card says so at once.
+describe('the wait after Allow', () => {
+  function granted() {
+    let release;
+    const subPosted = new Promise((r) => { release = r; });
+    const posts = [];
+    const sub = { endpoint: 'https://push.example/abc', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'p', auth: 'a' } }; } };
+    const reg = { pushManager: { subscribe: async () => sub, getSubscription: async () => null } };
+    const sw = { getRegistrations: async () => [], getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) };
+    const ctx = {
+      console, Promise, JSON, Math, Object, Array, String, Number, Boolean, RegExp, Error, encodeURIComponent, decodeURIComponent, Uint8Array,
+      Date: class extends Date { static now() { return TUE; } }, setTimeout, clearTimeout, Intl, atob: (s) => Buffer.from(s, 'base64').toString('binary'),
+      location: { host: 'wq.example', protocol: 'https:' }, navigator: { userAgent: UA_CHROME, serviceWorker: sw }, matchMedia: () => ({ matches: false }),
+      localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, document: { getElementById: () => null, querySelector: () => null },
+      indexedDB: undefined,
+      fetch: async (url, init) => {
+        if (init && init.method === 'POST') {
+          posts.push(url);
+          if (url === '/api/wqpush/subscribe') await subPosted;
+          return { status: 200, json: async () => ({ ok: 1 }) };
+        }
+        return { status: 200, json: async () => ({ key: 'BPUBKEYAAAA' }) };
+      },
+      PushManager: function PushManager() {}, Notification: { permission: 'default', requestPermission: async () => 'granted' },
+    };
+    ctx.window = ctx; ctx.self = ctx;
+    vm.runInNewContext(SRC, ctx);
+    const slot = { innerHTML: '', onclick: null, setAttribute() {}, removeAttribute() {} };
+    const tap = async (act) => { slot.onclick({ target: { closest: () => ({ getAttribute: (a) => (a === 'data-act' ? act : null) }) }, preventDefault() {} }); await flush(); };
+    return { ctx, slot, tap, release, posts };
+  }
+  test.each([['en', 'Turning reminders on…'], ['ur', 'یاد دہانی آن ہو رہی ہے…']])('%s: "%s" while it subscribes, then done', async (lang, wait) => {
+    const p = granted();
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
+    await flush();
+    await p.tap('yes');
+    expect(p.posts).toContain('/api/wqpush/subscribe');
+    expect(p.slot.innerHTML).toContain(wait);
+    expect(p.slot.innerHTML).toContain('aria-busy="true"');
+    p.release();
+    await flush();
+    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T[lang].remindDone);
+  });
+});
+
+// QF-R4: the /remind page's other-language link is a 48 px target.
+test('the /remind language link is at least 48×48', () => {
+  const { renderRemindPage } = require('../routes/push-remind.routes');
+  const html = renderRemindPage({ code: 'AB12CD', lang: 'ur', now: TUE });
+  expect(html).toMatch(/\.wqr \.wqr-l\{[^}]*min-height:48px/);
+  expect(html).toMatch(/\.wqr \.wqr-l\{[^}]*min-width:48px/);
+});
+
+// The lead's take A (one line, the score and "See my card" stay the heroes): no second paragraph on the result screen,
+// a bell on Yes a 6-year-old finds without reading, and a hint behind Chrome's English sheet.
+describe('take A: the one-line ask', () => {
+  test.each(['en', 'ur'])('%s: one line, a bell Yes and Not now; no body paragraph on the result screen', async (lang) => {
+    const p = page(TUE);
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
+    await flush();
+    const T = p.ctx.WQREMIND.T[lang];
+    expect(p.html()).not.toContain(T.remindBody);
+    expect(p.html()).toMatch(/data-act="yes"[^>]*>[^<]*(<span[^>]*>)?🔔/);
+    expect(p.html()).toContain(T.remindLater);
+  });
+  test('the /remind landing keeps the consent line', async () => {
+    const p = page(TUE);
+    p.ctx.WQREMIND.landing(p.slot, { code: 'AB12CD', lang: 'en' });
+    await flush();
+    expect(p.html()).toContain(p.ctx.WQREMIND.T.en.remindBody);
+  });
+  test.each([['en', 'Now tap Allow below'], ['ur', 'اب نیچے Allow دبائیں']])('%s: while Chrome asks, the hint "%s"', async (lang, hint) => {
+    const p = page(TUE);
+    let answer;
+    p.ctx.Notification.requestPermission = () => new Promise((r) => { answer = r; });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang, chips: 1 });
+    await flush();
+    p.slot.onclick({ target: { closest: () => ({ getAttribute: (a) => (a === 'data-act' ? 'yes' : null) }) }, preventDefault() {} });
+    await flush();
+    expect(p.html()).toContain(hint);
+    answer('denied');
+    await flush();
+    expect(p.html()).not.toContain(hint);
+  });
 });

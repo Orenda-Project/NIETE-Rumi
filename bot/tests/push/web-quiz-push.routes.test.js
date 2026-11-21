@@ -69,7 +69,7 @@ test('without the internal key: 401', async () => {
 test('on: state, key, subscribe (device from x-wq-device), test off, unsubscribe, e', async () => {
   settings({ web_quiz_push_remind: true });
   expect(await (await call('GET', '/state')).json()).toEqual({ remind: true, test: false, portal: false });
-  expect(await (await call('GET', '/key')).json()).toEqual({ key: 'BPubKey' });
+  expect(await (await call('GET', '/key')).json()).toEqual({ key: 'BPubKey', ask: true }); // no canary row: every quiz asks
   const s = await call('POST', '/subscribe', { sub: SUB, code: 'ABC123', lang: 'en', chips: 1 }, { 'x-wq-device': 'AAAAAAAAAAAAAAAAAAAAAA', 'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/130' });
   expect([s.status, await s.json()]).toEqual([200, { ok: 1 }]);
   expect(fake.db.web_quiz_push_subscriptions[0]).toMatchObject({ device_ref: 'AAAAAAAAAAAAAAAAAAAAAA', ua_class: 'chrome_android', quiz_code: 'ABC123' });
