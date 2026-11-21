@@ -1,5 +1,8 @@
 # A/B tracker store (Postgres, `ab_` tables)
 
+**Main only (operator ruling R8, 20 Nov 2026): these tables live in the NIETE main database and nowhere else; never
+apply V1.10.7 on a test site.** The Sandbox copy was rolled back on 21 Nov.
+
 The workspace's A/B tracker keeps its numbers in this database, in five small tables of its own (migration V1.10.7).
 One job a night on the bot's worker reads the app's rows on the **read replica only** and writes those tables only.
 (The test sites, staging and sandbox, have no paid read copy, so there the job reads their own database;
