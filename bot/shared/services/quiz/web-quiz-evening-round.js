@@ -173,7 +173,7 @@ function chooseLesson({ grade, teachers = [], by }) {
       if (subjects.size && !subjects.has(subjectCanon(c.subject))) continue;
       const lessons = (c.lessons || []).filter((l) => l && l.lesson_id && l.asset_id);
       if (!lessons.length) continue;
-      const first = Math.min(...lessons.map((l) => Date.parse(l.delivered_at) || Infinity));
+      const first = Math.min(...lessons.map((l) => Date.parse(l.delivered_at || l.created_at) || Infinity));
       options.push({ teacherId: String(t.teacherId), grade: c.grade, subject: c.subject, lessons, first });
     }
   }
@@ -259,7 +259,7 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
   }
   const first = choice.lessons[0];
   const lessons = choice.lessons.map((l) => ({
-    lesson_id: l.lesson_id, asset_id: l.asset_id, version_stamp: l.version_stamp, content_hash: l.content_hash, delivered_at: l.delivered_at,
+    lesson_id: l.lesson_id, asset_id: l.asset_id, version_stamp: l.version_stamp, content_hash: l.content_hash, delivered_at: l.delivered_at || l.created_at || null,
   }));
   const { data: made, error } = await supabase.from('quizzes').insert({
     teacher_id: choice.teacherId,
