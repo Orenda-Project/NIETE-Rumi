@@ -10,6 +10,7 @@
  *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint}   → {ok:1}
  *   POST /test         {endpoint} → {ok:1, sent, status} (web_quiz_push_test only)
  *   POST /e            {step, how?, iab?, lang?, ok?} → {ok:1}: a page step, allow-listed enums only
+ *   POST /delivered    {tag} → {ok:1}: the worker showed a reminder (the funnel's delivered step)
  *   POST /portal/subscribe|unsubscribe|test   the teacher card (portal_push_remind): the edge adds user_id from its session
  */
 const express = require('express');
@@ -54,6 +55,7 @@ function createRouter() {
   router.post('/opened', wrap((req) => Push.markOpened({ endpoint: body(req).endpoint })));
   router.post('/test', wrap((req) => Push.sendTest({ endpoint: body(req).endpoint })));
   router.post('/e', wrap((req) => Push.stepEvent(body(req))));
+  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag })));
 
   // the teacher card (car C): the edge's portal session names the teacher
   router.post('/portal/subscribe', wrap((req) => {

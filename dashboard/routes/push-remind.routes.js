@@ -30,7 +30,7 @@ const KEY = 'web_quiz_push_remind';
 const WQ_DIR = path.join(__dirname, '..', 'public', 'wq');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;   // the child page's own code shape (web-quiz.routes.js CODE_RX)
 const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
-const POST_OPS = ['subscribe', 'unsubscribe', 'opened', 'test', 'e'];
+const POST_OPS = ['subscribe', 'unsubscribe', 'opened', 'test', 'e', 'delivered'];
 
 // The page's first paint, both languages (wq-remind.js draws the card from its own copy table).
 const COPY = {
