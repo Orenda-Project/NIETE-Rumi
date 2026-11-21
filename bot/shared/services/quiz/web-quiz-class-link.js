@@ -321,16 +321,20 @@ async function teacherChips(link) {
 
 // ── the child's side ───────────────────────────────────────────────────────────────────────────────
 
-async function resolve(code, { preview = false, jt = null } = {}) {
+async function resolve(code, { preview = false, jt = null, via = null } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const lang = langOf(await teacherRow(link.teacher_id));
   // Not a child's door: a link-preview fetch, or the teacher's own visit from the card (its signed token for this code).
-  if (!preview && !isTeacherPreview(code, jt)) emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
+  if (!preview && !isTeacherPreview(code, jt)) {
+    emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
+    // class_link_open{class_link_code, via}: a marked landing (forward / reminder / hub) is counted here.
+    if (via) require('./web-quiz-evening-round').classLinkOpen(code, via);
+  }
   return { lang };
 }
 
-async function arrive({ code, device_ref: deviceRef, jt } = {}) {
+async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const practice = isTeacherPreview(code, jt);
@@ -343,6 +347,8 @@ async function arrive({ code, device_ref: deviceRef, jt } = {}) {
     : null;
   if (mine.length) {
     const script = scriptOf(kids, lang);
+    // An unmarked landing that knows the phone: the child came back on their own (a marked one was counted at resolve).
+    if (!via && !practice) require('./web-quiz-evening-round').classLinkOpen(code, 'remembered');
     return {
       step: 'who',
       s: stepToken(code, { st: 'who', ...(practice ? { p: 1 } : {}) }),
@@ -543,8 +549,9 @@ async function forTeacher(teacherId) {
 }
 
 /**
- * The card's Forward and Copy (no JS): both log class_link_forwarded{cls, how}. Forward → wa.me with the URL ONLY
- * (no count, no name); Copy → back to the report's class tab with this class's card open (the link as selectable
+ * The card's Forward and Copy (no JS): both log the forward lane's quiz_forward_tap{share_code_id: null, surface
+ * 'class_link', method 'wa_me' | 'copy', origin 'class_link', stale false, cls}. Forward → wa.me with the URL ONLY
+ * (no count, no name), marked ?f=1 so the landing counts the open as via 'forward'; Copy → back to the report's class tab with this class's card open (the link as selectable
  * text). Null when the class is not this teacher's or the switch is off.
  */
 async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null } = {}) {
@@ -554,9 +561,11 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
   const m = await mint({ teacherId, classId });
   const url = m.ok ? linkUrl(m.code) : null;
   if (!url) return null;
-  emit('class_link_forwarded', { how: copy ? 'copy' : 'forward' }, { classId });
+  emit('quiz_forward_tap', {
+    share_code_id: null, surface: 'class_link', method: copy ? 'copy' : 'wa_me', origin: 'class_link', stale: false,
+  }, { classId });
   if (copy) return `${reportBase}?tab=class&cl_open=${encodeURIComponent(classId)}#class-link`;
-  return `https://wa.me/?text=${encodeURIComponent(url)}`;
+  return `https://wa.me/?text=${encodeURIComponent(`${url}?f=1`)}`;
 }
 
 /**
@@ -579,4 +588,6 @@ module.exports = {
   ClassLinkError, ALPHABET, CODE_LEN, CODE_RX, LETTERS,
   termOf, newCode, firstNameOf, letterOf, runColumns, serveArgs, signTeacherPreview, isTeacherPreview, stripTitle,
   resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl, signRenewNonce, verifyRenewNonce,
+  // The evening round's reminder payload (the reminders lane requires it from here); web-quiz-evening-round-phone.js.
+  roundsReadyForPhone: (...args) => require('./web-quiz-evening-round-phone').roundsReadyForPhone(...args),
 };

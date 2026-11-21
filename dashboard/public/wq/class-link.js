@@ -1,5 +1,6 @@
 /* The standing class link (/j/<code>): the steps a child takes before the hub. No framework, no build step.
- * Boot JSON: {view:'class_link', code, lang, jt?}. The page holds no child until the server answers a step:
+ * Boot JSON: {view:'class_link', code, lang, jt?, via?} (via: the landing's marker, already counted by the edge).
+ * Under the chips: an empty #wq-remind mount (data-src class_link) the reminders' opt-in fills when it is on. The page holds no child until the server answers a step:
  *   arrive  → "Whose turn?" (only the children this phone played as, in this class, and a button to the teacher
  *             step for a child not listed) or the teacher step
  *   teacher → the letter step (the whole alphabet of the roster's script) or the teacher step again
@@ -21,6 +22,8 @@
     ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', someone_else: 'میرا نام یہاں نہیں' },
   };
   var T = COPY[LANG];
+  // The reminders' slot under the chips: empty here; the reminders lane mounts its opt-in into it.
+  var REMIND = '<div id="wq-remind" data-src="class_link"></div>';
   var letterStep = null;
 
   function esc(s) {
@@ -61,7 +64,7 @@
     if (r.step === 'who') {
       screen(T.turn, '<div class="wq-kids-big">' + r.kids.map(function (k) {
         return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><span class="wq-ani" aria-hidden="true">' + (ANIMALS[k.animal] || '⭐') + '</span><bdi>' + esc(k.first) + '</bdi></button>';
-      }).join('') + '</div>' + (r.other ? '<button class="wq-btn wq-soft" type="button" id="wq-cl-other">' + esc(T.someone_else) + '</button>' : ''));
+      }).join('') + '</div>' + (r.other ? '<button class="wq-btn wq-soft" type="button" id="wq-cl-other">' + esc(T.someone_else) + '</button>' : '') + REMIND);
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });
       // A shared phone: a child who is not listed (a sibling) takes the teacher step the server sent with this one.
       on('#wq-cl-other', function () { show({ ok: true, body: r.other }); });
@@ -85,7 +88,7 @@
     if (r.step === 'chips') {
       screen(T.is_here, '<div class="wq-kids-big">' + r.kids.map(function (k) {
         return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><bdi>' + esc(k.first) + '</bdi></button>';
-      }).join('') + '</div><button class="wq-linkbtn" id="wq-cl-back">' + esc(T.not_listed) + '</button>');
+      }).join('') + '</div>' + REMIND + '<button class="wq-linkbtn" id="wq-cl-back">' + esc(T.not_listed) + '</button>');
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });
       // Not here: back to the letters (another first letter). The new-child path is not on this link yet.
       on('#wq-cl-back', function () { if (letterStep) show({ ok: true, body: letterStep }); });
@@ -96,5 +99,6 @@
 
   var first = { device_ref: deviceRef() };
   if (JT) first.jt = JT;
+  if (typeof B.via === 'string') first.via = B.via;
   post('arrive', first).then(show, closed);
 }());
