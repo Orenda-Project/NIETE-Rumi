@@ -278,7 +278,8 @@ function payloadFor(row, { test = false, rounds = [], names = [] } = {}) {
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
   const who = (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
-  const labels = [...new Set(ready.map((r) => clip(lang === 'ur' ? r.class_label_ur || r.class_label_en : r.class_label_en || r.class_label_ur)).filter(Boolean))];
+  // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
+  const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
   const list = who.length ? who : labels;
   if (!list.length) return { ...base, ...(ready.length ? { url: `/j/${ready[0].class_link_code}?from=push` } : {}) };
   const b = (list.length > 1 && !who.length ? c.rounds : c.round).replace('{c}', list.join(c.and));
@@ -310,7 +311,7 @@ async function namesFor(row, lang) {
     const by = new Map((data || []).map((r) => [String(r.id), r]));
     const first = (v) => String(v || '').trim().split(/\s+/)[0] || '';
     return ids.map((id) => by.get(String(id))).filter(Boolean)
-      .map((r) => first(lang === 'ur' && r.student_name_urdu ? r.student_name_urdu : r.student_name)).filter(Boolean);
+      .map((r) => first((lang === 'ur' && r.student_name_urdu) || r.student_name)).filter(Boolean);
   } catch (err) {
     logToFile('⚠️ web quiz push: names lookup failed — class-named reminder', { error: err && err.message });
     return [];
