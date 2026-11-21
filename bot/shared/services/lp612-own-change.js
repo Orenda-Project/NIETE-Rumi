@@ -45,7 +45,7 @@ function createChangeService(deps) {
     });
     if (row && row.conflict) return { outcome: 'in_flight' };
     if (!row || !row.id) return { outcome: 'error' };
-    return Own.queueOwn(d, row, key, correlationId);
+    return Own.queueOwn(d, row, key || `unit_${rootId}`, correlationId); // bd-snkn32.59.4: a goal-unit day has no book key
   }
 
   return { requestChange };
