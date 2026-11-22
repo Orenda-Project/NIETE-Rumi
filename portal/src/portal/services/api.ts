@@ -985,6 +985,9 @@ export type AssessmentOptions = {
   /** The one cap. Never hardcoded here — the dead panel's 20 vs the bot's 25. */
   maxQuestions: number;
   defaultQuestions: number;
+  /** AG row 12: types printed as a group under one heading count as one toward maxQuestions; maxItems bounds the print. */
+  groupedTypes?: string[];
+  maxItems?: number;
   /** Only while the board pattern is on: the grades it serves (any call), and the pattern for this grade + subject. */
   patternGrades?: number[];
   patterns?: AssessmentPattern[];

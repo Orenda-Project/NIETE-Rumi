@@ -142,6 +142,9 @@ function questionOptions(subject, grade) {
     types: QuestionTypes.forSubject(subject, grade),
     maxQuestions: QuestionTypes.MAX_QUESTIONS,
     defaultQuestions: QuestionTypes.DEFAULT_QUESTIONS,
+    // AG row 12: a group under one heading counts as one toward maxQuestions; maxItems bounds what prints.
+    groupedTypes: QuestionTypes.GROUPED_TYPES,
+    maxItems: QuestionTypes.MAX_ITEMS,
   };
 }
 

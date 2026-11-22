@@ -1,5 +1,5 @@
 import type { AssessmentV2Copy } from './copy';
-import { stepWhy, type Why, type PageCheck, type Picks, type Step } from './model';
+import { stepWhy, type Limits, type Why, type PageCheck, type Picks, type Step } from './model';
 
 /**
  * bd-fmf24g.34 — a reason in the teacher's words: model.ts says WHAT is wrong (stepWhy, checkPages), copy.ts holds
@@ -13,6 +13,7 @@ export function whyText(w: Why, C: AssessmentV2Copy): string {
     case 'none': return C.why.none;
     case 'count': return C.why.count(w.max);
     case 'typesMax': return C.why.typesMax(w.max);
+    case 'items': return C.why.items(w.max);
     case 'marks': return C.why.marks(w.max);
     case 'marksLow': return C.why.marksLow(w.total);
     case 'earlier': return C.why.earlier(C.steps[w.step]);
@@ -24,7 +25,7 @@ export function whyText(w: Why, C: AssessmentV2Copy): string {
 
 /** The step's reason as words, or null when she may go on: what the dock shows above its button. */
 export function stepReason(
-  step: Step, p: Picks, max: number, C: AssessmentV2Copy, opts?: { busy?: boolean; offerFde?: boolean },
+  step: Step, p: Picks, max: number, C: AssessmentV2Copy, opts?: { busy?: boolean; offerFde?: boolean; limits?: Limits },
 ): string | null {
   const w = stepWhy(step, p, max, opts);
   return w ? whyText(w, C) : null;
