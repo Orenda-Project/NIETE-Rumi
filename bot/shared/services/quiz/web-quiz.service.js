@@ -396,30 +396,34 @@ async function roundSitting(rows, s) {
   return skip.size ? { ...s, round_skip: skip } : s;
 }
 
-// Quizzes this process has read and found not to be an evening round (a round's items are marked before its code is
-// handed to anyone, so the answer never changes); bounded.
-const PLAIN_QUIZZES = new Set();
-const PLAIN_QUIZZES_MAX = 5000;
-function notePlainQuiz(quizId) {
-  if (PLAIN_QUIZZES.size >= PLAIN_QUIZZES_MAX) PLAIN_QUIZZES.delete(PLAIN_QUIZZES.values().next().value);
-  PLAIN_QUIZZES.add(quizId);
+// Is this quiz an evening round? (meta.source, set when the round's row is written and never changed): one small read
+// of the quiz row, no columns but the id, kept per quiz for the process; bounded.
+const ROUND_QUIZZES = new Map();
+const ROUND_QUIZZES_MAX = 5000;
+async function isRoundQuiz(quizId) {
+  if (ROUND_QUIZZES.has(quizId)) return ROUND_QUIZZES.get(quizId);
+  const { data, error } = await dbRead('orderRows:quizzes:round', (db) => db.from('quizzes').select('id')
+    .eq('id', quizId).eq('meta->>source', Round().ROUND_SOURCE).maybeSingle());
+  if (error) throw new Error(error.message || String(error));
+  if (ROUND_QUIZZES.size >= ROUND_QUIZZES_MAX) ROUND_QUIZZES.delete(ROUND_QUIZZES.keys().next().value);
+  ROUND_QUIZZES.set(quizId, Boolean(data));
+  return Boolean(data);
 }
 
 /**
  * The questions the start reply's order is made from, read beside the session insert: { rows, seeded }, or null
- * (the start reply is today's). web_quiz_order_seed on (the hub's switch read; cached): every quiz, seeded. Off, with
- * web_quiz_evening_round on: an evening round only, unseeded, so the page still plays only the child's set (a quiz
- * found not to be a round is not read again). A failed read: null.
+ * (the start reply is today's). Two gates, each its own boolean: `round` (web_quiz_evening_round on and this quiz an
+ * evening round: its child's set must reach the page whatever the seed switch says; unseeded unless the seed is on) and
+ * `seeded` (web_quiz_order_seed, the hub's switch read; cached: every quiz its own order). Neither: nothing read
+ * beyond the round check. A failed read: null.
  */
 async function orderRows(quizId) {
   try {
     const f = await require('./web-quiz-hub-flags').flags();
-    if (f.orderSeed) return { rows: await loadQuestions(quizId), seeded: true };
-    if (!f.eveningRound || PLAIN_QUIZZES.has(quizId)) return null;
-    const rows = await loadQuestions(quizId);
-    if (Round().roundFields(rows)) return { rows, seeded: false };
-    notePlainQuiz(quizId);
-    return null;
+    const round = Boolean(f.eveningRound) && await isRoundQuiz(quizId);
+    const seeded = Boolean(f.orderSeed);
+    if (!round && !seeded) return null;
+    return { rows: await loadQuestions(quizId), seeded };
   } catch (e) {
     logToFile('⚠️ web-quiz: sitting order unavailable, the quiz order kept', { error: e.message });
     return null;
