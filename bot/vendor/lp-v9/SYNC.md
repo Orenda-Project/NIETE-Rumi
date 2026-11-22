@@ -1406,6 +1406,33 @@ rule reaches the system prompt for the standard brief and each flash sibling (re
 
 **LOCAL-ONLY divergence**, as §3.38 and §3.41. Cached renders keep the old plan until re-authored.
 
+### 3.43 A `cycle` diagram type — `diagrams/types/cycle.js` (new), `types_manifest.json`, `visual_check.js`, `lib/template.js`, all four briefs (2026-11-22, bd-zrdvmi.51)
+
+ICT feedback sheet, Lesson Plans (6 - 12) row 7: the G9 Biology Krebs-cycle lesson drew its cycle on the
+end-of-lesson board as a mind map and lines, never as a cycle. It was fixed by hand for that one lesson
+(queue #177, a ring image placed as a `labelled_figure`); the cause was in the engine. The brief has long
+shown the model `{"type": "cycle"}` as its copy-this shape (`dg-water-cycle`, "EXACT BLOCK SHAPES") and the
+flash science brief lists `cycle` among the spec types, but no module drew it: `renderDiagram` threw
+"unknown diagram type", so a Krebs / water / carbon / cell cycle was either a placeholder or a straight
+`flow` that never closes.
+
+- `cycle.js`: stages on one ring, stage 1 at 12 o'clock, clockwise (`lang:"ur"` anticlockwise), curved
+  arrows box-edge to box-edge, the last back to the first; optional `centre` title and `arrowLabels[i]`
+  (stage i → i+1) pushed outward until they clear every box. Arcs are emitted as short `L` runs, not an
+  SVG `A`, because `measure.js` `flattenPath` reads only M/L/H/V/C/Q/Z. Aliases `ring`, `cyclic_process`,
+  `life_cycle`. Stage items take `label` (or flow's `title`) and up to two `lines`.
+- Manifest entry (count 32 → 33); V5 legality and `CANON` rows; `cycle` joins `flow`/`mindmap` in the
+  Biology and General Science process group (V6); badge labels "Cycle"/چکر, "Life cycle"/دورِ حیات.
+- Briefs: §4b.5 regenerated with `build_field_appendix.py` from the manifest MINUS the twelve grade 1-5
+  types (the vendored briefs' scoping; the hand-annotated `ray_diagram.f` cell kept); a copyable `cycle`
+  shape in §4b.4; the Biology and General Science rows name `cycle`; "one of the 20" → 21.
+
+`tests/lp612/diagram-cycle.test.js`: 14 red on origin/sandbox 2dd1190587, 14 green after. Roster suites
+(`diagram-roster`, `brief-field-coverage`, `visual-contract`, `vendor-integrity`) green.
+
+**LOCAL-ONLY divergence** until upstream (`lp_html/diagrams/`, `lp_author/visual_check.py`) carries the type;
+push the module up on the next re-sync. Cached renders keep their old boards until re-authored.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
