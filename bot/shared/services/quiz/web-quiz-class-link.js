@@ -6,7 +6,8 @@
  * enrolled roster (class_enrollments). The teacher forwards it once a term; a child who opens it is placed by the
  * SERVER, and the page never receives the class list before the gate:
  *
- *   resolve(code, {preview, jt})    the landing: the link is live? → {lang}; else not_found (the edge renders exactly
+ *   resolve(code, {preview, jt})    the landing: the link is live? → {lang, class_label?} (class_label: "Class 3 A" /
+ *                                   «کلاس ۳ A», the preview's class name, grade + section only); else not_found (the edge renders exactly
  *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
  *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
  *   arrive({code, device_ref, jt, via})  counts the open (class_link_open{class_link_code, via, dh?}, one per page load,
@@ -331,7 +332,23 @@ async function resolve(code, { preview = false, jt = null } = {}) {
   if (!preview && !isTeacherPreview(code, jt)) {
     emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
   }
-  return { lang };
+  const label = await classLabelOf(link.class_id, lang);
+  return { lang, ...(label ? { class_label: label } : {}) };
+}
+
+/**
+ * The link preview's class label in the class's language (the edge's og:title "Jugnu · Class 3 A"): classLabels of
+ * the class's grade and section, the label the reminder's title uses; nothing else of the class is read. No numeric
+ * grade, or a failed read -> null (the edge keeps its generic preview).
+ */
+async function classLabelOf(classId, lang) {
+  try {
+    const { data, error } = await supabase.from('classes').select('grade_code, section').eq('id', classId).maybeSingle();
+    if (error || !data) return null;
+    return require('./web-quiz-evening-round-phone').classLabels(data.grade_code, data.section)[lang === 'ur' ? 'ur' : 'en'] || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 // The landing's markers (the edge's viaOfQuery, carried in the page's boot JSON and posted on arrive).

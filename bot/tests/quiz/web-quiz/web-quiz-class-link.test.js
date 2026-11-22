@@ -177,7 +177,8 @@ describe('(c) the code and the roster-minted link', () => {
     expect(fresh.code).not.toBe(old);
     expect(db.class_links.find((r) => r.code === old).revoked_at).toBeTruthy();
     await expect(CL.resolve(old)).rejects.toMatchObject({ status: 404, body: { error: 'not_found' } });
-    expect(await CL.resolve(fresh.code)).toEqual({ lang: 'en' });
+    // the landing answer carries the preview's class label (grade + section only)
+    expect(await CL.resolve(fresh.code)).toEqual({ lang: 'en', class_label: 'Class 3 A' });
   });
 });
 
