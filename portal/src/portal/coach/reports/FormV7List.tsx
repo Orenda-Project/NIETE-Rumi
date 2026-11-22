@@ -13,7 +13,7 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import {
-  AutoText, DockV7, FormChips, FormToast, Legend, Levels, PartTitle, ReadOnlyBox, SaveTrayV7, TextBox, UNDO_MS, focusField,
+  AboutLine, AutoText, DockV7, FormChips, FormToast, Legend, Levels, PartTitle, ReadOnlyBox, SaveTrayV7, TextBox, UNDO_MS, focusField,
   levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
 } from "./FormV7";
 import { Problem, problemText, v6RatingOptions } from "./V6Parts";
@@ -166,7 +166,8 @@ function RecordingBox({ ind, audio }: { ind: Combined; audio: Audio | null }) {
     <div data-testid="from-recording" className="flex flex-col gap-1">
       <span className={LABEL}>{C.fromRecording}</span>
       <div className="flex flex-col gap-1 rounded-2xl border border-[#e5e7eb] bg-[#fafafb] px-3 py-2.5">
-        {r.lookFor ? <p className="m-0 pb-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(r.lookFor)}>{r.lookFor}</p> : null}
+        {/* bd-o15qnr.37: what to look for is said once, under the indicator's name (ind.about); an older bot keeps it here */}
+        {r.lookFor && !ind.about ? <p className="m-0 pb-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(r.lookFor)}>{r.lookFor}</p> : null}
         {what}
         {r.youAdd ? <p className={cn("m-0 pt-2 text-[14px] leading-relaxed text-[#374151] [unicode-bidi:plaintext]", ROW_DIVIDER)} dir="auto" {...urduOf(r.youAdd)}>{F.youAdd(r.youAdd)}</p> : null}
       </div>
@@ -637,6 +638,8 @@ export function V6FormV7({
           <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
         </button>
       </div>
+      {/* bd-o15qnr.37 (the operator 22 Nov ~00:15): what the indicator looks at, one muted line under its name */}
+      {ind.about ? <AboutLine text={ind.about} rubric={draft.rubric?.id || "fico17_v6"} code={ind.id} /> : null}
       <div data-testid="ff-card" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
         {/* bd-o15qnr.36: no legend on one of the six (no Digital Coach level there); a short line on top instead */}
         {!readOnly && ind.kind === "dc" && <Legend principal={principal} />}
