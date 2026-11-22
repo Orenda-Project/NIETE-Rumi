@@ -2,3 +2,4 @@
 {"ts":"2026-11-22T15:59:16Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: observe owe their Gherkin","sha":"2eefad0ce47e","branch":"bd-b0aszz.1-62777","user":""}
 {"ts":"2026-11-22T15:59:16Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=observe spec_sync=true","sha":"2eefad0ce47e","branch":"bd-b0aszz.1-62777","user":""}
 {"ts":"2026-11-22T16:08:11Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"observe=none-needed (two internal log strings in fico-s-dc changed \"Rumi\" to \"the bot\"; nothing a teacher sees; declared in commit 89438b9ab4 trailer)","sha":"2eefad0ce47e","branch":"bd-b0aszz.1-62777","user":""}
+{"ts":"2026-11-22T16:08:12Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"671065ef-d771-45fb-8af8-0dcc0557bc9f","sha":"2eefad0ce47e","branch":"bd-b0aszz.1-62777","user":""}
