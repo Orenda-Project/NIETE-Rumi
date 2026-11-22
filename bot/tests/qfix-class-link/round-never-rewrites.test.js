@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The evening round never rewrites a flagged key (PLAN §11 A33, A31). Nobody reviews a round before a child plays it,
+ * The evening round never rewrites a flagged key. Nobody reviews a round before a child plays it,
  * so an item the blind solve flags is DROPPED from the round and QUEUED for a person, never repaired and served:
  *   - a LESSON item runKeyVerify flags is stored as authored, marked 'held' (never served), and queued under
  *     blind_solve (status open; key_at_flag = the grader's key; top_wrong_option = the solver's pick, by stored slot);
@@ -203,7 +203,7 @@ test('a flagged lesson item is stored as authored and held, never rewritten; a f
     reason: 'blind_solve', status: 'open', key_at_flag: 'A', top_wrong_option: 'C', first_flagged_on: day, last_seen_on: day,
   });
 
-  // telemetry (A31): on the round's row and on round_written
+  // telemetry: on the round's row and on round_written
   expect(quiz().meta).toMatchObject({ n_dropped: 2, n_lesson: 7, n_recall: 1 });
   expect(logEvent).toHaveBeenCalledWith('web_quiz.round_written', expect.objectContaining({ n_dropped: 2 }));
 });

@@ -1,7 +1,7 @@
 'use strict';
 /**
  * web_quiz.class_link_open{class_link_code, via, dh?}: EXACTLY ONE per open of the standing link, on every path a child
- * reaches /j/<code> by, with a `via` (PLAN §11 A61):
+ * reaches /j/<code> by, with a `via`:
  *   ?f=1 / ?from=fwd forward (the card's Forward) -> forward; ?from=push (the reminder) -> reminder; ?from=hub -> hub;
  *   unmarked on a phone that played as a child of the class -> remembered; unmarked on any other phone (a copied link,
  *   the class-week line, a fresh phone with no marker) -> forward;

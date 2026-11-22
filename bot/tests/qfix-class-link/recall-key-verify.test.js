@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Every rewritten recall item is blind-solved before a child can see it (PLAN §11 A19). The lesson items already
+ * Every rewritten recall item is blind-solved before a child can see it. The lesson items already
  * pass runKeyVerify inside the generate step; the recall items are written later, in afterGenerate, so they get
  * their own solve:
  *   - solved WITHOUT a lesson (there is none for a rewrite: the subject alone decides), only the recall items;
