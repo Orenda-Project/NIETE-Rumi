@@ -60,6 +60,15 @@ describe('payloadFor: names come from the rounds when there are rounds', () => {
     const p = Push.payloadFor(row('en'), { rounds: [{ ...R3, kids: [{ student_id: ALI }] }], names: ['Sana'] });
     expect(p).toMatchObject({ t: 'Jugnu: Class 3 has a new quiz', url: '/j/K7Q2MX?from=push' });
   });
+  test.each(['en', 'ur'])('long names (%s): the title still fits one line (60 code points), names dropped from the end, the first kept', (lang) => {
+    const long = ['Muhammadabdullahkhanzada', 'Muhammadibrahimkhanzadaa', 'Zainab'];
+    const kids = long.map((n, i) => kid(`9999999${i}-9999-4999-8999-999999999999`, n, n));
+    for (const opt of [{ rounds: [{ ...R3, kids }] }, { names: long }]) {
+      const t = Push.payloadFor(row(lang), opt).t;
+      expect([...t].length).toBeLessThanOrEqual(60);
+      expect(t.startsWith('Muhammadabdullahkhanzada')).toBe(true);
+    }
+  });
   test('no round: the phone\'s names, as before (a plain reminder)', () => {
     expect(Push.payloadFor(row('en'), { names: ['Ali', 'Sana'] }).t).toBe('Ali, Sana: quiz time!');
   });

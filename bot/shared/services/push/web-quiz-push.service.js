@@ -409,6 +409,8 @@ function payloadFor(row, { test = false, rounds = [], names = [], hub = null } =
   const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
   const first = ready.length ? `/j/${ready[0].class_link_code}?from=push` : null;
   const url = classCount(ready) === 1 ? first : home || first || base.url;
+  // one line of title: names dropped from the end until it fits, the first always kept
+  while (who.length > 1 && cps(c.named.replace('{c}', who.join(c.and))) > TITLE_MAX) who.pop();
   if (who.length) return { ...base, t: c.named.replace('{c}', who.join(c.and)), b: c.tap, url };
   if (!labels.length) return { ...base, url };
   const many = c.many.replace('{c}', joinLast(labels, c));
