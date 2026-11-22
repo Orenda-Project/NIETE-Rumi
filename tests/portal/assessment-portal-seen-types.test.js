@@ -84,7 +84,7 @@ describe('Seen only', () => {
   });
 
   test('more than the paper can hold is refused', async () => {
-    const { statusCode } = await create({ contentSource: 'seen', seenTypes: [{ id: 'MCQs', count: 60 }] });
+    const { statusCode } = await create({ contentSource: 'seen', seenTypes: [{ id: 'MCQs', count: 101 }] });
     expect(statusCode).toBe(400);
     expect(created).toBeNull();
   });

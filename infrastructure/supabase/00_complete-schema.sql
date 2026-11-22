@@ -10136,7 +10136,7 @@ GRANT EXECUTE ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) TO 
 -- ---------------------------------------------------------------------------
 -- Answer-key review queue (bot/database/migrations/qfix_keys_quiz_item_reviews.sql)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.quiz_item_reviews (
+CREATE TABLE IF NOT EXISTS quiz_item_reviews (
   id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   question_id       uuid        NOT NULL REFERENCES public.quiz_questions(id) ON DELETE CASCADE,
   reason            text        NOT NULL DEFAULT 'dominant_wrong_option' CHECK (reason IN ('dominant_wrong_option','blind_solve')),

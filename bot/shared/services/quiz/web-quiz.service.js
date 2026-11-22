@@ -208,12 +208,24 @@ async function withoutWrongWordBlanks(quizId, served, out, { log = false } = {})
   return fixed;
 }
 
+// An evening round's rows carry media.round (and round_key): it serves its 'lesson' and 'recall' items only.
+const ROUND_SERVED = new Set(['lesson', 'recall']);
+/**
+ * The rows a quiz may serve: every row, except on an evening round, where a row it marked anything else (an item whose
+ * key is held, or dropped by the key review) is never served: not on the page, not at the start, the answers or the
+ * finish, all of which read through here. Any other quiz: the same array.
+ */
+function servableRows(rows) {
+  if (!rows.some((q) => q && q.media && (q.media.round != null || q.media.round_key != null))) return rows;
+  return rows.filter((q) => q && q.media && ROUND_SERVED.has(q.media.round));
+}
+
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
 async function loadQuestions(quizId, { log = false } = {}) {
   const { data, error } = await dbRead('loadQuestions:quiz_questions:1', (db) => db.from('quiz_questions').select(Q_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true }));
   if (error) fail(502, 'db_unavailable');
-  const rows = data || [];
+  const rows = servableRows(data || []);
   // One ordering rule for both channels (transcript bank by sort_order, video
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');
@@ -351,36 +363,99 @@ function questionPayload(row, i, code, audio, zoom) {
   return out;
 }
 
+const Round = () => require('./web-quiz-evening-round');
+
 /**
- * The questions THIS sitting plays: today the quiz's served set, for everyone. The one seam a per-child item set plugs
- * into (start order, answers, finish), so the three never disagree about what a child was asked.
+ * The questions THIS sitting plays: the quiz's served set, for everyone; for an evening round, the child's own set
+ * (web-quiz-evening-round selectRoundItems: 5 lesson items + the 2 recall items whose originals this child missed).
+ * The one seam a per-child item set plugs into (start order, answers, finish), so the three never disagree about what
+ * a child was asked. `session` carries id (the recall tie-break's seed), student_id, and from roundSitting round_plain
+ * and round_skip. Any other quiz: the same array.
  */
-function sittingQuestions(questions /* , session */) {
-  return questions;
+function sittingQuestions(questions, session) {
+  const s = session || {};
+  if (s.round_plain) return questions;
+  return Round().selectRoundItems(questions, { studentId: s.student_id || null, seed: s.id ? OrderSeed.seedOf(s.id) : null, skip: s.round_skip || null });
 }
 
 /**
- * web_quiz_order_seed (the hub's switch read; cached): the questions the sitting order is made from, read beside the
- * session insert. Off, or a failed read: null, and the start reply is today's.
+ * The session the seam needs, for an evening round's questions only (any other quiz: `s` as it is, nothing read).
+ * The round's own set holds only while the start reply can carry it to the page (web_quiz_order_seed or
+ * web_quiz_evening_round on, see orderRows); with both off a round plays as an ordinary quiz everywhere, as the page does.
+ * A named child's sitting also carries round_skip: the lesson items they answered right earlier today
+ * (web-quiz-evening-round-seen; bounded by the session's own start, so start, answers and finish read the same).
+ */
+async function roundSitting(rows, s) {
+  if (!Round().roundFields(rows || [])) return s;
+  const f = await require('./web-quiz-hub-flags').flags();
+  if (!f.orderSeed && !f.eveningRound) return { ...s, round_plain: true };
+  if (!s.student_id || s.user_id) return s;
+  const skip = await require('./web-quiz-evening-round-seen').rightEarlierToday({
+    sessionId: s.id, studentId: s.student_id, createdAt: s.created_at, roundQuizId: s.quiz_id, rows,
+  });
+  return skip.size ? { ...s, round_skip: skip } : s;
+}
+
+// Is this quiz an evening round? (meta.source, set when the round's row is written and never changed): one small read
+// of the quiz row, no columns but the id, kept per quiz for the process; bounded.
+const ROUND_QUIZZES = new Map();
+const ROUND_QUIZZES_MAX = 5000;
+async function isRoundQuiz(quizId) {
+  if (ROUND_QUIZZES.has(quizId)) return ROUND_QUIZZES.get(quizId);
+  const { data, error } = await dbRead('orderRows:quizzes:round', (db) => db.from('quizzes').select('id')
+    .eq('id', quizId).eq('meta->>source', Round().ROUND_SOURCE).maybeSingle());
+  if (error) throw new Error(error.message || String(error));
+  if (ROUND_QUIZZES.size >= ROUND_QUIZZES_MAX) ROUND_QUIZZES.delete(ROUND_QUIZZES.keys().next().value);
+  ROUND_QUIZZES.set(quizId, Boolean(data));
+  return Boolean(data);
+}
+
+/**
+ * The questions the start reply's order is made from, read beside the session insert: { rows, seeded }, or null
+ * (the start reply is today's). Two gates, each its own boolean: `round` (web_quiz_evening_round on and this quiz an
+ * evening round: its child's set must reach the page whatever the seed switch says; unseeded unless the seed is on) and
+ * `seeded` (web_quiz_order_seed, the hub's switch read; cached: every quiz its own order). Neither: nothing read
+ * beyond the round check. A failed read: null.
  */
 async function orderRows(quizId) {
   try {
-    if (!(await require('./web-quiz-hub-flags').flags()).orderSeed) return null;
-    return await loadQuestions(quizId);
+    const f = await require('./web-quiz-hub-flags').flags();
+    const round = Boolean(f.eveningRound) && await isRoundQuiz(quizId);
+    const seeded = Boolean(f.orderSeed);
+    if (!round && !seeded) return null;
+    return { rows: await loadQuestions(quizId), seeded };
   } catch (e) {
     logToFile('⚠️ web-quiz: sitting order unavailable, the quiz order kept', { error: e.message });
     return null;
   }
 }
 
-/** The sitting's own order (web-quiz-order-seed.js) for the start reply: { order, seed, pinned }, or null (today's). */
+/**
+ * The start reply's order: the sitting's own (web-quiz-order-seed.js) { order, seed, pinned }, or for an unseeded round
+ * the child's set in the round's own order (options where they are); null (today's). `set` = the sitting's questions.
+ */
 async function sittingOrderOf(rowsP, session) {
-  const rows = sittingQuestions((await rowsP) || [], session);
+  const got = await rowsP;
+  if (!got) return null;
+  const sitting = await roundSitting(got.rows || [], session);
+  const rows = sittingQuestions(got.rows || [], sitting);
   if (!rows.length) return null;
-  return OrderSeed.sittingOrder(rows, rows.map((q, i) => questionPayload(q, i, '', {}, null)), session.id);
+  const swap = swapCounts(got.rows, sitting, rows);
+  if (!got.seeded) return { order: { q: rows.map((q) => q.id), o: {} }, seed: null, pinned: 0, set: rows, swap };
+  return { ...OrderSeed.sittingOrder(rows, rows.map((q, i) => questionPayload(q, i, '', {}, null)), session.id), set: rows, swap };
+}
+
+/** round_started's swap counts: items of the child's set left out as answered right today, and how many could not be
+ * refilled (only when there are any). */
+function swapCounts(all, sitting, set) {
+  if (!sitting.round_skip) return {};
+  const unswapped = sittingQuestions(all, { ...sitting, round_skip: null });
+  const nSwapped = unswapped.filter((q) => sitting.round_skip.has(q.id) && !set.includes(q)).length;
+  const nShort = Math.max(0, unswapped.length - set.length);
+  return { ...(nSwapped ? { n_swapped: nSwapped } : {}), ...(nShort ? { n_short: nShort } : {}) };
 }
 const orderFields = (ord) => (ord ? { order: ord.order } : {});
-const orderEvent = (ord) => (ord ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
+const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
 
 /** The sibling media helpers (read-aloud clips, lesson video); absent or failing = no audio / no video, never an error. */
 function mediaHelpers() {
@@ -1272,14 +1347,14 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     device_ref: deviceRef,
     status: 'in_progress',
     expires_at: new Date(Date.now() + T.SESSION_TTL_S * 1000).toISOString(),
-  }).select('id').single();
+  }).select('id, created_at').single();
   if (sErr || !session) {
     logToFile('❌ web-quiz: could not create session', { quizId: ctx.quizId, error: sErr && sErr.message }, 'error');
     fail(502, 'db_unavailable');
   }
   mark('insert');
   if (doorP) await doorP;
-  const ord = await sittingOrderOf(orderRowsP, session);
+  const ord = await sittingOrderOf(orderRowsP, { ...session, quiz_id: ctx.quizId, student_id: student ? student.id : null, user_id: userId });
   if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP, ord });
 
   await countJoin(ctx.shareCodeId);
@@ -1304,6 +1379,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
     ...orderEvent(ord),
   });
+  if (ord && ord.set && !userId) Round().noteRound('started', ord.set, ord.swap);
   const nameOf = await shownNames(ctx.lang, [student && student.id]);
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
@@ -1362,6 +1438,7 @@ async function startedFast({ body, ctx, session, student, userId, deviceRef, res
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
     ...orderEvent(ord),
   });
+  if (ord && ord.set && !userId) Round().noteRound('started', ord.set, ord.swap);
   const nameOf = await names;
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
@@ -1747,7 +1824,8 @@ async function recordAnswers(body = {}) {
     list.forEach((a) => out.dup.push(String(a && a.qid)));
     return { ...out, closed: true };
   }
-  const questions = sittingQuestions(await loadQuestions(s.quiz_id), s);
+  const rows = await loadQuestions(s.quiz_id);
+  const questions = sittingQuestions(rows, await roundSitting(rows, s));
   const byId = new Map(questions.map((q) => [q.id, q]));
   const already = new Set((await answeredIds(s.id)).map((r) => r.question_id));
   const fresh = [];
@@ -1857,7 +1935,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   mark('session');
   // Fast finish (web_quiz_fast): the answers need only the session, so they are read beside the questions.
   const answersP = fast ? Fast.early(answeredIds(s.id)) : null;
-  const questions = sittingQuestions(await loadQuestions(s.quiz_id), s);
+  const rows = await loadQuestions(s.quiz_id);
+  const sitting = await roundSitting(rows, s);
+  const questions = sittingQuestions(rows, sitting);
   mark('questions');
   const answers = await (answersP || answeredIds(s.id));
   mark('answers');
@@ -1902,6 +1982,10 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
       ...(s.user_id ? { kind: 'self_test' } : {}),
     });
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
+    // an evening round's sitting, once (its first finish): how many of the child's recall items came back right
+    if (!sitting.round_plain && !s.user_id) {
+      Round().noteRound('done', questions, { n_recall_right: served.filter((q) => q.media && q.media.round === 'recall' && byQ.get(q.id).is_correct).length });
+    }
   }
   mark('complete', { completed_now: s.status !== 'completed' });
   // Fast finish: after the write, the challenge code (it may write one) and the class's finishers today (they must

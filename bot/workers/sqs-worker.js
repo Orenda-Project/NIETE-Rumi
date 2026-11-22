@@ -1774,6 +1774,12 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
     logToFile('Error scheduling the quiz retest sweep (non-fatal)', { error: error && error.message }, 'error');
   }
   try {
+    // The class evening round (16:00-19:59 PKT school days); a no-op until app_settings web_quiz_evening_round is on.
+    require('./evening-round-schedule').scheduleEveningRound({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the evening round writer (non-fatal)', { error: error && error.message }, 'error');
+  }
+  try {
     // The twice-a-day teacher activity count (Home numbers, My journey, team view); a no-op until teacher_activity_slots.
     require('./teacher-activity-schedule').scheduleTeacherActivity({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
   } catch (error) {

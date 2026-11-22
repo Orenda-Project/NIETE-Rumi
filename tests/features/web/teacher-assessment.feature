@@ -287,3 +287,30 @@ Feature: Teacher assessment
     When her types add up to more than 100 printed items
     Then Next is held with "Printed items: up to 100"
     And on WhatsApp the same paper is accepted on the counts screen, and 51 written questions are refused naming 50
+
+  @sandbox @real-paper
+  # bd-zrdvmi.50.4 — ICT Feedback sheet, Assessment Generator row 21 (Hafsa; Amena 21 Nov: a tick-list): after
+  # choosing a chapter she sees that chapter's own questions and picks the ones she wants. Behind
+  # app_settings assessment_book_picker_enabled.
+  Scenario: Teacher ticks the chapter's own book questions and the paper prints exactly those
+    Given the book picker is on
+    And a teacher on Questions for a Grade 4 Science paper on one chapter
+    When she taps "Select from the book"
+    Then a list opens with that chapter's exercise questions, grouped under the book's exercise headings
+    And every question in the list is printed on that chapter's pages
+    When she ticks 3 questions and taps "Done"
+    Then the seen card reads "Book · 3 selected" with "Change" and "Clear selection"
+    And the total counts those 3 as seen questions
+    And Check shows "Book · 3 selected"
+    When she makes the paper
+    Then the paper's seen questions are those 3, word for word, each with marks and an answer
+
+  @sandbox
+  Scenario: Select from the book follows the chapters on the paper and the switch
+    Given the book picker is on
+    And a teacher on Questions for a Grade 4 Urdu paper on two chapters
+    When she taps "Select from the book"
+    Then both chapters' questions are listed, each under its chapter, in Urdu right to left
+    When the book picker is switched off
+    Then Questions shows no "Select from the book" and the seen card is today's
+    And a paper by pages, or a board-pattern paper, never shows "Select from the book"

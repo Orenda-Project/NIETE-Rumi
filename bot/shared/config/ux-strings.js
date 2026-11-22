@@ -4735,6 +4735,13 @@ const UX_STRINGS = {
     en: 'Answer key under review: we are checking which answer is right.',
     ur: 'جواب کی جانچ جاری ہے: ہم دیکھ رہے ہیں کہ اس سوال کا کون سا جواب درست ہے۔',
   },
+
+  // ─── qfix_class_link (append-only): the class evening round's tile on the child's hub ───────────────────
+  // copy.v2.json qfix_class_link.round_title; a 5-minute round written from the class's lesson of the day.
+  qfix_class_link_round_title: {
+    en: "Tonight's quiz",
+    ur: 'آج شام کا کوئز',
+  },
 };
 
 /**

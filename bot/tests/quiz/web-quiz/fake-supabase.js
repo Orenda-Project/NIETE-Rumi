@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/lte/order/limit/range; or() over is/eq/neq; select/insert/update/delete; is/not also on a
+ * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/lte/order/limit/range; or() over is/eq/neq; select/insert/update/delete; eq/is/not also on a
  * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -48,7 +48,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     const st = { t, filters: [], order: [], limit: null, op: 'select', count: false, head: false, payload: null, single: null };
     const b = {
       select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; st.embeds = embedsOf(cols); if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
-      eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
+      eq(c, v) { st.filters.push((r) => same(val(r, c), v)); return b; },
       // SQL `<>`: a NULL cell is not "not equal" — PostgREST's neq never returns it
       neq(c, v) { st.filters.push((r) => r[c] != null && r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
@@ -71,7 +71,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
       // a list of more than ~390 UUIDs fails the request as supabase-js reports it (postgrest-js: `TypeError: fetch failed`,
       // the headers-overflow hint, data null). A read that feeds a data-sized list in unchunked goes red here.
-      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(r[c])); return b; },
+      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(val(r, c))); return b; },
       // PostgREST ilike: % is any run, case-insensitive.
       ilike(c, pat) {
         const rx = new RegExp(`^${String(pat).split('%').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 'i');
