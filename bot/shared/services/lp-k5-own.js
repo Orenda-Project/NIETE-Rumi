@@ -24,6 +24,7 @@ const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-
 const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, PRIMARY_PURPOSES } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
 const { k5GoalLines } = require('./lp-k5-own-goal');
+const { goalDayLines } = require('./lp-own-unit-day');
 // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
 const P = require('./lp-own-period');
 
@@ -92,7 +93,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
     // bd-snkn32.57 — a goal start: no book in class, so her goal's lines stand where the book's did.
     a.goal ? `What she has: ${have || 'nothing but the children'}. Use nothing else.`
       : `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
-    ...(a.goal ? k5GoalLines(a.goal) : [MATERIALS_LINE]),
+    // bd-snkn32.59.4 — a goal UNIT day has no book day under it at all: its own lines, never "use the day's plan".
+    ...(a.goal ? (a.unit && a.unit.start === 'goals' ? goalDayLines(a.unit) : k5GoalLines(a.goal)) : [MATERIALS_LINE]),
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
     ways.length > 1
       ? `Teaching ways, combined in We Do: ${ways.map((k) => WAYS[k]).join(' ')}`

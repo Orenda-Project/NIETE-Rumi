@@ -736,6 +736,8 @@ export type PortalConfig = {
     lpOwnReviewer?: boolean;
     /** bd-snkn32.56 — Make my own from a learning goal or topic (portal_lp_own_goal_start, list-only; fail-closed). */
     lpOwnGoalStart?: boolean;
+    /** bd-snkn32.59 — Make my own → A whole unit (portal_lp_own_unit, list-only, with Make my own on; fail-closed). */
+    lpOwnUnit?: boolean;
     /** Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off (absent = today). */
     lpWhatsappSend?: boolean;
     /** bd-ik5e8j.4 — the help videos: the "?" and More → How to use (portal_help_videos, with the teacher app on; fail-closed). */

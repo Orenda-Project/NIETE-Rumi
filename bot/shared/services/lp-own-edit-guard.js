@@ -169,7 +169,9 @@ function checkChange({ band, part, text, chain, todayCount, limit }) {
 }
 
 /** 'k5' for a grades 1–5 day (lesson_id), 'g612' for a 6-12 segment. */
-const bandOf = (row) => (row && row.lesson_id ? 'k5' : 'g612');
+// bd-snkn32.59.4 — a goal-unit day (no book day, answers.unit.start 'goals') is a grades 1–5 plan too.
+const goalUnitRow = (row) => !!(row && !row.lesson_id && !row.segment_id && row.answers && row.answers.unit && row.answers.unit.start === 'goals');
+const bandOf = (row) => (row && (row.lesson_id || goalUnitRow(row)) ? 'k5' : 'g612');
 
 /** The plan a change starts from: the latest READY plan in the chain (the root is round 0), or null. */
 function editBase(chain) {
