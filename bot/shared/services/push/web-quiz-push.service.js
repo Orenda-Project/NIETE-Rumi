@@ -395,6 +395,8 @@ function payloadFor(row, { test = false, rounds = [], names = [], hub = null } =
   const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
   const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
   const url = ready.length ? `/j/${ready[0].class_link_code}?from=push` : home || base.url;
+  // one line of title: names dropped from the end until it fits, the first always kept
+  while (who.length > 1 && cps(c.named.replace('{c}', who.join(c.and))) > TITLE_MAX) who.pop();
   if (who.length) return { ...base, t: c.named.replace('{c}', who.join(c.and)), b: c.tap, url };
   if (!labels.length) return { ...base, url };
   const many = c.many.replace('{c}', joinLast(labels, c));
