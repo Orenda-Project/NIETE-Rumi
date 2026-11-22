@@ -191,12 +191,13 @@
   // The install card (web_quiz_install_prompt; copy jg.install.*): its slot sits after the shelf, never above the Jugnu
   // card. It fills only once the browser offered the install (beforeinstallprompt), never in the day's first hub view,
   // and not for 7 days after "Not now".
-  // Chrome fires beforeinstallprompt once per page, about 10 ms after `load`, and never again for a listener added later.
-  // The card is wired only once the hub has rendered (after the bot's answer), when the offer has usually come and gone,
-  // so the page head (web-quiz.routes.js BIP_CAPTURE, written with the manifest link) keeps it as window.__wqBip and
-  // install() takes it from there.
+  // Chrome fires beforeinstallprompt once per page and never again for a listener added later. On real phones it comes
+  // after the hub has rendered, which the card's own listener hears; when it comes first (about 10 ms after `load`), the
+  // page head (web-quiz.routes.js BIP_CAPTURE, written with the manifest link) keeps it as window.__wqBip and install()
+  // takes it from there.
   // install_prompt {step, src, reason} is the card's own meter: it rides the event relay's general props, so it is
-  // logged whatever web_quiz_events_v2 says (door_shown{install} below counts only with that switch on).
+  // logged whatever web_quiz_events_v2 says (door_shown{install} below counts only with that switch on). Its hub{reason}
+  // is logged at render, before the offer, so each hub view also logs ONE outcome (outcome() below).
   var DAY_KEY = 'wqp_hv_day';
   var LATER_KEY = 'wqp_inst_later';
   var LATER_MS = 7 * 24 * 60 * 60 * 1000;
@@ -260,6 +261,26 @@
   }
   // Why the card is not showing now (null: it may show).
   function withheld() { return firstView ? 'first_view' : snoozed() ? 'snoozed' : !deferred ? 'no_bip' : tourPending() ? 'tour' : null; }
+  // The view's one outcome, install_prompt{step:'outcome', reason, when}, so hub views partition: decided at render when
+  // it cannot change (app, iab, first_view, snoozed), when the card is drawn (shown; held:'tour' when the tour held it
+  // first), or when the page is hidden: tour (offered, held under the tour), no_slot (offered while the card's slot was
+  // off the page: the child had moved on from the home), no_bip (Chrome never offered).
+  var outcomeSent = false;
+  var heldBy = null;
+  function outcome(reason, when) {
+    if (outcomeSent || !IEV) return;
+    outcomeSent = true;
+    var p = { step: 'outcome', src: WHERE === 'none' ? 'iab' : WHERE || 'browser', reason: reason, when: when };
+    if (reason === 'shown' && heldBy) p.held = heldBy;
+    try { IEV('install_prompt', p); } catch (e) {}
+  }
+  // Hidden (a tap away, the app switcher, closing) comes before pagehide, while the page-session queue still takes
+  // events; it is sent at once so the outcome is not left in it.
+  function onHide() {
+    if (outcomeSent || !IEV) return;
+    outcome(withheld() || (deferred ? 'no_slot' : 'no_bip'), 'hide');
+    try { if (window.WQT && typeof window.WQT.flush === 'function') window.WQT.flush(true); } catch (e) {}
+  }
   // own: this script's listener heard it, so it may still hold Chrome's own banner back for the card (as it always did);
   // the head's store only keeps the event and changes nothing the browser does.
   function adopt(e, own) {
@@ -274,6 +295,7 @@
     if (!box) return;
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
     var why = withheld();
+    if (why === 'tour') heldBy = 'tour';
     if (why === 'tour' && !tourTimer) { tourTimer = true; setTimeout(function () { tourTimer = false; fillInstall(); }, 1000); }
     if (why) { box.innerHTML = ''; return; }
     box.innerHTML = H3
@@ -284,6 +306,7 @@
         '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
         '<button type="button" class="wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>';
     step('card_shown');
+    outcome('shown', heldBy ? 'tour_end' : bipWhen === 'after_render' ? 'offer' : 'render');
     if (!shown.install && door(IB, 'install')) {
       shown.install = true;
       IEV('door_shown', { door: 'install', surface: 'hub', slot: installSlot(IROOT.innerHTML || '') });
@@ -320,7 +343,7 @@
     if (!B || !B.play || !B.play.install) return;
     IB = B; IEV = ev; IROOT = ROOT;
     if (WHERE === null) WHERE = where();
-    if (WHERE === 'app' || WHERE === 'none') { step('hub', WHERE === 'app' ? 'app' : 'iab'); return; }
+    if (WHERE === 'app' || WHERE === 'none') { step('hub', WHERE === 'app' ? 'app' : 'iab'); outcome(WHERE === 'app' ? 'app' : 'iab', 'render'); return; }
     checkDay();
     if (!installWired) {
       installWired = true;
@@ -328,12 +351,15 @@
       // the offer that came before the hub rendered, kept by the head
       try { if (window.__wqBip) adopt(window.__wqBip, false); } catch (e) {}
       step('hub', withheld() || 'ready');
+      if (firstView || snoozed()) outcome(firstView ? 'first_view' : 'snoozed', 'render');
       if (deferred) step('bip_fired', bipWhen);
       try {
         // Our card offers it (when it may show); keep the event for "Add".
         window.addEventListener('beforeinstallprompt', function (e) { adopt(e, true); });
         window.addEventListener('appinstalled', function () { deferred = null; step('installed'); if (door(IB, 'install')) installed(); });
+        window.addEventListener('pagehide', onHide);
       } catch (e) {}
+      try { document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') onHide(); }); } catch (e) {}
     }
     setTimeout(fillInstall, 0);
   }
