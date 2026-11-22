@@ -118,7 +118,14 @@ function spoken(text) {
   // "A) Roots drink water" -> "Roots drink water"; the page shuffles options, so
   // a stored letter can name a different option than the one the child sees.
   out = out.replace(/(^|\s)\(?[A-D]\)\s*/g, '$1');
-  out = out.replace(/\b(answer\s+is\s+)[A-D]\b\.?/gi, '$1');
+  // Capitals only, as the page: "the answer is a root" keeps its article.
+  out = out.replace(/\b([Aa]nswer\s+is\s+|ANSWER\s+IS\s+)[A-D]\b\.?/g, '$1');
+  // The page rewrites a letter after "answer", "option", "choice", «جواب» or «آپشن» to the child's own order (wq.js
+  // letters()); a clip is one recording for every child, so it says no letter there. Capitals only: "the answer a
+  // farmer gives" is an article.
+  out = out.replace(/\s*\b(?:[Oo]ption|[Cc]hoice|OPTION|CHOICE)\s+[A-D](?![A-Za-z])/g, '');
+  out = out.replace(/\s*آپشن\s+[A-D](?![A-Za-z])/g, '');
+  out = out.replace(/(\b[Aa]nswer\s+|جواب\s+)[A-D](?![A-Za-z])\s*/g, '$1');
   out = out.replace(/[*_`#]+/g, '');
   return out.replace(/\s+/g, ' ').trim();
 }
