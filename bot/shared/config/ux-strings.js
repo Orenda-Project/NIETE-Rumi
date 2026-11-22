@@ -4879,18 +4879,18 @@ const STUDENT_TUTOR_STRINGS = {
   },
   studentTeacherOnly: {
     en: 'That one isn’t for students. You can send /video for videos, /quiz for your quizzes, or just ask me a school question.',
-    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے quiz کے لیے ⁦/quiz⁩ بھیجیں، یا سکول کا کوئی سوال پوچھیں۔',
+    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے کوئز کے لیے ⁦/quiz⁩ بھیجیں، یا اسکول کا کوئی سوال پوچھیں۔',
   },
   studentQuizHint: {
     en: 'Your quizzes come from the link your class shares. Ask a school question here, or send /video for videos.',
-    ur: 'آپ کے quiz کلاس کے link سے آتے ہیں۔ یہاں سکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+    ur: 'آپ کے کوئز کلاس کے لنک سے آتے ہیں۔ یہاں اسکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
   },
   studentMenuBody: {
     en: 'What would you like to do?',
     ur: 'کیا کرنا ہے؟',
   },
   studentMenuVideos: { en: '🎬 Videos', ur: '🎬 ویڈیوز' },
-  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 Quiz' },
+  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 کوئز' },
   studentVideosUnavailable: {
     en: 'Videos aren’t available right now — try /video again in a bit.',
     ur: 'ابھی ویڈیوز دستیاب نہیں — تھوڑی دیر بعد ⁦/video⁩ دوبارہ بھیجیں۔',
@@ -4901,7 +4901,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqFlowHeader: { en: '📝 Your quizzes', ur: '📝 آپ کے quiz' },
   sqFlowBody: {
     en: 'Pick a quiz to try it again or see your class card.',
-    ur: 'کوئی quiz چنیں — دوبارہ کریں یا اپنا class card دیکھیں۔',
+    ur: 'کوئی کوئز چنیں — دوبارہ کریں یا اپنا کلاس کارڈ دیکھیں۔',
   },
   sqFlowButton: { en: 'Open', ur: 'کھولیں' },
   sqScreenQuizzes: { en: 'Your quizzes', ur: 'آپ کے quiz' },
@@ -4913,7 +4913,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqActionsLabel: { en: 'What would you like to do?', ur: 'کیا کرنا ہے؟' },
   sqActionRetry: { en: 'Try again', ur: 'دوبارہ کریں' },
   sqActionRetryDesc: { en: 'Take this quiz once more', ur: 'یہ quiz ایک بار پھر کریں' },
-  sqActionCard: { en: 'See my class card', ur: 'میرا class card' },
+  sqActionCard: { en: 'See my class card', ur: 'میرا کلاس کارڈ' },
   sqActionCardDesc: { en: 'Where you stand in the class', ur: 'کلاس میں آپ کہاں ہیں' },
   sqCta: { en: 'Continue', ur: 'آگے بڑھیں' },
   sqClose: { en: 'Close', ur: 'بند کریں' },
@@ -4933,7 +4933,7 @@ const STUDENT_TUTOR_STRINGS = {
   },
   sqFallbackBody: {
     en: 'Your last quiz: *{topic}* — {score}.\nTry it again, or see your class card?',
-    ur: '\u200Fآپ کا آخری quiz: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا class card دیکھیں؟',
+    ur: '\u200Fآپ کا آخری کوئز: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا کلاس کارڈ دیکھیں؟',
   },
   sqCodeExpired: {
     en: 'That quiz link has closed — ask your class for a new one.',
@@ -4943,7 +4943,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqRetryStarting: { en: 'Here it comes again — good luck!', ur: 'لیجیے، دوبارہ شروع — best of luck!' },
   sqNoCardYet: {
     en: 'No class card for that quiz yet — finish it first, and the card comes with the class results.',
-    ur: 'اس quiz کا class card ابھی نہیں — پہلے اسے مکمل کریں، card کلاس کے نتائج کے ساتھ آئے گا۔',
+    ur: 'اس کوئز کا کلاس کارڈ ابھی نہیں — پہلے اسے مکمل کریں، کارڈ کلاس کے نتائج کے ساتھ آئے گا۔',
   },
   // ─── the kid hub (web-quiz-hub.js; app_settings web_quiz_hub): ONE cta_url message ──
   // Read by CHILDREN. Imperatives only; the button ≤ 20 code points.
@@ -5020,7 +5020,7 @@ const STUDENT_TUTOR_STRINGS = {
   // ── end class round invitation ──
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
-    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+    ur: 'آئیں اسکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
   },
 };
 

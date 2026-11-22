@@ -27,6 +27,8 @@
  *   one lesson  (quiz_teacher_home_one_lesson, ?session=<coaching session id>: a Digital Coach report's "Create Quick
  *               Quiz") the top card alone, "Quiz from this lesson", that lesson's "Quiz this" started right after paint;
  *               no list, no library, "See all my lessons" to the plain home (ONE_SWAPS)
+ *               and the same page for a lesson plan, ?lesson=<the /quiz list's lesson key>: its card makes that plan's
+ *               quiz (kind lesson, LESSON_SWAPS); the session wins when both are given
  *
  * The script never builds HTML (createElement + textContent only); the inline CSS and the script are allowed by their
  * sha256 in the Content-Security-Policy (header + <meta>). Audit hooks: data-screen per screen, ONE data-primary per
@@ -372,6 +374,16 @@ function r(v){o.r=v;step('fwd_result',o)}try{navigator.share({text:x.message}).t
 ]);
 const ONE_SCRIPT_FWD = swapped(ONE_SCRIPT, FORWARD_SWAPS, 'a forward part');
 const ONE_SCRIPT_FWD_HASH = sha(ONE_SCRIPT_FWD);
+/**
+ * The same one-lesson page for a lesson PLAN (?lesson=<the /quiz list's key>): its card makes that plan's quiz, the
+ * make() a plan row's "Quiz this" runs (kind 'lesson'). The ?session= scripts above stay byte for byte.
+ */
+const LESSON_SWAPS = Object.freeze([["r={kind:'coach',make:'coaching',id:b.one,title:''}", "r={kind:'lesson',make:'lesson',id:b.one,title:''}"]]);
+const ONE_LESSON_SCRIPT = swapped(ONE_SCRIPT, LESSON_SWAPS, 'the lesson-plan part');
+const ONE_LESSON_SCRIPT_HASH = sha(ONE_LESSON_SCRIPT);
+const ONE_LESSON_SCRIPT_FWD = swapped(ONE_SCRIPT_FWD, LESSON_SWAPS, 'the lesson-plan part');
+const ONE_LESSON_SCRIPT_FWD_HASH = sha(ONE_LESSON_SCRIPT_FWD);
+const LESSON_KEY_RX = /^lsn_[A-Za-z0-9_:.-]{1,200}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Every page the switches can ask for: paged × named × early × counts × grade-fast × portal, each under its own hash.
@@ -438,10 +450,14 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * (a coaching session id, a UUID; anything else is ignored) builds the one-lesson page (ONE_SWAPS) for that lesson.
  * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, forward = false }) {
-  const oneId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, lesson = null, forward = false }) {
+  const sessionId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
+  const lessonKey = !sessionId && typeof lesson === 'string' && LESSON_KEY_RX.test(lesson) ? lesson : null;
+  const oneId = sessionId || lessonKey;
   const fwd = forward === true;
-  const oneScript = fwd ? { text: ONE_SCRIPT_FWD, hash: ONE_SCRIPT_FWD_HASH } : { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH };
+  const oneScript = lessonKey
+    ? (fwd ? { text: ONE_LESSON_SCRIPT_FWD, hash: ONE_LESSON_SCRIPT_FWD_HASH } : { text: ONE_LESSON_SCRIPT, hash: ONE_LESSON_SCRIPT_HASH })
+    : (fwd ? { text: ONE_SCRIPT_FWD, hash: ONE_SCRIPT_FWD_HASH } : { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH });
   const { text: script, hash: scriptHash } = oneId ? oneScript : SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}|${fwd}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
@@ -454,7 +470,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
   if (oneId) ONE_IDS.forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
-    ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${oneId ? `&amp;session=${oneId}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
+    ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${sessionId ? `&amp;session=${sessionId}` : lessonKey ? `&amp;lesson=${encodeURIComponent(lessonKey)}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
   const chips = [1, 2, 3, 4, 5].map((g) => `<button type="button" class="th-chip" data-grade="${g}" data-tap="grade" aria-pressed="false" aria-label="${esc(str('th.grade.n', l).replace('{n}', digits(g, l)))}">${esc(digits(g, l))}</button>`).join('');
   const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s, ...(oneId ? { one: oneId } : {}) };
@@ -513,5 +529,5 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 module.exports = {
   buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
   FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
-  ONE_SCRIPT, ONE_SCRIPT_HASH, ONE_SCRIPT_FWD, FORWARD_SWAPS,
+  ONE_SCRIPT, ONE_SCRIPT_HASH, ONE_SCRIPT_FWD, FORWARD_SWAPS, ONE_LESSON_SCRIPT, ONE_LESSON_SCRIPT_FWD,
 };
