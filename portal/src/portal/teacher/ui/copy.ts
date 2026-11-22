@@ -52,6 +52,9 @@ export interface TeacherUiCopy {
   sameAsBefore: string;
   upBy: (n?: string | number) => string;
   downBy: (n?: string | number) => string;
+  /** Home's dense change pill, the words drawn after the arrow ("▲ 5 more"). */
+  moreBy: (n?: string | number) => string;
+  lessBy: (n?: string | number) => string;
   noValue: string;
   progress: string;
   done: string;
@@ -227,6 +230,8 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   sameAsBefore: 'same as before',
   upBy: (n = '') => `up ${n}`.trim(),
   downBy: (n = '') => `down ${n}`.trim(),
+  moreBy: (n = '') => `${n} more`.trim(),
+  lessBy: (n = '') => `${n} less`.trim(),
   noValue: '—',
   /** ProgressSteps. */
   progress: 'Progress',
@@ -369,6 +374,8 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   sameAsBefore: 'پہلے جیسا',
   upBy: (n = '') => `${n} زیادہ`.trim(),
   downBy: (n = '') => `${n} کم`.trim(),
+  moreBy: (n = '') => `${n} زیادہ`.trim(),
+  lessBy: (n = '') => `${n} کم`.trim(),
   noValue: '—',
   progress: 'پیش رفت',
   done: 'مکمل',
