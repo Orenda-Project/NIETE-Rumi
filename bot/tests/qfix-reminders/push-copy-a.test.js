@@ -68,13 +68,16 @@ describe('payloadFor: take A', () => {
   test('no class and no hub: the quiz link is the last fallback', () => {
     expect(Push.payloadFor(row('en'), {}).url).toBe('/q/ABC123?from=push');
   });
-  test('names (policy switch): "<names>: quiz time!"', () => {
-    expect(Push.payloadFor(row('en'), { names: ['Areeba', 'Hamza'], rounds: [R3] }).t).toBe('Areeba, Hamza: quiz time!');
-    expect(Push.payloadFor(row('ur'), { names: ['اریبہ', 'حمزہ'], rounds: [R3] }).t).toBe('اریبہ، حمزہ: کوئز تیار ہے');
+  test('names (policy switch): "<names>: quiz time!" (with a round, its waiting children; else the phone\'s)', () => {
+    const kids = [{ student_id: KID1, first: 'Areeba', first_ur: 'اریبہ' }, { student_id: KID2, first: 'Hamza', first_ur: 'حمزہ' }];
+    expect(Push.payloadFor(row('en'), { rounds: [{ ...R3, kids }] }).t).toBe('Areeba, Hamza: quiz time!');
+    expect(Push.payloadFor(row('ur'), { rounds: [{ ...R3, kids }] }).t).toBe('اریبہ، حمزہ: کوئز تیار ہے');
+    expect(Push.payloadFor(row('en'), { names: ['Areeba', 'Hamza'] }).t).toBe('Areeba, Hamza: quiz time!');
   });
   test('every title fits 60 code points', () => {
     for (const lang of ['en', 'ur']) {
-      for (const opt of [{ rounds: [R3] }, { rounds: [R3, R5] }, {}, { names: ['Areeba', 'Hamza', 'Zainab'] }]) {
+      const kids = ['Areeba', 'Hamza', 'Zainab'].map((first, i) => ({ student_id: `k${i}`, first, first_ur: first }));
+      for (const opt of [{ rounds: [R3] }, { rounds: [R3, R5] }, {}, { names: ['Areeba', 'Hamza', 'Zainab'] }, { rounds: [{ ...R3, kids }] }]) {
         expect(cp(Push.payloadFor(row(lang), opt).t)).toBeLessThanOrEqual(60);
       }
     }
