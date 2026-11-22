@@ -730,10 +730,14 @@ const tieOf = (seed, q) => crypto.createHash('sha256').update(`er-tie|${seed}|${
  * picks like the id. `seed` (the sitting's, web-quiz-order-seed seedOf(session id)): among items missed by as many
  * children, the pick is the sitting's own, so two siblings who missed the same originals can get different rewrites
  * and a resume gets the same ones; the picks keep the round's order. No seed: the stored rank order.
+ * `skip` (a Set of row ids, web-quiz-evening-round-seen): lesson items this child answered RIGHT earlier today, left
+ * out for the next lesson items; none left -> a shorter set, never padded with one of them. Only a set that would be
+ * empty keeps them (the page cannot play nothing: an empty order is the whole pool to wq.js).
  */
-function selectRoundItems(questions, { studentId = null, k = null, seed = null } = {}) {
+function selectRoundItems(questions, { studentId = null, k = null, seed = null, skip = null } = {}) {
   if (!Array.isArray(questions) || !questions.some(roundOf)) return questions;
-  const lesson = questions.filter((q) => roundOf(q) === 'lesson').sort((a, b) => sortOf(a) - sortOf(b)).slice(0, LESSON_ITEMS);
+  const lessonAll = questions.filter((q) => roundOf(q) === 'lesson').sort((a, b) => sortOf(a) - sortOf(b));
+  let lesson = (skip && skip.size ? lessonAll.filter((q) => !skip.has(q.id)) : lessonAll).slice(0, LESSON_ITEMS);
   const byRank = (a, b) => rankOf(a) - rankOf(b);
   const pool = questions.filter((q) => roundOf(q) === 'recall').sort(byRank);
   const missed = (q) => {
@@ -744,6 +748,7 @@ function selectRoundItems(questions, { studentId = null, k = null, seed = null }
   const seeded = (list) => (seed == null ? list : [...list].sort((a, b) => (missCount(b) - missCount(a)) || (tieOf(seed, a) - tieOf(seed, b))));
   const mine = pool.filter(missed);
   const chosen = [...seeded(mine), ...seeded(pool.filter((q) => !mine.includes(q)))].slice(0, RECALL_ITEMS);
+  if (!lesson.length && !chosen.length) lesson = lessonAll.slice(0, LESSON_ITEMS);
   return [...lesson, ...(seed == null ? chosen : chosen.sort(byRank))];
 }
 
