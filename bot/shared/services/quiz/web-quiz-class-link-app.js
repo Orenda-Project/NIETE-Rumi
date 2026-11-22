@@ -29,14 +29,6 @@ const Flags = require('./web-quiz-class-link-flags');
 
 const IN_CHUNK = 200;
 const FALLBACK_TOPIC = 'Lesson'; // the round writer's topic when its lesson has none (web-quiz-evening-round.js writeOne)
-const sentKey = (classId, termCode) => `wq:cl:app:sent:${classId}:${termCode}`;
-
-const redisUp = () => {
-  try {
-    const r = require('../cache/railway-redis.service');
-    return r && typeof r.isAvailable === 'function' && r.isAvailable() ? r : null;
-  } catch (_) { return null; }
-};
 
 /**
  * The canary scope's helper, when this build has it. Absent (not deployed yet) → no restriction. Its answer must be
@@ -96,20 +88,6 @@ async function teacherClasses(teacherId) {
   return kept.sort((a, b) => (gradeOf(a.grade_code) - gradeOf(b.grade_code)) || String(a.section || '').localeCompare(String(b.section || '')));
 }
 
-async function wasSent(classId, termCode) {
-  const r = redisUp();
-  if (!r) return false;
-  try { return Boolean(await r.get(sentKey(classId, termCode))); } catch (_) { return false; }
-}
-
-async function markSent(classId, now = new Date()) {
-  const r = redisUp();
-  if (!r) return;
-  const term = CL.termOf(now);
-  const ttl = Math.max(60, Math.floor((new Date(term.expires_at).getTime() - now.getTime()) / 1000));
-  try { await r.set(sentKey(classId, term.term_code), { at: now.getTime() }, ttl); } catch (_) { /* the card stays open */ }
-}
-
 /** Tonight's READY rounds of these classes: classId -> {lesson, played}. {} while the evening round is off. */
 async function roundsTonight(classIds, now) {
   const out = new Map();
@@ -147,7 +125,7 @@ async function forApp(teacherId, { now = new Date() } = {}) {
     cards.push({
       classId: cls.id, grade: gradeOf(cls.grade_code), section: sectionOf(cls.section), url, sendHref: sendHrefOf(url),
       // eslint-disable-next-line no-await-in-loop
-      sent: await wasSent(cls.id, m.term_code), round: null,
+      sent: await CL.wasSent(cls.id, m.term_code), round: null,
     });
   }
   let rounds = new Map();
@@ -161,7 +139,7 @@ async function forApp(teacherId, { now = new Date() } = {}) {
   return { classes: cards, reportHref };
 }
 
-async function tap({ teacherId, classId, how = 'forward', now = new Date() } = {}) {
+async function tap({ teacherId, classId, how = 'forward' } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
   const { data: cls } = await supabase.from('classes').select('id, school_id').eq('id', classId).eq('is_active', true).maybeSingle();
   if (!cls || !(await inCanary(cls))) return null;
@@ -169,8 +147,8 @@ async function tap({ teacherId, classId, how = 'forward', now = new Date() } = {
   // The Copy's own answer is the report's class tab address; the app copied the link itself, so only the log counts.
   const href = await CL.forwardHref({ teacherId, classId, how: copy ? 'copy' : 'forward', reportBase: copy ? '/r' : null });
   if (!href) return null;
-  await markSent(classId, now);
+  // forwardHref remembers the class as sent this term (the same for the report's class tab), which folds this card.
   return copy ? { ok: true } : { ok: true, href };
 }
 
-module.exports = { forApp, tap, sentKey, _sendHrefOf: sendHrefOf };
+module.exports = { forApp, tap, sentKey: CL.sentKey, _sendHrefOf: sendHrefOf };
