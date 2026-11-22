@@ -268,3 +268,29 @@ Feature: Teacher lesson plans
     When she opens a plan
     Then the viewer shows "Can't show it here" with Open in another app
     And the portal logs one lp_viewer.failed with the step, the lane and the file's size, and no plan name
+
+  # bd-96f69c.16 (21 Nov, promoted to staging): any plan on the 6-12 lane carries the bar, asked by its render id. A GB
+  # grades 1-5 plan opens on that lane too, so it gets the bar (GB scenario from sandbox's bd-m8zwt1.16 block).
+  # Pinned by ViewerPage.feedback.test.tsx.
+  @LPBAR03 @draft @config-gated
+  Scenario: Teacher app v2: a GB plan ends with the survey bar, grades 3 or grades 7
+    Given the survey bar is on for a GB teacher
+    When she opens a grades 3 plan and reaches its end
+    Then "This plan · Useful · Not useful" is drawn
+    And a grades 7 plan ends with the same survey bar
+
+  # bd-96f69c.16 (21 Nov): the survey bar on grades 6-12 plans, asked per render (kind g612). Opening one tells the bot the
+  # survey is in the app, so it sends no WhatsApp survey for that open. Pinned by ViewerPage.feedback.test.tsx,
+  # lessonPlansApi.test.ts, own/ChangePage.test.tsx (portal) and tests/portal/lp-feedback-bar-open-survey.test.js.
+  @LPBAR05 @draft @config-gated
+  Scenario: Teacher app v2: a grades 6-12 plan ends with the survey bar, and no WhatsApp survey follows the open
+    Given the teacher app v2 is on and the survey bar is on for an ICT grades 9 teacher
+    When she opens one of her grades 9 lesson plans and reaches its end
+    Then "This plan · Useful · Not useful" is drawn, asked for this plan's render
+    And her open is recorded as surveyed in the app, so the bot sends her no WhatsApp survey for it
+
+  @LPBAR06 @draft @config-gated @negative
+  Scenario: Teacher app v2: a grades 6-12 shelf plan or her own made plan shows no survey bar
+    Given the survey bar is on for an ICT grades 9 teacher
+    When she opens another teacher's plan from the shelf, or a plan she made herself
+    Then no survey bar is drawn, and nothing is asked of the survey

@@ -79,7 +79,7 @@ export type OpenResult =
 export type OwnPlanInfo = { changesLeft: number; band: 'k5' | 'g612' };
 
 export type PrepareStatus =
-  | { state: 'ready'; source: LessonPlanSource; own?: OwnPlanInfo }
+  | { state: 'ready'; source: LessonPlanSource; own?: OwnPlanInfo; shelf?: true }
   | { state: 'preparing' }
   | { state: 'failed' };
 
@@ -279,7 +279,8 @@ export function createLessonPlansApi() {
       if (data?.state === 'ready') {
         const own = typeof data.changesLeft === 'number' && (data.ownBand === 'k5' || data.ownBand === 'g612')
           ? { own: { changesLeft: data.changesLeft as number, band: data.ownBand as OwnPlanInfo['band'] } } : {};
-        return { state: 'ready', source: { lane: 'g612', renderId }, ...own };
+        // bd-96f69c.16 — another teacher's shelf plan: the plan page draws no survey bar for it.
+        return { state: 'ready', source: { lane: 'g612', renderId }, ...own, ...(data.shelf === true ? { shelf: true as const } : {}) };
       }
       if (data?.state === 'failed') return { state: 'failed' };
       return { state: 'preparing' };
