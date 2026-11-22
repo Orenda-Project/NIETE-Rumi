@@ -81,7 +81,7 @@ export type OwnPlanInfo = { changesLeft: number; band: 'k5' | 'g612' };
 export type PrepareStatus =
   | { state: 'ready'; source: LessonPlanSource; own?: OwnPlanInfo; shelf?: true }
   | { state: 'preparing' }
-  | { state: 'failed' };
+  | { state: 'failed'; reason?: 'goal_unsure' };
 
 /** The language a 6–12 plan is asked for in — English, as the Curriculum page always asked. */
 const LANG_612 = 'en';
@@ -282,7 +282,8 @@ export function createLessonPlansApi() {
         // bd-96f69c.16 — another teacher's shelf plan: the plan page draws no survey bar for it.
         return { state: 'ready', source: { lane: 'g612', renderId }, ...own, ...(data.shelf === true ? { shelf: true as const } : {}) };
       }
-      if (data?.state === 'failed') return { state: 'failed' };
+      // bd-snkn32.58.3 — a goal plan the check refused (facts or goal): the page offers another goal, not Try again.
+      if (data?.state === 'failed') return data.errorCode === 'OWN_GOAL_UNSURE' ? { state: 'failed', reason: 'goal_unsure' } : { state: 'failed' };
       return { state: 'preparing' };
     } catch (err) {
       // No such request (or not hers): nothing will ever open. Anything else, ask again.

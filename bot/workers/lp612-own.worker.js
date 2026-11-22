@@ -36,6 +36,9 @@ const { buildEditInstruction } = require('../shared/services/lp-own-edit-instruc
 const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edit-guard');
 const Extend = require('../shared/services/lp612-own-extend');
 const { finishOwnDoc } = require('../shared/services/lp612-own-close');
+const { addK5Close } = require('../shared/services/lp-k5-own-close');
+const { goalGate } = require('../shared/services/lp-own-goal-check');
+const { goalDay } = require('../shared/services/lp-own-unit-day');
 
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
 const PARENT_WAIT_MS = 12 * 60 * 1000;
@@ -114,27 +117,33 @@ function createOwnWorker(deps) {
 
   /** bd-snkn32.4 — a grades 1–5 day. Throws stop(...) on every failure, like the 6-12 path. */
   async function processK5(row, correlationId, startFrom) {
-    const day = await d.loadK5(row.lesson_id);
+    const day = row.lesson_id ? await d.loadK5(row.lesson_id) : goalDay(row); // bd-snkn32.59.4: a goal unit day has no book day
     if (!day) throw stop('NO_PARENT', 'the day has no stored plan to start from');
     const script = startFrom || day.script; // bd-snkn32.15: a change rewrites her latest plan; the day gives its meta
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
     const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
+    const noBook = !!(row.answers && row.answers.goal); // bd-snkn32.57: a goal start reads no book text, prints no pages
     const pg = (row.answers && row.answers.pages) || day.pages || {};
-    const bookText = await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
-    const out = await d.rewriteK5({
-      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, bookText, correlationId,
-    });
+    const bookText = noBook ? null : await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
+    const ask = { script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: noBook ? null : day.pages || null, bookText, correlationId };
+    const out = await d.rewriteK5(ask);
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
+    // bd-snkn32.58.3 — a goal plan: the official goal at the top, checked (facts + goal) before she sees it, one fix.
+    if (noBook && !row.parent_own_id && d.goalCheck) {
+      out.script = await goalGate(d, { row, band: 'k5', doc: out.script, grade: day.grade, correlationId,
+        rewrite: async (s, edit) => { const r = await d.rewriteK5({ ...ask, script: s, edit }); return r && r.script ? r.script : null; } });
+    }
+    out.script = addK5Close(out.script, day.lang); // bd-snkn32.52 — "Before they write", after the gate, always
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: (row.answers && row.answers.pages) || day.pages || null });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: noBook ? null : (row.answers && row.answers.pages) || day.pages || null });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
     const hash = require('crypto').createHash('sha256')
       .update(JSON.stringify({ a: row.answers, s: out.script, e: row.edit_request || undefined })).digest('hex').slice(0, 16);
-    const base = `lp612/own-k5/${day.lang}/${row.lesson_id}/${hash}`;
+    const base = `lp612/own-k5/${day.lang}/${row.lesson_id || day.key}/${hash}`;
     const pdfKey = keys().assertKeyInPrefix(`${base}.pdf`);
     await d.upload(pdf, pdfKey, 'application/pdf');
     try {
@@ -169,7 +178,7 @@ function createOwnWorker(deps) {
   async function make(row, ownId, correlationId) {
     try {
       const base = row.parent_own_id ? await changeBase(row) : null;
-      if (row.lesson_id) { await processK5(row, correlationId, base); return true; }
+      if (row.lesson_id || goalDay(row)) { await processK5(row, correlationId, base); return true; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
@@ -179,7 +188,9 @@ function createOwnWorker(deps) {
 
       const own = row.parent_own_id ? buildEditInstruction(row.edit_request) // bd-snkn32.15: her one change
         : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id, subject: segment.subject,
-          bookText: await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
+          // bd-snkn32.56 — a goal start: her class has no book, so no book text is read for it.
+          bookText: row.answers && row.answers.goal ? null
+            : await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
       const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
       const { instruction } = joined;
       const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
@@ -187,7 +198,11 @@ function createOwnWorker(deps) {
       const lost = require('../shared/services/lp612-own-grr').droppedGrr(parent, out.lpDoc); // GRR stays
       if (lost.length) throw stop('GRR_DROPPED', `the rewrite dropped ${lost.join(', ')}`);
 
-      const lpDoc = finishOwnDoc(out.lpDoc, segment, (m, x) => d.log(m, { ownId, ...x, correlationId })); // bd-snkn32.48
+      const goalDoc = row.answers && row.answers.goal && !row.parent_own_id && d.goalCheck // bd-snkn32.58.3, as grades 1–5
+        ? await goalGate(d, { row, band: 'g612', doc: out.lpDoc, grade: segment.grade, correlationId,
+          rewrite: async (doc, fix) => { const r = await d.revise({ doc, instruction: fix, segment: joined.segment, lang: row.lang, correlationId }); return r && r.accepted ? r.lpDoc : null; } })
+        : out.lpDoc;
+      const lpDoc = finishOwnDoc(goalDoc, segment, (m, x) => d.log(m, { ownId, ...x, correlationId })); // bd-snkn32.48
       const pdf = await renderPdf(lpDoc, row, correlationId);
 
       const K = keys();
@@ -286,6 +301,8 @@ function liveDeps() {
     now: () => Date.now(),
     log: (msg, meta) => logToFile(msg, meta),
     review: (id, correlationId) => require('../shared/services/lp612-own-reviewer').review(id, correlationId),
+    goalCheck: (args) => require('../shared/services/lp612-own-accuracy').checkGoalPlan(require('../shared/services/llm-client').getClient(),
+      require('../shared/config/model-registry').modelFor(require('../shared/services/lp612-own-accuracy').ACCURACY_JOB), args),
   };
 }
 

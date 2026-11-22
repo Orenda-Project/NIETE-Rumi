@@ -45,7 +45,14 @@ export type LessonsAt = {
   title?: string;
   /** `dc`: Digital Coaching's From the library (bd-fgj73x.5): the pages CHOOSE a plan for her lesson. */
   pick?: string;
+  /** bd-snkn32.58.3 — `goal`: a goal plan, checked against her goal before it is shown (Preparing says so). */
+  check?: string;
+  /** bd-m8zwt1.8 — her OWN plan: the address of her own answers (check screen), where Try again takes her. */
+  back?: string;
 };
+
+/** Only an address inside Make my own is kept as `back`: never another page or site. */
+const ownBack = (v: string | null) => (v && v.startsWith(`${LESSONS_OWN}?`) ? v : null);
 
 export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   const q = new URLSearchParams({ grade: String(at.grade), subject: at.subject });
@@ -55,6 +62,8 @@ export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   if (at.render) q.set('render', at.render);
   if (at.title) q.set('title', at.title);
   if (at.pick) q.set('pick', at.pick);
+  if (at.check) q.set('check', at.check);
+  if (ownBack(at.back ?? null)) q.set('back', at.back as string);
   return `${LESSONS_HOME}/${view}?${q.toString()}`;
 }
 
@@ -65,10 +74,12 @@ export function readAt(search: string): LessonsAt | null {
   const subject = q.get('subject');
   if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject) return null;
   const at: LessonsAt = { grade, subject };
-  for (const k of ['key', 'chapter', 'lesson', 'render', 'title', 'pick'] as const) {
+  for (const k of ['key', 'chapter', 'lesson', 'render', 'title', 'pick', 'check'] as const) {
     const v = q.get(k);
     if (v) at[k] = v;
   }
+  const back = ownBack(q.get('back'));
+  if (back) at.back = back;
   return at;
 }
 

@@ -281,11 +281,34 @@ describe('Make my own, grades 1–5 (bd-snkn32.4)', () => {
     fireEvent.click(day2);
     await waitFor(() => expect(where()).toContain('seg=g4m2'));
 
-    at(`${LESSONS_OWN}?grade=4&subject=math&chapter=1&step=check&seg=g4m2&size=over70&level=behind&way=tarl`);
+    at(`${LESSONS_OWN}?grade=4&subject=math&chapter=1&step=check&seg=g4m2&size=over70&level=behind&way=tarl&purpose=reteach`);
     fireEvent.click(await screen.findAllByTestId('own-make').then((b) => b[b.length - 1]));
     await waitFor(() => expect(http.post).toHaveBeenCalledWith('/lp612/own', {
       lesson_id: 'g4m2',
-      answers: { size: 'over70', resources: ['textbook'], level: 'behind', way: 'tarl', note: '' },
+      answers: { size: 'over70', resources: ['textbook'], level: 'behind', way: 'tarl', note: '', purpose: 'reteach' },
     }));
+  });
+
+  it('bd-snkn32.63 — after the day: what is this lesson for? Three choices, Teach new picked, never board exam', async () => {
+    at(`${LESSONS_OWN}?grade=4&subject=math&chapter=1&seg=g4m2`);
+    await screen.findByTestId('own-pg-from');
+    await waitFor(() => expect(screen.getByTestId('own-ok')).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId('own-ok'));
+    await waitFor(() => expect(where()).toContain('step=purpose'));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(C.purpose);
+    expect((await screen.findByTestId('own-opt-new')).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('own-opt-revise').textContent).toContain(C.purposeHintsK5.revise);
+    expect(screen.getByTestId('own-opt-reteach')).toBeTruthy();
+    expect(screen.queryByTestId('own-opt-board')).toBeNull();
+    fireEvent.click(screen.getByTestId('own-opt-revise'));
+    await waitFor(() => expect(where()).toContain('purpose=revise'));
+    fireEvent.click(screen.getByTestId('own-ok'));
+    await waitFor(() => expect(where()).toContain('step=size'));
+  });
+
+  it('bd-snkn32.63 — a forged purpose=board on a 1–5 address is dropped, so Make my plan waits for a real one', async () => {
+    at(`${LESSONS_OWN}?grade=4&subject=math&chapter=1&step=check&seg=g4m2&size=over70&level=behind&way=tarl&purpose=board`);
+    const make = await screen.findAllByTestId('own-make').then((b) => b[b.length - 1]);
+    expect(make).toBeDisabled();
   });
 });

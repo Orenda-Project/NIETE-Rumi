@@ -35,6 +35,12 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_DWELL_MS = 6 * 60 * 60 * 1000;
 const HOW = new Set(['nav', 'hidden', 'pagehide']);
 const KINDS = { view: 'app_funnel.page_view', leave: 'app_funnel.page_leave', resume: 'app_funnel.page_resume' };
+// bd-snkn32.51 (queue #134 A) — "Make my own" asks one question per screen on ONE route (the step is in the query, which
+// page rows drop), so each screen reports itself: own_form.step, entered / left. Codes from these lists only.
+const OWN_ROUTE = '/portal/teacher/lessons/own';
+const OWN_STEPS = new Set(['pages', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check']);
+const OWN_PHASES = new Set(['enter', 'leave']);
+const OWN_BANDS = new Set(['k5', 'g612']);
 
 function emit(event, props) {
   try { telemetry.logEvent(event, props); } catch (_) { /* logging never decides the response */ }
@@ -121,8 +127,32 @@ const clampInt = (v, max) => {
   return Math.min(Math.floor(n), max);
 };
 
+/** A form screen of "Make my own" → ['own_form.step', props], or null. Grade, subject, band: a code or null. */
+function toStepRow(ev, browser, base, now) {
+  if (normaliseRoute(ev.r) !== OWN_ROUTE || !OWN_STEPS.has(ev.s) || !OWN_PHASES.has(ev.ph)) return null;
+  const grade = Number.isInteger(ev.g) && ev.g >= 1 && ev.g <= 12 ? ev.g : null;
+  const props = {
+    _time: new Date(now - clampInt(ev.age, MAX_AGE_MS)).toISOString(),
+    ...base,
+    route: OWN_ROUTE,
+    feature: 'lesson_plan',
+    browser,
+    step: ev.s,
+    phase: ev.ph,
+    grade,
+    subject: typeof ev.sub === 'string' && /^[a-z][a-z0-9_-]{0,31}$/.test(ev.sub) ? ev.sub : null,
+    band: OWN_BANDS.has(ev.bd) ? ev.bd : null,
+  };
+  if (ev.ph === 'leave') {
+    props.dwellMs = clampInt(ev.d, MAX_DWELL_MS);
+    props.how = HOW.has(ev.why) ? ev.why : 'unknown';
+  }
+  return ['own_form.step', props];
+}
+
 /** One reported event → [eventName, props], or null when it is not something we log. */
 function toRow(ev, browser, base, now) {
+  if (ev && typeof ev === 'object' && ev.k === 'step') return toStepRow(ev, browser, base, now);
   if (!ev || typeof ev !== 'object' || typeof ev.k !== 'string' || !Object.prototype.hasOwnProperty.call(KINDS, ev.k)) return null;
   const route = normaliseRoute(ev.r);
   if (!route) return null;

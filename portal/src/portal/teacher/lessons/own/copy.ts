@@ -75,6 +75,7 @@ export const OWN_COPY = {
   purposeLabel: 'Lesson for',
   purposes: { new: 'Teach new', revise: 'Revise', board: 'Board exam practice', reteach: 'Re-teach' },
   purposeHints: { revise: 'Go over it before a test', reteach: "They didn't get it the first time" },
+  purposeHintsK5: { revise: 'Practise what they already learned', reteach: "They didn't get it the first time" },
   purposeBoardFde: 'Exam practice (FDE)',
   focus: 'Which outcomes first?',
   focusLabel: 'Outcomes first',
@@ -200,6 +201,8 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   purposeLabel: 'سبق کا مقصد',
   purposes: { new: 'نیا پڑھائیں', revise: 'دہرائی', board: 'بورڈ امتحان کی تیاری', reteach: 'دوبارہ پڑھائیں' },
   purposeHints: { revise: 'ٹیسٹ سے پہلے دہرائی', reteach: 'پہلی بار سمجھ نہیں آیا' },
+  // bd-snkn32.63 — machine-drafted: needs a human read.
+  purposeHintsK5: { revise: 'جو سیکھ چکے اس کی مشق', reteach: 'پہلی بار سمجھ نہیں آیا' },
   purposeBoardFde: 'امتحان کی تیاری (FDE)',
   focus: 'پہلے کون سے نتائج؟',
   focusLabel: 'پہلے نتائج',
@@ -281,7 +284,7 @@ export const OWN_COPY_ENTRY: CopyEntry = {
     'changeThisPlan', 'changeTitle', 'whichPart', 'whatToChange', 'changeHint', 'changeMyPlan', 'usedBoth', 'refusals',
     // the unified flow: questions, hints, guardrail lines and the book's states are sentences; a resource
     // or way named for a subject classroom, and a label carrying its method in brackets, run past four words.
-    'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'pickHint', 'levelHints',
+    'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'purposeHintsK5', 'pickHint', 'levelHints',
     'purposeBoardFde', 'foci', 'whichLesson', 'pagesOneHint', 'badPages612', 'addNextLesson', 'bothHow', 'fromYourBook',
     'pageMissing', 'bookNotLoaded', 'picturesPending', 'changeSection', 'lessonPlanFive', 'sizeSecondary',
     'myPlans', 'changesLeft',

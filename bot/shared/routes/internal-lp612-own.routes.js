@@ -23,7 +23,7 @@ const HTTP = { bad_request: 400, held: 403, not_found: 404 };
 const REFUSED = new Set(['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit', 'grr', 'rote']);
 
 function answer(res, out) {
-  if (out.outcome === 'queued') return res.status(202).json({ success: true, state: 'authoring', renderId: out.ownId });
+  if (out.outcome === 'queued') return res.status(202).json({ success: true, state: 'authoring', renderId: out.ownId, ...(out.noteDropped ? { noteDropped: true } : {}) });
   if (REFUSED.has(out.outcome)) return res.status(409).json({ success: false, outcome: out.outcome, error: out.outcome });
   return res.status(HTTP[out.outcome] || 500).json({ success: false, error: out.error || out.outcome });
 }

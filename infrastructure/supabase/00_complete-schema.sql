@@ -4288,7 +4288,7 @@ CREATE OR REPLACE FUNCTION public.teacher_activity_batch(p_user_ids uuid[])
          jsonb_build_object(
            'plans_opened', jsonb_build_object('now', plans.now_n, 'prev', plans.prev_n),
            'taught', jsonb_build_object('now', taught.now_n, 'prev', taught.prev_n),
-           'coached', jsonb_build_object('now', coached.now_n, 'prev', coached.prev_n),
+           'coached', jsonb_build_object('now', listed.now_n, 'prev', listed.prev_n),
            'quizzes', jsonb_build_object('now', quizzes.now_n, 'prev', quizzes.prev_n),
            'exams', jsonb_build_object('now', exams.now_n, 'prev', exams.prev_n)),
          coalesce(steps.list, '[]'::jsonb),
@@ -4347,6 +4347,17 @@ CREATE OR REPLACE FUNCTION public.teacher_activity_batch(p_user_ids uuid[])
         FROM coaching_sessions c
        WHERE c.user_id = t.uid AND c.status = 'completed' AND c.observation_type IS NULL AND c.completed_at >= w.prev_from
     ) coached ON true
+    -- the Coached tile counts what the list it opens shows ("All DC observations", teacher-coaching.service
+    -- HISTORY_SQL): every lesson she sent that was not stopped, by created_at (bd-96f69c.11). Steps above keep the
+    -- completed rule.
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE c.created_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE c.created_at < w.now_from) AS prev_n
+        FROM coaching_sessions c
+       WHERE c.user_id = t.uid AND c.observation_type IS NULL AND c.created_at >= w.prev_from
+         AND (c.status NOT IN ('failed', 'cancelled', 'abandoned') OR (c.status = 'cancelled' AND c.failed_step = 'not_a_class_no_answer'))
+         AND c.status NOT IN ('initiated', 'pending')
+    ) listed ON true
     LEFT JOIN LATERAL (
       SELECT count(*) FILTER (WHERE q.created_at >= w.now_from) AS now_n,
              count(*) FILTER (WHERE q.created_at < w.now_from) AS prev_n,
@@ -5767,6 +5778,37 @@ CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
 CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
   ON niete_gb_lp_renders (status, started_at) WHERE status = 'authoring';
 
+-- V1.10.8 (bd-snkn32.59): Make my own, a whole unit: her day-by-day outline; no plan bodies (day plans are
+-- niete_lp612_own_plans rows with answers.unit). Asked first per docs/lesson-plan-data-model-debt.md.
+CREATE TABLE IF NOT EXISTS niete_lp_own_units (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES users(id),
+  class_id         UUID REFERENCES classes(id),
+  book_stem        TEXT,
+  grade            SMALLINT NOT NULL CHECK (grade BETWEEN 1 AND 12),
+  subject          TEXT NOT NULL,
+  start_kind       TEXT NOT NULL CHECK (start_kind IN ('book', 'goals')),
+  chapter_from     SMALLINT,
+  chapter_to       SMALLINT,
+  goals            TEXT[],
+  period_minutes   SMALLINT NOT NULL CHECK (period_minutes BETWEEN 20 AND 90),
+  pace             TEXT NOT NULL CHECK (pace IN ('recommended', 'slower', 'faster')),
+  outline          JSONB NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'archived')),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at       TIMESTAMPTZ,
+  CONSTRAINT niete_lp_own_units_book_range CHECK (start_kind <> 'book' OR (chapter_from IS NOT NULL AND chapter_to >= chapter_from)),
+  -- V1.10.9 (bd-snkn32.59.4): a goal unit is her goals' words with no book; a book unit names its book.
+  CONSTRAINT niete_lp_own_units_goals CHECK (start_kind <> 'goals' OR (cardinality(goals) BETWEEN 2 AND 8 AND book_stem IS NULL AND chapter_from IS NULL)),
+  CONSTRAINT niete_lp_own_units_book CHECK (start_kind <> 'book' OR book_stem IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp_own_units_user
+  ON niete_lp_own_units (user_id, updated_at DESC);
+
+ALTER TABLE niete_lp_own_units ENABLE ROW LEVEL SECURITY;
+
 -- V1.9.6 (bd-snkn32): Make my own lesson plans, a teacher's fork of a 6-12 plan.
 CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5804,11 +5846,23 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   library_decided_by UUID REFERENCES users(id),
   library_decided_at TIMESTAMPTZ,
   library_reject_reason TEXT,
+  -- V1.10.3: her own rating of her own plan (bd-snkn32.11)
+  teacher_rating    SMALLINT CONSTRAINT niete_lp612_own_plans_teacher_rating_range
+                      CHECK (teacher_rating IS NULL OR teacher_rating BETWEEN 1 AND 5),
+  teacher_confusing TEXT,
+  teacher_rated_at  TIMESTAMPTZ,
+  CONSTRAINT niete_lp612_own_plans_teacher_confusing CHECK (
+    teacher_confusing IS NULL OR (teacher_rating IS NOT NULL AND char_length(teacher_confusing) <= 300)
+  ),
+  CONSTRAINT niete_lp612_own_plans_teacher_rated_when CHECK ((teacher_rating IS NULL) = (teacher_rated_at IS NULL)),
   CONSTRAINT niete_lp612_own_plans_library_decision_who CHECK (
     (library_decision IS NULL) = (library_decided_at IS NULL) AND (library_decision IS NULL) = (library_decided_by IS NULL)
   ),
   CONSTRAINT niete_lp612_own_plans_library_reason CHECK (library_reject_reason IS NULL OR library_decision = 'rejected'),
-  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1),
+  -- V1.10.9 (bd-snkn32.59.4): a goal-unit day names neither (no textbook).
+  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (
+    num_nonnulls(segment_id, lesson_id) = 1 OR (segment_id IS NULL AND lesson_id IS NULL AND answers->'unit'->>'start' = 'goals')
+  ),
   CONSTRAINT niete_lp612_own_plans_edit_round CHECK (
     (parent_own_id IS NULL AND edit_round IS NULL AND edit_request IS NULL)
     OR (parent_own_id IS NOT NULL AND edit_round IN (1, 2) AND edit_request IS NOT NULL)

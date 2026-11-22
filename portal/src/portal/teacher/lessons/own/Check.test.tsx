@@ -29,12 +29,13 @@ describe('Check', () => {
     expect(t).toContain('What level is your class at?');
     expect(t).toContain(OWN_COPY.grrLine);
   });
-  it('Grade 4: Children, no purpose row, the day label', () => {
-    show('grade=4&subject=Math&chapter=1&seg=d&size=up30&level=behind&way=cpa', { k5: true, pagesLabel: 'Day 2 · Adding' });
+  it('Grade 4: Children, the purpose row (bd-snkn32.63), the day label', () => {
+    show('grade=4&subject=Math&chapter=1&seg=d&size=up30&level=behind&way=cpa&purpose=revise', { k5: true, pagesLabel: 'Day 2 · Adding' });
     const t = document.body.textContent ?? '';
     expect(t).toContain('Children in class');
     expect(t).toContain('Day 2 · Adding');
-    expect(t).not.toContain(OWN_COPY.purposeLabel);
+    expect(t).toContain(OWN_COPY.purposeLabel);
+    expect(t).toContain(OWN_COPY.purposes.revise);
     expect(t).toContain('Things → pictures → numbers (CPA)');
   });
   it('the outcomes row only when chosen; the next lesson when added', () => {
@@ -48,5 +49,23 @@ describe('Check', () => {
     fireEvent.change(screen.getByTestId('own-note'), { target: { value: 'two sections' } });
     expect(setNote).toHaveBeenCalledWith('two sections');
     expect(screen.getByRole('alert').textContent).toBe(OWN_COPY.refusals.daily_limit);
+  });
+  it('bd-m8zwt1.2: a subject KEY from the class picker is shown as a name, never raw ("math", "general_science")', () => {
+    show('grade=3&subject=math&start=goal&step=check', { k5: true, gradeLabel: 'Grade 3', goal: { label: 'Goal', value: 'Add numbers', sub: 'No textbook' } });
+    let t = document.body.textContent ?? '';
+    expect(t).toContain('Grade 3 · Math ·');
+    expect(t).not.toContain('· math');
+    cleanup();
+    show('grade=4&subject=general_science&chapter=1&seg=d', { k5: true, gradeLabel: 'Grade 4', pagesLabel: 'Day 1' });
+    t = document.body.textContent ?? '';
+    expect(t).toContain('Grade 4 · General Science');
+  });
+  it('bd-m8zwt1.9: a refusal (daily limit) is the FIRST thing on the screen, never under the note behind the button', () => {
+    show('grade=10&subject=Physics&chapter=c&seg=s', { failed: 'daily_limit' });
+    const alert = screen.getByRole('alert');
+    const note = screen.getByTestId('own-note');
+    const first = document.body.querySelector('a, [role="alert"]');
+    expect(first).toBe(alert);
+    expect(alert.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

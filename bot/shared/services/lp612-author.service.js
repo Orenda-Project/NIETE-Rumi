@@ -32,6 +32,7 @@
  *     exactly what cost that pilot its rounds.
  */
 
+const { repairNearMissKeys } = require('./lp612-key-repair');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -60,6 +61,7 @@ const { familyForBook } = require('../config/lp612-families');
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint, overlayDefects, OVERLAY_MIN_COVERAGE } = require('../../vendor/lp-v9/lint_lp.js');
+const { readingStepDefects } = require('./lp612-reading-step');
 const { poemParaphraseDefects } = require('./lp612-poem-paraphrase');
 const { normalizeLatinHonorific } = require('./lp612-latin-honorific');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
@@ -1613,6 +1615,16 @@ function sanitizeSequence(doc, segment = {}) {
   return notes;
 }
 
+/**
+ * bd-znzjqi — a misspelled field name (live: `page2.coaching_lookfer`, three rounds running) is renamed to the
+ * one schema key it is near, before the gate reads the document. See lp612-key-repair.js for the narrow rule.
+ */
+function repairKeys(doc) {
+  const renamed = repairNearMissKeys(doc);
+  if (renamed.length) logEvent('lp612.author.keys_repaired', { renamed });
+  return doc;
+}
+
 function sanitizeUnknownTopLevel(doc) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return doc;
   const allowed = (docSchema && docSchema.properties) ? Object.keys(docSchema.properties) : null;
@@ -1709,8 +1721,9 @@ async function runGates(doc, renderCheck, meta = {}) {
 
   return {
     schema: [],
+    // bd-zrdvmi.39: a reading lesson must time its reading before the questions (sheet row 528).
     // bd-zrdvmi.44.1: a poem reading lesson must paraphrase the poem in class (sheet row 728).
-    lint: [...r.fails, ...poemParaphraseDefects(doc, meta.skillType, meta.subtopic)],
+    lint: [...r.fails, ...readingStepDefects(doc, meta.skillType), ...poemParaphraseDefects(doc, meta.skillType, meta.subtopic)],
     render,
     warns: r.warns.slice(),
   };
@@ -2170,6 +2183,7 @@ async function authorLessonPlan({
   // rule stays fail-closed; see `lp612-latin-honorific.js` for the ruling and the adjacency guard.
   normalizeLatinHonorific(doc);
   sanitizeUnknownTopLevel(doc);
+  repairKeys(doc);
   sanitizeOverlay(doc);
   // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
   noteStrippedOverlay(stripOverlay(doc), 0);
@@ -2404,6 +2418,7 @@ async function authorLessonPlan({
     applyVideo(candidate, video);
     normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
+    repairKeys(candidate);
     sanitizeOverlay(candidate);
     noteStrippedOverlay(stripOverlay(candidate), spent);
     sanitizeSequence(candidate, segment);
@@ -3108,6 +3123,7 @@ async function reviseLessonPlan({
     applyVideo(candidate, video);
     normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
+    repairKeys(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
 

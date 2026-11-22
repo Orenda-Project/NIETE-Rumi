@@ -11,21 +11,24 @@
  */
 const { k5Messages, parseK5Reply, checkK5Rewrite } = require('./lp-k5-own');
 const { periodOf } = require('./lp-own-period');
+const { withUnitPeriod, withUnitLines } = require('./lp-own-unit-day');
 const { fitK5, repairOnly } = require('./lp-own-fit');
 
 const JOB = 'lp.k5own';
 const ROUNDS = 2;
 
-async function rewriteK5({ script, answers, edit, lang, grade, subject, dayPages = null, bookText = null, client, model, log = () => {} }) {
+async function rewriteK5({ script: given, answers, edit, lang, grade, subject, dayPages = null, bookText = null, client, model, log = () => {} }) {
+  // bd-snkn32.59 — a unit day is made, fitted and gated for HER period (answers.unit.period), never the book's.
+  const script = !edit && answers && answers.unit ? withUnitPeriod(given, answers.unit) : given;
   const llm = client || require('./llm-client').getClient();
   const useModel = model || require('../config/model-registry').modelFor(JOB);
   // bd-snkn32.15: a change ("Change this plan") sends her one change instead of the class answers; same gate.
   const messages = edit
     ? require('./lp-own-edit-instruction').k5EditMessages({ script, edit, lang, grade, subject })
-    : k5Messages({ script, answers, lang, grade, subject, dayPages, bookText });
+    : withUnitLines(k5Messages({ script, answers, lang, grade, subject, dayPages, bookText }), answers && answers.unit); // bd-snkn32.59
   // bd-snkn32.30 — a make is held to her class size and the day's own period; a change keeps the old gate.
   const make = !edit && answers;
-  const opts = make ? { lang, resources: answers.resources, size: answers.size, period: periodOf(script) } : { lang };
+  const opts = make ? { lang, resources: answers.resources, size: answers.size, period: periodOf(script), noBook: !!answers.goal } : { lang };
   let kept = null; // round 1's plan when its only fault was a repair-only one
   for (let round = 1; round <= ROUNDS; round++) {
     const res = await llm.chat.completions.create({

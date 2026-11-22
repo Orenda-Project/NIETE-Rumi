@@ -5,7 +5,8 @@
  *
  * In order, each step a way out:
  *   1. The read replica (config/supabase-replica-only.js). None configured on this tier → off. The job never reads
- *      the primary: the switch, the region registry and every count are read on the replica.
+ *      the primary: the switch, the region registry and every count are read on the replica. Test sites (staging,
+ *      sandbox) have no paid replica and read their own database instead (supabase-replica-only.js says how).
  *   2. app_settings teacher_activity_slots, e.g. {"day":"14:30","night":"01:30"} (Pakistan times). No row, a
  *      malformed value or a failed read → off.
  *   3. A slot is due from its time for DUE_WINDOW_MIN minutes (an hourly tick always lands inside it once).

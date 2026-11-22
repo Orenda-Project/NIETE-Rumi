@@ -8,6 +8,8 @@
  *     → 202 { success, state: 'authoring', renderId }   her fork's id, polled on the SAME /lp612/status/:id and
  *                                                        /lp612/file/:id as any 6-12 lesson (the bot answers it)
  *
+ *   POST /api/portal/lp612/own/:ownId/rating  { rating 1-5, confusing? }   (bd-snkn32.11: her rating of her own plan)
+ *
  *   POST /api/portal/lp612/own/:ownId/change  { part, text }   (bd-snkn32.15: up to two changes per plan)
  *     → 202 { success, state: 'authoring', renderId }   the changed plan's id, polled the same way
  *     → 409 { success: false, outcome }                 a refusal she is told about (too_short, too_small, repeat,
@@ -24,6 +26,7 @@ const { PORTAL_TEACHER_V2_KEY, PORTAL_LP_MAKE_OWN_KEY, isFlagEnabledForUser } = 
 const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc — not live for GB
 const { teacherAppOnFor } = require('../lib/teacher-app');
 const { requirePortalAuth } = require('../lib/portal-auth');
+const { logAppAction } = require('./app-funnel.routes');
 
 const router = express.Router();
 const PASS_ON = new Set([400, 403, 404]);
@@ -37,10 +40,24 @@ function botConfig() {
   return { baseUrl, headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' } };
 }
 
+/**
+ * bd-snkn32.51 (queue #134 A) — one own_plan.make row per answer, with the reason a plan was not made (#120: 28 generic
+ * "Could not make it" with no reason anywhere). Codes and ids only: never her note or her change text.
+ */
+function outcomeOf(r) {
+  if (r.status === 202 && r.data && r.data.success && r.data.renderId) return 'queued';
+  if (r.status === 409 && r.data && REFUSALS.has(r.data.outcome)) return r.data.outcome;
+  return `bot_${r.status}`;
+}
+function logMake(req, extra, outcome, httpStatus, ownId) {
+  logAppAction(req, 'own_plan.make', 'lesson_plan', { ...extra, outcome, httpStatus, ...(ownId ? { ownId } : {}) });
+}
+
 /** Pass on the bot's answer: queued, a known refusal, or a 400/403/404. Anything else throws (→ 502). */
 function answer(res, r, label) {
   if (r.status === 202 && r.data && r.data.success && r.data.renderId) {
-    return res.status(202).json({ success: true, state: 'authoring', renderId: r.data.renderId });
+    // bd-snkn32.58.2 — her note was dropped for a blocked word: the app says so in one line.
+    return res.status(202).json({ success: true, state: 'authoring', renderId: r.data.renderId, ...(r.data.noteDropped === true ? { noteDropped: true } : {}) });
   }
   if (r.status === 409 && r.data && REFUSALS.has(r.data.outcome)) {
     return res.status(409).json({ success: false, outcome: r.data.outcome });
@@ -66,7 +83,9 @@ router.post('/lp612/own', requirePortalAuth, requireMakeOwn, async (req, res) =>
   const segmentId = typeof b.segment_id === 'string' ? b.segment_id.trim() : '';
   const lessonId = typeof b.lesson_id === 'string' ? b.lesson_id.trim() : '';
   const id = segmentId || lessonId;
+  const make = { kind: 'make', lane: lessonId ? 'k5' : 'g612', ...(id && id.length <= 200 ? { lesson: id } : {}) };
   if (!id || (segmentId && lessonId) || id.length > 200 || !b.answers || typeof b.answers !== 'object' || Array.isArray(b.answers)) {
+    logMake(req, make, 'bad_request', 400);
     return res.status(400).json({ success: false, error: 'segment_id or lesson_id, and answers, are required' });
   }
   try {
@@ -75,8 +94,10 @@ router.post('/lp612/own', requirePortalAuth, requireMakeOwn, async (req, res) =>
     const r = await axios.post(`${baseUrl}/api/internal/lp612/own`, {
       userId: req.session.portalUserId, ...(segmentId ? { segmentId } : { lessonId }), answers: b.answers,
     }, { headers, timeout: 20000, validateStatus: () => true });
+    logMake(req, make, outcomeOf(r), r.status, r.data && r.data.renderId);
     return answer(res, r, 'lp612/own');
   } catch (error) {
+    if (!res.headersSent && !/failed \(HTTP/.test(String(error && error.message))) logMake(req, make, 'unreachable', null);
     console.error('❌ Portal lp612/own failed', { error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not make your plan' });
   }
@@ -87,7 +108,9 @@ router.post('/lp612/own/:ownId/change', requirePortalAuth, requireMakeOwn, async
   const ownId = String(req.params.ownId || '');
   const part = typeof b.part === 'string' ? b.part.trim() : '';
   const text = typeof b.text === 'string' ? b.text : '';
+  const change = { kind: 'change', ...(ownId.length <= 200 ? { ownId } : {}), ...(/^[a-z_]{1,40}$/.test(part) ? { part } : {}) };
   if (!ownId || ownId.length > 200 || !part || part.length > 40 || !text.trim() || text.length > TEXT_LIMIT) {
+    logMake(req, change, 'bad_request', 400);
     return res.status(400).json({ success: false, error: 'part and text are required' });
   }
   try {
@@ -96,10 +119,39 @@ router.post('/lp612/own/:ownId/change', requirePortalAuth, requireMakeOwn, async
     const r = await axios.post(`${baseUrl}/api/internal/lp612/own/${encodeURIComponent(ownId)}/change`, {
       userId: req.session.portalUserId, part, text,
     }, { headers, timeout: 20000, validateStatus: () => true });
+    logMake(req, change, outcomeOf(r), r.status, r.data && r.data.renderId);
     return answer(res, r, 'lp612/own change');
   } catch (error) {
+    if (!res.headersSent && !/failed \(HTTP/.test(String(error && error.message))) logMake(req, change, 'unreachable', null);
     console.error('❌ Portal lp612/own change failed', { error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not change your plan' });
+  }
+});
+
+/**
+ * bd-snkn32.11 (queue #134 C) — POST /api/portal/lp612/own/:ownId/rating { rating, confusing? } → 200 { success }:
+ * her rating of her own plan, as the SESSION's user. The bot checks the plan is hers and ready (404 otherwise).
+ */
+router.post('/lp612/own/:ownId/rating', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const b = req.body || {};
+  const ownId = String(req.params.ownId || '');
+  const rating = Number(b.rating);
+  if (!ownId || ownId.length > 200 || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({ success: false, error: 'rating 1-5 is required' });
+  }
+  const confusing = typeof b.confusing === 'string' ? b.confusing.slice(0, 300) : '';
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.post(`${baseUrl}/api/internal/lp612/own/${encodeURIComponent(ownId)}/rating`, {
+      userId: req.session.portalUserId, rating, confusing,
+    }, { headers, timeout: 10000, validateStatus: () => true });
+    if (r.status === 200) return res.json({ success: true });
+    if (PASS_ON.has(r.status)) return res.status(r.status).json({ success: false, error: 'Could not save that rating' });
+    throw new Error(`lp612/own rating failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own rating failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not save your rating' });
   }
 });
 

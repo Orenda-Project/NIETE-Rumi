@@ -253,6 +253,32 @@ Feature: Teacher lesson plans
     Then "In class" asks "Taught it today · Planning to · Not yet" in the same place, never as a pop-up
     And tapping "Taught it today" shows "Thanks" and saves one answer for her and this plan
 
+  # bd-snkn32.61 — operator, 20 Nov: "doesnt make sense to show chapters, we can focus on FLN related skills and if
+  # teachers want something else, they are free to add those". Written by hand like the blocks above (@draft): the demo
+  # stack cannot turn portal_lp_own_goal_start on. Pinned by GoalStep.test.tsx (portal) and tests/lp612/own-goal*.test.js.
+
+  @OWN05 @draft @config-gated
+  Scenario: The learning-goal start shows skills only, never a chapter name, and lets her add her own goal
+    Given portal_lp_make_own and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "From a learning goal" and picks Grade 3 Math
+    Then the goals are grouped by skill such as "Adding and subtracting", with no chapter name under any goal
+    When she types "multiply" in "Search goals"
+    Then the matching goals show with no chapter name
+    When she taps "Add my own goal", types "Adding money at the shop" and taps "Check my goal"
+    Then "Use my words" shows with "Did you mean" goals below it, none naming a chapter
+    When she taps "Use my words"
+    Then the next step opens and the check screen shows her own words as the learning goal
+    And a typed goal with a blocked word gets a calm refusal and nothing to use
+
+  @OWN06 @draft @config-gated
+  Scenario: A Grades 6–12 learning-goal list is one list with no chapter headings
+    Given portal_lp_make_own and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "From a learning goal" and picks Grade 7 General Science
+    Then her grade's learning goals show as one list, with no chapter name as a heading or under any goal
+    And "Search goals" still narrows the list as she types
+
   @LPBAR02 @draft @config-gated @negative
   Scenario: Teacher app v2: a plan she already answered, in the app or on WhatsApp, shows no survey bar
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
@@ -268,6 +294,226 @@ Feature: Teacher lesson plans
     When she opens a plan
     Then the viewer shows "Can't show it here" with Open in another app
     And the portal logs one lp_viewer.failed with the step, the lane and the file's size, and no plan name
+
+  # bd-snkn32.11, queue #134 C (18 Nov) — her rating of her own plan. Component proof: RateCard.test.tsx,
+  # OwnSections.test.tsx; server: tests/lp612/own-rating.test.js, tests/portal/lp612-own-rating-route.test.js.
+  @RATE01 @draft @config-gated
+  Scenario: Her own plan asks how good it was and saves her rating
+    Given the teacher app v2 and "portal_lp_make_own" are on for her
+    And her own plan has just opened from its waiting screen
+    Then under the plan she sees "How good was this plan?" with five choices, 1 to 5, and "What was confusing?" marked optional
+    When she taps 4, types what was confusing and taps Send
+    Then she sees "Thank you. Your rating is saved."
+    And her own plan's row holds rating 4, her words and when she rated it
+
+  @RATE02 @draft @config-gated @negative
+  Scenario: A shelf plan or a ready-made plan has no rating card
+    Given the teacher app v2 and "portal_lp_make_own" are on for her
+    When she opens a ready-made plan, or another teacher's plan from the shelf
+    Then no "How good was this plan?" card is shown
+
+  # bd-snkn32.56, queue #151 (#134 E) — Make my own from a learning goal or topic, no textbook in class (grades 6–12).
+  # Behind the LIST-ONLY app_settings key `portal_lp_own_goal_start` (a list of user ids). Component proof:
+  # OwnPage.goal.test.tsx, GoalStep.test.tsx, state.goal.test.ts; server: tests/lp612/own-goal*.test.js,
+  # tests/portal/lp612-own-goal-route.test.js, tests/portal/lp612-own-goal-config-flag.test.js.
+  @GOAL01 @draft @config-gated
+  Scenario: A listed teacher starts a plan from a learning goal and it is made with no textbook
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she opens Make my own on a Grades 6–12 chapter
+    Then step 1 offers "Start from a learning goal or topic"
+    When she taps it and selects one of her grade's learning goals
+    And she answers the rest of the steps and taps Make my plan
+    Then her answers carry her goal and the lesson under it, with no textbook and no book pages
+    And the Preparing page opens on her plan's id
+
+  @GOAL02 @draft @config-gated
+  Scenario: A typed topic with no lesson behind it is said plainly
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she types a topic no lesson of her grade shares a word with and taps Find
+    Then she sees "Not found in your grade’s lessons. Try other words, or select a learning goal."
+    And OK stays disabled
+
+  @GOAL03 @draft @config-gated @negative
+  Scenario: A teacher not on the list never sees the goal start
+    Given the teacher app v2 and "portal_lp_make_own" are on for her, but she is not on "portal_lp_own_goal_start"
+    When she opens Make my own on a Grades 6–12 chapter
+    Then step 1 has no "Start from a learning goal or topic"
+    And a goal address sends her back to the book pages, and the server answers 404 to the goal reads
+
+  @GOAL04 @draft @config-gated
+  Scenario: A listed teacher starts a Grades 1–5 plan from an official learning outcome
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she opens Make my own on a Grades 1–5 Urdu, English or Maths chapter
+    Then step 1 offers "Start from a learning goal or topic"
+    When she taps it
+    Then she sees her grade and subject's official learning outcomes, in the book's language
+    When she selects one and answers the rest of the steps and taps Make my plan
+    Then her answers carry her goal and the day under it, with no textbook and no book pages
+    And the Preparing page opens on her plan's id
+
+  # bd-snkn32.58.1, queue #155 A (Amena 19 Nov: "wrong flow, From textbook chapter OR Start from a learning goal").
+  # Same LIST-ONLY switch. Component proof: OwnTwoStarts.test.tsx, GoalStep.test.tsx; server: tests/lp612/own-goal-skills.test.js.
+  @GOAL05 @draft @config-gated
+  Scenario: Make my own opens on two equal starts, and the goal start needs no chapter
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she taps "Make my own" on the Lesson Plans main page
+    Then she sees two equal cards "From a textbook chapter" and "From a learning goal", and no class picker yet
+    When she taps "From a learning goal" and selects Grade 3 Maths
+    Then the learning goal step opens for Grade 3 Maths with no chapter screen in between
+
+  @GOAL06 @draft @config-gated
+  Scenario: Grades 1–5 learning goals are skill-sized and grouped by skill
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths
+    Then she sees skill groups such as "Multiplying and dividing", each with its number of goals
+    When she taps "Multiplying and dividing"
+    Then she sees one goal per official outcome, such as "Multiply 2 digit numbers by 1 digit number mentally and in written form."
+    And no "[DERIVED" page note is listed as a goal
+    When she types "multiply" in "Search goals"
+    Then only goals with that word are listed
+
+  @GOAL07 @draft @config-gated @negative
+  Scenario: With the goal switch off, Make my own's first screen is unchanged
+    Given the teacher app v2 and "portal_lp_make_own" are on for her, but she is not on "portal_lp_own_goal_start"
+    When she taps "Make my own" on the Lesson Plans main page
+    Then she sees Grade and subject, as before, with no "From a learning goal" card
+
+  # bd-snkn32.58.2, queue #155 B — guardrails for a typed topic. Component proof: GoalStep.test.tsx, OwnPage.goal.test.tsx;
+  # server: tests/lp612/own-goal-guard.test.js, own-goal-note-guard.test.js, tests/portal/lp612-own-goal-route.test.js.
+  @GOAL08 @draft @config-gated
+  Scenario: A misspelt or Roman Urdu topic offers "Did you mean" goals, and nothing is picked until she taps one
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "multiplcation by 2" and taps Find
+    Then she sees "Did you mean" with up to 3 of her grade's goals, the first about multiplying a 2-digit number
+    And OK stays disabled until she selects one
+    When she types "jama 2 hindsay" and taps Find
+    Then the first suggestion is about adding numbers
+
+  @GOAL09 @draft @config-gated
+  Scenario: A goal of another grade is named
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "add unlike fractions" and taps Find
+    Then she sees "This is a Grade 4 goal" with "Use it anyway" and "See my grade’s goals"
+
+  @GOAL10 @draft @config-gated @negative
+  Scenario: A topic off the curriculum, or with a blocked word, is refused
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she reaches the learning goal step for Grade 3 Maths, types "cricket world cup" and taps Find
+    Then she sees "Not found in your grade’s lessons. Try other words, or select a learning goal." and nothing is picked
+    When she types a blocked word and taps Find
+    Then she sees "This is not a school topic. Select a learning goal." and nothing is picked
+
+  # bd-snkn32.58.3, queue #155 C — a goal plan is checked (facts + goal) before it is shown; one fix, then refused.
+  # Component proof: PreparingPage.goal.test.tsx; worker: tests/lp612/own-goal-check.test.js (seeded wrong fact fixed / refused).
+  @GOAL11 @draft @config-gated
+  Scenario: A goal plan says it is being checked, and opens with her goal at the top
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she makes a plan from a Grade 3 Maths learning goal
+    Then the Preparing page says "Checking it matches your goal…"
+    And when it is ready the plan opens with her official goal at the top
+
+  @GOAL12 @draft @config-gated @negative
+  Scenario: A goal plan the check refuses shows a calm refusal, not Try again
+    Given a goal plan whose check found problems the one fix did not clear
+    When the Preparing page learns it failed with OWN_GOAL_UNSURE
+    Then she sees "We could not make a plan we are sure of for this goal." with "Select another goal" and "From a textbook chapter"
+    And there is no "Try again"
+
+  # bd-m8zwt1.1 (queue #164 testing): every grades 1-5 goal plan whose first check failed crashed on its one fix
+  # ("k5EditMessages: unknown part undefined") and ended "Couldn't make it". Pinned by tests/lp612/own-goal-k5-fix.test.js.
+  @GOAL13 @draft @config-gated
+  Scenario: A grades 1-5 goal plan the check asks to fix gets its one fix, and ends ready or with the calm refusal
+    Given a Grade 3 Maths goal plan whose first goal check found a problem
+    When the worker makes its one fix
+    Then the plan ends ready with her goal at the top, or with "We could not make a plan we are sure of for this goal."
+    And she never sees "Couldn't make it" for that reason
+
+  # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
+  @GOAL14 @draft @config-gated
+  Scenario: Make my own's check screen names the subject, not its key
+    Given the demo teacher picks Grade 3 Maths and a learning goal
+    When she reaches "Your plan"
+    Then the line under her goal reads "Grade 3 · Math", never "math"
+    And in Urdu it reads "ریاضی"
+
+  # bd-m8zwt1.8 / bd-m8zwt1.9 (queue #164 testing), pinned by PreparingPage.retry.test.tsx and Check.test.tsx.
+  @GOAL15 @draft @config-gated
+  Scenario: Try again after her own plan failed takes her back to her own answers
+    Given the demo teacher's own plan failed while it was being made
+    When she taps "Try again" on the Preparing page
+    Then she is on "Your plan" with the answers she gave
+    And she is not shown the ready-made plan of that lesson
+
+  @GOAL16 @draft @config-gated @negative
+  Scenario: The daily limit is said where she can see it
+    Given the demo teacher has made today's last allowed own plan
+    When she taps "Make my plan" again
+    Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button
+
+  @OWN12 @draft @config-gated
+  Scenario: A book-path note with an everyday lesson word is kept; only a goal start drops a blocked-word note
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she is signed in
+    When she makes her own plan from a Grade 8 Science book lesson with the note "observe the moon with the naked eye"
+    Then no "note was not used" message shows and her plan follows her note
+    When portal_lp_own_goal_start is on and she starts from a learning goal with a note holding a blocked word
+    Then the plan is still made and a message says her note was not used
+    # bd-cyadk0: #5129's note drop ran on every own plan; the blocked list holds ordinary lesson words
+    # ("naked", "alcohol", "kill"). Unit: tests/lp612/own-goal-note-guard.test.js.
+
+  # bd-snkn32.59.1 (queue #165) — Make my own → A whole unit (grades 1–5, from her book's chapters), behind the list-only
+  # portal_lp_own_unit. Written by hand like the blocks above (@draft): the demo stack cannot turn the switch on.
+  # Pinned by own/Unit.test.tsx and own/unitEdit.test.ts (portal), tests/lp612/own-unit-*.test.js and
+  # tests/portal/lp-own-unit-route.test.js.
+  @OWN07 @draft @config-gated
+  Scenario: A whole unit: chapters, period and pace give a day-by-day outline she can change and save
+    Given portal_lp_make_own and portal_lp_own_unit are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own and taps "A whole unit", then picks Grade 3 Math
+    And she taps chapter 2 then chapter 3 and picks "35 min"
+    Then the paces read "Recommended · 21 days", "Slower · 25 days" and "Faster · 17 days"
+    When she taps "See the days"
+    Then "Your days" shows 21 days, with each chapter's review and test days marked
+    When she taps ⋯ on Day 1 and "Join with next day"
+    Then the outline shows 20 days and "Undo" is on screen
+    When she taps "Save unit" and reopens the unit from "My units"
+    Then the same 20 days show, and a new unit for Grade 3 Math starts with "35 min" chosen
+
+  @OWN08 @draft @config-gated
+  Scenario: A unit day's plan is made only when she opens it; a review day opens the book's own day
+    Given demo teacher 03000000911 has a saved Grade 3 Math unit and has picked her class size and level
+    When she taps "Open plan" on a lesson day
+    Then exactly one plan is made for that day and Preparing opens
+    When she taps "Open plan" on a review day
+    Then the book's own review day opens and no plan is made
+
+  @OWN09 @draft @config-gated @negative
+  Scenario: With the unit switch off, Make my own is unchanged
+    Given portal_lp_own_unit does not name demo teacher 03000000911
+    When she opens Make my own
+    Then there is no "A whole unit" card
+    And opening a unit address takes her back, and the unit calls answer 404
+
+  @OWN10 @draft @config-gated
+  Scenario: A whole unit from learning goals has no textbook: her goals become days, review and check days included
+    Given portal_lp_make_own, portal_lp_own_unit and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "A whole unit", picks Grade 3 Math and taps "Learning goals"
+    Then no chapter is asked for or shown
+    When she selects two goals from the skill list and adds her own goal "Telling the time" with "Add my own goal" and "Use my words"
+    Then "Your goals" lists the three goals in the order she added them
+    And the paces read "Recommended · 5 days" and "Slower · 8 days", with no faster pace
+    When she taps "See the days"
+    Then "Your days" shows a day for each goal, then a review of "Goals 1–3" and an "All goals" check day
+    When she opens the check day after picking her class
+    Then one plan is made from her three goals alone, with no book page in it
+
+  @OWN11 @draft @config-gated @negative
+  Scenario: A goal with a blocked word is refused and a unit needs at least two goals
+    Given demo teacher 03000000911 is on the "Learning goals" screen of a new unit
+    When she adds her own goal with a word that is not a school topic
+    Then she is told it is not a school topic and nothing is added
+    And "See the days" stays off until she has two goals
 
   # bd-96f69c.16 (21 Nov, promoted to staging): any plan on the 6-12 lane carries the bar, asked by its render id. A GB
   # grades 1-5 plan opens on that lane too, so it gets the bar (GB scenario from sandbox's bd-m8zwt1.16 block).

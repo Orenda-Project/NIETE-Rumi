@@ -8,16 +8,17 @@
  * escaped; a field the script does not have is simply not printed (no "not ready" line, the reviewer's rule).
  */
 const { CSS } = require('./lp-v10-card/css');
+const { CLOSE_TITLE, CLOSE_TITLE_UR } = require('./lp612-own-close'); // bd-snkn32.52: one title for both bands
 
 const WORDS = {
   en: { grade: 'GRADE', day: 'Day', of: 'of', min: 'min', mine: 'Mine', way: 'Teaching way', open: 'Opening',
     explain: 'Explanation · I Do', we: 'We Do', you: 'You Do', check: 'Check · exit ticket', hw: 'Homework',
     ask: 'Ask', listen: 'Listen for', words: 'Words', materials: 'You need', reteach: 'Re-teach', ifStuck: 'If stuck', mistake: 'Common mistake', fix: 'Fix',
-    answer: 'Answer', behind: 'Needs help', ahead: 'Ready for more', checkQ: 'Check', board: 'Board', say: 'Say' },
+    answer: 'Answer', behind: 'Needs help', ahead: 'Ready for more', checkQ: 'Check', board: 'Board', say: 'Say', close: CLOSE_TITLE },
   ur: { grade: 'جماعت', day: 'دن', of: 'از', min: 'منٹ', mine: 'میرا', way: 'پڑھانے کا طریقہ', open: 'آغاز',
     explain: 'وضاحت · میں کروں', we: 'ہم کریں', you: 'آپ کریں', check: 'جانچ · ایگزٹ ٹکٹ', hw: 'ہوم ورک',
     ask: 'پوچھیں', listen: 'سنیں', words: 'الفاظ', materials: 'ضروری سامان', reteach: 'دوبارہ پڑھائیں', ifStuck: 'اگر مشکل ہو', mistake: 'عام غلطی', fix: 'درستی',
-    answer: 'جواب', behind: 'مدد چاہیے', ahead: 'مزید کے لیے تیار', checkQ: 'جانچ', board: 'بورڈ', say: 'کہیں' },
+    answer: 'جواب', behind: 'مدد چاہیے', ahead: 'مزید کے لیے تیار', checkQ: 'جانچ', board: 'بورڈ', say: 'کہیں', close: CLOSE_TITLE_UR },
 };
 
 /** The teaching ways by name, as the portal shows them (own/copy.ts ways, after the reviewer's TaRL wording). */
@@ -33,7 +34,9 @@ const SUBJECT_UR = { urdu: 'اردو', 'social studies (urdu)': 'معاشرتی 
 const subjectFor = (subject, ur) => (ur && !/[\u0600-\u06FF]/.test(String(subject || ''))
   ? SUBJECT_UR[String(subject || '').trim().toLowerCase()] || subject : subject);
 
-const URDU_CSS = '[dir=rtl] .hd h1{line-height:1.9}.n,.t,bdi{unicode-bidi:isolate}[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
+// bd-snkn32.58.8 — the goal takes its direction from its own text: an English official goal in an Urdu plan reads
+// left to right with its full stop at the end (it printed ".Multiply by 2" in the RTL header).
+const URDU_CSS = '[dir=rtl] .hd h1{line-height:1.9}.n,.t,bdi{unicode-bidi:isolate}.goal{unicode-bidi:isolate}[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
   + '[dir=rtl] .say::before{content:"کہیں: "}[dir=rtl] .sec{border-inline-start-width:7px}';
 
 /**
@@ -108,7 +111,9 @@ function youDo(s, W) {
 
 function check(s, W) {
   const ex = (g(s, 'wrap', 'exitOptions') || [])[0] || {};
-  return [p(ex.prompt, 'do'), p(ex.howToRun), p(s.exitSuccessCriteria), line(W.reteach, g(s, 'wrap', 'reteach'))].join('');
+  // bd-snkn32.52 — "Before they write" (lp-k5-own-close), before the exit ticket it is about.
+  const close = (g(s, 'wrap', 'beforeTheyWrite') || []).filter(has).map((x) => p(x)).join('');
+  return [box(W.close, close), p(ex.prompt, 'do'), p(ex.howToRun), p(s.exitSuccessCriteria), line(W.reteach, g(s, 'wrap', 'reteach'))].join('');
 }
 
 function homework(s) {
@@ -136,7 +141,7 @@ function renderK5Own(script, { lang = 'en', grade, subject, way, pages = null, f
   const day = has(m.day) ? `${W.day} ${esc(num(m.day))}${has(m.total) ? ` ${W.of} ${esc(num(m.total))}` : ''}` : '';
   const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(num(grade ?? m.grade ?? ''))} · ${esc(subjectFor(subject || m.subject || '', ur))}</b></span>`
     + `<span>${day}${has(m.minutes) ? ` · ${esc(num(m.minutes))} ${W.min}` : ''}${pageSpan(pages, ur, num)} · ${W.mine}</span></div>`
-    + `<h1>${esc(m.topic || '')}</h1><div class="goal">${esc(s.goal || '')}</div></div>`
+    + `<h1>${esc(m.topic || '')}</h1><div class="goal" dir="auto">${esc(s.goal || '')}</div></div>`
     + (has(way) ? `<div class="info"><b>${W.way}</b><span>${esc(way)}</span></div>` : '');
   const body = [
     section('open', W.open, null, opening(s, W)),

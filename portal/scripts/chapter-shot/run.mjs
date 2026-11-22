@@ -28,6 +28,18 @@ const H = Number(arg('h', '640'));
 const SLOW = process.argv.includes('--slow'); // hold the lesson list back and shoot mid-load
 const BAND = arg('band', '612'); // bd-snkn32.4: 'k5' shoots a grade 3 Math chapter (the grades 1–5 lane)
 const NAME = arg('name', `chapter-${BAND}-${FLAG ? 'on' : 'off'}-${LANG}-${W}`);
+// bd-snkn32.56 — --at <address> shoots any lessons address; --head <text> is what to wait for (goal-start screens).
+const AT_ARG = arg('at', null);
+const HEAD_ARG = arg('head', null);
+// bd-snkn32.58.1 — --goals <json file> serves those outcomes for /lp612/own/goals; --click <text> taps it before the shot.
+const GOALS_ARG = arg('goals', null);
+const CLICK_ARG = arg('click', null);
+const TYPE_ARG = arg('type', null);
+// bd-snkn32.58.2/.3 — --match <json> answers the typed-topic guard; --status <json> answers the plan poll; --find taps Find.
+const MATCH_ARG = arg('match', null);
+const STATUS_ARG = arg('status', null);
+const FIND = process.argv.includes('--find');
+const WAIT_MS = Number(arg('wait', '1200'));
 
 function findChromium() {
   const base = path.join(homedir(), 'Library', 'Caches', 'ms-playwright');
@@ -74,7 +86,16 @@ const lessons = [
   ['ict7.c03.p045', 'Sharing files on a network', 'p.45–47'],
 ].map(([segment_id, title, pages_label], i) => ({ segment_id, title, pages_label, sent: i === 0 }));
 const FIXTURE = {
-  '/config': { success: true, features: { lpMakeOwn: FLAG, teacherApp: true } },
+  '/config': { success: true, features: { lpMakeOwn: FLAG, lpOwnGoalStart: FLAG, teacherApp: true } },
+  // bd-snkn32.56 — the goal start's reads (the catalogue's own outcome words for grade 7 ICT)
+  '/lp612/own/goals/match': { success: true, match: { segmentId: 'ict7.c03.p042', title: 'Using email safely' } },
+  '/lp612/own/goals': { success: true, outcomes: [
+    { segmentId: 'ict7.c01.p002', text: 'Identify the main parts of a computer', chapter: 'Computer Basics' },
+    { segmentId: 'ict7.c02.p015', text: 'Create and save a document in a word processor', chapter: 'Word Processing' },
+    { segmentId: 'ict7.c03.p030', text: 'Explain what a computer network is and why we use one', chapter: 'Computer Networks' },
+    { segmentId: 'ict7.c03.p033', text: 'Compare a LAN and a WAN', chapter: 'Computer Networks' },
+    { segmentId: 'ict7.c03.p042', text: 'Use email safely and politely', chapter: 'Computer Networks' },
+  ] },
   '/curriculum/grades': { grades: [{ grade: 4, subject_count: 1 }] },
   '/lp612/grades': { grades: [{ grade: 7 }] },
   '/lp612/subjects': { subjects: [{ subject: 'ICT', lesson_count: 6 }] },
@@ -94,6 +115,15 @@ const K5 = {
   '/lp612/grades': { grades: [{ grade: 7 }] },
   '/curriculum/subjects': { subjects: [{ subject_key: 'math', subject: 'Math', lesson_count: 10 }] },
   '/curriculum/chapters': { chapters: [{ chapter_number: 1, chapter_title: 'Number Ninjas: Mastering the Thousands', lesson_count: 10 }] },
+  // bd-snkn32.57 — the goal start's reads for grade 3 Math: the official matrix outcomes, as goalRows serves them.
+  '/lp612/own/goals/match': { success: true, match: { segmentId: 'grade_3_math_ch2_seg1', title: 'Add up to 4-digit numbers with and without regrouping in written form.' } },
+  '/lp612/own/goals': { success: true, outcomes: [
+    { segmentId: 'grade_3_math_ch1_seg1', text: 'Count up to 9999 (4-digit numbers).', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch1_seg2', text: 'Read and write up to 9999 in numerals and in words.', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch1_seg3', text: 'Compare numbers using symbols and arrange numbers up to 9999 using appropriate language.', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch1_seg7', text: 'Read and write Roman numerals up to 20.', chapter: 'Number Ninjas: Mastering the Thousands' },
+    { segmentId: 'grade_3_math_ch2_seg1', text: 'Add up to 4-digit numbers with and without regrouping in written form.', chapter: 'Plus and Minus Mysteries' },
+  ] },
   '/curriculum/lps': { lessons: [
     ...K5_DAYS.map((topic, i) => ({ lesson_id: `grade_3_math_ch1_seg${i + 1}`, lp_type: 'content', day_label: `Day ${i + 1}`, topic, downloaded: i === 0 })),
     { lesson_id: 'grade_3_math_ch1_seg990', lp_type: 'assessment', day_label: 'Worksheet', topic: 'Worksheet' },
@@ -101,6 +131,16 @@ const K5 = {
   ] },
 };
 if (BAND === 'k5') { for (const k of Object.keys(FIXTURE)) delete FIXTURE[k]; Object.assign(FIXTURE, K5); }
+if (GOALS_ARG) FIXTURE['/lp612/own/goals'] = { success: true, outcomes: JSON.parse((await import('node:fs')).readFileSync(GOALS_ARG, 'utf8')) };
+if (MATCH_ARG) FIXTURE['/lp612/own/goals/match'] = JSON.parse(MATCH_ARG);
+if (STATUS_ARG) FIXTURE['/lp612/status'] = JSON.parse(STATUS_ARG);
+FIXTURE['/me/grade-subjects'] = { success: true, combos: [
+  { grade: 3, gradeCode: 'grade_3', subject: 'Mathematics', subjectKey: 'maths', source: 'class', featureKey: 'math', available: true },
+] };
+// bd-snkn32.59.1 — --extra <json file>: more API answers, merged last ({ "/path/suffix": body }), e.g. the unit routes.
+const EXTRA_ARG = arg('extra', null);
+if (EXTRA_ARG) Object.assign(FIXTURE, JSON.parse((await import('node:fs')).readFileSync(EXTRA_ARG, 'utf8')));
+FIXTURE['/config'] = { ...FIXTURE['/config'], features: { ...FIXTURE['/config'].features, lpOwnUnit: FLAG } };
 const DEV = /^\/(src|node_modules|@vite|@react-refresh|@id|@fs|scripts|bot)\//;
 
 const server = await createServer({
@@ -126,7 +166,7 @@ try {
     const u = new URL(route.request().url());
     if (u.origin === origin && (DEV.test(u.pathname) || u.pathname.startsWith('/@') || u.pathname.startsWith('/scripts/'))) return route.continue();
     if (u.origin !== origin && !/\/api\//.test(u.pathname)) return route.abort();
-    const key = Object.keys(FIXTURE).find((k) => u.pathname.endsWith(k));
+    const key = Object.keys(FIXTURE).find((k) => u.pathname.endsWith(k) || (k === '/lp612/status' && u.pathname.includes(k)));
     if (SLOW && u.pathname.endsWith('/lp612/lessons')) await new Promise((r) => setTimeout(r, 6000));
     asked.push(`${u.pathname}${key ? '' : ' (stub {})'}`);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(key ? FIXTURE[key] : { success: true }) });
@@ -135,8 +175,8 @@ try {
     : '/portal/teacher/lessons/lessons?grade=7&subject=ICT&chapter=c03';
   // bd-snkn32.4 — --own: Make my own's step 1 for the same chapter ("Which day?" in grades 1–5)
   const OWN = process.argv.includes('--own');
-  const atNow = OWN ? at.replace('/lessons/lessons?', '/lessons/own?') : at;
-  const HEAD = OWN ? (BAND === 'k5' ? (LANG === 'ur' ? 'کون سا دن؟' : 'Which day?') : 'Book pages') : BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks';
+  const atNow = AT_ARG ?? (OWN ? at.replace('/lessons/lessons?', '/lessons/own?') : at);
+  const HEAD = HEAD_ARG ?? (OWN ? (BAND === 'k5' ? (LANG === 'ur' ? 'کون سا دن؟' : 'Which day?') : 'Book pages') : BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks');
   const FIRST = BAND === 'k5' ? K5_DAYS[0] : 'What is a computer network?';
   await page.goto(`${origin}/scripts/chapter-shot/harness.html?lang=${LANG}&at=${encodeURIComponent(atNow)}`);
   if (SLOW) {
@@ -154,7 +194,10 @@ try {
     console.log(JSON.stringify({ errs, asked, body: (await page.evaluate(() => document.body.innerText)).slice(0, 400) }, null, 1));
     throw e;
   }
-  await page.waitForTimeout(1200); // the lazy Make my own chunk and fonts settle
+  await page.waitForTimeout(WAIT_MS); // the lazy Make my own chunk and fonts settle (a poll needs ~3.5 s)
+  if (TYPE_ARG) { await page.getByTestId('own-goal-topic').fill(TYPE_ARG); await page.waitForTimeout(400); }
+  if (FIND) { await page.getByTestId('own-goal-find').click(); await page.waitForTimeout(800); }
+  if (CLICK_ARG) { await page.getByText(CLICK_ARG).first().click(); await page.waitForTimeout(600); }
   mkdirSync(OUT, { recursive: true });
   await page.screenshot({ path: path.join(OUT, `${NAME}.png`) });
   await page.screenshot({ path: path.join(OUT, `${NAME}-full.png`), fullPage: true });

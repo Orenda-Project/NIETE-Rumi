@@ -302,20 +302,24 @@ export function EditPaperPage() {
         </button>
       )}
 
-      <Tray open={tray} title={C.newQuestion} onClose={() => setTray(false)} closeLabel={C.close}>
-        {kinds.status !== 'ok'
-          ? <LoadState status={kinds.status} onRetry={retryKinds} />
-          : (
-            <ListCard label={C.newQuestion}>
-              {(dataOf(kinds)?.kinds ?? []).map((k, i) => (
-                <Link key={k.kind} to={addQuestionPath(paperId, k.kind)}
-                  className={cn('flex min-h-[64px] items-center gap-3 px-3.5', i > 0 && 'border-t border-[#f0f1f3]', FOCUS)}>
-                  <span className="flex-1 text-[16px] font-semibold">{k.label}</span>
-                  <ChevronRight className="h-5 w-5 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
-                </Link>
-              ))}
-            </ListCard>
-          )}
+      {/* bd-5icld3.3 — 18-20 kinds: the card used to shrink to fit 88% of the screen and hide most of them. Now the
+          drawer opens tall and only its list scrolls; the close stays at the top. */}
+      <Tray open={tray} tall title={C.newQuestion} onClose={() => setTray(false)} closeLabel={C.close} testId="new-question-tray">
+        <div data-testid="new-question-list" className="-mx-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3.5 pb-1 [&>*]:shrink-0">
+          {kinds.status !== 'ok'
+            ? <LoadState status={kinds.status} onRetry={retryKinds} />
+            : (
+              <ListCard label={C.newQuestion}>
+                {(dataOf(kinds)?.kinds ?? []).map((k, i) => (
+                  <Link key={k.kind} to={addQuestionPath(paperId, k.kind)}
+                    className={cn('flex min-h-[64px] items-center gap-3 px-3.5', i > 0 && 'border-t border-[#f0f1f3]', FOCUS)}>
+                    <span className="flex-1 text-[16px] font-semibold">{k.label}</span>
+                    <ChevronRight className="h-5 w-5 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+                  </Link>
+                ))}
+              </ListCard>
+            )}
+        </div>
       </Tray>
     </TeacherPage>
   );
