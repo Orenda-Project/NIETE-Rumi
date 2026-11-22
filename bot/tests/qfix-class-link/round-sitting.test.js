@@ -94,10 +94,12 @@ function world({ seed = false, round = false } = {}) {
       { id: PLAIN_Q, teacher_id: TEACHER, topic: 'Plants', grade: '3', subject: 'Science', language: 'en', quiz_source: 'transcript', status: 'sent', meta: {} },
     ],
     quiz_questions: [...ROUND_ROWS, ...PLAIN_ROWS].map((q) => ({ ...q, media: JSON.parse(JSON.stringify(q.media)) })),
-    students: [{ id: ZARA, student_name: 'Zara Test', self_reported_class: null }],
+    students: [{ id: ZARA, student_name: 'Zara Test', self_reported_class: null }, { id: ALI, student_name: 'Ali Test', self_reported_class: null }],
     // Zara finished the teacher's plain quiz three days ago: the class's name chips offer her on the round's code
     quiz_sessions: [{ id: '5e550000-0000-4000-8000-0000000000a1', quiz_id: PLAIN_Q, student_id: ZARA, student_name: 'Zara Test', user_id: null, share_code_id: PLAIN_SC,
-      status: 'completed', invited_by_student_id: null, device_ref: 'd-old', created_at: ago(3), completed_at: ago(3), correct_answers: 3, total_questions_answered: 4 }],
+      status: 'completed', invited_by_student_id: null, device_ref: 'd-old', created_at: ago(3), completed_at: ago(3), correct_answers: 3, total_questions_answered: 4 },
+    { id: '5e550000-0000-4000-8000-0000000000a2', quiz_id: PLAIN_Q, student_id: ALI, student_name: 'Ali Test', user_id: null, share_code_id: PLAIN_SC,
+      status: 'completed', invited_by_student_id: null, device_ref: 'd-old2', created_at: ago(3), completed_at: ago(3), correct_answers: 2, total_questions_answered: 4 }],
     quiz_answers: [],
   };
   const fake = makeFake(db);
@@ -223,5 +225,70 @@ describe('web_quiz.round_started / round_done: once per sitting, codes and count
     await WQ.finishSession({ st: a.st });
     expect(named('web_quiz.round_started')).toEqual([]);
     expect(named('web_quiz.round_done')).toEqual([]);
+  });
+});
+
+describe('siblings\' recall picks: own misses first, ties broken by the sitting\'s seed (seedOf(session id))', () => {
+  const Round = require('../../shared/services/quiz/web-quiz-evening-round');
+  const OrderSeed = require('../../shared/services/quiz/web-quiz-order-seed');
+  // Sana missed four originals, each missed by her alone: every one of them ties
+  const POOL = [1, 2, 3, 4, 5].map(lesson).concat([
+    recall(1, [ALI, ZARA]), recall(2, [ZARA]), recall(3, [SANA]), recall(4, [SANA]), recall(5, [SANA]), recall(6, [SANA]),
+  ]);
+  const picks = (sid, kid = SANA, pool = POOL) => Round.selectRoundItems(pool, { studentId: kid, seed: OrderSeed.seedOf(sid) }).slice(5).map((q) => q.id);
+  const SIDS = ['5e550000-0000-4000-8000-0000000000b1', '5e550000-0000-4000-8000-0000000000b2', '5e550000-0000-4000-8000-0000000000b3',
+    '5e550000-0000-4000-8000-0000000000b4', '5e550000-0000-4000-8000-0000000000b5', '5e550000-0000-4000-8000-0000000000b6'];
+
+  test('two sittings with the same misses can get different rewrites; each pick is two of the child\'s own misses', () => {
+    const got = SIDS.map((sid) => picks(sid));
+    got.forEach((p) => { expect(p).toHaveLength(2); p.forEach((id) => expect([rid(3), rid(4), rid(5), rid(6)]).toContain(id)); });
+    expect(new Set(got.map((p) => p.join())).size).toBeGreaterThan(1);
+  });
+
+  test('the same sitting always gets the same pick, whatever order the rows come in; the picks keep the round\'s order', () => {
+    SIDS.forEach((sid) => {
+      const p = picks(sid);
+      expect(picks(sid, SANA, [...POOL].reverse())).toEqual(p);
+      expect([...p]).toEqual([...p].sort());   // rid(n) sort = rank order
+    });
+  });
+
+  test('more-missed still beats fewer: the class\'s most-missed fills before a tie, a child\'s own misses before both', () => {
+    SIDS.forEach((sid) => {
+      expect(picks(sid, ZARA)).toEqual([rid(1), rid(2)]);                       // her own two, whatever the seed
+      expect(picks(sid, 'c0000001-0000-4000-8000-0000000000ff')[0]).toBe(rid(1)); // nobody's: R1 (missed by two) first
+    });
+  });
+
+  test('no seed (no sitting yet): the stored rank order, as before', () => {
+    expect(Round.selectRoundItems(POOL, { studentId: SANA }).slice(5).map((q) => q.id)).toEqual([rid(3), rid(4)]);
+  });
+
+  test('the service: each sitting its own seeded pick, the same at start, resume, answers and finish', async () => {
+    world({ seed: false, round: true });
+    // deterministic session ids, so the outcome is the same on every run
+    let n = 0;
+    const spy = jest.spyOn(require('crypto'), 'randomUUID').mockImplementation(() => `5e55${String(n += 1).padStart(4, '0')}-0000-4000-8000-0000000000c1`);
+    try {
+      const seen = new Set();
+      for (let k = 0; k < 6; k += 1) {
+        // Ali missed R1 (with Sana: the most-missed), R3 and R6 (one each): R1, then one of R3 / R6 by the seed
+        const a = await WQ.startSession({ code: 'RND234', chip: T.chipId(ROUND_SC, ALI) });
+        const set = a.order.q;
+        expect(set.slice(0, 6)).toEqual([lid(1), lid(2), lid(3), lid(4), lid(5), rid(1)]);
+        expect([rid(3), rid(6)]).toContain(set[6]);
+        const sid = db.quiz_sessions[db.quiz_sessions.length - 1].id;
+        expect(set[6]).toBe(picks(sid, ALI, ROUND_ROWS)[1]);
+        expect((await WQ.startSession({ code: 'RND234', resume_st: a.st })).order.q).toEqual(set);
+        const out = await answerAll(a.st, ALL_ROUND);
+        expect([...out.recorded].sort()).toEqual([...set].sort());
+        const fin = await WQ.finishSession({ st: a.st });
+        expect(fin.review.map((r) => r.qid).sort()).toEqual([...set].sort());
+        seen.add(set[6]);
+      }
+      expect(seen.size).toBe(2);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
