@@ -346,7 +346,7 @@ html[lang=ur] .wq-ptile .wq-glyph{margin-top:24px}
 /* A Qaida letter card (a glyph the server marks lang 'ar'): the Naskh letter forms the Qaida page teaches, never the
    Urdu Nastaliq. Noto Naskh Arabic cut to the Arabic letters and harakat (scripts/naskh-letters/build.py); block, not
    swap, so the card never flashes a Nastaliq letter first. The polished look's twin is in the ur2 block. */
-@font-face{font-family:"WQ Naskh";src:url(fonts/wq-naskh-1.woff2) format("woff2");font-weight:400;font-display:block;unicode-range:U+0621-063A,U+0641-064A,U+064B-0652,U+0670-0671}
+@font-face{font-family:"WQ Naskh";src:url(fonts/wq-naskh-2.woff2) format("woff2");font-weight:400;font-display:block;unicode-range:U+0621-063A,U+0641-064A,U+064B-0652,U+0670-0671,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C1,U+06CC,U+06D2}
 .wq-glyph[lang=ar]{font-family:"WQ Naskh","Noto Naskh Arabic","Geeza Pro",serif;font-weight:400;line-height:1.6}
 @keyframes wqpulse{0%,100%{opacity:.35}50%{opacity:.7}}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
