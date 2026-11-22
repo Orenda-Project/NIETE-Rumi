@@ -44,6 +44,9 @@ const PUSH_REMIND_KEY = 'web_quiz_push_remind';
 // web_quiz_order_seed (JSON true only, read with the hub's switches: flags().orderSeed): each sitting its own question and
 // option order, a re-sit a new one (web-quiz-order-seed.js); off, the start reply has no `order` and the page keeps today's
 const ORDER_SEED_KEY = 'web_quiz_order_seed';
+// web_quiz_order_seed_pct ({"pct": N}): the same, for N% of LINKS by the link's own hash (web-quiz-order-seed onFor), so the
+// re-sit gain can be measured on and off on the same days; the switch above, when on, wins.
+const ORDER_SEED_PCT_KEY = 'web_quiz_order_seed_pct';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // A tap while offline stays on the page (web-quiz-offline-guard.js) rides this one read: only the stored JSON boolean true is on.
@@ -192,7 +195,7 @@ function isTrue(value) {
 // A new switch adds one line here in its key's place (and its key constant above): KEYS, the cached answer and the
 // failed read's answer all follow from this list, and nowOf('<field>') reads it from the cache without a function of its own.
 // Rules: 'loose' = JSON true or the string 'true' (isTrue); 'json' = only the JSON boolean true (the string 'true', 1 or an
-// object are off); 'meter' = meterOf; 'read' = read in the same query for a field worked out below (shareOpen).
+// object are off); 'meter' = meterOf; 'pct' = pctOf; 'read' = read in the same query for a field worked out below (shareOpen).
 const SWITCHES = Object.freeze([
   ['adv',          ADV_KEY,               'json'],
   ['backNav',      BACK_NAV_KEY,          'loose'],
@@ -243,6 +246,7 @@ const SWITCHES = Object.freeze([
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
   ['orderSeed',    ORDER_SEED_KEY,        'json'],
+  ['orderSeedPct', ORDER_SEED_PCT_KEY,    'pct'],
   ['pack',         PACK_KEY,              'json'],
   ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
@@ -258,7 +262,13 @@ const SWITCHES = Object.freeze([
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
 ]);
-const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
+// 'pct' = the JSON object {"pct": N} as a whole number 0-100; anything else is 0
+const pctOf = (v) => (v && typeof v === 'object' && Number.isFinite(v.pct) ? Math.max(0, Math.min(100, Math.floor(v.pct))) : 0);
+const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf, pct: pctOf };
+// A 'pct' switch's arm: the id's own bucket 0-99, the same every time. The salt (the switch's key) keeps two canaries'
+// arms independent, so one switch's 10% is not the same links as another's.
+const bucketOf = (salt, id) => require('./video-quiz-render.service').hash32(`${salt}:${id}`) % 100;
+const inPct = (pct, salt, id) => pct > 0 && Boolean(id) && bucketOf(salt, id) < pct;
 
 const HOST_KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
 // web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
@@ -614,6 +624,10 @@ module.exports = {
   offlineGuardNow,
   ONE_BUTTON_KEY,
   oneButtonNow,
+  ORDER_SEED_PCT_KEY,
+  bucketOf,
+  inPct,
+  pctOf,
   PACK_KEY,
   PAGE_LANG_KEY,
   pageNav,
