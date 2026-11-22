@@ -58,17 +58,29 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * Not a UNIQUE: a later open is a new open, and the race between two concurrent first opens costs
  * at most one extra row, which no reader can see (every reader groups by plan).
  */
+/**
+ * bd-dp9ipc — the plan's band, decided by the catalogue rather than by the route that served it. A
+ * teacher's own or shelf grades 1-5 plan is polled and downloaded through the 6-12 routes, which pass
+ * 'g612' and the catalogue lesson id. A 'g612' ref that niete_lp612_segments does not know is a 'k5'
+ * plan (no document language): stored that way, and read back that way for opens stored before.
+ */
+const bandSql = (kind, ref) => `CASE WHEN ${kind} = 'g612' AND NOT EXISTS (
+    SELECT 1 FROM niete_lp612_segments s WHERE s.segment_id = ${ref}) THEN 'k5' ELSE ${kind} END`;
+
 const INSERT_OPEN_SQL = `
+  WITH b AS (SELECT ${bandSql('$2::text', '$3::text')} AS kind),
+       p AS (SELECT b.kind, CASE WHEN b.kind = 'k5' THEN NULL ELSE $4::text END AS lang FROM b)
   INSERT INTO niete_lp_opens (user_id, plan_kind, plan_ref, lang, source)
-  SELECT $1::uuid, $2, $3, $4, $5
+  SELECT $1::uuid, p.kind, $3, p.lang, $5
+    FROM p
    WHERE NOT EXISTS (
      SELECT 1 FROM niete_lp_opens
       WHERE user_id = $1::uuid
-        AND plan_kind = $2
+        AND plan_kind = p.kind
         AND plan_ref = $3
-        AND lang IS NOT DISTINCT FROM $4
+        AND lang IS NOT DISTINCT FROM p.lang
         AND opened_at > now() - make_interval(mins => $6::int))
-  RETURNING id`;
+  RETURNING id, plan_kind, lang`;
 
 function cleanOpen({ userId, kind, ref, lang = null, source } = {}) {
   const r = typeof ref === 'string' ? ref.trim() : '';
@@ -94,7 +106,10 @@ async function recordOpen(query, open) {
   const row = (rows || [])[0];
   // `id` and the cleaned `open` ride along for the one caller that continues from a stored open: the
   // lesson-plan survey is requested from the row's id (lp-open-survey.client, bd-qvevax.2).
-  return row ? { recorded: true, id: row.id, open: o } : { recorded: false };
+  if (!row) return { recorded: false };
+  // The stored band wins (bd-dp9ipc): a grades 1-5 plan served by a 6-12 route comes back 'k5'.
+  const stored = row.plan_kind && row.plan_kind !== o.kind ? { ...o, kind: row.plan_kind, lang: row.lang ?? null } : o;
+  return { recorded: true, id: row.id, open: stored };
 }
 
 /**
@@ -135,8 +150,10 @@ const { pkInstantWindow, pkDaySql } = require('../lib/pk-range');
  */
 const ACTIVITY_CTE = `
   lp_activity AS (
-    SELECT o.plan_kind AS kind, o.plan_ref AS ref, o.lang, o.opened_at AS at, 'portal' AS via
+    SELECT b.kind, o.plan_ref AS ref, CASE WHEN b.kind = 'k5' THEN NULL ELSE o.lang END AS lang,
+           o.opened_at AS at, 'portal' AS via
       FROM niete_lp_opens o
+     CROSS JOIN LATERAL (SELECT ${bandSql('o.plan_kind', 'o.plan_ref')} AS kind) b
      WHERE o.user_id = $1::uuid AND ${pkInstantWindow('o.opened_at', '$2', '$3')}
     UNION ALL
     SELECT 'k5', d.lesson_id, NULL, d.created_at, 'whatsapp'
