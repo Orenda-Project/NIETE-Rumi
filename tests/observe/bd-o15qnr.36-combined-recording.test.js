@@ -181,7 +181,8 @@ describe('getDraft — each of the six carries `recording`, additively', () => {
       expect(i.body.length).toBeGreaterThan(0);
       expect(i.recording).toEqual(O.combinedParts(v6Analysis(), code, 'en'));
     }
-    expect(Object.keys(ind(out, 'C3'))).toEqual(['id', 'field', 'name', 'options', 'kind', 'body', 'rating', 'why', 'recording']);
+    // bd-o15qnr.37 adds `about` (the line under the name), additively too
+    expect(Object.keys(ind(out, 'C3'))).toEqual(['id', 'field', 'name', 'options', 'kind', 'body', 'rating', 'why', 'recording', 'about']);
     // Rumi's 11 do not get it
     expect(ind(out, 'C1')).not.toHaveProperty('recording');
   });

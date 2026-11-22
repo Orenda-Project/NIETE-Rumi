@@ -32,6 +32,7 @@
  */
 
 const FicoS = require('../../coaching/frameworks/fico-s');
+const Lines = require('../../coaching/frameworks/indicator-lines'); // bd-o15qnr.37
 
 const FLOW_VERSION = '7.0';
 const DATA_API_VERSION = '3.0';
@@ -313,9 +314,9 @@ function levelOptions(code, lang = 'en', rubric = FicoS.RUBRIC_KEY) {
  * An indicator's text under its name: what to look for, then (v1.2) its scoring note, and the note that says why N/A
  * arrived chosen (C3 after C1 = 1). In the Flow's look_for and the portal's field text: no new slot, no republish.
  */
-function lookForText(code, lang, rubric, { followed = false } = {}) {
+function lookForText(code, lang, rubric, { followed = false, withLookFor = true } = {}) {
   const t = FicoS.indicatorText(code, lang, rubric);
-  const paras = [t.look_for];
+  const paras = [withLookFor ? t.look_for : ''];
   if (t.note) paras.push(t.note);
   if (followed) {
     const note = FicoS.naFollowNote(code, lang, rubric);
@@ -610,6 +611,9 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       type: 'field', name: key, role, input: f.input, kind: extra.kind || null, n: null, short: extra.short || null,
       text, options: f.options, required: f.required, max: f.max,
       ...(extra.follows ? { follows: extra.follows } : {}),
+      // bd-o15qnr.37: an indicator's line on what it looks at (#217's guide line) and its text without the look-for
+      // paragraph, so the portal shows the line under the name and does not say it twice; `text` is unchanged.
+      ...(extra.about !== undefined ? { about: extra.about, notes: extra.notes } : {}),
     };
   };
   return SCREENS.map((screen) => {
@@ -631,8 +635,12 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       if (starred) parts.push({ type: 'sub', text: s.star_line });
       if (rumi.show) parts.push({ type: 'sub', text: rumi.line });
       const follows = FicoS.naFollows(code, rubric);
-      parts.push(field(code, 'item', `${lookForText(code, lang, rubric, { followed: followsNa(code, draft, rubric) })}\n${s.how(t.how)}`, {
+      const followed = followsNa(code, draft, rubric);
+      const rest = lookForText(code, lang, rubric, { followed, withLookFor: false });
+      parts.push(field(code, 'item', `${lookForText(code, lang, rubric, { followed })}\n${s.how(t.how)}`, {
         kind: 'level', short: s.progress(sec.key, sec.codes.indexOf(code) + 1, sec.codes.length),
+        about: Lines.lineFor(rubric, code, lang),
+        notes: rest ? `${rest}\n${s.how(t.how)}` : s.how(t.how),
         // Queue #218: the portal pre-picks N/A as the observer sets C1 (Obs612Form.tsx); the Flow does it per screen.
         ...(follows ? { follows: { code: follows.code, level: String(follows.level) } } : {}),
       }));
