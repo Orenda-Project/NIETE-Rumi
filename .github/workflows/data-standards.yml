@@ -36,6 +36,11 @@ name: data-standards
 # Both live in the Data Team's skill, which this repo vendors verbatim and does
 # not patch. Drop `continue-on-error` once upstream addresses them.
 #
+# WARNINGS. Since agent-skills-taleemabad d3cd4027 the validator also has
+# warn-only checks (D8 duplicate migration numbers, D9, D14-D17). They never
+# fail anything, here or upstream. Each comes with the reason it only warns,
+# shown in the PR comment and in the Slack post below.
+#
 # The `ownership` job is NOT advisory — it fails hard. It proves nobody edited the
 # vendored skill, which is the entire basis for calling it the Data Team's.
 #
@@ -164,6 +169,11 @@ jobs:
             --head "${{ steps.refs.outputs.head }}" > report.json 2>err.txt
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          warnings=0
+          if [ -s report.json ]; then
+            warnings=$(python3 -c "import json;print(len(json.load(open('report.json')).get('warnings',[])))")
+          fi
+          echo "warnings=$warnings" >> "$GITHUB_OUTPUT"
           python3 .claude/skills/data-standards/scripts/validate_schema.py \
             --mode diff --base "${{ steps.refs.outputs.base }}" \
             --head "${{ steps.refs.outputs.head }}" --markdown > report.md 2>/dev/null
@@ -207,6 +217,7 @@ jobs:
           script: |
             const fs = require('fs');
             const code = '${{ steps.validate.outputs.exit_code }}';
+            const nWarn = '${{ steps.validate.outputs.warnings }}' || '0';
             const nRel = '${{ steps.scope.outputs.relevant }}';
             const nAmb = '${{ steps.scope.outputs.ambiguous }}';
             const marker = '<!-- data-standards -->';
@@ -232,6 +243,7 @@ jobs:
             const head =
               code === '1' ? `Findings on ${nRel} schema file(s) this PR touches. **Advisory — does not block the merge.** About a quarter of D8 findings are known false positives (commented-out SQL read as live destructive statements).`
               : code === '2' ? 'The validator could not run — see the job log.'
+              : nWarn !== '0' ? `No blocking findings on the ${nRel} schema file(s) this PR touches, but ${nWarn} warning(s). Warnings never block; each says why.`
               : `No findings on the ${nRel} schema file(s) this PR touches.`;
             const amb = nAmb !== '0'
               ? `\n\n⚠️ ${nAmb} file(s) could not be classified as schema vs. data dump — see \`detect.json\` in the run artifacts.`
@@ -269,18 +281,28 @@ jobs:
       #   TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL  (the target channel ID)
       # Without them, notify.py still runs and exits 0, reporting "not sent" —
       # same never-block guarantee as every other call site for this script.
-      - name: Notify Slack on a confirmed violation
-        if: steps.validate.outputs.exit_code == '1'
+      #
+      # Also posts a pass that only has warnings (event `warn`), with the
+      # validator's summary: what warned and why each one only warns.
+      - name: Notify Slack on a confirmed violation or a warning
+        if: steps.validate.outputs.exit_code == '1' || (steps.validate.outputs.exit_code == '0' && steps.validate.outputs.warnings != '0')
         continue-on-error: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL: ${{ secrets.TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL }}
         run: |
+          if [ "${{ steps.validate.outputs.exit_code }}" = "1" ]; then
+            event=validation_failure; result="FAIL (CI, advisory)"
+          else
+            event=warn; result="PASS with warnings (CI)"
+          fi
+          summary=$(python3 -c "import json;print(json.load(open('report.json')).get('summary',''))")
           python3 .claude/skills/data-standards/scripts/notify.py slack \
-            --event validation_failure \
+            --event "$event" \
             --repo "${{ github.repository }}" \
             --branch "${{ github.head_ref || github.ref_name }}" \
             --commit "${{ steps.refs.outputs.head }}" \
             --actor "${{ github.actor }}" \
-            --result "FAIL (CI, advisory)" \
+            --result "$result" \
+            --summary "$summary" \
             --pr "${{ github.event.pull_request.html_url || '' }}"

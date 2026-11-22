@@ -88,8 +88,17 @@ cd "$REPO_ROOT" || exit 0
 OUTPUT=$(python3 "$VALIDATOR" --mode staged --markdown 2>&1)
 CODE=$?
 
-# 3 = nothing schema-relevant staged, 0 = clean. Both silent.
-if [ "$CODE" -eq 3 ] || [ "$CODE" -eq 0 ]; then
+# 3 = nothing schema-relevant staged: silent. 0 = nothing blocking — silent
+# too, unless the validator's warn-only checks (D8 duplicate numbers, D9,
+# D14-D17) found something. Those are shown as a systemMessage on stdout:
+# on exit 0 Claude Code does not show a hook's stderr to the person.
+if [ "$CODE" -eq 3 ]; then
+    exit 0
+fi
+if [ "$CODE" -eq 0 ]; then
+    if printf '%s' "$OUTPUT" | grep -q "Warnings (did not block)"; then
+        python3 -c 'import json,sys; print(json.dumps({"systemMessage": "DATA STANDARDS (warnings, not blocking):\n" + sys.argv[1]}))' "$OUTPUT"
+    fi
     exit 0
 fi
 

@@ -155,12 +155,59 @@ def looks_like_data_dump(text: str) -> bool | None:
     return False
 
 
+def repo_root() -> Path | None:
+    """The git repo to run `git diff`/`git show` against.
+
+    PREFERS THE CALLER'S OWN CWD (fixed 2026-10-06 — see CHANGELOG for the
+    regression this corrects). The 2026-09-23 commit that introduced this
+    function anchored it UNCONDITIONALLY on this script's own location
+    (inside agent-skills-taleemabad), reasoning that "the gate hook fires
+    with the editor's project directory as cwd, which may sit above the
+    repo (or be no repo at all)". That edge case is real, but the fix as
+    written broke the overwhelming common case instead: in ANY real target
+    repo (a vendored copy in NIETE-Rumi, rumi-agent-home, or any other
+    adopter), this always resolved to agent-skills-taleemabad's OWN working
+    tree — which is normally clean — so `--mode staged` silently reported
+    "no_schema_change" for every real commit in every real repo this skill
+    is vendored into, never seeing the actual staged change at all. Caught
+    2026-10-06 while wiring data-gate-telemetry reporting into a vendored
+    copy in rumi-agent-home: every "clean" test commit reported exit 3
+    (no_schema_change) regardless of what was actually staged, traced back
+    to this function via `python3 -c "...repo_root()..."` printing
+    agent-skills-taleemabad's own path from inside an unrelated scratch
+    repo.
+
+    Correct behavior, preserving the ORIGINAL fix's actual intent: try the
+    caller's own cwd first (this resolves correctly whether cwd IS the repo
+    root, or sits inside the repo below it — `git rev-parse --show-toplevel`
+    walks up on its own). Only fall back to this script's own location if
+    the caller's cwd isn't inside any git repo at all — the one real case
+    the 2026-09-23 commit was built to fix (a validator error instead of a
+    silent false "no schema change" when an editor's cwd sits above the
+    repo or outside it entirely).
+    """
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=True)
+        return Path(out.stdout.strip())
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass
+
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             cwd=Path(__file__).resolve().parent,
+                             capture_output=True, text=True, check=True)
+        return Path(out.stdout.strip())
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+
 def git_changed_files(args: list[str]) -> list[tuple[str, str, str | None]]:
     """Returns (status, path, renamed_from) tuples from git diff --name-status."""
     try:
         result = subprocess.run(
             ["git", "diff", "--name-status", "-M", *args],
-            capture_output=True, text=True, check=True,
+            cwd=repo_root(), capture_output=True, text=True, check=True,
         )
     except FileNotFoundError:
         print("git not found — use --files for a git-free file list instead", file=sys.stderr)
@@ -199,7 +246,8 @@ def read_file_at_ref(path: str, ref: str | None) -> str:
         except OSError:
             return ""
     try:
-        result = subprocess.run(["git", "show", f"{ref}:{path}"], capture_output=True, text=True)
+        result = subprocess.run(["git", "show", f"{ref}:{path}"],
+                                cwd=repo_root(), capture_output=True, text=True)
         return result.stdout if result.returncode == 0 else ""
     except FileNotFoundError:
         return ""
