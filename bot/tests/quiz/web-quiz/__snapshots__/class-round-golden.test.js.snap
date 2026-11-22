@@ -141,29 +141,29 @@ exports[`round off (none): a Challenge run is byte-identical exercise payload, t
 
 exports[`round off (none): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 97963,
-  "sha256": "fa502588a2278351e720e4057feb0b67ccff531cafecca4c572c2b36e6fd545b",
+  "bytes": 98011,
+  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 97963,
-  "sha256": "fa502588a2278351e720e4057feb0b67ccff531cafecca4c572c2b36e6fd545b",
+  "bytes": 98011,
+  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98388,
-  "sha256": "5eb813933edb53172009c288fdcc92ab97acf58d9f2377fa63f84471f987b56a",
+  "bytes": 98436,
+  "sha256": "02b43cb267de69a883f589c0495e06252d03947f5f644801e1d4b61a9ef63c87",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99262,
-  "sha256": "1e3a6485d20f5cfbd7faf20998b7b6e0e6cf51f413b2ce1e8f94b9c8bdf42f6b",
+  "bytes": 99310,
+  "sha256": "83350fe2c388eb7352a0e8b659bb8985bace7ad9dd30f209e245fe05e56e775d",
 }
 `;
 
@@ -372,29 +372,29 @@ exports[`round off (own_off): a Challenge run is byte-identical exercise payload
 
 exports[`round off (own_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 97963,
-  "sha256": "fa502588a2278351e720e4057feb0b67ccff531cafecca4c572c2b36e6fd545b",
+  "bytes": 98011,
+  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 97963,
-  "sha256": "fa502588a2278351e720e4057feb0b67ccff531cafecca4c572c2b36e6fd545b",
+  "bytes": 98011,
+  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98388,
-  "sha256": "5eb813933edb53172009c288fdcc92ab97acf58d9f2377fa63f84471f987b56a",
+  "bytes": 98436,
+  "sha256": "02b43cb267de69a883f589c0495e06252d03947f5f644801e1d4b61a9ef63c87",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99262,
-  "sha256": "1e3a6485d20f5cfbd7faf20998b7b6e0e6cf51f413b2ce1e8f94b9c8bdf42f6b",
+  "bytes": 99310,
+  "sha256": "83350fe2c388eb7352a0e8b659bb8985bace7ad9dd30f209e245fe05e56e775d",
 }
 `;
 
@@ -539,28 +539,28 @@ exports[`round off (parent_off): a Challenge run is byte-identical exercise payl
 
 exports[`round off (parent_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 97963,
-  "sha256": "fa502588a2278351e720e4057feb0b67ccff531cafecca4c572c2b36e6fd545b",
+  "bytes": 98011,
+  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 97963,
-  "sha256": "fa502588a2278351e720e4057feb0b67ccff531cafecca4c572c2b36e6fd545b",
+  "bytes": 98011,
+  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98388,
-  "sha256": "5eb813933edb53172009c288fdcc92ab97acf58d9f2377fa63f84471f987b56a",
+  "bytes": 98436,
+  "sha256": "02b43cb267de69a883f589c0495e06252d03947f5f644801e1d4b61a9ef63c87",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99262,
-  "sha256": "1e3a6485d20f5cfbd7faf20998b7b6e0e6cf51f413b2ce1e8f94b9c8bdf42f6b",
+  "bytes": 99310,
+  "sha256": "83350fe2c388eb7352a0e8b659bb8985bace7ad9dd30f209e245fe05e56e775d",
 }
 `;
