@@ -20,7 +20,9 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const LEGACY = new Set(['topic_end_nudge_enabled', 'ab_lp_enabled', 'ab_lp_percentage', 'ab_lp_ch310_enabled',
-  'ab_v10_enabled', 'niete_lp_ab_assignment', 'niete_coaching_ab_assignment']);
+  'ab_v10_enabled', 'niete_lp_ab_assignment', 'niete_coaching_ab_assignment',
+  // The video-clip coaching test went live before the shared module; it keeps its own arm code and switch.
+  'VIDEO_RECO_AB_ENABLED']);
 const CODE_EXT = new Set(['.js', '.ts', '.tsx', '.jsx', '.mjs', '.cjs', '.py', '.sql', '.vue', '.json', '.yaml',
   '.yml', '.sh', '.ipynb']);
 const HASH_LANGS = new Set(['.py', '.sh', '.yaml', '.yml', '.ipynb']);
