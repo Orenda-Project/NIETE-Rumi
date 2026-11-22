@@ -11,8 +11,10 @@
  * The line (production, Axiom): 12–20 Oct ran 7.2–8.4% a day (median ~7.9%); 19 Nov was 23.8% (239 of 1,005).
  *   - one day at or above DAY_PCT (15%, about twice the mid-October median), on a day with at least MIN_SITTINGS, or
  *   - the last ROLL_DAYS days each with MIN_SITTINGS, averaging at or above ROLL_PCT (12%).
- * A day under MIN_SITTINGS (a holiday, a Sunday) never alerts on its own. The 3-day line posts at most once every
- * ROLL_REPEAT_DAYS (while the voice stays bad it would otherwise repeat daily and be muted); a day over DAY_PCT always posts.
+ * A day under MIN_SITTINGS (a holiday, a Sunday) never alerts on its own. Both lines share ONE marker (REPEAT_KEY, kept
+ * ROLL_REPEAT_DAYS) holding the share of the day it posted: inside that week nothing posts again unless a day crosses
+ * the one-day line at least REPOST_POINTS above the posted share, which posts and re-arms the marker. 25 of the 42 days
+ * 10 Oct - 20 Nov crossed a line, so a post per crossing would be wallpaper; a plain weekly cap would hide a spike.
  *
  * Runs once per Pakistan day, from 09:00 PKT, for yesterday: one replica (claimTick), a day marker after the check.
  * Env (worker): WEB_QUIZ_VOICE_WATCH_ENABLED=true; the watcher's Slack and Axiom env (QUIZ_FUNNEL_WATCH_SLACK_TOKEN |
@@ -30,8 +32,9 @@ const BASELINE_PCT = 7.9; // 12–20 Oct 2026 median, said in the alert
 const DUE_HOUR_PKT = 9;
 const TICK_KEY = 'web_quiz_voice_watch:tick';
 const DAY_KEY = (day) => `web_quiz_voice_watch:day:${day}`;
-const ROLL_KEY = 'web_quiz_voice_watch:rolling_posted';
+const REPEAT_KEY = 'web_quiz_voice_watch:posted';
 const ROLL_REPEAT_DAYS = 7;
+const REPOST_POINTS = 5;
 const MARKER_TTL_S = 3 * 24 * 3600;
 const PKT_MS = 5 * 3600 * 1000;
 
@@ -73,14 +76,28 @@ function verdict(days) {
 
 const n = (x) => Number(x || 0).toLocaleString('en-US');
 
-function alertText(v, days) {
+/** prev: the marker of the post this one repeats inside its week ({day, share}), or null. */
+function alertText(v, days, prev = null) {
   const d = days[days.length - 1];
+  const each = days.slice(-ROLL_DAYS).map((x) => `${x.day} ${pct(x).toFixed(1)}%`).join(', ');
   const head = v.why === 'rolling'
-    ? `Web quiz voice: ${v.mean.toFixed(1)}% of page sittings lost a read-aloud clip on average over the last ${ROLL_DAYS} days (${d.day}: ${v.share.toFixed(1)}%).`
-    : `Web quiz voice: ${v.share.toFixed(1)}% of page sittings lost a read-aloud clip on ${d.day} (${n(d.hit)} of ${n(d.sit)}).`;
-  return `${head} Mid-October ran about ${BASELINE_PCT}%; the line is ${DAY_PCT}% a day or ${ROLL_PCT}% over ${ROLL_DAYS} days.`
+    ? `Web quiz voice: ${v.mean.toFixed(1)}% of page sittings lost a read-aloud clip on average over the last ${ROLL_DAYS} days (${each}).`
+    : `Web quiz voice: ${v.share.toFixed(1)}% of page sittings lost a read-aloud clip on ${d.day} (${n(d.hit)} of ${n(d.sit)})`
+      + (prev ? `, up ${(v.share - prev.share).toFixed(1)} points since the last post (${prev.share.toFixed(1)}% on ${prev.day}).` : '.');
+  return `${head} Mid-October ran about ${BASELINE_PCT}%; the line is ${DAY_PCT}% a day or ${ROLL_PCT}% over ${ROLL_DAYS} days,`
+    + ` posted once a week unless a day rises ${REPOST_POINTS} points.`
     + ` Why the clips failed (${n(d.fb)} events): stalled ${n(d.stalled)}, refused ${n(d.reject)}, unsupported ${n(d.unsupported)}, error ${n(d.error)}.`
     + ' Part, host, timing and view state are on each web_quiz.audio_fallback event.';
+}
+
+/** The week's marker: {day, share} of the last post, or null (absent, expired or unreadable). */
+function posted(raw) {
+  try {
+    const o = raw ? JSON.parse(raw) : null;
+    return o && Number.isFinite(Number(o.share)) ? { day: String(o.day || ''), share: Number(o.share) } : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
@@ -116,21 +133,23 @@ async function run({ now = new Date(), env = process.env, redis = null, query = 
   const v = verdict(days);
   const last = days[days.length - 1];
   logEvent('web_quiz.voice_watch', { day, sittings: last.sit, lost: last.hit, share: Math.round(v.share * 10) / 10, alert: v.alert, why: v.why });
-  if (v.alert && v.why === 'rolling' && await r.get(ROLL_KEY)) {
+  const prev = v.alert ? posted(await r.get(REPEAT_KEY)) : null;
+  const rose = Boolean(prev) && v.why === 'day' && v.share >= prev.share + REPOST_POINTS;
+  if (prev && !rose) {
     await r.set(DAY_KEY(day), now.toISOString(), MARKER_TTL_S);
     return { outcome: 'quiet_repeat', day, share: v.share, why: v.why };
   }
   if (v.alert) {
     try {
-      await (post || W.postToSlack)(alertText(v, days), slack);
+      await (post || W.postToSlack)(alertText(v, days, rose ? prev : null), slack);
     } catch (error) {
       logToFile('Web quiz voice alarm: the post failed', { error: error && error.message, day }, 'error');
       return { outcome: 'post_failed', day };
     }
+    await r.set(REPEAT_KEY, JSON.stringify({ day, share: Math.round(v.share * 100) / 100, why: v.why }), ROLL_REPEAT_DAYS * 86400);
   }
-  if (v.alert && v.why === 'rolling') await r.set(ROLL_KEY, now.toISOString(), ROLL_REPEAT_DAYS * 86400);
   await r.set(DAY_KEY(day), now.toISOString(), MARKER_TTL_S);
   return { outcome: v.alert ? 'alert' : 'quiet', day, share: v.share, why: v.why };
 }
 
-module.exports = { run, verdict, alertText, aplFor, dayWindow, pktDay, DAY_PCT, ROLL_PCT, ROLL_DAYS, MIN_SITTINGS, TICK_KEY, DAY_KEY, ROLL_KEY, ROLL_REPEAT_DAYS };
+module.exports = { run, verdict, alertText, aplFor, dayWindow, pktDay, DAY_PCT, ROLL_PCT, ROLL_DAYS, MIN_SITTINGS, TICK_KEY, DAY_KEY, REPEAT_KEY, ROLL_REPEAT_DAYS };

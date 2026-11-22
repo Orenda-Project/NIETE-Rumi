@@ -121,3 +121,219 @@ describe('a small text button (.wq-linkbtn) is still a 48 px tap target', () => 
     expect(px(rule('html.wq-ur2[lang=ur] .wq-linkbtn'), 'min-height')).toBeGreaterThanOrEqual(48);
   });
 });
+
+// The cascade itself, not one rule: every rule in wq.css whose selector matches the element (descendant and child
+// combinators, classes, ids, [attr=value]), ranked by !important, specificity, then source order, the way the browser
+// ranks them. @media rules count when they hold on a 360 × 740 phone.
+const postcss = require('postcss');
+const selParser = require('postcss-selector-parser');
+
+const CSS_ROOT = postcss.parse(CSS);
+const VIEW = { width: 360, height: 740 };
+function mediaHolds(params) {
+  return params.split(/\s+and\s+/).every((cond) => {
+    const m = /\(\s*(min|max)-(width|height)\s*:\s*(\d+)px\s*\)/.exec(cond);
+    if (!m) return false; // reduced motion, print, hover: not this phone
+    const v = VIEW[m[2]];
+    return m[1] === 'min' ? v >= Number(m[3]) : v <= Number(m[3]);
+  });
+}
+function compoundMatches(nodes, el) {
+  return nodes.every((n) => {
+    if (n.type === 'tag') return n.value.toLowerCase() === el.tag;
+    if (n.type === 'class') return el.classes.includes(n.value);
+    if (n.type === 'id') return el.id === n.value;
+    if (n.type === 'attribute') {
+      const have = el.attrs[n.attribute];
+      return n.operator ? n.operator === '=' && have === n.value : have !== undefined;
+    }
+    if (n.type === 'universal') return true;
+    return false; // pseudo-classes and pseudo-elements: never the element at rest
+  });
+}
+function selectorMatches(sel, path) {
+  const parts = [[]];
+  const combs = [];
+  sel.nodes.forEach((n) => {
+    if (n.type === 'combinator') { combs.push(n.value.trim() || ' '); parts.push([]); } else parts[parts.length - 1].push(n);
+  });
+  let at = path.length - 1;
+  if (!compoundMatches(parts[parts.length - 1], path[at])) return false;
+  for (let i = parts.length - 2; i >= 0; i -= 1) {
+    const comb = combs[i];
+    if (comb === '>') {
+      at -= 1;
+      if (at < 0 || !compoundMatches(parts[i], path[at])) return false;
+    } else if (comb === ' ') {
+      do { at -= 1; } while (at >= 0 && !compoundMatches(parts[i], path[at]));
+      if (at < 0) return false;
+    } else return false;
+  }
+  return true;
+}
+function specificity(sel) {
+  let a = 0; let b = 0; let c = 0;
+  sel.walk((n) => {
+    if (n.type === 'id') a += 1;
+    else if (n.type === 'class' || n.type === 'attribute' || (n.type === 'pseudo' && !n.value.startsWith('::'))) b += 1;
+    else if (n.type === 'tag' || (n.type === 'pseudo' && n.value.startsWith('::'))) c += 1;
+  });
+  return a * 1e6 + b * 1e3 + c;
+}
+// The size or the family out of a `font` shorthand: [style] [weight] size[/line-height] family.
+function fromFont(value, prop) {
+  const m = /(\d+(?:\.\d+)?px)(?:\/\S+)?\s+(.+)$/.exec(value);
+  if (!m) return null;
+  return prop === 'font-size' ? m[1] : m[2].trim();
+}
+function computed(path, prop) {
+  let best = null;
+  let order = 0;
+  CSS_ROOT.walkRules((rule) => {
+    const p = rule.parent;
+    if (p.type === 'atrule' && !(p.name === 'media' && mediaHolds(p.params))) return;
+    if (p.type !== 'root' && p.type !== 'atrule') return;
+    // `font: 700 52px/1.7 var(--fu)` sets the size and the family too
+    const decls = rule.nodes.filter((d) => d.type === 'decl' && (d.prop === prop || (d.prop === 'font' && /^font-(size|family)$/.test(prop))));
+    if (!decls.length) return;
+    selParser((sels) => {
+      sels.each((sel) => {
+        if (!selectorMatches(sel, path)) return;
+        decls.forEach((d) => {
+          order += 1;
+          const rank = [d.important ? 1 : 0, specificity(sel), order];
+          if (!best || rank[0] > best.rank[0] || (rank[0] === best.rank[0] && (rank[1] > best.rank[1] || (rank[1] === best.rank[1] && rank[2] > best.rank[2])))) {
+            best = { rank, value: d.prop === 'font' ? fromFont(d.value, prop) : d.value, selector: String(sel).trim() };
+          }
+        });
+      });
+    }).processSync(rule.selector);
+  });
+  return best;
+}
+const node = (tag, classes = [], attrs = {}, id) => ({ tag, classes, attrs, id });
+// html > body > #wq (the page ROOT, which carries wq-novoice: wq.js `ROOT.classList.add('wq-novoice')`) > card > the words
+function stemPath({ lang, ur2, novoice, listen }) {
+  return [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang }),
+    node('body'),
+    node('div', novoice ? ['wq-novoice'] : [], {}, 'wq'),
+    node('div', listen ? ['wq-qcard', 'wq-listen'] : ['wq-qcard']),
+    node('p', listen ? ['wq-qtext', 'wq-qsmall'] : ['wq-qtext']),
+  ];
+}
+const fontPx = (opts) => {
+  const r = computed(stemPath(opts), 'font-size');
+  return r && /^\d+px$/.test(r.value) ? Number.parseInt(r.value, 10) : r && r.value;
+};
+
+describe('a long Urdu "listen" question with no voice still leaves its answers on a 360 × 740 screen', () => {
+  // qa-design walk, sandbox Nov 2026: at 30 px a 106-character Urdu listen stem took 462 px and the first answer started
+  // at 684 px of 740, so the child saw only its top edge. Urdu Nastaliq needs ~2.15× line height; 26 px brings it back.
+  test.each([
+    ['the polished Urdu look (wq-ur2)', true],
+    ['the plain Urdu look', false],
+  ])('%s: the listen question\'s words are 26 px when the voice is lost', (_, ur2) => {
+    expect(fontPx({ lang: 'ur', ur2, novoice: true, listen: true })).toBe(26);
+  });
+
+  // The plain look must hold too: the big words are the no-silence fallback, and they must not depend on another
+  // team's switch (web_quiz_ur_polish, on in production since 10 Oct) staying on. In the plain look the Urdu rules
+  // (html[lang=ur] .wq-qtext 21 px, .wq-opt 20 px) outranked the big words until the plain-look rule.
+  test.each([
+    ['polished', true],
+    ['plain', false],
+  ])('Urdu (%s): an ordinary question with no voice is 30 px and each answer 26 px', (_, ur2) => {
+    expect(fontPx({ lang: 'ur', ur2, novoice: true, listen: false })).toBe(30);
+    const opt = computed([node('html', ur2 ? ['wq-ur2'] : [], { lang: 'ur' }), node('body'), node('div', ['wq-novoice'], {}, 'wq'),
+      node('div', ['wq-opts']), node('button', ['wq-opt', 'wq-s1'])], 'font-size');
+    expect(opt && opt.value).toBe('26px');
+  });
+
+  test('English: the listen question with no voice keeps its 30 px (longest English stem in the bank is 39 characters)', () => {
+    expect(fontPx({ lang: 'en', ur2: false, novoice: true, listen: true })).toBe(30);
+  });
+
+  test.each([
+    ['polished', true, 17],
+    ['plain', false, 21],
+  ])('Urdu (%s): with the voice working, the listen question keeps today\'s size', (_, ur2, size) => {
+    expect(fontPx({ lang: 'ur', ur2, novoice: false, listen: true })).toBe(size);
+  });
+});
+
+describe('a Qaida letter card is set in Naskh, the letter forms the Qaida page teaches', () => {
+  // A Noorani Qaida teaches Arabic letters in Naskh. The page set every letter card (.wq-glyph) in its Urdu Nastaliq,
+  // so د ث ذ خ on a grade 1 Islamiyat item were not the glyphs on the child's Qaida page. A card the server marks
+  // lang:'ar' is now drawn in a Naskh face; every other card is drawn exactly as before.
+  const ESC = /  function esc\(s\) \{[^\n]*\n/.exec(SRC)[0];
+  const PIC = SRC.slice(SRC.indexOf('  function picHtml(o, nm) {'), SRC.indexOf('  // Options arrive in the order the child sees'));
+  function picHtml(o) {
+    const ctx = { LOADING: '', cleanSvg: (x) => x };
+    vm.createContext(ctx);
+    vm.runInContext(`${ESC}\n${PIC}\nthis.picHtml = picHtml;`, ctx);
+    return ctx.picHtml(o, '');
+  }
+  const DAL = { kind: 'glyph', glyph: 'د', text: 'د', name: 'دال', alt: 'دال', dir: 'rtl' };
+
+  test('the page draws a card marked Arabic as an Arabic, right-to-left letter', () => {
+    const html = picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: 'ar' } });
+    expect(html).toMatch(/^<span class="wq-glyph" dir="rtl" lang="ar">د<\/span>$/);
+  });
+
+  test('a card with no mark (every card stored today) is drawn exactly as before', () => {
+    expect(picHtml({ slot: 'A', text: 'د', pic: DAL })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+    expect(picHtml({ slot: 'A', text: 'خ', pic: { kind: 'glyph', text: 'خ' } })).toBe('<span class="wq-glyph" dir="auto">خ</span>');
+  });
+
+  test('only "ar" is honoured; any other value is ignored, never echoed into the markup', () => {
+    expect(picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: 'ur' } })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+    expect(picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: '"><b>' } })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+  });
+
+  // html > body > #wq > the picture grid > an option tile > the letter card
+  const cardPath = ({ lang, ur2, ar }) => [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang }),
+    node('body'),
+    node('div', [], {}, 'wq'),
+    node('div', ['wq-pgrid']),
+    node('button', ['wq-opt', 'wq-ptile', 'wq-s1']),
+    node('span', ['wq-glyph'], ar ? { dir: 'rtl', lang: 'ar' } : { dir: 'auto' }),
+  ];
+  const firstFamily = (opts) => {
+    const r = computed(cardPath(opts), 'font-family');
+    return r && r.value.split(',')[0].trim().replace(/^["']|["']$/g, '');
+  };
+
+  test.each([
+    ['an Urdu page, polished', 'ur', true],
+    ['an Urdu page, plain', 'ur', false],
+    ['an English page', 'en', false],
+  ])('%s: a card marked Arabic resolves to the Naskh face first', (_, lang, ur2) => {
+    expect(firstFamily({ lang, ur2, ar: true })).toBe('WQ Naskh');
+    expect(computed(cardPath({ lang, ur2, ar: true }), 'font-family').value).toMatch(/"WQ Naskh",\s*"Noto Naskh Arabic"/);
+  });
+
+  test('an unmarked card keeps the page face (var(--fu)), as before', () => {
+    expect(computed(cardPath({ lang: 'ur', ur2: true, ar: false }), 'font-family').value).toBe('var(--fu)');
+  });
+
+  test('the Naskh face is shipped: its @font-face names a woff2 that exists, and its range holds every Arabic letter and mark', () => {
+    let face = null;
+    CSS_ROOT.walkAtRules('font-face', (at) => {
+      const fam = at.nodes.find((d) => d.prop === 'font-family');
+      if (fam && /"WQ Naskh"/.test(fam.value)) face = at;
+    });
+    expect(face).not.toBeNull();
+    const src = face.nodes.find((d) => d.prop === 'src').value;
+    const file = /url\(([^)]+)\)/.exec(src)[1].replace(/["']/g, '');
+    const bytes = fs.readFileSync(path.join(WQ, file));
+    expect(bytes.subarray(0, 4).toString('latin1')).toBe('wOF2');
+    expect(bytes.length).toBeLessThan(40 * 1024);
+    const ranges = face.nodes.find((d) => d.prop === 'unicode-range').value.split(',').map((r) => r.trim().replace(/^U\+/i, '').split('-').map((h) => parseInt(h, 16)));
+    const covered = (cp) => ranges.some(([a, b]) => cp >= a && cp <= (b == null ? a : b));
+    for (let cp = 0x0621; cp <= 0x064A; cp += 1) if (cp < 0x063B || cp > 0x0640) expect(covered(cp)).toBe(true);
+    for (let cp = 0x064B; cp <= 0x0652; cp += 1) expect(covered(cp)).toBe(true);
+    expect(fs.existsSync(path.join(WQ, 'fonts', 'OFL-NotoNaskhArabic.txt'))).toBe(true);
+  });
+});

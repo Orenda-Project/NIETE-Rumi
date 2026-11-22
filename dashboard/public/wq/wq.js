@@ -300,7 +300,8 @@ var WQI = (function () {
   /* ---- markup per type ---- */
   function picHtml(o, nm) {
     var g = o.pic && (o.pic.glyph || (o.pic.kind === 'glyph' && o.pic.text));
-    if (g) return '<span class="wq-glyph" dir="auto">' + esc(g) + '</span>';
+    // A Qaida letter (the server marks it lang 'ar') is an Arabic letter, set in Naskh by wq.css; every other card as before.
+    if (g) return '<span class="wq-glyph" dir=' + (o.pic.lang === 'ar' ? '"rtl" lang="ar"' : '"auto"') + '>' + esc(g) + '</span>';
     if (o.pic && o.pic.svg) {
       // An unnamed picture (an emoji option drawn as a picture) is hidden from screen readers; its button carries the shape's name.
       var al = o.pic.alt != null ? o.pic.alt : nm;
