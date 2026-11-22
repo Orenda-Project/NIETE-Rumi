@@ -25,6 +25,8 @@ function createRouter() {
   // every route here exists only while the switch is on (and every env is set)
   router.use(async (req, res, next) => {
     const s = await Push.switches();
+    // the switch could not be read (and never has been): not an off, so the page keeps whatever worker it has
+    if (s.unread) return res.status(503).json({ err: 'unavailable' });
     if (!s.remind) return res.status(404).json({ off: true });
     if (req.path.startsWith('/portal/') && !s.portal) return res.status(404).json({ off: true });
     req.pushSwitches = s;

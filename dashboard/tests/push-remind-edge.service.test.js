@@ -37,7 +37,7 @@ let s;
 afterEach(() => new Promise((r) => (s ? s.server.close(() => { s = null; r(); }) : r())));
 
 describe('edge routes', () => {
-  test('switch off at the bot: /remind/:code falls through, the API answers 404 not_found', async () => {
+  test('switch off at the bot: /remind/:code falls through, the API answers 404 {off:true} (the page drops its worker on that only)', async () => {
     s = await start();
     const page = await fetch(`${s.base}/remind/AB12CD`);
     expect(page.status).toBe(404);
@@ -45,11 +45,11 @@ describe('edge routes', () => {
     expect(s.calls[0].url).toBe('http://bot.test/api/internal/wqpush/state');
     const key = await fetch(`${s.base}/api/wqpush/key`);
     expect(key.status).toBe(404);
-    expect(await key.json()).toEqual({ error: 'not_found' });
+    expect(await key.json()).toEqual({ off: true });
     for (const op of ['subscribe', 'unsubscribe', 'opened', 'test', 'e']) {
       const r = await fetch(`${s.base}/api/wqpush/${op}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       expect(r.status).toBe(404);
-      expect(await r.json()).toEqual({ error: 'not_found' });
+      expect(await r.json()).toEqual({ off: true });
     }
   });
 
@@ -287,10 +287,10 @@ function page({ ua = UA_CHROME, key = { status: 200, body: { key: 'BPUBKEYAAAA' 
 }
 
 describe('wq-remind.js (fake DOM)', () => {
-  test('key 404 (switch off): unregisters our /sw.js worker only, renders nothing', async () => {
+  test('key 404 {off:true} (switch off): unregisters our /sw.js worker only, renders nothing', async () => {
     const mine = { active: { scriptURL: 'https://wq.example/sw.js' }, unregister: jest.fn(async () => true) };
     const other = { active: { scriptURL: 'https://wq.example/other.js' }, unregister: jest.fn(async () => true) };
-    const p = page({ key: { status: 404, body: { error: 'not_found' } }, regs: [mine, other] });
+    const p = page({ key: { status: 404, body: { off: true } }, regs: [mine, other] });
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
     await flush();
     expect(p.gets).toEqual(['/api/wqpush/key?code=AB12CD']); // the canary's ask is per quiz
@@ -298,6 +298,20 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(other.unregister).not.toHaveBeenCalled();
     expect(p.slot.innerHTML).toBe('');
     expect(p.Notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  // A failed switch read is not an off: the worker the phone already has stays (the next real off still drops it).
+  test.each([
+    ['a 404 that is not an off (a route miss)', { status: 404, body: { error: 'not_found' } }],
+    ['503 (the switch could not be read)', { status: 503, body: { err: 'unavailable' } }],
+    ['the network down', { status: 0, body: {} }],
+  ])('key %s: the worker stays, nothing rendered', async (_label, key) => {
+    const mine = { active: { scriptURL: 'https://wq.example/sw.js' }, unregister: jest.fn(async () => true) };
+    const p = page({ key, regs: [mine] });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
+    await flush();
+    expect(mine.unregister).not.toHaveBeenCalled();
+    expect(p.slot.innerHTML).toBe('');
   });
 
   test('an install card on screen: nothing rendered, nothing asked', async () => {
