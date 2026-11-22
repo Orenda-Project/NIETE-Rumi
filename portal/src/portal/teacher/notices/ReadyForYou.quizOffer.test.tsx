@@ -103,6 +103,27 @@ describe("Ready for you: the quiz card", () => {
     expect(document.body).toHaveTextContent(NOTICES_COPY_UR.quizOfferTitle);
   });
 
+  it("in Urdu, an English topic with a comma stays ONE run, in its own order (never split at the comma)", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    const topic = "Skip Counting in 5s, 10s and 100s";
+    list = [quizOffer({ title: topic })];
+    mount();
+    await tick(0);
+    const text = document.body.textContent || "";
+    expect(text).toContain(`⁦${topic}⁩`);
+    expect(text).not.toContain("5s⁩,");
+  });
+
+  it("in Urdu, an Urdu topic is left as it is (no isolate around it)", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    list = [quizOffer({ title: "نئے الفاظ اور ارکان سازی" })];
+    mount();
+    await tick(0);
+    const text = document.body.textContent || "";
+    expect(text).toContain("نئے الفاظ اور ارکان سازی");
+    expect(text).not.toContain("⁦نئے");
+  });
+
   it("no quiz home for this session (GET /me/home off): the card is not drawn — never a dead button", async () => {
     home = 404;
     list = [quizOffer()];
