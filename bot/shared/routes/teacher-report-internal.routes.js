@@ -5,7 +5,7 @@
  * behind requireInternalKey; WHO is asking comes only from the signed report
  * token (kind 'tr'), never from the request.
  *
- *   GET /page/:token[?lang=&tab=class&class=<listId>&from=home|wa|list]  the report page (HTML)
+ *   GET /page/:token[?lang=&tab=class&class=<listId>&from=home|wa|list|class]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap (+ quiz_forward_tap wa_report), 302 -> wa.me with the reminder
  *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
@@ -153,10 +153,10 @@ function notFound(req, res, v) {
 
 /**
  * The late finishers (quiz_teacher_home_reports, bd-5j1zaf): while on, teacher_report.opened gains late_n (the quiz
- * tab only: how many finished after the 12 h report) and from (?from= exactly home | wa | list: the teacher home, the
- * WhatsApp report, the quiz list's link; anything else absent). Off: {} — today's event.
+ * tab only: how many finished after the 12 h report) and from (?from= exactly home | wa | list | class: the teacher home,
+ * the WhatsApp report, the quiz list's link, a quiz row on the all-classes tab; anything else absent). Off: {} — today's event.
  */
-const FROM = new Set(['home', 'wa', 'list']);
+const FROM = new Set(['home', 'wa', 'list', 'class']);
 function lateFields(req, b) {
   const from = typeof req.query.from === 'string' && FROM.has(req.query.from) ? req.query.from : null;
   return {
