@@ -9,3 +9,4 @@
 {"ts":"2026-11-21T18:37:51Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-1731278bcd46","sha":"1731278bcd46","branch":"bd-zrdvmi.50.3-main","user":""}
 {"ts":"2026-11-22T02:17:03Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"1731278bcd46","branch":"bd-zrdvmi.50.3-main","user":""}
 {"ts":"2026-11-22T06:12:18Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"1731278bcd46","branch":"bd-zrdvmi.50.3-main","user":""}
+{"ts":"2026-11-22T06:12:22Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.50.3-main: E-DUPID:child-test;E-NODRIVER:registration;E-NOID:lesson-plan","sha":"1731278bcd46","branch":"bd-zrdvmi.50.3-main","user":""}
