@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T16:01:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe spec_sync=true","sha":"89438b9ab481","branch":"bd-b0aszz.1-62777","user":""}
+{"ts":"2026-11-22T16:08:24Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"observe=none-needed (two internal log strings changed \"Rumi\" to \"the bot\"; nothing a teacher sees)","sha":"89438b9ab481","branch":"bd-b0aszz.1-62777","user":""}
