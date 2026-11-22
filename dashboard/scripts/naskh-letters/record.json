@@ -1,0 +1,9 @@
+{
+  "source": "NotoNaskhArabic-Regular.ttf",
+  "source_sha256": "6f0a92031367b2f5a2078fe9d24f3433122b61a0bad57c423aad8f3c39aa2e6e",
+  "out": "dashboard/public/wq/fonts/wq-naskh-1.woff2",
+  "out_sha256": "6eaabbda4d48cc51abb570cc9c66f36ac3e1239631ac63751ed755079f19940f",
+  "bytes": 9776,
+  "unicode_range": "U+0621-063A,U+0641-064A,U+064B-0652,U+0670-0671",
+  "codepoints": 46
+}
