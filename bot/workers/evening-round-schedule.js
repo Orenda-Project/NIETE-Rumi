@@ -2,7 +2,7 @@
 /**
  * Schedules the class evening round writer (shared/services/quiz/web-quiz-evening-round.js tick) on the worker.
  * Main-queue replicas only; a boot run FIRST_MS after boot, then every TICK_MS. The tick itself writes only on a
- * school day between 16:00 and 19:59 PKT, at most EVENING_ROUND_MAX_PER_TICK rounds per tick (the rest wait for the
+ * school day between 14:00 and 19:59 PKT, at most EVENING_ROUND_MAX_PER_TICK rounds per tick (the rest wait for the
  * next tick), and reads its app_settings switch (web_quiz_evening_round) every time, so a flip needs no deploy.
  * Two replicas are safe: one round per class per day (a Redis lock and a partial unique index).
  */

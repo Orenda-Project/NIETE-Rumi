@@ -203,13 +203,14 @@ test('off: the switch missing / false / the class link off -> nothing written, n
   expect(SQS.queueJob).not.toHaveBeenCalled();
 });
 
-test('not a school day (Saturday) -> nothing; the tick outside 16:00-19:59 PKT -> nothing', async () => {
+test('not a school day (Saturday) -> nothing; the tick outside 14:00-19:59 PKT -> nothing', async () => {
   expect((await Round().writeRounds({ now: new Date('2026-11-28T11:05:00Z') })).skipped).toBe('not_school_day');
-  expect((await Round().tick({ now: new Date('2026-11-24T09:59:00Z') })).skipped).toBe('hours'); // 14:59 PKT
+  expect((await Round().tick({ now: new Date('2026-11-24T08:59:00Z') })).skipped).toBe('hours'); // 13:59 PKT
   expect((await Round().tick({ now: new Date('2026-11-24T15:00:00Z') })).skipped).toBe('hours'); // 20:00 PKT
   expect(rounds()).toHaveLength(0);
-  const at16 = await Round().tick({ now: new Date('2026-11-24T11:00:00Z'), enqueue: jest.fn() });
-  expect(at16.queued).toBe(1);
+  // 14:05 PKT: the lesson set is final at the 14:00 cutoff, and the clips have time to record before the evening
+  const at14 = await Round().tick({ now: new Date('2026-11-24T09:05:00Z'), enqueue: jest.fn() });
+  expect(at14.queued).toBe(1);
 });
 
 test('a teacher\'s recorded subject for the class is respected; no subjects recorded -> any subject of the grade', () => {
