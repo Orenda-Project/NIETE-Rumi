@@ -2292,6 +2292,8 @@ const EVENT_PROPS = Object.freeze({
   v: /^a[01]$/, who: /^(home|cousin|street)$/,
   // class-link: round_done_for_tonight (wq.js, "Done for tonight!" shown): the round's two codes the start's reply named.
   class_link_code: /^[A-HJ-NP-Z2-9]{8,16}$/, round_code: /^[A-Z0-9]{4,12}$/i,
+  // reminders: the hub install card's one outcome per view (hub-play.js): when it was decided, and what held the card first.
+  when: /^(render|offer|tour_end|hide)$/, held: /^tour$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
