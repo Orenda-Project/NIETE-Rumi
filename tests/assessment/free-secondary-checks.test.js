@@ -235,7 +235,7 @@ describe('an MCQ whose options list a written answer (G8 a6 Q3 against Q6)', () 
 
 describe('levels per part (a7 ruling: tag every sub-part)', () => {
   const parted = (extra) => srq('Xylem cells are dead.\na) Explain how xylem helps. (2 marks)\nb) Explain why phloem lives. (2 marks)\nc) Suggest a reason. (2 marks)',
-    '(a) x (b) y (c) z', { marks: 6, marking_points: points(2, 2, 2), ...extra });
+    '(a) x (b) y (c) z', { marks: 6, marking_points: points(2, 2, 2), mark_bands: [{ marks: '5-6', descriptor: 'full' }, { marks: '1-4', descriptor: 'partial' }, { marks: '0', descriptor: 'none' }], ...extra });
 
   it('flags an item in parts without a level for each part (G7 a6 Q7)', () => {
     expect(checks(paper([], [parted({ blooms: 'Analyze' })]))).toEqual(['1:part-levels']);
