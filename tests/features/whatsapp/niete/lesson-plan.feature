@@ -1216,6 +1216,22 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
 
+  # ADDED 2026-11-22 (bd-zrdvmi.51): the cycle picture type.
+  @e2e @content-driven @no-mock-driver @P2
+  Scenario: A Grades 6-12 lesson on a cycle draws the cycle as a closed ring, not a line
+    Given the NIETE bot chat is open
+    And I take a Grade 9 Biology lesson on the Krebs cycle
+    When the lesson-plan PDF is delivered to the chat
+    Then the cycle is drawn as a ring of stages joined by curved arrows, the last stage leading back to the first
+    And what goes in or comes out at each step is written beside its arrow
+    And no label in the picture overlaps another label, a box or an arrow
+    And an Urdu plan draws the same ring running right to left, with its labels in Urdu
+    # Sheet "Lesson Plans (6 - 12)" row 7: the Krebs board was a mind map and lines because the picture engine
+    # had no cycle type, though the brief already showed the model one. Krebs, water, carbon, nitrogen and cell
+    # cycles all use it; it counts as the Biology / General Science process picture (visual_check V6).
+    # @no-mock-driver: a fresh plan needs a live model call; the mock lane replays no author run.
+    # Unit: tests/lp612/diagram-cycle.test.js.
+
   # ADDED 2026-11-19 (bd-96f69c.8): per-programme WhatsApp switches. lp_whatsapp_pdf_off / lp_whatsapp_survey_off hold
   # a list of programmes ("ict", "gb"); a teacher's programme is "gb" when she is a GB teacher, else "ict". No row = today.
   # Unit: tests/lp-whatsapp-off/, tests/app-redirect/lp-pdf-off-door.test.js, tests/feedback/lp-whatsapp-off.test.js.
