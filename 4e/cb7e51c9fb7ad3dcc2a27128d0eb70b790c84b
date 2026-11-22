@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T09:16:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"4ecb7e51c9fb","branch":"HEAD","user":""}
+{"ts":"2026-11-22T09:16:19Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login,teacher-lessons,portal-smoke=none-needed (rebase of the afd83af5ce cherry-pick onto current main; Gherkin rides in the commit)","sha":"4ecb7e51c9fb","branch":"bd-96f69c.16-main","user":""}
