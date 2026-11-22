@@ -357,12 +357,13 @@ const Round = () => require('./web-quiz-evening-round');
  * The questions THIS sitting plays: the quiz's served set, for everyone; for an evening round, the child's own set
  * (web-quiz-evening-round selectRoundItems: 5 lesson items + the 2 recall items whose originals this child missed).
  * The one seam a per-child item set plugs into (start order, answers, finish), so the three never disagree about what
- * a child was asked. `session` carries student_id (and round_plain from roundSitting). Any other quiz: the same array.
+ * a child was asked. `session` carries id (the recall tie-break's seed), student_id (and round_plain from roundSitting).
+ * Any other quiz: the same array.
  */
 function sittingQuestions(questions, session) {
   const s = session || {};
   if (s.round_plain) return questions;
-  return Round().selectRoundItems(questions, { studentId: s.student_id || null });
+  return Round().selectRoundItems(questions, { studentId: s.student_id || null, seed: s.id ? OrderSeed.seedOf(s.id) : null });
 }
 
 /**
