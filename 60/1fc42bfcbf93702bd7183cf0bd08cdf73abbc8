@@ -1,0 +1,3 @@
+{"ts":"2026-11-22T15:56:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
+{"ts":"2026-11-22T15:56:35Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
+{"ts":"2026-11-22T15:56:39Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
