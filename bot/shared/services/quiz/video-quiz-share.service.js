@@ -265,7 +265,10 @@ async function sendClassLink(ctx, phone, { classId = null } = {}) {
   const link = await require('./web-quiz-link').quizLink(minted.code, {
     teacherUserId: ctx.userId, whatsapp: `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`, quizId: ctx.quizId,
   });
-  await WhatsAppService.sendMessage(phone, ux('vqShareForwardThis', lang));
+  // One tap to the class group (quiz_forward_button): on the teacher's line, ahead of "forward THIS one", never on the
+  // class message; null → today's.
+  const forwardLine = await require('../first-touch/quiz-forward').lineFor({ codeId: minted.id, surface: 'wa_handout', lang });
+  await WhatsAppService.sendMessage(phone, `${forwardLine ? `${forwardLine}\n\n` : ''}${ux('vqShareForwardThis', lang)}`);
   // Sent as its own message so forwarding it carries nothing else.
   await WhatsAppService.sendMessage(phone, ux('vqClassMessage', lang, {
     teacher: minted.teacherName,

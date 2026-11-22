@@ -2993,3 +2993,26 @@ Feature: NIETE (ICT) Teacher Training
     And the chat never goes silent on my message
     # bd-97daxo.8.12: button-bearing step replies went to the list sender and were dropped.
     # exam-checker.handler.js. Unit: bot/tests/handlers/exam-checker-text-reply.test.js.
+
+  @quiz @config-gated @wip @draft @P1 @T1190
+  Scenario: With the one-tap send on, the quiz I am handed carries one tap to my class group
+    Given the NIETE bot chat is open and "quiz_forward_button" is on
+    When my quiz PDF and the message to forward to my class arrive, or a library quiz's class message, or the six-hour "nobody has started" message
+    Then the teacher's line ends with "Send it to your class group in one tap" (Urdu «ایک ٹیپ میں کلاس گروپ کو بھیجیں») and a link
+    And tapping the link opens WhatsApp's chat picker with the class message already typed in
+    And the message to forward is still its own message, alone and unchanged
+    And with the switch off every message is as it is today
+    # quiz-forward.js: GET /quiz/teacher/<qf>/fwd logs quiz_forward_tap and answers 302 to wa.me/?text= (whatsapp://send?text=
+    # inside WhatsApp's own browser). The line rides the hand-out caption, the library share line and the nudge; no new
+    # message. @config-gated: the switch is one app_settings row. Unit: bot/tests/qfix-forward/forward-messages.test.js,
+    # forward-route.test.js.
+
+  @quiz @copy @wip @draft @P2 @T1191
+  Scenario: In Urdu, the message my class reads says کوئز, never a Latin word
+    Given the NIETE bot chat is open and I make a quiz in Urdu, or send a library quiz in Urdu
+    When the message to forward to my class arrives
+    Then it opens «کوئز کا وقت!», says «… پر کوئز بھیجا ہے» and «یہاں دبائیں», with the link the only Latin in it
+    And the library quiz's message says «تقریباً ۱۰ منٹ» in Urdu digits
+    And the English message is unchanged
+    # ux-strings.js tqStudentMessage, tqStudentMessageWeb, vqClassMessage (ur). A quiz made earlier keeps the message
+    # stored with it. Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-messages.test.js.
