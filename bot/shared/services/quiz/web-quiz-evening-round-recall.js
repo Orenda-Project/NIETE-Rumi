@@ -2,8 +2,9 @@
 /**
  * The evening round's recall pool and its reading items (switch `web_quiz_evening_round`, OFF by default).
  *
- *   missesFor({ classId, day, enrolled, teacherIds })  the class's misses 2-3 PKT days before `day`: answers marked
- *                                    wrong in a session that FINISHED on PKT day D-2 or D-3, by a child enrolled in
+ *   missesFor({ classId, day, enrolled, teacherIds })  the class's misses in `day`'s window (missWindow: about two
+ *                                    days before, each day in one round only): answers marked wrong in a session
+ *                                    that FINISHED in that window, by a child enrolled in
  *                                    the class, on a quiz whose share code carries this class, or whose teacher
  *                                    teaches it. Up to POOL_MAX originals, most-missed first; each with the
  *                                    children who missed it (ids, kept server-side only).
@@ -47,9 +48,25 @@ function pktMidnight(day, days = 0) {
   return new Date(Date.UTC(y, m - 1, d + days, 0, 0, 0) - PKT_MS);
 }
 
-/** The window of finishes a round on `day` recalls: from PKT D-3 00:00 up to (not including) PKT D-1 00:00. */
+/** The school day (Mon-Fri) before `day`, as YYYY-MM-DD. */
+function prevSchoolDay(day) {
+  const [y, m, d] = String(day).split('-').map(Number);
+  for (let i = 1; i <= 7; i += 1) {
+    const t = new Date(Date.UTC(y, m - 1, d - i));
+    const dow = t.getUTCDay();
+    if (dow >= 1 && dow <= 5) return t.toISOString().slice(0, 10);
+  }
+  /* istanbul ignore next: a week always holds a weekday */
+  return day;
+}
+
+/**
+ * The window of finishes a round on school day `day` recalls, so that each miss comes back ONCE: the calendar days after
+ * (P - 2) up to and including (day - 2), P = the school day before. Every calendar day belongs to exactly one round
+ * (Monday's: Thursday to Saturday; Tuesday's: Sunday; then the day two before). PKT midnights, `to` excluded.
+ */
 function missWindow(day) {
-  return { from: pktMidnight(day, -3).toISOString(), to: pktMidnight(day, -1).toISOString() };
+  return { from: pktMidnight(prevSchoolDay(day), -1).toISOString(), to: pktMidnight(day, -1).toISOString() };
 }
 
 /** A one-way key for a child within one round (never the id, never reversible without it). */
@@ -92,7 +109,7 @@ function keyOf(row) {
 }
 
 /**
- * The class's misses 2-3 PKT days before `day`. Reads (all IN-chunked): quiz_sessions, quiz_share_codes, quizzes,
+ * The class's misses in `day`'s window (missWindow). Reads (all IN-chunked): quiz_sessions, quiz_share_codes, quizzes,
  * quiz_answers, quiz_questions. Returns [{ question, quiz, missedBy:[studentId], n }] most-missed first, ties by the
  * later finish; at most POOL_MAX. Throws on a read error (the writer skips the class and logs it).
  */
