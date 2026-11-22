@@ -100,6 +100,18 @@ test('a class child arriving from the class link with a round today: next.primar
   expect(JSON.stringify(out.next)).not.toMatch(/n_dropped|n_recall_held/);
 });
 
+test('a round code is never "From your teacher": another day\'s round (class-bound, unfinished) leaves the teacher\'s own newest quiz on the card', async () => {
+  const OLD_Q = '22222222-2222-4222-8222-0000000000e8';
+  const yesterday = new Date(Date.now() + 5 * 3600000 - 24 * 3600000).toISOString().slice(0, 10);
+  seed(ROUND_ON, {});
+  db.quizzes.push({ id: OLD_Q, topic: 'Yesterday reading', subject: 'english', language: 'en', grade: '3', teacher_id: TEACHER, quiz_source: 'lp_v8', status: 'ready', video_id: null,
+    meta: { source: 'evening_round', class_id: CLASS, round_day: yesterday, class_link_code: 'K7Q2MXTRAB', round_code: 'RND233', share_code_id: 'sc-old' } });
+  db.quiz_share_codes.push({ id: 'sc-old', code: 'RND233', quiz_id: OLD_Q, class_id: CLASS, active: true, expires_at: ahead(240), topic: 'Yesterday reading', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(0.5) });
+  const out = await Hub.hub(pickToken(), A);
+  expect(out.teacher).toMatchObject({ code: 'SCI002', src: 'teacher' });
+  expect(JSON.stringify(out.teacher)).not.toContain('RND233');
+});
+
 test('two children of two classes on one phone, both through class A\'s link: each child gets THEIR class\'s round', async () => {
   const CLASS_B = 'c1a55000-0000-4000-8000-0000000000e2';
   const ROUND_B = '22222222-2222-4222-8222-0000000000ea';
