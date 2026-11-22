@@ -104,6 +104,17 @@ jobs:
       # `npm test` IS the baseline gate — it runs every suite via tests/run.js and
       # then judges the delta against tests/baseline.snapshot.json. Use
       # `npm run test:raw` for unfiltered jest output when debugging a failure.
+      # TEMPORARY (bd-b0aszz): record the snapshot on CI's own Node 22 / ubuntu / dep set, dispatch only.
+      - name: TEMP record snapshot
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/baseline-gate.js --update
+      - name: TEMP upload snapshot
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-snapshot
+          path: tests/baseline.snapshot.json
+
       - name: Run unit tests (baseline gate — fails only on NEW failures)
         run: npm test
 
