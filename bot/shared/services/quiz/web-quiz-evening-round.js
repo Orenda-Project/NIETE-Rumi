@@ -564,7 +564,7 @@ async function blindSolveHeld(rows, meta) {
     const rewritten = (donorRows || []).filter((d) => positions.includes(Number(d.sort_order)) && d.external_id);
     if (!rewritten.length) return out;
     const Keys = require('./quiz-key-review.service');
-    const { data: queued } = await supabase.from(Keys.TABLE).select('question_id, status').in('question_id', rewritten.map((d) => d.id));
+    const { data: queued } = await supabase.from('quiz_item_reviews').select('question_id, status').in('question_id', rewritten.map((d) => d.id));
     const HELD = Array.isArray(Keys.HELD) ? Keys.HELD : ['open', 'key_wrong', 'ambiguous'];
     const reviewed = new Set((queued || []).filter((q) => !HELD.includes(q.status)).map((q) => String(q.question_id)));
     const stillHeld = new Set((queued || []).filter((q) => HELD.includes(q.status)).map((q) => String(q.question_id)));
@@ -981,8 +981,7 @@ async function forTeacherReport(teacherId, { now = new Date() } = {}) {
       .forEach((x) => { const k = `${x.share_code_id}|${x.student_id}`; if (!firstFinish.has(k)) firstFinish.set(k, x); });
     const kidIds = [...new Set([...firstFinish.values()].map((x) => x.student_id))];
     const students = kidIds.length ? await readIn('students', 'id, student_name', 'id', kidIds) : [];
-    const CL = require('./web-quiz-class-link');
-    const { classLabels } = require('./web-quiz-evening-round-phone');
+    const { classLabels, firstNameOf } = require('./web-quiz-class-names');
     const out = mine.map((c) => {
       const q = quizzes.find((x) => x.id === c.quiz_id);
       const cls = classes.find((x) => x.id === c.class_id) || {};
@@ -991,7 +990,7 @@ async function forTeacherReport(teacherId, { now = new Date() } = {}) {
       const pct = done.map((x) => (Number(x.total_questions_answered) > 0 ? (100 * Number(x.correct_answers || 0)) / Number(x.total_questions_answered) : null))
         .filter((v) => v != null);
       const finishers = done.map((x) => (students.find((st) => String(st.id) === String(x.student_id)) || {}).student_name)
-        .filter(Boolean).map((n) => CL.firstNameOf(n).shown).filter(Boolean).sort((a, b) => a.localeCompare(b));
+        .filter(Boolean).map((n) => firstNameOf(n).shown).filter(Boolean).sort((a, b) => a.localeCompare(b));
       return {
         round_day: (q.meta && q.meta.round_day) || null, class_label: labels.en, class_label_ur: labels.ur, topic: q.topic || null,
         played: done.length, finishers, avg: pct.length ? Math.round(pct.reduce((a, b) => a + b, 0) / pct.length) : null,
