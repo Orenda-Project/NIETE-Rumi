@@ -1,6 +1,6 @@
 'use strict';
 /**
- * hasLiveStandingLink(classId) (lead A75, for the offers lane; required from web-quiz-class-link.js like
+ * hasLiveStandingLink(classId)(for the offers lane; required from web-quiz-class-link.js like
  * roundsReadyForPhone): true only when web_quiz_class_link (with its parents) AND web_quiz_evening_round are on and the
  * class has a live class_links row (not revoked, not expired). False on anything else, never throws, one class_links
  * read. Faked boundaries: Supabase (in memory, filters applied), the loggers.

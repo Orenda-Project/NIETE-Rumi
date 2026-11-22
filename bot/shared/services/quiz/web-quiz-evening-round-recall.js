@@ -304,13 +304,13 @@ async function rewrite({ originals, language = 'en', complete }) {
 }
 
 /**
- * The rewritten items blind-solved before any child sees them (PLAN §11 A19). The lesson items already passed
+ * The rewritten items blind-solved before any child sees them. The lesson items already passed
  * runKeyVerify in the generate step; a rewrite is written after it, so it gets this solve: WITHOUT a lesson (a rewrite
  * has none: the subject alone decides), the same two-look rule as runKeyVerify's bare pass (ambiguous and
  * none_correct count at once, a disagree only when a second look in another shown order says so too; unsure never
  * blocks). FAIL-CLOSED, unlike the generate step: nobody reviews a round before a child plays it, so a solver that
  * fails keeps no rewrite (the round goes out with its lesson items). `verify` = transcript-quiz-key-verify verifyKeys.
- * A flagged rewrite is never repaired (PLAN §11 A33): it comes back in `held` with the solver's pick (the option slot
+ * A flagged rewrite is never repaired: it comes back in `held` with the solver's pick (the option slot
  * it chose, when it chose exactly one that is not the key), to be stored held and queued for a person.
  * Returns { items (the kept ones), held:[{ item, verdict, pick }], record: { status, checked, dropped, flagged:[{i, verdict}], model, cost_usd } }.
  */

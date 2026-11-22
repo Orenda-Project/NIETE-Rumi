@@ -1,5 +1,5 @@
 /**
- * One label for one action (PLAN §11 A37): on the standing class link (/j/<code>, public/wq/class-link.js) the
+ * One label for one action: on the standing class link (/j/<code>, public/wq/class-link.js) the
  * "Whose turn?" way out for a child who is not listed and the name screen's "my name isn't here" do the same thing
  * (this child is not in the list shown), so they read the same, in both languages: «میرا نام یہاں نہیں ہے» in Urdu
  * (copy.v2.json jg.who.not_listed), "My name isn't here" in English.

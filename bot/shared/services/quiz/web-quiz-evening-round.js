@@ -527,7 +527,7 @@ async function answerCountsOf(questionId, key) {
 }
 
 /**
- * The round's lesson rows the blind solve holds out (PLAN §11 A33: the round never rewrites; a flagged item is
+ * The round's lesson rows the blind solve holds out (the round never rewrites; a flagged item is
  * dropped and queued). Returns Map(this quiz's row id -> the queue entry):
  *   - a row the generate step's solve flagged (media.key_held, written by runKeyVerify's round path): the row itself,
  *     key_at_flag the grader's key, top_wrong_option the solver's single pick by stored slot (else null);
@@ -613,7 +613,7 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   const ref = { cl: meta.class_link_code || null, rc: sc.code };
 
   // 2. the lesson items: marked as the round's, reading items marked shown-not-spoken; an item whose key is held
-  //    (its own, or on a cache hit the donor item it was copied from), or that the blind solve flagged (A33), is
+  //    (its own, or on a cache hit the donor item it was copied from), or that the blind solve flagged, is
   //    marked 'held' and never served.
   const { data: stored } = await supabase.from('quiz_questions').select(ROUND_ROW_COLS).eq('quiz_id', quizId).order('sort_order', { ascending: true });
   const notRecall = (stored || []).filter((r) => !(r.media && (r.media.round === 'recall' || r.media.recall)));
@@ -648,7 +648,7 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
       }).filter(Boolean);
       const complete = deps.complete || require('./transcript-quiz-llm').completeJson;
       spent = await Recall.rewrite({ originals, language, complete });
-      // Every rewrite blind-solved before a child sees it (A19); a flagged one is stored held and queued, never served (A33).
+      // Every rewrite blind-solved before a child sees it; a flagged one is stored held and queued, never served.
       const verify = deps.verify || require('./transcript-quiz-key-verify.service').verifyKeys;
       const kv = await Recall.verifyItems({ items: spent.items, language, grade: row.grade, subject: row.subject, verify });
       items = kv.items;

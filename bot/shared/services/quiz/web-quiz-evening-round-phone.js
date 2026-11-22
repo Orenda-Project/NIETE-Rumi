@@ -1,6 +1,6 @@
 'use strict';
 /**
- * roundsReadyForPhone(device_ref, dayPkt) — the reminder's payload (PLAN §3.2; switch `web_quiz_evening_round`).
+ * roundsReadyForPhone(device_ref, dayPkt) — the reminder's payload (switch `web_quiz_evening_round`).
  * Re-exported from web-quiz-class-link.js, where the reminders lane requires it.
  *
  *   -> [{ class_link_code, class_id, teacher_ref, class_label_en, class_label_ur, round_code, ready_at

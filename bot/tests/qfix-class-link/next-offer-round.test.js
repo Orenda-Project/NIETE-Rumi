@@ -95,7 +95,7 @@ test('a class child arriving from the class link with a round today: next.primar
   expect(out.next).toMatchObject({ kind: 'quiz', variant: 'evening_round', rank_src: 'pinned', title: "Tonight's quiz", title_ur: 'آج شام کا کوئز', minutes: 5 });
   const k = T.chipId('sc-r', KID);
   expect(out.next.href).toBe(`/q/RND234?k=${k}`);
-  // A31: round_shown carries the round's review count from its row; the page's JSON does not.
+  // round_shown carries the round's review count from its row; the page's JSON does not.
   expect(logEvent).toHaveBeenCalledWith('web_quiz.round_shown', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2, n_dropped: 1, n_recall_held: 2 });
   expect(JSON.stringify(out.next)).not.toMatch(/n_dropped|n_recall_held/);
 });
