@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T13:28:21Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"40892bf34d89","branch":"s0ccn5-to-staging","user":""}
+{"ts":"2026-11-22T14:16:50Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (spec shipped in this same commit: FLN10 share-sheet scenario in teacher-lessons.feature, cherry-picked from sandbox #5431)","sha":"40892bf34d89","branch":"s0ccn5.3-to-staging","user":""}
