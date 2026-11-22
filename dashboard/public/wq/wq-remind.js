@@ -333,7 +333,8 @@
         if (installOnScreen()) return Promise.resolve();
         if (!landing && snoozed()) return Promise.resolve();
         return getKey(code).then(function (r) {
-          if (r.status === 404) return dropWorkers();
+          // only a real off drops the worker; a 5xx, a route miss or no network leaves it (a failed read is not OFF)
+          if (r.status === 404 && r.body && r.body.off === true) return dropWorkers();
           if (r.status !== 200) return null;
           // outside the canary: no card, no step, and any worker this phone already has stays
           if (r.body && r.body.ask === false) return null;

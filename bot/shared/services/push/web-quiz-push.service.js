@@ -94,23 +94,29 @@ const COPY = Object.freeze({
 // ─── switches ───────────────────────────────────────────────────────────────
 
 let cache = null;
+let lastGood = null;   // the last switches read that succeeded: a failed read keeps it (a failed read is not OFF)
 let canaryCache = null;
 const codeCache = new Map();   // share code → {at, ok} under the current canary (10 min)
 const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_CACHE_MAX = 5000;
 const envReady = () => ENV.every((k) => String(process.env[k] || '').trim() !== '');
 
+// OFF is destructive on the phone (404 {off:true} makes the page unregister the worker), so a FAILED read is not OFF:
+// it keeps the last good answer, or, with none yet, answers `unread` (every route 503, nothing sent).
 async function switches(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.s;
-  let s = OFF;
+  let s;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const on = (k) => ((data || []).find((r) => r && r.key === k) || {}).value === true;
     const remind = on(KEYS.remind) && envReady();
     s = { remind, test: remind && on(KEYS.test), portal: remind && on(KEYS.portal), names: remind && on(KEYS.names) };
+    lastGood = s;
   } catch (err) {
-    logToFile('⚠️ web quiz push: settings lookup failed — off', { error: err.message });
+    s = lastGood || { ...OFF, unread: true };
+    logToFile('⚠️ web quiz push: settings lookup failed — last good answer kept', { error: err.message, kept: lastGood ? 'last' : 'none' });
+    logEvent('web_quiz.push_switch_read', { ok: false, kept: lastGood ? 'last' : 'none' });
   }
   cache = { at: now, s };
   return s;
@@ -609,5 +615,5 @@ module.exports = {
   switches, envReady, subscribe, unsubscribe, markOpened, payloadFor, sendOne, sendTest, dueTick, expireTick, stepEvent, vapidPublic,
   delivered, funnelTick, keyFor, canaryAllows,
   nextAt, spreadMin, pktDay, uaClass, hashEndpoint, encrypt, decrypt, COPY, KEYS, ENV, TABLE, UNOPENED_MAX,
-  __reset: () => { cache = null; funnelDay = null; canaryCache = null; codeCache.clear(); },
+  __reset: () => { cache = null; lastGood = null; funnelDay = null; canaryCache = null; codeCache.clear(); },
 };
