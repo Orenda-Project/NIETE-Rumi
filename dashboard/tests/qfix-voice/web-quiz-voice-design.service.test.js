@@ -378,3 +378,48 @@ describe('a Qaida letter card is set in Naskh, the letter forms the Qaida page t
     expect(face.nodes.find((d) => d.prop === 'unicode-range').value.replace(/\s+/g, '')).toBe(rec.unicode_range);
   });
 });
+
+describe('a long Urdu question with no voice (90+ code points) still leaves its first answer on a 360 × 740 screen', () => {
+  // qa-design walk, sandbox Nov 2026: ALEW4D's 106-character plain Urdu question at 30 px took 462 px, and its first
+  // answer started at 684 px of 740. At 30 px a Nastaliq line holds ~15 code points at ~66 px, and the first answer
+  // starts ~222 px below the question's top; from 90 code points (7 lines) the first answer no longer fits above the fold.
+  // Production, 8-21 Nov: 12.8% of Urdu question-sittings had a question of 90+ code points (median 56, p90 94).
+  const WQI = require('../../public/wq/wq.js');
+  const T = { listen: 'سنیں' };
+  const ur = (n) => Array.from('آواز کی لہریں ہوا میں سفر کرتی ہیں اور کان تک پہنچتی ہیں۔ '.repeat(6)).slice(0, n).join('');
+  const stemClass = (q, lang) => /<p class="(wq-qtext[^"]*)"/.exec(WQI.itemHtml(q, T, lang))[1];
+  const single = (text) => ({ text, options: [{ slot: 'A', text: 'ہوا' }, { slot: 'B', text: 'پانی' }] });
+
+  test('the page marks an Urdu question of 90+ code points wq-qlong, and one of 89 not', () => {
+    expect(stemClass(single(ur(90)), 'ur').split(' ')).toContain('wq-qlong');
+    expect(stemClass(single(ur(106)), 'ur').split(' ')).toContain('wq-qlong');
+    expect(stemClass(single(ur(89)), 'ur').split(' ')).not.toContain('wq-qlong');
+  });
+
+  test('only Urdu questions: an English one of any length, and a listen question (its own 26 px rule), are not marked', () => {
+    expect(stemClass(single('Why does the sound of a drum travel further than the sound of a bell in a crowded street?'), 'en')).not.toMatch(/wq-qlong/);
+    const listen = { type: 'listen', text: ur(106), audio: { q: '/c/q', opts: [] }, options: [{ slot: 'A', text: 'نُ' }, { slot: 'B', text: 'پَ' }] };
+    expect(stemClass(listen, 'ur')).not.toMatch(/wq-qlong/);
+  });
+
+  const longPath = ({ ur2, novoice }) => [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang: 'ur' }),
+    node('body'),
+    node('div', novoice ? ['wq-novoice'] : [], {}, 'wq'),
+    node('div', ['wq-qcard']),
+    node('p', ['wq-qtext', 'wq-qlong']),
+  ];
+  test.each([
+    ['polished', true],
+    ['plain', false],
+  ])('Urdu (%s): a long question is 26 px when the voice is lost', (_, ur2) => {
+    expect(computed(longPath({ ur2, novoice: true }), 'font-size').value).toBe('26px');
+  });
+
+  test.each([
+    ['polished', true, '22px'],
+    ['plain', false, '21px'],
+  ])('Urdu (%s): with the voice working, a long question keeps today\'s size', (_, ur2, size) => {
+    expect(computed(longPath({ ur2, novoice: false }), 'font-size').value).toBe(size);
+  });
+});

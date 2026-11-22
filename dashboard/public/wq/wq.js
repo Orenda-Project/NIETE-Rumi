@@ -369,6 +369,9 @@ var WQI = (function () {
   }
   function latQ(text, lang) { return latin(text, lang) ? ' wq-qlat" dir="ltr"' : '"'; }
   function latDir(text, lang) { return latin(text, lang) ? ' dir="ltr"' : ''; }
+  // An Urdu question of 90+ code points (7 Nastaliq lines at 30 px): wq.css sets it at 26 px when it is the voice, so the
+  // first answer still starts on a 360 x 740 screen.
+  function qlong(text, lang) { return lang === 'ur' && !latin(text, lang) && Array.from(String(text == null ? '' : text)).length >= 90 ? ' wq-qlong' : ''; }
   function itemHtml(q, T, lang) {
     var k = kind(q), o = opts(q);
     LETTERS = !figureOf(q);
@@ -377,7 +380,7 @@ var WQI = (function () {
     var stim = q.audio && q.audio.stim ? '<button class="wq-btn wq-soft" id="wq-stim">' + BELL + ' ' + esc(T.playSound || '') + '</button>' : '';
     var stem = k === 'listen'
       ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p>' + stim + '</div>'
-      : '<div class="wq-qcard"><p class="wq-qtext' + latQ(q.text, lang) + '>' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button></div>' + stim;
+      : '<div class="wq-qcard"><p class="wq-qtext' + qlong(q.text, lang) + latQ(q.text, lang) + '>' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button></div>' + stim;
     var body = '';
     var pics = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); });
     // A picture grid needs every option to be a picture (or an emoji, drawn big): one the bot could not
