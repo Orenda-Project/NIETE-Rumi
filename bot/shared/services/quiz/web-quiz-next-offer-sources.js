@@ -363,11 +363,13 @@ function recTitleUrOf(out, lang) {
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live, hold = null }) {
   const urP = recTitleUrOf(out, lang);
-  // Tonight's class round for this child, pinned first by rank(). Asked only when the hub's own switch read (just made)
-  // says web_quiz_evening_round is on: off, the slot makes no read for it.
+  // Tonight's class round for this child, pinned first by rank(), and the previous school day's round as ONE row under
+  // the tile (next.past_round). Asked only when the hub's own switch read (just made) says web_quiz_evening_round is
+  // on: off, the slot makes no read for either.
   const Round = require('./web-quiz-evening-round');
-  const roundP = require('./web-quiz-hub-flags').nowOf('eveningRound')
-    ? Round.roundCandidate({ token, chosenId, history, lang }).catch(() => null) : Promise.resolve(null);
+  const offersP = require('./web-quiz-hub-flags').nowOf('eveningRound')
+    ? Round.roundOffers({ token, chosenId, history, lang }).catch(() => ({})) : Promise.resolve({});
+  const roundP = offersP.then((o) => o.tonight || null);
   const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
   if (!p) return {};
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
@@ -380,6 +382,8 @@ async function hubNext({ out, token, history, collect, lang, chosenId, grade, su
   const held = Boolean(hw && !hw.replay); // the replay's step 4 is the child's own tap: counted as today
   const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live, ...(held ? { hold: true } : {}) });
   if (round && next) Round.noteShown(next, round);
+  const past = next ? (await offersP).past : null;
+  if (past) next.past_round = past;
   return next ? { next } : {};
 }
 
