@@ -309,12 +309,62 @@ describe('3 · switch OFF (no row, false, a string): today\'s behaviour exactly'
     expect(queued()).toEqual([]);
   });
 
-  test('off: a join on a reported code schedules as today (a fresh 12 h chain, no late check)', async () => {
+  test('off, with VIDEO_REPORT_SCHEDULED_FOLLOWUP=on: a join on a reported code schedules as today (a fresh 12 h chain, no late check)', async () => {
+    process.env.VIDEO_REPORT_SCHEDULED_FOLLOWUP = 'on';
     stubDb({ early: 3, late: 0 });
     await report.scheduleForShareCode(SC);
     expect(queued()).toHaveLength(1);
     expect(events('video_quiz.report_scheduled')).toHaveLength(1);
     expect(events('video_quiz.report_scheduled')[0].kind).toBeUndefined();
+  });
+});
+
+describe('3b · off: a join on a reported code queues nothing (pure fix: the job could only log already_reported)', () => {
+  /** Every queued report job runs through the worker, as SQS would hand them over. */
+  async function drain() {
+    for (const body of queued()) {
+      const worker = new SQSCoachingWorker('test-worker');
+      const payload = { ...body.payload, targetAt: iso(60 * 1000) };
+      await worker.executeJob(SC, 'quiz_video_report', payload, 'receipt', 'quiz', { groupId: SC, jobType: 'quiz_video_report', payload });
+    }
+  }
+
+  test('a day-2 join (the 26 h schedule claim lapsed) queues nothing and sends nothing', async () => {
+    stubDb({ early: 3, late: 4, playing: 1 });
+    await report.scheduleForShareCode(SC);
+    await drain();
+    expect(queued()).toEqual([]);
+    expect(teacherGotReport()).toBe(false);
+    expect(events('video_quiz.report_scheduled')).toEqual([]);
+    expect(events('video_quiz.report_schedule_skipped')).toEqual([expect.objectContaining({ shareCodeId: SC, why: 'already_reported' })]);
+    // the dead job's line is gone with it
+    expect(events('video_quiz.report_suppressed')).toEqual([]);
+  });
+
+  test('the claim is kept: the next joins in its window read nothing and queue nothing', async () => {
+    stubDb({ early: 3, late: 0 });
+    await report.scheduleForShareCode(SC);
+    await report.scheduleForShareCode(SC);
+    expect(queued()).toEqual([]);
+    expect(events('video_quiz.report_schedule_skipped').map((e) => e.why)).toEqual(['already_reported', 'already_scheduled']);
+  });
+
+  test('a code with no report yet schedules its 12 h report as today', async () => {
+    stubDb({ reportedAgo: null, early: 0, late: 0 });
+    await report.scheduleForShareCode(SC);
+    expect(queued()).toHaveLength(1);
+    expect(events('video_quiz.report_scheduled')).toHaveLength(1);
+  });
+
+  test('the report_sent_at read fails: schedule anyway (a missing report is worse than a dead job)', async () => {
+    stubDb({ early: 3, late: 0 });
+    const real = supabase.from.getMockImplementation();
+    supabase.from.mockImplementation((table) => {
+      if (table === 'quiz_share_codes') throw new Error('read failed');
+      return real(table);
+    });
+    await report.scheduleForShareCode(SC);
+    expect(queued()).toHaveLength(1);
   });
 });
 

@@ -134,8 +134,9 @@ const scheduleClaimKey = (shareCodeId) => `vq:report:scheduled:${shareCodeId}`;
  */
 async function scheduleForShareCode(shareCodeId) {
   // video_quiz_late_report on: a join on a code whose report already went arms tomorrow's 07:00 late check, never a
-  // fresh 12 h chain (off: the read is never made and the join schedules as before).
-  if (await LateFlag.settings() && await readReportSentAt(shareCodeId)) {
+  // fresh 12 h chain (off: no read here; the claim winner's early-out below decides).
+  const late = await LateFlag.settings();
+  if (late && await readReportSentAt(shareCodeId)) {
     await armLateCheck(shareCodeId, 'join');
     return;
   }
@@ -154,6 +155,13 @@ async function scheduleForShareCode(shareCodeId) {
       logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'already_scheduled' });
       return;
     }
+  }
+  // Its report already went and nothing can follow it up (late switch off, VIDEO_REPORT_SCHEDULED_FOLLOWUP off): the
+  // job would only log already_reported in generate(), ~48 queue deliveries later. Queue nothing; the claim stays, so
+  // later joins in its window read nothing either. A failed read schedules, as a failed claim does.
+  if (!late && !scheduledFollowUpOn() && await reportSentOrNull(shareCodeId)) {
+    logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'already_reported' });
+    return;
   }
   // Asked once per claim (the first join): an evening round keeps the claim, so its later joins ask nothing.
   if (!(await isReportableShareCode(shareCodeId))) {
@@ -361,6 +369,15 @@ async function readReportSentAt(shareCodeId) {
   const { data } = await supabase.from('quiz_share_codes')
     .select('report_sent_at').eq('id', shareCodeId).maybeSingle();
   return (data && data.report_sent_at) || null;
+}
+
+/** readReportSentAt that never throws: null on any failure, so the caller schedules. */
+async function reportSentOrNull(shareCodeId) {
+  try {
+    return await readReportSentAt(shareCodeId);
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
