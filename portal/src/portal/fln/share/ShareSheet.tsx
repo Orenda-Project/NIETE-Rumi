@@ -2,12 +2,14 @@
  * "Share link" (DESIGN v2 §4 L2b): the plan card, Send on WhatsApp (wa.me → the contact picker, the
  * message from message.ts), Copy link (the clipboard with ShareActions' in-app-browser fallback) and the link shown in
  * full as one left-to-right atom. Logs `share` / `link_copy`, fire-and-forget. The link carries no identity.
+ * Send on WhatsApp follows the K-5 switch: gone when features.lpWhatsappSend is a real false (bd-s0ccn5.1).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../../teacher/ui/styles';
 import { copyText } from '../../teacher/ui/ShareActions';
+import { useLpWhatsappSend } from '../../teacher/lessons/viewerFlags';
 import { shareApi } from './api';
 import { shareMessage, waUrl } from './message';
 import { PlanCard, type SharePlan } from './PlanCard';
@@ -44,6 +46,7 @@ export function Toast({ text }: { text: string }) {
 export default function ShareSheet({ plan, url, lang, onClose }: { plan: SharePlan; url: string; lang: ShareLang; onClose: () => void }) {
   const S = shareStrings(lang);
   const { state, copy } = useCopyLink(url, plan.id);
+  const waAllowed = useLpWhatsappSend();
   const href = waUrl(shareMessage({ uiLang: lang, subject: plan.subject, level: plan.level, title: plan.title, url }));
   return (
     <Sheet lang={lang} title={S.shareTitle} onClose={onClose} testId="fln-share-sheet">
@@ -52,7 +55,7 @@ export default function ShareSheet({ plan, url, lang, onClose }: { plan: SharePl
         <span className="sr-only">{S.theLink}</span>
         <p data-testid="fln-share-url" dir="ltr" className="fln-ltr-atom font-mono text-[15px] leading-snug text-[#1f2333]">{url}</p>
       </div>
-      <a
+      {waAllowed ? <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
@@ -61,7 +64,7 @@ export default function ShareSheet({ plan, url, lang, onClose }: { plan: SharePl
         className={cn(BTN, 'text-white', FOCUS)}
       >
         {S.sendOnWhatsapp}
-      </a>
+      </a> : null}
       <button type="button" onClick={copy} className={cn(BTN, 'border-[#333748] bg-white text-[#333748]', FOCUS)}>
         {state === 'copied' ? <Check className="h-5 w-5" aria-hidden="true" /> : <Link2 className="h-5 w-5" aria-hidden="true" />}
         <span>{S.copyLink}</span>

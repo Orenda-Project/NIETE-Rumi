@@ -134,6 +134,7 @@ Feature: Teacher lesson plans
   @FLN04
   Scenario: A coach sees Share on a plan and finds a plan in the link builder; a teacher sees neither
     Given portal_fln_lessons and portal_fln_share are on for the demo coach and the demo teacher
+    And lp_whatsapp_pdf_off does not list the demo coach's programme
     And the demo coach is signed in
     When the coach opens /portal/fln/p/11156
     Then a bar with "Send to teacher" and "Share link" sits at the bottom of the plan
@@ -146,6 +147,19 @@ Feature: Teacher lesson plans
     When the demo teacher signs in and opens /portal/fln/p/11156
     Then there is no Share bar
     And GET /api/portal/fln/links answers 404 for the teacher
+
+  # FLN10 (bd-s0ccn5.1): the Share sheet follows the K-5 WhatsApp switch (features.lpWhatsappSend).
+  # Covers portal/src/portal/fln/share/ShareSheet.tsx (useLpWhatsappSend from teacher/lessons/viewerFlags).
+  @FLN10 @draft @config-gated
+  Scenario: With WhatsApp sending off for her programme, the Share sheet keeps Copy link and drops Send on WhatsApp
+    Given portal_fln_lessons and portal_fln_share are on for the demo coach
+    And lp_whatsapp_pdf_off lists the demo coach's programme
+    And the demo coach is signed in
+    When the coach opens /portal/fln/p/11156 and taps "Share link"
+    Then the sheet shows the plan's link and "Copy link"
+    And there is no "Send on WhatsApp"
+    When the settings read fails
+    Then "Send on WhatsApp" shows, as it did before the switch
 
   # FLN06 (PR-E, m-links): Send to teacher. Leader → bot message → the teacher's OWN /go → the FLN plan, signed in.
   # Covers dashboard/routes/portal-fln-send.routes.js, bot/shared/services/fln-send.service.js,
