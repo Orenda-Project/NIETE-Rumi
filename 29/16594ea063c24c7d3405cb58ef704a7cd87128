@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T07:24:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"2916594ea063","branch":"HEAD","user":""}
+{"ts":"2026-11-22T07:25:29Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (synced in the next commit e0020eed94 on this PR)","sha":"2916594ea063","branch":"bd-96f69c.16-stg","user":""}
