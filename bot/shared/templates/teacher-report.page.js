@@ -448,9 +448,9 @@ details textarea{width:100%;min-height:120px;margin-top:8px;border:1px solid var
 .wk-col .n{font-size:.72rem;font-weight:700;line-height:1.3}
 .wk-col .d{font-size:.66rem;color:var(--muted);line-height:1.3;white-space:nowrap}
 .ql{list-style:none;margin:0;padding:0}
-.ql a{display:flex;justify-content:space-between;gap:10px;text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);line-height:var(--lead-ui)}
+.ql a{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;column-gap:10px;row-gap:2px;min-height:48px;text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);line-height:var(--lead-ui)}
 .ql li:last-child a{border-bottom:0}
-.ql .tp{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ql .tp{flex:1 1 12em;font-weight:700;min-width:0;overflow-wrap:anywhere}
 .ql .m{font-size:.8rem;color:var(--muted);white-space:nowrap}
 .msg{max-width:480px;margin:18vh auto 0;text-align:center;padding:0 16px}
 .msg .dia{margin-bottom:12px}
