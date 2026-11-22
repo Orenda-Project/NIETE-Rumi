@@ -325,8 +325,10 @@ function markReading(row) {
 // ── the rows ───────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The quiz_questions rows for the rewritten pool. external_id `tq:rc<rank>:recall:<original 8>` keeps the transcript
- * bank's order rule (sort_order) and sorts after the lesson items (sort_order 100 + rank).
+ * The quiz_questions rows for the rewritten pool. external_id `tq:<quizId>:recall:rc<rank>-<original 8>` is the bank's
+ * `tq:<quizId>:<sloId>:<n>` shape (the order rule reads sort_order; the SLO segment reads 'recall') and carries the
+ * round's quiz id because the column is unique across all quizzes: a class's rounds on two days running can recall
+ * the same original at the same rank. The rows sort after the lesson items (sort_order 100 + rank).
  * media.round 'recall'; media.recall = { of, rank, kids (one-way keys of the children who missed it), chips (their
  * chips on this round's code, so the page's ?k= picks them without a read) }.
  */
@@ -336,7 +338,7 @@ function recallRows({ quizId, items, roundKey, chipOf = () => null, subject }) {
     const opts = it.options;
     let row = {
       quiz_id: quizId,
-      external_id: `tq:rc${rank}:recall:${String(it.original.question.id).slice(0, 8)}`,
+      external_id: `tq:${quizId}:recall:rc${rank}-${String(it.original.question.id).slice(0, 8)}`,
       sort_order: 100 + rank,
       question_text: it.question,
       option_a: opts[0] || null, option_b: opts[1] || null, option_c: opts[2] || null, option_d: opts[3] || null,
