@@ -4879,11 +4879,11 @@ const STUDENT_TUTOR_STRINGS = {
   },
   studentTeacherOnly: {
     en: 'That one isn’t for students. You can send /video for videos, /quiz for your quizzes, or just ask me a school question.',
-    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے کوئز کے لیے ⁦/quiz⁩ بھیجیں، یا سکول کا کوئی سوال پوچھیں۔',
+    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے کوئز کے لیے ⁦/quiz⁩ بھیجیں، یا اسکول کا کوئی سوال پوچھیں۔',
   },
   studentQuizHint: {
     en: 'Your quizzes come from the link your class shares. Ask a school question here, or send /video for videos.',
-    ur: 'آپ کے کوئز کلاس کے لنک سے آتے ہیں۔ یہاں سکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+    ur: 'آپ کے کوئز کلاس کے لنک سے آتے ہیں۔ یہاں اسکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
   },
   studentMenuBody: {
     en: 'What would you like to do?',
@@ -5020,7 +5020,7 @@ const STUDENT_TUTOR_STRINGS = {
   // ── end class round invitation ──
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
-    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+    ur: 'آئیں اسکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
   },
 };
 
