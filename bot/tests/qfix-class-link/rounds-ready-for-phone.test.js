@@ -82,8 +82,8 @@ test('a phone that played as a child of the class: the class label, the standing
   expect(JSON.stringify(plain)).not.toMatch(/Zara|زارا/);
 });
 
-test('{ withKids: true } (the reminders policy switch on): first names only', async () => {
-  seed();
+test('{ withKids: true } with the naming switch on (web_quiz_push_name_children): the student id and first names only', async () => {
+  seed([...SWITCHES, ON('web_quiz_push_name_children')]);
   const out = await CL().roundsReadyForPhone(DEV, DAY, { withKids: true });
   expect(out).toEqual([{
     class_link_code: 'K7Q2MXTRAB',
@@ -93,7 +93,7 @@ test('{ withKids: true } (the reminders policy switch on): first names only', as
     class_label_ur: 'کلاس ۳ B',
     round_code: 'RND234',
     ready_at: '2026-11-24T11:05:00Z',
-    kids: [{ first: 'Zara', first_ur: 'زارا' }],
+    kids: [{ student_id: ZARA, first: 'Zara', first_ur: 'زارا' }],
   }]);
   // the contract's code and label limits
   expect(out[0].class_link_code).toMatch(/^[A-Za-z0-9_-]{3,32}$/);
@@ -104,11 +104,11 @@ test('{ withKids: true } (the reminders policy switch on): first names only', as
 });
 
 test('a hub-trusted child counts too (HubDevice.deviceKids), the second name "Muhammad Ali" shows as Ali', async () => {
-  seed();
+  seed([...SWITCHES, ON('web_quiz_push_name_children')]);
   const HubDevice = require('../../shared/services/quiz/web-quiz-hub-device');
   jest.spyOn(HubDevice, 'deviceKids').mockResolvedValue([ALI]);
   const out = await CL().roundsReadyForPhone(DEV, DAY, { withKids: true });
-  expect(out[0].kids).toEqual(expect.arrayContaining([{ first: 'Zara', first_ur: 'زارا' }, { first: 'Ali', first_ur: null }]));
+  expect(out[0].kids).toEqual(expect.arrayContaining([{ student_id: ZARA, first: 'Zara', first_ur: 'زارا' }, { student_id: ALI, first: 'Ali', first_ur: null }]));
   HubDevice.deviceKids.mockRestore();
 });
 
