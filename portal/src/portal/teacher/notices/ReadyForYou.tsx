@@ -1,7 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getPortalOrigin, isNativeApp } from '@/lib/runtime';
 import { ReadyCard, type ReadyCardRow } from '../ui';
-import { useCopy } from '../i18n';
+import { isolateRuns } from '../ui/bidi';
+import { useCopy, useLang } from '../i18n';
 import { getQuizHome } from '../home/api';
 import { TAP_WAIT_MS } from '../home/useHomeData';
 import { NOTICES } from './copy';
@@ -25,6 +26,7 @@ import { noticeTracker } from './tracker';
 export function ReadyForYou({ userKey }: { userKey: string }) {
   const { what, classLine, titleOf } = useNoticeWords();
   const N = useCopy(NOTICES);
+  const ur = useLang() === 'ur';
   const open = useOpenNotice();
   const [listOpen, setListOpen] = useState(false);
   const home = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
@@ -46,13 +48,17 @@ export function ReadyForYou({ userKey }: { userKey: string }) {
   }, [hasQuiz]);
 
   const shown = home.filter((i) => i.kind !== 'quiz_offer' || quizHome);
+  // The kit isolates each Latin run of the row line on an Urdu page, and a run stops at a comma: an English topic like
+  // "Skip Counting in 5s, 10s and 100s" came out as two islands the RTL line swapped. Isolated here as ONE run first,
+  // the kit leaves it alone (isolateRuns skips an isolated run). An Urdu topic is unchanged; an English page untouched.
+  const topicLine = (s: string) => (ur ? isolateRuns(s) : s);
   const rowOf = (i: ServerItem): ReadyCardRow => (i.kind === 'quiz_offer'
     ? {
       id: i.id,
       feature: 'lessons', // a quiz follows a lesson: the quiz picture's own green
       what: N.quizOfferWhat,
       title: N.quizOfferTitle,
-      line: i.title || classLine(i) || N.quizOfferToday,
+      line: topicLine(i.title || classLine(i) || N.quizOfferToday),
     }
     : {
       id: i.id,
