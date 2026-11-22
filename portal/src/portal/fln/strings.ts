@@ -70,6 +70,7 @@ interface FlnStrings {
   image: { enlarge: string; close: string; failed: string };
   video: { watch: (minutes: string, mb: string) => string; smaller: string };
   pdf: string;
+  download: { label: string; failed: string };
   footer: { p25: (id: number) => string; p23: (id: number) => string };
   errors: {
     notAvailable: string;
@@ -141,6 +142,7 @@ const EN: FlnStrings = {
   image: { enlarge: 'Enlarge picture', close: 'Close', failed: "Picture couldn't load" },
   video: { watch: (minutes, mb) => `Watch · ${minutes} min · ${mb} MB`, smaller: 'Smaller video' },
   pdf: 'Open the worksheet',
+  download: { label: 'Download PDF', failed: "The PDF isn't available right now" },
   footer: {
     p25: (id) => `FDE FLN programme 2025 · ID ${id}`,
     p23: (id) => `Additional practice · 2023–24 programme · ID ${id}`,
@@ -215,6 +217,7 @@ const UR: FlnStrings = {
   image: { enlarge: 'تصویر بڑی کریں', close: 'بند کریں', failed: 'تصویر لوڈ نہیں ہوئی' },
   video: { watch: (minutes, mb) => `دیکھیں — ${num(minutes, 'ur')} منٹ — ${num(mb, 'ur')} ایم بی`, smaller: 'چھوٹی ویڈیو' },
   pdf: 'ورک شیٹ کھولیں',
+  download: { label: 'پی ڈی ایف ڈاؤن لوڈ کریں', failed: 'پی ڈی ایف ابھی دستیاب نہیں' },
   footer: {
     p25: (id) => `FDE FLN پروگرام ۲۰۲۵ — آئی ڈی ${num(id, 'ur')}`,
     p23: (id) => `اضافی مشق — ۲۰۲۳–۲۴ پروگرام — آئی ڈی ${num(id, 'ur')}`,
