@@ -376,6 +376,13 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 /* No recorded clip and no phone voice for this language (Android's in-app browser has none): the words are the voice, so show them big. */
 .wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:30px;line-height:1.4;color:var(--ink,inherit)}
 .wq-novoice .wq-opt{font-size:26px}
+/* A long Urdu "listen" question with no voice (its words under the big speaker): 26 px keeps the first answer on a
+   360 x 740 screen; at 30 px a 106-character stem pushed it to 684 px. The polished look's twin is in the ur2 block. */
+/* The plain Urdu look (without the polish class): its own sizes (html[lang=ur] .wq-qtext 21 px, .wq-opt 20 px) outrank the big words
+   above, so without this the no-silence fallback would depend on the polish switch staying on. */
+html[lang=ur] .wq-novoice .wq-qtext{font-size:30px}
+html[lang=ur] .wq-novoice .wq-opt{font-size:26px}
+html[lang=ur] .wq-novoice .wq-qtext.wq-qsmall{font-size:26px}
 /* M16 all schools this week: my school is pinned to the top or bottom edge when scrolled away. */
 .wq-slist{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .wq-srow{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:10px 8px;font-weight:800}
@@ -822,6 +829,7 @@ html.wq-ur2[lang=ur] .wq-qtext{font-size:22px;line-height:var(--ulh);padding-inl
 html.wq-ur2[lang=ur] .wq-qtext.wq-qsmall{font-size:17px}
 html.wq-ur2[lang=ur] .wq-novoice .wq-qtext{font-size:30px;line-height:var(--ulh)}
 html.wq-ur2[lang=ur] .wq-novoice .wq-opt{font-size:26px}
+html.wq-ur2[lang=ur] .wq-novoice .wq-qtext.wq-qsmall{font-size:26px}
 html.wq-ur2[lang=ur] .wq-opts{gap:12px}
 html.wq-ur2[lang=ur] .wq-opt{font-size:20px;line-height:var(--ulh1);padding:8px 12px 6px;padding-inline-start:12px;min-height:66px}
 html.wq-ur2[lang=ur] .wq-opt .wq-lab{padding-top:.25em;padding-inline-start:var(--upad-s)}
