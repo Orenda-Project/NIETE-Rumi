@@ -1532,11 +1532,26 @@ function createWebQuizRouter(opts = {}) {
   // The reminder opens the class's standing link (/j/, its class-named text), a quiz (/q/) or the phone's own hub (/h/).
   // A tap that lands from a reminder: the page, and the phone's device hash when the page has its wq_dv cookie (the bot's
   // deviceHash, web-quiz-telemetry.js: sha256('wqd|' + ref), 16 hex), never the ref itself.
+  // The hub's landing also counts the children it marked "Quiz ready" (ready_n: the bot's kids[].round, set by the /h/
+  // route below in res.locals.wqReadyN), known only once the bot answers: logged once, when the response ends.
   const pushLanded = (pg) => (req, res, next) => {
     if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) {
       const dv = DEVICE_COOKIE_RX.exec(String(req.headers.cookie || ''));
-      // dh rides inside data_json (a new top-level log field can collide with a downstream pull's aliases)
-      logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(dv ? { data_json: JSON.stringify({ dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) }) } : {}) });
+      // dh and ready_n ride inside data_json (a new top-level log field can collide with a downstream pull's aliases)
+      const data = dv ? { dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) } : {};
+      const landed = () => logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(Object.keys(data).length ? { data_json: JSON.stringify(data) } : {}) });
+      if (pg !== 'hub') landed();
+      else {
+        let sent = false;
+        const once = () => {
+          if (sent) return;
+          sent = true;
+          if (Number.isInteger(res.locals.wqReadyN)) data.ready_n = res.locals.wqReadyN;
+          landed();
+        };
+        res.once('finish', once);
+        res.once('close', once);
+      }
     }
     next();
   };
@@ -1738,6 +1753,8 @@ function createWebQuizRouter(opts = {}) {
     if (flush && flush.guess.early && out.status === 200 && out.body && out.body.locked === true) out = { ...out, body: EarlyUnlock.shaped(out.body) };
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out, inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
+      // a reminder's landing: how many children the bot marked "Quiz ready" (pushLanded logs it as ready_n)
+      if (req.query.from === 'push' && !out.body.locked && out.body.kids.length) res.locals.wqReadyN = out.body.kids.filter((k) => k && k.round === true).length;
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       edgeKey(out.body);
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;

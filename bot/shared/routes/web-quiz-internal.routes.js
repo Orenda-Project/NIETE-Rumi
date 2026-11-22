@@ -353,14 +353,17 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 // web_quiz_edge_learn on: the hub answer says `edge_learn: true` (web-quiz-edge-learn.js carry; from the hub's own switch
 // read, no read of its own), so a portal process that stopped asking learns again; off: the answer is untouched.
 const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
+// A hub opened from a reminder (src 'push'): "Quiz ready" on the children still waiting on tonight's class round
+// (web-quiz-hub-ready.js; class-link's `round: true` on their chips). Any other src: the hub's answer, the same object.
+const HubReady = () => require('../services/quiz/web-quiz-hub-ready');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   // the grown-ups corner's language tap on a phone the page render already knows (keep=1, only with a language): kept now
   if (req.query.keep === '1' && (req.query.lang === 'en' || req.query.lang === 'ur')) opts.keep = true;
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return ClosedLang.closedHub(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))))), req.params.token);
+  if (!st) return ClosedLang.closedHub(HubReady().carry(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))))), opts), req.params.token);
   StepTiming.attach(res, st);
-  return ClosedLang.closedHub(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })))))))))))), req.params.token);
+  return ClosedLang.closedHub(HubReady().carry(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })))))))))))), opts), req.params.token);
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
@@ -394,7 +397,10 @@ router.post('/stories/event/h/:token', handle((req) => Stories().event(req.param
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names. `src`: the page URL's from= (a known
 // route only), so a phone's FIRST hub open (no cookie, so the server render asked as no phone) keeps its route too.
-router.post('/hub/:token', handle((req) => GradeChange.carry(PageLang.carry(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, src: require('../services/quiz/web-quiz-hub-play').srcOf((req.body || {}).src), ...((req.body || {}).keep === 1 ? { keep: true } : {}) }))))))))))));
+router.post('/hub/:token', handle((req) => {
+  const opts = { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, src: require('../services/quiz/web-quiz-hub-play').srcOf((req.body || {}).src), ...((req.body || {}).keep === 1 ? { keep: true } : {}) };
+  return HubReady().carry(GradeChange.carry(PageLang.carry(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))), opts);
+}));
 // The grown-ups sheet's Grade row, for the child a hub chip names on a phone the hub trusts (x-wq-device, never the body):
 // GET ?kid= -> {now, cls} when the sheet opens; POST {kid, grade} -> 200 {ok, grade}; 400 bad grade; 403 not this link's
 // child or another phone; 404 switch off; 429 the day's 6th.
