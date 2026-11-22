@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T14:11:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan spec_sync=true","sha":"498fc1e669db","branch":"bd-zrdvmi.51-main","user":""}
+{"ts":"2026-11-22T15:00:55Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-498fc1e669db","sha":"498fc1e669db","branch":"bd-zrdvmi.51-main","user":""}
