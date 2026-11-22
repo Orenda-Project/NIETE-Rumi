@@ -496,6 +496,9 @@ function createAppFunnelRouter({ limiter } = {}) {
 const COACH_FLOW_ACTIONS = [
   'schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start',
   'observe.schedule', 'schedule.now_record', 'schedule.now_upload', 'schedule.later', 'home.focus', 'observe.booked_open',
+  // bd-o15qnr.38 (queue #219): the v7 Feedback Form's save — no answer for a few seconds, a lost try sent once more,
+  // both tries lost (portal coach/reports/saveTry.ts).
+  'form.save_slow', 'form.save_retry', 'form.save_lost',
 ];
 const COACH_FLOW_LEVELS = ['all', 'primary', 'middle', 'high'];
 

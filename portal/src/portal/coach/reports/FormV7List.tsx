@@ -313,12 +313,14 @@ export type V6FormV7Props = {
   confirm: boolean;
   setConfirm: (open: boolean) => void;
   saving: boolean;
+  /** bd-o15qnr.38 — the save has had no answer for a few seconds (the tray says so). */
+  slow?: boolean;
   problem: ReactNode;
   head: ReactNode;
 };
 
 export function V6FormV7({
-  id, draft, values, start, setValues, readOnly, name, minReason, notes, principal, moves, onLeave, onSave, confirm, setConfirm, saving, problem, head,
+  id, draft, values, start, setValues, readOnly, name, minReason, notes, principal, moves, onLeave, onSave, confirm, setConfirm, saving, slow = false, problem, head,
 }: V6FormV7Props) {
   const C = useCopy(REPORTS) as ReportsCopy;
   const F = useCopy(FORM_V7) as FormV7Copy;
@@ -454,7 +456,7 @@ export function V6FormV7({
 
   const crumbBase = name ? v7Crumb(W7, name, readOnly) : C.observation;
   const tray = (
-    <SaveTrayV7 open={confirm} saving={saving} onSave={doSave} onClose={() => { if (!saving) setConfirm(false); }}
+    <SaveTrayV7 open={confirm} saving={saving} slow={slow} onSave={doSave} onClose={() => { if (!saving) setConfirm(false); }}
       counts={v7Changes(draft, start, values)} />
   );
   const frame = (crumb: string, dock: ReactNode, body: ReactNode) => (
