@@ -147,6 +147,21 @@ test('the recall source: misses finished 2-3 PKT days earlier by the class\'s ch
   expect(src[0].kids.sort()).toEqual([ZARA, ALI].sort());
 });
 
+test('an original the class agreed on one wrong answer to is held out of the recall source and counted (n_recall_held)', async () => {
+  // five more children of the class all answered ORIG1 (key A) with B, two days ago
+  const more = [1, 2, 3, 4, 5].map((n) => `c0000001-0000-4000-8000-0000000000f${n}`);
+  more.forEach((k, i) => {
+    db.class_enrollments.push({ class_id: C1, student_id: k, is_active: true });
+    db.quiz_sessions.push({ id: `sm${i}`, student_id: k, quiz_id: 'qold', share_code_id: 'scold', status: 'completed', completed_at: '2026-11-22T10:00:00Z' });
+    db.quiz_answers.push({ id: `am${i}`, session_id: `sm${i}`, question_id: ORIG1, selected_option: 'B', is_correct: false });
+  });
+  await Round().writeRounds({ now: NOW, enqueue: jest.fn() });
+  const meta = rounds()[0].meta;
+  expect(meta.recall_src.map((x) => x.qid)).toEqual([ORIG2]);
+  expect(meta.n_recall_held).toBe(1);
+  expect(db.quiz_item_reviews).toEqual([expect.objectContaining({ question_id: ORIG1, reason: 'dominant_wrong_option', status: 'open', top_wrong_option: 'B' })]);
+});
+
 test('the default job: quiz_generate with NO phone and source evening_round', async () => {
   await Round().writeRounds({ now: NOW });
   expect(SQS.queueJob).toHaveBeenCalledTimes(1);
