@@ -16,10 +16,11 @@
   var CODE = String(B.code || '');
   var JT = typeof B.jt === 'string' ? B.jt : null;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
-  // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed, jg.who.someone_else
+  // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed, jg.who.someone_else,
+  // qfix_class_link.quiz_ready (ready: the badge on a "Whose turn?" chip whose child has tonight's class quiz waiting)
   var COPY = {
-    en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here", someone_else: "My name isn't here" },
-    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', someone_else: 'میرا نام یہاں نہیں' },
+    en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here", someone_else: "My name isn't here", ready: 'Quiz ready' },
+    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', someone_else: 'میرا نام یہاں نہیں', ready: 'کوئز تیار' },
   };
   var T = COPY[LANG];
   // The reminders' slot under the chips: empty here; the reminders lane mounts its opt-in into it.
@@ -63,7 +64,11 @@
     if (r.href) { location.href = r.href; return; }
     if (r.step === 'who') {
       screen(T.turn, '<div class="wq-kids-big">' + r.kids.map(function (k) {
-        return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><span class="wq-ani" aria-hidden="true">' + (ANIMALS[k.animal] || '⭐') + '</span><bdi>' + esc(k.first) + '</bdi></button>';
+        var name = '<bdi>' + esc(k.first) + '</bdi>';
+        // round: tonight's class quiz is waiting for this child: "Quiz ready" under the name, inside the chip (the
+        // whole chip stays the tap target). An unmarked chip is drawn exactly as before.
+        if (k.round === true) name = '<span class="wq-cl-nm">' + name + '<span class="wq-chip wq-cl-ready">' + esc(T.ready) + '</span></span>';
+        return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><span class="wq-ani" aria-hidden="true">' + (ANIMALS[k.animal] || '⭐') + '</span>' + name + '</button>';
       }).join('') + '</div>' + (r.other ? '<button class="wq-btn wq-soft" type="button" id="wq-cl-other">' + esc(T.someone_else) + '</button>' : '') + REMIND);
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });
       // A shared phone: a child who is not listed (a sibling) takes the teacher step the server sent with this one.
