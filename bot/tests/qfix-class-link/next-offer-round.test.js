@@ -58,7 +58,7 @@ function seed(settings = ROUND_ON, over = {}) {
       { id: 'q-1', topic: 'Fractions quiz', subject: 'Maths', language: 'en', grade: '3', video_id: null },
       { id: '22222222-2222-4222-8222-000000000002', topic: 'Plants quiz', subject: 'Science', language: 'en', grade: '3', video_id: null },
       { id: ROUND_Q, topic: 'Reading', subject: 'english', language: 'en', grade: '3', teacher_id: TEACHER, quiz_source: 'lp_v8', status: 'ready', video_id: null,
-        meta: { source: 'evening_round', class_id: CLASS, round_day: today(), class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', share_code_id: 'sc-r', round_ready_at: ago(2), n_items: 7, n_recall: 2 } },
+        meta: { source: 'evening_round', class_id: CLASS, round_day: today(), class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', share_code_id: 'sc-r', round_ready_at: ago(2), n_items: 7, n_recall: 2, n_dropped: 1 } },
     ],
     quiz_share_codes: [
       { id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) },
@@ -95,7 +95,9 @@ test('a class child arriving from the class link with a round today: next.primar
   expect(out.next).toMatchObject({ kind: 'quiz', variant: 'evening_round', rank_src: 'pinned', title: "Tonight's quiz", title_ur: 'آج شام کا کوئز', minutes: 5 });
   const k = T.chipId('sc-r', KID);
   expect(out.next.href).toBe(`/q/RND234?k=${k}`);
-  expect(logEvent).toHaveBeenCalledWith('web_quiz.round_shown', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2 });
+  // A31: round_shown carries the round's review count from its row; the page's JSON does not.
+  expect(logEvent).toHaveBeenCalledWith('web_quiz.round_shown', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2, n_dropped: 1 });
+  expect(JSON.stringify(out.next)).not.toContain('n_dropped');
 });
 
 test('two children of two classes on one phone, both through class A\'s link: each child gets THEIR class\'s round', async () => {

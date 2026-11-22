@@ -453,6 +453,7 @@ function summaryOf(quiz, meta, code, classRow) {
     ready_at: meta.round_ready_at,
     n_items: meta.n_items,
     n_recall: meta.n_recall,
+    n_dropped: meta.n_dropped || 0,
     grade_code: classRow ? classRow.grade_code : null,
     section: classRow ? classRow.section : null,
   };
@@ -507,6 +508,77 @@ async function heldLessonItems(rows, meta) {
   return out;
 }
 
+/** A donor row's child answers per stored option slot, for its queue row (the counts keys' nightly rule reads). */
+async function answerCountsOf(questionId, key) {
+  const counts = {};
+  for (let from = 0; ; from += 1000) {
+    // eslint-disable-next-line no-await-in-loop
+    const { data, error } = await supabase.from('quiz_answers').select('id, selected_option').eq('question_id', questionId)
+      .order('id', { ascending: true }).range(from, from + 999);
+    if (error) return {};
+    (data || []).forEach((a) => { const o = String(a.selected_option || '').trim().toUpperCase(); if (/^[A-D]$/.test(o)) counts[o] = (counts[o] || 0) + 1; });
+    if (!data || data.length < 1000) break;
+  }
+  const n = Object.values(counts).reduce((a, b) => a + b, 0);
+  const wrong = Object.entries(counts).filter(([o]) => o !== key).sort((a, b) => b[1] - a[1])[0];
+  return { answers_n: n, right_n: counts[key] || 0, top_wrong_n: wrong ? wrong[1] : 0 };
+}
+
+/**
+ * The round's lesson rows the blind solve holds out (PLAN §11 A33: the round never rewrites; a flagged item is
+ * dropped and queued). Returns Map(this quiz's row id -> the queue entry):
+ *   - a row the generate step's solve flagged (media.key_held, written by runKeyVerify's round path): the row itself,
+ *     key_at_flag the grader's key, top_wrong_option the solver's single pick by stored slot (else null);
+ *   - on a cache hit, a copy of a donor item whose key the donor's fix path REWROTE (meta.key_verify disagreement
+ *     outcome 'fixed' or 'replaced'): a rewritten item is a review candidate, not a fix. The DONOR's row is queued (the
+ *     item children answered; a verdict on it covers every later copy through heldLessonItems), unless a person has
+ *     already reviewed it (a queue row whose status no longer holds). The solve's index is authored; the stored row is
+ *     found by subtracting the solve's own drops (outcome 'dropped') and then the answer-leak drops (meta.answer_leaks
+ *     .dropped, indices in the set after the solve); a top-up appends at the end and moves nothing.
+ */
+async function blindSolveHeld(rows, meta) {
+  const out = new Map();
+  rows.filter((r) => r.media && r.media.key_held && r.media.key_held.reason === 'blind_solve').forEach((r) => {
+    const picks = Array.isArray(r.media.key_held.picks) ? r.media.key_held.picks : [];
+    out.set(r.id, {
+      question_id: r.id, reason: 'blind_solve', key_at_flag: Recall.keyOf(r), top_wrong_option: picks.length === 1 ? Recall.slotOfText(r, picks[0]) : null,
+    });
+  });
+  const donorId = meta && meta.cache_donor && meta.cache_donor.quiz_id;
+  if (!donorId) return out;
+  try {
+    const { data: donor } = await supabase.from('quizzes').select('id, meta').eq('id', donorId).maybeSingle();
+    const dm = (donor && donor.meta) || {};
+    const ds = (dm.key_verify && Array.isArray(dm.key_verify.disagreements)) ? dm.key_verify.disagreements : [];
+    const kvDropped = ds.filter((d) => d.outcome === 'dropped').map((d) => Number(d.index));
+    const leakDropped = ((dm.answer_leaks && dm.answer_leaks.dropped) || []).map(Number);
+    const positions = ds.filter((d) => d.outcome === 'fixed' || d.outcome === 'replaced').map((d) => Number(d.index))
+      .map((i) => i - kvDropped.filter((j) => j < i).length)
+      .filter((p) => !leakDropped.includes(p))
+      .map((p) => p - leakDropped.filter((j) => j < p).length);
+    if (!positions.length) return out;
+    const { data: donorRows } = await supabase.from('quiz_questions')
+      .select('id, external_id, sort_order, option_a, option_b, option_c, option_d, correct_option, media').eq('quiz_id', donorId);
+    const rewritten = (donorRows || []).filter((d) => positions.includes(Number(d.sort_order)) && d.external_id);
+    if (!rewritten.length) return out;
+    const Keys = require('./quiz-key-review.service');
+    const { data: queued } = await supabase.from(Keys.TABLE).select('question_id, status').in('question_id', rewritten.map((d) => d.id));
+    const HELD = Array.isArray(Keys.HELD) ? Keys.HELD : ['open', 'key_wrong', 'ambiguous'];
+    const reviewed = new Set((queued || []).filter((q) => !HELD.includes(q.status)).map((q) => String(q.question_id)));
+    const stillHeld = new Set((queued || []).filter((q) => HELD.includes(q.status)).map((q) => String(q.question_id)));
+    for (const d of rewritten) {
+      const copy = rows.find((r) => r.external_id && extTail(r.external_id) === extTail(d.external_id));
+      if (!copy || (reviewed.has(String(d.id)) && !stillHeld.has(String(d.id)))) continue;
+      const key = Recall.keyOf(d);
+      // eslint-disable-next-line no-await-in-loop
+      out.set(copy.id, { question_id: d.id, reason: 'blind_solve', key_at_flag: key, top_wrong_option: null, ...(await answerCountsOf(d.id, key)) });
+    }
+  } catch (err) {
+    logToFile('⚠️ evening round: donor key check unreadable — its copies are served as the cache gave them', { error: err.message });
+  }
+  return out;
+}
+
 /**
  * The round's hand-off (transcript-quiz-generate.service calls it instead of the teacher's). Idempotent per step on a
  * redelivered job: the share code is reused when meta has one, the recall pool is written once (meta.recall_done).
@@ -539,12 +611,14 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   const ref = { cl: meta.class_link_code || null, rc: sc.code };
 
   // 2. the lesson items: marked as the round's, reading items marked shown-not-spoken; an item whose key is held
-  //    (its own, or on a cache hit the donor item it was copied from) is marked 'held' and never served.
+  //    (its own, or on a cache hit the donor item it was copied from), or that the blind solve flagged (A33), is
+  //    marked 'held' and never served.
   const { data: stored } = await supabase.from('quiz_questions').select(ROUND_ROW_COLS).eq('quiz_id', quizId).order('sort_order', { ascending: true });
-  const notRecall = (stored || []).filter((r) => !(r.media && r.media.round === 'recall'));
+  const notRecall = (stored || []).filter((r) => !(r.media && (r.media.round === 'recall' || r.media.recall)));
   const heldExt = await heldLessonItems(notRecall, meta);
-  const lessonRows = notRecall.filter((r) => !heldExt.has(r.id));
-  for (const r of notRecall.filter((x) => heldExt.has(x.id))) {
+  const solved = await blindSolveHeld(notRecall, meta);
+  const lessonRows = notRecall.filter((r) => !heldExt.has(r.id) && !solved.has(r.id));
+  for (const r of notRecall.filter((x) => heldExt.has(x.id) || solved.has(x.id))) {
     // eslint-disable-next-line no-await-in-loop
     await supabase.from('quiz_questions').update({ media: { ...(r.media || {}), round: 'held', round_key: roundKey } }).eq('id', r.id);
   }
@@ -561,6 +635,7 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   if (!meta.recall_done) {
     const src = Array.isArray(meta.recall_src) ? meta.recall_src : [];
     let items = [];
+    let heldItems = [];
     let spent = { costUsd: 0, model: null, usage: null, dropped: 0 };
     if (src.length) {
       const { data: qs } = await supabase.from('quiz_questions')
@@ -571,18 +646,20 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
       }).filter(Boolean);
       const complete = deps.complete || require('./transcript-quiz-llm').completeJson;
       spent = await Recall.rewrite({ originals, language, complete });
-      // Every rewrite blind-solved before a child sees it (A19); a flagged one is not written.
+      // Every rewrite blind-solved before a child sees it (A19); a flagged one is stored held and queued, never served (A33).
       const verify = deps.verify || require('./transcript-quiz-key-verify.service').verifyKeys;
       const kv = await Recall.verifyItems({ items: spent.items, language, grade: row.grade, subject: row.subject, verify });
       items = kv.items;
+      heldItems = (kv.held || []).map((h) => ({ ...h.item, verdict: h.verdict, pick: h.pick }));
       meta.recall_key_verify = kv.record;
       spent.costUsd = (spent.costUsd || 0) + kv.record.cost_usd;
     }
     const rows = Recall.recallRows({
       quizId, items, roundKey, subject: row.subject, chipOf: (id) => T.chipId(sc.id, id),
     }).map((r) => asWebItem({ ...r, media: { ...r.media, round_ref: ref } }));
-    if (rows.length) {
-      const { error } = await supabase.from('quiz_questions').insert(rows);
+    const heldRows = Recall.recallRows({ quizId, items: heldItems, roundKey, subject: row.subject, held: true }).map((r) => asWebItem(r));
+    if (rows.length || heldRows.length) {
+      const { error } = await supabase.from('quiz_questions').insert([...rows, ...heldRows]);
       if (error) throw new Error(`evening round: recall insert failed: ${error.message}`);
     }
     nRecall = rows.length;
@@ -595,11 +672,21 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
     meta.cost_usd = (Number(meta.cost_usd) || 0) + (spent.costUsd || 0);
   }
 
+  // 3b. every item the blind solve held goes on the answer-key review queue (blind_solve, open): the lesson rows above
+  //     and the held recall rows (read back for their ids). Idempotent; never throws (a failed write leaves it held).
+  const { data: heldNow } = await supabase.from('quiz_questions').select(ROUND_ROW_COLS).eq('quiz_id', quizId);
+  const recallHeld = (heldNow || []).filter((r) => r.media && r.media.round === 'held' && r.media.recall && r.media.key_held);
+  meta.review_queue = await Recall.queueReview([
+    ...solved.values(),
+    ...recallHeld.map((r) => ({ question_id: r.id, reason: 'blind_solve', key_at_flag: Recall.keyOf(r), top_wrong_option: r.media.key_held.pick || null })),
+  ]);
+
   // 4. ready: the round's facts on its row (status stays 'ready': nothing is ever sent).
   meta = {
     ...meta, step: 'ready', round_ready_at: meta.round_ready_at || new Date().toISOString(),
     n_items: Math.min(LESSON_ITEMS, lessonRows.length) + Math.min(RECALL_ITEMS, nRecall), n_lesson: lessonRows.length, n_recall: nRecall, n_reading: reading,
-    n_held: heldExt.size,
+    n_held: [...heldExt].filter((id) => !solved.has(id)).length,
+    n_dropped: solved.size + recallHeld.length,
   };
   await supabase.from('quizzes').update({ status: 'ready', meta }).eq('id', quizId);
 
@@ -619,7 +706,7 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   logEvent('web_quiz.round_written', {
     quizId, class_link_code: ref.cl, round_code: sc.code, n_items: meta.n_items, n_recall: nRecall, n_reading: reading,
     teachers_with_lp: meta.teachers_with_lp || null, subjects_with_lp: meta.subjects_with_lp || null, chosen: meta.chosen || 'earliest',
-    recall_cost_usd: meta.recall_cost_usd || 0,
+    recall_cost_usd: meta.recall_cost_usd || 0, n_dropped: meta.n_dropped,
   });
   return { ok: true, quizId, code: sc.code, round: true };
 }
@@ -770,13 +857,16 @@ async function roundCandidate({ token = null, chosenId = null, history = [], lan
     const k = T.chipId(s.share_code_id, chosenId);
     if (!k) return null;
     const qk = require('./web-quiz-kid').qk(s.quiz_id) || crypto.createHash('sha256').update(`er|${s.quiz_id}`).digest('hex').slice(0, 10);
-    return {
+    const cand = {
       kind: 'quiz', variant: 'evening_round', id: qk, href: `/q/${encodeURIComponent(s.round_code)}?k=${encodeURIComponent(k)}`,
       ...tileWords(), minutes: 5, art: '/wq/jugnu/thinking.webp', tag: 'New', tag_ur: 'نیا',
       rule: 'evening_round', sent_at: s.ready_at || null,
       round: { class_link_code: s.class_link_code, round_code: s.round_code, n_items: s.n_items, n_recall: s.n_recall },
       lang,
     };
+    // round_shown's review counts ride beside the tile, not in it: non-enumerable, so the page's JSON never carries them.
+    Object.defineProperty(cand, 'shownLog', { value: { n_dropped: s.n_dropped || 0 } });
+    return cand;
   } catch (err) {
     logToFile('⚠️ evening round: hub tile unavailable', { error: err.message });
     return null;
@@ -811,7 +901,7 @@ async function waitingKids(classId, kids, { now = new Date() } = {}) {
 /** web_quiz.round_shown: the hub's next slot named the round as its primary. */
 function noteShown(next, candidate) {
   if (!next || !candidate || next.id !== candidate.id || !candidate.round) return false;
-  logEvent('web_quiz.round_shown', { ...candidate.round });
+  logEvent('web_quiz.round_shown', { ...candidate.round, ...(candidate.shownLog || {}) });
   return true;
 }
 
