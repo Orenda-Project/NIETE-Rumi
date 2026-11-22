@@ -9,6 +9,7 @@
 module.exports = Object.freeze([
   ['go', 'go.mount', 'mountGo'],                                 // /api/internal/go (quiz_one_door: the /quiz/go landing, the one question)
   ['maker', 'maker.mount', 'mountMaker'],                        // /api/internal/ft (quiz_maker_page)
+  ['push-remind', 'push-remind.mount', 'mountPushRemind'],      // /api/internal/wqpush (web_quiz_push_remind: the child's reminder push; off → 404 {off:true} and the edge falls through)
   ['sa-game', 'sa-game.mount', 'mountSaGame'],                   // /api/internal/sagame (sa_game: the big flight page; off → 404 {off:true} and the edge falls through)
   ['teacher-home', 'teacher-home.mount', 'mountTeacherHome'],    // /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through)
   ['teacher-home-portal', 'teacher-home.portal.mount', 'mountTeacherHomePortal'], // /api/internal/thportal (quiz_teacher_home: the teacher app's home card)

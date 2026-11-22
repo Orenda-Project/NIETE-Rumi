@@ -2866,6 +2866,7 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-home.routes'));
 // My journey — her own steps, read from the activity store only (dark unless portal_teacher_journey).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-journey.routes'));
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-push.routes'));
 // bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));
