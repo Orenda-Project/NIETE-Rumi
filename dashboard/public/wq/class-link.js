@@ -16,11 +16,12 @@
   var CODE = String(B.code || '');
   var JT = typeof B.jt === 'string' ? B.jt : null;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
-  // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed, jg.who.someone_else,
+  // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed (not_listed AND
+  // someone_else: one label for one action, "this child is not in the list shown"; the hub's shorter jg.who.someone_else is not used here),
   // qfix_class_link.quiz_ready (ready: the badge on a "Whose turn?" chip whose child has tonight's class quiz waiting)
   var COPY = {
     en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here", someone_else: "My name isn't here", ready: 'Quiz ready' },
-    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', someone_else: 'میرا نام یہاں نہیں', ready: 'کوئز تیار' },
+    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', someone_else: 'میرا نام یہاں نہیں ہے', ready: 'کوئز تیار' },
   };
   var T = COPY[LANG];
   // The reminders' slot under the chips: empty here; the reminders lane mounts its opt-in into it.
