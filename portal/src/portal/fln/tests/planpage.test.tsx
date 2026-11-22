@@ -54,7 +54,9 @@ describe('plan page states', () => {
   it('only GETs the plan (no client-side open) and calls useFlnPlayer in the page', async () => {
     const { calls } = renderPlan(rhEn);
     await screen.findByText(rhEn.plan.title);
-    expect(calls.map((c) => c.url)).toEqual(['/api/portal/fln/plan/90001']);
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    // The PDF probe (bd-s0ccn5.2.4) only asks for a link; the server records no open for it.
+    expect(calls.map((c) => c.url)).toEqual(['/api/portal/fln/plan/90001', '/api/portal/fln/plan/90001/pdf']);
     expect(useFlnPlayerSpy.mock.calls.at(-1)![0]).toEqual(rhEn.plan);
   });
 });

@@ -134,6 +134,7 @@ Feature: Teacher lesson plans
   @FLN04
   Scenario: A coach sees Share on a plan and finds a plan in the link builder; a teacher sees neither
     Given portal_fln_lessons and portal_fln_share are on for the demo coach and the demo teacher
+    And lp_whatsapp_pdf_off does not list the demo coach's programme
     And the demo coach is signed in
     When the coach opens /portal/fln/p/11156
     Then a bar with "Send to teacher" and "Share link" sits at the bottom of the plan
@@ -146,6 +147,19 @@ Feature: Teacher lesson plans
     When the demo teacher signs in and opens /portal/fln/p/11156
     Then there is no Share bar
     And GET /api/portal/fln/links answers 404 for the teacher
+
+  # FLN10 (bd-s0ccn5.1): the Share sheet follows the K-5 WhatsApp switch (features.lpWhatsappSend).
+  # Covers portal/src/portal/fln/share/ShareSheet.tsx (useLpWhatsappSend from teacher/lessons/viewerFlags).
+  @FLN10 @draft @config-gated
+  Scenario: With WhatsApp sending off for her programme, the Share sheet keeps Copy link and drops Send on WhatsApp
+    Given portal_fln_lessons and portal_fln_share are on for the demo coach
+    And lp_whatsapp_pdf_off lists the demo coach's programme
+    And the demo coach is signed in
+    When the coach opens /portal/fln/p/11156 and taps "Share link"
+    Then the sheet shows the plan's link and "Copy link"
+    And there is no "Send on WhatsApp"
+    When the settings read fails
+    Then "Send on WhatsApp" shows, as it did before the switch
 
   # FLN06 (PR-E, m-links): Send to teacher. Leader → bot message → the teacher's OWN /go → the FLN plan, signed in.
   # Covers dashboard/routes/portal-fln-send.routes.js, bot/shared/services/fln-send.service.js,
@@ -252,6 +266,22 @@ Feature: Teacher lesson plans
     When she reaches the end of the plan and taps "Useful"
     Then "In class" asks "Taught it today · Planning to · Not yet" in the same place, never as a pop-up
     And tapping "Taught it today" shows "Thanks" and saves one answer for her and this plan
+
+  # bd-s0ccn5.2 — FLN plans download as a PDF (text and pictures, no sound), like the other LPs, instead of WhatsApp.
+  # Covers dashboard/routes/portal-fln-pdf.routes.js, dashboard/services/fln-pdf-sign.js, fln/plan/DownloadPdf.tsx.
+  # @draft: needs scripts/fln-pdf/render.js run against the sandbox bucket for the live corpus version first.
+  # Pinned by tests/portal/fln-pdf-route.test.js (root) and downloadPdf.test.tsx (portal).
+  @FLNPDF01 @draft @config-gated
+  Scenario: FLN plan page: Download PDF saves the plan, and the button is hidden when no PDF exists
+    Given portal_fln_lessons is on for demo teacher 03000000911
+    And the plan's PDF was rendered to the bucket for the live corpus version
+    When she opens that FLN plan's page
+    Then a "Download PDF" button is on the page
+    When she taps it
+    Then a PDF named "FLN lesson <id>.pdf" downloads and the plan page stays open
+    And no open is recorded and no lp_feedback or lesson_plans row is written
+    When she opens an FLN plan whose PDF was never rendered
+    Then there is no "Download PDF" button and the plan reads as before
 
   # bd-snkn32.61 — operator, 20 Nov: "doesnt make sense to show chapters, we can focus on FLN related skills and if
   # teachers want something else, they are free to add those". Written by hand like the blocks above (@draft): the demo
