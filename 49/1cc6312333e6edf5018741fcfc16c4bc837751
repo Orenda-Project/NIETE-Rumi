@@ -16,3 +16,4 @@
 {"ts":"2026-11-22T15:58:15Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-491cc6312333","sha":"491cc6312333","branch":"ab-tracker-main-carry-v2","user":""}
 {"ts":"2026-11-22T15:58:34Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"491cc6312333","branch":"ab-tracker-main-carry-v2","user":""}
 {"ts":"2026-11-22T15:58:37Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"ab-tracker-main-carry-v2: E-DUPID:child-test;E-NODRIVER:registration","sha":"491cc6312333","branch":"ab-tracker-main-carry-v2","user":""}
+{"ts":"2026-11-22T15:58:42Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"491cc6312333","branch":"ab-tracker-main-carry-v2","user":""}
