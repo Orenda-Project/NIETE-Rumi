@@ -19,6 +19,9 @@
   var URL_LANG = (/[?&]lang=(en|ur)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
   // the grown-ups corner's language tap (keep=1): the server keeps it as the child's language (web_quiz_return_lang; off: ignored)
   var URL_KEEP = Boolean(URL_LANG) && /[?&]keep=1(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
+  // The route that brought the child (?from=, the known set: web-quiz-hub-play.js SRC_VALUES). The server render sends
+  // it as ?src=, but a phone's FIRST open renders as no phone, so the unlocking call carries it once (hub_open.src).
+  var URL_SRC = (/[?&]from=(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join|push)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -235,6 +238,7 @@
     if (kid) body.kid = kid;
     body.device_ref = deviceRef();
     if (URL_LANG) body.lang = URL_LANG;
+    if (!kid && URL_SRC) { body.src = URL_SRC; URL_SRC = null; }
     // keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never re-keeps an old choice
     if (URL_KEEP) {
       body.keep = 1;
