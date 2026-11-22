@@ -1,6 +1,6 @@
 'use strict';
 /**
- * ONE class label form wherever a parent or child sees the class (PLAN §11 A15 + A73): "Class 3 A" / «کلاس ۳ A» —
+ * ONE class label form wherever a parent or child sees the class: "Class 3 A" / «کلاس ۳ A» —
  * «کلاس», Urdu digits in Urdu, the section as stored after a space, no hyphen; no section -> "Class 3" / «کلاس ۳»;
  * no grade -> null; at most 24 code points. The reminder's title (roundsReadyForPhone) and the teacher page's
  * "Evening rounds" read it from classLabels; the /j/ preview reuses it (class-link-preview.test.js).

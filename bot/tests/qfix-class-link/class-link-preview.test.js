@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The /j/<code> link preview names the CLASS only (PLAN §11 A15, label form A73): og:title (and the page title) is
+ * The /j/<code> link preview names the CLASS only: og:title (and the page title) is
  * "Jugnu · Class 3 B" / «جگنو · کلاس ۳ B» — the class's grade and section through classLabels, the same function the
  * reminder's title uses — and never a school, teacher or child name; og:url stays the origin. Only for a live code
  * with web_quiz_class_link on; a class with no numeric grade keeps today's generic head; an unknown or closed code

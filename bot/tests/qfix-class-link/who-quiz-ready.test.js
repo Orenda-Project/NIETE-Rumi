@@ -1,6 +1,6 @@
 'use strict';
 /**
- * "Whose turn?" on the standing link marks each child who has tonight's class quiz waiting (PLAN §11 A14, take A:
+ * "Whose turn?" on the standing link marks each child who has tonight's class quiz waiting (take A:
  * the per-child "Quiz ready" badge; B's sibling pip = the badge stays on the sibling still waiting):
  *   - a child of the class with no finished sitting on tonight's round: { round: true } on their chip;
  *   - a child who finished it: no mark; with the switch off: no mark and no round read at all;

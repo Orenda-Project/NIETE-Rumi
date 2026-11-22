@@ -1,6 +1,6 @@
 'use strict';
 /**
- * roundsReadyForPhone reports only what is still WAITING on this phone (lead A73 / manager brief):
+ * roundsReadyForPhone reports only what is still WAITING on this phone:
  *   - a class whose phone-children have ALL finished tonight's round (a completed quiz_sessions row on the round's share
  *     code by the child) is left out; otherwise the class stays;
  *   - with { withKids: true }, `kids` lists only the children still waiting, each with `student_id` ALWAYS, and

@@ -1,6 +1,6 @@
 /**
  * "Whose turn?" on the standing link (/j/<code>, public/wq/class-link.js) draws the "Quiz ready" badge on the chip of
- * each child the bot marks { round: true } (tonight's class quiz is waiting; PLAN §11 A12/A14, take A), in the
+ * each child the bot marks { round: true } (tonight's class quiz is waiting), in the
  * page's language, and on no other chip. With nobody marked (the switch off) the step is exactly as before.
  * The real page from the real edge router; the page's script runs in a vm; the bot is faked at the network boundary.
  */

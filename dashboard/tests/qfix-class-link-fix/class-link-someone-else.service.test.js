@@ -3,7 +3,7 @@
  * an `other` teacher step, the page draws a "someone else" button under the remembered children; tapping it shows that
  * teacher step (no round trip), and a teacher tap from there posts that step's own token. The button is a full-size
  * button (>= 48 px tall at 360 x 740 in every look the page can wear), worded as the name screen's way out (one label
- * for one action, PLAN §11 A37: copy.v2.json jg.who.not_listed).
+ * for one action: copy.v2.json jg.who.not_listed).
  *
  * The real /j/<code> page from the real edge router; its own script runs in a vm, its fetches go through the real edge
  * routes, and the bot is the network boundary (a fake fetch). The button's size is the cascade of the shipped wq.css.
