@@ -78,7 +78,7 @@ const VID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
 // the edge cannot load the bot's modules, so keep the two lists the same.
-const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join)$/;
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join|push)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -1651,7 +1651,12 @@ function createWebQuizRouter(opts = {}) {
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
-  router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
+  // A quiz opened from the child reminder (the push's url carries ?from=push): the funnel's landed step, counts only.
+  const pushLanded = (pg) => (req, res, next) => {
+    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder' });
+    next();
+  };
+  router.get('/q/:code', limiters.read, unknownCode, pushLanded('quiz'), (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
   // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens
   // this child's own hub, marked ?from=hs so the hub open carries the home-screen route (hub_open.src).
@@ -1664,7 +1669,7 @@ function createWebQuizRouter(opts = {}) {
     res.set('Cache-Control', 'private, max-age=300');
     return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
   });
-  router.get('/h/:token', limiters.read, async (req, res) => {
+  router.get('/h/:token', limiters.read, pushLanded('hub'), async (req, res) => {
     pageHeaders(res);
     const origin = originOf(req);
     const token = String(req.params.token || '');
