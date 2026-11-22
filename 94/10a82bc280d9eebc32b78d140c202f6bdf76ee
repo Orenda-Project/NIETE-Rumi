@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T15:54:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"9410a82bc280","branch":"HEAD","user":""}
+{"ts":"2026-11-22T15:55:16Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9410a82bc280","branch":"bd-zrdvmi.55-main","user":""}
