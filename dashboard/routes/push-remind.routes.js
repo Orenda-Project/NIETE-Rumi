@@ -98,21 +98,31 @@ function createPushRemindRouter(opts = {}) {
   const botUrl = String(opts.botUrl != null ? opts.botUrl : (process.env.MAIN_BOT_URL || '')).replace(/\/$/, '');
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
-  const on = opts.on || createBrotliFlag({ key: KEY });
+  // a failed read keeps the last answer (OFF there serves the self-unregistering worker); no read landed yet → 503 below
+  const on = opts.on || createBrotliFlag({ key: KEY, keepOnError: () => true, ...(opts.flagDb ? { db: opts.flagDb } : {}), ...(opts.flagNow ? { now: opts.flagNow } : {}) });
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, ...(opts.logEvent ? { logEvent: opts.logEvent } : {}) });
+  const logEvent = opts.logEvent || ((e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } });
   const router = express.Router();
   const phoneLang = (req) => (/^\s*en\b/i.test(String(req.get('accept-language') || '')) ? 'en' : 'ur');
 
   // The edge's switch answers its last value while a read is out, and OFF before its first read lands: a cold process
   // would hand a child the kill-switch worker. So the first answer waits for the first read (one read per process).
   let primed = false;
+  let swLoggedAt = -Infinity;
   router.get('/sw.js', async (req, res, next) => {
     if (!primed && typeof on.ready === 'function') {
       on();
       try { await on.ready(); } catch (_) { /* answers what the switch says */ }
       primed = true;
     }
-    const file = on() ? 'sw.js' : 'sw-off.js';
+    const live = on();
+    const st = typeof on.state === 'function' ? on.state() : 'fresh';
+    // an answer from a failed read is counted (at most one line a minute per process), so the path shows in the logs;
+    // its props ride inside data_json, never as new top-level log fields
+    if (st !== 'fresh' && Date.now() - swLoggedAt >= 60000) { swLoggedAt = Date.now(); logEvent('web_quiz.push_sw_switch', { data_json: JSON.stringify({ state: st, served: !live && st === 'unread' ? '503' : live ? 'sw' : 'off' }) }); }
+    // no read has landed (the first one failed): not an off. 503 leaves the browser's current worker in place
+    if (!live && st === 'unread') return res.status(503).set('Cache-Control', 'no-store').type('application/javascript').send('');
+    const file = live ? 'sw.js' : 'sw-off.js';
     res.set({ 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' });
     return res.sendFile(path.join(WQ_DIR, file), { dotfiles: 'allow', headers: { 'Cache-Control': 'no-cache' }, cacheControl: false, lastModified: false }, (err) => { if (err && !res.headersSent) next(); });
   });
@@ -143,7 +153,8 @@ function createPushRemindRouter(opts = {}) {
     } catch (_) {
       return res.status(503).json({ error: 'unavailable' });
     }
-    if (out.status === 404) return res.status(404).json({ error: 'not_found' });
+    // a real off reaches the page as {off:true} (its cue to drop the worker); any other 404 is not an off
+    if (out.status === 404) return res.status(404).json(out.body && out.body.off === true ? { off: true } : { error: 'not_found' });
     return res.status(out.status).json(out.body || {});
   };
 
