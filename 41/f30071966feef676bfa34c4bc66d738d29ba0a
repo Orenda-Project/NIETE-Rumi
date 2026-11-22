@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T14:33:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"41f30071966f","branch":"bd-s0ccn5-main","user":""}
 {"ts":"2026-11-22T14:35:33Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (cherry-pick of staging #5444; FLN-only portal change, smoke paths untouched; teacher-lessons.feature updated in this same commit)","sha":"41f30071966f","branch":"bd-s0ccn5.2-main","user":""}
 {"ts":"2026-11-22T14:37:29Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (spec already synced inside this cherry-picked commit: FLN10 + @FLNPDF01 from staging #5444)","sha":"41f30071966f","branch":"bd-s0ccn5.2-main","user":""}
+{"ts":"2026-11-22T14:37:30Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-41f30071966f","sha":"41f30071966f","branch":"bd-s0ccn5.2-main","user":""}
