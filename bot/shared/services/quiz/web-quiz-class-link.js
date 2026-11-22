@@ -17,6 +17,10 @@
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
  *                                   letters present); a wrong one → the teacher step again, no children
  *   letter({code, s, letter})       the chips whose canon first name starts with that letter, FIRST NAMES ONLY
+ *   arrive / letter (body, push)    the two answers whose screens draw the reminder slot ("Whose turn?" and the chips)
+ *                                   spread `push`, the route's push field ({push_remind: true} or {}); with it on, also
+ *                                   remind_code: tonight's round share code for the class when a ready round exists,
+ *                                   else this link's code (remindFields). No `push` → the answers are today's.
  *   pick({code, s, chip, device_ref})  → {href: /h/<token>}: a hub token for that child carrying the pick
  *                                   (`cl`: class, id_src, id_confidence, homonym_in_list, practice) to the run row.
  *                                   A HIGH pick (not the teacher's own visit) is remembered on that phone for
@@ -344,8 +348,33 @@ async function classLabelOf(classId, lang) {
 
 // The landing's markers (the edge's viaOfQuery, carried in the page's boot JSON and posted on arrive).
 const MARKED_VIA = new Set(['forward', 'reminder', 'hub']);
+// A code the reminder ask takes (wq-remind.js accepts [A-Za-z0-9]{4,12}; share codes are 6, class-link codes 10): any
+// other round code falls back to the link's own code, never an ask without a code.
+const SHARE_CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 
-async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
+/**
+ * The reminder ask's fields on a step whose screen draws the slot: `push` is the bot's push decision the route hands in
+ * (web-quiz-push-field pushField(): {push_remind: true} or {}; read there, never here). On → push_remind and
+ * remind_code, the code the ask subscribes with: tonight's ready round's share code for the class (the evening round's
+ * own cached read; the evening round off → no round read), else this link's code. Off → {} (today's answer).
+ * Never throws: a failed round read falls back to the link's code.
+ */
+async function remindFields(link, push, now = new Date()) {
+  if (!push || push.push_remind !== true) return {};
+  let code = link.code;
+  try {
+    if (await require('./web-quiz-evening-round-flags').eveningRoundOn()) {
+      const day = require('../nudges/pkt-time').pktDate(now);
+      const s = (await require('./web-quiz-evening-round').roundsForClasses([link.class_id], day)).get(String(link.class_id));
+      if (s && SHARE_CODE_RX.test(String(s.round_code || ''))) code = String(s.round_code);
+    }
+  } catch (err) {
+    logToFile('⚠️ web quiz class link: round code for the reminder unavailable', { error: err.message });
+  }
+  return { push_remind: true, remind_code: code };
+}
+
+async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}, push = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const practice = isTeacherPreview(code, jt);
@@ -380,6 +409,8 @@ async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
       // A shared phone: a child who is not listed (a sibling) takes the stranger path from here, the teacher step a
       // fresh phone gets. Their high pick joins this phone's record, so the next "Whose turn?" lists them too.
       other: teacherStep,
+      // the reminder ask under the chips (web_quiz_push_remind): nothing with the push field off
+      ...(await remindFields(link, push)),
     };
   }
   if (!teacherStep) return notFound();
@@ -438,7 +469,7 @@ async function playedHereAs(d, k) {
   return played.map((id) => canon.get(id) || id).some((id) => id === k.id || k.ids.includes(id));
 }
 
-async function letter({ code, s, letter: l } = {}) {
+async function letter({ code, s, letter: l } = {}, push = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const step = stepOf(code, s, ['letter', 'chips']);
@@ -449,6 +480,8 @@ async function letter({ code, s, letter: l } = {}) {
     s: stepToken(code, { st: 'chips', l, ...(step.p ? { p: 1 } : {}) }),
     // FIRST NAMES ONLY on the stranger path (IDENTITY §2(b)): no surname, no initial, no father's name.
     kids: chips.map((c) => ({ chip: c.chip, first: c.first })),
+    // the reminder ask under the chips (web_quiz_push_remind): nothing with the push field off
+    ...(await remindFields(link, push)),
   };
 }
 
