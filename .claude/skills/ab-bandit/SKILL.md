@@ -1,11 +1,15 @@
 ---
-name: ab-testing
-description: A/B testing via a Thompson-sampling multi-armed bandit. DB-driven tests (ab_tests / ab_test_variants / ab_test_events) that learn the best-performing variant online. Use when adding or measuring a message/content experiment.
+name: ab-bandit
+description: A/B testing via a Thompson-sampling multi-armed bandit. DB-driven tests (ab_tests / ab_test_variants / ab_test_events) that learn the best-performing variant online. Use when changing or reading the bandit itself. NOT for launching an A/B test (card, registry, gates): that is the ab-testing skill.
 ---
 
-# A/B Testing Skill
+# A/B Bandit Skill
 
 > **Up:** [.claude/CLAUDE.md](../../CLAUDE.md) (config & skills router)
+
+> **Launching a test?** Use the `ab-testing` skill (the card, the `ab/registry.json` entry, the shared
+> `ab-assign` module and the gates). This skill only covers how the bandit picks and learns. It was
+> renamed from `ab-testing` so it no longer shadows that skill in a session started inside this repo.
 
 A/B testing here is a **multi-armed bandit** using Thompson sampling, not a fixed percentage split. Instead
 of hard-assigning 50/50, the bandit *learns*: it samples each variant in proportion to how well it's
