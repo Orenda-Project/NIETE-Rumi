@@ -13,11 +13,12 @@
  * template — the link goes as text (`tqrLinkText`), which opens the phone's
  * browser; the page works the same there.
  *
- * Event: teacher_report.link_sent {userId, quizId|null, scope:'q'|'all', how:'template'|'text'}.
+ * Event: teacher_report.link_sent {tk, quizId|null, scope:'q'|'all', how:'template'|'text'}.
  */
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
+const { tk: tkOf } = require('./web-quiz-kid');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const Gate = require('./teacher-report-gate');
@@ -57,7 +58,7 @@ async function sendTeacherReportLink({ teacher, phone, quizId = null, topic, cou
   const urls = Gate.reportUrls({ teacherId, quizId });
   if (!urls) {
     // No signing secret, or no portal URL on this deployment: say so, never a dead link.
-    logToFile('⚠️ teacher report: no link (token secret or base URL missing)', { userId: teacherId });
+    logToFile('⚠️ teacher report: no link (token secret or base URL missing)', { tk: tkOf(teacherId) });
     await WhatsAppService.sendMessage(phone, resolveUx('tqrLinkFailed', { language: lang }));
     return { ok: false, how: null };
   }
@@ -72,13 +73,13 @@ async function sendTeacherReportLink({ teacher, phone, quizId = null, topic, cou
       { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: urls.token }] },
     ];
     if ((await WhatsAppService.sendTemplate(phone, template, lang, components)) === true) how = 'template';
-    else logToFile('⚠️ teacher report: template refused — sending the link as text', { userId: teacherId, template, lang });
+    else logToFile('⚠️ teacher report: template refused — sending the link as text', { tk: tkOf(teacherId), template, lang });
   }
   if (!how) {
     await WhatsAppService.sendMessage(phone, resolveUx(left ? 'tqrLinkTextRemind' : 'tqrLinkText', { language: lang, params: { topic: shown, counts: line, url: urls.live } }));
     how = 'text';
   }
-  logEvent('teacher_report.link_sent', { userId: teacherId, quizId: quizId || null, scope, how });
+  logEvent('teacher_report.link_sent', { tk: tkOf(teacherId), quizId: quizId || null, scope, how });
   return { ok: true, how };
 }
 

@@ -18,6 +18,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
+const { tk: tkOf } = require('./web-quiz-kid');
 const { retireQuizStudentRows } = require('../student-mode.service');
 
 /** Pure: is this SESSION row the teacher's own test run? Never true on a
@@ -68,7 +69,7 @@ async function resolveSelfTest({ phone, teacherUserId }) {
     // the self-test from being recognised, so nothing here can affect `return`.
     const retired = await retireQuizStudentRows(phone, 'self_test');
     if (retired > 0) {
-      logEvent('video_quiz.self_test_rows_retired', { userId: teacher.id, retired });
+      logEvent('video_quiz.self_test_rows_retired', { tk: tkOf(teacher.id), retired });
     }
 
     const name = teacher.name || null;

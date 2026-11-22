@@ -118,7 +118,9 @@ test('today\'s video_quiz.share_code_minted once (fresh mint only), and onboard.
   await make({ t, ...MATHS });
   const code = fake.db.quiz_share_codes[0].code;
   const minted = logEvent.mock.calls.filter(([e]) => e === 'video_quiz.share_code_minted');
-  expect(minted).toEqual([['video_quiz.share_code_minted', { userId: TEACHER.id, quizId: qid(2), code, classBound: false }]]);
+  const { tk: tkOf } = require('../../shared/services/quiz/web-quiz-kid');
+  expect(minted).toEqual([['video_quiz.share_code_minted', { tk: tkOf(TEACHER.id), quizId: qid(2), code, classBound: false }]]);
+  expect(minted[0][1]).not.toHaveProperty('userId');
   const made = logEvent.mock.calls.filter(([e, f]) => e === 'onboard.maker' && f.step === 'made').map(([, f]) => f);
   expect(made).toHaveLength(2);
   expect(made[0]).toEqual({ step: 'made', grade: 'grade_4', subject: 'maths', qlang: 'en', lang: 'en', via: 'menu', quiz_id: qid(2), ukey: UK, w: 's' });

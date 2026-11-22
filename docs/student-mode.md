@@ -153,8 +153,8 @@ One event per decision, no names and no phone numbers:
 |---|---|
 | `student_mode.decided` | `mode`, `reason`, `signal`, `userId`, `students`, `sessionAgeDays` |
 | `student_mode.escaped` | `reason`, `retired`, `userId` |
-| `video_quiz.teacher_self_test` | `shareCodeId`, `quizId`, `userId` |
-| `video_quiz.self_test_rows_retired` | `userId`, `retired` |
+| `video_quiz.teacher_self_test` | `shareCodeId`, `quizId`, `tk` (the teacher's keyed reference) |
+| `video_quiz.self_test_rows_retired` | `tk` (the teacher's keyed reference), `retired` |
 | `video_quiz.self_test_excluded` | `shareCodeId`, `n` |
 
 `signal` on a `teacher` verdict is the signal that decided it — `registered_teacher`, `hasName`,

@@ -3,6 +3,7 @@
  * PLAN_R5 §1 D8 — the pure marker helpers: a self-test session is one whose
  * `user_id` equals the teacher who owns the share code, and nothing else.
  */
+process.env.WEB_QUIZ_KID_KEY = 'unit-kid-key-not-a-secret-0123456789';
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
@@ -21,6 +22,7 @@ const { installFrom } = require('../../../tests/quiz/helpers/supabase-chain');
 const supabase = require('../../shared/config/supabase');
 const { logEvent } = require('../../shared/utils/structured-logger');
 const SelfTest = require('../../shared/services/quiz/teacher-self-test');
+const { tk: tkOf } = require('../../shared/services/quiz/web-quiz-kid');
 
 describe('isSelfTest', () => {
   test('a null teacherUserId is never a self-test', () => {
@@ -151,7 +153,7 @@ describe('resolveSelfTest — retiring stray student rows on recognition', () =>
     expect(update).toBeTruthy();
     expect(update[1]).toMatchObject({ is_active: false });
     expect(calls.some((c) => c[0] === 'is' && c[1] === 'list_id' && c[2] === null)).toBe(true);
-    expect(logEvent).toHaveBeenCalledWith('video_quiz.self_test_rows_retired', { userId: 'u1', retired: 2 });
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.self_test_rows_retired', { tk: tkOf('u1'), retired: 2 });
   });
 
   test('a phone that is NOT the teacher\'s retires nothing', async () => {
@@ -176,6 +178,20 @@ describe('resolveSelfTest — retiring stray student rows on recognition', () =>
 
     const calls = supabase.from.callsFor('students').flat();
     expect(calls.some((c) => c[0] === 'is' && c[1] === 'list_id' && c[2] === null)).toBe(true);
+  });
+
+  test('the retire event names the teacher by the keyed reference, never the raw id', async () => {
+    installFrom(supabase.from, {
+      users: { data: [TEACHER], error: null },
+      students: { data: [{ id: 's-1' }, { id: 's-2' }], error: null },
+    });
+
+    await SelfTest.resolveSelfTest({ phone: '923001234567', teacherUserId: 'u1' });
+
+    const ev = logEvent.mock.calls.find(([e]) => e === 'video_quiz.self_test_rows_retired');
+    expect(ev[1]).toEqual({ tk: tkOf('u1'), retired: 2 });
+    expect(ev[1].tk).toMatch(/^[0-9a-f]{16}$/);
+    expect(ev[1]).not.toHaveProperty('userId');
   });
 
   test('a retire failure does not stop the self-test being recognised', async () => {

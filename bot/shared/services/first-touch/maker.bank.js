@@ -22,6 +22,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
+const { tk: tkOf } = require('../quiz/web-quiz-kid');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { str } = require('./maker.strings');
 const { qlangFor } = require('./maker.qlang');
@@ -208,7 +209,7 @@ async function make({ uid, lang, grade, subject, quizId, now = Date.now() } = {}
     held = { id: m.id, code: m.code, teacher_name: m.teacherName, topic: m.topic };
     minted = true;
     // today's event, today's fields (as the chat share emits it after its mint)
-    logEvent('video_quiz.share_code_minted', { userId: uid, quizId: quiz.id, code: m.code, classBound: Boolean(m.classId) });
+    logEvent('video_quiz.share_code_minted', { tk: tkOf(uid), quizId: quiz.id, code: m.code, classBound: Boolean(m.classId) });
   }
 
   const questions = await questionsOfQuiz(quiz.id);
