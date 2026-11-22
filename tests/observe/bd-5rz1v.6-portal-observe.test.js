@@ -963,3 +963,38 @@ describe('role-features isPrincipalRole', () => {
       expect(observesOwnSchoolAtOnce({ role })).toBe(want);
     });
 });
+
+/**
+ * bd-o15qnr.39 (queue #204, the operator 22 Nov ~00:45: "Like the class recording, the debrief recording should also be
+ * attached to play right there.") — the view carries a signed link to the debrief she recorded or attached in the portal
+ * (observer_debrief.audio_r2_key), so the debrief page and the visit can play it in place. A WhatsApp debrief has only
+ * Meta's media id (no stored copy): no link, and nothing else changes.
+ */
+describe('observationView — the debrief recording (bd-o15qnr.39)', () => {
+  const TALK = `classroom_audio/${COACH}/2026-11/portal_talk9.webm`;
+  const view = (debrief) => Svc.observationView({ userId: COACH, coachingSessionId: SID }, deps({
+    supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({
+      debrief_status: 'processing', analysis_data: { observer_debrief: debrief },
+    }) }),
+  }));
+
+  test('a portal debrief: talk.audioUrl is the signed link to her recording', async () => {
+    const out = await view({ audio_r2_key: TALK, recorded_at: '2026-11-22T05:00:00Z', guide_snapshot: { intro: 'g' } });
+    expect(out.talk.audioUrl).toBe(`${URL(TALK)}?sig=1`);
+    expect(out.talk.recordedAt).toBe('2026-11-22T05:00:00Z');
+  });
+
+  test('a WhatsApp debrief (a media id only) and no debrief yet: no link', async () => {
+    expect((await view({ audio_id: 'wamid-media-1', recorded_at: '2026-11-22T05:00:00Z' })).talk.audioUrl).toBeNull();
+    expect((await view(undefined)).talk.audioUrl).toBeNull();
+  });
+
+  test('a link that cannot be signed leaves the page as it was (no link, no error)', async () => {
+    const out = await Svc.observationView({ userId: COACH, coachingSessionId: SID }, deps({
+      supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({ analysis_data: { observer_debrief: { audio_r2_key: TALK } } }) }),
+      r2: { getPresignedUrl: jest.fn().mockRejectedValue(new Error('r2 down')) },
+    }));
+    expect(out.status).toBe('ok');
+    expect(out.talk.audioUrl).toBeNull();
+  });
+});

@@ -141,6 +141,30 @@ export function AnalysingStage() {
 }
 
 /**
+ * bd-o15qnr.39 (queue #204, the operator 22 Nov ~00:40: "I couldn't tell if my audio got submitted and is being
+ * analyzed") — her debrief is in and the Digital Coach is listening: one plain card, how long it takes, and that she can
+ * leave (the visit page asks again by itself). On the visit and on the Debrief page after the upload.
+ */
+export function DebriefListeningStage({ minutes = DEBRIEF_MINUTES, children }: { minutes?: number; children?: ReactNode }) {
+  const W = useCopy(FLOW_V7) as FlowV7Copy;
+  return (
+    <section data-testid="stage-debrief-listening" role="status" className={cn(LIST_CARD, "flex flex-col gap-3 p-4")}>
+      <span className="flex items-start gap-3">
+        <span aria-hidden="true" className="mt-1.5 flex h-3 w-3 shrink-0 rounded-full bg-[#f59e0b] motion-safe:animate-pulse" />
+        <span className="flex min-w-0 flex-col gap-1">
+          <b className="text-[17px] font-semibold">{W.listeningDebrief}</b>
+          <span className="text-[15px] text-[#4b5563]">{W.aboutMinutes(minutes)}</span>
+        </span>
+      </span>
+      {children}
+    </section>
+  );
+}
+
+/** How long the Digital Coach usually takes with a debrief (Debrief.tsx: "about 3 minutes"). */
+export const DEBRIEF_MINUTES = 3;
+
+/**
  * bd-o15qnr.28 (v7, board m9-errors: "Same card on every screen: red edge, one plain line, one button that fixes it") — the
  * error card: a title, at most one plain line, and the button(s) that fix it (children).
  */
