@@ -292,3 +292,111 @@ describe('siblings\' recall picks: own misses first, ties broken by the sitting\
     }
   });
 });
+
+describe('the same-day swap: lesson items the child answered RIGHT earlier today are left out; a same-day miss stays', () => {
+  const DONOR = '22222222-2222-4222-8222-2222222222d0';     // the lesson's authored lp_v8 quiz (the cache donor)
+  const AFT = '22222222-2222-4222-8222-2222222222a0';       // the 15:00 offer's quiz of the same lesson: a cache copy of DONOR
+  const OTHER = '22222222-2222-4222-8222-2222222222b0';     // another lesson's quiz, played today too
+  const AFT_SC = '33333333-3333-4333-8333-3333333333a0';
+  const named = (n) => logEvent.mock.calls.filter(([e]) => e === n).map(([, d]) => d);
+  const pktMidnight = () => { const P = require('../../shared/services/nudges/pkt-time'); return P.atPkt(P.pktDate(new Date()), 0, 0).getTime(); };
+  // earlier today (PKT), strictly before any sitting this test starts
+  const earlierToday = () => new Date(pktMidnight() + Math.floor((Date.now() - pktMidnight()) / 2)).toISOString();
+  const tailRow = (quizId, n, prefix) => base({ id: `${prefix}${n}`, quiz_id: quizId, external_id: `tq:${quizId}:S1:${n}`, sort_order: n, question_text: `Lesson question ${n}?`, media: {} });
+  const L = (n) => lid(n);
+  let sessionN = 0;
+
+  // the round: 7 lesson items (copied from DONOR, tails S1:1..S1:7) + the 6 recall items; the AFT copy holds the same 7
+  function swapWorld({ recallRows = true } = {}) {
+    world({ seed: false, round: true });
+    const rq = db.quizzes.find((q) => q.id === ROUND_Q);
+    rq.meta.cache_donor = { quiz_id: DONOR, key: 'lp_v8|lesson|v|h|en' };
+    db.quiz_questions = db.quiz_questions.filter((q) => q.quiz_id !== ROUND_Q || (recallRows && q.media.round === 'recall'));
+    db.quiz_questions.push(lesson(1), lesson(2), lesson(3), lesson(4), lesson(5),
+      base({ ...lesson(6), id: '4e550000-0000-4000-8000-000000000006', external_id: `tq:${ROUND_Q}:S1:6`, sort_order: 6 }),
+      base({ ...lesson(7), id: '4e550000-0000-4000-8000-000000000007', external_id: `tq:${ROUND_Q}:S1:7`, sort_order: 7 }));
+    db.quizzes.push(
+      { id: DONOR, teacher_id: TEACHER, topic: 'Fractions', grade: '3', subject: 'Maths', language: 'en', quiz_source: 'lp_v8', status: 'sent', meta: {} },
+      { id: AFT, teacher_id: TEACHER, topic: 'Fractions', grade: '3', subject: 'Maths', language: 'en', quiz_source: 'lp_v8', status: 'sent', meta: { cache_donor: { quiz_id: DONOR } } },
+      { id: OTHER, teacher_id: TEACHER, topic: 'Plants', grade: '3', subject: 'Science', language: 'en', quiz_source: 'lp_v8', status: 'sent', meta: {} });
+    [1, 2, 3, 4, 5, 6, 7].forEach((n) => db.quiz_questions.push(
+      tailRow(DONOR, n, `d0d00000-0000-4000-8000-00000000000`), tailRow(AFT, n, `a0a00000-0000-4000-8000-00000000000`), tailRow(OTHER, n, `b0b00000-0000-4000-8000-00000000000`)));
+    db.quiz_share_codes.push({ id: AFT_SC, code: 'AFT234', quiz_id: AFT, video_id: null, teacher_user_id: TEACHER, teacher_name: 'Ms Example Teacher', topic: 'Fractions',
+      language: 'en', active: true, expires_at: future, invited_by_student_id: null, parent_share_code_id: null, uses_count: 0, class_id: null, created_at: earlierToday() });
+  }
+  // Zara's earlier sitting on `quizId`: {n: right?} answers on that quiz's items, at `at`
+  function played(quizId, marks, at = earlierToday(), prefix = quizId === DONOR ? 'd0d00000-0000-4000-8000-00000000000' : quizId === OTHER ? 'b0b00000-0000-4000-8000-00000000000' : quizId === ROUND_Q ? null : 'a0a00000-0000-4000-8000-00000000000') {
+    sessionN += 1;
+    const sid = `5e55aa00-0000-4000-8000-0000000000${String(sessionN).padStart(2, '0')}`;
+    db.quiz_sessions.push({ id: sid, quiz_id: quizId, student_id: ZARA, student_name: 'Zara Test', user_id: null, share_code_id: quizId === ROUND_Q ? ROUND_SC : AFT_SC,
+      status: 'completed', invited_by_student_id: null, device_ref: 'd-aft', created_at: at, completed_at: at, correct_answers: 0, total_questions_answered: 0 });
+    Object.entries(marks).forEach(([n, ok]) => db.quiz_answers.push({ id: `${sid}-${n}`, session_id: sid, question_id: prefix ? `${prefix}${n}` : L(Number(n)),
+      selected_option: ok ? 'B' : 'C', is_correct: ok, created_at: at }));
+  }
+  const lessonOf = (set) => set.filter((id) => id.startsWith('4e55'));
+
+  beforeEach(() => { require('../../shared/services/quiz/web-quiz-evening-round-seen')._reset(); });
+
+  test('right on the 15:00 copy earlier today: those items swapped for the next unseen ones; the miss stays; start, answers, finish agree', async () => {
+    swapWorld();
+    played(AFT, { 1: true, 2: false, 3: true });
+    const a = await asZara();
+    const want = [L(2), L(4), L(5), '4e550000-0000-4000-8000-000000000006', '4e550000-0000-4000-8000-000000000007', rid(2), rid(5)];
+    expect(a.order.q).toEqual(want);
+    expect(named('web_quiz.round_started')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc, n_items: 7, n_recall: 2, n_swapped: 2 }]);
+    const out = await answerAll(a.st, [...want, L(1), L(3)]);
+    expect([...out.recorded].sort()).toEqual([...want].sort());
+    expect([...out.unknown].sort()).toEqual([L(1), L(3)].sort());
+    const fin = await WQ.finishSession({ st: a.st });
+    expect(fin.review.map((r) => r.qid).sort()).toEqual([...want].sort());
+  });
+
+  test('the authored quiz itself (the donor) counts the same way', async () => {
+    swapWorld();
+    played(DONOR, { 4: true, 5: true });
+    expect(lessonOf((await asZara()).order.q)).toEqual([L(1), L(2), L(3), '4e550000-0000-4000-8000-000000000006', '4e550000-0000-4000-8000-000000000007']);
+  });
+
+  test('stable: a right answer recorded after the sitting started (another tab) changes nothing at answers, finish or a resume', async () => {
+    swapWorld();
+    played(AFT, { 1: true });
+    const a = await asZara();
+    const set = a.order.q;
+    expect(lessonOf(set)).toEqual([L(2), L(3), L(4), L(5), '4e550000-0000-4000-8000-000000000006']);
+    const later = new Date(Date.now() + 1000).toISOString();                        // after the sitting's start
+    const open = db.quiz_sessions.find((x) => x.quiz_id === AFT);
+    db.quiz_answers.push({ id: 'late-2', session_id: open.id, question_id: 'a0a00000-0000-4000-8000-000000000002', selected_option: 'B', is_correct: true, created_at: later });
+    played(AFT, { 3: true }, later);
+    require('../../shared/services/quiz/web-quiz-evening-round-seen')._reset();    // no memo: the read itself is stable
+    expect((await WQ.startSession({ code: 'RND234', resume_st: a.st })).order.q).toEqual(set);
+    const out = await answerAll(a.st, set);
+    expect([...out.recorded].sort()).toEqual([...set].sort());
+    expect((await WQ.finishSession({ st: a.st })).score.total).toBe(set.length);
+  });
+
+  test('no swap for: another lesson\'s quiz, yesterday\'s answers, the round\'s own earlier sitting', async () => {
+    swapWorld();
+    played(OTHER, { 1: true, 2: true });
+    played(AFT, { 3: true }, new Date(pktMidnight() - 3600000).toISOString());
+    played(ROUND_Q, { 4: true });
+    expect(lessonOf((await asZara()).order.q)).toEqual([L(1), L(2), L(3), L(4), L(5)]);
+    expect(named('web_quiz.round_started')[0].n_swapped).toBeUndefined();
+  });
+
+  test('nothing unseen left: the set is shorter (never padded with an item answered right), and the event says so', async () => {
+    swapWorld();
+    played(AFT, { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: false });
+    const a = await asZara();
+    expect(a.order.q).toEqual(['4e550000-0000-4000-8000-000000000007', rid(2), rid(5)]);
+    expect(named('web_quiz.round_started')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc, n_items: 3, n_recall: 2, n_swapped: 5, n_short: 4 }]);
+    await answerAll(a.st, a.order.q.slice(0, 2));
+    expect((await WQ.finishSession({ st: a.st })).score.total).toBe(2);
+  });
+
+  test('any other quiz: today\'s reply, whatever the child answered earlier', async () => {
+    swapWorld();
+    played(AFT, { 1: true });
+    const p = await WQ.startSession({ code: 'PLAIN1', new: { name: 'Sana Test', force: true } });
+    expect(p.order).toBeUndefined();
+  });
+});
