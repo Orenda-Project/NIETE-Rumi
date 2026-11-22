@@ -438,7 +438,7 @@ describe('the teacher card and (j) the forward link', () => {
     expect(extra.cards[0].url).toBe(`https://quiz.example.org/j/${code}`);
     const html = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' } });
     expect(html).toContain("Your class&#39;s Jugnu link");
-    expect(html).toContain('Forward it once a term and pin it. It always opens this week&#39;s story.');
+    expect(html).toContain('Forward it once a term and pin it. Each child taps their name and plays.');
     // Copy is a server link (logged), not a client toggle; the link text is shown open only after it
     expect(html).toContain(`<a class="btn btn-ghost act" href="/r/tok.sig/jlink?class=${C1}&amp;how=copy">Copy</a>`);
     expect(html).toContain(`<a class="btn btn-primary act" href="/r/tok.sig/jlink?class=${C1}&amp;how=forward">`);
