@@ -313,11 +313,12 @@ var WQI = (function () {
     return '';
   }
   // Options arrive in the order the child sees; letter k is the k-th shown option (as on WhatsApp and the
-  // teacher's answer key). A why/feedback naming a stored letter is remapped to the shown one.
+  // teacher's answer key). A why/feedback naming a stored letter is remapped to the shown one. A letter is a capital A-D,
+  // as in the clip's text: "(a lot of water)" and "the answer a farmer gives" are words.
   function letters(q, t) {
     var map = {};
     opts(q).forEach(function (o, k) { map[String(o.slot).charAt(0)] = 'ABCD'.charAt(k); });
-    return String(t == null ? '' : t).replace(/(\b(?:answer is|answer|option|choice)\s+|\(|جواب\s+|آپشن\s+)([A-D])(?![A-Za-z])/gi, function (m, pre, l) { return pre + (map[l.toUpperCase()] || l); });
+    return String(t == null ? '' : t).replace(/(\b(?:[Aa]nswer is|[Aa]nswer|ANSWER IS|ANSWER|[Oo]ption|OPTION|[Cc]hoice|CHOICE)\s+|\(|جواب\s+|آپشن\s+)([A-D])(?![A-Za-z])/g, function (m, pre, l) { return pre + (map[l] || l); });
   }
   var LETTERS = true; // off while a figure is on screen: its own A/B/C labels would mean something else
   var ILANG = 'en'; // the page language itemHtml was last drawn for (latDir on the option labels)
