@@ -85,6 +85,16 @@ describe('inlineImages', () => {
   });
 });
 
+// bd-s0ccn5.3 — pictures in setup and homework moves are fetched too (corpus v2: 678 setup pictures).
+test('inlineImages fetches the pictures in setup and homework moves', async () => {
+  const fetch = jest.fn(async () => okRes());
+  const plan = { ...build().plans[900003], sections: [],
+    setup: [{ kind: 'instruction', text: 'x', media: [{ kind: 'image', src: 'https://media.example.test/fln/image/s.png' }] }],
+    homework: [{ kind: 'instruction', text: 'y', media: [{ kind: 'image', src: 'https://media.example.test/fln/image/h.png' }] }] };
+  const map = await inlineImages(plan, { fetch, sleep: async () => {} });
+  expect([...map.keys()].sort()).toEqual(['https://media.example.test/fln/image/h.png', 'https://media.example.test/fln/image/s.png']);
+});
+
 describe('renderAll', () => {
   function deps(over = {}) {
     const stored = new Map();
