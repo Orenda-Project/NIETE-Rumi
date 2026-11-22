@@ -5,3 +5,4 @@
 {"ts":"2026-11-22T12:34:56Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-s0ccn5.1-50617: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"a8ce9bcaae46","branch":"bd-s0ccn5.1-50617","user":""}
 {"ts":"2026-11-22T12:34:57Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"a8ce9bcaae46","branch":"bd-s0ccn5.1-50617","user":""}
 {"ts":"2026-11-22T12:35:42Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-s0ccn5.1-50617: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"a8ce9bcaae46","branch":"bd-s0ccn5.1-50617","user":""}
+{"ts":"2026-11-22T12:35:42Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"a8ce9bcaae46","branch":"bd-s0ccn5.1-50617","user":""}
