@@ -563,6 +563,20 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # count — a quiz from it would ask about a page the teacher does not hold. A teacher with one lesson
     # that has a script and one that does not is still offered, for the lesson that has one.
 
+  # ADDED 2026-11-22 (bd-pdwwk4.2). @no-mock-driver: the mock lane cannot age the teacher's last message past
+  # 24 hours. Executed through the real sweeper in tests/qfix-offers/held-path.test.js.
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P2 @L60
+  Scenario: An afternoon quiz offer held back because my window closed says on its row whether anything reached me
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    And the teacher's last message to the bot was more than 24 hours before the send hour
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the teacher gets no free-form quiz offer
+    And with app_settings "quiz_offer_closed_window" set to trace, the offer row's context has held_path "template" when the reminder template reached the teacher, and "none" otherwise
+    And with the switch missing, the row is skipped exactly as before, with no held_path
+    # lp-quiz-offer send(): window_closed / window_closed_template carry {held_path} on the row context and on the
+    # lp_quiz.offer_skipped event; a dry-run reminder template reached nobody, so it is "none". No message, string
+    # or button changes.
+
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: An Islamiyat lesson plan, or an Urdu Hamd or Naat chapter, is never made into a quiz until its religious review
     Given the NIETE bot chat is open on a teacher who took one Grade 5 Islamiyat lesson plan and one Grade 5 Maths lesson plan today before 14:00 PKT
