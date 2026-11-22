@@ -22,6 +22,12 @@
  * required lazily: absent on a build, nothing more is held) or one of KEY_HELD (keys known wrong until their fix
  * runs) never enters the pool, and a round's lesson item copied from such an item is not served. The original's key
  * as the child was graded on it is WebItems.keyFor(row) (the web key when there is one), never row.correct_option.
+ *
+ * A class that agrees on one wrong answer: before an original enters the pool, keys' own nightly rule (suspectOf)
+ * runs on the CLASS's answers to it in the window, by stored option slot, with CLASS_MIN_ANSWERS (a class, not the
+ * city) and keys' min_share: one wrong option drawing that share of ALL the answers. Such an original is queued for
+ * review (dominant_wrong_option) and kept out; the pool takes the next miss. One a person already reviewed (a queue
+ * row whose status no longer holds) enters as before. The count rides on the returned array as `held`.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -29,6 +35,9 @@ const { logToFile } = require('../../utils/logger');
 
 const POOL_MAX = 6;
 const IN_CHUNK = 200;
+const PAGE = 1000; // PostgREST's max rows per read
+// keys' rule on ONE class's answers: a class of 5 answering one item is enough to see agreement (the nightly's 20 is a city).
+const CLASS_MIN_ANSWERS = 5;
 const SLOTS = ['A', 'B', 'C', 'D'];
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -152,22 +161,30 @@ async function missesFor({ classId, day, enrolled = [], teacherIds = [] }) {
   if (!mine.length) return [];
   const bySession = new Map(mine.map((s) => [s.id, s]));
   const tally = new Map(); // question_id -> { kids:Set, last }
+  const counts = new Map(); // question_id -> { A: n, ... } every answer of the class's sessions, by stored slot
   for (const part of chunks([...bySession.keys()])) {
-    // eslint-disable-next-line no-await-in-loop
-    const { data, error } = await supabase.from('quiz_answers').select('session_id, question_id, is_correct').in('session_id', part).eq('is_correct', false);
-    if (error) throw new Error(`recall: answers: ${error.message}`);
-    for (const a of data || []) {
-      const s = bySession.get(a.session_id);
-      if (!s || !a.question_id) continue;
-      const t = tally.get(a.question_id) || { kids: new Set(), last: '', quizId: s.quiz_id };
-      t.kids.add(String(s.student_id));
-      if (String(s.completed_at) > t.last) t.last = String(s.completed_at);
-      tally.set(a.question_id, t);
+    for (let from = 0; ; from += PAGE) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await supabase.from('quiz_answers').select('id, session_id, question_id, is_correct, selected_option')
+        .in('session_id', part).order('id', { ascending: true }).range(from, from + PAGE - 1);
+      if (error) throw new Error(`recall: answers: ${error.message}`);
+      for (const a of data || []) {
+        const s = bySession.get(a.session_id);
+        if (!s || !a.question_id) continue;
+        const o = String(a.selected_option || '').trim().toUpperCase();
+        if (/^[A-D]$/.test(o)) { const c = counts.get(a.question_id) || {}; c[o] = (c[o] || 0) + 1; counts.set(a.question_id, c); }
+        if (a.is_correct !== false) continue;
+        const t = tally.get(a.question_id) || { kids: new Set(), last: '', quizId: s.quiz_id };
+        t.kids.add(String(s.student_id));
+        if (String(s.completed_at) > t.last) t.last = String(s.completed_at);
+        tally.set(a.question_id, t);
+      }
+      if (!data || data.length < PAGE) break;
     }
   }
   if (!tally.size) return [];
   const suspects = await heldIds([...tally.keys()]);
-  const ranked = [...tally.entries()].filter(([qid]) => !suspects.has(qid))
+  let ranked = [...tally.entries()].filter(([qid]) => !suspects.has(qid))
     .sort((a, b) => (b[1].kids.size - a[1].kids.size) || b[1].last.localeCompare(a[1].last) || a[0].localeCompare(b[0]));
   const want = ranked.slice(0, POOL_MAX * 2).map(([qid]) => qid);
   const qRows = new Map();
@@ -178,8 +195,41 @@ async function missesFor({ classId, day, enrolled = [], teacherIds = [] }) {
     if (error) throw new Error(`recall: questions: ${error.message}`);
     (data || []).forEach((r) => qRows.set(r.id, r));
   }
-  return ranked.filter(([qid]) => qRows.has(qid) && String(qRows.get(qid).question_text || '').trim()).slice(0, POOL_MAX)
+  ranked = ranked.filter(([qid]) => qRows.has(qid) && String(qRows.get(qid).question_text || '').trim());
+  const agreed = await classAgreedWrong(ranked.map(([qid]) => ({ ...qRows.get(qid), question_id: qid, counts: counts.get(qid) || {} })));
+  const out = ranked.filter(([qid]) => !agreed.has(qid)).slice(0, POOL_MAX)
     .map(([qid, t]) => ({ question: qRows.get(qid), quiz: quizRow.get(t.quizId) || null, missedBy: [...t.kids].sort(), n: t.kids.size }));
+  Object.defineProperty(out, 'held', { value: agreed.size }); // the writer stores it as meta.n_recall_held
+  return out;
+}
+
+/**
+ * The originals among `rows` (question rows with the class's `counts`) that keys' rule calls suspect on this class's
+ * answers, queued for review (dominant_wrong_option) unless a person has already reviewed them. Returns the Set held
+ * out. Never throws: without keys' module nothing is held; an unreadable queue holds every suspect (and queues it).
+ */
+async function classAgreedWrong(rows) {
+  const held = new Set();
+  let Keys = null;
+  // eslint-disable-next-line global-require
+  try { Keys = require('./quiz-key-review.service'); } catch (_) { Keys = null; }
+  if (!Keys || typeof Keys.suspectOf !== 'function' || !rows.length) return held;
+  const cfg = { min_share: (Keys.DEFAULTS && Keys.DEFAULTS.min_share) || 0.6, min_answers: CLASS_MIN_ANSWERS };
+  const found = rows.map((r) => Keys.suspectOf(r, cfg)).filter(Boolean);
+  if (!found.length) return held;
+  let reviewed = new Set();
+  try {
+    const { data, error } = await supabase.from(Keys.TABLE).select('question_id, status').in('question_id', found.map((f) => f.question_id));
+    if (error) throw new Error(error.message);
+    const HELD = Array.isArray(Keys.HELD) ? Keys.HELD : ['open', 'key_wrong', 'ambiguous'];
+    reviewed = new Set((data || []).filter((r) => !HELD.includes(r.status)).map((r) => String(r.question_id)));
+  } catch (err) {
+    logToFile('⚠️ evening round: review queue unreadable — every class-agreed original is held', { error: String((err && err.message) || err).slice(0, 200) });
+  }
+  const queue = found.filter((f) => !reviewed.has(String(f.question_id)));
+  queue.forEach((f) => held.add(f.question_id));
+  await queueReview(queue.map((f) => ({ ...f, reason: Keys.REASON })));
+  return held;
 }
 
 // ── the rewrite (one call per class) ─────────────────────────────────────────────────────────────

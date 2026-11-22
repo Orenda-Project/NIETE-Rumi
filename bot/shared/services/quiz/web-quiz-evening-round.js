@@ -279,6 +279,7 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
       recall_src: misses.map((m) => ({
         qid: m.question.id, n: m.n, kids: m.missedBy, subject: (m.quiz && m.quiz.subject) || null, grade: (m.quiz && m.quiz.grade) || null,
       })),
+      n_recall_held: misses.held || 0, // originals the class agreed on one wrong answer to: queued for review, not recalled
       queued_at: now.toISOString(),
   };
   const { data: made, error } = await supabase.from('quizzes').insert({
@@ -454,6 +455,7 @@ function summaryOf(quiz, meta, code, classRow) {
     n_items: meta.n_items,
     n_recall: meta.n_recall,
     n_dropped: meta.n_dropped || 0,
+    n_recall_held: meta.n_recall_held || 0,
     grade_code: classRow ? classRow.grade_code : null,
     section: classRow ? classRow.section : null,
   };
@@ -706,7 +708,7 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   logEvent('web_quiz.round_written', {
     quizId, class_link_code: ref.cl, round_code: sc.code, n_items: meta.n_items, n_recall: nRecall, n_reading: reading,
     teachers_with_lp: meta.teachers_with_lp || null, subjects_with_lp: meta.subjects_with_lp || null, chosen: meta.chosen || 'earliest',
-    recall_cost_usd: meta.recall_cost_usd || 0, n_dropped: meta.n_dropped,
+    recall_cost_usd: meta.recall_cost_usd || 0, n_dropped: meta.n_dropped, n_recall_held: meta.n_recall_held || 0,
   });
   return { ok: true, quizId, code: sc.code, round: true };
 }
@@ -865,7 +867,7 @@ async function roundCandidate({ token = null, chosenId = null, history = [], lan
       lang,
     };
     // round_shown's review counts ride beside the tile, not in it: non-enumerable, so the page's JSON never carries them.
-    Object.defineProperty(cand, 'shownLog', { value: { n_dropped: s.n_dropped || 0 } });
+    Object.defineProperty(cand, 'shownLog', { value: { n_dropped: s.n_dropped || 0, n_recall_held: s.n_recall_held || 0 } });
     return cand;
   } catch (err) {
     logToFile('⚠️ evening round: hub tile unavailable', { error: err.message });
