@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T14:11:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"9d6f3444a6bb","branch":"bd-zrdvmi.51-main","user":""}
+{"ts":"2026-11-22T14:32:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"9d6f3444a6bb","branch":"bd-zrdvmi.51-main","user":""}
