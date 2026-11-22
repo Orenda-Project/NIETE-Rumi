@@ -178,6 +178,8 @@ const iso = (v) => (v == null ? null : new Date(v).toISOString());
  * The /quiz list's key for a lesson plan: quiz-lesson-providers lessonKey('lp_v8', ref), where ref is the id of the
  * lesson's newest delivery (lp-v8-lesson-provider: WhatsApp deliveries 'sent' and K-5 app opens, newest per lesson, in
  * WINDOW_DAYS). The bot's quiz home reads `?lesson=<key>` (teacher-home.send lessonKeyOf) and checks the row is hers.
+ * An app open is matched by plan_ref = lesson_id for every A/B group: lp-app-opens.store shape() gives each open
+ * `lesson_id: plan_ref` (group A changes only the asset), and the offer's lesson_id comes from that same shape().
  */
 const LESSON_KEY_PREFIX = 'lsn_lp_v8_';
 const LESSON_WINDOW_MS = 30 * DAY;
