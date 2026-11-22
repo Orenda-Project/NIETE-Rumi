@@ -245,9 +245,9 @@ function subjectOf(item, lang) {
   return rtl ? `${FSI}${s}${PDI}` : s;
 }
 
-/** The class line of a report ({{2}}): "Grade 4 · Science" / "جماعت ۴ · Science" (Urdu digits), else "Your" / "آپ" (→ "Your class"). */
+/** The class line of a report ({{2}}): "Grade 4 · Science" / "جماعت 4 · Science", else "Your" / "آپ" (→ "Your class"). */
 function classLineOf(item, lang) {
-  const parts = [item.grade ? word('shareGrade', lang, { grade: require('../config/ux-strings').digitsFor(item.grade, lang) }) : null, oneLine(item.subject, 30) || null].filter(Boolean);
+  const parts = [item.grade ? word('shareGrade', lang, { grade: item.grade }) : null, oneLine(item.subject, 30) || null].filter(Boolean);
   return parts.length ? oneLine(parts.join(' · '), 40) : word('shareClassFallback', lang);
 }
 
