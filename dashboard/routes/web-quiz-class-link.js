@@ -1,8 +1,10 @@
 /**
  * The standing class link at the edge (switch web_quiz_class_link, decided by the bot; OFF by default).
  *
- *   GET  /j/:code            the landing: a generic preview (og.link.* only: no class, school, teacher or child
- *                            name, no digit) and a shell; class-link.js asks the bot for each step. Its marker
+ *   GET  /j/:code            the landing: a preview that names the CLASS only (og:title "Jugnu · Class 3 A" /
+ *                            «جگنو · کلاس ۳ A» from the bot's class_label: grade + section, never a school, teacher
+ *                            or child name; og:url the origin), else the generic og.link.* one; and a shell;
+ *                            class-link.js asks the bot for each step. Its marker
  *                            (?f=1 / ?from=fwd forward, ?from=push reminder, ?from=hub hub) goes into the boot JSON;
  *                            the page posts it on arrive, where the bot counts the open (web_quiz.class_link_open)
  *   POST /api/wq/cl/arrive   {code, device_ref, jt?, via?}  forwarded to the bot's /api/internal/wq/cl/arrive
@@ -30,18 +32,27 @@ function viaOfQuery(q = {}) {
   return null;
 }
 
-// og.link.title / og.link.desc (copy.v2.json) — the preview carries nothing else.
+// og.link.title / og.link.desc (copy.v2.json) — the generic preview.
 const OG = {
   en: { title: "Jugnu's Challenge", desc: 'Stories and number games. Tap to play.' },
   ur: { title: 'جگنو کا چیلنج', desc: 'کہانیاں اور گنتی کے کھیل۔ کھیلنے کے لیے دبائیں۔' },
 };
+// A live link's preview names its class (web_quiz_class_link): "Jugnu · <class label>". The label is the bot's
+// classLabels form only — "Class <grade>" / «کلاس <Urdu grade>», then a short section — so nothing else the bot might
+// answer (a name, a sentence) can reach the preview; anything else keeps the generic title.
+const OG_BRAND = { en: 'Jugnu', ur: 'جگنو' };
+const CLASS_LABEL_RX = { en: /^Class \d{1,2}(?: [^\s<>&"']{1,12})?$/, ur: /^کلاس [۰-۹]{1,2}(?: [^\s<>&"']{1,12})?$/ };
+function ogTitle(l, classLabel) {
+  const label = typeof classLabel === 'string' ? classLabel.trim() : '';
+  return label && CLASS_LABEL_RX[l].test(label) ? `${OG_BRAND[l]} · ${label}` : OG[l].title;
+}
 const BOOT_SAY = { en: 'Opening…', ur: 'کھل رہا ہے…' };
 
-function renderClassLinkPage({ lang, code, jt, via = null, origin, assetV, jsV, brand, ui, head, esc, bootJson, preview = false }) {
+function renderClassLinkPage({ lang, classLabel = null, code, jt, via = null, origin, assetV, jsV, brand, ui, head, esc, bootJson, preview = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const og = OG[l];
-  // og:url is the origin, never the code: the preview carries no digit.
-  const top = `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url: origin, assetV, brand, ui })}
+  // og:url is the origin, never the code.
+  const top = `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: ogTitle(l, classLabel), desc: og.desc, origin, url: origin, assetV, brand, ui })}
 </head>`;
   if (preview) return `${top}\n<body></body>\n</html>`;
   const boot = { view: 'class_link', code, lang: l };
@@ -101,10 +112,10 @@ function registerClassLink(router, d) {
       return d.closedPage(req, res, out.status === 404 || out.status === 410 ? 404 : 502, out.status === 404 || out.status === 410 ? 'closed' : 'off');
     }
     return res.status(200).type('html').send(renderClassLinkPage({
-      lang: out.body.lang, code, jt, via, origin, assetV: d.version(), jsV: d.jsVersion(), brand: d.brand(), ui: d.ui(),
+      lang: out.body.lang, classLabel: out.body.class_label, code, jt, via, origin, assetV: d.version(), jsV: d.jsVersion(), brand: d.brand(), ui: d.ui(),
       head: d.head, esc: d.esc, bootJson: d.bootJson, preview,
     }));
   });
 }
 
-module.exports = { registerClassLink, renderClassLinkPage, viaOfQuery, CL_CODE_RX, OG };
+module.exports = { registerClassLink, renderClassLinkPage, viaOfQuery, ogTitle, CL_CODE_RX, OG };

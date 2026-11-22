@@ -4,7 +4,7 @@
  * page and its /api/wq/cl/* forwards. Mounted inside web-quiz-internal.routes.js, behind requireInternalKey.
  * Every answer with the switch off (or a parent off) is 404 not_found, the same as an unknown code.
  *
- *   GET  /cl/:code[?pv=1][&jt=]  the landing: {lang} for a live link (no door_shown for pv=1, a link-preview fetch,
+ *   GET  /cl/:code[?pv=1][&jt=]  the landing: {lang, class_label?} for a live link (no door_shown for pv=1, a link-preview fetch,
  *                           or jt, the teacher card's signed token for this code)
  *   POST /cl/arrive         {code, device_ref, jt?, via?}  → "Whose turn?" (played here) or the teacher step; counts the
  *                           open (class_link_open, via = the landing's marker, else remembered / forward)
