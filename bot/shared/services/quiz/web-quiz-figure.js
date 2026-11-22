@@ -268,6 +268,8 @@ function optionPic(pic, language, { word } = {}) {
     const text = String(pic.text == null ? '' : pic.text).trim();
     if (!text || [...text].length > 4) return null;
     const name = said || text;
+    // A Qaida letter, stored with lang 'ar': the page sets it in Naskh (wq.css .wq-glyph[lang=ar]), right to left.
+    if (pic.lang === 'ar') return { kind: 'glyph', glyph: text, text, name, alt: name, dir: 'rtl', lang: 'ar' };
     return { kind: 'glyph', glyph: text, text, name, alt: name, dir: dirOf(lang) };
   }
   if (pic.kind === 'figure' && pic.spec && typeof pic.spec === 'object') {

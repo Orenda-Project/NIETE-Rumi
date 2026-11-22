@@ -262,3 +262,78 @@ describe('a long Urdu "listen" question with no voice still leaves its answers o
   });
 });
 
+describe('a Qaida letter card is set in Naskh, the letter forms the Qaida page teaches', () => {
+  // A Noorani Qaida teaches Arabic letters in Naskh. The page set every letter card (.wq-glyph) in its Urdu Nastaliq,
+  // so د ث ذ خ on a grade 1 Islamiyat item were not the glyphs on the child's Qaida page. A card the server marks
+  // lang:'ar' is now drawn in a Naskh face; every other card is drawn exactly as before.
+  const ESC = /  function esc\(s\) \{[^\n]*\n/.exec(SRC)[0];
+  const PIC = SRC.slice(SRC.indexOf('  function picHtml(o, nm) {'), SRC.indexOf('  // Options arrive in the order the child sees'));
+  function picHtml(o) {
+    const ctx = { LOADING: '', cleanSvg: (x) => x };
+    vm.createContext(ctx);
+    vm.runInContext(`${ESC}\n${PIC}\nthis.picHtml = picHtml;`, ctx);
+    return ctx.picHtml(o, '');
+  }
+  const DAL = { kind: 'glyph', glyph: 'د', text: 'د', name: 'دال', alt: 'دال', dir: 'rtl' };
+
+  test('the page draws a card marked Arabic as an Arabic, right-to-left letter', () => {
+    const html = picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: 'ar' } });
+    expect(html).toMatch(/^<span class="wq-glyph" dir="rtl" lang="ar">د<\/span>$/);
+  });
+
+  test('a card with no mark (every card stored today) is drawn exactly as before', () => {
+    expect(picHtml({ slot: 'A', text: 'د', pic: DAL })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+    expect(picHtml({ slot: 'A', text: 'خ', pic: { kind: 'glyph', text: 'خ' } })).toBe('<span class="wq-glyph" dir="auto">خ</span>');
+  });
+
+  test('only "ar" is honoured; any other value is ignored, never echoed into the markup', () => {
+    expect(picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: 'ur' } })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+    expect(picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: '"><b>' } })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+  });
+
+  // html > body > #wq > the picture grid > an option tile > the letter card
+  const cardPath = ({ lang, ur2, ar }) => [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang }),
+    node('body'),
+    node('div', [], {}, 'wq'),
+    node('div', ['wq-pgrid']),
+    node('button', ['wq-opt', 'wq-ptile', 'wq-s1']),
+    node('span', ['wq-glyph'], ar ? { dir: 'rtl', lang: 'ar' } : { dir: 'auto' }),
+  ];
+  const firstFamily = (opts) => {
+    const r = computed(cardPath(opts), 'font-family');
+    return r && r.value.split(',')[0].trim().replace(/^["']|["']$/g, '');
+  };
+
+  test.each([
+    ['an Urdu page, polished', 'ur', true],
+    ['an Urdu page, plain', 'ur', false],
+    ['an English page', 'en', false],
+  ])('%s: a card marked Arabic resolves to the Naskh face first', (_, lang, ur2) => {
+    expect(firstFamily({ lang, ur2, ar: true })).toBe('WQ Naskh');
+    expect(computed(cardPath({ lang, ur2, ar: true }), 'font-family').value).toMatch(/"WQ Naskh",\s*"Noto Naskh Arabic"/);
+  });
+
+  test('an unmarked card keeps the page face (var(--fu)), as before', () => {
+    expect(computed(cardPath({ lang: 'ur', ur2: true, ar: false }), 'font-family').value).toBe('var(--fu)');
+  });
+
+  test('the Naskh face is shipped: its @font-face names a woff2 that exists, and its range holds every Arabic letter and mark', () => {
+    let face = null;
+    CSS_ROOT.walkAtRules('font-face', (at) => {
+      const fam = at.nodes.find((d) => d.prop === 'font-family');
+      if (fam && /"WQ Naskh"/.test(fam.value)) face = at;
+    });
+    expect(face).not.toBeNull();
+    const src = face.nodes.find((d) => d.prop === 'src').value;
+    const file = /url\(([^)]+)\)/.exec(src)[1].replace(/["']/g, '');
+    const bytes = fs.readFileSync(path.join(WQ, file));
+    expect(bytes.subarray(0, 4).toString('latin1')).toBe('wOF2');
+    expect(bytes.length).toBeLessThan(40 * 1024);
+    const ranges = face.nodes.find((d) => d.prop === 'unicode-range').value.split(',').map((r) => r.trim().replace(/^U\+/i, '').split('-').map((h) => parseInt(h, 16)));
+    const covered = (cp) => ranges.some(([a, b]) => cp >= a && cp <= (b == null ? a : b));
+    for (let cp = 0x0621; cp <= 0x064A; cp += 1) if (cp < 0x063B || cp > 0x0640) expect(covered(cp)).toBe(true);
+    for (let cp = 0x064B; cp <= 0x0652; cp += 1) expect(covered(cp)).toBe(true);
+    expect(fs.existsSync(path.join(WQ, 'fonts', 'OFL-NotoNaskhArabic.txt'))).toBe(true);
+  });
+});

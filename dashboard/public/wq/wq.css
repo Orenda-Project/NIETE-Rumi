@@ -351,6 +351,11 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-mr .wq-glyph{width:56px;height:56px;font-size:32px}
 /* A letter tile clears the shape badge in its corner. */
 html[lang=ur] .wq-ptile .wq-glyph{margin-top:24px}
+/* A Qaida letter card (a glyph the server marks lang 'ar'): the Naskh letter forms the Qaida page teaches, never the
+   Urdu Nastaliq. Noto Naskh Arabic cut to the Arabic letters and harakat (scripts/naskh-letters/build.py); block, not
+   swap, so the card never flashes a Nastaliq letter first. The polished look's twin is in the ur2 block. */
+@font-face{font-family:"WQ Naskh";src:url(fonts/wq-naskh-1.woff2) format("woff2");font-weight:400;font-display:block;unicode-range:U+0621-063A,U+0641-064A,U+064B-0652,U+0670-0671}
+.wq-glyph[lang=ar]{font-family:"WQ Naskh","Noto Naskh Arabic","Geeza Pro",serif;font-weight:400;line-height:1.6}
 @keyframes wqpulse{0%,100%{opacity:.35}50%{opacity:.7}}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
 .wq-labelfig .wq-figbox{margin-bottom:30px}
@@ -851,6 +856,7 @@ html.wq-ur2[lang=ur] .wq-mto{font-size:14px;line-height:var(--ulh1)}
 html.wq-ur2[lang=ur] .wq-glyph{line-height:2.4;min-height:140px;padding:6px 0 14px}
 html.wq-ur2[lang=ur] .wq-mr .wq-glyph{height:auto;min-height:56px;line-height:2.2;padding:2px 0}
 html.wq-ur2[lang=ur] .wq-ptile .wq-glyph{margin-top:22px}
+html.wq-ur2[lang=ur] .wq-glyph[lang=ar]{font-family:"WQ Naskh","Noto Naskh Arabic","Geeza Pro",serif;line-height:1.6}
 /* identity: who is playing, name cards, the pad */
 html.wq-ur2[lang=ur] .wq-kid{font-size:18px;line-height:var(--ulh1);padding:8px 14px 6px 8px}
 html.wq-ur2[lang=ur] .wq-kid-big{font-size:20px;min-height:76px;padding:10px 12px 8px 8px}
