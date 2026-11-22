@@ -145,4 +145,22 @@ async function roundsReadyForPhone(deviceRef, dayPkt, { withKids = false } = {})
   }
 }
 
-module.exports = { roundsReadyForPhone, classLabels, teacherRef };
+/**
+ * hasLiveStandingLink(classId) — for the offers lane (re-exported from web-quiz-class-link.js): true only when
+ * web_quiz_class_link (with its parents) AND web_quiz_evening_round are on (both cached 30 s) and the class has a live
+ * class_links row (not revoked, not expired). One class_links read; false on any failure, never throws.
+ */
+async function hasLiveStandingLink(classId, { now = new Date() } = {}) {
+  try {
+    if (!classId || !(await Flags.eveningRoundOn())) return false;
+    const { data, error } = await supabase.from('class_links').select('code')
+      .eq('class_id', classId).is('revoked_at', null).gt('expires_at', now.toISOString()).limit(1);
+    if (error) return false;
+    return (data || []).length > 0;
+  } catch (err) {
+    logToFile('⚠️ class link: live standing link check unavailable', { error: err.message });
+    return false;
+  }
+}
+
+module.exports = { roundsReadyForPhone, hasLiveStandingLink, classLabels, teacherRef };
