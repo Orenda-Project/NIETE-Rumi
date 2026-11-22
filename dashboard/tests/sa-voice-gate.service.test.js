@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-48'); // sa-48: the letter-sound picker's re-made prompts and the your-turn lines (SESSION v33)
+    expect(sw.CORE).toBe('sa-core-sa-49'); // sa-49: the English letter names e, B, t and d play production's v4 takes again (SESSION v34)
   });
 });
 
