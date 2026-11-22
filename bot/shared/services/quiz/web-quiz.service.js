@@ -380,15 +380,16 @@ function sittingQuestions(questions, session) {
 
 /**
  * The session the seam needs, for an evening round's questions only (any other quiz: `s` as it is, nothing read).
- * The round's own set holds only while the start reply can carry it to the page (web_quiz_order_seed or
- * web_quiz_evening_round on, see orderRows); with both off a round plays as an ordinary quiz everywhere, as the page does.
+ * The round's own set holds only while the start reply can carry it to the page (web_quiz_order_seed, or this link in
+ * web_quiz_order_seed_pct's arm, or web_quiz_evening_round on, see orderRows; `s.share_code_id` names the link at start,
+ * answers and finish alike); with all off a round plays as an ordinary quiz everywhere, as the page does.
  * A named child's sitting also carries round_skip: the lesson items they answered right earlier today
  * (web-quiz-evening-round-seen; bounded by the session's own start, so start, answers and finish read the same).
  */
 async function roundSitting(rows, s) {
   if (!Round().roundFields(rows || [])) return s;
   const f = await require('./web-quiz-hub-flags').flags();
-  if (!f.orderSeed && !f.eveningRound) return { ...s, round_plain: true };
+  if (!OrderSeed.onFor(f, s.share_code_id) && !f.eveningRound) return { ...s, round_plain: true };
   if (!s.student_id || s.user_id) return s;
   const skip = await require('./web-quiz-evening-round-seen').rightEarlierToday({
     sessionId: s.id, studentId: s.student_id, createdAt: s.created_at, roundQuizId: s.quiz_id, rows,
@@ -1354,7 +1355,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
   }
   mark('insert');
   if (doorP) await doorP;
-  const ord = await sittingOrderOf(orderRowsP, { ...session, quiz_id: ctx.quizId, student_id: student ? student.id : null, user_id: userId });
+  const ord = await sittingOrderOf(orderRowsP, { ...session, quiz_id: ctx.quizId, share_code_id: ctx.shareCodeId, student_id: student ? student.id : null, user_id: userId });
   if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP, ord });
 
   await countJoin(ctx.shareCodeId);
