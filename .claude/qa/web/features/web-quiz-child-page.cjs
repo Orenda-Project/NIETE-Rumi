@@ -285,7 +285,7 @@ const TABLE = [
   { id: 'WQ261', title: 'A phone that cannot play Ogg Opus hears the storybook voices as mp3' },
   { id: 'WQ262', title: 'With Your turn on, the teacher\'s class preview reads a storybook page aloud, counted against the teacher' },
   { id: 'WQ285', title: 'A class link that names one Jugnu game opens that game for the picked child' },
-  { id: 'WQ263', title: '\'Whose turn?\' marks a child whose class quiz is waiting with \'Quiz ready\', and a child who has played it with nothing' },
+  { id: 'WQ263', title: '\'Whose turn?\' marks a child whose class quiz is waiting with \'Quiz ready\', and a child who has played it with \'Done for tonight!\'' },
   { id: 'WQ264', title: 'The badge reads in the class\'s language: \'Quiz ready\' in English and «کوئز تیار» in Urdu' },
   { id: 'WQ265', title: 'With the evening round off, or no round ready for the class, \'Whose turn?\' has no badge and is exactly as before' },
   { id: 'WQ266', title: 'The way out of \'Whose turn?\' and the way back from \'Is your name here?\' say the same words in both languages' },
@@ -294,6 +294,13 @@ const TABLE = [
   { id: 'WQ269', title: 'A child plays tonight\'s round as their own set: 5 lesson questions and the 2 recall questions that child missed' },
   { id: 'WQ270', title: 'A lesson question the child answered right earlier the same day is swapped out of their round; a miss stays' },
   { id: 'WQ271', title: 'A round never serves a question whose key is held or that the key review dropped' },
+  { id: 'WQ272', title: '\'Whose turn?\' says \'Done for tonight!\' on the chip of a child who has finished tonight\'s quiz or has nothing left to play' },
+  { id: 'WQ273', title: 'A child with nothing left of tonight\'s quiz who starts it is told \'Done for tonight!\' and goes back to the landing, with no sitting opened' },
+  { id: 'WQ274', title: 'The Home\'s \'Tonight\'s quiz\' tile is not offered to a child with nothing left to play tonight' },
+  { id: 'WQ275', title: 'The previous school day\'s class quiz is one row under the Next tile, named by its weekday, and opens that round while the child has not finished it' },
+  { id: 'WQ276', title: 'Once the child has finished the previous school day\'s quiz the row is greyed, is not a link, and shows their stars' },
+  { id: 'WQ277', title: 'The Home has no more than one past row, and none unless the previous school day\'s round is this child\'s class\'s' },
+  { id: 'WQ278', title: 'A class\'s evening round is never \'From your teacher\' on the hub' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))

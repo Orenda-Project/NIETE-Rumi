@@ -2024,15 +2024,16 @@ Feature: Web child quiz page on the portal
   # On a school day the round is written for a class that has a live standing link, from the class's lesson of the day: a short
   # quiz the children play from the class link. Both switches are off by default. Unit: bot/tests/qfix-class-link/*, dashboard/tests/qfix-class-link/*.
   @WQ263
-  Scenario: "Whose turn?" marks a child whose class quiz is waiting with "Quiz ready", and a child who has played it with nothing
+  Scenario: "Whose turn?" marks a child whose class quiz is waiting with "Quiz ready", and a child who has played it with "Done for tonight!"
     Given web_quiz_class_link and web_quiz_evening_round are "on" and the class has tonight's round ready
     And a phone that played as two children of the class, Zara Test and Ali Test
     And Ali Test has finished tonight's round and Zara Test has not
     When that phone opens /j/<code>
     Then "Whose turn?" has one chip for each child, and Zara Test's chip carries the badge "Quiz ready" under the first name
-    And Ali Test's chip has no badge, and is drawn exactly as before
+    And Ali Test's chip carries the badge "Done for tonight!" instead of "Quiz ready" (WQ272)
     And a marked chip is the same button as an unmarked one, so the whole chip is still the tap target and keeps its own height
     And when neither child has played the round, both chips carry the badge
+    # UPDATED 2026-11-22: a child who had finished tonight's round used to carry no badge; they now carry "Done for tonight!" (WQ272).
 
   @WQ264
   Scenario: The badge reads in the class's language: "Quiz ready" in English and «کوئز تیار» in Urdu
@@ -2105,7 +2106,8 @@ Feature: Web child quiz page on the portal
     And the start, the answers and the finish agree on that set, and so does a resume, even when another tab records a right answer after the sitting began
     And no swap is made for another lesson's quiz, for yesterday's answers, or for the round's own earlier sitting
     And when fewer unseen lesson questions are left than the round needs, the set is shorter and never padded with a question answered right, and web_quiz.round_started says how many were swapped
-    But when nothing would be left to play, the round's first lesson questions are served anyway, because the page cannot play an empty set
+    But when nothing would be left to play and the round holds no recall question, the start says "Done for tonight!" and opens no sitting (WQ273), and the page is never given an empty set to play
+    # UPDATED 2026-11-22: the start used to serve the round's first lesson questions again for such a child; it now answers "Done for tonight!" first.
 
   @WQ271
   Scenario: A round never serves a question whose key is held or that the key review dropped
@@ -2114,3 +2116,86 @@ Feature: Web child quiz page on the portal
     Then the page carries neither the stem nor the key of either question
     And an answer to either is not recorded and the finish does not count it
     And a quiz that is not a round serves every row, as before
+
+  # ── the class evening round, continued: "Done for tonight!", and the previous school day's quiz on the child's home (web_quiz_evening_round) ──
+  # A child whose set of tonight's round would be empty (every lesson question answered right earlier that day and no recall question in the
+  # round, which a recall question always fills) is told so, instead of being given a round with nothing to play. Switch off = none of it.
+  # Unit: bot/tests/qfix-class-link/*, dashboard/tests/qfix-class-link/*.
+  @WQ272
+  Scenario: "Whose turn?" says "Done for tonight!" on the chip of a child who has finished tonight's quiz or has nothing left to play
+    Given web_quiz_class_link and web_quiz_evening_round are "on" and the class has tonight's round ready
+    And a phone that played as two children of the class, Zara Test and Ali Test
+    And Ali Test has finished tonight's round and Zara Test has not
+    When that phone opens /j/<code>
+    Then Ali Test's chip carries the badge "Done for tonight!" under the first name, and Zara Test's chip carries "Quiz ready"
+    And a chip carries one badge, never both, and the done badge is the same badge as "Quiz ready" with other words, inside the same button, so the whole chip is still the tap target
+    Given the round holds no recall question, Zara Test answered every one of its lesson questions right on that afternoon's quiz, and Ali Test has played nothing today
+    When the phone opens /j/<code> again
+    Then Zara Test's chip carries "Done for tonight!" although they have not played the round, and Ali Test's chip carries "Quiz ready"
+    And in Urdu the badge reads «آج شام کا کوئز ہو گیا!» in place of the English words
+    And the badge's words are the copy deck's, byte for byte, and fit its 24 code point cap
+    But with web_quiz_evening_round off no chip carries either badge and no round is read
+    And an answers read that fails marks nobody done for an empty set, so that chip keeps "Quiz ready", while a child who finished still shows "Done for tonight!"
+
+  @WQ273
+  Scenario: A child with nothing left of tonight's quiz who starts it is told "Done for tonight!" and goes back to the landing, with no sitting opened
+    Given web_quiz_evening_round is "on" and tonight's round holds lesson questions and no recall question
+    And Zara Test answered every one of those lesson questions right on that afternoon's quiz, and Ali Test of the same class did not
+    When Zara Test starts the round
+    Then the start answers that nothing is left tonight, with the round's two codes, and opens no sitting: no session row and no resume token
+    And the page shows the toast "Done for tonight!" / «آج شام کا کوئز ہو گیا!» and goes back to the landing, not to a quiz
+    And web_quiz.round_done_for_tonight is logged once, by the page that shows the words, with the class link's code and the round's code and nothing else, and a code that is not well formed is dropped from the line
+    And the server itself logs no round_started, session_started or round_done_for_tonight for that start
+    But Ali Test starts the same round as before, with their own set
+    And a round that holds a recall question is never refused: the child plays the recall picks
+    And with web_quiz_evening_round off the start opens as before and gives no such answer
+
+  @WQ274
+  Scenario: The Home's "Tonight's quiz" tile is not offered to a child with nothing left to play tonight
+    Given web_quiz_evening_round is "on" and tonight's round holds lesson questions and no recall question
+    And Zara Test answered every one of those lesson questions right on that afternoon's quiz, and Ali Test of the same class has played nothing
+    When Zara Test opens their Home
+    Then the Next tile is not "Tonight's quiz" and no round_shown is logged
+    When Ali Test opens their Home
+    Then the Next tile is "Tonight's quiz", opening the round with Ali Test's own chip
+    But a round that holds a recall question keeps the tile for every child, and no answers are read to decide it
+
+  @WQ275
+  Scenario: The previous school day's class quiz is one row under the Next tile, named by its weekday, and opens that round while the child has not finished it
+    Given web_quiz_evening_round is "on" and the child's class had a round ready on the previous school day, which is Friday when today is a Monday or a weekend day
+    And the child has not finished that round
+    When the child opens their Home
+    Then right under the Next tile there is one row reading "Friday's quiz" in English and «جمعہ کا کوئز» in Urdu, with the weekday of that round's day
+    And the row is a link to that round with the child's own chip, in the child's language when the page names one, and the round's code is on the page once, in that link
+    And a tap on it plays the round as the child, as tonight's does, with the child's own set (WQ269), and web_quiz.round_started says late, where tonight's round says it is not
+    And the row is never the Next tile, never one of its alternatives, and the Home still has one primary button: the tile
+    And the row is a soft button as tall as the others on the Home, at least 48 px, in the page's own button style
+    But if nothing would be left for the child to play, the tap gets "Done for tonight!" (WQ273) and no sitting
+
+  @WQ276
+  Scenario: Once the child has finished the previous school day's quiz the row is greyed, is not a link, and shows their stars
+    Given web_quiz_evening_round is "on" and the child finished the previous school day's round twice, 3 of 7 and then 6 of 7
+    When the child opens their Home
+    Then the row reads "Friday's quiz" with "⭐ 6/7" under it, the child's latest finished sitting, in Western digits
+    And in Urdu the row reads «جمعہ کا کوئز» with «⭐ ۶/۷», in Urdu digits
+    And the row is a disabled button drawn at half strength by the page's own disabled style, with no link and no tap of its own, and the round's code is nowhere on the page
+    And a finished sitting with no score on it greys the row with no star line
+
+  @WQ277
+  Scenario: The Home has no more than one past row, and none unless the previous school day's round is this child's class's
+    Given web_quiz_evening_round is "on" and the child's class had a round on each of the last two school days
+    When the child opens their Home
+    Then only the previous school day's round is a row, and on a Monday it is Friday's, never Thursday's
+    Given the class had a round only two school days back, or the round is another class's, or the Home has no Next tile
+    When a child opens their Home
+    Then there is no row, and never a week of rows
+    And a row that would open anything but a quiz page of this site is not drawn
+    But with web_quiz_evening_round off there is no row, no round is read, and the Home is byte for byte what it was
+
+  @WQ278
+  Scenario: A class's evening round is never "From your teacher" on the hub
+    Given an evening round handed to the child's class, still open and not finished by the child, and the teacher's own newest quiz for the grade
+    When the child opens their hub
+    Then the "From your teacher" card is the teacher's own quiz, and the round's code is nowhere on it
+    And a class's round has its own doors: tonight's under "Tonight's quiz", and the previous school day's as the row under it (WQ275)
+    And the teacher's own quizzes are offered on that card as before
