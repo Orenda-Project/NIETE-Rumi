@@ -1,2 +1,3 @@
 {"ts":"2026-11-22T17:11:45Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"325272187e7c","branch":"bd-snkn32.70-66665","user":""}
 {"ts":"2026-11-22T17:15:12Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (internal refactor of a reason string, no feature touched; behaviour spec is web teacher-lessons @OWN13)","sha":"325272187e7c","branch":"bd-snkn32.70-66665","user":""}
+{"ts":"2026-11-22T17:15:13Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-325272187e7c","sha":"325272187e7c","branch":"bd-snkn32.70-66665","user":""}
