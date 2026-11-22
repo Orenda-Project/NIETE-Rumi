@@ -37,7 +37,9 @@
  *                                            (web_quiz.push_landed) is the portal's; funnelTick(now) logs the day's
  *                                            counts once after 21:00 PKT
  *
- * Logs carry kinds and counts only — never the endpoint or the keys.
+ * Logs carry kinds and counts only — never the endpoint or the keys. The page's steps, the subscribe, the opened tap
+ * and the delivered show also carry `ps` when the page (or its worker, from what the page kept) sent one: wq-tel.js's
+ * random page-session id, so a funnel read can drop QA walks by page_start.ua. Never stored on the row.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -70,6 +72,9 @@ const CLASS_PHONE = 4;
 const CODE_RX = /^[A-Za-z0-9_-]{3,32}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
+const PS_RX = /^[a-z0-9]{12}$/;
+/** {ps} for a well-formed page-session id (wq-tel.js: 12 of [a-z0-9]), else nothing: the event stays as it was. */
+const psOf = (v) => (typeof v === 'string' && PS_RX.test(v) ? { ps: v } : {});
 
 // The words (jg.remind.push_* in the copy deck): a reminder never names a child.
 // The child reminder (the lead's take A): the title carries the news, the body the one step. {c} = a class label, the
@@ -371,7 +376,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     const { error } = await supabase.from(TABLE).insert({ ...row, rebind_of: rebindOf, sent_count: 0, unopened_count: 0, last_sent_at: null, last_opened_at: null });
     if (error) throw new Error(error.message || 'push row insert failed');
   }
-  logEvent('web_quiz.push_subscribed', { kind, via, ua_class: row.ua_class, chips_n: chipsN });
+  logEvent('web_quiz.push_subscribed', { kind, via, ua_class: row.ua_class, chips_n: chipsN, ...psOf(input.ps) });
   return { ok: 1 };
 }
 
@@ -382,7 +387,7 @@ async function unsubscribe({ endpoint, by } = {}, { now = Date.now() } = {}) {
   return { ok: 1 };
 }
 
-async function markOpened({ endpoint } = {}, { now = Date.now() } = {}) {
+async function markOpened({ endpoint, ps } = {}, { now = Date.now() } = {}) {
   if (typeof endpoint !== 'string' || !endpoint) return { status: 400, err: 'bad_sub' };
   const row = await rowByEndpoint(endpoint);
   if (row && !row.revoked_at) {
@@ -390,7 +395,7 @@ async function markOpened({ endpoint } = {}, { now = Date.now() } = {}) {
       .update({ last_opened_at: iso(now), unopened_count: 0, expires_at: iso(now + KEEP_DAYS * DAY_MS), updated_at: iso(now) })
       .eq('id', row.id);
     if (error) throw new Error(error.message || 'push opened failed');
-    logEvent('web_quiz.push_opened', { kind: row.kind });
+    logEvent('web_quiz.push_opened', { kind: row.kind, ...psOf(ps) });
   }
   return { ok: 1 };
 }
@@ -593,7 +598,7 @@ async function dueTick(now = Date.now(), opts = {}) {
 
 const TAGS = Object.freeze({ 'jugnu-remind': 'quiz_reminder', 'niete-plan': 'evening_plan' });
 /** The worker showed a reminder (sw.js push handler). Counts only. */
-function delivered({ tag, shown, err } = {}) {
+function delivered({ tag, shown, err, ps } = {}) {
   const kind = TAGS[String(tag || '')];
   if (!kind) return { status: 400, err: 'bad_tag' };
   // shown: the worker's showNotification resolved (true) or rejected (false, with the error's name); an older worker
@@ -601,7 +606,7 @@ function delivered({ tag, shown, err } = {}) {
   const ev = { kind, reason: kind };
   if (typeof shown === 'boolean') ev.shown = shown;
   if (shown === false && typeof err === 'string' && /^[A-Za-z]{1,40}$/.test(err)) ev.err = err;
-  logEvent('web_quiz.push_delivered', ev);
+  logEvent('web_quiz.push_delivered', { ...ev, ...psOf(ps) });
   return { ok: 1 };
 }
 
@@ -689,6 +694,7 @@ function stepEvent(body = {}) {
     ...(body.lang === 'en' || body.lang === 'ur' ? { lang: body.lang } : {}),
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
+    ...psOf(body.ps),
   });
   return { ok: 1 };
 }
