@@ -151,3 +151,47 @@ test('rank(): an evening_round candidate is the primary in every arm, its rule n
     expect(r.meta.rule).toBe('evening_round');
   }
 });
+
+describe('"Done for tonight!": no tile for a child with nothing left tonight; a sibling with items left keeps it', () => {
+  const DONOR = '22222222-2222-4222-8222-0000000000d0';
+  const KEY = `${CLASS}|${today()}`;
+  const pktMidnight = () => { const P = require('../../shared/services/nudges/pkt-time'); return P.atPkt(P.pktDate(new Date()), 0, 0).getTime(); };
+  const earlierToday = () => new Date(pktMidnight() + Math.floor((Date.now() - pktMidnight()) / 2)).toISOString();
+  const lessonRow = (n) => ({ id: `4e550000-0000-4000-8000-00000000000${n}`, quiz_id: ROUND_Q, external_id: `tq:${ROUND_Q}:S1:${n}`, sort_order: n,
+    media: { round: 'lesson', round_key: KEY, round_ref: { cl: 'K7Q2MXTRAB', rc: 'RND234' } } });
+  const donorRow = (n) => ({ id: `d0d00000-0000-4000-8000-00000000000${n}`, quiz_id: DONOR, external_id: `tq:${DONOR}:S1:${n}`, sort_order: n, media: {} });
+
+  // a round with no recall item (n_recall 0), its lesson items copied from DONOR; KID answered every one right on DONOR
+  // earlier today, OTHER_KID (same class) answered nothing
+  function emptyWorld({ recall = 0 } = {}) {
+    seed(ROUND_ON, { class_enrollments: [{ class_id: CLASS, student_id: KID, is_active: true }, { class_id: CLASS, student_id: OTHER_KID, is_active: true }] });
+    const rq = db.quizzes.find((q) => q.id === ROUND_Q);
+    rq.meta = { ...rq.meta, n_recall: recall, n_items: 5, cache_donor: { quiz_id: DONOR } };
+    db.quizzes.push({ id: DONOR, topic: 'Reading', subject: 'english', language: 'en', grade: '3', teacher_id: TEACHER, quiz_source: 'lp_v8', status: 'sent', video_id: null, meta: {} });
+    db.quiz_questions = [1, 2, 3, 4, 5].map(lessonRow).concat([1, 2, 3, 4, 5].map(donorRow));
+    const at = earlierToday();
+    db.quiz_sessions.push({ id: 's-donor', share_code_id: 'sc-1', quiz_id: DONOR, student_id: KID, status: 'completed', completed_at: at, created_at: at, device_ref: A.device });
+    db.quiz_answers = [1, 2, 3, 4, 5].map((n) => ({ id: `qa-${n}`, session_id: 's-donor', question_id: donorRow(n).id, is_correct: true, created_at: at }));
+  }
+
+  test('the child whose set is empty gets no round tile (and no round_shown); the sibling gets the tile', async () => {
+    emptyWorld();
+    const done = await Hub.hub(pickToken(KID), A);
+    expect(done.next && done.next.variant).not.toBe('evening_round');
+    expect(logEvent).not.toHaveBeenCalledWith('web_quiz.round_shown', expect.anything());
+    redis._store.clear();
+    const sib = await Hub.hub(pickToken(OTHER_KID), A);
+    expect(sib.next).toMatchObject({ variant: 'evening_round', href: `/q/RND234?k=${T.chipId('sc-r', OTHER_KID)}` });
+  });
+
+  test('a round whose summary counts recall items never empties: the tile stays and no answers are read for it', async () => {
+    emptyWorld({ recall: 2 });
+    const tables = [];
+    const real = supabase.from;
+    supabase.from = (t) => { tables.push(t); return real(t); };
+    const out = await Hub.hub(pickToken(KID), A);
+    supabase.from = real;
+    expect(out.next).toMatchObject({ variant: 'evening_round' });
+    expect(tables).not.toContain('quiz_answers');
+  });
+});

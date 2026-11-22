@@ -402,6 +402,66 @@ describe('the same-day swap: lesson items the child answered RIGHT earlier today
     const p = await WQ.startSession({ code: 'PLAIN1', new: { name: 'Sana Test', force: true } });
     expect(p.order).toBeUndefined();
   });
+
+  describe('"Done for tonight!": every lesson item answered right earlier today and no recall item in the round', () => {
+    const ALL_RIGHT = { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
+    const roundSittings = () => db.quiz_sessions.filter((x) => x.quiz_id === ROUND_Q);
+
+    test('the start answers round_done_for_tonight with the round\'s codes: no session row, no st, one line logged', async () => {
+      swapWorld({ recallRows: false });
+      played(AFT, ALL_RIGHT);
+      const a = await asZara();
+      expect(a).toEqual({ round_done_for_tonight: true, class_link_code: REF.cl, round_code: REF.rc });
+      expect(a.st).toBeUndefined();
+      expect(roundSittings()).toEqual([]);
+      expect(named('web_quiz.round_done_for_tonight')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc }]);
+      expect(named('web_quiz.session_started')).toEqual([]);
+      expect(named('web_quiz.round_started')).toEqual([]);
+    });
+
+    test('a sibling with the lesson items still to play starts as before, on the same round', async () => {
+      swapWorld({ recallRows: false });
+      played(AFT, ALL_RIGHT);
+      const ali = await WQ.startSession({ code: 'RND234', chip: T.chipId(ROUND_SC, ALI) });
+      expect(typeof ali.st).toBe('string');
+      expect(ali.order.q).toEqual([L(1), L(2), L(3), L(4), L(5)]);
+      expect(named('web_quiz.round_done_for_tonight')).toEqual([]);
+    });
+
+    test('a round with recall items never empties: the child plays the recall picks', async () => {
+      swapWorld();
+      played(AFT, ALL_RIGHT);
+      const a = await asZara();
+      expect(a.order.q).toEqual([rid(2), rid(5)]);
+      expect(roundSittings()).toHaveLength(1);
+      expect(named('web_quiz.round_done_for_tonight')).toEqual([]);
+    });
+
+    test('web_quiz_evening_round off (the order seed on): no such answer, the sitting opens as before', async () => {
+      swapWorld({ recallRows: false });
+      db.app_settings = [{ key: 'web_quiz_enabled', value: true }, { key: 'web_quiz_order_seed', value: true }];
+      HubFlags._resetCache();
+      played(AFT, ALL_RIGHT);
+      const a = await asZara();
+      expect(typeof a.st).toBe('string');
+      expect(a.round_done_for_tonight).toBeUndefined();
+      expect(named('web_quiz.round_done_for_tonight')).toEqual([]);
+    });
+  });
+});
+
+describe('the page\'s round_done_for_tonight line is relayed with the round\'s two codes', () => {
+  beforeEach(() => world({ seed: false, round: true }));
+
+  test('class_link_code and round_code reach web_quiz.round_done_for_tonight; a malformed code is dropped', async () => {
+    await WQ.events({ events: [{ n: 'round_done_for_tonight', t: Date.now(), code: 'RND234', lang: 'en', class_link_code: REF.cl, round_code: REF.rc }] });
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.round_done_for_tonight', expect.objectContaining({ class_link_code: REF.cl, round_code: REF.rc }));
+    logEvent.mockClear();
+    await WQ.events({ events: [{ n: 'round_done_for_tonight', t: Date.now(), code: 'RND234', class_link_code: 'not a code!', round_code: '<x>' }] });
+    const [, props] = logEvent.mock.calls.find(([n]) => n === 'web_quiz.round_done_for_tonight');
+    expect(props.class_link_code).toBeUndefined();
+    expect(props.round_code).toBeUndefined();
+  });
 });
 
 describe('a round serves only its lesson and recall items: a held (or dropped) item never reaches a child', () => {

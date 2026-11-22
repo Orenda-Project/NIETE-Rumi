@@ -41,3 +41,35 @@ test('a reload keeps the child\'s set', async () => {
   const again = page({ lang: 'en', questions: JSON.parse(JSON.stringify(POOL)), store: { wq_s_TEST: kept } });
   expect(again.wq.QS.map((q) => q.qid)).toEqual(['l1', 'l2', 'r3']);
 });
+
+describe('"Done for tonight!": the start answers round_done_for_tonight with no st', () => {
+  const DECK = require('../../bot/shared/config/copy.v2.json')['qfix_class_link.done_tonight'];
+  const REPLY = { round_done_for_tonight: true, class_link_code: 'K7Q2MXTRAB', round_code: 'TEST' };
+  const done = (lang) => page({
+    lang, questions: JSON.parse(JSON.stringify(POOL)),
+    store: { wq_from: { code: 'TEST', st: 'old-st', at: Date.now() } },
+    api: { '/api/wq/session': REPLY },
+  });
+
+  test.each(['en', 'ur'])('%s: the words as a toast (the deck\'s, byte for byte), then the landing; no sitting, no question', async (lang) => {
+    const p = done(lang);
+    await flush(); await flush();
+    expect(p.toasts()).toEqual([DECK[lang]]);
+    expect(p.wq.T.doneTonight).toBe(DECK[lang]);
+    expect(p.moment()).toBe('M3');
+    expect(p.wq.S.st).toBeFalsy();
+    expect(stemOf(p.html())).toBeUndefined();
+    expect(p.ls.has('wq_s_TEST') ? JSON.parse(p.ls.get('wq_s_TEST')).st : undefined).toBeFalsy();
+  });
+
+  test('one round_done_for_tonight event, with the round\'s two codes from the reply', async () => {
+    const p = done('en');
+    await flush(); await flush();
+    p.fireWin('pagehide');
+    const evs = p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events);
+    const mine = evs.filter((e) => e.n === 'round_done_for_tonight');
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ class_link_code: 'K7Q2MXTRAB', round_code: 'TEST' });
+    expect(evs.filter((e) => e.n === 'quiz_start')).toEqual([]);
+  });
+});

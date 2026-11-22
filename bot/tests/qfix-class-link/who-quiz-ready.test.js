@@ -144,3 +144,50 @@ test('a cache miss reads only the asked class\'s round, never every round of the
   supabase.from = realFrom;
   expect(calls).toContainEqual(['in', 'meta->>class_id', [CLASS]]);
 });
+
+describe('"Done for tonight!" on "Whose turn?": round_done for a child who finished tonight\'s round or has nothing left', () => {
+  const marks = (r) => Object.fromEntries(r.kids.map((k) => [k.first, k.round ? 'ready' : k.round_done ? 'done' : 'none']));
+  const pktMidnight = () => { const P = require('../../shared/services/nudges/pkt-time'); return P.atPkt(P.pktDate(new Date()), 0, 0).getTime(); };
+  const earlierToday = () => new Date(pktMidnight() + Math.floor((Date.now() - pktMidnight()) / 2)).toISOString();
+
+  // the round 'qr' with no recall item (n_recall 0), its five lesson items copied from 'qd'; Zara answered all five
+  // right on 'qd' earlier today; Ali has not played anything today
+  function emptyTonight({ aliDone = false } = {}) {
+    seedTonight({ aliDone });
+    const qr = db.quizzes.find((q) => q.id === 'qr');
+    qr.meta = { ...qr.meta, n_recall: 0, n_items: 5, cache_donor: { quiz_id: 'qd' } };
+    db.quizzes.push({ id: 'qd', teacher_id: TEACHER, status: 'sent', meta: {} });
+    const lesson = (n) => ({ id: `l${n}`, quiz_id: 'qr', external_id: `tq:qr:S1:${n}`, sort_order: n, media: { round: 'lesson', round_ref: { cl: 'K7Q2MXTRAB', rc: 'RND234' } } });
+    const donor = (n) => ({ id: `d${n}`, quiz_id: 'qd', external_id: `tq:qd:S1:${n}`, sort_order: n, media: {} });
+    db.quiz_questions = [1, 2, 3, 4, 5].map(lesson).concat([1, 2, 3, 4, 5].map(donor));
+    const at = earlierToday();
+    db.quiz_sessions.push({ id: 's-qd', student_id: ZARA, device_ref: DEV, quiz_id: 'qd', created_at: at, completed_at: at });
+    db.quiz_answers = [1, 2, 3, 4, 5].map((n) => ({ id: `a${n}`, session_id: 's-qd', question_id: `d${n}`, is_correct: true, created_at: at }));
+  }
+
+  test('a child who finished tonight\'s round: "done" instead of no mark; the one still waiting: "ready"', async () => {
+    seedTonight();
+    expect(marks(await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV }))).toEqual({ Zara: 'ready', Ali: 'done' });
+  });
+
+  test('every lesson item answered right earlier today and no recall item: "done", never "ready"; the sibling with items left: "ready"', async () => {
+    emptyTonight();
+    expect(marks(await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV }))).toEqual({ Zara: 'done', Ali: 'ready' });
+  });
+
+  test('the switch off: no mark of either kind, no round read', async () => {
+    seedTonight({ switchOn: false });
+    const r = await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV });
+    expect(marks(r)).toEqual({ Zara: 'none', Ali: 'none' });
+    r.kids.forEach((k) => { expect(k.round_done).toBeUndefined(); });
+  });
+
+  test('a failed answers read marks nobody done for the empty set (Zara stays "ready"); a finished child still shows "done"', async () => {
+    emptyTonight({ aliDone: true });
+    const real = supabase.from;
+    supabase.from = (t) => (t === 'quiz_answers' ? { select: () => { throw new Error('down'); } } : real(t));
+    const r = await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV });
+    supabase.from = real;
+    expect(marks(r)).toEqual({ Zara: 'ready', Ali: 'done' });
+  });
+});
