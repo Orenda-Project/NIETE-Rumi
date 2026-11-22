@@ -254,6 +254,22 @@ Feature: Teacher lesson plans
     Then /portal/fln/p/<that plan's id>?grade=3 opens
     And Send to teacher and Share link work as before
 
+  # bd-s0ccn5.2 — FLN plans download as a PDF (text and pictures, no sound), like the other LPs, instead of WhatsApp.
+  # Covers dashboard/routes/portal-fln-pdf.routes.js, dashboard/services/fln-pdf-sign.js, fln/plan/DownloadPdf.tsx.
+  # @draft: needs scripts/fln-pdf/render.js run against the sandbox bucket for the live corpus version first.
+  # Pinned by tests/portal/fln-pdf-route.test.js (root) and downloadPdf.test.tsx (portal).
+  @FLNPDF01 @draft @config-gated
+  Scenario: FLN plan page: Download PDF saves the plan, and the button is hidden when no PDF exists
+    Given portal_fln_lessons is on for demo teacher 03000000911
+    And the plan's PDF was rendered to the bucket for the live corpus version
+    When she opens that FLN plan's page
+    Then a "Download PDF" button is on the page
+    When she taps it
+    Then a PDF named "FLN lesson <id>.pdf" downloads and the plan page stays open
+    And no open is recorded and no lp_feedback or lesson_plans row is written
+    When she opens an FLN plan whose PDF was never rendered
+    Then there is no "Download PDF" button and the plan reads as before
+
   @OWN01 @draft @config-gated
   Scenario: Make my own for grades 1–5: she sees the day's book pages and can add the next day's
     Given Make my own is on for demo teacher 03000000911

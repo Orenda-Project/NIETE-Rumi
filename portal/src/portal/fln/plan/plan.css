@@ -134,3 +134,6 @@
 .fln-root .fln-plan .fln-btn { min-height: 52px; border-radius: 999px; border: 0; background: var(--navy); color: #fff; font-weight: 800; font-size: 17px; padding: 0 20px; cursor: pointer; }
 .fln-root .fln-plan .fln-plan-foot { font-size: 12px; color: var(--mut); text-align: center; margin: 4px 0 0; }
 .fln-root[lang="ur"] .fln-plan .fln-plan-foot { font-size: 13px; }
+/* bd-s0ccn5.2.4 — Download PDF */
+.fln-root .fln-plan .fln-pdf-dl { margin: 8px 16px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.fln-root .fln-plan .fln-pdf-dl-btn:disabled { opacity: .6; cursor: default; }
