@@ -4616,6 +4616,18 @@ const UX_STRINGS = {
     en: 'Sun|Mon|Tue|Wed|Thu|Fri|Sat',
     ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
   },
+  // The same week as whole words, Sunday first, '|' between them: the child's hub names the previous school day's
+  // round by its day ("Friday's quiz"); Urdu's day names have no short form, so its list is the one above.
+  qfix_class_link_weekdays_long: {
+    en: 'Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // copy.v2.json qfix_class_link.past_title: the row under the hub's Next tile for the previous school day's round;
+  // {day} is a word of qfix_class_link_weekdays_long in the same language.
+  qfix_class_link_past_title: {
+    en: "{day}'s quiz",
+    ur: '{day} کا کوئز',
+  },
 };
 
 /**
