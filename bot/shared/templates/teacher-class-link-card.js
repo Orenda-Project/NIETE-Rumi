@@ -16,7 +16,7 @@ const { clampLanguage } = require('../config/ux-strings');
 const COPY = {
   en: {
     title: "Your class's Jugnu link", // jg.t.link_title
-    sub: 'Forward it once a term and pin it. It always opens this week\'s story.', // jg.t.link_sub
+    sub: 'Forward it once a term and pin it. Each child taps their name and plays.', // jg.t.link_sub
     copy: 'Copy', // jg.t.link_copy
     forward: 'Forward to the class group', // jg.t.fwd_btn
     open: 'Open', // jg.t.link_open
@@ -27,7 +27,7 @@ const COPY = {
   },
   ur: {
     title: 'آپ کی کلاس کا جگنو لنک',
-    sub: 'ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ یہ ہمیشہ اس ہفتے کی کہانی کھولتا ہے۔',
+    sub: 'ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ بچے اپنا نام دبا کر کھیلتے ہیں۔',
     copy: 'کاپی کریں',
     forward: 'کلاس گروپ میں فارورڈ کریں',
     open: 'کھولیں',

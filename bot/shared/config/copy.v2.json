@@ -1518,14 +1518,14 @@
   }
  },
  "jg.t.link_sub": {
-  "en": "Forward it once a term and pin it. It always opens this week's story.",
-  "ur": "ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ یہ ہمیشہ اس ہفتے کی کہانی کھولتا ہے۔",
+  "en": "Forward it once a term and pin it. Each child taps their name and plays.",
+  "ur": "ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ بچے اپنا نام دبا کر کھیلتے ہیں۔",
   "surface": "page.teacher",
   "cap_cp": 120,
   "switch": "web_quiz_class_link",
   "cp": {
-   "en": 69,
-   "ur": 83
+   "en": 72,
+   "ur": 78
   }
  },
  "jg.t.link_copy": {
