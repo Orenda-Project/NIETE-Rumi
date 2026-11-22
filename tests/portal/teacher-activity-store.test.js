@@ -108,8 +108,10 @@ describe('readTeacherActivity', () => {
 
 describe('readTeamActivity', () => {
   test('the team key, parsed', async () => {
-    store['teacher_activity:v1:team'] = JSON.stringify(team());
-    expect(await Store.readTeamActivity()).toEqual(team());
+    // One fixture for both sides: team() reads the clock, so two calls can differ by 1 ms (bd-nq58zg.2).
+    const stored = team();
+    store['teacher_activity:v1:team'] = JSON.stringify(stored);
+    expect(await Store.readTeamActivity()).toEqual(stored);
     expect(gets).toEqual(['teacher_activity:v1:team']);
   });
 
