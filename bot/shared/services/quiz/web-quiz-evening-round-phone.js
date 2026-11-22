@@ -28,12 +28,16 @@ const UR_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const urDigits = (s) => String(s).replace(/[0-9]/g, (d) => UR_DIGITS[Number(d)]);
 const cut = (s) => [...String(s)].slice(0, LABEL_MAX).join('');
 
-/** "Class 3-B" / «کلاس ۳-B» from classes.grade_code ('grade_3') and section; null without a grade. */
+/**
+ * The ONE class label a parent or child sees (the reminder's title, the /j/ link preview, the teacher page's rounds):
+ * "Class 3 A" / «کلاس ۳ A» from classes.grade_code ('grade_3') and section — Urdu digits in Urdu, the section as
+ * stored after a space; no section -> "Class 3" / «کلاس ۳»; null without a grade. At most 24 code points.
+ */
 function classLabels(gradeCode, section) {
   const m = /(\d+)/.exec(String(gradeCode || ''));
   if (!m) return { en: null, ur: null };
   const sec = String(section || '').trim();
-  const tail = sec ? `-${sec}` : '';
+  const tail = sec ? ` ${sec}` : '';
   return { en: cut(`Class ${m[1]}${tail}`), ur: cut(`کلاس ${urDigits(m[1])}${tail}`) };
 }
 
