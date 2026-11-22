@@ -582,7 +582,8 @@ Feature: NIETE (ICT) Teacher Training
     When the switch is false, missing or unreadable
     Then a quiz has exactly one automatic class report, as today
     # lateReportDecision why 'below_k'; while the quiz is still being played the next 07:00 is armed again,
-    # a quiet quiz stops. Off: generate suppresses every scheduled run on a reported code (already_reported). @wip.
+    # a quiet quiz stops. Off: a join on a reported code queues nothing (report_schedule_skipped why
+    # 'already_reported'); a scheduled run already queued is suppressed (already_reported). @wip.
 
   # @no-mock-driver: the ask is a WhatsApp Flow / list tap racing a scheduled job; executed in
   # bot/tests/workers/video-quiz-report-late-finishers.test.js and bot/tests/quiz/report-not-through.test.js.
