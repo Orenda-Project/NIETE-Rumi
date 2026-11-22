@@ -5,7 +5,7 @@
  *   - the key quoted to the rewrite is the key the child was graded on (web-quiz-items keyFor: the web key), not
  *     correct_option;
  *   - a round's lesson item copied (cache hit) from a donor item whose key is held is marked 'held' and not served.
- * Faked boundaries: Supabase (in memory), Redis (a Map), the loggers; the key review module is a virtual mock.
+ * Faked boundaries: Supabase (in memory), Redis (a Map), the loggers; the key review module's heldQuestionIds.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -13,7 +13,7 @@ jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), 
 jest.mock('../../shared/services/cache/railway-redis.service', () => ({ isAvailable: () => false }));
 jest.mock('../../shared/services/quiz/quiz-key-review.service', () => ({
   heldQuestionIds: jest.fn(async (db, ids) => new Set(ids.filter((id) => id === '99999999-0000-4000-8000-0000000000aa'))),
-}), { virtual: true });
+}));
 
 const { makeFake } = require('../quiz/web-quiz/fake-supabase');
 const supabase = require('../../shared/config/supabase');
