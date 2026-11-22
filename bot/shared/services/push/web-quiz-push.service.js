@@ -142,7 +142,9 @@ async function canary(now = Date.now()) {
   return c;
 }
 
-/** May this quiz (its share code) offer the ask? Always with no canary; else its class, or its class's school, listed. */
+/** May this quiz (its share code) offer the ask? Always with no canary; else its class listed, or its school listed (or
+ *  in a listed sector): the class's school, else, for a code with no class or a class with no school, the code's
+ *  teacher's school (about 4 in 10 sittings are on a code with no class: without it they never saw the ask). */
 async function canaryAllows(code, now = Date.now()) {
   const c = await canary(now);
   if (!c) return true;
@@ -152,14 +154,23 @@ async function canaryAllows(code, now = Date.now()) {
   if (hit && now - hit.at < CODE_TTL_MS) return hit.ok;
   let ok = false;
   try {
-    const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id').eq('code', k).maybeSingle();
+    const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id, teacher_user_id').eq('code', k).maybeSingle();
     if (error) throw new Error(error.message || 'share code read failed');
     const classId = sc && sc.class_id ? String(sc.class_id) : null;
+    const teacherId = sc && UUID_RX.test(String(sc.teacher_user_id || '')) ? String(sc.teacher_user_id) : null;
     if (classId && c.classes.has(classId)) ok = true;
-    else if (classId && (c.schools.size || c.regions.size)) {
-      const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
-      if (e2) throw new Error(e2.message || 'class read failed');
-      const schoolId = cl && cl.school_id ? String(cl.school_id) : null;
+    else if ((classId || teacherId) && (c.schools.size || c.regions.size)) {
+      let schoolId = null;
+      if (classId) {
+        const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
+        if (e2) throw new Error(e2.message || 'class read failed');
+        schoolId = cl && cl.school_id ? String(cl.school_id) : null;
+      }
+      if (!schoolId && teacherId) {
+        const { data: u, error: e4 } = await supabase.from('users').select('school_id').eq('id', teacherId).maybeSingle();
+        if (e4) throw new Error(e4.message || 'teacher read failed');
+        schoolId = u && u.school_id ? String(u.school_id) : null;
+      }
       if (schoolId && c.schools.has(schoolId)) ok = true;
       else if (schoolId && c.regions.size) {
         const { data: sch, error: e3 } = await supabase.from('schools').select('region').eq('id', schoolId).maybeSingle();
