@@ -11,7 +11,7 @@ import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, TOPIC_STEPS, checkPages, chosenSeenTypes, chosenTypes, defaultTypeCounts, isFde, limitTotal, questionTotal, seenTotal, toSpec,
+  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, TOPIC_STEPS, checkPages, chosenSeenTypes, chosenTypes, livePicks, defaultTypeCounts, isFde, limitTotal, questionTotal, seenTotal, toSpec,
   unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
@@ -55,7 +55,7 @@ const changeClass = (p: Picks, grade: number, subject: string | null, name: stri
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
   if (same) return { subjectName: name };
-  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeStems: {}, typesSeeded: false };
+  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeStems: {}, typesSeeded: false, seenPicked: undefined };
   // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
   return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
@@ -617,7 +617,9 @@ function PlainCheck() {
   const questionsSub = (
     <>
       <span className="block">{C.join(C.seenShort(seenTotal(p)), C.unseenShort(unseen))}</span>
-      {seenLine && <span className="block">{`${C.seenTypesTitle}: ${seenLine}`}</span>}
+      {livePicks(p).length > 0
+        ? <span className="block">{C.fromBookPicked(livePicks(p).length)}</span>
+        : seenLine && <span className="block">{`${C.seenTypesTitle}: ${seenLine}`}</span>}
       {typesLine && <span className="block">{typesLine}</span>}
     </>
   );

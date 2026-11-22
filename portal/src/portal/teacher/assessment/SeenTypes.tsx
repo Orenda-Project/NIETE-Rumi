@@ -6,7 +6,8 @@ import { Tray } from '../ui/Tray';
 import { FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
-import { seenByType, type Picks } from './model';
+import { livePicks, seenByType, type Picks } from './model';
+import { BookPicker } from './BookPicker';
 import { CheckRow, CountRow, ListCard, LoadState, PRIMARY } from './ui';
 import type { setPicks } from './store';
 
@@ -29,6 +30,8 @@ export function SeenTypes({ p, set, offered, status, retry, full, over }: {
   const C = useCopy(ASSESSMENT);
   const [tray, setTray] = useState(false);
   const byType = seenByType(p);
+  // AG row 21: ticked book questions ARE the seen part; the count rows step aside while she has any.
+  const ticked = livePicks(p).length > 0;
   const rows = Object.entries(p.seenTypeCounts ?? {});
   const num = (d: string) => Number(d || '0');
 
@@ -71,7 +74,8 @@ export function SeenTypes({ p, set, offered, status, retry, full, over }: {
   return (
     <>
       <ListCard label={C.seenQuestions}>
-        {!byType && (
+        <BookPicker p={p} set={set} first />
+        {!ticked && !byType && (
           <CountRow
             first
             name={C.asInBook}
@@ -89,7 +93,7 @@ export function SeenTypes({ p, set, offered, status, retry, full, over }: {
             testId="count-seen"
           />
         )}
-        {byType && rows.map(([id, n], i) => (
+        {!ticked && byType && rows.map(([id, n], i) => (
           <div key={id} data-testid={`seen-type-count-${id}`}>
           <CountRow
             first={i === 0}
@@ -110,7 +114,7 @@ export function SeenTypes({ p, set, offered, status, retry, full, over }: {
           />
           </div>
         ))}
-        <button
+        {!ticked && <button
           type="button"
           data-testid="add-seen-type"
           onClick={() => setTray(true)}
@@ -118,7 +122,7 @@ export function SeenTypes({ p, set, offered, status, retry, full, over }: {
         >
           <Plus className="h-5 w-5" aria-hidden="true" />
           {C.addSeenType}
-        </button>
+        </button>}
       </ListCard>
 
       <Tray open={tray} tall title={C.seenTypesTitle} onClose={() => setTray(false)} closeLabel={C.close} testId="seen-types-tray">
