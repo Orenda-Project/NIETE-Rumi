@@ -70,7 +70,9 @@ test('round_started / round_done carry the link code, the round code, the counts
   const set = Round.selectRoundItems(ROUND, { studentId: ZARA });
   expect(Round.noteRound('started', set)).toBe(true);
   expect(Round.noteRound('done', set)).toBe(true);
-  expect(logEvent).toHaveBeenCalledWith('web_quiz.round_started', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2 });
+  // late: the round's day (2026-11-24) is not today, PKT
+  const late = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 10) !== '2026-11-24';
+  expect(logEvent).toHaveBeenCalledWith('web_quiz.round_started', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2, late });
   expect(logEvent).toHaveBeenCalledWith('web_quiz.round_done', { class_link_code: 'K7Q2MXTRAB', round_code: 'RND234', n_items: 7, n_recall: 2 });
   expect(Round.noteRound('done', [{ id: 'x' }])).toBe(false);
 });
