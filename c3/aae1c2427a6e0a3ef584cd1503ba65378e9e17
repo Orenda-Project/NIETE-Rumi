@@ -2,3 +2,4 @@
 {"ts":"2026-11-22T12:15:33Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-login,portal-smoke spec_sync=true","sha":"c3aae1c2427a","branch":"bd-snkn32.59.8-49443","user":""}
 {"ts":"2026-11-22T12:15:46Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"c3aae1c2427a","branch":"bd-snkn32.59.8-49443","user":""}
 {"ts":"2026-11-22T12:26:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login,portal-smoke=none-needed (server-side switch value only; the unit screen stays dark until the prod setting is written; no login or smoke step changes)","sha":"c3aae1c2427a","branch":"bd-snkn32.59.8-49443","user":""}
+{"ts":"2026-11-22T12:26:54Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"431581dc-d43a-41b8-b6c6-f4190843aa55","sha":"c3aae1c2427a","branch":"bd-snkn32.59.8-49443","user":""}
