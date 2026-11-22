@@ -11,10 +11,11 @@
  * changes behaviour never rides `quiz_teacher_home`: it gets its own read, or joins PAGE_KEYS
  * (the strict page read below).
  *
- * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, portal_link, practice, one_lesson]
+ * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, portal_link, practice, one_lesson, forward]
  * (`quiz_teacher_home_grade_fast`: the grade chips answer from the page; `quiz_teacher_home_portal_link`: "Open my
  * portal" in the foot; `web_quiz_practice_play`: "Try it as a student" for every teacher; `quiz_teacher_home_one_lesson`:
- * the page opened with ?session=<coaching session id> makes that one lesson's quiz instead of showing the list),
+ * the page opened with ?session=<coaching session id> makes that one lesson's quiz instead of showing the list;
+ * `quiz_forward_button`: the send sheet's one-tap send to the class group, quiz-forward.js),
  * read together in one `.in('key', PAGE_KEYS)` read,
  * so no new read. JSON `true` ONLY; the
  * string "true", an absent row, any other value and a failed read are OFF.
