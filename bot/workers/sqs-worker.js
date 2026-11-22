@@ -1791,6 +1791,12 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
   } catch (error) {
     logToFile('Error scheduling the web quiz voice alarm (non-fatal)', { error: error && error.message }, 'error');
   }
+  try {
+    // The nightly answer-key review flag into quiz_item_reviews; a no-op until app_settings quiz_key_review_job is set.
+    require('./quiz-key-review-schedule').scheduleQuizKeyReview({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the answer-key review flag (non-fatal)', { error: error && error.message }, 'error');
+  }
 }
 
 function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
