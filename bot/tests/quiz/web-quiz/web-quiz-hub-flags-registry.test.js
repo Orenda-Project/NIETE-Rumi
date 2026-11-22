@@ -47,7 +47,7 @@ describe('one line per switch', () => {
     const block = src.slice(src.indexOf('const SWITCHES = Object.freeze(['), src.indexOf(']);', src.indexOf('const SWITCHES = Object.freeze([')));
     const lines = block.split('\n').slice(1).filter((l) => l.trim());
     expect(lines).toHaveLength(Flags.SWITCHES.length);
-    lines.forEach((l) => expect(l).toMatch(/^ {2}\[(null|'[A-Za-z0-9]+'), +[A-Z0-9_]+_KEY, +'(loose|json|meter|read)'\],$/));
+    lines.forEach((l) => expect(l).toMatch(/^ {2}\[(null|'[A-Za-z0-9]+'), +[A-Z0-9_]+_KEY, +'(loose|json|meter|pct|read)'\],$/));
     const keys = Flags.SWITCHES.map(([, key]) => key);
     expect([...keys].sort()).toEqual(keys);
     expect(new Set(keys).size).toBe(keys.length);

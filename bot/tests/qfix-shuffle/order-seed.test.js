@@ -197,3 +197,70 @@ describe('options whose meaning is their place stay put', () => {
   });
 });
 
+describe('web_quiz_order_seed_pct: the seed on for a share of LINKS (a clean A/B for the re-sit measurement)', () => {
+  const OrderSeed = require('../../shared/services/quiz/web-quiz-order-seed');
+  const codes = Array.from({ length: 40 }, (_, k) => `44444444-4444-4444-8444-${String(k).padStart(12, '0')}`);
+
+  test('pct picks a stable share of links by the link\'s own hash; 0, junk or a missing row is off; the global switch wins', () => {
+    const on = codes.filter((c) => OrderSeed.onFor({ orderSeedPct: 50 }, c));
+    expect(on.length).toBeGreaterThan(5);
+    expect(on.length).toBeLessThan(35);
+    expect(codes.filter((c) => OrderSeed.onFor({ orderSeedPct: 50 }, c))).toEqual(on); // the same links every time
+    expect(codes.filter((c) => OrderSeed.onFor({ orderSeedPct: 100 }, c))).toHaveLength(40);
+    for (const f of [{ orderSeedPct: 0 }, { orderSeedPct: false }, {}, null]) {
+      expect(codes.some((c) => OrderSeed.onFor(f, c))).toBe(false);
+    }
+    expect(OrderSeed.onFor({ orderSeedPct: 100 }, null)).toBe(false); // no link, no arm
+    expect(codes.every((c) => OrderSeed.onFor({ orderSeed: true, orderSeedPct: 0 }, c))).toBe(true);
+  });
+
+  test('the bucket helper is exported for other canaries, and its salt keeps their arms independent', () => {
+    const b = codes.map((c) => HubFlags.bucketOf(HubFlags.ORDER_SEED_PCT_KEY, c));
+    b.forEach((x) => { expect(Number.isInteger(x)).toBe(true); expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThan(100); });
+    expect(codes.map((c) => HubFlags.bucketOf('web_quiz_other_canary', c))).not.toEqual(b);
+    expect(codes.filter((c) => HubFlags.inPct(30, HubFlags.ORDER_SEED_PCT_KEY, c)))
+      .toEqual(codes.filter((c) => OrderSeed.onFor({ orderSeedPct: 30 }, c)));
+  });
+
+  test('the hub reads {"pct": N} as N (0-100), anything else as 0', async () => {
+    for (const [value, want] of [[{ pct: 25 }, 25], [{ pct: 250 }, 100], [{ pct: -3 }, 0], [true, 0], ['25', 0], [null, 0]]) {
+      world({ seed: false });
+      db.app_settings.push({ key: 'web_quiz_order_seed_pct', value });
+      HubFlags._resetCache();
+      expect((await HubFlags.flags()).orderSeedPct).toBe(want);
+    }
+  });
+
+  test('session_started.order_arm: no field with neither switch set; all / pct / off by the switches and the link', async () => {
+    const arm = async (rows, name) => {
+      world({ seed: false });
+      db.app_settings.push(...rows);
+      HubFlags._resetCache();
+      logEvent.mockClear();
+      await play(name);
+      return started().pop();
+    };
+    const bucket = HubFlags.bucketOf(HubFlags.ORDER_SEED_PCT_KEY, SC);
+    expect(bucket).toBeGreaterThan(0); // so pct = bucket is a running canary with this link just out of it
+    expect(await arm([], 'Sara Testwala')).not.toHaveProperty('order_arm');
+    expect((await arm([{ key: 'web_quiz_order_seed', value: true }], 'Ali Testwala')).order_arm).toBe('all');
+    expect((await arm([{ key: 'web_quiz_order_seed_pct', value: { pct: 100 } }], 'Hina Testwala')).order_arm).toBe('pct');
+    const out = await arm([{ key: 'web_quiz_order_seed_pct', value: { pct: bucket } }], 'Omar Testwala');
+    expect(out.order_arm).toBe('off');
+    expect(out).not.toHaveProperty('order_seed');
+  });
+
+  test('a link in the on arm gets a sitting order; a link in the off arm gets today\'s reply', async () => {
+    world({ seed: false });
+    const inArm = OrderSeed.onFor({ orderSeedPct: 50 }, SC);
+    db.app_settings.push({ key: 'web_quiz_order_seed_pct', value: { pct: 50 } });
+    HubFlags._resetCache();
+    const a = await play('Sara Testwala');
+    expect(Boolean(a.order)).toBe(inArm);
+    db.app_settings.find((r) => r.key === 'web_quiz_order_seed_pct').value = { pct: inArm ? 0 : 100 };
+    HubFlags._resetCache();
+    const b = await play('Ali Testwala');
+    expect(Boolean(b.order)).toBe(!inArm);
+  });
+});
+
