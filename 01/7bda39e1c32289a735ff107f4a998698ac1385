@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T15:19:41Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"017bda39e1c3","branch":"bd-zrdvmi.55-main","user":""}
+{"ts":"2026-11-22T15:19:46Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.55-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"017bda39e1c3","branch":"bd-zrdvmi.55-main","user":""}
