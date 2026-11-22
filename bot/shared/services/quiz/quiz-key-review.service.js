@@ -33,6 +33,8 @@ const markerKey = (date) => `quiz_key_review:v1:run:${date}`;
 const MARKER_TTL_SECONDS = 36 * 60 * 60;
 const TABLE = 'quiz_item_reviews';
 const REASON = 'dominant_wrong_option';
+/** Every reason the queue holds. 'blind_solve' rows come from a reviewed SQL fill (a blind solve of bank items), never from this job. */
+const REASONS = Object.freeze([REASON, 'blind_solve']);
 const DEFAULTS = Object.freeze({ at: 2 * 60, min_answers: 20, min_share: 0.6, recent_days: 3 });
 const DUE_WINDOW_MIN = 90;
 const CHUNK = 200;
@@ -187,4 +189,4 @@ async function run(deps = {}) {
   });
 }
 
-module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, DEFAULTS, HELD, DUE_WINDOW_MIN };
+module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN };
