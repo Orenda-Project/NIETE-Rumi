@@ -3,8 +3,8 @@
  * still tells the bot about the open (the coaching ask and the topic-end nudge ride on it), but says `inApp: true`, so
  * the bot skips the WhatsApp survey for it — she is asked at the end of the plan in the app instead.
  *
- * Bar off, its row missing or its read failing → the call is exactly today's ({ openId } only). Grades 6-12 opens are
- * untouched in this release (the bar is shown on grades 1-5 plans only).
+ * Bar off, its row missing or its read failing → the call is exactly today's ({ openId } only). bd-96f69c.16 — grades
+ * 6-12 plans carry the bar too, so their opens say `inApp: true` the same way; her own plan (no bar) does not.
  */
 
 const { PassThrough } = require('stream');
@@ -171,8 +171,38 @@ describe('the bar off: exactly today', () => {
     expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
   });
 
-  test('grades 6-12 opens are untouched even with the bar on', async () => {
+  test('a grades 6-12 open with the bar off → { openId } only', async () => {
+    await invoke('/lp612/file/:render_id', { params: { render_id: 'R1' } });
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
+  });
+});
+
+// bd-96f69c.16 — the bar is drawn on grades 6-12 plans too, so the open says the app asks.
+describe('the bar on: a grades 6-12 open tells the bot the app asks', () => {
+  test('a viewer open: { openId, inApp: true }', async () => {
     barOn = true;
+    const res = await invoke('/lp612/file/:render_id', { params: { render_id: 'R1' } });
+    expect(res.statusCode).toBe(200);
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1', inApp: true }]);
+  });
+
+  test('a hand-off to another app (?open=1): the same', async () => {
+    barOn = true;
+    await invoke('/lp612/status/:render_id', { params: { render_id: 'R1' }, query: { open: '1' } });
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1', inApp: true }]);
+  });
+
+  test('the teacher app v2 off for her → { openId } only', async () => {
+    barOn = true; v2On = false;
+    await invoke('/lp612/file/:render_id', { params: { render_id: 'R1' } });
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
+  });
+
+  test.each([['her own plan', { changesLeft: 2 }], ['a shelf plan', { shelf: true }]])('%s draws no bar → { openId } only', async (_n, extra) => {
+    barOn = true;
+    require('../../dashboard/services/lp612.service').requestStatus.mockResolvedValue({
+      state: 'ready', url: SIGNED_612, segmentId: 'grade_9_physics.c02.p010', lang: 'en', ...extra,
+    });
     await invoke('/lp612/file/:render_id', { params: { render_id: 'R1' } });
     expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
   });

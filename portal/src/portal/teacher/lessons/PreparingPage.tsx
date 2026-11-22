@@ -117,6 +117,7 @@ function Preparing({ at }: { at: AtRender }) {
               dc: dcFor({ id: at.lesson, lane: 'g612' }, at),
               // bd-snkn32.15 — her own plan: the viewer offers Change this plan with what is left.
               ...(s.own ? { own: ownChangeAt(at, s.own, lessonRef.current?.title ?? at.title) } : {}),
+              ...(s.shelf ? { shelf: true } : {}), // bd-96f69c.16 — no survey bar on a shelf plan
             },
           });
           return;
