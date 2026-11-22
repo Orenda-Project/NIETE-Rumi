@@ -10,6 +10,7 @@ import { teacherPath } from "../routes";
 import type { TeacherFeature } from "../paths";
 import { ReadyForYou } from "../notices/ReadyForYou";
 import { noticeTracker } from "../notices/tracker";
+import { ClassLinkCard } from "../notices/ClassLinkCard";
 import { TopicPaperCard } from "../notices/TopicPaperCard";
 import { RemindCard } from "../notices/RemindCard";
 import { LanguageTabs } from "../LanguageTabs";
@@ -140,6 +141,7 @@ export default function Home() {
         </FeatureMotionProvider>
         {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
         <TopicPaperCard />
+        <ClassLinkCard />
       </TeacherPage>
     );
   }
@@ -175,6 +177,7 @@ export default function Home() {
       </FeatureMotionProvider>
       {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
       <TopicPaperCard />
+      <ClassLinkCard />
     </TeacherPage>
   );
 }
