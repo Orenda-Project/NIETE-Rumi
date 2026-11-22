@@ -450,8 +450,8 @@ one the corpus proves does not happen on its own.
 | **Mathematics** | `latex` on **every** expression, equation, matrix and result — inline `$…$` in prose, a `latex` block for anything displayed. **≥1** of `graph` · `numberline` · `geometry` · `grid` · `fraction_bar`. **A marked incorrect example**: one worked or faded example that shows the wrong step with the error **explicitly marked and named** (R5 — never make pupils hunt for it), plus the correct line beside it. | Every listed type is one this engine DRAWS. A maths idea — a region, an interval, a construction, a relationship — is exactly what diagram-as-code is good at, and a drawn figure can be built to the objective in a way a scanned one cannot. |
 | **Chemistry** | **≥1 `chem_equation` diagram** AND **≥1 `molecule` or `atom` diagram**. A **mole-ratio worked example in LaTeX** — the ratio written as `$\frac{n(\text{X})}{n(\text{Y})}$` or an equivalent display, with the arithmetic shown, not described. Every formula in `\ce{}`. | A reaction and the species in it are two different pictures; a lesson that shows only the equation never shows the pupil what a molecule *is*. |
 | **Physics** | **≥1** of `circuit` · `ray_diagram` · `free_body` · `graph`, chosen to match the topic (a motion lesson gets `free_body` or a `graph`; an optics lesson gets `ray_diagram`; an electricity lesson gets `circuit`). **The governing formula as a `latex` block**, with its symbols defined, and the substitution shown in LaTeX. | Each of the four is the standard figure of its own topic — a physicist would draw that one and no other — and each is built from quantities the lesson already states (f, u, h for a ray diagram; forces and angles for a free body), so the figure is derived from the physics rather than decorated onto it. |
-| **Biology** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `graph` — **a real biological figure**, drawn by this engine **or** the book's own crop as a `textbook_figure` (§4b.1.1). **AND ≥1** of `flow` (a process: photosynthesis, digestion, the biological method) or `mindmap` (classification, concept relations). Use a `punnett` wherever inheritance is in scope. | Two requirements because one was satisfiable by the other. The old row was a single list containing `flow`, so a flow chart alone passed it — which is how thirteen delivered Biology diagrams contained **zero** labelled structures while the gate reported nothing. |
-| **General Science** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `atom` · `molecule` · `chem_equation` · `circuit` · `free_body` · `ray_diagram` · `graph` — a `textbook_figure` counts here too (§4b.1.1). **AND ≥1** of `flow` or `mindmap`. | General Science 6–8 is biology AND chemistry AND physics in one cover — "push and pull", "signs of a chemical reaction" and "the plant cell" are all in it — so the first requirement is the science-specific set across all three, not the biology one. What it excludes is the point: `flow`, `mindmap` and `panels`. |
+| **Biology** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `graph` — **a real biological figure**, drawn by this engine **or** the book's own crop as a `textbook_figure` (§4b.1.1). **AND ≥1** of `flow` (a process: photosynthesis, digestion, the biological method), `cycle` (a process that closes on itself: the Krebs, water, carbon, nitrogen or cell cycle — never a straight flow) or `mindmap` (classification, concept relations). Use a `punnett` wherever inheritance is in scope. | Two requirements because one was satisfiable by the other. The old row was a single list containing `flow`, so a flow chart alone passed it — which is how thirteen delivered Biology diagrams contained **zero** labelled structures while the gate reported nothing. |
+| **General Science** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `atom` · `molecule` · `chem_equation` · `circuit` · `free_body` · `ray_diagram` · `graph` — a `textbook_figure` counts here too (§4b.1.1). **AND ≥1** of `flow`, `cycle` or `mindmap`. | General Science 6–8 is biology AND chemistry AND physics in one cover — "push and pull", "signs of a chemical reaction" and "the plant cell" are all in it — so the first requirement is the science-specific set across all three, not the biology one. What it excludes is the point: `flow`, `mindmap` and `panels`. |
 | **Computer Science / IT** | **≥1** of `flow` (an algorithm, a process) or `mindmap` (a classification: hardware/software, input/output/storage). **AND ≥1** of `panels` · `grid` · `graph` · `timeline` · `labelled_figure` — the contrast, the place-value table, the data chart or the labelled device the page actually shows. | Read off the CS pages themselves: of their printed figures, 702 are screenshots or interfaces, 414 tables and grids, 400 charts, 364 labelled devices, 88 side-by-side comparisons — and only **54** are flowcharts. `flow` is right for an algorithm chapter and stays first-class; it is not what this book is mostly made of. |
 | **English / Urdu (LL-\*)** | **≥1 `mindmap`** for the devices, themes or characters at stake, **and ≥1 `flow`** running the **notice → name → explain-effect** sequence as three labelled steps. A narrative or a set text with a sequence gets a **`timeline`**. Poetry: the mindmap carries the devices actually taught, nothing else. | A literature lesson has no physical object to draw, so both requirements are relation maps — but they are two DIFFERENT maps: what the text contains, and what the reader does with it. |
 | **Pakistan Studies / History / Geography** | **≥1 `timeline`** (dated spine, 4–6 events, never more) **and ≥1 `panels`** set as **evidence vs claim** — one panel holds what the source says, the other what someone concluded from it. Geography data lessons may substitute a `graph` for the timeline. | Chronology and interpretation are the two things this subject assesses, and neither shows up in the other's picture. |
@@ -534,6 +534,11 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 {"type":"mindmap","centre":{"label":"WATER"},
  "branches":[{"label":"SOLID","leaves":["fixed shape","ice at 0 C"]},
              {"label":"GAS","leaves":["fills the room"]}]}
+
+// cycle — a process whose last stage leads back to the first (Krebs, water, carbon, cell cycle)
+{"type":"cycle","centre":"WATER CYCLE",
+ "stages":[{"label":"Evaporation","lines":["sun heats the sea"]},"Condensation","Precipitation","Collection"],
+ "arrowLabels":["vapour rises","","runs off",""]}
 
 // panels — 2 or 3 comparison cards
 {"type":"panels","panels":[
@@ -687,6 +692,7 @@ one is silently dropped and you will get a confident wrong picture.
 | `cell` | `kind` | `labels` · `labelText` · `parts` · `figure` · `gasArrows` |
 | `chem_equation` | `equation` | `conditions` · `state` · `wordEquation` · `balanced` · `balanceNote` · `highlight` |
 | `circuit` | `layout` · `cells` | `branches` · `showCurrent` · `currentLabel` · `engine` |
+| `cycle` | `stages` | `centre` · `arrowLabels` · `arrowColor` |
 | `dna_helix` | — | `sequence` · `kind` · `turns` · `rungCount` |
 | `flow` | `steps` | `direction` · `branches` · `arrowLabels` · `arrowColor` |
 | `fraction_bar` | `bars` | `barHeight` · `gap` · `model` · `totalLabel` · `unitLabel` · `showLabels` · `urduDigits` · `labelWidth` · `valueWidth` · `braceWidth` |
@@ -723,6 +729,10 @@ confident wrong picture, so read the row for any type you are about to emit.
   - cells[].kind is battery | resistor | lamp | switch | ammeter | voltmeter. A voltmeter takes `across`.
   - Component VALUES stay LTR even on an Urdu page ("6 V", "10 O") -- that is how Pakistani textbooks set them. An Urdu value is now laid out correctly, but it is not the house style.
   - engine:"schemdraw" shells out to a Python venv that is NOT vendored into the serving repo; there it returns null and the built-in drawing is used, so a circuit looks different in NIETE than in an authoring run.
+- **`cycle`**
+  - stages is 3 to 8 short items (10 are drawn at most), placed clockwise from 12 o'clock; lang "ur" runs anticlockwise. Each item is a string or {label, lines} with at most two short `lines`.
+  - arrowLabels[i] labels the arrow FROM stage i TO stage i+1; the last one labels the arrow back to stage 1. Use it for what goes in or comes out at that step (CO2, NADH, heat). Leave an entry "" for a bare arrow.
+  - centre is one short title drawn in the middle of the ring, with no box.
 - **`dna_helix`**
   - kind resolves from spec.kind, else the alias used, else sniffed from the sequence (a U and no T reads as RNA), else "dna".
   - It is the HEAVIEST type on the page: ~30-45 kB of SVG against ~2-8 kB for everything else.
@@ -793,7 +803,7 @@ confident wrong picture, so read the row for any type you are about to emit.
   - orientation "vertical" is the one to use when the labels are long; horizontal wants short ones.
   - The spine is EVENLY spaced, not scaled to the real intervals -- it shows order, not duration.
 
-Aliases you may use as `type` instead: `bohr` · `electron_shells` · `dot_and_cross` · `leaf_cross_section` · `heart_loop` · `bio_schematic` · `equation` · `reaction` · `circuit_diagram` · `rna_helix` · `nucleic_acid_helix` · `helix` · `process` · `chain` · `bar_model` · `tape_diagram` · `fbd` · `force_diagram` · `vector` · `construction` · `plot` · `function_plot` · `area_model` · `hundred_square` · `ai_art` · `placeholder` · `textbook_figure` · `photo_labels` · `concept_map` · `smiles` · `structure` · `number_line` · `comparison` · `compare` · `genetics` · `cross` · `optics` · `lens` · `mirror` · `chronology`.
+Aliases you may use as `type` instead: `bohr` · `electron_shells` · `dot_and_cross` · `leaf_cross_section` · `heart_loop` · `bio_schematic` · `equation` · `reaction` · `circuit_diagram` · `ring` · `cyclic_process` · `life_cycle` · `rna_helix` · `nucleic_acid_helix` · `helix` · `process` · `chain` · `bar_model` · `tape_diagram` · `fbd` · `force_diagram` · `vector` · `construction` · `plot` · `function_plot` · `area_model` · `hundred_square` · `ai_art` · `placeholder` · `textbook_figure` · `photo_labels` · `concept_map` · `smiles` · `structure` · `number_line` · `comparison` · `compare` · `genetics` · `cross` · `optics` · `lens` · `mirror` · `chronology`.
 
 <!-- 4b.5:end -->
 
@@ -1048,7 +1058,7 @@ The schema allows EXACTLY these keys — nothing more:
 {"type": "diagram", "id": "dg-water-cycle", "spec": {"type": "cycle", "caption": "…", "…": "…"}}
 ```
 A diagram block is `type` + `id` + `spec`, full stop. The spec object carries EVERYTHING else —
-its own `type` (one of the 20), title, caption, steps, panels. The four shapes that FAIL:
+its own `type` (one of the 21), title, caption, steps, panels. The four shapes that FAIL:
 `"diagram": {…}` as the key instead of `"spec"`; `"caption"` sitting OUTSIDE spec (it goes
 caption INSIDE `spec`); a missing `id`; a spec whose inner `type` is null or invented.
 
