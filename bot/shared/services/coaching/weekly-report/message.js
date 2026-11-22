@@ -86,4 +86,4 @@ function buildMessage({ summary, week, teacher = {} }) {
   };
 }
 
-module.exports = { buildMessage, weekLabel };
+module.exports = { buildMessage, weekLabel, MONTHS };
