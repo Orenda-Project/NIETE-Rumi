@@ -70,6 +70,11 @@ describe('ab-card-check', () => {
     expect(run(diff('src/lp.js', ["setting('ab_lp_ch310_enabled')", "setting('topic_end_nudge_enabled')"])).ok).toBe(true);
   });
 
+  test('the live video-clip test keeps its own switch; any other *_AB_ENABLED still needs an entry', () => {
+    expect(run(diff('bot/x/flags.js', ['env.VIDEO_RECO_AB_ENABLED === "true"'])).ok).toBe(true);
+    expect(run(diff('bot/x/flags.js', ['env.QUIZ_AB_ENABLED === "true"'])).ok).toBe(false);
+  });
+
   test('test files, the shared module and the registry itself are skipped', () => {
     expect(run(diff('tests/x/lp.test.js', ['armFor(user)'])).ok).toBe(true);
     expect(run(diff('shared/services/ab-assign.service.js', ['bucketOf(x); armFor(u)'])).ok).toBe(true);
