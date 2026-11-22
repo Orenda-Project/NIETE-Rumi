@@ -17,8 +17,12 @@
  * Who the teacher is comes from the quiz row (teacher_id) or the code row (teacher_user_id) at the tap; the token
  * carries no user id, so the link stays short in a caption.
  *
- * Events (ids only): quiz_forward_tap { tk, share_code_id, surface, method, origin, stale }, quiz_forward_result
- * { tk, share_code_id, surface, result } (only where the browser reports one: the native share sheet).
+ * Events (ids only): quiz_forward_tap { tk, share_code_id, code_h, surface, method, origin, stale }, quiz_forward_result
+ * { tk, share_code_id, code_h, surface, result } (only where the browser reports one: the native share sheet).
+ * code_h is the share code hashed exactly as web_quiz.page_open's code_h (web-quiz.service codeHash), so a tap joins
+ * the opens it produced in one log query; the code itself is never logged. The CALLER hashes it and passes `codeH` (this
+ * module never requires web-quiz.service: that would close a require cycle through video-quiz-share). Null when the
+ * caller has no code at hand.
  * The meter is not switched: the teacher home's send tap is logged with the switch off too (a switched meter is a blind
  * meter); every link and button that a teacher sees is switched.
  */
@@ -124,12 +128,15 @@ function targetFor(wa, ua) {
 }
 
 const tkOf = (uid) => { try { return require('../quiz/web-quiz-kid').tk(uid) || null; } catch (_) { return null; } };
+// a code hash as page_open logs it: 12 hex, else nothing
+const CODE_H_RX = /^[0-9a-f]{12}$/;
+const codeHIn = (h) => (typeof h === 'string' && CODE_H_RX.test(h) ? h : null);
 
 /** quiz_forward_tap, ids only. Never throws. */
-function logTap({ uid = null, shareCodeId = null, surface, method = 'wa_me', origin = null, stale = false }) {
+function logTap({ uid = null, shareCodeId = null, codeH = null, surface, method = 'wa_me', origin = null, stale = false }) {
   try {
     logEvent('quiz_forward_tap', {
-      w: 's', tk: tkOf(uid), share_code_id: UUID_RX.test(String(shareCodeId || '')) ? shareCodeId : null,
+      w: 's', tk: tkOf(uid), share_code_id: UUID_RX.test(String(shareCodeId || '')) ? shareCodeId : null, code_h: codeHIn(codeH),
       surface: SURFACES[surface] ? surface : 'unknown', method: METHODS.includes(method) ? method : 'wa_me',
       origin: ORIGINS.includes(origin) ? origin : null, stale: stale === true,
     });
@@ -137,11 +144,11 @@ function logTap({ uid = null, shareCodeId = null, surface, method = 'wa_me', ori
 }
 
 /** quiz_forward_result, only for a result the browser reported. Never throws. */
-function logResult({ uid = null, shareCodeId = null, surface, result }) {
+function logResult({ uid = null, shareCodeId = null, codeH = null, surface, result }) {
   if (!RESULTS.includes(result)) return;
   try {
     logEvent('quiz_forward_result', {
-      w: 's', tk: tkOf(uid), share_code_id: UUID_RX.test(String(shareCodeId || '')) ? shareCodeId : null,
+      w: 's', tk: tkOf(uid), share_code_id: UUID_RX.test(String(shareCodeId || '')) ? shareCodeId : null, code_h: codeHIn(codeH),
       surface: SURFACES[surface] ? surface : 'unknown', result,
     });
   } catch (_) { /* never decides anything */ }
