@@ -9521,6 +9521,7 @@ router.get('/config', async (req, res) => {
       lpWhatsappPdfOff,
       lpViewerSlimRaw,
       lpOwnGoalStartRaw,
+      lpOwnUnitRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9581,6 +9582,8 @@ router.get('/config', async (req, res) => {
       LpAppSwitches.isLpViewerSlimOn(supabase, userId),
       // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
       isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
+      // bd-snkn32.59 (queue #165) — Make my own → A whole unit: list-only, rides with Make my own on.
+      require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9626,6 +9629,7 @@ router.get('/config', async (req, res) => {
         lpMakeOwn: teacherV2 && lpMakeOwnRaw && lpOwnNotGb,
         lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
         lpOwnReviewer,
+        lpOwnUnit: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnUnitRaw === true,
         lpFeedbackBar: teacherV2 && lpFeedbackBarRaw,
         teacherHomeActivity: teacherHomeCard && teacherHomeActivityRaw,
         teacherJourney,
@@ -9667,6 +9671,7 @@ router.get('/config', async (req, res) => {
         lpMakeOwn: false,
         lpOwnShelf: false,
         lpOwnReviewer: false,
+        lpOwnUnit: false,
         lpFeedbackBar: false,
         teacherHomeActivity: false,
         teacherJourney: false,

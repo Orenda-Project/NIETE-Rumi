@@ -725,6 +725,8 @@ export type PortalConfig = {
     lpOwnShelf?: boolean;
     /** bd-snkn32.42 — this user approves plans for the shelf (portal_lp_own_reviewers, list-only; fail-closed). */
     lpOwnReviewer?: boolean;
+    /** bd-snkn32.59 — Make my own → A whole unit (portal_lp_own_unit, list-only, with Make my own on; fail-closed). */
+    lpOwnUnit?: boolean;
     /** Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off (absent = today). */
     lpWhatsappSend?: boolean;
     /** bd-snkn32.56 — Make my own from a learning goal or topic (portal_lp_own_goal_start, list-only; fail-closed). */
