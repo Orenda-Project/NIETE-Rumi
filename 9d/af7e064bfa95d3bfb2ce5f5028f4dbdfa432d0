@@ -1,2 +1,3 @@
 {"ts":"2026-11-22T13:28:48Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"9daf7e064bfa","branch":"s0ccn5-to-staging","user":""}
 {"ts":"2026-11-22T13:29:16Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"9daf7e064bfa","branch":"s0ccn5-to-staging","user":""}
+{"ts":"2026-11-22T13:29:41Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"9daf7e064bfa","branch":"s0ccn5-to-staging","user":""}
