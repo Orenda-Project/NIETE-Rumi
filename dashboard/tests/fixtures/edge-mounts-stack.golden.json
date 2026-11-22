@@ -743,6 +743,17 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/j(?:\\/([^/]+?))\\/?$/i",
+        "path": "/j/:code",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/api\\/wq\\/cl\\/arrive\\/?$/i",
         "path": "/api/wq/cl/arrive",
         "methods": [
