@@ -1,0 +1,26 @@
+{
+ "en-screen": {
+  "sha256": "7f295f1495f4b736d32314045290114d1fc6272deba69557391e2a6cf70fd37b",
+  "bytes": 99361
+ },
+ "en-screen-false": {
+  "sha256": "7f295f1495f4b736d32314045290114d1fc6272deba69557391e2a6cf70fd37b",
+  "bytes": 99361
+ },
+ "ur-screen": {
+  "sha256": "efcc06b20c67615df6430a48ec5f57be1dd7b5571850ff314d5b5935f1bcfd8a",
+  "bytes": 100408
+ },
+ "en-print": {
+  "sha256": "5f6c8f879f1bc1d0a339875cd123e9a41ac004350ac45ca9e471ce143e8f5031",
+  "bytes": 98627
+ },
+ "ur-print": {
+  "sha256": "9f86181f7c68df7003828ec06ca78d4136b5082ceb794c271f4c44d747583ef6",
+  "bytes": 3226659
+ },
+ "story-en": {
+  "sha256": "7b8f75d73298043b5c03a05d563588e7508ba4235252dfca0a3c202b1ee83250",
+  "bytes": 97594
+ }
+}
