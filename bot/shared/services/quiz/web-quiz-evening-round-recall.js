@@ -259,11 +259,13 @@ async function rewrite({ originals, language = 'en', complete }) {
  * none_correct count at once, a disagree only when a second look in another shown order says so too; unsure never
  * blocks). FAIL-CLOSED, unlike the generate step: nobody reviews a round before a child plays it, so a solver that
  * fails keeps no rewrite (the round goes out with its lesson items). `verify` = transcript-quiz-key-verify verifyKeys.
- * Returns { items (the kept ones), record: { status, checked, dropped, flagged:[{i, verdict}], model, cost_usd } }.
+ * A flagged rewrite is never repaired (PLAN §11 A33): it comes back in `held` with the solver's pick (the option slot
+ * it chose, when it chose exactly one that is not the key), to be stored held and queued for a person.
+ * Returns { items (the kept ones), held:[{ item, verdict, pick }], record: { status, checked, dropped, flagged:[{i, verdict}], model, cost_usd } }.
  */
 async function verifyItems({ items, language = 'en', grade = null, subject = null, verify }) {
   const record = { status: 'skipped', checked: 0, dropped: 0, flagged: [], model: null, cost_usd: 0 };
-  if (!items || !items.length) return { items: [], record };
+  if (!items || !items.length) return { items: [], held: [], record };
   const FLAGGED = new Set(['disagree', 'ambiguous', 'none_correct']);
   const questions = items.map((it) => ({ question: it.question, options: it.options, correct_index: SLOTS.indexOf(it.correct) }));
   record.checked = items.length;
@@ -281,22 +283,26 @@ async function verifyItems({ items, language = 'en', grade = null, subject = nul
       confirmed = new Set((again.verdicts || []).filter((v) => FLAGGED.has(v.verdict)).map((v) => v.index));
     }
     const out = new Set();
+    const held = [];
     verdicts.forEach((v) => {
       if (FLAGGED.has(v.verdict) && (v.verdict !== 'disagree' || confirmed.has(v.index))) {
         out.add(v.index);
         record.flagged.push({ i: v.index, verdict: v.verdict });
+        const it = items[v.index];
+        const others = (Array.isArray(v.blind) ? v.blind : []).filter((k) => k !== SLOTS.indexOf(it.correct));
+        held.push({ item: it, verdict: v.verdict, pick: others.length === 1 && SLOTS[others[0]] ? SLOTS[others[0]] : null });
       }
     });
     record.status = 'ok';
     record.dropped = out.size;
     record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
-    return { items: items.filter((_, i) => !out.has(i)), record };
+    return { items: items.filter((_, i) => !out.has(i)), held, record };
   } catch (err) {
     logToFile('⚠️ evening round: recall key solve failed — no rewrite is kept (fail-closed)', { error: String((err && err.message) || err).slice(0, 200) });
     record.status = 'error';
     record.dropped = items.length;
     record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
-    return { items: [], record };
+    return { items: [], held: [], record };
   }
 }
 
@@ -331,21 +337,24 @@ function markReading(row) {
  * the same original at the same rank. The rows sort after the lesson items (sort_order 100 + rank).
  * media.round 'recall'; media.recall = { of, rank, kids (one-way keys of the children who missed it), chips (their
  * chips on this round's code, so the page's ?k= picks them without a read) }.
+ * `held` (a rewrite the round's solve flagged): media.round 'held' (never served), media.key_held { reason
+ * 'blind_solve', verdict, pick }, external_id `…:recall:h<n>-…`, sort_order 200 + n.
  */
-function recallRows({ quizId, items, roundKey, chipOf = () => null, subject }) {
+function recallRows({ quizId, items, roundKey, chipOf = () => null, subject, held = false }) {
   return items.map((it, idx) => {
     const rank = idx + 1;
     const opts = it.options;
     let row = {
       quiz_id: quizId,
-      external_id: `tq:${quizId}:recall:rc${rank}-${String(it.original.question.id).slice(0, 8)}`,
-      sort_order: 100 + rank,
+      external_id: `tq:${quizId}:recall:${held ? 'h' : 'rc'}${rank}-${String(it.original.question.id).slice(0, 8)}`,
+      sort_order: (held ? 200 : 100) + rank,
       question_text: it.question,
       option_a: opts[0] || null, option_b: opts[1] || null, option_c: opts[2] || null, option_d: opts[3] || null,
       correct_option: it.correct,
       explanation: it.explanation,
       media: {
-        round: 'recall',
+        round: held ? 'held' : 'recall',
+        ...(held ? { key_held: { reason: 'blind_solve', verdict: it.verdict || null, pick: it.pick || null } } : {}),
         round_key: roundKey,
         recall: {
           of: it.original.question.id,
@@ -360,6 +369,75 @@ function recallRows({ quizId, items, roundKey, chipOf = () => null, subject }) {
   });
 }
 
+// ── the answer-key review queue (quiz-key-review.service owns the table; the round only adds rows) ──────────
+
+/**
+ * Puts items on the review queue (quiz-key-review.service TABLE): one row per (item, reason) that is not there yet,
+ * status 'open', first_flagged_on = last_seen_on = today's PKT date. A row already there, open or reviewed, is left
+ * exactly as it is (a reviewer's verdict is never touched). Idempotent: a redelivered job adds nothing, and a
+ * concurrent duplicate is the table's unique (question_id, reason), counted as there. An entry whose key is not one
+ * A-D slot (a multi-answer or ordered item) cannot be queued (key_at_flag ~ '^[A-D]$') and is counted `skipped`.
+ * NEVER throws: a failed write is logged and the item stays held.
+ * @param {Array<{question_id, reason, key_at_flag, top_wrong_option?, answers_n?, top_wrong_n?, right_n?}>} entries
+ * @returns {Promise<{queued:number, existing:number, skipped:number, failed:number}>}
+ */
+async function queueReview(entries, { now = new Date() } = {}) {
+  const out = { queued: 0, existing: 0, skipped: 0, failed: 0 };
+  let Keys = null;
+  // eslint-disable-next-line global-require
+  try { Keys = require('./quiz-key-review.service'); } catch (_) { Keys = null; }
+  const list = (entries || []).filter((e) => e && e.question_id);
+  const want = list.filter((e) => /^[A-D]$/.test(String(e.key_at_flag || '')) && Keys && Array.isArray(Keys.REASONS) && Keys.REASONS.includes(e.reason));
+  out.skipped = list.length - want.length;
+  if (!want.length) return out;
+  try {
+    const day = require('../nudges/pkt-time').pktDate(now);
+    const there = new Set();
+    for (const part of chunks([...new Set(want.map((e) => String(e.question_id)))])) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await supabase.from(Keys.TABLE).select('question_id, reason').in('question_id', part);
+      if (error) throw new Error(error.message || 'review queue read failed');
+      (data || []).forEach((r) => there.add(`${r.question_id}|${r.reason}`));
+    }
+    for (const e of want) {
+      const k = `${e.question_id}|${e.reason}`;
+      if (there.has(k)) { out.existing += 1; continue; }
+      there.add(k);
+      const top = /^[A-D]$/.test(String(e.top_wrong_option || '')) && e.top_wrong_option !== e.key_at_flag ? e.top_wrong_option : null;
+      // eslint-disable-next-line no-await-in-loop
+      const { error } = await supabase.from(Keys.TABLE).insert({
+        question_id: e.question_id, reason: e.reason, status: 'open', key_at_flag: e.key_at_flag, top_wrong_option: top,
+        answers_n: Number(e.answers_n) || 0, top_wrong_n: Number(e.top_wrong_n) || 0, right_n: Number(e.right_n) || 0,
+        first_flagged_on: day, last_seen_on: day,
+      });
+      if (!error) out.queued += 1;
+      else if (error.code === '23505') out.existing += 1;
+      else {
+        out.failed += 1;
+        logToFile('⚠️ evening round: one item not queued for review — it stays held', { reason: e.reason, error: error.message });
+      }
+    }
+  } catch (err) {
+    out.failed = want.length - out.queued - out.existing;
+    logToFile('⚠️ evening round: review queue unwritable — the items stay held', { error: String((err && err.message) || err).slice(0, 200) });
+  }
+  return out;
+}
+
+/** The option slot of `text` on a stored row as the grader sees it (the web item's options when it has one), or null. */
+function slotOfText(row, text) {
+  const norm = (t) => String(t == null ? '' : t).replace(/[\u200E\u200F]/g, '').trim();
+  const want = norm(text);
+  if (!row || !want) return null;
+  const w = row.media && row.media.web;
+  const opts = w && Array.isArray(w.options)
+    ? w.options.map((o) => [o && o.slot, o && o.text])
+    : SLOTS.map((sl) => [sl, row[`option_${sl.toLowerCase()}`]]);
+  const hit = opts.filter(([sl, t]) => t != null && norm(t) === want && /^[A-D]$/i.test(String(sl || '')));
+  return hit.length === 1 ? String(hit[0][0]).toUpperCase() : null;
+}
+
 module.exports = {
+  queueReview, slotOfText,
   POOL_MAX, KEY_HELD, missWindow, missesFor, rewrite, verifyItems, buildPrompt, checkItem, recallRows, isReadingItem, markReading, kidKey, heldIds, keyOf, pktMidnight,
 };
