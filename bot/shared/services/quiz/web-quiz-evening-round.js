@@ -351,7 +351,7 @@ async function retryFailed(rows, { now, enqueue, room }) {
       // eslint-disable-next-line no-await-in-loop
       await (enqueue || queueGenerate)(q.id);
       n += 1;
-      logEvent('web_quiz.round_retried', { quizId: q.id, class_link_code: meta.class_link_code || null, attempt: meta.attempts, after: lastError || null });
+      logEvent('web_quiz.round_retried', { quiz_id: q.id, class_link_code: meta.class_link_code || null, attempt: meta.attempts, after: lastError || null });
     } catch (err) {
       logToFile('⚠️ evening round: retry not queued', { quizId: q.id, error: err.message });
     }
