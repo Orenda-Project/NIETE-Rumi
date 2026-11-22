@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T13:34:55Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"1ec8ded14aa4","branch":"bd-snkn32.59.9-unit-urdu","user":""}
+{"ts":"2026-11-22T13:40:14Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (temporary wip commit, reset and never pushed; its content is commit 3555a08785, declared separately)","sha":"1ec8ded14aa4","branch":"bd-snkn32.59.9-unit-urdu","user":""}
