@@ -180,13 +180,12 @@ describe('a storybook send\'s report: never marked', () => {
 
 /**
  * GOLDEN: late off (false or absent), with late rows IN the data, is the page the code made before this change. The
- * 48 px change is a layout fix outside the switch: its three rules (.btn, the language toggle, the Copy-message
- * summary) are dropped from both sides before the digest, and pinned by report-page-48px.test.js instead.
+ * page's stylesheet is left out of the digest: it is shared by every tab and pinned by the page goldens in
+ * bot/tests/quiz/web-quiz (a layout fix outside the switch, like the 48 px rules, moves those, not this one).
  */
 const FILE = path.join(__dirname, '__golden__', 'page-late-off.json');
-const BUTTON_RULE = /^(?:\.btn\{|\.brand a(?:::before)?\{|details summary\{)/;
-const withoutButtonRules = (html) => html.split('\n').filter((l) => !BUTTON_RULE.test(l)).join('\n');
-const digest = (html) => ({ sha256: crypto.createHash('sha256').update(withoutButtonRules(html), 'utf8').digest('hex'), bytes: Buffer.byteLength(withoutButtonRules(html), 'utf8') });
+const withoutStyles = (html) => html.replace(/<style>[\s\S]*?<\/style>/g, '<style></style>');
+const digest = (html) => ({ sha256: crypto.createHash('sha256').update(withoutStyles(html), 'utf8').digest('hex'), bytes: Buffer.byteLength(withoutStyles(html), 'utf8') });
 const OFF_RENDERS = {
   'en-screen': () => page(quizData()),
   'en-screen-false': () => page(quizData(), { late: false }),
