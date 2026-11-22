@@ -1,0 +1,3 @@
+{"ts":"2026-11-22T14:11:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"8b170408771e","branch":"bd-zrdvmi.55-56568","user":""}
+{"ts":"2026-11-22T14:11:20Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"8b170408771e","branch":"bd-zrdvmi.55-56568","user":""}
+{"ts":"2026-11-22T14:11:35Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"c8bdef06-4c47-4edd-87b3-f7bb417a5c03","sha":"8b170408771e","branch":"bd-zrdvmi.55-56568","user":""}
