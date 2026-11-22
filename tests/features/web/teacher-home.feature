@@ -150,6 +150,7 @@ Feature: Teacher home, analytics, more and profile
     When the teacher taps "My journey" on her Home
     Then /portal/teacher/journey lists Opened a lesson plan, Taught in class and DC observation, newest first
     And it says "Updated today …"
+    And Home is the lit item in the menu
 
   @TH14
   Scenario: Teacher app v2: with Home activity on but no numbers counted yet, Home loads with no numbers and no error
