@@ -117,8 +117,9 @@ function createPushRemindRouter(opts = {}) {
     }
     const live = on();
     const st = typeof on.state === 'function' ? on.state() : 'fresh';
-    // an answer from a failed read is counted (at most one line a minute per process), so the path shows in the logs
-    if (st !== 'fresh' && Date.now() - swLoggedAt >= 60000) { swLoggedAt = Date.now(); logEvent('web_quiz.push_sw_switch', { state: st, served: !live && st === 'unread' ? '503' : live ? 'sw' : 'off' }); }
+    // an answer from a failed read is counted (at most one line a minute per process), so the path shows in the logs;
+    // its props ride inside data_json, never as new top-level log fields
+    if (st !== 'fresh' && Date.now() - swLoggedAt >= 60000) { swLoggedAt = Date.now(); logEvent('web_quiz.push_sw_switch', { data_json: JSON.stringify({ state: st, served: !live && st === 'unread' ? '503' : live ? 'sw' : 'off' }) }); }
     // no read has landed (the first one failed): not an off. 503 leaves the browser's current worker in place
     if (!live && st === 'unread') return res.status(503).set('Cache-Control', 'no-store').type('application/javascript').send('');
     const file = live ? 'sw.js' : 'sw-off.js';

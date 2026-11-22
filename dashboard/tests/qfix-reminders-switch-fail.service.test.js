@@ -78,21 +78,23 @@ describe('/sw.js serves the kill-switch worker only on a real off', () => {
   });
 });
 
+// The props ride inside data_json (a new top-level log field can collide with the nightly page pull's aliases).
+const sw = (evs) => evs.filter(([e]) => e === 'web_quiz.push_sw_switch').map(([, d]) => { expect(Object.keys(d)).toEqual(['data_json']); return JSON.parse(d.data_json); });
 describe('a /sw.js answered from a failed read is counted (the portal swallowed it before)', () => {
   test('held or unread: one web_quiz.push_sw_switch event per minute at most; fresh: none', async () => {
     const events = [];
     s = await start({ on: flag(true, 'held'), logEvent: (e, d) => events.push([e, d]) });
     await get('/sw.js'); await get('/sw.js');
-    expect(events.filter(([e]) => e === 'web_quiz.push_sw_switch')).toEqual([['web_quiz.push_sw_switch', { state: 'held', served: 'sw' }]]);
+    expect(sw(events)).toEqual([{ state: 'held', served: 'sw' }]);
     await new Promise((r) => s.server.close(r)); s = null;
     const ev2 = [];
     s = await start({ on: flag(false, 'unread'), logEvent: (e, d) => ev2.push([e, d]) });
     await get('/sw.js');
-    expect(ev2.filter(([e]) => e === 'web_quiz.push_sw_switch')).toEqual([['web_quiz.push_sw_switch', { state: 'unread', served: '503' }]]);
+    expect(sw(ev2)).toEqual([{ state: 'unread', served: '503' }]);
     await new Promise((r) => s.server.close(r)); s = null;
     const ev3 = [];
     s = await start({ on: flag(true, 'fresh'), logEvent: (e, d) => ev3.push([e, d]) });
     await get('/sw.js');
-    expect(ev3.filter(([e]) => e === 'web_quiz.push_sw_switch')).toEqual([]);
+    expect(sw(ev3)).toEqual([]);
   });
 });
