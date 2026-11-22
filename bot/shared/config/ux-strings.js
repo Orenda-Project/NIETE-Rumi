@@ -3542,9 +3542,10 @@ const UX_STRINGS = {
     en: 'Here is your class message — forward THIS one to your class group:',
     ur: 'یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:',
   },
+  // Urdu: a child surface says «کوئز» and «دبائیں» with Urdu digits, no Latin word; the link is the one Latin atom.
   vqClassMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
-    ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '‏📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۱۰ منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   // A storybook the teacher sends to the class (story-teacher.service.js, web_quiz_stories_teacher): the link
   // opens the book on its first page, so the message names the story and the one tap, nothing else.
