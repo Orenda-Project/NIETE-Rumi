@@ -69,8 +69,11 @@ const ON = { app_card: true };
  *                    AND context->>'skip_reason' = ANY($4) AND no app_card_opened_at
  *                    UPDATE … (opened) WHERE id = $1 AND user_id = $2 AND kind = ANY($3) AND status = 'skipped'
  *   quizzes          the lesson ids among $3 covered by the teacher's ($1) quizzes made since $2 (not failed / cancelled)
+ *   niete_lp_downloads + niete_lp_opens   the newest delivery of lesson $2 to teacher $1 since $3 (a WhatsApp delivery
+ *                    with status 'sent', or a K-5 app open), as the /quiz list keys it
  */
-function fakeDb({ settings = {}, nudges = [], quizzes = [], papers = [], settingsError = null, nudgesError = null } = {}) {
+function fakeDb({ settings = {}, nudges = [], quizzes = [], papers = [], downloads = [], opens = [], settingsError = null,
+  nudgesError = null, deliveryError = null } = {}) {
   const calls = [];
   const db = {
     calls,
@@ -104,6 +107,18 @@ function fakeDb({ settings = {}, nudges = [], quizzes = [], papers = [], setting
           .forEach((q) => (q.meta.lessons || []).forEach((l) => { if (lessonIds.includes(l.lesson_id)) out.add(l.lesson_id); }));
         return { rows: [...out].map((lesson_id) => ({ lesson_id })) };
       }
+      if (/FROM niete_lp_downloads/i.test(sql)) {
+        if (deliveryError) throw deliveryError;
+        const [user, lessonId, since] = params;
+        const ok = (at) => new Date(at) >= new Date(since);
+        const rows = [
+          ...downloads.filter((d) => d.user_id === user && d.lesson_id === lessonId && d.status === 'sent' && ok(d.created_at))
+            .map((d) => ({ id: d.id, at: d.created_at })),
+          ...opens.filter((o) => o.user_id === user && o.plan_kind === 'k5' && o.plan_ref === lessonId && ok(o.opened_at))
+            .map((o) => ({ id: o.id, at: o.opened_at })),
+        ].sort((a, b) => new Date(b.at) - new Date(a.at));
+        return { rows: rows.slice(0, 1).map((r) => ({ id: r.id })) };
+      }
       if (/FROM assessment_requests/.test(sql) && /^\s*SELECT/i.test(sql)) return { rows: papers };
       return { rows: [] };
     }),
@@ -123,6 +138,52 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 const quizItems = (items) => items.filter((i) => i.kind === 'quiz_offer');
+
+const DL = 'dddddddd-0000-4000-8000-000000000001';
+const OPEN = 'eeeeeeee-0000-4000-8000-000000000002';
+const download = (over = {}) => ({ id: DL, user_id: TEACHER, lesson_id: 'm4.c03.l02', status: 'sent', created_at: '2026-10-08T04:00:00Z', ...over });
+const appOpen = (over = {}) => ({ id: OPEN, user_id: TEACHER, plan_kind: 'k5', plan_ref: 'm4.c03.l02', opened_at: '2026-10-08T05:00:00Z', ...over });
+
+describe('the card opens THAT lesson: lessonKey is the /quiz list key of its newest delivery', () => {
+  const card = async (fixtures) => {
+    const db = fakeDb({ settings: { quiz_offer_closed_window: ON }, nudges: [offerRow()], ...fixtures });
+    const { items } = await N().listNotices(db.query, TEACHER, { now: NOW });
+    return { item: quizItems(items)[0], db };
+  };
+
+  it('a WhatsApp delivery of the lesson → lessonKey lsn_lp_v8_<its id>', async () => {
+    const { item } = await card({ downloads: [download()] });
+    expect(item).toEqual(expect.objectContaining({ lessonId: 'm4.c03.l02', lessonKey: `lsn_lp_v8_${DL}` }));
+  });
+
+  it('an app open newer than the delivery wins (the list keeps the newest per lesson); asked for 30 days back', async () => {
+    const { item, db } = await card({ downloads: [download()], opens: [appOpen()] });
+    expect(item.lessonKey).toBe(`lsn_lp_v8_${OPEN}`);
+    const read = db.calls.find((c) => /FROM niete_lp_downloads/.test(c.sql));
+    expect(read.params).toEqual([TEACHER, 'm4.c03.l02', '2026-09-08T11:00:00.000Z']);
+  });
+
+  it('no delivery in the window, another teacher\'s, or one not sent → no lessonKey (the quiz home as today)', async () => {
+    const { item } = await card({
+      downloads: [download({ created_at: '2026-09-01T04:00:00Z' }), download({ id: 'x1', user_id: OTHER }), download({ id: 'x2', status: 'failed' })],
+      opens: [appOpen({ plan_kind: 'g612' })],
+    });
+    expect(item).toBeDefined();
+    expect(item).not.toHaveProperty('lessonKey');
+  });
+
+  it('the delivery read fails → the card is still listed, with no lessonKey', async () => {
+    const { item } = await card({ downloads: [download()], deliveryError: new Error('db down') });
+    expect(item).toEqual(expect.objectContaining({ id: `quiz_offer:${NUDGE}` }));
+    expect(item).not.toHaveProperty('lessonKey');
+  });
+
+  it('switch off → no delivery read at all', async () => {
+    const db = fakeDb({ settings: {}, nudges: [offerRow()], downloads: [download()] });
+    await N().listNotices(db.query, TEACHER, { now: NOW });
+    expect(db.calls.some((c) => /niete_lp_downloads/.test(c.sql))).toBe(false);
+  });
+});
 
 describe('switch on: a skipped window-closed row today lists one quiz card', () => {
   it('the 15:00 quiz offer row → one quiz_offer item naming the first lesson not yet quizzed', async () => {

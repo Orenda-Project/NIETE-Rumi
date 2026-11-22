@@ -82,7 +82,9 @@ export function ReadyForYou({ userKey }: { userKey: string }) {
           if (!quizHome) return;
           const told = noticeTracker.settle(id);
           const origin = isNativeApp() ? getPortalOrigin() : null;
-          const leave = () => window.location.assign(origin ? `${origin}${quizHome}` : quizHome);
+          // THAT lesson on the quiz home when the server knows its list key (the bot's ?lesson=); else the home as is.
+          const page = item.lessonKey ? `${quizHome}${quizHome.includes('?') ? '&' : '?'}lesson=${encodeURIComponent(item.lessonKey)}` : quizHome;
+          const leave = () => window.location.assign(origin ? `${origin}${page}` : page);
           void Promise.race([told, new Promise<void>((r) => { setTimeout(r, TAP_WAIT_MS); })]).then(leave, leave);
           return;
         }

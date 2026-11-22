@@ -44,6 +44,9 @@
  * lesson in this app, so Home lists ONE `quiz_offer` item that day ("Make a quiz on today's lesson"); its tap opens
  * the quiz home the app already has. It goes once a quiz made today covers the lesson, or once the teacher taps it
  * (context.app_card_opened_at, merged into the row's jsonb: no new column, and the row keeps its status and reason).
+ * The item carries `lessonKey`, the /quiz list's key for that lesson (`lsn_lp_v8_<id>` of its newest delivery: a WhatsApp
+ * delivery 'sent' or a K-5 app open, in the list's 30 days), so the tap opens the quiz home on THAT lesson (?lesson=).
+ * No delivery found, or the read fails: no lessonKey, and the tap opens the quiz home as before.
  */
 
 const { weekdayDeadline } = require('../lib/weekday-hours');
@@ -171,6 +174,24 @@ const QUIZ_OFFER_OPENED_SQL = `
   RETURNING t.id, t.kind, prev.was`;
 
 const iso = (v) => (v == null ? null : new Date(v).toISOString());
+/**
+ * The /quiz list's key for a lesson plan: quiz-lesson-providers lessonKey('lp_v8', ref), where ref is the id of the
+ * lesson's newest delivery (lp-v8-lesson-provider: WhatsApp deliveries 'sent' and K-5 app opens, newest per lesson, in
+ * WINDOW_DAYS). The bot's quiz home reads `?lesson=<key>` (teacher-home.send lessonKeyOf) and checks the row is hers.
+ */
+const LESSON_KEY_PREFIX = 'lsn_lp_v8_';
+const LESSON_WINDOW_MS = 30 * DAY;
+const LESSON_DELIVERY_SQL = `
+  SELECT id FROM (
+    SELECT id::text AS id, created_at AS at FROM niete_lp_downloads
+     WHERE user_id = $1::uuid AND lesson_id = $2 AND status = 'sent' AND created_at >= $3::timestamptz
+    UNION ALL
+    SELECT id::text AS id, opened_at AS at FROM niete_lp_opens
+     WHERE user_id = $1::uuid AND plan_kind = 'k5' AND plan_ref = $2 AND opened_at >= $3::timestamptz
+  ) d
+  ORDER BY at DESC
+  LIMIT 1`;
+
 const ms = (v) => (v == null ? null : new Date(v).getTime());
 const gradeOf = (code) => Number(String(code || '').replace(/^grade_/, '')) || null;
 
@@ -368,6 +389,7 @@ async function quizOfferItem(query, userId, nowMs) {
       if (!lesson) continue;
       noteShown(row, day.date);
       const at = iso(row.updated_at || row.created_at);
+      const lessonKey = await lessonKeyFor(query, userId, lesson.lessonId, nowMs);
       return {
         id: `quiz_offer:${row.id}`,
         kind: 'quiz_offer',
@@ -390,11 +412,24 @@ async function quizOfferItem(query, userId, nowMs) {
         errorCode: null,
         nudgeId: row.id,
         from: row.kind,
+        ...(lessonKey ? { lessonKey } : {}),
       };
     }
     return null;
   } catch (error) {
     console.error('❌ teacher-notices: quiz offer read failed', { error: error && error.message });
+    return null;
+  }
+}
+
+/** The lesson's /quiz list key, or null (none in the window, or the read failed: the card still shows, opening the quiz home). */
+async function lessonKeyFor(query, userId, lessonId, nowMs) {
+  try {
+    const { rows } = await query(LESSON_DELIVERY_SQL, [userId, lessonId, new Date(nowMs - LESSON_WINDOW_MS).toISOString()]);
+    const id = rows && rows[0] && rows[0].id;
+    return id ? `${LESSON_KEY_PREFIX}${id}` : null;
+  } catch (error) {
+    console.error('❌ teacher-notices: lesson key read failed', { error: error && error.message });
     return null;
   }
 }

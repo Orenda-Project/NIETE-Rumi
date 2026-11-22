@@ -162,6 +162,8 @@ export interface ServerItem {
   at?: LessonsAt;
   /** quiz_offer: the skipped WhatsApp ask it stands in for. */
   nudgeId?: string | null;
+  /** quiz_offer: the /quiz list's key for its lesson (lsn_…), so the quiz home opens on that lesson; null = the home as is. */
+  lessonKey?: string | null;
 }
 
 /** The banner announces a ready item that is news; one she is only now hearing of, hours late, goes straight to Home. */

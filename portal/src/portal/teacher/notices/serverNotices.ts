@@ -20,6 +20,9 @@ const ms = (v: unknown): number | null => {
 };
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+/** A /quiz list key, in the shape the bot's quiz home accepts (teacher-home.send lessonKeyOf); anything else is dropped. */
+const LESSON_KEY = /^lsn_[A-Za-z0-9_:.-]{1,200}$/;
+const lessonKeyOf = (v: unknown): string | null => (typeof v === 'string' && LESSON_KEY.test(v) ? v : null);
 
 function item(r: Raw): ServerItem | null {
   const id = str(r.id);
@@ -53,7 +56,7 @@ function item(r: Raw): ServerItem | null {
     // A quiz card has no waiting page: its tap opens the quiz home (ReadyForYou).
     waitHref: kind === 'paper' ? requestPath(id.slice('paper:'.length)) : kind === 'lesson' && at ? lessonsUrl('preparing', at) : '',
     at,
-    ...(kind === 'quiz_offer' ? { nudgeId: str(r.nudgeId) } : {}),
+    ...(kind === 'quiz_offer' ? { nudgeId: str(r.nudgeId), lessonKey: lessonKeyOf(r.lessonKey) } : {}),
   };
 }
 
