@@ -1538,7 +1538,8 @@ function createWebQuizRouter(opts = {}) {
   const pushLanded = (pg) => (req, res, next) => {
     if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) {
       const dv = DEVICE_COOKIE_RX.exec(String(req.headers.cookie || ''));
-      logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(dv ? { dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) } : {}) });
+      // dh rides inside data_json (a new top-level log field can collide with a downstream pull's aliases)
+      logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(dv ? { data_json: JSON.stringify({ dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) }) } : {}) });
     }
     next();
   };
