@@ -7,7 +7,7 @@
  * `cm.return` is the one return line every class message from this page ends with (behind quiz_teacher_home); the
  * child's shared card and the stories page import this object so all of them say exactly the same words.
  */
-const { clampLanguage, resolveUx } = require('../../config/ux-strings');
+const { clampLanguage, resolveUx, UX_STRINGS } = require('../../config/ux-strings');
 const Maker = require('./maker.strings');
 const Jugnu = require('../../templates/teacher-jugnu.page');
 
@@ -84,11 +84,19 @@ const REUSED = Object.freeze({
   'th.confirm.unsure': ['jg', 'tQUnsure'],
   // the send sheet's second way out, only where the browser has a share sheet (quiz_forward_button)
   'th.share.more': ['ux', 'qfix_forward_more'],
+  // the "Quiz reports" section (quiz_teacher_home_reports, bd-5j1zaf): {played} {of} {late} in the page's digits
+  'th.rp.head': ['ux', 'qfix_report_home_head'], 'th.rp.of': ['uxf', 'qfix_report_home_of'], 'th.rp.n': ['uxf', 'qfix_report_home_n'],
+  'th.rp.late': ['uxf', 'qfix_report_home_late'], 'th.rp.pending': ['ux', 'qfix_report_home_pending'],
+  'th.rp.rounds': ['ux', 'qfix_report_home_rounds'],
 });
+const FRAME_SLOTS = Object.freeze({ played: '{played}', of: '{of}', late: '{late}' });
 const FROM = Object.freeze({
   mk: (k, l) => Maker.str(k, l),
   jg: (k, l) => Jugnu.T[l][k],
   ux: (k, l) => resolveUx(k, { language: l }),
+  // a catalog FRAME the page's script fills: the reviewed words with their {name} slots, as written (resolveUx would
+  // fill them); its own key check first
+  uxf: (k, l) => { resolveUx(k, { language: l, params: FRAME_SLOTS }); return UX_STRINGS[k][l] || UX_STRINGS[k].en; },
 });
 
 /** The value of `id` in `lang` ('bi' → the Urdu slot; anything else through the one clamp). */
