@@ -191,3 +191,32 @@ describe('renderFlnPlanHtml — never trusts the plan text', () => {
     expect(html).toContain('<h1>Sounds of q, x, z</h1>');
   });
 });
+
+// bd-s0ccn5.3 — corpus v2 carries setup and homework as lists of {kind,text,media} moves, not strings: the
+// 10152 render printed "[object Object]" in the Before-class box and left its flash-card picture out.
+describe('renderFlnPlanHtml — setup and homework are moves', () => {
+  const setup = [
+    { kind: 'instruction', text: 'Put up the **flash cards**.', media: [img('cards', { caption_en: 'Flash cards' })] },
+    { kind: 'instruction', text: 'Write the letters on the board.', media: [audio('letters')] },
+  ];
+  const homework = [{ kind: 'instruction', text: 'Find three things that start with z.', media: [img('hw')] }];
+  const html = renderFlnPlanHtml(enPlan({ setup, homework }), { placement });
+
+  test('never prints [object Object]', () => {
+    expect(html).not.toContain('[object Object]');
+  });
+  test('each setup and homework move keeps its text, markdown honoured', () => {
+    expect(html).toContain('Put up the <b>flash cards</b>.');
+    expect(html).toContain('Write the letters on the board.');
+    expect(html).toContain('Find three things that start with z.');
+  });
+  test('their pictures are drawn; their sound is not', () => {
+    expect(html).toContain('src="https://media.example.test/fln/image/cards.png"');
+    expect(html).toContain('<figcaption>Flash cards</figcaption>');
+    expect(html).toContain('src="https://media.example.test/fln/image/hw.png"');
+    expect(html).not.toContain('letters.mp3');
+  });
+  test('a plain-string setup still renders as before', () => {
+    expect(renderFlnPlanHtml(enPlan({ setup: 'Arrange desks.' }), { placement })).toContain('Arrange desks.');
+  });
+});

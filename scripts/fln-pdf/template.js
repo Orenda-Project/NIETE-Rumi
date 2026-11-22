@@ -97,6 +97,16 @@ const list = (title, items) => (items && items.length
   ? `<div class="box"><h4>${esc(title)}</h4><ul>${items.map((t) => `<li>${planText(t)}</li>`).join('')}</ul></div>`
   : '');
 
+/** setup / homework: a list of {kind,text,media} moves in corpus v2 (a bare string in older bundles). */
+function moveBox(title, v, L, lang, imageSrc) {
+  const items = (Array.isArray(v) ? v : [v]).filter((x) => x != null && x !== '');
+  if (!items.length) return '';
+  const body = items.map((it) => (typeof it === 'object'
+    ? move(it, L, lang, imageSrc)
+    : `<div class="mv"><p>${planText(it)}</p></div>`)).join('');
+  return `<div class="box"><h4>${esc(title)}</h4>${body}</div>`;
+}
+
 const CSS = `
   @page { size: A4; margin: 14mm 12mm; }
   * { box-sizing: border-box; }
@@ -149,9 +159,9 @@ function renderFlnPlanHtml(plan, opts = {}) {
     total ? `<div class="meta">${esc(L.minutes(total))}</div>` : '',
     list(L.slo, plan.slo),
     list(L.bring, plan.resources),
-    plan.setup ? list(L.before, [plan.setup]) : '',
+    moveBox(L.before, plan.setup, L, lang, imageSrc),
     (plan.sections || []).map((s) => section(s, L, lang, imageSrc)).join(''),
-    plan.homework ? list(L.homework, [plan.homework]) : '',
+    moveBox(L.homework, plan.homework, L, lang, imageSrc),
     `<footer>${esc(L.footer(plan.id))}</footer>`,
   ].join('\n');
   return `<!doctype html>

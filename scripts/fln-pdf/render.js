@@ -18,12 +18,14 @@ const IMAGE_TYPE = /^image\/(png|jpe?g|webp|gif)\b/i;
 const RETRYABLE = (s) => s === 429 || s >= 500;
 const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Every picture the template can draw: section moves, plus setup and homework moves (corpus v2). */
 function picturesOf(plan) {
   const out = [];
-  for (const s of (plan && plan.sections) || []) {
-    for (const g of s.groups || []) {
-      for (const it of g.items || []) for (const m of it.media || []) if (m && m.kind === 'image' && m.src) out.push(m);
-    }
+  const take = (it) => { for (const m of (it && it.media) || []) if (m && m.kind === 'image' && m.src) out.push(m); };
+  for (const s of (plan && plan.sections) || []) for (const g of s.groups || []) (g.items || []).forEach(take);
+  for (const f of ['setup', 'homework']) {
+    const v = plan && plan[f];
+    (Array.isArray(v) ? v : [v]).forEach((it) => { if (it && typeof it === 'object') take(it); });
   }
   return out;
 }
