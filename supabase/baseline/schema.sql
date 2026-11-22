@@ -14060,6 +14060,18 @@ ALTER TABLE public.lesson_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.migration_test ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: niete_lp612_deliveries; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.niete_lp612_deliveries ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: niete_lp_downloads; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.niete_lp_downloads ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: niete_lp_opens; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -15986,8 +15998,6 @@ GRANT SELECT ON TABLE public.niete_lp_assets TO authenticated;
 --
 
 GRANT ALL ON TABLE public.niete_lp_downloads TO service_role;
-GRANT SELECT ON TABLE public.niete_lp_downloads TO anon;
-GRANT SELECT ON TABLE public.niete_lp_downloads TO authenticated;
 
 
 --
