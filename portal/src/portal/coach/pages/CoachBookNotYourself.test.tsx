@@ -5,7 +5,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../training/appReady", async (orig) => ({ ...(await orig<Record<string, unknown>>()), coachFeatureReady: () => true }));
-vi.mock("../flow/useCoachFlowV2", () => ({ useFlowV2: () => true }));
+vi.mock("../flow/useCoachFlowV2", () => ({ useFlowV2: () => true, useFlowV6: () => false }));
+// bd-3xf7vb.1 (#217): every Observe frame now reads useFlowV6 for its "?"; off here, so these screens are as tested.
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Javed", role: "principal", phoneNumber: "923000000009" }, loading: false }) }));
 vi.mock("../../services/api", () => ({
   coach: { getPeople: vi.fn(), getSchedule: vi.fn(), editSchedule: vi.fn(), getTeacher: vi.fn(), getObservation: vi.fn() },

@@ -10,6 +10,7 @@ import { RatingScale, SelectField, StatusChip, StepBar, Tray } from "../../teach
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
+import { bandOfRubric } from "../../teacher/help/observe/guides";
 import { REPORTS } from "./copy";
 import { dropForm, heldForm, keepForm, restoreOver } from "./formKeep";
 import { countChanges, initialValues, isObs612Draft, rungName, titleOf, type Values } from "./formModel";
@@ -344,7 +345,7 @@ export default function FeedbackForm() {
       </DockV7>
     ) : undefined;
     return (
-      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={back} dock={dockV7} testId="coach-feedback-form" dockSpace>
+      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={back} dock={dockV7} testId="coach-feedback-form" helpBand={bandOfRubric(draft?.rubric?.id)} dockSpace>
         {loadAndEmpty}
         <div ref={top} />
         {draft && section && (
@@ -374,7 +375,7 @@ export default function FeedbackForm() {
   }
 
   return (
-    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form">
+    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form" helpBand={bandOfRubric(draft?.rubric?.id)}>
       {loadAndEmpty}
       <div ref={top} />
       {draft && section && (

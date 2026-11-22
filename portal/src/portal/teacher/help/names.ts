@@ -10,5 +10,5 @@ export const HELP_LIST_PATH = `${TEACHER_BASE}/help`;
 export function useVideoName(): (feature: string) => string {
   const H = useCopy(HELP);
   const T = useCopy(TEACHER_FRAME).home.tiles as Record<string, string>;
-  return (feature) => (feature === 'start' ? H.start : T[feature] ?? H.howTo);
+  return (feature) => (feature === 'start' ? H.start : feature === 'observe' ? H.observeHowTo : T[feature] ?? H.howTo);
 }

@@ -7,7 +7,8 @@ import api from '../../services/api';
  * `seen` is also kept here for the page's life, so the moment she opens any help tray every "?" on screen stops
  * pulsing, before the server answers (subscribe / isSeenLocally).
  */
-export type HelpFeature = 'start' | 'lessons' | 'coaching' | 'training';
+// bd-3xf7vb.1 (queue #217): 'observe' = the "?" on the coach and principal Observe pages (its film, when one is up).
+export type HelpFeature = 'start' | 'lessons' | 'coaching' | 'training' | 'observe';
 export type HelpVideo = {
   feature: string;
   lang: 'en' | 'ur';

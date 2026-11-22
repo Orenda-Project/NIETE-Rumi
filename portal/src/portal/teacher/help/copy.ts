@@ -22,6 +22,24 @@ export const HELP_COPY = {
   allVideos: 'All videos',
   /** Film 1's name in the list: how to use NIETE itself. */
   start: 'How to Use NIETE',
+  /** bd-3xf7vb.1 (queue #217) — the "?" on the coach and principal Observe pages: its tray and the indicator guide. */
+  observeHowTo: 'How to observe',
+  guide: 'Indicator guide',
+  grades15: 'Grades 1–5',
+  grades612: 'Grades 6–12',
+  indicators: (n: number) => `${n} indicators`,
+  thisVisit: 'This visit',
+  pickIndicator: 'Pick an indicator',
+  searchGuide: 'Search: C2, question, group…',
+  noIndicator: 'No indicator matches',
+  looksAt: 'What it looks at',
+  example: (n: number) => `Example · level ${n}`,
+  levels: 'Levels',
+  noNa: 'No N/A here: level 1 covers it',
+  note: 'Note',
+  whereToLook: 'Where to look',
+  starRoom: 'Set from what you see in the room',
+  starSelf: 'You set this yourself',
   length: (s: number) => clock(s),
   size: (b: number) => megabytes(b),
 };
@@ -35,6 +53,24 @@ export const HELP_COPY_UR: typeof HELP_COPY = {
   allComingSoon: 'ویڈیوز جلد آئیں گی',
   allVideos: 'تمام ویڈیوز',
   start: '‏NIETE استعمال کرنے کا طریقہ',
+  // #217: digits stay Western 0-9 in teacher-facing Urdu, as the bot (vocabulary.guard.test.ts).
+  observeHowTo: 'مشاہدہ کیسے کریں',
+  guide: 'انڈیکیٹر گائیڈ',
+  grades15: 'جماعت 1 تا 5',
+  grades612: 'جماعت 6 تا 12',
+  indicators: (n: number) => `${n} انڈیکیٹر`,
+  thisVisit: 'یہ وزٹ',
+  pickIndicator: 'انڈیکیٹر چنیں',
+  searchGuide: 'تلاش: ⁦C2⁩، سوال، گروپ…',
+  noIndicator: 'کوئی انڈیکیٹر نہیں ملا',
+  looksAt: 'یہ کیا دیکھتا ہے',
+  example: (n: number) => `مثال · لیول ${n}`,
+  levels: 'لیول',
+  noNa: 'یہاں «لاگو نہیں» نہیں: لیول 1 میں شامل',
+  note: 'نوٹ',
+  whereToLook: 'کہاں دیکھیں',
+  starRoom: 'کمرے میں جو دیکھیں اس سے طے کریں',
+  starSelf: 'یہ آپ خود طے کرتے ہیں',
   length: (s: number) => clock(s),
   size: (b: number) => megabytes(b),
 };
@@ -48,5 +84,6 @@ export const COPY_ENTRY: CopyEntry = {
   // A length and a size are numbers and a unit, the same in both languages.
   same: ['length', 'size'],
   // Film 1's title is its film's own name, five words in both languages.
-  longOk: ['start'],
+  // #217: the N/A line and the two ★ lines are the guide's own legend, said once per card.
+  longOk: ['start', 'noNa', 'starRoom', 'starSelf'],
 };

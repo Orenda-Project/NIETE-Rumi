@@ -11,6 +11,8 @@ import { OBSERVE } from "./copy";
 import { useObserveRoutes } from "./observeRoutes";
 import ContinueOnWhatsApp from "./ContinueOnWhatsApp";
 import { TroubleContext, type TroubleKind } from "./trouble";
+import { ObserveHelp, ObserveHelpButton } from "../../teacher/help/observe/ObserveHelp";
+import type { Band } from "../../teacher/help/observe/guides";
 
 /**
  * bd-4404s7.4 — the frame of every Observe screen: the coach gate, the kit's page frame (TeacherPage: the header card, the
@@ -48,7 +50,7 @@ export function CoachAttention() {
 }
 
 export default function ObservePage({
-  title, crumb, backTo, onBack, feature, dock, bare = false, banner = true, whatsapp = true, trouble = null, children,
+  title, crumb, backTo, onBack, feature, dock, bare = false, banner = true, whatsapp = true, trouble = null, helpBand, children,
 }: {
   title: ReactNode; crumb?: ReactNode; backTo?: string; onBack?: () => void; feature?: AnyFeature; dock?: ReactNode;
   /** No menu: a screen where one stray tap must not leave (recording). */
@@ -62,6 +64,8 @@ export default function ObservePage({
   whatsapp?: boolean;
   /** bd-9652yj — this screen failed (the microphone, a send): the way back to WhatsApp becomes a full button. */
   trouble?: TroubleKind | null;
+  /** bd-3xf7vb.1 (queue #217) — the visit's grades, when the screen is one visit's: its indicator guide opens first in the "?". */
+  helpBand?: Band;
   children: ReactNode;
 }) {
   const { user, loading } = useAuth();
@@ -71,13 +75,18 @@ export default function ObservePage({
   const signal = useCallback((kind: TroubleKind | null) => setSignalled(kind), []);
   // bd-33wxxi.4 — the principal app's screens: no coach gate (TeacherGate ran) and no coach "reports waiting" banner.
   // bd-9652yj — nor the way back to WhatsApp: it resumes a coach's booked visit.
+  // bd-3xf7vb.1 (queue #217): ObserveHelp holds the "?" tray (film + indicator guides) and gives a Feedback Form inside the
+  // guide (its "Examples"); the "?" sits at the end of the header, never on the recording screen.
   const page = (
     <TroubleContext.Provider value={signal}>
-      <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}>
-        {routes.coachGate && whatsapp && <ContinueOnWhatsApp trouble={trouble ?? signalled} bare={bare} />}
-        {banner && !bare && routes.coachGate && <CoachAttention />}
-        {children}
-      </TeacherPage>
+      <ObserveHelp band={helpBand}>
+        <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}
+          action={!bare ? <ObserveHelpButton /> : undefined}>
+          {routes.coachGate && whatsapp && <ContinueOnWhatsApp trouble={trouble ?? signalled} bare={bare} />}
+          {banner && !bare && routes.coachGate && <CoachAttention />}
+          {children}
+        </TeacherPage>
+      </ObserveHelp>
     </TroubleContext.Provider>
   );
   return routes.coachGate ? <CoachGate>{page}</CoachGate> : page;
