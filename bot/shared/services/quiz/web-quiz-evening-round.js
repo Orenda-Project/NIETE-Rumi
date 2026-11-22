@@ -19,7 +19,7 @@
  *                          child missed (else the class's most-missed); any non-round set is returned as it is.
  *   isRoundShareCode(shareCodeId)  does this code belong to a round (the report's scheduler skips it)
  *   roundCandidate({ token, chosenId, history, lang })  the hub's "Tonight's round" tile for a child of the class
- *   viaOf(query) / classLinkOpen(...)   web_quiz.class_link_open{class_link_code, via}
+ *   viaOf(query) / classLinkOpen(...)   web_quiz.class_link_open{class_link_code, via, dh?}
  *   roundsReadyForPhone   in web-quiz-evening-round-phone.js (re-exported from web-quiz-class-link.js)
  *
  * Multi-teacher class: the lesson of whichever class teacher took one for the day; two -> the earlier delivered;
@@ -770,10 +770,16 @@ function viaOf(q = {}) {
   if (q.f === '1' || q.f === 1 || from === 'fwd') return 'forward';
   return null;
 }
-/** web_quiz.class_link_open{class_link_code, via}: a code and a word, never a name or a phone. */
-function classLinkOpen(code, via) {
+/**
+ * web_quiz.class_link_open{class_link_code, via, dh?}: a code and a word, never a name or a phone. `dh` is the phone's
+ * device hash (web-quiz-telemetry deviceHash: sha256('wqd|'+ref), 16 hex) when the open carries a well-formed device
+ * ref, else absent; the raw ref is never logged. All three are data fields (data_json), never top-level columns.
+ * The standing link's own telemetry (web_quiz_class_link): it reads no switch of the evening round.
+ */
+function classLinkOpen(code, via, { deviceRef = null } = {}) {
   if (!LINK_CODE_RX.test(String(code || '')) || !VIAS.has(via)) return false;
-  logEvent('web_quiz.class_link_open', { class_link_code: code, via });
+  const ref = deviceRef ? require('./web-quiz-token').cleanDeviceRef(deviceRef) : null;
+  logEvent('web_quiz.class_link_open', { class_link_code: code, via, ...(ref ? { dh: require('./web-quiz-telemetry').deviceHash(ref) } : {}) });
   return true;
 }
 

@@ -3,9 +3,10 @@
  * Where the evening round meets code it does not own, each proven through the real call:
  *   - the report: scheduleForShareCode on a round's code queues NO 12-hour report; an ordinary code still does;
  *   - the teacher's /quiz list never lists a round (it is the class's, nothing for the teacher to send);
- *   - the standing link's open: web_quiz.class_link_open{class_link_code, via} from the landing's marker
- *     (?f=1 forward, ?from=push reminder, ?from=hub hub) and an unmarked "Whose turn?" arrival (remembered);
- *     never for a link-preview fetch or the teacher's own visit; the edge passes the marker to the bot;
+ *   - the standing link's open: web_quiz.class_link_open{class_link_code, via, dh} counted at arrive from the landing's
+ *     marker (?f=1 forward, ?from=push reminder, ?from=hub hub), else remembered (the phone played in the class) or
+ *     forward; never for a link-preview fetch or the teacher's own visit; the edge puts the marker in the boot JSON;
+ *     every path through the real routes: class-link-open-every-path.test.js;
  *   - the reminders slot under the chips (an empty #wq-remind mount, data-src class_link);
  *   - the worker schedules the 16:00 tick on main-queue replicas only.
  * Faked boundaries: Supabase (in memory), Redis (a Map), SQS, the loggers.
@@ -96,28 +97,31 @@ test('the teacher\'s /quiz list never carries a round; their own lesson-plan qui
   expect(got.map((q) => q.id).sort()).toEqual(['qm', 'qn']);
 });
 
-describe('web_quiz.class_link_open{class_link_code, via}', () => {
+describe('web_quiz.class_link_open{class_link_code, via, dh}', () => {
   const CL = () => require('../../shared/services/quiz/web-quiz-class-link');
   const opens = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.class_link_open').map(([, f]) => f);
-  test('the landing\'s marker: ?f=1 forward, ?from=push reminder, ?from=hub hub', async () => {
-    await CL().resolve('K7Q2MXTRAB', { via: 'forward' });
-    await CL().resolve('K7Q2MXTRAB', { via: 'reminder' });
-    await CL().resolve('K7Q2MXTRAB', { via: 'hub' });
+  const DH = require('../../shared/services/quiz/web-quiz-telemetry').deviceHash(DEV);
+  test('the landing\'s marker, posted on arrive: ?f=1 forward, ?from=push reminder, ?from=hub hub', async () => {
+    await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV, via: 'forward' });
+    await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV, via: 'reminder' });
+    await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV, via: 'hub' });
     expect(opens()).toEqual([
-      { class_link_code: 'K7Q2MXTRAB', via: 'forward' }, { class_link_code: 'K7Q2MXTRAB', via: 'reminder' }, { class_link_code: 'K7Q2MXTRAB', via: 'hub' },
+      { class_link_code: 'K7Q2MXTRAB', via: 'forward', dh: DH }, { class_link_code: 'K7Q2MXTRAB', via: 'reminder', dh: DH }, { class_link_code: 'K7Q2MXTRAB', via: 'hub', dh: DH },
     ]);
   });
-  test('never for a link-preview fetch or the teacher\'s own visit', async () => {
-    await CL().resolve('K7Q2MXTRAB', { preview: true, via: 'forward' });
-    await CL().resolve('K7Q2MXTRAB', { jt: CL().signTeacherPreview('K7Q2MXTRAB'), via: 'forward' });
+  test('never for a link-preview fetch or the teacher\'s own visit; the landing itself counts nothing', async () => {
+    await CL().resolve('K7Q2MXTRAB', { preview: true });
+    await CL().resolve('K7Q2MXTRAB', { jt: CL().signTeacherPreview('K7Q2MXTRAB') });
+    await CL().resolve('K7Q2MXTRAB', {});
+    await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV, jt: CL().signTeacherPreview('K7Q2MXTRAB'), via: 'forward' });
     expect(opens()).toEqual([]);
   });
-  test('an unmarked "Whose turn?" arrival is remembered; a marked one was already counted at the landing', async () => {
+  test('an unmarked "Whose turn?" arrival is remembered; an unmarked arrival on another phone is forward', async () => {
     await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV });
-    expect(opens()).toEqual([{ class_link_code: 'K7Q2MXTRAB', via: 'remembered' }]);
+    expect(opens()).toEqual([{ class_link_code: 'K7Q2MXTRAB', via: 'remembered', dh: DH }]);
     logEvent.mockClear();
-    await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: DEV, via: 'reminder' });
-    expect(opens()).toEqual([]);
+    await CL().arrive({ code: 'K7Q2MXTRAB', device_ref: 'FreshPhoneDeviceRef_01' });
+    expect(opens()).toEqual([{ class_link_code: 'K7Q2MXTRAB', via: 'forward', dh: require('../../shared/services/quiz/web-quiz-telemetry').deviceHash('FreshPhoneDeviceRef_01') }]);
   });
   test('the marker words', () => {
     const R = require('../../shared/services/quiz/web-quiz-evening-round');
@@ -128,7 +132,7 @@ describe('web_quiz.class_link_open{class_link_code, via}', () => {
     expect(R.viaOf({})).toBeNull();
     expect(R.classLinkOpen('K7Q2MXTRAB', 'nonsense')).toBe(false);
   });
-  test('the bot route passes ?via= to resolve()', async () => {
+  test('the bot route passes the arrive body\'s via to arrive()', async () => {
     const express = require('express');
     const router = require('../../shared/routes/web-quiz-class-link.routes');
     const app = express();
@@ -136,23 +140,23 @@ describe('web_quiz.class_link_open{class_link_code, via}', () => {
     app.use('/cl', router);
     const server = app.listen(0);
     const port = server.address().port;
-    const r = await fetch(`http://127.0.0.1:${port}/cl/K7Q2MXTRAB?via=reminder`);
+    const r = await fetch(`http://127.0.0.1:${port}/cl/arrive`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: 'K7Q2MXTRAB', device_ref: DEV, via: 'reminder' }) });
     server.close();
     expect(r.status).toBe(200);
-    expect(opens()).toEqual([{ class_link_code: 'K7Q2MXTRAB', via: 'reminder' }]);
+    expect(opens()).toEqual([{ class_link_code: 'K7Q2MXTRAB', via: 'reminder', dh: DH }]);
   });
 });
 
 describe('the edge and the page', () => {
   const page = fs.readFileSync(path.join(__dirname, '../../../dashboard/public/wq/class-link.js'), 'utf8');
   const edge = fs.readFileSync(path.join(__dirname, '../../../dashboard/routes/web-quiz-class-link.js'), 'utf8');
-  test('the /j/ edge maps the landing\'s marker to ?via= for the bot and into the boot JSON', () => {
+  test('the /j/ edge maps the landing\'s marker into the boot JSON (the page posts it on arrive), not into the landing call', () => {
     const Edge = require('../../../dashboard/routes/web-quiz-class-link');
     expect(Edge.viaOfQuery({ f: '1' })).toBe('forward');
     expect(Edge.viaOfQuery({ from: 'push' })).toBe('reminder');
     expect(Edge.viaOfQuery({ from: 'hub' })).toBe('hub');
     expect(Edge.viaOfQuery({ from: 'x' })).toBeNull();
-    expect(edge).toMatch(/via=\$\{encodeURIComponent\(via\)\}/);
+    expect(edge).not.toMatch(/via=\$\{encodeURIComponent\(via\)\}/);
     const html = Edge.renderClassLinkPage({
       lang: 'en', code: 'K7Q2MXTRAB', jt: null, via: 'reminder', origin: 'https://x', assetV: '1', jsV: '1', brand: null, ui: null,
       head: () => '<!doctype html><html><head>', esc: (s) => s, bootJson: (o) => JSON.stringify(o),
