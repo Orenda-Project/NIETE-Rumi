@@ -67,8 +67,9 @@ test('a lesson item copied from a donor item whose key is held is marked held an
     quiz_share_codes: [],
     classes: [{ id: C1, grade_code: 'grade_3', section: 'B' }],
     quiz_questions: [
-      ...[1, 2, 3, 4, 5, 6].map((n) => ({ id: `d${n}`, quiz_id: 'qdonor', external_id: `tq:x:S1:${n}`, question_text: `D${n}` })),
-      ...[1, 2, 3, 4, 5, 6].map((n) => ({ id: `r${n}`, quiz_id: QID, external_id: `tq:x:S1:${n}`, sort_order: n, question_text: `L${n}`, correct_option: 'A', media: {} })),
+      // The cache re-keys a copy's external id to its own quiz (lp-quiz-cache rowsFor): tq:<quizId>:<slo>:<n>.
+      ...[1, 2, 3, 4, 5, 6].map((n) => ({ id: `d${n}`, quiz_id: 'qdonor', external_id: `tq:qdonor:S1:${n}`, question_text: `D${n}` })),
+      ...[1, 2, 3, 4, 5, 6].map((n) => ({ id: `r${n}`, quiz_id: QID, external_id: `tq:${QID}:S1:${n}`, sort_order: n, question_text: `L${n}`, correct_option: 'A', media: {} })),
     ],
   });
   db.quiz_questions.find((r) => r.id === 'd2').id = REVIEWED; // the donor's 2nd item is held
