@@ -7,12 +7,16 @@ import { NewLessonPage } from './NewLessonPage';
 import { OpenPlanPage } from './OpenPlanPage';
 import { ChangePage } from './own/ChangePage';
 import { OwnPage } from './own/OwnPage';
+import { UnitGoalsPage } from './own/UnitGoalsPage';
+import { UnitNewPage } from './own/UnitNewPage';
+import { UnitPage } from './own/UnitPage';
 import { PreparingPage } from './PreparingPage';
 import { ReviewPage } from './shelf/ReviewPage';
 import { ViewerPage } from './ViewerPage';
 import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_OWN, LESSONS_VIEWER } from './paths';
 import { LESSONS_CHANGE } from './own/change';
 import { LESSONS_CHECK } from './shelf/flag';
+import { LESSONS_UNIT, LESSONS_UNIT_GOALS, LESSONS_UNIT_NEW } from './own/unitPaths';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main
@@ -36,6 +40,11 @@ const routes: TeacherRoute[] = [
   { path: LESSONS_OWN, element: <OwnPage /> },
   // bd-snkn32.15 — Change this plan: hers too.
   { path: LESSONS_CHANGE, element: <ChangePage /> },
+  // bd-snkn32.59.1 (queue #165) — A whole unit (dark unless lpOwnUnit): hers too.
+  { path: LESSONS_UNIT_NEW, element: <UnitNewPage /> },
+  { path: LESSONS_UNIT, element: <UnitPage /> },
+  // bd-snkn32.59.4 — a unit from her learning goals (no textbook): dark unless lpOwnUnit AND lpOwnGoalStart.
+  { path: LESSONS_UNIT_GOALS, element: <UnitGoalsPage /> },
   // bd-snkn32.42 — the staff check before a teacher's plan is listed (only for portal_lp_own_reviewers; 404 for the rest).
   { path: LESSONS_CHECK, element: <ReviewPage />, leaders: true },
 ];

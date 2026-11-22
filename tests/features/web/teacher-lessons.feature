@@ -460,3 +460,57 @@ Feature: Teacher lesson plans
     Then the plan is still made and a message says her note was not used
     # bd-cyadk0: #5129's note drop ran on every own plan; the blocked list holds ordinary lesson words
     # ("naked", "alcohol", "kill"). Unit: tests/lp612/own-goal-note-guard.test.js.
+
+  # bd-snkn32.59.1 (queue #165) — Make my own → A whole unit (grades 1–5, from her book's chapters), behind the list-only
+  # portal_lp_own_unit. Written by hand like the blocks above (@draft): the demo stack cannot turn the switch on.
+  # Pinned by own/Unit.test.tsx and own/unitEdit.test.ts (portal), tests/lp612/own-unit-*.test.js and
+  # tests/portal/lp-own-unit-route.test.js.
+  @OWN07 @draft @config-gated
+  Scenario: A whole unit: chapters, period and pace give a day-by-day outline she can change and save
+    Given portal_lp_make_own and portal_lp_own_unit are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own and taps "A whole unit", then picks Grade 3 Math
+    And she taps chapter 2 then chapter 3 and picks "35 min"
+    Then the paces read "Recommended · 21 days", "Slower · 25 days" and "Faster · 17 days"
+    When she taps "See the days"
+    Then "Your days" shows 21 days, with each chapter's review and test days marked
+    When she taps ⋯ on Day 1 and "Join with next day"
+    Then the outline shows 20 days and "Undo" is on screen
+    When she taps "Save unit" and reopens the unit from "My units"
+    Then the same 20 days show, and a new unit for Grade 3 Math starts with "35 min" chosen
+
+  @OWN08 @draft @config-gated
+  Scenario: A unit day's plan is made only when she opens it; a review day opens the book's own day
+    Given demo teacher 03000000911 has a saved Grade 3 Math unit and has picked her class size and level
+    When she taps "Open plan" on a lesson day
+    Then exactly one plan is made for that day and Preparing opens
+    When she taps "Open plan" on a review day
+    Then the book's own review day opens and no plan is made
+
+  @OWN09 @draft @config-gated @negative
+  Scenario: With the unit switch off, Make my own is unchanged
+    Given portal_lp_own_unit does not name demo teacher 03000000911
+    When she opens Make my own
+    Then there is no "A whole unit" card
+    And opening a unit address takes her back, and the unit calls answer 404
+
+  @OWN10 @draft @config-gated
+  Scenario: A whole unit from learning goals has no textbook: her goals become days, review and check days included
+    Given portal_lp_make_own, portal_lp_own_unit and portal_lp_own_goal_start are on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own, taps "A whole unit", picks Grade 3 Math and taps "Learning goals"
+    Then no chapter is asked for or shown
+    When she selects two goals from the skill list and adds her own goal "Telling the time" with "Add my own goal" and "Use my words"
+    Then "Your goals" lists the three goals in the order she added them
+    And the paces read "Recommended · 5 days" and "Slower · 8 days", with no faster pace
+    When she taps "See the days"
+    Then "Your days" shows a day for each goal, then a review of "Goals 1–3" and an "All goals" check day
+    When she opens the check day after picking her class
+    Then one plan is made from her three goals alone, with no book page in it
+
+  @OWN11 @draft @config-gated @negative
+  Scenario: A goal with a blocked word is refused and a unit needs at least two goals
+    Given demo teacher 03000000911 is on the "Learning goals" screen of a new unit
+    When she adds her own goal with a word that is not a school topic
+    Then she is told it is not a school topic and nothing is added
+    And "See the days" stays off until she has two goals

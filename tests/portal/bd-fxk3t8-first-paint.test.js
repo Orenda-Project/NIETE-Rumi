@@ -77,8 +77,9 @@ describe('GET /config — the flag reads run together', () => {
     // and her role (bd-w0zbbe: the observe page follows the observe API's gate).
     // + the lesson plan in the app's five (#5148): the survey bar, Home's activity block, My journey,
     // lp_whatsapp_pdf_off (features.lpWhatsappSend) and the plan screen's slim layout.
-    // + Make my own from a learning goal (bd-snkn32.56, list-only).
-    expect(started).toBe(29);
+    // + Make my own from a learning goal (bd-snkn32.56, list-only; two reads).
+    // + Make my own a whole unit (bd-snkn32.59, list-only).
+    expect(started).toBe(31);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
