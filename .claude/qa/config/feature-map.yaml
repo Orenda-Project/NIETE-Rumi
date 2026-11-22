@@ -153,6 +153,8 @@ features:
     - bot/shared/services/lp-in-app-feedback.service.js
     - bot/shared/services/lp-v8-delivery.service.js
     - bot/shared/services/lp-shelf.service.js
+    # bd-zrdvmi.55 — the delivered-lesson context a chat reply (worksheet, quiz ask) is written from.
+    - bot/shared/services/lp-context.service.js
     - bot/shared/services/curriculum-lp-ast.service.js
     - bot/shared/services/grounded-lp-render.service.js
     - bot/shared/services/oxbridge-lp.service.js

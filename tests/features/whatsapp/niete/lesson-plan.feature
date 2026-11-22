@@ -1085,3 +1085,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And my answer stays the one I gave in the app, with no second answer saved
     # @no-mock-driver: the app answer needs the portal session and the survey's 30 s timer; the mock lane drives neither.
     # Unit: tests/feedback/lp-in-app-feedback.test.js ("an app answer counts for a later WhatsApp tap").
+
+  # ADDED 2026-11-22 (bd-zrdvmi.55, ICT sheet Lesson Plan row 918): "a worksheet on this topic" right after a plan
+  # pointed at chat history, not the plan just sent. lp-context.service.js REFERRING_BACK_TOKENS now counts
+  # pointer + topic phrasings (this/same topic, is/isi topic, اس/اسی ٹاپک, اس موضوع); a bare "topic" stays out.
+  @e2e @P1 @no-mock-driver @L30
+  Scenario: A worksheet asked for "on this topic" right after a lesson plan is about that lesson
+    Given the NIETE bot chat is open
+    And a Grade 2 Urdu lesson plan has just been delivered to me
+    When I send "is topic par worksheet bana dein"
+    Then the worksheet I get is about the topic of the lesson plan I was just sent
+    And it is not about a topic from earlier in my chat
+    # @no-mock-driver: needs a delivered lesson plan and the AI chat reply; the mock lane renders no plans and
+    # stubs the model. Unit: bot/tests/lp-v8/bd-zrdvmi55-topic-reference.test.js (Tier B reached; bare "topic" stays out).
