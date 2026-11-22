@@ -220,7 +220,7 @@ async function classAgreedWrong(rows) {
   if (!found.length) return held;
   let reviewed = new Set();
   try {
-    const { data, error } = await supabase.from(Keys.TABLE).select('question_id, status').in('question_id', found.map((f) => f.question_id));
+    const { data, error } = await supabase.from('quiz_item_reviews').select('question_id, status').in('question_id', found.map((f) => f.question_id));
     if (error) throw new Error(error.message);
     const HELD = Array.isArray(Keys.HELD) ? Keys.HELD : ['open', 'key_wrong', 'ambiguous'];
     reviewed = new Set((data || []).filter((r) => !HELD.includes(r.status)).map((r) => String(r.question_id)));
@@ -446,7 +446,7 @@ async function queueReview(entries, { now = new Date() } = {}) {
     const there = new Set();
     for (const part of chunks([...new Set(want.map((e) => String(e.question_id)))])) {
       // eslint-disable-next-line no-await-in-loop
-      const { data, error } = await supabase.from(Keys.TABLE).select('question_id, reason').in('question_id', part);
+      const { data, error } = await supabase.from('quiz_item_reviews').select('question_id, reason').in('question_id', part);
       if (error) throw new Error(error.message || 'review queue read failed');
       (data || []).forEach((r) => there.add(`${r.question_id}|${r.reason}`));
     }
@@ -456,7 +456,7 @@ async function queueReview(entries, { now = new Date() } = {}) {
       there.add(k);
       const top = /^[A-D]$/.test(String(e.top_wrong_option || '')) && e.top_wrong_option !== e.key_at_flag ? e.top_wrong_option : null;
       // eslint-disable-next-line no-await-in-loop
-      const { error } = await supabase.from(Keys.TABLE).insert({
+      const { error } = await supabase.from('quiz_item_reviews').insert({
         question_id: e.question_id, reason: e.reason, status: 'open', key_at_flag: e.key_at_flag, top_wrong_option: top,
         answers_n: Number(e.answers_n) || 0, top_wrong_n: Number(e.top_wrong_n) || 0, right_n: Number(e.right_n) || 0,
         first_flagged_on: day, last_seen_on: day,
