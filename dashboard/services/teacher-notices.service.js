@@ -38,11 +38,11 @@
  * Nothing here sends a message. The WhatsApp fallback is the bot's, and reads these same two timestamps.
  *
  * QUIZ OFFER (behind app_settings.quiz_offer_closed_window = { app_card: true }; missing, any other shape or a failed
- * read is OFF, and OFF is the list above exactly, with no extra read but the switch's own). When her WhatsApp window
+ * read is OFF, and OFF is the list above exactly, with no extra read but the switch's own). When the teacher's WhatsApp window
  * was shut, the bot skips today's 15:00 lesson-plan quiz offer and the lesson-plan coaching ask (a teacher_nudges row,
  * status 'skipped', context.skip_reason 'window_closed' / 'window_closed_template'). Most of those teachers took the
  * lesson in this app, so Home lists ONE `quiz_offer` item that day ("Make a quiz on today's lesson"); its tap opens
- * the quiz home the app already has. It goes once a quiz made today covers the lesson, or once she taps it
+ * the quiz home the app already has. It goes once a quiz made today covers the lesson, or once the teacher taps it
  * (context.app_card_opened_at, merged into the row's jsonb: no new column, and the row keeps its status and reason).
  */
 
@@ -144,7 +144,7 @@ const QUIZ_OFFER_SQL = `
    ORDER BY array_position($3::text[], tn.kind), tn.created_at
    LIMIT 5`;
 
-/** Which of these lessons a quiz of hers made since the day began already covers (lp-lesson-claim's meta.lessons). */
+/** Which of these lessons a quiz of the teacher's made since the day began already covers (lp-lesson-claim's meta.lessons). */
 const QUIZZED_LESSONS_SQL = `
   SELECT DISTINCT l->>'lesson_id' AS lesson_id
     FROM quizzes q
@@ -348,8 +348,8 @@ function noteShown(row, date) {
 }
 
 /**
- * Today's one quiz-offer item for her, or null. Only called with the switch on. A failed read is no card (the rest of
- * Home still loads): this is an extra, never the reason her list fails.
+ * Today's one quiz-offer item for the teacher, or null. Only called with the switch on. A failed read is no card (the rest of
+ * Home still loads): this is an extra, never the reason the teacher's list fails.
  */
 async function quizOfferItem(query, userId, nowMs) {
   const day = pktDay(nowMs);
@@ -399,7 +399,7 @@ async function quizOfferItem(query, userId, nowMs) {
   }
 }
 
-/** Her tap on the card. Switch off, not hers, or not a skipped ask → not found. Written once; one _opened event. */
+/** The teacher's tap on the card. Switch off, not theirs, or not a skipped ask → not found. Written once; one _opened event. */
 async function markQuizOfferOpened(query, userId, nudgeId, nowMs) {
   if (!(await quizOfferCardOn(query, nowMs))) return { ok: false, code: 'NOT_FOUND' };
   const { rows } = await query(QUIZ_OFFER_OPENED_SQL, [nudgeId, userId, QUIZ_OFFER_KINDS]);
@@ -452,7 +452,7 @@ async function mark(query, userId, id, set, now = new Date()) {
   const parsed = parseId(id);
   if (!parsed) return { ok: false, code: 'BAD_ID' };
   if (parsed.kind === 'quiz_offer') {
-    // It never banners, so there is no "seen"; "opened" is her tap.
+    // It never banners, so there is no "seen"; "opened" is the teacher's tap.
     if (set !== OPENED_SET) return { ok: false, code: 'BAD_ID' };
     return markQuizOfferOpened(query, userId, parsed.ref, now.getTime());
   }
