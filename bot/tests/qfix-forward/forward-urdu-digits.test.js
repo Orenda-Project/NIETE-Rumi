@@ -1,8 +1,9 @@
 'use strict';
 /**
- * Urdu prose carries Urdu digits (language-protocol §9.4), on the strings the forward line sits beside: the message the
- * class gets ("about 5 minutes"), and the class line a report template carries ("جماعت 4"). Real builders, no mocks
- * beyond the network boundary.
+ * Urdu prose a CHILD reads carries Urdu digits (language-protocol §9.4): the message the class gets ("about 5 minutes").
+ * A teacher's offer keeps Western digits inside Urdu, as the coaching offer, the lesson-plan offer and the quiz PDF do
+ * (the 25 Sep numerals decision, LP_QUIZ_OFFER_NATIVE_DIGITS): the class line a report or offer template carries stays
+ * «جماعت 4». Real builders, no mocks beyond the network boundary.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -23,10 +24,11 @@ describe('Urdu digits in Urdu prose', () => {
     expect(en).toMatch(/about 5 minutes/);
   });
 
-  test("a report template's class line: جماعت ۴ in Urdu, Grade 4 in English", () => {
+  test("a teacher template's class line keeps Western digits: جماعت 4 in Urdu, Grade 4 in English", () => {
     const body = (lang) => ShareSend.componentsFor({ kind: 'quiz', grade: 4, subject: 'Science', title: 'Plants' }, { lang })
       .find((c) => c.type === 'body').parameters[1].text;
-    expect(body('ur')).toMatch(/جماعت ۴/);
+    expect(body('ur')).toMatch(/جماعت 4/);
+    expect(body('ur')).not.toMatch(/[۰-۹]/);
     expect(body('en')).toMatch(/Grade 4/);
   });
 

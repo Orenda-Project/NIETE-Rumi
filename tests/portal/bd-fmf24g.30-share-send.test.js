@@ -180,10 +180,10 @@ describe('Urdu: the ur template, her words, and a Latin subject kept in its plac
     expect(bodyOf(d.calls[0].components)).toEqual(['Plants and food', '4', `${FSI}Science${PDI}`, '15']);
   });
 
-  it('a report in Urdu names the class جماعت, in Urdu digits', async () => {
+  it('a report in Urdu names the class جماعت', async () => {
     const d = deps({ user: async () => UR, item: async () => DC });
     await Share.sendShare({ userId: 'u1', kind: 'dc', id: 's1' }, d);
-    expect(bodyOf(d.calls[0].components)).toEqual(['Parts of a plant', 'جماعت ۴ · Science']);
+    expect(bodyOf(d.calls[0].components)).toEqual(['Parts of a plant', 'جماعت 4 · Science']);
   });
 });
 
