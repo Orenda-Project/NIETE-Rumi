@@ -571,6 +571,44 @@ Feature: NIETE (ICT) Teacher Training
     # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
     # scheduler in tests/quiz/report-promise-truth.test.js. @wip.
 
+  # @no-mock-driver: the late check fires at the next 07:00 PKT through the scheduled report job; the mock lane
+  # cannot move the clock. bot/tests/workers/video-quiz-report-late-finishers.test.js drives it through the worker.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1196
+  Scenario: Children who finish after my class report reach me the next morning
+    Given app_settings "video_quiz_late_report" is on with k 5
+    And my class report for a quiz went out yesterday
+    When 5 more children who had not finished it finish it after the report
+    Then at 7 in the morning I get the class report again, with those children in it
+    And I get it at most once that day, however many more finish
+    # video-quiz-report scheduleForShareCode: a join on a reported code arms the next 07:00 PKT check
+    # (armLateCheck), never a fresh 12 h chain; buildAndSend applies lateReportDecision (k children
+    # first-finished since the last report, cap_per_day). Logs report_followup{n_late,k,mode} and
+    # report_sent{trigger:'followup'}. @wip.
+
+  # @no-mock-driver: same 07:00 scheduled check as the scenario above; executed in the same worker test.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1197
+  Scenario: Fewer late finishers than the switch's k send nothing, and the switch off is today's one report
+    Given my class report for a quiz went out yesterday
+    And 4 children finished it after the report
+    When app_settings "video_quiz_late_report" is on with k 5
+    Then no second report comes, and those children are on the live report page the first report links to
+    When the switch is false, missing or unreadable
+    Then a quiz has exactly one automatic class report, as today
+    # lateReportDecision why 'below_k'; while the quiz is still being played the next 07:00 is armed again,
+    # a quiet quiz stops. Off: a join on a reported code queues nothing (report_schedule_skipped why
+    # 'already_reported'); a scheduled run already queued is suppressed (already_reported). @wip.
+
+  # @no-mock-driver: the ask is a WhatsApp Flow / list tap racing a scheduled job; executed in
+  # bot/tests/workers/video-quiz-report-late-finishers.test.js and bot/tests/quiz/report-not-through.test.js.
+  @e2e @quiz @wip @draft @no-mock-driver @P2 @T1198
+  Scenario: Asking for the report from /quiz early does not cancel the automatic class report
+    Given the NIETE bot chat is open and children have started my quiz
+    When I ask for its report from /quiz before the 12 hours are up
+    Then the report comes to my chat
+    And the automatic class report still comes at its time, with the children who finished since
+    # generate(force) stamps only the quiz row (markReportSent code:false); report_sent_at stays the automatic
+    # report's, so the 12 h run is not suppressed and late finishers count from it. @wip.
+
   @e2e @quiz @i18n @wip @draft @P2 @T75
   Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
     Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
@@ -1528,6 +1566,67 @@ Feature: NIETE (ICT) Teacher Training
     # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.
     # UPDATED 2026-10-02 (FX7, bd-w2daa.31): handleOfferButton settles the turn as soon as it has found a live
     # offer, before the decline write (an expired offer still says so, in text). Unit: fx7-reaction-only-taps.test.js.
+
+  # ── The quiz offer when my WhatsApp window has closed (ADDED 2026-11-22, bd-pdwwk4.2) ──
+  # The free-form offer (lesson video + "Yes" / "Not now") is skipped when the teacher has not written to the bot
+  # for 24 hours, because WhatsApp refuses a free-form message then (131047). The coaching report still reaches
+  # that teacher, as the approved report template. Behind app_settings "quiz_offer_closed_window" (a JSON object;
+  # missing, not an object or unreadable = off, today's behaviour exactly) the quiz rides on that same message,
+  # and every skip leaves the lesson's quiz row.
+  # @no-mock-driver (all four): the mock lane cannot age the teacher's last message past 24 hours, and the report
+  # quiz template is not approved on any WABA yet. Executed with the network mocked in
+  # tests/qfix-offers/closed-window-offer.test.js and tests/qfix-offers/report-quiz-tap-webhook.test.js.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T1240
+  Scenario: With my window closed, my coaching report carries "Make a quiz", and one tap makes the quiz
+    Given app_settings "quiz_offer_closed_window" names an approved report quiz template
+    And I recorded a lesson long enough for a quiz and have not written to the bot for more than 24 hours
+    When my coaching report reaches me as the report template
+    Then that one report message has a "Make a quiz" button, and no other message comes with it
+    When I tap "Make a quiz"
+    Then the bot goes on to my quiz as if I had said yes to the offer, without asking me a second time
+    # report-window-send sendQuizTemplate -> share-send (kind dc, quiz option: one QUICK_REPLY, payload
+    # tqr_<session>); whatsapp-bot -> transcript-quiz-offer handleReportQuizTap -> processOffer({accepted}) ->
+    # handleOfferButton(yes): the language ask or straight to generating, as a "Yes" tap. The tap opens the
+    # window, so neither the once-per-teacher rule nor the window check applies to it. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @negative @P1 @T1241
+  Scenario: With the switch off, or the quiz template refused, my report is today's report template
+    Given I recorded a lesson long enough for a quiz and have not written to the bot for more than 24 hours
+    When app_settings "quiz_offer_closed_window" is missing, not an object or unreadable
+    Then my report arrives as today's report template with no quiz button
+    And the skipped offer leaves no quiz row, as before
+    When the switch names a template that WhatsApp refuses, or sets "dry_run"
+    Then my report still arrives once, as today's report template
+    # Refused -> share_dc_report_v1 as before (coaching.report.quiz_template_not_sent). dry_run logs
+    # share_send.dry_run with the button it would have sent and never calls Meta. A report that carries the lesson
+    # clip keeps its own template and button, and gets no quiz button. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1242
+  Scenario: A "Make a quiz" tap always gets a true answer
+    Given my coaching report reached me as the report template with a "Make a quiz" button
+    When I tap it after I already made that lesson's quiz from /quiz
+    Then the bot tells me that quiz is already made or being made, and makes no second one
+    When I tap it and that lesson cannot make a quiz
+    Then the bot tells me why in the words /quiz uses, and never leaves me in silence
+    And a "Make a quiz" tap from a number that is not that lesson's teacher gets no reply
+    # answerTapOnExisting: offered -> the yes; generating/ready/sent/report_sent -> tqAlreadyMaking/tqAlreadySent;
+    # declined, skipped for another reason or failed -> tqOfferExpired. processOffer skips (too short, subject not
+    # allowed) -> failureCopyKey(reason, 'transcript'). handleReportQuizTap: transcript_quiz.report_tap
+    # {outcome: not_owner} and nothing sent. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T1243
+  Scenario: A quiz offer held for a closed window is on record, and is taken up again when I come back
+    Given app_settings "quiz_offer_closed_window" has "trace" on
+    And I have not written to the bot for more than 24 hours when my lesson's quiz offer is due
+    When the offer is skipped because my window is closed
+    Then that lesson has one quiz row, skipped for window_closed, saying whether the report button reached me
+    When I tap "Make a quiz", or a later offer for that lesson finds my window open
+    Then that same row is taken up and the quiz goes ahead, never refused as already made
+    And two taps in a row take it up once: the second is answered as a second "Yes" is today, with the language question again or "Already on it"
+    # closed-window-offer recordHeld: quizzes {status 'skipped', meta.skip_reason 'window_closed', meta.held_path
+    # 'template' | 'none'}; the one-transcript-quiz-per-session unique index makes it the row a claim would make.
+    # reviveHeld moves only a row still skipped for that reason (atomic filter). Events transcript_quiz.skipped
+    # {held_path}, transcript_quiz.held_revived. @wip.
 
   # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
   # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
