@@ -168,4 +168,29 @@ describe('the library share hand-out', () => {
     await Share.sendClassLink(CTX, PHONE);
     expect(WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n')).not.toMatch(/\/fwd|one tap/);
   });
+  // the message every class group reads after a library forward is a child surface: «کوئز», «دبائیں», Urdu digits, no
+  // Latin word; the link is the one Latin atom. English is unchanged.
+  test('Urdu: the class message says «کوئز کا وقت!», «کوئز بھیجا ہے», «یہاں دبائیں», «۱۰ منٹ», and no Latin outside the link', async () => {
+    db.quiz = { id: QUIZ, topic: 'کسور' };
+    db.user = { name: 'ثنا ٹیسٹ', first_name: 'ثنا' };
+    await Share.sendClassLink({ ...CTX, language: 'ur' }, PHONE);
+    const calls = WhatsAppService.sendMessage.mock.calls;
+    const cls = calls[1][1]; // the class message: the second bubble, after the teacher's line (a report promise may follow it)
+    expect(cls).toContain('*کوئز کا وقت!*');
+    expect(cls).toContain('کوئز بھیجا ہے');
+    expect(cls).toContain('یہاں دبائیں');
+    expect(cls).toContain('۱۰ منٹ');
+    expect(cls).toMatch(/https?:\/\//);
+    expect(cls.replace(/https?:\/\/\S+/g, '')).not.toMatch(/[A-Za-z0-9]/);
+  });
+  test('English: the class message is unchanged', async () => {
+    db.quiz = { id: QUIZ, topic: 'Fractions' };
+    db.user = { name: 'Teacher Testwala', first_name: 'Teacher' };
+    await Share.sendClassLink(CTX, PHONE);
+    const calls = WhatsAppService.sendMessage.mock.calls;
+    const cls = calls[1][1]; // the class message: the second bubble, after the teacher's line (a report promise may follow it)
+    expect(cls).toContain('📚 *Quiz time!*');
+    expect(cls).toContain('Tap here to start:');
+    expect(cls).toMatch(/It takes about 10 minutes\. You'll need to type your name and class first\.$/);
+  });
 });
