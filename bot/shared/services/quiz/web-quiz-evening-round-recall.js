@@ -83,7 +83,8 @@ function kidKey(roundKey, studentId) {
   return crypto.createHash('sha256').update(`er|${roundKey}|${studentId}`).digest('hex').slice(0, 16);
 }
 
-// Answer keys found wrong by hand, held until their correction has run in production.
+// Answer keys found wrong by hand. Kept held for good: their keys were corrected in production on 22 Nov 2026, so a
+// child's miss on one before that day was graded against the wrong key and must not be drilled.
 const KEY_HELD = new Set([
   '4e15c1a5-244a-4c0e-800c-604462bc6324', '84145763-bd45-4047-97fa-e27af748bd44', '592c37ea-2759-4c08-b062-0f7948bb2539',
   '59140aee-aec9-4a1f-9d2b-ffe92b9585b0', '1db2d882-e3ce-41ce-ac7f-a2ef62d82025', '1c1fdb10-bf56-46f0-889b-40d251c3fdd3',
