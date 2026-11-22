@@ -350,7 +350,9 @@ const joinLast = (list, c) => (list.length > 1 ? `${list.slice(0, -1).join(c.and
 /**
  * rounds: roundsReadyForPhone's answer for this phone (class-link), [] when none; names: the children's first names
  * (only ever passed with `names` on); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
- * known, else the quiz's link is the last fallback. One notification for the phone whichever applies.
+ * known, or when two or more classes are (one class's standing link shows only that class's children, so the child the
+ * title also named would land where their name is not); the first class's link, else the quiz's link, is the fallback.
+ * One notification for the phone whichever applies.
  */
 function payloadFor(row, { test = false, rounds = [], names = [], hub = null } = {}) {
   const kind = row && row.kind === 'evening_plan' ? 'evening_plan' : 'quiz_reminder';
@@ -365,7 +367,8 @@ function payloadFor(row, { test = false, rounds = [], names = [], hub = null } =
   // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
   const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
   const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
-  const url = ready.length ? `/j/${ready[0].class_link_code}?from=push` : home || base.url;
+  const first = ready.length ? `/j/${ready[0].class_link_code}?from=push` : null;
+  const url = classCount(ready) === 1 ? first : home || first || base.url;
   if (who.length) return { ...base, t: c.named.replace('{c}', who.join(c.and)), b: c.tap, url };
   if (!labels.length) return { ...base, url };
   const many = c.many.replace('{c}', joinLast(labels, c));
@@ -373,6 +376,8 @@ function payloadFor(row, { test = false, rounds = [], names = [], hub = null } =
   return { ...base, t, b: c.tap, url };
 }
 const HUB_PATH_RX = /^\/h\/[A-Za-z0-9._-]+\?from=push$/;
+/** How many different classes the rounds name (two children in one class are one class). */
+const classCount = (rounds) => new Set((Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || ''))).map((r) => String(r.class_link_code))).size;
 
 /** The phone's own hub for the tap: the children this phone is trusted with (deviceKids), signed; null without any. */
 async function hubFor(row) {
@@ -482,7 +487,7 @@ async function dueTick(now = Date.now(), opts = {}) {
     const lang = row.lang === 'en' ? 'en' : 'ur';
     const names = s.names ? await namesFor(row, lang) : [];
     const rounds = await roundsFor(row, now);
-    const hub = rounds.length ? null : await hubFor(row);
+    const hub = classCount(rounds) === 1 ? null : await hubFor(row);
     const out = await sendOne(row, payloadFor(row, { rounds, names, hub }), { ...opts, now });
     if (phone) phones.add(phone);
     if (out.sent) {
