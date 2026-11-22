@@ -1,7 +1,7 @@
 'use strict';
 /**
  * THE EVENING ROUND — a ~5-minute round behind the class's standing link /j/<code> (switch `web_quiz_evening_round`,
- * OFF by default; effective only with `web_quiz_class_link` effective). Written at 16:00 PKT on a school day from the
+ * OFF by default; effective only with `web_quiz_class_link` effective). Written from 14:00 PKT on a school day from the
  * lesson plan a teacher of the class took for that day (the offers' 14:00 cohort rule), plus TWO recall items per
  * child: questions this child got wrong about two days earlier (each miss once), rewritten as NEW questions on the same skill.
  * Nothing here sends a message of any kind: no teacher WhatsApp, no PDF, no report.
@@ -10,7 +10,7 @@
  *                          generating, meta.source 'evening_round', class_id, round_day, class_link_code) and a
  *                          quiz_generate job with no phone. Idempotent: a Redis lock per class per day AND the
  *                          partial unique index of qfix_class_link_evening_round.sql. Logs one summary per call.
- *   tick({ now })          the worker's 16:00-19:59 PKT school-day tick (workers/evening-round-schedule.js)
+ *   tick({ now })          the worker's 14:00-19:59 PKT school-day tick (workers/evening-round-schedule.js)
  *   afterGenerate({ quiz, quizId, meta })  the generate step's hand-off for a round, IN PLACE of the teacher hand-off:
  *                          mints the round's share code (class_id set, no report), marks the lesson items and the
  *                          reading items, writes the recall pool (one model call per class), caches the class's
@@ -42,7 +42,9 @@ const NO_SEND = 'evening_round:no_send';
 const LP_V8 = 'lp_v8';
 const LESSON_ITEMS = 5;
 const RECALL_ITEMS = 2;
-const TICK_FROM_H = 16;
+// From 14:00 PKT: the day's lesson set is final at the offers' 14:00 cutoff, and each round's read-aloud clips (about a
+// minute of recording per quiz, two at a time per worker) are recorded well before the 18:00 evening peak.
+const TICK_FROM_H = 14;
 const TICK_TO_H = 20;
 const LOCK_TTL_S = 2 * 86400;
 const CACHE_TTL_S = 36 * 3600;
@@ -431,12 +433,12 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
   }
 }
 
-/** The worker's tick: school days, 16:00-19:59 PKT only; else a logged skip. */
+/** The worker's tick: school days, 14:00-19:59 PKT only; else a logged skip. */
 async function tick({ now = new Date(), enqueue = null } = {}) {
   const P = PktTime();
   const h = P.pktHour(now);
   if (h < TICK_FROM_H || h >= TICK_TO_H) {
-    logToFile('evening round tick: outside 16:00-19:59 PKT', { pktHour: h });
+    logToFile('evening round tick: outside 14:00-19:59 PKT', { pktHour: h });
     return { skipped: 'hours', pktHour: h };
   }
   return writeRounds({ now, enqueue });
@@ -695,6 +697,10 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
     n_dropped: solved.size + recallHeld.length,
   };
   await supabase.from('quizzes').update({ status: 'ready', meta }).eq('id', quizId);
+  // Its read-aloud clips are recorded now, as the teacher's hand-off asks for its quiz (web-quiz-link.js), so the first
+  // child who opens tonight's quiz hears it; the page's own later ask is the same job and the queue drops it.
+  // Awaited (a worker job, not a request) but never fatal: a failed ask leaves the page's own ask.
+  try { await require('./web-quiz-publish.service').requestQuizAudio(quizId, { meta }); } catch (_) { /* the page asks */ }
 
   // 5. never a 12 h report: the report lane's own predicate, when it exports one, must agree.
   try {
