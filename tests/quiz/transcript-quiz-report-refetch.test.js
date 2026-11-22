@@ -7,8 +7,10 @@
  * last time the report was delivered."
  *
  * The claim under test is not "generate() re-runs" — it is that a child who
- * finished AFTER `report_sent_at` is in the second report, and that the second
- * report re-stamps `report_sent_at` so a later scheduled run does not repeat it.
+ * finished AFTER `report_sent_at` is in the second report. A forced regenerate
+ * (the teacher's /quiz ask) never moves `report_sent_at`: that is the automatic
+ * report's baseline, so an ask before the 12 h report no longer cancels it, and
+ * an ask after it no longer hides the children who finished in between.
  * The suppression guard (`report_sent_at && !force`) is the thing that could
  * silently make the second call a no-op, so the un-forced call is asserted too.
  */
@@ -96,15 +98,14 @@ describe('Regenerate report refetches the class', () => {
     expect(secondText).toMatch(/Not finished yet:.*Bilal/);
   });
 
-  test('every forced regenerate re-stamps report_sent_at', async () => {
+  test('a forced regenerate sends but never re-stamps report_sent_at', async () => {
     const sessions = [student('Ali', '4', 6, 8, 75)];
     const { shareUpdates } = world({ sessionsRef: sessions, reportSentAt: SENT_AT });
-    await Report.generate(SHARE_ID, { reason: 'requested', force: true });
+    expect(await Report.generate(SHARE_ID, { reason: 'requested', force: true })).toBe(true);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalled();
     const stamps = shareUpdates.filter((calls) =>
-      calls.some((c) => c[0] === 'update' && c[1] && c[1].report_sent_at));
-    expect(stamps).toHaveLength(1);
-    expect(new Date(stamps[0].find((c) => c[0] === 'update')[1].report_sent_at).getTime())
-      .toBeGreaterThan(new Date(SENT_AT).getTime());
+      calls.some((c) => c[0] === 'update' && c[1] && 'report_sent_at' in c[1]));
+    expect(stamps).toHaveLength(0);
   });
 
   test('WITHOUT force an already-reported share code is still suppressed', async () => {
