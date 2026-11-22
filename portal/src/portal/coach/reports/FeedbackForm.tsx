@@ -24,6 +24,8 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { AutoText, DockV7, FormChips, IndicatorV7, Legend, PartTitle, SaveTrayV7, v7Changes, v7Crumb } from "./FormV7";
 import { V6FormV7 } from "./FormV7List";
 import { dropV7 } from "./evidenceReview";
+import { trackFlow } from "../flow/track";
+import { SAVE_SLOW_MS, SAVE_TRIES, savedOnly, tryOnce, type SaveTry } from "./saveTry";
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -48,6 +50,11 @@ import { dropV7 } from "./evidenceReview";
  * collapsed (FormV7List.tsx: sections → one row per indicator → one indicator alone; the NIETE Teaching Assistant's
  * evidence as rows the coach keeps, edits, removes or adds to). The same keys and the same save, with the evidence
  * reviews beside them (`evidence_review`); every text box sized to its text.
+ *
+ * bd-o15qnr.38 (queue #219) — on the switch the save has a time limit (saveTry.ts): "Kept on this phone" under Saving
+ * after a few seconds, a lost try sent once more, and after two lost tries "No connection · Kept on this phone" with
+ * Save live again.
+ * Off the switch: today's single call.
  */
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 
@@ -90,6 +97,8 @@ export default function FeedbackForm() {
   const [part, setPart] = useState(0);
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  // bd-o15qnr.38 — the v7 save has had no answer for SAVE_SLOW_MS: the tray says it is still saving.
+  const [slow, setSlow] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   // bd-ra8xu.40 — a FICO17 v6 part's refusals (the v6 Flow's rules), and the bot's own when it refuses a save.
   const [problems, setProblems] = useState<V6Problems>({});
@@ -155,23 +164,57 @@ export default function FeedbackForm() {
   const go = (n: number) => { setProblems({}); setPart(n); top.current?.scrollIntoView?.({ block: "start" }); };
   const back = () => (part > 0 ? go(part - 1) : navigate(home));
 
+  // bd-o15qnr.31 — the evidence reviews only from the v7 form, and only when there are some: today's call otherwise.
+  const send = (review?: Record<string, EvidenceReview>) => (review ? leader.saveObservationDraft(id, values, review) : leader.saveObservationDraft(id, values));
+  const saved = () => {
+    dropForm(id); // the bot has them now
+    dropV7(id);
+    navigate(home, { replace: true });
+  };
+  const refusedBy = (err: unknown) => {
+    const res = (err as { response?: { status?: number; data?: { reason?: string; errors?: Record<string, string> } } })?.response;
+    const status = res?.status;
+    // bd-ra8xu.40 — the bot refused a v6 review with the v6 Flow's own reasons (in her language): show them.
+    const reasons = status === 400 && res?.data?.reason === "v6_review" ? Object.values(res.data.errors || {}) : [];
+    setRefused(reasons);
+    setProblem(reasons.length ? C.fixThese : status === 409 ? C.notEditable : C.saveFailed);
+  };
+
+  // bd-o15qnr.38 (queue #219) — on the v7 switch the save has a time limit and a way on (see SAVE_TRY_MS above).
+  const saveV7 = async (review?: Record<string, EvidenceReview>) => {
+    const slowTimer = setTimeout(() => { setSlow(true); trackFlow("form.save_slow"); }, SAVE_SLOW_MS);
+    const tries: Promise<SaveTry>[] = [];
+    try {
+      for (let n = 1; n <= SAVE_TRIES; n += 1) {
+        const t = tryOnce(() => send(review));
+        // Whichever try answers first decides: a late "saved" from an earlier try is as good as this one's.
+        const got = await Promise.race([t.outcome, t.limit, ...tries.map(savedOnly)]);
+        t.stop();
+        tries.push(t.outcome);
+        if (got.kind === "saved") { saved(); return; }
+        if (got.kind === "refused") { refusedBy(got.err); break; }
+        if (n < SAVE_TRIES) { trackFlow("form.save_retry"); continue; }
+        trackFlow("form.save_lost");
+        setRefused([]);
+        setProblem(`${C.noConnection} · ${C.keptOnPhone}`);
+      }
+      setSaving(false);
+      setConfirm(false);
+    } finally {
+      clearTimeout(slowTimer);
+      setSlow(false);
+    }
+  };
+
   const save = async (review?: Record<string, EvidenceReview>) => {
     setSaving(true);
     setProblem(null);
+    if (v7) { await saveV7(review); return; }
     try {
-      // bd-o15qnr.31 — the evidence reviews only from the v7 form, and only when there are some: today's call otherwise.
-      if (review) await leader.saveObservationDraft(id, values, review);
-      else await leader.saveObservationDraft(id, values);
-      dropForm(id); // the bot has them now
-      dropV7(id);
-      navigate(home, { replace: true });
+      await send(review);
+      saved();
     } catch (err) {
-      const res = (err as { response?: { status?: number; data?: { reason?: string; errors?: Record<string, string> } } })?.response;
-      const status = res?.status;
-      // bd-ra8xu.40 — the bot refused a v6 review with the v6 Flow's own reasons (in her language): show them.
-      const reasons = status === 400 && res?.data?.reason === "v6_review" ? Object.values(res.data.errors || {}) : [];
-      setRefused(reasons);
-      setProblem(reasons.length ? C.fixThese : status === 409 ? C.notEditable : C.saveFailed);
+      refusedBy(err);
       setSaving(false);
       setConfirm(false);
     }
@@ -256,7 +299,7 @@ export default function FeedbackForm() {
       <V6FormV7 id={id} draft={draft} values={values} start={start} setValues={setValues} readOnly={readOnly} name={name}
         minReason={minReason} principal={!routes.coachGate} moves={(s) => movesPart(s, draft, true)}
         onLeave={() => navigate(home)} onSave={(review) => { void save(review); }} confirm={confirm} setConfirm={setConfirm}
-        saving={saving} problem={problemBox} head={<>{loadAndEmpty}<div ref={top} /></>} />
+        saving={saving} slow={slow} problem={problemBox} head={<>{loadAndEmpty}<div ref={top} /></>} />
     );
   }
 
@@ -294,7 +337,7 @@ export default function FeedbackForm() {
             {problemBox}
           </>
         )}
-        <SaveTrayV7 open={confirm} saving={saving} onSave={() => { void save(); }} onClose={() => { if (!saving) setConfirm(false); }}
+        <SaveTrayV7 open={confirm} saving={saving} slow={slow} onSave={() => { void save(); }} onClose={() => { if (!saving) setConfirm(false); }}
           counts={v7Changes(draft ?? { sections: [], saved: false }, start, values)} />
       </ReportsFrame>
     );
