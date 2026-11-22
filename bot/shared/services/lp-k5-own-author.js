@@ -9,7 +9,7 @@
  * checking each child in a big class goes back once (repairOnly) but is never the final refusal on its own: round 2
  * is accepted with a warning, or, if round 2 breaks a hard rule, round 1's plan is kept with the warning.
  */
-const { k5Messages, parseK5Reply, checkK5Rewrite } = require('./lp-k5-own');
+const { k5Messages, parseK5Reply, checkK5Rewrite, roteDrill } = require('./lp-k5-own');
 const { periodOf } = require('./lp-own-period');
 const { withUnitPeriod, withUnitLines } = require('./lp-own-unit-day');
 const { fitK5, repairOnly } = require('./lp-own-fit');
@@ -26,9 +26,12 @@ async function rewriteK5({ script: given, answers, edit, lang, grade, subject, d
   const messages = edit
     ? require('./lp-own-edit-instruction').k5EditMessages({ script, edit, lang, grade, subject })
     : withUnitLines(k5Messages({ script, answers, lang, grade, subject, dayPages, bookText }), answers && answers.unit); // bd-snkn32.59
-  // bd-snkn32.30 — a make is held to her class size and the day's own period; a change keeps the old gate.
+  // bd-snkn32.30 — a make is held to her class size and the day's own period; a change keeps the old fit.
   const make = !edit && answers;
   const opts = make ? { lang, resources: answers.resources, size: answers.size, period: periodOf(script), noBook: !!answers.goal } : { lang };
+  // bd-snkn32.70 — but a change is held to the same HARD rules (You Do alone, her board, slates): its row carries the
+  // root's answers (lp612-own-change), and without them a change could put pairs back in You Do.
+  const gate = make || !answers ? opts : { lang, resources: answers.resources, size: answers.size, noBook: !!answers.goal };
   let kept = null; // round 1's plan when its only fault was a repair-only one
   for (let round = 1; round <= ROUNDS; round++) {
     const res = await llm.chat.completions.create({
@@ -40,8 +43,8 @@ async function rewriteK5({ script: given, answers, edit, lang, grade, subject, d
     let reasons = ['the reply was not a JSON plan'];
     if (next) {
       const fit = fitK5(script, next, opts);
-      const hard = checkK5Rewrite(script, fit.script, opts);
-      const repair = make ? repairOnly(fit.script, answers.size) : [];
+      const hard = checkK5Rewrite(script, fit.script, gate);
+      const repair = [...(make ? repairOnly(fit.script, answers.size) : []), ...roteDrill(fit.script)]; // bd-snkn32.70: rote, make and change
       const done = { script: fit.script, model: useModel, rounds: round, fixes: fit.fixes, warnings: fit.warnings };
       if (!hard.length && (!repair.length || round === ROUNDS)) {
         done.warnings = [...done.warnings, ...repair];

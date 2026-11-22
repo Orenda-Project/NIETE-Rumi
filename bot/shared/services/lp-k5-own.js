@@ -27,6 +27,7 @@ const { k5GoalLines } = require('./lp-k5-own-goal');
 const { goalDayLines } = require('./lp-own-unit-day');
 // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
 const P = require('./lp-own-period');
+const { isRote } = require('./lp-own-edit-guard');
 
 let jsonrepair = null;
 try { ({ jsonrepair } = require('jsonrepair')); } catch (_) { /* strict parse only */ }
@@ -208,4 +209,14 @@ function checkK5Rewrite(orig, next, { lang, resources, size, noBook = false } = 
   return reasons;
 }
 
-module.exports = { system, k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH, MAKE_GROWTH };
+/**
+ * bd-snkn32.70 — no part becomes rote drill (ROTE_LINE asks it; this checks it). REPAIR-ONLY, not a hard refusal: on the
+ * 6,000 stored days it fired on 43 (0.7%), nearly all plans naming rote to warn against it ("retell, not copy", "رٹا
+ * نہیں"), so it goes back to the model once and is never the final refusal on its own (lp-k5-own-author). [] passes.
+ */
+function roteDrill(next) {
+  const rote = SECTIONS.flatMap((k) => strings((next && next[k]) || {})).find(isRote);
+  return rote ? [`turns a part into rote drill ("${rote.slice(0, 80)}"): no learning answers, definitions or passages by heart or copying them word for word; choral sound and word practice is fine`] : [];
+}
+
+module.exports = { roteDrill, system, k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH, MAKE_GROWTH };

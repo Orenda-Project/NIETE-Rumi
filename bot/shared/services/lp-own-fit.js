@@ -5,8 +5,8 @@
  * WHY. Since bd-snkn32.30 the gate refused a rewrite whose minutes did not add up to the period, that carried more
  * activities than her class size allows, or that ran longer than her day plan. Each refusal paid for a repair round,
  * and a second refusal failed her row ("Couldn't make it"). These are arithmetic, not teaching: code fixes them
- * exactly, every time, for nothing. The HARD rules (the five GRR parts, You Do alone, no rote, no slates, the
- * outcome and day and language) still refuse, in lp-k5-own.checkK5Rewrite.
+ * exactly, every time, for nothing. The HARD rules (the five GRR parts, You Do alone, no slates, the
+ * outcome and day and language) still refuse, in lp-k5-own.checkK5Rewrite; rote drill goes back once (lp-k5-own.roteDrill).
  *
  *   fitMinutes  — fill missing minutes and scale so the five parts add up exactly to the period (whole numbers,
  *                 each at least 1, the opening and the check kept small). A plan that already fits is not touched.
