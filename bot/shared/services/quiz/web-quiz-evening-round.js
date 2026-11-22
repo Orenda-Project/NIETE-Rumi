@@ -32,6 +32,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const Flags = require('./web-quiz-evening-round-flags');
 const Recall = require('./web-quiz-evening-round-recall');
 const Canary = require('./web-quiz-class-link-canary');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const ROUND_SOURCE = 'evening_round';
 // The generate step's phone for a round: never a number, so its failure lines are never sent (tellTeacherFailed).
@@ -592,7 +593,8 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
   const row = fresh || quiz || {};
   let meta = { ...(row.meta || {}), ...(metaIn || {}) };
   meta.source = ROUND_SOURCE;
-  const language = row.language || (quiz && quiz.language) || 'en';
+  // The registry's clamp decides a missing or unserved language (NIETE: en | ur).
+  const language = clampLanguage(row.language || (quiz && quiz.language));
   const roundKey = roundKeyOf(meta.class_id, meta.round_day);
 
   // 1. the round's share code: the class set, the chosen teacher's, minted once.
