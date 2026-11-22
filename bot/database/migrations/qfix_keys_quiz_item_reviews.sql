@@ -8,6 +8,9 @@
 --                            switch app_settings quiz_key_review_job, off when absent) inserts a suspect as 'open'
 --                            and refreshes its counts while open; a person sets the verdict. A reviewed row is never
 --                            reopened by the job. Holds item ids and counts only: no child, teacher or phone.
+--                            reason 'blind_solve': an item a blind solver (not shown the key) answered differently,
+--                            filled by a reviewed SQL go item, never by the job; top_wrong_option is the solver's pick,
+--                            NULL when it found no option right, and the counts are the item's child answers.
 --   quiz_key_answer_counts() per item answered in the last p_recent_days with at least p_min_answers answers: its key
 --                            columns and the answer count per stored option slot. STABLE, read on the replica.
 --
@@ -19,10 +22,10 @@
 CREATE TABLE IF NOT EXISTS public.quiz_item_reviews (
   id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   question_id       uuid        NOT NULL REFERENCES public.quiz_questions(id) ON DELETE CASCADE,
-  reason            text        NOT NULL DEFAULT 'dominant_wrong_option' CHECK (reason IN ('dominant_wrong_option')),
+  reason            text        NOT NULL DEFAULT 'dominant_wrong_option' CHECK (reason IN ('dominant_wrong_option','blind_solve')),
   status            text        NOT NULL DEFAULT 'open' CHECK (status IN ('open','key_wrong','ambiguous','key_ok','fixed')),
   key_at_flag       text        NOT NULL CHECK (key_at_flag ~ '^[A-D]$'),        -- the grader's key when flagged (web item key, else correct_option)
-  top_wrong_option  text        NOT NULL CHECK (top_wrong_option ~ '^[A-D]$'),   -- stored slot, not display position
+  top_wrong_option  text        CHECK (top_wrong_option ~ '^[A-D]$'),            -- stored slot, not display position; blind_solve: the solver's pick
   answers_n         integer     NOT NULL CHECK (answers_n >= 0),
   top_wrong_n       integer     NOT NULL CHECK (top_wrong_n >= 0),
   right_n           integer     NOT NULL CHECK (right_n >= 0),
@@ -34,7 +37,8 @@ CREATE TABLE IF NOT EXISTS public.quiz_item_reviews (
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT qir_one_per_reason UNIQUE (question_id, reason),
-  CONSTRAINT qir_reviewed_has_when CHECK (status = 'open' OR reviewed_at IS NOT NULL)
+  CONSTRAINT qir_reviewed_has_when CHECK (status = 'open' OR reviewed_at IS NOT NULL),
+  CONSTRAINT qir_nightly_has_wrong CHECK (reason <> 'dominant_wrong_option' OR top_wrong_option IS NOT NULL)
 );
 COMMENT ON TABLE public.quiz_item_reviews IS 'Answer-key review queue: items where one wrong option drew most children. Owner quiz team; steward the NIETE bot team. Service role only. Item ids and counts only.';
 COMMENT ON COLUMN public.quiz_item_reviews.reviewed_by IS 'Internal: the staff user who set the verdict';
