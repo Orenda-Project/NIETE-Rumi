@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T08:33:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"b472011242b2","branch":"bd-snkn32.59.4-main","user":""}
+{"ts":"2026-11-22T08:33:33Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"b472011242b2","branch":"bd-snkn32.59.4-main","user":""}
