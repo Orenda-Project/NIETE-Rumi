@@ -66,12 +66,12 @@ import { useLpFeedbackBar } from './feedbackApi';
  *                                       (features.lpWhatsappSend) AND she is the teacher, not picking, not recording.
  *   no dock                             except pick's Use this lesson plan.
  *
- * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER grades 1-5 plan once it has
+ * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER plan (grades 1-12) once it has
  * loaded, in both layouts; never for a leader, in `pick` / `fromDc`, on her own made plan (it has its own rating) or on
  * the answer key.
  */
 
-type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt } | null;
+type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt; shelf?: boolean } | null;
 
 export function ViewerPage() {
   const C = useCopy(LESSONS);
@@ -158,11 +158,11 @@ export function ViewerPage() {
     />
   );
 
-  // bd-m8zwt1.16 — grades 1-5 decide, not the lane: a GB grades 1-5 plan opens on the 6-12 lane (a render id).
+  // bd-96f69c.16 — every 6-12 lane plan (grades 6-12, and a GB grades 1-5 plan, bd-m8zwt1.16) is asked by its render id.
   const barPlan = source.lane === 'k5' ? { kind: 'k5' as const, ref: source.lessonId }
-    : source.lane === 'g612' && source.renderId && dc?.grade != null && dc.grade <= 5 ? { kind: 'g612' as const, ref: source.renderId }
+    : source.lane === 'g612' && source.renderId ? { kind: 'g612' as const, ref: source.renderId }
       : null;
-  const feedbackBar = feedbackOn && readyKey === key && barPlan && (source.lane !== 'k5' || source.assetKind === 'lesson') && !leader && !inDc && !state?.own
+  const feedbackBar = feedbackOn && readyKey === key && barPlan && (source.lane !== 'k5' || source.assetKind === 'lesson') && !leader && !inDc && !state?.own && !state?.shelf
     ? <FeedbackBar plan={barPlan} />
     : null;
 

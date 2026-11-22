@@ -35,7 +35,7 @@ const AT: ChangeAt = { own: 'own-1', band: 'k5', left: 2, grade: 4, subject: 'ma
 
 function Where() {
   const l = useLocation();
-  return <div data-testid="where" data-own={JSON.stringify((l.state as { own?: unknown } | null)?.own ?? null)}>{`${l.pathname}${l.search}`}</div>;
+  return <div data-testid="where" data-own={JSON.stringify((l.state as { own?: unknown } | null)?.own ?? null)} data-shelf={String((l.state as { shelf?: unknown } | null)?.shelf ?? false)}>{`${l.pathname}${l.search}`}</div>;
 }
 function at(url: string, extra?: React.ReactNode) {
   return render(
@@ -86,6 +86,20 @@ describe('the viewer\'s entry', () => {
     at(lessonsUrl('preparing', { grade: 4, subject: 'math', chapter: '1', lesson: 'g4m2', render: 'own-1', title: 'Adding' }));
     await waitFor(() => expect(where()).toBe(LESSONS_VIEWER), { timeout: 5000 });
     expect(JSON.parse(screen.getByTestId('where').dataset.own ?? 'null')).toEqual({ ...AT, left: 1 });
+    expect(screen.getByTestId('where').dataset.shelf).toBe('false');
+  });
+
+  // bd-96f69c.16 — a shelf plan (another teacher's): the viewer is told, so it draws no survey bar.
+  it('Preparing tells the viewer a plan is from the shelf', async () => {
+    http.get.mockImplementation(async (url: string) => {
+      if (url === '/lp612/status/shelf-1') return { data: { success: true, state: 'ready', shelf: true, ownBand: 'g612' } };
+      if (url === '/curriculum/lps') return { data: { lessons: [] } };
+      throw Object.assign(new Error(`404 ${url}`), { response: { status: 404 } });
+    });
+    at(lessonsUrl('preparing', { grade: 8, subject: 'science', chapter: '2', lesson: 'sci8', render: 'shelf-1', title: 'Cells' }));
+    await waitFor(() => expect(where()).toBe(LESSONS_VIEWER), { timeout: 5000 });
+    expect(screen.getByTestId('where').dataset.shelf).toBe('true');
+    expect(screen.getByTestId('where').dataset.own).toBe('null');
   });
 });
 
