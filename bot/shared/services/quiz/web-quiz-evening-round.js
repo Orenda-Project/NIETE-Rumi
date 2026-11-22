@@ -3,7 +3,7 @@
  * THE EVENING ROUND — a ~5-minute round behind the class's standing link /j/<code> (switch `web_quiz_evening_round`,
  * OFF by default; effective only with `web_quiz_class_link` effective). Written at 16:00 PKT on a school day from the
  * lesson plan a teacher of the class took for that day (the offers' 14:00 cohort rule), plus TWO recall items per
- * child: questions this child got wrong 2-3 PKT days earlier, rewritten as NEW questions on the same skill.
+ * child: questions this child got wrong about two days earlier (each miss once), rewritten as NEW questions on the same skill.
  * Nothing here sends a message of any kind: no teacher WhatsApp, no PDF, no report.
  *
  *   writeRounds({ now, classIds, max, enqueue })  one round per class per PKT day: a quizzes row (lp_v8, status

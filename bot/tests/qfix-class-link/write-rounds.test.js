@@ -92,7 +92,7 @@ function seed(settings = SWITCHES, over = {}) {
     quiz_share_codes: [{ id: 'scold', code: 'OLD234', quiz_id: 'qold', class_id: C1, teacher_user_id: T1 }],
     quiz_sessions: [
       { id: 's1', student_id: ZARA, quiz_id: 'qold', share_code_id: 'scold', status: 'completed', completed_at: '2026-11-22T13:00:00Z' }, // D-2
-      { id: 's2', student_id: ALI, quiz_id: 'qold', share_code_id: 'scold', status: 'completed', completed_at: '2026-11-21T09:00:00Z' }, // D-3
+      { id: 's2', student_id: ALI, quiz_id: 'qold', share_code_id: 'scold', status: 'completed', completed_at: '2026-11-22T05:00:00Z' }, // Sunday morning: Tuesday's window too
       { id: 's3', student_id: ZARA, quiz_id: 'qold', share_code_id: 'scold', status: 'completed', completed_at: '2026-11-23T09:00:00Z' }, // D-1: not recalled
       { id: 's4', student_id: ALI, quiz_id: 'qold', share_code_id: 'scold', status: 'completed', completed_at: '2026-11-20T09:00:00Z' }, // D-4: not recalled
     ],
