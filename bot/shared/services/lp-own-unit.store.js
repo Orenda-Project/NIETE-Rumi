@@ -3,10 +3,14 @@
  * bd-snkn32.59 (queue #165) — the reads and writes behind "A whole unit". Plain functions over a passed client (the
  * dashboard's), so the schema guards can read the `.from()` calls. Every read and write is scoped to her user_id.
  *
- *   unitOn(supabase, userId)  — portal_lp_own_unit is LIST-ONLY while it is tested: a JSON list of users.id names who
- *                               has it; true, "teachers", absent, anything else or a failed read = off.
+ *   unitOn(supabase, userId)  — portal_lp_own_unit: a JSON list of users.id names who has it, or "teachers" = every
+ *                               users.role teacher (teacher-audience, as portal_lp_make_own reads it; bd-snkn32.59.8).
+ *                               true, absent, anything else or a failed read = off. GB is kept out at the route
+ *                               (isGbTeacher), not here.
  *   createUnitStore(supabase) — insert, list, get, update, dayPlans, latestPeriod (lp-own-unit.service's `store`).
  */
+
+const { isTeachersValue, isTeacherRole } = require('./teacher-audience');
 
 const UNIT_KEY = 'portal_lp_own_unit';
 const TABLE = 'niete_lp_own_units';
@@ -25,7 +29,10 @@ async function unitOn(supabase, userId) {
   try {
     const { data, error } = await supabase.from('app_settings').select('value').eq('key', UNIT_KEY).maybeSingle();
     if (error || !data) return false;
-    return listOf(data.value).includes(userId);
+    if (listOf(data.value).includes(userId)) return true;
+    if (!isTeachersValue(data.value)) return false;
+    const user = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    return !user.error && Boolean(user.data) && isTeacherRole(user.data.role);
   } catch (_) {
     return false;
   }
