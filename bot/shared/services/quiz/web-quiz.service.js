@@ -351,36 +351,76 @@ function questionPayload(row, i, code, audio, zoom) {
   return out;
 }
 
+const Round = () => require('./web-quiz-evening-round');
+
 /**
- * The questions THIS sitting plays: today the quiz's served set, for everyone. The one seam a per-child item set plugs
- * into (start order, answers, finish), so the three never disagree about what a child was asked.
+ * The questions THIS sitting plays: the quiz's served set, for everyone; for an evening round, the child's own set
+ * (web-quiz-evening-round selectRoundItems: 5 lesson items + the 2 recall items whose originals this child missed).
+ * The one seam a per-child item set plugs into (start order, answers, finish), so the three never disagree about what
+ * a child was asked. `session` carries student_id (and round_plain from roundSitting). Any other quiz: the same array.
  */
-function sittingQuestions(questions /* , session */) {
-  return questions;
+function sittingQuestions(questions, session) {
+  const s = session || {};
+  if (s.round_plain) return questions;
+  return Round().selectRoundItems(questions, { studentId: s.student_id || null });
 }
 
 /**
- * web_quiz_order_seed (the hub's switch read; cached): the questions the sitting order is made from, read beside the
- * session insert. Off, or a failed read: null, and the start reply is today's.
+ * The session the seam needs, for an evening round's questions only (any other quiz: `s` as it is, nothing read).
+ * The round's own set holds only while the start reply can carry it to the page (web_quiz_order_seed or
+ * web_quiz_evening_round on, see orderRows); with both off a round plays as an ordinary quiz everywhere, as the page does.
+ */
+async function roundSitting(rows, s) {
+  if (!Round().roundFields(rows || [])) return s;
+  const f = await require('./web-quiz-hub-flags').flags();
+  if (!f.orderSeed && !f.eveningRound) return { ...s, round_plain: true };
+  return s;
+}
+
+// Quizzes this process has read and found not to be an evening round (a round's items are marked before its code is
+// handed to anyone, so the answer never changes); bounded.
+const PLAIN_QUIZZES = new Set();
+const PLAIN_QUIZZES_MAX = 5000;
+function notePlainQuiz(quizId) {
+  if (PLAIN_QUIZZES.size >= PLAIN_QUIZZES_MAX) PLAIN_QUIZZES.delete(PLAIN_QUIZZES.values().next().value);
+  PLAIN_QUIZZES.add(quizId);
+}
+
+/**
+ * The questions the start reply's order is made from, read beside the session insert: { rows, seeded }, or null
+ * (the start reply is today's). web_quiz_order_seed on (the hub's switch read; cached): every quiz, seeded. Off, with
+ * web_quiz_evening_round on: an evening round only, unseeded, so the page still plays only the child's set (a quiz
+ * found not to be a round is not read again). A failed read: null.
  */
 async function orderRows(quizId) {
   try {
-    if (!(await require('./web-quiz-hub-flags').flags()).orderSeed) return null;
-    return await loadQuestions(quizId);
+    const f = await require('./web-quiz-hub-flags').flags();
+    if (f.orderSeed) return { rows: await loadQuestions(quizId), seeded: true };
+    if (!f.eveningRound || PLAIN_QUIZZES.has(quizId)) return null;
+    const rows = await loadQuestions(quizId);
+    if (Round().roundFields(rows)) return { rows, seeded: false };
+    notePlainQuiz(quizId);
+    return null;
   } catch (e) {
     logToFile('⚠️ web-quiz: sitting order unavailable, the quiz order kept', { error: e.message });
     return null;
   }
 }
 
-/** The sitting's own order (web-quiz-order-seed.js) for the start reply: { order, seed, pinned }, or null (today's). */
+/**
+ * The start reply's order: the sitting's own (web-quiz-order-seed.js) { order, seed, pinned }, or for an unseeded round
+ * the child's set in the round's own order (options where they are); null (today's). `set` = the sitting's questions.
+ */
 async function sittingOrderOf(rowsP, session) {
-  const rows = sittingQuestions((await rowsP) || [], session);
+  const got = await rowsP;
+  if (!got) return null;
+  const rows = sittingQuestions(got.rows || [], await roundSitting(got.rows || [], session));
   if (!rows.length) return null;
-  return OrderSeed.sittingOrder(rows, rows.map((q, i) => questionPayload(q, i, '', {}, null)), session.id);
+  if (!got.seeded) return { order: { q: rows.map((q) => q.id), o: {} }, seed: null, pinned: 0, set: rows };
+  return { ...OrderSeed.sittingOrder(rows, rows.map((q, i) => questionPayload(q, i, '', {}, null)), session.id), set: rows };
 }
 const orderFields = (ord) => (ord ? { order: ord.order } : {});
-const orderEvent = (ord) => (ord ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
+const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
 
 /** The sibling media helpers (read-aloud clips, lesson video); absent or failing = no audio / no video, never an error. */
 function mediaHelpers() {
@@ -1279,7 +1319,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
   }
   mark('insert');
   if (doorP) await doorP;
-  const ord = await sittingOrderOf(orderRowsP, session);
+  const ord = await sittingOrderOf(orderRowsP, { ...session, quiz_id: ctx.quizId, student_id: student ? student.id : null, user_id: userId });
   if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP, ord });
 
   await countJoin(ctx.shareCodeId);
@@ -1747,7 +1787,8 @@ async function recordAnswers(body = {}) {
     list.forEach((a) => out.dup.push(String(a && a.qid)));
     return { ...out, closed: true };
   }
-  const questions = sittingQuestions(await loadQuestions(s.quiz_id), s);
+  const rows = await loadQuestions(s.quiz_id);
+  const questions = sittingQuestions(rows, await roundSitting(rows, s));
   const byId = new Map(questions.map((q) => [q.id, q]));
   const already = new Set((await answeredIds(s.id)).map((r) => r.question_id));
   const fresh = [];
@@ -1857,7 +1898,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   mark('session');
   // Fast finish (web_quiz_fast): the answers need only the session, so they are read beside the questions.
   const answersP = fast ? Fast.early(answeredIds(s.id)) : null;
-  const questions = sittingQuestions(await loadQuestions(s.quiz_id), s);
+  const rows = await loadQuestions(s.quiz_id);
+  const questions = sittingQuestions(rows, await roundSitting(rows, s));
   mark('questions');
   const answers = await (answersP || answeredIds(s.id));
   mark('answers');
