@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T13:04:52Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"0d358034619e","branch":"bd-s0ccn5.2-51195","user":""}
+{"ts":"2026-11-22T13:07:33Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-0d358034619e","sha":"0d358034619e","branch":"bd-s0ccn5.2-51195","user":""}
