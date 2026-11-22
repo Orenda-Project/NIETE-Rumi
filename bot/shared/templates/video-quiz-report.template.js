@@ -30,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../utils/text-format');
 const { wrapLatinRuns } = require('./latin-runs');
+const { resolveUx } = require('../config/ux-strings');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   NASTALIQ, nastaliqPad, urduSpacingV2, headFamily, bodyFamily, latticeSvg, dirOf,
@@ -324,7 +325,12 @@ function renderVideoQuizReportHtml(d) {
     : (grade ? L(C.gradeLine(grade)) : '');
 
   const missedCards = hardest.map((h, i) => {
-    const chose = h.top_wrong_text ? `
+    // The key-review queue holds this question (video_quiz_report_key_review): its key may be the thing that is wrong,
+    // so the card names no answer, no pick and no "why"; the class still missed it, and that line stays.
+    const review = h.key_review
+      ? `
+      <div class="why"><b>${T(resolveUx('qfix_report_key_review', { language }))}</b></div>` : '';
+    const chose = h.key_review ? review : h.top_wrong_text ? `
       <div class="chose"><span class="cpair"><span class="lbl">${L(C.mostChose)}</span>
         <span ${cls('wrongpill')}>${K(h.top_wrong_text)}</span></span>
         <span class="arrow">${RTL ? '&larr;' : '&rarr;'}</span>
