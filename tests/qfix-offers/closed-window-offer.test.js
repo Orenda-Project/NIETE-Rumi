@@ -42,6 +42,7 @@ const { logEvent } = require('../../bot/shared/utils/structured-logger');
 const Offer = require('../../bot/shared/services/quiz/transcript-quiz-offer.service');
 const { sendReportByTemplateIfWindowClosed } = require('../../bot/shared/services/coaching/report-window-send');
 const { sendShare } = require('../../bot/shared/services/share-send.service');
+const { resolveUx } = require('../../bot/shared/config/ux-strings');
 
 const SID = '0c0ac0ac-1111-4111-8111-000000000001';
 const UID = 'u0000000-2222-4222-8222-000000000002';
@@ -219,6 +220,24 @@ describe('the report template carries "Make a quiz" (real share-send; Meta mocke
     expect(db.quizzes).toHaveLength(0);
   });
 
+  test('a report with the lesson clip → the clip template goes, the quiz sibling is never tried, nothing held', async () => {
+    db.app_settings = switchRow({ report_template: QUIZ_TEMPLATE });
+    WhatsAppService.sendTemplate.mockResolvedValue(true);
+    const marked = [];
+    const out = await sendReportByTemplateIfWindowClosed({
+      phone: PHONE, userId: UID, sessionId: SID, clip: { template: 'share_dc_report_clip_v1', token: 'tok123', promised: false },
+    }, {
+      windowOpen: async () => false,
+      sendShare: (req) => sendShare(req, shareDeps()),
+      markSent: async (id, v) => { marked.push([id, v.sent_via]); },
+    });
+    expect(out).toBe('template');
+    expect(WhatsAppService.sendTemplate.mock.calls.map((c) => c[1])).toEqual(['share_dc_report_clip_v1']);
+    expect(JSON.stringify(WhatsAppService.sendTemplate.mock.calls[0][3])).not.toContain('quick_reply');
+    expect(marked).toEqual([[SID, 'template_button']]);
+    expect(db.quizzes).toHaveLength(0);
+  });
+
   test('switch off → the plain report template, and the session is never read for a button', async () => {
     WhatsAppService.sendTemplate.mockResolvedValue(true);
     expect(await send()).toBe('template');
@@ -266,6 +285,59 @@ describe('the tap', () => {
     await Offer.handleReportQuizTap(`tqr_${SID}`, PHONE);
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendMessage.mock.calls[0][0]).toBe(PHONE);
+  });
+
+  test('a tap after the lesson\'s quiz was already made from /quiz → told it is made; no second quiz, no digest', async () => {
+    db.app_settings = switchRow({ report_template: QUIZ_TEMPLATE });
+    db.quizzes.push({ id: HELD, coaching_session_id: SID, teacher_id: UID, quiz_source: 'transcript', status: 'ready',
+      language: 'en', meta: { step: 'ready', source: 'command' } });
+    expect(await Offer.handleReportQuizTap(`tqr_${SID}`, PHONE)).toBe(true);
+    expect(db.quizzes).toHaveLength(1);
+    expect(db.quizzes[0].status).toBe('ready');
+    expect(Digest.run).not.toHaveBeenCalled();
+    expect(Queue.queueJob).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage.mock.calls).toEqual([[PHONE, resolveUx('tqAlreadySent', { language: 'en' })]]);
+  });
+
+  const holdRow = () => db.quizzes.push({ id: HELD, coaching_session_id: SID, teacher_id: UID, quiz_source: 'transcript',
+    status: 'skipped', meta: { step: 'skipped', skip_reason: 'window_closed', held_path: 'template' } });
+  const revivals = () => logEvent.mock.calls.filter((c) => c[0] === 'transcript_quiz.held_revived').length;
+
+  test('two taps in a row, a science lesson → taken up once; each tap gets the language question, never a second quiz', async () => {
+    db.app_settings = switchRow({ report_template: QUIZ_TEMPLATE });
+    holdRow();
+    await Offer.handleReportQuizTap(`tqr_${SID}`, PHONE);
+    // science asks which language first (needsLanguageAsk): the row waits, offered, as after a "Yes" on the offer
+    expect(db.quizzes[0]).toMatchObject({ status: 'offered', meta: expect.objectContaining({ step: 'awaiting_language' }) });
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    await Offer.handleReportQuizTap(`tqr_${SID}`, PHONE);
+    expect(db.quizzes).toHaveLength(1);
+    expect(Digest.run).toHaveBeenCalledTimes(1);
+    expect(revivals()).toBe(1);
+    expect(Queue.queueJob).not.toHaveBeenCalled();
+    expect(offerButtonsSent()).toBe(false);
+    // the second tap is answered as a second "Yes" is today: the same language question again
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls[1]).toEqual(WhatsAppService.sendInteractiveButtons.mock.calls[0]);
+  });
+
+  test('two taps in a row, an Urdu lesson (no language question) → generating once; the second tap is told it is on its way', async () => {
+    db.app_settings = switchRow({ report_template: QUIZ_TEMPLATE });
+    holdRow();
+    Digest.run.mockResolvedValue({
+      digest: { confidence: 0.9, slos: ['a', 'b'], language_of_instruction: 'ur', subject: 'urdu' },
+      grade: 3, model: 'm', costUsd: 0,
+    });
+    await Offer.handleReportQuizTap(`tqr_${SID}`, PHONE);
+    expect(db.quizzes[0].status).toBe('generating');
+    const sentBefore = WhatsAppService.sendMessage.mock.calls.length;
+    await Offer.handleReportQuizTap(`tqr_${SID}`, PHONE);
+    expect(db.quizzes).toHaveLength(1);
+    expect(Digest.run).toHaveBeenCalledTimes(1);
+    expect(revivals()).toBe(1);
+    expect(Queue.queueJob.mock.calls.filter((c) => c[1] === 'quiz_generate')).toHaveLength(1);
+    expect(WhatsAppService.sendMessage.mock.calls.slice(sentBefore))
+      .toEqual([[PHONE, resolveUx('tqAlreadyMaking', { language: 'en' })]]);
   });
 
   test('anything that is not tqr_<uuid> is not ours', async () => {
