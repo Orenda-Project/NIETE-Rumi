@@ -154,7 +154,7 @@ describe('switch on: a skipped window-closed row today lists one quiz card', () 
     expect(quizItems(items).map((i) => i.id)).toEqual([`quiz_offer:${NUDGE}`]);
   });
 
-  it('the card sits with the teacher's other items (newest first) and leaves them as they were', async () => {
+  it('the card sits with the other items of this teacher (newest first) and leaves them as they were', async () => {
     const db = fakeDb({ settings: { quiz_offer_closed_window: ON }, nudges: [offerRow()], papers: [paperRow()] });
     const { items } = await N().listNotices(db.query, TEACHER, { now: NOW });
     expect(items.map((i) => i.id)).toEqual([`paper:${REQ}`, `quiz_offer:${NUDGE}`]);
