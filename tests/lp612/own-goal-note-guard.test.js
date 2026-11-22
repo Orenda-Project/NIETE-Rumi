@@ -3,6 +3,8 @@
  * bd-snkn32.58.2 (queue #155 B) — the guard's blocked words, on the server, for both paths:
  *   a goal start's typed topic with a blocked word is refused even if a forged request skips the portal;
  *   the Check screen's free-text note with a blocked word is dropped (never sent to the model), and the answers say so.
+ * bd-cyadk0 — the note drop is for goal starts only. On the book path the list's words are ordinary lesson words
+ *   ("observe with the naked eye", G10 alcohols, "kill germs"), so a book-path note is always kept.
  */
 const { parseOwnAnswers } = require('../../bot/shared/services/lp612-own-instruction');
 
@@ -16,14 +18,23 @@ describe('blocked words on the server', () => {
   it('an official goal or an ordinary topic still passes', () => {
     expect(parseOwnAnswers({ ...base, goal: { kind: 'topic', text: 'multiply by 2' } }).ok).toBe(true);
   });
-  it('a note with a blocked word is dropped and flagged; an ordinary note is kept', () => {
-    const dropped = parseOwnAnswers({ ...base, note: 'add a gun game at the end' });
+  it('on a goal start, a note with a blocked word is dropped and flagged; an ordinary note is kept', () => {
+    const goal = { kind: 'topic', text: 'multiply by 2' };
+    const dropped = parseOwnAnswers({ ...base, goal, note: 'add a gun game at the end' });
     expect(dropped.ok).toBe(true);
     expect(dropped.answers.note).toBe('');
     expect(dropped.answers.noteDropped).toBe(true);
-    const kept = parseOwnAnswers({ ...base, note: 'use the playground' });
+    const kept = parseOwnAnswers({ ...base, goal, note: 'use the playground' });
     expect(kept.answers.note).toBe('use the playground');
     expect(kept.answers.noteDropped).toBeUndefined();
+  });
+  it('on the book path, a note with a listed word is kept as she wrote it (bd-cyadk0)', () => {
+    for (const note of ['observe the moon with the naked eye', 'name two alcohols from the book', 'soap can kill germs']) {
+      const r = parseOwnAnswers({ ...base, note });
+      expect(r.ok).toBe(true);
+      expect(r.answers.note).toBe(note);
+      expect(r.answers.noteDropped).toBeUndefined();
+    }
   });
 });
 
@@ -37,10 +48,15 @@ describe('the dropped note is reported back (bd-snkn32.58.2)', () => {
   });
   const A = { size: '51_70', resources: [], level: 'mixed', way: 'worked' };
 
-  it('queued with noteDropped when her note had a blocked word; not otherwise', async () => {
+  it('queued with noteDropped when her goal-start note had a blocked word; not otherwise', async () => {
     const svc = createOwnService(deps());
-    expect(await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...A, note: 'a gun game' } }))
+    const goal = { kind: 'topic', text: 'forces and motion' };
+    expect(await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...A, goal, note: 'a gun game' } }))
       .toEqual(expect.objectContaining({ outcome: 'queued', noteDropped: true }));
-    expect((await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...A, note: 'outside' } })).noteDropped).toBeUndefined();
+    expect((await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...A, goal, note: 'outside' } })).noteDropped).toBeUndefined();
+  });
+  it('a book-path note with a listed word is not reported as dropped (bd-cyadk0)', async () => {
+    const svc = createOwnService(deps());
+    expect((await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...A, note: 'observe with the naked eye' } })).noteDropped).toBeUndefined();
   });
 });
