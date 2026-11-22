@@ -6,3 +6,4 @@
 {"ts":"2026-11-22T13:35:17Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login,portal-smoke=none-needed (server-side portal_lp_own_unit reader gains a \"teachers\" value; off until the prod setting is written, no screen or copy changes; same declaration as sandbox #5427)","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
 {"ts":"2026-11-22T13:35:24Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-1bf0d324e07e","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
 {"ts":"2026-11-22T13:36:49Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
+{"ts":"2026-11-22T15:53:45Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
