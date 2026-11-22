@@ -236,7 +236,8 @@ async function forwardTap(teacherId, quizId) {
     const { data } = await supabase.from('quizzes').select('id, teacher_id, quiz_source, meta').eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
     const sc = data && data.meta ? uuidOr(data.meta.share_code_id) : null;
     const code = sc && typeof data.meta.share_code === 'string' ? data.meta.share_code : null;
-    Forward.logTap({ uid: teacherId, shareCodeId: sc, code, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source) });
+    const codeH = code ? (require('../services/quiz/web-quiz.service').codeHash(code) || null) : null;
+    Forward.logTap({ uid: teacherId, shareCodeId: sc, codeH, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source) });
   } catch (_) { /* the meter never decides the reminder */ }
 }
 

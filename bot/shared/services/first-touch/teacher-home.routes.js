@@ -64,6 +64,9 @@ const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
 const StaleWords = require('./teacher-stories-stale.flag');
 const Forward = require('./quiz-forward');
+// a share code → web_quiz.page_open's own hash of it, for a forward tap's code_h (lazy: the web quiz service is loaded
+// only when a tap is logged); null without a code, a secret, or on anything thrown
+const codeHOf = (code) => { try { return typeof code === 'string' && code ? require('../quiz/web-quiz.service').codeHash(code) || null : null; } catch (_) { return null; } };
 const { isRegistered } = require('../../utils/registration-status');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -661,7 +664,7 @@ function createRouter(deps = null) {
     event('teacher_send', p.uid, { kind, origin: ORIGINS.has(origin) ? origin : 'library', again, id, prompted: PROMPTED_VIAS.has(p.via), cls_k: code.cls_k });
     // the same tap is the forward meter (never switched): which code went to WhatsApp's picker
     const fc = code.mine ? { id: c, code: code.code } : await forwardCodeOf(p.uid, null, id);
-    Forward.logTap({ uid: p.uid, shareCodeId: fc.id, code: fc.code, surface: 'teacher_home', method: 'wa_me', origin: ORIGINS.has(origin) ? origin : 'library' });
+    Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'wa_me', origin: ORIGINS.has(origin) ? origin : 'library' });
     return true;
   }
   router.post('/api/th/step', handleJson(async (req, res) => {
@@ -674,8 +677,8 @@ function createRouter(deps = null) {
     } else if (b.step === 'fwd_native' || b.step === 'fwd_result') {
       // the share sheet the browser offers (quiz_forward_button's page part): the tap, then what the browser reported
       const fc = await forwardCodeOf(p.uid, uuidIn(b.c), uuidIn(b.id));
-      if (b.step === 'fwd_native') Forward.logTap({ uid: p.uid, shareCodeId: fc.id, code: fc.code, surface: 'teacher_home', method: 'native', origin: ORIGINS.has(b.origin) ? b.origin : null });
-      else Forward.logResult({ uid: p.uid, shareCodeId: fc.id, code: fc.code, surface: 'teacher_home', result: b.r });
+      if (b.step === 'fwd_native') Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'native', origin: ORIGINS.has(b.origin) ? b.origin : null });
+      else Forward.logResult({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', result: b.r });
     } else {
       event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
     }
@@ -727,7 +730,7 @@ function createRouter(deps = null) {
     // WhatsApp's own browser (most taps from a chat) gets the app's scheme, so the picker opens instead of the wa.me web
     // page; Chrome hands wa.me to the app itself
     const to = Forward.targetFor(out.wa, req.get('user-agent'));
-    Forward.logTap({ uid, shareCodeId: out.shareCodeId, code, surface: f.surface, method: to.method, origin: f.quizId ? Forward.originOf(out.source) : 'library' });
+    Forward.logTap({ uid, shareCodeId: out.shareCodeId, codeH: codeHOf(code), surface: f.surface, method: to.method, origin: f.quizId ? Forward.originOf(out.source) : 'library' });
     headers(res);
     return res.redirect(302, to.url);
   }));
