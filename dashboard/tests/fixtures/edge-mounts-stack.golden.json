@@ -21,6 +21,50 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/hub\\/grade\\/?$/i",
+        "path": "/api/wq/hub/grade",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/welcome\\/?$/i",
+        "path": "/api/wq/welcome",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/hub\\/grade\\/?$/i",
+        "path": "/api/wq/hub/grade",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/api\\/wq\\/quiz(?:\\/([^/]+?))\\/?$/i",
         "path": "/api/wq/quiz/:code",
         "methods": [
@@ -94,21 +138,6 @@
         "name": "bound dispatch",
         "re": "/^\\/api\\/wq\\/session\\/?$/i",
         "path": "/api/wq/session",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "noStore",
-          "configured",
-          "jsonParser",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/wq\\/bind\\/?$/i",
-        "path": "/api/wq/bind",
         "methods": [
           "post"
         ],
@@ -810,6 +839,7 @@
         "handlers": [
           "<anonymous>",
           "<anonymous>",
+          "<anonymous>",
           "<anonymous>"
         ]
       },
@@ -833,6 +863,7 @@
           "get"
         ],
         "handlers": [
+          "<anonymous>",
           "<anonymous>",
           "<anonymous>"
         ]
@@ -936,8 +967,32 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/wq\\/vt(?:\\/([^/]+?))\\.webp\\/?$/i",
+        "path": "/wq/vt/:vid.webp",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/k(?:\\/([^/]+?))\\/?$/i",
         "path": "/k/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/s(?:\\/([^/]+?))\\/?$/i",
+        "path": "/s/:id",
         "methods": [
           "get"
         ],
@@ -978,6 +1033,28 @@
         ],
         "handlers": [
           "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/wq\\/pack(?:\\/([^/]+?))\\/?$/i",
+        "path": "/wq/pack/:name",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "fn"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/wq(?:\\/([^/]+?))\\/?$/i",
+        "path": "/wq/:file",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
           "<anonymous>"
         ]
       },
@@ -1109,6 +1186,124 @@
         "handlers": [
           "<anonymous>",
           "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/sw\\.js\\/?$/i",
+        "path": "/sw.js",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/remind(?:\\/([^/]+?))\\/?$/i",
+        "path": "/remind/:code",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/key\\/?$/i",
+        "path": "/api/wqpush/key",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/subscribe\\/?$/i",
+        "path": "/api/wqpush/subscribe",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/unsubscribe\\/?$/i",
+        "path": "/api/wqpush/unsubscribe",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/opened\\/?$/i",
+        "path": "/api/wqpush/opened",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/test\\/?$/i",
+        "path": "/api/wqpush/test",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/e\\/?$/i",
+        "path": "/api/wqpush/e",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wqpush\\/delivered\\/?$/i",
+        "path": "/api/wqpush/delivered",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
           "<anonymous>",
           "<anonymous>"
         ]
@@ -1327,6 +1522,84 @@
         "handlers": [
           "<anonymous>",
           "jsonParser",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/sa-game(?:\\/([^/]+?))\\/?$/i",
+        "path": "/sa-game/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "<anonymous>",
+        "re": "/^\\/sa-game\\/a\\/?(?=\\/|$)|^\\/sa-game\\/b\\/?(?=\\/|$)/i"
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/sa-game\\/a(?:\\/([^/]+?))\\/?$/i",
+        "path": "/sa-game/a/:file",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/sa-game\\/s(?:\\/([^/]+?))\\/?$/i",
+        "path": "/api/sa-game/s/:op",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "sink"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/sa-game\\/s(?:\\/(audio))(?:\\/([^/]+?))\\/?$/i",
+        "path": "/api/sa-game/s/:audio(audio)/:op",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "jsonParser",
+          "sink"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/sa-game\\/s\\/status\\/?$/i",
+        "path": "/api/sa-game/s/status",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "sink"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/sa-game\\/b(?:\\/([^/]+?))(?:\\/([^/]+?))\\/?$/i",
+        "path": "/sa-game/b/:form/:lang",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
           "<anonymous>"
         ]
       }
@@ -1617,6 +1890,111 @@
     "stack": [
       {
         "name": "bound dispatch",
+        "re": "/^\\/cr(?:\\/([^/]+?))\\/?$/i",
+        "path": "/cr/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cr(?:\\/([^/]+?))\\/detail\\/?$/i",
+        "path": "/cr/:token/detail",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cr(?:\\/([^/]+?))\\/useful\\/?$/i",
+        "path": "/cr/:token/useful",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "answer"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cr(?:\\/([^/]+?))\\/coach\\/?$/i",
+        "path": "/cr/:token/coach",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "coachPage"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cr(?:\\/([^/]+?))\\/coach\\/?$/i",
+        "path": "/cr/:token/coach",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "coachAnswer"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cv(?:\\/([^/]+?))\\/?$/i",
+        "path": "/cv/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cv(?:\\/([^/]+?))\\/visited\\/?$/i",
+        "path": "/cv/:token/visited",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
         "re": "/^\\/api\\/teacher\\/stories\\/?$/i",
         "path": "/api/teacher/stories",
         "methods": [
@@ -1702,8 +2080,8 @@
     "stack": [
       {
         "name": "bound dispatch",
-        "re": "/^\\/iab(?:\\/([^/]+?))\\/?$/i",
-        "path": "/iab/:token",
+        "re": "/^\\/v\\/thumb(?:\\/([^/]+?))\\/?$/i",
+        "path": "/v/thumb/:file",
         "methods": [
           "get"
         ],
@@ -1713,24 +2091,42 @@
       },
       {
         "name": "bound dispatch",
-        "re": "/^\\/api\\/iab-probe\\/upload\\/?$/i",
-        "path": "/api/iab-probe/upload",
+        "re": "/^\\/v(?:\\/([^/]+?))\\/?$/i",
+        "path": "/v/:token",
         "methods": [
-          "post"
+          "get"
         ],
         "handlers": [
+          "privateHeaders",
+          "<anonymous>",
           "<anonymous>"
         ]
       },
       {
         "name": "bound dispatch",
-        "re": "/^\\/api\\/iab-probe\\/result\\/?$/i",
-        "path": "/api/iab-probe/result",
+        "re": "/^\\/v(?:\\/([^/]+?))\\/c\\/?$/i",
+        "path": "/v/:token/c",
         "methods": [
           "post"
         ],
         "handlers": [
-          "jsonParser",
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/v(?:\\/([^/]+?))\\/e\\/?$/i",
+        "path": "/v/:token/e",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "textParser",
           "<anonymous>"
         ]
       }
