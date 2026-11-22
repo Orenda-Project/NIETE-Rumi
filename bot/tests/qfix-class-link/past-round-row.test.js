@@ -4,7 +4,8 @@
  * of the school day before today (PKT; Monday -> Friday, a weekend day -> Friday), named by its weekday ("Friday's
  * quiz" / «جمعہ کا کوئز»). Not finished: { done: false } and the round's code with the child's chip; finished:
  * { done: true, stars: {c, t} } from the hub's own history (its latest finished sitting, the hub's score rule). No
- * round that day, a round two school days back, another class's round, or the switch off: no field.
+ * round that day, a round two school days back, another class's round, or the switch off: no field. A round played on
+ * a later day says so on round_started (late: true).
  * Supabase and Redis faked; the hub, the next-offer slot and the round module run for real.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
@@ -31,6 +32,7 @@ const T = require('../../shared/services/quiz/web-quiz-token');
 const Hub = require('../../shared/services/quiz/web-quiz-hub');
 const NO = require('../../shared/services/quiz/web-quiz-next-offer');
 const Round = require('../../shared/services/quiz/web-quiz-evening-round');
+const { logEvent } = require('../../shared/utils/structured-logger');
 
 const KID = '44444444-4444-4444-8444-0000000000f1';
 const OTHER_KID = '44444444-4444-4444-8444-0000000000f2';
@@ -205,3 +207,16 @@ describe('the previous school day', () => {
   });
 });
 
+describe('round_started.late: the round\'s day is not today (PKT)', () => {
+  const REF = { cl: 'K7Q2MXTRAB', rc: 'RND233' };
+  const rows = (day) => [1, 2, 3, 4, 5].map((n) => ({ id: `L${n}`, sort_order: n, external_id: `tq:q:S1:${n}`, media: { round: 'lesson', round_key: `${CLASS}|${day}`, round_ref: REF } }));
+
+  test('a round of an earlier day: late true; today\'s round: late false; round_done carries no late', () => {
+    expect(Round.noteRound('started', rows(schoolDayBefore(today())))).toBe(true);
+    expect(logEvent).toHaveBeenLastCalledWith('web_quiz.round_started', { class_link_code: REF.cl, round_code: REF.rc, n_items: 5, n_recall: 0, late: true });
+    expect(Round.noteRound('started', rows(today()))).toBe(true);
+    expect(logEvent).toHaveBeenLastCalledWith('web_quiz.round_started', { class_link_code: REF.cl, round_code: REF.rc, n_items: 5, n_recall: 0, late: false });
+    expect(Round.noteRound('done', rows(schoolDayBefore(today())))).toBe(true);
+    expect(logEvent).toHaveBeenLastCalledWith('web_quiz.round_done', { class_link_code: REF.cl, round_code: REF.rc, n_items: 5, n_recall: 0 });
+  });
+});
