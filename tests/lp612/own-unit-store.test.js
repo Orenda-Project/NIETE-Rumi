@@ -15,13 +15,12 @@ function fake(result) {
   return { calls, client: { from: (t) => { calls.push(['from', t]); return chain; } } };
 }
 
-describe('unitOn — list-only, fail closed', () => {
+describe('unitOn — list, fail closed', () => {
   it.each([
     [JSON.stringify(['u1']), 'u1', true],
     [['u1'], 'u1', true],
     [['u2'], 'u1', false],
     ['true', 'u1', false],
-    ['teachers', 'u1', false],
     [null, 'u1', false],
   ])('value %j for %s → %s', async (value, user, on) => {
     const f = fake({ data: value === null ? null : { value }, error: null });
@@ -30,6 +29,49 @@ describe('unitOn — list-only, fail closed', () => {
   it('a failed read is off', async () => {
     expect(await unitOn({ from: () => { throw new Error('down'); } }, 'u1')).toBe(false);
     expect(await unitOn(fake({ data: null, error: { message: 'x' } }).client, 'u1')).toBe(false);
+  });
+});
+
+// bd-snkn32.59.8 (Amena, 22 Nov): "teachers" = every users.role teacher, as portal_lp_make_own reads it. GB stays out
+// at the route (isGbTeacher), not here.
+describe('unitOn — "teachers"', () => {
+  /** A fake whose answer depends on the table: app_settings → the switch, users → her row. */
+  function byTable(setting, user) {
+    const calls = [];
+    const chainFor = (result) => {
+      const chain = new Proxy({}, {
+        get(_t, prop) {
+          if (prop === 'then') return (res) => res(result);
+          return (...args) => { calls.push([prop, ...args]); return chain; };
+        },
+      });
+      return chain;
+    };
+    return {
+      calls,
+      client: { from: (t) => { calls.push(['from', t]); return chainFor(t === 'users' ? user : setting); } },
+    };
+  }
+  it.each([
+    ['teachers', 'teacher', true],
+    ['"teachers"', 'teacher', true],
+    [' Teachers ', ' Teacher ', true],
+    ['teachers', 'coach', false],
+    ['teachers', 'principal', false],
+    ['teachers', 'unregistered', false],
+  ])('value %j, role %j → %s', async (value, role, on) => {
+    const f = byTable({ data: { value }, error: null }, { data: { role }, error: null });
+    expect(await unitOn(f.client, 'u1')).toBe(on);
+    expect(f.calls).toEqual(expect.arrayContaining([['from', 'users'], ['eq', 'id', 'u1']]));
+  });
+  it('"teachers" with no users row, or a failed users read, is off', async () => {
+    expect(await unitOn(byTable({ data: { value: 'teachers' }, error: null }, { data: null, error: null }).client, 'u1')).toBe(false);
+    expect(await unitOn(byTable({ data: { value: 'teachers' }, error: null }, { data: null, error: { message: 'x' } }).client, 'u1')).toBe(false);
+  });
+  it('a list that names her never reads users', async () => {
+    const f = byTable({ data: { value: ['u1'] }, error: null }, { data: { role: 'coach' }, error: null });
+    expect(await unitOn(f.client, 'u1')).toBe(true);
+    expect(f.calls).not.toContainEqual(['from', 'users']);
   });
 });
 
