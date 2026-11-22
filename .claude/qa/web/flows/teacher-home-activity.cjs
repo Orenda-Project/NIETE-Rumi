@@ -153,6 +153,9 @@ const scenarios = [
       const updated = await textOf(page, 'journey-updated', 'updated line');
       expect(/^Updated today/.test(updated), 'the updated line reads "' + updated + '"');
       expect(/\/portal\/teacher\/journey/.test(page.url()), 'My journey opened ' + page.url());
+      // bd-96f69c.9 design review #5: Home stays the current menu item on My journey.
+      const current = await page.locator('nav [aria-current="page"]').first().getAttribute('href');
+      expect(current === '/portal/teacher', 'the menu item lit on My journey is ' + current);
       const sw = await noSideScroll(page);
       const file = await shot(page, 'journey-en-360');
       healthy(w);
