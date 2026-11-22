@@ -74,7 +74,7 @@ function config() {
  * other path keeps the old contract: a 400 is a two-key message, and a 409 —
  * which no other bot route sends — is ours to answer as a 502.
  */
-async function ask(path, body, { coded = false } = {}) {
+async function ask(path, body, { coded = false, timeout = TIMEOUT_MS } = {}) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
     throw new Error('Assessment API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
@@ -82,7 +82,7 @@ async function ask(path, body, { coded = false } = {}) {
 
   const res = await axios.post(`${baseUrl}/api/internal/assessment/${path}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    timeout: TIMEOUT_MS,
+    timeout,
     // 400s carry a per-field message the teacher should see (an out-of-range
     // question count says which range). Letting axios throw on them would turn
     // a correctable mistake into "something went wrong". A 409 is the bot saying
@@ -128,6 +128,15 @@ async function listChapters(grade, subject, userId = null) {
 async function listTopics(grade, subject, chapterNumber, userId = null) {
   const data = await ask('topics', { grade, subject, chapterNumber, ...who(userId) });
   return data.topics || [];
+}
+
+// A chapter read for the first time asks the model (cached after), so this one read may take a while.
+const EXERCISES_TIMEOUT_MS = 120_000;
+
+/** AG row 21: her chapters' own exercise questions; { enabled: false, chapters: [] } while the picker is off. */
+async function listExercises(grade, subject, chapterNumbers, userId = null) {
+  const data = await ask('exercises', { grade, subject, chapterNumbers, ...who(userId) }, { timeout: EXERCISES_TIMEOUT_MS });
+  return { enabled: data.enabled === true, chapters: data.chapters || [] };
 }
 
 /**
@@ -225,4 +234,4 @@ const editAddKinds = (paperId, userId) => askEdit('edit/add-kinds', { paperId, u
 const editValidate = ({ paperId, userId, id = null, kind = null, edit = {} }) => askEdit('edit/validate', { paperId, userId, id, kind, edit });
 const editSave = ({ parentId, userId, changes }) => askEdit('edit/save', { parentId, userId, changes }, { timeout: SAVE_TIMEOUT_MS });
 
-module.exports = { options, listChapters, listTopics, create, status, download, listPapers, viewPaper, editVersions, editQuestions, editAddKinds, editValidate, editSave };
+module.exports = { options, listChapters, listTopics, listExercises, create, status, download, listPapers, viewPaper, editVersions, editQuestions, editAddKinds, editValidate, editSave };

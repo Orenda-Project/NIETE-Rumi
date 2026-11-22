@@ -527,6 +527,17 @@ export const portal = {
     return response.data;
   },
 
+  /** AG row 21: her chapters' own exercise questions for Pick from the book; enabled false = no picker. */
+  getAssessmentExercises: async (
+    grade: number,
+    subject: string,
+    chapters: number[]
+  ): Promise<{ success: boolean; enabled: boolean; chapters: AssessmentExerciseChapter[] }> => {
+    // The first read of a chapter asks the model (cached after it), so this one read may take a while.
+    const response = await api.get('/assessment/exercises', { params: { grade, subject, chapters: chapters.join(',') }, timeout: 120_000 });
+    return response.data;
+  },
+
   /** Ask for a paper. 202 + a requestId to poll on; the paper does not exist yet. */
   generateAssessment: async (
     spec: AssessmentSpec
@@ -1016,9 +1027,15 @@ export type AssessmentTopic = {
   sortOrder: number;
 };
 
+/** AG row 21: one exercise question printed in the book, as the bot read it off the chapter's pages. */
+export type AssessmentExercise = { ref: string; heading: string | null; text: string; type: string; page: number | null };
+export type AssessmentExerciseChapter = { chapterNumber: number; title: string | null; exercises: AssessmentExercise[] };
+
 export type AssessmentOptions = {
   success: boolean;
   grades: number[];
+  /** AG row 21: present (true) only while the bot offers Pick from the book for this grade + subject. */
+  bookPicker?: boolean;
   subjects?: AssessmentSubject[];
   types?: AssessmentQuestionType[];
   /** The one cap. Never hardcoded here — the dead panel's 20 vs the bot's 25. */

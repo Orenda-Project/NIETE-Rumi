@@ -1693,6 +1693,8 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     if (Array.isArray(out.types) && await isAssessmentTopicCtaEnabled().catch(() => false)) {
       out.types = require('../services/assessment/topics/stems').withStems(out.types, subject, grade);
     }
+    // AG row 21 — Select from the book, ADDED only while the picker is on, so off this JSON is unchanged.
+    if (await require('../services/assessment/seen-picked').isPickerOn()) out.bookPicker = true;
   } else {
     // The cap is not conditional on having picked a subject — the form needs it
     // to validate the count field before anything else is chosen.
@@ -1771,6 +1773,45 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
   const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
+
+/**
+ * POST /api/internal/assessment/exercises
+ * Body { grade, subject, chapterNumbers } → { success, enabled, chapters: [{ chapterNumber, title, exercises }] }
+ *
+ * AG row 21: her chapters' own exercise questions, for the "Pick from the book" tick-list. Off (app_settings
+ * assessment_book_picker_enabled) → enabled false and nothing read, so the portal draws no picker.
+ */
+router.post('/assessment/exercises', requireInternalKey, assessmentRoute('exercises', async (_Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapters = Array.isArray(body.chapterNumbers) ? body.chapterNumbers.map(num).filter(Number.isInteger) : [];
+  if (!Number.isInteger(grade)) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!chapters.length) return res.status(400).json({ success: false, error: 'chapterNumbers is required' });
+  if (!(await require('../services/assessment/seen-picked').isPickerOn())) return res.json({ success: true, enabled: false, chapters: [] });
+  if (!(await cellOffered(grade, subject, bodyUserId(body)))) return res.status(400).json(GRADE_NOT_OFFERED);
+  const curriculum = await teacherCurriculum(body);
+  const { listExercises } = require('../services/assessment/book-exercises.service');
+  const out = await listExercises({ grade, subject, chapterNumbers: chapters, curriculum: curriculumArgs(curriculum).length ? curriculum : null });
+  return res.json({ success: true, enabled: true, chapters: out.chapters });
+}));
+
+/**
+ * AG row 21 — the create request's ticked book questions: { picks: null } when none (or the picker is off, or
+ * the paper takes nothing from the book), { picks, types } when good, { error } otherwise.
+ */
+async function bookPicks(body, { contentSource, subject, grade, chapters, QuestionTypes }) {
+  if (!(contentSource === 'seen' || contentSource === 'both') || !Array.isArray(body.seenPicked) || !body.seenPicked.length) {
+    return { picks: null };
+  }
+  const SeenPicked = require('../services/assessment/seen-picked');
+  if (!(await SeenPicked.isPickerOn())) return { picks: null };
+  const allowed = QuestionTypes.forSubject(subject, grade).filter((t) => t.category !== 'board').map((t) => t.id);
+  const out = SeenPicked.clean(body.seenPicked, { allowed, chapters });
+  if (out.error || !out.picks) return out;
+  return { picks: out.picks, types: SeenPicked.toTypes(out.picks, (id) => QuestionTypes.categoryOf(id, subject, grade)) };
+}
 
 /**
  * POST /api/internal/assessment/topics
@@ -2171,13 +2212,19 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // bd-e5n2jf — Seen per-type counts (Mubashar Zia, 20 Nov): on Seen and Mix she may say how many of
   // each type come from the book, from the same list as Unseen. Seen: the paper is their sum. Mix:
   // their sum is the Seen part. Absent, the single Seen number above is used, as before.
+  // AG row 21 — the book questions she ticked (Pick from the book). They ARE her Seen part: counted per type
+  // into seenTypes below, so every rule after this holds unchanged. Ignored with the picker off.
+  const book21 = await bookPicks(body, { contentSource, subject, grade, chapters: picked, QuestionTypes });
+  if (book21.error) return res.status(400).json({ success: false, error: book21.error });
+  const seenPicked = book21.picks;
+  const askedSeenTypes = seenPicked ? book21.types : body.seenTypes;
   let seenTypes = null;
   let paperCount = parsed.count;
   if ((contentSource === 'seen' || contentSource === 'both')
-      && Array.isArray(body.seenTypes) && body.seenTypes.length) {
+      && Array.isArray(askedSeenTypes) && askedSeenTypes.length) {
     const allowed = QuestionTypes.forSubject(subject, grade).filter((t) => t.category !== 'board').map((t) => t.id);
     seenTypes = [];
-    for (const t of body.seenTypes) {
+    for (const t of askedSeenTypes) {
       const id = String((t && t.id) || '').trim();
       const n = Number(t && t.count);
       if (!allowed.includes(id)) {
@@ -2282,6 +2329,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     totalMarks: budget.marks,
     questionTypes: types,
     ...(seenTypes ? { seenTypes } : {}),
+    ...(seenPicked ? { seenPicked } : {}),
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,

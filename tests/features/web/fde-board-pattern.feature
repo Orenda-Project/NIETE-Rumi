@@ -199,3 +199,11 @@ Feature: FDE board-pattern paper for Grade 5
     Given the board-pattern switch is on
     When a Grade 3 Urdu teacher makes a paper with the default mix of types Questions starts with
     Then the screens, the request, the prompt and the printed paper are identical to those made with the switch off
+
+  @sandbox
+  # bd-zrdvmi.50.4 — AG row 21: Select from the book belongs to the teacher's own paper only.
+  Scenario: A board-pattern paper never offers Select from the book
+    Given the board-pattern switch is on and the book picker is on
+    When a Grade 5 teacher picks the FDE pattern and reaches Check
+    Then no "Select from the book" is shown and the request carries no picked book questions
+    And choosing her own paper instead, by chapters, shows "Select from the book" on Questions

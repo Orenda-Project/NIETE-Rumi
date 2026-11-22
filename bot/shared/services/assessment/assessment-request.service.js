@@ -78,6 +78,8 @@ async function createAndQueue(spec) {
     seenCount = null,
     // bd-e5n2jf: her per-type Seen counts [{id, count, category}]. Job payload only, and only when set.
     seenTypes = null,
+    // AG row 21: the book questions she ticked [{chapter, ref, text, type}]. Job payload only, and only when set.
+    seenPicked = null,
     questionTypes = [],
     answerLines = true,
     // "Save paper" (bd-ipoxhx.5): a tighter A4 page. Job payload only, like totalMarks.
@@ -159,6 +161,7 @@ async function createAndQueue(spec) {
     totalMarks,
     seenCount,
     ...(seenTypes ? { seenTypes } : {}),
+    ...(seenPicked ? { seenPicked } : {}),
     questionTypes,
     includeAnswerKey,
     answerLines: answerLines !== false,

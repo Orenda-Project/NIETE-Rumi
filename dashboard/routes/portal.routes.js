@@ -3543,6 +3543,26 @@ router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/portal/assessment/exercises?grade=4&subject=science&chapters=3,5
+ * → { success, enabled, chapters: [{ chapterNumber, title, exercises: [{ ref, heading, text, type, page }] }] }
+ * AG row 21: her chapters' own exercise questions for the "Pick from the book" tick-list; enabled false = no picker.
+ */
+router.get('/assessment/exercises', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = /^\d+$/.test(String(req.query.grade ?? '')) ? parseInt(req.query.grade, 10) : NaN;
+    const subject = String(req.query.subject || '').trim();
+    const chapters = String(req.query.chapters || '').split(',').filter((c) => /^\d+$/.test(c.trim())).map((c) => parseInt(c, 10));
+    if (!Number.isFinite(grade) || !subject || !chapters.length) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapters required' });
+    }
+    const data = await Assessment.listExercises(grade, subject, chapters, req.session.portalUserId);
+    res.json({ success: true, ...data });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load the book questions');
+  }
+});
+
+/**
  * POST /api/portal/assessment/generate
  * Body { grade, subject, chapterNumber|pageRanges, questionCount, ... }
  * → 202 { success, requestId }
@@ -3567,6 +3587,8 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       // bd-fmf24g.6 — Mix's book count and the marks budget, as the WhatsApp Flow sends them.
       seenCount: body.seenCount ?? null,
       seenTypes: body.seenTypes,
+      // AG row 21: the book questions she ticked. Absent unless she ticked some, so a plain request is unchanged.
+      seenPicked: body.seenPicked ?? undefined,
       totalMarks: body.totalMarks ?? null,
       questionTypes: body.questionTypes,
       includeAnswerKey: body.includeAnswerKey,

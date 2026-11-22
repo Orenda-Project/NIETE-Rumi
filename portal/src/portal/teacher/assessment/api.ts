@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { portal, type AssessmentChapter, type AssessmentTopic, type AssessmentPaperList, type AssessmentPattern, type AssessmentQuestionType } from '../../services/api';
+import { portal, type AssessmentChapter, type AssessmentExerciseChapter, type AssessmentTopic, type AssessmentPaperList, type AssessmentPattern, type AssessmentQuestionType } from '../../services/api';
 import { readConfigShared } from '../../lib/useNewUi';
 
 /**
@@ -95,6 +95,18 @@ export async function loadChapters(grade: number, subject: string): Promise<Asse
 export async function loadTopics(grade: number, subject: string, chapter: number): Promise<AssessmentTopic[]> {
   const res = await portal.getAssessmentTopics(grade, subject, chapter);
   return res.topics || [];
+}
+
+/** AG row 21: whether the bot offers Pick from the book for this class (options `bookPicker`). */
+export async function loadBookPickerOn(grade: number, subject: string): Promise<boolean> {
+  const res = await portal.getAssessmentOptions(grade, subject);
+  return res.bookPicker === true;
+}
+
+/** AG row 21: her chapters' own exercise questions, chapters in book order. */
+export async function loadExercises(grade: number, subject: string, chapters: number[]): Promise<AssessmentExerciseChapter[]> {
+  const res = await portal.getAssessmentExercises(grade, subject, [...chapters].sort((a, b) => a - b));
+  return res.chapters || [];
 }
 
 export async function loadTypes(grade: number, subject: string): Promise<AssessmentQuestionType[]> {
