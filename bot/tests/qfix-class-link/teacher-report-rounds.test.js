@@ -70,7 +70,7 @@ test('the class tab carries an "Evening rounds" section: the class, the lesson, 
   const { status, html } = await page();
   expect(status).toBe(200);
   expect(html).toContain('Evening rounds');
-  expect(html).toContain('Class 3-B');
+  expect(html).toContain('Class 3 B');
   expect(html).toContain('Adding with carrying');
   expect(html).toMatch(/2 children played/);
   expect(html).toContain('Zara');
@@ -83,7 +83,7 @@ test('the data: the teacher\'s classes only; one row per child (first finish)', 
   const R = require('../../shared/services/quiz/web-quiz-evening-round');
   const rounds = await R.forTeacherReport(T1);
   expect(rounds).toEqual([expect.objectContaining({
-    round_day: '2026-11-24', class_label: 'Class 3-B', topic: 'Adding with carrying', played: 2, finishers: ['Ali', 'Zara'], avg: 79,
+    round_day: '2026-11-24', class_label: 'Class 3 B', topic: 'Adding with carrying', played: 2, finishers: ['Ali', 'Zara'], avg: 79,
   })]);
   expect(await R.forTeacherReport(T9)).toBeNull();
 });
