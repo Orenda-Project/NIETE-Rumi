@@ -1,6 +1,7 @@
 /* The standing class link (/j/<code>): the steps a child takes before the hub. No framework, no build step.
  * Boot JSON: {view:'class_link', code, lang, jt?, via?} (via: the landing's marker, posted on arrive, where the bot counts the open).
- * Under the chips: an empty #wq-remind mount (data-src class_link) the reminders' opt-in fills when it is on. The page holds no child until the server answers a step:
+ * Under the chips: the #wq-remind mount (data-src class_link). A step answer with push_remind: true (the bot's
+ * web_quiz_push_remind) gets the reminder ask there after the step has painted (remind()). The page holds no child until the server answers a step:
  *   arrive  → "Whose turn?" (only the children this phone played as, in this class, and a button to the teacher
  *             step for a child not listed) or the teacher step
  *   teacher → the letter step (the whole alphabet of the roster's script) or the teacher step again
@@ -28,9 +29,10 @@
     ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', quiz_ready: 'کوئز تیار', done_tonight: 'آج شام کا کوئز ہو گیا!' },
   };
   var T = COPY[LANG];
-  // The reminders' slot under the chips: empty here; the reminders lane mounts its opt-in into it.
+  // The reminder ask's slot under the chips: drawn empty; remind() mounts the ask into it when the step says so.
   var REMIND = '<div id="wq-remind" data-src="class_link"></div>';
   var letterStep = null;
+  var reminded = false;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
@@ -60,6 +62,31 @@
   function on(sel, fn) {
     Array.prototype.forEach.call(ROOT.querySelectorAll(sel), function (b) { b.addEventListener('click', function () { fn(b); }); });
   }
+  // The reminder ask (wq-remind.js), as the result screen loads it: only when the step answer carries push_remind: true,
+  // once per page, after the step has painted (the next frame), with this script's own ?v=; on its load, the card into
+  // the slot. code: tonight's round share code (remind_code), else this link's code; chips: the chips this screen shows.
+  // Any failure leaves the slot empty; the step never waits on it.
+  function remind(r, chips) {
+    if (r.push_remind !== true || reminded) return;
+    reminded = true;
+    try {
+      var ctx = { code: typeof r.remind_code === 'string' && r.remind_code ? r.remind_code : CODE, lang: LANG, chips: chips, host: location.host, src: 'class_link' };
+      (window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : setTimeout)(function () {
+        setTimeout(function () {
+          try {
+            var own = document.querySelector('script[src*="/wq/class-link.js"]');
+            var v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || '');
+            var el = document.createElement('script');
+            el.src = '/wq/wq-remind.js' + (v ? '?v=' + v[1] : '');
+            el.onload = function () {
+              try { var slot = ROOT.querySelector('#wq-remind'); if (slot && window.WQREMIND) window.WQREMIND.mount(slot, ctx); } catch (e) {}
+            };
+            document.body.appendChild(el);
+          } catch (e) {}
+        }, 0);
+      });
+    } catch (e) {}
+  }
   // Nothing to show (the link closed meanwhile, a step expired): a sleeping Jugnu, never a reload loop.
   function closed() { ROOT.innerHTML = '<section class="wq-screen wq-closed"><img class="wq-jugnu" src="' + jv('/wq/jugnu_sleep.webp') + '" alt="" width="160" height="160"></section>'; }
 
@@ -80,6 +107,7 @@
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });
       // A shared phone: a child who is not listed (a sibling) takes the teacher step the server sent with this one.
       on('#wq-cl-other', function () { show({ ok: true, body: r.other }); });
+      remind(r, r.kids.length);
       return;
     }
     if (r.step === 'teacher') {
@@ -104,6 +132,7 @@
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });
       // Not here: back to the letters (another first letter). The new-child path is not on this link yet.
       on('#wq-cl-back', function () { if (letterStep) show({ ok: true, body: letterStep }); });
+      remind(r, r.kids.length);
       return;
     }
     closed();
