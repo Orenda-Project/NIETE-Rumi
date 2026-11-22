@@ -407,14 +407,14 @@ describe('the same-day swap: lesson items the child answered RIGHT earlier today
     const ALL_RIGHT = { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
     const roundSittings = () => db.quiz_sessions.filter((x) => x.quiz_id === ROUND_Q);
 
-    test('the start answers round_done_for_tonight with the round\'s codes: no session row, no st, one line logged', async () => {
+    test('the start answers round_done_for_tonight with the round\'s codes: no session row, no st; the page logs the line, not the server (one count)', async () => {
       swapWorld({ recallRows: false });
       played(AFT, ALL_RIGHT);
       const a = await asZara();
       expect(a).toEqual({ round_done_for_tonight: true, class_link_code: REF.cl, round_code: REF.rc });
       expect(a.st).toBeUndefined();
       expect(roundSittings()).toEqual([]);
-      expect(named('web_quiz.round_done_for_tonight')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc }]);
+      expect(named('web_quiz.round_done_for_tonight')).toEqual([]);
       expect(named('web_quiz.session_started')).toEqual([]);
       expect(named('web_quiz.round_started')).toEqual([]);
     });
