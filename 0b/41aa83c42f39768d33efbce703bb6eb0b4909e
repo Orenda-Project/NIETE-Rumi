@@ -9,3 +9,4 @@
 {"ts":"2026-11-18T01:21:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"0b41aa83c42f","branch":"main","user":""}
 {"ts":"2026-11-18T01:21:13Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"201d97dc-ef11-47a3-a979-d48396bacf05","sha":"0b41aa83c42f","branch":"main","user":""}
 {"ts":"2026-11-22T16:04:04Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"0b41aa83c42f","branch":"main","user":""}
+{"ts":"2026-11-22T16:04:32Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"0b41aa83c42f","branch":"main","user":""}
