@@ -63,6 +63,11 @@ describe('what was never a letter phrase stays as it was', () => {
     expect(said(item({ why: 'The answer a farmer gives is: roots.' }), 'why')).toBe('The answer a farmer gives is: roots.');
   });
 
+  test('lowercase "a" after "answer is" is the article too: the page shows it, so the clip says it', () => {
+    expect(said(item({ why: 'The correct answer is a root, which drinks water.' }), 'why')).toBe('The correct answer is a root, which drinks water.');
+    expect(said(item({ why: 'The answer is B.' }), 'why')).toBe('The answer is');
+  });
+
   test('"Vitamin B", "Part B of the plant" and "B)" lines keep today\'s voicing', () => {
     expect(said(item({ why: 'Roots store Vitamin B.' }), 'why')).toBe('Roots store Vitamin B.');
     expect(said(item({ why: 'B) Root, because a root drinks water.' }), 'why')).toBe('Root, because a root drinks water.');
