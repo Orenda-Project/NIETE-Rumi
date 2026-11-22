@@ -13,6 +13,8 @@ const START = SRC.indexOf('  function card() {');
 const END = SRC.indexOf('  /* ---------------- M11 league table');
 // The page's own M4 strings (TW) and digit helper live in the M4 block.
 const M4 = SRC.slice(SRC.indexOf('  var TW = ('), SRC.indexOf('  function padNext('));
+// The page's one-child wording picker (wq.js oneLine), which card() calls; it lives outside the card block.
+const ONE_LINE = /  function oneLine\(k, s\) \{[^\n]*\n/.exec(SRC)[0];
 
 function page(result, lang = 'en') {
   const out = { screens: [], shared: [] };
@@ -29,7 +31,7 @@ function page(result, lang = 'en') {
     on: (sel, fn) => { out[sel] = fn; }, share: (line) => out.shared.push(line), link: (p) => p, board: () => {}, warmArt: () => {}, warmLink: () => {}, B: {}, pickVideo: () => {}, sset: () => {}, flushEv: () => {},
   };
   vm.createContext(ctx);
-  vm.runInContext(`${M4}\n${SRC.slice(START, END)}\nthis.card = card;`, ctx);
+  vm.runInContext(`${M4}\n${ONE_LINE}\n${SRC.slice(START, END)}\nthis.card = card;`, ctx);
   ctx.card();
   return out;
 }
