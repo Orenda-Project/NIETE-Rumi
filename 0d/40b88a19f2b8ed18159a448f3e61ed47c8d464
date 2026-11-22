@@ -2,3 +2,4 @@
 {"ts":"2026-11-22T09:52:35Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
 {"ts":"2026-11-22T09:53:03Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
 {"ts":"2026-11-22T09:54:46Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
+{"ts":"2026-11-22T11:29:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.1","sha":"0d40b88a19f2","branch":"bd-h8zy3q-46909","user":""}
