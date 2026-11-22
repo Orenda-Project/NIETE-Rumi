@@ -27,6 +27,7 @@ const { makeFake } = require('../quiz/web-quiz/fake-supabase');
 const supabase = require('../../shared/config/supabase');
 const redis = require('../../shared/services/cache/railway-redis.service');
 const WhatsAppService = require('../../shared/services/whatsapp.service');
+const { logEvent } = require('../../shared/utils/structured-logger');
 
 const S1 = '5c400000-0000-4000-8000-0000000000a1';
 const S2 = '5c400000-0000-4000-8000-0000000000a2';
@@ -103,6 +104,8 @@ test('a round that failed on a model error is tried again 10+ minutes later, the
   expect(q.meta.error).toBeUndefined();
   expect(enqueue).toHaveBeenCalledWith('qr-1');
   expect(out).toMatchObject({ retried: 1 });
+  // telemetry in snake_case, as every web_quiz event: quiz_id, never quizId
+  expect(logEvent).toHaveBeenCalledWith('web_quiz.round_retried', { quiz_id: 'qr-1', class_link_code: 'K7Q2MXTRCA', attempt: 2, after: 'digest_failed' });
   expect(db.quizzes.filter((x) => x.meta && x.meta.source === 'evening_round')).toHaveLength(1);
   expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
 });
