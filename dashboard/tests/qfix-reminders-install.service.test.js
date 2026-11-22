@@ -24,10 +24,11 @@ const TODAY = String(Math.floor((NOW + 5 * 3600000) / 86400000));
 const NO_V2 = { first: false, lantern: null, shelf: [], install: true, doors: [] }; // production today: events_v2 off
 
 // hub-play.js in a page. opts.early: the offer the head kept before this script loaded (window.__wqBip).
-function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () => NOW, wqt = null, app = false } = {}) {
+function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () => NOW, wqt = null, app = false, slot = null } = {}) {
   const winL = {}; const docL = {}; const timers = []; const doc = { visibilityState: 'visible' };
   const box = { innerHTML: '', ls: {}, addEventListener(n, fn) { (box.ls[n] = box.ls[n] || []).push(fn); } };
-  const ROOT = { innerHTML: '<div id="wqp-inst" class="wq-inst"></div>', querySelector: (s) => (s === '#wqp-inst' ? box : null) };
+  // slot: {on} — the card's slot is on the page only while on (the home drawn again, or not yet drawn)
+  const ROOT = { innerHTML: '<div id="wqp-inst" class="wq-inst"></div>', querySelector: (s) => (s === '#wqp-inst' && (!slot || slot.on) ? box : null) };
   const win = { addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: () => ({ matches: app }) };
   if (early) win.__wqBip = early;
   if (tour) win.WQW = { up: () => tour.up };
@@ -324,5 +325,46 @@ describe('one outcome per hub view', () => {
     p.render({ ...NO_V2, install: false });
     p.hide();
     expect(p.evs).toEqual([]);
+  });
+});
+
+// The slot off the page when Chrome offers (the screen before the offer was not the home on 22 of 23 such views): the
+// offer is kept and the card is drawn as soon as the slot is back, for up to a minute; after that the view is no_slot.
+describe('an offer while the card\'s slot is off the page', () => {
+  const O = (reason, when) => ({ step: 'outcome', src: 'browser', reason, when });
+  test('the slot comes back without a new install(): the card is drawn then, shown', () => {
+    const slot = { on: true };
+    const p = page({ store: { wqp_hv_day: TODAY }, slot });
+    p.render();
+    slot.on = false;
+    p.offerOnce(bip());
+    expect(p.box.innerHTML).toBe('');
+    slot.on = true;
+    p.tick();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+    expect(p.outcomes()).toEqual([O('shown', 'offer')]);
+  });
+  test('the slot is not back within a minute: no card, no_slot on hide', () => {
+    let t = NOW;
+    const slot = { on: true };
+    const p = page({ store: { wqp_hv_day: TODAY }, slot, now: () => t });
+    p.render();
+    slot.on = false;
+    p.offerOnce(bip());
+    for (let s = 0; s < 62; s += 1) { t += 1000; p.tick(); }
+    slot.on = true;
+    t += 1000; p.tick();
+    expect(p.box.innerHTML).toBe('');
+    p.hide();
+    expect(p.outcomes()).toEqual([O('no_slot', 'hide')]);
+  });
+  test('the home hands a new slot through install(): drawn, as before', () => {
+    const slot = { on: false };
+    const p = page({ store: { wqp_hv_day: TODAY }, slot });
+    p.render();
+    p.offerOnce(bip());
+    slot.on = true;
+    p.render();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
   });
 });
