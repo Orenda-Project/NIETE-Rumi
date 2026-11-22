@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T15:54:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"9410a82bc280","branch":"HEAD","user":""}
 {"ts":"2026-11-22T15:55:16Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9410a82bc280","branch":"bd-zrdvmi.55-main","user":""}
 {"ts":"2026-11-22T15:55:23Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.55-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"9410a82bc280","branch":"bd-zrdvmi.55-main","user":""}
+{"ts":"2026-11-22T15:55:35Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"9410a82bc280","branch":"bd-zrdvmi.55-main","user":""}
