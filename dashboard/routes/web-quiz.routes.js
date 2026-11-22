@@ -920,10 +920,15 @@ ${packed ? '' : `<script src="/wq/wq-tel.js?v=${assetV}" defer></script>\n`}${ta
   };
 }
 
+// Written with the install manifest, before it: Chrome offers the install (beforeinstallprompt) once, ~10 ms after
+// `load`, before the hub has rendered and hub-play.js wired its card, so the head keeps the event for it. Store only:
+// it changes nothing the browser does. No manifest (web_quiz_install_prompt off): not written, the page is today's.
+const BIP_CAPTURE = 'addEventListener("beforeinstallprompt",function(e){window.__wqBip=e})';
+
 function renderHubPage(args) {
   const p = hubPageParts(args);
   return `${p.head}
-${p.manifest ? `<link rel="manifest" href="${p.manifest}">\n` : ''}</head>
+${p.manifest ? `<script>${BIP_CAPTURE}</script>\n<link rel="manifest" href="${p.manifest}">\n` : ''}</head>
 <body>
 ${p.frame}
 ${p.tail}`;
@@ -964,7 +969,7 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   // the tail asks for the home's files in the form the head preloaded them (guess.headPack, web_quiz_pack)
   const p = hubPageParts({ payload, token, origin, assetV, headPack: guess.headPack });
   const fix = flushFixes(guess, p);
-  if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
+  if (p.manifest) fix.push(`${BIP_CAPTURE};var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
   // web_quiz_wait_ux on, but this portal process flushed the frame before it learnt so (each process learns from its own
   // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once
   // (with web_quiz_wait_hops, the frame's piece is the hop one: either piece in the frame counts).

@@ -31,7 +31,8 @@ export function Problem({ text }: { text: string | null }) {
 /** A level's face on the kit's scale: its number, or N/A / Couldn't tell; the rubric's title and words beside it. */
 export function v6RatingOptions(options: readonly V6Option[], C: ReportsCopy): RatingOption[] {
   return options.map((o) => {
-    if (o.id === "NA") return { id: o.id, text: C.na, label: o.title.replace(/^N\/A\s*·\s*/, ""), description: o.description || undefined };
+    // The bot's N/A title is "N/A · <its words>" (Urdu "لاگو نہیں · …", 19 Nov): the scale shows C.na, the words beside it.
+    if (o.id === "NA") return { id: o.id, text: C.na, label: o.title.replace(/^(N\/A|لاگو نہیں)\s*·\s*/, ""), description: o.description || undefined };
     if (o.id === "IE") return { id: o.id, text: C.couldntTell, description: o.description || undefined };
     return { id: o.id, label: o.title, description: o.description || undefined };
   });

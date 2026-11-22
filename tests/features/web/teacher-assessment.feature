@@ -221,3 +221,41 @@ Feature: Teacher assessment
     When she starts a new paper from the paper maker's own door and makes it
     Then that request carries no report mark
     And a request whose grade has no such subject keeps her on Class, still marked as from the report
+
+  @sandbox @real-paper
+  # bd-zrdvmi.24 — ICT Feedback sheet, Assessment Generator rows 6-7 (an RM asked to see Bloom's levels while choosing).
+  Scenario: Edit paper shows each question's Bloom's level and a summary that follows Remove
+    Given a plain paper whose questions carry Bloom's levels is open in Edit paper
+    Then each question shows its level, such as "Remember" or "Apply", beside its marks
+    And above the questions a summary shows each level's share of the paper, such as "Remember 50%", and each question type's count, such as "MCQs 2"
+    When the teacher removes a question
+    Then the summary's shares and counts change to match the questions still on the paper
+    And in Urdu the levels and headings show in Urdu
+    And the printed paper and answer key show no levels and no summary
+    And a paper whose questions carry no level shows no summary, as before
+
+  @sandbox @real-paper
+  # bd-zrdvmi.50.2 — ICT Feedback sheet, Assessment Generator row 7 point 7 (Amena 21 Nov): FDE's expected mix to compare.
+  Scenario: Edit paper shows FDE's target thinking-level mix for Grades 1-5 beside the paper's own mix by marks
+    Given a Grade 5 Maths paper whose questions carry Bloom's levels is open in Edit paper
+    Then the summary shows "FDE target" with "Remember 10%", "Understand 50%" and "Apply 40%"
+    And it shows "This paper, by marks" with the paper's own shares in the same three bands
+    When the teacher removes a question
+    Then "This paper, by marks" changes and the FDE target stays the same
+    And a Grade 1-4 paper shows FDE's target for its grade and subject from FDE's 2023-24 tables
+    And a Grade 6-12 paper, or a subject FDE gives no table for, shows no FDE target
+    And nothing stops the teacher keeping a paper that differs from the target
+
+  @sandbox
+  # bd-zrdvmi.50.3 — ICT Feedback sheet, Assessment Generator row 12 (Saba Kokab; Amena 21 Nov): a group of MCQs or
+  # blanks under one heading counts as one question toward the 50.
+  Scenario: A group of MCQs, blanks or true/false counts as one question toward the 50
+    Given a teacher on Questions for a Grade 5 Science paper
+    When she asks for 20 MCQs, 10 Fill in the Blanks, 10 True/False and 25 Short Questions
+    Then the total reads 28 questions and Next is open
+    And she can still add more MCQs while the paper prints fewer than 100 items
+    When she asks for 51 Short Questions
+    Then Next is held with "Questions: 1 to 50"
+    When her types add up to more than 100 printed items
+    Then Next is held with "Printed items: up to 100"
+    And on WhatsApp the same paper is accepted on the counts screen, and 51 written questions are refused naming 50

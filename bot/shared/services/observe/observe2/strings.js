@@ -105,7 +105,6 @@ const STRINGS = {
     v6_choose_level: 'Choose a level.',
     v6_write_why: 'Write why you chose this level.',
     v6_check_numbers: 'Check the two numbers.',
-    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
     v6_why_changed: (names) => `You changed ${names.join(', ')}. Write why (20+ letters).`,
   },
   ur: {
@@ -188,7 +187,6 @@ const STRINGS = {
     v6_choose_level: 'ایک لیول منتخب کریں۔',
     v6_write_why: 'لکھیں کہ یہ لیول کیوں منتخب کیا۔',
     v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
-    v6_d2_mismatch: 'لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
     v6_why_changed: (names) => `آپ نے ${names.map((n) => `\u2068${n}\u2069`).join('، ')} بدلا۔ وجہ لکھیں (کم از کم ۲۰ حروف)۔`,
   },
 };

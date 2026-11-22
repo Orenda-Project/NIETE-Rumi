@@ -3,6 +3,7 @@
  * sheet's level text under it (English, and the Urdu draft for an Urdu coach); no N/A and no "Couldn't tell" for the
  * coach (the Digital Coach keeps both); no D2 count boxes; one indicator per screen on /observe with a no-input intro
  * screen before each section (5 screens -> 22). Old reviews that saved N/A or Couldn't tell still render.
+ * Per-indicator N/A (19 Nov): N/A comes back on C2 C3 C5 D4 only, each with its own words (fico17-v6-na-per-indicator.test.js).
  */
 
 process.env.OBSERVE_FRAMEWORK = 'fico';
@@ -84,20 +85,22 @@ beforeEach(() => {
 
 const post = (data) => handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data });
 
-describe('coachLevelOptions: the level name, the sheet text under it, nothing else', () => {
-  test.each(v6.CODES)('%s (en): four choices, ids 1-4, level names, the rubric text word for word, no N/A or IE', (code) => {
+const IDS = (code) => (v6.naAllowed(code) ? ['1', '2', '3', '4', 'NA'] : ['1', '2', '3', '4']);
+
+describe('coachLevelOptions: the level name, the sheet text under it, and N/A only where it can happen', () => {
+  test.each(v6.CODES)('%s (en): ids 1-4 (+ N/A on C2 C3 C5 D4), level names, the rubric text word for word, no IE', (code) => {
     const opts = v6.coachLevelOptions(code, 'en');
-    expect(opts.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
-    expect(opts.map((o) => o.title)).toEqual(NAMES);
-    opts.forEach((o, i) => expect(o.description).toBe(v6.indicator(code).levels[i].text));
+    expect(opts.map((o) => o.id)).toEqual(IDS(code));
+    expect(opts.slice(0, 4).map((o) => o.title)).toEqual(NAMES);
+    opts.slice(0, 4).forEach((o, i) => expect(o.description).toBe(v6.indicator(code).levels[i].text));
     opts.forEach((o) => { expect(cp(o.title)).toBeLessThanOrEqual(30); expect(cp(o.description)).toBeLessThanOrEqual(300); });
   });
 
   test.each(v6.CODES)('%s (ur): the Urdu draft, same ids, within the caps', (code) => {
     const opts = v6.coachLevelOptions(code, 'ur');
-    expect(opts.map((o) => o.id)).toEqual(['1', '2', '3', '4']);
-    expect(opts.map((o) => o.title)).toEqual(['1', '2', '3', '4'].map((n) => UR.level_labels[n]));
-    opts.forEach((o, i) => expect(o.description).toBe(UR.indicators[code].levels[i]));
+    expect(opts.map((o) => o.id)).toEqual(IDS(code));
+    expect(opts.slice(0, 4).map((o) => o.title)).toEqual(['1', '2', '3', '4'].map((n) => UR.level_labels[n]));
+    opts.slice(0, 4).forEach((o, i) => expect(o.description).toBe(UR.indicators[code].levels[i]));
     opts.forEach((o) => { expect(cp(o.title)).toBeLessThanOrEqual(30); expect(cp(o.description)).toBeLessThanOrEqual(300); });
   });
 
@@ -111,10 +114,10 @@ describe('coachLevelOptions: the level name, the sheet text under it, nothing el
     }
   });
 
-  test('every coach path uses them: optionsFor has no N/A or Couldn\'t tell on any of the 17', () => {
+  test('every coach path uses them: optionsFor has N/A only on the four and never Couldn\'t tell', () => {
     for (const code of v6.CODES) {
       const ids = O6.optionsFor(code).map((o) => o.id);
-      expect(ids).toEqual(['1', '2', '3', '4']);
+      expect(ids).toEqual(IDS(code));
     }
   });
 
@@ -123,8 +126,8 @@ describe('coachLevelOptions: the level name, the sheet text under it, nothing el
     expect(v6.levelOptions('C1', { couldntTell: true }).map((o) => o.id)).toContain('IE');
   });
 
-  test('the coach stamp moves to coach-2, so reviews without N/A can be told apart', () => {
-    expect(v6.COACH_PROMPT_VERSION).toMatch(/^fico17-v6-coach-2\+/);
+  test('the coach stamp moves to coach-3 (per-indicator N/A, 19 Nov), so reviews with per-indicator N/A can be told apart', () => {
+    expect(v6.COACH_PROMPT_VERSION).toMatch(/^fico17-v6-coach-3\+/);
   });
 });
 
@@ -192,11 +195,38 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
     expect(res.data.heading).toMatch(/^C1 · /);
   });
 
-  test('Rumi had N/A (C2): nothing is pre-selected and the note says so', async () => {
+  test('Rumi had N/A (C2): its own N/A arrives chosen, with Rumi\'s note (per-indicator N/A, 19 Nov)', async () => {
     const res = await post({ _screen: 'IND_C_ONE', r_C1: '2' });
     expect(res.screen).toBe('IND_C_TWO');
-    expect(res.data.init.r_C2).toBeUndefined();
-    expect(res.data.rumi_note).toMatch(/could not set a level/i);
+    expect(res.data.init.r_C2).toBe('NA');
+    expect(res.data.opts.find((o) => o.id === 'NA').title).toBe('N/A · No child was wrong');
+    expect(res.data.rumi_note).toMatch(/no child was wrong in the recording, so it chose N\/A/i);
+  });
+
+  test('changing Rumi\'s N/A on C2 needs a reason; keeping it does not', async () => {
+    let res = await post({ _screen: 'IND_C_TWO', r_C2: '3' });
+    expect(res.screen).toBe('IND_C_TWO');
+    expect(res.data.err_note).toMatch(/changed a level Rumi set/);
+    res = await post({ _screen: 'IND_C_TWO', r_C2: 'NA' });
+    expect(res.screen).toBe('IND_C_THREE');
+  });
+
+  test('C1 set to 1 by the coach: C3 arrives on its N/A with a note naming C1, and N/A needs no 20-character reason', async () => {
+    let res = await post({ _screen: 'IND_C_ONE', r_C1: '1', chg_C1: 'She asked the children no question at all.' });
+    expect(res.screen).toBe('IND_C_TWO');
+    res = await post({ _screen: 'IND_C_TWO', r_C2: 'NA' });
+    expect(res.screen).toBe('IND_C_THREE');
+    expect(res.data.init.r_C3).toBe('NA');
+    expect(res.data.definition).toMatch(/You set C1 to Not Observed/);
+    expect(res.data.help_why).toMatch(/For N\/A, a word or two/);
+    res = await post({ _screen: 'IND_C_THREE', r_C3: 'NA', why_C3: 'no question' });
+    expect(res.screen).toBe('IND_C_FOUR');
+  });
+
+  test('N/A is refused on an indicator that has none (D2)', async () => {
+    const res = await post({ _screen: 'IND_D_TWO', r_D2: 'NA', why_D2: 'Nobody spoke at all in this lesson today.' });
+    expect(res.screen).toBe('IND_D_TWO');
+    expect(res.data.err_note).toMatch(/Choose a level/);
   });
 
   test('Rumi had Couldn\'t tell (D5): nothing is pre-selected', async () => {
@@ -206,7 +236,7 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
   });
 
   test('a room indicator (C3) starts blank; a short reason keeps the coach there with the reason listed', async () => {
-    let res = await post({ _screen: 'IND_C_TWO', r_C2: '3' });
+    let res = await post({ _screen: 'IND_C_TWO', r_C2: 'NA' });
     expect(res.screen).toBe('IND_C_THREE');
     expect(res.data.init.r_C3).toBeUndefined();
     expect(res.data.evidence).toContain('05:10');
@@ -228,8 +258,8 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
   });
 
   test('picking a level where Rumi had none needs no change reason', async () => {
-    const res = await post({ _screen: 'IND_C_TWO', r_C2: '1' });
-    expect(res.screen).toBe('IND_C_THREE');
+    const res = await post({ _screen: 'IND_D_FIVE', r_D5: '1' }); // Rumi had Couldn't tell on D5
+    expect(res.screen).toBe('INTRO_F');
   });
 
   test('D2: no counts asked; a level and a reason are enough', async () => {
@@ -245,7 +275,7 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
     expect(res.data.next_label).not.toBe('Next');
   });
 
-  test('the last screen saves every level: coach-2 stamp, per-indicator change reasons, no D2 counts', async () => {
+  test('the last screen saves every level: coach-3 stamp, per-indicator change reasons, no D2 counts', async () => {
     const edits = {};
     for (const code of v6.CODES) {
       edits[`r_${code}`] = v6.isCombined(code) ? '3' : '2'; // Rumi's 2 kept
@@ -253,14 +283,15 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
     }
     edits.r_C1 = '3';
     edits.chg_C1 = 'She asked why and then followed it up.';
-    edits.r_C2 = '3'; // Rumi had N/A: no reason needed
+    edits.r_C2 = '3'; // Rumi had N/A: since 19 Nov that is Rumi's choice, so changing it needs a reason
+    edits.chg_C2 = 'One child was wrong; she explained why.';
     edits.r_D5 = '1'; // Rumi had Couldn't tell
     for (const id of O6.SCREENS.slice(0, -1)) await post({ _screen: id, v6f: O6.FORM_VERSION, ...edits });
     const res = await post({ _screen: 'IND_F_FOUR', ...edits });
     expect(res.screen).toBe('SUCCESS');
     const written = mockUpdates.find((u) => u.analysis_data && u.status === 'observer_review_complete');
     const review = written.analysis_data.fico17_v6_review;
-    expect(review.coach_prompt_version).toMatch(/^fico17-v6-coach-2\+/);
+    expect(review.coach_prompt_version).toMatch(/^fico17-v6-coach-3\+/);
     expect(review.levels.C1).toMatchObject({ level: 3, set_by: 'coach', because: 'She asked why and then followed it up.' });
     expect(review.levels.C2).toMatchObject({ level: 3, set_by: 'coach', rumi_level: 'NA' });
     expect(review.levels.C3).toMatchObject({ level: 3, set_by: 'coach', prompt_version: v6.COACH_PROMPT_VERSION });
@@ -284,7 +315,7 @@ describe('a form opened on the old 5-screen Flow still goes through', () => {
 
   test('the old DOMAIN_C screen is still accepted and goes on to DOMAIN_D', async () => {
     const res = await post({
-      _screen: 'DOMAIN_C', r_C1: '2', r_C2: '2', r_C4: '2', r_C6: '2', r_C8: '2',
+      _screen: 'DOMAIN_C', r_C1: '2', r_C2: 'NA', r_C4: '2', r_C6: '2', r_C8: '2',
       r_C3: '3', why_C3: 'Named Ali and Sara before asking.', r_C5: '2', why_C5: 'Signal given, took about three minutes.',
       r_C7: 'NA', why_C7: 'No group task in this lesson at all.',
     });

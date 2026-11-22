@@ -1698,6 +1698,9 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     const QuestionTypes = require('../services/assessment/question-types');
     out.maxQuestions = QuestionTypes.MAX_QUESTIONS;
     out.defaultQuestions = QuestionTypes.DEFAULT_QUESTIONS;
+    // AG row 12: a group under one heading counts as one toward maxQuestions; maxItems bounds what prints.
+    out.groupedTypes = QuestionTypes.GROUPED_TYPES;
+    out.maxItems = QuestionTypes.MAX_ITEMS;
   }
 
   // Board-pattern papers. Both keys are ADDED only when the flag is on, so with
@@ -2134,7 +2137,9 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // the cap is a convenience; a server that enforces it is the actual rule, and
   // the request row's own CHECK allows up to 60.
   const QuestionTypes = require('../services/assessment/question-types');
-  const parsed = QuestionTypes.parseQuestionCount(
+  // AG row 12: the count is the printed items (up to MAX_ITEMS); the 50-question rule is checked on the types below,
+  // where a group of MCQs, blanks or true/false under one heading counts as one.
+  const parsed = QuestionTypes.parsePaperSize(
     questionCount === null ? QuestionTypes.DEFAULT_QUESTIONS : questionCount);
   if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.message });
 
@@ -2182,7 +2187,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       }
       seenTypes.push({ id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) });
     }
-    const seenSum = QuestionTypes.parseQuestionCount(seenTypes.reduce((s, t) => s + t.count, 0));
+    const seenSum = QuestionTypes.parsePaperSize(seenTypes.reduce((s, t) => s + t.count, 0));
     if (!seenSum.ok) return res.status(400).json({ success: false, error: seenSum.message });
     if (contentSource === 'seen') {
       paperCount = seenSum.count;
@@ -2232,6 +2237,15 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     types = QuestionTypes.withCounts(asked, unseenTarget, subject, grade);
   } else {
     types = QuestionTypes.defaultMix(subject, grade, unseenTarget);
+  }
+  // The 50-question rule (AG row 12): each group under one heading is one, each written question one.
+  const seenPart = seenTypes ? QuestionTypes.limitCount(seenTypes) : (contentSource === 'seen' ? paperCount : (seenCount || 0));
+  const counted = seenPart + (contentSource === 'seen' ? 0 : QuestionTypes.limitCount(types));
+  if (counted > QuestionTypes.MAX_QUESTIONS) {
+    return res.status(400).json({
+      success: false,
+      error: `That is ${counted} questions. A paper can hold up to ${QuestionTypes.MAX_QUESTIONS} — a group of MCQs, blanks or true/false counts as one.`,
+    });
   }
 
   // She picked a chapter, not pages — but the row should still say which pages

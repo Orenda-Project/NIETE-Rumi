@@ -841,11 +841,15 @@ export type V6Indicator =
     rumiEvidence?: { because: string | null; items: { time: string | null; quote: string }[] };
     /** bd-o15qnr.31 — the coach's review of that evidence, as last saved; null/absent before one is saved. */
     evidenceReview?: EvidenceReview | null;
+    /** bd-o15qnr.37 — one plain line on what the indicator looks at (#217's guide line), under its name. Absent from an older bot. */
+    about?: string;
   }
   | {
     id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string };
     /** bd-o15qnr.36 — the "From the recording" box as parts (observe-fico17-v6.combinedParts). Absent from an older bot: `body`. */
     recording?: V6Recording;
+    /** bd-o15qnr.37 — one plain line on what the indicator looks at, under its name (then not repeated in the box). */
+    about?: string;
   };
 /**
  * bd-o15qnr.36 — one of the six's "From the recording", in the person's language: what to look for, the state, every
@@ -889,6 +893,14 @@ export type Obs612Field = {
   input: 'radio' | 'dropdown' | 'textarea' | 'textinput' | 'number';
   kind: 'yes_no' | 'level' | 'points' | null; n: number | null; short: string | null; text: string | null;
   options: Obs612Option[] | null; required: boolean; max: number | null;
+  /** Queue #218 (FICO-S v1.2): this level arrives on N/A when the field `code` is set to `level` (C3 after C1 = 1). */
+  follows?: { code: string; level: string };
+  /**
+   * bd-o15qnr.37 (FICO-S indicators): one plain line on what it looks at (shown under its name), and `text` without the
+   * look-for paragraph (its scoring note, N/A note, "How: …"), so the v7 form does not say it twice. Absent: `text`.
+   */
+  about?: string;
+  notes?: string;
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }
@@ -975,6 +987,9 @@ export type AssessmentOptions = {
   /** The one cap. Never hardcoded here — the dead panel's 20 vs the bot's 25. */
   maxQuestions: number;
   defaultQuestions: number;
+  /** AG row 12: types printed as a group under one heading count as one toward maxQuestions; maxItems bounds the print. */
+  groupedTypes?: string[];
+  maxItems?: number;
   /** Only while the board pattern is on: the grades it serves (any call), and the pattern for this grade + subject. */
   patternGrades?: number[];
   patterns?: AssessmentPattern[];
@@ -1099,6 +1114,8 @@ export type EditFields = {
 export type EditItem = {
   id: string; number: number | null; removed: boolean; type: string;
   section: 'objective' | 'subjective'; marks: number; text: string; fields: EditFields;
+  /** The question's Bloom's level as the bot tagged it (editor-only; ICT sheet AG rows 6-7). */
+  blooms?: string;
   subs?: { index: number; fields: EditFields }[];
 };
 export type EditPaper = { paperId: string; version: number; grade: number; subject: string;

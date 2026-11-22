@@ -355,7 +355,6 @@ const STRINGS = {
     v6_choose_level: 'ایک لیول چنیں۔',
     v6_write_why: 'لکھیں کہ آپ نے یہ لیول کیوں چنا (کم از کم 20 حروف)۔',
     v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
-    v6_d2_mismatch: 'آپ کا لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
     v6_change_why: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم 20 حروف)۔',
     v6_fix_heading: 'آگے بڑھنے سے پہلے یہ ٹھیک کریں:',
     // FICO17 v6 coach form, one indicator per screen (13 Nov). DRAFT Urdu, for the rubric owner's review. {l} is a
@@ -379,6 +378,8 @@ const STRINGS = {
     v6f_change_help: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     v6f_why: 'اس لیول کی وجہ',
     v6f_why_help: 'کم از کم ۲۰ حروف: آپ نے کلاس میں کیا دیکھا۔',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required. DRAFT.
+    v6f_why_help_na: 'لیول کے لیے کم از کم ۲۰ حروف۔ لاگو نہیں کے لیے ایک دو لفظ کافی ہیں۔',
     v6f_from_recording: 'ریکارڈنگ سے',
     v6f_coach_adds: 'کوچ شامل کرتا ہے:',
     v6f_next: 'آگے',
@@ -741,7 +742,6 @@ const STRINGS = {
     v6_choose_level: 'Choose a level.',
     v6_write_why: 'Write why you chose this level (at least 20 characters).',
     v6_check_numbers: 'Check the two numbers.',
-    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
     v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',
     v6_fix_heading: 'Please fix these before you go on:',
     // FICO17 v6 coach form, one indicator per screen (13 Nov): observe-fico17-v6.js screenData.
@@ -764,6 +764,8 @@ const STRINGS = {
     v6f_change_help: "Only if you changed Rumi's level (20+ characters).",
     v6f_why: 'Why this level',
     v6f_why_help: 'At least 20 characters: what you saw in the room.',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required.
+    v6f_why_help_na: 'For a level, 20+ characters on what you saw. For N/A, a word or two.',
     v6f_from_recording: 'From the recording',
     v6f_coach_adds: 'Coach adds:',
     v6f_next: 'Next',

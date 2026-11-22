@@ -16,7 +16,7 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
-import { AutoText, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, useFormToast, v7Crumb } from "./FormV7";
+import { AboutLine, AutoText, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, useFormToast, v7Crumb } from "./FormV7";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -100,7 +100,19 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   const total = draft.sections.length;
   const section = draft.sections[Math.min(part, Math.max(0, total - 1))];
   const last = part >= total - 1;
-  const set = (k: string) => (v: string) => { setValues((cur) => ({ ...cur, [k]: v })); setNote(null); };
+  // Queue #218 (FICO-S v1.2): a level that follows another arrives on N/A when that one is set to its level (C3 after
+  // C1 = 1), unless the observer already chose it; they can change it. The rule is the bot's (the field's `follows`).
+  const followers = draft.sections.flatMap((s) => fieldsOf(s.parts)).filter((f) => f.follows);
+  const set = (k: string) => (v: string) => {
+    setValues((cur) => {
+      const next = { ...cur, [k]: v };
+      for (const f of followers) {
+        if (f.follows?.code === k && v === f.follows.level && !(cur[f.name] ?? "") && (f.options || []).some((o) => o.id === "NA")) next[f.name] = "NA";
+      }
+      return next;
+    });
+    setNote(null);
+  };
 
   const go = (n: number) => { setPart(n); setNote(null); top.current?.scrollIntoView?.({ block: "start" }); };
   const back = () => (part > 0 ? go(part - 1) : navigate(home));
@@ -301,7 +313,14 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     }
     return (
       <section key={f.name} data-testid="fde-item" id={v7 ? `fde-item-${f.name}` : undefined} className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5", bad && BAD)}>
-        {v7 ? (
+        {v7 && f.about ? (
+          // bd-o15qnr.37: a FICO-S indicator says what it looks at once, under its name (AboutLine after the heading);
+          // the card keeps the rest of its words: the scoring note, the N/A note, "How: …".
+          <div className="flex flex-col items-start gap-1.5">
+            <StatusChip text={label} tone="score" />
+            {f.notes ? <p data-testid="fde-notes" className="m-0 whitespace-pre-line text-[14px] leading-relaxed text-[#4b5563] [unicode-bidi:plaintext]" dir="auto">{f.notes}</p> : null}
+          </div>
+        ) : v7 ? (
           // bd-o15qnr.28 — v7: the code chip and FDE's words for the item on one line (m9-ff-fde, m9-ff-fico-s).
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip text={label} tone="score" />
@@ -366,9 +385,28 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     return <div key={f.name} className="flex flex-col gap-1">{head}{input}{errorLine(f)}</div>;
   };
 
+  // bd-o15qnr.37: the indicator (item field) under a heading that carries its line on what it looks at, if any.
+  const aboutUnder = (i: number): Obs612Field | null => {
+    const parts = section ? section.parts : [];
+    for (let j = i + 1; j < parts.length; j += 1) {
+      const q = parts[j];
+      if (q.type === "heading") return null;
+      if (q.type === "field" && q.role === "item" && q.about) return q;
+    }
+    return null;
+  };
+
   const partView = (p: Obs612Part, i: number) => {
     if (p.type === "heading") {
-      if (v7) return <PartTitle key={i} text={p.text} />;
+      if (v7) {
+        const about = aboutUnder(i);
+        return (
+          <Fragment key={i}>
+            <PartTitle text={p.text} />
+            {about?.about ? <AboutLine text={about.about} rubric={draft.rubricId} code={about.name} /> : null}
+          </Fragment>
+        );
+      }
       return <h2 key={i} className="mx-1 mt-1 text-[20px] font-semibold leading-[1.25]" dir="auto">{p.text}</h2>;
     }
     if (p.type === "sub") return <h3 key={i} className="mx-1 mt-2 text-[16px] font-semibold text-[#4b5563]" dir="auto">{p.role ? W.subs[p.role] : p.text}</h3>;

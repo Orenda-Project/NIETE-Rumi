@@ -24,9 +24,15 @@
  * helper 80, option title 30, description 300, heading 80.
  *
  * Pure (no I/O): the endpoint reads and writes; this module shapes screens and checks answers.
+ *
+ * Versions (queue #218): every function that shows N/A, a note or the label takes the form's rubric id (`rubric`, from
+ * observation_field_forms.rubric_version), so a v1.1 form finishes on v1.1 and a v1.2 one shows v1.2: N/A on C2 and C3
+ * in their own words, C3 on N/A when the observer set C1 to 1 (with a note), the C5 / A3 scoring notes. None of it needs a
+ * Flow republish: the option lists and the text under each indicator are endpoint data. Default: the current version.
  */
 
 const FicoS = require('../../coaching/frameworks/fico-s');
+const Lines = require('../../coaching/frameworks/indicator-lines'); // bd-o15qnr.37
 
 const FLOW_VERSION = '7.0';
 const DATA_API_VERSION = '3.0';
@@ -291,16 +297,41 @@ const isSubmitScreen = (id) => id === PATH[PATH.length - 1];
 
 // ── options ───────────────────────────────────────────────────────────────────
 
-/** The level choices for one indicator: "3 · Proficient" with the sheet's words; C2 adds N/A. */
-function levelOptions(code, lang = 'en') {
-  const t = FicoS.indicatorText(code, lang);
+/** The level choices for one indicator: "3 · Proficient" with the sheet's words; then N/A in its own words where the version has one. */
+function levelOptions(code, lang = 'en', rubric = FicoS.RUBRIC_KEY) {
+  const t = FicoS.indicatorText(code, lang, rubric);
   const out = t.levels.map((text, i) => ({
     id: String(i + 1),
     title: clip(`${strings(lang).n(i + 1)} · ${FicoS.levelName(i + 1, lang)}`, 30),
     description: clip(text, 300),
   }));
-  if (FicoS.NA_CODES.includes(code)) out.push({ id: 'NA', title: clip(strings(lang).na_title, 30), description: clip(t.na, 300) });
+  const na = FicoS.naOption(code, lang, rubric);
+  if (na) out.push(na);
   return out;
+}
+
+/**
+ * An indicator's text under its name: what to look for, then (v1.2) its scoring note, and the note that says why N/A
+ * arrived chosen (C3 after C1 = 1). In the Flow's look_for and the portal's field text: no new slot, no republish.
+ */
+function lookForText(code, lang, rubric, { followed = false, withLookFor = true } = {}) {
+  const t = FicoS.indicatorText(code, lang, rubric);
+  const paras = [withLookFor ? t.look_for : ''];
+  if (t.note) paras.push(t.note);
+  if (followed) {
+    const note = FicoS.naFollowNote(code, lang, rubric);
+    if (note) paras.push(String(note).replace(/\b([A-E]\d)\b/g, (m) => atom(lang, m)));
+  }
+  return paras.filter(Boolean).join('\n\n');
+}
+
+/** Does this indicator's N/A arrive chosen (C3 when the observer set C1 to level 1 and has not chosen C3)? */
+function followsNa(code, draft, rubric) {
+  const f = FicoS.naFollows(code, rubric);
+  if (!f) return false;
+  const d = draft || {};
+  if (has(d[code])) return false;
+  return String(d[f.code]) === String(f.level);
 }
 
 /** The indicator list for the feedback's dropdowns: "C4 · Student voice & choice" (≤ 30), the full name below. */
@@ -336,15 +367,15 @@ function mergeDraft(saved, screenId, posted = {}) {
  * One screen's problems, { flowFieldName: code }, from the merged draft. `dc` (queue #184): Rumi's pre-fill kept on the
  * form row (obs612/fico-s-dc.js dcOf); a level changed from Rumi's then needs a reason of 20+ characters.
  */
-function checkScreen(screenId, draft = {}, { dc = null } = {}) {
+function checkScreen(screenId, draft = {}, { dc = null, rubric = FicoS.RUBRIC_KEY } = {}) {
   const errors = {};
   const d = draft || {};
   for (const f of fieldsOf(screenId)) {
     const v = d[f.key];
     if (f.check === 'change') {
-      if (dc && !require('./fico-s-dc').changeExplained(dc, f.code, d)) errors[f.name] = 'change';
+      if (dc && !require('./fico-s-dc').changeExplained(dc, f.code, d, rubric)) errors[f.name] = 'change';
     } else if (f.check === 'level') {
-      if (FicoS.normLevel(v, f.code) === null) errors[f.name] = 'item';
+      if (FicoS.normLevel(v, f.code, rubric) === null) errors[f.name] = 'item';
     } else if (f.check === 'evidence') {
       if (!FicoS.isEvidence(v)) errors[f.name] = 'evidence';
     } else if (f.check === 'yes_no') {
@@ -366,10 +397,10 @@ function checkScreen(screenId, draft = {}, { dc = null } = {}) {
 }
 
 /** What is still needed before Submit: the draft keys of every unanswered required field, in form order. */
-function whatIsMissing(draft = {}, { dc = null } = {}) {
+function whatIsMissing(draft = {}, { dc = null, rubric = FicoS.RUBRIC_KEY } = {}) {
   const missing = [];
   for (const s of SCREENS) {
-    const errs = checkScreen(s.id, draft, { dc });
+    const errs = checkScreen(s.id, draft, { dc, rubric });
     for (const f of s.fields) if (errs[f.name] && (f.required || f.check === 'change')) missing.push(f.key);
   }
   return missing;
@@ -404,20 +435,20 @@ function errorData(screen, lang, { errors = {}, note = '' } = {}) {
   return { err_v: Boolean(note), err_note: note || '', error_messages: messages };
 }
 
-function prefill(f, draft) {
+function prefill(f, draft, rubric = FicoS.RUBRIC_KEY) {
   const v = draft[f.key];
   if (!has(v)) return '';
-  if (f.check === 'level') return FicoS.normLevel(v, f.code) === null ? '' : String(v);
+  if (f.check === 'level') return FicoS.normLevel(v, f.code, rubric) === null ? '' : String(v);
   return String(v);
 }
 
 /** Queue #184: what an indicator screen says of Rumi's pre-fill ({ show, line }); nothing on a visit Rumi did not fill. */
-function rumiData(code, lang, dc) {
+function rumiData(code, lang, dc, rubric = FicoS.RUBRIC_KEY) {
   if (!dc || !dc.levels || FicoS.isStarred(code)) return { show: false, line: '' };
   const s = strings(lang);
   const row = dc.levels[code];
-  const lv = require('./fico-s-dc').rumiLevelOf(dc, code);
-  if (lv === 'NA') return { show: true, line: s.rumi_chose(s.na_title) };
+  const lv = require('./fico-s-dc').rumiLevelOf(dc, code, rubric);
+  if (lv === 'NA') return { show: true, line: s.rumi_chose(FicoS.naTitle(code, lang, rubric) || s.na_title) };
   if (lv !== null) return { show: true, line: s.rumi_chose(`${s.n(Number(lv))} · ${FicoS.levelName(Number(lv), lang)}`) };
   const why = row && String(row.because || '').trim();
   return { show: true, line: why ? s.rumi_none_why(clip(why, 160)) : s.rumi_none };
@@ -432,7 +463,8 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
   if (!screen) return {};
   const s = strings(lang);
   const d = draft || {};
-  const label = FicoS.LABEL;
+  const rubric = FicoS.isFicoSId(opts.rubric) ? opts.rubric : FicoS.RUBRIC_KEY;
+  const label = FicoS.labelOf(rubric);
   if (screen.kind === 'start') {
     return { rubric_label: label, heading: s.start_heading, body: s.start_body, next_label: s.start_next };
   }
@@ -452,11 +484,14 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
     const t = FicoS.indicatorText(code, lang);
     const sec = FicoS.sectionOf(screen.section);
     const init = {};
-    for (const f of screen.fields) init[f.name] = prefill(f, d);
+    for (const f of screen.fields) init[f.name] = prefill(f, d, rubric);
+    // v1.2: C3 arrives on N/A when the observer set C1 to level 1 (and the screen says why); their own choice wins.
+    const followed = followsNa(code, d, rubric);
+    if (followed) init[levelField(code)] = 'NA';
     // The star marks what Rumi does not score, so it shows on a Digital Coach visit only: a visit Rumi did not fill
     // looks exactly as before (and Flow v1 and v2 render it the same).
     const starred = FicoS.isStarred(code) && Boolean(opts.dc && opts.dc.levels);
-    const rumi = rumiData(code, lang, opts.dc);
+    const rumi = rumiData(code, lang, opts.dc, rubric);
     return {
       rubric_label: label,
       progress: s.progress(sec.key, sec.codes.indexOf(code) + 1, sec.codes.length),
@@ -468,11 +503,11 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
       chg_v: rumi.show && !starred,
       lbl_chg: s.lbl_chg,
       help_chg: s.help_chg,
-      look_for: t.look_for,
+      look_for: lookForText(code, lang, rubric, { followed }),
       how_line: s.how(t.how),
       back_hint: s.back_hint,
       lbl_level: s.lbl_level,
-      opts: levelOptions(code, lang),
+      opts: levelOptions(code, lang, rubric),
       lbl_ev: s.lbl_ev,
       help_ev: s.help_ev,
       next_label: s.next,
@@ -491,10 +526,10 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
     return { ...data, init, ...errorData(screen, lang, opts) };
   }
   // feedback
-  const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, d[c]])));
+  const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, d[c]])), rubric);
   const lines = [s.score_line(r), ...r.sections.map((x) => s.section_line(x))];
   if (r.na.length) lines.push(s.na_line(r.na));
-  const lowest = FicoS.lowestIndicator(d);
+  const lowest = FicoS.lowestIndicator(d, rubric);
   const init = {
     fb_strengths: has(d.fb_strengths) ? String(d.fb_strengths) : '',
     fs_focus: FicoS.CODES.includes(d.fs_focus) ? d.fs_focus : (lowest ? lowest.code : ''),
@@ -526,26 +561,26 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
   };
 }
 
-function noticeData(refusal, lang = 'en') {
+function noticeData(refusal, lang = 'en', rubric = FicoS.RUBRIC_KEY) {
   const s = strings(lang);
   const [title, body] = s.refused[refusal] || s.refused.error;
-  return { rubric_label: FicoS.LABEL, notice_title: title, notice_body: body, close_label: s.close_label };
+  return { rubric_label: FicoS.labelOf(rubric) || FicoS.LABEL, notice_title: title, notice_body: body, close_label: s.close_label };
 }
 
-function doneData(outcome, formId, lang = 'en', lines = null) {
+function doneData(outcome, formId, lang = 'en', lines = null, rubric = FicoS.RUBRIC_KEY) {
   const s = strings(lang);
   const [title, body] = lines || s.done[outcome] || s.refused[outcome] || s.done.error;
-  return { rubric_label: FicoS.LABEL, done_title: title, done_body: body, outcome, form_id: String(formId || ''), done_label: s.done_label };
+  return { rubric_label: FicoS.labelOf(rubric) || FicoS.LABEL, done_title: title, done_body: body, outcome, form_id: String(formId || ''), done_label: s.done_label };
 }
 
 // ── the portal's door (obs612/portal.js) ──────────────────────────────────────
 // The portal fills the same form: the same fields (named by their draft key there), the same check, the same record.
 
 /** Every field, named by its draft key, with what the portal's merge and clean need. */
-function portalFields(lang = 'en') {
+function portalFields(lang = 'en', { rubric = FicoS.RUBRIC_KEY } = {}) {
   return SCREENS.flatMap((s) => s.fields.map((f) => {
     let options = null;
-    if (f.check === 'level') options = levelOptions(f.code, lang);
+    if (f.check === 'level') options = levelOptions(f.code, lang, rubric);
     else if (f.check === 'yes_no') options = yesNo(lang);
     else if (f.check === 'choice') options = focusOptions(lang);
     return { name: f.key, input: f.input, required: f.required, prefill: true, max: f.max || null, options, check: f.check, code: f.code || null };
@@ -553,10 +588,10 @@ function portalFields(lang = 'en') {
 }
 
 /** Every screen's check on the draft, keyed by draft key: { A1: 'item', ev_A1: 'evidence', fs_focus: 'choice' … }. */
-function errorsByKey(draft = {}, { dc = null } = {}) {
+function errorsByKey(draft = {}, { dc = null, rubric = FicoS.RUBRIC_KEY } = {}) {
   const out = {};
   for (const s of SCREENS) {
-    const errs = checkScreen(s.id, draft, { dc });
+    const errs = checkScreen(s.id, draft, { dc, rubric });
     for (const f of s.fields) if (errs[f.name]) out[f.key] = errs[f.name];
   }
   return out;
@@ -567,14 +602,18 @@ function errorsByKey(draft = {}, { dc = null } = {}) {
  * word in the observer's language. An indicator is an 'item' field (its chip: "A1 · Lesson objective (SLO)", its text:
  * what to look for and how; the four levels one under another), then its evidence box.
  */
-function portalSections(draft = {}, lang = 'en', { dc = null } = {}) {
+function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUBRIC_KEY } = {}) {
   const s = strings(lang);
-  const fieldsByKey = Object.fromEntries(portalFields(lang).map((f) => [f.name, f]));
+  const fieldsByKey = Object.fromEntries(portalFields(lang, { rubric }).map((f) => [f.name, f]));
   const field = (key, role, text, extra = {}) => {
     const f = fieldsByKey[key];
     return {
       type: 'field', name: key, role, input: f.input, kind: extra.kind || null, n: null, short: extra.short || null,
       text, options: f.options, required: f.required, max: f.max,
+      ...(extra.follows ? { follows: extra.follows } : {}),
+      // bd-o15qnr.37: an indicator's line on what it looks at (#217's guide line) and its text without the look-for
+      // paragraph, so the portal shows the line under the name and does not say it twice; `text` is unchanged.
+      ...(extra.about !== undefined ? { about: extra.about, notes: extra.notes } : {}),
     };
   };
   return SCREENS.map((screen) => {
@@ -590,13 +629,20 @@ function portalSections(draft = {}, lang = 'en', { dc = null } = {}) {
       const t = FicoS.indicatorText(code, lang);
       const sec = FicoS.sectionOf(screen.section);
       const starred = FicoS.isStarred(code) && Boolean(dc && dc.levels); // on a Digital Coach visit only
-      const rumi = rumiData(code, lang, dc);
+      const rumi = rumiData(code, lang, dc, rubric);
       parts.push({ type: 'heading', text: `${starred ? '★ ' : ''}${atom(lang, code)} · ${t.name}` });
       // Queue #184: the starred line, and Rumi's line and the change box on a Digital Coach visit.
       if (starred) parts.push({ type: 'sub', text: s.star_line });
       if (rumi.show) parts.push({ type: 'sub', text: rumi.line });
-      parts.push(field(code, 'item', `${t.look_for}\n${s.how(t.how)}`, {
+      const follows = FicoS.naFollows(code, rubric);
+      const followed = followsNa(code, draft, rubric);
+      const rest = lookForText(code, lang, rubric, { followed, withLookFor: false });
+      parts.push(field(code, 'item', `${lookForText(code, lang, rubric, { followed })}\n${s.how(t.how)}`, {
         kind: 'level', short: s.progress(sec.key, sec.codes.indexOf(code) + 1, sec.codes.length),
+        about: Lines.lineFor(rubric, code, lang),
+        notes: rest ? `${rest}\n${s.how(t.how)}` : s.how(t.how),
+        // Queue #218: the portal pre-picks N/A as the observer sets C1 (Obs612Form.tsx); the Flow does it per screen.
+        ...(follows ? { follows: { code: follows.code, level: String(follows.level) } } : {}),
       }));
       parts.push(field(evidenceField(code), 'other', `${s.lbl_ev}: ${s.help_ev}`));
       if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.help_chg}`));
@@ -607,7 +653,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null } = {}) {
         parts.push(field(c.key, 'item', FicoS.checklistText(c.key, lang), { kind: 'yes_no', short: `${s.n(i + 1)}. ${s.group(c.group)}` }));
       });
     } else {
-      const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, (draft || {})[c]])));
+      const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, (draft || {})[c]])), rubric);
       parts.push({ type: 'heading', text: s.fb_heading });
       if (r.max) parts.push({ type: 'score', total: r.total, max: r.max, pct: r.pct, band: r.band ? r.band.label : null });
       parts.push({ type: 'sub', text: s.fb_rule });

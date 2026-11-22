@@ -8,10 +8,13 @@
  * GPT5MiniService.analyzePedagogy can run it like any other framework (same model, same settings as V3).
  *
  * What the DC returns:
- *   levels            the 11 DC indicators (C1 C2 C4 C6 C8 D1 D5 F1 F2 F3 F4): 1-4, 'NA' or 'IE' ("couldn't tell").
+ *   levels            the 11 DC indicators (C1 C2 C4 C6 C8 D1 D5 F1 F2 F3 F4): 1-4, 'IE' ("couldn't tell"), and 'NA'
+ *                     on C2 only (19 Nov: N/A only where the thing scored could not happen; fico17_v6.na.json).
  *   combined_evidence the 5 combined ones the transcript can show something of (C3 C5 C7 D3 D4): evidence only,
- *                     result null | 'NA' | 'IE', NEVER a number (spec §12 Q1: evidence only). D2 is counted in code
- *                     (countD2), never asked of the model. The coach sets all six levels.
+ *                     result null | 'IE' (| 'NA' on C5 only), NEVER a number (spec §12 Q1: evidence only). D2 is
+ *                     counted in code (countD2), never asked of the model. The coach sets all six levels.
+ *   An N/A anywhere else is refused, as FICO 6-12 does: that indicator keeps no level (or no result), the rest of the
+ *   reply stands, and a warning names it.
  *
  * Totals count numeric DC levels only. NA and IE leave both sides of the ratio. The six combined indicators never
  * enter a DC total. Domains live under v6-only keys (v6_teacher / v6_children / v6_subject), never a V3 key, so a
@@ -50,6 +53,8 @@ function renderLevelBlock(ind) {
     if (l.example) lines.push(`   Example (not from this lesson): ${l.example}`);
   }
   lines.push(`Couldn't tell: ${ind.couldnt_tell}`);
+  const na = v6.naDcRule(ind.code);
+  if (na && na.level) lines.push(`N/A: ${na.level}`);
   return lines.join('\n');
 }
 
@@ -61,15 +66,25 @@ function reportLine(text) {
     .trim();
 }
 
+// An indicator's "Couldn't tell" text without a sentence that points at an N/A it no longer has (D3's "This is separate
+// from the N/A line below…", option A of 19 Nov: D3 has no N/A).
+function couldntTellLine(ind) {
+  const text = String(ind.couldnt_tell || '');
+  if (v6.naDcRule(ind.code)) return text;
+  return text.split(/(?<=\.)\s+/).filter((sentence) => !/N\/A/.test(sentence)).join(' ').trim();
+}
+
 function renderEvidenceBlock(ind) {
   const lines = [
     `### Evidence: ${ind.code} ${ind.name}`,
     `Definition: ${ind.definition}`,
     `Report: ${reportLine(ind.combined_evidence)}`,
     `Kinds: ${KINDS[ind.code].map(([k, d]) => `${k} (${d})`).join('; ')}`,
-    `Couldn't tell: ${ind.couldnt_tell}`,
+    `Couldn't tell: ${couldntTellLine(ind)}`,
   ];
-  if (ind.na_rule) lines.push(`N/A rule: ${ind.na_rule}`);
+  // Per-indicator N/A (19 Nov): the N/A rule comes from the approved table (C5 only), never the rubric's na_rule (D3's is dropped).
+  const na = v6.naDcRule(ind.code);
+  if (na && na.evidence) lines.push(`N/A rule: ${na.evidence}`);
   return lines.join('\n');
 }
 
@@ -86,12 +101,12 @@ const SCHEMA = `{
     "C3": {"result": null, "items": [{"time": "05:10", "quote": "exact words", "kind": "name_called"}]},
     "C5": {"result": null, "items": [{"time": "14:02", "quote": "exact words", "kind": "signal", "starts": "14:40"}]},
     "C7": {"result": null, "items": []},
-    "D3": {"result": "NA", "items": []},
+    "D3": {"result": null, "items": []},
     "D4": {"result": "IE", "items": []}
   }
 }
-- levels.<code>.result is one of 1, 2, 3, 4, "NA", "IE".
-- combined_evidence.<code>.result is null, "NA" or "IE" — NEVER a number.
+- levels.<code>.result is one of 1, 2, 3, 4, "IE", and "NA" only for ${v6.DC_NA_LEVEL_CODES.join(', ')}.
+- combined_evidence.<code>.result is null, "IE", or "NA" only for ${v6.DC_NA_EVIDENCE_CODES.join(', ')} — NEVER a number.
 - Every "time" is MM:SS from the transcript; every "quote" is copied exactly from the transcript line at that time.`;
 
 let _cached = null; // { version, prompt }
@@ -112,7 +127,7 @@ something), never different children.
 PART 1 – LEVELS. For each indicator in Part 1, choose the ONE level (1-4) whose
 description best fits the whole lesson, using only what is in the transcript.
 If the indicator's "Couldn't tell" condition applies, return "IE" instead of a level.
-If the indicator's N/A condition applies, return "NA".
+Return "NA" only for an indicator that has an N/A line, and only when that line applies.
 Give 1-3 evidence items, each a timestamp and the exact words from the transcript.
 
 ${part1}
@@ -121,7 +136,7 @@ PART 2 – EVIDENCE ONLY. For each indicator in Part 2, do NOT give a level.
 List up to 5 moments from the transcript that match what is asked, each with a
 timestamp, the exact words, and a kind. If none, return an empty list.
 If the indicator's "Couldn't tell" condition applies, set "result": "IE".
-If its N/A rule applies, set "result": "NA".
+Set "result": "NA" only for an indicator that has an N/A rule, and only when that rule applies.
 (How many children spoke is counted separately; do not report it.)
 
 ${part2}
@@ -232,6 +247,13 @@ function validate(analysis, transcript) {
     const row = levels && levels[code];
     if (!row) { errors.push(`${code}: missing from levels`); continue; }
     if (!LEVEL_RESULTS.includes(row.result)) { errors.push(`${code}: invalid result ${JSON.stringify(row.result)}`); continue; }
+    // Per-indicator N/A (19 Nov): N/A only where the table lets the DC give it (C2). Elsewhere it is refused as FICO 6-12 refuses it:
+    // that indicator keeps no level (the coach then sets it), and the rest of the reply stands.
+    if (row.result === 'NA' && !v6.DC_NA_LEVEL_CODES.includes(code)) {
+      warnings.push(`${code}: N/A is not allowed for this indicator; kept with no level`);
+      row.result = null;
+      row.na_refused = true;
+    }
     const before = errors.length;
     const kept = checkItems(code, row.evidence || [], 'evidence');
     if (errors.length === before) {
@@ -247,6 +269,11 @@ function validate(analysis, transcript) {
     if (!row) { errors.push(`${code}: missing from combined_evidence`); continue; }
     const result = row.result === undefined ? null : row.result;
     if (!COMBINED_RESULTS.includes(result)) { errors.push(`${code}: combined result must be null, NA or IE, got ${JSON.stringify(row.result)}`); continue; }
+    if (result === 'NA' && !v6.DC_NA_EVIDENCE_CODES.includes(code)) {
+      warnings.push(`${code}: N/A is not allowed for this indicator's evidence; kept as evidence only`);
+      row.result = null;
+      row.na_refused = true;
+    }
     const before = errors.length;
     const kept = checkItems(code, row.items || [], 'items');
     if (errors.length === before) row.items = kept.slice(0, 5);
@@ -278,7 +305,16 @@ function computeScores(analysis, _hasLp, transcript) {
   // Design rule (bd-ra8xu.44): only the 11 DC indicators keep a DC level; any level for the six combined indicators is
   // dropped here as well, so no stored v6 analysis can carry one.
   for (const code of v6.COMBINED_CODES) delete a.levels[code];
+  // Per-indicator N/A (19 Nov): a stray N/A (a reply that skipped the validator) is refused here too, so none is ever stored.
+  for (const code of v6.DC_CODES) {
+    const row = a.levels[code];
+    if (row && row.result === 'NA' && !v6.DC_NA_LEVEL_CODES.includes(code)) { row.result = null; row.na_refused = true; }
+  }
   a.combined_evidence = a.combined_evidence || {};
+  for (const code of EVIDENCE_CODES) {
+    const row = a.combined_evidence[code];
+    if (row && row.result === 'NA' && !v6.DC_NA_EVIDENCE_CODES.includes(code)) { row.result = null; row.na_refused = true; }
+  }
   if (transcript && !a.combined_evidence.D2) {
     const d2 = countD2(transcript);
     if (d2) a.combined_evidence.D2 = d2;
@@ -355,7 +391,7 @@ function getScoringConstants() {
 // evidence part and no block for them, a reply that brings anything for them is refused, and the stored analysis keeps
 // nothing for them (no combined_evidence, no D2 count); it names them in `starred`. The coach sets them as today.
 // Behind app_settings.fico_v6_starred (coaching/fico-s-switch.js isV6StarredOn), OFF by default; off, nothing changes.
-const STARRED_PROMPT_VERSION = `fico17-v6-dc-1s+${v6.RUBRIC_SHA8}`;
+const STARRED_PROMPT_VERSION = `fico17-v6-dc-2s+${v6.RUBRIC_SHA8}`;
 const STARRED_SCHEMA = () => `{
   "rubric": "fico17_v6",
   "levels": {
@@ -364,7 +400,7 @@ ${v6.DC_CODES.filter((c) => !v6.isStarred(c)).map((c, i) => (i === 0
     : `    "${c}": {...}`)).join(',\n')}
   }
 }
-- levels.<code>.result is one of 1, 2, 3, 4, "NA", "IE".
+- levels.<code>.result is one of 1, 2, 3, 4, "IE", and "NA" only for ${v6.DC_NA_LEVEL_CODES.join(', ')}.
 - Every "time" is MM:SS from the transcript; every "quote" is copied exactly from the transcript line at that time.`;
 let _starredCached = null;
 
@@ -383,7 +419,7 @@ something), never different children.
 For each indicator below, choose the ONE level (1-4) whose
 description best fits the whole lesson, using only what is in the transcript.
 If the indicator's "Couldn't tell" condition applies, return "IE" instead of a level.
-If the indicator's N/A condition applies, return "NA".
+Return "NA" only for an indicator that has an N/A line, and only when that line applies.
 Give 1-3 evidence items, each a timestamp and the exact words from the transcript.
 
 ${asked.map((c) => renderLevelBlock(v6.indicator(c))).join('\n\n')}

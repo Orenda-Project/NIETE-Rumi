@@ -15,6 +15,16 @@ const { TEMP_DIR } = require('../utils/constants');
  * - Improved typography and spacing
  * - Professional timestamp badges
  */
+
+/**
+ * A criterion's score at the right of its box: "3/4"; "N/A" for a not-applicable row (FICO17 v6, 19 Nov); "—" for a
+ * row with no number (couldn't tell). Before, a row with no number printed "null/4".
+ */
+function criterionScoreText(criterion) {
+  if (criterion && typeof criterion.score === 'number') return `${criterion.score}/${criterion.max}`;
+  return criterion && criterion.na ? 'N/A' : '—';
+}
+
 class PDFReportService {
   // Brand colors (OECD template colors)
   static COLORS = {
@@ -871,7 +881,7 @@ class PDFReportService {
 
         // Score at right
         doc.fontSize(9).fillColor(this.COLORS.secondary).font('Helvetica')
-           .text(`${criterion.score}/${criterion.max}`, 480, yPos + 10);
+           .text(criterionScoreText(criterion), 480, yPos + 10);
 
         // Timestamp chip (subtle) if present — sits to the left of the score.
         // No unicode clock emoji here: Helvetica maps it to .notdef ("#ñ"),
@@ -1279,7 +1289,7 @@ class PDFReportService {
       doc.fontSize(9)
          .fillColor(this.COLORS.secondary)
          .font('Helvetica')
-         .text(`${criterion.score}/${criterion.max}`, 480, yPos + 10);
+         .text(criterionScoreText(criterion), 480, yPos + 10);
 
       let currentY = yPos + 28;
 

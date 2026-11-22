@@ -74,6 +74,8 @@ export const FORM_V7_COPY = {
   prevIndicator: "Previous",
   nextIndicator: "Next",
   agreeNext: "Agree and next",
+  /* bd-o15qnr.37: under the indicator's line, opens it in the "?" guide (#217) once the guide has it */
+  examples: "Examples",
   /* evidence option B with editing */
   assistantHeard: "Digital Coach heard",
   editSummary: "Edit the summary",
@@ -144,6 +146,7 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   prevIndicator: "پچھلا",
   nextIndicator: "اگلا",
   agreeNext: "متفق، اگلا",
+  examples: "مثالیں",
   assistantHeard: "ڈیجیٹل کوچ نے یہ سنا",
   editSummary: "خلاصہ بدلیں",
   done: "مکمل",
