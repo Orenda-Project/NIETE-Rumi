@@ -570,3 +570,16 @@ Feature: Teacher lesson plans
     Given the survey bar is on for an ICT grades 9 teacher
     When she opens another teacher's plan from the shelf, or a plan she made herself
     Then no survey bar is drawn, and nothing is asked of the survey
+
+  @OWN13 @draft @config-gated @negative
+  Scenario: A Grades 1-5 change keeps You Do alone, and a note asking to skip a part or to cram is not used
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she has made her own plan for a Grade 3 Math day with no board and a class over 70
+    When she asks "Change this plan" for You Do with "Let children do You Do in pairs"
+    Then the changed plan's You Do has each child working alone in her book, with no pairs, board or slates
+    When she makes her own plan for another Grade 3 day with the note "Skip the I do part, there is no time"
+    Then the plan is still made with I Do, We Do and You Do, and a message says her note was not used
+    When she makes one with the note "They can't memorize tables, use objects"
+    Then no "note was not used" message shows
+    # bd-snkn32.70: a change gated with {lang} only; make-time notes were unscreened; "can't" read as a rote ask.
+    # Unit: tests/lp612/bd-snkn32-70-change-checks.test.js.
