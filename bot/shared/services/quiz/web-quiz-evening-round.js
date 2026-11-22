@@ -484,9 +484,13 @@ function asWebItem(row) {
   };
 }
 
+// The cache re-keys a copy's external id to its own quiz (lp-quiz-cache rowsFor, tq:<quizId>:<slo>:<n>): a copy and
+// its donor row share the last two segments.
+const extTail = (ext) => (ext ? String(ext).split(':').slice(-2).join(':') : null);
+
 /**
  * The round's lesson rows whose key is held (Recall.heldIds): the row's own id, and on a cache hit (meta.cache_donor)
- * the donor row it was copied from (matched by external_id). Returns a Set of THIS quiz's row ids.
+ * the donor row it was copied from (matched by external_id's <slo>:<n>). Returns a Set of THIS quiz's row ids.
  */
 async function heldLessonItems(rows, meta) {
   if (!rows.length) return new Set();
@@ -497,8 +501,8 @@ async function heldLessonItems(rows, meta) {
   if (donorId) {
     const { data: donorRows } = await supabase.from('quiz_questions').select('id, external_id').eq('quiz_id', donorId);
     const held = await Recall.heldIds((donorRows || []).map((r) => r.id));
-    const heldExt = new Set((donorRows || []).filter((r) => held.has(String(r.id)) && r.external_id).map((r) => r.external_id));
-    rows.forEach((r) => { if (r.external_id && heldExt.has(r.external_id)) out.add(r.id); });
+    const heldExt = new Set((donorRows || []).filter((r) => held.has(String(r.id)) && r.external_id).map((r) => extTail(r.external_id)));
+    rows.forEach((r) => { if (r.external_id && heldExt.has(extTail(r.external_id))) out.add(r.id); });
   }
   return out;
 }
