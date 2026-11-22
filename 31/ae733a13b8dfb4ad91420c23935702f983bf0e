@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T16:22:40Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"31ae733a13b8","branch":"bd-snkn32.59.8-main","user":""}
+{"ts":"2026-11-22T16:22:41Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"31ae733a13b8","branch":"bd-snkn32.59.8-main","user":""}
