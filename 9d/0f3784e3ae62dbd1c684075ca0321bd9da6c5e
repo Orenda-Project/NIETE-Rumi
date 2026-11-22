@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T13:37:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,language,portal-login,fde-board-pattern,portal-smoke spec_sync=true","sha":"9d0f3784e3ae","branch":"bd-zrdvmi.50.4-53518","user":""}
+{"ts":"2026-11-22T13:37:30Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: menu,training,lesson-plan,language,portal-login,fde-board-pattern,portal-smoke owe their Gherkin","sha":"9d0f3784e3ae","branch":"bd-zrdvmi.50.4-53518","user":""}
