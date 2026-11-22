@@ -90,6 +90,9 @@ export const REPORTS_EN = {
   keepChecking: "Keep checking",
   saving: "Saving",
   saveFailed: "Could not save",
+  // bd-o15qnr.38 — the v7 save: still no answer after a few seconds (her answers stay on the phone), or both tries lost.
+  keptOnPhone: "Kept on this phone",
+  noConnection: "No connection",
   /* bd-tfya0m — an observation with no analysis: there is no draft to check (the bot answers 409 no_analysis) */
   noAnalysis: "No report to check",
   notEditable: "Cannot change it now",
@@ -308,6 +311,8 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   keepChecking: "جانچتے رہیں",
   saving: "محفوظ ہو رہا ہے",
   saveFailed: "محفوظ نہیں ہوا",
+  keptOnPhone: "اس فون میں محفوظ",
+  noConnection: "رابطہ نہیں ہو سکا",
   noAnalysis: "رپورٹ موجود نہیں",
   notEditable: "اب بدل نہیں سکتا",
   readOnly: "آپ کے جوابات",

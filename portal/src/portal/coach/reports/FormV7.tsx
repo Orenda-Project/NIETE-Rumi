@@ -296,8 +296,8 @@ export function v7Changes(draft: Pick<ObservationDraft, "sections" | "saved">, s
 }
 
 /** The Save tray (m9-ff-save). */
-export function SaveTrayV7({ open, saving, onSave, onClose, counts }: {
-  open: boolean; saving: boolean; onSave: () => void; onClose: () => void; counts: ReturnType<typeof v7Changes>;
+export function SaveTrayV7({ open, saving, slow = false, onSave, onClose, counts }: {
+  open: boolean; saving: boolean; slow?: boolean; onSave: () => void; onClose: () => void; counts: ReturnType<typeof v7Changes>;
 }) {
   const C = useCopy(REPORTS) as ReportsCopy;
   const F = useCopy(FORM_V7) as FormV7Copy;
@@ -310,6 +310,8 @@ export function SaveTrayV7({ open, saving, onSave, onClose, counts }: {
         <button type="button" onClick={onSave} disabled={saving} className={cn(PRIMARY_WIDE, "disabled:opacity-60", FOCUS)}>
           {saving ? C.saving : C.saveContinue}
         </button>
+        {/* bd-o15qnr.38 — no answer yet after a few seconds: her answers are kept on this phone (the button still says Saving). */}
+        {saving && slow && <p role="status" className="m-0 px-1 text-center text-[15px] font-semibold text-[#b45309]">{C.keptOnPhone}</p>}
         <button type="button" onClick={onClose} disabled={saving} className={cn(OUTLINE_WIDE, FOCUS)}>{C.keepChecking}</button>
         <p className="m-0 text-center text-[13px] text-[#6b7280]">{F.nextStep(W7.steps[2].current)}</p>
       </div>
