@@ -732,6 +732,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # One ask per teacher per PKT day, whichever surface came first: the teacher_nudges UNIQUE
     # (user_id, nudge_date, kind). External-link opens and Grades 6–12 opens never book.
 
+  # ADDED 2026-11-22 (bd-pdwwk4.2). @no-mock-driver: the mock lane cannot age the teacher's last message past
+  # 24 hours. Executed through the real sweeper in tests/qfix-offers/held-path.test.js.
+  @e2e @config-gated @no-mock-driver @lp-ask @negative @P2 @COA141
+  Scenario: A coaching ask held back because my window closed says so on its row
+    Given I took a lesson plan before 14:00 PKT and the coaching ask was booked
+    And my last message to the bot was more than 24 hours before the sweep that would send it
+    When the sweep runs
+    Then no coaching ask reaches me
+    And with app_settings "quiz_offer_closed_window" set to trace, today's ask row is skipped for window_closed
+    And its context says nothing reached me (held_path "none"), so the funnel can count it
+    # lp-coaching-ask send(): skip(row, 'window_closed', {held_path: 'none'}) when the switch's trace is on; off =
+    # today's skip with no context. No message, string or button changes.
+
   @e2e @wip @draft @lp-ask @P1 @COA43
   Scenario: Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times
     Given the coaching ask is on screen
@@ -972,6 +985,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I send "/coaching"
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And the bot does not ask me to record my lesson
+
+  # ── The report template with a "Make a quiz" button (ADDED 2026-11-22, bd-pdwwk4.2) ──
+  # With the window closed the report goes as the approved share template. Behind app_settings
+  # "quiz_offer_closed_window".report_template it goes as that template's quiz sibling instead: the same header
+  # and body, plus one quick-reply button. training.feature T1240–T1243 cover the tap and the quiz.
+  # @no-mock-driver: the mock lane cannot age the teacher's last message past 24 hours, and the sibling template is
+  # not approved on any WABA yet. Executed with Meta mocked in tests/qfix-offers/closed-window-offer.test.js.
+  @e2e @wip @draft @config-gated @no-mock-driver @P1 @COA140
+  Scenario: With my window closed, my report arrives once, with the same picture and words, plus "Make a quiz"
+    Given I have not written to the bot for more than 24 hours and my coaching report is ready
+    And app_settings "quiz_offer_closed_window" names a report quiz template
+    When the report is sent
+    Then I get one report message with the same picture and words as today's report template, and one "Make a quiz" button
+    But if WhatsApp refuses that template, I get today's report template instead, once
+    And a report that carries my lesson clip keeps its own template and button, with no quiz button
+    # report-window-send: !button && sendQuizTemplate → 'template'; events coaching.report.quiz_template_sent /
+    # _not_sent. share-send kind dc, quiz option: the plain template's components + one QUICK_REPLY (payload
+    # tqr_<session>). Switch off: the session is never read for a button.
+
 
   # ── A coach's observation of her lesson, in her portal (bd-5rz1v.6.4) ──────
   # The row is the teacher's (observation_type leader_observation), so it is
