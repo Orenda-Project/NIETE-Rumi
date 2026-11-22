@@ -17,7 +17,7 @@
  * Rules carried over from lp612-author.worker:
  *   - SQS is at-least-once: only a row still `authoring`, and only the delivery that stamps picked_up_at.
  *   - A lesson is never lost for being long or for a layout defect (deliveryVerdict); TRUNCATION fails.
- *   - A picture that fails to arrive never holds the lesson back: the page keeps its book-reference card.
+ *   - No picture is ever cropped from the book: GB's pictures are the drawn set (bd-rj6w0n.14.16.15).
  *   - Status first, then claim the waiters, so a teacher tapping mid-flip is re-decided, never dropped.
  */
 const fs = require('fs');
@@ -33,7 +33,6 @@ const { resolveUx } = require('../shared/config/ux-strings');
 const { authorLessonPlan } = require('../shared/services/lp612-author.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 const { deliveryVerdict } = require('../shared/services/lp612-render-policy.service');
-const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const { resolveAuthorModel, authorRounds, authorTimeoutMs } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 const GbLane = require('../shared/services/gb-lp-serving.service');
@@ -194,15 +193,8 @@ async function process(payload) {
     const stem = segmentId.replace(/[^A-Za-z0-9._-]/g, '_');
     const { authored, rendered: v9, degraded, problems } = await withTimeout((async () => {
       const authored = await authorLessonPlan({ segment, lang, model, rounds: authorRounds(), correlationId });
-      const refs = refsFromDoc(authored.lpDoc);
-      if (refs.length) {
-        // A missing picture never holds the lesson back: the page falls back to its book-reference card.
-        try {
-          await stageFigures({ refs, outDir: tmpDir, correlationId, segmentId, renderId });
-        } catch (err) {
-          logToFile('LP GB worker: pictures did not arrive, sending without them', { renderId, error: err.message }, 'warn');
-        }
-      }
+      // GB's pictures are the drawn set only: no crop is ever taken from the book (bd-rj6w0n.14.16.15).
+      // A figure the author pointed at in the book prints as its book-reference card instead.
       const out = await renderForDelivery({
         lpDoc: authored.lpDoc, lang, stem,
         outDir: tmpDir, correlationId, segmentId, renderId, phase: 'final',
