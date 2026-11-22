@@ -29,7 +29,7 @@ const WhatsAppService = require('../../shared/services/whatsapp.service');
 const WebQuizToken = require('../../shared/services/quiz/web-quiz-token');
 const Handoff = require('../../shared/services/quiz/transcript-quiz-handoff.service');
 
-const PHONE = '923000000111';
+const PHONE = '+92300FIXTURE1'; // the letters form: no phone-shaped literal in a public repo
 const TEACHER = '00000000-0000-4000-8000-0000000000aa';
 const QUIZ = '00000000-0000-4000-8000-0000000000bb';
 const CODE_ID = '00000000-0000-4000-8000-0000000000cc';
