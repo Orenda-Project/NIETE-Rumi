@@ -414,14 +414,14 @@ async function isRoundQuiz(quizId) {
  * The questions the start reply's order is made from, read beside the session insert: { rows, seeded }, or null
  * (the start reply is today's). Two gates, each its own boolean: `round` (web_quiz_evening_round on and this quiz an
  * evening round: its child's set must reach the page whatever the seed switch says; unseeded unless the seed is on) and
- * `seeded` (web_quiz_order_seed, the hub's switch read; cached: every quiz its own order). Neither: nothing read
- * beyond the round check. A failed read: null.
+ * `seeded` (web_quiz_order_seed, or this link in web_quiz_order_seed_pct's on arm (OrderSeed.onFor); the hub's switch
+ * read, cached: every quiz its own order). Neither: nothing read beyond the round check. A failed read: null.
  */
-async function orderRows(quizId) {
+async function orderRows(quizId, shareCodeId) {
   try {
     const f = await require('./web-quiz-hub-flags').flags();
     const round = Boolean(f.eveningRound) && await isRoundQuiz(quizId);
-    const seeded = Boolean(f.orderSeed);
+    const seeded = OrderSeed.onFor(f, shareCodeId);
     if (!round && !seeded) return null;
     return { rows: await loadQuestions(quizId), seeded };
   } catch (e) {
@@ -456,6 +456,14 @@ function swapCounts(all, sitting, set) {
 }
 const orderFields = (ord) => (ord ? { order: ord.order } : {});
 const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
+// session_started.order_arm (all | pct | off): the link's arm while either order switch is set, so the canary's on-arm
+// share is read from the events; neither set: no field (today's event). The hub's cached switch read; a failure: none.
+async function orderArm(shareCodeId) {
+  try {
+    const arm = OrderSeed.armOf(await require('./web-quiz-hub-flags').flags(), shareCodeId);
+    return arm ? { order_arm: arm } : {};
+  } catch { return {}; }
+}
 
 /** The sibling media helpers (read-aloud clips, lesson video); absent or failing = no audio / no video, never an error. */
 function mediaHelpers() {
@@ -1187,7 +1195,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
         const prior = await (pre ? pre.prior : priorFinish(ctx.shareCodeId, s.student_id, s.id));
         const nameOf = await (pre ? pre.names : shownNames(ctx.lang, [s.student_id]));
         // web_quiz_order_seed: the sitting's own order again (the seed is the session's), so a reload plays on in it
-        const ord = await sittingOrderOf(orderRows(ctx.quizId), s);
+        const ord = await sittingOrderOf(orderRows(ctx.quizId, ctx.shareCodeId), s);
         return {
           st: body.resume_st, device_ref: tok.d || deviceRef,
           ...countedFor(prior, tok.d || deviceRef, Boolean(s.user_id)),
@@ -1331,7 +1339,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
   const priorP = fast && student ? Fast.early(priorFinish(ctx.shareCodeId, student.id)) : null;
   const prior = student && !fast ? await priorFinish(ctx.shareCodeId, student.id) : null;
   // web_quiz_order_seed: the questions for the sitting's own order are read beside the insert (off: nothing is read)
-  const orderRowsP = orderRows(ctx.quizId);
+  const orderRowsP = orderRows(ctx.quizId, ctx.shareCodeId);
 
   const { data: session, error: sErr } = await supabase.from('quiz_sessions').insert({
     quiz_id: ctx.quizId,
@@ -1378,6 +1386,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     // How the page identified the child (roll / name / remembered / chips / new): measures each path.
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
     ...orderEvent(ord),
+    ...(await orderArm(ctx.shareCodeId)),
   });
   if (ord && ord.set && !userId) Round().noteRound('started', ord.set, ord.swap);
   const nameOf = await shownNames(ctx.lang, [student && student.id]);
@@ -1437,6 +1446,7 @@ async function startedFast({ body, ctx, session, student, userId, deviceRef, res
     ...(ctx.moreVideosOf ? { moreVideos: true } : {}),
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
     ...orderEvent(ord),
+    ...(await orderArm(ctx.shareCodeId)),
   });
   if (ord && ord.set && !userId) Round().noteRound('started', ord.set, ord.swap);
   const nameOf = await names;
@@ -1881,7 +1891,7 @@ async function withPulse(s, body, out, rows, questions) {
     // The name the page shows (an Urdu quiz: the class list's Urdu spelling), once per session; a friend has none.
     const first = s.invited_by_student_id ? null : await pulseName(s);
     // web_quiz_order_seed: each child sits their own order, so the event names its question too (each page shows its own number)
-    const named = (await require('./web-quiz-hub-flags').flags()).orderSeed;
+    const named = OrderSeed.onFor(await require('./web-quiz-hub-flags').flags(), s.share_code_id);
     right.forEach((r) => Pulse.push({
       shareCodeId: s.share_code_id, sessionId: s.id, first,
       qn: questions.findIndex((q) => q.id === r.question_id) + 1, invited: Boolean(s.invited_by_student_id),
