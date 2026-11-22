@@ -58,6 +58,9 @@ const SQS = require('../../bot/shared/services/queue/sqs-queue.service');
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
 const List = require('../../bot/shared/services/quiz/transcript-quiz-list.service');
 const Providers = require('../../bot/shared/services/quiz/quiz-lesson-providers');
+const { tk: tkOf } = require('../../bot/shared/services/quiz/web-quiz-kid');
+// The last payload logged under an event name (the teacher is named by tk, never by the raw id).
+const lastPayload = (name) => mockLogEvent.mock.calls.filter(([n]) => n === name).map(([, p]) => p).pop();
 const LpQuizOffer = require('../../bot/shared/services/nudges/lp-quiz-offer.service');
 
 const T = 'u-teacher';
@@ -179,8 +182,9 @@ describe('lp_v8 provider — list()', () => {
     // The catalog's own name for the lesson — the name on the PDF.
     expect(items[1].topic).toBe('Place value & reading 5-digit numbers');
     expect(mockLogEvent).toHaveBeenCalledWith('quiz_menu.lesson_listed', expect.objectContaining({
-      userId: T, source: 'lp_v8', listed: 3,
+      tk: tkOf(T), source: 'lp_v8', listed: 3,
     }));
+    expect(lastPayload('quiz_menu.lesson_listed')).not.toHaveProperty('userId');
   });
 
   test('a lesson that already has a quiz is not listed as a lesson (its quiz row stands for it)', async () => {
@@ -194,8 +198,9 @@ describe('lp_v8 provider — list()', () => {
     const items = await Providers.providerFor('lp_v8').list(T, { limit: 20 });
     expect(items).toEqual([]);
     expect(mockLogEvent).toHaveBeenCalledWith('quiz_menu.lesson_list_failed', expect.objectContaining({
-      userId: T, source: 'lp_v8', reason: 'source_store_missing',
+      tk: tkOf(T), source: 'lp_v8', reason: 'source_store_missing',
     }));
+    expect(lastPayload('quiz_menu.lesson_list_failed')).not.toHaveProperty('userId');
   });
 
   test('…and the recordings are still listed around it', async () => {
@@ -210,8 +215,9 @@ describe('lp_v8 provider — list()', () => {
     const items = await Providers.providerFor('lp_v8').list(T, { limit: 20 });
     expect(items).toEqual([]);
     expect(mockLogEvent).toHaveBeenCalledWith('quiz_menu.lesson_list_failed', expect.objectContaining({
-      userId: T, source: 'lp_v8', reason: 'read_failed',
+      tk: tkOf(T), source: 'lp_v8', reason: 'read_failed',
     }));
+    expect(lastPayload('quiz_menu.lesson_list_failed')).not.toHaveProperty('userId');
     expect(Logger.logToFile).toHaveBeenCalledWith(expect.stringContaining('could not be listed'), expect.any(Object), 'error');
   });
 });
@@ -306,8 +312,9 @@ describe('a tap makes the quiz — and only then', () => {
     expect(buttons).toEqual(expect.arrayContaining([`tq_lang_en_${q.id}`, `tq_lang_ur_${q.id}`]));
     expect(SQS.queueJob).not.toHaveBeenCalled();
     expect(mockLogEvent).toHaveBeenCalledWith('quiz_menu.lesson_picked', expect.objectContaining({
-      userId: T, source: 'lp_v8', quizId: q.id, outcome: 'asked',
+      tk: tkOf(T), source: 'lp_v8', quizId: q.id, outcome: 'asked',
     }));
+    expect(lastPayload('quiz_menu.lesson_picked')).not.toHaveProperty('userId');
   });
 
   test('an Urdu lesson (no language choice): generating at once, one quiz_generate job, "making it now"', async () => {

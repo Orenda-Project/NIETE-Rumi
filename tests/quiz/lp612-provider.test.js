@@ -297,3 +297,27 @@ describe('the queue refusing the job', () => {
     expect(failed && failed[1]).toEqual(expect.objectContaining({ source: 'lp612', reason: 'queue_failed' }));
   });
 });
+
+describe('the log names the teacher by keyed reference (tk), never the raw id', () => {
+  const { tk: tkOf } = require('../../bot/shared/services/quiz/web-quiz-kid');
+  const { logEvent } = require('../../bot/shared/utils/structured-logger');
+  let savedKey;
+  beforeEach(() => { savedKey = process.env.WEB_QUIZ_KID_KEY; process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32); });
+  afterEach(() => {
+    if (savedKey === undefined) delete process.env.WEB_QUIZ_KID_KEY;
+    else process.env.WEB_QUIZ_KID_KEY = savedKey;
+  });
+
+  test('quiz_menu.lesson_listed and quiz_menu.lesson_picked carry tk and no userId', async () => {
+    await Provider.list(T, { limit: 20 });
+    await Provider.start({ id: T, preferred_language: 'en' }, '11111111-0000-4000-8000-000000000003', { phone: PHONE, via: 'list' });
+    const payloads = logEvent.mock.calls
+      .filter(([n]) => n === 'quiz_menu.lesson_listed' || n === 'quiz_menu.lesson_picked').map(([, p]) => p);
+    expect(payloads).toHaveLength(2);
+    payloads.forEach((p) => {
+      expect(p.tk).toBe(tkOf(T));
+      expect(p.tk).toMatch(/^[0-9a-f]{16}$/);
+      expect(p).not.toHaveProperty('userId');
+    });
+  });
+});
