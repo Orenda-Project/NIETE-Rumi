@@ -2090,6 +2090,8 @@ const EVENT_PROPS = Object.freeze({
   cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct)$/,
   // The invite ask (web-quiz-invite-ask.js): the arm (a0 today's button, a1 the panel) and the tile tapped.
   v: /^a[01]$/, who: /^(home|cousin|street)$/,
+  // reminders: the hub install card's one outcome per view (hub-play.js): when it was decided, and what held the card first.
+  when: /^(render|offer|tour_end|hide)$/, held: /^tour$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
