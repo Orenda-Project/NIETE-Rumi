@@ -64,6 +64,8 @@ async function shell(opts, path = '', lang = 'en') {
   seed(opts);
   await boot();
   const t = tokenFor(lang);
+  // a 404 here once (1 run in 5, 22 Nov): say so at the source if the token could not be signed
+  expect(typeof t === 'string' && t.length > 20 ? 'signed' : `unsigned token: ${t}`).toBe('signed');
   const res = await get(`/quiz/teacher/${t}${path}`);
   expect(res.status).toBe(200);
   const html = (await res.text()).split(t).join('<T>');
