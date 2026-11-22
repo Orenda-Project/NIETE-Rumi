@@ -22,11 +22,23 @@ jest.mock('../../shared/services/lp-v8-catalog.service', () => ({ lessonById: je
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 
-const { messageReferencesLp, resolveFollowUp } = require('../../shared/services/lp-context.service');
+const {
+  messageReferencesLp, resolveFollowUp, injectLpContext, __setBuildLpContextForTests,
+} = require('../../shared/services/lp-context.service');
 
 const minsAgo = (m) => new Date(Date.now() - m * 60 * 1000).toISOString();
 const RECENT = [{ lesson_id: 'grade_2_urdu_ch1_seg2', delivered_at: minsAgo(4) }];
 const general = { type: 'general', lp_reference: false };
+const CTX = {
+  identityLine: 'Recently delivered to this teacher: Grade 2 Urdu — Ch 1 (4 min ago).',
+  fullBlock: '## Recently delivered lesson plans\n<lesson_reference>سبق</lesson_reference>',
+  lessonIds: ['grade_2_urdu_ch1_seg2'],
+  source: 'shelf',
+  referenceTerms: [],
+};
+// The positional resolver (bd-wpupy) exists on sandbox only so far; staging and main decide Tier B with the
+// lexical list alone. The injectLpContext test below runs on every branch; this one where the resolver exists.
+const testIfResolver = typeof resolveFollowUp === 'function' ? test : test.skip;
 
 describe('row 918 — "worksheet on this topic" points at the delivered lesson', () => {
   test.each([
@@ -43,7 +55,15 @@ describe('row 918 — "worksheet on this topic" points at the delivered lesson',
     expect(messageReferencesLp(msg, [])).toBe(true);
   });
 
-  test('the voice-note ask resolves to Tier B on the lesson she just got', () => {
+  test('the voice-note ask puts the lesson she just got in front of the model (Tier B)', async () => {
+    __setBuildLpContextForTests(async () => CTX);
+    try {
+      const out = await injectLpContext({ userId: 'u1', message: 'اس ٹاپک سے متعلق ورک شیٹ بنا دیں', intent: general, existingContext: null });
+      expect(out).toContain(CTX.fullBlock);
+    } finally { __setBuildLpContextForTests(null); }
+  });
+
+  testIfResolver('the voice-note ask resolves to Tier B on the lesson she just got', () => {
     const r = resolveFollowUp({ message: 'اس ٹاپک سے متعلق ورک شیٹ بنا دیں', intent: general, entries: RECENT });
     expect(r).toMatchObject({ tier: 'B', ask: false, lessonIds: ['grade_2_urdu_ch1_seg2'] });
   });
