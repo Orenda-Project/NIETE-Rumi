@@ -22,3 +22,4 @@
 {"ts":"2026-11-22T17:32:34Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"98cc69f48978","branch":"ab-card-check-to-main","user":""}
 {"ts":"2026-11-22T17:34:20Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"98cc69f48978","branch":"ab-card-check-to-main","user":""}
 {"ts":"2026-11-22T17:34:27Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"98cc69f48978","branch":"ab-card-check-to-main","user":""}
+{"ts":"2026-11-22T17:34:30Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"ab-card-check-main-carry: E-DUPID:child-test;E-NODRIVER:registration","sha":"98cc69f48978","branch":"ab-card-check-to-main","user":""}
