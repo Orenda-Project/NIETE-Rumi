@@ -3,3 +3,4 @@
 {"ts":"2026-11-22T07:18:20Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"6d1c4d35969d","branch":"bd-96f69c.16-stg","user":""}
 {"ts":"2026-11-22T07:19:39Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-login,portal-smoke owe their Gherkin","sha":"6d1c4d35969d","branch":"bd-96f69c.16-stg","user":""}
 {"ts":"2026-11-22T07:19:46Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (same fan-out; no smoke-page behaviour changed)","sha":"6d1c4d35969d","branch":"bd-96f69c.16-stg","user":""}
+{"ts":"2026-11-22T07:22:45Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login=none-needed (only the plan-page survey bar changed; login untouched)","sha":"6d1c4d35969d","branch":"bd-96f69c.16-stg","user":""}
