@@ -1,0 +1,3 @@
+{"ts":"2026-11-22T18:15:39Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"92e39e7a4551","branch":"bd-96f69c.18-65728","user":""}
+{"ts":"2026-11-22T18:15:40Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"92e39e7a4551","branch":"bd-96f69c.18-65728","user":""}
+{"ts":"2026-11-22T18:15:53Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-smoke owe their Gherkin","sha":"92e39e7a4551","branch":"bd-96f69c.18-65728","user":""}
