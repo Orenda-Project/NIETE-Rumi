@@ -4518,6 +4518,11 @@ const UX_STRINGS = {
     en: '{topic}: {link}',
     ur: '\u200F{topic}: {link}',
   },
+  // The teacher home's send sheet: its second way out, the browser's own share sheet (quiz_forward_button).
+  qfix_forward_more: {
+    en: 'More ways to share',
+    ur: 'شیئر کرنے کے اور طریقے',
+  },
 };
 
 /**
@@ -5224,14 +5229,17 @@ function languageLabelFor(code) {
   return row ? row.languageDescription : 'English';
 }
 
+// A language's own digits (language is data): one row per script that does not write 0-9.
+const DIGITS = Object.freeze({ ur: '۰۱۲۳۴۵۶۷۸۹' });
+
 /**
  * A number for Urdu prose (language-protocol §9.4): ۰–۹ in an Urdu string, the value as it is otherwise. For a param,
  * never a template: `digitsFor(n, lang)`. null/undefined → ''.
  */
 function digitsFor(value, language) {
   if (value === null || value === undefined) return '';
-  const s = String(value);
-  return clampLanguage(language) === 'ur' ? s.replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d))) : s;
+  const set = DIGITS[clampLanguage(language)];
+  return set ? String(value).replace(/[0-9]/g, (d) => set[Number(d)]) : String(value);
 }
 
 module.exports = {
