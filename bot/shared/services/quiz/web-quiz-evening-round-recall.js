@@ -240,8 +240,23 @@ function optionsOf(q) {
 }
 const norm = (s) => String(s || '').toLowerCase().replace(/[\s\p{P}]+/gu, ' ').trim();
 
+/**
+ * The rewrite prompt's language line, from the language registry (config/languages.js) and the digit set
+ * (ux-strings digitsFor): "English" for a Latin-script language; otherwise its name, its script and its own digits,
+ * e.g. "Urdu (Nastaliq script; numbers as ۰۱۲۳۴۵۶۷۸۹ inside the text)".
+ */
+function promptLanguage(language) {
+  const { clampLanguage, digitsFor } = require('../../config/ux-strings');
+  const code = clampLanguage(language);
+  const L = require('../../config/languages').getLanguage(code) || {};
+  const name = L.languageDescription || 'English';
+  if (!L.script || L.script === 'Latin') return name;
+  const digits = digitsFor('0123456789', code);
+  return `${name} (${L.script} script${digits !== '0123456789' ? `; numbers as ${digits} inside the text` : ''})`;
+}
+
 function buildPrompt(originals, language) {
-  const lang = language === 'ur' ? 'Urdu (Nastaliq script; numbers as Urdu digits ۰۱۲۳۴۵۶۷۸۹ inside Urdu text)' : 'English';
+  const lang = promptLanguage(language);
   const list = originals.map((o, i) => ({
     i,
     question: String(o.question.question_text || '').slice(0, MAX_TEXT),
