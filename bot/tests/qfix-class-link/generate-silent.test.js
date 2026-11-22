@@ -146,11 +146,32 @@ test('quiz_generate for an evening round: WhatsApp 0 times, no PDF, no report, n
   expect(WhatsAppService.sendDocument).toHaveBeenCalledTimes(0);
   expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(0);
   expect(htmlToPdf).not.toHaveBeenCalled();
-  expect(SQS.queueJob).not.toHaveBeenCalled();
+  // the only job a round queues is its own read-aloud clips (no report, no hand-off)
+  expect(SQS.queueJob.mock.calls.filter(([, job]) => job !== 'quiz_web_audio')).toEqual([]);
   expect(redis.evalScript).not.toHaveBeenCalled();
   expect(r).toEqual(expect.objectContaining({ ok: true, round: true }));
   expect(quiz().status).toBe('ready');
   expect(rows().filter((q) => q.media && q.media.round === 'lesson')).toHaveLength(8);
+});
+
+test('the round asks for its read-aloud clips once, when it is ready (before the first child opens it); a redelivery asks no more', async () => {
+  seed();
+  // The publish service asks once per quiz per process every 10 minutes: start past any earlier test's ask of this quiz.
+  const t0 = Date.now() + 11 * 60 * 1000;
+  const now = jest.spyOn(Date, 'now').mockImplementation(() => t0);
+  try {
+    await Gen.process(QID, { quizId: QID, source: 'evening_round' });
+    const clips = SQS.queueJob.mock.calls.filter(([, job]) => job === 'quiz_web_audio');
+    expect(clips).toHaveLength(1);
+    expect(clips[0][0]).toBe(QID);
+    expect(clips[0][2]).toEqual({ quizId: QID });
+    expect(quiz().status).toBe('ready');
+    SQS.queueJob.mockClear();
+    await Gen.process(QID, { quizId: QID, source: 'evening_round' });
+    expect(SQS.queueJob.mock.calls.filter(([, job]) => job === 'quiz_web_audio')).toHaveLength(0);
+  } finally {
+    now.mockRestore();
+  }
 });
 
 test('the round\'s share code carries the class and the chosen teacher; the quiz row names it', async () => {
