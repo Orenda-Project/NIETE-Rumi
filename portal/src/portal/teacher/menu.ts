@@ -1,4 +1,5 @@
 import { featureOf, featurePath, type TeacherFeature } from "./paths";
+import { JOURNEY_PATH } from "./journey/paths";
 
 /** bd-fmf24g.1 — the five items of the teacher v2 menu. */
 export type NavFeature = "home" | "lessons" | "coaching" | "training" | "more";
@@ -19,6 +20,9 @@ const MENU_ITEM_OF: Record<TeacherFeature, NavFeature | null> = {
 };
 
 export function currentMenuItem(pathname: string): NavFeature | null {
+  // My journey is one tap from Home (bd-96f69c.9 design review #5): Home stays current there.
+  const path = pathname.replace(/\/+$/, "");
+  if (path === JOURNEY_PATH || path.startsWith(`${JOURNEY_PATH}/`)) return "home";
   const f = featureOf(pathname);
   return f ? MENU_ITEM_OF[f] : null;
 }
