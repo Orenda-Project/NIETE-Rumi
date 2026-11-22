@@ -365,6 +365,13 @@ const REFERRING_BACK_TOKENS = [
   'walay sabaq', 'wala sabaq', 'wale sabaq', 'walay lesson', 'wala lesson',
   'yeh wala', 'is wala', 'us wala', 'jo aap ne bheja', 'jo apne bheja',
   'this lesson', 'that lesson', 'the lesson you', 'you sent',
+  // bd-zrdvmi.55 (ICT sheet row 918): "a worksheet on this topic" pointed at the lesson she
+  // had just been given, but only "lesson"/"sabaq" phrasings counted, so the model wrote from
+  // stale chat history. Pointer + topic only: a bare "topic"/"موضوع" stays out.
+  'اس ٹاپک', 'اسی ٹاپک', 'یہ ٹاپک', 'اس ٹوپک', 'اسی ٹوپک',
+  'اس موضوع', 'اسی موضوع', 'یہ موضوع',
+  'is topic', 'isi topic', 'yeh topic', 'us topic',
+  'this topic', 'that topic', 'same topic',
 ];
 
 const TERM_STOPWORDS = new Set(['the', 'and', 'for', 'with', 'from', 'day']);
