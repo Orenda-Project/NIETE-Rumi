@@ -276,7 +276,7 @@ const TABLE = [
   { id: 'WQ248', title: 'Story Time plays the story its link names, as a practice run with nothing counted' },
   { id: 'WQ249', title: 'A standing class link opens on the teacher\'s name, never on the class list' },
   { id: 'WQ250', title: 'A phone that played in the class gets \'Whose turn?\' with only its own children' },
-  { id: 'WQ251', title: 'The class link\'s preview and every closed state say nothing about the class' },
+  { id: 'WQ251', title: 'The class link\'s preview names at most the class, and every closed state says nothing about it' },
   { id: 'WQ252', title: 'The teacher forwards the class link from the report, and their own visit is practice' },
   { id: 'WQ253', title: 'The teacher whose class was drawn this term sees the class round card and starts the round' },
   { id: 'WQ254', title: 'Absent is marked, never skipped, and the next child needs a long press' },
@@ -288,6 +288,15 @@ const TABLE = [
   { id: 'WQ260', title: 'The preview\'s games never ask for the microphone' },
   { id: 'WQ261', title: 'A phone that cannot play Ogg Opus hears the storybook voices as mp3' },
   { id: 'WQ262', title: 'With Your turn on, the teacher\'s class preview reads a storybook page aloud, counted against the teacher' },
+  { id: 'WQ263', title: '\'Whose turn?\' marks a child whose class quiz is waiting with \'Quiz ready\', and a child who has played it with nothing' },
+  { id: 'WQ264', title: 'The badge reads in the class\'s language: \'Quiz ready\' in English and «کوئز تیار» in Urdu' },
+  { id: 'WQ265', title: 'With the evening round off, or no round ready for the class, \'Whose turn?\' has no badge and is exactly as before' },
+  { id: 'WQ266', title: 'The way out of \'Whose turn?\' and the way back from \'Is your name here?\' say the same words in both languages' },
+  { id: 'WQ267', title: 'A live class link\'s preview names the class and nothing else: \'Jugnu · Class 3 A\' / «جگنو · کلاس ۳ A»' },
+  { id: 'WQ268', title: 'Every open of the class link is counted once, by how the link reached the phone; a preview fetch and the teacher\'s own visit are not' },
+  { id: 'WQ269', title: 'A child plays tonight\'s round as their own set: 5 lesson questions and the 2 recall questions that child missed' },
+  { id: 'WQ270', title: 'A lesson question the child answered right earlier the same day is swapped out of their round; a miss stays' },
+  { id: 'WQ271', title: 'A round never serves a question whose key is held or that the key review dropped' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))

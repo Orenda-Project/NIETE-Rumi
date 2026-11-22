@@ -13,5 +13,6 @@ const scenarios = [
 scenarios.push(...require("../flows/teacher-home-look.cjs"));
 scenarios.push(...require("../flows/teacher-home-activity.cjs"));
 scenarios.push(...require("../flows/teacher-quiz-offer-card.cjs"));
+scenarios.push(...require("../flows/teacher-home-class-link.cjs"));
 
 module.exports = { feature: "teacher-home", spec: 'tests/features/web/teacher-home.feature', scenarios };
