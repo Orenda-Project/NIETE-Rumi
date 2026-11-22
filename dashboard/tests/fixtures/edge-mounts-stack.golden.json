@@ -1465,6 +1465,18 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/quiz\\/teacher(?:\\/([^/]+?))\\/fwd\\/?$/i",
+        "path": "/quiz/teacher/:token/fwd",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/api\\/th\\/home\\/?$/i",
         "path": "/api/th/home",
         "methods": [
