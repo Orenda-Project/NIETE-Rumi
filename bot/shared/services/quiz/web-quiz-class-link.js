@@ -621,4 +621,6 @@ module.exports = {
   resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl, signRenewNonce, verifyRenewNonce,
   // The evening round's reminder payload (the reminders lane requires it from here); web-quiz-evening-round-phone.js.
   roundsReadyForPhone: (...args) => require('./web-quiz-evening-round-phone').roundsReadyForPhone(...args),
+  // Does this class have a live standing link with the evening round on (the offers lane requires it from here)?
+  hasLiveStandingLink: (...args) => require('./web-quiz-evening-round-phone').hasLiveStandingLink(...args),
 };
