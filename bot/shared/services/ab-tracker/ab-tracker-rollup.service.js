@@ -11,7 +11,8 @@
  *      No row, a malformed value or a failed read → off.
  *   4. Due from that time for DUE_WINDOW_MIN minutes; one worker per tick (claimTick), once per Pakistan date (marker).
  *   5. The live tests (rpc ab_tracker_live_tests) and, per test and database measure, its rows for a short window
- *      (rpc ab_tracker_metric_rows) — all on the replica, one call at a time, a pause between calls.
+ *      (rpc ab_tracker_metric_rows) — all on the replica, one call at a time, a pause between calls. On Mondays and
+ *      the read day the window runs from the test's start (late rows get counted), read in slices of SLICE_DAYS.
  *   6. Writes on the PRIMARY, and only the three ab_tracker_* functions (they touch the ab_ tables only): open a
  *      refresh, upsert the rows in batches of BATCH_ROWS, close the refresh. The primary client is loaded only here.
  *   7. Every read landed → 'ran' and the run marker. A failed read → 'partial', no marker: the next tick retries.
@@ -28,6 +29,7 @@ const MARKER_TTL_SECONDS = 36 * 60 * 60;
 const DEFAULT_AT_MIN = 3 * 60;
 const DUE_WINDOW_MIN = 90;
 const LOOKBACK_DAYS = 4;
+const SLICE_DAYS = 7;
 const BATCH_ROWS = 1000;
 const PAUSE_MS = 500;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -49,13 +51,31 @@ function parseSwitch(value) {
 const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 const monday = (iso) => addDays(iso, -((new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7));
 
-/** The window a test's measure is re-read for tonight: {from, to} (Pakistan dates), or null before day one. */
+/** Mondays (Pakistan) and the test's read day re-read from the start, so rows that land late are counted. */
+const isFullDay = (test, today) => monday(today) === today || today === test.read_on;
+
+/**
+ * The window a test's measure is re-read for tonight: {from, to} (Pakistan dates), or null before day one.
+ * Usually the last LOOKBACK_DAYS; on a full day from start_on (weekly: its Monday), marked full: true.
+ */
 function windowFor(test, kind, today) {
   const to = addDays(today, -1);
-  let from = addDays(today, -LOOKBACK_DAYS);
+  const full = isFullDay(test, today);
+  let from = full ? test.start_on : addDays(today, -LOOKBACK_DAYS);
   if (test.start_on > from) from = test.start_on;
   if (kind === 'week') from = monday(from) < test.start_on ? monday(test.start_on) : monday(from);
-  return from > to ? null : { from, to };
+  if (from > to) return null;
+  return full ? { from, to, full } : { from, to };
+}
+
+/** A window cut into reads of at most SLICE_DAYS days, so each read stays near a normal night's size. */
+function slices({ from, to }) {
+  const out = [];
+  for (let f = from; f <= to; f = addDays(f, SLICE_DAYS)) {
+    const end = addDays(f, SLICE_DAYS - 1);
+    out.push({ from: f, to: end < to ? end : to });
+  }
+  return out;
 }
 
 async function readSwitch(db) {
@@ -78,23 +98,26 @@ async function rollup({ reader, writer, today, sleep, pauseMs, batchRows }) {
   const tests = (await call(reader, 'ab_tracker_live_tests')) || [];
   if (!Array.isArray(tests)) throw new Error('live tests is not a list');
   const rows = [];
-  const counts = { tests: tests.length, reads: 0, skipped_metrics: 0, failed: 0, rows: 0, read_ms: 0, write_ms: 0 };
+  const counts = { tests: tests.length, reads: 0, full_windows: 0, skipped_metrics: 0, failed: 0, rows: 0, read_ms: 0, write_ms: 0 };
   for (const t of tests) {
     for (const metric of t.metric_ids || []) {
       const kind = DB_METRICS[metric];
       const w = kind ? windowFor(t, kind, today) : null;
       if (!w) { counts.skipped_metrics += 1; continue; }
-      if (counts.reads > 0) await sleep(pauseMs);
-      const started = Date.now();
-      try {
-        const got = await call(reader, 'ab_tracker_metric_rows', { p_test_id: t.test_id, p_metric_id: metric, p_from: w.from, p_to: w.to });
-        for (const r of got || []) rows.push({ ...r, test_id: t.test_id, metric_id: metric });
-      } catch (err) {
-        counts.failed += 1;
-        logToFile('⚠️ A/B tracker: a read failed — that measure keeps its earlier numbers', { metric, error: err && err.message }, 'warn');
+      if (w.full) counts.full_windows += 1;
+      for (const s of slices(w)) {
+        if (counts.reads > 0) await sleep(pauseMs);
+        const started = Date.now();
+        try {
+          const got = await call(reader, 'ab_tracker_metric_rows', { p_test_id: t.test_id, p_metric_id: metric, p_from: s.from, p_to: s.to });
+          for (const r of got || []) rows.push({ ...r, test_id: t.test_id, metric_id: metric });
+        } catch (err) {
+          counts.failed += 1;
+          logToFile('⚠️ A/B tracker: a read failed — that slice keeps its earlier numbers', { metric, error: err && err.message }, 'warn');
+        }
+        counts.reads += 1;
+        counts.read_ms += Date.now() - started;
       }
-      counts.reads += 1;
-      counts.read_ms += Date.now() - started;
     }
   }
   const db = writer();
@@ -162,5 +185,5 @@ async function run(deps = {}) {
 }
 
 module.exports = {
-  run, parseSwitch, windowFor, SWITCH_KEY, TICK_KEY, DB_METRICS, BATCH_ROWS, PAUSE_MS, DUE_WINDOW_MIN, LOOKBACK_DAYS,
+  run, parseSwitch, windowFor, isFullDay, slices, SWITCH_KEY, TICK_KEY, DB_METRICS, BATCH_ROWS, PAUSE_MS, DUE_WINDOW_MIN, LOOKBACK_DAYS, SLICE_DAYS,
 };

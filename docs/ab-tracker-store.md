@@ -29,7 +29,9 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   claim) and once per Pakistan date (marker `ab_tracker:v1:run:<date>`, 36 h).
 - **Reads (replica, 30 s each, one at a time, 0.5 s apart):** `ab_tracker_live_tests()`, then per test and database
   measure `ab_tracker_metric_rows(test, measure, from, to)`: daily measures from 4 days back (or the start) to
-  yesterday, weekly ones from that Monday. Measures: `plan_fidelity` (day), `teachers_coming_back` (week), `send_failures` (day),
+  yesterday, weekly ones from that Monday. On a Pakistan Monday and on the test's read day the window runs from the
+  start instead (weekly: its Monday), read in 7-day slices, so rows that landed late are counted; the upsert overwrites,
+  never double-counts. Measures: `plan_fidelity` (day), `teachers_coming_back` (week), `send_failures` (day),
   `child_quiz_objectives_secured` (day, child level). Any other measure is skipped and counted.
 - **Writes (primary, 15 s each, one at a time):** `ab_tracker_refresh_open`, `ab_tracker_upsert_rollup` (≤ 1,000 rows a
   call; the function refuses > 2,000), `ab_tracker_refresh_close`. A failed read → `partial`, no marker; the next tick
