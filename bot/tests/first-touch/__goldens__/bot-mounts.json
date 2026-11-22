@@ -431,6 +431,15 @@
             ]
           },
           {
+            "path": "/quiz/teacher/:token/fwd",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
             "path": "/quiz/teacher/:token/stories",
             "methods": [
               "get"

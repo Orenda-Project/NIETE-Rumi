@@ -7,7 +7,7 @@
  *
  *   GET /page/:token[?lang=&tab=class&class=<listId>]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
- *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
+ *   GET /remind/:token?quiz=<id>                       logs the tap (+ quiz_forward_tap wa_report), 302 -> wa.me with the reminder
  *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
  *   POST /jnew/:token {class, n}                       the class link card's confirm "Make a new link": 303 back to the class tab
  *                                                      (400 without the confirm card's signed nonce n; a stale one → 303
@@ -229,6 +229,16 @@ router.get('/pdf/:token', handle(async (req, res) => {
   res.status(200).type('application/pdf').send(pdf);
 }));
 
+/** quiz_forward_tap { surface: wa_report } for one of the teacher's quizzes; never throws, never delays the redirect long. */
+async function forwardTap(teacherId, quizId) {
+  try {
+    const Forward = require('../services/first-touch/quiz-forward');
+    const { data } = await supabase.from('quizzes').select('id, teacher_id, quiz_source, meta').eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
+    const sc = data && data.meta ? uuidOr(data.meta.share_code_id) : null;
+    Forward.logTap({ uid: teacherId, shareCodeId: sc, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source) });
+  } catch (_) { /* the meter never decides the reminder */ }
+}
+
 router.get('/remind/:token', handle(async (req, res) => {
   const v = authorise(req, res);
   if (!v) return;
@@ -241,6 +251,8 @@ router.get('/remind/:token', handle(async (req, res) => {
   logEvent('teacher_report.reminder', {
     teacherId: v.teacherId, quizId, notPlayed: Array.isArray(report.notPlayed) ? report.notPlayed.length : null,
   });
+  // the report's one tap to the class group is the forward meter's wa_report surface (quiz-forward.js; never switched)
+  await forwardTap(v.teacherId, quizId);
   noStore(res);
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));
