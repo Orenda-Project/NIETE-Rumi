@@ -1,2 +1,3 @@
 {"ts":"2026-11-22T13:51:21Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"65c40b42c77d","branch":"HEAD","user":""}
 {"ts":"2026-11-22T17:03:01Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-assessment,fde-board-pattern,portal-smoke=none-needed (superseded interim commit, not on the branch; its change lives in 91b404b, whose teacher-assessment + fde-board-pattern specs carry the new scenarios)","sha":"65c40b42c77d","branch":"bd-zrdvmi.50.4-53518","user":""}
+{"ts":"2026-11-22T17:03:02Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-65c40b42c77d","sha":"65c40b42c77d","branch":"bd-zrdvmi.50.4-53518","user":""}
