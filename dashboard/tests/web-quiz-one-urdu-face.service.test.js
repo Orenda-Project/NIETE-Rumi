@@ -138,7 +138,8 @@ describe('one Urdu face: the stylesheet', () => {
   });
 
   it("no new font file for the one face: the polished one already served (-7 is the light face's, web-quiz-face-lite)", () => {
-    const files = fs.readdirSync(path.join(__dirname, '..', 'public', 'wq', 'fonts')).filter((f) => f.endsWith('.woff2')).sort();
+    // (the Qaida letters' face, wq-naskh-*, is Arabic letters on letter cards: not an Urdu text face)
+    const files = fs.readdirSync(path.join(__dirname, '..', 'public', 'wq', 'fonts')).filter((f) => f.endsWith('.woff2') && !f.startsWith('wq-naskh-')).sort();
     expect(files).toEqual([1, 2, 3, 4, 5, 6, 7].map((i) => `wq-nastaliq-${i}.woff2`));
   });
 });
