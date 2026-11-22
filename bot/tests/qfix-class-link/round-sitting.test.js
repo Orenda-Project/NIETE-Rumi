@@ -77,6 +77,7 @@ const ALL_ROUND = ROUND_ROWS.map((q) => q.id);
 const PLAIN_ROWS = [1, 2, 3, 4].map((n) => base({ id: `91a10000-0000-4000-8000-00000000000${n}`, quiz_id: PLAIN_Q, external_id: `tq:${PLAIN_Q}:S1:${n}`, sort_order: n, question_text: `Plain question ${n}?`, media: {} }));
 
 let db;
+let fake;
 function world({ seed = false, round = false } = {}) {
   db = {
     app_settings: [{ key: 'web_quiz_enabled', value: true },
@@ -102,7 +103,7 @@ function world({ seed = false, round = false } = {}) {
       status: 'completed', invited_by_student_id: null, device_ref: 'd-old2', created_at: ago(3), completed_at: ago(3), correct_answers: 2, total_questions_answered: 4 }],
     quiz_answers: [],
   };
-  const fake = makeFake(db);
+  fake = makeFake(db);
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
 }
 
@@ -167,10 +168,12 @@ describe('web_quiz_order_seed off, web_quiz_evening_round on', () => {
     expect(ev.pinned_n).toBeUndefined();
   });
 
-  test('any other quiz: the start reply carries no order (today\'s reply), a second start reads its questions no more', async () => {
+  test('any other quiz: the start reply carries no order (today\'s reply), and its questions are not read for it', async () => {
     const a = await WQ.startSession({ code: 'PLAIN1', new: { name: 'Ali Test', force: true } });
     expect(a.order).toBeUndefined();
     expect(Object.keys(a).sort()).toEqual(['child', 'counted', 'device_ref', 'resume', 'st']);
+    // the round check is one small read of the quiz row, never the quiz's questions
+    expect(fake.calls.filter((c) => c.table === 'quiz_questions')).toEqual([]);
   });
 });
 
