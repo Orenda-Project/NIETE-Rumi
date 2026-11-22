@@ -28,6 +28,14 @@
  * Every read filters on the teacher. Children's names leave this module only
  * as first names with roll numbers, for the teacher's own page.
  *
+ * LATE (bd-5j1zaf): a child whose counted attempt finished after their code's
+ * `quiz_share_codes.report_sent_at` (the 12 h report's time) was not in that
+ * report. The class codes read carries the stamp, so the count costs no read:
+ * quizReport marks each such child's row `late: true` and its summary `late`
+ * (≥ 1) and `reported`; classReport's quiz rows carry the same two. The keys are
+ * there only when they say something (the pages that do not read them are
+ * unchanged); the teacher's pages show them behind quiz_teacher_home_reports.
+ *
  * A quiz the teacher SENT but did not make (switch `quiz_teacher_home`): a
  * library quiz from the teacher home — the video bank's, or another teacher's —
  * whose class code is this teacher's while `quizzes.teacher_id` is not. Its
@@ -154,6 +162,22 @@ function onePerChildAcrossCodes(sessions) {
     });
 }
 
+/**
+ * Finished after the 12 h report? `codes` = the class codes read (with report_sent_at). → isLate(session): the
+ * session completed after ITS code's stamp; a code with no stamp has no late child (its report has not gone).
+ */
+function lateRule(codes) {
+  const sentAt = new Map();
+  (codes || []).forEach((c) => { const t = c.report_sent_at ? new Date(c.report_sent_at).getTime() : NaN; if (Number.isFinite(t)) sentAt.set(c.id, t); });
+  return (s) => {
+    const at = sentAt.get(s.share_code_id);
+    if (at == null || !s.completed_at) return false;
+    const done = new Date(s.completed_at).getTime();
+    return Number.isFinite(done) && done > at;
+  };
+}
+const reportedOf = (codes) => (codes || []).some((c) => Boolean(c.report_sent_at));
+
 // The watch root's VALUE read and code rule live in a leaf the join queue shares (one parse, one rule).
 const { watchRootId, notUnderWatchRoot } = require('./watch-root');
 
@@ -161,7 +185,7 @@ const { watchRootId, notUnderWatchRoot } = require('./watch-root');
 async function classCodes(teacherId, quizIds, { sends = false } = {}) {
   if (!quizIds.length) return [];
   let q = supabase.from('quiz_share_codes')
-    .select('id, code, quiz_id, created_at')
+    .select('id, code, quiz_id, created_at, report_sent_at')
     .in('quiz_id', quizIds).eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
   if (sends) q = notUnderWatchRoot(q, await watchRootId());
   const { data, error } = await q;
@@ -546,6 +570,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const foldOn = switches.fold;
   const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
   const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
+  const isLate = lateRule(codes);
   const played = counting.map((s) => {
     const listed = who.listed(s);
     const correct = s.correct_answers || 0;
@@ -556,6 +581,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       onList: Boolean(listed),
       correct, total, pct: pct(correct, total),
       ...(tries ? { attempts: tries.get(V21.childKey(s)) || 1 } : {}),
+      ...(isLate(s) ? { late: true } : {}),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
   const { roster: rosterView, notPlayed } = who;
@@ -602,6 +628,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
       hardestN: hardest ? hardest.n : null,
       ...(v21 ? { completion: V21.completion(rawSessions, teacherId, played.length) } : {}),
+      // bd-5j1zaf: how many of them finished after the code's 12 h report, and whether it has gone
+      ...(played.some((p) => p.late) ? { late: played.filter((p) => p.late).length } : {}),
+      ...(reportedOf(codes) ? { reported: true } : {}),
     },
     played,
     notPlayed,
@@ -654,6 +683,7 @@ async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = f
     : quizzes || [];
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
+  const isLate = lateRule(codes);
   // The fold switch is read alongside the sessions (one round trip, not a serial one after them).
   const [allSessions, foldOn] = await Promise.all([sessionsFor(codes.map((c) => c.id)), FoldFlag.on()]);
   const counted = countedSessions(allSessions, teacherId);
@@ -703,6 +733,9 @@ async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = f
       ...(q.sent_at ? { sent: true } : {}),
       // the quick answer: a story send's book from this read's own meta (the home's "sent" pill, the pick's skip)
       ...(ownOnly && q.quiz_source === 'story' ? { book: bookOf(q) } : {}),
+      // bd-5j1zaf: the children who finished after the 12 h report, and whether a code of this quiz has had it
+      ...(mine.some(isLate) ? { late: mine.filter(isLate).length } : {}),
+      ...(reportedOf(codes.filter((c) => c.quiz_id === q.id)) ? { reported: true } : {}),
     };
   });
 
@@ -737,5 +770,7 @@ module.exports = {
   sentQuiz, sentQuizzes, sentQuizzesOn,
   // A storybook send's 12 h WhatsApp report counts the children its web report counts.
   storySendChildren,
+  // finished after the code's 12 h report (bd-5j1zaf): the teacher home's library sends count with this rule
+  lateRule,
   watchRootId, notUnderWatchRoot,   // re-exported from ./watch-root: the watch root's VALUE read and code rule
 };

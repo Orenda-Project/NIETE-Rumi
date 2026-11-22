@@ -4555,6 +4555,50 @@ const UX_STRINGS = {
     en: 'Answer key under review: we are checking which answer is right.',
     ur: 'جواب کی جانچ جاری ہے: ہم دیکھ رہے ہیں کہ اس سوال کا کون سا جواب درست ہے۔',
   },
+
+  // ── qfix report: children who finish after the 12 h report, on the teacher's own pages (bd-5j1zaf, app_settings
+  // quiz_teacher_home_reports). The teacher home's "Quiz reports" section (its digits are the home's own: Urdu digits
+  // on the Urdu page) and the live report page's quiz tab (Western digits, as the class report's other numbers). No
+  // verb addresses the teacher; «بچوں» and «نے کھیلا» are the generic plural, as the home's own th.played.n. ──
+  qfix_report_home_head: {
+    en: 'Quiz reports',
+    ur: 'کوئز رپورٹس',
+  },
+  // {played} children on the class list who finished, {of} the class list's size
+  qfix_report_home_of: {
+    en: '{played} of {of} played',
+    ur: '{of} میں سے {played} نے کھیلا',
+  },
+  // no class list known: everyone who finished
+  qfix_report_home_n: {
+    en: '{played} played',
+    ur: '{played} نے کھیلا',
+  },
+  // the chip on a row: children who finished after the quiz's report was sent ({late} ≥ 1)
+  qfix_report_home_late: {
+    en: '+{late} after the report',
+    ur: 'رپورٹ کے بعد +{late}',
+  },
+  // the quiz's 12 h report has not gone yet: no chip
+  qfix_report_home_pending: {
+    en: 'Report not sent yet',
+    ur: 'رپورٹ ابھی نہیں بھیجی گئی',
+  },
+  // the section's foot: the class tab's evening rounds (only while a class has a live round)
+  qfix_report_home_rounds: {
+    en: 'Evening rounds',
+    ur: 'شام کے کوئز',
+  },
+  // the live report's quiz tab, under the title ({late} ≥ 1)
+  qfix_report_page_line: {
+    en: '{n} played · {late} after the report was sent',
+    ur: '{n} نے کھیلا · {late} رپورٹ بھیجنے کے بعد',
+  },
+  // the tag on each child's score row who finished after the report
+  qfix_report_page_tag: {
+    en: 'after the report',
+    ur: 'رپورٹ کے بعد',
+  },
 };
 
 /**
