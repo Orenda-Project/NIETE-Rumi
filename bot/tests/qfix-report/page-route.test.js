@@ -95,7 +95,7 @@ describe('switch on: the quiz tab marks the late finishers', () => {
     expect(opened()).toEqual([{ teacherId: TEACHER, quizId: QUIZ, scope: 'quiz', tab: 'quiz', iab: false, late_n: 2, from: 'home' }]);
   });
 
-  test.each(['wa', 'list'])('from=%s is kept', async (from) => {
+  test.each(['wa', 'list', 'class'])('from=%s is kept', async (from) => {
     await boot({ settings: ON });
     await (await get(`/page/${quizTok()}?from=${from}`)).text();
     expect(opened()).toEqual([expect.objectContaining({ late_n: 2, from })]);
