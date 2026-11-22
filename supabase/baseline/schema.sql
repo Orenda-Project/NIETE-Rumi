@@ -57,6 +57,218 @@ $$;
 
 
 --
+-- Name: ab_tracker_live_tests(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_live_tests() RETURNS jsonb
+    LANGUAGE sql STABLE
+    SET statement_timeout TO '30s'
+    AS $$
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           'test_id', c.test_id, 'unit_kind', c.unit_kind, 'metric_ids', to_jsonb(c.metric_ids),
+           'start_on', c.start_on, 'read_on', c.read_on,
+           'units', (SELECT count(*) FROM public.ab_assignment a WHERE a.test_id = c.test_id)) ORDER BY c.test_id), '[]'::jsonb)
+    FROM public.ab_card_lock c
+   WHERE c.ended_at IS NULL
+     AND c.start_on <= (now() AT TIME ZONE 'Asia/Karachi')::date
+     AND c.read_on + 14 >= (now() AT TIME ZONE 'Asia/Karachi')::date
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_live_tests() OWNER TO postgres;
+
+--
+-- Name: ab_tracker_metric_rows(text, text, date, date); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date) RETURNS jsonb
+    LANGUAGE plpgsql STABLE
+    SET statement_timeout TO '30s'
+    AS $$
+DECLARE
+  v_kind text;
+  v_from timestamptz := (p_from::timestamp AT TIME ZONE 'Asia/Karachi');
+  v_to   timestamptz := ((p_to + 1)::timestamp AT TIME ZONE 'Asia/Karachi');
+  v_out  jsonb;
+BEGIN
+  SELECT c.unit_kind INTO v_kind FROM public.ab_card_lock c WHERE c.test_id = p_test_id;
+  IF v_kind IS NULL THEN RAISE EXCEPTION 'ab_tracker_metric_rows: unknown test %', p_test_id; END IF;
+  IF p_to < p_from OR p_to - p_from > 62 THEN RAISE EXCEPTION 'ab_tracker_metric_rows: the window must be 1 to 63 days'; END IF;
+
+  IF p_metric_id = 'plan_fidelity' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
+      SELECT t.arm, t.unit_id, t.block, (c.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
+             (c.analysis_data #>> '{lp_fidelity,fidelity_pct}')::double precision AS v
+        FROM t JOIN public.coaching_sessions c ON c.user_id = t.teacher_id
+       WHERE c.created_at >= v_from AND c.created_at < v_to
+         AND (c.observation_type IS NULL OR c.observation_type = 'leader_observation')
+         AND c.analysis_data #>> '{lp_fidelity,status}' = 'ok'
+         AND jsonb_typeof(c.analysis_data #> '{lp_fidelity,fidelity_pct}') = 'number'
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT x.arm, x.unit_id, x.block, 'day' AS period_kind, x.d AS period, count(*) AS n, sum(x.v) AS s, sum(x.v * x.v) AS ss
+        FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
+
+  ELSIF p_metric_id = 'teachers_coming_back' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), took AS (
+      SELECT d.user_id AS teacher_id, d.created_at AS at
+        FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
+       WHERE d.status = 'sent' AND d.created_at >= v_from AND d.created_at < v_to
+      UNION ALL
+      SELECT o.user_id, o.opened_at
+        FROM t JOIN public.niete_lp_opens o ON o.user_id = t.teacher_id
+       WHERE o.plan_kind = 'k5' AND o.source IN ('viewer', 'external') AND o.opened_at >= v_from AND o.opened_at < v_to
+    ), wk AS (
+      SELECT DISTINCT took.teacher_id, date_trunc('week', took.at AT TIME ZONE 'Asia/Karachi')::date AS wk FROM took
+    ), hit AS (
+      SELECT t.unit_id, wk.wk, count(*) AS takers FROM wk JOIN t ON t.teacher_id = wk.teacher_id GROUP BY t.unit_id, wk.wk
+    ), roster AS (
+      SELECT t.arm, t.unit_id, t.block, count(*) AS teachers FROM t GROUP BY t.arm, t.unit_id, t.block
+    ), weeks AS (
+      SELECT g::date AS wk FROM generate_series(date_trunc('week', p_from::timestamp), p_to::timestamp, interval '1 week') g
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT ro.arm, ro.unit_id, ro.block, 'week' AS period_kind, weeks.wk AS period, ro.teachers AS n,
+             (100.0 * coalesce(h.takers, 0))::double precision AS s, (10000.0 * coalesce(h.takers, 0))::double precision AS ss
+        FROM roster ro CROSS JOIN weeks LEFT JOIN hit h ON h.unit_id = ro.unit_id AND h.wk = weeks.wk) r;
+
+  ELSIF p_metric_id = 'child_quiz_objectives_secured' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), s AS (
+      SELECT t.arm, t.unit_id, t.block, qs.id AS session_id, qs.student_id,
+             (qs.created_at AT TIME ZONE 'Asia/Karachi')::date AS d
+        FROM t JOIN public.quizzes q ON q.teacher_id = t.teacher_id
+        JOIN public.quiz_sessions qs ON qs.quiz_id = q.id
+       WHERE qs.created_at >= v_from AND qs.created_at < v_to
+         AND qs.invited_by_student_id IS NULL AND qs.student_id IS NOT NULL
+         AND (qs.user_id IS NULL OR qs.user_id <> q.teacher_id)
+    ), obj AS (
+      SELECT s.arm, s.unit_id, s.block, s.d, s.student_id, split_part(qq.external_id, ':', 3) AS objective,
+             bool_and(coalesce(a.is_correct, false)) AS secured
+        FROM s JOIN public.quiz_answers a ON a.session_id = s.session_id
+        JOIN public.quiz_questions qq ON qq.id = a.question_id
+       WHERE qq.external_id LIKE 'tq:%'
+       GROUP BY s.arm, s.unit_id, s.block, s.d, s.student_id, split_part(qq.external_id, ':', 3)
+    ), kid AS (
+      SELECT obj.arm, obj.unit_id, obj.block, obj.d, obj.student_id,
+             avg(CASE WHEN obj.secured THEN 1.0 ELSE 0.0 END)::double precision AS v
+        FROM obj GROUP BY obj.arm, obj.unit_id, obj.block, obj.d, obj.student_id
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT kid.arm, kid.unit_id, kid.block, 'day' AS period_kind, kid.d AS period, count(*) AS n,
+             sum(kid.v) AS s, sum(kid.v * kid.v) AS ss
+        FROM kid GROUP BY kid.arm, kid.unit_id, kid.block, kid.d) r;
+
+  ELSIF p_metric_id = 'send_failures' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
+      SELECT t.arm, t.unit_id, t.block, (d.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
+             CASE WHEN d.status = 'sent' THEN 0.0 ELSE 1.0 END::double precision AS v
+        FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
+       WHERE d.created_at >= v_from AND d.created_at < v_to
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT x.arm, x.unit_id, x.block, 'day' AS period_kind, x.d AS period, count(*) AS n, sum(x.v) AS s, sum(x.v * x.v) AS ss
+        FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
+
+  ELSE
+    RAISE EXCEPTION 'ab_tracker_metric_rows: unknown metric %', p_metric_id;
+  END IF;
+  RETURN v_out;
+END;
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date) OWNER TO postgres;
+
+--
+-- Name: ab_tracker_refresh_close(uuid, text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb) RETURNS void
+    LANGUAGE plpgsql
+    SET statement_timeout TO '15s'
+    AS $$
+BEGIN
+  UPDATE public.ab_refresh_log
+     SET status = p_status, detail = coalesce(p_detail, '{}'::jsonb), finished_at = now(), updated_at = now()
+   WHERE id = p_refresh_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'ab_tracker_refresh_close: no refresh %', p_refresh_id; END IF;
+END;
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb) OWNER TO postgres;
+
+--
+-- Name: ab_tracker_refresh_open(integer, date); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) RETURNS uuid
+    LANGUAGE plpgsql
+    SET statement_timeout TO '15s'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.ab_refresh_log (status, tests, watermark)
+  VALUES ('running', greatest(coalesce(p_tests, 0), 0), p_watermark)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) OWNER TO postgres;
+
+--
+-- Name: ab_tracker_unit_teachers(text, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) RETURNS TABLE(teacher_id uuid, unit_id uuid, arm text, block text)
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
+   WHERE p_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+  UNION ALL
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
+   WHERE p_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) OWNER TO postgres;
+
+--
+-- Name: ab_tracker_upsert_rollup(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb) RETURNS integer
+    LANGUAGE plpgsql
+    SET statement_timeout TO '15s'
+    AS $$
+DECLARE
+  v_n integer;
+BEGIN
+  IF jsonb_typeof(p_rows) IS DISTINCT FROM 'array' OR jsonb_array_length(p_rows) > 2000 THEN
+    RAISE EXCEPTION 'ab_tracker_upsert_rollup: rows must be a list of at most 2000';
+  END IF;
+  INSERT INTO public.ab_rollup_unit_period AS r
+         (test_id, arm, unit_id, block, period_kind, period, metric_id, n, s, ss, refresh_id, pulled_at)
+  SELECT x.test_id, x.arm, x.unit_id, x.block, x.period_kind, x.period, x.metric_id, x.n, x.s, x.ss, p_refresh_id, now()
+    FROM jsonb_to_recordset(p_rows) AS x(test_id text, arm text, unit_id uuid, block text, period_kind text,
+                                         period date, metric_id text, n bigint, s double precision, ss double precision)
+  ON CONFLICT (test_id, unit_id, metric_id, period_kind, period) DO UPDATE
+     SET arm = EXCLUDED.arm, block = EXCLUDED.block, n = EXCLUDED.n, s = EXCLUDED.s, ss = EXCLUDED.ss,
+         refresh_id = EXCLUDED.refresh_id, pulled_at = EXCLUDED.pulled_at, updated_at = now();
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RETURN v_n;
+END;
+$$;
+
+
+ALTER FUNCTION public.ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb) OWNER TO postgres;
+
+--
 -- Name: acquire_assessment_lock(uuid, character varying); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2710,6 +2922,121 @@ CREATE TABLE public._coltypes (
     udt_name information_schema.sql_identifier
 );
 
+
+--
+-- Name: ab_assignment; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.ab_assignment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    test_id text NOT NULL,
+    unit_id uuid NOT NULL,
+    arm text NOT NULL,
+    block text,
+    assigned_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ab_assignment_arm_check CHECK ((arm ~ '^[a-z0-9_]{1,24}$'::text))
+);
+
+
+ALTER TABLE public.ab_assignment OWNER TO postgres;
+
+--
+-- Name: ab_card_lock; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.ab_card_lock (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    test_id text NOT NULL,
+    sha256 text NOT NULL,
+    unit_kind text NOT NULL,
+    metric_ids text[] NOT NULL,
+    start_on date NOT NULL,
+    read_on date NOT NULL,
+    ended_at timestamp with time zone,
+    first_seen timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ab_card_lock_check CHECK ((read_on >= start_on)),
+    CONSTRAINT ab_card_lock_metric_ids_check CHECK (((cardinality(metric_ids) >= 1) AND (cardinality(metric_ids) <= 12))),
+    CONSTRAINT ab_card_lock_sha256_check CHECK ((sha256 ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT ab_card_lock_test_id_check CHECK ((test_id ~ '^[a-z0-9]+(-[a-z0-9]+)+$'::text)),
+    CONSTRAINT ab_card_lock_unit_kind_check CHECK ((unit_kind = ANY (ARRAY['school'::text, 'teacher'::text])))
+);
+
+
+ALTER TABLE public.ab_card_lock OWNER TO postgres;
+
+--
+-- Name: ab_refresh_log; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.ab_refresh_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    status text DEFAULT 'running'::text NOT NULL,
+    tests integer DEFAULT 0 NOT NULL,
+    watermark date,
+    detail jsonb DEFAULT '{}'::jsonb NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    finished_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ab_refresh_log_status_check CHECK ((status = ANY (ARRAY['running'::text, 'ran'::text, 'partial'::text, 'failed'::text]))),
+    CONSTRAINT ab_refresh_log_tests_check CHECK ((tests >= 0))
+);
+
+
+ALTER TABLE public.ab_refresh_log OWNER TO postgres;
+
+--
+-- Name: ab_rollup_unit_period; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.ab_rollup_unit_period (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    test_id text NOT NULL,
+    arm text NOT NULL,
+    unit_id uuid NOT NULL,
+    block text,
+    period_kind text NOT NULL,
+    period date NOT NULL,
+    metric_id text NOT NULL,
+    n bigint NOT NULL,
+    s double precision NOT NULL,
+    ss double precision NOT NULL,
+    refresh_id uuid NOT NULL,
+    pulled_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ab_rollup_unit_period_n_check CHECK ((n >= 0)),
+    CONSTRAINT ab_rollup_unit_period_period_kind_check CHECK ((period_kind = ANY (ARRAY['day'::text, 'week'::text])))
+);
+
+
+ALTER TABLE public.ab_rollup_unit_period OWNER TO postgres;
+
+--
+-- Name: ab_stop_state; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.ab_stop_state (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    test_id text NOT NULL,
+    rule_id text NOT NULL,
+    state text NOT NULL,
+    value double precision,
+    threshold double precision,
+    reviewed_by_role text,
+    as_of timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ab_stop_state_reviewed_by_role_check CHECK (((reviewed_by_role IS NULL) OR (reviewed_by_role = ANY (ARRAY['owner'::text, 'second_reader'::text])))),
+    CONSTRAINT ab_stop_state_state_check CHECK ((state = ANY (ARRAY['tripped'::text, 'reviewed'::text, 'clear'::text])))
+);
+
+
+ALTER TABLE public.ab_stop_state OWNER TO postgres;
 
 --
 -- Name: ab_test_events; Type: TABLE; Schema: public; Owner: -
@@ -6748,6 +7075,78 @@ ALTER TABLE ONLY public.training_modules ALTER COLUMN id SET DEFAULT nextval('pu
 --
 
 ALTER TABLE ONLY public.training_questions ALTER COLUMN id SET DEFAULT nextval('public.training_questions_id_seq'::regclass);
+
+
+--
+-- Name: ab_assignment ab_assignment_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_assignment
+    ADD CONSTRAINT ab_assignment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ab_assignment ab_assignment_unit; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_assignment
+    ADD CONSTRAINT ab_assignment_unit UNIQUE (test_id, unit_id);
+
+
+--
+-- Name: ab_card_lock ab_card_lock_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_card_lock
+    ADD CONSTRAINT ab_card_lock_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ab_card_lock ab_card_lock_test_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_card_lock
+    ADD CONSTRAINT ab_card_lock_test_id_key UNIQUE (test_id);
+
+
+--
+-- Name: ab_refresh_log ab_refresh_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_refresh_log
+    ADD CONSTRAINT ab_refresh_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ab_rollup_unit_period ab_rollup_unit_period_grain; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_rollup_unit_period
+    ADD CONSTRAINT ab_rollup_unit_period_grain UNIQUE (test_id, unit_id, metric_id, period_kind, period);
+
+
+--
+-- Name: ab_rollup_unit_period ab_rollup_unit_period_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_rollup_unit_period
+    ADD CONSTRAINT ab_rollup_unit_period_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ab_stop_state ab_stop_state_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_stop_state
+    ADD CONSTRAINT ab_stop_state_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ab_stop_state ab_stop_state_rule; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_stop_state
+    ADD CONSTRAINT ab_stop_state_rule UNIQUE (test_id, rule_id);
 
 
 --
@@ -11513,6 +11912,38 @@ CREATE TRIGGER users_history_trigger AFTER INSERT OR DELETE OR UPDATE ON public.
 
 
 --
+-- Name: ab_assignment ab_assignment_test_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_assignment
+    ADD CONSTRAINT ab_assignment_test_id_fkey FOREIGN KEY (test_id) REFERENCES public.ab_card_lock(test_id) ON DELETE CASCADE;
+
+
+--
+-- Name: ab_rollup_unit_period ab_rollup_unit_period_refresh_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_rollup_unit_period
+    ADD CONSTRAINT ab_rollup_unit_period_refresh_id_fkey FOREIGN KEY (refresh_id) REFERENCES public.ab_refresh_log(id);
+
+
+--
+-- Name: ab_rollup_unit_period ab_rollup_unit_period_test_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_rollup_unit_period
+    ADD CONSTRAINT ab_rollup_unit_period_test_id_fkey FOREIGN KEY (test_id) REFERENCES public.ab_card_lock(test_id) ON DELETE CASCADE;
+
+
+--
+-- Name: ab_stop_state ab_stop_state_test_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.ab_stop_state
+    ADD CONSTRAINT ab_stop_state_test_id_fkey FOREIGN KEY (test_id) REFERENCES public.ab_card_lock(test_id) ON DELETE CASCADE;
+
+
+--
 -- Name: ab_test_events ab_test_events_test_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13297,6 +13728,36 @@ ALTER TABLE ONLY public.web_quiz_challenge_runs
 
 
 --
+-- Name: ab_assignment; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.ab_assignment ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ab_card_lock; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.ab_card_lock ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ab_refresh_log; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.ab_refresh_log ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ab_rollup_unit_period; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.ab_rollup_unit_period ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ab_stop_state; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.ab_stop_state ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: ab_test_events; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -14277,6 +14738,54 @@ ALTER TABLE public.web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.website_visits ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: FUNCTION ab_tracker_live_tests(); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_live_tests() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_live_tests() TO service_role;
+
+
+--
+-- Name: FUNCTION ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date) TO service_role;
+
+
+--
+-- Name: FUNCTION ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION ab_tracker_refresh_open(p_tests integer, p_watermark date); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) TO service_role;
+
+
+--
+-- Name: FUNCTION ab_tracker_unit_teachers(p_test_id text, p_kind text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text) TO service_role;
+
+
+--
+-- Name: FUNCTION ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb) TO service_role;
+
+
+--
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: -
 --
 
@@ -14657,6 +15166,41 @@ GRANT ALL ON FUNCTION public.update_updated_at_column() TO service_role;
 --
 
 GRANT ALL ON TABLE public._coltypes TO service_role;
+
+
+--
+-- Name: TABLE ab_assignment; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.ab_assignment TO service_role;
+
+
+--
+-- Name: TABLE ab_card_lock; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.ab_card_lock TO service_role;
+
+
+--
+-- Name: TABLE ab_refresh_log; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.ab_refresh_log TO service_role;
+
+
+--
+-- Name: TABLE ab_rollup_unit_period; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.ab_rollup_unit_period TO service_role;
+
+
+--
+-- Name: TABLE ab_stop_state; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.ab_stop_state TO service_role;
 
 
 --
@@ -16182,6 +16726,41 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 --
 
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO service_role;
+
+
+--
+-- Name: TABLE ab_assignment; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.ab_assignment IS '[Internal] A/B tracker: each unit''s arm in a test (unit ids only).';
+
+
+--
+-- Name: TABLE ab_card_lock; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.ab_card_lock IS '[Internal] A/B tracker: one row per launched test (frozen card hash, unit kind, measures, dates).';
+
+
+--
+-- Name: TABLE ab_refresh_log; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.ab_refresh_log IS '[Internal] A/B tracker: one row per nightly rollup run.';
+
+
+--
+-- Name: TABLE ab_rollup_unit_period; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.ab_rollup_unit_period IS '[Internal] A/B tracker: test x unit x measure x day/week sums (n, s, ss).';
+
+
+--
+-- Name: TABLE ab_stop_state; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.ab_stop_state IS '[Internal] A/B tracker: stop-rule state per test.';
 
 
 --
