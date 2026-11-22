@@ -17,7 +17,7 @@ import { noticeTracker } from './tracker';
  * what it is given. At most 2 rows and "See all". Open opens the item and tells the server.
  *
  * The quiz card ("Make a quiz on today's lesson"): the server lists a `quiz_offer` item when today's WhatsApp quiz
- * offer or coaching ask could not be sent because her window was shut (its own server switch). It opens the quiz home
+ * offer or coaching ask could not be sent because the teacher's window was shut (its own server switch). It opens the quiz home
  * the app already has (the same signed page as "Quiz this lesson"), so it is drawn only once that page is known for
  * this session — never a button that goes nowhere. Its tap tells the server first (the card is then gone everywhere),
  * waiting at most TAP_WAIT_MS, because the quiz home is a page load. No quiz card listed: nothing more is asked.

@@ -184,7 +184,7 @@ export function mergeServer(
   let items = [...local];
   const home: ServerItem[] = [];
   for (const s of server) {
-    // The quiz card lives on Home only, until the end of her day (homeUntil) or her tap.
+    // The quiz card lives on Home only, until the end of the teacher's day (homeUntil) or their tap.
     if (s.kind === 'quiz_offer') {
       if (!s.openedAt && s.state === 'ready' && s.homeUntil && s.homeUntil > now) home.push(s);
       continue;

@@ -9,9 +9,9 @@
  * Held to:
  *   - behind app_settings.quiz_offer_closed_window = { app_card: true }; a missing row, another shape, or a failed
  *     read is OFF, and OFF is today's list exactly (no teacher_nudges read at all);
- *   - only TODAY's (Pakistan) skipped row of one of the two kinds for one of the two reasons, hers only;
+ *   - only TODAY's (Pakistan) skipped row of one of the two kinds for one of the two reasons, the teacher's only;
  *   - one card per teacher per day (the quiz offer's row first: it names the topics);
- *   - gone once a quiz made today covers the lesson, or once she tapped it (context.app_card_opened_at);
+ *   - gone once a quiz made today covers the lesson, or once the teacher tapped it (context.app_card_opened_at);
  *   - teacher_notice.quiz_offer_shown / _opened carry only the row's kind and the nudge id, in data_json.
  *
  * The fake database below FILTERS: it answers each statement from fixture tables using the statement's own
@@ -68,7 +68,7 @@ const ON = { app_card: true };
  *   teacher_nudges   SELECT … WHERE user_id = $1 AND nudge_date = $2 AND kind = ANY($3) AND status = 'skipped'
  *                    AND context->>'skip_reason' = ANY($4) AND no app_card_opened_at
  *                    UPDATE … (opened) WHERE id = $1 AND user_id = $2 AND kind = ANY($3) AND status = 'skipped'
- *   quizzes          the lesson ids among $3 covered by her ($1) quizzes made since $2 (not failed / cancelled)
+ *   quizzes          the lesson ids among $3 covered by the teacher's ($1) quizzes made since $2 (not failed / cancelled)
  */
 function fakeDb({ settings = {}, nudges = [], quizzes = [], papers = [], settingsError = null, nudgesError = null } = {}) {
   const calls = [];
@@ -134,7 +134,7 @@ describe('switch on: a skipped window-closed row today lists one quiz card', () 
       lessonId: 'm4.c03.l02', nudgeId: NUDGE, from: 'lp_quiz_offer',
       openedAt: null, homeUntil: DAY_END,
     })]);
-    // asked for today, in Pakistan, for her, the two kinds, the two reasons
+    // asked for today, in Pakistan, for this teacher, the two kinds, the two reasons
     const read = db.calls.find((c) => /FROM teacher_nudges/.test(c.sql));
     expect(read.params.slice(0, 4)).toEqual([TEACHER, TODAY,
       ['lp_quiz_offer', 'coaching_after_lp'], ['window_closed', 'window_closed_template']]);
@@ -154,7 +154,7 @@ describe('switch on: a skipped window-closed row today lists one quiz card', () 
     expect(quizItems(items).map((i) => i.id)).toEqual([`quiz_offer:${NUDGE}`]);
   });
 
-  it('the card sits with her other items (newest first) and leaves them as they were', async () => {
+  it('the card sits with the teacher's other items (newest first) and leaves them as they were', async () => {
     const db = fakeDb({ settings: { quiz_offer_closed_window: ON }, nudges: [offerRow()], papers: [paperRow()] });
     const { items } = await N().listNotices(db.query, TEACHER, { now: NOW });
     expect(items.map((i) => i.id)).toEqual([`paper:${REQ}`, `quiz_offer:${NUDGE}`]);
