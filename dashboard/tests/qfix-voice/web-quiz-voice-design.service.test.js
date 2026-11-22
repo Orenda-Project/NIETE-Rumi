@@ -186,10 +186,11 @@ function fromFont(value, prop) {
   if (!m) return null;
   return prop === 'font-size' ? m[1] : m[2].trim();
 }
-function computed(path, prop) {
+// roots: the style files in the order the page loads them (wq.css alone unless a test names more).
+function computed(path, prop, roots = [CSS_ROOT]) {
   let best = null;
   let order = 0;
-  CSS_ROOT.walkRules((rule) => {
+  roots.forEach((root) => root.walkRules((rule) => {
     const p = rule.parent;
     if (p.type === 'atrule' && !(p.name === 'media' && mediaHolds(p.params))) return;
     if (p.type !== 'root' && p.type !== 'atrule') return;
@@ -208,7 +209,7 @@ function computed(path, prop) {
         });
       });
     }).processSync(rule.selector);
-  });
+  }));
   return best;
 }
 const node = (tag, classes = [], attrs = {}, id) => ({ tag, classes, attrs, id });
@@ -226,6 +227,26 @@ const fontPx = (opts) => {
   const r = computed(stemPath(opts), 'font-size');
   return r && /^\d+px$/.test(r.value) ? Number.parseInt(r.value, 10) : r && r.value;
 };
+
+describe('a wrong pick on a picture tile draws no underline through it (the juice kit, web_quiz_juice)', () => {
+  // qa-design walk, sandbox Nov 2026: the kit marks a picked answer with an orange border AND an underline 4 px under its
+  // text. On a picture tile the underline runs through the picture: it cut the tails of ع and ج on a Qaida letter card
+  // and ran into the dots under ب and پ, the marks that tell the letters apart. A tile keeps the border, not the line.
+  const JUICE = postcss.parse(fs.readFileSync(path.join(WQ, 'wq-juice.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
+  const picked = (button) => [node('html', ['wq-juice'], { lang: 'ur' }), node('body'), node('div', [], {}, 'wq'), ...button];
+  const tile = [node('div', ['wq-pgrid']), node('button', ['wq-opt', 'wq-ptile', 'wq-s1', 'wq-picked'])];
+  const row = [node('div', ['wq-opts']), node('button', ['wq-opt', 'wq-s1', 'wq-picked'])];
+
+  test('a picked picture tile (a letter card among them) has no text decoration', () => {
+    expect(computed(picked(tile), 'text-decoration', [CSS_ROOT, JUICE]).value).toBe('none');
+  });
+
+  test("a picked word answer keeps the kit's underline, and every picked answer keeps its orange border", () => {
+    expect(computed(picked(row), 'text-decoration', [CSS_ROOT, JUICE]).value).toMatch(/^underline/);
+    expect(computed(picked(tile), 'border-color', [CSS_ROOT, JUICE]).value).toMatch(/^#E65100/i);
+    expect(computed(picked(row), 'border-color', [CSS_ROOT, JUICE]).value).toMatch(/^#E65100/i);
+  });
+});
 
 describe('a long Urdu "listen" question with no voice still leaves its answers on a 360 × 740 screen', () => {
   // qa-design walk, sandbox Nov 2026: at 30 px a 106-character Urdu listen stem took 462 px and the first answer started
