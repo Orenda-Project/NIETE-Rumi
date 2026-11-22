@@ -1,6 +1,6 @@
 'use strict';
 /**
- * web_quiz_class_link_canary ({school_ids?, class_ids?}): while it lists schools or classes, the evening round is written
+ * web_quiz_class_link_canary ({regions?, school_ids?, class_ids?}): while it lists schools or classes, the evening round is written
  * only for those classes (the production flip starts with one sector); no row or empty lists -> every class; a failed
  * read -> no class (a blip pauses new exposure, never widens it). The tile, the badge and the reminder read rounds, so a
  * class with no round shows nothing.
@@ -46,6 +46,7 @@ let db;
 function seed(settings = SWITCHES) {
   db = {
     app_settings: settings,
+    schools: [{ id: S1, region: 'Urban-II ' }, { id: S2, region: 'Tarnol' }],
     classes: [
       { id: C1, school_id: S1, grade_code: 'grade_3', section: 'A', is_active: true },
       { id: C2, school_id: S2, grade_code: 'grade_4', section: 'A', is_active: true },
@@ -103,6 +104,16 @@ test('canary by school (one sector = its schools): the class of a listed school 
   seed(canary({ school_ids: [S1] }));
   await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
   expect(roundClasses()).toEqual([C1]);
+});
+
+test('canary by sector name, the same rule as the push canary (schools.region, exact after trim)', async () => {
+  seed(canary({ regions: ['Urban-II'] }));
+  const out = await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
+  expect(roundClasses()).toEqual([C1]);
+  expect(out.canary_out).toBe(1);
+  const Canary = require('../../shared/services/quiz/web-quiz-class-link-canary');
+  expect(await Canary.inCanary({ classId: C2, schoolId: S2 })).toBe(false);
+  expect(await Canary.inCanary({ classId: C1, schoolId: S1 })).toBe(true);
 });
 
 test('canary row with empty lists: no restriction', async () => {
