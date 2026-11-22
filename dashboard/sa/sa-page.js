@@ -27,7 +27,7 @@
   var FORM_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
   var SESSION_RX = /^[A-Za-z0-9_-]{6,64}$/;
   // This build of the page, logged on device_ready (round 28): always sw.js VERSION in the same tree (a test pins the two).
-  var VERSION = 'sa-47';
+  var VERSION = 'sa-49';
 
   // the server's MAX_EVENT_DATA (sa-api.service.js): a longer value is not kept at all
   var MAX_VALUE = 300;

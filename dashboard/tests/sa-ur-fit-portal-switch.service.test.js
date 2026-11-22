@@ -1,4 +1,6 @@
 'use strict';
+// the flag cache off: each test reads its own app_settings rows (an ON row cached for 30 s would answer the OFF test)
+process.env.FLAG_CACHE_TTL_MS = '0';
 /**
  * sa_ur_fit on the portal: GET /sa/switches tells the coach's Learning assessment pages whether to fit their Urdu
  * (portal/src/portal/lib/assess/urFit.ts). The same app_settings row as the child's screens (sa-battery-switches.js).

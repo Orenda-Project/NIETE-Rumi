@@ -142,7 +142,7 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
       const core = new Set(v3.sets.A.maths['3'].number_id.items);
       expect(jo.map((x) => String(x.show))).toEqual(jordanA.filter((n) => !core.has(n)));
       const grades45 = /G[45]\./.test(form);
-      expect([form, shown.length]).toEqual([form, grades45 ? 50 : 42]);
+      expect([form, shown.length]).toEqual([form, grades45 ? 50 : 60]); // G1-3 run on past 42 (sa-number-id-g13-60.test.js)
     }
   });
 
@@ -220,6 +220,23 @@ describe('round 28 bank (item-bank.sa-r28.v1.json)', () => {
           expect(p.feedback.wrong[1].audio).toBe(p.prompt_audio);
         }
       }
+    }
+  });
+
+  // The task's language picks the example (Urdu «بَ», English isolated /b/); the battery's language picks the words.
+  test('letter_pick10 intro: four lines, {Urdu, English task} × {Urdu, English battery}, each on its own clip', () => {
+    const LINE = {
+      ur: { ur: ['اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', '8c9f5bc160d6'],
+        en: ['Now a listening game. Jugnu will say an Urdu sound, like «بَ». Tap the letter for the first sound you hear. Tap the speaker to hear it again.', '8669cb4e1bb4'] },
+      en: { ur: ['اب ایک سننے کا کھیل۔ جگنو انگریزی کی ایک آواز بولے گا، جیسے b کی آواز۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', '095986edd89a'],
+        en: ['Now a listening game. Jugnu will say a sound, like /b/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.', '9274cd14bca9'] },
+    };
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) for (const task of ['ur', 'en']) {
+      const t = byId(runtime(form, lang))[`${task}.letter_pick10`];
+      const [text, key] = LINE[task][lang];
+      const said = { text, audio: `sa/v5/${lang}/${key}.mp3` };
+      expect(t.instruction).toEqual(said);
+      expect(t.script.intro).toEqual(said);
     }
   });
 
