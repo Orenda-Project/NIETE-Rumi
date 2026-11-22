@@ -596,6 +596,20 @@ Feature: NIETE (ICT) Teacher Training
     # generate(force) stamps only the quiz row (markReportSent code:false); report_sent_at stays the automatic
     # report's, so the 12 h run is not suppressed and late finishers count from it. @wip.
 
+  # @no-mock-driver: the review queue is written by the nightly key job and read when the class report is built (PDF);
+  # the mock lane has neither. Executed in bot/tests/quiz/web-quiz/report-key-review.test.js through generate().
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1199
+  Scenario: A question whose answer key is under review is in my class report without a "right answer"
+    Given app_settings "video_quiz_report_key_review" is on
+    And most of my class got a question wrong whose answer key is waiting for a person to check it
+    When my class report comes
+    Then that question is still under "most missed" with how many got it wrong
+    And instead of "most chose … correct answer …" it says the answer key is under review
+    And the report's advice for tomorrow does not reteach an answer for it
+    # hardestQuestions marks a question quiz-key-review heldQuestionIds holds (open, key_wrong, ambiguous) key_review;
+    # the template prints qfix_report_key_review instead of the pills and the why lines; the reteach prompt is told the
+    # key is under review. Off, a missing table or an empty queue: today's report byte for byte. @wip.
+
   @e2e @quiz @i18n @wip @draft @P2 @T75
   Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
     Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
