@@ -86,6 +86,25 @@ describe("Ready for you: the quiz card", () => {
     expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok");
   });
 
+  it("with the lesson's list key, the tap opens the quiz home on THAT lesson (?lesson=)", async () => {
+    const key = "lsn_lp_v8_dddddddd-0000-4000-8000-000000000001";
+    list = [quizOffer({ lessonKey: key })];
+    mount();
+    await tick(0);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(NOTICES_COPY.quizOfferTitle.replace(/[.*+?^${}()|[\]\\']/g, ".")) }));
+    await tick(500);
+    expect(assign).toHaveBeenCalledWith(`/quiz/teacher/tok?lesson=${encodeURIComponent(key)}`);
+  });
+
+  it("a key that is not a list key is ignored: the tap opens the quiz home as before", async () => {
+    list = [quizOffer({ lessonKey: "javascript:alert(1)" })];
+    mount();
+    await tick(0);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(NOTICES_COPY.quizOfferTitle.replace(/[.*+?^${}()|[\]\\']/g, ".")) }));
+    await tick(500);
+    expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok");
+  });
+
   it("no topic known (the coaching ask's row): the card still says what it is, with no invented topic", async () => {
     list = [quizOffer({ title: null, grade: null, subject: null, from: "coaching_after_lp" })];
     mount();
