@@ -17,7 +17,7 @@
  *                                                                book's ready day, no model call)
  *                                                              | { success, outcome: 'made', ownId, status }
  *
- * Dark (404) unless the teacher app, portal_lp_make_own AND the LIST-ONLY portal_lp_own_unit are on for her, and she is
+ * Dark (404) unless the teacher app, portal_lp_make_own AND portal_lp_own_unit (a list, or "teachers") are on for her, and she is
  * not a GB teacher. Actions logged ids-only (own_unit.*): never her answers.
  */
 const express = require('express');
