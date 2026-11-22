@@ -1,0 +1,1 @@
+{"ts":"2026-11-22T16:00:05Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-b0aszz.1-62777: observe spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"0d68e90473e9","branch":"bd-b0aszz.1-62777","user":""}
