@@ -585,6 +585,25 @@ async function forTeacher(teacherId) {
  * (no count, no name), marked ?f=1 so the landing counts the open as via 'forward'; Copy → back to the report's class tab with this class's card open (the link as selectable
  * text). Null when the class is not this teacher's or the switch is off.
  */
+/**
+ * "Sent this term": a class whose link the teacher forwarded or copied (from the report's class tab or the app's card)
+ * is remembered until the term's end, so the teacher app's card folds to one line. Redis only; down → not remembered
+ * (the card stays open, nothing else changes). Never throws.
+ */
+const sentKey = (classId, termCode) => `wq:cl:app:sent:${classId}:${termCode}`;
+async function markSent(classId, now = new Date()) {
+  const r = redisUp();
+  if (!r || !classId) return;
+  const term = termOf(now);
+  const ttl = Math.max(60, Math.floor((new Date(term.expires_at).getTime() - now.getTime()) / 1000));
+  try { await r.set(sentKey(classId, term.term_code), { at: now.getTime() }, ttl); } catch (_) { /* the card stays open */ }
+}
+async function wasSent(classId, termCode) {
+  const r = redisUp();
+  if (!r || !classId || !termCode) return false;
+  try { return Boolean(await r.get(sentKey(classId, termCode))); } catch (_) { return false; }
+}
+
 async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
   const copy = how === 'copy';
@@ -595,6 +614,7 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
   emit('quiz_forward_tap', {
     share_code_id: null, surface: 'class_link', method: copy ? 'copy' : 'wa_me', origin: 'class_link', stale: false,
   }, { classId });
+  await markSent(classId);
   if (copy) return `${reportBase}?tab=class&cl_open=${encodeURIComponent(classId)}#class-link`;
   return `https://wa.me/?text=${encodeURIComponent(`${url}?f=1`)}`;
 }
@@ -617,6 +637,7 @@ async function renew({ teacherId, classId, n = null } = {}) {
 
 module.exports = {
   ClassLinkError, ALPHABET, CODE_LEN, CODE_RX, LETTERS,
+  markSent, wasSent, sentKey,
   termOf, newCode, firstNameOf, letterOf, runColumns, serveArgs, signTeacherPreview, isTeacherPreview, stripTitle,
   resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl, signRenewNonce, verifyRenewNonce,
   // The evening round's reminder payload (the reminders lane requires it from here); web-quiz-evening-round-phone.js.
