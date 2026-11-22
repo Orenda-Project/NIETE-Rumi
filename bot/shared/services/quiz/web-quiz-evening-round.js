@@ -719,25 +719,32 @@ const roundOf = (q) => (q && q.media && (q.media.round === 'lesson' || q.media.r
 const sortOf = (q) => (q && Number.isFinite(Number(q.sort_order)) ? Number(q.sort_order) : Infinity);
 const rankOf = (q) => Number((q.media.recall && q.media.recall.rank) || 99);
 
+const missCount = (q) => (Array.isArray(q.media.recall && q.media.recall.kids) ? q.media.recall.kids.length : 0);
+const tieOf = (seed, q) => crypto.createHash('sha256').update(`er-tie|${seed}|${q.id}`).digest().readUInt32BE(0);
+
 /**
  * The child's set of a round: the first LESSON_ITEMS lesson items (sort order) and RECALL_ITEMS recall items whose
  * originals THIS child missed (most-missed first), filled from the class's most-missed. Pure (no read): the children
  * who missed each original are stored on the item at write time. Questions that are not a round's come back as they
  * are (the same array). `studentId` absent -> the class's most-missed; `k` (the page's chip on the round's code)
- * picks like the id.
+ * picks like the id. `seed` (the sitting's, web-quiz-order-seed seedOf(session id)): among items missed by as many
+ * children, the pick is the sitting's own, so two siblings who missed the same originals can get different rewrites
+ * and a resume gets the same ones; the picks keep the round's order. No seed: the stored rank order.
  */
-function selectRoundItems(questions, { studentId = null, k = null } = {}) {
+function selectRoundItems(questions, { studentId = null, k = null, seed = null } = {}) {
   if (!Array.isArray(questions) || !questions.some(roundOf)) return questions;
   const lesson = questions.filter((q) => roundOf(q) === 'lesson').sort((a, b) => sortOf(a) - sortOf(b)).slice(0, LESSON_ITEMS);
-  const pool = questions.filter((q) => roundOf(q) === 'recall').sort((a, b) => rankOf(a) - rankOf(b));
+  const byRank = (a, b) => rankOf(a) - rankOf(b);
+  const pool = questions.filter((q) => roundOf(q) === 'recall').sort(byRank);
   const missed = (q) => {
     const r = q.media.recall || {};
     if (studentId && Array.isArray(r.kids) && r.kids.includes(Recall.kidKey(q.media.round_key, studentId))) return true;
     return Boolean(k && Array.isArray(r.chips) && r.chips.includes(k));
   };
+  const seeded = (list) => (seed == null ? list : [...list].sort((a, b) => (missCount(b) - missCount(a)) || (tieOf(seed, a) - tieOf(seed, b))));
   const mine = pool.filter(missed);
-  const chosen = [...mine, ...pool.filter((q) => !mine.includes(q))].slice(0, RECALL_ITEMS);
-  return [...lesson, ...chosen];
+  const chosen = [...seeded(mine), ...seeded(pool.filter((q) => !mine.includes(q)))].slice(0, RECALL_ITEMS);
+  return [...lesson, ...(seed == null ? chosen : chosen.sort(byRank))];
 }
 
 /** The round's event fields from its served items, or null for any other quiz. */
