@@ -40,6 +40,10 @@
  * OFF: ?session is ignored and the shell is today's, byte for byte.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
+ * Switch quiz_teacher_home_reports ON (JSON true; the page read, PAGE_KEYS; bd-5j1zaf): the shell carries
+ * the "Quiz reports" section (teacher-home.page REPORTS_SWAPS) and /api/th/home its `reports` (teacher-home.model
+ * reportRows: every sent quiz with the children who finished after its 12 h report, and the live report's link). OFF:
+ * today's shell and JSON, byte for byte.
  * Switch quiz_teacher_server_timing ON (JSON true; read with quiz_teacher_home, never on its own): every 200 answer of
  * /api/th/home and /api/th/library carries `Server-Timing: settings;dur=…, db;dur=…, total;dur=…` (ms): the switch
  * reads waited on, the data phase that builds the JSON, the whole handler. Refusals and errors carry none. OFF: nothing.
@@ -129,6 +133,7 @@ function createRouter(deps = null) {
     req.thPortal = sw ? sw.then((v) => v[Flags.PORTAL_LINK_KEY] === true) : null;
     req.thOne = sw ? sw.then((v) => v[Flags.ONE_LESSON_KEY] === true) : null;
     req.thForward = sw ? sw.then((v) => v[Flags.FORWARD_KEY] === true) : null;
+    req.thReports = sw ? sw.then((v) => v[Flags.REPORTS_KEY] === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -195,6 +200,9 @@ function createRouter(deps = null) {
     });
   }
   const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
+  /** The "Quiz reports" section's links (quiz_teacher_home_reports on), for every quiz the home lists; a slow read → none. */
+  const reportsOf = (uid, played, shares) => Data.within(Data.reportsFor(uid, [...played.keys(), ...shares.map((x) => x.quizId)], deps), Data.SIDE_BUDGET_MS, { links: new Map(), rounds: null }, 'quiz reports');
+  const withReports = (rp) => (rp ? { reportLinks: rp.links, rounds: rp.rounds } : {});
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
   /** Server-Timing (req.thTime, switch on): a switch wait since `from` counts as settings; the data phase starts. */
@@ -351,7 +359,7 @@ function createRouter(deps = null) {
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
     // the script's switched parts (each OFF unless JSON true; off, today's shell byte for byte); quiz_teacher_home_grade_fast
     // is answered by the quick answer's switch read above, never a read of its own
-    const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
+    const [named, early, counts, gradeFast, reports] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast, req.thReports]);
     const wait = await req.thWait;
     const portal = (await req.thPortal) === true;
     // the one-lesson page: only with its switch on and a session id that is a UUID (whose it is, quiz/make checks); the same
@@ -360,7 +368,7 @@ function createRouter(deps = null) {
     const one = oneOn ? uuidIn(req.query.session) : null;
     const lesson = oneOn && !one ? Send.lessonKeyOf(req.query.lesson, deps) : null;
     const forward = (await req.thForward) === true;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(forward ? { forward: true } : {}) });
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(forward ? { forward: true } : {}), ...(reports === true ? { reports: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -392,7 +400,7 @@ function createRouter(deps = null) {
   }
 
   /** The quick home: the same JSON as today's, its reads started together. */
-  async function quickHome(req, res, p, userP, playP = null) {
+  async function quickHome(req, res, p, userP, playP = null, reportsOnP = null) {
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const Bank = Data.dep(deps, 'Bank');
@@ -422,10 +430,11 @@ function createRouter(deps = null) {
     const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
     const countsP = Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'); // the same, as on the full answer
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
+    const rp = (await reportsOnP) ? await reportsOf(p.uid, lists.played, lists.shares) : null;
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: await practiceUrl(user, lang, playP), change,
-      againable: lists.againable, named: await namedP,
+      againable: lists.againable, named: await namedP, ...withReports(rp),
     });
     const counts = await countsP;
     if (counts && home.library) home.library.counts = counts;
@@ -457,10 +466,11 @@ function createRouter(deps = null) {
     const userP = Data.teacherOf(p.uid, deps);
     userP.catch(() => {});
     const playP = req.thPractice || practiceOn();
+    const reportsOnP = req.thReports; // the "Quiz reports" switch: the page read, already asked
     const quick = await req.thPaged;
     waited(req, asked0);
     dataStart(req);
-    if (quick) { await quickHome(req, res, p, userP, playP); return; }
+    if (quick) { await quickHome(req, res, p, userP, playP, reportsOnP); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const user = await userP;
@@ -509,10 +519,11 @@ function createRouter(deps = null) {
     }
     const change = await changeLanding(user, lang);
     const againable = walked ? await sendable(ownSent, played) : againable0;
+    const rp = (await reportsOnP) ? await reportsOf(p.uid, played, shares) : null;
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
       maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: await practiceUrl(user, lang, playP), change, againable,
-      named: await namedP,
+      named: await namedP, ...withReports(rp),
     });
     // the teacher's story sends and their readers: only once a story went out, else no key (the JSON is as it was)
     if (counts && home.library) home.library.counts = counts;
@@ -620,7 +631,7 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
-  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry', 'portal', 'one_lesson', 'fwd_native', 'fwd_result']);
+  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry', 'portal', 'one_lesson', 'fwd_native', 'fwd_result', 'report', 'reports_more']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   const PROMPTED_VIAS = new Set(['report']);
@@ -680,7 +691,8 @@ function createRouter(deps = null) {
       if (b.step === 'fwd_native') Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'native', origin: ORIGINS.has(b.origin) ? b.origin : null });
       else Forward.logResult({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', result: b.r });
     } else {
-      event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
+      // a "Quiz reports" row's See report (bd-5j1zaf): whether that row had the late chip
+      event('teacher_home.step', p.uid, { step: b.step, screen: 'home', ...(b.step === 'report' ? { late: b.late === true } : {}) });
     }
     headers(res);
     res.status(204).end();
