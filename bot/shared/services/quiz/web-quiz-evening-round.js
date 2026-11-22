@@ -749,10 +749,14 @@ function roundFields(questions) {
   return { class_link_code: ref.cl || null, round_code: ref.rc || null, n_items: set.length, n_recall: set.filter((x) => roundOf(x) === 'recall').length };
 }
 
-/** web_quiz.round_started / round_done for a round's sitting (the shuffle seam's start and finish call it). */
-function noteRound(stage, questions) {
+/**
+ * web_quiz.round_started / round_done for a round's sitting (the shuffle seam's start and finish call it). `extra`: more
+ * counts for the event (round_done: n_recall_right, the child's recall items answered right); a non-count is left out.
+ */
+function noteRound(stage, questions, extra = {}) {
   const f = roundFields(questions);
   if (!f || !['started', 'done'].includes(stage)) return false;
+  Object.entries(extra || {}).forEach(([k, v]) => { if (Number.isFinite(v)) f[k] = v; });
   logEvent(`web_quiz.round_${stage}`, f);
   return true;
 }
