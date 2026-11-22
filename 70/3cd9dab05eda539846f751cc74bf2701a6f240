@@ -7,3 +7,4 @@
 {"ts":"2026-11-21T12:15:25Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"703cd9dab05e","branch":"bd-zrdvmi.50.1-main","user":""}
 {"ts":"2026-11-21T12:16:05Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi.50.1-main: E-DUPID:child-test;E-NODRIVER:registration;E-NOID:lesson-plan","sha":"703cd9dab05e","branch":"bd-zrdvmi.50.1-main","user":""}
 {"ts":"2026-11-21T12:16:16Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"703cd9dab05e","branch":"bd-zrdvmi.50.1-main","user":""}
+{"ts":"2026-11-22T02:17:02Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"703cd9dab05e","branch":"bd-zrdvmi.50.1-main","user":""}
