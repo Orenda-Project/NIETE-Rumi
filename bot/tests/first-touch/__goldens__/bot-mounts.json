@@ -212,6 +212,15 @@
             ]
           },
           {
+            "path": "/delivered",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
             "path": "/portal/subscribe",
             "methods": [
               "post"
