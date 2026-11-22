@@ -12,6 +12,7 @@ jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: 
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 jest.mock('../../shared/services/cache/railway-redis.service', () => ({ isAvailable: () => false }));
 jest.mock('../../shared/services/quiz/quiz-key-review.service', () => ({
+  ...jest.requireActual('../../shared/services/quiz/quiz-key-review.service'),
   heldQuestionIds: jest.fn(async (db, ids) => new Set(ids.filter((id) => id === '99999999-0000-4000-8000-0000000000aa'))),
 }));
 

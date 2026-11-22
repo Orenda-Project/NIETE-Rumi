@@ -544,6 +544,7 @@ function applyMedia(rows, questions, { figureUrls = {}, cardUrls = {}, language 
       media.question_image_paints_counter = true;
     }
     if (cardUrls[i]) media.question_card = cardUrls[i];
+    if (q && q.round_held) media.key_held = { reason: 'blind_solve', ...q.round_held };
     row.media = media;
     // A card carries the figure inside it; the header-image pattern is for a
     // figure with short text options.
@@ -1809,7 +1810,7 @@ async function runSummaryTruth(api, {
  */
 async function runKeyVerify(api, {
   questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts, knownNames = null,
-  sourceText = '',
+  sourceText = '', round = false,
 }) {
   const KeyVerify = require('./transcript-quiz-key-verify.service');
   const startedAt = Date.now();
@@ -1987,6 +1988,18 @@ async function runKeyVerify(api, {
     logToFile('⚠️ transcript quiz: a blind solver disagrees with answer keys', {
       quizId, quiz_source: quizSource, indices: bad.map((v) => v.index), verdicts: bad.map((v) => v.verdict),
     });
+  }
+
+  // A class's evening round never rewrites (nobody reviews a round before a child plays it): a flagged item ships as
+  // authored with the solver's pick, and the round holds it out and queues it for a person (web-quiz-evening-round).
+  if (round) {
+    if (bad.length) record.status = 'held';
+    record.disagreements.forEach((d) => { d.outcome = 'held'; });
+    record.same_fact.shipped = [...repeatAt.keys()].sort((a, b) => a - b);
+    const held = bad.map((v) => ({
+      index: v.index, verdict: v.verdict, picks: (v.blind || []).filter((k) => !(v.keyed || []).includes(k)).map((k) => String(questions[v.index].options[k])),
+    }));
+    return finish({ changed: false, held, repeatFaults: repeatLeft() });
   }
 
   // ── 2. ONE targeted rewrite, with the disagreement as the complaint ────────
@@ -2987,9 +3000,11 @@ async function processQuiz(quizId, payload, flight) {
       questions, digest, language, quizId, teacherId: quiz.teacher_id,
       lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade,
       grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts, knownNames: nameSpellings,
-      sourceText: lessonSourceText,
+      sourceText: lessonSourceText, round: isRound,
     });
     meta.key_verify = kv.record;
+    // A round's flagged item rides on as authored, marked (applyMedia -> media.key_held): the round never serves it.
+    if (kv.held && kv.held.length) questions = questions.map((q, i) => { const h = kv.held.find((x) => x.index === i); return h ? { ...q, round_held: { verdict: h.verdict, picks: h.picks } } : q; });
     meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);
     if (kv.failed) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'key_disagreement' } });
