@@ -1533,8 +1533,13 @@ function createWebQuizRouter(opts = {}) {
   }
   // A page opened from the child reminder (the push's url carries ?from=push): the funnel's landed step, counts only.
   // The reminder opens the class's standing link (/j/, its class-named text), a quiz (/q/) or the phone's own hub (/h/).
+  // A tap that lands from a reminder: the page, and the phone's device hash when the page has its wq_dv cookie (the bot's
+  // deviceHash, web-quiz-telemetry.js: sha256('wqd|' + ref), 16 hex), never the ref itself.
   const pushLanded = (pg) => (req, res, next) => {
-    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder' });
+    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) {
+      const dv = DEVICE_COOKIE_RX.exec(String(req.headers.cookie || ''));
+      logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(dv ? { dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) } : {}) });
+    }
     next();
   };
   router.get('/j/:code', pushLanded('class_link'));
