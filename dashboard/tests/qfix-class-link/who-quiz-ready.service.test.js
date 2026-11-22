@@ -133,3 +133,22 @@ test('the badge lifts copy.v2.json qfix_class_link.quiz_ready byte for byte and 
   // the chip's own floor stays the big chip's 72 px
   expect(css).toMatch(/\.wq-kid-big\{min-height:72px/);
 });
+
+describe('"Done for tonight!" on "Whose turn?": the same badge, with those words, on a chip the bot marks { round_done: true }', () => {
+  const DECK = require('../../../bot/shared/config/copy.v2.json');
+  const MARKED = [
+    { chip: 'ch-zara', first: 'Zara', animal: 'cat', round: true },
+    { chip: 'ch-ali', first: 'Ali', animal: 'dog', round_done: true },
+    { chip: 'ch-sana', first: 'Sana', animal: 'owl' },
+  ];
+
+  test.each(['en', 'ur'])('%s: "Done for tonight!" (the deck\'s bytes) on the done chip, "Quiz ready" on the waiting one, nothing on the third', async (lang) => {
+    const { html } = await openLink({ lang, arrive: { ok: true, step: 'who', s: 'st', kids: MARKED } });
+    expect(chipHtml(html, 'ch-ali')).toContain(`<span class="wq-chip wq-cl-ready">${DECK['qfix_class_link.done_tonight'][lang]}</span>`);
+    expect(chipHtml(html, 'ch-zara')).toContain(`<span class="wq-chip wq-cl-ready">${DECK['qfix_class_link.quiz_ready'][lang]}</span>`);
+    expect(chipHtml(html, 'ch-sana')).not.toContain('wq-cl-ready');
+    // the done chip is the same button as the others (same classes): the badge sits inside it
+    const tag = (chip) => new RegExp(`<button([^>]*)data-chip="${chip}"`).exec(html)[1];
+    expect(tag('ch-ali')).toBe(tag('ch-sana'));
+  });
+});
