@@ -7,7 +7,8 @@
  * make-time note asking to skip I Do went to the model unscreened; and "they can't memorize tables" was refused as rote.
  */
 const { rewriteK5 } = require('../../bot/shared/services/lp-k5-own-author');
-const { checkK5Rewrite, roteDrill } = require('../../bot/shared/services/lp-k5-own');
+const { checkK5Rewrite } = require('../../bot/shared/services/lp-k5-own');
+const { roteDrill } = require('../../bot/shared/services/lp-k5-own-rote');
 const { parseOwnAnswers } = require('../../bot/shared/services/lp612-own-instruction');
 const { ruleBreak } = require('../../bot/shared/services/lp-own-edit-guard');
 

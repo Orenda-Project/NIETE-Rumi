@@ -9,7 +9,8 @@
  * checking each child in a big class goes back once (repairOnly) but is never the final refusal on its own: round 2
  * is accepted with a warning, or, if round 2 breaks a hard rule, round 1's plan is kept with the warning.
  */
-const { k5Messages, parseK5Reply, checkK5Rewrite, roteDrill } = require('./lp-k5-own');
+const { k5Messages, parseK5Reply, checkK5Rewrite } = require('./lp-k5-own');
+const { roteDrill } = require('./lp-k5-own-rote');
 const { periodOf } = require('./lp-own-period');
 const { withUnitPeriod, withUnitLines } = require('./lp-own-unit-day');
 const { fitK5, repairOnly } = require('./lp-own-fit');
