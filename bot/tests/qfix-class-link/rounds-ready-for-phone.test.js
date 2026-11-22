@@ -1,6 +1,6 @@
 'use strict';
 /**
- * roundsReadyForPhone (PLAN §3.2): the reminders lane requires it from web-quiz-class-link.js. A phone that played as
+ * roundsReadyForPhone: the reminders lane requires it from web-quiz-class-link.js. A phone that played as
  * a child of a class with a live standing link and a ready round tonight gets that class's label, the link's code and
  * the round's code; first names only. Off (web_quiz_evening_round missing/false, or the class link off) -> [].
  * Faked boundaries: Supabase (in memory, filters applied), Redis (a Map), the loggers. Invented children only.

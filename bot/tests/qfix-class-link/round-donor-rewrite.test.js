@@ -1,7 +1,7 @@
 'use strict';
 /**
  * A cache hit copies a donor quiz's rows into the round. A donor item whose key the donor's blind solve flagged and
- * its fix path REWROTE is a review candidate, not a fix (PLAN §11 A33): the round holds the copy and queues the
+ * its fix path REWROTE is a review candidate, not a fix: the round holds the copy and queues the
  * DONOR's row under blind_solve (the item children answered, with their counts), unless a person has already
  * reviewed it. The donor's record names the item by its authored index; the stored row is found past the solve's own
  * drops and the answer-leak drops.
