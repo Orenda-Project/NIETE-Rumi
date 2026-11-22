@@ -112,7 +112,8 @@ function parseOwnAnswers(body, ctx) {
     ? b.note.replace(/["“”]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOTE_MAX)
     : '';
   // bd-snkn32.58.2 (queue #155 B) — a note with a blocked word never reaches the model; the answers say it was dropped.
-  const dropNote = !!raw && hasBlockedWord(raw);
+  // bd-cyadk0 — goal starts only: on the book path the list's words are lesson words ("naked eye", alcohols).
+  const dropNote = !!raw && b.goal != null && hasBlockedWord(raw);
   const note = dropNote ? '' : raw;
   const answers = { size: b.size, resources, level: b.level, way: picked[0], note };
   if (dropNote) answers.noteDropped = true;

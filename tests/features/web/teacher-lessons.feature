@@ -449,3 +449,14 @@ Feature: Teacher lesson plans
     Given the demo teacher has made today's last allowed own plan
     When she taps "Make my plan" again
     Then the refusal is the first thing on "Your plan" and is scrolled into view, not hidden behind the button
+
+  @OWN12 @draft @config-gated
+  Scenario: A book-path note with an everyday lesson word is kept; only a goal start drops a blocked-word note
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she is signed in
+    When she makes her own plan from a Grade 8 Science book lesson with the note "observe the moon with the naked eye"
+    Then no "note was not used" message shows and her plan follows her note
+    When portal_lp_own_goal_start is on and she starts from a learning goal with a note holding a blocked word
+    Then the plan is still made and a message says her note was not used
+    # bd-cyadk0: #5129's note drop ran on every own plan; the blocked list holds ordinary lesson words
+    # ("naked", "alcohol", "kill"). Unit: tests/lp612/own-goal-note-guard.test.js.
