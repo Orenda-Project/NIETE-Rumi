@@ -264,16 +264,7 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
   const lessons = choice.lessons.map((l) => ({
     lesson_id: l.lesson_id, asset_id: l.asset_id, version_stamp: l.version_stamp, content_hash: l.content_hash, delivered_at: l.delivered_at || l.created_at || null,
   }));
-  const { data: made, error } = await supabase.from('quizzes').insert({
-    teacher_id: choice.teacherId,
-    quiz_source: LP_V8,
-    coaching_session_id: null,
-    lesson_plan_id: null,
-    topic: (first && first.topic) || 'Lesson',
-    grade: choice.grade == null ? null : String(choice.grade),
-    subject: choice.subject || null,
-    status: 'generating',
-    meta: {
+  const roundMeta = {
       step: 'digest',
       source: ROUND_SOURCE,
       class_id: cls.id,
@@ -289,7 +280,17 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
         qid: m.question.id, n: m.n, kids: m.missedBy, subject: (m.quiz && m.quiz.subject) || null, grade: (m.quiz && m.quiz.grade) || null,
       })),
       queued_at: now.toISOString(),
-    },
+  };
+  const { data: made, error } = await supabase.from('quizzes').insert({
+    teacher_id: choice.teacherId,
+    quiz_source: LP_V8,
+    coaching_session_id: null,
+    lesson_plan_id: null,
+    topic: (first && first.topic) || 'Lesson',
+    grade: choice.grade == null ? null : String(choice.grade),
+    subject: choice.subject || null,
+    status: 'generating',
+    meta: roundMeta,
   }).select('id').single();
   if (error || !made) {
     if (error && error.code === '23505') return 'exists';
@@ -300,7 +301,8 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
   try {
     await (enqueue || queueGenerate)(made.id);
   } catch (err) {
-    await supabase.from('quizzes').update({ status: 'failed', meta: { source: ROUND_SOURCE, class_id: cls.id, round_day: day, step: 'failed', error: 'queue_failed' } }).eq('id', made.id);
+    // The round's meta stays whole (its lessons): a later tick retries a queue failure (retryFailed).
+    await supabase.from('quizzes').update({ status: 'failed', meta: { ...roundMeta, step: 'failed', error: 'queue_failed', failed_at: new Date().toISOString() } }).eq('id', made.id);
     await release();
     logToFile('⚠️ evening round: generate could not be queued', { quizId: made.id, error: err.message });
     return 'failed';
@@ -310,6 +312,49 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
     subjects_with_lp: choice.subjects_with_lp, chosen: 'earliest',
   });
   return 'queued';
+}
+
+/** A round's tries per evening; the wait after a failure before the next; the reasons a later try cannot fix. */
+const ROUND_ATTEMPTS = 3;
+const RETRY_AFTER_MS = 10 * 60 * 1000;
+const PERMANENT_FAILURES = new Set(['teacher_missing', 'session_missing', 'source_off', 'daily_cap', 'source_missing', 'source_unusable']);
+
+function retryable(q, nowMs) {
+  const m = (q && q.meta) || {};
+  if (!q || q.status !== 'failed' || PERMANENT_FAILURES.has(String(m.error || ''))) return false;
+  if ((Number(m.attempts) || 1) >= ROUND_ATTEMPTS) return false;
+  const at = Date.parse(m.failed_at || '');
+  return Number.isFinite(at) && nowMs - at >= RETRY_AFTER_MS;
+}
+
+/**
+ * Before this, a failed round counted as the class's round for the day (the row exists; the unique index holds the
+ * slot): one model outage at 16:00 cost every class its evening. Now a later tick puts the SAME row back to
+ * 'generating' (attempts + 1, the failure's reason kept as retry_of_error) and queues it again. A row is taken only while
+ * still 'failed', so two replicas on one tick queue it once. Returns how many were queued. Never throws.
+ */
+async function retryFailed(rows, { now, enqueue, room }) {
+  let n = 0;
+  for (const q of rows || []) {
+    if (n >= room) break;
+    if (!retryable(q, now.getTime())) continue;
+    // eslint-disable-next-line no-unused-vars
+    const { error: lastError, error_detail: _detail, failed_at: _at, ...rest } = q.meta;
+    const meta = { ...rest, step: 'digest', attempts: (Number(q.meta.attempts) || 1) + 1, retry_of_error: lastError || null, retried_at: now.toISOString() };
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await supabase.from('quizzes').update({ status: 'generating', meta }).eq('id', q.id).eq('status', 'failed').select('id');
+      if (error) throw new Error(error.message);
+      if (!data || !data.length) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await (enqueue || queueGenerate)(q.id);
+      n += 1;
+      logEvent('web_quiz.round_retried', { quizId: q.id, class_link_code: meta.class_link_code || null, attempt: meta.attempts, after: lastError || null });
+    } catch (err) {
+      logToFile('⚠️ evening round: retry not queued', { quizId: q.id, error: err.message });
+    }
+  }
+  return n;
 }
 
 /**
@@ -329,7 +374,10 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
     // web_quiz_class_link_canary: while it lists schools or classes, only theirs get a round (no row: every class).
     const inCanary = await Canary.allowedClasses([...links.keys()]);
     out.canary_out = links.size - inCanary.size;
-    const done = new Set((await roundsOn(day, classIds)).map((q) => q.meta && q.meta.class_id).filter(Boolean));
+    const today = await roundsOn(day, classIds);
+    const done = new Set(today.map((q) => q.meta && q.meta.class_id).filter(Boolean));
+    // A round that failed for a passing reason (a model outage) is tried again on this same row, within the canary.
+    out.retried = await retryFailed(today.filter((q) => q.meta && inCanary.has(String(q.meta.class_id))), { now, enqueue, room: max });
     const seen = Array.isArray(classIds) && classIds.length ? new Set() : await seenOf(day);
     const todo = [...links.keys()].filter((id) => inCanary.has(id) && !done.has(id) && !seen.has(id)).sort();
     out.exists = [...links.keys()].filter((id) => done.has(id)).length;
