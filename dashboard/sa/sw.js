@@ -106,7 +106,9 @@
 //   sent), sa-core.js + sa-mic.js + sa-ui.js + sink-coach.js (an unknown microphone is checked, behind its switch), and
 //   sa-engine.js. SESSION unchanged: no clip or battery changed.
 // sa-48: the letter-sound picker's re-made prompts and the your-turn / picker-intro lines (SESSION v33); no worker code changes.
-var VERSION = 'sa-48';
+// sa-49: the English letter names e, B, t and d play production's v4 takes again under their keys (SESSION v34); no worker
+//   code changes.
+var VERSION = 'sa-49';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -161,7 +163,9 @@ var CORE = 'sa-core-' + VERSION;
 // ر ک گ چ ٹ م ش ف as a short «بَ»-like syllable, not a long «با»; English t and n), each said three times as before, with
 // their spans in v5/prompt_timings.json; the your-turn lines say «آواز میں بولیں» and the picker intro names its example
 // in the task's language, each at its text's key with its word timings (the Urdu-task intro re-made under its key).
-var SESSION = 'sa-session-v33';
+// v34: the English letter names e, B, t and d play production's v4 takes again under their keys: their re-made takes did
+// not pass the ear check. A phone that kept a v33 copy of those four keys takes production's bytes.
+var SESSION = 'sa-session-v34';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
