@@ -50,6 +50,7 @@ const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
 const { underWatchRoot } = require('./watch-root');
 const Pulse = require('./web-quiz-pulse');
+const OrderSeed = require('./web-quiz-order-seed');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 const Art = require('./web-quiz-art-id');
@@ -349,6 +350,37 @@ function questionPayload(row, i, code, audio, zoom) {
   if (Array.isArray(out.left)) out.left = Figure.drawOptionPics(out.left.map((l) => ({ ...l })), mediaLang(q.media));
   return out;
 }
+
+/**
+ * The questions THIS sitting plays: today the quiz's served set, for everyone. The one seam a per-child item set plugs
+ * into (start order, answers, finish), so the three never disagree about what a child was asked.
+ */
+function sittingQuestions(questions /* , session */) {
+  return questions;
+}
+
+/**
+ * web_quiz_order_seed (the hub's switch read; cached): the questions the sitting order is made from, read beside the
+ * session insert. Off, or a failed read: null, and the start reply is today's.
+ */
+async function orderRows(quizId) {
+  try {
+    if (!(await require('./web-quiz-hub-flags').flags()).orderSeed) return null;
+    return await loadQuestions(quizId);
+  } catch (e) {
+    logToFile('⚠️ web-quiz: sitting order unavailable, the quiz order kept', { error: e.message });
+    return null;
+  }
+}
+
+/** The sitting's own order (web-quiz-order-seed.js) for the start reply: { order, seed, pinned }, or null (today's). */
+async function sittingOrderOf(rowsP, session) {
+  const rows = sittingQuestions((await rowsP) || [], session);
+  if (!rows.length) return null;
+  return OrderSeed.sittingOrder(rows, rows.map((q, i) => questionPayload(q, i, '', {}, null)), session.id);
+}
+const orderFields = (ord) => (ord ? { order: ord.order } : {});
+const orderEvent = (ord) => (ord ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
 
 /** The sibling media helpers (read-aloud clips, lesson video); absent or failing = no audio / no video, never an error. */
 function mediaHelpers() {
@@ -692,6 +724,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (out.end_fit && require('./web-quiz-hub-flags').nowOf('endShort')) out.end_short = true;
   // web_quiz_end_once (the hub's switch cache, no read): Jugnu's end-screen line never repeats the card's heading (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('endOnce')) out.end_once = true;
+  // web_quiz_voice_v2 (the hub's switch cache, no read): no clip leaves the child in silence; iPhones get mp3 (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('voiceV2')) out.voice_v2 = true;
   // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
   // web_quiz_challenge_line_sent (the hub's switch cache, no read): the challenge line breaks only between its sentences (wq.js)
@@ -1075,10 +1109,13 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
         const answered = await (pre ? pre.answered : answeredIds(s.id));
         const prior = await (pre ? pre.prior : priorFinish(ctx.shareCodeId, s.student_id, s.id));
         const nameOf = await (pre ? pre.names : shownNames(ctx.lang, [s.student_id]));
+        // web_quiz_order_seed: the sitting's own order again (the seed is the session's), so a reload plays on in it
+        const ord = await sittingOrderOf(orderRows(ctx.quizId), s);
         return {
           st: body.resume_st, device_ref: tok.d || deviceRef,
           ...countedFor(prior, tok.d || deviceRef, Boolean(s.user_id)),
           resume: { answered: answered.map((a) => a.question_id) },
+          ...orderFields(ord),
           child: s.student_id ? { chip: T.chipId(ctx.shareCodeId, s.student_id), first: nameOf(s.student_id, s.student_name), animal: T.animalFor(s.student_id) } : null,
         };
       }
@@ -1210,6 +1247,8 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
   // Fast start: the earlier-finish lookup (completed rows only; the new row is in progress) runs beside the insert.
   const priorP = fast && student ? Fast.early(priorFinish(ctx.shareCodeId, student.id)) : null;
   const prior = student && !fast ? await priorFinish(ctx.shareCodeId, student.id) : null;
+  // web_quiz_order_seed: the questions for the sitting's own order are read beside the insert (off: nothing is read)
+  const orderRowsP = orderRows(ctx.quizId);
 
   const { data: session, error: sErr } = await supabase.from('quiz_sessions').insert({
     quiz_id: ctx.quizId,
@@ -1232,7 +1271,8 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
   }
   mark('insert');
   if (doorP) await doorP;
-  if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP });
+  const ord = await sittingOrderOf(orderRowsP, session);
+  if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP, ord });
 
   await countJoin(ctx.shareCodeId);
   const quizSource = await quizSourceOf(ctx.quizId);
@@ -1254,6 +1294,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     ...(ctx.moreVideosOf ? { moreVideos: true } : {}),
     // How the page identified the child (roll / name / remembered / chips / new): measures each path.
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
+    ...orderEvent(ord),
   });
   const nameOf = await shownNames(ctx.lang, [student && student.id]);
   return {
@@ -1261,6 +1302,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     device_ref: deviceRef,
     ...counted,
     resume: { answered: [] },
+    ...orderFields(ord),
     child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) } : null,
   };
 }
@@ -1288,7 +1330,7 @@ async function scheduleJoin(ctx) {
  * together. Each one already keeps its own failure (today's catches); the join and start events say what they said.
  * The identity line is logged before the pick starts, so the pick's own line still falls between it and the start line.
  */
-async function startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP }) {
+async function startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP, ord = null }) {
   // The earlier-finish lookup ran beside the insert; a failed one stops the start before anything else is written.
   const prior = priorP ? await priorP : null;
   if (resolved) logEvent('web_quiz.identity_resolved', { shareCodeId: ctx.shareCodeId, sessionId: session.id, ...resolved });
@@ -1310,6 +1352,7 @@ async function startedFast({ body, ctx, session, student, userId, deviceRef, res
     preview: Boolean(userId), returning: Boolean(body.chip || body.from_st), counted: counted.counted,
     ...(ctx.moreVideosOf ? { moreVideos: true } : {}),
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
+    ...orderEvent(ord),
   });
   const nameOf = await names;
   return {
@@ -1317,6 +1360,7 @@ async function startedFast({ body, ctx, session, student, userId, deviceRef, res
     device_ref: deviceRef,
     ...counted,
     resume: { answered: [] },
+    ...orderFields(ord),
     child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) } : null,
   };
 }
@@ -1667,7 +1711,7 @@ async function recordAnswers(body = {}) {
     list.forEach((a) => out.dup.push(String(a && a.qid)));
     return { ...out, closed: true };
   }
-  const questions = await loadQuestions(s.quiz_id);
+  const questions = sittingQuestions(await loadQuestions(s.quiz_id), s);
   const byId = new Map(questions.map((q) => [q.id, q]));
   const already = new Set((await answeredIds(s.id)).map((r) => r.question_id));
   const fresh = [];
@@ -1722,9 +1766,12 @@ async function withPulse(s, body, out, rows, questions) {
   if (right.length) {
     // The name the page shows (an Urdu quiz: the class list's Urdu spelling), once per session; a friend has none.
     const first = s.invited_by_student_id ? null : await pulseName(s);
+    // web_quiz_order_seed: each child sits their own order, so the event names its question too (each page shows its own number)
+    const named = (await require('./web-quiz-hub-flags').flags()).orderSeed;
     right.forEach((r) => Pulse.push({
       shareCodeId: s.share_code_id, sessionId: s.id, first,
       qn: questions.findIndex((q) => q.id === r.question_id) + 1, invited: Boolean(s.invited_by_student_id),
+      ...(named ? { qid: r.question_id } : {}),
     }));
   }
   // An invited friend is not in the class: they never see classmates (their own right answers still reach the class as "a friend").
@@ -1774,7 +1821,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   mark('session');
   // Fast finish (web_quiz_fast): the answers need only the session, so they are read beside the questions.
   const answersP = fast ? Fast.early(answeredIds(s.id)) : null;
-  const questions = await loadQuestions(s.quiz_id);
+  const questions = sittingQuestions(await loadQuestions(s.quiz_id), s);
   mark('questions');
   const answers = await (answersP || answeredIds(s.id));
   mark('answers');
@@ -2091,6 +2138,11 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
+// The voice events' own fields (wq.js clipFacts / playable), on these four names only: where the clip came
+// from (never its address), its format, the page's view state, ms since the child last touched the page (gms; -1 none),
+// and what the phone can play.
+const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow']);
+const VOICE_PROPS = Object.freeze({ host: /^(self|r2|other)$/, fmt: /^(ogg|mp3|m4a|aac|wav|other)$/, vis: /^(hidden|visible)$/, can: /^ogg[01]mp3[01]$/ });
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
 // while the switch is on, so a cached page or a switched-off deployment logs nothing new.
 const TEL_NAMES = new Set(['page_start', 'screen_enter', 'screen_leave', 'vis', 'hb', 'page_end']);
@@ -2252,6 +2304,10 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
     if (e[k] !== undefined && Number.isFinite(v)) props[k === 'n' ? 'count' : k] = v;
   }
   for (const k of EVENT_BOOLS) if (typeof e[k] === 'boolean') props[k] = e[k];
+  if (VOICE_EVENTS.has(e.n)) {
+    for (const [k, rx] of Object.entries(VOICE_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+    if (Number.isFinite(e.gms)) props.gms = e.gms;
+  }
   // The page sends answer right/wrong as 1/0: kept as a boolean (it was dropped while only booleans passed).
   if (e.ok === 1 || e.ok === 0) props.ok = e.ok === 1;
   if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);

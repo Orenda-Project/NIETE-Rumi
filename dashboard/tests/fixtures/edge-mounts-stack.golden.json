@@ -931,6 +931,21 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/wq\\/clip\\/(.+)$/",
+        "path": {
+          "fast_star": false,
+          "fast_slash": false
+        },
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "clipMp3"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/q(?:\\/([^/]+?))\\/art(?:\\/([^/]+?))\\.jpg\\/?$/i",
         "path": "/q/:code/art/:kind.jpg",
         "methods": [
