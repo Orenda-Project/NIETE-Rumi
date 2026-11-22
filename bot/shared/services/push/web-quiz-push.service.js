@@ -24,7 +24,8 @@
  *   subscribe(input, {now})                → {ok:1} | {status:409, err:'class_phone'} | {status:400, err:'bad_sub'}
  *   unsubscribe({endpoint, by}) / markOpened({endpoint}, {now})   → {ok:1}
  *   payloadFor(row, {test, rounds, names}) → {t, b, url, tag, lang, test}: class-named when the phone's classes have
- *                                            a round ready; children's first names only with `names` on; no score, ever
+ *                                            a round ready; children's first names only with `names` on (with rounds,
+ *                                            only the children still waiting: rounds[].kids); no score, ever
  *   sendOne(row, payload, {webpush})       → {sent, status}; 404/410 revokes the row as `gone`
  *   sendTest({endpoint}, {webpush})        → {ok:1, sent, status} | {status:404, err:'off'}
  *   dueTick(now, {webpush})                → {sent, revoked, deduped}: due rows, ONE per phone (device_ref) a school
@@ -354,8 +355,30 @@ const TITLE_MAX = 60;   // code points: Android shows one line of title
 const cps = (v) => [...String(v)].length;
 const joinLast = (list, c) => (list.length > 1 ? `${list.slice(0, -1).join(c.and)}${c.last}${list[list.length - 1]}` : list[0] || '');
 /**
+ * The waiting children's first names from class-link's rounds (rounds[].kids, filled only with `names` on): first_ur on
+ * an Urdu phone, else first; one per child across classes (a name shown once), at most NAMES_MAX; [] when no kid carries
+ * a name.
+ */
+function kidNames(rounds, lang) {
+  const seen = new Set();
+  const out = [];
+  for (const r of Array.isArray(rounds) ? rounds : []) {
+    if (!r || !CODE_RX.test(String(r.class_link_code || '')) || !Array.isArray(r.kids)) continue;
+    for (const k of r.kids) {
+      const name = clip(k && ((lang === 'ur' && k.first_ur) || k.first));
+      const id = k && k.student_id ? `i|${k.student_id}` : `n|${name}`;
+      if (!name || seen.has(id) || out.includes(name)) continue;
+      seen.add(id);
+      out.push(name);
+    }
+  }
+  return out.slice(0, NAMES_MAX);
+}
+
+/**
  * rounds: roundsReadyForPhone's answer for this phone (class-link), [] when none; names: the children's first names
- * (only ever passed with `names` on); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
+ * (only ever passed with `names` on), used only when there is no round (with rounds the names are the waiting
+ * children's, kidNames: a child who finished tonight is not named); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
  * known, else the quiz's link is the last fallback. One notification for the phone whichever applies.
  */
 function payloadFor(row, { test = false, rounds = [], names = [], hub = null } = {}) {
@@ -367,7 +390,7 @@ function payloadFor(row, { test = false, rounds = [], names = [], hub = null } =
   const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
-  const who = (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
+  const who = ready.length ? kidNames(ready, lang) : (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
   // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
   const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
   const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
@@ -394,14 +417,18 @@ async function hubFor(row) {
   }
 }
 
-/** class-link's rounds for this phone today (PLAN §3.2); [] until that module exports roundsReadyForPhone. */
-async function roundsFor(row, now) {
+/**
+ * class-link's rounds for this phone today (PLAN §3.2); [] until that module exports roundsReadyForPhone. With `names`
+ * on it asks for the waiting children (withKids); off, it asks as before and drops any `kids` it is sent anyway.
+ */
+async function roundsFor(row, now, names = false) {
   if (!row || row.kind !== 'quiz_reminder' || !row.device_ref) return [];
   try {
     const CL = require('../quiz/web-quiz-class-link');
     if (!CL || typeof CL.roundsReadyForPhone !== 'function') return [];
-    const out = await CL.roundsReadyForPhone(row.device_ref, pktDay(now));
-    return Array.isArray(out) ? out : [];
+    const out = names ? await CL.roundsReadyForPhone(row.device_ref, pktDay(now), { withKids: true }) : await CL.roundsReadyForPhone(row.device_ref, pktDay(now));
+    if (!Array.isArray(out)) return [];
+    return names ? out : out.map((r) => (r && r.kids ? (({ kids, ...rest }) => rest)(r) : r));
   } catch (err) {
     logToFile('⚠️ web quiz push: rounds lookup failed — generic reminder', { error: err && err.message });
     return [];
@@ -486,14 +513,16 @@ async function dueTick(now = Date.now(), opts = {}) {
     const phone = row.kind === 'quiz_reminder' && row.device_ref ? `p|${row.device_ref}` : null;
     if (phone && phones.has(phone)) { deduped += 1; continue; }
     const lang = row.lang === 'en' ? 'en' : 'ur';
-    const names = s.names ? await namesFor(row, lang) : [];
-    const rounds = await roundsFor(row, now);
+    const rounds = await roundsFor(row, now, s.names);
+    // with a round, the names are its waiting children (kidNames); the phone's own list only for a plain reminder
+    const names = s.names && !rounds.length ? await namesFor(row, lang) : [];
+    const named = (rounds.length ? kidNames(rounds, lang) : names).length > 0;
     const hub = rounds.length ? null : await hubFor(row);
     const out = await sendOne(row, payloadFor(row, { rounds, names, hub }), { ...opts, now });
     if (phone) phones.add(phone);
     if (out.sent) {
       sentBy[row.kind] = (sentBy[row.kind] || 0) + 1;
-      if (row.kind === 'quiz_reminder') body[names.length ? 'named' : rounds.length ? 'round' : 'generic'] += 1;
+      if (row.kind === 'quiz_reminder') body[named ? 'named' : rounds.length ? 'round' : 'generic'] += 1;
       await supabase.from(TABLE).update({
         sent_count: (row.sent_count || 0) + 1, unopened_count: (row.unopened_count || 0) + 1, last_sent_at: iso(now), updated_at: iso(now),
       }).eq('id', row.id);
