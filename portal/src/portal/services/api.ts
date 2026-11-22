@@ -808,7 +808,8 @@ export type CoachObservationView = {
   /** bd-fmf24g.66 — what became of the plan attached: her own file (reading / read / unreadable), a library plan, or none. Absent from an older bot. */
   lessonPlan?: { source: 'own' | 'library' | 'none'; format: string | null; state: 'reading' | 'read' | 'unreadable' | null; topic: string | null };
   draft: { edited: boolean };
-  talk: { guide: TalkGuide | null; recordedAt: string | null; feedback: CoachFeedback | null };
+  /** bd-o15qnr.39 — `audioUrl`: a signed link to the debrief recorded or attached in the portal (none for a WhatsApp one). */
+  talk: { guide: TalkGuide | null; recordedAt: string | null; audioUrl?: string | null; feedback: CoachFeedback | null };
   report: {
     status: string | null; teacherName: string | null; teacherPhone: string | null;
     caption: string | null; companionText: string | null; imageUrl: string | null;

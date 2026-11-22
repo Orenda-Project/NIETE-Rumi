@@ -99,3 +99,43 @@ test('the Reports list: a report not yet sent is not filed as sent, and does not
   expect(out.all.items.map((r) => r.step)).toEqual(['report']);
   expect(out.waiting).toEqual([]);
 });
+
+/**
+ * bd-o15qnr.39 (queue #204, the operator 22 Nov ~00:40) — her debrief is in and the Digital Coach is listening (the bot's
+ * `listening`, still v2's `talk`): the Reports row says so (`listening: true`) so its line reads "Debrief: analysing", in
+ * the same words as the bot's step. Too short / failed / refused talks are hers again (not listening); a WhatsApp voice
+ * note counts as recorded like a portal file. Only slices of observer_debrief are read (never the transcript).
+ */
+describe('the Reports row knows the debrief is being listened to (bd-o15qnr.39)', () => {
+  const listQ = (debrief) => async (sql) => {
+    if (sql === PATCH_TEACHERS_SQL) return { rows: PATCH };
+    if (sql === SVC.SQL.COACH_SESSIONS) {
+      return { rows: [{ ...sessionRow('observer_review_complete', 'pending', null), analysis_data: { teacher_delivery: null, observer_debrief: debrief } }] };
+    }
+    return { rows: [] };
+  };
+  const rowOf = async (debrief) => (await SVC.getCoachReports(listQ(debrief), ME, {})).all.items[0];
+  const botSays = (od) => stepOfRow({ status: 'observer_review_complete', debrief_status: 'pending', analysis_data: { observer_debrief: od } }).step;
+
+  test.each([
+    ['portal recording in', { audio_r2_key: 'classroom_audio/me/t.webm', recorded_at: 'x' }, true],
+    ['WhatsApp voice note in', { audio_id: 'media-1', recorded_at: 'x' }, true],
+    ['feedback written, done-flip pending', { audio_r2_key: 'k', feedback: { praise_line: 'p' } }, true],
+    ['no recording yet', null, false],
+    ['too short', { audio_r2_key: 'k', too_short_at: 'x' }, false],
+    ['failed', { audio_r2_key: 'k', failed_at: 'x' }, false],
+    ['feedback failed', { audio_r2_key: 'k', feedback_failed_at: 'x' }, false],
+  ])('%s', async (_name, od, listening) => {
+    const r = await rowOf(od);
+    expect(r.step).toBe('talk');
+    expect(r.listening).toBe(listening);
+    expect(botSays(od) === 'listening').toBe(listening);
+  });
+
+  test('COACH_SESSIONS reads only the debrief flags it needs, never the transcript or the whole debrief', () => {
+    const sql = SVC.SQL.COACH_SESSIONS;
+    expect(sql).toMatch(/observer_debrief'->'audio_r2_key'/);
+    expect(sql).not.toMatch(/analysis_data->'observer_debrief'(?!\s*->)/);
+    expect(sql).not.toMatch(/transcript/);
+  });
+});

@@ -67,7 +67,7 @@ export function FocusCard() {
         <div className={cn(LIST_CARD, "border-2 border-[#f59e0b]")}>
           <HistoryRow lead="person" first title={r.teacherName || S.dash} action="none" chip={reportChip(r, R)}
             extra={[r.schoolName, S.waitingSince(waitedDays(r, today))].filter(Boolean).join(" · ")} />
-          <ReportSegments step={r.step} />
+          <ReportSegments step={r.step} listening={!!r.listening} />
           <div className="px-3 pb-3">
             <Link to={reportHref(r)} onClick={() => trackFlow("home.focus")}
               className={cn("flex min-h-[56px] items-center justify-center rounded-2xl bg-[#33374a] px-4 text-[16px] font-semibold leading-tight text-white rtl:leading-[1.8]", FOCUS)}>

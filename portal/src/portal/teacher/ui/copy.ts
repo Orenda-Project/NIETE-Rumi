@@ -61,6 +61,10 @@ export interface TeacherUiCopy {
   pause: string;
   /** bd-bmc9a0.4 (ICT IAB row 33) — VoiceNote's speed chip, for a screen reader (the chip shows 1×, 1.25×, 1.5×, 2×). */
   speed: string;
+  /** bd-o15qnr.39 — AudioCard's full player: skip back / forward 10 s and the bar, for a screen reader. */
+  back10: string;
+  forward10: string;
+  position: string;
   /** bd-4404s7.1 — TimeStamp's AM/PM, and ChosenSoFar's group name. */
   am: string;
   pm: string;
@@ -237,6 +241,9 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   play: 'Play',
   pause: 'Pause',
   speed: 'Playback speed',
+  back10: 'Back 10 s',
+  forward10: 'Forward 10 s',
+  position: 'Position',
   am: 'AM',
   pm: 'PM',
   chosenSoFar: 'Chosen so far',
@@ -377,6 +384,10 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   play: 'چلائیں',
   pause: 'روکیں',
   speed: 'آواز کی رفتار',
+  /** bd-o15qnr.39 — machine-drafted, NATIVE-CHECK. */
+  back10: '10 سیکنڈ پیچھے',
+  forward10: '10 سیکنڈ آگے',
+  position: 'مقام',
   /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
   am: 'صبح',
   pm: 'بعد دوپہر',

@@ -20,12 +20,17 @@ export function stepWords(i: number, W: FlowV7Copy): { done: string; current: st
   return W.steps[i];
 }
 
-export function StatusLine({ at, className }: { at: number; className?: string }) {
+/**
+ * `current` (bd-o15qnr.39): other words for the current step while the Digital Coach works on it — "Debrief: analysing"
+ * once her debrief is in and being listened to (the visit and every list card), so it never says "Record the debrief".
+ */
+export function StatusLine({ at, className, current }: { at: number; className?: string; current?: string }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
+  const nowWords = current || (at < STATUS_STEPS ? stepWords(at, W).current : W.allDone);
   const allDone = at >= STATUS_STEPS;
   const stateOf = (i: number) => (allDone || i < at ? "done" : i === at ? "current" : "later");
   return (
-    <section data-testid="status-line" aria-label={allDone ? W.allDone : W.now(stepWords(at, W).current)} className={cn("flex flex-col gap-2", className)}>
+    <section data-testid="status-line" aria-label={allDone ? W.allDone : W.now(nowWords)} className={cn("flex flex-col gap-2", className)}>
       <ol className="m-0 grid list-none grid-cols-4 gap-1.5 p-0">
         {Array.from({ length: STATUS_STEPS }, (_, i) => {
           const state = stateOf(i);
@@ -42,7 +47,7 @@ export function StatusLine({ at, className }: { at: number; className?: string }
                   state === "done" && "font-semibold text-[#2f7a52]",
                   state === "current" && "font-bold text-[#b45309]",
                   state === "later" && "font-medium text-[#6b7280]")}>
-                {state === "done" ? words.done : state === "current" ? words.current : words.later}
+                {state === "done" ? words.done : state === "current" ? (current || words.current) : words.later}
               </span>
             </li>
           );
@@ -51,7 +56,7 @@ export function StatusLine({ at, className }: { at: number; className?: string }
       <p className="m-0 flex items-center gap-1.5 text-[15px] font-semibold text-[#1d2025]">
         {allDone
           ? <><Check className="h-4 w-4 text-[#2f7a52]" aria-hidden="true" />{W.allDone}</>
-          : W.now(stepWords(at, W).current)}
+          : W.now(nowWords)}
       </p>
     </section>
   );

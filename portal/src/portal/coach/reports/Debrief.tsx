@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Check, Compass, MessageCircle, Sparkles } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { leader } from "../../services/api";
@@ -18,7 +18,7 @@ import { useCopy } from "../../teacher/i18n";
 import { NOTICES } from "../../teacher/notices/copy";
 import { PageChip } from "../../teacher/TeacherPage";
 import { LoadState } from "../../teacher/lessons/LoadState";
-import { RecordUploadPair } from "../../teacher/ui";
+import { AudioCard, RecordUploadPair } from "../../teacher/ui";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import ReportsFrame from "./ReportsFrame";
 import { InsightRow } from "./InsightRow";
@@ -28,7 +28,9 @@ import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
-import { ErrorAction, ErrorCard } from "../flow/VisitV7";
+import { DebriefListeningStage, ErrorAction, ErrorCard, FeedbackCard } from "../flow/VisitV7";
+import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
+import { coachReportPath } from "../report/api";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 
 /**
@@ -43,6 +45,12 @@ import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
  *
  * bd-tymy1n (queue #179) — an uploaded talk is read when she picks it, and what goes up (and what Try again sends again)
  * is those bytes, never the picked file the Android app may no longer open. A file that will not open is refused here.
+ *
+ * bd-o15qnr.39 (queue #204; the operator 22 Nov ~00:40: "I got thrown back to the previous page ... I couldn't tell if my
+ * audio got submitted and is being analyzed") — on the v6/v7 switch she stays here: Uploaded, then "The Digital Coach is
+ * listening to your debrief" (about 3 minutes, she can leave, it shows on the visit) with her recording playing in place;
+ * the page asks again by itself (useObservationView) and shows the debrief report's card once the feedback is written.
+ * Off: back on the observation page, as before.
  *
  * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
  * English and Urdu; its other on-screen words are still English only (see the gap list).
@@ -127,7 +135,15 @@ export default function Debrief() {
   const name = teacherNameOf(view);
   const first = firstNameOf(name);
   const step = view?.step;
-  const hers = step === "talk" || step === "draft";
+  // bd-o15qnr.39 — on the v6/v7 switch the page stays after the recording is in (justSent) and says what happens next.
+  const v7 = useFlowV6() === true;
+  const W = useCopy(FLOW_V7) as FlowV7Copy;
+  const [justSent, setJustSent] = useState(false);
+  const listeningNow = v7 && (step === "listening" || (justSent && step === "talk" && !view?.problem));
+  const hers = (step === "talk" || step === "draft") && !listeningNow;
+  const talkAudio = v7 ? view?.talk.audioUrl || null : null;
+  const feedbackReady = v7 && !!view?.talk.feedback && step !== "listening";
+  const feedbackTo = routes.coachGate ? coachReportPath(id) : routes.observation(id, "feedback");
 
   useEffect(() => { canRecordHere().then(setCanRecord).catch(() => { /* the recorder says if it cannot */ }); }, []);
 
@@ -160,7 +176,6 @@ export default function Debrief() {
   // bd-tfya0m (queue #205) — "Guide did not load" is never the end: Try again asks once more (with its own asks again).
   const guideAgain = () => { setGuideState("loading"); askGuide(0); };
   // bd-o15qnr.28 (v7, board m9-errors card 3): no guide is the red-edged card — record anyway, Try again, or record now.
-  const v7 = useFlowV6() === true;
   const E = useCopy(FLOW_V7_ERRORS);
 
   const send = async (audio: Pending) => {
@@ -171,6 +186,7 @@ export default function Debrief() {
     try {
       await sendTalk(id, { blob: audio.blob, filename: audio.filename }, undefined, undefined, setProgress);
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* already gone */ } }
+      if (v7) { setJustSent(true); setStage("guide"); reload(); return; }
       navigate(home, { replace: true });
     } catch (err) {
       setFailure(err instanceof SendError ? err : new SendError("network"));
@@ -227,7 +243,15 @@ export default function Debrief() {
           )}
           {guideState === "not_ready" && <Note tone="amber">{C.saveFormFirst}</Note>}
           {guideState === "ready" && guide && <GuideBlock guide={guide} />}
-          {step === "listening" && <Note>{C.listeningTalk}</Note>}
+          {step === "listening" && !v7 && <Note>{C.listeningTalk}</Note>}
+          {listeningNow && (
+            <DebriefListeningStage>
+              {justSent && <p data-testid="debrief-uploaded" className="m-0 flex items-center gap-1.5 text-[15px] font-semibold text-[#2f7a52]"><Check className="h-4 w-4" aria-hidden="true" />{W.uploaded}</p>}
+              <Link to={home} className={cn("flex min-h-[56px] items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[16px] font-semibold text-[#33374a]", FOCUS)}>{W.backToVisit}</Link>
+            </DebriefListeningStage>
+          )}
+          {feedbackReady && <FeedbackCard id={id} to={feedbackTo} />}
+          {talkAudio && <AudioCard title={W.debriefRecording} src={talkAudio} controls testId="debrief-recording" />}
 
           {problem && (
             <div role="alert" className="flex items-center gap-3 rounded-2xl bg-[#fef3c7] p-4 text-[#b45309]">
