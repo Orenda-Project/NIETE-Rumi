@@ -4,9 +4,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 /**
- * The survey bar's place on the plan page (spec §1): at the end of HER grades 1-5 plan, once the plan has loaded, with
+ * The survey bar's place on the plan page (spec §1): at the end of HER plan (grades 1-12, bd-96f69c.16), once loaded, with
  * the switch on. Not for a leader, not in From the library (`pick`) or her DC plan (`fromDc`), not on her own made plan
- * (it has its own rating), not on the answer key, not on a grades 6-12 plan in this release, not before the plan loads.
+ * (it has its own rating), not on the answer key, not before the plan loads.
  * Switch off → today's viewer: no bar and nothing asked of /lp/feedback.
  */
 
@@ -75,7 +75,6 @@ describe("the survey bar on the plan page", () => {
     ["her DC plan", () => {}, { lessonPlan: K5, fromDc: true }],
     ["her own made plan", () => {}, { lessonPlan: K5, own: { at: "x" } }],
     ["the answer key", () => {}, { lessonPlan: { ...K5, source: { ...K5.source, assetKind: "answer_key" } } }],
-    ["a grades 6-12 plan", () => {}, { lessonPlan: { source: { lane: "g612", renderId: "r1" }, title: "Cells" } }],
   ])("%s: no bar, nothing asked", async (_name, arrange, state) => {
     arrange();
     open(state);
@@ -85,3 +84,46 @@ describe("the survey bar on the plan page", () => {
     expect(asked()).toHaveLength(0);
   });
 });
+
+// bd-m8zwt1.16 (queue #164): a GB grades 1-5 plan opens on the 6-12 lane (a render id), so the bar never showed for GB
+// grades 1-5 teachers. bd-96f69c.16 (21 Nov): grades 6-12 plans get the bar too, so any 6-12 lane plan carries it.
+describe("the survey bar on a grades 1-5 plan that opens on the 6-12 lane (GB)", () => {
+  const GB = { source: { lane: "g612", renderId: "rnd-gb-3", assetKind: "lesson" }, title: "Fractions" };
+  const dc = (grade: number) => ({ grade, subjectKey: "math", plan: "g612:seg", lang: "ur" });
+  it("grade 3: the bar, asked for this render", async () => {
+    open({ lessonPlan: GB, dc: dc(3) });
+    await screen.findByTestId("lp-feedback");
+    expect(asked()[0][1]).toEqual(expect.objectContaining({ params: { kind: "g612", ref: "rnd-gb-3" } }));
+  });
+  it("grade 7: the bar, asked for this render", async () => {
+    open({ lessonPlan: GB, dc: dc(7) });
+    await screen.findByTestId("lp-feedback");
+    expect(asked()[0][1]).toEqual(expect.objectContaining({ params: { kind: "g612", ref: "rnd-gb-3" } }));
+  });
+});
+
+describe("the survey bar on a grades 6-12 plan (bd-96f69c.16)", () => {
+  const G612 = { source: { lane: "g612", renderId: "r1" }, title: "Cells" };
+  it("her 6-12 plan, no DC context: the bar, after the plan, asked for this render", async () => {
+    open({ lessonPlan: G612 });
+    const bar = await screen.findByTestId("lp-feedback");
+    expect(asked()[0][1]).toEqual(expect.objectContaining({ params: { kind: "g612", ref: "r1" } }));
+    expect(screen.getByTestId("viewer").compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it.each([
+    ["the switch off", () => { barOn = false; }, { lessonPlan: G612 }],
+    ["a leader", () => { who.leader = true; }, { lessonPlan: G612 }],
+    ["From the library", () => {}, { lessonPlan: G612, pick: { grade: 9 } }],
+    ["her own made plan", () => {}, { lessonPlan: G612, own: { at: "x" } }],
+    ["another teacher's shelf plan", () => {}, { lessonPlan: G612, shelf: true }],
+    ["no render id", () => {}, { lessonPlan: { source: { lane: "g612" }, title: "Cells" } }],
+  ])("%s: no bar, nothing asked", async (_name, arrange, state) => {
+    arrange();
+    open(state);
+    await waitFor(() => expect(readConfigShared).toHaveBeenCalled());
+    await settle();
+    expect(screen.queryByTestId("lp-feedback")).toBeNull();
+    expect(asked()).toHaveLength(0);
+  });
+});
+

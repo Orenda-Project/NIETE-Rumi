@@ -502,7 +502,10 @@ const LATEST_ONCE = 'audio_check';
 // record_stop { task_id, item_id?, value: { duration_ms, parts } }: round 28, the recorder's stop, logged only once the
 // recording's closing marker is on the phone. One per task, the last (sa-store.js keepEvents keeps it outside the cap).
 const LAST_PER_TASK = ['record_stop'];
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES, ...LAST_PER_TASK];
+// mic_check { value: { ok, rms } }: round 28, the microphone check's answer (one "no" skips every speaking task, sa-core.js
+// micChecked). One per attempt, the last (sa-store.js keepEvents keeps it outside the cap).
+const LAST_PER_ATTEMPT = ['mic_check'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES, ...LAST_PER_TASK, ...LAST_PER_ATTEMPT];
 const MAX_EVENT_DATA = 300; // characters of JSON
 // a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
 const MAX_PRACTICE_PER_TASK = 4;
@@ -644,17 +647,20 @@ function keptEvent(e) {
 }
 
 /** The events the session keeps, in batch order: KEPT types, a part's practice taps up to MAX_PRACTICE_PER_TASK, the
- *  first session_start and the last audio_check of the batch (ONCE_TYPES), and the last record_stop of each task. */
+ *  first session_start and the last audio_check of the batch (ONCE_TYPES), the last record_stop of each task and the last mic_check. */
 function keptEvents(events) {
   const practice = new Map();
   const once = new Set();
   const lastCheck = events.reduce((m, e) => (e && e.type === LATEST_ONCE ? e : m), null);
   const lastOfTask = new Map();
   for (const e of events) if (e && LAST_PER_TASK.includes(e.type)) lastOfTask.set(`${e.type}|${e.task_id}`, e);
+  const lastOfBatch = new Map();
+  for (const e of events) if (e && LAST_PER_ATTEMPT.includes(e.type)) lastOfBatch.set(e.type, e);
   return events.filter((e) => {
     if (!KEPT.includes(e.type)) return false;
     if (e.type === LATEST_ONCE) return e === lastCheck;
     if (LAST_PER_TASK.includes(e.type)) return lastOfTask.get(`${e.type}|${e.task_id}`) === e;
+    if (LAST_PER_ATTEMPT.includes(e.type)) return lastOfBatch.get(e.type) === e;
     if (ONCE_TYPES.includes(e.type)) {
       if (once.has(e.type)) return false;
       once.add(e.type);

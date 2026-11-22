@@ -125,13 +125,16 @@
           if (e.type === 'task_intro') warmFor(e.task_id);
           if (e.type === 'battery_end') batteryEnd();
           // The game's mic check is kept for this phone (the coach's pre-flight writes the same keys).
-          if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms);
+          if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms, undefined, micUnknown ? { r28: true } : undefined);
         }
         // The microphone as the runner sees it: the coach's pre-flight or an earlier mic check on this phone; in game
         // mode an unknown phone gets the engine's own mic check, in proctored mode no mic_ok means no recording.
+        // Round 28, O-115 (battery.ui.r28_mic_unknown): in proctored mode too an unknown phone gets the check (the coach's
+        // mic card), and only a stored "no" with a measured level (the coach's own "go on without") skips.
+        var micUnknown = (battery.ui || {}).r28_mic_unknown === true;
         function micState() {
-          var m = micMod ? micMod.state() : 'unknown';
-          return m === 'unknown' && mode === 'proctored' ? 'no' : m;
+          var m = micMod ? micMod.state(undefined, micUnknown ? { strict: true } : undefined) : 'unknown';
+          return m === 'unknown' && mode === 'proctored' && !micUnknown ? 'no' : m;
         }
 
         // Round 7b (sa_silence_repeat): RDF auto listens for a voice on every read-aloud part; a silent attempt's recording
@@ -151,7 +154,7 @@
         var silenceStop = [1, 2, 3].indexOf(w3.r20_silence_stop) >= 0 && mode === 'proctored' && !manual ? w3.r20_silence_stop : null;
         var wholeStop = mode === 'proctored' && !manual && opts.whole === true && (w3.r13_whole_stop === 'all' || w3.r13_whole_stop === 'early') ? w3.r13_whole_stop : null;
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
-          dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
+          dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game' || micUnknown, oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
           one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true,
           cell_pace: w3.cell_pace === true, section_recording: w3.section_recording === true, cell_next_only: w3.cell_next_only === true,
           // sa_auto_no_last_word (round 7): RDF auto ends the passage on "I'm done" / time up, with no last-word step.
