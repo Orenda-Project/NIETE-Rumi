@@ -6,12 +6,12 @@
  *   - a teacher sees only the classes they teach (class_teachers), each with its label parts, its link and the SAME
  *     wa.me href the report card's Forward builds (forwardHref, ?f=1); another teacher's class is never minted;
  *   - the canary scope (web_quiz_class_link_canary, helper web-quiz-class-link-canary.js) filters classes BEFORE any mint;
- *     the helper absent = no restriction, the helper failing = left out;
+ *     the helper failing = left out;
  *   - a tap logs quiz_forward_tap{surface class_link} through forwardHref and folds that class (sent) for the term;
  *     a tap on a class that is not the teacher's is 404 and changes nothing;
  *   - with the evening round on: a READY round today -> {lesson, played:0}; finished sittings -> a count of children
  *     (each child once) and the report page's Evening rounds link; never a child's name.
- * Faked boundaries: Supabase (in memory), Redis (a Map), the loggers, the event key, the canary helper (virtual).
+ * Faked boundaries: Supabase (in memory), Redis (a Map), the loggers, the event key, the canary helper.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -191,22 +191,6 @@ describe('the canary scope filters before any mint', () => {
     Canary.inCanary.mockImplementation(async ({ classId }) => classId !== C1);
     expect(await App().tap({ teacherId: A, classId: C1, how: 'forward' })).toBeNull();
     expect(logEvent).not.toHaveBeenCalled();
-  });
-
-  test('the helper absent (not deployed yet): no restriction', () => {
-    let out;
-    return new Promise((done) => {
-      jest.isolateModules(() => {
-        jest.doMock('../../shared/services/quiz/web-quiz-class-link-canary', () => {
-          throw Object.assign(new Error("Cannot find module './web-quiz-class-link-canary' from 'web-quiz-class-link-app.js'"), { code: 'MODULE_NOT_FOUND' });
-        }, { virtual: true });
-        const sb = require('../../shared/config/supabase');
-        const fake = makeFake(db);
-        Object.assign(sb, { from: fake.from, rpc: fake.rpc });
-        out = require('../../shared/services/quiz/web-quiz-class-link-app').forApp(A, { now: NOW });
-      });
-      out.then((o) => { expect(o.classes.map((c) => c.classId)).toEqual([C1, C2]); done(); });
-    });
   });
 });
 

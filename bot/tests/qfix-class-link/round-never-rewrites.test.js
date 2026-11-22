@@ -93,7 +93,7 @@ let db;
 function seed() {
   db = {
     app_settings: [],
-    users: [{ id: TEACHER, name: 'Rifat Test', phone_number: '923000000099', preferred_language: 'en', grades_taught: null, subjects_taught: null }],
+    users: [{ id: TEACHER, name: 'Rifat Test', phone_number: '+92300FIXTURE99', preferred_language: 'en', grades_taught: null, subjects_taught: null }],
     classes: [{ id: CLASS, grade_code: 'grade_3', section: 'B', is_active: true }],
     quizzes: [{
       id: QID, teacher_id: TEACHER, coaching_session_id: null, quiz_source: 'lp_v8', topic: 'Reading short sentences', subject: 'english', language: 'en',
@@ -228,7 +228,7 @@ test('a redelivered job queues nothing twice', async () => {
 test('an ordinary lp_v8 quiz still has its flagged key rewritten (the non-round path is unchanged)', async () => {
   seed();
   quiz().meta = { ...quiz().meta, source: 'lp_offer' };
-  await Gen.process(QID, { quizId: QID, phone: '923000000099' });
+  await Gen.process(QID, { quizId: QID, phone: '+92300FIXTURE99' });
   expect(rows().some((q) => q.question_text === REWRITE_STEM)).toBe(true);
   expect(rows().some((q) => q.question_text === FLAGGED_STEM)).toBe(false);
   expect(db.quiz_item_reviews).toHaveLength(0);

@@ -39,6 +39,8 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Identity = require('./web-quiz-identity');
+// classLabels / firstNameOf live in a leaf module the evening round and the reminder payload share (no require circle).
+const { classLabels, firstNameOf } = require('./web-quiz-class-names');
 const HubDevice = require('./web-quiz-hub-device');
 const Flags = require('./web-quiz-class-link-flags');
 const { clampLanguage } = require('../../config/ux-strings');
@@ -103,17 +105,6 @@ function stripTitle(name) {
   return out.replace(TAIL_TITLE, '').trim();
 }
 
-/**
- * IDENTITY §2.1: the canon first name (first token; the second when the first is a Muhammad form) and the word
- * shown on the chip (the name's own word at that position).
- */
-function firstNameOf(name) {
-  const words = String(name || '').normalize('NFKC').trim().split(/[\s.\-_,/]+/).filter(Boolean);
-  const toks = Identity.tokens(name);
-  if (!toks.length) return { canon: '', shown: '' };
-  const i = toks[0] === 'muhammad' && toks.length > 1 && words.length > 1 ? 1 : 0;
-  return { canon: toks[i], shown: words[i] || words[0] };
-}
 
 function letterOf(shown, script) {
   const ch = String(shown || '').normalize('NFKC').trim().charAt(0);
@@ -345,7 +336,7 @@ async function classLabelOf(classId, lang) {
   try {
     const { data, error } = await supabase.from('classes').select('grade_code, section').eq('id', classId).maybeSingle();
     if (error || !data) return null;
-    return require('./web-quiz-evening-round-phone').classLabels(data.grade_code, data.section)[lang === 'ur' ? 'ur' : 'en'] || null;
+    return classLabels(data.grade_code, data.section)[clampLanguage(lang)] || null;
   } catch (_) {
     return null;
   }
