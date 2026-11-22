@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T09:18:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"6fe74c934ef0","branch":"HEAD","user":""}
+{"ts":"2026-11-22T09:18:43Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (untouched)","sha":"6fe74c934ef0","branch":"bd-snkn32.59.4-rel","user":""}
