@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T08:39:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"2014d5bce9ac","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-22T08:39:46Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,coaching,language,observe,child-test,web-quiz-child-page,coach-portal,portal-smoke owe their Gherkin","sha":"2014d5bce9ac","branch":"release/niete-2026-11-20","user":""}
