@@ -2466,4 +2466,5 @@ module.exports = {
   // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
   shownNames, challengeOf,
   BOARD_TOP, QUESTIONS_MAX,
+  codeHash,
 };

@@ -24,7 +24,7 @@ function seed() {
   const DB = {
     users: [{ id: TEACHER, preferred_language: 'en' }],
     quizzes: [{ id: QUIZ, teacher_id: TEACHER, topic: 'Plants', subject: 'science', grade: '3', language: 'en', quiz_source: 'transcript', status: 'report_sent',
-      list_id: null, created_at: ago(30), meta: { share_code_id: SC, student_message: 'Our quiz is ready! Tap: https://portal.example.test/q/AB12CD' } }],
+      list_id: null, created_at: ago(30), meta: { share_code_id: SC, share_code: 'AB12CD', student_message: 'Our quiz is ready! Tap: https://portal.example.test/q/AB12CD' } }],
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, teacher_user_id: TEACHER, invited_by_student_id: null, active: true, expires_at: null, language: 'en', created_at: ago(30) }],
     student_lists: [{ id: LIST, class_name: '3', section: 'B', user_id: TEACHER, is_active: true }],
     students: [1, 2, 3].map((r) => ({ id: kid(r), list_id: LIST, roll_number: r, student_name: `Kid${r} Testwala`, student_name_urdu: null, is_active: true })),
@@ -66,6 +66,14 @@ describe('the report\'s "Remind the class" is the wa_report forward', () => {
     expect(events('teacher_report.reminder')).toHaveLength(1);
     expect(events('quiz_forward_tap')).toEqual([expect.objectContaining({ surface: 'wa_report', share_code_id: SC, method: 'wa_me', origin: 'coaching', stale: false })]);
     expect(JSON.stringify(events('quiz_forward_tap')[0])).not.toMatch(/Kid\d|Plants|portal\.example/);
+  });
+
+  test('the tap carries code_h, the quiz code hashed as web_quiz.page_open hashes it, never the code itself', async () => {
+    const h = require('../../shared/services/quiz/web-quiz.service').codeHash('AB12CD');
+    expect(h).toMatch(/^[0-9a-f]{12}$/);
+    await get(`/remind/${Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ })}?quiz=${QUIZ}`);
+    expect(events('quiz_forward_tap')).toEqual([expect.objectContaining({ surface: 'wa_report', code_h: h })]);
+    expect(JSON.stringify(events('quiz_forward_tap')[0])).not.toContain('AB12CD');
   });
 
   test('a quiz that is not the token\'s: 404 and no tap', async () => {

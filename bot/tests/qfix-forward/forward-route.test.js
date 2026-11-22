@@ -171,3 +171,47 @@ describe('the teacher home\'s own send tap is a forward tap (the meter is never 
     expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_send')).toHaveLength(0);
   });
 });
+
+// code_h: the share code hashed exactly as web_quiz.page_open's code_h (web-quiz.service codeHash), so a tap joins the
+// opens it produced in one log query; the code itself is never in the event.
+describe('code_h: a tap carries the hash page_open carries', () => {
+  const hashOf = (c) => require('../../shared/services/quiz/web-quiz.service').codeHash(c);
+  const home = () => HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go' });
+
+  test('the own quiz: /fwd, the home send tap, the native tap and its result all carry code_h of the quiz code', async () => {
+    seed({ settings: [{ key: 'quiz_forward_button', value: true }] });
+    await boot();
+    const h = hashOf('ABCDEF');
+    expect(h).toMatch(/^[0-9a-f]{12}$/);
+    expect((await get(`/quiz/teacher/${qf()}/fwd`)).status).toBe(302);
+    const t = home();
+    await post('/api/th/step', { t, step: 'share_tap', kind: 'again', id: OWN_QUIZ, origin: 'again' });
+    await post('/api/th/step', { t, step: 'fwd_native', kind: 'again', id: OWN_QUIZ, origin: 'again' });
+    await post('/api/th/step', { t, step: 'fwd_result', kind: 'again', id: OWN_QUIZ, r: 'shared' });
+    expect(taps().map((x) => [x.surface, x.code_h])).toEqual([['wa_handout', h], ['teacher_home', h], ['teacher_home', h]]);
+    expect(logEvent).toHaveBeenCalledWith('quiz_forward_result', expect.objectContaining({ result: 'shared', code_h: h }));
+    expect(JSON.stringify(logEvent.mock.calls.filter(([n]) => /^quiz_forward_/.test(n)))).not.toContain('ABCDEF');
+  });
+
+  test('a library code: the /send route\'s tap carries code_h of that code', async () => {
+    seed();
+    await boot();
+    const t = home();
+    const answer = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    const c = answer.library && answer.library.pick ? answer.library.pick.send.c : answer.primary.send.c;
+    const row = fake.db.quiz_share_codes.find((r) => r.id === c);
+    expect(row && row.code).toBeTruthy();
+    await get(`/quiz/teacher/${t}/send?c=${c}&o=library`);
+    expect(taps()).toEqual([expect.objectContaining({ share_code_id: c, code_h: hashOf(row.code) })]);
+    expect(taps()[0].code_h).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  test('a quiz whose stored meta has no code, and a stale tap: still logged, code_h null', async () => {
+    seed();
+    delete fake.db.quizzes.find((q) => q.id === OWN_QUIZ).meta.share_code;
+    await boot();
+    expect((await get(`/quiz/teacher/${qf()}/fwd`)).status).toBe(302);
+    await get(`/quiz/teacher/${qf({ exp: Math.floor(Date.now() / 1000) - 60 })}/fwd`);
+    expect(taps().map((x) => [x.share_code_id, x.code_h, x.stale])).toEqual([[OWN_CODE, null, false], [null, null, true]]);
+  });
+});
