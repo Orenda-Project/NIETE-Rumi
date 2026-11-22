@@ -9,6 +9,7 @@ const { makeSubject } = require('./chrome');
 
 const { topicOk } = require('../../fde-early-urdu-topic');
 const { g2Q1Ok } = require('../../fde-early-urdu-mcq');
+const { dialogueOk } = require('../../fde-early-urdu-dialogue');
 
 const S = (o) => ({ marks_each: 1, ...o });
 
@@ -57,7 +58,7 @@ module.exports = makeSubject({
         { slot: 'g2.urdu.B.Q8', label_en: 'Q8.', type: 'Topic Sentences', generate: 1, marks_each: 10, lines: 6,
           instruction_ur: 'دیے گئے موضوع پر پانچ جملے لکھیں۔', answer_ok: topicOk,
           prompt_rule: 'One book topic (my school, my favourite fruit, our country). The heading says only «the given topic», so the topic goes in `question` as a short line such as «موضوع: میرا اسکول»; `question` is never empty and never repeats the heading. Answer: five model sentences. Scheme: five K points of 2 — each a correct sentence on topic.' },
-        { slot: 'g2.urdu.B.Q9', label_en: 'Q9.', type: 'Dialogue', generate: 1, marks_each: 10, lines: 6,
+        { slot: 'g2.urdu.B.Q9', label_en: 'Q9.', type: 'Dialogue', generate: 1, marks_each: 10, lines: 6, answer_ok: dialogueOk,
           instruction_ur: 'دو دوستوں کے درمیان پانچ باتوں کا مکالمہ لکھیں۔ ہر بات سے پہلے بولنے والے کا نام لکھیں۔',
           prompt_rule: 'Two friends planning something together (a game, a picnic); the stem names the plan and does not restate the instruction (the heading asks for five turns, each with the speaker\'s name before it). Answer: a model dialogue of five turns, each written «پہلا دوست: ... دوسرا دوست: ...». Scheme: five K points of 2, and each point pays the speaker\'s name: 1 for the name before the turn and 1 for the turn that fits the plan and the one before (the heading asks for the name, so a mark must pay it). The descriptors under each point match that header: 2 = the name and a correct sentence, 1 = one of the two, 0 = neither; never descriptors that score the sentence alone. The common error is not the only place the name appears. No accept: the points mark any dialogue on this plan.' },
       ],

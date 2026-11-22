@@ -170,10 +170,11 @@ function answerRepeats(examJson) {
   const sheet = oralAsks((examJson._layout && examJson._layout.oral) || {});
   const oralWords = bag(sheet.filter((x) => x.readAloud).flatMap((x) => (x.c.items || []).map((it) => it && it.ask)));
   const out = new Map();
-  const flag = (slot, word, other, text, seen = true) => {
+  const flag = (slot, word, other, text, seen = true, note) => {
     const r = out.get(slot) || { slot, reason: 'giveaway', words: [], with: [], text: [] };
     if (!r.words.includes(word)) r.words.push(word);
     if (!r.with.includes(other)) { r.with.push(other); r.text.push(text); }
+    if (note) r.note = note; // a rule flag keeps its own re-ask sentence (bd-5jmnfj.36)
     if (seen) r.printed = true; // absent, not false, when no child sees it: flags read as before v25
     out.set(slot, r);
   };
@@ -249,7 +250,7 @@ function answerRepeats(examJson) {
   }));
   situationGiveaways(examJson).concat(nearRepeats(examJson), oralSentenceRepeats(examJson), paperGiveaways(examJson),
     stemRepeats(examJson), conceptRepeats(examJson), midMathsRepeats(examJson))
-    .forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+    .forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k], f.printed !== false, f.note))));
   return [...out.values()].concat(mcqKeyFlags(examJson));
 }
 
@@ -261,13 +262,16 @@ const writtenGiveaways = (flags) => flags.filter((f) => f.with.some((w) => w !==
 
 /** A re-ask's note naming the answer words this section's flagged questions give away; null if none. */
 function giveawayNote(shortfall) {
-  const flags = shortfall.filter((f) => f.reason === 'giveaway');
+  const all = shortfall.filter((f) => f.reason === 'giveaway');
+  const rules = [...new Set(all.filter((f) => f.note).map((f) => f.note))].join(' '); // a rule flag carries its own re-ask sentence (bd-5jmnfj.36)
+  const flags = all.filter((f) => !f.note);
   const words = [...new Set(flags.flatMap((f) => f.words))];
-  if (!words.length) return null;
+  if (!words.length) return rules || null;
   const where = flags.flatMap((f) => (f.with || []).map((s, k) => `${s}${f.text && f.text[k] ? ` («${f.text[k]}»)` : ''}`));
   return `These answers already appear elsewhere on this paper: ${words.join(', ')}. `
     + `The other place${where.length > 1 ? 's' : ''}: ${[...new Set(where)].join('; ')}. `
-    + 'Rewrite the items so that no answer word is printed in any other question, choice or word box, or is the answer to another item.';
+    + 'Rewrite the items so that no answer word is printed in any other question, choice or word box, or is the answer to another item.'
+    + (rules ? ` ${rules}` : '');
 }
 
 module.exports = { answerRepeats, answerWord, giveawayNote, stillGivenAway, writtenGiveaways };
