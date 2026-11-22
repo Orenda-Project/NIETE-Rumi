@@ -25,3 +25,15 @@ test('the deck holds the same words, its code-point counts measured', () => {
   expect(k.cp).toEqual({ en: [...EN].length, ur: [...UR].length });
   expect(Math.max(k.cp.en, k.cp.ur)).toBeLessThanOrEqual(k.cap_cp);
 });
+
+test('the class link itself is a full tap target: the report\'s shared button style (≥48 px), left to right, in both languages', () => {
+  const card = { ...DATA.cards[0], preview: 'https://quiz.example.org/j/K7Q2MXTRAB?t=preview' };
+  for (const lang of ['en', 'ur']) {
+    const html = renderClassLinkCard({ cards: [card] }, { lang, base: '/r/tok.sig' });
+    const link = [...html.matchAll(/<a ([^>]*)>([^<]*)<\/a>/g)].find((m) => m[2] === card.url);
+    expect(link).toBeDefined();
+    expect(link[1]).toMatch(/class="btn btn-ghost"/);
+    expect(link[1]).toMatch(/dir="ltr"/);
+    expect(link[1]).toContain(`href="${card.preview}"`);
+  }
+});
