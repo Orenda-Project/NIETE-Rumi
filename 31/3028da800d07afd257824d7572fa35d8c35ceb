@@ -1,0 +1,3 @@
+{"ts":"2026-11-22T12:15:05Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,portal-smoke spec_sync=true","sha":"313028da800d","branch":"bd-snkn32.59.8-49443","user":""}
+{"ts":"2026-11-22T12:15:06Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-login,portal-smoke spec_sync=true","sha":"313028da800d","branch":"bd-snkn32.59.8-49443","user":""}
+{"ts":"2026-11-22T12:15:16Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-login,portal-smoke owe their Gherkin","sha":"313028da800d","branch":"bd-snkn32.59.8-49443","user":""}
