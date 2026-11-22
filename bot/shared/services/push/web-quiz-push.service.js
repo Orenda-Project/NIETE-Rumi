@@ -13,7 +13,8 @@
  *                                                             class of a listed school, or a school in a listed region
  *                                                             (schools.region: the ICT sector, e.g. "Tarnol") offers
  *                                                             the ask or may subscribe; no row (or nothing listed) =
- *                                                             every class
+ *                                                             every class. A page's code is a quiz share code (/q/) or
+ *                                                             a live standing class link's (/j/): codeRef reads both
  *
  * Env (sandbox only; never shared with staging or prod): WQ_PUSH_VAPID_PUBLIC, WQ_PUSH_VAPID_PRIVATE,
  * WQ_PUSH_VAPID_SUBJECT (VAPID), WQ_PUSH_ENC_KEY (32 bytes base64, AES-256-GCM of the endpoint and keys),
@@ -23,9 +24,10 @@
  *   keyFor({code})                         → {key, ask}: ask false outside the canary (the page draws nothing)
  *   subscribe(input, {now})                → {ok:1} | {status:409, err:'class_phone'} | {status:400, err:'bad_sub'}
  *   unsubscribe({endpoint, by}) / markOpened({endpoint}, {now})   → {ok:1}
- *   payloadFor(row, {test, rounds, names}) → {t, b, url, tag, lang, test}: class-named when the phone's classes have
- *                                            a round ready; children's first names only with `names` on (with rounds,
- *                                            only the children still waiting: rounds[].kids); no score, ever
+ *   payloadFor(row, {test, rounds, names, hub, door}) → {t, b, url, tag, lang, test}: class-named when the phone's
+ *                                            classes have a round ready; children's first names only with `names` on
+ *                                            (with rounds, only the children still waiting: rounds[].kids); no score,
+ *                                            ever; door 'j' (the row's code is a class link) → /j/<code>, else /q/<code>
  *   sendOne(row, payload, {webpush})       → {sent, status}; 404/410 revokes the row as `gone`
  *   sendTest({endpoint}, {webpush})        → {ok:1, sent, status} | {status:404, err:'off'}
  *   dueTick(now, {webpush})                → {sent, revoked, deduped}: due rows, ONE per phone (device_ref) a school
@@ -97,7 +99,7 @@ const COPY = Object.freeze({
 let cache = null;
 let lastGood = null;   // the last switches read that succeeded: a failed read keeps it (a failed read is not OFF)
 let canaryCache = null;
-const codeCache = new Map();   // share code → {at, ok} under the current canary (10 min)
+const codeCache = new Map();   // page code (share code or class link) → {at, ok} under the current canary (10 min)
 const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_CACHE_MAX = 5000;
 const envReady = () => ENV.every((k) => String(process.env[k] || '').trim() !== '');
@@ -149,7 +151,26 @@ async function canary(now = Date.now()) {
   return c;
 }
 
-/** May this quiz (its share code) offer the ask? Always with no canary; else its class, or its class's school, listed. */
+/**
+ * What a page's code names, or null: a quiz share code (door 'q') read first, else a live standing class link (door
+ * 'j': not revoked, not expired), each with its class and teacher when it has them. The /j/ page passes the round's
+ * share code when a round is ready, else the link's own code. A read error throws.
+ */
+async function codeRef(code, now = Date.now()) {
+  if (!CODE_RX.test(String(code || ''))) return null;
+  const k = String(code).toUpperCase();
+  const uuid = (v) => (UUID_RX.test(String(v || '')) ? String(v) : null);
+  const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id, teacher_user_id').eq('code', k).maybeSingle();
+  if (error) throw new Error(error.message || 'share code read failed');
+  if (sc) return { door: 'q', classId: uuid(sc.class_id), teacherId: uuid(sc.teacher_user_id) };
+  const { data: cl, error: e2 } = await supabase.from('class_links').select('class_id, teacher_id, expires_at, revoked_at').eq('code', k).maybeSingle();
+  if (e2) throw new Error(e2.message || 'class link read failed');
+  if (!cl || cl.revoked_at || !cl.expires_at || !(Date.parse(cl.expires_at) > now)) return null;
+  return { door: 'j', classId: uuid(cl.class_id), teacherId: uuid(cl.teacher_id) };
+}
+
+/** May this quiz (its share code, or the class link's code) offer the ask? Always with no canary; else its class, or its
+ *  class's school, listed. */
 async function canaryAllows(code, now = Date.now()) {
   const c = await canary(now);
   if (!c) return true;
@@ -159,9 +180,8 @@ async function canaryAllows(code, now = Date.now()) {
   if (hit && now - hit.at < CODE_TTL_MS) return hit.ok;
   let ok = false;
   try {
-    const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id').eq('code', k).maybeSingle();
-    if (error) throw new Error(error.message || 'share code read failed');
-    const classId = sc && sc.class_id ? String(sc.class_id) : null;
+    const ref = await codeRef(k, now);
+    const classId = ref ? ref.classId : null;
     if (classId && c.classes.has(classId)) ok = true;
     else if (classId && (c.schools.size || c.regions.size)) {
       const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
@@ -181,6 +201,34 @@ async function canaryAllows(code, now = Date.now()) {
   if (codeCache.size >= CODE_CACHE_MAX) codeCache.clear();
   codeCache.set(k, { at: now, ok });
   return ok;
+}
+
+/** The class the consent's code names (kept on the row), or null: none, or a read error (the consent still stands). */
+async function classOf(code, now = Date.now()) {
+  try {
+    const ref = await codeRef(code, now);
+    return ref ? ref.classId : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz push: code class lookup failed — stored without a class', { error: err.message });
+    return null;
+  }
+}
+
+/** Where a reminder's own code opens: 'j' for a live class link, else 'q' (a share code; an unknown code or a read
+ *  error keeps the quiz link it always had). `memo` (code → door) spares a tick reading one code twice. */
+async function doorFor(row, now = Date.now(), memo = null) {
+  const code = row && row.kind === 'quiz_reminder' && CODE_RX.test(String(row.quiz_code || '')) ? String(row.quiz_code) : null;
+  if (!code) return 'q';
+  if (memo && memo.has(code)) return memo.get(code);
+  let door = 'q';
+  try {
+    const ref = await codeRef(code, now);
+    if (ref && ref.door === 'j') door = 'j';
+  } catch (err) {
+    logToFile('⚠️ web quiz push: code door lookup failed — quiz link', { error: err.message });
+  }
+  if (memo) memo.set(code, door);
+  return door;
 }
 
 /** The page's key answer: the VAPID key, and whether this quiz may offer the ask (the canary). */
@@ -276,7 +324,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     if (!(await canaryAllows(input.code, now))) return { status: 409, err: 'canary' };
     const kids = deviceRef ? await HubDevice.deviceKids(deviceRef) : [];
     if (chipsN >= CLASS_PHONE || kids.length >= CLASS_PHONE) return { status: 409, err: 'class_phone' };
-    input = { ...input, kids };
+    input = { ...input, kids, class_id: await classOf(input.code, now) };
   }
   const kids = input.kids || [];
   const rowDevice = via === 'family_phone' ? (deviceRef || crypto.randomBytes(16).toString('base64url')) : deviceRef;
@@ -286,6 +334,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     device_ref: rowDevice,
     user_id: via === 'teacher_portal' ? userId : null,
     student_id: via === 'family_phone' && kids.length === 1 && input.chip && String(input.chip) === String(kids[0]) && UUID_RX.test(String(input.chip)) ? input.chip : null,
+    class_id: via === 'family_phone' ? input.class_id || null : null,
     quiz_code: CODE_RX.test(String(input.code || '')) ? input.code : null,
     lang: input.lang === 'en' ? 'en' : 'ur',
     ua_class: uaClass(input.ua),
@@ -381,13 +430,14 @@ function kidNames(rounds, lang) {
  * children's, kidNames: a child who finished tonight is not named); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
  * known, else the quiz's link is the last fallback. One notification for the phone whichever applies.
  */
-function payloadFor(row, { test = false, rounds = [], names = [], hub = null } = {}) {
+function payloadFor(row, { test = false, rounds = [], names = [], hub = null, door = 'q' } = {}) {
   const kind = row && row.kind === 'evening_plan' ? 'evening_plan' : 'quiz_reminder';
   const lang = row && row.lang === 'en' ? 'en' : 'ur';
   const c = COPY[kind][lang];
   const code = kind === 'quiz_reminder' && CODE_RX.test(String(row.quiz_code || '')) ? row.quiz_code : null;
   const tag = kind === 'quiz_reminder' ? 'jugnu-remind' : 'niete-plan';
-  const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
+  const own = code ? `/${door === 'j' ? 'j' : 'q'}/${code}?from=push` : '/';
+  const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: own, tag, lang, test: Boolean(test) };
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
   const who = ready.length ? kidNames(ready, lang) : (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
@@ -485,7 +535,7 @@ async function sendTest({ endpoint } = {}, opts = {}) {
   if (typeof endpoint !== 'string' || !endpoint) return { status: 400, err: 'bad_sub' };
   const row = await rowByEndpoint(endpoint);
   if (!row || row.revoked_at) return { ok: 1, sent: 0, status: 0 };
-  const out = await sendOne(row, payloadFor(row, { test: true }), opts);
+  const out = await sendOne(row, payloadFor(row, { test: true, door: await doorFor(row) }), opts);
   if (out.sent) logEvent('web_quiz.push_sent', { n: 1, kind: row.kind, test: true });
   return { ok: 1, ...out };
 }
@@ -503,6 +553,7 @@ async function dueTick(now = Date.now(), opts = {}) {
   const sentBy = {};
   const body = { round: 0, named: 0, generic: 0 };
   const phones = new Set();
+  const doors = new Map();
   let revoked = 0;
   let deduped = 0;
   for (const row of data || []) {
@@ -520,7 +571,9 @@ async function dueTick(now = Date.now(), opts = {}) {
     const names = s.names && !rounds.length ? await namesFor(row, lang) : [];
     const named = (rounds.length ? kidNames(rounds, lang) : names).length > 0;
     const hub = rounds.length ? null : await hubFor(row);
-    const out = await sendOne(row, payloadFor(row, { rounds, names, hub }), { ...opts, now });
+    // the row's own code is the link only with no round and no hub: read its door then, never otherwise
+    const door = !rounds.length && !hub ? await doorFor(row, now, doors) : 'q';
+    const out = await sendOne(row, payloadFor(row, { rounds, names, hub, door }), { ...opts, now });
     if (phone) phones.add(phone);
     if (out.sent) {
       sentBy[row.kind] = (sentBy[row.kind] || 0) + 1;
