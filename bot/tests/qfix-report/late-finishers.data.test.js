@@ -103,8 +103,9 @@ describe('quizReport: the late finishers', () => {
     expect(byName.Bilal).not.toHaveProperty('late');
   });
 
-  test('no report sent yet: nobody is late and the summary says nothing new', async () => {
-    seed({ stamp: null });
+  test('no report sent yet (no stamp, no /quiz request): nobody is late and the summary says nothing new', async () => {
+    const fake = seed({ stamp: null });
+    fake.db.quizzes.find((q) => q.id === QUIZ).status = 'sent';
     const r = await Data.quizReport(TEACHER, QUIZ);
     expect(r.summary.played).toBe(3);
     expect(r.summary).not.toHaveProperty('late');
@@ -145,6 +146,25 @@ describe('classReport: the same count on every quiz row', () => {
     seed();
     const r = await Data.classReport(TEACHER, { days: 60, ownOnly: true });
     expect(r.quizzes.find((q) => q.id === QUIZ)).toMatchObject({ late: 1, reported: true });
+  });
+
+  test('a teacher\'s own /quiz request (the quiz row is report_sent, no code stamped): reported, and nobody late (late stays the automatic report\'s)', async () => {
+    const fake = seed({ stamp: null });
+    fake.db.quizzes.find((q) => q.id === QUIZ).status = 'report_sent';
+    const r = await Data.classReport(TEACHER, { days: 60 });
+    const plants = r.quizzes.find((q) => q.id === QUIZ);
+    expect(plants.reported).toBe(true);
+    expect(plants).not.toHaveProperty('late');
+    const q = await Data.quizReport(TEACHER, QUIZ);
+    expect(q.summary.reported).toBe(true);
+    expect(q.summary).not.toHaveProperty('late');
+  });
+
+  test('a quiz that is only sent (no request, no stamp) is not reported', async () => {
+    const fake = seed({ stamp: null });
+    fake.db.quizzes.find((q) => q.id === QUIZ).status = 'sent';
+    const r = await Data.classReport(TEACHER, { days: 60 });
+    expect(r.quizzes.find((q) => q.id === QUIZ)).not.toHaveProperty('reported');
   });
 
   test('a child who finished on two codes counts once (the earlier finish), late against that finish\'s own code', async () => {
