@@ -17,11 +17,20 @@ export const NOTICES_COPY = {
   leave: "You can leave. We'll tell you here.",
   /** Under the list that "+N more" opens. */
   listNote: "We'll tell you here when each one is ready.",
+  /** Home's quiz card: today's quiz offer could not reach WhatsApp (the window was shut), so the app makes it. */
+  quizOfferTitle: "Make today's quiz",
+  /** The card's kind, where the other rows say "Lesson plan" / "Paper". */
+  quizOfferWhat: 'Quiz',
+  /** When the lesson's topic is not known (never an invented one). */
+  quizOfferToday: "Today's lesson",
 } as const;
 
 export const NOTICES_COPY_UR = {
   leave: 'انتظار ضروری نہیں۔ تیار ہونے پر ہم یہیں بتائیں گے۔',
   listNote: 'ہر ایک تیار ہونے پر ہم یہیں بتائیں گے۔',
+  quizOfferTitle: 'آج کا کوئز بنائیں',
+  quizOfferWhat: 'کوئز',
+  quizOfferToday: 'آج کا سبق',
 };
 
 export const NOTICES = bilingual(NOTICES_COPY, NOTICES_COPY_UR);
