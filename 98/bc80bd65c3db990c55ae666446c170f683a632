@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T14:55:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"98bc80bd65c3","branch":"bd-zrdvmi.55-staging","user":""}
+{"ts":"2026-11-22T14:55:45Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"98bc80bd65c3","branch":"bd-zrdvmi.55-staging","user":""}
