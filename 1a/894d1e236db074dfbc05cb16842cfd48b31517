@@ -2,3 +2,4 @@
 {"ts":"2026-11-22T17:21:40Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"1a894d1e236d","branch":"bd-dp9ipc-67719","user":""}
 {"ts":"2026-11-22T17:21:48Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons,portal-smoke spec_sync=true","sha":"1a894d1e236d","branch":"bd-dp9ipc-67719","user":""}
 {"ts":"2026-11-22T17:22:02Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: portal-smoke owe their Gherkin","sha":"1a894d1e236d","branch":"bd-dp9ipc-67719","user":""}
+{"ts":"2026-11-22T17:23:40Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"417904f7-1f6a-4c5d-9cae-b60e533acc4d","sha":"1a894d1e236d","branch":"bd-dp9ipc-67719","user":""}
