@@ -187,3 +187,39 @@ test('logs carry counts and timings, never a unit id; the run never throws', asy
   const r = await Job.run({ now: AT('02:10'), reader: boom, writer: () => fakeWriter(), redis: fakeRedis(), sleep });
   expect(r.outcome).toBe('refused');
 });
+
+// --- full-window recompute (late rows past the 4-day lookback) ----------------------------------------------------
+
+test('on a Monday (Pakistan) the window runs from the start: daily from start_on, weekly from its Monday', () => {
+  const t = { start_on: '2026-11-10', read_on: '2026-12-05' };
+  expect(Job.windowFor(t, 'day', '2026-11-23')).toEqual({ from: '2026-11-10', to: '2026-11-22', full: true });
+  expect(Job.windowFor(t, 'week', '2026-11-23')).toEqual({ from: '2026-11-09', to: '2026-11-22', full: true });
+});
+
+test('on the read day the window runs from the start too', () => {
+  const t = { start_on: '2026-11-10', read_on: '2026-12-05' };
+  expect(Job.windowFor(t, 'day', '2026-12-05')).toEqual({ from: '2026-11-10', to: '2026-12-04', full: true });
+});
+
+test('any other day keeps the 4-day window', () => {
+  const t = { start_on: '2026-11-10', read_on: '2026-12-05' };
+  expect(Job.windowFor(t, 'day', '2026-11-24')).toEqual({ from: '2026-11-20', to: '2026-11-23' });
+  expect(Job.isFullDay(t, '2026-11-24')).toBe(false);
+});
+
+test('a window is read in slices of at most 7 days', () => {
+  expect(Job.slices({ from: '2026-11-10', to: '2026-11-22' })).toEqual([
+    { from: '2026-11-10', to: '2026-11-16' }, { from: '2026-11-17', to: '2026-11-22' }]);
+  expect(Job.slices({ from: '2026-11-17', to: '2026-11-20' })).toEqual([{ from: '2026-11-17', to: '2026-11-20' }]);
+});
+
+test('a Monday run reads each measure slice by slice, with a pause between calls, and counts the full windows', async () => {
+  const reader = fakeReader();
+  const { r } = await go({ reader, deps: { now: AT('02:10', '2026-11-23') } });
+  const reads = reader.calls.filter((c) => c[0] === 'ab_tracker_metric_rows').map((c) => [c[1].p_metric_id, c[1].p_from, c[1].p_to]);
+  expect(reads).toEqual([
+    ['plan_fidelity', '2026-11-10', '2026-11-16'], ['plan_fidelity', '2026-11-17', '2026-11-22'],
+    ['teachers_coming_back', '2026-11-09', '2026-11-15'], ['teachers_coming_back', '2026-11-16', '2026-11-22'],
+  ]);
+  expect(r).toMatchObject({ outcome: 'ran', reads: 4, full_windows: 2, failed: 0 });
+});
