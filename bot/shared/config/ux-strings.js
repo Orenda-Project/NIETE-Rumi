@@ -4612,6 +4612,12 @@ const UX_STRINGS = {
     en: "Tonight's quiz",
     ur: 'آج شام کا کوئز',
   },
+  // The teacher report's "Evening rounds" rows name their day: the week's days Sunday first, '|' between them
+  // (web-quiz-evening-round.js dayWords, with the month names of coaching/weekly-report/message.js).
+  qfix_class_link_weekdays: {
+    en: 'Sun|Mon|Tue|Wed|Thu|Fri|Sat',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
 };
 
 /**
