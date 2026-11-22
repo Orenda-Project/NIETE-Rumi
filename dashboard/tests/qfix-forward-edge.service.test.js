@@ -71,3 +71,25 @@ describe('the share-sheet beacons', () => {
     ]);
   });
 });
+
+// The one-lesson page for a lesson PLAN (the bot's ?lesson=, twin of ?session=) is reachable only if the page shell's
+// query allow-list carries it: a well-formed `lsn_` key reaches the bot beside the page language; any other shape is
+// dropped (the bot then answers today's home).
+describe('GET /quiz/teacher/<t>?lesson=<lesson key>', () => {
+  const KEY = 'lsn_lp_v8_00000000-0000-4000-8000-0000000000a1';
+  test('a lesson key reaches the bot with the page language; a malformed one is dropped; other pages never carry it', async () => {
+    await boot({ status: 200, bytes: Buffer.from('<html>x</html>'), contentType: 'text/html' });
+    await request('GET', `/quiz/teacher/${TOK}?lesson=${KEY}`);
+    await request('GET', `/quiz/teacher/${TOK}?lang=en&lesson=${KEY}`);
+    await request('GET', `/quiz/teacher/${TOK}?lesson=lsn_lp_v8_a%20b`);
+    await request('GET', `/quiz/teacher/${TOK}?lesson=not-a-key`);
+    await request('GET', `/quiz/teacher/${TOK}/stories?lesson=${KEY}`);
+    expect(calls.map((c) => c.path)).toEqual([
+      `/api/internal/th/quiz/teacher/${TOK}?lesson=${KEY}`,
+      `/api/internal/th/quiz/teacher/${TOK}?lang=en&lesson=${KEY}`,
+      `/api/internal/th/quiz/teacher/${TOK}`,
+      `/api/internal/th/quiz/teacher/${TOK}`,
+      `/api/internal/th/quiz/teacher/${TOK}/stories`,
+    ]);
+  });
+});
