@@ -1346,6 +1346,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     ...orderEvent(ord),
     ...(await orderArm(ctx.shareCodeId)),
   });
+  if (ord && ord.set && !userId) Round().noteRound('started', ord.set);
   const nameOf = await shownNames(ctx.lang, [student && student.id]);
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
@@ -1405,6 +1406,7 @@ async function startedFast({ body, ctx, session, student, userId, deviceRef, res
     ...orderEvent(ord),
     ...(await orderArm(ctx.shareCodeId)),
   });
+  if (ord && ord.set && !userId) Round().noteRound('started', ord.set);
   const nameOf = await names;
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
@@ -1874,7 +1876,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   // Fast finish (web_quiz_fast): the answers need only the session, so they are read beside the questions.
   const answersP = fast ? Fast.early(answeredIds(s.id)) : null;
   const rows = await loadQuestions(s.quiz_id);
-  const questions = sittingQuestions(rows, await roundSitting(rows, s));
+  const sitting = await roundSitting(rows, s);
+  const questions = sittingQuestions(rows, sitting);
   mark('questions');
   const answers = await (answersP || answeredIds(s.id));
   mark('answers');
@@ -1917,6 +1920,10 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // With the quiz stream on it, not awaited: the funnel watcher counts web finishes (bd-4dkwaf).
     require('./web-quiz-finish-event').emitFinished(s, pct, quizSourceOf);
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
+    // an evening round's sitting, once (its first finish): how many of the child's recall items came back right
+    if (!sitting.round_plain && !s.user_id) {
+      Round().noteRound('done', questions, { n_recall_right: served.filter((q) => q.media && q.media.round === 'recall' && byQ.get(q.id).is_correct).length });
+    }
   }
   mark('complete', { completed_now: s.status !== 'completed' });
   // Fast finish: after the write, the challenge code (it may write one) and the class's finishers today (they must
