@@ -156,7 +156,8 @@ describe('getDraft — each of Rumi\'s 11 carries Rumi\'s structured evidence an
   test('additive only: every field sent before is still there, the evidence string exactly as before', async () => {
     const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, deps(obsRow()));
     const c1 = ind(out, 'C1');
-    expect(Object.keys(c1).filter((k) => k !== 'rumiEvidence' && k !== 'evidenceReview')).toEqual(EXISTING_DC_KEYS);
+    // bd-o15qnr.37 adds `about` (the line under the name), additively too
+    expect(Object.keys(c1).filter((k) => k !== 'rumiEvidence' && k !== 'evidenceReview' && k !== 'about')).toEqual(EXISTING_DC_KEYS);
     // Today's ev_ prefill: the because line and only the FIRST quote, clipped (rumiEvidenceText).
     expect(c1.evidence.startsWith('Rumi saw C1 twice. · 03:10 "Children, look at the board.')).toBe(true);
     expect(c1.evidence).not.toContain('Sana, why seven?');
