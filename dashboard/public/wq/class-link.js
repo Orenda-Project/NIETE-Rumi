@@ -1,5 +1,5 @@
 /* The standing class link (/j/<code>): the steps a child takes before the hub. No framework, no build step.
- * Boot JSON: {view:'class_link', code, lang, jt?, via?} (via: the landing's marker, already counted by the edge).
+ * Boot JSON: {view:'class_link', code, lang, jt?, via?} (via: the landing's marker, posted on arrive, where the bot counts the open).
  * Under the chips: an empty #wq-remind mount (data-src class_link) the reminders' opt-in fills when it is on. The page holds no child until the server answers a step:
  *   arrive  → "Whose turn?" (only the children this phone played as, in this class, and a button to the teacher
  *             step for a child not listed) or the teacher step
