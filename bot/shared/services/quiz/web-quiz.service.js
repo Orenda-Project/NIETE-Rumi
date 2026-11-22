@@ -208,12 +208,24 @@ async function withoutWrongWordBlanks(quizId, served, out, { log = false } = {})
   return fixed;
 }
 
+// An evening round's rows carry media.round (and round_key): it serves its 'lesson' and 'recall' items only.
+const ROUND_SERVED = new Set(['lesson', 'recall']);
+/**
+ * The rows a quiz may serve: every row, except on an evening round, where a row it marked anything else (an item whose
+ * key is held, or dropped by the key review) is never served: not on the page, not at the start, the answers or the
+ * finish, all of which read through here. Any other quiz: the same array.
+ */
+function servableRows(rows) {
+  if (!rows.some((q) => q && q.media && (q.media.round != null || q.media.round_key != null))) return rows;
+  return rows.filter((q) => q && q.media && ROUND_SERVED.has(q.media.round));
+}
+
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
 async function loadQuestions(quizId, { log = false } = {}) {
   const { data, error } = await dbRead('loadQuestions:quiz_questions:1', (db) => db.from('quiz_questions').select(Q_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true }));
   if (error) fail(502, 'db_unavailable');
-  const rows = data || [];
+  const rows = servableRows(data || []);
   // One ordering rule for both channels (transcript bank by sort_order, video
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');
