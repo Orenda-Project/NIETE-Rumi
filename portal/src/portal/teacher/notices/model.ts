@@ -12,8 +12,9 @@ import type { LessonsAt } from '../lessons/paths';
  * DATA (title, subject) is kept as it came from the API; words are composed at draw time, in her language.
  */
 export type NoticeKind = 'lesson' | 'paper' | 'observation';
-/** What the SERVER lists (GET /me/notices). An observation is sent from this phone, so only this phone follows it. */
-export type ServerKind = Exclude<NoticeKind, 'observation'>;
+/** What the SERVER lists (GET /me/notices). An observation is sent from this phone, so only this phone follows it.
+ *  `quiz_offer` is Home-only ("Make a quiz on today's lesson"): never followed in the strip, never a banner. */
+export type ServerKind = Exclude<NoticeKind, 'observation'> | 'quiz_offer';
 export type NoticeState = 'making' | 'ready' | 'failed';
 
 export interface NoticeItem {
@@ -159,6 +160,8 @@ export interface ServerItem {
   errorCode: string | null;
   waitHref: string;
   at?: LessonsAt;
+  /** quiz_offer: the skipped WhatsApp ask it stands in for. */
+  nudgeId?: string | null;
 }
 
 /** The banner announces a ready item that is news; one she is only now hearing of, hours late, goes straight to Home. */
@@ -181,6 +184,11 @@ export function mergeServer(
   let items = [...local];
   const home: ServerItem[] = [];
   for (const s of server) {
+    // The quiz card lives on Home only, until the end of her day (homeUntil) or her tap.
+    if (s.kind === 'quiz_offer') {
+      if (!s.openedAt && s.state === 'ready' && s.homeUntil && s.homeUntil > now) home.push(s);
+      continue;
+    }
     const at = items.findIndex((i) => i.id === s.id);
     const mine = at >= 0 ? items[at] : null;
     if (s.openedAt) {

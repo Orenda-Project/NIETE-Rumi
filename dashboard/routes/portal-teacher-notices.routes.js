@@ -9,7 +9,8 @@
  *   POST /api/portal/me/notices/:id/seen       she closed the banner (the X, or went to Home from it)
  *   POST /api/portal/me/notices/:id/opened     she opened it (or tapped a failed paper)
  *
- * `:id` is `paper:<request uuid>` or `lesson:<render uuid>`. The teacher is ALWAYS the session's user. Dark
+ * `:id` is `paper:<request uuid>`, `lesson:<render uuid>`, or `quiz_offer:<nudge uuid>` (the "Make a quiz on today's
+ * lesson" card, behind app_settings.quiz_offer_closed_window; it has no `seen`, only `opened`). The teacher is ALWAYS the session's user. Dark
  * unless portal_teacher_v2 is on for her (404, nothing asked). Rules in services/teacher-notices.service.js.
  * Nothing here sends a WhatsApp message.
  */

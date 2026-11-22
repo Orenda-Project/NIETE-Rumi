@@ -36,11 +36,21 @@
  * Reads THROW on a database error (the route answers 502): an empty list would tell her nothing is waiting.
  *
  * Nothing here sends a message. The WhatsApp fallback is the bot's, and reads these same two timestamps.
+ *
+ * QUIZ OFFER (behind app_settings.quiz_offer_closed_window = { app_card: true }; missing, any other shape or a failed
+ * read is OFF, and OFF is the list above exactly, with no extra read but the switch's own). When her WhatsApp window
+ * was shut, the bot skips today's 15:00 lesson-plan quiz offer and the lesson-plan coaching ask (a teacher_nudges row,
+ * status 'skipped', context.skip_reason 'window_closed' / 'window_closed_template'). Most of those teachers took the
+ * lesson in this app, so Home lists ONE `quiz_offer` item that day ("Make a quiz on today's lesson"); its tap opens
+ * the quiz home the app already has. It goes once a quiz made today covers the lesson, or once she taps it
+ * (context.app_card_opened_at, merged into the row's jsonb: no new column, and the row keeps its status and reason).
  */
 
 const { weekdayDeadline } = require('../lib/weekday-hours');
 // The assessment's own names for its subjects ("Science", "Maths"), as the paper list shows them.
 const { subjectLabel } = require('../../bot/shared/services/assessment/assessment-vocabulary');
+// Built-ins only (the bot's logger cannot load in the portal build).
+const telemetry = require('./telemetry.service');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIN = 60 * 1000;
@@ -111,6 +121,55 @@ const PENDING_LESSONS_SQL = `
    ORDER BY rn.started_at DESC
    LIMIT 20`;
 
+/** The quiz-offer card's switch (app_settings, a JSON object; `app_card === true` is on). */
+const QUIZ_OFFER_SWITCH = 'quiz_offer_closed_window';
+const SWITCH_TTL_MS = 30 * 1000;
+const SWITCH_FAILED_TTL_MS = 5 * 1000;
+/** The two asks a shut window skips, the quiz offer first (it names the topics), and the two reasons it writes. */
+const QUIZ_OFFER_KINDS = ['lp_quiz_offer', 'coaching_after_lp'];
+const QUIZ_OFFER_REASONS = ['window_closed', 'window_closed_template'];
+const PKT_OFFSET = 5 * HOUR; // Pakistan has no daylight saving
+
+const SWITCH_SQL = 'SELECT value FROM app_settings WHERE key = $1';
+
+const QUIZ_OFFER_SQL = `
+  SELECT tn.id, tn.kind, tn.created_at, tn.updated_at, tn.context
+    FROM teacher_nudges tn
+   WHERE tn.user_id = $1::uuid
+     AND tn.nudge_date = $2::date
+     AND tn.kind = ANY($3::text[])
+     AND tn.status = 'skipped'
+     AND tn.context->>'skip_reason' = ANY($4::text[])
+     AND tn.context->>'app_card_opened_at' IS NULL
+   ORDER BY array_position($3::text[], tn.kind), tn.created_at
+   LIMIT 5`;
+
+/** Which of these lessons a quiz of hers made since the day began already covers (lp-lesson-claim's meta.lessons). */
+const QUIZZED_LESSONS_SQL = `
+  SELECT DISTINCT l->>'lesson_id' AS lesson_id
+    FROM quizzes q
+   CROSS JOIN LATERAL jsonb_array_elements(
+           CASE WHEN jsonb_typeof(q.meta->'lessons') = 'array' THEN q.meta->'lessons' ELSE '[]'::jsonb END) l
+   WHERE q.teacher_id = $1::uuid
+     AND q.created_at >= $2::timestamptz
+     AND q.status NOT IN ('failed', 'cancelled', 'declined', 'skipped')
+     AND l->>'lesson_id' = ANY($3::text[])`;
+
+/** Her tap: stamped once into the row's context; `was` says whether it already was (one _opened event). */
+const QUIZ_OFFER_OPENED_SQL = `
+  WITH prev AS (
+    SELECT id, context->>'app_card_opened_at' AS was
+      FROM teacher_nudges
+     WHERE id = $1::uuid AND user_id = $2::uuid AND kind = ANY($3::text[]) AND status = 'skipped'
+     FOR UPDATE)
+  UPDATE teacher_nudges t
+     SET context = CASE WHEN prev.was IS NULL
+                        THEN t.context || jsonb_build_object('app_card_opened_at', now())
+                        ELSE t.context END
+    FROM prev
+   WHERE t.id = prev.id
+  RETURNING t.id, t.kind, prev.was`;
+
 const iso = (v) => (v == null ? null : new Date(v).toISOString());
 const ms = (v) => (v == null ? null : new Date(v).getTime());
 const gradeOf = (code) => Number(String(code || '').replace(/^grade_/, '')) || null;
@@ -119,10 +178,10 @@ function assertUser(userId) {
   if (typeof userId !== 'string' || !UUID.test(userId)) throw new Error('teacher-notices: userId must be a uuid');
 }
 
-/** 'paper:<uuid>' | 'lesson:<uuid>' → { kind, ref }, else null. */
+/** 'paper:<uuid>' | 'lesson:<uuid>' | 'quiz_offer:<nudge uuid>' → { kind, ref }, else null. */
 function parseId(id) {
   if (typeof id !== 'string') return null;
-  const m = id.match(/^(paper|lesson):([0-9a-f-]{36})$/i);
+  const m = id.match(/^(paper|lesson|quiz_offer):([0-9a-f-]{36})$/i);
   return m && UUID.test(m[2]) ? { kind: m[1], ref: m[2] } : null;
 }
 
@@ -220,6 +279,136 @@ function readyLessonItem(r, nowMs) {
   };
 }
 
+// ── The quiz-offer card ─────────────────────────────────────────────────────────────────────────────────────────
+
+let switchCache = null; // { at, ttl, on }
+
+/** Is the card on? A JSON object with app_card === true; anything else, or a failed read, is off. 30 s cache. */
+async function quizOfferCardOn(query, nowMs) {
+  if (switchCache && nowMs - switchCache.at < switchCache.ttl) return switchCache.on;
+  let on = false;
+  let ttl = SWITCH_TTL_MS;
+  try {
+    const { rows } = await query(SWITCH_SQL, [QUIZ_OFFER_SWITCH]);
+    let value = rows && rows[0] ? rows[0].value : null;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { value = null; }
+    }
+    on = !!value && typeof value === 'object' && !Array.isArray(value) && value.app_card === true;
+  } catch (error) {
+    on = false; // fail-closed, and asked again soon so a blip cannot pin it off
+    ttl = SWITCH_FAILED_TTL_MS;
+  }
+  switchCache = { at: nowMs, ttl, on };
+  return on;
+}
+
+/** The Pakistan day of `nowMs`: its date ('YYYY-MM-DD') and its start and end instants. */
+function pktDay(nowMs) {
+  const local = new Date(nowMs + PKT_OFFSET);
+  const date = local.toISOString().slice(0, 10);
+  const start = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - PKT_OFFSET;
+  return { date, start, end: start + DAY };
+}
+
+/** The row's lessons in order, each with what the card can say about it (never an invented topic). */
+function lessonsOf(row) {
+  const c = row.context || {};
+  if (row.kind === 'lp_quiz_offer') {
+    const out = [];
+    for (const cls of Array.isArray(c.classes) ? c.classes : []) {
+      for (const l of (cls && Array.isArray(cls.lessons)) ? cls.lessons : []) {
+        if (l && l.lesson_id) {
+          out.push({
+            lessonId: String(l.lesson_id), topic: l.topic || null,
+            grade: cls.grade == null ? null : (Number(cls.grade) || null), subject: cls.subject || null,
+          });
+        }
+      }
+    }
+    return out;
+  }
+  return c.lesson_id ? [{ lessonId: String(c.lesson_id), topic: c.topic || null, grade: null, subject: null }] : [];
+}
+
+const SHOWN_MAX = 5000;
+const shownToday = new Map(); // nudge id → PKT date, so a poll does not log the same card again
+
+function logQuizOffer(event, row) {
+  try {
+    telemetry.logEvent(event, { data_json: JSON.stringify({ row_kind: row.kind, nudge_id: row.id }) });
+  } catch (_) { /* logging never decides the answer */ }
+}
+
+function noteShown(row, date) {
+  if (shownToday.get(row.id) === date) return;
+  if (shownToday.size >= SHOWN_MAX) shownToday.clear();
+  shownToday.set(row.id, date);
+  logQuizOffer('teacher_notice.quiz_offer_shown', row);
+}
+
+/**
+ * Today's one quiz-offer item for her, or null. Only called with the switch on. A failed read is no card (the rest of
+ * Home still loads): this is an extra, never the reason her list fails.
+ */
+async function quizOfferItem(query, userId, nowMs) {
+  const day = pktDay(nowMs);
+  try {
+    const { rows } = await query(QUIZ_OFFER_SQL, [userId, day.date, QUIZ_OFFER_KINDS, QUIZ_OFFER_REASONS]);
+    const rank = (r) => QUIZ_OFFER_KINDS.indexOf(r.kind);
+    const candidates = (rows || [])
+      .slice().sort((a, b) => rank(a) - rank(b) || (ms(a.created_at) || 0) - (ms(b.created_at) || 0))
+      .map((r) => ({ row: r, lessons: lessonsOf(r) })).filter((c) => c.lessons.length);
+    if (!candidates.length) return null;
+    const ids = [...new Set(candidates.flatMap((c) => c.lessons.map((l) => l.lessonId)))];
+    const quizzed = await query(QUIZZED_LESSONS_SQL, [userId, new Date(day.start).toISOString(), ids]);
+    const done = new Set((quizzed.rows || []).map((r) => r.lesson_id));
+    for (const { row, lessons } of candidates) {
+      const lesson = lessons.find((l) => !done.has(l.lessonId));
+      if (!lesson) continue;
+      noteShown(row, day.date);
+      const at = iso(row.updated_at || row.created_at);
+      return {
+        id: `quiz_offer:${row.id}`,
+        kind: 'quiz_offer',
+        state: 'ready',
+        title: lesson.topic,
+        grade: lesson.grade,
+        subject: lesson.subject,
+        subjectKey: null,
+        chapterNumber: null,
+        questions: null,
+        startedAt: at,
+        readyAt: at,
+        seenAt: null,
+        openedAt: null,
+        homeUntil: iso(day.end),
+        paperId: null,
+        renderId: null,
+        lessonId: lesson.lessonId,
+        lang: null,
+        errorCode: null,
+        nudgeId: row.id,
+        from: row.kind,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ teacher-notices: quiz offer read failed', { error: error && error.message });
+    return null;
+  }
+}
+
+/** Her tap on the card. Switch off, not hers, or not a skipped ask → not found. Written once; one _opened event. */
+async function markQuizOfferOpened(query, userId, nudgeId, nowMs) {
+  if (!(await quizOfferCardOn(query, nowMs))) return { ok: false, code: 'NOT_FOUND' };
+  const { rows } = await query(QUIZ_OFFER_OPENED_SQL, [nudgeId, userId, QUIZ_OFFER_KINDS]);
+  const row = (rows || [])[0];
+  if (!row) return { ok: false, code: 'NOT_FOUND' };
+  if (row.was == null) logQuizOffer('teacher_notice.quiz_offer_opened', row);
+  return { ok: true };
+}
+
 /**
  * Her items, newest first.
  * @param {(sql: string, params: any[]) => Promise<{rows: any[]}>} query
@@ -229,15 +418,17 @@ async function listNotices(query, userId, { now = new Date() } = {}) {
   assertUser(userId);
   const nowMs = now.getTime();
   const since = new Date(nowMs - READ_WINDOW).toISOString();
-  const [papers, ready, pending] = await Promise.all([
+  const [papers, ready, pending, quizOffer] = await Promise.all([
     query(PAPERS_SQL, [userId, since]),
     query(READY_LESSONS_SQL, [userId, since]),
     query(PENDING_LESSONS_SQL, [userId, since]),
+    quizOfferCardOn(query, nowMs).then((on) => (on ? quizOfferItem(query, userId, nowMs) : null)),
   ]);
   const items = [
     ...(papers.rows || []).map((r) => paperItem(r, nowMs)),
     ...(ready.rows || []).map((r) => readyLessonItem(r, nowMs)),
     ...(pending.rows || []).map((r) => pendingLessonItem(r, nowMs)),
+    quizOffer,
   ].filter(Boolean);
   items.sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
   return { items };
@@ -256,10 +447,15 @@ function updateSql(kind, set) {
         RETURNING id`;
 }
 
-async function mark(query, userId, id, set) {
+async function mark(query, userId, id, set, now = new Date()) {
   assertUser(userId);
   const parsed = parseId(id);
   if (!parsed) return { ok: false, code: 'BAD_ID' };
+  if (parsed.kind === 'quiz_offer') {
+    // It never banners, so there is no "seen"; "opened" is her tap.
+    if (set !== OPENED_SET) return { ok: false, code: 'BAD_ID' };
+    return markQuizOfferOpened(query, userId, parsed.ref, now.getTime());
+  }
   const { rows } = await query(updateSql(parsed.kind, set), [parsed.ref, userId]);
   return (rows || []).length ? { ok: true } : { ok: false, code: 'NOT_FOUND' };
 }
@@ -267,9 +463,9 @@ async function mark(query, userId, id, set) {
 /** She closed the banner (X, or went to Home from it). Written once; a later call changes nothing. */
 const markSeen = (query, userId, id) => mark(query, userId, id, SEEN_SET);
 /** She opened it (or tapped a failed paper). Also means seen. Written once. */
-const markOpened = (query, userId, id) => mark(query, userId, id, OPENED_SET);
+const markOpened = (query, userId, id, { now = new Date() } = {}) => mark(query, userId, id, OPENED_SET, now);
 
 module.exports = {
   listNotices, markSeen, markOpened, parseId,
-  HOME_WEEKDAY_HOURS, MAKING_MAX_AGE,
+  HOME_WEEKDAY_HOURS, MAKING_MAX_AGE, QUIZ_OFFER_SWITCH,
 };
