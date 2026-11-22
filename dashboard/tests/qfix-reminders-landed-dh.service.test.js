@@ -2,7 +2,8 @@
 /**
  * A reminder tap that lands (web_quiz.push_landed, /q/ /h/ /j/ with ?from=push) carries the phone's device hash `dh`
  * when the page has the phone's wq_dv cookie, so a landing can be joined to the same phone's later sittings. `dh` is
- * the bot's own deviceHash (sha256('wqd|' + ref), 16 hex): never the raw ref, and nothing without a well-formed cookie.
+ * the bot's own deviceHash (sha256('wqd|' + ref), 16 hex), inside data_json: never the raw ref, never a new top-level
+ * log field, and nothing without a well-formed cookie.
  * The router with a fake bot (the network boundary); the bot's telemetry module with its DB faked. Invented values.
  */
 jest.mock('../../bot/shared/config/supabase', () => ({}));
@@ -34,8 +35,11 @@ async function open(p, headers = {}) {
 describe('push_landed carries the phone\'s device hash', () => {
   test.each([['/j/ABCD1234?from=push', 'class_link'], ['/h/tok.en?from=push', 'hub'], ['/q/ABC123?from=push', 'quiz']])('%s with the wq_dv cookie: dh = the bot\'s deviceHash', async (p, page) => {
     const [d] = await open(p, { cookie: `other=1; wq_dv=${REF}; x=y` });
-    expect(d).toMatchObject({ page, kind: 'quiz_reminder', dh: deviceHash(REF) });
-    expect(d.dh).toMatch(/^[0-9a-f]{16}$/);
+    expect(d).toMatchObject({ page, kind: 'quiz_reminder' });
+    expect(d.dh).toBeUndefined(); // never a new top-level log field
+    const inner = JSON.parse(d.data_json);
+    expect(inner).toEqual({ dh: deviceHash(REF) });
+    expect(inner.dh).toMatch(/^[0-9a-f]{16}$/);
     expect(JSON.stringify(d)).not.toContain(REF);
   });
   test('no cookie, or a malformed one: no dh, the rest as before', async () => {
