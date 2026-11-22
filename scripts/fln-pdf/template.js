@@ -56,9 +56,12 @@ function inline(text) {
 
 const planText = (text) => String(text || '').split('\n').map(inline).join('<br>');
 
+/** http(s), or a picture already inlined at render time (raster only: an SVG can carry script). */
+const DATA_IMAGE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/i;
+
 function safeUrl(u) {
   const s = String(u || '').trim();
-  return /^https?:\/\//i.test(s) ? s : '';
+  return /^https?:\/\//i.test(s) || DATA_IMAGE.test(s) ? s : '';
 }
 
 function picture(m, lang, imageSrc) {
