@@ -4524,6 +4524,15 @@ const UX_STRINGS = {
     en: 'More ways to share',
     ur: 'شیئر کرنے کے اور طریقے',
   },
+
+  // ── qfix report: a "most missed" question whose answer key is under review (video-quiz-report hardestQuestions,
+  // app_settings video_quiz_report_key_review) ──
+  // Printed instead of "most chose X, the right answer is Y" in the class report's PDF and its text fallback, in the
+  // quiz's language. Urdu: ہم (we) is the subject, so no verb addresses the teacher; plain words, no "quiz".
+  qfix_report_key_review: {
+    en: 'Answer key under review: we are checking which answer is right.',
+    ur: 'جواب کی جانچ جاری ہے: ہم دیکھ رہے ہیں کہ اس سوال کا کون سا جواب درست ہے۔',
+  },
 };
 
 /**
