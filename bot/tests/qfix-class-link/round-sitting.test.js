@@ -189,3 +189,39 @@ describe('both switches off', () => {
     expect(a.order).toBeUndefined();
   });
 });
+
+describe('web_quiz.round_started / round_done: once per sitting, codes and counts only', () => {
+  const named = (n) => logEvent.mock.calls.filter(([e]) => e === n).map(([, d]) => d);
+  const FIELDS = { class_link_code: REF.cl, round_code: REF.rc, n_items: 7, n_recall: 2 };
+
+  test.each([
+    ['web_quiz_order_seed on', { seed: true, round: false }],
+    ['web_quiz_order_seed off, web_quiz_evening_round on', { seed: false, round: true }],
+  ])('%s: started at the start (not again on a resume), done at the first finish with n_recall_right', async (_l, sw) => {
+    world(sw);
+    const a = await asZara();
+    expect(named('web_quiz.round_started')).toEqual([FIELDS]);
+    await WQ.startSession({ code: 'RND234', resume_st: a.st });
+    expect(named('web_quiz.round_started')).toHaveLength(1);
+    // lesson items right, recall #2 right (A), recall #5 wrong (B): one of the child's two recall items fixed
+    await answerAll(a.st, ZARA_SET, (id) => (id === rid(5) ? 'B' : id.startsWith('4ec0') ? 'A' : 'B'));
+    expect(named('web_quiz.round_done')).toEqual([]);
+    await WQ.finishSession({ st: a.st });
+    await WQ.finishSession({ st: a.st });
+    expect(named('web_quiz.round_done')).toEqual([{ ...FIELDS, n_recall_right: 1 }]);
+  });
+
+  test('any other quiz, and a round played with both switches off: no round event', async () => {
+    world({ seed: true, round: true });
+    const p = await WQ.startSession({ code: 'PLAIN1', new: { name: 'Ali Test', force: true } });
+    await WQ.recordAnswers({ st: p.st, a: PLAIN_ROWS.map((q) => ({ qid: q.id, slot: 'B' })) });
+    await WQ.finishSession({ st: p.st });
+    world({ seed: false, round: false });
+    HubFlags._resetCache();
+    const a = await asZara();
+    await answerAll(a.st, ALL_ROUND);
+    await WQ.finishSession({ st: a.st });
+    expect(named('web_quiz.round_started')).toEqual([]);
+    expect(named('web_quiz.round_done')).toEqual([]);
+  });
+});
