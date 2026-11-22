@@ -55,6 +55,19 @@ describe('the Urdu a child reads', () => {
   });
 });
 
+// One spelling of "school" for everything a child reads: «اسکول», as the web quiz pages already write it, never a bare
+// «سکول» (teacher-facing keys that mirror the coach app's menu keep the app's spelling).
+describe('«اسکول» in what a child reads', () => {
+  test.each(['studentTeacherOnly', 'studentQuizHint', 'studentOffTopicHint'])('%s: «اسکول», never a bare «سکول»', (k) => {
+    const t = resolveUx(k, { language: 'ur', params: PARAMS });
+    expect(t).toContain('اسکول');
+    expect(t).not.toMatch(/(^|[^ا])سکول/);
+  });
+  test('English is unchanged', () => {
+    expect(UX_STRINGS.studentOffTopicHint.en).toBe("Let's stay with your schoolwork — for anything else, ask a grown-up.");
+  });
+});
+
 describe('a real sender: the class card asked for before there is one', () => {
   test('Urdu: the reply says «کلاس کارڈ» and «کوئز», no Latin word', async () => {
     seedMaker(supabase, { on: true });
