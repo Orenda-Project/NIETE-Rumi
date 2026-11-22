@@ -681,6 +681,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
+      doneTonight: 'Done for tonight!', // qfix_class_link.done_tonight (an evening round with nothing left for this child)
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
       pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
@@ -755,6 +756,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
+      doneTonight: 'آج شام کا کوئز ہو گیا!',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + urDigits(n) + ' ٹھیک کیا'; },
       liveNow: function (n) { return 'ابھی ' + urDigits(n) + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
@@ -2126,6 +2128,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); return; }
+      // An evening round with nothing left for this child tonight: no sitting (no `st`), the words, then the landing.
+      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); toast(T.doneTonight); landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
