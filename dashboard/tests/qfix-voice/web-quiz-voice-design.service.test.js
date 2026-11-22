@@ -355,7 +355,27 @@ describe('a Qaida letter card is set in Naskh, the letter forms the Qaida page t
     const covered = (cp) => ranges.some(([a, b]) => cp >= a && cp <= (b == null ? a : b));
     for (let cp = 0x0621; cp <= 0x064A; cp += 1) if (cp < 0x063B || cp > 0x0640) expect(covered(cp)).toBe(true);
     for (let cp = 0x064B; cp <= 0x0652; cp += 1) expect(covered(cp)).toBe(true);
+    // The Urdu letters a Qaida item may also carry (K5 writes them): ٹ پ چ ڈ ڑ ژ ک گ ں ھ ہ ی ے. Outside the range they fell to
+    // the phone's own Naskh, a different design beside this face's letters.
+    for (const cp of [0x0679, 0x067E, 0x0686, 0x0688, 0x0691, 0x0698, 0x06A9, 0x06AF, 0x06BA, 0x06BE, 0x06C1, 0x06CC, 0x06D2]) {
+      expect([cp.toString(16), covered(cp)]).toEqual([cp.toString(16), true]);
+    }
     expect(fs.existsSync(path.join(WQ, 'fonts', 'OFL-NotoNaskhArabic.txt'))).toBe(true);
+  });
+
+  test("the cut on disk is the one its record names, and the @font-face range is the cut's own", () => {
+    // build.py refuses to write a cut that lacks any code point of its range, and records the cut's sha256 and range.
+    const rec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'naskh-letters', 'record.json'), 'utf8'));
+    let face = null;
+    CSS_ROOT.walkAtRules('font-face', (at) => {
+      const fam = at.nodes.find((d) => d.prop === 'font-family');
+      if (fam && /"WQ Naskh"/.test(fam.value)) face = at;
+    });
+    const file = /url\(([^)]+)\)/.exec(face.nodes.find((d) => d.prop === 'src').value)[1].replace(/["']/g, '');
+    expect(rec.out).toBe(`dashboard/public/wq/${file}`);
+    const sum = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(WQ, file))).digest('hex');
+    expect(sum).toBe(rec.out_sha256);
+    expect(face.nodes.find((d) => d.prop === 'unicode-range').value.replace(/\s+/g, '')).toBe(rec.unicode_range);
   });
 });
 

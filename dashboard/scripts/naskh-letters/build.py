@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-The Qaida letter face: wq-naskh-1.woff2, Noto Naskh Arabic Regular cut down to the Arabic letters and their marks.
+The Qaida letter face: wq-naskh-2.woff2, Noto Naskh Arabic Regular cut down to the Arabic letters and their marks.
 
 A Noorani Qaida teaches the Arabic letters in Naskh. The page sets a letter card the server marks lang 'ar' in this
 face (wq.css `.wq-glyph[lang=ar]`, "WQ Naskh"); every other card keeps the Urdu Nastaliq. Kept: U+0621-063A and
-U+0641-064A (hamza to ghain, feh to yeh), the harakat U+064B-0652, superscript alef U+0670 and alef wasla U+0671, with
-the layout tables that place a mark on its letter (GSUB/GPOS/GDEF). Its @font-face unicode-range is the same set.
+U+0641-064A (hamza to ghain, feh to yeh), the harakat U+064B-0652, superscript alef U+0670 and alef wasla U+0671, the
+Urdu letters a Qaida item may also carry (ٹ پ چ ڈ ڑ ژ ک گ ں ھ ہ ی ے), with the layout tables that place a mark on its
+letter (GSUB/GPOS/GDEF). Its @font-face unicode-range is the same set.
 
     python3 -m pip install fonttools brotli
     curl -L -o NotoNaskhArabic-Regular.ttf \
       https://cdn.jsdelivr.net/gh/notofonts/notofonts.github.io@main/fonts/NotoNaskhArabic/hinted/ttf/NotoNaskhArabic-Regular.ttf
     python3 dashboard/scripts/naskh-letters/build.py NotoNaskhArabic-Regular.ttf
 
-Writes dashboard/public/wq/fonts/wq-naskh-1.woff2 and dashboard/scripts/naskh-letters/record.json (the source's
+Writes dashboard/public/wq/fonts/wq-naskh-2.woff2 and dashboard/scripts/naskh-letters/record.json (the source's
 sha256, the cut's sha256, size and code points). The licence is fonts/OFL-NotoNaskhArabic.txt. The name is the
 version: a new cut is a new number.
 """
@@ -29,9 +30,11 @@ if os.environ.get('PYTHONHASHSEED') != '0':
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.abspath(os.path.join(HERE, '..', '..', 'public', 'wq', 'fonts'))
-OUT = os.path.join(FONTS, 'wq-naskh-1.woff2')
+OUT = os.path.join(FONTS, 'wq-naskh-2.woff2')
 RECORD = os.path.join(HERE, 'record.json')
-RANGES = ((0x0621, 0x063A), (0x0641, 0x064A), (0x064B, 0x0652), (0x0670, 0x0671))
+RANGES = ((0x0621, 0x063A), (0x0641, 0x064A), (0x064B, 0x0652), (0x0670, 0x0671), (0x0679, 0x0679), (0x067E, 0x067E),
+          (0x0686, 0x0686), (0x0688, 0x0688), (0x0691, 0x0691), (0x0698, 0x0698), (0x06A9, 0x06A9), (0x06AF, 0x06AF),
+          (0x06BA, 0x06BA), (0x06BE, 0x06BE), (0x06C1, 0x06C1), (0x06CC, 0x06CC), (0x06D2, 0x06D2))
 CODEPOINTS = [cp for a, b in RANGES for cp in range(a, b + 1)]
 
 
@@ -62,8 +65,8 @@ def main(src):
         sys.exit(f'the cut lacks {missing}')
     record = {
         'source': os.path.basename(src), 'source_sha256': sha(src),
-        'out': 'dashboard/public/wq/fonts/wq-naskh-1.woff2', 'out_sha256': sha(OUT), 'bytes': os.path.getsize(OUT),
-        'unicode_range': ','.join(f'U+{a:04X}-{b:04X}' for a, b in RANGES), 'codepoints': len(CODEPOINTS),
+        'out': 'dashboard/public/wq/fonts/wq-naskh-2.woff2', 'out_sha256': sha(OUT), 'bytes': os.path.getsize(OUT),
+        'unicode_range': ','.join(f'U+{a:04X}' if a == b else f'U+{a:04X}-{b:04X}' for a, b in RANGES), 'codepoints': len(CODEPOINTS),
     }
     with open(RECORD, 'w') as f:
         json.dump(record, f, indent=2)
