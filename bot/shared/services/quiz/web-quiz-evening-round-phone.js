@@ -28,25 +28,10 @@ const Flags = require('./web-quiz-evening-round-flags');
 
 const CODE_RX = /^[A-Za-z0-9_-]{3,32}$/;
 const DAY_RX = /^\d{4}-\d{2}-\d{2}$/;
-const LABEL_MAX = 24;
+// The ONE class label a parent or child sees, and the chip's first name: a leaf module (web-quiz-class-names.js).
+const { classLabels, firstNameOf } = require('./web-quiz-class-names');
 const IN_CHUNK = 200;
 const NAMES_KEY = 'web_quiz_push_name_children';
-const UR_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const urDigits = (s) => String(s).replace(/[0-9]/g, (d) => UR_DIGITS[Number(d)]);
-const cut = (s) => [...String(s)].slice(0, LABEL_MAX).join('');
-
-/**
- * The ONE class label a parent or child sees (the reminder's title, the /j/ link preview, the teacher page's rounds):
- * "Class 3 A" / «کلاس ۳ A» from classes.grade_code ('grade_3') and section — Urdu digits in Urdu, the section as
- * stored after a space; no section -> "Class 3" / «کلاس ۳»; null without a grade. At most 24 code points.
- */
-function classLabels(gradeCode, section) {
-  const m = /(\d+)/.exec(String(gradeCode || ''));
-  if (!m) return { en: null, ur: null };
-  const sec = String(section || '').trim();
-  const tail = sec ? ` ${sec}` : '';
-  return { en: cut(`Class ${m[1]}${tail}`), ur: cut(`کلاس ${urDigits(m[1])}${tail}`) };
-}
 
 function teacherRef(teacherId) {
   if (!teacherId) return null;
@@ -117,8 +102,7 @@ async function roundsReadyForPhone(deviceRef, dayPkt, { withKids = false } = {})
     // no students row is read at all, and each child is its student_id only.
     const want = withKids && (await namesOn()) ? [...new Set(ready.flatMap((x) => x.waiting))] : [];
     const { data: students } = want.length ? await supabase.from('students').select('id, student_name, student_name_urdu').in('id', want) : { data: null };
-    const CL = require('./web-quiz-class-link');
-    const firstOf = (name) => (name ? CL.firstNameOf(name).shown || null : null);
+    const firstOf = (name) => (name ? firstNameOf(name).shown || null : null);
     return ready.map((x) => {
       const labels = classLabels(x.round.grade_code, x.round.section);
       const out = {

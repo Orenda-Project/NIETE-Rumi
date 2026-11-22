@@ -26,27 +26,15 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const CL = require('./web-quiz-class-link');
 const Flags = require('./web-quiz-class-link-flags');
+const Canary = require('./web-quiz-class-link-canary');
 
 const IN_CHUNK = 200;
 const FALLBACK_TOPIC = 'Lesson'; // the round writer's topic when its lesson has none (web-quiz-evening-round.js writeOne)
 
-/**
- * The canary scope's helper, when this build has it. Absent (not deployed yet) → no restriction. Its answer must be
- * a literal true; a throw or anything else leaves the class out (fail closed).
- */
-function canaryHelper() {
-  try {
-    return require('./web-quiz-class-link-canary');
-  } catch (err) {
-    if (err && err.code === 'MODULE_NOT_FOUND' && String(err.message).includes('web-quiz-class-link-canary')) return null;
-    throw err;
-  }
-}
+/** Inside the canary scope (web-quiz-class-link-canary.js)? Only a literal true counts; a throw leaves the class out. */
 async function inCanary(cls) {
-  const C = canaryHelper();
-  if (!C || typeof C.inCanary !== 'function') return true;
   try {
-    return (await C.inCanary({ classId: cls.id, schoolId: cls.school_id || null })) === true;
+    return (await Canary.inCanary({ classId: cls.id, schoolId: cls.school_id || null })) === true;
   } catch (err) {
     logToFile('⚠️ class link app: canary check failed — class left out', { error: err.message });
     return false;

@@ -89,7 +89,7 @@ let db;
 function seed({ step = 'digest', recallSrc = null } = {}) {
   db = {
     app_settings: [],
-    users: [{ id: TEACHER, name: 'Rifat Test', phone_number: '923000000099', preferred_language: 'en', grades_taught: null, subjects_taught: null }],
+    users: [{ id: TEACHER, name: 'Rifat Test', phone_number: '+92300FIXTURE99', preferred_language: 'en', grades_taught: null, subjects_taught: null }],
     classes: [{ id: CLASS, grade_code: 'grade_3', section: 'B', is_active: true }],
     quizzes: [{
       id: QID, teacher_id: TEACHER, coaching_session_id: null, quiz_source: 'lp_v8', topic: 'Reading short sentences', subject: 'english', language: 'en',
@@ -212,7 +212,7 @@ test('a redelivered job on a ready round mints no second code and makes no secon
 test('an ordinary lp_v8 quiz still gets the teacher hand-off (the round path is the round\'s only)', async () => {
   seed();
   quiz().meta = { ...quiz().meta, source: 'lp_offer' };
-  await Gen.process(QID, { quizId: QID, phone: '923000000099' });
+  await Gen.process(QID, { quizId: QID, phone: '+92300FIXTURE99' });
   expect(WhatsAppService.sendMessage.mock.calls.length + WhatsAppService.sendDocument.mock.calls.length).toBeGreaterThan(0);
 });
 
