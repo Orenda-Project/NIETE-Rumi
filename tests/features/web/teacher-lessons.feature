@@ -763,3 +763,29 @@ Feature: Teacher lesson plans
     Then the plan is still made and a message says her note was not used
     # bd-cyadk0: #5129's note drop ran on every own plan; the blocked list holds ordinary lesson words
     # ("naked", "alcohol", "kill"). Unit: tests/lp612/own-goal-note-guard.test.js.
+
+  # bd-dp9ipc: an own or shelf grades 1-5 plan is opened through the 6-12 status/file routes, which recorded it as a
+  # 6-12 open with the grades 1-5 lesson id; reopened from Recent it asked the 6-12 catalogue and got 404 "That lesson
+  # is not in the catalogue" (live 16-22 Nov 2026). Unit (real SQL, rolled back): tests/portal/bd-dp9ipc-k5-open-band.db.test.js.
+  @RLP01 @draft
+  Scenario: A grades 1-5 plan of her own, opened in the app, reopens from Recent Lesson Plans as a grades 1-5 plan
+    Given the teacher app v2 is on and the coach app v2 is off
+    And the demo teacher is signed in
+    And she has opened her own grades 1-5 plan made from a catalogue lesson
+    When she opens /portal/teacher/lessons
+    Then Recent Lesson Plans lists that lesson as a grades 1-5 plan
+    When she taps it
+    Then the grades 1-5 plan opens and no "not in the catalogue" message shows
+
+  @OWN13 @draft @config-gated @negative
+  Scenario: A Grades 1-5 change keeps You Do alone, and a note asking to skip a part or to cram is not used
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she has made her own plan for a Grade 3 Math day with no board and a class over 70
+    When she asks "Change this plan" for You Do with "Let children do You Do in pairs"
+    Then the changed plan's You Do has each child working alone in her book, with no pairs, board or slates
+    When she makes her own plan for another Grade 3 day with the note "Skip the I do part, there is no time"
+    Then the plan is still made with I Do, We Do and You Do, and a message says her note was not used
+    When she makes one with the note "They can't memorize tables, use objects"
+    Then no "note was not used" message shows
+    # bd-snkn32.70: a change gated with {lang} only; make-time notes were unscreened; "can't" read as a rote ask.
+    # Unit: tests/lp612/bd-snkn32-70-change-checks.test.js.

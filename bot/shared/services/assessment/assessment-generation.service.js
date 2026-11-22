@@ -25,6 +25,7 @@ const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
 const { seenCategoryLine, keepSeenCategories } = require('./seen-categories');
 const SeenTypes = require('./seen-types');
+const SeenPicked = require('./seen-picked');
 const PaperDiagram = require('./paper-diagram');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 const { standardMarks } = require('./standard-marks');
@@ -305,7 +306,7 @@ const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark per a
 
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
                            contentSource, questionCount, questionTypes = [], totalMarks = null,
-                           seenCount = null, seenTypes = null, slos = null, standardMarks: askStandard = true }) {
+                           seenCount = null, seenTypes = null, slos = null, standardMarks: askStandard = true, seenPicked = null }) {
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount, seenTypes });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
@@ -316,7 +317,9 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
     if (objective.length) items.push(`Unseen Objective questions — ${describe(objective)}`);
     if (subjective.length) items.push(`Unseen Subjective questions — ${describe(subjective)}`);
   }
-  if (plan.seenTypes) {
+  if (plan.seenTypes && Array.isArray(seenPicked) && seenPicked.length) {
+    items.push(...SeenPicked.promptItems(seenPicked)); // AG row 21: the exact questions she ticked
+  } else if (plan.seenTypes) {
     items.push(...SeenTypes.promptItems(plan.seenTypes));
   } else if (contentSource === 'both') {
     items.push(`Seen questions — at most ${plan.seenTarget}, taken directly from the textbook's own `
@@ -641,7 +644,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null, seenTypes = null, slos = null, avoidQuestions = [] } = args;
+          totalMarks = null, seenCount = null, seenTypes = null, slos = null, avoidQuestions = [], seenPicked = null } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -661,7 +664,7 @@ async function generateExam(args) {
     // Islamiat is a religious subject, so it carries none.
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '')
       + (key === 'islamiat' ? '' : `\n\n${RULE.religious}`) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, seenTypes, slos }) + avoidNote(avoidQuestions) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, seenTypes, slos, seenPicked }) + avoidNote(avoidQuestions) },
   ];
 
   logToFile('[assessment] generating', {
