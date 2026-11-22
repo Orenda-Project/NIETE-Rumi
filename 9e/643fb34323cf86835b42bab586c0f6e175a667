@@ -1,2 +1,3 @@
 {"ts":"2026-11-22T13:02:37Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"9e643fb34323","branch":"bd-3kshar.6.2.1-51418","user":""}
 {"ts":"2026-11-22T13:02:45Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"9e643fb34323","branch":"bd-3kshar.6.2.1-51418","user":""}
+{"ts":"2026-11-22T13:03:11Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"observe=none-needed (A/B tracker nightly rollup recount; job is off by default, writes only ab_ tables, no teacher-facing message or screen)","sha":"9e643fb34323","branch":"bd-3kshar.6.2.1-51418","user":""}
