@@ -1,0 +1,34 @@
+# A pull request that adds an A/B launch signal must carry its entry in ab/registry.json, and arms are chosen only
+# through the shared ab-assign module. The rules are in scripts/ab-card-check.js (its header lists them); the
+# entry line comes from card.py freeze, and a person reviews the pull request that adds it.
+#
+# Node builtins only, no npm ci: a gate that needs the dependency tree can be broken by it.
+name: ab-card-check
+
+on:
+  pull_request:
+    branches: [main, staging, sandbox]
+  workflow_dispatch:
+
+concurrency:
+  group: ab-card-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ab-card-check:
+    # The job name is the status-check context. Keep it stable if it is made a required check.
+    name: ab-card-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the diff against ab/registry.json
+        run: node scripts/ab-card-check.js "origin/${{ github.base_ref || 'sandbox' }}"
