@@ -1079,6 +1079,20 @@ const REPORT_WORDS = {
 };
 function urNum(n) { return String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]); }
 
+/**
+ * A round's PKT day (YYYY-MM-DD) as the page's words: weekday, date, month, "Tue 24 Nov" / «منگل ۲۴ نومبر» (a date
+ * is prose: the language's own digits, as the report page's other dates). '' for anything else.
+ */
+function dayWords(day, lang) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day || ''));
+  if (!m) return '';
+  const code = clampLanguage(lang);
+  const parts = new Intl.DateTimeFormat(`${code}-PK`, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    .formatToParts(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))));
+  const part = (t) => (parts.find((x) => x.type === t) || {}).value || '';
+  return [part('weekday'), require('../../config/ux-strings').digitsFor(part('day'), code), part('month')].filter(Boolean).join(' ');
+}
+
 /** The class tab's "Evening rounds" section (HTML), '' when there is nothing to show. */
 async function reportSection(teacherId, { lang = 'en' } = {}) {
   const rounds = await forTeacherReport(teacherId);
@@ -1087,7 +1101,7 @@ async function reportSection(teacherId, { lang = 'en' } = {}) {
   const W = REPORT_WORDS[ur ? 'ur' : 'en'];
   const rows = rounds.map((r) => {
     const label = ur ? r.class_label_ur : r.class_label;
-    const day = ur ? urNum(r.round_day || '') : r.round_day || '';
+    const day = dayWords(r.round_day, lang);
     const head = [label, r.topic].filter(Boolean).map(escHtml).join(' · ');
     const stat = r.played ? `${escHtml(W.played(r.played))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
     const names = r.finishers.length ? `<p class="er-kids">${r.finishers.map((n) => `<bdi>${escHtml(n)}</bdi>`).join(', ')}</p>` : '';
