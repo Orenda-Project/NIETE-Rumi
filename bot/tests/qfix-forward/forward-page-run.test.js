@@ -3,6 +3,7 @@
  * The send sheet's "More ways to share" (quiz_forward_button), RUN in the page's own script (the page-run harness of
  * first-touch/teacher-home.page-run.test.js, copied): shown only where the browser has navigator.share; its tap
  * beacons fwd_native, then fwd_result with what the share sheet reported. Switch off → no button, today's page.
+ * And the one-lesson page opened for a lesson plan (?lesson=), run: it makes that plan's quiz (kind lesson).
  */
 /**
  * The teacher home's own script, RUN on the page the server builds (not read as text): the "try it as" row under the
@@ -46,8 +47,8 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release, refuse } (`refuse()` answers the oldest held home fetch with a 500).
  */
-async function open(home, { forward = false, share = undefined, lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false, one = null } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}), ...(one ? { one } : {}), ...(forward ? { forward: true } : {}) });
+async function open(home, { forward = false, share = undefined, lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false, one = null, lesson = null } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(forward ? { forward: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
@@ -136,5 +137,21 @@ describe('"More ways to share" on the send sheet', () => {
   test('switch OFF: no button on the page at all', async () => {
     const p = await open(HOME, { share: () => Promise.resolve() });
     expect(p.q('#th-native')).toBeNull();
+  });
+});
+
+// The one-lesson page opened for a lesson PLAN (?lesson=, quiz_teacher_home_one_lesson): its script makes THAT lesson's
+// quiz the way a row's "Quiz this" does for a plan (kind 'lesson'); the ?session= page still makes a recorded one.
+describe('the one-lesson page, RUN', () => {
+  const makes = (p) => p.fetches.filter((f) => f.path === '/api/th/quiz/make').map((f) => f.body);
+  test.each([[false], [true]])('?lesson= (forward switch %s): right after paint it asks quiz/make for that plan, kind lesson; the home is never asked', async (forward) => {
+    const p = await open(null, { lesson: 'lsn_lp_v8_g4-math-ch5-seg2', forward, answer: () => ({ quizId: 'quiz-9' }) });
+    expect(makes(p)).toEqual([expect.objectContaining({ kind: 'lesson', id: 'lsn_lp_v8_g4-math-ch5-seg2' })]);
+    expect(p.fetches.some((f) => f.path.indexOf('/api/th/home?') === 0)).toBe(false);
+    expect(steps(p).map((s) => s.step)).toContain('one_lesson');
+  });
+  test('?session= is unchanged: kind coaching for the recorded lesson', async () => {
+    const p = await open(null, { one: 'e0000000-0000-4000-8000-0000000000c1', answer: () => ({ quizId: 'quiz-9' }) });
+    expect(makes(p)).toEqual([expect.objectContaining({ kind: 'coaching', id: 'e0000000-0000-4000-8000-0000000000c1' })]);
   });
 });
