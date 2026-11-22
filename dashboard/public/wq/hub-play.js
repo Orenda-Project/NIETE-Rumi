@@ -289,10 +289,22 @@
     deferred = e; bipWhen = own ? 'after_render' : 'before_render';
     if (own) { step('bip_fired', bipWhen); fillInstall(); }
   }
+  // The card's slot can be off the page when Chrome offers (the home drawn again, or not yet): the offer is kept and the
+  // slot looked for every second, for up to a minute; the card is drawn when it is back (no_slot otherwise).
+  var SLOT_WAIT_MS = 60000;
+  var slotFrom = 0;
+  var slotTimer = false;
   // Fill the card's slot when every condition holds; empty it otherwise.
   function fillInstall() {
     var box = IROOT && IROOT.querySelector('#wqp-inst');
-    if (!box) return;
+    if (!box) {
+      if (deferred && !outcomeSent && !slotTimer) {
+        if (!slotFrom) slotFrom = Date.now();
+        if (Date.now() - slotFrom < SLOT_WAIT_MS) { slotTimer = true; setTimeout(function () { slotTimer = false; fillInstall(); }, 1000); }
+      }
+      return;
+    }
+    slotFrom = 0;
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
     var why = withheld();
     if (why === 'tour') heldBy = 'tour';
