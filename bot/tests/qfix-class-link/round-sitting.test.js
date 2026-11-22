@@ -400,3 +400,42 @@ describe('the same-day swap: lesson items the child answered RIGHT earlier today
     expect(p.order).toBeUndefined();
   });
 });
+
+describe('a round serves only its lesson and recall items: a held (or dropped) item never reaches a child', () => {
+  const HELD = '4e550000-0000-4000-8000-0000000000h1';
+  const DROPPED = '4e550000-0000-4000-8000-0000000000d1';
+  function heldWorld(sw) {
+    world(sw);
+    // an item whose key is held (afterGenerate heldLessonItems: media.round 'held'), and one the key review dropped
+    db.quiz_questions.push(
+      base({ id: HELD, quiz_id: ROUND_Q, external_id: `tq:${ROUND_Q}:S1:9`, sort_order: 0, question_text: 'Held stem?', correct_option: 'C', media: { round: 'held', round_key: KEY } }),
+      base({ id: DROPPED, quiz_id: ROUND_Q, external_id: `tq:${ROUND_Q}:S1:10`, sort_order: 0, question_text: 'Dropped stem?', correct_option: 'D', media: { round: 'dropped', round_key: KEY } }),
+    );
+  }
+
+  test.each([
+    ['web_quiz_order_seed on', { seed: true, round: false }],
+    ['web_quiz_order_seed off, web_quiz_evening_round on', { seed: false, round: true }],
+    ['both off', { seed: false, round: false }],
+  ])('%s: the page GET carries neither stem nor key; the start, the answers and the finish never count them', async (_l, sw) => {
+    heldWorld(sw);
+    const page = await WQ.getQuiz('RND234');
+    const ids = page.quiz.questions.map((q) => q.qid);
+    expect(ids).not.toContain(HELD);
+    expect(ids).not.toContain(DROPPED);
+    expect(JSON.stringify(page)).not.toMatch(/Held stem|Dropped stem/);
+    expect(ids.sort()).toEqual([...ALL_ROUND].sort());
+    const a = await asZara();
+    if (a.order) expect(a.order.q).not.toContain(HELD);
+    const out = await answerAll(a.st, [HELD, DROPPED, ...ALL_ROUND]);
+    expect(out.unknown).toEqual(expect.arrayContaining([HELD, DROPPED]));
+    const fin = await WQ.finishSession({ st: a.st });
+    expect(fin.review.map((r) => r.qid)).not.toContain(HELD);
+  });
+
+  test('any other quiz: every row served, as today', async () => {
+    heldWorld({ seed: false, round: true });
+    const page = await WQ.getQuiz('PLAIN1');
+    expect(page.quiz.questions.map((q) => q.qid)).toEqual(PLAIN_ROWS.map((q) => q.id));
+  });
+});
