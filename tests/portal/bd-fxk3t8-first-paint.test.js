@@ -78,9 +78,9 @@ describe('GET /config — the flag reads run together', () => {
     // Make my own lesson plan (bd-snkn32), help videos (bd-ik5e8j.4), the own-plan shelf + its reviewers (bd-snkn32.42),
     // and her role (bd-w0zbbe: the observe page follows the observe API's gate)), the coach visit flow v2 (bd-o15qnr.26),
     // and Make my own from a learning goal (bd-snkn32.56, list-only), and the lesson plan in the app's three: the survey
-    // bar, Home's activity block and My journey; lp_whatsapp_pdf_off (features.lpWhatsappSend); and the plan screen's
-    // slim layout.
-    expect(started).toBe(34);
+    // bar, Home's activity block and My journey; lp_whatsapp_pdf_off (features.lpWhatsappSend); the plan screen's
+    // slim layout; and Make my own's whole unit (portal_lp_own_unit, bd-snkn32.59, #5289).
+    expect(started).toBe(35);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,

@@ -83,10 +83,23 @@ describe('Seen only', () => {
     expect(created.questionCount).toBe(5);
   });
 
+  // AG row 12 (bd-zrdvmi.50.3, #5388): a group of MCQs counts as ONE toward the 50, so 60 MCQs now fit.
+  // Written questions count one each: 51 Brief Answers is past the 50; 101 MCQs is past the 100 printed items.
   test('more than the paper can hold is refused', async () => {
-    const { statusCode } = await create({ contentSource: 'seen', seenTypes: [{ id: 'MCQs', count: 60 }] });
+    const { statusCode } = await create({ contentSource: 'seen', seenTypes: [{ id: 'Brief Answers', count: 51 }] });
     expect(statusCode).toBe(400);
     expect(created).toBeNull();
+  });
+
+  test('more printed items than a paper holds is refused, even as one group', async () => {
+    const { statusCode } = await create({ contentSource: 'seen', seenTypes: [{ id: 'MCQs', count: 101 }] });
+    expect(statusCode).toBe(400);
+    expect(created).toBeNull();
+  });
+
+  test('a group of 60 MCQs counts as one question, so it fits (AG row 12)', async () => {
+    const { statusCode } = await create({ contentSource: 'seen', seenTypes: [{ id: 'MCQs', count: 60 }] });
+    expect(statusCode).toBe(202);
   });
 });
 
