@@ -31,6 +31,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const Flags = require('./web-quiz-evening-round-flags');
 const Recall = require('./web-quiz-evening-round-recall');
+const Canary = require('./web-quiz-class-link-canary');
 
 const ROUND_SOURCE = 'evening_round';
 // The generate step's phone for a round: never a number, so its failure lines are never sent (tellTeacherFailed).
@@ -325,9 +326,12 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
     out.day = day;
     if (!P.isSchoolDay(day)) { out.skipped = 'not_school_day'; return out; }
     const links = await liveLinks(now, classIds);
+    // web_quiz_class_link_canary: while it lists schools or classes, only theirs get a round (no row: every class).
+    const inCanary = await Canary.allowedClasses([...links.keys()]);
+    out.canary_out = links.size - inCanary.size;
     const done = new Set((await roundsOn(day, classIds)).map((q) => q.meta && q.meta.class_id).filter(Boolean));
     const seen = Array.isArray(classIds) && classIds.length ? new Set() : await seenOf(day);
-    const todo = [...links.keys()].filter((id) => !done.has(id) && !seen.has(id)).sort();
+    const todo = [...links.keys()].filter((id) => inCanary.has(id) && !done.has(id) && !seen.has(id)).sort();
     out.exists = [...links.keys()].filter((id) => done.has(id)).length;
     const batch = todo.slice(0, considerPerTick());
     out.more = todo.length > batch.length;
