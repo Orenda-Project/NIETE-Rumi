@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T17:13:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"0a90cf98cb6f","branch":"bd-snkn32.70-66665","user":""}
 {"ts":"2026-11-22T17:13:06Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"0a90cf98cb6f","branch":"bd-snkn32.70-66665","user":""}
 {"ts":"2026-11-22T17:14:07Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0a90cf98cb6f","branch":"bd-snkn32.70-66665","user":""}
+{"ts":"2026-11-22T17:15:00Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (WhatsApp only hands off to the portal; the change is in portal own-plan authoring, spec synced in web teacher-lessons @OWN13, commit 1f15238580)","sha":"0a90cf98cb6f","branch":"bd-snkn32.70-66665","user":""}
