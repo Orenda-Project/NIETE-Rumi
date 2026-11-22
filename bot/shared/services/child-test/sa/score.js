@@ -83,8 +83,11 @@
  * speech-to-text pass split by speaker; no word heard is none. Else a text model reads the transcript beside the task's
  * items and answers and labels it help / other_child / support / unclear / none, and only help and other_child flag,
  * when the other person's quoted words are in the transcript (else unclear). The detail adds second_voice_kind,
- * second_voice_reason (only the quoted words that are the task's own items, answers or passage), other_voice
- * ('support' | 'unclear' | null: logged, never a flag) and voice_check: 'r28'. Still a flag, never a change of mark.
+ * second_voice_reason (the task's own words the quote holds, in the task's spelling: an English word the transcript
+ * wrote in Urdu script or spelled in Urdu letter names reads as that word), second_voice_items (the ids of the items
+ * touched; a per-item clip's own item), other_voice
+ * ('support' | 'unclear' | null: logged, never a flag) and voice_check: 'r28'. A clip with no word heard makes no
+ * model call, and its call row's model says 'skipped_no_words'. Still a flag, never a change of mark.
  *
  * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
  * once, from Begin to its end, so an answer given early or late is never cut. Its row has one audio_r2_key, and the
@@ -1111,7 +1114,8 @@ async function voiceHelpOf(deps, calls, clip, key, { task, turns } = {}) {
   rec.stt_words = tx && Number.isInteger(tx.words) ? tx.words : null;
   if (tx && Number.isFinite(tx.cost)) rec.stt_cost = tx.cost;
   if (!tx || !tx.words) {
-    calls.push({ ...rec, label: 'none', second_voice: false, voice_check: 'no_words' });
+    // no model was called: the row says so rather than naming one
+    calls.push({ ...rec, model: 'skipped_no_words', label: 'none', second_voice: false, voice_check: 'no_words' });
     return { key, heard: false, label: 'none' };
   }
   let r;
@@ -1127,7 +1131,12 @@ async function voiceHelpOf(deps, calls, clip, key, { task, turns } = {}) {
   Object.assign(rec, { cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, ...(r.detail ? { detail: r.detail } : {}), label: d.label, kind: d.kind || null, who: (r.json && r.json.who) || null, second_voice: d.flag, voice_check: d.why });
   calls.push(rec);
   if (d.flag === null) return { key, heard: null };
-  return { key, heard: d.flag, label: d.label, kind: d.kind, reason: d.flag ? VH.matchedWords(r.json.evidence, task) : '' };
+  if (!d.flag) return { key, heard: false, label: d.label, kind: d.kind, reason: '' };
+  // the reason is the item's own word when the quote points at one (in the task's spelling, also from another
+  // script), else the task's words the quote holds
+  const hit = VH.matchedItems(r.json.evidence, task);
+  const reason = hit.items.length ? hit.words : (VH.matchedWords(r.json.evidence, task) || hit.words);
+  return { key, heard: true, label: d.label, kind: d.kind, reason: VH.tidy(reason), items: hit.items };
 }
 
 let LETTERS_SCHEMA_CACHE = null;
@@ -1241,13 +1250,19 @@ function mcqMarks(row, session) {
 
 /**
  * sa_r28_voice_help's fields beside second_voice: the first flagged clip's kind ('help' | 'other_child') and its matched
- * item words; other_voice the strongest non-flag label heard ('unclear' over 'support'; null when none); voice_check.
+ * item words; second_voice_items the ids of the items the help touched (every flagged clip; [] when the quote names
+ * none); other_voice the strongest non-flag label heard ('unclear' over 'support'; null when none); voice_check.
  */
-function helpDetail(heard) {
+function helpDetail(heard, byItem = []) {
   const flagged = heard.find((v) => v.heard === true);
   const rest = heard.filter((v) => v.heard === false).map((v) => v.label);
+  // the items the help touched: a per-item clip's own item, else the items its quote names
+  const items = [...new Set(heard.filter((v) => v.heard === true).flatMap((v) => {
+    const own = byItem.find((x) => x.key === v.key);
+    return own && typeof own.i === 'string' ? [own.i] : (v.items || []);
+  }))];
   return {
-    ...(flagged ? { second_voice_kind: flagged.label === 'other_child' ? 'other_child' : 'help', second_voice_reason: flagged.reason || '' } : {}),
+    ...(flagged ? { second_voice_kind: flagged.label === 'other_child' ? 'other_child' : 'help', second_voice_reason: flagged.reason || '', second_voice_items: items } : {}),
     other_voice: rest.includes('unclear') ? 'unclear' : rest.includes('support') ? 'support' : null,
     voice_check: 'r28',
   };
@@ -1366,7 +1381,7 @@ async function scoreRow(row, session, deps = {}) {
           ...(out.ceiling || {}),
           confidence,
           ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
-          ...(heard && help ? helpDetail(heard) : {}),
+          ...(heard && help ? helpDetail(heard, keysOf(row)) : {}),
           ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
           items: out.rows,
         },
