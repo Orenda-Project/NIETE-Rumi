@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T13:37:02Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"3555a0878587","branch":"bd-snkn32.59.9-unit-urdu","user":""}
+{"ts":"2026-11-22T13:37:09Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"3555a0878587","branch":"bd-snkn32.59.9-unit-urdu","user":""}
