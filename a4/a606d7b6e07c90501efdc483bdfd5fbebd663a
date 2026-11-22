@@ -1,0 +1,1 @@
+{"ts":"2026-11-22T15:07:32Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"a4a606d7b6e0","branch":"bd-zrdvmi.55-test2","user":""}
