@@ -30,7 +30,7 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => {
 jest.mock('../../shared/services/quiz/web-quiz-kid', () => ({
   kid: (id) => `kid:${String(id).slice(-4)}`, dk: () => 'dk', cls: () => 'clshash00000', qk: () => 'qk00000000', envelope: (f) => ({ ev_v: 2, ...f }),
 }));
-jest.mock('../../shared/services/quiz/web-quiz-class-link-canary', () => ({ inCanary: jest.fn(async () => true) }), { virtual: true });
+jest.mock('../../shared/services/quiz/web-quiz-class-link-canary', () => ({ inCanary: jest.fn(async () => true) }));
 
 const http = require('http');
 const express = require('express');
@@ -234,6 +234,14 @@ describe('Send / Copy (the tap)', () => {
     expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap')[0][1]).toMatchObject({ surface: 'class_link', method: 'copy' });
     const after = await App().forApp(A, { now: NOW });
     expect(after.classes.find((c) => c.classId === C2).sent).toBe(true);
+  });
+
+  test('a Forward or Copy from the WhatsApp report\'s class tab (forwardHref) folds the app card too', async () => {
+    await App().forApp(A, { now: NOW });
+    expect(await CL().forwardHref({ teacherId: A, classId: C1 })).toMatch(/^https:\/\/wa\.me\//);
+    expect(await CL().forwardHref({ teacherId: A, classId: C2, how: 'copy', reportBase: '/r/tok' })).toMatch(/cl_open=/);
+    const after = await App().forApp(A, { now: NOW });
+    expect(after.classes.map((c) => [c.classId, c.sent])).toEqual([[C1, true], [C2, true]]);
   });
 
   test('another teacher\'s class: null (404), no event, nothing folded', async () => {
