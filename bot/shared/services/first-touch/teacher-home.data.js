@@ -18,6 +18,7 @@
  * `deps` lets a test hand in a stand-in for one source; by default each is the real module, required at call time.
  */
 const { logToFile } = require('../../utils/logger');
+const { isOffered } = require('../../config/languages');
 
 const REPORT_BUDGET_MS = 4000;
 const SIDE_BUDGET_MS = 2500;
@@ -249,7 +250,7 @@ async function reportLinks(uid, quizId, deps) {
 
 /**
  * The "Quiz reports" section's links (quiz_teacher_home_reports, bd-5j1zaf): the live report of every quiz in `ids`,
- * opened from here (`?from=home`) in the home's own language (`lang`: en | ur; the report otherwise picks the quiz's),
+ * opened from here (`?from=home`) in the home's own language (`lang`, when this deployment offers it; the report otherwise picks the quiz's),
  * when the report page is on for this teacher; and the class tab's evening rounds when class-link's reader says one of
  * the teacher's classes has a live round (no reader → no line). → { links, rounds }.
  */
@@ -257,7 +258,7 @@ async function reportsFor(uid, ids, deps, { lang = null } = {}) {
   const Gate = dep(deps, 'Gate');
   const links = new Map();
   if (!(await Gate.teacherReportOn(uid))) return { links, rounds: null };
-  const tail = `from=home${lang === 'en' || lang === 'ur' ? `&lang=${lang}` : ''}`;
+  const tail = `from=home${isOffered(lang) ? `&lang=${lang}` : ''}`;
   [...new Set((ids || []).filter(Boolean))].forEach((id) => { const u = Gate.reportUrls({ teacherId: uid, quizId: id }); if (u) links.set(id, `${u.live}?${tail}`); });
   let rounds = null;
   try {
