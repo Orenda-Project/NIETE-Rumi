@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T12:40:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"1530fd3a260c","branch":"bd-2oi189-staging","user":""}
 {"ts":"2026-11-22T12:40:25Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"1530fd3a260c","branch":"bd-2oi189-staging","user":""}
 {"ts":"2026-11-22T12:42:40Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"1530fd3a260c","branch":"bd-2oi189-staging","user":""}
+{"ts":"2026-11-22T12:43:09Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"1530fd3a260c","branch":"bd-2oi189-staging","user":""}
