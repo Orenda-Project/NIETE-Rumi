@@ -71,6 +71,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `reminder-live-preview-flag.js` | Switch quiz_reminder_live_preview: adds ?v=<played> to the reminder link so WhatsApp previews the live class picture |
 | `report-delivery.js` | Keeps WhatsApp message ids of teacher reports in Redis and handles failed-status callbacks so the report is retried |
 | `report-fold-flag.js` | Switch quiz_report_fold_by_child (JSON true only, 30 s cache) plus the riding settings group read |
+| `report-late-flag.js` | Switch quiz_teacher_home_reports (JSON true only, 30 s cache): the report page's late-finisher line and tags, and the report links' ?from= |
 | `report-fold.js` | Rule folding off-list child records into one child per child for the web report and 12 h WhatsApp quiz report |
 | `report-send-check.js` | Switch quiz_report_send_checked: stamps a class report sent only when WhatsApp accepts it; retries up to 3 tries |
 | `sa-game-door.js` | Appends the big-flight game row to the child games door when the sa_game switch is on; otherwise returns it untouched |
