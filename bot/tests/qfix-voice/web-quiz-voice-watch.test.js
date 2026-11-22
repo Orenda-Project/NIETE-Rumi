@@ -98,7 +98,7 @@ describe('the run (once per Pakistan day, after 09:00 PKT, one replica)', () => 
     expect(asked).toEqual([]);
   });
 
-  test('the 3-day line posts at most once a week (it would otherwise repeat daily while the voice stays bad); a bad day always posts', async () => {
+  test('inside the week after a 3-day post, a day 5 points above the posted share posts again', async () => {
     const rolling = { '2026-11-11': { sit: 1300, hit: 170 }, '2026-11-12': { sit: 1300, hit: 170 }, '2026-11-13': { sit: 1300, hit: 170 }, '2026-11-14': { sit: 1300, hit: 170 } };
     const q = async (name, apl, start) => { const d = new Date(Date.parse(start) + 5 * 3600 * 1000).toISOString().slice(0, 10); return [rolling[d] || DAYS[d] || { sit: 0, hit: 0 }]; };
     const posted = []; const redis = fakeRedis();
@@ -117,6 +117,78 @@ describe('the run (once per Pakistan day, after 09:00 PKT, one replica)', () => 
     const out = await W.run({ now: at('2026-11-20T04:30:00Z'), env: ENV, redis, query: query([]), post: async (t) => posted.push(t) });
     expect(out).toMatchObject({ outcome: 'skipped', reason: 'unavailable' });
     expect(posted).toEqual([]);
+  });
+});
+
+// Production Axiom, the 42 PKT days 10 Oct - 20 Nov 2026 (axiom/baseline_daily.json in the lane's folder): page
+// sittings, and sittings that lost >=1 clip. 25 of the 42 cross a line, so a post per crossing is wallpaper.
+const HISTORY = {
+  '2026-10-10': [345, 56], '2026-10-11': [581, 67], '2026-10-12': [1026, 92], '2026-10-13': [1215, 88], '2026-10-14': [2247, 189],
+  '2026-10-15': [1738, 126], '2026-10-16': [1143, 94], '2026-10-17': [514, 41], '2026-10-18': [427, 33], '2026-10-19': [1330, 101],
+  '2026-10-20': [1541, 128], '2026-10-21': [1635, 192], '2026-10-22': [1394, 208], '2026-10-23': [962, 120], '2026-10-24': [768, 97],
+  '2026-10-25': [625, 110], '2026-10-26': [1204, 162], '2026-10-27': [1417, 191], '2026-10-28': [1555, 217], '2026-10-29': [1299, 234],
+  '2026-10-30': [996, 134], '2026-10-31': [837, 155], '2026-11-01': [788, 118], '2026-11-02': [1289, 181], '2026-11-03': [1227, 136],
+  '2026-11-04': [1422, 142], '2026-11-05': [1085, 150], '2026-11-06': [761, 89], '2026-11-07': [404, 61], '2026-11-08': [333, 60],
+  '2026-11-09': [295, 36], '2026-11-10': [933, 131], '2026-11-11': [1300, 189], '2026-11-12': [1495, 198], '2026-11-13': [1116, 148],
+  '2026-11-14': [840, 94], '2026-11-15': [584, 73], '2026-11-16': [992, 125], '2026-11-17': [1682, 230], '2026-11-18': [1247, 198],
+  '2026-11-19': [1005, 239], '2026-11-20': [630, 88],
+};
+// A Redis that keeps TTLs against the run's own clock (the marker's week is what is under test).
+function clockRedis() {
+  const m = new Map();
+  let now = 0;
+  const live = (k) => { const e = m.get(k); if (e && e.until !== null && now >= e.until) m.delete(k); return m.get(k); };
+  return {
+    m,
+    at: (d) => { now = d.getTime(); },
+    isAvailable: () => true,
+    setNX: async (k, v, ttl) => { if (live(k)) return false; m.set(k, { v, until: ttl ? now + ttl * 1000 : null }); return true; },
+    get: async (k) => { const e = live(k); return e ? e.v : null; },
+    set: async (k, v, ttl) => { m.set(k, { v, until: ttl ? now + ttl * 1000 : null }); return 'OK'; },
+  };
+}
+const historyQuery = async (name, apl, start) => {
+  const d = new Date(Date.parse(start) + 5 * 3600 * 1000).toISOString().slice(0, 10);
+  const h = HISTORY[d];
+  return [h ? { sit: h[0], hit: h[1], fb: h[1] * 6, stalled: h[1] * 2, reject: h[1] * 2, unsupported: h[1], error: h[1] } : { sit: 0, hit: 0 }];
+};
+async function replay() {
+  const redis = clockRedis(); const posted = []; const outcomes = [];
+  for (const d of Object.keys(HISTORY)) {
+    const now = new Date(Date.parse(`${d}T04:30:00Z`) + 86400000); // 09:30 PKT the morning after
+    redis.at(now);
+    redis.m.delete('web_quiz_voice_watch:tick');
+    const out = await W.run({ now, env: ENV, redis, query: historyQuery, post: async (t) => posted.push({ day: d, text: t }) });
+    outcomes.push(out);
+  }
+  return { posted, outcomes };
+}
+
+describe('A69: one 7-day marker for both lines; inside the week only a day 5 points above the posted share posts again', () => {
+  test('over the 42 days of production history it posts on 7 mornings, the 19 Nov spike among them', async () => {
+    const { posted, outcomes } = await replay();
+    const days = posted.map((p) => p.day);
+    console.log(`A69 posting days (42-day replay): ${days.join(' ')}`); // eslint-disable-line no-console
+    expect(days).toEqual(['2026-10-10', '2026-10-23', '2026-10-25', '2026-11-01', '2026-11-08', '2026-11-15', '2026-11-19']);
+    expect(outcomes.filter((o) => o.outcome === 'alert')).toHaveLength(7);
+  });
+
+  test('18 Nov (15.9%, over the one-day line) stays quiet: under 5 points above the 12.5% posted on 15 Nov', async () => {
+    const { outcomes } = await replay();
+    expect(outcomes.find((o) => o.day === '2026-11-18')).toMatchObject({ outcome: 'quiet_repeat', why: 'day' });
+  });
+
+  test('the re-post says how far the share rose since the last post', async () => {
+    const { posted } = await replay();
+    const p = posted.find((x) => x.day === '2026-11-19');
+    expect(p.text).toMatch(/23\.8% of page sittings lost a read-aloud clip on 2026-11-19 \(239 of 1,005\)/);
+    expect(p.text).toMatch(/up 11\.3 points since the last post \(12\.5% on 2026-11-15\)/);
+  });
+
+  test('the weekly 3-day post names each day\'s share, so chronic and spike read apart without a second query', async () => {
+    const { posted } = await replay();
+    const p = posted.find((x) => x.day === '2026-11-15');
+    expect(p.text).toMatch(/2026-11-13 13\.3%, 2026-11-14 11\.2%, 2026-11-15 12\.5%/);
   });
 });
 
