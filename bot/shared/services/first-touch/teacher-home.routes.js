@@ -201,7 +201,7 @@ function createRouter(deps = null) {
   }
   const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
   /** The "Quiz reports" section's links (quiz_teacher_home_reports on), for every quiz the home lists; a slow read → none. */
-  const reportsOf = (uid, played, shares) => Data.within(Data.reportsFor(uid, [...played.keys(), ...shares.map((x) => x.quizId)], deps), Data.SIDE_BUDGET_MS, { links: new Map(), rounds: null }, 'quiz reports');
+  const reportsOf = (uid, played, shares, lang) => Data.within(Data.reportsFor(uid, [...played.keys(), ...shares.map((x) => x.quizId)], deps, { lang }), Data.SIDE_BUDGET_MS, { links: new Map(), rounds: null }, 'quiz reports');
   const withReports = (rp) => (rp ? { reportLinks: rp.links, rounds: rp.rounds } : {});
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
@@ -430,7 +430,7 @@ function createRouter(deps = null) {
     const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
     const countsP = Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'); // the same, as on the full answer
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
-    const rp = (await reportsOnP) ? await reportsOf(p.uid, lists.played, lists.shares) : null;
+    const rp = (await reportsOnP) ? await reportsOf(p.uid, lists.played, lists.shares, lang) : null;
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: await practiceUrl(user, lang, playP), change,
@@ -519,7 +519,7 @@ function createRouter(deps = null) {
     }
     const change = await changeLanding(user, lang);
     const againable = walked ? await sendable(ownSent, played) : againable0;
-    const rp = (await reportsOnP) ? await reportsOf(p.uid, played, shares) : null;
+    const rp = (await reportsOnP) ? await reportsOf(p.uid, played, shares, lang) : null;
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
       maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: await practiceUrl(user, lang, playP), change, againable,
@@ -691,8 +691,8 @@ function createRouter(deps = null) {
       if (b.step === 'fwd_native') Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'native', origin: ORIGINS.has(b.origin) ? b.origin : null });
       else Forward.logResult({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', result: b.r });
     } else {
-      // a "Quiz reports" row's See report (bd-5j1zaf): whether that row had the late chip
-      event('teacher_home.step', p.uid, { step: b.step, screen: 'home', ...(b.step === 'report' ? { late: b.late === true } : {}) });
+      // a "Quiz reports" row's See report (bd-5j1zaf): whether that row had the late chip (the page sends the string)
+      event('teacher_home.step', p.uid, { step: b.step, screen: 'home', ...(b.step === 'report' ? { late: b.late === 'true' || b.late === true } : {}) });
     }
     headers(res);
     res.status(204).end();

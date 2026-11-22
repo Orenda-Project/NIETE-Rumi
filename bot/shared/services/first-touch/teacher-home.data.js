@@ -249,20 +249,22 @@ async function reportLinks(uid, quizId, deps) {
 
 /**
  * The "Quiz reports" section's links (quiz_teacher_home_reports, bd-5j1zaf): the live report of every quiz in `ids`,
- * opened from here (`?from=home`), when the report page is on for this teacher; and the class tab's evening rounds when
- * class-link's reader says one of the teacher's classes has a live round (no reader → no line). → { links, rounds }.
+ * opened from here (`?from=home`) in the home's own language (`lang`: en | ur; the report otherwise picks the quiz's),
+ * when the report page is on for this teacher; and the class tab's evening rounds when class-link's reader says one of
+ * the teacher's classes has a live round (no reader → no line). → { links, rounds }.
  */
-async function reportsFor(uid, ids, deps) {
+async function reportsFor(uid, ids, deps, { lang = null } = {}) {
   const Gate = dep(deps, 'Gate');
   const links = new Map();
   if (!(await Gate.teacherReportOn(uid))) return { links, rounds: null };
-  [...new Set((ids || []).filter(Boolean))].forEach((id) => { const u = Gate.reportUrls({ teacherId: uid, quizId: id }); if (u) links.set(id, `${u.live}?from=home`); });
+  const tail = `from=home${lang === 'en' || lang === 'ur' ? `&lang=${lang}` : ''}`;
+  [...new Set((ids || []).filter(Boolean))].forEach((id) => { const u = Gate.reportUrls({ teacherId: uid, quizId: id }); if (u) links.set(id, `${u.live}?${tail}`); });
   let rounds = null;
   try {
     const CL = dep(deps, 'ClassLink');
     if (CL && typeof CL.teacherHasLiveRound === 'function' && (await CL.teacherHasLiveRound(uid)) === true) {
       const all = Gate.reportUrls({ teacherId: uid, quizId: null });
-      rounds = all ? `${all.live}?tab=class&from=home` : null;
+      rounds = all ? `${all.live}?tab=class&${tail}` : null;
     }
   } catch (err) {
     logToFile('⚠️ teacher home: evening rounds check failed — no line', { error: err && err.message });
