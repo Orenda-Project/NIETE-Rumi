@@ -20,6 +20,7 @@ html{font-size:var(--fs);-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:'Lexend','NastaliqUrdu',sans-serif;line-height:var(--lead)}
 a{color:inherit}
 .ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:'Lexend','NastaliqUrdu',sans-serif;word-spacing:normal}
+.nb{white-space:nowrap}
 .c-rtl{font-family:'NastaliqUrdu','Lexend',sans-serif;line-height:1.9}
 .c-ltr{font-family:'Lexend','NastaliqUrdu',sans-serif}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 32px}
@@ -179,6 +180,7 @@ html{font-size:var(--fs);-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:'Lexend','NastaliqUrdu',sans-serif;line-height:var(--lead)}
 a{color:inherit}
 .ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:'Lexend','NastaliqUrdu',sans-serif;word-spacing:normal}
+.nb{white-space:nowrap}
 .c-rtl{font-family:'NastaliqUrdu','Lexend',sans-serif;line-height:1.9}
 .c-ltr{font-family:'Lexend','NastaliqUrdu',sans-serif}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 32px}

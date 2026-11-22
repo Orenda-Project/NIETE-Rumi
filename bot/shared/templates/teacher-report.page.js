@@ -101,7 +101,8 @@ const SUBJECTS = {
 
 // A slash command is one left-to-right atom: in Urdu prose a bare "/" would
 // otherwise settle on the far side of the word ("quiz/").
-const CMD = (c) => `<span class="ltr">${c}</span>`;
+// a command is one atom: never broken between "/" and its name at the end of a line (a teacher types what they see)
+const CMD = (c) => `<span class="ltr nb">${c}</span>`;
 
 const SOURCES = { lp_v8: 'lp', lp612: 'lp', lp: 'lp', lp_v9: 'lp', transcript: 'coaching', video: 'video' };
 
@@ -377,6 +378,7 @@ html{font-size:var(--fs);-webkit-text-size-adjust:100%}
 body{margin:0;background:${print ? '#FFFFFF' : 'var(--paper)'};color:var(--ink);font-family:${body};line-height:var(--lead)${rtl ? ';word-spacing:.12em' : ''}}
 a{color:inherit}
 .ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:${FONTS.bodyLatin};word-spacing:normal}
+.nb{white-space:nowrap}
 .c-rtl{font-family:${FONTS.bodyUrdu};line-height:${leadUr}}
 .c-ltr{font-family:${FONTS.bodyLatin}}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 32px}
