@@ -579,3 +579,16 @@ Feature: Teacher lesson plans
     Then the plan is still made and a message says her note was not used
     # bd-cyadk0: #5129's note drop ran on every own plan; the blocked list holds ordinary lesson words
     # ("naked", "alcohol", "kill"). Unit: tests/lp612/own-goal-note-guard.test.js.
+
+  # bd-dp9ipc: an own or shelf grades 1-5 plan is opened through the 6-12 status/file routes, which recorded it as a
+  # 6-12 open with the grades 1-5 lesson id; reopened from Recent it asked the 6-12 catalogue and got 404 "That lesson
+  # is not in the catalogue" (live 16-22 Nov 2026). Unit (real SQL, rolled back): tests/portal/bd-dp9ipc-k5-open-band.db.test.js.
+  @RLP01 @draft
+  Scenario: A grades 1-5 plan of her own, opened in the app, reopens from Recent Lesson Plans as a grades 1-5 plan
+    Given the teacher app v2 is on and the coach app v2 is off
+    And the demo teacher is signed in
+    And she has opened her own grades 1-5 plan made from a catalogue lesson
+    When she opens /portal/teacher/lessons
+    Then Recent Lesson Plans lists that lesson as a grades 1-5 plan
+    When she taps it
+    Then the grades 1-5 plan opens and no "not in the catalogue" message shows
