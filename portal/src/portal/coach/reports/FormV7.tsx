@@ -10,6 +10,7 @@ import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { REPORTS, type ReportsCopy } from "./copy";
 import { rungName, titleOf, type Values } from "./formModel";
 import { Problem } from "./V6Parts";
+import { useIndicatorGuide } from "./indicatorGuide";
 
 /**
  * bd-o15qnr.28 (queue #204, v7; #188's LOCK round, "Screens #206 found with no design", row 10) — the Feedback Form
@@ -197,6 +198,26 @@ export function TextBox({ id, label, value, onChange, readOnly, problem }: {
       <AutoText id={id} value={value} onChange={(e) => onChange(e.target.value)}
         aria-invalid={problem ? true : undefined} className={cn(FIELD, FOCUS, problem && "border-[#c8331f]")} />
       <Problem text={problem ?? null} />
+    </div>
+  );
+}
+
+/**
+ * bd-o15qnr.37 (#204, the operator 22 Nov ~00:15) — under an indicator's name: one plain line on what it looks at, muted,
+ * two lines at most; and "Examples", which opens that indicator in the "?" guide, only when the guide (#217) has it.
+ * FICO17 v6.1 (FormV7List) and FICO-S v1.2 (Obs612Form), coach and principal alike.
+ */
+export function AboutLine({ text, rubric, code }: { text: string; rubric: string; code: string }) {
+  const F = useCopy(FORM_V7) as FormV7Copy;
+  const guide = useIndicatorGuide();
+  const examples = !!guide && guide.has(rubric, code);
+  return (
+    <div data-testid="ff-about" className="flex flex-col items-start gap-0.5 px-1">
+      <p className="m-0 line-clamp-2 text-[14px] leading-snug text-[#6b7280] [unicode-bidi:plaintext] rtl:leading-[1.9]" dir="auto" {...urduOf(text)}>{text}</p>
+      {examples ? (
+        <button type="button" onClick={() => guide.open(rubric, code)}
+          className={cn("min-h-[44px] text-[13px] font-semibold text-[#6e52e0] underline underline-offset-2", FOCUS)}>{F.examples}</button>
+      ) : null}
     </div>
   );
 }

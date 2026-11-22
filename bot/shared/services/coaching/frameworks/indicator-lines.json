@@ -1,0 +1,167 @@
+{
+  "_about": "bd-o15qnr.37 (#204): one plain line per indicator on what it looks at, shown under its name on the portal Feedback Form. The first sentence of the 'means' line of #217's indicator guides (bd-3xf7vb, 21 Nov 2026, approved 'Yes, build as mocked'). Urdu: draft, NATIVE-CHECK. Made by workbench/make_indicator_lines.py; edit the guides and re-run rather than editing here.",
+  "fico17_v6": {
+    "C1": {
+      "en": "The kinds of questions the teacher asks, and whether they make children think.",
+      "ur": "استاد کس طرح کے سوال پوچھتا ہے، اور کیا وہ بچوں کو سوچنے پر لگاتے ہیں۔"
+    },
+    "C2": {
+      "en": "What the teacher does when a child's answer is wrong or incomplete.",
+      "ur": "جب بچے کا جواب غلط یا ادھورا ہو تو استاد کیا کرتا ہے۔"
+    },
+    "C3": {
+      "en": "How the teacher chooses who answers: only hands up and call-outs, or ways of bringing in other children.",
+      "ur": "استاد کیسے چنتا ہے کہ کون جواب دے: صرف ہاتھ اٹھانے یا خود بولنے والے، یا دوسرے بچوں کو شامل کرنے کے طریقے۔"
+    },
+    "C4": {
+      "en": "Whether children have a real say in how the lesson goes.",
+      "ur": "کیا سبق کے چلنے میں بچوں کی اصل رائے ہے۔"
+    },
+    "C5": {
+      "en": "How smoothly the class moves to the next activity: is there a clear signal, and how long does the change take?",
+      "ur": "کلاس اگلی سرگرمی پر کتنی آسانی سے جاتی ہے: کیا واضح اشارہ ملتا ہے، اور تبدیلی میں کتنا وقت لگتا ہے؟"
+    },
+    "C6": {
+      "en": "Whether children feel safe to try and be wrong: how the teacher replies, and what the praise is for.",
+      "ur": "کیا بچے کوشش کرنے اور غلط ہونے میں محفوظ محسوس کرتے ہیں: استاد کیسے جواب دیتا ہے، اور تعریف کس بات پر ہوتی ہے۔"
+    },
+    "C7": {
+      "en": "Whether the teacher sets real pair or group work.",
+      "ur": "کیا استاد اصل جوڑی یا گروپ کا کام دیتا ہے۔"
+    },
+    "C8": {
+      "en": "Whether books, the board, charts or objects are used for learning, and by whom.",
+      "ur": "کیا کتابیں، بورڈ، چارٹ یا چیزیں سیکھنے کے لیے استعمال ہوتی ہیں، اور کون استعمال کرتا ہے۔"
+    },
+    "D1": {
+      "en": "How deep children's answers are: one word, a repeat, or reasoning in their own words.",
+      "ur": "بچوں کے جواب کتنے گہرے ہیں: ایک لفظ، دہرائی ہوئی بات، یا اپنے الفاظ میں دلیل۔"
+    },
+    "D2": {
+      "en": "How much of the class speaks on their own.",
+      "ur": "جماعت کا کتنا حصہ اکیلے بولتا ہے۔"
+    },
+    "D3": {
+      "en": "Whether children talk to each other about the task, not only to the teacher.",
+      "ur": "کیا بچے کام کے بارے میں ایک دوسرے سے بات کرتے ہیں، صرف استاد سے نہیں۔"
+    },
+    "D4": {
+      "en": "Whether children dare to answer when they are not sure.",
+      "ur": "کیا بچے یقین نہ ہونے پر بھی جواب دینے کی ہمت کرتے ہیں۔"
+    },
+    "D5": {
+      "en": "Whether children ask questions of their own, about the task or about the idea itself.",
+      "ur": "کیا بچے اپنے سوال پوچھتے ہیں، کام کے بارے میں یا خود خیال کے بارے میں۔"
+    },
+    "F1": {
+      "en": "Whether what the teacher says about the subject is correct.",
+      "ur": "کیا استاد مضمون کے بارے میں جو کہتا ہے وہ درست ہے۔"
+    },
+    "F2": {
+      "en": "Whether the teacher uses the subject's own words (like \"numerator\" or \"verb\") and explains them, and whether children use them.",
+      "ur": "کیا استاد مضمون کے اپنے الفاظ (جیسے \"شمار کنندہ\" یا \"فعل\") استعمال کرتا اور سمجھاتا ہے، اور کیا بچے انہیں استعمال کرتے ہیں۔"
+    },
+    "F3": {
+      "en": "Whether the teacher explains why a rule or step works, or only says how to do it.",
+      "ur": "کیا استاد سمجھاتا ہے کہ کوئی اصول یا قدم کیوں کام کرتا ہے، یا صرف یہ بتاتا ہے کہ کیسے کرنا ہے۔"
+    },
+    "F4": {
+      "en": "Whether the teacher links the lesson to real life, another subject or an earlier lesson, and explains the link.",
+      "ur": "کیا استاد سبق کو روزمرہ زندگی، کسی دوسرے مضمون یا پچھلے سبق سے جوڑتا ہے، اور اس تعلق کو سمجھاتا ہے۔"
+    }
+  },
+  "fico_s": {
+    "A1": {
+      "en": "Whether students are told what they will learn today, the lesson matches this week's SOW, and the activities serve it.",
+      "ur": "کیا طلبہ کو بتایا جاتا ہے کہ آج کیا سیکھیں گے، کیا سبق اس ہفتے کی ⁦SOW⁩ کے مطابق ہے، اور کیا سرگرمیاں اسی مقصد کو پورا کرتی ہیں۔"
+    },
+    "A2": {
+      "en": "How the lesson begins: does the teacher draw out what students already know, start the new topic from it, and catch their interest?",
+      "ur": "سبق کیسے شروع ہوتا ہے: کیا استاد طلبہ کا پہلے کا علم نکلواتا ہے، اسی سے نیا موضوع شروع کرتا ہے، اور دلچسپی جگاتا ہے؟"
+    },
+    "A3": {
+      "en": "How the lesson ends: is the key learning pulled together, and is the homework linked to the objective and more than copying?",
+      "ur": "سبق کیسے ختم ہوتا ہے: کیا اہم باتیں سمیٹی جاتی ہیں، اور کیا ہوم ورک مقصد سے جڑا ہے اور نقل سے بڑھ کر ہے؟"
+    },
+    "B1": {
+      "en": "Whether what the teacher says is correct, and whether they can answer students' content questions.",
+      "ur": "کیا استاد کی بتائی ہوئی بات درست ہے، اور کیا وہ مواد کے بارے میں طلبہ کے سوالوں کے جواب دے سکتا ہے۔"
+    },
+    "B2": {
+      "en": "Whether the teacher explains why a rule, step or idea works, or only says what to do and asks students to remember it.",
+      "ur": "کیا استاد سمجھاتا ہے کہ کوئی اصول، قدم یا خیال کیوں کام کرتا ہے، یا صرف بتاتا ہے کہ کیا کرنا ہے اور یاد رکھنے کو کہتا ہے۔"
+    },
+    "B3": {
+      "en": "Whether the teacher uses the subject's terms correctly, explains them and makes students use them.",
+      "ur": "کیا استاد مضمون کی اصطلاحات درست استعمال کرتا، سمجھاتا اور طلبہ سے استعمال کرواتا ہے۔"
+    },
+    "B4": {
+      "en": "Whether the teacher links the lesson to students' daily life, local context, another subject or an earlier lesson, and explains the link.",
+      "ur": "کیا استاد سبق کو طلبہ کی روزمرہ زندگی، مقامی ماحول، کسی دوسرے مضمون یا پچھلے سبق سے جوڑتا ہے اور تعلق سمجھاتا ہے۔"
+    },
+    "B5": {
+      "en": "Whether books, the board, charts, lab equipment, maps or technology are used for learning, and by whom.",
+      "ur": "کیا کتابیں، بورڈ، چارٹ، لیبارٹری کا سامان، نقشے یا ٹیکنالوجی سیکھنے کے لیے استعمال ہوتے ہیں، اور کون استعمال کرتا ہے۔"
+    },
+    "C1": {
+      "en": "What kinds of questions the teacher asks, and whether they make students think.",
+      "ur": "استاد کس طرح کے سوال پوچھتا ہے، اور کیا وہ طلبہ کو سوچنے پر لگاتے ہیں۔"
+    },
+    "C2": {
+      "en": "What the teacher does when a student's answer is wrong or incomplete.",
+      "ur": "جب طالب علم کا جواب غلط یا ادھورا ہو تو استاد کیا کرتا ہے۔"
+    },
+    "C3": {
+      "en": "How the teacher chooses who answers: only raised hands and call-outs, or deliberate ways of bringing in others.",
+      "ur": "استاد کیسے چنتا ہے کہ کون جواب دے: صرف ہاتھ اٹھانے یا خود بولنے والے، یا دوسروں کو شامل کرنے کے سوچے سمجھے طریقے۔"
+    },
+    "C4": {
+      "en": "Whether students have a real say in how the lesson goes.",
+      "ur": "کیا سبق کے چلنے میں طلبہ کی اصل رائے شامل ہے۔"
+    },
+    "C5": {
+      "en": "How well lesson time is used: a prompt start, and quick, smooth changes of activity after the teacher's signal.",
+      "ur": "سبق کا وقت کتنی اچھی طرح استعمال ہوتا ہے: بروقت آغاز، اور استاد کے اشارے کے بعد جلد اور آسانی سے سرگرمی بدلنا۔"
+    },
+    "C6": {
+      "en": "Whether students feel safe to try and be wrong: how the teacher responds, what the praise is for, and whether discipline is calm.",
+      "ur": "کیا طلبہ کوشش کرنے اور غلط ہونے میں محفوظ محسوس کرتے ہیں: استاد کیسے ردعمل دیتا ہے، تعریف کس بات پر ہوتی ہے، اور کیا نظم و ضبط پرسکون ہے۔"
+    },
+    "C7": {
+      "en": "Whether the teacher sets real pair or group work.",
+      "ur": "کیا استاد اصل جوڑی یا گروپ کا کام دیتا ہے۔"
+    },
+    "C8": {
+      "en": "Whether the teacher notices that students are at different levels and adjusts: support for those behind, a stretch for those ahead.",
+      "ur": "کیا استاد دیکھتا ہے کہ طلبہ مختلف سطح پر ہیں اور اس کے مطابق بدلتا ہے: پیچھے والوں کو مدد، آگے والوں کو ذرا مشکل کام۔"
+    },
+    "D1": {
+      "en": "How deep students' answers are: one word, a repeat, or reasoning in their own words.",
+      "ur": "طلبہ کے جواب کتنے گہرے ہیں: ایک لفظ، دہرائی ہوئی بات، یا اپنے الفاظ میں دلیل۔"
+    },
+    "D2": {
+      "en": "How many different students speak to the class, and whether students silent early on speak later.",
+      "ur": "کتنے مختلف طلبہ کلاس کے سامنے بولتے ہیں، اور کیا شروع میں خاموش طلبہ بعد میں بولتے ہیں۔"
+    },
+    "D3": {
+      "en": "Whether students talk to each other about the task, not only to the teacher.",
+      "ur": "کیا طلبہ کام کے بارے میں ایک دوسرے سے بات کرتے ہیں، صرف استاد سے نہیں۔"
+    },
+    "D4": {
+      "en": "Whether students ask questions of their own, about the task or about the idea itself.",
+      "ur": "کیا طلبہ اپنے سوال پوچھتے ہیں، کام کے بارے میں یا خود خیال کے بارے میں۔"
+    },
+    "E1": {
+      "en": "Whether the teacher checks during the lesson if most of the class is learning, and changes what they do from what they find.",
+      "ur": "کیا استاد سبق کے دوران جانچتا ہے کہ زیادہ تر کلاس سیکھ رہی ہے، اور جو معلوم ہو اس کے مطابق طریقہ بدلتا ہے۔"
+    },
+    "E2": {
+      "en": "At the end, pick 5 students at random (not volunteers, mixed seats) and ask each 1 or 2 short questions on today's objective.",
+      "ur": "آخر میں بلا ترتیب ۵ طلبہ چنیں (خود سے آگے آنے والے نہیں، مختلف نشستوں سے) اور ہر ایک سے آج کے مقصد پر ۱ یا ۲ مختصر سوال پوچھیں۔"
+    },
+    "E3": {
+      "en": "Look at 3 random notebooks: is recent work there and checked, does the feedback say what to improve, and do students act on it?",
+      "ur": "بلا ترتیب ۳ کاپیاں دیکھیں: کیا حالیہ کام موجود اور چیک شدہ ہے، کیا رائے بتاتی ہے کہ کیا بہتر کرنا ہے، اور کیا طلبہ اس پر عمل کرتے ہیں؟"
+    }
+  }
+}
