@@ -635,4 +635,6 @@ module.exports = {
   roundsReadyForPhone: (...args) => require('./web-quiz-evening-round-phone').roundsReadyForPhone(...args),
   // Does this class have a live standing link with the evening round on (the offers lane requires it from here)?
   hasLiveStandingLink: (...args) => require('./web-quiz-evening-round-phone').hasLiveStandingLink(...args),
+  // Does one of this teacher's classes have one (the teacher report requires it from here; no write, never mints)?
+  teacherHasLiveRound: (...args) => require('./web-quiz-evening-round-phone').teacherHasLiveRound(...args),
 };
