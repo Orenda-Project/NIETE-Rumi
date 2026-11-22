@@ -10,8 +10,9 @@ const Review = require('../../shared/services/quiz/quiz-key-review.service');
 const MIGRATION = path.join(__dirname, '../../database/migrations/qfix_keys_quiz_item_reviews.sql');
 const MIRROR = path.join(__dirname, '../../../infrastructure/supabase/00_complete-schema.sql');
 
+// The migration names the table with its schema; the mirror names it bare, like its other tables.
 function reasonCheck(sql) {
-  const table = /CREATE TABLE IF NOT EXISTS public\.quiz_item_reviews \(([\s\S]*?)\n\);/.exec(sql);
+  const table = /CREATE TABLE IF NOT EXISTS (?:public\.)?quiz_item_reviews \(([\s\S]*?)\n\);/.exec(sql);
   if (!table) return null;
   const m = /reason\s+text[^\n]*CHECK \(reason IN \(([^)]*)\)\)/.exec(table[1]);
   return m ? m[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).sort() : null;
