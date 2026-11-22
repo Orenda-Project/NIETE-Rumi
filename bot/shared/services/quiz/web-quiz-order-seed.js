@@ -29,6 +29,27 @@ const ANCHORED_UR = new RegExp('^\\s*((یہ\\s*)?(مندرجہ\\s*بالا|او�
   + '|(تمام|سب|سبھی)\\s*(مندرجہ\\s*بالا|درست|صحیح)|(یہ\\s*)?(ان|اِن)\\s*میں\\s*سے\\s*(کوئی\\s*(بھی\\s*)?نہیں|سب|تمام|دونوں)'
   + '|کوئی\\s*(بھی\\s*)?نہیں|دونوں|سب)\\s*(ہیں|ہے)?\\s*[.!۔]?\\s*$');
 
+/**
+ * Is the sitting order on for this link? The global switch (flags.orderSeed) wins; else web_quiz_order_seed_pct puts
+ * N% of links in the on arm by the link's own hash, the same links every time (siblings on one link share an arm).
+ */
+function onFor(flags, shareCodeId) {
+  const arm = armOf(flags, shareCodeId);
+  return arm === 'all' || arm === 'pct';
+}
+
+/**
+ * The link's arm, for session_started.order_arm: 'all' (the global switch), 'pct' (in web_quiz_order_seed_pct's arm),
+ * 'off' (a pct canary runs and this link is out of it), or null when neither switch is set (no field: today's event).
+ */
+function armOf(flags, shareCodeId) {
+  if (flags && flags.orderSeed) return 'all';
+  const pct = (flags && flags.orderSeedPct) || 0;
+  if (!(pct > 0)) return null;
+  const Hub = require('./web-quiz-hub-flags');
+  return Hub.inPct(pct, Hub.ORDER_SEED_PCT_KEY, shareCodeId) ? 'pct' : 'off';
+}
+
 /** The sitting's seed: a 32-bit number from the session id, so a resume finds the same one. */
 function seedOf(sessionId) {
   return Render.hash32(`wq-order:${sessionId}`);
@@ -73,4 +94,4 @@ function sittingOrder(rows, payloads, sessionId) {
   return { order: { q, o }, seed, pinned };
 }
 
-module.exports = { seedOf, pinReason, sittingOrder, ANCHORED_UR, KEY: 'web_quiz_order_seed' };
+module.exports = { onFor, armOf, seedOf, pinReason, sittingOrder, ANCHORED_UR, KEY: 'web_quiz_order_seed' };
