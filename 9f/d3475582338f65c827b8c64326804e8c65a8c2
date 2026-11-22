@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T15:14:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"9fd347558233","branch":"bd-zrdvmi.55-staging","user":""}
+{"ts":"2026-11-22T15:58:02Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (staging cherry-pick of sandbox #5455, already merged as staging #5463; same lp-context.service.js change, spec synced in 601fc42 @L30 on bd-zrdvmi.55-main)","sha":"9fd347558233","branch":"bd-zrdvmi.55-main","user":""}
