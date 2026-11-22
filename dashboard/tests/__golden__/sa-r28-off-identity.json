@@ -1,41 +1,41 @@
 {
- "recorded": "2026-11-20",
+ "recorded": "2026-11-22",
  "batteries": {
   "sa.coach.G1.A.ur.json": {
-   "all_off": "9cec98052950ff765402da8fdd066f3bbc0bacd02c82dc9c3fed06672850581e",
-   "earlier_on": "06622401d4fce488c8fbc7682ad0a7c73655cbacb961d4a5741f09f7051b960d"
+   "all_off": "ffcd75662ba554c22ae6526a8e785796f27e11767b14675c0779845aec8f74e1",
+   "earlier_on": "37c0710ffb087fd75c95f625f0ce02fa1d85d2668b53ad57562c4ee840dc9f87"
   },
   "sa.coach.G1.A.en.json": {
    "all_off": "fe3ed4fc2610b7d74e0217b65e3ce8c07182884b317b18f6dd37bbea66d0ae2b",
    "earlier_on": "6e603491cdcee8258fdf889202dfd82feeb453939f6ea8bb7b3a4928e49e0ef4"
   },
   "sa.coach.G2.A.ur.json": {
-   "all_off": "503ca2fc7f1aab29e98ff463f3d0154165f32389c928a25510ad70960fec10d3",
-   "earlier_on": "08dbbddc032ff9b2bfe846ee5ce5a0b8dc1d7ca4b221b37b9c18c9ba52801dcd"
+   "all_off": "72229b9cdf5fd0645374db11d98a4d6aa346b339c438feadd85327b91f16a716",
+   "earlier_on": "46f469a13c633be17df982de95a38bf1261e2517cedcfb9707b170346da5661e"
   },
   "sa.coach.G2.A.en.json": {
    "all_off": "e90f4720022a45ff03aa7638c1edda9752964dc4b3ba33554f00d2c54f6047c0",
    "earlier_on": "7ca27c518d467da647c661fcc1d7e81724aa2dfd5e2d9d672d20a3240b7bd411"
   },
   "sa.coach.G3.A.ur.json": {
-   "all_off": "d1634d378a6e403d7bea653689caef8a1917e2dfbdec02f106e22af78a344638",
-   "earlier_on": "ddcba02cb17223c0ec103a19194e3be2b9a1e7de89f8f04186ce76c975b91568"
+   "all_off": "3c9d2e4eac9edc47cf8814151913b978ce70126d13630faf104e2c923b6c6885",
+   "earlier_on": "56c18148f69e5bb6388d3b7c5b3ce60b25fda5ceb554725d670d9a72a0d3be6b"
   },
   "sa.coach.G3.A.en.json": {
    "all_off": "c357ee53aa4eff173d4853853935d1516aa0a53bb6543aa1576842458913a169",
    "earlier_on": "49329523629cbccffde8e9c28d8a49ff6574b2248a83b882e5f66513379963cd"
   },
   "sa.coach.G4.A.ur.json": {
-   "all_off": "cdff645d53cd2a858a34b4c1d4c9fc011f33502ae1fbee640f5402a31c4bc97e",
-   "earlier_on": "10b4fc02ed4452ec6aae3504b1977fc1b01111e50b662362a8ddd9783f47f616"
+   "all_off": "69f2dd89f85a439b3da40dad2e285c0e67233dfeb509f9a80cc3d90462ceca79",
+   "earlier_on": "4202af3a398598fc981c580e2dfb94f99b2270234681b0d89946a1f03fdfdcda"
   },
   "sa.coach.G4.A.en.json": {
    "all_off": "ba661d001054940a6e23e618ed33db87b3f9fe9a2b449541cf310235e4f4b8b4",
    "earlier_on": "c66849a176193307f80b5f5232d5d904dc3737aa6847601615e5321ec840c08a"
   },
   "sa.coach.G5.A.ur.json": {
-   "all_off": "4c69a19f8af8818af2189e99aa7673e0e8b75b460f2fec23ea49e25dce0065a4",
-   "earlier_on": "3174602aa96ff632cada01980a6d8fb94e62560bef700267f434d5c7e3c51678"
+   "all_off": "b4af81385ea3cf022fb5c3da82c268390883aca0170cb1a45772fbe5e14bed6a",
+   "earlier_on": "ac73a022b724f24fc3c32656769d16b05707cd49437138934f37faf07f1d3c4d"
   },
   "sa.coach.G5.A.en.json": {
    "all_off": "006f0121b50556ee9b3c1a9a3a35ef015e92a8f7e8f40561a7096419a6079733",
