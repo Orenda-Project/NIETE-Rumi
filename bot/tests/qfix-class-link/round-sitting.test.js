@@ -50,6 +50,8 @@ const ZARA = 'c0000001-0000-4000-8000-0000000000e1';
 const ALI = 'c0000001-0000-4000-8000-0000000000e2';
 const SANA = 'c0000001-0000-4000-8000-0000000000e3';
 const REF = { cl: 'K7Q2MXTRAB', rc: 'RND234' };
+// round_started.late: the round's day is not today (PKT)
+const LATE = DAY !== new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 10);
 const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
 
@@ -205,7 +207,7 @@ describe('web_quiz.round_started / round_done: once per sitting, codes and count
   ])('%s: started at the start (not again on a resume), done at the first finish with n_recall_right', async (_l, sw) => {
     world(sw);
     const a = await asZara();
-    expect(named('web_quiz.round_started')).toEqual([FIELDS]);
+    expect(named('web_quiz.round_started')).toEqual([{ ...FIELDS, late: LATE }]);
     await WQ.startSession({ code: 'RND234', resume_st: a.st });
     expect(named('web_quiz.round_started')).toHaveLength(1);
     // lesson items right, recall #2 right (A), recall #5 wrong (B): one of the child's two recall items fixed
@@ -346,7 +348,7 @@ describe('the same-day swap: lesson items the child answered RIGHT earlier today
     const a = await asZara();
     const want = [L(2), L(4), L(5), '4e550000-0000-4000-8000-000000000006', '4e550000-0000-4000-8000-000000000007', rid(2), rid(5)];
     expect(a.order.q).toEqual(want);
-    expect(named('web_quiz.round_started')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc, n_items: 7, n_recall: 2, n_swapped: 2 }]);
+    expect(named('web_quiz.round_started')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc, n_items: 7, n_recall: 2, n_swapped: 2, late: LATE }]);
     const out = await answerAll(a.st, [...want, L(1), L(3)]);
     expect([...out.recorded].sort()).toEqual([...want].sort());
     expect([...out.unknown].sort()).toEqual([L(1), L(3)].sort());
@@ -391,7 +393,7 @@ describe('the same-day swap: lesson items the child answered RIGHT earlier today
     played(AFT, { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: false });
     const a = await asZara();
     expect(a.order.q).toEqual(['4e550000-0000-4000-8000-000000000007', rid(2), rid(5)]);
-    expect(named('web_quiz.round_started')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc, n_items: 3, n_recall: 2, n_swapped: 5, n_short: 4 }]);
+    expect(named('web_quiz.round_started')).toEqual([{ class_link_code: REF.cl, round_code: REF.rc, n_items: 3, n_recall: 2, n_swapped: 5, n_short: 4, late: LATE }]);
     await answerAll(a.st, a.order.q.slice(0, 2));
     expect((await WQ.finishSession({ st: a.st })).score.total).toBe(2);
   });

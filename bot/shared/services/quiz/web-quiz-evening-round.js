@@ -792,11 +792,18 @@ function roundFields(questions) {
 /**
  * web_quiz.round_started / round_done for a round's sitting (the shuffle seam's start and finish call it). `extra`: more
  * counts for the event (round_done: n_recall_right, the child's recall items answered right); a non-count is left out.
+ * round_started also says `late`: the round's day (its items' round_key) is not today, PKT (a past round played from
+ * the hub's row); absent when the items name no day.
  */
-function noteRound(stage, questions, extra = {}) {
+function noteRound(stage, questions, extra = {}, now = new Date()) {
   const f = roundFields(questions);
   if (!f || !['started', 'done'].includes(stage)) return false;
   Object.entries(extra || {}).forEach(([k, v]) => { if (Number.isFinite(v)) f[k] = v; });
+  if (stage === 'started') {
+    const q = (questions || []).find(roundOf);
+    const day = /\|(\d{4}-\d{2}-\d{2})$/.exec(String((q && q.media.round_key) || ''));
+    if (day) f.late = day[1] !== PktTime().pktDate(now);
+  }
   logEvent(`web_quiz.round_${stage}`, f);
   return true;
 }
