@@ -166,6 +166,14 @@ const SQL = {
     SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
            jsonb_build_object('scores', c.analysis_data->'scores',
                               'teacher_delivery', c.analysis_data->'teacher_delivery',
+                              'observer_debrief', jsonb_build_object(
+                                'audio_id', c.analysis_data->'observer_debrief'->'audio_id',
+                                'audio_r2_key', c.analysis_data->'observer_debrief'->'audio_r2_key',
+                                'too_short_at', c.analysis_data->'observer_debrief'->'too_short_at',
+                                'failed_at', c.analysis_data->'observer_debrief'->'failed_at',
+                                'feedback_failed_at', c.analysis_data->'observer_debrief'->'feedback_failed_at',
+                                'duplicate_refused_at', c.analysis_data->'observer_debrief'->'duplicate_refused_at',
+                                'feedback', jsonb_typeof(c.analysis_data->'observer_debrief'->'feedback') = 'object'),
                               'obs612', jsonb_build_object('rubric_id', c.analysis_data->'obs612'->'rubric_id',
                                                            'result', c.analysis_data->'obs612'->'result')) AS analysis_data,
            u.name           AS teacher_name,
@@ -484,6 +492,19 @@ function stepOf(r) {
   return 'analysing';
 }
 
+/**
+ * bd-o15qnr.39 — her debrief is in and the Digital Coach is listening (the bot's `listening`, read the bot's way:
+ * portal-observe-step talkOf; a test holds the two in step). Only for a `talk` row; a too-short, failed or refused talk
+ * is hers again. COACH_SESSIONS carries these flags only (never the transcript); a row without them is not listening.
+ */
+function debriefListening(r) {
+  const o = (r.analysis_data || {}).observer_debrief || {};
+  if (stepOf(r) !== 'talk') return false;
+  if (o.feedback) return true;
+  if (!(o.audio_id || o.audio_r2_key)) return false;
+  return !(o.too_short_at || o.failed_at || o.feedback_failed_at);
+}
+
 /** bd-pni007 — an FDE visit's list row: the tool, its result and the label ('FDE v1'); null for every other row. */
 function obs612Row(analysis) {
   const s = portalSummary(analysis);
@@ -508,6 +529,7 @@ function shapeReport(r, leaderUserId, teacherByUser) {
     score: scoreOf(r),
     portal: PORTAL_KEY_RX.test(audio),
     obs612: obs612Row(r.analysis_data),
+    listening: debriefListening(r),
   };
 }
 

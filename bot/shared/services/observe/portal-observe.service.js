@@ -636,6 +636,15 @@ async function observationView({ userId, coachingSessionId }, deps) {
     } catch (_) { imageUrl = null; }
   }
 
+  // bd-o15qnr.39 (queue #204) — the debrief she recorded or attached in the portal, to play in place (a WhatsApp debrief
+  // keeps only Meta's media id: no link). An hour, as the lesson's own link; a link that cannot be signed is just absent.
+  let talkAudioUrl = null;
+  if (od.audio_r2_key) {
+    try {
+      talkAudioUrl = await d.r2.getPresignedUrl(d.r2.buildR2PublicUrl(od.audio_r2_key), 3600, { disposition: 'inline' });
+    } catch (_) { talkAudioUrl = null; }
+  }
+
   return {
     status: 'ok',
     id: row.id,
@@ -654,6 +663,7 @@ async function observationView({ userId, coachingSessionId }, deps) {
     talk: {
       guide: od.guide_snapshot || null,
       recordedAt: od.recorded_at || null,
+      audioUrl: talkAudioUrl || null,
       feedback: shapeFeedback(od.feedback),
     },
     report: {

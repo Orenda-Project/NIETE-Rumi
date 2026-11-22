@@ -473,6 +473,9 @@ point = a dot, no line. Band mode is the teacher's Rating over time. 326 wide an
 ### `AudioCard`
 `title`, `sub?`, `src?`, `lead?` (a `ScoreRing`), `action?` (Redo: keep it 56px), `copy?` (`play`, `pause`). A white card, 84px at least, with a 56px round play
 button (a green ring; green filled with pause while it plays). With `src` it plays for real, preload none, one kit sound at a time.
+`controls` (bd-o15qnr.39): the full player under the card: a bar to drag anywhere (its length read up front, preload metadata; a recorder's
+webm that says Infinity is read to its end once), the time and the length, back / forward 10 s, and the speed chip (1× → 1.5× → 2×, VoiceNote's
+steps, kept on the phone for every player: `SPEED_KEY`). `testId?` names the whole card. The visit's class and debrief recordings, and the Debrief.
 
 ### `RecordUploadPair`
 `recordTo` / `onRecord`, `uploadTo` / `onUpload` (a link or a button each), `actions?: [{ key, label, icon?, to?, onPress?, danger? }]` (small 56px buttons under
