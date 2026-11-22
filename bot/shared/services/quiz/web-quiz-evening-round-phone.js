@@ -1,7 +1,8 @@
 'use strict';
 /**
  * roundsReadyForPhone(device_ref, dayPkt) — the reminder's payload (switch `web_quiz_evening_round`).
- * Re-exported from web-quiz-class-link.js, where the reminders lane requires it.
+ * Re-exported from web-quiz-class-link.js, where the reminders lane requires it (as are hasLiveStandingLink and
+ * teacherHasLiveRound, below).
  *
  *   -> [{ class_link_code, class_id, teacher_ref, class_label_en, class_label_ur, round_code, ready_at
  *         (, kids: [{ student_id (, first, first_ur) }] with { withKids: true }) }]
@@ -147,4 +148,28 @@ async function hasLiveStandingLink(classId, { now = new Date() } = {}) {
   }
 }
 
-module.exports = { roundsReadyForPhone, hasLiveStandingLink, classLabels, teacherRef };
+/**
+ * teacherHasLiveRound(teacherId) — for the teacher report (re-exported from web-quiz-class-link.js): true when a class
+ * the teacher actively teaches (class_teachers, is_active) has a live standing link with the evening round on, i.e.
+ * hasLiveStandingLink is true for one of their classes. Never writes (never mints a link): one class_teachers read and
+ * one class_links read, none with either switch off. False on any failure, never throws.
+ */
+async function teacherHasLiveRound(teacherId, { now = new Date() } = {}) {
+  try {
+    if (!teacherId || !(await Flags.eveningRoundOn())) return false;
+    const { data: teaches, error } = await supabase.from('class_teachers').select('class_id')
+      .eq('teacher_user_id', teacherId).eq('is_active', true);
+    if (error) return false;
+    const classIds = [...new Set((teaches || []).map((r) => r.class_id).filter(Boolean))].slice(0, IN_CHUNK);
+    if (!classIds.length) return false;
+    const { data, error: lErr } = await supabase.from('class_links').select('code')
+      .in('class_id', classIds).is('revoked_at', null).gt('expires_at', now.toISOString()).limit(1);
+    if (lErr) return false;
+    return (data || []).length > 0;
+  } catch (err) {
+    logToFile('⚠️ class link: teacher live round check unavailable', { error: err.message });
+    return false;
+  }
+}
+
+module.exports = { roundsReadyForPhone, hasLiveStandingLink, teacherHasLiveRound, classLabels, teacherRef };
