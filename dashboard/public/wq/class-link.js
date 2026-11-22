@@ -21,10 +21,11 @@
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed (one label for one
   // action, "this child is not in the list shown": the name screen's way out and the "Whose turn?" way out both use it),
-  // qfix_class_link.quiz_ready (the badge on a "Whose turn?" chip whose child has tonight's class quiz waiting)
+  // qfix_class_link.quiz_ready (the badge on a "Whose turn?" chip whose child has tonight's class quiz waiting),
+  // qfix_class_link.done_tonight (the same badge for a child who is done for tonight: finished it, or nothing left)
   var COPY = {
-    en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here", quiz_ready: 'Quiz ready' },
-    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', quiz_ready: 'کوئز تیار' },
+    en: { teacher_q: "Tap your teacher's name", letter_q: 'Tap the first letter of your name', is_here: 'Is your name here?', turn: 'Whose turn?', not_listed: "My name isn't here", quiz_ready: 'Quiz ready', done_tonight: 'Done for tonight!' },
+    ur: { teacher_q: 'ٹیچر کا نام دبائیں', letter_q: 'اپنے نام کا پہلا حرف دبائیں', is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری ہے؟', not_listed: 'میرا نام یہاں نہیں ہے', quiz_ready: 'کوئز تیار', done_tonight: 'آج شام کا کوئز ہو گیا!' },
   };
   var T = COPY[LANG];
   // The reminders' slot under the chips: empty here; the reminders lane mounts its opt-in into it.
@@ -70,8 +71,10 @@
       screen(T.turn, '<div class="wq-kids-big">' + r.kids.map(function (k) {
         var name = '<bdi>' + esc(k.first) + '</bdi>';
         // round: tonight's class quiz is waiting for this child: "Quiz ready" under the name, inside the chip (the
-        // whole chip stays the tap target). An unmarked chip is drawn exactly as before.
-        if (k.round === true) name = '<span class="wq-cl-nm">' + name + '<span class="wq-chip wq-cl-ready">' + esc(T.quiz_ready) + '</span></span>';
+        // whole chip stays the tap target); round_done: they are done for tonight, the same badge with those words.
+        // An unmarked chip is drawn exactly as before.
+        var badge = k.round === true ? T.quiz_ready : k.round_done === true ? T.done_tonight : null;
+        if (badge) name = '<span class="wq-cl-nm">' + name + '<span class="wq-chip wq-cl-ready">' + esc(badge) + '</span></span>';
         return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><span class="wq-ani" aria-hidden="true">' + (ANIMALS[k.animal] || '⭐') + '</span>' + name + '</button>';
       }).join('') + '</div>' + (r.other ? '<button class="wq-btn wq-soft" type="button" id="wq-cl-other">' + esc(T.not_listed) + '</button>' : '') + REMIND);
       on('[data-chip]', function (b) { post('pick', { s: r.s, chip: b.getAttribute('data-chip'), device_ref: deviceRef() }).then(show); });

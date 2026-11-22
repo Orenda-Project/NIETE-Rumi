@@ -367,13 +367,15 @@ async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
   }
   if (mine.length) {
     const script = scriptOf(kids, lang);
-    // round: tonight's class quiz is waiting for this child (web_quiz_evening_round; off -> nobody, no read).
-    const waiting = await require('./web-quiz-evening-round').waitingKids(link.class_id, mine);
+    // round: tonight's class quiz is waiting for this child; round_done: they are done for tonight (finished it, or
+    // nothing is left for them). web_quiz_evening_round off -> nobody, no read.
+    const { waiting, done } = await require('./web-quiz-evening-round').tonightMarks(link.class_id, mine);
     return {
       step: 'who',
       s: stepToken(code, { st: 'who', ...(practice ? { p: 1 } : {}) }),
       kids: mine.map((k) => ({
-        chip: kidChip(code, k.id), first: firstNameOf(shownName(k, script)).shown, animal: T.animalFor(k.id), ...(waiting.has(k.id) ? { round: true } : {}),
+        chip: kidChip(code, k.id), first: firstNameOf(shownName(k, script)).shown, animal: T.animalFor(k.id),
+        ...(waiting.has(k.id) ? { round: true } : done.has(k.id) ? { round_done: true } : {}),
       })),
       // A shared phone: a child who is not listed (a sibling) takes the stranger path from here, the teacher step a
       // fresh phone gets. Their high pick joins this phone's record, so the next "Whose turn?" lists them too.
