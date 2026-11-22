@@ -9,7 +9,8 @@
  *   resolve(code, {preview, jt})    the landing: the link is live? → {lang}; else not_found (the edge renders exactly
  *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
  *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
- *   arrive({code, device_ref, jt})  a device that played as (or whose hub was opened for) a child enrolled in this class →
+ *   arrive({code, device_ref, jt, via})  counts the open (class_link_open{class_link_code, via, dh?}, one per page load,
+ *                                   never the teacher's visit); then a device that played as (or whose hub was opened for) a child enrolled in this class →
  *                                   "Whose turn?" with ONLY those children (and `other`: the teacher step, for a child
  *                                   not listed); any other device → "Tap your teacher's name"
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
@@ -321,18 +322,20 @@ async function teacherChips(link) {
 
 // ── the child's side ───────────────────────────────────────────────────────────────────────────────
 
-async function resolve(code, { preview = false, jt = null, via = null } = {}) {
+async function resolve(code, { preview = false, jt = null } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const lang = langOf(await teacherRow(link.teacher_id));
   // Not a child's door: a link-preview fetch, or the teacher's own visit from the card (its signed token for this code).
+  // (The open itself, class_link_open, is counted at arrive, where the phone's device ref is known.)
   if (!preview && !isTeacherPreview(code, jt)) {
     emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
-    // class_link_open{class_link_code, via}: a marked landing (forward / reminder / hub) is counted here.
-    if (via) require('./web-quiz-evening-round').classLinkOpen(code, via);
   }
   return { lang };
 }
+
+// The landing's markers (the edge's viaOfQuery, carried in the page's boot JSON and posted on arrive).
+const MARKED_VIA = new Set(['forward', 'reminder', 'hub']);
 
 async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
   const link = await liveLink(code);
@@ -345,10 +348,17 @@ async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
   const teacherStep = teachers.length
     ? { step: 'teacher', s: stepToken(code, { st: 'teacher', ...(practice ? { p: 1 } : {}) }), teachers: teachers.map(({ tk, name }) => ({ tk, name })) }
     : null;
+  // web_quiz.class_link_open{class_link_code, via, dh?}: ONE per open of the link. The page posts arrive once per load,
+  // so the open is counted here, where the phone's device ref is known (dh); a link-preview fetch never runs the page,
+  // and the teacher's own visit (jt) is never counted. via = the landing's marker (forward / reminder / hub); unmarked,
+  // a phone that played as a child of this class came back on its own (remembered), and any other phone counts as
+  // forward: a link reaches a phone it never visited only by being shared (a copied link or the class-week line carries
+  // no marker).
+  if (!practice) {
+    require('./web-quiz-evening-round').classLinkOpen(code, MARKED_VIA.has(via) ? via : (mine.length ? 'remembered' : 'forward'), { deviceRef });
+  }
   if (mine.length) {
     const script = scriptOf(kids, lang);
-    // An unmarked landing that knows the phone: the child came back on their own (a marked one was counted at resolve).
-    if (!via && !practice) require('./web-quiz-evening-round').classLinkOpen(code, 'remembered');
     // round: tonight's class quiz is waiting for this child (web_quiz_evening_round; off -> nobody, no read).
     const waiting = await require('./web-quiz-evening-round').waitingKids(link.class_id, mine);
     return {

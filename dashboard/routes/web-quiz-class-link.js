@@ -3,9 +3,9 @@
  *
  *   GET  /j/:code            the landing: a generic preview (og.link.* only: no class, school, teacher or child
  *                            name, no digit) and a shell; class-link.js asks the bot for each step. Its marker
- *                            (?f=1 / ?from=fwd forward, ?from=push reminder, ?from=hub hub) goes to the bot as ?via=
- *                            (web_quiz.class_link_open) and into the boot JSON, so arrive does not count it again
- *   POST /api/wq/cl/arrive   {code, device_ref, jt?}  forwarded to the bot's /api/internal/wq/cl/arrive
+ *                            (?f=1 / ?from=fwd forward, ?from=push reminder, ?from=hub hub) goes into the boot JSON;
+ *                            the page posts it on arrive, where the bot counts the open (web_quiz.class_link_open)
+ *   POST /api/wq/cl/arrive   {code, device_ref, jt?, via?}  forwarded to the bot's /api/internal/wq/cl/arrive
  *   POST /api/wq/cl/teacher  {code, s, tk}
  *   POST /api/wq/cl/letter   {code, s, letter}
  *   POST /api/wq/cl/pick     {code, s, chip, device_ref}
@@ -87,8 +87,9 @@ function registerClassLink(router, d) {
     const preview = d.isPreviewFetch(req);
     const jt = typeof req.query.t === 'string' && JT_RX.test(req.query.t) ? req.query.t : null;
     // The teacher card's signed token goes to the bot, which checks it: the teacher's own visit is not counted as opened.
+    // The marker rides the boot JSON to the page's arrive (the open is counted there, once, with the phone's device hash).
     const via = viaOfQuery(req.query);
-    const q = [preview ? 'pv=1' : null, jt ? `jt=${encodeURIComponent(jt)}` : null, via ? `via=${encodeURIComponent(via)}` : null].filter(Boolean).join('&');
+    const q = [preview ? 'pv=1' : null, jt ? `jt=${encodeURIComponent(jt)}` : null].filter(Boolean).join('&');
     let out;
     try {
       out = await d.callBot('GET', `/api/internal/wq/cl/${code}${q ? `?${q}` : ''}`, req, null, { route: '/api/internal/wq/cl/:code' });
