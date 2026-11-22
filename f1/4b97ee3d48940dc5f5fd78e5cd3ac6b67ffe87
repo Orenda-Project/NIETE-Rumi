@@ -1,2 +1,3 @@
 {"ts":"2026-11-22T14:56:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan spec_sync=true","sha":"f14b97ee3d48","branch":"bd-zrdvmi.51-stg","user":""}
 {"ts":"2026-11-22T14:56:47Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"f14b97ee3d48","branch":"bd-zrdvmi.51-stg","user":""}
+{"ts":"2026-11-22T15:02:39Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"f14b97ee3d48","branch":"bd-zrdvmi.51-stg","user":""}
