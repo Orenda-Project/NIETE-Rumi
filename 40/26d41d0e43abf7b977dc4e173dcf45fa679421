@@ -1,0 +1,3 @@
+{"ts":"2026-11-22T12:38:26Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"4026d41d0e43","branch":"bd-s0ccn5.1-50617","user":""}
+{"ts":"2026-11-22T12:38:28Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"4026d41d0e43","branch":"bd-s0ccn5.1-50617","user":""}
+{"ts":"2026-11-22T12:39:18Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"f9b1c503-d903-4795-b273-7c768813a134","sha":"4026d41d0e43","branch":"bd-s0ccn5.1-50617","user":""}
