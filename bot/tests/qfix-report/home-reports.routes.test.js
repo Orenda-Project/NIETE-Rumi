@@ -105,8 +105,18 @@ describe('switch ON', () => {
     expect(rows.map((r) => r.title)).toEqual(['Shapes', 'Plants']); // the story send is not a quiz report row
     expect(rows[1]).toMatchObject({ key: `q_${PLANTS}`, played: 2, late: 1, reported: true });
     expect(rows[0]).toMatchObject({ key: `q_${SHAPES}`, played: 1, late: 0, reported: false });
-    rows.forEach((r) => expect(r.report).toMatch(/^https:\/\/portal\.example\/r\/[^?]+\?from=home$/));
+    // the report opens in the home's language (an en teacher reading the Urdu home gets the Urdu report)
+    rows.forEach((r) => expect(r.report).toMatch(/^https:\/\/portal\.example\/r\/[^?]+\?from=home&lang=en$/));
     expect(home.reports.rounds).toBeNull();
+  });
+
+  test('a home read in Urdu links the Urdu report (the token\'s lang or the page\'s ?lang)', async () => {
+    seed();
+    await boot(listDeps());
+    const ur = await (await get(`/api/th/home?t=${tokenFor({ lang: 'ur' })}`)).json();
+    ur.reports.rows.forEach((r) => expect(r.report).toMatch(/\?from=home&lang=ur$/));
+    const bi = await (await get(`/api/th/home?t=${tokenFor({ lang: 'bi' })}&lang=en`)).json();
+    bi.reports.rows.forEach((r) => expect(r.report).toMatch(/\?from=home&lang=en$/));
   });
 
   test('the quick answer (quiz_teacher_home_paged) carries the same rows', async () => {
@@ -131,7 +141,7 @@ describe('switch ON', () => {
     await boot(listDeps({ ClassLink: { teacherHasLiveRound: has } }));
     const home = await (await get(`/api/th/home?t=${tokenFor()}`)).json();
     expect(has).toHaveBeenCalledWith(TEACHER.id);
-    expect(home.reports.rounds).toMatch(/^https:\/\/portal\.example\/r\/[^?]+\?tab=class&from=home$/);
+    expect(home.reports.rounds).toMatch(/^https:\/\/portal\.example\/r\/[^?]+\?tab=class&from=home&lang=en$/);
   });
 
   test('the shell carries the section, its heading and its More', async () => {
@@ -150,12 +160,15 @@ describe('switch ON', () => {
     seed();
     await boot(listDeps());
     const t = tokenFor();
-    expect((await post('/api/th/step', { t, step: 'report', late: true })).status).toBe(204);
+    // the home sends the string (the edge keeps strings only); a boolean from elsewhere still reads as true
+    expect((await post('/api/th/step', { t, step: 'report', late: 'true' })).status).toBe(204);
+    expect((await post('/api/th/step', { t, step: 'report', late: 'false' })).status).toBe(204);
     expect((await post('/api/th/step', { t, step: 'reports_more' })).status).toBe(204);
     const steps = logEvent.mock.calls.filter(([n]) => n === 'teacher_home.step').map(([, f]) => f);
     expect(steps[0]).toMatchObject({ step: 'report', late: true });
-    expect(steps[1]).toMatchObject({ step: 'reports_more' });
-    expect(steps[1]).not.toHaveProperty('late');
+    expect(steps[1]).toMatchObject({ step: 'report', late: false });
+    expect(steps[2]).toMatchObject({ step: 'reports_more' });
+    expect(steps[2]).not.toHaveProperty('late');
   });
 });
 

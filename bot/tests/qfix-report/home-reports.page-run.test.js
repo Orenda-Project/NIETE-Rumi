@@ -144,7 +144,8 @@ describe('switch ON', () => {
     await p.tap(links[0]);
     await p.tap(links[1]);
     expect(p.beacons.filter((b) => b.body.step === 'report').map((b) => b.body)).toEqual([
-      { t: 'a.b', step: 'report', late: true }, { t: 'a.b', step: 'report', late: false },
+      // a string: the portal edge keeps a POST field only when it is a string
+      { t: 'a.b', step: 'report', late: 'true' }, { t: 'a.b', step: 'report', late: 'false' },
     ]);
   });
 

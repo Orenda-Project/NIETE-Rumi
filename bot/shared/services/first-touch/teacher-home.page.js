@@ -390,11 +390,12 @@ const ONE_LESSON_SCRIPT_FWD_HASH = sha(ONE_LESSON_SCRIPT_FWD);
 /**
  * The "Quiz reports" section (quiz_teacher_home_reports, bd-5j1zaf): its drawing and its taps, swapped onto whichever
  * script the other switches chose (each variant under its own hash, built on first use), with its own few styles. The
- * row's verb is the row button's 48 px; the late chip is a pill like "Sent ✓", in the warning colours. OFF: none of it.
+ * row's verb is the row button's 48 px; the late chip is a pill like "Sent ✓", in the warning colours. The tap's beacon
+ * sends `late` as the string "true" | "false" (the portal edge keeps a POST field only when it is a string). OFF: none of it.
  */
 const REPORTS_SWAPS = Object.freeze([
   ['function lib(L){', `var rshown=5;
-function rstep(late){var o={t:b.t,step:'report',late:!!late};try{var s=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/api/th/step',new Blob([s],{type:'application/json'})))return;post('/api/th/step',o).catch(function(){})}catch(e){}}
+function rstep(late){var o={t:b.t,step:'report',late:late?'true':'false'};try{var s=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/api/th/step',new Blob([s],{type:'application/json'})))return;post('/api/th/step',o).catch(function(){})}catch(e){}}
 function reps(){var R=d.reports,s=q('#th-rp');if(!s)return;var all=(R&&R.rows)||[],ul=q('#th-rp-rows');clear(ul);
 all.slice(0,rshown).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row','report');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(r.title));tx.appendChild(n);
 var k=el('span','th-row-k',r.of!=null&&r.onList>0?fill('th.rp.of',{played:dg(r.onList),of:dg(r.of)}):r.of==null&&r.played>0?fill('th.rp.n',{played:dg(r.played)}):S['th.zero']);tx.appendChild(k);
