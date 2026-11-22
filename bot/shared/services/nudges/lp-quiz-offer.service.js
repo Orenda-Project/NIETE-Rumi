@@ -52,6 +52,7 @@ const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../qu
 const Catalog = require('../lp-v8-catalog.service');
 const SourceStore = require('../quiz/lp-asset-source.store');
 const AppOpens = require('../quiz/lp-app-opens.store');
+const ClosedWindow = require('../quiz/closed-window-offer');
 const { LP_V8 } = require('../quiz/quiz-sources');
 const ReligiousHold = require('../quiz/lp-religious-hold');
 const Funnel = require('../quiz/quiz-funnel');
@@ -864,6 +865,12 @@ async function send(row, { now } = {}) {
   const reason = preChecks({
     isSchoolDay: true, sectorAllowed: true, lessonCount, ...(await sendTimeFacts(row, user, at)),
   });
+  // quiz_offer_closed_window on: a closed-window skip says on its row and its event that nothing reached the teacher
+  // (held_path 'none'), so the funnel can count it. Off = the skip exactly as before.
+  if (reason === 'window_closed' && (await ClosedWindow.settings()).trace) {
+    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, reason, at: 'send', held_path: 'none' });
+    return { skipped: reason, context: { held_path: 'none' } };
+  }
   if (reason) return skip(reason);
 
   const language = teacherLanguageFor({ preferredLanguage: user.preferred_language });

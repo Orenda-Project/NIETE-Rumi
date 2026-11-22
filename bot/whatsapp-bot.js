@@ -1663,6 +1663,11 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
           log: (event, data) => logToFile('🎬 HoS broadcast video tap', { event, ...data, userId: user?.id || null }),
         });
       }
+      // "Make a quiz" on the coaching report template (closed window): the payload names the session; the tap is the yes.
+      else if (buttonPayload && buttonPayload.startsWith('tqr_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        if (!(await TranscriptQuizOffer.handleReportQuizTap(buttonPayload, from))) logToFile('⚠️ unrouted tqr_ payload', { buttonPayload });
+      }
       // bd-ri5o9.1 — the teacher tapped "Get Report" on the report-invite
       // template. MUST stay above the bd-kggts fallthrough: below it this branch
       // is unreachable, which is exactly the bug. The payload carries the session,
