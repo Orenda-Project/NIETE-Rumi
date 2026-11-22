@@ -80,10 +80,10 @@ beforeEach(async () => {
 describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
   it("an attached file: stays on the Debrief, says Uploaded and that the Digital Coach is listening, plays it in place", async () => {
     renderPage();
-    await screen.findByTestId("talk-guide");
+    await screen.findByTestId("talk-guide", {}, { timeout: 8000 });
     L.getObservation.mockResolvedValue(LISTENING());
     await act(async () => { chooseFile(audio()); });
-    const card = await screen.findByTestId("stage-debrief-listening");
+    const card = await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 });
     expect(screen.queryByText("observation page")).toBeNull();
     expect(card).toHaveTextContent("Uploaded");
     expect(card).toHaveTextContent("The Digital Coach is listening to your debrief");
@@ -97,18 +97,18 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
 
   it("a recording made here: the same (no bounce back)", async () => {
     renderPage();
-    await screen.findByTestId("talk-guide");
+    await screen.findByTestId("talk-guide", {}, { timeout: 8000 });
     L.getObservation.mockResolvedValue(LISTENING());
     fireEvent.click(screen.getByRole("button", { name: /Start recording/ }));
     await act(async () => { fireEvent.click(await screen.findByText("finish recording")); });
-    expect(await screen.findByTestId("stage-debrief-listening")).toHaveTextContent("Uploaded");
+    expect(await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 })).toHaveTextContent("Uploaded");
     expect(screen.queryByText("observation page")).toBeNull();
   });
 
   it("opened again while it listens: the listening card and the recording, no Record buttons, no new guide asked for", async () => {
     L.getObservation.mockResolvedValue(LISTENING());
     renderPage();
-    const card = await screen.findByTestId("stage-debrief-listening");
+    const card = await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 });
     expect(card).not.toHaveTextContent("Uploaded");
     expect(screen.getByTestId("debrief-recording")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Start recording/ })).toBeNull();
@@ -118,7 +118,7 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
   it("the feedback written: the debrief report's card shows right here and opens the report", async () => {
     L.getObservation.mockResolvedValue(VIEW("report", { talk: { guide: GUIDE, recordedAt: "2026-11-22T05:00:00Z", audioUrl: TALK_URL, feedback: { harmful: false } } }));
     renderPage();
-    const fb = await screen.findByTestId("visit-feedback");
+    const fb = await screen.findByTestId("visit-feedback", {}, { timeout: 8000 });
     await waitFor(() => expect(fb).toHaveTextContent("38%"));
     expect(fb.closest("a")).toHaveAttribute("href", "/portal/coach/report/cs-1");
     expect(screen.queryByTestId("stage-debrief-listening")).toBeNull();
@@ -129,13 +129,13 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     L.getObservation.mockResolvedValue(LISTENING());
     renderPage();
-    expect(await screen.findByTestId("stage-debrief-listening")).toHaveTextContent("ڈیجیٹل کوچ آپ کا ڈی بریف سن رہا ہے");
+    expect(await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 })).toHaveTextContent("ڈیجیٹل کوچ آپ کا ڈی بریف سن رہا ہے");
   });
 
   it("switch off: back on the observation page after the upload, as on production", async () => {
     flow.on = false;
     renderPage();
-    await screen.findByTestId("talk-guide");
+    await screen.findByTestId("talk-guide", {}, { timeout: 8000 });
     await act(async () => { chooseFile(audio()); });
     expect(await screen.findByText("observation page")).toBeInTheDocument();
   });

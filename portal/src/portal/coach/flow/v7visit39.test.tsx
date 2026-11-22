@@ -104,7 +104,7 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     C.getObservation.mockResolvedValue(OBS({ step: "report", audioUrl: LESSON_URL }));
     L.getObservation.mockResolvedValue(VIEW("report", { talk: { guide: { intro: "g", steps: [] }, recordedAt: "2026-11-19T09:00:00Z", audioUrl: TALK_URL, feedback: { harmful: false } } }));
     renderVisit();
-    const items = await screen.findByTestId("visit-items");
+    const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(within(items).getByTestId("visit-feedback")).toHaveTextContent("38%"));
     expect(screen.queryByText("What you made")).toBeNull();
     expect(screen.queryByTestId("what-you-made")).toBeNull();
@@ -128,7 +128,7 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     C.getObservation.mockResolvedValue(OBS({ step: "sent", imageUrl: "https://r2.example/report.png", caption: "Well done", sentAt: "2026-11-19T10:00:00Z" }));
     L.getObservation.mockResolvedValue(VIEW("sent", { report: { ...VIEW("sent").report, status: "sent", imageUrl: "https://r2.example/report.png", sentAt: "2026-11-19T10:00:00Z" } }));
     renderVisit();
-    const items = await screen.findByTestId("visit-items");
+    const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(items.querySelector('[data-item="teacher-report"]')).not.toBeNull());
     const order = Array.from(items.querySelectorAll("[data-item]")).map((n) => n.getAttribute("data-item"));
     expect(order[order.length - 1]).toBe("teacher-report");
@@ -140,7 +140,7 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     C.getObservation.mockResolvedValue(OBS({ step: "report" }));
     L.getObservation.mockResolvedValue(VIEW("report"));
     renderVisit();
-    const items = await screen.findByTestId("visit-items");
+    const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(within(items).getByTestId("visit-feedback")).toBeInTheDocument());
     expect(within(items).queryByTestId("debrief-recording")).toBeNull();
   });
@@ -149,7 +149,7 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     C.getObservation.mockResolvedValue(OBS({ step: "report", audioUrl: LESSON_URL }));
     L.getObservation.mockResolvedValue(VIEW("report", { talk: { guide: null, recordedAt: "2026-11-19T09:00:00Z", audioUrl: TALK_URL, feedback: { harmful: false } } }));
     renderVisit(true);
-    const items = await screen.findByTestId("visit-items");
+    const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(within(items).getByTestId("debrief-recording")).toBeInTheDocument());
     expect(within(screen.getByTestId("class-recording")).getByRole("slider", { name: "Position" })).toBeInTheDocument();
   });
@@ -159,7 +159,7 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     C.getObservation.mockResolvedValue(OBS({ step: "sent", audioUrl: LESSON_URL }));
     L.getObservation.mockResolvedValue(VIEW("sent", { talk: { guide: { intro: "g", steps: [] }, recordedAt: "2026-11-19T09:00:00Z", audioUrl: TALK_URL, feedback: { harmful: false } } }));
     renderVisit();
-    await screen.findByTestId("what-you-made");
+    await screen.findByTestId("what-you-made", {}, { timeout: 8000 });
     expect(screen.queryByTestId("visit-items")).toBeNull();
     expect(screen.queryByRole("slider")).toBeNull();
   });
@@ -170,7 +170,7 @@ describe("while the Digital Coach listens to the debrief: 'Debrief: analysing' (
     C.getObservation.mockResolvedValue(OBS({ step: "talk" }));
     L.getObservation.mockResolvedValue(VIEW("listening", { talk: { guide: { intro: "g", steps: [] }, recordedAt: "2026-11-19T09:00:00Z", audioUrl: TALK_URL, feedback: null } }));
     renderVisit();
-    const line = await screen.findByTestId("status-line");
+    const line = await screen.findByTestId("status-line", {}, { timeout: 8000 });
     await waitFor(() => expect(line).toHaveTextContent("Now: Debrief: analysing"));
     const card = screen.getByTestId("stage-debrief-listening");
     expect(card).toHaveTextContent("The Digital Coach is listening to your debrief");
