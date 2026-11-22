@@ -82,7 +82,8 @@ describe('the report never fires for a round', () => {
   test('a round\'s code: no 12 h report queued, the skip logged', async () => {
     await Report().scheduleForShareCode('scr');
     expect(SQS.queueJob).not.toHaveBeenCalled();
-    expect(logEvent).toHaveBeenCalledWith('video_quiz.report_schedule_skipped', { shareCodeId: 'scr', why: 'evening_round' });
+    // the report lane's own predicate (isReportableShareCode) recognises a round and logs its own reason
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.report_schedule_skipped', { shareCodeId: 'scr', why: 'not_reportable' });
   });
   test('an ordinary code is scheduled exactly as today', async () => {
     await Report().scheduleForShareCode('scn');
