@@ -19,6 +19,7 @@ const { loadLine } = require('./lp-own-period');
 const { isScience, SCIENCE_GLOSS_LINE } = require('./lp612-own-gloss');
 const { parseGoal, goalLines } = require('./lp612-own-goal');
 const { hasBlockedWord } = require('./lp-own-goal-guard');
+const { ruleBreak } = require('./lp-own-edit-guard');
 
 const NOTE_MAX = 200;
 const FOCI = ['summative', 'formative'];
@@ -115,7 +116,8 @@ function parseOwnAnswers(body, ctx) {
     : '';
   // bd-snkn32.58.2 (queue #155 B) — a note with a blocked word never reaches the model; the answers say it was dropped.
   // bd-cyadk0 — goal starts only: on the book path the list's words are lesson words ("naked eye", alcohols).
-  const dropNote = !!raw && b.goal != null && hasBlockedWord(raw);
+  // bd-snkn32.70 — a note asking to skip a part or for rote drill is dropped too, as a change request would be refused.
+  const dropNote = !!raw && ((b.goal != null && hasBlockedWord(raw)) || !!ruleBreak(raw));
   const note = dropNote ? '' : raw;
   const answers = { size: b.size, resources, level: b.level, way: picked[0], note };
   if (dropNote) answers.noteDropped = true;
