@@ -13,10 +13,16 @@
  *   POST /cl/pick           {code, s, chip, device_ref}  → {href: /h/<token>}
  *   POST /cl/app            {teacher}                    → the teacher app's Home card {classes, reportHref}
  *   POST /cl/app/tap        {teacher, class_id, how}     → the card's Send / Copy: {ok, href?} (web-quiz-class-link-app.js)
+ *
+ * arrive and letter hand the steps the push field (pushField(): {push_remind: true} while web_quiz_push_remind is on,
+ * else {}; it rides the hub switches' one read, so no read here): "Whose turn?" and the chips step then carry
+ * push_remind + remind_code for the reminder ask under the chips. Read here, not in the class-link service, which the
+ * push service itself requires.
  */
 const express = require('express');
 const { logToFile } = require('../utils/logger');
 const CL = require('../services/quiz/web-quiz-class-link');
+const { pushField } = require('../services/push/web-quiz-push-field');
 
 const router = express.Router();
 
@@ -47,9 +53,9 @@ router.post('/app/tap', serve(async (req) => {
   return orNotFound(await App().tap({ teacherId: idOr400(b.teacher), classId: idOr400(b.class_id), how: b.how }));
 }));
 // ── end the teacher app's Home card ──
-router.post('/arrive', serve((req) => CL.arrive(req.body || {})));
+router.post('/arrive', serve((req) => CL.arrive(req.body || {}, pushField())));
 router.post('/teacher', serve((req) => CL.teacher(req.body || {})));
-router.post('/letter', serve((req) => CL.letter(req.body || {})));
+router.post('/letter', serve((req) => CL.letter(req.body || {}, pushField())));
 router.post('/pick', serve((req) => CL.pick(req.body || {})));
 router.get('/:code', serve((req) => CL.resolve(req.params.code, {
   preview: req.query.pv === '1',
