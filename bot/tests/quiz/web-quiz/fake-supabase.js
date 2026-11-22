@@ -71,7 +71,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
       // a list of more than ~390 UUIDs fails the request as supabase-js reports it (postgrest-js: `TypeError: fetch failed`,
       // the headers-overflow hint, data null). A read that feeds a data-sized list in unchunked goes red here.
-      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(r[c])); return b; },
+      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(val(r, c))); return b; },
       // PostgREST ilike: % is any run, case-insensitive.
       ilike(c, pat) {
         const rx = new RegExp(`^${String(pat).split('%').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 'i');

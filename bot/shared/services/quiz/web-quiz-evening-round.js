@@ -205,8 +205,10 @@ async function roundsOn(day, classIds = null) {
   const out = [];
   for (let from = 0; ; from += 1000) {
     // eslint-disable-next-line no-await-in-loop
-    const { data, error } = await supabase.from('quizzes').select('id, status, meta')
-      .eq('meta->>source', ROUND_SOURCE).eq('meta->>round_day', day).order('id', { ascending: true }).range(from, from + 999);
+    let q = supabase.from('quizzes').select('id, status, meta').eq('meta->>source', ROUND_SOURCE).eq('meta->>round_day', day);
+    // Asked for a few classes (a child's arrival, the hub): only theirs, through the (round_day, class_id) index.
+    if (want && want.size <= 50) q = q.in('meta->>class_id', [...want]);
+    const { data, error } = await q.order('id', { ascending: true }).range(from, from + 999);
     if (error) throw new Error(`evening round: rounds: ${error.message}`);
     out.push(...(data || []));
     if (!data || data.length < 1000) break;
@@ -725,6 +727,31 @@ async function roundCandidate({ token = null, chosenId = null, history = [], lan
   }
 }
 
+/**
+ * "Whose turn?" on the standing link: which of these children of the class have tonight's quiz waiting (a ready round
+ * today, no finished sitting on it by any of the child's ids) -> Set of kid ids. Switch off -> empty, with no round
+ * read. Never throws (a failure marks nobody).
+ * `kids` = [{ id, ids }] as the class link's roster gives them (ids = the child's merged student ids).
+ */
+async function waitingKids(classId, kids, { now = new Date() } = {}) {
+  const out = new Set();
+  try {
+    if (!classId || !(kids || []).length || !(await Flags.eveningRoundOn())) return out;
+    const s = (await roundsForClasses([classId], PktTime().pktDate(now))).get(String(classId));
+    if (!s || !s.share_code_id) return out;
+    const all = [...new Set(kids.flatMap((k) => [k.id, ...((k && k.ids) || [])]).filter(Boolean).map(String))];
+    const { data, error } = await supabase.from('quiz_sessions').select('student_id')
+      .eq('share_code_id', s.share_code_id).in('student_id', all).not('completed_at', 'is', null);
+    if (error) throw new Error(error.message);
+    const done = new Set((data || []).map((r) => String(r.student_id)));
+    kids.forEach((k) => { if (![k.id, ...((k && k.ids) || [])].some((id) => done.has(String(id)))) out.add(k.id); });
+  } catch (err) {
+    logToFile('⚠️ evening round: "Whose turn?" marks unavailable', { error: err.message });
+    out.clear();
+  }
+  return out;
+}
+
 /** web_quiz.round_shown: the hub's next slot named the round as its primary. */
 function noteShown(next, candidate) {
   if (!next || !candidate || next.id !== candidate.id || !candidate.round) return false;
@@ -834,6 +861,6 @@ module.exports = {
   ROUND_SOURCE, NO_SEND, LESSON_ITEMS, RECALL_ITEMS, tileWords,
   isEveningRound, lpTakenFor, ownLpTaken, chooseLesson, subjectCanon, gradeOfCode, classesOf,
   writeRounds, tick, afterGenerate, asWebItem, selectRoundItems, roundFields, noteRound, isRoundShareCode,
-  roundsForClasses, roundCandidate, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection,
+  roundsForClasses, roundCandidate, waitingKids, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection,
   _resetCache: () => { ROUND_CODES.clear(); },
 };
