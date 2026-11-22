@@ -195,6 +195,15 @@
       mic_speak: 'Speak now…',
       mic_ask: 'Did you hear yourself?',
       mic_yes: 'I heard myself',
+      // round 28, O-115 (r28_mic_unknown): the coach's mic card in coach mode
+      micu_head: 'Microphone check: tap the button, say one, two, three, then listen.',
+      micu_try: 'Try the microphone',
+      micu_ask: 'Did you hear the recording?',
+      micu_heard: 'I heard it',
+      micu_again: 'Try again',
+      micu_none: 'No sound came through.',
+      micu_without: 'Go on without it',
+      micu_denied: 'The microphone is blocked or missing. In Chrome, tap the lock next to the web address, then Permissions → Microphone → Allow. Then tap Try again.',
       mic_no: 'I didn’t',
       oral_try: 'Say it out loud',
       oral_heard: 'I heard you!',
@@ -301,6 +310,14 @@
       mic_speak: 'اب بولیں…',
       mic_ask: 'کیا آپ کو اپنی آواز سنائی دی؟',
       mic_yes: 'ہاں، سنائی دی',
+      micu_head: 'مائیک کی جانچ: بٹن دبائیں، ایک، دو، تین کہیں، پھر سنیں۔',
+      micu_try: 'مائیک آزمائیں',
+      micu_ask: 'کیا ریکارڈ کی ہوئی آواز سنائی دی؟',
+      micu_heard: 'آواز سنائی دی',
+      micu_again: 'دوبارہ کوشش کریں',
+      micu_none: 'آواز نہیں آئی۔',
+      micu_without: 'مائیک کے بغیر چلیں',
+      micu_denied: 'مائیک بند ہے یا موجود نہیں۔ کروم میں ویب ایڈریس کے ساتھ تالے کا نشان دبائیں، پھر ⁨Permissions → Microphone → Allow⁩۔ پھر "دوبارہ کوشش کریں" دبائیں۔',
       mic_no: 'نہیں سنائی دی',
       oral_try: 'اونچی آواز میں بولیں',
       oral_heard: 'مجھے سنائی دیا!',
@@ -554,6 +571,8 @@
     var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
     // Round 7b, the child's screens: the served battery's switches (sa-battery-switches.js)
     var r7 = (opts.battery && opts.battery.ui) || {};
+    // Round 28, O-115 (r28_mic_unknown): coach mode's mic check is the coach's card (sMicCard)
+    var micCard = r7.r28_mic_unknown === true && mode === 'proctored';
     // Round 8 item 4 (sa_r8_lang_switch): the instruction language can change mid-test (the toggle in the top bar)
     var homeLang = lang;
     var homeLines = lines;
@@ -3134,6 +3153,7 @@
     }
     /** Game mic check (RULING #13): a 2-s probe played back, then "did you hear yourself?". */
     function sMicCheck(v) {
+      if (micCard) return sMicCard(v);
       var st = micSt || (micSt = { stage: 'idle' });
       var head = tx(line('mic_check')) || C.mic_say;
       if (st.stage === 'ask') {
@@ -3164,9 +3184,68 @@
         h('p', { class: 'sae-sub', text: rec ? C.mic_speak : C.mic_tap }),
       ], [canSkip ? btn(C.mic_skip, function () { micDone(false, 0); }, 'sae-mic-skip') : null], true);
     }
+    /**
+     * Round 28, O-115 (r28_mic_unknown, coach mode): the coach's mic card, on a phone with no stored check. «مائیک آزمائیں»
+     * records 2 s and plays it back. A pass needs the probe's level above the floor (sa-mic.js FLOOR, unrounded) AND the
+     * coach's «آواز سنائی دی»; at or under the floor the card says «آواز نہیں آئی» and offers no "heard". A phone with no
+     * analyser passes on "heard" alone (unmeasured). «مائیک کے بغیر چلیں» shows after one try; in RDF auto it is held
+     * like the coach's other controls, so a child's tap never takes it. The card shows once a run.
+     */
+    function sMicCard(v) {
+      var st = micSt || (micSt = { stage: 'idle', tries: 0 });
+      var without = st.tries > 0 && st.stage !== 'rec' ? withoutBtn() : null;
+      if (st.stage === 'ask') {
+        var pr = st.probe || {};
+        var heardOk = pr.ok && !pr.denied;
+        return screen(v, 'sae-miccheck is-coach is-ask', [
+          h('h1', { class: 'sae-h1', text: heardOk ? C.micu_ask : pr.denied ? C.micu_head : C.micu_none }),
+          // a blocked microphone is not a quiet one: the coach is told how to allow it
+          pr.denied ? h('p', { class: 'sae-sub sae-micu-denied', text: C.micu_denied }) : null,
+          h('div', { class: 'sae-pics' }, [
+            heardOk ? tileBtn(C.micu_heard, function () { micCardDone(true); }, 'is-yes') : null,
+            tileBtn(C.micu_again, function () { micSt = { stage: 'idle', tries: st.tries }; probe(); }, 'is-again'),
+          ]),
+        ], [without], true);
+      }
+      var rec = st.stage === 'rec';
+      var tryBtn = h('button', { class: 'sae-btn sae-primary sae-micu-try', type: 'button', onclick: function () { if (!busy && !rec) probe(); } },
+        [h('span', { class: 'sae-micu-glyph', 'aria-hidden': 'true', text: '🎤' }), ' ', rec ? C.mic_speak : C.micu_try]);
+      return screen(v, 'sae-miccheck is-coach', [
+        h('h1', { class: 'sae-h1', text: C.micu_head }),
+        tryBtn,
+      ], [without], true);
+    }
+    function withoutBtn() {
+      if (manual) return btn(C.micu_without, function () { micCardDone(false); }, 'sae-micu-without');
+      // RDF auto: pressed and held, as the coach's corner
+      var b = h('button', { class: 'sae-btn sae-micu-without is-hold', type: 'button', 'aria-label': C.hold }, [C.micu_without]);
+      var t = null;
+      function cancel() { if (t) { clearTimeout(t); t = null; } b.classList.remove('is-holding'); }
+      b.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        cancel();
+        b.classList.add('is-holding');
+        t = later(function () { t = null; b.classList.remove('is-holding'); micCardDone(false); }, HOLD_MS);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (n) { b.addEventListener(n, cancel); });
+      b.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      return b;
+    }
+    /** pass: the coach heard it back and the level was above the floor (or not measurable). */
+    function micCardDone(pass) {
+      var pr = (micSt && micSt.probe) || {};
+      var unmeasured = pr.measured === false && !pr.denied;
+      micSt = null;
+      if (pr.denied) runner.micChecked(false, null, 'denied');
+      else runner.micChecked(!!pass, unmeasured ? null : (typeof pr.peak === 'number' ? pr.peak : 0), unmeasured ? 'unmeasured' : 'auto');
+      draw();
+    }
     function probe() {
-      if (typeof opts.micProbe !== 'function') { micDone(false, 0); return; }
-      micSt = { stage: 'rec' };
+      var tries = micSt && micSt.tries || 0;
+      // the coach's card never fails on its own: no microphone to open is a try that heard nothing
+      var denied = function () { micSt = { stage: 'ask', tries: tries + 1, probe: { ok: false, denied: true, measured: false, peak: 0 } }; draw(); };
+      if (typeof opts.micProbe !== 'function') { if (micCard) denied(); else micDone(false, 0); return; }
+      micSt = { stage: 'rec', tries: tries };
       draw();
       var p;
       try { p = Promise.resolve(opts.micProbe()); } catch (e) { p = Promise.reject(e); }
@@ -3174,9 +3253,18 @@
         if (!alive || !micSt) return;
         r = r || {};
         micSt = { stage: 'ask', probe: { ok: !!r.ok, rms: typeof r.rms === 'number' ? r.rms : 0 } };
+        if (micCard) {
+          micSt.tries = tries + 1;
+          micSt.probe.peak = typeof r.peak === 'number' ? r.peak : 0;
+          micSt.probe.measured = r.measured !== false && !r.denied;
+          micSt.probe.denied = r.denied === true;
+          // a phone with no analyser: the probe passes unmeasured, and "heard" alone decides
+          if (r.denied) micSt.probe.ok = false;
+        }
         draw();
-        playBack(r.url).then(function () { if (alive && micSt && micSt.stage === 'ask') say(line('mic_check_ask') || { en: COPY.en.mic_ask, ur: COPY.ur.mic_ask }); });
-      }, function () { if (alive) micDone(false, 0); });
+        // the card asks "did you hear it?" only when the screen offers "heard" (a level above the floor)
+        playBack(r.url).then(function () { if (alive && micSt && micSt.stage === 'ask' && (!micCard || (micSt.probe.ok && !micSt.probe.denied))) say(line('mic_check_ask') || { en: COPY.en.mic_ask, ur: COPY.ur.mic_ask }); });
+      }, function () { if (!alive) return; if (micCard) denied(); else micDone(false, 0); });
     }
     /** Play the probe back (a blob: URL from micProbe), resolving when it ends or fails. */
     function playBack(url) {
@@ -3675,7 +3763,7 @@
         }
       } else if (v.phase === 'warmup') say(copyLine('warm_title'));
       else if (v.phase === 'mic_check') {
-        if (typeof opts.micProbe !== 'function') later(function () { if (runner.view().phase === 'mic_check') { micSt = null; runner.micChecked(false, 0); draw(); } }, 0);
+        if (typeof opts.micProbe !== 'function' && !micCard) later(function () { if (runner.view().phase === 'mic_check') { micSt = null; runner.micChecked(false, 0); draw(); } }, 0);
         else say(line('mic_check') || { en: COPY.en.mic_say, ur: COPY.ur.mic_say });
       } else if (v.phase === 'oral_practice') {
         var gp = gen;

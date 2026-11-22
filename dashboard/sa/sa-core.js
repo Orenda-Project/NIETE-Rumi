@@ -821,12 +821,16 @@
         ev('warmup_result', { value: warm });
         enterTask(false);
       },
-      /** The game's mic check: ok (heard back, level above the floor) and the level measured. */
-      micChecked: function (ok, rms) {
+      /** The mic check: ok (heard back, level above the floor) and the level measured. how (round 28, the coach's mic
+       *  card): 'auto' measured, 'unmeasured' a phone with no analyser, 'denied' the microphone would not open; kept on
+       *  the event only when given. */
+      micChecked: function (ok, rms, how) {
         if (st.phase !== 'mic_check') return;
         gates.mic_check = true;
         gates.mic_ok = !!ok;
-        ev('mic_check', { value: { ok: !!ok, rms: typeof rms === 'number' ? rms : null } });
+        var mv = { ok: !!ok, rms: typeof rms === 'number' ? rms : null };
+        if (how === 'auto' || how === 'unmeasured' || how === 'denied') mv.how = how;
+        ev('mic_check', { value: mv });
         if (ok) preGates(); else { st.started = now(); finish(STOP.MIC); }
       },
       /** The practice spoken question ("I heard you"): heard = the meter moved. */
