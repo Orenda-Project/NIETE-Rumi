@@ -55,7 +55,8 @@ function renderClassLinkCard(data, { lang = 'en', base = '', print = false } = {
   const one = (c) => {
     const link = (how) => `${base}/jlink?class=${encodeURIComponent(c.classId)}&how=${how}`;
     // The link itself is the teacher's own preview (plays as practice); copying the text copies the plain link.
-    const open = c.preview ? `<a href="${esc(c.preview)}" dir="ltr">${esc(c.url)}</a>` : `<span dir="ltr">${esc(c.url)}</span>`;
+    // A full tap target: the report's shared button style (min-height 48 px), never a second copy of it.
+    const open = c.preview ? `<a class="btn btn-ghost" href="${esc(c.preview)}" dir="ltr">${esc(c.url)}</a>` : `<span dir="ltr">${esc(c.url)}</span>`;
     // Copy is a server link (logged, how:'copy') that comes back here with this card's link open to select.
     const copy = data.open && data.open === c.classId
       ? `<details class="act" open><summary>${esc(C.copy)}</summary><textarea readonly rows="2" dir="ltr">${esc(c.url)}</textarea></details>`
