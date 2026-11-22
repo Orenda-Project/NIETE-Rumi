@@ -538,3 +538,14 @@ Feature: Teacher lesson plans
     Given the survey bar is on for an ICT grades 9 teacher
     When she opens another teacher's plan from the shelf, or a plan she made herself
     Then no survey bar is drawn, and nothing is asked of the survey
+
+  @OWN12 @draft @config-gated
+  Scenario: A book-path note with an everyday lesson word is kept; only a goal start drops a blocked-word note
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she is signed in
+    When she makes her own plan from a Grade 8 Science book lesson with the note "observe the moon with the naked eye"
+    Then no "note was not used" message shows and her plan follows her note
+    When portal_lp_own_goal_start is on and she starts from a learning goal with a note holding a blocked word
+    Then the plan is still made and a message says her note was not used
+    # bd-cyadk0: #5129's note drop ran on every own plan; the blocked list holds ordinary lesson words
+    # ("naked", "alcohol", "kill"). Unit: tests/lp612/own-goal-note-guard.test.js.
