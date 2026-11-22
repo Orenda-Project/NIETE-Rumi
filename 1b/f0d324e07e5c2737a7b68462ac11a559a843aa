@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T13:33:34Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,portal-smoke spec_sync=true","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
 {"ts":"2026-11-22T13:34:07Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.59.8-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
 {"ts":"2026-11-22T13:34:12Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
+{"ts":"2026-11-22T13:34:24Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-snkn32.59.8-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"1bf0d324e07e","branch":"bd-snkn32.59.8-main","user":""}
