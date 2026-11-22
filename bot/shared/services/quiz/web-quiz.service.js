@@ -402,9 +402,9 @@ async function roundSitting(rows, s) {
  * every lesson item answered right earlier today and no recall item in the round (evening round roundSetEmpty). The
  * start then answers { round_done_for_tonight: true, class_link_code, round_code } and opens no sitting, so answers and
  * finish never see the child (the page names the two codes on its own line). A round with a recall item never empties
- * and reads nothing more; else the seam's same-day read, bounded by now. Logs
- * web_quiz.round_done_for_tonight{class_link_code, round_code} and returns those codes. Off, any other quiz, a failed
- * read: null.
+ * and reads nothing more; else the seam's same-day read, bounded by now. Returns those codes (the page logs
+ * web_quiz.round_done_for_tonight with them when it shows the words: one line per refusal, never two). Off, any other
+ * quiz, a failed read: null.
  */
 async function doneForTonight(ctx, studentId, rowsP) {
   const f = await require('./web-quiz-hub-flags').flags();
@@ -415,9 +415,7 @@ async function doneForTonight(ctx, studentId, rowsP) {
   const sitting = await roundSitting(rows, { id: null, student_id: studentId, user_id: null, quiz_id: ctx.quizId, created_at: new Date().toISOString() });
   if (sitting.round_plain || !Round().roundSetEmpty(rows, { skip: sitting.round_skip })) return null;
   const { class_link_code: classLinkCode, round_code: roundCode } = Round().roundFields(rows);
-  const codes = { class_link_code: classLinkCode, round_code: roundCode };
-  logEvent('web_quiz.round_done_for_tonight', codes);
-  return codes;
+  return { class_link_code: classLinkCode, round_code: roundCode };
 }
 
 // Is this quiz an evening round? (meta.source, set when the round's row is written and never changed): one small read
