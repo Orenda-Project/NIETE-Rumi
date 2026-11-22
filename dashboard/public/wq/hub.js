@@ -43,7 +43,8 @@
   /* ---------------- copy (en + ur): imperatives, no gendered verb ---------------- */
   var COPY = {
     en: {
-      who: 'Who is playing?', whoSay: 'Tap your name.', hi: function (n) { return 'Hi ' + n + '! What shall we do today?'; },
+      // ready: the badge on a chip a reminder was for (B.kids[].round), class-link.js's own words (qfix_class_link.quiz_ready)
+      who: 'Who is playing?', whoSay: 'Tap your name.', hi: function (n) { return 'Hi ' + n + '! What shall we do today?'; }, ready: 'Quiz ready',
       fromT: 'From your teacher', play: 'Play',
       sent: function (d) { return d <= 0 ? 'Sent today' : d === 1 ? 'Sent yesterday' : 'Sent ' + d + ' days ago'; },
       none: 'No new quiz from your teacher right now. Watch a video and try its quiz!',
@@ -61,7 +62,7 @@
       wait: 'Opening…', noClass: 'Play a quiz from your teacher first.', gone: 'No quizzes here yet. Ask your teacher for a quiz link.', mins: function (m) { return m + ' min'; },
     },
     ur: {
-      who: 'کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; },
+      who: 'کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; }, ready: 'کوئز تیار',
       fromT: 'آپ کے ٹیچر کی طرف سے', play: 'کھیلیں',
       sent: function (d) { return d <= 0 ? 'آج بھیجا گیا' : d === 1 ? 'کل بھیجا گیا' : '<bdi>' + d + '</bdi> دن پہلے بھیجا گیا'; },
       none: 'ابھی ٹیچر کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
@@ -283,6 +284,13 @@
   }
 
   /* ---------------- H1 who is playing (only this phone's own children) ---------------- */
+  // A hub opened from a reminder (?from=push): the bot marks each child still waiting on tonight's class round
+  // (k.round, class-link's field) and the chip carries /j/'s badge under the name (class-link.js markup, wq.css
+  // .wq-cl-nm / .wq-cl-ready). An unmarked chip is drawn exactly as before.
+  function firstOf(k) {
+    if (k.round !== true) return esc(k.first);
+    return '<span class="wq-cl-nm"><bdi>' + esc(k.first) + '</bdi><span class="wq-chip wq-cl-ready">' + esc(T.ready) + '</span></span>';
+  }
   function picker() {
     var kids = B.kids || [];
     batchIds(null);
@@ -290,7 +298,7 @@
     if (B.bind && !window.WQBIND) bindIn();
     var KB = B.bind && window.WQBIND ? window.WQBIND : null;
     render(bar() + jug('hello', T.whoSay) + '<h2>' + esc(KB ? KB.t(LANG).whoPlaying : T.who) + '</h2><div class="wq-chips">' +
-      kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + esc(k.first) + (KB ? KB.chipExtra(k, LANG) : '') + '</button>'; }).join('') + '</div>', 'H1');
+      kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + firstOf(k) + (KB ? KB.chipExtra(k, LANG) : '') + '</button>'; }).join('') + '</div>', 'H1');
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
       b.addEventListener('click', function () { pick(b.getAttribute('data-chip')); });
     });
