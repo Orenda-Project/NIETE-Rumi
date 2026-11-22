@@ -351,10 +351,13 @@ function createRouter(deps = null) {
     const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
     const wait = await req.thWait;
     const portal = (await req.thPortal) === true;
-    // the one-lesson page: only with its switch on and a session id that is a UUID (whose it is, quiz/make checks)
-    const one = (await req.thOne) === true ? uuidIn(req.query.session) : null;
+    // the one-lesson page: only with its switch on and a session id that is a UUID (whose it is, quiz/make checks); the same
+    // page for one lesson PLAN with ?lesson=<a key a provider parses> (the session wins when both are given)
+    const oneOn = (await req.thOne) === true;
+    const one = oneOn ? uuidIn(req.query.session) : null;
+    const lesson = oneOn && !one ? Send.lessonKeyOf(req.query.lesson, deps) : null;
     const forward = (await req.thForward) === true;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(forward ? { forward: true } : {}) });
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(forward ? { forward: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
