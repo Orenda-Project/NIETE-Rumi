@@ -5,7 +5,7 @@ import i18n from "i18next";
 
 /**
  * The "Make a quiz on today's lesson" card in Home's "Ready for you": the server lists a `quiz_offer` item when the
- * WhatsApp quiz offer or coaching ask was skipped today because her window was shut (behind its server switch).
+ * WhatsApp quiz offer or coaching ask was skipped today because the teacher's window was shut (behind its server switch).
  * Drawn only when the session has a quiz home to open; the tap tells the server and opens that quiz home (the
  * existing maker). No quiz_offer item: nothing new is asked (GET /me/home is not called from here).
  * Mocked at the network boundary only.
@@ -66,7 +66,7 @@ beforeEach(async () => {
 afterEach(() => { vi.useRealTimers(); noticeTracker.reset(); resetHomeMemo(); });
 
 describe("Ready for you: the quiz card", () => {
-  it("a quiz_offer item and a quiz home: one row naming the lesson, beside her other items", async () => {
+  it("a quiz_offer item and a quiz home: one row naming the lesson, beside the teacher's other items", async () => {
     list = [quizOffer(), paper()];
     mount();
     await tick(0);
