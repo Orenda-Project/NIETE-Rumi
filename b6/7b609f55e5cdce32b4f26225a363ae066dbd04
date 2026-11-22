@@ -1,2 +1,3 @@
 {"ts":"2026-11-21T12:19:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"b67b609f55e5","branch":"release/niete-2026-11-20","user":""}
 {"ts":"2026-11-21T12:21:36Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"b67b609f55e5","branch":"release/niete-2026-11-20","user":""}
+{"ts":"2026-11-22T02:16:46Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"b67b609f55e5","branch":"release/niete-2026-11-20","user":""}
