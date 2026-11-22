@@ -2871,6 +2871,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 // My journey — her own steps, read from the activity store only (dark unless portal_teacher_journey).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-journey.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-push.routes'));
+// The class link card on the teacher Home (dark unless web_quiz_class_link, decided by the bot); see the route's header.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-class-link.routes'));
 // bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));

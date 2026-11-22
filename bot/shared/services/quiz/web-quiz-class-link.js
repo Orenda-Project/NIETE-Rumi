@@ -6,10 +6,12 @@
  * enrolled roster (class_enrollments). The teacher forwards it once a term; a child who opens it is placed by the
  * SERVER, and the page never receives the class list before the gate:
  *
- *   resolve(code, {preview, jt})    the landing: the link is live? → {lang}; else not_found (the edge renders exactly
+ *   resolve(code, {preview, jt})    the landing: the link is live? → {lang, class_label?} (class_label: "Class 3 A" /
+ *                                   «کلاس ۳ A», the preview's class name, grade + section only); else not_found (the edge renders exactly
  *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
  *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
- *   arrive({code, device_ref, jt})  a device that played as (or whose hub was opened for) a child enrolled in this class →
+ *   arrive({code, device_ref, jt, via})  counts the open (class_link_open{class_link_code, via, dh?}, one per page load,
+ *                                   never the teacher's visit); then a device that played as (or whose hub was opened for) a child enrolled in this class →
  *                                   "Whose turn?" with ONLY those children (and `other`: the teacher step, for a child
  *                                   not listed); any other device → "Tap your teacher's name"
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
@@ -37,6 +39,8 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Identity = require('./web-quiz-identity');
+// classLabels / firstNameOf live in a leaf module the evening round and the reminder payload share (no require circle).
+const { classLabels, firstNameOf } = require('./web-quiz-class-names');
 const HubDevice = require('./web-quiz-hub-device');
 const Flags = require('./web-quiz-class-link-flags');
 const { clampLanguage } = require('../../config/ux-strings');
@@ -101,17 +105,6 @@ function stripTitle(name) {
   return out.replace(TAIL_TITLE, '').trim();
 }
 
-/**
- * IDENTITY §2.1: the canon first name (first token; the second when the first is a Muhammad form) and the word
- * shown on the chip (the name's own word at that position).
- */
-function firstNameOf(name) {
-  const words = String(name || '').normalize('NFKC').trim().split(/[\s.\-_,/]+/).filter(Boolean);
-  const toks = Identity.tokens(name);
-  if (!toks.length) return { canon: '', shown: '' };
-  const i = toks[0] === 'muhammad' && toks.length > 1 && words.length > 1 ? 1 : 0;
-  return { canon: toks[i], shown: words[i] || words[0] };
-}
 
 function letterOf(shown, script) {
   const ch = String(shown || '').normalize('NFKC').trim().charAt(0);
@@ -326,11 +319,33 @@ async function resolve(code, { preview = false, jt = null } = {}) {
   if (!link) return notFound();
   const lang = langOf(await teacherRow(link.teacher_id));
   // Not a child's door: a link-preview fetch, or the teacher's own visit from the card (its signed token for this code).
-  if (!preview && !isTeacherPreview(code, jt)) emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
-  return { lang };
+  // (The open itself, class_link_open, is counted at arrive, where the phone's device ref is known.)
+  if (!preview && !isTeacherPreview(code, jt)) {
+    emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
+  }
+  const label = await classLabelOf(link.class_id, lang);
+  return { lang, ...(label ? { class_label: label } : {}) };
 }
 
-async function arrive({ code, device_ref: deviceRef, jt } = {}) {
+/**
+ * The link preview's class label in the class's language (the edge's og:title "Jugnu · Class 3 A"): classLabels of
+ * the class's grade and section, the label the reminder's title uses; nothing else of the class is read. No numeric
+ * grade, or a failed read -> null (the edge keeps its generic preview).
+ */
+async function classLabelOf(classId, lang) {
+  try {
+    const { data, error } = await supabase.from('classes').select('grade_code, section').eq('id', classId).maybeSingle();
+    if (error || !data) return null;
+    return classLabels(data.grade_code, data.section)[clampLanguage(lang)] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// The landing's markers (the edge's viaOfQuery, carried in the page's boot JSON and posted on arrive).
+const MARKED_VIA = new Set(['forward', 'reminder', 'hub']);
+
+async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const practice = isTeacherPreview(code, jt);
@@ -341,12 +356,25 @@ async function arrive({ code, device_ref: deviceRef, jt } = {}) {
   const teacherStep = teachers.length
     ? { step: 'teacher', s: stepToken(code, { st: 'teacher', ...(practice ? { p: 1 } : {}) }), teachers: teachers.map(({ tk, name }) => ({ tk, name })) }
     : null;
+  // web_quiz.class_link_open{class_link_code, via, dh?}: ONE per open of the link. The page posts arrive once per load,
+  // so the open is counted here, where the phone's device ref is known (dh); a link-preview fetch never runs the page,
+  // and the teacher's own visit (jt) is never counted. via = the landing's marker (forward / reminder / hub); unmarked,
+  // a phone that played as a child of this class came back on its own (remembered), and any other phone counts as
+  // forward: a link reaches a phone it never visited only by being shared (a copied link or the class-week line carries
+  // no marker).
+  if (!practice) {
+    require('./web-quiz-evening-round').classLinkOpen(code, MARKED_VIA.has(via) ? via : (mine.length ? 'remembered' : 'forward'), { deviceRef });
+  }
   if (mine.length) {
     const script = scriptOf(kids, lang);
+    // round: tonight's class quiz is waiting for this child (web_quiz_evening_round; off -> nobody, no read).
+    const waiting = await require('./web-quiz-evening-round').waitingKids(link.class_id, mine);
     return {
       step: 'who',
       s: stepToken(code, { st: 'who', ...(practice ? { p: 1 } : {}) }),
-      kids: mine.map((k) => ({ chip: kidChip(code, k.id), first: firstNameOf(shownName(k, script)).shown, animal: T.animalFor(k.id) })),
+      kids: mine.map((k) => ({
+        chip: kidChip(code, k.id), first: firstNameOf(shownName(k, script)).shown, animal: T.animalFor(k.id), ...(waiting.has(k.id) ? { round: true } : {}),
+      })),
       // A shared phone: a child who is not listed (a sibling) takes the stranger path from here, the teacher step a
       // fresh phone gets. Their high pick joins this phone's record, so the next "Whose turn?" lists them too.
       other: teacherStep,
@@ -543,10 +571,30 @@ async function forTeacher(teacherId) {
 }
 
 /**
- * The card's Forward and Copy (no JS): both log class_link_forwarded{cls, how}. Forward → wa.me with the URL ONLY
- * (no count, no name); Copy → back to the report's class tab with this class's card open (the link as selectable
+ * The card's Forward and Copy (no JS): both log the forward lane's quiz_forward_tap{share_code_id: null, surface
+ * 'class_link', method 'wa_me' | 'copy', origin 'class_link', stale false, cls}. Forward → wa.me with the URL ONLY
+ * (no count, no name), marked ?f=1 so the landing counts the open as via 'forward'; Copy → back to the report's class tab with this class's card open (the link as selectable
  * text). Null when the class is not this teacher's or the switch is off.
  */
+/**
+ * "Sent this term": a class whose link the teacher forwarded or copied (from the report's class tab or the app's card)
+ * is remembered until the term's end, so the teacher app's card folds to one line. Redis only; down → not remembered
+ * (the card stays open, nothing else changes). Never throws.
+ */
+const sentKey = (classId, termCode) => `wq:cl:app:sent:${classId}:${termCode}`;
+async function markSent(classId, now = new Date()) {
+  const r = redisUp();
+  if (!r || !classId) return;
+  const term = termOf(now);
+  const ttl = Math.max(60, Math.floor((new Date(term.expires_at).getTime() - now.getTime()) / 1000));
+  try { await r.set(sentKey(classId, term.term_code), { at: now.getTime() }, ttl); } catch (_) { /* the card stays open */ }
+}
+async function wasSent(classId, termCode) {
+  const r = redisUp();
+  if (!r || !classId || !termCode) return false;
+  try { return Boolean(await r.get(sentKey(classId, termCode))); } catch (_) { return false; }
+}
+
 async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
   const copy = how === 'copy';
@@ -554,9 +602,12 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
   const m = await mint({ teacherId, classId });
   const url = m.ok ? linkUrl(m.code) : null;
   if (!url) return null;
-  emit('class_link_forwarded', { how: copy ? 'copy' : 'forward' }, { classId });
+  emit('quiz_forward_tap', {
+    share_code_id: null, surface: 'class_link', method: copy ? 'copy' : 'wa_me', origin: 'class_link', stale: false,
+  }, { classId });
+  await markSent(classId);
   if (copy) return `${reportBase}?tab=class&cl_open=${encodeURIComponent(classId)}#class-link`;
-  return `https://wa.me/?text=${encodeURIComponent(url)}`;
+  return `https://wa.me/?text=${encodeURIComponent(`${url}?f=1`)}`;
 }
 
 /**
@@ -577,6 +628,11 @@ async function renew({ teacherId, classId, n = null } = {}) {
 
 module.exports = {
   ClassLinkError, ALPHABET, CODE_LEN, CODE_RX, LETTERS,
+  markSent, wasSent, sentKey,
   termOf, newCode, firstNameOf, letterOf, runColumns, serveArgs, signTeacherPreview, isTeacherPreview, stripTitle,
   resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl, signRenewNonce, verifyRenewNonce,
+  // The evening round's reminder payload (the reminders lane requires it from here); web-quiz-evening-round-phone.js.
+  roundsReadyForPhone: (...args) => require('./web-quiz-evening-round-phone').roundsReadyForPhone(...args),
+  // Does this class have a live standing link with the evening round on (the offers lane requires it from here)?
+  hasLiveStandingLink: (...args) => require('./web-quiz-evening-round-phone').hasLiveStandingLink(...args),
 };

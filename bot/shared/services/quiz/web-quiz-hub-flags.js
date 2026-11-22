@@ -184,6 +184,9 @@ const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
 // The big flight in the games door (sa-game, web-quiz-hub-doors.js): this cache only (nowOf('battery')), never a read of
 // its own; its page and sink read flags().battery. Only the stored JSON boolean true is on.
 const SA_GAME_KEY = 'sa_game';
+// qfix_class_link: the class evening round (web-quiz-evening-round-flags.js owns its meaning; read here so the hub's
+// next slot asks for tonight's round without a read of its own when it is off).
+const EVENING_ROUND_KEY = 'web_quiz_evening_round';
 const TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
@@ -224,6 +227,7 @@ const SWITCHES = Object.freeze([
   ['endFit',       END_FIT_KEY,           'json'],
   ['endOnce',      END_ONCE_KEY,          'json'],
   ['endShort',     END_SHORT_KEY,         'json'],
+  ['eveningRound', EVENING_ROUND_KEY,     'loose'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
   ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],

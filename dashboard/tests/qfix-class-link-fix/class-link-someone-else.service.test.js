@@ -2,8 +2,8 @@
  * The class link's "Whose turn?" (/j/<code>, public/wq/class-link.js) on a shared phone: when the bot's answer carries
  * an `other` teacher step, the page draws a "someone else" button under the remembered children; tapping it shows that
  * teacher step (no round trip), and a teacher tap from there posts that step's own token. The button is a full-size
- * button (>= 48 px tall at 360 x 740 in every look the page can wear), worded as the hub's own "Whose turn?" does it
- * (copy.v2.json jg.who.someone_else).
+ * button (>= 48 px tall at 360 x 740 in every look the page can wear), worded as the name screen's way out (one label
+ * for one action: copy.v2.json jg.who.not_listed).
  *
  * The real /j/<code> page from the real edge router; its own script runs in a vm, its fetches go through the real edge
  * routes, and the bot is the network boundary (a fake fetch). The button's size is the cascade of the shipped wq.css.
@@ -216,7 +216,7 @@ describe('"Whose turn?" on a shared phone', () => {
     try {
       const other = v.buttons().find((b) => b.attrs.id === 'wq-cl-other');
       expect(other).toBeTruthy();
-      expect(v.html()).toContain(`>${COPY['jg.who.someone_else'][lang].replace(/'/g, '&#39;')}</button>`);
+      expect(v.html()).toContain(`>${COPY['jg.who.not_listed'][lang].replace(/'/g, '&#39;')}</button>`);
       // the children first, the door for someone else after them
       expect(v.html().indexOf('data-chip="c1"')).toBeLessThan(v.html().indexOf('id="wq-cl-other"'));
       const arrives = v.calls.filter((c) => c.url.endsWith('/cl/arrive')).length;
@@ -248,7 +248,9 @@ describe('"Whose turn?" on a shared phone', () => {
     const v = await openLink({ lang: 'en', arrive: { ...WHO, other: null } });
     try {
       expect(v.html()).toBe('<section class="wq-screen"><img class="wq-jugnu" src="/wq/jugnu/hello.webp" alt="" width="96" height="96"><h1>Whose turn?</h1>'
-        + '<div class="wq-kids-big"><button class="wq-kid wq-kid-big" data-chip="c1"><span class="wq-ani" aria-hidden="true">🦉</span><bdi>Hina</bdi></button></div></section>');
+        + '<div class="wq-kids-big"><button class="wq-kid wq-kid-big" data-chip="c1"><span class="wq-ani" aria-hidden="true">🦉</span><bdi>Hina</bdi></button></div>'
+        // the reminders' empty slot under the chips (the evening round's commit, after this golden was written)
+        + '<div id="wq-remind" data-src="class_link"></div></section>');
     } finally { await v.close(); }
   });
 });

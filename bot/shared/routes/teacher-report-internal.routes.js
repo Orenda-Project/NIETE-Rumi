@@ -187,6 +187,8 @@ router.get('/page/:token', handle(async (req, res) => {
   }
   // ── class round (web_quiz_class_round): its card on the class tab; '' when off or no open draw ──
   const roundCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-class-round').cardFor(v.teacherId, { lang: b.lang, token: req.params.token }) : '';
+  // ── evening rounds (web_quiz_evening_round): the class tab's "Evening rounds" section; '' when off or none ──
+  const eveningCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-evening-round').reportSection(v.teacherId, { lang: b.lang }) : '';
   const opened = {
     teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: jugnu && jugnu.view ? 'jugnu' : b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
   };
@@ -196,7 +198,7 @@ router.get('/page/:token', handle(async (req, res) => {
   const html = renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
     ...(jugnu ? { jugnu } : {}),
-    ...(roundCard ? { roundCard } : {}),
+    ...(roundCard || eveningCard ? { roundCard: `${roundCard}${eveningCard}` } : {}),
   });
   if (v2) {
     const renderMs = Math.max(0, Math.round(performance.now() - t0));

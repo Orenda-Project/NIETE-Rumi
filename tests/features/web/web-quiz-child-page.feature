@@ -1931,11 +1931,13 @@ Feature: Web child quiz page on the portal
     And a classmate or a child of another class is never shown
 
   @WQ251 @T832
-  Scenario: The class link's preview and every closed state say nothing about the class
+  Scenario: The class link's preview names at most the class, and every closed state says nothing about it
     Given a /j/<code> link is shared on WhatsApp
-    Then its preview reads "Jugnu's Challenge" and "Stories and number games. Tap to play." in the class's language, with no class, school, teacher or child name and no digit
+    Then its preview names no school, teacher or child, and no class beyond its grade and section (WQ267), and its description reads "Stories and number games. Tap to play." in the class's language
     And with the switch or a parent off, or a revoked, expired, unknown or malformed code, /j/<code> is exactly the page an unknown /q/ code shows
     And every /q/<code> page is byte-identical with the class link on or off
+    # UPDATED 2026-11-22: a live link's preview title used to be the generic "Jugnu's Challenge" for every class, with no class and no digit;
+    # it now names the class (WQ267). The closed states and the description are as before.
 
   @WQ252 @T833
   Scenario: The teacher forwards the class link from the report, and their own visit is practice
@@ -2048,3 +2050,98 @@ Feature: Web child quiz page on the portal
     And the key is given and counted against the teacher, never in a child's key count
     And the page's reading result is answered and no child row, story event or key row is written
     But with "web_quiz_practice_your_turn" off the book has no "Your turn" and the key is refused, as before
+
+  # ── the class link's "Whose turn?", its preview, and the class evening round (the link: app_settings web_quiz_class_link; the round: web_quiz_evening_round) ──
+  # On a school day the round is written for a class that has a live standing link, from the class's lesson of the day: a short
+  # quiz the children play from the class link. Both switches are off by default. Unit: bot/tests/qfix-class-link/*, dashboard/tests/qfix-class-link/*.
+  @WQ263
+  Scenario: "Whose turn?" marks a child whose class quiz is waiting with "Quiz ready", and a child who has played it with nothing
+    Given web_quiz_class_link and web_quiz_evening_round are "on" and the class has tonight's round ready
+    And a phone that played as two children of the class, Zara Test and Ali Test
+    And Ali Test has finished tonight's round and Zara Test has not
+    When that phone opens /j/<code>
+    Then "Whose turn?" has one chip for each child, and Zara Test's chip carries the badge "Quiz ready" under the first name
+    And Ali Test's chip has no badge, and is drawn exactly as before
+    And a marked chip is the same button as an unmarked one, so the whole chip is still the tap target and keeps its own height
+    And when neither child has played the round, both chips carry the badge
+
+  @WQ264
+  Scenario: The badge reads in the class's language: "Quiz ready" in English and «کوئز تیار» in Urdu
+    Given tonight's round is ready and a phone that played as a child of the class who has not played it
+    When the class link opens in English
+    Then that child's chip carries "Quiz ready"
+    When the class link opens in Urdu
+    Then the chip carries «کوئز تیار» at the regular Nastaliq weight, and "Quiz ready" is nowhere on the page
+    And the badge's words are the copy deck's, byte for byte, and fit its 16 code point cap
+
+  @WQ265
+  Scenario: With the evening round off, or no round ready for the class, "Whose turn?" has no badge and is exactly as before
+    Given web_quiz_class_link is "on" and a phone that played as a child of the class
+    And web_quiz_evening_round is false or absent
+    When that phone opens /j/<code>
+    Then no chip carries a badge, and no round is read at all
+    Given web_quiz_evening_round is "on" but no round is ready for the class today, or the ready round is another class's
+    When the phone opens /j/<code> again
+    Then no chip carries a badge
+    And a round that cannot be read shows no badge and no error
+
+  @WQ266
+  Scenario: The way out of "Whose turn?" and the way back from "Is your name here?" say the same words in both languages
+    Given a phone that played as a child of the class, and the class link in Urdu
+    When the phone opens /j/<code>
+    Then the button under the chips reads «میرا نام یہاں نہیں ہے»
+    When the child taps that button, then a teacher, then a first letter
+    Then the link under the first names reads «میرا نام یہاں نہیں ہے» too, the copy deck's jg.who.not_listed
+    And in English both read "My name isn't here"
+
+  @WQ267
+  Scenario: A live class link's preview names the class and nothing else: "Jugnu · Class 3 A" / «جگنو · کلاس ۳ A»
+    Given web_quiz_class_link is "on" and a teacher has a live link for an enrolled Grade 3 class, section A
+    When /j/<code> is fetched, by WhatsApp's link-preview crawler or by a phone
+    Then the title, the page's own title and the preview image's alt text all read "Jugnu · Class 3 A" in English and «جگنو · کلاس ۳ A» in Urdu, with Urdu digits
+    And a class with no section reads "Jugnu · Class 5", and a two-digit grade "Jugnu · Class 10 A"
+    And the description is still "Stories and number games. Tap to play." and og:url is the origin, with no code in it
+    And no school, teacher or child name or id reaches the page head
+    But a class with no numeric grade (early years), or a class whose label cannot be read, keeps the generic title "Jugnu's Challenge" / «جگنو کا چیلنج»
+    And the edge draws a class in the title only in the label form "Class <grade> <section>" / «کلاس <digits> <section>", so any other text the bot answers keeps the generic title
+
+  @WQ268
+  Scenario: Every open of the class link is counted once, by how the link reached the phone; a preview fetch and the teacher's own visit are not
+    Given web_quiz_class_link is "on", whatever web_quiz_evening_round says
+    When a phone opens /j/<code> from the teacher's Send or Forward (?f=1), from the reminder (?from=push), or from the hub (?from=hub)
+    Then web_quiz.class_link_open is logged once for that page load, with how it came: forward, reminder or hub
+    And an open with no marker is "remembered" for a phone that played as a child of this class, and "forward" for any other phone, since a link reaches a phone it never visited only by being shared (a copied link carries no marker)
+    And the phone is named only by a one-way hash of its device reference, never the reference, and an open with no usable reference is counted without it
+    But a link-preview fetch and the teacher's own visit from their card are never counted
+
+  @WQ269
+  Scenario: A child plays tonight's round as their own set: 5 lesson questions and the 2 recall questions that child missed
+    Given web_quiz_evening_round is "on" and tonight's round holds lesson questions and a pool of recall questions
+    And Zara Test missed the originals of two of the recall questions, and the class missed others
+    When Zara Test opens the round from the class link, starts it, answers and finishes
+    Then the start reply lists exactly 7 questions: the round's first 5 lesson questions, then 2 recall questions, the ones whose originals Zara Test missed first, filled from the class's most-missed
+    And the page plays only those 7, never the whole pool
+    And an answer to a question outside the set is not recorded, and the finish counts the 7: half the set, 4 answered, is enough to finish
+    And a resume gets the same set back, and two children with the same misses can be given different recall questions while one child always gets the same ones
+    And web_quiz.round_started is logged once for a new sitting, not for a resume, and web_quiz.round_done at the first finish, with codes and counts only
+    But with web_quiz_evening_round and web_quiz_order_seed both off the round plays as an ordinary quiz, the whole pool, and logs no round event
+    And any other quiz is served exactly as before
+
+  @WQ270
+  Scenario: A lesson question the child answered right earlier the same day is swapped out of their round; a miss stays
+    Given web_quiz_evening_round is "on" and the lesson's quiz the teacher sent that afternoon holds the same questions as the round's lesson questions (copies of one authored quiz)
+    And Zara Test answered 2 of those questions right on the afternoon quiz and 1 wrong
+    When Zara Test starts the round
+    Then the 2 right ones are left out and the next lesson questions of the round take their place, in the round's order, and the wrong one stays
+    And the start, the answers and the finish agree on that set, and so does a resume, even when another tab records a right answer after the sitting began
+    And no swap is made for another lesson's quiz, for yesterday's answers, or for the round's own earlier sitting
+    And when fewer unseen lesson questions are left than the round needs, the set is shorter and never padded with a question answered right, and web_quiz.round_started says how many were swapped
+    But when nothing would be left to play, the round's first lesson questions are served anyway, because the page cannot play an empty set
+
+  @WQ271
+  Scenario: A round never serves a question whose key is held or that the key review dropped
+    Given web_quiz_evening_round is "on" and one of tonight's lesson questions is marked held and another dropped
+    When the round's page is asked for, and Zara Test starts it, answers and finishes
+    Then the page carries neither the stem nor the key of either question
+    And an answer to either is not recorded and the finish does not count it
+    And a quiz that is not a round serves every row, as before
