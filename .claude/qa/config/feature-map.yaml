@@ -312,6 +312,9 @@ shared:
   bot/shared/config/lp612-flags.js: [child-test, coaching, lesson-plan, menu, observe, status, training]
   bot/shared/services/lp-vision-ocr.service.js: [child-test, coaching, lesson-plan, menu, observe, training]
   bot/shared/services/voice-attendance.service.js: [attendance, child-test, coaching, lesson-plan, menu, training]
+  # The template sender behind the portal's "Send on WhatsApp" (lesson plan, paper, coaching report, observation)
+  # and the closed-window coaching report, incl. its clip and "Make a quiz" siblings (bd-pdwwk4.2).
+  bot/shared/services/share-send.service.js: [coaching, lesson-plan, observe, training]
   # Opt-in sandbox echo of outbound WhatsApp payloads (WA_OUTBOUND_ECHO_TO); called from whatsapp.service.js.
   bot/shared/services/outbound-echo.js: "*"
   bot/shared/utils/region.js: "*"

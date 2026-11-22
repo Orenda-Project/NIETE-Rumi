@@ -52,6 +52,7 @@ const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../qu
 const Catalog = require('../lp-v8-catalog.service');
 const SourceStore = require('../quiz/lp-asset-source.store');
 const AppOpens = require('../quiz/lp-app-opens.store');
+const ClosedWindow = require('../quiz/closed-window-offer');
 const { LP_V8 } = require('../quiz/quiz-sources');
 const ReligiousHold = require('../quiz/lp-religious-hold');
 const Funnel = require('../quiz/quiz-funnel');
@@ -915,10 +916,18 @@ async function send(row, { now, windowTemplate = WindowClosedTemplate } = {}) {
   const reason = preChecks({
     isSchoolDay: true, sectorAllowed: true, lessonCount, ...(await sendTimeFacts(row, user, at)),
   });
+  // quiz_offer_closed_window on: a closed-window skip says on its row and its event which way the offer was held
+  // (held_path 'template' = the reminder template went, 'none' = nothing reached the teacher).
+  const trace = reason === 'window_closed' && (await ClosedWindow.settings()).trace;
   if (reason === 'window_closed' && await windowTemplate.templateName()) {
     const res = await windowTemplate.sendWindowClosedTemplate({ user });
-    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason: 'window_closed_template', at: 'send', ...res });
-    return { skipped: 'window_closed_template', context: res };
+    const held = trace ? { held_path: res && res.sent ? 'template' : 'none' } : {};
+    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason: 'window_closed_template', at: 'send', ...res, ...held });
+    return { skipped: 'window_closed_template', context: { ...res, ...held } };
+  }
+  if (trace) {
+    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, reason, at: 'send', held_path: 'none' });
+    return { skipped: reason, context: { held_path: 'none' } };
   }
   if (reason) return skip(reason);
 
