@@ -1080,17 +1080,20 @@ const REPORT_WORDS = {
 function urNum(n) { return String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]); }
 
 /**
- * A round's PKT day (YYYY-MM-DD) as the page's words: weekday, date, month, "Tue 24 Nov" / «منگل ۲۴ نومبر» (a date
- * is prose: the language's own digits, as the report page's other dates). '' for anything else.
+ * A round's PKT day (YYYY-MM-DD) as the page's words: weekday, date, month, "Tue 24 Nov" / «منگل ۲۴ نومبر». The
+ * weekdays are the catalog's (qfix_class_link_weekdays), the months the weekly report's (coaching/weekly-report/message.js);
+ * the date in the language's own digits, as the report page writes its other dates. '' for anything else.
  */
 function dayWords(day, lang) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day || ''));
   if (!m) return '';
-  const code = clampLanguage(lang);
-  const parts = new Intl.DateTimeFormat(`${code}-PK`, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
-    .formatToParts(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))));
-  const part = (t) => (parts.find((x) => x.type === t) || {}).value || '';
-  return [part('weekday'), require('../../config/ux-strings').digitsFor(part('day'), code), part('month')].filter(Boolean).join(' ');
+  const UX = require('../../config/ux-strings');
+  const code = UX.clampLanguage(lang);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  const week = UX.resolveUx('qfix_class_link_weekdays', { language: code }).split('|');
+  const { MONTHS } = require('../coaching/weekly-report/message');
+  const months = (MONTHS && (MONTHS[code] || MONTHS.en)) || [];
+  return [week[d.getUTCDay()], UX.digitsFor(d.getUTCDate(), code), months[d.getUTCMonth()]].filter(Boolean).join(' ');
 }
 
 /** The class tab's "Evening rounds" section (HTML), '' when there is nothing to show. */
