@@ -32,7 +32,9 @@
  * `quiz_share_codes.report_sent_at` (the 12 h report's time) was not in that
  * report. The class codes read carries the stamp, so the count costs no read:
  * quizReport marks each such child's row `late: true` and its summary `late`
- * (≥ 1) and `reported`; classReport's quiz rows carry the same two. The keys are
+ * (≥ 1) and `reported` (the code's 12 h report went, or the teacher asked for
+ * the report on /quiz: the quiz row is report_sent; late stays measured against
+ * the automatic report); classReport's quiz rows carry the same two. The keys are
  * there only when they say something (the pages that do not read them are
  * unchanged); the teacher's pages show them behind quiz_teacher_home_reports.
  *
@@ -630,7 +632,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       ...(v21 ? { completion: V21.completion(rawSessions, teacherId, played.length) } : {}),
       // bd-5j1zaf: how many of them finished after the code's 12 h report, and whether it has gone
       ...(played.some((p) => p.late) ? { late: played.filter((p) => p.late).length } : {}),
-      ...(reportedOf(codes) ? { reported: true } : {}),
+      ...(reportedOf(codes) || (own && quiz.status === 'report_sent') ? { reported: true } : {}),
     },
     played,
     notPlayed,
@@ -735,7 +737,8 @@ async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = f
       ...(ownOnly && q.quiz_source === 'story' ? { book: bookOf(q) } : {}),
       // bd-5j1zaf: the children who finished after the 12 h report, and whether a code of this quiz has had it
       ...(mine.some(isLate) ? { late: mine.filter(isLate).length } : {}),
-      ...(reportedOf(codes.filter((c) => c.quiz_id === q.id)) ? { reported: true } : {}),
+      // (or the teacher asked for it on /quiz: their own quiz row is report_sent; a library quiz's row is its author's)
+      ...(reportedOf(codes.filter((c) => c.quiz_id === q.id)) || (!q.sent_at && q.status === 'report_sent') ? { reported: true } : {}),
     };
   });
 
