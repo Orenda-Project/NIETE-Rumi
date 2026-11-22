@@ -1,0 +1,2 @@
+{"ts":"2026-11-22T13:17:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"9f3decdc7a6f","branch":"bd-s0ccn5.2-51195","user":""}
+{"ts":"2026-11-22T13:17:12Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"f9b1c503-d903-4795-b273-7c768813a134","sha":"9f3decdc7a6f","branch":"bd-s0ccn5.2-51195","user":""}
