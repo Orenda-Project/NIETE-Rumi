@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T14:01:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-home spec_sync=true","sha":"7de5b43ff04b","branch":"bd-96f69c.8-53947","user":""}
 {"ts":"2026-11-22T14:01:31Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-home spec_sync=true","sha":"7de5b43ff04b","branch":"bd-96f69c.8-53947","user":""}
 {"ts":"2026-11-22T14:09:08Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-home=none-needed (spec already updated and committed in 7de5b43: TH13 now checks Home is lit on My journey; web lane ran TH13 ok on the rebased commit, HEALTHY 1/1, merged as #5452)","sha":"7de5b43ff04b","branch":"bd-96f69c.9-staging","user":""}
+{"ts":"2026-11-22T14:09:09Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"0d04c50e-5205-4835-a535-a6ef5def95e7","sha":"7de5b43ff04b","branch":"bd-96f69c.9-staging","user":""}
