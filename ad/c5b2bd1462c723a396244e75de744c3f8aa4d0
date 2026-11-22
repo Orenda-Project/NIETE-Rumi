@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T17:37:00Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-dp9ipc-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"adc5b2bd1462","branch":"bd-dp9ipc-main","user":""}
+{"ts":"2026-11-22T17:37:05Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"adc5b2bd1462","branch":"bd-dp9ipc-main","user":""}
