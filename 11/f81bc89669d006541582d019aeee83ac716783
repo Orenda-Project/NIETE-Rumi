@@ -6,3 +6,4 @@
 {"ts":"2026-11-23T16:23:20Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login=none-needed (only the server reading of the goal-start switch value changed; sign-in and screens untouched)","sha":"11f81bc89669","branch":"bd-sm4xdn-goal","user":""}
 {"ts":"2026-11-23T16:23:21Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (only the server reading of the goal-start switch value changed; sign-in and screens untouched)","sha":"11f81bc89669","branch":"bd-sm4xdn-goal","user":""}
 {"ts":"2026-11-23T16:23:28Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"11f81bc89669","branch":"bd-sm4xdn-goal","user":""}
+{"ts":"2026-11-23T16:23:37Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"11f81bc89669","branch":"bd-sm4xdn-goal","user":""}
