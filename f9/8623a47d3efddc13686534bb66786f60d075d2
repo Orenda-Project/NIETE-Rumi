@@ -1,2 +1,3 @@
 {"ts":"2026-11-23T13:43:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"f98623a47d3e","branch":"HEAD","user":""}
 {"ts":"2026-11-23T13:43:32Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"f98623a47d3e","branch":"HEAD","user":""}
+{"ts":"2026-11-23T14:51:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (same GB lp612 quiz-source fix, earlier sha/cherry-pick; fan-out mapping, no training surface changed)","sha":"f98623a47d3e","branch":"bd-97daxo.34-main","user":""}
