@@ -11,7 +11,8 @@ import { FOCUS, OUTLINE_WIDE } from "../../teacher/ui/styles";
 import { HistoryList } from "../../teacher/ui";
 import { SectionLabel } from "../ui";
 import ReportsFrame from "../reports/ReportsFrame";
-import { ReportCard, reportGroups } from "../reports/ReportRows";
+import { ReportCard, reportGroups, useCardLine } from "../reports/ReportRows";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { REPORTS } from "../reports/copy";
 import { dayGroups } from "../reports/data";
 import { DisagreementsEntry } from "../disagreements/frame";
@@ -41,9 +42,12 @@ const CoachReports = () => {
   const data = dataOf(load);
 
   const today = pkToday();
+  // bd-o15qnr.45 (switch on): History's rows carry the cards' line (the date, grade and subject; no school, no rubric).
+  const v7 = useFlowV6() === true;
+  const line = useCardLine();
   const groups = useMemo(
-    () => reportGroups(dayGroups((data?.all.items ?? []).slice(0, RECENT_COUNT)), (d) => dayName(d, today, days), C),
-    [data, days, C, today],
+    () => reportGroups(dayGroups((data?.all.items ?? []).slice(0, RECENT_COUNT)), (d) => dayName(d, today, days), C, undefined, v7 ? { v7, line } : undefined),
+    [data, days, C, today, v7, line],
   );
 
   return (

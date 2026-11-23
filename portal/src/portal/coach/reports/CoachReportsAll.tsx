@@ -9,7 +9,8 @@ import { dayName } from "../../teacher/lessons/days";
 import { SearchBox } from "../ui";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import ReportsFrame from "./ReportsFrame";
-import { reportGroups } from "./ReportRows";
+import { reportGroups, useCardLine } from "./ReportRows";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { REPORTS } from "./copy";
 import { dayGroups, inSpan, kpiNumbers } from "./data";
 import { useAllReports } from "./useAllReports";
@@ -37,7 +38,13 @@ export default function CoachReportsAll() {
 
   const rows = useMemo(() => data.items.filter((r) => inSpan(r, span.from, span.to)), [data.items, span]);
   const today = pkToday();
-  const groups = useMemo(() => reportGroups(dayGroups(rows), (d) => dayName(d, today, days), C), [rows, days, C, today]);
+  // bd-o15qnr.45 (switch on): the cards' line on every row (the date, grade and subject; no school, no rubric).
+  const v7 = useFlowV6() === true;
+  const line = useCardLine();
+  const groups = useMemo(
+    () => reportGroups(dayGroups(rows), (d) => dayName(d, today, days), C, undefined, v7 ? { v7, line } : undefined),
+    [rows, days, C, today, v7, line],
+  );
   const kpi = useMemo(() => kpiNumbers(data.items, span, data.waiting), [data.items, span, data.waiting]);
 
   const items: KpiItem[] = [

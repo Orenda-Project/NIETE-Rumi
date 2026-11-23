@@ -49,6 +49,10 @@ export interface SendJob {
   errorCode: string | null;
   /** bd-33wxxi.4 — the Sending page the strip's tap opens, when it is not the coach's (the principal app's). */
   waitHref?: string;
+  /** bd-o15qnr.45 — when she pressed Send (ISO), and the class she named (Observe's In progress row); null when none. */
+  startedAt: string;
+  grade: number | null;
+  subject: string | null;
 }
 
 export interface SendArgs {
@@ -80,7 +84,12 @@ type Held = { job: SendJob; args: SendArgs; uploaded: WeakMap<Blob, string> };
 
 const held = new Map<string, Held>();
 const listeners = new Set<() => void>();
-const emit = () => listeners.forEach((l) => l());
+/** bd-o15qnr.45 — the jobs still going up, oldest first; a new array only when something changed (useSyncExternalStore). */
+let sendingNow: SendJob[] = [];
+const emit = () => {
+  sendingNow = [...held.values()].map((h) => h.job).filter((j) => j.state === 'sending');
+  listeners.forEach((l) => l());
+};
 
 const subscribe = (l: () => void) => {
   listeners.add(l);
@@ -183,12 +192,16 @@ async function run(visitId: string): Promise<void> {
 export function startSend(args: SendArgs): SendJob {
   const existing = held.get(args.visitId);
   if (existing && existing.job.state === 'sending') return existing.job;
+  const lesson = (args.lesson || {}) as { grade?: unknown; subject?: unknown };
   const job: SendJob = {
     visitId: args.visitId, teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, teacherName: args.teacherName,
     visitDay: args.visitDay, durationMs: args.durationMs, recordingId: args.recordingId,
     planKind: args.plan && args.plan.kind === 'file' ? planKindOf(args.plan.file.name) : null,
     state: 'sending', pct: 0, observationId: null, errorCode: null,
     ...(args.waitHref ? { waitHref: args.waitHref } : {}),
+    startedAt: new Date().toISOString(),
+    grade: typeof lesson.grade === 'number' ? lesson.grade : null,
+    subject: typeof lesson.subject === 'string' && lesson.subject ? lesson.subject : null,
   };
   held.set(args.visitId, { job, args, uploaded: new WeakMap() });
   emit();
@@ -223,6 +236,14 @@ export function retrySend(visitId: string, without?: Without): boolean {
 }
 
 export const getJob = (visitId: string): SendJob | null => held.get(visitId)?.job ?? null;
+
+/**
+ * bd-o15qnr.45 (queue #240) — every observation still going up from this phone (state `sending`), kept current: Observe's
+ * In progress shows each one ("Sending · 62%") until the server has it, then the server's own row takes over.
+ */
+export function useSendingJobs(): SendJob[] {
+  return useSyncExternalStore(subscribe, () => sendingNow, () => sendingNow);
+}
 
 /** The job for a visit, kept current. */
 export function useSendJob(visitId: string): SendJob | null {

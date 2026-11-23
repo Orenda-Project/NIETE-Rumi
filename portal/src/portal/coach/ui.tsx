@@ -11,6 +11,7 @@ import { useCopy } from "../teacher/i18n";
 import { AttentionBanner } from "../teacher/ui";
 import { COACH_HOME } from "./home/copy";
 import { BackLink } from "../lib/useBack";
+import { useFlowV6 } from "./flow/useCoachFlowV2";
 
 /**
  * bd-o15qnr — the coach app v2's building blocks, in the LIVE portal look (not
@@ -79,13 +80,17 @@ export function resetPendingCache(): void {
 
 export function PendingBanner() {
   const W = useCopy(COACH_HOME);
+  // bd-o15qnr.45 (the operator 23 Nov ~20:20: "The X observations need you are on too many pages. They should be maximum
+  // at the home and main Observation page.") — on the visit flow switch this bar is Home's only (the main Observe page
+  // opens with Needs you). Off: as before; while the switch is read, nothing (no flash).
+  const flow = useFlowV6();
   const [pending, setPending] = useState<Pending | null>(null);
   useEffect(() => {
     let live = true;
     readPending().then((p) => { if (live) setPending(p); });
     return () => { live = false; };
   }, []);
-  if (!pending || pending.waiting < 1) return null;
+  if (flow !== false || !pending || pending.waiting < 1) return null;
   const to = pending.waiting === 1 && pending.ids[0] ? `/portal/coach/observation/${pending.ids[0]}` : "/portal/coach/reports?show=waiting";
   // bd-4404s7.2 — the kit's AttentionBanner (one component for every "this needs you" line), in her language.
   return <AttentionBanner testId="pending-banner" text={W.reportsWaiting(pending.waiting)} to={to} className="mb-1" />;
