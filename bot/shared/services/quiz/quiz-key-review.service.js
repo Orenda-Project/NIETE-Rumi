@@ -104,9 +104,9 @@ async function heldQuestionIds(db, ids) {
   return held;
 }
 
-/** Reads the counts (replica), then writes the queue (primary). Returns the counts. */
+/** Reads the counts (replica, over GET: the replica refuses POST rpc), then writes the queue (primary). Returns the counts. */
 async function flag({ reader, writer, cfg, today }) {
-  const { data, error } = await reader.rpc('quiz_key_answer_counts', { p_min_answers: cfg.min_answers, p_recent_days: cfg.recent_days });
+  const { data, error } = await reader.rpc('quiz_key_answer_counts', { p_min_answers: cfg.min_answers, p_recent_days: cfg.recent_days }, { get: true });
   if (error) throw new Error(error.message || 'quiz_key_answer_counts failed');
   const suspects = (data || []).map((r) => suspectOf(r, cfg)).filter(Boolean);
   const counts = { scanned: (data || []).length, n_total: suspects.length, n_new: 0, n_open_refreshed: 0, n_reviewed_skipped: 0 };
