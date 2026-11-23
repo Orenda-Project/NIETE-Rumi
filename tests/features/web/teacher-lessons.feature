@@ -216,7 +216,7 @@ Feature: Teacher lesson plans
     When they open /portal/teacher/lessons
     Then it shows "Recent Lesson Plans" under Home, as before
     When they open a grade 1–5 plan
-    Then the viewer has Start DC observation, Send on WhatsApp and Open in another app, as before
+    Then the viewer has Start DC observation and Open in another app, as before, and no Send on WhatsApp (bd-ain69z)
     And All Lesson Plans opens for them and is still turned away for a coach
 
   @LDR04 @draft
@@ -297,14 +297,25 @@ Feature: Teacher lesson plans
     And "Search goals" still narrows the list as she types
 
   # bd-zrdvmi.21 (18 Nov) — ICT Feedback sheet, GB tab rows 2-3 (14 Nov, portal).
-  @GBS01 @draft @config-gated
+  @GBS01 @draft @config-gated @obsolete
   Scenario: A GB teacher sends a Gilgit-Baltistan plan she opened in the app to her WhatsApp
+    # OBSOLETE 2026-11-23 (bd-ain69z): plan-screen Send on WhatsApp removed for ICT and GB (operator, 22 Nov); see GBS04.
     Given the teacher app v2 is on, LP_GB_K5_ENABLED is on and a lesson-plan share template is set
     And a GB teacher is signed in
     When she opens a ready GB grade 1 Urdu plan from Lesson Plans
     And she taps Send on WhatsApp
     Then the button says the plan was sent, not "Not available yet"
     And the bot logs share_send.sent with an itemRef naming the GB segment
+
+  # bd-ain69z (23 Nov) — Send on WhatsApp removed for ICT and GB; GB still showed a grey one.
+  @GBS04 @draft @negative
+  Scenario: A GB or ICT teacher's plan screen has no Send on WhatsApp, grey or green
+    Given the teacher app v2 is on
+    And a GB teacher is signed in
+    When she opens a ready GB grade 1 Urdu plan from Lesson Plans
+    Then the plan screen offers Open in another app
+    And there is no "Send on WhatsApp" and no "Not available yet" anywhere on it
+    And the same holds for an ICT teacher opening a grade 1-5 plan
 
   @GBS02 @draft @negative
   Scenario: When the reader cannot show a plan, it says which step failed in the logs
