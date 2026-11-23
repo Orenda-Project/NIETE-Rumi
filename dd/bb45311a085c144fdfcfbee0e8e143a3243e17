@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T14:58:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,portal-login,portal-smoke spec_sync=true","sha":"ddbb45311a08","branch":"bd-sm4xdn-goal","user":""}
+{"ts":"2026-11-23T14:58:16Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,portal-login,portal-smoke spec_sync=true","sha":"ddbb45311a08","branch":"bd-sm4xdn-goal","user":""}
