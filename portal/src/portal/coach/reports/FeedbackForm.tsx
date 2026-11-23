@@ -26,6 +26,14 @@ import { V6FormV7 } from "./FormV7List";
 import { dropV7 } from "./evidenceReview";
 import { trackFlow } from "../flow/track";
 import { SAVE_SLOW_MS, SAVE_TRIES, savedOnly, tryOnce, type SaveTry } from "./saveTry";
+import { AnalysingStage } from "../flow/VisitV7";
+
+/**
+ * bd-o15qnr.41 (queue #228; the operator 23 Nov: "dont open the form till analysis is complete") — while the Digital
+ * Coach is still on the lesson the bot answers 409 { reason: 'analysing' }: no form yet, the visit's own analysing card,
+ * and the page asks again every WAIT_MS (and when she comes back to it); the form opens by itself when the draft lands.
+ */
+const WAIT_MS = 10_000;
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -91,6 +99,9 @@ export default function FeedbackForm() {
   const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
   // bd-tfya0m — the bot answered 409 no_analysis: this observation has no draft to check (no form, no Save).
   const [noAnalysis, setNoAnalysis] = useState(false);
+  // bd-o15qnr.41 — the Digital Coach is still on the lesson (409 analysing): no form until its draft is in.
+  const [analysing, setAnalysing] = useState(false);
+  const waiting = useRef(false);
   const [tick, setTick] = useState(0);
   const [start, setStart] = useState<Values>({});
   const [values, setValues] = useState<Values>({});
@@ -108,10 +119,13 @@ export default function FeedbackForm() {
   useEffect(() => {
     if (!id) return undefined;
     let live = true;
-    setLoad("loading");
+    // While waiting for the Digital Coach the card stays put: asking again shows no spinner.
+    if (!waiting.current) setLoad("loading");
     leader.getObservationDraft(id)
       .then((got) => {
         if (!live) return;
+        waiting.current = false;
+        setAnalysing(false);
         const d: ObservationDraft | Obs612Draft = got;
         if (isObs612Draft(d)) { setFde(d); setLoad("ok"); return; }
         const v = initialValues(d);
@@ -127,10 +141,23 @@ export default function FeedbackForm() {
         if (!live) return;
         const res = (err as { response?: { status?: number; data?: { reason?: string } } })?.response;
         if (res?.status === 409 && res.data?.reason === "no_analysis") { setNoAnalysis(true); setLoad("ok"); return; }
+        if (res?.status === 409 && res.data?.reason === "analysing") { waiting.current = true; setAnalysing(true); setLoad("ok"); return; }
+        waiting.current = false;
+        setAnalysing(false);
         setLoad("error");
       });
     return () => { live = false; };
   }, [id, tick]);
+
+  // bd-o15qnr.41 — while the Digital Coach works: ask again every WAIT_MS, and whenever she comes back to the tab.
+  useEffect(() => {
+    if (!analysing) return undefined;
+    const again = () => setTick((n) => n + 1);
+    const timer = setInterval(again, WAIT_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") again(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [analysing]);
 
   const name = teacherNameOf(view);
   const readOnly = !!draft && draft.editable === false;
@@ -287,6 +314,7 @@ export default function FeedbackForm() {
   const loadAndEmpty = (
     <>
       <LoadState status={load} empty={false} onRetry={() => setTick((n) => n + 1)} />
+      {analysing && <AnalysingStage />}
       {noAnalysis && (
         <p data-testid="no-analysis" role="alert" className="rounded-2xl bg-[#fef3c7] px-4 py-4 text-[16px] font-semibold text-[#b45309]">{C.noAnalysis}</p>
       )}

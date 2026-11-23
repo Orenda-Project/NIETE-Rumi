@@ -122,6 +122,16 @@ const notReady = (reason) => ({ status: 'not_ready', reason });
  * (20 Nov, 60 days) the only reviewable leader observations without an analysis object were 2 such rows; an FDE
  * (obs612) or FICO-S form keeps its own and is answered before this is asked.
  */
+/**
+ * bd-o15qnr.41 (queue #228; the operator 23 Nov: "dont open the form till analysis is complete") — the Digital Coach is
+ * still on the lesson: no form to read or save yet, on any rubric (a FICO17 v6 review before awaiting_observer_review, a
+ * FICO-S Digital Coach visit before its pre-fill). The page waits and asks again; the step says the same (one rule:
+ * portal-observe-step). An FDE / FICO-S visit no model reads is the observer's from capture, so it never waits here.
+ */
+function stillAnalysing(row) {
+  return stepOfRow(row).step === 'analysing';
+}
+
 function hasAnalysis(row) {
   const ad = row && row.analysis_data;
   return !!ad && typeof ad === 'object' && !Array.isArray(ad);
@@ -694,6 +704,7 @@ async function getDraft({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
+  if (stillAnalysing(row)) return notReady('analysing');
   const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: FDE's form, its own module
   if (fde.isFdeSession(row)) return fde.portalDraft({ userId, row });
   if (!READABLE_STATUSES.includes(row.status)) return notReady('not_ready');
@@ -904,6 +915,7 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false, evi
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
+  if (stillAnalysing(row)) return notReady('analysing');
   const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: save / Submit FDE's form, no WhatsApp
   if (fde.isFdeSession(row)) {
     const out = await fde.portalSave({ userId, row, edits, submit: submit === true });
