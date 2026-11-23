@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 13 (the Urdu reviewer, 12 Nov: "if a child is not able to complete any sub-part, it does not continue to the next
  * sub-part, and instead goes to the next section"): the Whole battery's move-on rule, behind sa_r13_whole_stop (default
@@ -67,7 +68,7 @@ describe('sa_r13_whole_stop: the engine route reads it', () => {
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off,
       r13WholeStopAll: () => all, r13WholeStopEarly: () => early }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G4.A.ur.json`);
       return r.json();

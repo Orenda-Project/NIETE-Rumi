@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 8 (sa-offline-r8): GET /sa/switches carries r8OfflineFirst, r8OfflinePrep and r8FastStart (app_settings
  * sa_r8_offline_first / sa_r8_offline_prep / sa_r8_fast_start: true or a list of user ids; off when absent).
@@ -27,7 +28,7 @@ async function switches() {
   const app = express();
   app.use((req, _res, next) => { req.session = { portalUserId: 'coach-1' }; next(); });
   app.use('/', require('../routes/portal-child-test.routes'));
-  const srv = app.listen(0);
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/switches`);
     return await r.json();

@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 9, item 2 (switch sa_r9_audio, battery.ui.r9_audio): "on some phones the sound comes out very low, fine on tablets".
  * An open microphone with echo cancellation puts an Android phone in its call mode (Chromium sets MODE_IN_COMMUNICATION
@@ -206,7 +207,7 @@ describe('the switch sa_r9_audio', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, r9Audio }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const name = fs.readdirSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa')).find((n) => /^sa\.coach\..*\.ur\.json$/.test(n));
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/${name}`);

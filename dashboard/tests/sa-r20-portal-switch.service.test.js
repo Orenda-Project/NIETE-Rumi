@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 20: the coach page reads sa_r20_auto_end_section (GET /sa/switches → r20AutoEndSection), so End this section shows
  * in RDF auto too. Its own file: the flag reader caches per process, so ON and OFF each get a fresh module registry.
@@ -26,7 +27,7 @@ function mount(rows) {
   return app;
 }
 async function switches(rows) {
-  const srv = mount({ portal_child_test_sa: true, ...rows }).listen(0);
+  const srv = await new Promise((r) => { const s = mount({ portal_child_test_sa: true, ...rows }).listen(0, '127.0.0.1', () => r(s)); });
   try {
     const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/switches`);
     return (await r.json()).switches;

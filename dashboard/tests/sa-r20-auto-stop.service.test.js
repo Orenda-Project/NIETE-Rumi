@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 20 (the Urdu reviewer, 13 Nov: "if a child ... stays silent through a section, Jugnu should end that part and move
  * the child to the next subject"; the coach can end a section in RDF auto too). Each behind its own switch, OFF = today.
@@ -348,7 +349,7 @@ describe('round 20: the served battery', () => {
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off,
       r20SilenceStop2: () => true, r20AutoEndSection: () => true }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G4.A.ur.json`);
       const ui = (await r.json()).ui;

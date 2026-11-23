@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 13b (the Urdu reviewer, 12 Nov: "one unanswered question shouldn't end the subject ... move the child on only
  * when they leave 2 questions in a row unanswered"): sa_r13_oral_rule, an integer N (default OFF = today, one is enough).
@@ -64,7 +65,7 @@ describe('sa_r13_oral_rule: the engine route reads it', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, ...readers }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G4.A.ur.json`);
       return r.json();

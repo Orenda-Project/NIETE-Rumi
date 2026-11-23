@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 8, item 35 (switch sa_r8_counts, OFF by default): the content owner's practice / scored counts per subsection
  * of the RDF forms, and 15 s per story question. OFF: the served battery is today's, byte for byte.
@@ -81,7 +82,7 @@ describe('the engine route reads sa_r8_counts', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, rdfW3Forms: () => true, r8Counts }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G3.A.ur.json`);
       return await r.json();

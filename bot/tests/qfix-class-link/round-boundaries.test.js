@@ -1,4 +1,5 @@
 'use strict';
+require('../helpers/binds-loopback');
 /**
  * Where the evening round meets code it does not own, each proven through the real call:
  *   - the report: scheduleForShareCode on a round's code queues NO 12-hour report; an ordinary code still does;
@@ -139,7 +140,7 @@ describe('web_quiz.class_link_open{class_link_code, via, dh}', () => {
     const app = express();
     app.use(express.json());
     app.use('/cl', router);
-    const server = app.listen(0);
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     const port = server.address().port;
     const r = await fetch(`http://127.0.0.1:${port}/cl/arrive`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: 'K7Q2MXTRAB', device_ref: DEV, via: 'reminder' }) });
     server.close();

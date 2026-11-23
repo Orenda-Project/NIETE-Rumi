@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 12 (the Urdu reviewer, 12 Nov: "Jugnu won't tell…" in the Whole battery: "play it on the first task only"):
  * every Whole-battery part says the same "your turn" line on its Ready screen, «اب آپ کی باری ہے۔ جگنو آخر تک نہیں بتائے
@@ -48,7 +49,7 @@ describe('sa_r12_intro_once: the engine route reads it', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, r12IntroOnce: read }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G4.A.ur.json`);
       return r.json();

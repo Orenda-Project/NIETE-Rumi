@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 10 (the reviewers' 6 Nov list), task design 1: the timed one-minute mental maths has no practice section, behind
  * app_settings sa_r10_fluency_no_practice (OFF by default). ON: that part's practice and its practice line are gone, so
@@ -54,7 +55,7 @@ describe('the engine route reads sa_r10_fluency_no_practice', () => {
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off,
       rdfW3Forms: () => true, r10FluencyNoPractice: () => on }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const name = coachFiles.find((n) => n.endsWith('.ur.json'));
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/${name}`);

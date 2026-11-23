@@ -3,6 +3,7 @@
  * bot's /sfwd route with class, ex and lang; its 302 to wa.me passes through, any other location is refused; the
  * bot's 404 (switch off, not her list) stays a 404; an ex outside the three games is dropped before the bot.
  */
+require('./fixtures/binds-loopback');
 const http = require('http');
 const express = require('express');
 const { createTeacherReportRouter } = require('../routes/teacher-report.routes');
@@ -25,7 +26,7 @@ async function boot(answer) {
   calls = [];
   const app = express();
   app.use(createTeacherReportRouter({ botUrl: BOT, apiKey: 'k', fetchImpl: async (url) => { calls.push(url); return answer(url); } }));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
