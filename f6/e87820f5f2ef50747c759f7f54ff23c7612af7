@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T07:47:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"f6e87820f5f2","branch":"bd-h8zy3q-i9yhrz-staging","user":""}
+{"ts":"2026-11-23T07:47:23Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"f6e87820f5f2","branch":"bd-h8zy3q-i9yhrz-staging","user":""}
