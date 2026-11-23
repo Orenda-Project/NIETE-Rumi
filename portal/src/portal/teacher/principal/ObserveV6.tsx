@@ -32,6 +32,8 @@ import { trackFlow } from "../../coach/flow/track";
 import { PRINCIPAL } from "./copy";
 import { PRINCIPAL_V6 } from "./copyV6";
 import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalBookedTo, principalObservationPath } from "./observe";
+// bd-3xf7vb.1 (queue #217): the "?" (how-to film + indicator guides) on her Observe screens, behind the v6 switch.
+import { ObserveHelpButton } from "../help/observe/ObserveHelp";
 
 const NEEDS_SHOWN = 2;
 const DAYS_AHEAD = 90;
@@ -77,7 +79,7 @@ export function PrincipalObserveV6() {
 
   return (
     <TeacherPage feature="observations" title={Frame.coachNav.observe} crumb={todayLabel(new Date(), lang)} backTo={teacherPath("home")}
-      testId="principal-observe-v6">
+      testId="principal-observe-v6" action={<ObserveHelpButton />}>
       <div className="flex flex-col gap-2.5">
         <section className="flex flex-col gap-2">
           <Link to={PRINCIPAL_PICK} onClick={() => trackFlow("observe.schedule")}
@@ -234,7 +236,7 @@ function MyObservations() {
   const canMore = total != null && items.length < total && !needle;
 
   return (
-    <TeacherPage feature="observations" title={W.myObservations} crumb={Frame.coachNav.observe} backTo={OBS_HOME} testId="my-obs">
+    <TeacherPage feature="observations" title={W.myObservations} crumb={Frame.coachNav.observe} backTo={OBS_HOME} testId="my-obs" action={<ObserveHelpButton />}>
       <div className="flex flex-col gap-2.5">
         <SearchBox value={q} onChange={setQ} placeholder={Card.teacherName} />
         {failed && !loaded && <Failed onRetry={() => loadPage(1)} />}
