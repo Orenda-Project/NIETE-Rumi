@@ -65,7 +65,7 @@ function manyRows(n, suspect = Q_WRONG_KEY_LATE) {
 /** A PostgREST call: filters, order and limit apply to the function's rows, and no response holds more than maxRows
  *  (the server's max-rows; 1,000 on the NIETE prod replica), cut with no error. ignorePaging: a server that answers
  *  every call with the same first rows. */
-function query(result, { maxRows = Infinity, ignorePaging = false } = {}) {
+function query(result, { maxRows = Infinity, ignorePaging = false, limits = [] } = {}) {
   const q = { gt: null, order: null, offset: 0, limit: Infinity };
   return {
     gt(col, v) { q.gt = [col, v]; return this; },
@@ -74,6 +74,7 @@ function query(result, { maxRows = Infinity, ignorePaging = false } = {}) {
     range(from, to) { q.offset = from; q.limit = to - from + 1; return this; },
     then(resolve, reject) {
       if (!Array.isArray(result.data)) return Promise.resolve(result).then(resolve, reject);
+      limits.push(q.limit);
       let out = result.data.slice();
       if (!ignorePaging) {
         if (q.gt) out = out.filter((r) => r[q.gt[0]] > q.gt[1]);
@@ -89,13 +90,15 @@ function query(result, { maxRows = Infinity, ignorePaging = false } = {}) {
  *  answers rpc over GET only and refuses POST (supabase-js's default) with a 400, and cuts every response at 1,000 rows. */
 function fakeReader({ switchValue = { at: '02:00' }, rows = answerRows(), maxRows = 1000, ignorePaging = false } = {}) {
   const calls = [];
+  const limits = [];
   return {
     calls,
+    limits,
     rpc(name, args, opts) {
       calls.push({ name, args });
       if (!opts || opts.get !== true) return query({ data: null, error: { message: `400: replica refuses POST rpc ${name}` } });
       if (name === 'db_is_replica') return query({ data: true, error: null });
-      if (name === 'quiz_key_answer_counts') return query({ data: rows, error: null }, { maxRows, ignorePaging });
+      if (name === 'quiz_key_answer_counts') return query({ data: rows, error: null }, { maxRows, ignorePaging, limits });
       return query({ data: null, error: { message: `unexpected rpc ${name}` } });
     },
     from(table) {
@@ -238,5 +241,29 @@ describe('nightly answer-key review flag', () => {
     const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(2345), ignorePaging: true }), writer: () => writer });
     expect(out).toEqual({ outcome: 'error' });
     expect(writer.store.size).toBe(0);
+  });
+
+  test('page_rows in the switch sets the page size (staging pages for real with 100)', async () => {
+    const writer = fakeWriter();
+    const reader = fakeReader({ switchValue: { at: '02:00', page_rows: 100 }, rows: manyRows(250) });
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader, writer: () => writer });
+    expect(out).toMatchObject({ outcome: 'ran', scanned: 251, pages: 4, n_new: 1 });
+    expect(reader.limits).toEqual([100, 100, 100, 100]);
+  });
+
+  test('a read past 50 pages stops with an error and writes nothing', async () => {
+    const writer = fakeWriter();
+    const reader = fakeReader({ switchValue: { at: '02:00', page_rows: 50 }, rows: manyRows(2600) });
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader, writer: () => writer });
+    expect(out).toEqual({ outcome: 'error' });
+    expect(reader.limits).toHaveLength(50);
+    expect(writer.store.size).toBe(0);
+  });
+
+  test('page_rows outside 50..1000 is ignored: the default 1000', () => {
+    expect(Review.parseSwitch({ at: '02:00' }).page_rows).toBe(1000);
+    expect(Review.parseSwitch({ at: '02:00', page_rows: 100 }).page_rows).toBe(100);
+    expect(Review.parseSwitch({ at: '02:00', page_rows: 10 }).page_rows).toBe(1000);
+    expect(Review.parseSwitch({ at: '02:00', page_rows: 5000 }).page_rows).toBe(1000);
   });
 });
