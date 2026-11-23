@@ -2,7 +2,7 @@
 /**
  * One tick of the A/B tracker's rollup (docs/ab-tracker-store.md). Railway's cron (bot/scripts/ab-tracker-cron.js)
  * calls run() every 15 minutes; the run happens once per slot — 15 minutes in school hours, 2 hours outside them
- * (ab-tracker-cadence.js). The worker's hourly tick (workers/ab-tracker-schedule.js) shares the same slot marker.
+ * (ab-tracker-cadence.js). It is the only caller: the worker's hourly tick was retired (bd-3kshar.6.5.1).
  *
  * In order, each step a way out:
  *   1. The read replica (config/supabase-replica-only.js). None configured on this tier → off. Test sites (staging,
