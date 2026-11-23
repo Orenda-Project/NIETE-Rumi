@@ -2128,8 +2128,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); return; }
-      // An evening round with nothing left for this child tonight: no sitting (no `st`), the words, then the landing.
-      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); toast(T.doneTonight); landing(); return; }
+      // An evening round with nothing left for this child tonight: no sitting (no `st`), the words on their own screen.
+      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); doneTonight(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -2144,6 +2144,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); });
+  }
+  // "Done for tonight!": the quiz and Jugnu saying it, with nothing to tap that starts again (no Play, no child's card:
+  // the server would answer the same, and the landing's Play went round in a loop). The bar is the landing's.
+  function doneTonight() {
+    render(bar() + jug('sleep', T.doneTonight, true) +
+      '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p></div>', 'M3-done');
+    wireBar();
   }
 
   // web_quiz_order_seed: the sitting's own order from the start reply ({ q: [qid…], o: { qid: [slot…] } }), kept with the
