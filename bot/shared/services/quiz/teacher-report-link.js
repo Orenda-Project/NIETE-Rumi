@@ -75,7 +75,11 @@ async function sendTeacherReportLink({ teacher, phone, quizId = null, topic, cou
     else logToFile('⚠️ teacher report: template refused — sending the link as text', { userId: teacherId, template, lang });
   }
   if (!how) {
-    await WhatsAppService.sendMessage(phone, resolveUx(left ? 'tqrLinkTextRemind' : 'tqrLinkText', { language: lang, params: { topic: shown, counts: line, url: urls.live } }));
+    // quiz_teacher_home_reports on (bd-5j1zaf): the text's link says it came from this list (?from=list); the
+    // template's URL button suffix stays the token alone. A failed read of the switch is off.
+    const fromList = await require('./report-late-flag').on().catch(() => false);
+    const url = fromList ? `${urls.live}?from=list` : urls.live;
+    await WhatsAppService.sendMessage(phone, resolveUx(left ? 'tqrLinkTextRemind' : 'tqrLinkText', { language: lang, params: { topic: shown, counts: line, url } }));
     how = 'text';
   }
   logEvent('teacher_report.link_sent', { userId: teacherId, quizId: quizId || null, scope, how });

@@ -1150,7 +1150,9 @@ async function reportNotAccepted(shareCodeId, sc, path, reason, link = null) {
  * The live-report extras for this share code's PDF, or null. Null when the
  * teacher is not on app_settings.teacher_report_teachers, when the quiz is not
  * this teacher's own (a video-bank quiz has no teacher report), or on any
- * error — never a reason for the report itself to fail.
+ * error — never a reason for the report itself to fail. With quiz_teacher_home_reports on (bd-5j1zaf), the live link
+ * says it came from this WhatsApp report (?from=wa, teacher_report.opened's from); the remind link never changes; a
+ * failed read of that switch is off.
  * @returns {Promise<{notPlayed: Array<{first,roll}>|null, of: number|null, className: string|null,
  *   links: {live: string, remind: string}|null}|null>}
  */
@@ -1158,7 +1160,10 @@ async function liveReportExtras(sc) {
   try {
     const Gate = require('./teacher-report-gate');
     if (!(await Gate.teacherReportOn(sc.teacher_user_id))) return null;
-    const r = await require('./teacher-report.data').quizReport(sc.teacher_user_id, sc.quiz_id);
+    const [r, fromWa] = await Promise.all([
+      require('./teacher-report.data').quizReport(sc.teacher_user_id, sc.quiz_id),
+      require('./report-late-flag').on().catch(() => false),
+    ]);
     if (!r) return null;
     const urls = Gate.reportUrls({ teacherId: sc.teacher_user_id, quizId: sc.quiz_id });
     const notPlayed = r.roster.state === 'known' && Array.isArray(r.notPlayed) ? r.notPlayed : null;
@@ -1168,7 +1173,7 @@ async function liveReportExtras(sc) {
     });
     return {
       notPlayed, of: r.roster.of, className: r.roster.className || null,
-      links: urls ? { live: urls.live, remind: urls.remind } : null,
+      links: urls ? { live: fromWa ? `${urls.live}?from=wa` : urls.live, remind: urls.remind } : null,
     };
   } catch (err) {
     logToFile('⚠️ video-quiz report: live-report section skipped (report still sends)', {
