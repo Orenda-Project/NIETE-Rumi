@@ -265,10 +265,6 @@ const SWITCHES = Object.freeze([
 // 'pct' = the JSON object {"pct": N} as a whole number 0-100; anything else is 0
 const pctOf = (v) => (v && typeof v === 'object' && Number.isFinite(v.pct) ? Math.max(0, Math.min(100, Math.floor(v.pct))) : 0);
 const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf, pct: pctOf };
-// A 'pct' switch's arm: the id's own bucket 0-99, the same every time. The salt (the switch's key) keeps two canaries'
-// arms independent, so one switch's 10% is not the same links as another's.
-const bucketOf = (salt, id) => require('./video-quiz-render.service').hash32(`${salt}:${id}`) % 100;
-const inPct = (pct, salt, id) => pct > 0 && Boolean(id) && bucketOf(salt, id) < pct;
 
 const HOST_KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
 // web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
@@ -625,8 +621,6 @@ module.exports = {
   ONE_BUTTON_KEY,
   oneButtonNow,
   ORDER_SEED_PCT_KEY,
-  bucketOf,
-  inPct,
   pctOf,
   PACK_KEY,
   PAGE_LANG_KEY,
