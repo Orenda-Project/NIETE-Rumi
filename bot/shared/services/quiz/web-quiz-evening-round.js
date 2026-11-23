@@ -1,7 +1,7 @@
 'use strict';
 /**
  * THE EVENING ROUND — a ~5-minute round behind the class's standing link /j/<code> (switch `web_quiz_evening_round`,
- * OFF by default; effective only with `web_quiz_class_link` effective). Written at 16:00 PKT on a school day from the
+ * OFF by default; effective only with `web_quiz_class_link` effective). Written from 14:00 PKT on a school day from the
  * lesson plan a teacher of the class took for that day (the offers' 14:00 cohort rule), plus TWO recall items per
  * child: questions this child got wrong about two days earlier (each miss once), rewritten as NEW questions on the same skill.
  * Nothing here sends a message of any kind: no teacher WhatsApp, no PDF, no report.
@@ -10,7 +10,7 @@
  *                          generating, meta.source 'evening_round', class_id, round_day, class_link_code) and a
  *                          quiz_generate job with no phone. Idempotent: a Redis lock per class per day AND the
  *                          partial unique index of qfix_class_link_evening_round.sql. Logs one summary per call.
- *   tick({ now })          the worker's 16:00-19:59 PKT school-day tick (workers/evening-round-schedule.js)
+ *   tick({ now })          the worker's 14:00-19:59 PKT school-day tick (workers/evening-round-schedule.js)
  *   afterGenerate({ quiz, quizId, meta })  the generate step's hand-off for a round, IN PLACE of the teacher hand-off:
  *                          mints the round's share code (class_id set, no report), marks the lesson items and the
  *                          reading items, writes the recall pool (one model call per class), caches the class's
@@ -19,6 +19,10 @@
  *                          child missed (else the class's most-missed); any non-round set is returned as it is.
  *   isRoundShareCode(shareCodeId)  does this code belong to a round (the report's scheduler skips it)
  *   roundCandidate({ token, chosenId, history, lang })  the hub's "Tonight's round" tile for a child of the class
+ *   roundOffers({ token, chosenId, history, lang })  { tonight, past }: that tile and the previous school day's round
+ *                          as ONE row under it (next.past_round: weekday title, done, the child's stars)
+ *   tonightMarks(classId, kids)  "Whose turn?": who has tonight's quiz waiting, who is done for tonight
+ *   roundSetEmpty(questions, { skip })  pure: "Done for tonight!" (nothing left for this child tonight)
  *   viaOf(query) / classLinkOpen(...)   web_quiz.class_link_open{class_link_code, via, dh?}
  *   roundsReadyForPhone   in web-quiz-evening-round-phone.js (re-exported from web-quiz-class-link.js)
  *
@@ -40,7 +44,9 @@ const NO_SEND = 'evening_round:no_send';
 const LP_V8 = 'lp_v8';
 const LESSON_ITEMS = 5;
 const RECALL_ITEMS = 2;
-const TICK_FROM_H = 16;
+// From 14:00 PKT: the day's lesson set is final at the offers' 14:00 cutoff, and each round's read-aloud clips (about a
+// minute of recording per quiz, two at a time per worker) are recorded well before the 18:00 evening peak.
+const TICK_FROM_H = 14;
 const TICK_TO_H = 20;
 const LOCK_TTL_S = 2 * 86400;
 const CACHE_TTL_S = 36 * 3600;
@@ -429,12 +435,12 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
   }
 }
 
-/** The worker's tick: school days, 16:00-19:59 PKT only; else a logged skip. */
+/** The worker's tick: school days, 14:00-19:59 PKT only; else a logged skip. */
 async function tick({ now = new Date(), enqueue = null } = {}) {
   const P = PktTime();
   const h = P.pktHour(now);
   if (h < TICK_FROM_H || h >= TICK_TO_H) {
-    logToFile('evening round tick: outside 16:00-19:59 PKT', { pktHour: h });
+    logToFile('evening round tick: outside 14:00-19:59 PKT', { pktHour: h });
     return { skipped: 'hours', pktHour: h };
   }
   return writeRounds({ now, enqueue });
@@ -693,6 +699,10 @@ async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = 
     n_dropped: solved.size + recallHeld.length,
   };
   await supabase.from('quizzes').update({ status: 'ready', meta }).eq('id', quizId);
+  // Its read-aloud clips are recorded now, as the teacher's hand-off asks for its quiz (web-quiz-link.js), so the first
+  // child who opens tonight's quiz hears it; the page's own later ask is the same job and the queue drops it.
+  // Awaited (a worker job, not a request) but never fatal: a failed ask leaves the page's own ask.
+  try { await require('./web-quiz-publish.service').requestQuizAudio(quizId, { meta }); } catch (_) { /* the page asks */ }
 
   // 5. never a 12 h report: the report lane's own predicate, when it exports one, must agree.
   try {
@@ -734,7 +744,8 @@ const tieOf = (seed, q) => crypto.createHash('sha256').update(`er-tie|${seed}|${
  * and a resume gets the same ones; the picks keep the round's order. No seed: the stored rank order.
  * `skip` (a Set of row ids, web-quiz-evening-round-seen): lesson items this child answered RIGHT earlier today, left
  * out for the next lesson items; none left -> a shorter set, never padded with one of them. Only a set that would be
- * empty keeps them (the page cannot play nothing: an empty order is the whole pool to wq.js).
+ * empty keeps them (the page cannot play nothing: an empty order is the whole pool to wq.js); the start answers such a
+ * child "Done for tonight!" before it opens a sitting (roundSetEmpty), so this is only a sitting already open.
  */
 function selectRoundItems(questions, { studentId = null, k = null, seed = null, skip = null } = {}) {
   if (!Array.isArray(questions) || !questions.some(roundOf)) return questions;
@@ -754,6 +765,21 @@ function selectRoundItems(questions, { studentId = null, k = null, seed = null, 
   return [...lesson, ...(seed == null ? chosen : chosen.sort(byRank))];
 }
 
+/** Only a round with lesson items and no recall item can leave a child nothing tonight (the recall picks fill from the
+ * class's most-missed, so one recall item is always something to play). Pure; any other quiz: false. */
+function roundCanEmpty(questions) {
+  return Array.isArray(questions) && !questions.some((q) => roundOf(q) === 'recall') && questions.some((q) => roundOf(q) === 'lesson');
+}
+
+/**
+ * "Done for tonight!" (pure): this child's set of the round would be EMPTY — no recall item in the round and every
+ * lesson item in `skip` (answered right earlier today, web-quiz-evening-round-seen). Any other quiz: false.
+ */
+function roundSetEmpty(questions, { skip = null } = {}) {
+  if (!roundCanEmpty(questions) || !skip || !skip.size) return false;
+  return questions.filter((q) => roundOf(q) === 'lesson').every((q) => skip.has(q.id));
+}
+
 /** The round's event fields from its served items, or null for any other quiz. */
 function roundFields(questions) {
   const q = (questions || []).find(roundOf);
@@ -766,11 +792,18 @@ function roundFields(questions) {
 /**
  * web_quiz.round_started / round_done for a round's sitting (the shuffle seam's start and finish call it). `extra`: more
  * counts for the event (round_done: n_recall_right, the child's recall items answered right); a non-count is left out.
+ * round_started also says `late`: the round's day (its items' round_key) is not today, PKT (a past round played from
+ * the hub's row); absent when the items name no day.
  */
-function noteRound(stage, questions, extra = {}) {
+function noteRound(stage, questions, extra = {}, now = new Date()) {
   const f = roundFields(questions);
   if (!f || !['started', 'done'].includes(stage)) return false;
   Object.entries(extra || {}).forEach(([k, v]) => { if (Number.isFinite(v)) f[k] = v; });
+  if (stage === 'started') {
+    const q = (questions || []).find(roundOf);
+    const day = /\|(\d{4}-\d{2}-\d{2})$/.exec(String((q && q.media.round_key) || ''));
+    if (day) f.late = day[1] !== PktTime().pktDate(now);
+  }
   logEvent(`web_quiz.round_${stage}`, f);
   return true;
 }
@@ -850,72 +883,191 @@ async function roundsForClasses(classIds, day) {
   return out;
 }
 
+/** The PKT school day (Mon–Fri) before `day` ('YYYY-MM-DD'): Monday -> Friday, a weekend day -> Friday. Pure. */
+function previousSchoolDay(day) {
+  const P = PktTime();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day || ''));
+  if (!m) return null;
+  let t = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  for (let i = 0; i < 7; i += 1) {
+    t -= 86400000;
+    const iso = new Date(t).toISOString().slice(0, 10);
+    if (P.isSchoolDay(iso)) return iso;
+  }
+  /* istanbul ignore next: a week always has a school day */
+  return null;
+}
+
 /**
- * The hub's "Tonight's round" candidate for a child of the class (the pinned primary, rule 'evening_round'), or null:
- * switch off, no class, no round today, or the child has already finished it. The class: the CHILD's active
- * enrollments (a shared phone's children may be in different classes), the pick's class only when there is none. href = the round's code with the child's chip on it.
+ * The CHILD's classes (class_enrollments), never the link's: two children of two classes share one phone and one
+ * link, and each child's own class round is theirs. The pick's class (cl.c) is only a fallback for a child with no
+ * active enrollment row (it was picked from that class's roster). [] when none.
  */
-async function roundCandidate({ token = null, chosenId = null, history = [], lang = 'en', now = new Date() } = {}) {
+async function childClassIds(chosenId, token) {
+  const { data } = await supabase.from('class_enrollments').select('class_id').eq('student_id', chosenId).eq('is_active', true);
+  const ids = (data || []).map((e) => e.class_id).filter(Boolean);
+  if (ids.length) return ids;
+  const p = typeof token === 'string' ? require('./web-quiz-token').verify(token, 'h') : null;
+  return p && p.cl && typeof p.cl.c === 'string' ? [p.cl.c] : [];
+}
+
+/** Tonight's tile for a child of these classes, or null: no round today, or the child has finished it. */
+async function tonightTile({ classIds, day, chosenId, history, lang, now }) {
+  const T = require('./web-quiz-token');
+  const rounds = await roundsForClasses(classIds, day);
+  const s = classIds.map((id) => rounds.get(String(id))).find(Boolean);
+  if (!s || !s.share_code_id) return null;
+  if ((history || []).some((e) => e && e.code === s.round_code && e.latest)) return null;
+  // "Done for tonight!": nothing left for this child tonight (their set would be empty), so no tile. A failed read
+  // keeps the tile (the start answers the same check).
+  if ((await emptyTonightOrNone(s, [chosenId], now)).has(String(chosenId))) return null;
+  const k = T.chipId(s.share_code_id, chosenId);
+  if (!k) return null;
+  const qk = require('./web-quiz-kid').qk(s.quiz_id) || crypto.createHash('sha256').update(`er|${s.quiz_id}`).digest('hex').slice(0, 10);
+  const cand = {
+    kind: 'quiz', variant: 'evening_round', id: qk, href: `/q/${encodeURIComponent(s.round_code)}?k=${encodeURIComponent(k)}`,
+    ...tileWords(), minutes: 5, art: '/wq/jugnu/thinking.webp', tag: 'New', tag_ur: 'نیا',
+    rule: 'evening_round', sent_at: s.ready_at || null,
+    round: { class_link_code: s.class_link_code, round_code: s.round_code, n_items: s.n_items, n_recall: s.n_recall },
+    lang,
+  };
+  // round_shown's review counts ride beside the tile, not in it: non-enumerable, so the page's JSON never carries them.
+  Object.defineProperty(cand, 'shownLog', { value: { n_dropped: s.n_dropped || 0, n_recall_held: s.n_recall_held || 0 } });
+  return cand;
+}
+
+/** The row's name: copy.v2.json qfix_class_link.past_title with the round day's weekday, in English and in Urdu. */
+function pastWords(day) {
+  const UX = require('../../config/ux-strings');
+  const d = new Date(`${day}T00:00:00Z`).getUTCDay();
+  const words = (language) => {
+    const week = UX.resolveUx('qfix_class_link_weekdays_long', { language }).split('|');
+    return UX.resolveUx('qfix_class_link_past_title', { language, params: { day: week[d] } });
+  };
+  return { title: words('en'), title_ur: words('ur') };
+}
+
+/**
+ * The previous school day's round of the child's class, as ONE row under the hub's Next tile, or null (no ready round
+ * that day). { code, href, title, title_ur, done, stars? }: href = the round's code with the child's chip; done = the
+ * hub's history holds a finished sitting of this child on it (the tile's own rule); stars = that latest finished
+ * sitting's {c, t} (the hub's score rule, lastOf). Only that one day, never a week of rows. Never throws (no row, logged).
+ */
+async function pastRow({ classIds, day, chosenId, history }) {
   try {
-    if (!chosenId || !(await Flags.eveningRoundOn())) return null;
-    const T = require('./web-quiz-token');
-    // The CHILD's classes (class_enrollments), never the link's: two children of two classes share one phone and one
-    // link, and each child's own class round is theirs. The pick's class (cl.c) is only a fallback for a child with no
-    // active enrollment row (it was picked from that class's roster).
-    const { data } = await supabase.from('class_enrollments').select('class_id').eq('student_id', chosenId).eq('is_active', true);
-    let classIds = (data || []).map((e) => e.class_id).filter(Boolean);
-    if (!classIds.length) {
-      const p = typeof token === 'string' ? T.verify(token, 'h') : null;
-      classIds = p && p.cl && typeof p.cl.c === 'string' ? [p.cl.c] : [];
-    }
-    if (!classIds.length) return null;
-    const day = PktTime().pktDate(now);
-    const rounds = await roundsForClasses(classIds, day);
+    const prev = previousSchoolDay(day);
+    if (!prev) return null;
+    const rounds = await roundsForClasses(classIds, prev);
     const s = classIds.map((id) => rounds.get(String(id))).find(Boolean);
-    if (!s || !s.share_code_id) return null;
-    if ((history || []).some((e) => e && e.code === s.round_code && e.latest)) return null;
-    const k = T.chipId(s.share_code_id, chosenId);
+    if (!s || !s.share_code_id || !s.round_code) return null;
+    const k = require('./web-quiz-token').chipId(s.share_code_id, chosenId);
     if (!k) return null;
-    const qk = require('./web-quiz-kid').qk(s.quiz_id) || crypto.createHash('sha256').update(`er|${s.quiz_id}`).digest('hex').slice(0, 10);
-    const cand = {
-      kind: 'quiz', variant: 'evening_round', id: qk, href: `/q/${encodeURIComponent(s.round_code)}?k=${encodeURIComponent(k)}`,
-      ...tileWords(), minutes: 5, art: '/wq/jugnu/thinking.webp', tag: 'New', tag_ur: 'نیا',
-      rule: 'evening_round', sent_at: s.ready_at || null,
-      round: { class_link_code: s.class_link_code, round_code: s.round_code, n_items: s.n_items, n_recall: s.n_recall },
-      lang,
+    const e = (history || []).find((x) => x && x.code === s.round_code && x.latest);
+    const stars = e ? { c: Number(e.latest.correct_answers) || 0, t: Number(e.latest.total_questions_answered) || 0 } : null;
+    return {
+      code: s.round_code, href: `/q/${encodeURIComponent(s.round_code)}?k=${encodeURIComponent(k)}`, ...pastWords(prev),
+      done: Boolean(e), ...(stars ? { stars } : {}),
     };
-    // round_shown's review counts ride beside the tile, not in it: non-enumerable, so the page's JSON never carries them.
-    Object.defineProperty(cand, 'shownLog', { value: { n_dropped: s.n_dropped || 0, n_recall_held: s.n_recall_held || 0 } });
-    return cand;
   } catch (err) {
-    logToFile('⚠️ evening round: hub tile unavailable', { error: err.message });
+    logToFile('⚠️ evening round: past round row unavailable', { error: err.message });
     return null;
   }
 }
 
 /**
- * "Whose turn?" on the standing link: which of these children of the class have tonight's quiz waiting (a ready round
- * today, no finished sitting on it by any of the child's ids) -> Set of kid ids. Switch off -> empty, with no round
- * read. Never throws (a failure marks nobody).
+ * The hub's two doors to a child's class rounds -> { tonight, past }. `tonight`: the "Tonight's round" candidate (the
+ * pinned primary, rule 'evening_round'), null when the switch is off, no class, no round today, or the child has
+ * already finished it. `past`: the previous school day's round as ONE row (pastRow), null when there is none. The
+ * class: the CHILD's active enrollments (a shared phone's children may be in different classes), read once for both,
+ * the pick's class only when there is none. Switch off: nothing read.
+ */
+async function roundOffers({ token = null, chosenId = null, history = [], lang = 'en', now = new Date(), past = true } = {}) {
+  const none = { tonight: null, past: null };
+  try {
+    if (!chosenId || !(await Flags.eveningRoundOn())) return none;
+    const classIds = await childClassIds(chosenId, token);
+    if (!classIds.length) return none;
+    const day = PktTime().pktDate(now);
+    const [tonight, before] = await Promise.all([
+      tonightTile({ classIds, day, chosenId, history, lang, now }),
+      past ? pastRow({ classIds, day, chosenId, history }) : null,
+    ]);
+    return { tonight, past: before };
+  } catch (err) {
+    logToFile('⚠️ evening round: hub tile unavailable', { error: err.message });
+    return none;
+  }
+}
+
+/** The hub's "Tonight's round" candidate alone (roundOffers' `tonight`; the previous school day is not read). */
+async function roundCandidate(opts = {}) {
+  return (await roundOffers({ ...opts, past: false })).tonight;
+}
+
+/**
+ * "Done for tonight!" before any sitting: of these children (primary student ids), the ones whose set of the round
+ * would be EMPTY now (roundSetEmpty: every lesson item answered right earlier today, no recall item in the round).
+ * A round whose summary counts a recall item reads nothing; else the round's rows (one read) and the seam's same-day
+ * read for all of them at once (web-quiz-evening-round-seen rightEarlierTodayFor). -> Set of ids. Throws on a failed
+ * read (the callers keep their own failure rule).
+ */
+async function emptyTonight(summary, studentIds, now = new Date()) {
+  const out = new Set();
+  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  if (!summary || !summary.quiz_id || !ids.length || Number(summary.n_recall) > 0) return out;
+  const { data, error } = await supabase.from('quiz_questions').select('id, external_id, sort_order, media').eq('quiz_id', summary.quiz_id);
+  if (error) throw new Error(error.message);
+  const rows = (data || []).filter(roundOf);
+  if (!roundCanEmpty(rows)) return out;
+  const seen = await require('./web-quiz-evening-round-seen').rightEarlierTodayFor({ studentIds: ids, at: now, roundQuizId: summary.quiz_id, rows });
+  ids.forEach((id) => { if (roundSetEmpty(rows, { skip: seen.get(id) })) out.add(id); });
+  return out;
+}
+
+/** emptyTonight, with a failed read as "nobody is done" (logged): the tile and the badge stay as they were. */
+async function emptyTonightOrNone(summary, studentIds, now) {
+  try {
+    return await emptyTonight(summary, studentIds, now);
+  } catch (err) {
+    logToFile('⚠️ evening round: "Done for tonight" check unavailable', { error: err.message });
+    return new Set();
+  }
+}
+
+/**
+ * "Whose turn?" on the standing link: tonight's marks for these children of the class -> { waiting, done }, Sets of kid
+ * ids. waiting: a ready round today, no finished sitting on it by any of the child's ids, and something left to play;
+ * done ("Done for tonight!"): they finished it, or their set would be empty now (emptyTonight, on the child's own id).
+ * Switch off -> both empty, with no round read. Never throws (a failure marks nobody).
  * `kids` = [{ id, ids }] as the class link's roster gives them (ids = the child's merged student ids).
  */
-async function waitingKids(classId, kids, { now = new Date() } = {}) {
-  const out = new Set();
+async function tonightMarks(classId, kids, { now = new Date() } = {}) {
+  const waiting = new Set();
+  const done = new Set();
   try {
-    if (!classId || !(kids || []).length || !(await Flags.eveningRoundOn())) return out;
+    if (!classId || !(kids || []).length || !(await Flags.eveningRoundOn())) return { waiting, done };
     const s = (await roundsForClasses([classId], PktTime().pktDate(now))).get(String(classId));
-    if (!s || !s.share_code_id) return out;
+    if (!s || !s.share_code_id) return { waiting, done };
     const all = [...new Set(kids.flatMap((k) => [k.id, ...((k && k.ids) || [])]).filter(Boolean).map(String))];
     const { data, error } = await supabase.from('quiz_sessions').select('student_id')
       .eq('share_code_id', s.share_code_id).in('student_id', all).not('completed_at', 'is', null);
     if (error) throw new Error(error.message);
-    const done = new Set((data || []).map((r) => String(r.student_id)));
-    kids.forEach((k) => { if (![k.id, ...((k && k.ids) || [])].some((id) => done.has(String(id)))) out.add(k.id); });
+    const finished = new Set((data || []).map((r) => String(r.student_id)));
+    kids.forEach((k) => { if ([k.id, ...((k && k.ids) || [])].some((id) => finished.has(String(id)))) done.add(k.id); });
+    const open = kids.filter((k) => !done.has(k.id));
+    const empty = await emptyTonightOrNone(s, open.map((k) => k.id), now);
+    open.forEach((k) => (empty.has(String(k.id)) ? done : waiting).add(k.id));
   } catch (err) {
     logToFile('⚠️ evening round: "Whose turn?" marks unavailable', { error: err.message });
-    out.clear();
+    waiting.clear();
+    done.clear();
   }
-  return out;
+  return { waiting, done };
+}
+
+/** "Whose turn?": the children of the class with tonight's quiz waiting (tonightMarks' waiting) -> Set of kid ids. */
+async function waitingKids(classId, kids, opts = {}) {
+  return (await tonightMarks(classId, kids, opts)).waiting;
 }
 
 /** web_quiz.round_shown: the hub's next slot named the round as its primary. */
@@ -1011,6 +1163,23 @@ const REPORT_WORDS = {
 };
 function urNum(n) { return String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]); }
 
+/**
+ * A round's PKT day (YYYY-MM-DD) as the page's words: weekday, date, month, "Tue 24 Nov" / «منگل ۲۴ نومبر». The
+ * weekdays are the catalog's (qfix_class_link_weekdays), the months the weekly report's (coaching/weekly-report/message.js);
+ * the date in the language's own digits, as the report page writes its other dates. '' for anything else.
+ */
+function dayWords(day, lang) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day || ''));
+  if (!m) return '';
+  const UX = require('../../config/ux-strings');
+  const code = UX.clampLanguage(lang);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  const week = UX.resolveUx('qfix_class_link_weekdays', { language: code }).split('|');
+  const { MONTHS } = require('../coaching/weekly-report/message');
+  const months = (MONTHS && (MONTHS[code] || MONTHS.en)) || [];
+  return [week[d.getUTCDay()], UX.digitsFor(d.getUTCDate(), code), months[d.getUTCMonth()]].filter(Boolean).join(' ');
+}
+
 /** The class tab's "Evening rounds" section (HTML), '' when there is nothing to show. */
 async function reportSection(teacherId, { lang = 'en' } = {}) {
   const rounds = await forTeacherReport(teacherId);
@@ -1019,7 +1188,7 @@ async function reportSection(teacherId, { lang = 'en' } = {}) {
   const W = REPORT_WORDS[ur ? 'ur' : 'en'];
   const rows = rounds.map((r) => {
     const label = ur ? r.class_label_ur : r.class_label;
-    const day = ur ? urNum(r.round_day || '') : r.round_day || '';
+    const day = dayWords(r.round_day, lang);
     const head = [label, r.topic].filter(Boolean).map(escHtml).join(' · ');
     const stat = r.played ? `${escHtml(W.played(r.played))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
     const names = r.finishers.length ? `<p class="er-kids">${r.finishers.map((n) => `<bdi>${escHtml(n)}</bdi>`).join(', ')}</p>` : '';
@@ -1031,7 +1200,7 @@ async function reportSection(teacherId, { lang = 'en' } = {}) {
 module.exports = {
   ROUND_SOURCE, NO_SEND, LESSON_ITEMS, RECALL_ITEMS, tileWords,
   isEveningRound, lpTakenFor, ownLpTaken, chooseLesson, subjectCanon, gradeOfCode, classesOf,
-  writeRounds, tick, afterGenerate, asWebItem, selectRoundItems, roundFields, noteRound, isRoundShareCode,
-  roundsForClasses, roundCandidate, waitingKids, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection,
+  writeRounds, tick, afterGenerate, asWebItem, selectRoundItems, roundCanEmpty, roundSetEmpty, roundFields, noteRound, isRoundShareCode,
+  roundsForClasses, roundCandidate, roundOffers, previousSchoolDay, emptyTonight, tonightMarks, waitingKids, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection,
   _resetCache: () => { ROUND_CODES.clear(); },
 };

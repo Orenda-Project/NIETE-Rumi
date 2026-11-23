@@ -79,6 +79,16 @@ test('the class tab carries an "Evening rounds" section: the class, the lesson, 
   expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
 });
 
+test('each round row starts with its day as words, weekday + date: "Tue 24 Nov" / «منگل ۲۴ نومبر», never an ISO date', async () => {
+  const R = require('../../shared/services/quiz/web-quiz-evening-round');
+  const en = await R.reportSection(T1, { lang: 'en' });
+  expect(en).toContain('<span class="er-day">Tue 24 Nov</span>');
+  expect(en).not.toContain('2026-11-24');
+  const ur = await R.reportSection(T1, { lang: 'ur' });
+  expect(ur).toContain('<span class="er-day">منگل ۲۴ نومبر</span>');
+  expect(ur).not.toMatch(/۲۰۲۶-۱۱-۲۴/);
+});
+
 test('the data: the teacher\'s classes only; one row per child (first finish)', async () => {
   const R = require('../../shared/services/quiz/web-quiz-evening-round');
   const rounds = await R.forTeacherReport(T1);

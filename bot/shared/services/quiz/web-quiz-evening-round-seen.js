@@ -19,6 +19,11 @@
  *
  * Reads, for a named child's round sitting only: quiz_sessions; then, when there is an earlier sitting today,
  * quiz_answers; when one of its answers was right, quiz_questions and quizzes (the lineage).
+ *
+ * rightEarlierTodayFor: the same read for several children before any sitting opens ("Done for tonight!" on the hub's
+ * tile and the "Whose turn?" badge), bounded by `at` (now): the same four reads for all of them, never one per child.
+ * rightEarlierToday without a session id (the start, before it opens a sitting) reads the same way, bounded by
+ * createdAt, and keeps nothing.
  */
 const { logToFile } = require('../../utils/logger');
 const { read: dbRead } = require('./web-quiz-db-deadline');
@@ -47,44 +52,83 @@ async function readRows(label, build) {
 }
 
 /**
+ * The round's lesson row ids each child answered right earlier today: Map studentId -> Set (a child with none is
+ * absent). `lesson` = the round's lesson rows as served; `bound` = the instant the sitting begins (ISO). Throws on a
+ * failed read (the callers decide).
+ */
+async function seenFor(studentIds, { bound, roundQuizId, lesson }) {
+  const out = new Map();
+  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  if (!ids.length || !lesson.length) return out;
+  const P = require('../nudges/pkt-time');
+  const at = new Date(bound);
+  if (Number.isNaN(at.getTime())) return out;
+  const upTo = at.toISOString();
+  const dayStart = P.atPkt(P.pktDate(at), 0, 0).toISOString();
+  const sessions = await readRows('roundSeen:quiz_sessions', (db) => db.from('quiz_sessions').select('id, quiz_id, student_id')
+    .in('student_id', ids).gte('created_at', dayStart).lt('created_at', upTo).neq('quiz_id', roundQuizId)
+    .limit(SESSIONS_MAX * ids.length));
+  if (!sessions.length) return out;
+  const right = await readRows('roundSeen:quiz_answers', (db) => db.from('quiz_answers').select('session_id, question_id')
+    .in('session_id', sessions.map((x) => x.id)).eq('is_correct', true).lt('created_at', upTo));
+  const qids = [...new Set(right.map((a) => a.question_id).filter(Boolean))];
+  if (!qids.length) return out;
+  const items = await readRows('roundSeen:quiz_questions', (db) => db.from('quiz_questions').select('id, quiz_id, external_id').in('id', qids));
+  const quizIds = [...new Set([roundQuizId, ...items.map((q) => q.quiz_id).filter(Boolean)])];
+  const quizzes = await readRows('roundSeen:quizzes', (db) => db.from('quizzes').select('id, meta').in('id', quizIds));
+  const byId = new Map(quizzes.map((q) => [q.id, q]));
+  const roundRoot = rootOf(byId.get(roundQuizId));
+  if (!roundRoot) return out;
+  const lineage = new Map(items.map((q) => {
+    const root = rootOf(byId.get(q.quiz_id));
+    const tail = tailOf(q.external_id);
+    return [q.id, root && tail ? `${root}|${tail}` : null];
+  }));
+  const kidOf = new Map(sessions.map((x) => [x.id, String(x.student_id)]));
+  const seen = new Map(); // studentId -> Set of lineage keys answered right
+  right.forEach((a) => {
+    const kid = kidOf.get(a.session_id);
+    const key = lineage.get(a.question_id);
+    if (!kid || !key) return;
+    if (!seen.has(kid)) seen.set(kid, new Set());
+    seen.get(kid).add(key);
+  });
+  seen.forEach((keys, kid) => {
+    const set = new Set(lesson.filter((q) => keys.has(`${roundRoot}|${tailOf(q.external_id)}`)).map((q) => q.id));
+    if (set.size) out.set(kid, set);
+  });
+  return out;
+}
+
+const lessonOf = (rows) => (rows || []).filter((q) => q && q.media && q.media.round === 'lesson' && tailOf(q.external_id));
+
+/**
  * The round's lesson row ids this child answered right earlier today (a Set; empty when none, or when the sitting has
- * no named child). `rows` = the round's questions as served (loadQuestions).
+ * no named child). `rows` = the round's questions as served (loadQuestions). With a session id the answer is kept for
+ * that sitting; without one (the start, before it opens a sitting) it is read and kept nowhere.
  */
 async function rightEarlierToday({ sessionId, studentId, createdAt, roundQuizId, rows } = {}) {
-  const lesson = (rows || []).filter((q) => q && q.media && q.media.round === 'lesson' && tailOf(q.external_id));
-  if (!sessionId || !studentId || !createdAt || !roundQuizId || !lesson.length) return EMPTY;
-  if (KEPT.has(sessionId)) return KEPT.get(sessionId);
+  const lesson = lessonOf(rows);
+  if (!studentId || !createdAt || !roundQuizId || !lesson.length) return EMPTY;
+  if (sessionId && KEPT.has(sessionId)) return KEPT.get(sessionId);
+  const hold = (set) => (sessionId ? keep(sessionId, set) : set);
   try {
-    const P = require('../nudges/pkt-time');
-    const at = new Date(createdAt);
-    if (Number.isNaN(at.getTime())) return EMPTY;
-    const bound = at.toISOString();
-    const dayStart = P.atPkt(P.pktDate(at), 0, 0).toISOString();
-    const sessions = await readRows('roundSeen:quiz_sessions', (db) => db.from('quiz_sessions').select('id, quiz_id')
-      .eq('student_id', studentId).gte('created_at', dayStart).lt('created_at', bound).neq('quiz_id', roundQuizId)
-      .limit(SESSIONS_MAX));
-    if (!sessions.length) return keep(sessionId, EMPTY);
-    const right = await readRows('roundSeen:quiz_answers', (db) => db.from('quiz_answers').select('question_id')
-      .in('session_id', sessions.map((s) => s.id)).eq('is_correct', true).lt('created_at', bound));
-    const qids = [...new Set(right.map((a) => a.question_id).filter(Boolean))];
-    if (!qids.length) return keep(sessionId, EMPTY);
-    const items = await readRows('roundSeen:quiz_questions', (db) => db.from('quiz_questions').select('id, quiz_id, external_id').in('id', qids));
-    const quizIds = [...new Set([roundQuizId, ...items.map((q) => q.quiz_id).filter(Boolean)])];
-    const quizzes = await readRows('roundSeen:quizzes', (db) => db.from('quizzes').select('id, meta').in('id', quizIds));
-    const byId = new Map(quizzes.map((q) => [q.id, q]));
-    const roundRoot = rootOf(byId.get(roundQuizId));
-    if (!roundRoot) return keep(sessionId, EMPTY);
-    const seen = new Set(items.map((q) => {
-      const root = rootOf(byId.get(q.quiz_id));
-      const tail = tailOf(q.external_id);
-      return root && tail ? `${root}|${tail}` : null;
-    }).filter(Boolean));
-    const out = new Set(lesson.filter((q) => seen.has(`${roundRoot}|${tailOf(q.external_id)}`)).map((q) => q.id));
-    return keep(sessionId, out.size ? out : EMPTY);
+    const got = (await seenFor([studentId], { bound: createdAt, roundQuizId, lesson })).get(String(studentId));
+    return hold(got && got.size ? got : EMPTY);
   } catch (err) {
     logToFile('⚠️ evening round: earlier answers unreadable — no swap for this sitting', { error: err.message });
-    return keep(sessionId, EMPTY);
+    return hold(EMPTY);
   }
 }
 
-module.exports = { rightEarlierToday, tailOf, rootOf, _reset: () => { KEPT.clear(); } };
+/**
+ * The same, for several children before any sitting opens, bounded by `at` (now): Map studentId -> Set (a child with
+ * nothing answered right today is absent). The same four reads for all of them. Throws on a failed read.
+ */
+async function rightEarlierTodayFor({ studentIds, at = new Date(), roundQuizId, rows } = {}) {
+  const lesson = lessonOf(rows);
+  if (!roundQuizId || !lesson.length) return new Map();
+  return seenFor(studentIds, { bound: new Date(at).toISOString(), roundQuizId, lesson });
+}
+
+module.exports = { rightEarlierToday, rightEarlierTodayFor, tailOf, rootOf, _reset: () => { KEPT.clear(); } };
