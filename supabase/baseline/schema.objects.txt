@@ -1156,6 +1156,9 @@ niete_lp612_own_plans.r2_key:text
 niete_lp612_own_plans.segment_id:text
 niete_lp612_own_plans.started_at:timestamp with time zone
 niete_lp612_own_plans.status:text
+niete_lp612_own_plans.teacher_confusing:text
+niete_lp612_own_plans.teacher_rated_at:timestamp with time zone
+niete_lp612_own_plans.teacher_rating:smallint
 niete_lp612_own_plans.template_version:text
 niete_lp612_own_plans.updated_at:timestamp with time zone
 niete_lp612_own_plans.user_id:uuid

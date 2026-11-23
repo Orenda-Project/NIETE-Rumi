@@ -52,9 +52,11 @@ describe('bd-2465 — every WhatsApp CTA opens this tier\'s bot, and the bundle 
     //
     // `wa.me/<number>` is allowed: that placeholder form appears in comments
     // explaining the shape of the URL, and can't itself point anywhere.
+    // A test file may spell out the URL it expects lib/whatsapp to build: that pins the link, it does not open one.
     const REAL_URL = /https:\/\/wa\.me\/(?!<)/;
     const offenders = walk('portal/src', ['.ts', '.tsx'])
       .filter((f) => f !== 'portal/src/lib/whatsapp.ts')
+      .filter((f) => !/\.test\.tsx?$/.test(f))
       .filter((f) => REAL_URL.test(read(f)));
     expect(offenders).toEqual([]);
   });

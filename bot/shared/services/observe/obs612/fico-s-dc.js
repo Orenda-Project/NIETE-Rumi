@@ -135,10 +135,10 @@ async function onAnalysisReady(session, { from = null, deps = {} } = {}) {
     };
     const { data: armed } = await supabase.from(SESSIONS).update(patch).eq('id', sessionId).not('status', 'in', TERMINAL_IN_FILTER).select('id');
     if (Array.isArray(armed) && armed.length === 0) {
-      logToFile('🚫 fico-s dc: the visit ended while Rumi listened — nothing sent', { sessionId });
+      logToFile('🚫 fico-s dc: the visit ended while the bot listened — nothing sent', { sessionId });
       return { ok: false, why: 'terminal' };
     }
-    logToFile('🔭 fico-s dc: Rumi pre-filled the FICO 6-12 form', {
+    logToFile('🔭 fico-s dc: the bot pre-filled the FICO 6-12 form', {
       sessionId, formId: form.id, prefilled: Object.keys(dc.levels).length, sealed: Boolean(form.sealed_at), prompt_version: dc.prompt_version,
     });
     if (form.sealed_at) return { ok: true, sent: false, why: 'already submitted' };
