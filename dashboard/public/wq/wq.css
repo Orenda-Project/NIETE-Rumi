@@ -363,6 +363,11 @@ html[lang=ur] .wq-ptile .wq-glyph{margin-top:24px}
    swap, so the card never flashes a Nastaliq letter first. The polished look's twin is in the ur2 block. */
 @font-face{font-family:"WQ Naskh";src:url(fonts/wq-naskh-2.woff2) format("woff2");font-weight:400;font-display:block;unicode-range:U+0621-063A,U+0641-064A,U+064B-0652,U+0670-0671,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C1,U+06CC,U+06D2}
 .wq-glyph[lang=ar]{font-family:"WQ Naskh","Noto Naskh Arabic","Geeza Pro",serif;font-weight:400;line-height:1.6}
+/* Three Qaida letter cards sit in one row, so the third is never under the fold (it peeked out below the 2 + 1 grid on
+   every 3-card letter item). The letter stays the Naskh form, at 46 px; a phone without :has keeps today's 2 + 1. */
+.wq-pgrid:has(>.wq-ptile:nth-child(3):last-child .wq-glyph[lang=ar]){grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.wq-pgrid:has(>.wq-ptile:nth-child(3):last-child .wq-glyph[lang=ar])>.wq-ptile{min-height:0;padding:44px 4px 8px;width:auto;grid-column:auto;justify-self:stretch}
+.wq-pgrid:has(>.wq-ptile:nth-child(3):last-child .wq-glyph[lang=ar]) .wq-glyph{width:100%;max-width:84px;min-height:96px;margin-top:0;padding:2px 0 14px;font-size:46px}
 @keyframes wqpulse{0%,100%{opacity:.35}50%{opacity:.7}}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
 .wq-labelfig .wq-figbox{margin-bottom:30px}
