@@ -254,6 +254,8 @@ class AnalysisProcessorService {
         subject: subjectResolution.code,
         grade: subjectResolution.grade,
         subjectConfidence: subjectResolution.confidence,
+        // bd-s192t.12: was the recording split into teacher vs children? null while UNSPLIT_SPEAKER_NOTE is off.
+        speakerSplit: require('./speaker-split').speakerSplitFor(session),
       };
       // Queue #184: a FICO 6-12 visit's lesson is the one the observer named (the form's grade and subject).
       if (ficoSDc) {

@@ -642,8 +642,15 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
     language,
     transcriptLanguage,
     teacherFirstName,
-    priorFeedback
+    priorFeedback,
+    speakerSplit
   } = metadata || {};
+
+  // bd-s192t.12 — the transcriber could not tell the teacher from the children (speaker-split.js). Only an unsplit
+  // verdict adds this; null (switch off) or a split recording leave the prompt byte-identical.
+  const speakerNote = speakerSplit && speakerSplit.split === false
+    ? `\nSPEAKER LABELS ARE NOT RELIABLE FOR THIS RECORDING: the transcription could not separate the teacher's voice from the children's, so children's words may appear under "Teacher:". Never score a student indicator 0 only because no "Student:" line appears. Judge children's participation from what is said: answers to the teacher's questions, choral repetition, a child's name followed by a reply, the teacher reacting to an answer ("shabash", "theek hai", repeating it). Quote those lines as evidence. If the transcript gives no such sign either way, say the speakers could not be told apart.\n`
+    : '';
 
   // A supplied subject is always NAMED — that context line predates this change and
   // callers that pass a bare `subject` keep it. What the confidence gates is the
@@ -713,7 +720,7 @@ ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
 ${heardLanguage ? `- Language spoken in the lesson: ${languageName(heardLanguage)}` : ''}
 
 ${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}
-${subjectBlock}${lpFidelityNote}${photoNote}
+${subjectBlock}${lpFidelityNote}${photoNote}${speakerNote}
 CLASSROOM TRANSCRIPT:
 ${transcript}
 
