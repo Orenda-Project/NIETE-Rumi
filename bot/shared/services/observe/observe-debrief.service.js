@@ -525,7 +525,12 @@ async function armDebriefAudio(observerId, sessionId, guideSnapshot) {
  * that somehow does not (it is not re-validated on a re-send) keeps the two
  * messages. No guide at all: the instruction alone, as before.
  */
-async function _sendGuideWithInstruction(from, guideText, S) {
+async function _sendGuideWithInstruction(from, guideText, S, lpCheckText = '') {
+  // The lesson plan check (HITL switch) is the notes' last section: its own message after the notes, then the instruction.
+  if (lpCheckText) {
+    if (guideText) await WhatsAppService.sendMessage(from, guideText);
+    guideText = lpCheckText;
+  }
   const merged = guideText
     ? mergeWithinCap([guideText, S.debrief_record_instruction], FIELD_CAPS.text)
     : null;
@@ -594,6 +599,10 @@ async function buildDebriefGuide(session, lang) {
     }
   }
 
+  // The lesson plan check (the notes' last section, HITL switch only): started now, beside the notes' own model call.
+  const LpCheck = require('./lp-check');
+  const lpCheck = LpCheck.lpCheckFor(session, lang);
+
   let guide;
   try {
     const prompt = buildGuidePrompt(v2, { language: lang, previousFocus });
@@ -627,7 +636,7 @@ async function buildDebriefGuide(session, lang) {
     }
   }
 
-  return guide;
+  return LpCheck.attachLpCheck(guide, session, lang, { lpCheck });
 }
 
 async function startDebrief(sessionId, from, user) {
@@ -671,14 +680,15 @@ async function startDebrief(sessionId, from, user) {
   const existing = await ObserveState.getState(user.id);
   if (existing && existing.state === 'awaiting_debrief_audio' && existing.sessionId === sessionId) {
     await _sendGuideWithInstruction(
-      from, existing.guide_snapshot ? renderGuideMessage(existing.guide_snapshot, S) : null, S);
+      from, existing.guide_snapshot ? renderGuideMessage(existing.guide_snapshot, S) : null, S,
+      existing.guide_snapshot ? require('./lp-check').renderLpCheckMessage(existing.guide_snapshot.lp_check, S) : '');
     logToFile('🔭 observe debrief: already armed for this session — re-sent guide + nudge', { sessionId });
     return;
   }
 
   const guide = await buildDebriefGuide(session, lang);
 
-  await _sendGuideWithInstruction(from, renderGuideMessage(guide, S), S);
+  await _sendGuideWithInstruction(from, renderGuideMessage(guide, S), S, require('./lp-check').renderLpCheckMessage(guide.lp_check, S));
   // Direct arm (NOT the guarded armDebriefAudio): the FO explicitly chose to
   // debrief THIS session now — their tap is the intent, so it wins over any
   // stale arm for another session (which becomes pending, resurfaces in the
@@ -1251,6 +1261,12 @@ async function processDebriefRecording(sessionId, payload = {}) {
       });
       // ur/en: the judge scores rehearsal too (the rubric's eighth behaviour); Swahili's prompt does not ask for it.
       feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw' });
+      // The lesson plan check's five parts (notes written with the check only): their own call, after the 8 behaviours,
+      // kept beside them and never scored. Null (no check in the notes, or the judge failed) leaves the feedback as it was.
+      const lpDiscussion = await require('./lp-check').judgeDiscussion({
+        transcript, lpCheck: (observerDebrief.guide_snapshot || {}).lp_check, lang: _fbLang, sessionId,
+      });
+      if (lpDiscussion) feedback = { ...feedback, lp_discussion: lpDiscussion };
     } catch (llmErr) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,
