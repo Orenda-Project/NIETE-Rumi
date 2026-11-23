@@ -463,13 +463,18 @@ async function urTitleOf(vid) {
   return u && u.t ? { title_ur: u.t } : {};
 }
 
+/** An Urdu code's lesson name in Urdu script (urTitleOf), or null; a code in any other language reads nothing. */
+async function urTitleFor(vid, lang) {
+  if (lang !== 'ur') return null;
+  return (await urTitleOf(vid)).title_ur || null;
+}
+
 /**
  * A new code's topic (the name its report, class picture and page print): an Urdu lesson's Urdu-script name when
- * urTitleOf has one (web_quiz_videos_ur_titles), else the lesson's title, else its quiz's. Not Urdu: nothing read.
+ * urTitleFor has one (web_quiz_videos_ur_titles), else the lesson's title, else its quiz's.
  */
 async function topicFor({ video, vq, vid, lang }) {
-  const ur = lang === 'ur' ? (await urTitleOf(vid)).title_ur : null;
-  return ur || video.clean_title || vq.topic || null;
+  return (await urTitleFor(vid, lang)) || video.clean_title || vq.topic || null;
 }
 
 /**
