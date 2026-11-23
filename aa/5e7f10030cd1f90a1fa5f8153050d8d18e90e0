@@ -1,1 +1,2 @@
 {"ts":"2026-11-23T13:02:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-home,portal-smoke spec_sync=true","sha":"aa5e7f10030c","branch":"HEAD","user":""}
+{"ts":"2026-11-23T14:58:11Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-aa5e7f10030c","sha":"aa5e7f10030c","branch":"bd-p3gk97-main","user":""}
