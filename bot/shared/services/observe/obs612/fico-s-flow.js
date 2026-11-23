@@ -657,8 +657,11 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
   const field = (key, role, text, extra = {}) => {
     const f = fieldsByKey[key];
     return {
-      type: 'field', name: key, role, input: f.input, kind: extra.kind || null, n: null, short: extra.short || null,
+      type: 'field', name: key, role, input: f.input, kind: extra.kind || null, n: extra.n || null, short: extra.short || null,
       text, options: f.options, required: f.required, max: f.max,
+      // bd-o15qnr.46 (queue #241): a checklist item's category, in the observer's language, so the v7 portal draws one
+      // heading per category with its numbered questions under it (no chip on each). Absent elsewhere.
+      ...(extra.group ? { group: extra.group } : {}),
       ...(extra.follows ? { follows: extra.follows } : {}),
       // bd-o15qnr.37: an indicator's line on what it looks at (#217's guide line) and its text without the look-for
       // paragraph, so the portal shows the line under the name and does not say it twice; `text` is unchanged.
@@ -717,7 +720,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       parts.push({ type: 'heading', text: s.cl_heading });
       parts.push({ type: 'sub', text: s.cl_note });
       FicoS.RUBRIC.checklist.forEach((c, i) => {
-        parts.push(field(c.key, 'item', FicoS.checklistText(c.key, lang), { kind: 'yes_no', short: `${s.n(i + 1)}. ${s.group(c.group)}` }));
+        parts.push(field(c.key, 'item', FicoS.checklistText(c.key, lang), { kind: 'yes_no', short: `${s.n(i + 1)}. ${s.group(c.group)}`, n: i + 1, group: s.group(c.group) }));
       });
     } else {
       const r = FicoS.score(Object.fromEntries(FicoS.CODES.map((c) => [c, (draft || {})[c]])), rubric);
