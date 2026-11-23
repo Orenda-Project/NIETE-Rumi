@@ -3,3 +3,4 @@
 {"ts":"2026-11-22T18:35:13Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"a3ecf4386458","branch":"bd-snkn32.70-stg","user":""}
 {"ts":"2026-11-23T04:05:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"a3ecf4386458","branch":"bd-snkn32.70-stg","user":""}
 {"ts":"2026-11-23T04:53:27Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (staging cherry-pick of sandbox #5481, merged as #5499; spec synced in it as @OWN13, validated OK; web lane HEALTHY on sandbox 20261122-221216)","sha":"a3ecf4386458","branch":"bd-snkn32.70-main","user":""}
+{"ts":"2026-11-23T04:53:27Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-a3ecf4386458","sha":"a3ecf4386458","branch":"bd-snkn32.70-main","user":""}
