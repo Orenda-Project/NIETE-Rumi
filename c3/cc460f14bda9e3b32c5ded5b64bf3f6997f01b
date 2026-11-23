@@ -1,0 +1,3 @@
+{"ts":"2026-11-23T06:33:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,coaching,observe,attendance spec_sync=true","sha":"c3cc460f14bd","branch":"bd-uxzi8c-main-pick","user":""}
+{"ts":"2026-11-23T06:33:57Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=menu,training,lesson-plan,coaching,observe,attendance spec_sync=true","sha":"c3cc460f14bd","branch":"bd-uxzi8c-main-pick","user":""}
+{"ts":"2026-11-23T06:34:24Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"c3cc460f14bd","branch":"bd-uxzi8c-main-pick","user":""}
