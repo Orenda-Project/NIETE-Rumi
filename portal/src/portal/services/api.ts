@@ -927,6 +927,11 @@ export type Obs612Field = {
    * as the "Digital Coach's evidence" box (its line where it set a level, each quote with its time). Absent: no box.
    */
   dcEvidence?: { because: string; items: { time: string | null; quote: string }[] };
+  /**
+   * bd-o15qnr.46 (queue #241, FICO-S checklist items): the item's category in the observer's language; the v7 form draws
+   * one heading per category, then its questions numbered (`n`), each on its own line. Absent: today's chip (`short`).
+   */
+  group?: string;
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }
