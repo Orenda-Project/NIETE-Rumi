@@ -60,7 +60,7 @@ export function JourneyPage() {
       {data && !data.ready ? <HistoryList groups={[]} emptyLabel={J.notReady} /> : null}
       {data?.ready ? (
         <>
-          {updated ? <p data-testid="journey-updated" className={`mx-1 ${ROW_SUB}`}>{bidi(updated)}</p> : null}
+          {updated ? <p data-testid="journey-updated" className={`mx-1 ${ROW_SUB} rtl:text-[14px]`}>{bidi(updated)}</p> : null}
           <JourneyList
             steps={steps}
             now={now}
