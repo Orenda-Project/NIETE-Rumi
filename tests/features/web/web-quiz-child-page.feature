@@ -2205,6 +2205,8 @@ Feature: Web child quiz page on the portal
     Given web_quiz_evening_round is "on" and Ali Test finished tonight's class quiz on this phone
     When Ali Test opens the quiz's own link again with no result kept in the browser, or taps an old "Play again" link to it
     Then the start says "Done for tonight!" and opens no sitting (WQ273)
+    And the page stays on a "Done for tonight!" screen with the quiz's card and no Play: nothing on it starts the quiz again
+    # UPDATED 2026-11-23: the page used to toast and redraw the start card, whose Play sent the same start again (a loop).
     And an old class link's jump to the child's hub (web_quiz_link_home) never fires for a class's evening round
     And no hub door, Next stop, games row or finish card offers the finished round as "Play again", from a class link or from a hub link
     But a browser that kept the result shows the child's finish card, with no new sitting and no "Play again" for the round
@@ -2241,3 +2243,10 @@ Feature: Web child quiz page on the portal
     But a link already forwarded still opens, and the report's Class tab still works
     When the row says {"all": true}
     Then every class with a lesson plan taken that day gets its round
+
+  @WQ284
+  Scenario: A class quiz's start card counts the questions a sitting serves
+    Given tonight's class quiz has 10 questions, one of them held for review, and each child plays 5 lesson questions and 2 they missed
+    When a child opens the quiz's start card, in English or in Urdu
+    Then the card says "7 questions" / «۷ سوال», the number the child will play, and the link preview says the same
+    But a teacher's own quiz counts all its questions as before
