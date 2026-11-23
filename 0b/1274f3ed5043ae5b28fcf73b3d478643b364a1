@@ -4,3 +4,4 @@
 {"ts":"2026-11-23T04:38:45Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
 {"ts":"2026-11-23T04:38:51Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
 {"ts":"2026-11-23T04:39:12Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
+{"ts":"2026-11-23T04:39:18Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
