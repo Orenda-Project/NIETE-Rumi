@@ -51,15 +51,78 @@ describe('"Done for tonight!": the start answers round_done_for_tonight with no 
     api: { '/api/wq/session': REPLY },
   });
 
-  test.each(['en', 'ur'])('%s: the words as a toast (the deck\'s, byte for byte), then the landing; no sitting, no question', async (lang) => {
+  const V2 = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [], identity: { mode: 'v2' } };
+  const starts = (p) => p.fetches.filter((f) => f.url.indexOf('/api/wq/session') >= 0);
+  // Anything that starts a sitting or asks who is playing: Play, Play as, Not X?, a child's card, Someone else, Start.
+  const START = /id="wq-(play|play-as|notme|someone|kid-\d+|start|new)"|wq-btn wq-go/;
+  // Every control the screen now shows (an id in its html) tapped, as the browser calls a listener (`this` = the button),
+  // and a tap on the page itself.
+  const tapAll = (p) => {
+    [...p.html().matchAll(/id="([^"]+)"/g)].forEach((m) => {
+      const el = p.els[`#${m[1]}`];
+      if (el) (el.listeners.click || []).slice().forEach((fn) => fn.call(el, {}));
+    });
+    p.tap();
+  };
+
+  test.each(['en', 'ur'])('%s: the words on the screen (the deck\'s, byte for byte), no Play, no toast; no sitting, no question', async (lang) => {
     const p = done(lang);
     await flush(); await flush();
-    expect(p.toasts()).toEqual([DECK[lang]]);
     expect(p.wq.T.doneTonight).toBe(DECK[lang]);
-    expect(p.moment()).toBe('M3');
+    expect(p.html()).toContain(DECK[lang]);
+    expect(p.html()).not.toMatch(START);
+    expect(p.html()).not.toContain(`>${p.wq.T.play}<`);
+    expect(p.toasts()).toEqual([]);
+    expect(p.moment()).not.toBe('M3');
     expect(p.wq.S.st).toBeFalsy();
     expect(stemOf(p.html())).toBeUndefined();
     expect(p.ls.has('wq_s_TEST') ? JSON.parse(p.ls.get('wq_s_TEST')).st : undefined).toBeFalsy();
+  });
+
+  test.each(['en', 'ur'])('%s: the hub link (?k=, identity v2) of a child who finished: one start, the words, and a tap anywhere starts nothing', async (lang) => {
+    const p = page({
+      lang, ident: true, cls: V2, search: '?k=c-zara', questions: JSON.parse(JSON.stringify(POOL)),
+      store: { wq_kids: [CHILD], wq_d: 'd1' }, api: { '/api/wq/session': REPLY },
+    });
+    await flush(); await flush();
+    expect(starts(p)).toHaveLength(1);
+    expect(JSON.parse(starts(p)[0].init.body)).toMatchObject({ chip: 'c-zara', via: 'hub' });
+    expect(p.html()).toContain(DECK[lang]);
+    expect(p.html()).not.toMatch(START);
+    expect(p.html()).not.toContain('Zara');
+    tapAll(p);
+    await flush(); await flush();
+    tapAll(p);
+    await flush(); await flush();
+    expect(starts(p)).toHaveLength(1);
+    expect(p.html()).toContain(DECK[lang]);
+  });
+
+  test('a remembered child\'s Play as (no identity v2): the words in place of the landing, and nothing on them starts again', async () => {
+    const p = page({ lang: 'en', questions: JSON.parse(JSON.stringify(POOL)), store: { wq_kids: [CHILD] }, api: { '/api/wq/session': REPLY } });
+    await flush();
+    expect(p.html()).toContain('id="wq-play-as"');
+    p.els['#wq-play-as'].fire('click');
+    await flush(); await flush();
+    expect(starts(p)).toHaveLength(1);
+    expect(p.html()).toContain(DECK.en);
+    expect(p.html()).not.toMatch(START);
+    tapAll(p);
+    await flush(); await flush();
+    expect(starts(p)).toHaveLength(1);
+  });
+
+  test('every other landing is today\'s: Play is there, and so is the identity v2 Play', async () => {
+    const plain = page({ lang: 'en', questions: JSON.parse(JSON.stringify(POOL)) });
+    const known = page({ lang: 'en', questions: JSON.parse(JSON.stringify(POOL)), store: { wq_kids: [CHILD] } });
+    const v2 = page({ lang: 'en', ident: true, cls: V2, questions: JSON.parse(JSON.stringify(POOL)) });
+    await flush();
+    expect(plain.moment()).toBe('M3');
+    expect(plain.html()).toContain('id="wq-play"');
+    expect(known.html()).toContain('id="wq-play-as"');
+    expect(v2.moment()).toBe('M4-who-v2');
+    expect(v2.html()).toContain('id="wq-play"');
+    expect(plain.html()).not.toContain(DECK.en);
   });
 
   test('one round_done_for_tonight event, with the round\'s two codes from the reply', async () => {
