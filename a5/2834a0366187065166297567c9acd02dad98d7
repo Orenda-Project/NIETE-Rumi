@@ -3,3 +3,4 @@
 {"ts":"2026-11-23T13:11:38Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-fjnrit-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"a52834a03661","branch":"bd-fjnrit-staging","user":""}
 {"ts":"2026-11-23T13:11:56Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-fjnrit-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"a52834a03661","branch":"bd-fjnrit-staging","user":""}
 {"ts":"2026-11-23T13:32:44Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (stale local branch bd-fjnrit-main, never pushed, being discarded and re-cut from the staging merge; the same change is on sandbox ae2c5cdd with the synced @T1245 scenario)","sha":"a52834a03661","branch":"bd-fjnrit-staging-2","user":""}
+{"ts":"2026-11-23T13:32:44Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-a52834a03661","sha":"a52834a03661","branch":"bd-fjnrit-staging-2","user":""}
