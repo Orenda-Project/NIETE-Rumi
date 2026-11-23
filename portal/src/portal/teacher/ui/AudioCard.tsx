@@ -24,6 +24,12 @@ export interface AudioCardProps {
    * this phone for every player). It reads the file's length up front (preload metadata, a few KB with HTTP range).
    */
   controls?: boolean;
+  /**
+   * bd-o15qnr.47 (queue #243, the operator 23 Nov: the visit's items push the next step "all the way down") — with
+   * `controls`: one row until she plays it (the title, its length, the play button); the bar, ±10 s and the speed open
+   * under it on her first tap and stay. The same audio element throughout, so the open never stops the sound.
+   */
+  compact?: boolean;
   testId?: string;
   sub?: string;
   src?: string;
@@ -56,7 +62,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 /** A file's own length when it says one (a recorder's webm may say Infinity until it is read to the end). */
 const lengthOf = (d: number) => (Number.isFinite(d) && d > 0 ? d : null);
 
-export function AudioCard({ title, sub, src, lead, action, copy, className, controls = false, testId }: AudioCardProps) {
+export function AudioCard({ title, sub, src, lead, action, copy, className, controls = false, compact = false, testId }: AudioCardProps) {
   const words = { ...useKitCopy(), ...copy };
   const bidi = useBidi();
   const audio = useRef<HTMLAudioElement>(null);
@@ -64,6 +70,9 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
   const [at, setAt] = useState(0);
   const [length, setLength] = useState<number | null>(null);
   const [rate, setRate] = useState<number>(() => (controls ? readRate() : 1));
+  /** bd-o15qnr.47 — a compact player opens its bar on her first tap. */
+  const [opened, setOpened] = useState(false);
+  const showBar = controls && (!compact || opened);
   const rateRef = useRef(rate);
   /** True while the real length of an "Infinity" recording is being read (it is asked to seek to the end once). */
   const probing = useRef(false);
@@ -221,6 +230,7 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
   };
 
   const toggle = () => {
+    if (compact) setOpened(true);
     const el = audio.current;
     if (!el || !held) { setPlaying((p) => !p); return; }
     if (playing) { el.pause(); return; }
@@ -229,12 +239,14 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
     void el.play()?.catch?.(() => setPlaying(false));
   };
 
+  // bd-o15qnr.47 — a compact player's second line is the recording's length when nothing else is given.
+  const line = sub || (compact && length != null ? clock(length) : undefined);
   const card = (
-    <section data-testid={controls ? undefined : testId} className={cn('flex min-h-[84px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)]', !controls && className, controls && 'rounded-b-none border-b-0 shadow-none')}>
+    <section data-testid={controls ? undefined : testId} className={cn('flex min-h-[84px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)]', !controls && className, controls && 'rounded-b-none border-b-0 shadow-none', compact && 'min-h-[72px] border-0')}>
       {lead}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span {...bidi.ltr(title)} className="text-[16px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(title)}</span>
-        {sub ? <span {...bidi.ltr(sub)} className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(sub)}</span> : null}
+        {line ? <span {...bidi.ltr(line)} className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(line)}</span> : null}
       </span>
       {action}
       <button
@@ -259,9 +271,9 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
   const SMALL = cn('flex min-h-[56px] min-w-[56px] items-center justify-center gap-1 rounded-xl px-2 text-[14px] font-semibold text-[#33374a]', FOCUS);
   const rateLabel = `${rate}×`;
   return (
-    <div data-testid={testId} className={cn('flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]', className)}>
+    <div data-testid={testId} data-open={compact ? (opened ? 'yes' : 'no') : undefined} className={cn('flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]', className)}>
       {card}
-      <div dir="ltr" className="flex flex-col gap-0.5 px-3 pb-2">
+      {showBar && <div dir="ltr" className="flex flex-col gap-0.5 px-3 pb-2">
         <input type="range" aria-label={words.position} min={0} max={length ?? 0} step={1} value={Math.min(at, length ?? 0)} disabled={length == null}
           onChange={(e) => seekTo(Number(e.target.value))}
           className={cn('h-10 w-full cursor-pointer accent-[#48b078] disabled:cursor-default disabled:opacity-50', FOCUS)} />
@@ -279,7 +291,7 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
             <span aria-hidden="true">10</span><RotateCw className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
