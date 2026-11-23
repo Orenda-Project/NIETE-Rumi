@@ -47,7 +47,7 @@ export const HELP_COPY = {
   whereToLook: 'Where to look',
   fullManual: 'Open the full manual',
   inManual: 'This indicator in the manual',
-  guideFailed: 'Could not load the guide',
+  guideFailed: 'Could not load',
   length: (s: number) => clock(s),
   size: (b: number) => megabytes(b),
 };
@@ -84,7 +84,7 @@ export const HELP_COPY_UR: typeof HELP_COPY = {
   whereToLook: 'کہاں دیکھیں',
   fullManual: 'پوری گائیڈ کھولیں',
   inManual: 'گائیڈ میں یہ انڈیکیٹر',
-  guideFailed: 'گائیڈ لوڈ نہیں ہو سکی',
+  guideFailed: 'لوڈ نہیں ہو سکا',
   length: (s: number) => clock(s),
   size: (b: number) => megabytes(b),
 };
