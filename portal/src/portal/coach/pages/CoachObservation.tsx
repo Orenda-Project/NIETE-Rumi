@@ -25,6 +25,7 @@ import { OBSERVATION_STEPS } from "../reports/paths";
 import { LessonPlanRow } from "../observe/PlanState";
 import { Obs612Block } from "../../components/coaching/Obs612Block";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { bandOfRubric } from "../../teacher/help/observe/guides";
 import { StatusLine } from "../flow/StatusLine";
 import { AnalysingStage, DebriefDue, DebriefListeningStage, DebriefStage, FeedbackCard, FormStage, SendStage, StoppedStage } from "../flow/VisitV7";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
@@ -172,7 +173,7 @@ const CoachObservation = () => {
   ) : undefined;
 
   return (
-    <ReportsFrame title={name} crumb={C.title} onBack={back} chips={chips} dock={dock} testId="coach-observation">
+    <ReportsFrame title={name} crumb={C.title} onBack={back} chips={chips} dock={dock} testId="coach-observation" helpBand={bandOfRubric(view?.rubric?.id)}>
       <LoadState status={failed ? "error" : data ? "ok" : "loading"} empty={false} onRetry={reload} />
       {data && (
         <>

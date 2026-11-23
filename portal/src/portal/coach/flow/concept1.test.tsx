@@ -24,7 +24,8 @@ vi.mock("../../services/api", () => ({
 vi.mock("./track", () => ({ trackFlow: vi.fn() }));
 vi.mock("@/lib/whatsapp", async (orig) => ({ ...(await orig<object>()), useBotNumber: () => "923000000000" }));
 const flow = vi.hoisted(() => ({ on: true as boolean | null }));
-vi.mock("./useCoachFlowV2", () => ({ useFlowV2: () => flow.on, useCoachFlowV2: () => flow.on, coachFlowV2On: () => flow.on === true }));
+vi.mock("./useCoachFlowV2", () => ({ useFlowV2: () => flow.on, useCoachFlowV2: () => flow.on, coachFlowV2On: () => flow.on === true, useFlowV6: () => false }));
+// bd-3xf7vb.1 (#217): every Observe frame now reads useFlowV6 for its "?"; off here, so these screens are as tested.
 
 import { coach, leader } from "../../services/api";
 import { trackFlow } from "./track";

@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { FOCUS } from "../ui/styles";
 import { COACHING_NEW } from "../coaching/paths";
 import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
+// bd-3xf7vb.1 (queue #217): the "?" (how-to film + indicator guides) on her Observe screens, behind the v6 switch.
+import { ObserveHelpButton } from "../help/observe/ObserveHelp";
 
 /**
  * bd-33wxxi.4 — "One of my teachers" → Pick the teacher (#55, Observations A): her own school's teachers (GET
@@ -87,7 +89,7 @@ export function PickTeacher() {
 
   return (
     <TeacherPage feature="observations" title={B.pickTheTeacher} crumb={`${O.title} · ${P.oneTeacher}`} backTo={OBS_HOME}
-      testId="principal-pick">
+      testId="principal-pick" action={<ObserveHelpButton />}>
       {/* bd-o15qnr.28 (v6/v7, #188's board p7-pick): whose lesson — one of her teachers (this list) or her own (Digital
           Coaching's New observation, the teacher app's flow) */}
       {v6 && (
