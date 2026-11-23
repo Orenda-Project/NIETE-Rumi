@@ -258,3 +258,41 @@ describe('qa: a QA walk\'s forward taps are marked', () => {
     expect(taps()).toEqual([expect.objectContaining({ surface: 'teacher_home', share_code_id: c, qa: true })]);
   });
 });
+
+// One message, one language: the class group reads the forwarded message, so the "Any day" return line appended to an
+// own quiz's stored message follows the QUIZ's language (quizzes.language, the language the message was written in),
+// not the language of the home the teacher sends it from. A quiz with no language: the home's, as before.
+describe('the return line follows the class message\'s language', () => {
+  const { returnLineText } = require('../../shared/services/first-touch/teacher-home.copy');
+  const textOf = (loc) => decodeURIComponent(loc.replace(/^(https:\/\/wa\.me\/|whatsapp:\/\/send)\?text=/, ''));
+  const messagesIn = (o, out = []) => {
+    if (typeof o === 'string') { if (o.startsWith(MESSAGE)) out.push(o); } else if (o && typeof o === 'object') Object.values(o).forEach((v) => messagesIn(v, out));
+    return out;
+  };
+  const withLang = (language) => { seed(); fake.db.quizzes.find((q) => q.id === OWN_QUIZ).language = language; };
+
+  test('an English quiz sent from an Urdu home: /fwd and the home\'s send carry the English line, never the Urdu one', async () => {
+    withLang('en');
+    await boot();
+    const text = textOf((await get(`/quiz/teacher/${qf({ l: 'ur' })}/fwd`)).headers.get('location'));
+    expect(text).toBe(`${MESSAGE}\n\n${returnLineText('en')}`);
+    const t = HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'ur', via: 'go' });
+    const sent = messagesIn(await (await get(`/api/th/home?t=${t}&g=4`)).json());
+    expect(sent.length).toBeGreaterThan(0);
+    sent.forEach((m) => expect(m).toBe(`${MESSAGE}\n\n${returnLineText('en')}`));
+  });
+
+  test('an Urdu quiz sent from an English home: the Urdu line', async () => {
+    withLang('ur');
+    await boot();
+    const text = textOf((await get(`/quiz/teacher/${qf({ l: 'en' })}/fwd`)).headers.get('location'));
+    expect(text).toBe(`${MESSAGE}\n\n${returnLineText('ur')}`);
+  });
+
+  test('a quiz with no language: the home\'s line, as before', async () => {
+    withLang(null);
+    await boot();
+    const text = textOf((await get(`/quiz/teacher/${qf({ l: 'ur' })}/fwd`)).headers.get('location'));
+    expect(text).toBe(`${MESSAGE}\n\n${returnLineText('ur')}`);
+  });
+});
