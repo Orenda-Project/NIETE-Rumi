@@ -2132,7 +2132,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); return; }
       // An evening round with nothing left for this child tonight: no sitting (no `st`), the words on their own screen.
-      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); doneTonight(); return; }
+      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); doneTonight(r.body.class_link_code); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -2149,11 +2149,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); });
   }
   // "Done for tonight!": the quiz and Jugnu saying it, with nothing to tap that starts again (no Play, no child's card:
-  // the server would answer the same, and the landing's Play went round in a loop). The bar is the landing's.
-  function doneTonight() {
+  // the server would answer the same, and the landing's Play went round in a loop). The bar is the landing's; Home goes
+  // back to the class link's landing (a sibling on this phone can still pick themselves), never to the round.
+  function doneTonight(code) {
+    var home = /^[A-Za-z0-9]{6,20}$/.test(String(code || ''))
+      ? '<a class="wq-btn wq-soft" id="wq-done-home" href="' + esc(withLang('/j/' + code)) + '">' + esc(T.home) + '</a>' : '';
     render(bar() + jug('sleep', T.doneTonight, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p></div>', 'M3-done');
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p></div>' + home, 'M3-done');
     wireBar();
   }
 
