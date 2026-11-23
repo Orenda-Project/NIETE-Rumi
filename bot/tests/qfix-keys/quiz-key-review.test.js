@@ -184,7 +184,8 @@ describe('nightly answer-key review flag', () => {
     // The verdict and the numbers the reviewer judged stay; only "still seen" moves.
     expect(writer.store.get(`${Q_WEB_KEY}|dominant_wrong_option`)).toMatchObject({ answers_n: 30, top_wrong_n: 21, last_seen_on: '2026-11-23' });
     expect(writer.store.get(`${Q_WRONG_KEY}|dominant_wrong_option`).last_seen_on).toBe('2026-11-23');
-    expect(mockLogEvent).toHaveBeenLastCalledWith('quiz_keys.flagged', expect.objectContaining({ n_new: 0, n_total: 2, n_reviewed_skipped: 1 }));
+    const flaggedCalls = mockLogEvent.mock.calls.filter(([n]) => n === 'quiz_keys.flagged');
+    expect(flaggedCalls[flaggedCalls.length - 1][1]).toEqual(expect.objectContaining({ n_new: 0, n_total: 2, n_reviewed_skipped: 1 }));
   });
 
   test('switch off (no app_settings row) reads nothing more and writes nothing', async () => {
@@ -265,5 +266,26 @@ describe('nightly answer-key review flag', () => {
     expect(Review.parseSwitch({ at: '02:00', page_rows: 100 }).page_rows).toBe(100);
     expect(Review.parseSwitch({ at: '02:00', page_rows: 10 }).page_rows).toBe(1000);
     expect(Review.parseSwitch({ at: '02:00', page_rows: 5000 }).page_rows).toBe(1000);
+  });
+
+  // NIGHT_READS must tell "ran yesterday" (done_already) from "never ticked": one counts-only line per tick.
+  test('every tick logs quiz_keys.tick once, with its outcome and the Pakistan date', async () => {
+    const writer = fakeWriter();
+    const redis = fakeRedis();
+    const ticks = () => mockLogEvent.mock.calls.filter(([n]) => n === 'quiz_keys.tick').map(([, f]) => f);
+    await Review.run({ now: NOW, redis, reader: fakeReader({ switchValue: null }), writer: () => writer });
+    await Review.run({ now: new Date('2026-11-21T19:00:00Z'), redis, reader: fakeReader(), writer: () => writer });
+    await Review.run({ now: NOW, redis, reader: fakeReader(), writer: () => writer });
+    redis.m.delete(Review.TICK_KEY);
+    await Review.run({ now: new Date('2026-11-21T21:40:00Z'), redis, reader: fakeReader(), writer: () => writer });
+    redis.m.clear();
+    await Review.run({ now: NOW, redis, reader: fakeReader({ rows: manyRows(10), ignorePaging: true, maxRows: 5 }), writer: () => writer });
+    expect(ticks()).toEqual([
+      { outcome: 'off', reason: 'switch_off', run_date: '2026-11-22' },
+      { outcome: 'not_due', reason: null, run_date: '2026-11-22' },
+      { outcome: 'ran', reason: null, run_date: '2026-11-22' },
+      { outcome: 'done_already', reason: null, run_date: '2026-11-22' },
+      { outcome: 'error', reason: null, run_date: '2026-11-22' },
+    ]);
   });
 });
