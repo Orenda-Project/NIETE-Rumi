@@ -141,8 +141,9 @@ describe("FICO17 v6.1: the line under the name", () => {
     await toV6("C1");
     fireEvent.click(within(screen.getByTestId("ff-about")).getByRole("button", { name: "Examples" }));
     const tray = await screen.findByTestId("observe-help-tray");
-    expect(within(tray).getAllByTestId("guide-code")).toHaveLength(17);
-    expect(within(within(tray).getByTestId("guide-card-C1")).getByText("What it looks at")).toBeInTheDocument();
+    // #217: the guide (Rifat's manual) loads when it opens, so its chips arrive a moment later
+    expect(await within(tray).findAllByTestId("guide-code")).toHaveLength(17);
+    expect(within(within(tray).getByTestId("guide-card-C1")).getByText("What it measures")).toBeInTheDocument();
   });
 
   it("a guide without that indicator: still no link", () => {
@@ -209,8 +210,9 @@ describe("FICO-S v1.2: the line under the name", () => {
     await screen.findByText("C1 · Quality of questions");
     fireEvent.click(within(screen.getByTestId("ff-about")).getByRole("button", { name: "Examples" }));
     const tray = await screen.findByTestId("observe-help-tray");
-    expect(within(tray).getAllByTestId("guide-code")).toHaveLength(23);
-    expect(within(within(tray).getByTestId("guide-card-C1")).getByText("What it looks at")).toBeInTheDocument();
+    // #217: the guide (Rifat's manual) loads when it opens, so its chips arrive a moment later
+    expect(await within(tray).findAllByTestId("guide-code")).toHaveLength(23);
+    expect(within(within(tray).getByTestId("guide-card-C1")).getByText("What it measures")).toBeInTheDocument();
   });
 
   it("the principal: the same", async () => {
