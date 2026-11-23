@@ -199,6 +199,8 @@ describe('options whose meaning is their place stay put', () => {
 
 describe('web_quiz_order_seed_pct: the seed on for a share of LINKS (a clean A/B for the re-sit measurement)', () => {
   const OrderSeed = require('../../shared/services/quiz/web-quiz-order-seed');
+  const AB = require('../../shared/services/ab-assign.service');
+  const REPO = require('path').resolve(__dirname, '../../..');
   const codes = Array.from({ length: 40 }, (_, k) => `44444444-4444-4444-8444-${String(k).padStart(12, '0')}`);
 
   test('pct picks a stable share of links by the link\'s own hash; 0, junk or a missing row is off; the global switch wins', () => {
@@ -214,12 +216,26 @@ describe('web_quiz_order_seed_pct: the seed on for a share of LINKS (a clean A/B
     expect(codes.every((c) => OrderSeed.onFor({ orderSeed: true, orderSeedPct: 0 }, c))).toBe(true);
   });
 
-  test('the bucket helper is exported for other canaries, and its salt keeps their arms independent', () => {
-    const b = codes.map((c) => HubFlags.bucketOf(HubFlags.ORDER_SEED_PCT_KEY, c));
-    b.forEach((x) => { expect(Number.isInteger(x)).toBe(true); expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThan(100); });
-    expect(codes.map((c) => HubFlags.bucketOf('web_quiz_other_canary', c))).not.toEqual(b);
-    expect(codes.filter((c) => HubFlags.inPct(30, HubFlags.ORDER_SEED_PCT_KEY, c)))
-      .toEqual(codes.filter((c) => OrderSeed.onFor({ orderSeedPct: 30 }, c)));
+  test('the arm is the shared A/B module\'s: assignArm with this test\'s registry entry, the share from the pct row', () => {
+    const { flagKey, salt } = OrderSeed.ORDER_TEST;
+    const entry = (AB.readRegistry(REPO).entries || []).find((e) => e.flag_key === flagKey);
+    expect(entry).toEqual(expect.objectContaining({ test_id: salt.split(':')[0], card_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) }));
+    for (const pct of [30, 50, 100]) {
+      expect(codes.map((c) => OrderSeed.armOf({ orderSeedPct: pct }, c)))
+        .toEqual(codes.map((c) => AB.armFor(salt, c, { off: 10000 - pct * 100, pct: pct * 100 })));
+    }
+    const at = (pct) => codes.filter((c) => OrderSeed.onFor({ orderSeedPct: pct }, c));
+    expect(at(50)).toEqual(expect.arrayContaining(at(30))); // raising the share only adds links
+    const spy = jest.spyOn(AB, 'assignArm').mockReturnValue('off'); // G1: the module decides; its control is off
+    try {
+      expect(codes.some((c) => OrderSeed.onFor({ orderSeedPct: 100 }, c))).toBe(false);
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+        flagKey, salt, unitId: codes[0], controlArm: 'off', sharesBp: { off: 0, pct: 10000 },
+      }), expect.anything());
+    } finally {
+      spy.mockRestore();
+    }
+    expect(HubFlags.bucketOf).toBeUndefined(); // no second arm picker beside the shared one
   });
 
   test('the hub reads {"pct": N} as N (0-100), anything else as 0', async () => {
@@ -240,14 +256,16 @@ describe('web_quiz_order_seed_pct: the seed on for a share of LINKS (a clean A/B
       await play(name);
       return started().pop();
     };
-    const bucket = HubFlags.bucketOf(HubFlags.ORDER_SEED_PCT_KEY, SC);
-    expect(bucket).toBeGreaterThan(0); // so pct = bucket is a running canary with this link just out of it
+    // the largest share that leaves this link out ('off' holds the low buckets of the shared split)
+    const outPct = Math.ceil((10000 - AB.bucket(OrderSeed.ORDER_TEST.salt, SC)) / 100) - 1;
+    expect(outPct).toBeGreaterThan(0); // so the pct row is a running canary with this link just out of it
     expect(await arm([], 'Sara Testwala')).not.toHaveProperty('order_arm');
     expect((await arm([{ key: 'web_quiz_order_seed', value: true }], 'Ali Testwala')).order_arm).toBe('all');
     expect((await arm([{ key: 'web_quiz_order_seed_pct', value: { pct: 100 } }], 'Hina Testwala')).order_arm).toBe('pct');
-    const out = await arm([{ key: 'web_quiz_order_seed_pct', value: { pct: bucket } }], 'Omar Testwala');
+    const out = await arm([{ key: 'web_quiz_order_seed_pct', value: { pct: outPct } }], 'Omar Testwala');
     expect(out.order_arm).toBe('off');
     expect(out).not.toHaveProperty('order_seed');
+    expect((await arm([{ key: 'web_quiz_order_seed_pct', value: { pct: outPct + 1 } }], 'Zara Testwala')).order_arm).toBe('pct');
   });
 
   test('a link in the on arm gets a sitting order; a link in the off arm gets today\'s reply', async () => {
