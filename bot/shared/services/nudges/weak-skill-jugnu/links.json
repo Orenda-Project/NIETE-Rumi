@@ -1,0 +1,10 @@
+{
+  "source": "ICT numeracy knowledge graph (bd-ptl6x9) workbench/data/graph.json: its 3 same_skill links, copied as data",
+  "pass_rule": "a child passes a task at >= 0.75 of its items (the results page's PROPOSED benchmark, AI-scored, not ratified)",
+  "below_rule": "a skill is named only when fewer than this share of the group's scored children passed it (our line, bd-ptl6x9.7)",
+  "links": [
+    { "egma": "ma.missing4", "items": 4, "game": "missing", "below": 0.8 },
+    { "egma": "ma.number_id8", "items": 8, "game": "numbers", "below": 0.8 },
+    { "egma": "ma.discrimination2", "items": 2, "game": "bigger", "below": 0.8 }
+  ]
+}

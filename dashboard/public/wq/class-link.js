@@ -14,6 +14,9 @@
   var LANG = B.lang === 'ur' ? 'ur' : 'en';
   var CODE = String(B.code || '');
   var JT = typeof B.jt === 'string' ? B.jt : null;
+  // A link that names one Jugnu game (the weak-skill nudge's forward, bd-ptl6x9.7: ?ex=missing|numbers|bigger) hands it
+  // on to the child's hub, which opens that game; anything else is ignored.
+  var EX = (/[?&]ex=(missing|numbers|bigger)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   // copy.v2.json: jg.link.teacher_q, jg.link.letter_q, jg.link.is_here, jg.who.turn, jg.who.not_listed, jg.who.someone_else
   var COPY = {
@@ -57,7 +60,7 @@
   function show(out) {
     if (!out.ok) return closed();
     var r = out.body;
-    if (r.href) { location.href = r.href; return; }
+    if (r.href) { location.href = r.href + (EX ? (r.href.indexOf('?') >= 0 ? '&' : '?') + 'ex=' + EX : ''); return; }
     if (r.step === 'who') {
       screen(T.turn, '<div class="wq-kids-big">' + r.kids.map(function (k) {
         return '<button class="wq-kid wq-kid-big" data-chip="' + esc(k.chip) + '"><span class="wq-ani" aria-hidden="true">' + (ANIMALS[k.animal] || '⭐') + '</span><bdi>' + esc(k.first) + '</bdi></button>';
