@@ -24,7 +24,9 @@
  *   7. A completed run with recent_days > WIDE_DAYS (the first night's backlog) narrows its own switch row back to
  *      NARROW_TO days on the PRIMARY, compare-and-set on the exact value it read (narrowSwitch), so the return to the
  *      nightly window needs no person. An operator's change made meanwhile is kept; `true` is left alone.
- * Logged with a correlation id: counts only (quiz_keys.flagged). Never throws.
+ * Logged with a correlation id: counts only (quiz_keys.flagged), with by_source: per source (transcript, lp, bank, story,
+ * other) the count among n_total and among n_new, from ONE extra replica read for the suspects only (sourceOf); null when
+ * that read fails, and the run goes on. Never throws.
  */
 const { logToFile } = require('../../utils/logger');
 const { logEvent, generateCorrelationId, runWithCorrelation } = require('../../utils/structured-logger');
@@ -47,6 +49,9 @@ const CHUNK = 200;
 /** Queue states that still keep an item out of new uses (class-link's recall round reads these). */
 const HELD = ['open', 'key_wrong', 'ambiguous'];
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
+/** by_source's buckets. A bank item (external_id gen:/leg:) is 'bank' whatever its quiz; else the quiz's quiz_source. */
+const SOURCES = Object.freeze(['transcript', 'lp', 'bank', 'story', 'other']);
+const LP_SOURCES = new Set(['lp_v8', 'lp612', 'lesson_plan']);
 
 /** The job's settings, or null (off). The 90-minute window must end by midnight. */
 function parseSwitch(value) {
@@ -142,13 +147,54 @@ async function heldQuestionIds(db, ids) {
   return held;
 }
 
-/** Reads the counts (replica), then writes the queue (primary). Returns the counts. */
+/** The by_source bucket of one item: {external_id, quizzes: {quiz_source}} as the replica read returns it (or undefined). */
+function sourceOf(row) {
+  const ext = String((row && row.external_id) || '');
+  if (ext.startsWith('gen:') || ext.startsWith('leg:')) return 'bank';
+  const quiz = row && (Array.isArray(row.quizzes) ? row.quizzes[0] : row.quizzes);
+  const src = quiz && quiz.quiz_source;
+  if (src === 'transcript') return 'transcript';
+  if (LP_SOURCES.has(src)) return 'lp';
+  if (src === 'story') return 'story';
+  return 'other';
+}
+
+/**
+ * by_source for the run: per bucket, how many of the suspects (n_total) and of the new ones (n_new). ONE replica read,
+ * for the suspects only, along quiz_questions.quiz_id → quizzes (in CHUNKs; a night has a few dozen suspects). An item
+ * the read does not return counts as 'other'. Returns null when the read fails (logged); never throws.
+ */
+async function bySource(reader, suspects, freshIds) {
+  const out = Object.fromEntries(SOURCES.map((k) => [k, { n_total: 0, n_new: 0 }]));
+  if (!suspects.length) return out;
+  try {
+    const rowOf = new Map();
+    const ids = suspects.map((s) => s.question_id);
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await reader.from('quiz_questions').select('id, external_id, quizzes(quiz_source)').in('id', ids.slice(i, i + CHUNK));
+      if (error) throw new Error(error.message || 'quiz_questions read failed');
+      for (const r of data || []) rowOf.set(r.id, r);
+    }
+    for (const s of suspects) {
+      const b = out[sourceOf(rowOf.get(s.question_id))];
+      b.n_total += 1;
+      if (freshIds.has(s.question_id)) b.n_new += 1;
+    }
+    return out;
+  } catch (err) {
+    logToFile('⚠️ Answer-key review: suspects\' sources unreadable — by_source null, the run goes on', { error: err && err.message }, 'warn');
+    return null;
+  }
+}
+
+/** Reads the counts (replica), then writes the queue (primary). Returns the counts, with by_source. */
 async function flag({ reader, writer, cfg, today }) {
   const { data, error } = await reader.rpc('quiz_key_answer_counts', { p_min_answers: cfg.min_answers, p_recent_days: cfg.recent_days });
   if (error) throw new Error(error.message || 'quiz_key_answer_counts failed');
   const suspects = (data || []).map((r) => suspectOf(r, cfg)).filter(Boolean);
   const counts = { scanned: (data || []).length, n_total: suspects.length, n_new: 0, n_open_refreshed: 0, n_reviewed_skipped: 0 };
-  if (!suspects.length) return counts;
+  if (!suspects.length) return { ...counts, by_source: await bySource(reader, suspects, new Set()) };
   const db = writer();
   const existing = new Map();
   const ids = suspects.map((s) => s.question_id);
@@ -175,6 +221,7 @@ async function flag({ reader, writer, cfg, today }) {
     if (e) throw new Error(e.message || 'quiz_item_reviews update failed');
     if (status === 'open') counts.n_open_refreshed += 1; else counts.n_reviewed_skipped += 1;
   }
+  counts.by_source = await bySource(reader, suspects, new Set(fresh.map((f) => f.question_id)));
   return counts;
 }
 
@@ -230,4 +277,4 @@ async function run(deps = {}) {
   });
 }
 
-module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN, WIDE_DAYS, NARROW_TO };
+module.exports = { run, parseSwitch, suspectOf, sourceOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN, WIDE_DAYS, NARROW_TO, SOURCES };
