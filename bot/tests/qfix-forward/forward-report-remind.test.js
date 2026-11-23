@@ -82,4 +82,15 @@ describe('the report\'s "Remind the class" is the wa_report forward', () => {
     expect(res.status).toBe(404);
     expect(events('quiz_forward_tap')).toEqual([]);
   });
+  // a QA walk's browser (" QFIXQA" in the relayed user agent): the wa_report tap is marked qa:true; a phone: no qa key
+  test('a walk\'s Remind tap → qa:true; a phone\'s → no qa key', async () => {
+    const tok = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ });
+    const ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/131.0.0.0 Mobile Safari/537.36';
+    await fetch(`${base}/remind/${tok}?quiz=${QUIZ}`, { headers: { 'x-api-key': 'test-key', 'user-agent': `${ua} QFIXQA` }, redirect: 'manual' });
+    await fetch(`${base}/remind/${tok}?quiz=${QUIZ}`, { headers: { 'x-api-key': 'test-key', 'user-agent': ua }, redirect: 'manual' });
+    const t = events('quiz_forward_tap');
+    expect(t.map((x) => x.qa)).toEqual([true, undefined]);
+    expect(t[1]).not.toHaveProperty('qa');
+  });
 });
+
