@@ -458,6 +458,8 @@ export interface SchoolRemarks {
 
 export interface SchoolAnalyticsResponse {
   success: boolean;
+  /** bd-r2uzg1.21.4 — true when the principal's account names no school (users.school_id empty): nothing to count. */
+  noSchool?: boolean;
   /** The date window the server applied; null ends are open (all time). */
   range?: { from: string | null; to: string | null };
   school: {

@@ -9,6 +9,7 @@ import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
 import ScoreIndicator from "../components/ScoreIndicator";
 import type { LeaderPatchTeacher } from "../types/portal";
+import { NoSchoolNotice } from "../teacher/principal/NoSchool";
 
 /**
  * Leader Portal — Teachers roster (bd-2434, NIETE port of upstream bd-2392).
@@ -64,13 +65,15 @@ const LeaderTeachers = () => {
 
   const [teachers, setTeachers] = useState<LeaderPatchTeacher[]>([]);
   const [summary, setSummary] = useState<{ total: number; onRumi: number }>({ total: 0, onRumi: 0 });
+  // bd-r2uzg1.21.4 — a principal whose account names no school: not "No teachers yet", but why and what to do.
+  const [noSchool, setNoSchool] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     leader
       .getTeachers()
-      .then((d) => { if (alive) { setTeachers(d.teachers); setSummary({ total: d.total, onRumi: d.onRumi }); } })
+      .then((d) => { if (alive) { setTeachers(d.teachers); setSummary({ total: d.total, onRumi: d.onRumi }); setNoSchool(d.noSchool === true); } })
       .catch(() => { if (alive) setTeachers([]); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -81,7 +84,7 @@ const LeaderTeachers = () => {
       <div className="container mx-auto max-w-7xl px-6 py-8">
         <header className="mb-6">
           <h1 className="text-3xl font-light">Teachers</h1>
-          {!loading && (
+          {!loading && !noSchool && (
             <p className="text-muted-foreground mt-2">
               {summary.total} teacher{summary.total === 1 ? "" : "s"} in your patch · {summary.onRumi}/{summary.total} on NIETE
             </p>
@@ -90,6 +93,8 @@ const LeaderTeachers = () => {
 
         {loading ? (
           <LoadingState type="list" count={6} />
+        ) : noSchool ? (
+          <NoSchoolNotice testId="teachers-no-school" />
         ) : teachers.length === 0 ? (
           <EmptyState icon={Users} title="No teachers yet" description="Teachers in your patch will appear here once your roster is set up." />
         ) : (

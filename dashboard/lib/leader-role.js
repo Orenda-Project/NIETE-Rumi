@@ -133,11 +133,24 @@ async function principalSchoolOf(supabase, userId, { strict = false } = {}) {
   }
 }
 
+/**
+ * bd-r2uzg1.21.4 — a principal whose own users row names no school (users.school_id empty). Her patch IS her school
+ * (services/leader-patch.service.js PRINCIPAL_PATCH_SQL), so with none every leader page would read zeros; the leader
+ * reads answer `noSchool: true` instead, so the page can say so and what to do. Anyone else is false: a coach's patch
+ * is her school assignments, never users.school_id. Read from the row the gate loaded (req.portalUser), never a request.
+ * @param {{ role?: string|null, school_id?: string|null }|null|undefined} user
+ * @returns {boolean}
+ */
+function principalWithoutSchool(user) {
+  return Boolean(user) && isPrincipalRole(user.role) && !user.school_id;
+}
+
 module.exports = {
   LEADER_ROLES,
   isLeaderRole,
   isPrincipalRole,
   principalSchoolOf,
+  principalWithoutSchool,
   publicUserPayload,
   makeRequireLeaderRole,
 };
