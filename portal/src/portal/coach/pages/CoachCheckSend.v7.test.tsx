@@ -86,7 +86,8 @@ describe("Check and send, v7: the class question as it used to be (dropdowns, no
   it("Class and subject, the Class dropdown; no chips, no 'Which class was it?'", async () => {
     L.getObserveLessonQuestion.mockResolvedValue(ASK);
     renderCheck();
-    expect(await screen.findByText("Class and subject")).toBeTruthy();
+    // the file's first render loads the page's chunk cold: 8 s under a loaded machine (as v7visit39)
+    expect(await screen.findByText("Class and subject", undefined, { timeout: 8000 })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Class,/ })).toBeTruthy();
     expect(screen.queryByText("Which class was it?")).toBeNull();
     expect(screen.queryByRole("radio", { name: "1–5" })).toBeNull();
@@ -105,23 +106,95 @@ describe("Check and send, v7: the class question as it used to be (dropdowns, no
     expect(send.mock.calls[0][0].lesson).toEqual({ grade: 7, subject: "maths" });
   });
 
-  it("Grade 1-5 is primary; Grade 9 is the class alone (no subject asked)", async () => {
+  it("Grade 9 is the class alone (no subject asked)", async () => {
     L.getObserveLessonQuestion.mockResolvedValue(ASK);
     renderCheck();
     await choose(/^Class,/, "Grade 9");
     expect(screen.queryByRole("button", { name: /^Subject,/ })).toBeNull();
-    await choose(/^Class,/, "Grade 1-5");
     fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
-    expect(send.mock.calls[0][0].lesson).toEqual({ primary: true });
+    expect(send.mock.calls[0][0].lesson).toEqual({ grade: 9 });
   });
 
-  it("switch off: the dropdowns, as on production", async () => {
+  it("switch off: the dropdowns, as on production (Grade 1-5 is primary)", async () => {
     flow.on = false;
     L.getObserveLessonQuestion.mockResolvedValue(ASK);
     renderCheck();
     expect(await screen.findByText("Class and subject")).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Class,/ })).toBeTruthy();
     expect(screen.queryByText("Which class was it?")).toBeNull();
+    await choose(/^Class,/, "Grade 1-5");
+    fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    expect(send.mock.calls[0][0].lesson).toEqual({ primary: true });
+  });
+});
+
+/*
+ * bd-o15qnr.40.3 (queue #229, the operator 23 Nov ~15:20): the Class list showed "Grade 1-5" as one row, then 6, 7, 8 …
+ * each on its own. With the switch on every grade is its own row (Grade 1 … Grade 12, in order); the rubric is still
+ * picked from the grade behind the scenes: a grade 1-5 goes up as { primary: true } (FICO17 v6), 6-12 as before.
+ */
+describe("Check and send, v7: every grade on its own (bd-o15qnr.40.3)", () => {
+  beforeEach(() => { flow.on = true; });
+
+  it("the Class list is Grade 1 … Grade 12, one row each; no 'Grade 1-5'", async () => {
+    L.getObserveLessonQuestion.mockResolvedValue(ASK);
+    renderCheck();
+    fireEvent.click(await screen.findByRole("button", { name: /^Class,/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText("Grade 1-5")).toBeNull();
+    const shown = within(dialog).getAllByText(/^Grade \d+$/).map((el) => el.textContent);
+    expect(shown).toEqual(Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`));
+  });
+
+  it("Grade 3: no subject asked, sent as the grades 1-5 class (primary), named Grade 3 on the page", async () => {
+    L.getObserveLessonQuestion.mockResolvedValue(ASK);
+    renderCheck();
+    await choose(/^Class,/, "Grade 3");
+    expect(screen.queryByRole("button", { name: /^Subject,/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Class,/ })).toHaveTextContent("Grade 3");
+    fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    expect(send.mock.calls[0][0].lesson).toEqual({ primary: true });
+  });
+
+  it("Urdu: جماعت ۱ … one row each, no «جماعت ۱ تا ۵»", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    L.getObserveLessonQuestion.mockResolvedValue(ASK);
+    renderCheck();
+    fireEvent.click(await screen.findByRole("button", { name: /^جماعت/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText("جماعت ۱ تا ۵")).toBeNull();
+    // the kit isolates the digits (LRI … PDI) so they read left to right inside the Urdu line
+    const rows = within(dialog).getAllByText(/^جماعت ./).map((el) => (el.textContent || "").replace(/[\u2066-\u2069]/g, ""));
+    expect(rows).toEqual(Array.from({ length: 12 }, (_, i) => `جماعت ${i + 1}`));
+  });
+});
+
+/*
+ * bd-o15qnr.40.2 (queue #229, the operator 23 Nov ~15:20): Check and send played the recording on the old card (play and
+ * pause only). With the switch on it is #204's full player, as on the visit and the debrief: a bar to drag, the time and
+ * the length, back / forward 10 s and the speed (1× → 1.5× → 2× → 4×). Switch off: the card as on production.
+ */
+describe("Check and send, v7: the full player (bd-o15qnr.40.2)", () => {
+  it("switch on: the recording has the bar, back / forward 10 s and the speed", async () => {
+    flow.on = true;
+    L.getObserveLessonQuestion.mockResolvedValue({ ask: false });
+    renderCheck();
+    const player = await screen.findByTestId("check-recording");
+    expect(within(player).getByRole("slider", { name: "Position" })).toBeTruthy();
+    expect(within(player).getByRole("button", { name: "Back 10 s" })).toBeTruthy();
+    expect(within(player).getByRole("button", { name: "Forward 10 s" })).toBeTruthy();
+    expect(within(player).getByRole("button", { name: /Playback speed/ })).toBeTruthy();
+    expect(within(player).getByRole("button", { name: /Record again|Redo/i })).toBeTruthy();
+  });
+
+  it("switch off: the plain card, no bar", async () => {
+    flow.on = false;
+    L.getObserveLessonQuestion.mockResolvedValue({ ask: false });
+    renderCheck();
+    await screen.findByRole("button", { name: "Send observation" });
+    expect(screen.queryByRole("slider", { name: "Position" })).toBeNull();
   });
 });
