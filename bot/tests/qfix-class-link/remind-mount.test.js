@@ -1,11 +1,12 @@
 'use strict';
 /**
- * The reminder ask on the standing link: the two step answers whose screens draw the #wq-remind slot ("Whose turn?",
- * arrive's `who`; "Is your name here?", letter's `chips`) carry the bot's existing push decision (web-quiz-push-field
+ * The reminder ask on the standing link comes only once a child is picked: "Whose turn?" (arrive's `who`, a phone that
+ * already holds a child of this class) and the pick's answer carry the bot's existing push decision (web-quiz-push-field
  * pushField(): {push_remind: true} or {}) and, with it on, `remind_code`, the code the ask subscribes with:
  *   - tonight's round share code for the class when a ready round exists (the evening round's own read);
  *   - else the link's own code; the evening round off -> the link's code with no round read at all.
- * Off -> neither key; the answers are today's. The teacher step draws no slot and never carries the field.
+ * Off -> neither key; the answers are today's. The steps before a pick (the teacher, the letter, "Is your name here?")
+ * never carry the field: on a fresh phone the ask never shows before a child is picked.
  *
  * The real chain: the bot's /api/internal/wq/cl/* routes over HTTP, the real pushField (the hub switches' one read,
  * warmed as the page boot warms it, and the push env). Faked boundaries only: Supabase (in memory), Redis (a Map), SQS,
@@ -149,13 +150,36 @@ describe('push on (web_quiz_push_remind, push env set)', () => {
     from.mockRestore();
   });
 
-  test('"Is your name here?" (the letter step\'s chips) carries push_remind and remind_code; the teacher step never does', async () => {
+  test('a fresh phone before any pick: the teacher step, the letter step and "Is your name here?" carry no field', async () => {
     await seed();
-    const { teacher, chips } = await chipsStep();
-    expect(chips.push_remind).toBe(true);
-    expect(chips.remind_code).toBe('RND234');
-    expect(teacher).not.toHaveProperty('push_remind');
-    expect(teacher).not.toHaveProperty('remind_code');
+    const a = (await post('arrive', { code: CODE, device_ref: DEV_FRESH })).body;
+    const l = (await post('teacher', { code: CODE, s: a.s, tk: a.teachers[0].tk })).body;
+    const c = (await post('letter', { code: CODE, s: l.s, letter: 'Z' })).body;
+    expect([a.step, l.step, c.step]).toEqual(['teacher', 'letter', 'chips']);
+    for (const step of [a, l, c]) {
+      expect(step).not.toHaveProperty('push_remind');
+      expect(step).not.toHaveProperty('remind_code');
+    }
+    expect(Object.keys(c)).toEqual(['step', 's', 'kids']);
+  });
+
+  test('the pick (a fresh phone, from "Is your name here?"): the answer carries push_remind and tonight\'s round code beside the hub link', async () => {
+    await seed();
+    const { chips } = await chipsStep();
+    const { status, body } = await post('pick', { code: CODE, s: chips.s, chip: chips.kids[0].chip, device_ref: DEV_FRESH });
+    expect(status).toBe(200);
+    expect(body.href).toMatch(/^\/h\/[^?]+\?from=class_link$/);
+    expect(body.push_remind).toBe(true);
+    expect(body.remind_code).toBe('RND234');
+  });
+
+  test('the pick from "Whose turn?" carries it too; no ready round -> the link\'s own code', async () => {
+    await seed({ round: false });
+    const who = (await post('arrive', { code: CODE, device_ref: DEV })).body;
+    const { body } = await post('pick', { code: CODE, s: who.s, chip: who.kids[0].chip, device_ref: DEV });
+    expect(body.href).toMatch(/^\/h\//);
+    expect(body.push_remind).toBe(true);
+    expect(body.remind_code).toBe(CODE);
   });
 
   test('"Whose turn?"\'s way out for a child not listed (the teacher step it carries) has no field of its own', async () => {
@@ -168,12 +192,14 @@ describe('push on (web_quiz_push_remind, push env set)', () => {
 });
 
 describe('push off: the answers are today\'s', () => {
-  test('switch off: "Whose turn?" and the chips step carry neither key, with today\'s keys only', async () => {
+  test('switch off: "Whose turn?", the chips step and the pick carry neither key, with today\'s keys only', async () => {
     await seed({ push: false });
     const who = (await post('arrive', { code: CODE, device_ref: DEV })).body;
     expect(Object.keys(who)).toEqual(['step', 's', 'kids', 'other']);
     const { chips } = await chipsStep();
     expect(Object.keys(chips)).toEqual(['step', 's', 'kids']);
+    const pick = (await post('pick', { code: CODE, s: chips.s, chip: chips.kids[0].chip, device_ref: DEV_FRESH })).body;
+    expect(Object.keys(pick)).toEqual(['href']);
   });
 
   test('switch on but the push env incomplete: no field (pushField answers {})', async () => {
@@ -194,5 +220,7 @@ describe('push off: the answers are today\'s', () => {
     const CL = require('../../shared/services/quiz/web-quiz-class-link');
     const who = await CL.arrive({ code: CODE, device_ref: DEV });
     expect(Object.keys(who)).toEqual(['step', 's', 'kids', 'other']);
+    const pick = await CL.pick({ code: CODE, s: who.s, chip: who.kids[0].chip, device_ref: DEV });
+    expect(Object.keys(pick)).toEqual(['href']);
   });
 });
