@@ -25,6 +25,8 @@ const listOf = (deps) => (deps && deps.List) || require('../quiz/transcript-quiz
 const providersOf = (deps) => (deps && deps.Providers) || require('../quiz/quiz-lesson-providers');
 const transcriptOf = (deps) => (deps && deps.Transcript) || require('../quiz/transcript-lesson-provider');
 const messageLang = (lang) => (lang === 'en' ? 'en' : 'ur');
+// The language an own quiz's stored message was written in (quizzes.language), when this deployment offers it, else null.
+const quizLangOf = (q) => { try { return q && require('../../config/languages').isOffered(q.language) ? q.language : null; } catch (_) { return null; } };
 
 /** The message with the return line appended (a blank line before it); unchanged when the bot's number is unknown. */
 function withReturn(message, lang) {
@@ -87,13 +89,13 @@ function storedCodeOf(q) {
 function ownFrom(uid, q, sc, now = Date.now()) {
   if (!q || q.teacher_id !== uid || !storedCodeOf(q)) return null;
   if (!sc || sc.id !== q.meta.share_code_id || sc.teacher_user_id !== uid || sc.active === false || (sc.expires_at && new Date(sc.expires_at).getTime() <= now)) return null;
-  return { message: q.meta.student_message, shareCodeId: q.meta.share_code_id, topic: q.topic || null, source: q.quiz_source || null };
+  return { message: q.meta.student_message, shareCodeId: q.meta.share_code_id, topic: q.topic || null, source: q.quiz_source || null, language: quizLangOf(q) };
 }
 
 /** The teacher's own quiz's stored forwardable, owner-checked and only while its code is live. */
 async function ownMessage(uid, quizId, deps, now = Date.now()) {
   const supabase = supabaseOf(deps);
-  const { data: q, error } = await supabase.from('quizzes').select('id, teacher_id, status, quiz_source, topic, meta')
+  const { data: q, error } = await supabase.from('quizzes').select('id, teacher_id, status, quiz_source, topic, language, meta')
     .eq('id', quizId).eq('teacher_id', uid).maybeSingle();
   if (error) throw new Error(error.message);
   if (!storedCodeOf(q)) return null;
@@ -103,8 +105,12 @@ async function ownMessage(uid, quizId, deps, now = Date.now()) {
   return ownFrom(uid, q, sc, now);
 }
 
-/** An own message (ownMessage / ownFrom) → { message, wa, shareCodeId, quizId, source }. */
-const againOf = (own, quizId, lang) => ({ ...sendable(own.message, lang), shareCodeId: own.shareCodeId, quizId, source: own.source });
+/**
+ * An own message (ownMessage / ownFrom) → { message, wa, shareCodeId, quizId, source }. The class group reads it, so the
+ * return line follows the message's own language (the quiz's), not the home's: one message, one language. No quiz
+ * language → the home's, as before.
+ */
+const againOf = (own, quizId, lang) => ({ ...sendable(own.message, own.language || lang), shareCodeId: own.shareCodeId, quizId, source: own.source });
 
 /** The teacher's own quiz → { message, wa, shareCodeId } | null. */
 async function againSend({ uid, lang, quizId }, deps) {
