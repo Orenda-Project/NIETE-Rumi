@@ -27,6 +27,10 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   (`bba06868-b76a-4ff5-8d96-b41fd522b427`), service `ab-tracker-cron`, built from this repo with config
   `railway.ab-tracker-cron.json`. Railway starts `bot/scripts/ab-tracker-cron.js` every 15 minutes (`*/15 * * * *`);
   each start runs one tick, closes Redis and exits. Exit 1 (run shows red) on refused, partial, error, or no Redis.
+- **Build (bd-3kshar.6.5.3):** the config installs `bot/` (`npm ci --prefix bot --omit=dev`); the root install has no
+  `pino`, so the first deploys died on MODULE_NOT_FOUND. Node 22 is the service variable `RAILPACK_NODE_VERSION=22`
+  (Supabase realtime needs native WebSocket; Node 18 threw) and the variable `RAILWAY_CONFIG_FILE` names this config;
+  neither can live in the config file, so a recreated service needs both set again.
 - **Cadence (operator, 23 Nov 2026):** a refresh every 15 minutes in school hours, every 2 hours outside them
   (`ab-tracker-cadence.js`). School hours are the quiz scheduler's rule: Mon–Sat 08:00–16:00 Pakistan time, Friday
   until 12:00, Sunday off. A slot is `YYYY-MM-DDTHH:MM` (Pakistan), floored to 15 minutes or to the even hour; the
