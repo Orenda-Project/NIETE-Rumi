@@ -4,3 +4,4 @@
 {"ts":"2026-11-23T16:22:58Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (only the server reading of the goal-start switch value changed; no WhatsApp message or flow changed; unit + config + route tests pin it)","sha":"ddbb45311a08","branch":"bd-sm4xdn-goal","user":""}
 {"ts":"2026-11-23T16:23:06Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (no screen changed)","sha":"ddbb45311a08","branch":"bd-sm4xdn-goal","user":""}
 {"ts":"2026-11-23T16:23:10Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login=none-needed (sign-in untouched; only one switch value is read differently)","sha":"ddbb45311a08","branch":"bd-sm4xdn-goal","user":""}
+{"ts":"2026-11-23T16:23:11Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"34448e7d-2997-445d-8bb5-66f07c9eb9b3","sha":"ddbb45311a08","branch":"bd-sm4xdn-goal","user":""}
