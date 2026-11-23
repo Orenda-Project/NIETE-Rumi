@@ -21,6 +21,9 @@
  *   5. The answer counts (rpc quiz_key_answer_counts) for items answered in the last recent_days — on the replica.
  *   6. Writes on the PRIMARY, to quiz_item_reviews only: a new suspect is inserted 'open'; an open one has its counts
  *      refreshed; a reviewed one (any other status) is left exactly as the reviewer left it, except last_seen_on.
+ *   7. A completed run with recent_days > WIDE_DAYS (the first night's backlog) narrows its own switch row back to
+ *      NARROW_TO days on the PRIMARY, compare-and-set on the exact value it read (narrowSwitch), so the return to the
+ *      nightly window needs no person. An operator's change made meanwhile is kept; `true` is left alone.
  * Logged with a correlation id: counts only (quiz_keys.flagged). Never throws.
  */
 const { logToFile } = require('../../utils/logger');
@@ -37,6 +40,9 @@ const REASON = 'dominant_wrong_option';
 const REASONS = Object.freeze([REASON, 'blind_solve']);
 const DEFAULTS = Object.freeze({ at: 2 * 60, min_answers: 20, min_share: 0.6, recent_days: 3 });
 const DUE_WINDOW_MIN = 90;
+/** A window wider than this is a one-night backlog read; the job then narrows itself to NARROW_TO. */
+const WIDE_DAYS = 7;
+const NARROW_TO = 3;
 const CHUNK = 200;
 /** Queue states that still keep an item out of new uses (class-link's recall round reads these). */
 const HELD = ['open', 'key_wrong', 'ambiguous'];
@@ -60,12 +66,44 @@ function parseSwitch(value) {
   return out.at + DUE_WINDOW_MIN > 24 * 60 ? null : out;
 }
 
+/** → { cfg, raw } (raw = the stored value exactly as read, for the compare-and-set), or null (off). */
 async function readSwitch(db) {
   try {
     const { data, error } = await db.from('app_settings').select('value').eq('key', SWITCH_KEY).maybeSingle();
-    return error || !data ? null : parseSwitch(data.value);
+    const cfg = error || !data ? null : parseSwitch(data.value);
+    return cfg ? { cfg, raw: data.value } : null;
   } catch (_) {
     return null;
+  }
+}
+
+/**
+ * After a completed run with recent_days > WIDE_DAYS: the switch row goes back to the same value with recent_days
+ * NARROW_TO, as one compare-and-set on the PRIMARY:
+ *   UPDATE app_settings SET value = <narrowed> WHERE key = SWITCH_KEY AND value = <the exact value read>
+ * (app_settings.value is jsonb; PostgREST compares the filter's JSON text as jsonb). A value an operator changed since
+ * the read matches nothing and is kept; a value that is not an object (`true`) is left alone; a value stored as JSON
+ * text is written back as text. Never throws: a failed write is logged and the wide window simply runs again the next
+ * night (the queue only adds ids it has no row for).
+ * @returns {Promise<boolean>} whether the row was narrowed
+ */
+async function narrowSwitch(writer, raw) {
+  const asText = typeof raw === 'string';
+  let v = raw;
+  if (asText) { try { v = JSON.parse(raw); } catch (_) { return false; } }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  const next = { ...v, recent_days: NARROW_TO };
+  try {
+    const { data, error } = await writer().from('app_settings')
+      .update({ value: asText ? JSON.stringify(next) : next })
+      .eq('key', SWITCH_KEY)
+      .eq('value', JSON.stringify(raw))
+      .select('key');
+    if (error) throw new Error(error.message || 'app_settings update failed');
+    return Array.isArray(data) && data.length === 1;
+  } catch (err) {
+    logToFile('⚠️ Answer-key review: the wide window could not narrow itself — the same window runs again next night', { error: err && err.message }, 'warn');
+    return false;
   }
 }
 
@@ -148,8 +186,9 @@ async function tick({ now, redis, reader, writer }) {
     logToFile('⚠️ Answer-key review: refused — not reading a replica; nothing read or written', { reason: check.reason }, 'warn');
     return { outcome: 'refused', reason: check.reason };
   }
-  const cfg = await readSwitch(reader);
-  if (cfg === null) return { outcome: 'off', reason: 'switch_off' };
+  const sw = await readSwitch(reader);
+  if (sw === null) return { outcome: 'off', reason: 'switch_off' };
+  const { cfg } = sw;
   const minute = pktHour(now) * 60 + pktMinute(now);
   if (minute < cfg.at || minute >= cfg.at + DUE_WINDOW_MIN) return { outcome: 'not_due' };
 
@@ -162,7 +201,9 @@ async function tick({ now, redis, reader, writer }) {
   const started = Date.now();
   const counts = await flag({ reader, writer, cfg, today });
   await redis.set(markerKey(today), now.toISOString(), MARKER_TTL_SECONDS);
-  const summary = { outcome: 'ran', run_date: today, ...counts, ms: Date.now() - started };
+  const ms = Date.now() - started;
+  const narrowed = cfg.recent_days > WIDE_DAYS ? await narrowSwitch(writer, sw.raw) : false;
+  const summary = { outcome: 'ran', run_date: today, ...counts, narrowed, ms };
   logEvent('quiz_keys.flagged', summary);
   return summary;
 }
@@ -170,7 +211,7 @@ async function tick({ now, redis, reader, writer }) {
 /**
  * @param {{ now?: Date, redis?: object, reader?: object|null, writer?: () => object }} deps all injectable; reader
  *   defaults to the replica client (null when none is configured), writer to a loader of the primary client (called
- *   only after the replica check, the switch and a suspect).
+ *   only after the replica check and the switch: for a suspect, or to narrow a wide window).
  */
 async function run(deps = {}) {
   const {
@@ -189,4 +230,4 @@ async function run(deps = {}) {
   });
 }
 
-module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN };
+module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN, WIDE_DAYS, NARROW_TO };
