@@ -305,6 +305,7 @@ const TABLE = [
   { id: 'WQ281', title: 'The class link\'s reminder ask comes after a child is picked, never before' },
   { id: 'WQ282', title: 'A class quiz\'s title drops the lesson plan\'s bracket of answer formats' },
   { id: 'WQ283', title: 'Without a class-link canary row no class gets an evening round' },
+  { id: 'WQ284', title: 'A class quiz\'s start card counts the questions a sitting serves' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))
