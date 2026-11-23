@@ -141,29 +141,29 @@ exports[`round off (none): a Challenge run is byte-identical exercise payload, t
 
 exports[`round off (none): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98035,
-  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
+  "bytes": 98015,
+  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98035,
-  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
+  "bytes": 98015,
+  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98363,
-  "sha256": "96240d1b7197c91678c6840e43d1ea03908c528dafd7e7431c991989e27fd6c7",
+  "bytes": 98343,
+  "sha256": "5a45412325c5b18690db45003a055140a86dfdfd8d1338a2fde31b951af351fa",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99334,
-  "sha256": "c7767697d7642fe4c00b112f16596d60199f0a180e58840fd5fcf4fe7471d4c7",
+  "bytes": 99314,
+  "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
 }
 `;
 
@@ -372,29 +372,29 @@ exports[`round off (own_off): a Challenge run is byte-identical exercise payload
 
 exports[`round off (own_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98035,
-  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
+  "bytes": 98015,
+  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98035,
-  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
+  "bytes": 98015,
+  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98363,
-  "sha256": "96240d1b7197c91678c6840e43d1ea03908c528dafd7e7431c991989e27fd6c7",
+  "bytes": 98343,
+  "sha256": "5a45412325c5b18690db45003a055140a86dfdfd8d1338a2fde31b951af351fa",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99334,
-  "sha256": "c7767697d7642fe4c00b112f16596d60199f0a180e58840fd5fcf4fe7471d4c7",
+  "bytes": 99314,
+  "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
 }
 `;
 
@@ -539,28 +539,28 @@ exports[`round off (parent_off): a Challenge run is byte-identical exercise payl
 
 exports[`round off (parent_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98035,
-  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
+  "bytes": 98015,
+  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98035,
-  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
+  "bytes": 98015,
+  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98363,
-  "sha256": "96240d1b7197c91678c6840e43d1ea03908c528dafd7e7431c991989e27fd6c7",
+  "bytes": 98343,
+  "sha256": "5a45412325c5b18690db45003a055140a86dfdfd8d1338a2fde31b951af351fa",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99334,
-  "sha256": "c7767697d7642fe4c00b112f16596d60199f0a180e58840fd5fcf4fe7471d4c7",
+  "bytes": 99314,
+  "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
 }
 `;
