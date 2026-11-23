@@ -159,6 +159,16 @@ const CoachVisit = () => {
             </div>
           )}
 
+          {/* bd-o15qnr.48 (#244): a visit she has sent is done; its page leads to THAT observation (Back from "Observation
+              sent" lands here), not only the previous visit's Last observation row. On the switch only. */}
+          {v7 && visit.status === "done" && visit.sessionId && (
+            <Link to={routes.observation(visit.sessionId)} data-testid="visit-open-observation"
+              className="mt-1 flex min-h-[76px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 text-[17px] font-semibold">
+              <span className="flex-1">{C.openObservation}</span>
+              <Chevron />
+            </Link>
+          )}
+
           <div className="mt-[10px]"><SectionLabel>{C.teacher}</SectionLabel></div>
           <Card className="overflow-hidden" data-testid="teacher-card">
             <HistoryRow lead="person" title={name} extra={extra} action="none" />

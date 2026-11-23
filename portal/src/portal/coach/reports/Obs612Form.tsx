@@ -18,11 +18,13 @@ import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import {
-  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, PartNote, PartTitle, TextBox, focusField, urduOf,
+  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, NextButton, PartNote, PartTitle, TextBox, focusField, urduOf,
   useFormToast, v7Crumb,
 } from "./FormV7";
 import { IndicatorNav, IndicatorRow, IndicatorRows, SectionChips, SectionHead, SectionList, type SectionInfo } from "./FormV7Nav";
 import { heldV7, keepV7 } from "./evidenceReview";
+import { useFormLevels } from "./formLevels";
+import { useBack } from "../../lib/useBack";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -73,6 +75,7 @@ type Errors = Record<string, Obs612ErrorCode>;
 type FsInd = { code: string; name: string; item: Obs612Field; ev: Obs612Field | null; chg: Obs612Field | null; none: string | null; star: string | null };
 type FsGroup = { key: string; short: string; title: string; kind: "indicators" | "checklist" | "feedback"; inds: FsInd[]; parts: Obs612Part[] };
 type FsAt = { at: "sections" } | { at: "section"; key: string } | { at: "indicator"; key: string; code: string };
+const fsDepth = (a: FsAt) => (a.at === "indicator" ? 2 : a.at === "section" ? 1 : 0);
 type FsSlot = { key: string; code: string | null; label: string };
 /** FICO-S's own minimums (the bot's EVIDENCE_MIN and its change-reason rule). */
 const FS_EVIDENCE_MIN = 20;
@@ -156,7 +159,27 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   // bd-o15qnr.40.6 — FICO-S on the 1-5 form's pieces: where it is, and what the observer agreed (kept on this phone).
   const fsOn = v7 && draft.tool === "ficos" && draft.sections.some((x) => x.kind === "indicator");
   const fsGroups = useMemo(() => fsGroupsOf(draft.sections, { checks: F.checksShort, feedback: F.feedbackShort }), [draft.sections, F.checksShort, F.feedbackShort]);
-  const [fsAt, setFsAt] = useState<FsAt>({ at: "sections" });
+  const [fsAt, setFsAtNow] = useState<FsAt>({ at: "sections" });
+  // bd-o15qnr.48 (#244): FICO-S's levels are history entries too (formLevels.ts), so the phone's Back steps up one level
+  // like the arrow. What changed is saved on the way up, as the arrow's step saves (a failed save keeps her values here
+  // and the next step saves them).
+  const fsNow = useRef(fsAt);
+  fsNow.current = fsAt;
+  const dirtyNow = useRef(false);
+  const storeNow = useRef<() => Promise<unknown>>(async () => null);
+  const fsLevels = useFormLevels(fsOn ? fsDepth(fsAt) : 0, (d) => {
+    setShown({});
+    setNote(null);
+    const cur = fsNow.current;
+    const to: FsAt = d <= 0 || cur.at === "sections" ? { at: "sections" } : d === 1 && cur.at === "indicator" ? { at: "section", key: cur.key } : cur;
+    fsNow.current = to;
+    setFsAtNow(to);
+    if (dirtyNow.current) void storeNow.current().catch(() => null);
+  });
+  const setFsAt = (to: FsAt) => { if (fsOn) fsLevels.moved(fsDepth(fsNow.current), fsDepth(to)); fsNow.current = to; setFsAtNow(to); };
+  // bd-o15qnr.48: on the switch, leaving is the app's Back (the page she came from), never a new page on top.
+  const stepBack = useBack(home);
+  const leaveForm = () => (v7 ? stepBack() : navigate(home));
   // bd-o15qnr.40.9 — an indicator's one line (its item field's `about`), for the "Indicator to work on" rows.
   const aboutByCode = useMemo(() => {
     const out: Record<string, string> = {};
@@ -183,7 +206,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   };
 
   const go = (n: number) => { setPart(n); setNote(null); top.current?.scrollIntoView?.({ block: "start" }); };
-  const back = () => (part > 0 ? go(part - 1) : navigate(home));
+  const back = () => (part > 0 ? go(part - 1) : leaveForm());
   const firstPartWith = (errs: Errors) => {
     const i = draft.sections.findIndex((s) => fieldsOf(s.parts).some((f) => errs[f.name]));
     return i < 0 ? part : i;
@@ -590,6 +613,8 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
 
   if (fsOn) {
     const isDirty = () => Object.keys(values).some((k) => (values[k] ?? "") !== (stored[k] ?? ""));
+    dirtyNow.current = !readOnly && isDirty();
+    storeNow.current = store;
     const changed = (ind: FsInd) => !!ind.item.dcLevel && !!values[ind.item.name] && values[ind.item.name] !== ind.item.dcLevel;
     const gapsOf = (ind: FsInd): Errors => {
       const out: Errors = {};
@@ -637,7 +662,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     const fsBack = () => saveThen(() => {
       if (fsAt.at === "indicator") moveTo({ at: "section", key: fsAt.key });
       else if (fsAt.at === "section") moveTo({ at: "sections" });
-      else navigate(home);
+      else leaveForm();
     });
     const submitAll = () => {
       if (yellow.length) {
@@ -698,7 +723,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       const dock = (
         <DockV7 single>
           {next && !(next.key === g.key && !next.code)
-            ? <BottomButton onClick={() => saveThen(() => open(next), names)} disabled={busy}>{next.label}</BottomButton>
+            ? <NextButton onClick={() => saveThen(() => open(next), names)} disabled={busy} label={next.label} />
             : <BottomButton onClick={() => saveThen(() => moveTo({ at: "sections" }), names)} disabled={busy}>{F.doneChecking}</BottomButton>}
         </DockV7>
       );
