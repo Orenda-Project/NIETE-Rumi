@@ -1424,6 +1424,19 @@ Feature: NIETE (ICT) Teacher Training
     # its stored question. Unit: tests/assessment/picture-types-hidden.test.js, draw-it-prompt.test.js.
 
   # @no-mock-driver: needs a paper the model writes; the mock lane replays no assessment-generation
+  # cassette. tests/assessment/drawn-items-picture.test.js executes the drop and the prompt.
+  @e2e @flow @draft @no-mock-driver @P2 @T1245
+  Scenario: On a paper from the book, a question that needs a picture comes with it or is left off
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen Grade 5, Science and pages that have a labelled diagram
+    When I choose "Seen (from the book)", tick "Label the Diagram" and "MCQs", and make the paper
+    Then each "Label the Diagram" question on the paper prints with the picture whose parts it asks for
+    And a "Label the Diagram", "Mind Map" or "Flow Chart" question that has nothing to draw from is left off the paper, never printed above an empty space
+    But if leaving it off would leave the paper with no questions at all, it stays
+    # bd-fjnrit: seen-only papers never passed these kinds into the prompt, so the model wrote them
+    # with no diagram data and each one cost a paid picture call that could not draw anything.
+
+  # @no-mock-driver: needs a paper the model writes; the mock lane replays no assessment-generation
   # cassette. tests/assessment/answer-key-marks.test.js and the key goldens execute the renderer.
   @e2e @flow @draft @no-mock-driver @P2 @T697
   Scenario: The answer key says what each question and each part of a passage is worth
