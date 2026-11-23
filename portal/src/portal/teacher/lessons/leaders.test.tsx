@@ -115,15 +115,15 @@ describe("the viewer, for a leader", () => {
 
 describe("the viewer, for a teacher: exactly today (golden)", () => {
   it.each([["a teacher", TEACHER, {}], ["a principal ON the teacher app", PRINCIPAL, { teacherV2: true }]])(
-    "%s: Start DC observation, Thing to try, Send on WhatsApp, answer key, Open in another app",
+    "%s: Start DC observation, Thing to try, answer key, Open in another app; no Send on WhatsApp (bd-ain69z)",
     async (_n, user, features) => {
       cfg.features = features;
       renderAs(user, LESSONS_VIEWER, <ViewerPage />, { lessonPlan: VIEW, dc: DC });
       await waitFor(() => expect(screen.getByRole("link", { name: new RegExp(C.startDc) })).toBeTruthy());
       expect(await screen.findByText("Ask why twice")).toBeTruthy();
-      expect(await screen.findByTestId("share-send")).toBeTruthy();
       expect(screen.getByRole("button", { name: C.answerKey })).toBeTruthy();
       expect(screen.getByRole("button", { name: C.openOutside })).toBeTruthy();
+      expect(screen.queryByTestId("share-send")).toBeNull();
     },
   );
 });
