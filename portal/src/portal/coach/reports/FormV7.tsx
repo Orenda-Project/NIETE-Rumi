@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes, type TouchEvent as ReactTouchEvent } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes, type TouchEvent as ReactTouchEvent } from "react";
 import { X } from "lucide-react";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { REPORTS, type ReportsCopy } from "./copy";
 import { rungName, titleOf, type Values } from "./formModel";
 import { Problem } from "./V6Parts";
 import { useIndicatorGuide } from "./indicatorGuide";
+import { RecordingBarShownContext } from "../../lib/recordingBarShown";
 
 /**
  * bd-o15qnr.28 (queue #204, v7; #188's LOCK round, "Screens #206 found with no design", row 10) — the Feedback Form
@@ -109,12 +110,15 @@ const SWIPE_X = 60;
 const SWIPE_Y = 40;
 
 /**
- * The toast over the dock: a short line, and Undo when there is one. bd-o15qnr.40.8 (queue #229, the operator 23 Nov:
+ * The toast just above the dock: a short line, and Undo when there is one. bd-o15qnr.40.8 (queue #229, the operator 23 Nov:
  * "swipe-to-dismiss (swipe sideways or down, plus a tap/close)"): it follows the finger and goes with a swipe sideways or
  * down, or its close (×); it still times out by itself.
  */
 export function FormToast({ toast, onDone }: { toast: FormToastState; onDone: () => void }) {
   const kit = useKitCopy();
+  // bd-o15qnr.48 (#244): just above the dock (TeacherPage: 88 px up, or 148 px with a recording's bar; 76 px tall), never
+  // on its button — it stood 104 px up, over Agree and next / Save / Submit.
+  const barShown = useContext(RecordingBarShownContext);
   const start = useRef<{ x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   if (!toast) return null;
@@ -134,7 +138,8 @@ export function FormToast({ toast, onDone }: { toast: FormToastState; onDone: ()
   return (
     <div data-testid="ff-toast" role="status" aria-live="polite" onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
       style={drag.x || drag.y ? { transform: `translate(${drag.x}px, ${drag.y}px)`, opacity: Math.max(0.3, 1 - (Math.abs(drag.x) + drag.y) / 200) } : undefined}
-      className="fixed inset-x-4 bottom-[104px] z-40 mx-auto flex min-h-[56px] max-w-[420px] touch-none items-center gap-1 rounded-[14px] bg-[#1f2429] ps-4 pe-1 text-[15px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]">
+      className={cn("fixed inset-x-4 z-40 mx-auto flex min-h-[56px] max-w-[420px] touch-none items-center gap-1 rounded-[14px] bg-[#1f2429] ps-4 pe-1 text-[15px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)] md:bottom-[100px]",
+        barShown ? "bottom-[calc(232px+var(--notice-h,0px)+env(safe-area-inset-bottom))]" : "bottom-[calc(172px+var(--notice-h,0px)+env(safe-area-inset-bottom))]")}>
       <span className="min-w-0 flex-1" dir="auto">{toast.text}</span>
       {toast.action ? (
         <button type="button" onClick={() => { toast.action?.run(); onDone(); }}
