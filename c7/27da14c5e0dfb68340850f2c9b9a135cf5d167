@@ -1,2 +1,3 @@
 {"ts":"2026-11-23T12:56:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"c727da14c5e0","branch":"bd-fjnrit-staging","user":""}
 {"ts":"2026-11-23T13:33:04Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (closed PR #5640 commit, superseded by #5643 which cherry-picks sandbox squash ae2c5cdd carrying the synced @T1245 scenario)","sha":"c727da14c5e0","branch":"bd-fjnrit-staging-2","user":""}
+{"ts":"2026-11-23T13:33:04Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-c727da14c5e0","sha":"c727da14c5e0","branch":"bd-fjnrit-staging-2","user":""}
