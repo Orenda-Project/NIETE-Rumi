@@ -1,7 +1,7 @@
 /**
- * bd-snkn32.56 (queue #134 E) — "Start from a learning goal or topic" ships behind the LIST-ONLY app_settings key
- * `portal_lp_own_goal_start` (a JSON list of users.id; true / "teachers" is nobody while it is tested with a few
- * teachers), riding with Make my own on. /config carries it as features.lpOwnGoalStart.
+ * bd-snkn32.56 (queue #134 E) — "Start from a learning goal or topic" ships behind the app_settings key
+ * `portal_lp_own_goal_start` (a JSON list of users.id, or "teachers" = every users.role teacher except GB, bd-sm4xdn;
+ * true is nobody), riding with Make my own on. /config carries it as features.lpOwnGoalStart.
  */
 process.env.FLAG_CACHE_TTL_MS = '0';
 
@@ -89,14 +89,21 @@ describe('GET /config — features.lpOwnGoalStart', () => {
     expect((await getConfig()).payload.features).toHaveProperty('lpOwnGoalStart', false);
   });
 
-  test('on only for a listed id; true or "teachers" is nobody', async () => {
+  test('on for a listed id; true is nobody', async () => {
     settings.portal_lp_own_goal_start = ['teacher-1'];
     expect((await getConfig()).payload.features.lpOwnGoalStart).toBe(true);
     expect((await getConfig({ userId: 'teacher-2' })).payload.features.lpOwnGoalStart).toBe(false);
     settings.portal_lp_own_goal_start = true;
     expect((await getConfig()).payload.features.lpOwnGoalStart).toBe(false);
+  });
+
+  test('"teachers": on for a teacher, off for a coach or a user with no row (bd-sm4xdn)', async () => {
     settings.portal_lp_own_goal_start = 'teachers';
-    expect((await getConfig()).payload.features.lpOwnGoalStart).toBe(false);
+    roles = { 'teacher-1': 'teacher', 'coach-1': 'coach' };
+    expect((await getConfig()).payload.features.lpOwnGoalStart).toBe(true);
+    expect((await getConfig({ userId: 'coach-1' })).payload.features.lpOwnGoalStart).toBe(false);
+    expect((await getConfig({ userId: 'teacher-9' })).payload.features.lpOwnGoalStart).toBe(false);
+    roles = {};
   });
 
   test('listed, but Make my own off for her: off', async () => {

@@ -11,8 +11,8 @@
  *       bd-snkn32.58.2 (queue #155 B): the typed topic goes through lp-own-goal-guard (spelling, Roman Urdu, a nearby
  *       grade's goal, blocked words); `match` stays for older app builds.
  *
- * Dark (404) unless the teacher app, portal_lp_make_own AND the LIST-ONLY portal_lp_own_goal_start are on for her, and
- * she is not a GB teacher. The user is always the session's. Rows are read with this server's client through the bot's
+ * Dark (404) unless the teacher app, portal_lp_make_own AND portal_lp_own_goal_start (a list, or "teachers" minus GB,
+ * bd-sm4xdn) are on for her, and she is not a GB teacher. The user is always the session's. Rows are read with this server's client through the bot's
  * own store (lp612-own-goal.store), so the form and the bot read one catalogue the same way.
  */
 const express = require('express');

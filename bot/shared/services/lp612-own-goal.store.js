@@ -3,8 +3,9 @@
  * bd-snkn32.56 (queue #134 E) — the two reads "Start from a learning goal or topic" needs. Plain functions over a passed
  * client (the bot's or the dashboard's), so the schema guards can read the `.from()` calls.
  *
- *   goalStartOn  — portal_lp_own_goal_start is LIST-ONLY while it is tested with a few teachers: a JSON list of
- *                  users.id names who has it; true, "teachers", absent, anything else or a failed read = off.
+ *   goalStartOn  — portal_lp_own_goal_start: a JSON list of users.id names who has it, or "teachers" (every
+ *                  users.role teacher EXCEPT a GB teacher: Amena's rule, bd-sm4xdn); true, absent, anything else or
+ *                  a failed read = off. The GB check lives here so /config, the form route and the bot agree.
  *   goalRows     — the current catalogue lessons of one grade+subject (ICT's when it has any, else whichever
  *                  curriculum has them), with what lp612-own-goal needs: outcome text, titles and book order.
  *                  Grades 1–5 (bd-snkn32.57): the official outcomes of the curriculum matrix (assessment_topics, ICT,
@@ -14,6 +15,8 @@
 const { matrixSubject } = require('./lp-k5-own-goal');
 const { skillRows } = require('./lp-own-goal-skills');
 
+const { isTeachersValue, isTeacherRole } = require('./teacher-audience');
+const { isGbTeacher } = require('./lp-own-gb');
 const GOAL_START_KEY = 'portal_lp_own_goal_start';
 const GOAL_COLUMNS = 'segment_id, curriculum, chapter_number, chapter_title, order_index, menu_title, subtopic_title, slo_descriptions';
 const MAX_ROWS = 1000;
@@ -31,7 +34,11 @@ async function goalStartOn(supabase, userId) {
   try {
     const { data, error } = await supabase.from('app_settings').select('value').eq('key', GOAL_START_KEY).maybeSingle();
     if (error || !data) return false;
-    return listOf(data.value).includes(userId);
+    if (listOf(data.value).includes(userId)) return true;
+    if (!isTeachersValue(data.value)) return false;
+    const user = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    if (user.error || !user.data || !isTeacherRole(user.data.role)) return false;
+    return !(await isGbTeacher(supabase, userId));
   } catch (_) {
     return false;
   }
