@@ -90,4 +90,4 @@ function trim(examJson, seenTypes) {
   return removed;
 }
 
-module.exports = { clean, total, promptItems, trim };
+module.exports = { clean, total, promptItems, trim, key };
