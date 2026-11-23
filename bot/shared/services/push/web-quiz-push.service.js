@@ -75,6 +75,10 @@ const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 const PS_RX = /^[a-z0-9]{12}$/;
 /** {ps} for a well-formed page-session id (wq-tel.js: 12 of [a-z0-9]), else nothing: the event stays as it was. */
 const psOf = (v) => (typeof v === 'string' && PS_RX.test(v) ? { ps: v } : {});
+/** {qa: true} when the phone's user agent (relayed by the portal) marks a QA walk ("QFIXQA"), else nothing: a funnel read
+ * drops walks exactly on every page that mounts the ask, including the ones without a page session (the class link, the
+ * stop landing). Logged only, never stored. */
+const qaOf = (ua) => (/QFIXQA/.test(String(ua || '')) ? { qa: true } : {});
 
 // The words (jg.remind.push_* in the copy deck): a reminder never names a child.
 // The child reminder (the lead's take A): the title carries the news, the body the one step. {c} = a class label, the
@@ -376,7 +380,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     const { error } = await supabase.from(TABLE).insert({ ...row, rebind_of: rebindOf, sent_count: 0, unopened_count: 0, last_sent_at: null, last_opened_at: null });
     if (error) throw new Error(error.message || 'push row insert failed');
   }
-  logEvent('web_quiz.push_subscribed', { kind, via, ua_class: row.ua_class, chips_n: chipsN, ...psOf(input.ps) });
+  logEvent('web_quiz.push_subscribed', { kind, via, ua_class: row.ua_class, chips_n: chipsN, ...psOf(input.ps), ...qaOf(input.ua) });
   return { ok: 1 };
 }
 
@@ -387,7 +391,7 @@ async function unsubscribe({ endpoint, by } = {}, { now = Date.now() } = {}) {
   return { ok: 1 };
 }
 
-async function markOpened({ endpoint, ps } = {}, { now = Date.now() } = {}) {
+async function markOpened({ endpoint, ps, ua } = {}, { now = Date.now() } = {}) {
   if (typeof endpoint !== 'string' || !endpoint) return { status: 400, err: 'bad_sub' };
   const row = await rowByEndpoint(endpoint);
   if (row && !row.revoked_at) {
@@ -395,7 +399,7 @@ async function markOpened({ endpoint, ps } = {}, { now = Date.now() } = {}) {
       .update({ last_opened_at: iso(now), unopened_count: 0, expires_at: iso(now + KEEP_DAYS * DAY_MS), updated_at: iso(now) })
       .eq('id', row.id);
     if (error) throw new Error(error.message || 'push opened failed');
-    logEvent('web_quiz.push_opened', { kind: row.kind, ...psOf(ps) });
+    logEvent('web_quiz.push_opened', { kind: row.kind, ...psOf(ps), ...qaOf(ua) });
   }
   return { ok: 1 };
 }
@@ -598,7 +602,7 @@ async function dueTick(now = Date.now(), opts = {}) {
 
 const TAGS = Object.freeze({ 'jugnu-remind': 'quiz_reminder', 'niete-plan': 'evening_plan' });
 /** The worker showed a reminder (sw.js push handler). Counts only. */
-function delivered({ tag, shown, err, ps } = {}) {
+function delivered({ tag, shown, err, ps, ua } = {}) {
   const kind = TAGS[String(tag || '')];
   if (!kind) return { status: 400, err: 'bad_tag' };
   // shown: the worker's showNotification resolved (true) or rejected (false, with the error's name); an older worker
@@ -606,7 +610,7 @@ function delivered({ tag, shown, err, ps } = {}) {
   const ev = { kind, reason: kind };
   if (typeof shown === 'boolean') ev.shown = shown;
   if (shown === false && typeof err === 'string' && /^[A-Za-z]{1,40}$/.test(err)) ev.err = err;
-  logEvent('web_quiz.push_delivered', { ...ev, ...psOf(ps) });
+  logEvent('web_quiz.push_delivered', { ...ev, ...psOf(ps), ...qaOf(ua) });
   return { ok: 1 };
 }
 
@@ -684,8 +688,8 @@ const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed
 const HOWS = new Set(['intent', 'menu', 'copy']);
 // Where the ask was answered: the quiz result screen, under the standing link's chips, or the /remind/:code landing.
 const SRCS = new Set(['result', 'class_link', 'landing']);
-/** A page step event, allow-listed enums only. */
-function stepEvent(body = {}) {
+/** A page step event, allow-listed enums only; `ua` is the phone's user agent (the walk mark). */
+function stepEvent(body = {}, { ua } = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
   logEvent('web_quiz.remind_step', {
     step: body.step,
@@ -695,6 +699,7 @@ function stepEvent(body = {}) {
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
     ...psOf(body.ps),
+    ...qaOf(ua),
   });
   return { ok: 1 };
 }
