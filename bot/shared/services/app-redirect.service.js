@@ -55,6 +55,9 @@
  *      needs no FLN share. The builder (/portal/fln/send) is not linked from the tab (LeaderHome and the coach
  *      Training Library link it); inside the tab a leader can send only from a Reading Hour / Numeracy plan's own page
  *      ("Send to teacher"), which shows only with FLN share. Old code never reads the key: a rollback is OFF.
+ *      bd-uxzi8c.1: a leader's PAPER request rides the same rules under its OWN key, `leader_app_assessment`, from any
+ *      door, landing the paper maker (/portal/assessment, target `leader_assessment`). And `assessment_app_unregistered`
+ *      (true or a list) lets a nameless users.role teacher take the 2a paper link; papers only. Both OFF when absent.
  *   2e. THE SCHOOL CARD (openSchoolCard): a coach's `/school card [EMIS or school name]` opens one of their schools'
  *      pages (/portal/coach/school/<EMIS>) or My schools (/portal/coach/people), under the portal's OWN switch,
  *      `portal_coach_school_card` (dashboard/lib/feature-flags.js reads the same key): true, or a JSON list of users.id.
@@ -144,6 +147,7 @@ const APP_LINK_COPY = Object.freeze({
   'coach_school:*': ['appLinkBodyCoachSchoolCard', 'appLinkButtonCoachSchoolCard'],
   coach_schools: ['appLinkBodyCoachSchools', 'appLinkButtonCoachSchools'],
   leader_lessons: ['appLinkBodyLeaderLessonPlan', 'appLinkButtonLeaderLessonPlan'], // bd-zcgpkx, bd-a73p5m — the tab
+  leader_assessment: ['appLinkBodyAssessment', 'appLinkButtonAssessment'], // bd-uxzi8c.1 — the teacher's paper words
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
   ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
@@ -258,8 +262,20 @@ const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObse
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
 /** bd-a73p5m — request → the page a leader's link lands on (app-login-link.js LEADER_LANDINGS), behind LEADER_LP_KEY. */
-const LEADER_LINKS = Object.freeze({ lesson_plan: 'leader_lessons' });
+const LEADER_LINKS = Object.freeze({ lesson_plan: 'leader_lessons', assessment_generator: 'leader_assessment' });
 const LEADER_LP_KEY = 'leader_app_lesson_plan';
+/**
+ * bd-uxzi8c.1 — a leader's paper request rides its OWN switch, same values as LEADER_LP_KEY, so neither moves the
+ * other. Every door that reaches the paper request means "make a paper", so it has no door list.
+ */
+const LEADER_PAPER_KEY = 'leader_app_assessment';
+const LEADER_LINK_FLAGS = Object.freeze({ lesson_plan: LEADER_LP_KEY, assessment_generator: LEADER_PAPER_KEY });
+/**
+ * bd-uxzi8c.1 — a teacher with no name yet (isRegistered false) asking for a PAPER gets the teacher link as a
+ * registered teacher would: true, "true" or a JSON list of users.id. Only on top of a "teachers" paper switch and the
+ * teacher app (the portal opens it for every users.role teacher, named or not). Other features keep the old rule.
+ */
+const UNREGISTERED_PAPER_KEY = 'assessment_app_unregistered';
 /** The doors that mean "open lesson plans": typed "lesson plan", the chip, the menu row and its number. */
 const LEADER_PLAIN_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_choice']);
 /**
@@ -331,7 +347,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY, PRINCIPAL_APP_KEY]);
+        LEADER_LP_KEY, LEADER_PAPER_KEY, UNREGISTERED_PAPER_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY, PRINCIPAL_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -399,6 +415,12 @@ async function isOnTeacherApp(userId) {
  * Her users row is read only when the answer depends on it, so general_chat (every open message) never reads it.
  * `note.why` is filled with the reason when the answer is 'whatsapp' (the funnel's command row says why).
  */
+/** bd-uxzi8c.1 — UNREGISTERED_PAPER_KEY on for this user: true, "true" or a list holding them. Anything else is off. */
+function unregisteredPaperOn(values, userId) {
+  const flag = values.get(UNREGISTERED_PAPER_KEY);
+  return isOn(flag) || listHas(flag, userId);
+}
+
 async function linkVerdict(feature, userId, now, note = {}, sharedAccount = null) {
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
@@ -420,7 +442,7 @@ async function linkVerdict(feature, userId, now, note = {}, sharedAccount = null
     let why = null;
     if (!a) why = 'no_account';
     else if (!isTeacherRole(a.role)) why = 'not_a_teacher';
-    else if (!isRegistered(a)) why = 'not_registered';
+    else if (!isRegistered(a) && !(feature === 'assessment_generator' && unregisteredPaperOn(values, userId))) why = 'not_registered';
     else if (!(await onTeacherApp(app, userId, account))) why = 'not_on_teacher_app';
     if (!why) return 'link';
     note.why = why;
@@ -555,9 +577,9 @@ function isLeaderRole(role) {
  */
 async function leaderLink(feature, userId, now, reason, account) {
   if (!Object.prototype.hasOwnProperty.call(LEADER_LINKS, feature)) return null;
-  if (!LEADER_LINK_DOORS.includes(reason)) return null;
+  if (feature === 'lesson_plan' && !LEADER_LINK_DOORS.includes(reason)) return null;
   const values = await settingValues(now);
-  const flag = values.get(LEADER_LP_KEY);
+  const flag = values.get(LEADER_LINK_FLAGS[feature]);
   const coachesOnly = isCoachesValue(flag);
   if (!isOn(flag) && !coachesOnly && !listHas(flag, userId)) return null;
   let a;
