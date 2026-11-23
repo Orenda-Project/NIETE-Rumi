@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CircleAlert, Mic, Upload } from 'lucide-react';
-import { acceptFor, checkFile } from '../../lib/coachingUpload';
+import { AUDIO_ACCEPT, checkRecording } from '../../lib/coachingUpload';
 import { COACHING_COPY } from '../copy';
 import { Sheet } from '../Sheet';
 import { List, Row } from '../List';
@@ -34,12 +34,14 @@ export function SendSheet({ open, canRecord, onRecord, onFile, onClose }: {
   // A sheet opened again starts clean.
   useEffect(() => { if (open) setProblem(null); }, [open]);
 
-  const chosen = (file: File | undefined) => {
+  // bd-hronni: a recording by its name, its type or its first bytes (an Opus file with no name ending is one); it is
+  // handed on under a name with an ending the server signs.
+  const chosen = async (file: File | undefined) => {
     setProblem(null);
     if (!file) return;
-    const p = checkFile(file, 'audio');
-    if (p) { setProblem(p); return; }
-    onFile(file);
+    const checked = await checkRecording(file);
+    if (checked.problem || !checked.file) { setProblem(checked.problem ?? 'wrong_type'); return; }
+    onFile(checked.file);
   };
 
   return (
@@ -55,8 +57,8 @@ export function SendSheet({ open, canRecord, onRecord, onFile, onClose }: {
         hidden
         type="file"
         data-testid="send-audio-input"
-        accept={`${acceptFor('audio')},audio/*`}
-        onChange={(e) => { chosen(e.target.files?.[0]); e.target.value = ''; }}
+        accept={AUDIO_ACCEPT}
+        onChange={(e) => { void chosen(e.target.files?.[0]); e.target.value = ''; }}
       />
       {problem ? (
         <div className="flex justify-center">

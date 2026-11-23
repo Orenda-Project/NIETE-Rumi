@@ -11,7 +11,7 @@ import { dayShort, lengthShort } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { setDraft, type DraftAudio } from "../observeDraft";
-import { acceptFor, checkFile, formatSize, readAudioDuration } from "../../lib/coachingUpload";
+import { AUDIO_ACCEPT, checkRecording, formatSize, readAudioDuration } from "../../lib/coachingUpload";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 
 /**
@@ -42,12 +42,14 @@ const CoachAttach = () => {
   const onChosen = async (picked: File | undefined) => {
     setError(null);
     if (!picked) return;
-    const problem = checkFile(picked, "audio");
-    if (problem) { setFile(null); setError(problem === "too_large" ? C.tooLarge : C.notAudio); return; }
+    // bd-hronni: a recording by its name, its type or its first bytes (an Opus file with no name ending is one)
+    const checked = await checkRecording(picked);
+    if (checked.problem || !checked.file) { setFile(null); setError(checked.problem === "too_large" ? C.tooLarge : C.notAudio); return; }
+    const chosen = checked.file;
     setPct(0);
-    setFile({ blob: picked, filename: picked.name, durationMs: null, recordingId: null, label: picked.name, sub: formatSize(picked.size) });
-    const out = await holdFile(picked);
-    if (isFileRefused(out)) { tellUnreadablePick("audio", picked, out.errName); setFile(null); setError(C.fileWontOpen); return; }
+    setFile({ blob: chosen, filename: chosen.name, durationMs: null, recordingId: null, label: chosen.name, sub: formatSize(chosen.size) });
+    const out = await holdFile(chosen);
+    if (isFileRefused(out)) { tellUnreadablePick("audio", chosen, out.errName); setFile(null); setError(C.fileWontOpen); return; }
     const f = out.file;
     const seconds = await readAudioDuration(f);
     const durationMs = seconds != null ? seconds * 1000 : null;
@@ -88,7 +90,7 @@ const CoachAttach = () => {
           <span className="flex-1 truncate text-[17px] font-semibold">{C.chooseFile}</span>
           <Chevron />
         </button>
-        <input ref={input} data-testid="audio-input" type="file" accept={`${acceptFor("audio")},audio/*`} className="hidden"
+        <input ref={input} data-testid="audio-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
           onChange={(e) => { void onChosen(e.target.files?.[0]); e.target.value = ""; }} />
         {error && <div role="alert" className="rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">{error}</div>}
         {file && (

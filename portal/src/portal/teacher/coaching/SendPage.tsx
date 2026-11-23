@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, Check, Mic, Pause, Play, RotateCcw, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
-import { acceptFor } from '../../lib/coachingUpload';
+import { AUDIO_ACCEPT } from '../../lib/coachingUpload';
 import { hasHistoryBehind, useMicLevel } from '../../lib/recordFlow';
 import { useBack } from '../../lib/useBack';
 import { useRecordingClock, useRecordingSession, type RecordingSession } from '../../lib/recordingSession';
@@ -169,7 +169,7 @@ export function SendPage() {
         hidden
         type="file"
         data-testid="dc-send-audio-input"
-        accept={`${acceptFor('audio')},audio/*`}
+        accept={AUDIO_ACCEPT}
         onChange={(e) => { void flow.chooseAudio(e.target.files?.[0]); e.target.value = ''; }}
       />
 
