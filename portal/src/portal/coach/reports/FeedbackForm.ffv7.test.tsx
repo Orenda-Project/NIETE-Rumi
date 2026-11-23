@@ -189,12 +189,13 @@ describe("a section: one row per indicator", () => {
     expect(await screen.findByTestId("ff-sections")).toBeInTheDocument();
   });
 
-  it("Next to check walks the yellow rows, with the count as a toast", async () => {
+  // bd-o15qnr.40.8 (queue #229, the operator 23 Nov: "should only be on the final submit"): no count toast here
+  it("Next to check walks the yellow rows, without the count toast (that is for Save only)", async () => {
     renderPage();
     await openSection(/C\. What the teacher does/);
     fireEvent.click(dock().getByRole("button", { name: /^Next to check: C1/ }));
     expect(await screen.findByTestId("ff-indicator")).toHaveTextContent("Quality of Questions Asked by the Teacher");
-    expect(screen.getByTestId("ff-toast")).toHaveTextContent("5 items still to check");
+    expect(screen.queryByTestId("ff-toast")).toBeNull();
   });
 });
 

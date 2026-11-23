@@ -1,4 +1,6 @@
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes, type TouchEvent as ReactTouchEvent } from "react";
+import { X } from "lucide-react";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { cn } from "@/lib/utils";
 import type { DraftIndicator, DraftOption, DraftSection, ObservationDraft } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
@@ -102,17 +104,46 @@ export function useFormToast() {
   return { toast, show, hide };
 }
 
-/** The toast over the dock: a short line, and Undo when there is one. */
+/** A swipe this far sideways, or down, sends the toast away (bd-o15qnr.40.8). */
+const SWIPE_X = 60;
+const SWIPE_Y = 40;
+
+/**
+ * The toast over the dock: a short line, and Undo when there is one. bd-o15qnr.40.8 (queue #229, the operator 23 Nov:
+ * "swipe-to-dismiss (swipe sideways or down, plus a tap/close)"): it follows the finger and goes with a swipe sideways or
+ * down, or its close (×); it still times out by itself.
+ */
 export function FormToast({ toast, onDone }: { toast: FormToastState; onDone: () => void }) {
+  const kit = useKitCopy();
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   if (!toast) return null;
+  const at = (t: { clientX: number; clientY: number } | undefined) => (t ? { x: t.clientX, y: t.clientY } : null);
+  const onStart = (e: ReactTouchEvent) => { start.current = at(e.touches[0]); setDrag({ x: 0, y: 0 }); };
+  const onMove = (e: ReactTouchEvent) => {
+    const p = at(e.touches[0]);
+    if (start.current && p) setDrag({ x: p.x - start.current.x, y: Math.max(0, p.y - start.current.y) });
+  };
+  const onEnd = (e: ReactTouchEvent) => {
+    const p = at(e.changedTouches[0]);
+    const s0 = start.current;
+    start.current = null;
+    setDrag({ x: 0, y: 0 });
+    if (s0 && p && (Math.abs(p.x - s0.x) >= SWIPE_X || p.y - s0.y >= SWIPE_Y)) onDone();
+  };
   return (
-    <div data-testid="ff-toast" role="status" aria-live="polite"
-      className="fixed inset-x-4 bottom-[104px] z-40 mx-auto flex min-h-[56px] max-w-[420px] items-center gap-3 rounded-[14px] bg-[#1f2429] ps-4 pe-2 text-[15px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]">
+    <div data-testid="ff-toast" role="status" aria-live="polite" onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
+      style={drag.x || drag.y ? { transform: `translate(${drag.x}px, ${drag.y}px)`, opacity: Math.max(0.3, 1 - (Math.abs(drag.x) + drag.y) / 200) } : undefined}
+      className="fixed inset-x-4 bottom-[104px] z-40 mx-auto flex min-h-[56px] max-w-[420px] touch-none items-center gap-1 rounded-[14px] bg-[#1f2429] ps-4 pe-1 text-[15px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]">
       <span className="min-w-0 flex-1" dir="auto">{toast.text}</span>
       {toast.action ? (
         <button type="button" onClick={() => { toast.action?.run(); onDone(); }}
           className={cn("min-h-[56px] shrink-0 rounded-xl px-3 font-bold text-[#9be3bd]", FOCUS)}>{toast.action.label}</button>
       ) : null}
+      <button type="button" aria-label={kit.close} onClick={onDone}
+        className={cn("flex h-14 w-12 shrink-0 items-center justify-center rounded-xl text-white/80", FOCUS)}>
+        <X className="h-5 w-5" aria-hidden="true" />
+      </button>
     </div>
   );
 }
@@ -185,8 +216,10 @@ export function Head({ code, name }: { code: string; name: string }) {
   );
 }
 
-export function TextBox({ id, label, value, onChange, readOnly, problem }: {
+export function TextBox({ id, label, value, onChange, readOnly, problem, hint, onBlur }: {
   id: string; label: string; value: string; onChange: (v: string) => void; readOnly: boolean; problem?: string | null;
+  /** bd-o15qnr.40.8 — a muted line under the box (a live character count); and what leaving the box does. */
+  hint?: ReactNode; onBlur?: () => void;
 }) {
   if (readOnly) {
     return value ? (
@@ -199,8 +232,9 @@ export function TextBox({ id, label, value, onChange, readOnly, problem }: {
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className={LABEL}>{label}</label>
-      <AutoText id={id} value={value} onChange={(e) => onChange(e.target.value)}
+      <AutoText id={id} value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur}
         aria-invalid={problem ? true : undefined} className={cn(FIELD, FOCUS, problem && "border-[#c8331f]")} />
+      {hint}
       <Problem text={problem ?? null} />
     </div>
   );

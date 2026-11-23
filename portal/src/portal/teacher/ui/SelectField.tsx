@@ -21,6 +21,9 @@ export interface SelectOption {
   label: string;
   /** A second line ("6 coaches"). */
   sub?: string;
+  /** bd-o15qnr.40.9 — the row's tile: a prefix over a number ("A" over "1" for indicator A1). Absent: as before. */
+  prefix?: string;
+  number?: string;
 }
 
 export interface SelectFieldProps {
@@ -76,6 +79,8 @@ export function SelectField({ label, title, value, options, onChange, icon, disa
               first={i === 0}
               label={o.label}
               subtitle={o.sub}
+              prefix={o.prefix}
+              number={o.number}
               state={o.value === value ? 'selected' : 'default'}
               onPress={() => { onChange(o.value); setOpen(false); }}
             />
