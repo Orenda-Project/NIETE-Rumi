@@ -43,7 +43,9 @@ const ORIG2 = '99999999-0000-4000-8000-000000000002';
 const ORIG3 = '99999999-0000-4000-8000-000000000003';
 const NOW = new Date('2026-11-24T11:05:00Z'); // Tuesday 16:05 PKT
 const ON = (k) => ({ key: k, value: true });
-const SWITCHES = [ON('web_quiz_challenge'), ON('web_quiz_challenge_v2'), ON('web_quiz_class_link'), ON('web_quiz_evening_round')];
+// The class-link canary row lets every class in only when it says so ({"all": true}); no row = no class.
+const SWITCHES_BASE = [ON('web_quiz_challenge'), ON('web_quiz_challenge_v2'), ON('web_quiz_class_link'), ON('web_quiz_evening_round')];
+const SWITCHES = [...SWITCHES_BASE, { key: 'web_quiz_class_link_canary', value: { all: true } }];
 const dl = (user, grade, subject, at, lesson) => ({
   id: `d-${lesson}`, user_id: user, lesson_id: lesson, asset_id: `a-${lesson}`, version_stamp: 'v8', content_hash: `h-${lesson}`, phone: null, status: 'sent', grade, subject, created_at: at,
 });
@@ -248,6 +250,21 @@ describe('the offers\' export when it is there', () => {
     expect(lpTakenToday).toHaveBeenCalledWith(T1, '2026-11-24');
     expect(got.by.get(T1)[0].subject).toBe('english');
     expect(got.by.get(T2)).toEqual([]);
+    jest.dontMock('../../shared/services/nudges/lp-quiz-offer.service');
+  });
+  test('the title the writer sets drops a trailing bracket of format words (the lesson keeps its own name)', async () => {
+    jest.resetModules();
+    const lesson = { lesson_id: 'grade_3_math_ch7_seg1', asset_id: 'a-grade_3_math_ch7_seg1', version_stamp: 'v8', content_hash: 'h-grade_3_math_ch7_seg1', delivered_at: '2026-11-24T02:00:00Z', topic: 'کسر (MCQ، مختصر و تفصیلی)' };
+    const lpTakenFor = jest.fn(async () => new Map([
+      [T1, { classes: [] }], [T3, { classes: [] }],
+      [T2, { nudgeDate: '2026-11-24', classes: [{ key: 'g3_math', grade: 3, subject: 'math', lessons: [lesson] }] }],
+    ]));
+    jest.doMock('../../shared/services/nudges/lp-quiz-offer.service', () => ({ lpTakenFor, lpTakenToday: jest.fn() }));
+    const R = require('../../shared/services/quiz/web-quiz-evening-round');
+    Object.assign(require('../../shared/config/supabase'), { from: makeFake(db).from });
+    await R.writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
+    expect(rounds().map((q) => q.topic)).toEqual(['کسر']);
+    expect(lesson.topic).toBe('کسر (MCQ، مختصر و تفصیلی)');
     jest.dontMock('../../shared/services/nudges/lp-quiz-offer.service');
   });
   test('lpTakenFor(ids, day) -> Map wins over the per-teacher call', async () => {

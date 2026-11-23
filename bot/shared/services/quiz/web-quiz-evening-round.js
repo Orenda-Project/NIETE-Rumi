@@ -36,6 +36,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const Flags = require('./web-quiz-evening-round-flags');
 const Recall = require('./web-quiz-evening-round-recall');
 const Canary = require('./web-quiz-class-link-canary');
+const { dropFormatBracket } = require('./quiz-child-title');
 const { clampLanguage } = require('../../config/ux-strings');
 
 const ROUND_SOURCE = 'evening_round';
@@ -294,7 +295,7 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
     quiz_source: LP_V8,
     coaching_session_id: null,
     lesson_plan_id: null,
-    topic: (first && first.topic) || 'Lesson',
+    topic: dropFormatBracket(first && first.topic) || 'Lesson',
     grade: choice.grade == null ? null : String(choice.grade),
     subject: choice.subject || null,
     status: 'generating',
@@ -379,7 +380,8 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
     out.day = day;
     if (!P.isSchoolDay(day)) { out.skipped = 'not_school_day'; return out; }
     const links = await liveLinks(now, classIds);
-    // web_quiz_class_link_canary: while it lists schools or classes, only theirs get a round (no row: every class).
+    // web_quiz_class_link_canary: while it lists schools or classes, only theirs get a round ({"all": true}: every class;
+    // no row: no class).
     const inCanary = await Canary.allowedClasses([...links.keys()]);
     out.canary_out = links.size - inCanary.size;
     const today = await roundsOn(day, classIds);
@@ -595,8 +597,15 @@ async function blindSolveHeld(rows, meta) {
  */
 async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = {}) {
   const T = require('./web-quiz-token');
-  const { data: fresh } = await supabase.from('quizzes').select('id, teacher_id, subject, grade, language, status, meta').eq('id', quizId).maybeSingle();
+  const { data: fresh } = await supabase.from('quizzes').select('id, teacher_id, topic, subject, grade, language, status, meta').eq('id', quizId).maybeSingle();
   const row = fresh || quiz || {};
+  // The child-facing title, before the share code copies it (mintCode reads quizzes.topic). The generate step has just
+  // replaced the title the writer set (the donor's or the lesson digest's), so it is cleaned again here.
+  const title = dropFormatBracket(row.topic || (quiz && quiz.topic));
+  if (title && title !== row.topic) {
+    await supabase.from('quizzes').update({ topic: title }).eq('id', quizId);
+    if (fresh) fresh.topic = title;
+  }
   let meta = { ...(row.meta || {}), ...(metaIn || {}) };
   meta.source = ROUND_SOURCE;
   // The registry's clamp decides a missing or unserved language (NIETE: en | ur).
@@ -1158,10 +1167,20 @@ async function forTeacherReport(teacherId, { now = new Date() } = {}) {
 }
 
 const REPORT_WORDS = {
-  en: { title: 'Evening rounds', none: 'No child has played it yet.', played: (n) => `${n} ${n === 1 ? 'child' : 'children'} played`, avg: (n) => `average ${n}%` },
-  ur: { title: 'شام کے راؤنڈ', none: 'ابھی کسی بچے نے نہیں کھیلا۔', played: (n) => `${urNum(n)} بچوں نے کھیلا`, avg: (n) => `اوسط ${urNum(n)}٪` },
+  en: { title: 'Evening rounds', none: 'No child has played it yet.', avg: (n) => `average ${n}%` },
+  ur: { title: 'شام کے راؤنڈ', none: 'ابھی کسی بچے نے نہیں کھیلا۔', avg: (n) => `اوسط ${urNum(n)}٪` },
 };
 function urNum(n) { return String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]); }
+
+/**
+ * How many children finished a round, in the catalog's words (qfix_class_link_rounds_played_one / _rounds_played): one
+ * child is its own line, since Urdu inflects the noun for one («۱ بچے نے کھیلا»); the count in the language's digits.
+ */
+function playedWords(n, lang) {
+  const UX = require('../../config/ux-strings');
+  const code = UX.clampLanguage(lang);
+  return UX.resolveUx(n === 1 ? 'qfix_class_link_rounds_played_one' : 'qfix_class_link_rounds_played', { language: code, params: { n: UX.digitsFor(n, code) } });
+}
 
 /**
  * A round's PKT day (YYYY-MM-DD) as the page's words: weekday, date, month, "Tue 24 Nov" / «منگل ۲۴ نومبر». The
@@ -1185,12 +1204,13 @@ async function reportSection(teacherId, { lang = 'en' } = {}) {
   const rounds = await forTeacherReport(teacherId);
   if (!rounds) return '';
   const ur = lang === 'ur';
-  const W = REPORT_WORDS[ur ? 'ur' : 'en'];
+  const L = ur ? 'ur' : 'en';
+  const W = REPORT_WORDS[L];
   const rows = rounds.map((r) => {
     const label = ur ? r.class_label_ur : r.class_label;
     const day = dayWords(r.round_day, lang);
     const head = [label, r.topic].filter(Boolean).map(escHtml).join(' · ');
-    const stat = r.played ? `${escHtml(W.played(r.played))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
+    const stat = r.played ? `${escHtml(playedWords(r.played, L))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
     const names = r.finishers.length ? `<p class="er-kids">${r.finishers.map((n) => `<bdi>${escHtml(n)}</bdi>`).join(', ')}</p>` : '';
     return `<li class="er-round"><p class="er-head"><span class="er-day">${escHtml(day)}</span> ${head}</p><p class="er-stat">${stat}</p>${names}</li>`;
   }).join('');

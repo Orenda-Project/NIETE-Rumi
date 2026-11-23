@@ -3,7 +3,9 @@
  * bot sends carries push_remind: true, after the step has painted the page loads /wq/wq-remind.js (with its own script's
  * ?v=) once, and on its load calls WQREMIND.mount(slot, {code, lang, chips, host, src: 'class_link'}), code = the
  * answer's remind_code (tonight's round share code), else the link's code. Without the field: no script, no frame
- * work, and the painted step is today's, byte for byte.
+ * work, and the painted step is today's, byte for byte. The bot sends the field only once a child is picked: on "Whose
+ * turn?" (a phone that already holds a child) and on the pick's answer, never on the teacher, letter or chips steps;
+ * the pick's answer sends the page to the child's hub at once, so nothing is loaded there.
  * The real page from the real edge router; the page's script runs in a vm; the bot is faked at the network boundary.
  */
 const http = require('http');
@@ -155,8 +157,8 @@ describe('push_remind: true on the step answer', () => {
     } finally { await p.close(); }
   });
 
-  test('"Is your name here?" (the chips step), no remind_code: mount with the link\'s code, the chips this screen shows, the page\'s language', async () => {
-    const p = await openLink({ lang: 'ur', steps: { arrive: { step: 'chips', s: 'st', kids: CHIPS, push_remind: true } } });
+  test('"Whose turn?" in Urdu, no remind_code: mount with the link\'s code, the chips this screen shows, the page\'s language', async () => {
+    const p = await openLink({ lang: 'ur', steps: { arrive: { step: 'who', s: 'st', kids: KIDS, push_remind: true } } });
     try {
       p.flush();
       const s = remindScripts(p);
@@ -165,10 +167,34 @@ describe('push_remind: true on the step answer', () => {
       p.ctx.window.WQREMIND = { mount };
       s[0].onload();
       expect(mount).toHaveBeenCalledTimes(1);
-      expect(mount.mock.calls[0][1]).toEqual({ code: CODE, lang: 'ur', chips: 3, host: 'quiz.example.org', src: 'class_link' });
+      expect(mount.mock.calls[0][1]).toEqual({ code: CODE, lang: 'ur', chips: 2, host: 'quiz.example.org', src: 'class_link' });
     } finally { await p.close(); }
   });
 
+  test('a fresh phone: teacher -> letter -> "Is your name here?" (no field on any) -> the pick, whose answer carries it: nothing is loaded, the page goes to the hub', async () => {
+    const href = '/h/tok123?from=class_link';
+    const steps = {
+      arrive: { step: 'teacher', s: 'st1', teachers: [{ tk: 'tk1', name: 'Rifat Test' }] },
+      teacher: { step: 'letter', script: 'latin', letters: ['A', 'Z'], s: 'st2' },
+      letter: { step: 'chips', s: 'st3', kids: CHIPS },
+      pick: { href, push_remind: true, remind_code: 'RND234' },
+    };
+    const p = await openLink({ steps });
+    try {
+      await p.tap('[data-tk]');
+      await p.tap('[data-l]');
+      expect(p.root.innerHTML).toContain('Is your name here?');
+      p.flush();
+      expect(p.frames).toHaveLength(0);
+      expect(p.appended).toHaveLength(0);
+      await p.tap('[data-chip]');
+      expect(p.ctx.location.href).toBe(href);
+      p.flush();
+      expect(remindScripts(p)).toHaveLength(0);
+    } finally { await p.close(); }
+  });
+
+  // a guard of the page's own: the bot sends the field on no step before a pick, so a second ask never comes this way
   test('once per page: "Whose turn?" -> a child not listed -> teacher -> letter -> chips loads the script once and mounts once', async () => {
     const steps = {
       arrive: { step: 'who', s: 'st', kids: KIDS, push_remind: true, remind_code: 'RND234', other: { step: 'teacher', s: 'st2', teachers: [{ tk: 'tk1', name: 'Rifat Test' }] } },

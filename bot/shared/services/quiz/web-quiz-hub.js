@@ -303,7 +303,8 @@ function lastOf(history, kidId) {
   const base = { code: e.code, topic: e.topic, subject: e.subject, k: T.chipId(e.shareCodeId, kidId) };
   // Unfinished — or finished once and a newer attempt left unfinished on a still-open link: Continue resumes it.
   if (!e.latest || (e.openAnswered != null && e.active)) return { ...base, state: 'open', answered: e.openAnswered || 0 };
-  return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) };
+  // an evening round is played once: its card shows the score, never Play again
+  return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) && !e.round };
 }
 
 /**
@@ -322,7 +323,7 @@ async function answeredSoFar(entry, fallback = 0) {
 
 function againOf(history, kidId, teacherCode) {
   return history
-    .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode)
+    .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode && !e.round)   // never an evening round
     .sort((a, b) => String(b.lastAt || '').localeCompare(String(a.lastAt || '')))
     .slice(0, AGAIN_MAX)
     .map((e) => {

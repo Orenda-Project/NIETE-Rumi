@@ -33,4 +33,24 @@ function pageTopic({ lang, meta, fallback }) {
   return fallback || '';
 }
 
-module.exports = { cleanUrduTitle, pageTopic };
+// A lesson plan's heading often ends in a bracket listing answer formats for the teacher: «(MCQ، مختصر و تفصیلی)»,
+// "(MCQ, short, long)". A child reads the quiz's title, so that ONE trailing bracket is dropped when every part of it
+// is a format word. A bracket that names content («pronouns», "Subtraction") stays, and so does a title that would be
+// left empty. Parts split on «،» , / «و» "and" "&", so a pair such as true/false is two format words.
+const FORMAT_WORDS = new Set([
+  'mcq', 'short', 'long', 'oral', 'true', 'false', 'fill in the blanks', 'short answer', 'long answer',
+  'مختصر', 'تفصیلی', 'زبانی', 'کثیر الانتخابی', 'درست', 'غلط', 'خالی جگہ', 'معروضی',
+]);
+const TRAILING_BRACKET = /^(.*?)[\s—–:-]*[(（]([^()（）]*)[)）]$/;
+const PART_SPLIT = /[،,/&]|\s+(?:و|and)\s+/i;
+
+/** The title without a trailing bracket of format words; anything else unchanged. Pure. */
+function dropFormatBracket(title) {
+  const t = String(title == null ? '' : title).trim();
+  const m = TRAILING_BRACKET.exec(t);
+  if (!m || !m[1].trim()) return t;
+  const parts = m[2].split(PART_SPLIT).map((p) => p.trim().toLowerCase()).filter(Boolean);
+  return parts.length && parts.every((p) => FORMAT_WORDS.has(p)) ? m[1].trim() : t;
+}
+
+module.exports = { cleanUrduTitle, pageTopic, dropFormatBracket };

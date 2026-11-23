@@ -4,9 +4,10 @@
  * "class_ids": [...]}, the same shape and sector rule as the reminders' web_quiz_push_canary (regions = schools.region,
  * the ICT sector, matched exactly after trim), so both canaries name the same sector. While it lists anything, only the
  * listed classes, the classes of the listed schools, or of a school in a listed sector get the class-link surfaces that
- * reach out on their own: the evening round's writer and the teacher app's class-link card. No row, or empty lists:
- * every class. A failed read: no class (fail closed: a database blip pauses new exposure, it never widens it).
- * 30 s cache. Never throws.
+ * reach out on their own: the evening round's writer and the teacher app's class-link card. {"all": true} with no list:
+ * every class. No row, empty lists, or anything else: NO class (a missing row is off, as for every switch: these surfaces
+ * must not reach every class because the row was never written or already deleted). A failed read: no class too (a
+ * database blip pauses new exposure, it never widens it). 30 s cache. Never throws.
  * A teacher opening the report's class tab, and a link already forwarded, are not gated: they are the teacher's own act.
  */
 const supabase = require('../../config/supabase');
@@ -19,7 +20,7 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const idsOf = (v) => (Array.isArray(v) ? v.map(String).filter((x) => UUID_RX.test(x)) : []);
 const namesOf = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter((x) => x && x.length <= 64) : []);
 const CLOSED = 'closed';
-let cache = null; // { at, c }: c = null (every class) | CLOSED | { schools: Set, classes: Set, regions: Set }
+let cache = null; // { at, c }: c = null (every class, {"all": true}) | CLOSED (no class) | { schools: Set, classes: Set, regions: Set }
 
 async function scope(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.c;
@@ -33,8 +34,12 @@ async function scope(now = Date.now()) {
     const schools = idsOf(o.school_ids);
     const classes = idsOf(o.class_ids);
     const regions = namesOf(o.regions);
-    c = schools.length || classes.length || regions.length
-      ? { schools: new Set(schools), classes: new Set(classes), regions: new Set(regions) } : null;
+    // A list is the narrower reading, so it wins over "all".
+    if (schools.length || classes.length || regions.length) {
+      c = { schools: new Set(schools), classes: new Set(classes), regions: new Set(regions) };
+    } else {
+      c = o.all === true ? null : CLOSED;
+    }
   } catch (err) {
     logToFile('⚠️ class link canary: settings lookup failed — no class in the canary', { error: err.message });
     c = CLOSED;

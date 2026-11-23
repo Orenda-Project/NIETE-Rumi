@@ -37,7 +37,9 @@ const T1 = '7e000000-0000-4000-8000-0000000000f1';
 const T2 = '7e000000-0000-4000-8000-0000000000f2';
 const NOW = new Date('2026-11-24T11:05:00Z'); // Tuesday 16:05 PKT
 const ON = (k) => ({ key: k, value: true });
-const SWITCHES = [ON('web_quiz_challenge'), ON('web_quiz_challenge_v2'), ON('web_quiz_class_link'), ON('web_quiz_evening_round')];
+// The class-link canary row lets every class in only when it says so ({"all": true}); no row = no class.
+const SWITCHES_BASE = [ON('web_quiz_challenge'), ON('web_quiz_challenge_v2'), ON('web_quiz_class_link'), ON('web_quiz_evening_round')];
+const SWITCHES = [...SWITCHES_BASE, { key: 'web_quiz_class_link_canary', value: { all: true } }];
 const dl = (user, grade, subject, at, lesson) => ({
   id: `d-${lesson}`, user_id: user, lesson_id: lesson, asset_id: `a-${lesson}`, version_stamp: 'v8', content_hash: `h-${lesson}`, phone: null, status: 'sent', grade, subject, created_at: at,
 });
@@ -139,7 +141,7 @@ test('three tries and no more', async () => {
 });
 
 test('a retry respects the canary: a class outside it is not retried', async () => {
-  seed([...SWITCHES, { key: 'web_quiz_class_link_canary', value: { class_ids: [C2] } }]);
+  seed([...SWITCHES_BASE, { key: 'web_quiz_class_link_canary', value: { class_ids: [C2] } }]);
   db.quizzes.push(failedRound());
   const enqueue = jest.fn().mockResolvedValue(undefined);
   await Round().writeRounds({ now: T('2026-11-24T11:20:00Z'), enqueue, classIds: [C1] });
