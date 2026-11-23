@@ -136,6 +136,20 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     expect(screen.queryByText("What you made")).toBeNull();
   });
 
+  // bd-o15qnr.39.2 (the operator 22 Nov ~00:55: "I can't open it ... Can I view this PDF in the app itself?"): the report
+  // the teacher was sent opens full screen from the visit too, the same viewer as on Send.
+  it("sent: the report the teacher received opens full screen from the visit", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "sent", imageUrl: "https://r2.example/report.png", caption: "Well done", sentAt: "2026-11-19T10:00:00Z" }));
+    L.getObservation.mockResolvedValue(VIEW("sent", { report: { ...VIEW("sent").report, status: "sent", imageUrl: "https://r2.example/report.png", sentAt: "2026-11-19T10:00:00Z" } }));
+    renderVisit();
+    const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
+    await waitFor(() => expect(items.querySelector('[data-item="teacher-report"]')).not.toBeNull());
+    const item = items.querySelector('[data-item="teacher-report"]') as HTMLElement;
+    fireEvent.click(within(item).getByRole("button", { name: /Open full screen/ }));
+    const viewer = await screen.findByTestId("report-viewer");
+    expect(within(viewer).getByTestId("report-viewer-image")).toHaveAttribute("src", "https://r2.example/report.png");
+  });
+
   it("a WhatsApp debrief (no stored recording): no debrief player, the rest as before", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "report" }));
     L.getObservation.mockResolvedValue(VIEW("report"));

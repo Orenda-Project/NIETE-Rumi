@@ -30,6 +30,7 @@ import { AnalysingStage, DebriefDue, DebriefListeningStage, DebriefStage, Feedba
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import ContinueOnWhatsApp from "../observe/ContinueOnWhatsApp";
 import { coachReportPath } from "../report/api";
+import { ReportImage } from "../reports/ReportImage";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -267,7 +268,8 @@ const CoachObservation = () => {
               {allDone && reportImage && (
                 <section data-item="teacher-report" data-testid="observation-report" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
                   <h2 className="m-0 px-1 pt-1 text-[16px] font-semibold leading-[1.3]">{waitingTap ? C.sentTitle(first) : W.reportSentTo(first)}</h2>
-                  <img src={reportImage} alt={C.reportImage(name)} className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb]" loading="lazy" />
+                  {/* bd-o15qnr.39.2: opens full screen in the app, the same viewer as on Send */}
+                  <ReportImage src={reportImage} alt={C.reportImage(name)} loading="lazy" />
                   {reportCaption && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{reportCaption}</p>}
                 </section>
               )}
