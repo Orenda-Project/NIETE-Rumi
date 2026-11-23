@@ -3272,6 +3272,10 @@ const UX_STRINGS = {
   wqSayTimes: { en: 'times', ur: 'ضرب' },
   wqSayDividedBy: { en: 'divided by', ur: 'تقسیم' },
   wqSayEqualsBlank: { en: 'what?', ur: 'کتنے؟' },
+  // Web quiz read-aloud, said after the child answers in place of "option C" (never shown; web-quiz-publish spoken()).
+  wqSayRightAnswer: { en: 'the right answer', ur: 'صحیح جواب' },
+  wqSayYourAnswer: { en: 'your answer', ur: 'آپ کا جواب' },
+  wqSayOtherAnswer: { en: 'another answer', ur: 'دوسرا جواب' },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
