@@ -259,6 +259,22 @@ async function viewerOpenById(userId, openId) {
   return row || null;
 }
 
+/**
+ * One of her K-5 app opens by id, unshaped: { id, user_id, lesson_id, opened_at } — one read, owner-filtered in the
+ * query, for a page that only names the lesson (no asset, no version: shape's reads are the make's, QF-F5). null when not hers.
+ */
+async function viewerOpenLessonById(userId, openId) {
+  if (!userId || !openId) return null;
+  const { data, error } = await supabase.from(OPENS)
+    .select('id, user_id, plan_ref, opened_at')
+    .eq('id', openId)
+    .eq('user_id', userId)
+    .eq('plan_kind', 'k5')
+    .maybeSingle();
+  if (error) throw new Error(`lp app opens: open: ${error.message || error}`);
+  return data ? { id: data.id, user_id: data.user_id, lesson_id: data.plan_ref, opened_at: data.opened_at } : null;
+}
+
 /** Most app opens read per tick render; at it, the oldest opens' ticks are left out (logged). */
 const TICK_OPENS_CAP = 1000;
 
@@ -306,5 +322,5 @@ async function readOpens(fromIso, toIso) {
 
 module.exports = {
   viewerOpensAsDownloads, viewerOpensForTeacher, teacherViewerOpens, teacherViewerOpensBetween,
-  viewerOpenById, viewerOpenedLessonIds, mergeByLesson, servedAsset,
+  viewerOpenById, viewerOpenLessonById, viewerOpenedLessonIds, mergeByLesson, servedAsset,
 };

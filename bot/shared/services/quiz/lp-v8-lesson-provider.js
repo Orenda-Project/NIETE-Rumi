@@ -275,6 +275,31 @@ async function get(teacherId, lessonRef) {
 }
 
 /**
+ * The catalog name of one of the teacher's lessons (a sent delivery of hers, or a K-5 plan she read in the app) for a page
+ * that names the lesson it offers (the one-lesson page, A74). One round trip: the delivery and the open are asked together
+ * and the name comes from the catalog in memory. Whether a quiz can be made is get's question, asked when the make is
+ * tapped; a name only labels the lesson (QF-F5: get's five reads in a row overran the page's wait across regions).
+ * So a sent or app-read lesson is named even when its asset or slide script is missing; get still refuses the make.
+ * Owner-filtered in the query, never afterwards.
+ * @returns {Promise<{topic: string}|null>} null for another teacher's lesson, an unsent delivery or one with no asset, an
+ *   assessment, a subject under religious review or a lesson the catalog does not name. Throws on a read error.
+ */
+async function nameOf(teacherId, lessonRef) {
+  if (!teacherId || !lessonRef) return null;
+  const [delivered, opened] = await Promise.all([
+    supabase.from('niete_lp_downloads').select('id, lesson_id, asset_id, subject')
+      .eq('id', lessonRef).eq('user_id', teacherId).eq('status', 'sent')
+      .maybeSingle(),
+    AppOpens.viewerOpenLessonById(teacherId, lessonRef),
+  ]);
+  if (delivered.error) throw new Error(`lp lesson provider: download read failed — ${delivered.error.message || delivered.error}`);
+  const row = (delivered.data && delivered.data.asset_id ? delivered.data : null) || opened;
+  if (!row || String(row.lesson_id || '').endsWith(ASSESSMENT_SUFFIX) || ReligiousHold.isHeldLesson(row)) return null;
+  const topic = offer().catalogTopic(row.lesson_id);
+  return topic ? { topic } : null;
+}
+
+/**
  * The quiz that covers this lesson now, if one was made since the list was
  * drawn (from /quiz or the 15:00 offer) — the Flow's lesson screen then shows
  * that quiz instead of a second "make".
@@ -387,6 +412,8 @@ module.exports = {
   labelKey: LABEL_KEY,
   list,
   get,
+  nameOf,
+  nameReads: 2, // nameOf's reads, asked together: one round trip (logged with every name read)
   existingQuiz,
   start,
 };
