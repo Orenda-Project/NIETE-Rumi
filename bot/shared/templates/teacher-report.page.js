@@ -351,7 +351,8 @@ const qs = (pairs) => {
 /**
  * Fonts + the whole stylesheet. Variables carry the screen/print and LTR/RTL differences.
  * A score row's name cell wraps: the child's name first and whole, its list number and tags (tries, after the report)
- * drop under it when the row has no room, and the row grows taller rather than cutting the name or a tag.
+ * drop under it when the row has no room, and the row grows taller rather than cutting the name or a tag. Inside that
+ * cell the cell's gap spaces the tags (no margin of their own), so a tag that starts a line sits at the name's edge.
  * Tap targets (A86): every button, the Copy-message summary and the language toggle are at least 48 px tall. A button
  * stays display:block (a flex box would split "PDF ڈاؤن لوڈ" at its Latin isolate and drop the space): its vertical
  * padding grows just enough for one line to reach 48 px, so the label stays centred. The toggle's box is 48 px with
@@ -433,6 +434,7 @@ details textarea{width:100%;min-height:120px;margin-top:8px;border:1px solid var
 .sc .nm{min-width:0;line-height:var(--lead-ui);display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}
 .sc .nm>span:first-child{min-width:0;overflow-wrap:anywhere}
 .sc .roll{color:var(--grey);font-size:.78rem;flex:none}
+.sc .nm .tag{margin-inline-start:0}
 .tag{display:inline-block;flex:none;font-size:.7rem;background:#FFF4E0;color:#9A6200;border-radius:999px;padding:0 8px;margin-inline-start:6px;line-height:1.6}
 .bar{height:8px;background:var(--grey-bg);border-radius:999px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:999px;background:var(--green)}
