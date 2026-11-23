@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLogoutGuard } from '../lib/recordingSession';
 import { DELETE_ACCOUNT_PATH, PRIVACY_POLICY_PATH } from '../lib/legalLinks';
 import type { User } from '../types/portal';
+import RoleSwitch from '../teacher/roleSwitch/RoleSwitch';
 
 /**
  * bd-3wb0s — My account.
@@ -20,6 +21,10 @@ import type { User } from '../types/portal';
  *
  * Signed-in only (PortalLayout sends anyone else to /portal/login), and the
  * same page for teachers and every leader role.
+ *
+ * bd-qae1f1 — one exception, for our own testers only (app_settings
+ * portal_role_switch): the "Profile type" switch (teacher/roleSwitch). Every
+ * real teacher and leader still gets exactly the page above.
  */
 
 /** Her name as one string: the API puts the whole of users.name in firstName. */
@@ -132,6 +137,11 @@ const AccountView = () => {
           </li>
         </ul>
       </nav>
+
+      {/* bd-qae1f1 — internal testers only (portal_role_switch; nothing at all for anyone else): "Profile type".
+          A tester on the leader menu (a principal off the principal app) finds My Patch tucked in Other on a phone,
+          and looks for the switch here, on the page Other leads every role to. */}
+      <RoleSwitch />
 
       <button
         type="button"
