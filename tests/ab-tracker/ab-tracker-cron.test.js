@@ -1,8 +1,8 @@
 'use strict';
 /**
  * The A/B tracker's nightly rollup gets its own Railway project, the way RDF has one (Amena, 23 Nov 2026;
- * bd-3kshar.6.5). Railway's cron starts bot/scripts/ab-tracker-cron.js once a night at 03:00 Pakistan time
- * (22:00 UTC); the script runs the rollup once, closes Redis and exits. A refused, partial or failed run exits 1
+ * bd-3kshar.6.5). Railway's cron starts bot/scripts/ab-tracker-cron.js every 15 minutes
+ * (the rollup runs once per slot: 15 min in school hours, 2 h outside); the script runs the rollup once, closes Redis and exits. A refused, partial or failed run exits 1
  * so Railway shows the run red; every quiet outcome (off, not due, done already) exits 0.
  */
 const fs = require('fs');
@@ -77,8 +77,8 @@ describe('ab-tracker-cron entry point', () => {
 describe('railway.ab-tracker-cron.json (config as code for the cron service)', () => {
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'railway.ab-tracker-cron.json'), 'utf8'));
 
-  it('fires at 22:00 UTC, which is 03:00 Pakistan time, inside the rollup switch default window', () => {
-    expect(cfg.deploy.cronSchedule).toBe('0 22 * * *');
+  it('fires every 15 minutes; the rollup itself decides the slot (15 min in school hours, 2 h outside)', () => {
+    expect(cfg.deploy.cronSchedule).toBe('*/15 * * * *');
   });
 
   it('starts the entry point, and that file exists', () => {
