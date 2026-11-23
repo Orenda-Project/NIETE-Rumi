@@ -160,6 +160,18 @@ const FIDELITY_VERDICT_OPTIONS = [
 ];
 const VALID_FIDELITY_VERDICTS = new Set(FIDELITY_VERDICT_OPTIONS.map(o => o.id));
 
+// bd-r2uzg1.21.1 — the scorer's bucket → the observe-strings key for the move's mark. The scorer counts anything that
+// is not optional_extension (a missing bucket is must_happen there too), so anything else reads as mandatory.
+const MOVE_KIND_KEY = {
+  must_happen: 'fid_move_mandatory',
+  adaptive_set: 'fid_move_group',
+  optional_extension: 'fid_move_optional',
+};
+function moveKindLine(m, S) {
+  const key = MOVE_KIND_KEY[m && m.bucket] || MOVE_KIND_KEY.must_happen;
+  return S[key] || observeStrings('en')[key];
+}
+
 function composeEditableFidelity(lp, language) {
   if (!lp || lp.status !== 'ok' || lp.fidelity_pct == null) return null;
   const all = Array.isArray(lp.moves) ? lp.moves : [];
@@ -178,8 +190,9 @@ function composeEditableFidelity(lp, language) {
   // here, and her per-move radios below re-run the same scorer.
   // Absent for a language that does not carry the string (sw has no editable Section B),
   // which is a skipped sentence, never an "undefined" served to a coach.
+  const S = observeStrings(observeLang({ preferred_language: language }));
   if (lp.moderators && lp.moderators.truncation_inconsistent) {
-    const recheck = observeStrings(observeLang({ preferred_language: language })).fid_truncation_recheck;
+    const recheck = S.fid_truncation_recheck;
     if (recheck) header.push(recheck);
   }
   const headerText = header.join('\n');
@@ -190,11 +203,19 @@ function composeEditableFidelity(lp, language) {
   // Flow TextBody the coach cannot edit, so the reason never enters the box and the
   // untouched-box detection in rescoreFidelityFromEdits is unchanged. Caught on the 22 Sep
   // staging E2E of the v2 grader.
+  //
+  // bd-r2uzg1.21.1 (ICT sheet HITL 192): the line under the move says whether the plan makes it mandatory or
+  // optional, from the scorer's own bucket, so a coach knows which moves count before she re-rates one. An
+  // optional_extension move (homework, "if time permits") is never in the score whatever its rating. The mark is
+  // part of this data string, which the published Flow already declares and the portal prints as is: no Flow
+  // change. Its own line, so an Urdu mark sits on a right-to-left line of its own beside the English ones.
   const slots = shown.map((m, i) => {
     const head = clipWords(`${i + 1}/${all.length}${PHASE_LABEL[m.phase] ? ` · ${PHASE_LABEL[m.phase]}` : ''} — ${m.text}`, 300);
     const why = String(m.rationale || '').trim();
+    const lines = [head, moveKindLine(m, S)];
+    if (why) lines.push(`Why: ${clipWords(why, 250)}`);
     return {
-      plan: why ? `${head}\nWhy: ${clipWords(why, 250)}` : head,
+      plan: lines.join('\n'),
       verdict: VALID_FIDELITY_VERDICTS.has(m.verdict) ? m.verdict : 'not_adjudicable',
       evidence: clipWords(String(m.evidence || m.rationale || ''), PREFILL_TEXT_CAP),
     };
