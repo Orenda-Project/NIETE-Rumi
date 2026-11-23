@@ -855,6 +855,8 @@ function v6Sections(analysis, lang = 'en') {
             ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '', recording: O.combinedParts(analysis, code, lang),
             // bd-o15qnr.37: one plain line on what the indicator looks at (#217's guide line), under its name; additive.
             about: Lines.lineFor('fico17_v6', code, lang),
+            // bd-o15qnr.39.1: how to fill it, after that line (no separate "You add: …" on the portal); additive.
+            hint: Lines.hintFor('fico17_v6', code, lang),
           };
         }
         // Rumi's choice, ringed on the page: 1-4, or N/A on C2 (per-indicator N/A, 19 Nov) when Rumi heard no wrong answer.

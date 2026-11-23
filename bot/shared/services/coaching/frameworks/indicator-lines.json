@@ -163,5 +163,32 @@
       "en": "Look at 3 random notebooks: is recent work there and checked, does the feedback say what to improve, and do students act on it?",
       "ur": "بلا ترتیب ۳ کاپیاں دیکھیں: کیا حالیہ کام موجود اور چیک شدہ ہے، کیا رائے بتاتی ہے کہ کیا بہتر کرنا ہے، اور کیا طلبہ اس پر عمل کرتے ہیں؟"
     }
+  },
+  "_about_hints": "bd-o15qnr.39.1 (#204, the operator 22 Nov): fico17_v6_hints, the how-to-fill line of each of the six combined indicators, shown after its one line so the form has no separate 'You add' text. C7, D2, D4: the second sentence of #217's guide 'means' line (the operator's D2 example); C3, C5, D3 (the guide has one sentence): from the rubric's coach_adds. Urdu: draft, NATIVE-CHECK. make_indicator_lines.py carries this table over.",
+  "fico17_v6_hints": {
+    "C3": {
+      "en": "Choosing by pointing or a nod counts too; the recording can't hear it.",
+      "ur": "اشارے یا سر ہلا کر چننا بھی شمار ہوتا ہے؛ ریکارڈنگ اسے نہیں سن سکتی۔"
+    },
+    "C5": {
+      "en": "Time it yourself, from the signal until the class is working.",
+      "ur": "وقت خود دیکھیں، اشارے سے لے کر کلاس کے کام شروع کرنے تک۔"
+    },
+    "C7": {
+      "en": "Sitting together but working alone is not group work.",
+      "ur": "ساتھ بیٹھ کر الگ الگ کام کرنا گروپ ورک نہیں۔"
+    },
+    "D2": {
+      "en": "Chorus answers don't count.",
+      "ur": "سب کا مل کر ایک ساتھ جواب دینا شمار نہیں ہوتا۔"
+    },
+    "D3": {
+      "en": "Listen in during pair and group work; the recording misses most of it.",
+      "ur": "جوڑی اور گروپ کے کام کے دوران خود سنیں؛ ریکارڈنگ اس کا زیادہ حصہ نہیں سن پاتی۔"
+    },
+    "D4": {
+      "en": "Only the trying counts, not whether the answer is right.",
+      "ur": "صرف کوشش شمار ہوتی ہے، جواب کا درست ہونا نہیں۔"
+    }
   }
 }
