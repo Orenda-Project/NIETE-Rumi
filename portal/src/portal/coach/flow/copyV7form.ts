@@ -102,6 +102,10 @@ export const FORM_V7_COPY = {
   needLevel: (n: number) => (n === 1 ? "1 item still needs a level" : `${n} items still need a level`),
   needAnswer: (n: number) => (n === 1 ? "1 item still needs an answer" : `${n} items still need an answer`),
   toCheck: (n: number) => (n === 1 ? "1 item still to check" : `${n} items still to check`),
+  /* bd-o15qnr.40.6 (queue #229): FICO-S on the same form — it ends in Submit, and its checks and feedback are sections */
+  submitLeft: (n: number) => (n === 1 ? "Submit (1 section to finish)" : `Submit (${n} sections to finish)`),
+  checksShort: "Checks",
+  feedbackShort: "Feedback",
 } as const;
 
 export type FormV7Copy = Words<typeof FORM_V7_COPY>;
@@ -169,6 +173,10 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   needLevel: (n: number) => `${n} ${n === 1 ? "اشاریے" : "اشاریوں"} کی سطح ابھی باقی ہے`,
   needAnswer: (n: number) => `${n} ${n === 1 ? "جگہ" : "جگہیں"} ابھی بھرنی باقی ہیں`,
   toCheck: (n: number) => `${n} ${n === 1 ? "اشاریہ" : "اشاریے"} ابھی دیکھنا باقی`,
+  // NATIVE-CHECK (bd-o15qnr.40.6, machine-drafted)
+  submitLeft: (n: number) => `جمع کریں (${n} ${n === 1 ? "حصہ" : "حصے"} باقی)`,
+  checksShort: "چیک لسٹ",
+  feedbackShort: "فیڈبیک",
 };
 
 export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
@@ -177,7 +185,7 @@ export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
 const LONG_OK: readonly string[] = [
   "whyLevelMin", "changedSummary", "savedPartByPart", "noRumiLevels",
   "saveLeft", "nextToCheck", "indicatorCrumb", "playAt", "pauseAt", "needLevel", "needAnswer", "toCheck",
-  "cantCount", "recIe", "recNa", "recStarred", "d2Turns",
+  "cantCount", "recIe", "recNa", "recStarred", "d2Turns", "submitLeft",
 ];
 const SAME: readonly string[] = [];
 
