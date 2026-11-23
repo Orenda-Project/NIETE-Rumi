@@ -12,6 +12,7 @@ import type { CoachWeek } from "./api";
 import { weekSpan } from "./weekSpan";
 import { LABEL, SECTION, pick } from "./CoachReportPage";
 import { CountBar, DarkTop, FocusCount, KeyFocusCard, RespectLine } from "./v7Parts";
+import { LessonPlanWeekBlock } from "./LessonPlan";
 
 /**
  * bd-o15qnr.28.1 (queue #204, v7; #188's c8-week-page, c8-week-focus-options option A) — her week in the app's v6/v7 look,
@@ -130,6 +131,9 @@ export function WeekBodyV7({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; l
           ) : null}
         </section>
       ) : null}
+
+      {/* The week's lesson plan discussions: the last block (only weeks with a debrief that carries the check). */}
+      {w.lessonPlan ? <LessonPlanWeekBlock lp={w.lessonPlan} C={C} lang={lang} /> : null}
 
       <p className="m-0 px-1 pt-1.5 text-center text-[13px] text-[#6b7280]">{C.weekFoot}</p>
     </div>
