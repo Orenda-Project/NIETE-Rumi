@@ -78,6 +78,10 @@ const DEFAULTS = Object.freeze({
   // The report goes 12 h after the first join, pushed to 07:00 PKT out of the night:
   // at most 21 h. Owed from 22 h; looked for up to 46 h back.
   reportOwedH: 22, reportLookbackH: 46,
+  // One report per class link, ever (scheduleForShareCode): a child re-opening a link whose report went
+  // weeks ago owes nothing. So the link's history is read this far back (bd-4dkwaf: on 21-23 Nov all 131
+  // "owed" quizzes had been reported before the 46 h look-back, the earliest on 27 Oct).
+  reportHistoryD: 35,
   classCardFailMin: 3,
   // whatsapp.rate_limited is logged on every Meta refusal: warn while the send pacer
   // retries, gaveUp:true when it stops. A give-up is a lost message (always an alert);
@@ -221,13 +225,16 @@ function aplFor({ env, dataset, now }) {
     lifecycle: `${P}where msg in (${inList(LIFECYCLE)}) | extend d = parse_json(data_json) `
       + `| summarize t = min(_time), tl = max(_time), reasons = make_set(tostring(d.reason)) `
       + `by q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source) | limit 20000`,
+    // `channel` comes back so a web finish (its scorecard is the page itself) is never "no scorecard".
     children: `${P}where msg in (${inList(['child_completed', 'scorecard_sent'])}) | extend d = parse_json(data_json) `
       + `| summarize t = min(_time), oks = make_set(tostring(d.ok)) `
-      + `by s = tostring(d.session_id), q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source) | limit 20000`,
+      + `by s = tostring(d.session_id), q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source), `
+      + 'channel = tostring(d.channel) | limit 20000',
     // `kind` comes back so the teacher's own test run (child_joined kind:self_test)
     // never makes a class report "owed".
     reports: `${P}where msg in (${inList(['child_joined', 'report_sent'])}) | extend d = parse_json(data_json) `
-      + `| summarize t = min(_time) by q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source), kind = tostring(d.kind) | limit 50000`,
+      + `| summarize t = min(_time) by q = tostring(d.quiz_id), sc = tostring(d.share_code_id), stage = ${STAGE}, `
+      + 'source = tostring(d.source), kind = tostring(d.kind) | limit 50000',
     counters: `${P}where ${COUNTER_FILTER} | extend d = parse_json(data_json) | extend k = ${COUNTER_KEY} | where k != '' `
       + `| summarize c60 = countif(_time >= ${at(60 * MIN)}), c75 = countif(_time >= ${at(75 * MIN)}), `
       + `lag = countif(_time >= ${at(75 * MIN)} and _time < ${at(15 * MIN)}), c120 = count(), `
@@ -259,6 +266,7 @@ function blankCounts() {
     offers: 0, undelivered: 0, yes: 0, no: 0, expired: 0, accepted: 0, menu: 0, remake: 0,
     started: 0, generated: 0, failed: 0, sent: 0, sendFailed: 0, joined: 0, completed: 0,
     scorecards: 0, scorecardFallback: 0, classCards: 0, classCardFailed: 0, reports: 0, reportsNoOne: 0, reportFailed: 0,
+    webFinished: 0, classCardSkipped: 0,
   };
 }
 
@@ -294,7 +302,10 @@ function streamCounts(rows = []) {
       case 'sent': c.sent += num(r.q); break;
       case 'send_failed': c.sendFailed += num(r.q); break;
       case 'child_joined': c.joined += num(r.s); break;
-      case 'child_completed': c.completed += num(r.s); break;
+      case 'child_completed':
+        c.completed += num(r.s);
+        if (r.channel === 'web') c.webFinished += num(r.s);
+        break;
       case 'scorecard_sent':
         if (String(r.ok) === 'false') c.scorecardFallback += num(r.c);
         else c.scorecards += num(r.c);
@@ -302,6 +313,7 @@ function streamCounts(rows = []) {
       case 'class_cards':
         c.classCards += num(r.n);
         c.classCardFailed += num(r.f);
+        c.classCardSkipped += num(r.k);
         break;
       case 'report_sent':
         if (r.kind === 'no_one') c.reportsNoOne += num(r.c);
@@ -430,12 +442,13 @@ function findIncidents(data = {}, now = new Date(), cfg = DEFAULTS) {
   const sessions = new Map();
   for (const r of data.children || []) {
     if (!r.s) continue;
-    const e = sessions.get(r.s) || { s: r.s, q: r.q, source: r.source, first: {} };
+    const e = sessions.get(r.s) || { s: r.s, q: r.q, source: r.source, web: false, first: {} };
+    if (r.channel === 'web') e.web = true;
     e.first[r.stage] = Math.min(e.first[r.stage] ?? Infinity, toMillis(r.t) ?? Infinity);
     if (!e.source && r.source) e.source = r.source;
     sessions.set(r.s, e);
   }
-  const noCard = [...sessions.values()].filter((e) => e.first.child_completed <= t - cfg.scorecardStallMin * MIN
+  const noCard = [...sessions.values()].filter((e) => !e.web && e.first.child_completed <= t - cfg.scorecardStallMin * MIN
     && !(e.first.scorecard_sent < Infinity));
   for (const [stream, list] of Object.entries(groupByStream(noCard))) {
     out.push({
@@ -446,14 +459,16 @@ function findIncidents(data = {}, now = new Date(), cfg = DEFAULTS) {
 
   // ── the teacher's report ────────────────────────────────────────────────
   // A join by the teacher's own test run owes nobody a class report.
-  const reportQuiz = [...byQuiz((data.reports || []).filter((r) => !isSelfTestRow(r))).values()];
-  const owed = reportQuiz.filter((e) => {
+  // Judged per class link (one report per link), over the link's history (cfg.reportHistoryD).
+  const reportLink = [...byQuiz((data.reports || []).filter((r) => !isSelfTestRow(r))
+    .map((r) => ({ ...r, q: r.sc ? `${r.q}|${r.sc}` : r.q }))).values()];
+  const owed = reportLink.filter((e) => {
     const joined = e.first.child_joined;
     return joined <= t - cfg.reportOwedH * H && joined >= t - cfg.reportLookbackH * H && !(e.first.report_sent > 0);
   });
   for (const [stream, list] of Object.entries(groupByStream(owed))) {
     out.push({
-      kind: 'report_owed', stream, dedup: 'ids', ids: list.map((e) => e.q),
+      kind: 'report_owed', stream, dedup: 'ids', ids: [...new Set(list.map((e) => e.q.split('|')[0]))],
       text: `*${STREAM_NAME[stream]} — class report owed*: children joined over ${cfg.reportOwedH} h ago, no report sent`,
     });
   }
@@ -555,8 +570,11 @@ function streamBlock(name, stream, c, incidents) {
   const menu = c.menu ? ` · /quiz ${c.menu}` : '';
   const remake = c.remake ? ` · remade ${c.remake}` : '';
   const sendFail = c.sendFailed ? ` (${c.sendFailed} link not delivered)` : '';
-  const cards = `scorecards ${c.scorecards}${c.scorecardFallback ? ` (${c.scorecardFallback} text fallback)` : ''}`;
-  const classCards = `class cards ${c.classCards}${c.classCardFailed ? ` (${c.classCardFailed} failed)` : ''}`;
+  const web = c.webFinished ? ` · ${c.webFinished} on the web page` : '';
+  const cards = `scorecards ${c.scorecards}${c.scorecardFallback ? ` (${c.scorecardFallback} text fallback)` : ''}${web}`;
+  const cardNotes = [c.classCardFailed ? `${c.classCardFailed} failed` : '', c.classCardSkipped ? `${c.classCardSkipped} skipped: no number or too late` : '']
+    .filter(Boolean).join(', ');
+  const classCards = `class cards ${c.classCards}${cardNotes ? ` (${cardNotes})` : ''}`;
   const reports = `reports ${c.reports}${c.reportsNoOne ? ` (+${c.reportsNoOne} nobody joined)` : ''}`
     + `${c.reportFailed ? ` (${c.reportFailed} failed)` : ''}`;
   return [
@@ -742,7 +760,7 @@ async function buildReport({ now = new Date(), env, dataset, query, confirm = nu
   const data = {
     lifecycle: await ask('lifecycle', new Date(t - cfg.lifecycleLookbackH * H), now),
     children: await ask('children', new Date(t - cfg.childLookbackMin * MIN), now),
-    reports: await ask('reports', new Date(t - cfg.reportLookbackH * H), now),
+    reports: await ask('reports', new Date(t - cfg.reportHistoryD * 24 * H), now),
     counters: await ask('counters', new Date(t - 120 * MIN), now),
     lpToday: hour >= cfg.lpOffersDeadlinePkt && hour < cfg.lpOffersUntilPkt ? await ask('lp_today', dayStart(now), now) : null,
   };
