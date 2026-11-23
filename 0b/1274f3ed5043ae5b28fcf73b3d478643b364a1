@@ -9,3 +9,4 @@
 {"ts":"2026-11-23T04:39:36Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
 {"ts":"2026-11-23T04:41:10Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
 {"ts":"2026-11-23T04:42:59Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"status=none-needed (nightly replica reads switch POST to GET; nothing a teacher sees changes)","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
+{"ts":"2026-11-23T04:42:59Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-0b1274f3ed50","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
