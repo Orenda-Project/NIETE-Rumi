@@ -440,12 +440,14 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     }
   }
 
-  const { data: questions, error } = await supabase
+  const { data: stored, error } = await supabase
     .from('quiz_questions')
-    .select('id, external_id, sort_order')
+    .select('id, external_id, sort_order, media')
     .eq('quiz_id', quizId)
     .order('external_id', { ascending: true })
     .order('sort_order', { ascending: true });
+  // quiz_key_hold_on_disagree: a held item is not asked here either (the web quiz's loadQuestions filter, one function).
+  const questions = await require('./key-hold-flag').shown(stored);
 
   if (error || !questions || !questions.length) {
     logToFile('❌ video-quiz: no questions for quiz', { quizId, error: error?.message });
