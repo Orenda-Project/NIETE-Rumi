@@ -316,11 +316,12 @@ describe('teacher report page — reserved lines', () => {
 });
 
 describe('teacher report page — review follow-ups', () => {
-  test('an Urdu date is Urdu prose: Urdu digits (counts stay ASCII), never in a left-to-right isolate', () => {
+  // Counts too (language-protocol §9.4): every number on the Urdu page is ۰–۹.
+  test('an Urdu date is Urdu prose: Urdu digits (and so are the counts), never in a left-to-right isolate', () => {
     const html = page(quizData(), { lang: 'ur' });
     expect(html).toMatch(/۵ اکتوبر ۲۰۲۶/);
     expect(html).not.toMatch(/[0-9] اکتوبر|اکتوبر [0-9]/);
-    expect(text(html)).toMatch(/63%/);
+    expect(text(html)).toMatch(/۶۳٪/);
     expect(html).not.toMatch(/class="num">[^<]*اکتوبر/);
     const cls = renderPage({ class: { cells: [], weeks: [], quizzes: [{ id: 'q-9', date: '2026-10-05T09:00:00Z', topic: 'Magnets', played: 5, avg: 80 }] } },
       { lang: 'ur', tab: 'class', tokens: { self: TOKEN, quiz: { 'q-9': 'T9.x' } } });
@@ -394,7 +395,7 @@ describe('teacher report page — all my classes, M3c\'s content gains', () => {
   };
   test('a quiz row with its class size reads "12 of 31 played"; without one "4 played"; none yet says so', () => {
     for (const [lang, rx] of [['en', [/Plants[\s\S]*12 of 31 played/, /Magnets[\s\S]*4 played/, /Fractions[\s\S]*No one has played yet/]],
-      ['ur', [/31 میں سے 12 نے کھیلا/, /ابھی کسی نے نہیں کھیلا/]]]) {
+      ['ur', [/۳۱ میں سے ۱۲ نے کھیلا/, /ابھی کسی نے نہیں کھیلا/]]]) {
       const t = text(renderPage({ class: data }, { lang, tab: 'class', tokens: { self: TOKEN } }));
       rx.forEach((r) => expect(t).toMatch(r));
     }
@@ -459,7 +460,7 @@ describe('teacher report page — the Urdu played tile does not overlap (Q2 FAIL
     const html = page(quizData(), { lang: 'ur' });
     const tile = html.slice(html.indexOf('class="tiles"'), html.indexOf('class="tiles"') + 800);
     const lines = [...tile.matchAll(/<span class="tl">([\s\S]*?)<\/span>(?=<span class="tl">|<\/div>)/g)].map((m) => text(m[1]).trim());
-    expect(lines).toEqual(['4 میں سے 1', 'نے کھیلا']);
+    expect(lines).toEqual(['۴ میں سے ۱', 'نے کھیلا']);
     expect(html).toMatch(/\.tile \.t\{[^}]*line-height:1\.9/);
     expect(html).toMatch(/\.tl\{display:block/);
   });
