@@ -109,8 +109,12 @@ function clipKey(args) {
   return Store.clipKey({ format: CLIP_FORMAT, ...args });
 }
 
-/** Text as it should be spoken: no TeX, no Markdown markers, no stored option letters, a blank as a pause. */
-function spoken(text) {
+/**
+ * Text as it should be spoken: no TeX, no Markdown markers, no stored option letters, a blank as a pause.
+ * `after` is set for a line heard after the child answers (the why, a wrong pick's feedback): { right: the set of
+ * correct letters, picked: the letter that feedback is for }. There "option C" is named (afterOptionWord), not cut.
+ */
+function spoken(text, after = null) {
   if (text == null) return '';
   let out = mathToText(String(text)).replace(/[\\$]/g, ' ');
   // "The rabbit was eating _." — a fill-in blank is a pause, never "underscore" or "dash".
@@ -120,9 +124,17 @@ function spoken(text) {
   out = out.replace(/(^|\s)\(?[A-D]\)\s*/g, '$1');
   // Capitals only, as the page: "the answer is a root" keeps its article.
   out = out.replace(/\b([Aa]nswer\s+is\s+|ANSWER\s+IS\s+)[A-D]\b\.?/g, '$1');
+  // "The answer is option B": "answer" already says which one, so the letter phrase after it goes.
+  out = out.replace(/(\b(?:[Aa]nswer|ANSWER)(?:\s+(?:is|IS))?|جواب)\s+(?:[Oo]ption|[Cc]hoice|OPTION|CHOICE|آپشن)\s+[A-D](?![A-Za-z])/g, '$1');
   // The page rewrites a letter after "answer", "option", "choice", «جواب» or «آپشن» to the child's own order (wq.js
   // letters()); a clip is one recording for every child, so it says no letter there. Capitals only: "the answer a
-  // farmer gives" is an article.
+  // farmer gives" is an article. After the answer the phrase is named in its own language ("All three matches in
+  // option A are correct." was voiced "All three matches in are correct."); a stem or an option only drops it,
+  // because "the right answer" there would give the answer away.
+  if (after && after.right && after.right.size) {
+    out = out.replace(/\b([Oo]ption|[Cc]hoice|OPTION|CHOICE)\s+([A-D])(?![A-Za-z])/g, (m, w, l) => afterOptionWord(l, after, 'en', /^[A-Z]/.test(w)));
+    out = out.replace(/آپشن\s+([A-D])(?![A-Za-z])/g, (m, l) => afterOptionWord(l, after, 'ur', false));
+  }
   out = out.replace(/\s*\b(?:[Oo]ption|[Cc]hoice|OPTION|CHOICE)\s+[A-D](?![A-Za-z])/g, '');
   out = out.replace(/\s*آپشن\s+[A-D](?![A-Za-z])/g, '');
   out = out.replace(/(\b[Aa]nswer\s+|جواب\s+)[A-D](?![A-Za-z])\s*/g, '$1');
@@ -135,16 +147,31 @@ function spoken(text) {
 // praise only when punctuation follows it: "Right angles…" and «صحیح جواب…» are kept.
 const PRAISE_LEAD = /^\s*(?:(?:well done|very good|good job|great job|great work|great|excellent work|excellent|amazing|fantastic|super|good|nice|brilliant|awesome|correct|that's right|you got it|perfect|nice work|شاباش|بہت خوب|بہت اچھے|بہت اچھا|زبردست|بالکل درست|بالکل ٹھیک|درست|صحیح|جی ہاں|واہ)\s*[!.،,۔:]+\s*)+/i;
 
-function withoutPraise(text) {
-  const t = spoken(text);
+function withoutPraise(text, after = null) {
+  const t = spoken(text, after);
   const cut = t.replace(PRAISE_LEAD, '').trim();
   return SAYABLE.test(cut) ? cut : '';
+}
+
+/** What a line heard after the answer knows: the correct letters ("A", "A,C"; else the web item's key) and the pick. */
+function afterOf(q, picked = null) {
+  const w = webItemOf(q);
+  const right = new Set(String((q && q.correct_option) || (w && w.key) || '').toUpperCase().match(/[A-D]/g) || []);
+  return { right, picked };
+}
+
+/** "option C" after the answer: the right answer, the child's own pick, or another answer (ux-strings wqSay*Answer). */
+function afterOptionWord(letter, after, language, capital) {
+  const key = after.right.has(letter) ? 'wqSayRightAnswer' : letter === after.picked ? 'wqSayYourAnswer' : 'wqSayOtherAnswer';
+  const word = resolveUx(key, { language }).replace(BIDI_MARKS, '').trim();
+  return capital ? word.charAt(0).toUpperCase() + word.slice(1) : word;
 }
 
 /** The reason the right answer is right: the explanation, else the correct-answer feedback minus its praise. */
 function whyText(q) {
   const fb = q.option_feedback && typeof q.option_feedback === 'object' ? q.option_feedback : {};
-  return spoken(q.explanation) || withoutPraise(fb.correct);
+  const after = afterOf(q);
+  return spoken(q.explanation, after) || withoutPraise(fb.correct, after);
 }
 
 // A single letter is said by its NAME, the way a teacher reads it off the board (the voice would
@@ -263,10 +290,11 @@ function partsFor(q, { oneVoice = null } = {}) {
       const p = PARTS_OPTS['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
       if (p) add(p, spoken(readOpts[i]) || spoken(o.name) || spoken(o.text));
     });
-    add('why', spoken(w.why) || whyText(q) || withoutPraise(w.fb_right));
+    add('why', spoken(w.why, afterOf(q)) || whyText(q) || withoutPraise(w.fb_right, afterOf(q)));
     w.options.forEach((o) => {
-      const x = PARTS_FB['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
-      if (x) add(x, spoken(cleanWrongFeedback(o && o.fb)));
+      const slot = String((o && o.slot) || '').charAt(0);
+      const x = PARTS_FB['ABCD'.indexOf(slot)];
+      if (x) add(x, spoken(cleanWrongFeedback(o && o.fb), afterOf(q, slot)));
     });
     const hint = w.hint && typeof w.hint === 'object' ? w.hint : null;
     if (hint) add('hint', spoken(hint.read) || spoken(hint.text));
@@ -276,7 +304,7 @@ function partsFor(q, { oneVoice = null } = {}) {
   PARTS_OPTS.forEach((p) => add(p, spokenOption(q[`option_${p}`])));
   add('why', whyText(q));
   const wrong = (q.option_feedback && typeof q.option_feedback === 'object' && q.option_feedback.wrong) || {};
-  PARTS_FB.forEach((x, i) => add(x, spoken(cleanWrongFeedback(wrong[String(i)]))));
+  PARTS_FB.forEach((x, i) => add(x, spoken(cleanWrongFeedback(wrong[String(i)]), afterOf(q, 'ABCD'[i]))));
   return parts;
 }
 
