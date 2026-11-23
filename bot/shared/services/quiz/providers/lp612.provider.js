@@ -100,7 +100,7 @@ async function segmentsById(ids) {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return new Map();
   const { data, error } = await supabase.from('niete_lp612_segments')
-    .select('segment_id, grade, subject, subtopic_title, menu_title, lp_type, is_religious')
+    .select('segment_id, grade, subject, subtopic_title, menu_title, lp_type, is_religious, curriculum')
     .in('segment_id', unique);
   if (error) throw new Error(`lp612 provider: segments: ${error.message || error}`);
   return new Map((data || []).map((s) => [s.segment_id, s]));
@@ -144,6 +144,8 @@ function toItem(row, segment) {
       render_id: row.render_id || null,
       delivered_at: row.delivered_at,
       title,
+      // bd-97daxo.34: a GB lesson's document is in GB's own lane (gb-lp/); the quiz source reads it there.
+      ...(require('../../lp612-gb-delivery.service').isGbSegment(segment) ? { lane: 'gb' } : {}),
     },
   };
 }
