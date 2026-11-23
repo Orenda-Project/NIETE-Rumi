@@ -18,6 +18,7 @@
 
 const { renderDiagram } = require('../../../vendor/lp-v9/diagrams');
 const { svgFor } = require('./fde-picture-svg');
+const { key } = require('./seen-types');
 
 const BLANK = '________';
 const MAX_NODES = 8;
@@ -83,11 +84,17 @@ function flowChart(d) {
     steps: steps.map((s) => ({ title: s || BLANK })) });
 }
 
+const DRAWN_TYPES = new Set(['Mind Map', 'Flow Chart', 'Label the Diagram']);
+const DRAWN_BY_KEY = new Map([...DRAWN_TYPES].map((t) => [key(t), t]));
+/** The canonical drawn type for a loosely written name ('Label the diagram', 'Mind maps'), else null. */
+const drawnName = (type) => DRAWN_BY_KEY.get(key(type)) || null;
+
 /**
  * What to print for this question: { svg, bank, answer } or null to print it as text.
  * `bank` is a word bank (Label the Diagram only); `answer` replaces the model's answer in the key.
  */
-function figureFor(type, question, { rtl = false } = {}) {
+function figureFor(rawType, question, { rtl = false } = {}) {
+  const type = drawnName(rawType);
   const d = question && typeof question === 'object' ? question.diagram : null;
   if (!d || typeof d !== 'object') return null;
   try {
@@ -109,7 +116,7 @@ function figureFor(type, question, { rtl = false } = {}) {
 
 /** The user-prompt lines for the drawn types asked for; '' when none is. */
 function promptLine(typeIds) {
-  const ids = new Set(typeIds);
+  const ids = new Set(typeIds.map(drawnName));
   const out = [];
   if (ids.has('Mind Map')) out.push('• For Mind Map: add `"diagram": {"centre": "<topic>", "branches": ["<word>", "", …]}` with 4-6 '
     + 'branches; leave 2-3 branches as "" for the child to fill, and put the missing words in "answer". '
@@ -124,4 +131,37 @@ function promptLine(typeIds) {
   return out.join('\n');
 }
 
-module.exports = { BLANK, FIGURES, DRAWN_TYPES: new Set(['Mind Map', 'Flow Chart', 'Label the Diagram']), figureFor, promptLine };
+/**
+ * bd-fjnrit — a drawn item that has no picture is dropped, never printed as bare text. Run before the
+ * seen cap and the marks budget, so those measure the paper that survives. Mutates; returns the count dropped.
+ * A paper the drop would empty is left as it is: it prints as text, which beats an error (NO_QUESTIONS).
+ */
+function dropUnpictured(examJson) {
+  const edits = [];
+  let kept = 0;
+  let removed = 0;
+  const visit = (owner, type, list) => {
+    const keep = list.filter((q) => !(drawnName(type) && q && typeof q === 'object' && !figureFor(type, q)));
+    kept += keep.length;
+    removed += list.length - keep.length;
+    edits.push(() => { owner[type] = keep; });
+  };
+  for (const section of ['seen', 'unseen']) {
+    const branch = examJson && examJson[section];
+    if (!branch || typeof branch !== 'object') continue;
+    for (const category of Object.values(branch)) {
+      if (!category || typeof category !== 'object') continue;
+      for (const [type, entry] of Object.entries(category)) {
+        if (Array.isArray(entry)) visit(category, type, entry);
+        else if (entry && typeof entry === 'object') {
+          for (const [sub, list] of Object.entries(entry)) if (Array.isArray(list)) visit(entry, sub, list);
+        }
+      }
+    }
+  }
+  if (kept === 0) return 0;
+  edits.forEach((apply) => apply());
+  return removed;
+}
+
+module.exports = { BLANK, FIGURES, DRAWN_TYPES, figureFor, promptLine, dropUnpictured, drawnName };

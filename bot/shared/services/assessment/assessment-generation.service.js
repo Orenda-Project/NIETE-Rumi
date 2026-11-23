@@ -333,8 +333,10 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   // Only when she set one. An always-present line about marks would change every
   // prompt we have ever sent, including for the papers nobody budgeted.
   const budget = Number(totalMarks) > 0 ? Number(totalMarks) : null;
-  const drawIt = plan.questionTypes.some((q) => DRAWN_BY_THE_CHILD.has(q.id));
-  const drawnLine = PaperDiagram.promptLine(plan.questionTypes.map((q) => q.id));
+  // bd-fjnrit — a seen-only plan carries no types of its own; her requested ones still steer the prompt.
+  const askedTypes = [...(plan.questionTypes.length ? plan.questionTypes : (questionTypes || [])), ...(plan.seenTypes || [])];
+  const drawIt = askedTypes.some((q) => DRAWN_BY_THE_CHILD.has(q.id));
+  const drawnLine = PaperDiagram.promptLine(askedTypes.map((q) => q.id));
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -770,6 +772,9 @@ async function generateExam(args) {
   // Her Seen types, when set, decide the Seen categories themselves (bd-e5n2jf).
   const offCategory = contentSource === 'both' && !plan.seenTypes ? keepSeenCategories(examJson, questionTypes) : 0;
   if (offCategory > 0) logToFile('[assessment] dropped seen questions outside her categories', { removed: offCategory });
+  // bd-fjnrit — a drawn item with no picture is dropped before the cap and the budget measure the paper.
+  const unpictured = PaperDiagram.dropUnpictured(examJson);
+  if (unpictured > 0) logToFile('[assessment] dropped drawn items with no picture', { removed: unpictured });
   const removedSeen = plan.seenTypes ? SeenTypes.trim(examJson, plan.seenTypes) : trimSeen(examJson, plan.seenTarget);
   // bd-ipoxhx.7 — standard marks before the budget is measured, so an inflated MCQ never costs a question.
   const marksStandardised = standardMarks(examJson);
