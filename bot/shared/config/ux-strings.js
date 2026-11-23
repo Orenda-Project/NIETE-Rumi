@@ -1179,6 +1179,8 @@ const UX_STRINGS = {
   regFormRoleSchoolHeading: { en: 'Your role and school', ur: 'آپ کا عہدہ اور اسکول' },
   regFormRoleLabel: { en: 'Your role', ur: 'آپ کا عہدہ' },
   regFormRoleTeacher: { en: 'Teacher', ur: 'ٹیچر' },
+  // The weak-skill Jugnu nudge (bd-ptl6x9.7): the greeting's name when a teacher has none on file.
+  weakSkillJugnuNoName: { en: 'Teacher', ur: 'استاد' },
   regFormRolePrincipal: { en: 'Principal / Head Teacher', ur: 'پرنسپل / ہیڈ ٹیچر' },
   regFormSearchLabel: { en: 'School name or EMIS', ur: 'اسکول کا نام یا کوڈ' },
   regFormSearchHelp: {

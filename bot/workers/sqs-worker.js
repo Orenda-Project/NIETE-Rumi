@@ -2070,6 +2070,9 @@ function startWorker() {
       // The topic-end nudge (bd-pw1ccr.4) registers its kind at load.
       // It does nothing until app_settings topic_end_nudge_enabled is true.
       require('../shared/services/nudges/topic-end-nudge.service');
+      // The weak-skill Jugnu nudge (bd-ptl6x9.7) registers its kind at load.
+      // It does nothing until app_settings weak_skill_jugnu_enabled is true (test accounts only until audience 'all').
+      require('../shared/services/nudges/weak-skill-jugnu/job');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
       // one-minute floor is refused rather than clamped, and the default stands.
       const TEACHER_NUDGES_SWEEP_MS = (() => {

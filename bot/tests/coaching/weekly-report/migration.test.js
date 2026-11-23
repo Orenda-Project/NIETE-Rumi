@@ -15,8 +15,9 @@ const up = fs.readFileSync(path.join(dir, 'V1.6.12__v10_weekly_usage_report.sql'
 const down = fs.readFileSync(path.join(dir, 'ROLLBACK_V1.6.12__v10_weekly_usage_report.sql'), 'utf8');
 const checkKinds = (sql) => sql.match(/CHECK \(kind IN \(([^)]*)\)\)/)[1].match(/'[^']+'/g).map((s) => s.slice(1, -1));
 
-test('the widened CHECK allows exactly the store kinds', () => {
-  expect(checkKinds(up).sort()).toEqual(Object.values(KINDS).sort());
+// The kinds the store had when V1.6.12 shipped; later kinds widen the CHECK in their own migrations (V1.8.4, V1.8.12, V1.10.10).
+test('the widened CHECK allows exactly the store kinds of its time', () => {
+  expect(checkKinds(up).sort()).toEqual([KINDS.COACHING_AFTER_LP, KINDS.LP_QUIZ_OFFER, KINDS.WEEKLY_USAGE_REPORT].sort());
 });
 
 test('the switch is seeded off and the template list empty, without overwriting a live value', () => {

@@ -52,6 +52,8 @@ const QUERY = {
   cl_open: (v) => UUID_RX.test(v),
   // Its "Make a new link" asks first: the class whose card shows the confirm (the bot signs the nonce).
   jconfirm: (v) => UUID_RX.test(v),
+  // The weak-skill Jugnu nudge's button (bd-ptl6x9.7): the game to open, one of three.
+  ex: (v) => v === 'missing' || v === 'numbers' || v === 'bigger',
   // Where the open came from (bd-5j1zaf): the teacher home, the WhatsApp report, the quiz list's link, a quiz row of the
   // all-classes tab. The bot reads it only while quiz_teacher_home_reports is on (teacher_report.opened's from); off,
   // it ignores it.
@@ -121,7 +123,7 @@ function createTeacherReportRouter(opts = {}) {
       }
       if (out.status >= 300 && out.status < 400) {
         // Only the reminder, the Jugnu forwards (story, class week) and the class link card redirect, and only ever to WhatsApp's share link.
-        if ((kind === 'remind' || kind === 'fwd' || kind === 'wfwd' || kind === 'jlink') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
+        if ((kind === 'remind' || kind === 'fwd' || kind === 'wfwd' || kind === 'jlink' || kind === 'sfwd') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
         // The class link card's Copy comes back to the report itself (card open).
         if (kind === 'jlink' && out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
         return fail(502, 'error');
@@ -214,6 +216,8 @@ function createTeacherReportRouter(opts = {}) {
   router.post(`${REPORT_PATH}/:token/unbind`, privateHeaders, limiter, form, forwardForm('unbind'));
   // The class week card's forward (bot switch web_quiz_class_week; the bot answers 404 while it is off).
   router.get(`${REPORT_PATH}/:token/wfwd`, privateHeaders, limiter, forward('wfwd'));
+  // The weak-skill Jugnu nudge's button (bot switch weak_skill_jugnu_enabled; the bot answers 404 while it is off).
+  router.get(`${REPORT_PATH}/:token/sfwd`, privateHeaders, limiter, forward('sfwd'));
   // The standing class link card's Forward (web_quiz_class_link): the bot logs it and answers 302 -> wa.me.
   router.get(`${REPORT_PATH}/:token/jlink`, privateHeaders, limiter, forward('jlink'));
   // Its "Make a new link" form: the bot revokes the old link, mints a new one and answers 303 back to the class tab.

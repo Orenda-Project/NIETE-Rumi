@@ -39,6 +39,7 @@ const KINDS = Object.freeze({
   LP_QUIZ_OFFER: 'lp_quiz_offer',
   WEEKLY_USAGE_REPORT: 'weekly_usage_report', // bd-v0toag.32, one row per teacher per week
   TOPIC_END_NUDGE: 'topic_end_nudge', // bd-pw1ccr.4, V1.8.4: a topic's last day taught → make a paper on it
+  WEAK_SKILL_JUGNU: 'weak_skill_jugnu', // bd-ptl6x9.7, V1.10.10: a grade's hardest tested maths skill → its Jugnu game
 });
 
 /** The six states the V1.5.3 CHECK constraint allows. */
@@ -92,6 +93,10 @@ const SKIP_REASONS = Object.freeze([
   // A held topic-end nudge (bd-pw1ccr.26): she tapped the portal card, or made the paper herself.
   'card_used',
   'made_paper',
+  // The weak-skill Jugnu nudge (bd-ptl6x9.7): she has no Jugnu class list tied to a class, or no group of hers has
+  // 5+ tested children with a skill under the line (a small group is never spoken about).
+  'no_class_list',
+  'no_weak_skill',
 ]);
 
 /** What a teacher can have answered. `class:<key>` is the list-row pick. */
