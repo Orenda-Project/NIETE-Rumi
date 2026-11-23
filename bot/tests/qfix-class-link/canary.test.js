@@ -1,9 +1,11 @@
 'use strict';
 /**
- * web_quiz_class_link_canary ({regions?, school_ids?, class_ids?}): while it lists schools or classes, the evening round is written
- * only for those classes (the production flip starts with one sector); no row or empty lists -> every class; a failed
- * read -> no class (a blip pauses new exposure, never widens it). The tile, the badge and the reminder read rounds, so a
- * class with no round shows nothing.
+ * web_quiz_class_link_canary ({all?, regions?, school_ids?, class_ids?}): while it lists schools or classes, the evening round is
+ * written only for those classes (the production flip starts with one sector); {"all": true} -> every class; no row, empty
+ * lists or anything else -> NO class (a missing row is off, ORG 4.5: CL2's deploy must not reach every class because the
+ * row was never written or already deleted); a failed read -> no class (a blip pauses new exposure, never widens it).
+ * The same scope gates the teacher app's class-link card (forApp) before any mint. The tile, the badge and the reminder
+ * read rounds, so a class with no round shows nothing.
  * Faked boundaries: Supabase (in memory), Redis (a Map), the enqueue seam, the loggers, WhatsApp.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
@@ -86,10 +88,25 @@ const canary = (value) => [...SWITCHES, { key: 'web_quiz_class_link_canary', val
 
 beforeEach(() => { jest.clearAllMocks(); redis._store.clear(); });
 
-test('no canary row: every linked class with a lesson gets its round', async () => {
+test('no canary row: no class gets a round (a missing row is off), both counted out, nothing sent', async () => {
   seed();
-  await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
+  const out = await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
+  expect(roundClasses()).toEqual([]);
+  expect(out).toMatchObject({ queued: 0, canary_out: 2 });
+  expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+});
+
+test('{"all": true}: every linked class with a lesson gets its round', async () => {
+  seed(canary({ all: true }));
+  const out = await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
   expect(roundClasses()).toEqual([C1, C2].sort());
+  expect(out.canary_out).toBe(0);
+});
+
+test('a list wins over all: {"all": true, class_ids: [C2]} -> C2 only (the narrower reading)', async () => {
+  seed(canary({ all: true, class_ids: [C2] }));
+  await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
+  expect(roundClasses()).toEqual([C2]);
 });
 
 test('canary by class: only the listed class gets a round, the other is counted out', async () => {
@@ -116,10 +133,16 @@ test('canary by sector name, the same rule as the push canary (schools.region, e
   expect(await Canary.inCanary({ classId: C1, schoolId: S1 })).toBe(true);
 });
 
-test('canary row with empty lists: no restriction', async () => {
-  seed(canary({ school_ids: [], class_ids: [] }));
-  await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
-  expect(roundClasses()).toEqual([C1, C2].sort());
+test.each([
+  ['empty lists', { school_ids: [], class_ids: [] }],
+  ['an empty object (the app-card lever)', {}],
+  ['all not exactly true', { all: 'true' }],
+  ['not an object', ['x']],
+])('canary row with %s: no class', async (_name, value) => {
+  seed(canary(value));
+  const out = await Round().writeRounds({ now: NOW, enqueue: jest.fn().mockResolvedValue(undefined) });
+  expect(roundClasses()).toEqual([]);
+  expect(out.canary_out).toBe(2);
 });
 
 test('the canary read fails: no class gets a round (fail closed), the writer does not throw', async () => {
@@ -145,5 +168,46 @@ test('inCanary: by class, by school (with and without the caller giving the scho
   expect(await Canary.inCanary({ classId: C1 })).toBe(true);
   expect(await Canary.inCanary({ classId: 'c1a55000-0000-4000-8000-0000000000ff', schoolId: S2 })).toBe(false);
   seed();
+  expect(await Canary.inCanary({ classId: C1 })).toBe(false);
+  expect([...(await Canary.allowedClasses([C1, C2]))]).toEqual([]);
+  seed(canary({ all: true }));
   expect(await Canary.inCanary({ classId: C1 })).toBe(true);
+  expect([...(await Canary.allowedClasses([C1, C2]))].sort()).toEqual([C1, C2].sort());
+});
+
+describe('the teacher app card (forApp) reads the same scope before any mint', () => {
+  const App = () => require('../../shared/services/quiz/web-quiz-class-link-app');
+  const env = {};
+  beforeAll(() => {
+    ['WEB_QUIZ_TOKEN_SECRET', 'WEB_QUIZ_BASE_URL'].forEach((k) => { env[k] = process.env[k]; });
+    process.env.WEB_QUIZ_TOKEN_SECRET = 'canary-app-test-secret';
+    process.env.WEB_QUIZ_BASE_URL = 'https://quiz.example.org';
+  });
+  afterAll(() => { Object.entries(env).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; }); });
+  const appSeed = (settings) => {
+    seed(settings);
+    db.class_links = [];
+    db.students = [{ id: 'c0000001-0000-4000-8000-0000000000f1', student_name: 'Zara Test', is_active: true }];
+  };
+
+  test('no canary row: no card and no link minted', async () => {
+    appSeed(SWITCHES);
+    const r = await App().forApp(T1, { now: NOW });
+    expect((r && r.classes) || []).toEqual([]);
+    expect(db.class_links).toEqual([]);
+  });
+
+  test('{"all": true}: the teacher\'s class gets its card and its link', async () => {
+    appSeed(canary({ all: true }));
+    const r = await App().forApp(T1, { now: NOW });
+    expect(r.classes.map((c) => c.classId)).toEqual([C1]);
+    expect(db.class_links.map((l) => l.class_id)).toEqual([C1]);
+  });
+
+  test('one listed class: only that class (teacher 2 gets C2, teacher 1 nothing)', async () => {
+    appSeed(canary({ class_ids: [C2] }));
+    expect(((await App().forApp(T1, { now: NOW })) || {}).classes || []).toEqual([]);
+    const r2 = await App().forApp(T2, { now: NOW });
+    expect(r2.classes.map((c) => c.classId)).toEqual([C2]);
+  });
 });
