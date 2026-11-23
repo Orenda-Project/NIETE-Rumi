@@ -789,6 +789,8 @@ export type TalkGuide = {
   work_on_first?: { title: string; seen?: string; next_step?: string; recall?: string };
   moment?: { time?: string | null; text: string; answer?: "right" | "partly right" | "wrong" | null } | null;
   conversation?: string[];
+  /** The lesson plan check, the notes' last section (HITL switch; the ICT HITL owner's spec, 23 Nov 2026). */
+  lp_check?: import("../coach/report/LessonPlan").LpCheck | null;
 };
 
 export type CoachFeedback = {
