@@ -9,7 +9,11 @@
  *
  * First GET /api/wqpush/key: a 404 means the switch is off, so any of our workers (/sw.js) is unregistered and nothing
  * is drawn. Never drawn beside an install card (#wqp-inst non-empty or [data-door="install"]), never on a class phone
- * (4+ chips). The browser's permission is asked only inside the Yes tap. Steps go to POST /api/wqpush/e. */
+ * (4+ chips). The browser's permission is asked only inside the Yes tap. Steps go to POST /api/wqpush/e.
+ *
+ * Each step, the subscribe and the context kept for the worker carry `ps`, this page load's telemetry session id, when
+ * wq-tel.js has one (window.WQT.on; it keeps the id in sessionStorage as wq_ps), so a funnel read can drop QA walks by
+ * page_start.ua. Telemetry off, no wq-tel on the page (the /remind landing) or no id: the bodies are as they were. */
 (function () {
   'use strict';
   var T = {
@@ -67,6 +71,7 @@
   };
   var IAB_RX = /\bWA4A\/|WhatsApp|FBAN|FBAV|Instagram|; wv\)/;
   var CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+  var PS_RX = /^[a-z0-9]{12}$/;
   // The reminder comes on the next school evening (Mon–Fri, PKT; the bot's nextAt): on a Friday or a Saturday that is
   // Monday, so the ask and the done line say Monday there, and tomorrow on every other day.
   function onMonday() { var d = new Date(Date.now() + 5 * 3600000).getUTCDay(); return d === 5 || d === 6; }
@@ -80,6 +85,13 @@
   function lsSet(k, v) { try { window.localStorage.setItem(k, String(v)); } catch (_) { /* private mode: no snooze */ } }
   function within(k, days) { var t = Number(lsGet(k)) || 0; return t > 0 && Date.now() - t < days * DAY; }
   function snoozed() { return within('wq_rm_asked', 30) || within('wq_rm_later', 7); }
+  // This page load's telemetry session id, or '' (telemetry off: a wq_ps left by an earlier page in the tab is not this one)
+  function pageSession() {
+    if (!window.WQT || window.WQT.on !== true) return '';
+    var v = '';
+    try { v = String(window.sessionStorage.getItem('wq_ps') || ''); } catch (_) { v = ''; }
+    return PS_RX.test(v) ? v : '';
+  }
 
   function post(op, body) {
     try {
@@ -143,7 +155,7 @@
     for (var i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
     return out;
   }
-  /** Keep what the worker needs to re-subscribe on its own ({key, code, lang}). Best effort. */
+  /** Keep what the worker needs to re-subscribe on its own ({key, code, lang, ps?}). Best effort. */
   function keep(ctxVal) {
     return new Promise(function (resolve) {
       try {
@@ -184,6 +196,7 @@
     function ev(step, extra) {
       var b = { step: step, lang: lang, src: src };
       if (iab) b.iab = true;
+      if (pageSession()) b.ps = pageSession();
       if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
       post('e', b);
     }
@@ -249,7 +262,9 @@
       return Promise.resolve(sw.register('/sw.js', { scope: '/' }))
         .then(function () { return sw.ready; })
         .then(function (reg) {
-          return keep({ key: key, code: code, lang: lang }).then(function () {
+          var kept = { key: key, code: code, lang: lang };
+          if (pageSession()) kept.ps = pageSession();
+          return keep(kept).then(function () {
             return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
           });
         })
@@ -258,6 +273,7 @@
           try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) { tz = ''; }
           var body = { sub: sub.toJSON(), code: code, lang: lang, chips: Number(ctx.chips) || 0, tz: tz };
           if (typeof ctx.chip === 'string' && ctx.chip) body.chip = ctx.chip;
+          if (pageSession()) body.ps = pageSession();
           return post('subscribe', body).then(function (r) {
             if (r && r.status === 200) return 'ok';
             try { sub.unsubscribe(); } catch (_) { /* best effort */ }
