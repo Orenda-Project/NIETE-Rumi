@@ -4,7 +4,7 @@
 apply V1.10.7 on a test site.** The Sandbox copy was rolled back on 21 Nov.
 
 The workspace's A/B tracker keeps its numbers in this database, in five small tables of its own (migration V1.10.7).
-One job a night on the bot's worker reads the app's rows on the **read replica only** and writes those tables only.
+One job a night, on its own Railway cron service, reads the app's rows on the **read replica only** and writes those tables only.
 (The test sites, staging and sandbox, have no paid read copy, so there the job reads their own database;
 `bot/shared/config/supabase-replica-only.js` allows that only for those two Railway environment names.)
 
@@ -21,21 +21,38 @@ One job a night on the bot's worker reads the app's rows on the **read replica o
 No foreign key, trigger or write reaches an app table. After a launch inserts assignment rows, run
 `ANALYZE ab_assignment;` (once, with cold statistics, the local reads ran about 70 times slower; see the load budget).
 
-## The job (`bot/shared/services/ab-tracker/ab-tracker-rollup.service.js`, ticked hourly by `bot/workers/ab-tracker-schedule.js`)
+## The job (`bot/shared/services/ab-tracker/ab-tracker-rollup.service.js`)
 
-- **Switch:** `app_settings` `ab_tracker_rollup_enabled` = `{"at":"HH:MM"}` (Pakistan time; window 90 minutes, must end by
-  midnight) or `true` (03:00). No row, a malformed value or a failed read = off. Read on the replica.
-- **Order:** `rpc('db_is_replica')` first, before any other read, else refused; the switch; one worker per tick (Redis
-  claim) and once per Pakistan date (marker `ab_tracker:v1:run:<date>`, 36 h).
+- **Where it runs (operator, 23 Nov 2026):** its own Railway project, like RDF: **Impact - A/B Tracker**
+  (`bba06868-b76a-4ff5-8d96-b41fd522b427`), service `ab-tracker-cron`, built from this repo with config
+  `railway.ab-tracker-cron.json`. Railway starts `bot/scripts/ab-tracker-cron.js` every 15 minutes (`*/15 * * * *`);
+  each start runs one tick, closes Redis and exits. Exit 1 (run shows red) on refused, partial, error, or no Redis.
+- **Cadence (operator, 23 Nov 2026):** a refresh every 15 minutes in school hours, every 2 hours outside them
+  (`ab-tracker-cadence.js`). School hours are the quiz scheduler's rule: Mon–Sat 08:00–16:00 Pakistan time, Friday
+  until 12:00, Sunday off. A slot is `YYYY-MM-DDTHH:MM` (Pakistan), floored to 15 minutes or to the even hour; the
+  rollup runs once per slot. Off-hours cron starts inside an already-run 2-hour slot end at `done_already` (one Redis
+  read, no database read). Load: this is far more replica reads than the one nightly run `TEAM/load_budget.md`
+  measured, including in school hours; the budget should be re-measured on the first school day it runs.
+- **Env the service needs:** `NIETE_SUPABASE_REPLICA_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`
+  (the bot's Redis, so the slot marker is shared). Its Railway environment is `production`, so the replica rule holds.
+- The older hourly tick on the bot's worker (`bot/workers/ab-tracker-schedule.js`) is retired when the cron goes live;
+  until then the shared Redis slot marker keeps the two from running the same slot twice.
+
+- **Switch:** `app_settings` `ab_tracker_rollup_enabled` = `true` (or a well-formed `{"at":"HH:MM"}`, the older value,
+  still read as on; its time is no longer used). No row, a malformed value or a failed read = off. Read on the replica.
+- **Order:** `rpc('db_is_replica')` first, before any other read, else refused; the switch; one caller per tick (Redis
+  claim, 840 s) and once per slot (marker `ab_tracker:v1:run:<slot>`, 36 h).
 - **Reads (replica, sent as GET because the replica refuses POST rpc calls; 30 s each, one at a time, 0.5 s apart):** `ab_tracker_live_tests()`, then per test and database
   measure `ab_tracker_metric_rows(test, measure, from, to)`: daily measures from 4 days back (or the start) to
-  yesterday, weekly ones from that Monday. On a Pakistan Monday and on the test's read day the window runs from the
-  start instead (weekly: its Monday), read in 7-day slices, so rows that landed late are counted; the upsert overwrites,
-  never double-counts. Measures: `plan_fidelity` (day), `teachers_coming_back` (week), `send_failures` (day),
+  **today** (today's numbers are provisional; the next slot overwrites them), weekly ones from that Monday. The
+  refresh watermark stays yesterday (the last complete day). On a Pakistan Monday and on the test's read day the first
+  complete run re-reads from the start instead (weekly: its Monday), in 7-day slices, so rows that landed late are
+  counted; it then sets `ab_tracker:v1:full:<date>` and later slots that date use the short window. The upsert
+  overwrites, never double-counts. Measures: `plan_fidelity` (day), `teachers_coming_back` (week), `send_failures` (day),
   `child_quiz_objectives_secured` (day, child level). Any other measure is skipped and counted.
 - **Writes (primary, 15 s each, one at a time):** `ab_tracker_refresh_open`, `ab_tracker_upsert_rollup` (≤ 1,000 rows a
   call; the function refuses > 2,000), `ab_tracker_refresh_close`. A failed read → `partial`, no marker; the next tick
-  inside the window runs again.
+  runs the slot again (and a full re-read stays owed).
 - **Logs:** `ab_tracker.rollup.<ran|partial>` with counts and timings, a correlation id, never a unit id.
 
 ## Switching off

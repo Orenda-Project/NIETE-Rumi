@@ -3,7 +3,7 @@
  * Ticks the A/B tracker's nightly rollup (shared/services/ab-tracker/ab-tracker-rollup.service.js) on the worker.
  * Main-queue replicas only; a boot tick FIRST_MS after boot, then hourly from that tick (the pattern of
  * teacher-activity-schedule.js). Every tick asks the run whether tonight's run is due: off unless a read replica is
- * configured and app_settings ab_tracker_rollup_enabled names a time; one worker runs it once per Pakistan date.
+ * configured and app_settings ab_tracker_rollup_enabled is on; it shares the Railway cron's slot marker, so a slot runs once.
  */
 const { logToFile } = require('../shared/utils/logger');
 
