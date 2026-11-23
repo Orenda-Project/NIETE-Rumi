@@ -2190,3 +2190,45 @@ Feature: Web child quiz page on the portal
     Then the "From your teacher" card is the teacher's own quiz, and the round's code is nowhere on it
     And a class's round has its own doors: tonight's under "Tonight's quiz", and the previous school day's as the row under it (WQ275)
     And the teacher's own quizzes are offered on that card as before
+
+  @WQ279
+  Scenario: A child who finished tonight's quiz is never handed it again
+    Given web_quiz_evening_round is "on" and Ali Test finished tonight's class quiz on this phone
+    When Ali Test opens the quiz's own link again with no result kept in the browser, or taps an old "Play again" link to it
+    Then the start says "Done for tonight!" and opens no sitting (WQ273)
+    And an old class link's jump to the child's hub (web_quiz_link_home) never fires for a class's evening round
+    And no hub door, Next stop, games row or finish card offers the finished round as "Play again", from a class link or from a hub link
+    But a browser that kept the result shows the child's finish card, with no new sitting and no "Play again" for the round
+    And a teacher's own finished quiz is offered as "Play again" as before
+
+  @WQ280
+  Scenario: The "Quiz ready" and "Done for tonight!" badges wrap inside their chip
+    Given web_quiz_evening_round is "on" and a phone holding two children with long names
+    When "Whose turn?" is drawn at 360 px wide, in English and in Urdu
+    Then every badge stays inside its chip, on a second line when it does not fit beside the name
+    And the badge's words are unchanged
+
+  @WQ281
+  Scenario: The class link's reminder ask comes after a child is picked, never before
+    Given web_quiz_push_remind is "on" and a fresh phone opens the class link
+    When the child taps their teacher, a first letter, and sees "Is your name here?"
+    Then no reminder ask is drawn on any of those steps
+    When the child picks their name
+    Then the answer to that pick carries the ask, and a phone that already holds a child is asked under "Whose turn?"
+    But with web_quiz_push_remind off no step carries the ask
+
+  @WQ282
+  Scenario: A class quiz's title drops the lesson plan's bracket of answer formats
+    Given tonight's quiz is written from a lesson whose heading ends "(MCQ، مختصر و تفصیلی)"
+    When the child sees the "Tonight's quiz" tile, the hub card or the quiz page's header
+    Then the title reads without that bracket
+    But a bracket that names content, such as "(pronouns)", stays, and the teacher's own lesson plan keeps its heading
+
+  @WQ283
+  Scenario: Without a class-link canary row no class gets an evening round
+    Given web_quiz_evening_round is "on" and app_settings has no web_quiz_class_link_canary row
+    When the evening round's writer runs for a school day
+    Then no class gets a round, so no child sees a tile, a badge or a past row, and no teacher sees the app's class-link card
+    But a link already forwarded still opens, and the report's Class tab still works
+    When the row says {"all": true}
+    Then every class with a lesson plan taken that day gets its round
