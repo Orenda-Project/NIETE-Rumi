@@ -2571,16 +2571,18 @@ const UX_STRINGS = {
   },
   // Read by CHILDREN, in the quiz language. Names the teacher, the topic and
   // the date of the lesson, and carries the link. Never a phone number.
+  // Urdu: a child surface says «کوئز» and «دبائیں», no Latin word; the link is
+  // the one Latin atom.
   tqStudentMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
-    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '\u200F📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۵ منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   // The same message when the link opens the WEB quiz page, which asks only the
   // child's name (the WhatsApp quiz asks name and class). Chosen where the link
   // is chosen (transcript-quiz-handoff). Urdu: پوچھا جائے گا is passive, no gendered stem.
   tqStudentMessageWeb: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name first.',
-    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
+    ur: '\u200F📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۵ منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
   },
   // WHEN the class report comes, as video-quiz-report schedules it: 12 hours
   // after the first child joins, moved to 07:00 PKT when that lands at night.
@@ -3332,9 +3334,10 @@ const UX_STRINGS = {
     en: 'Here is your class message — forward THIS one to your class group:',
     ur: 'یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:',
   },
+  // Urdu: a child surface says «کوئز» and «دبائیں» with Urdu digits, no Latin word; the link is the one Latin atom.
   vqClassMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
-    ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '‏📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۱۰ منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   // A storybook the teacher sends to the class (story-teacher.service.js, web_quiz_stories_teacher): the link
   // opens the book on its first page, so the message names the story and the one tap, nothing else.
@@ -4505,6 +4508,29 @@ const UX_STRINGS = {
     ur: 'آپ کی سبق کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
       + 'براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں: 📎 دبائیں، پھر ⁦*Document*⁩، ریکارڈنگ چنیں اور ⁦*Send*⁩ دبائیں۔',
   },
+
+  // ── qfix forward: one tap to the class group (first-touch/quiz-forward.js, app_settings quiz_forward_button) ──
+  // A line on messages the teacher already gets (the hand-out caption, the library share line, the six-hour message),
+  // never on the class's own message. {link} opens WhatsApp's chat picker with the class message typed in. Urdu:
+  // بھیجیں is the polite imperative (no gendered stem); Urdu script throughout, as the cta_url button says کلاس گروپ.
+  qfix_forward_line: {
+    en: '📲 Send it to your class group in one tap:\n{link}',
+    ur: '\u200F📲 ایک ٹیپ میں کلاس گروپ کو بھیجیں:\n{link}',
+  },
+  // the six-hour message about several quiet quizzes: one line per quiz, under one head
+  qfix_forward_many: {
+    en: '📲 Send each to your class group in one tap:',
+    ur: '\u200F📲 ہر ایک کو ایک ٹیپ میں کلاس گروپ کو بھیجیں:',
+  },
+  qfix_forward_item: {
+    en: '{topic}: {link}',
+    ur: '\u200F{topic}: {link}',
+  },
+  // The teacher home's send sheet: its second way out, the browser's own share sheet (quiz_forward_button).
+  qfix_forward_more: {
+    en: 'More ways to share',
+    ur: 'شیئر کرنے کے اور طریقے',
+  },
 };
 
 /**
@@ -4851,18 +4877,18 @@ const STUDENT_TUTOR_STRINGS = {
   },
   studentTeacherOnly: {
     en: 'That one isn’t for students. You can send /video for videos, /quiz for your quizzes, or just ask me a school question.',
-    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے quiz کے لیے ⁦/quiz⁩ بھیجیں، یا سکول کا کوئی سوال پوچھیں۔',
+    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے کوئز کے لیے ⁦/quiz⁩ بھیجیں، یا اسکول کا کوئی سوال پوچھیں۔',
   },
   studentQuizHint: {
     en: 'Your quizzes come from the link your class shares. Ask a school question here, or send /video for videos.',
-    ur: 'آپ کے quiz کلاس کے link سے آتے ہیں۔ یہاں سکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+    ur: 'آپ کے کوئز کلاس کے لنک سے آتے ہیں۔ یہاں اسکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
   },
   studentMenuBody: {
     en: 'What would you like to do?',
     ur: 'کیا کرنا ہے؟',
   },
   studentMenuVideos: { en: '🎬 Videos', ur: '🎬 ویڈیوز' },
-  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 Quiz' },
+  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 کوئز' },
   studentVideosUnavailable: {
     en: 'Videos aren’t available right now — try /video again in a bit.',
     ur: 'ابھی ویڈیوز دستیاب نہیں — تھوڑی دیر بعد ⁦/video⁩ دوبارہ بھیجیں۔',
@@ -4873,7 +4899,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqFlowHeader: { en: '📝 Your quizzes', ur: '📝 آپ کے quiz' },
   sqFlowBody: {
     en: 'Pick a quiz to try it again or see your class card.',
-    ur: 'کوئی quiz چنیں — دوبارہ کریں یا اپنا class card دیکھیں۔',
+    ur: 'کوئی کوئز چنیں — دوبارہ کریں یا اپنا کلاس کارڈ دیکھیں۔',
   },
   sqFlowButton: { en: 'Open', ur: 'کھولیں' },
   sqScreenQuizzes: { en: 'Your quizzes', ur: 'آپ کے quiz' },
@@ -4885,7 +4911,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqActionsLabel: { en: 'What would you like to do?', ur: 'کیا کرنا ہے؟' },
   sqActionRetry: { en: 'Try again', ur: 'دوبارہ کریں' },
   sqActionRetryDesc: { en: 'Take this quiz once more', ur: 'یہ quiz ایک بار پھر کریں' },
-  sqActionCard: { en: 'See my class card', ur: 'میرا class card' },
+  sqActionCard: { en: 'See my class card', ur: 'میرا کلاس کارڈ' },
   sqActionCardDesc: { en: 'Where you stand in the class', ur: 'کلاس میں آپ کہاں ہیں' },
   sqCta: { en: 'Continue', ur: 'آگے بڑھیں' },
   sqClose: { en: 'Close', ur: 'بند کریں' },
@@ -4905,7 +4931,7 @@ const STUDENT_TUTOR_STRINGS = {
   },
   sqFallbackBody: {
     en: 'Your last quiz: *{topic}* — {score}.\nTry it again, or see your class card?',
-    ur: '\u200Fآپ کا آخری quiz: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا class card دیکھیں؟',
+    ur: '\u200Fآپ کا آخری کوئز: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا کلاس کارڈ دیکھیں؟',
   },
   sqCodeExpired: {
     en: 'That quiz link has closed — ask your class for a new one.',
@@ -4915,7 +4941,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqRetryStarting: { en: 'Here it comes again — good luck!', ur: 'لیجیے، دوبارہ شروع — best of luck!' },
   sqNoCardYet: {
     en: 'No class card for that quiz yet — finish it first, and the card comes with the class results.',
-    ur: 'اس quiz کا class card ابھی نہیں — پہلے اسے مکمل کریں، card کلاس کے نتائج کے ساتھ آئے گا۔',
+    ur: 'اس کوئز کا کلاس کارڈ ابھی نہیں — پہلے اسے مکمل کریں، کارڈ کلاس کے نتائج کے ساتھ آئے گا۔',
   },
   // ─── the kid hub (web-quiz-hub.js; app_settings web_quiz_hub): ONE cta_url message ──
   // Read by CHILDREN. Imperatives only; the button ≤ 20 code points.
@@ -4992,7 +5018,7 @@ const STUDENT_TUTOR_STRINGS = {
   // ── end class round invitation ──
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
-    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+    ur: 'آئیں اسکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
   },
 };
 
@@ -5211,7 +5237,21 @@ function languageLabelFor(code) {
   return row ? row.languageDescription : 'English';
 }
 
+// A language's own digits (language is data): one row per script that does not write 0-9.
+const DIGITS = Object.freeze({ ur: '۰۱۲۳۴۵۶۷۸۹' });
+
+/**
+ * A number for Urdu prose (language-protocol §9.4): ۰–۹ in an Urdu string, the value as it is otherwise. For a param,
+ * never a template: `digitsFor(n, lang)`. null/undefined → ''.
+ */
+function digitsFor(value, language) {
+  if (value === null || value === undefined) return '';
+  const set = DIGITS[clampLanguage(language)];
+  return set ? String(value).replace(/[0-9]/g, (d) => set[Number(d)]) : String(value);
+}
+
 module.exports = {
+  digitsFor,
   UX_STRINGS,
   LP612_ETA,
   resolveUx,
