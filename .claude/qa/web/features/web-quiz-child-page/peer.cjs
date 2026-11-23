@@ -113,9 +113,15 @@ on('WQ084', 'off', async (page, ctx) => {
   const w2 = watchPulse(page); await sleep(20000);
   expect(w2.polls.length === 0, w2.polls.length + ' pulse requests on the teacher\'s preview');
   // sounds off
+  // sounds off BEFORE the question: the page decides at a question's start whether to ask (wq.js pulseQuestion →
+  // pulseOn reads SOUND) and the 🔕 tap does not stop a timer already set, so a mid-question tap is not "a page with
+  // sounds turned off". The landing's bar carries the same toggle, kept in the phone's storage (wq_sound).
   await page.evaluate(() => localStorage.clear());
+  await openQuiz(page, ctx, CODES.OPEN);
+  await page.click('#wq-snd');
+  expect((await page.getAttribute('#wq-snd', 'aria-pressed')) === 'false', 'the sound toggle did not turn off');
   await startAsNew(page, ctx, CODES.OPEN, 'Quiet4');
-  await page.click('#wq-snd'); await sleep(1500);                 // a poll already on its timer may land first
+  expect((await page.getAttribute('#wq-snd', 'aria-pressed')) === 'false', 'sounds came back on for the question');
   const w3 = watchPulse(page); await sleep(20000);
   expect(w3.polls.length === 0, w3.polls.length + ' pulse requests with sounds off: ' + JSON.stringify(w3.polls.slice(0, 2)));
   return { grade1: 0, preview: 0, quiet: 0, note: 'every demo quiz carries a grade; "no grade shows as grade 3" is not driven' };
@@ -135,21 +141,25 @@ on('WQ085', 'off', async (page, ctx) => {
 
 on('WQ086', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  // one classmate with a right answer: nothing on the landing
+  // The server owns a floor of 5 for every class count on a child's page (b2c95e121: live.now is omitted under 5, and the
+  // page draws the line only from 5 up). Other scenarios of this shard may have G3 children answering right in the
+  // last 2 minutes, so the count the page was given (boot live.now) decides which side of the floor each open is on.
+  const live = async () => { await openQuiz(page, ctx, CODES.G3); const b = await L.boot(page); return Number((b && b.live && b.live.now) || 0); };
+  const lineOf = () => page.$$eval('.wq-proof', (els) => els.map((e) => e.innerText.trim()).find((t) => /playing right now/.test(t)) || '');
   await other(page, ctx, CODES.G3, 'Live1', { rightAt: [0] });
-  await openQuiz(page, ctx, CODES.G3);
-  expect(!/playing right now/.test(await text(page)), 'the landing shows the line with one classmate');
-  await other(page, ctx, CODES.G3, 'Live2', { rightAt: [0] });
-  await other(page, ctx, CODES.G3, 'Live3', { rightAt: [1] });
-  await openQuiz(page, ctx, CODES.G3);
-  const line = await page.$$eval('.wq-proof', (els) => els.map((e) => e.innerText.trim()).find((t) => /playing right now/.test(t)) || '');
-  expect(line === '🟢 3 classmates are playing right now — join them!', 'the landing says "' + line + '"');
-  expect(!/Live1|Live2|Live3/.test(line), 'a name is on the line');
+  let n = await live();
+  if (n < 5) expect(!(await lineOf()), 'the landing shows the line with ' + n + ' classmates (under the floor of 5)');
+  const under = n;
+  for (let k = 2; n < 5 && k <= 6; k++) { await other(page, ctx, CODES.G3, 'Live' + k, { rightAt: [k % 2] }); n = await live(); }
+  expect(n >= 5, 'five children answering right did not reach the floor: live.now = ' + n);
+  const line = await lineOf();
+  expect(line === '🟢 ' + n + ' classmates are playing right now — join them!', 'the landing says "' + line + '" (live.now ' + n + ')');
+  expect(!/Live\d/.test(line), 'a name is on the line');
   // a friend's challenge link never shows it
-  const ch = await other(page, ctx, CODES.G3, 'Live4', { rightAt: [0, 1, 2, 3, 4], finish: true });
+  const ch = await other(page, ctx, CODES.G3, 'Live9', { rightAt: [0, 1, 2, 3, 4], finish: true });
   await openQuiz(page, ctx, ch.result.challenge_code);
   expect(!/playing right now/.test(await text(page)), 'the friend\'s landing shows classmates playing');
-  return { line };
+  return { underFloor: under, line };
 });
 
 on('WQ087', 'off', async (page, ctx) => {

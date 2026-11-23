@@ -355,20 +355,28 @@ on('WQ072', 'off', async (page, ctx) => {
 
 on('WQ192', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  const { quizId, qids } = await fakeClips(ctx, 'IT34CD', (id, i) => (i === 4 ? { q: 'quiz-audio/t/' + id + '/q.ogg', opts: ['quiz-audio/t/' + id + '/a.ogg', 'quiz-audio/t/' + id + '/b.ogg', 'quiz-audio/t/' + id + '/c.ogg', null], why: null, stim: 'quiz-audio/t/' + id + '/s.ogg' } : { q: null, opts: [null, null, null, null], why: null }));
+  // The sound to find is the ROW's media.stimulus_audio, served only when the stem asks about a sound
+  // (web-quiz-sound.js recordedClips + stemAsksForSound); a `stim` in the quiz's meta.web.audio is never read, and
+  // "Listen. Which one is it?" (IT34CD) does not ask about a sound. IT12AB's "Which animal do you hear?" carries a
+  // seeded stimulus_audio, so it is the listen item: its four options get recorded clips here.
+  const quizId0 = await L.one(ctx, 'select quiz_id from quiz_share_codes where code = ' + q('IT12AB'));
+  const target = await L.one(ctx, "select id from quiz_questions where quiz_id = " + q(quizId0) + " and question_text = 'Which animal do you hear?'");
+  expect(target, 'IT12AB has no "Which animal do you hear?"');
+  const { quizId } = await fakeClips(ctx, 'IT12AB', (id) => (id === target ? { q: 'quiz-audio/t/' + id + '/q.ogg', opts: ['a', 'b', 'c', 'd'].map((x) => 'quiz-audio/t/' + id + '/' + x + '.ogg'), why: null } : { q: null, opts: [null, null, null, null], why: null }));
   try {
-    const b = await L.reachPlan(page, ctx, 'IT34CD', 'Tiles92');
-    const listen = b.quiz.questions.find((x) => x.qid === qids[4]);
-    expect(listen && listen.audio && listen.audio.opts.filter(Boolean).length === 3, 'the listen item carries no option clips');
+    const b = await L.reachPlan(page, ctx, 'IT12AB', 'Tiles92');
+    const listen = b.quiz.questions.find((x) => x.qid === target);
+    expect(listen && listen.audio && listen.audio.stim && listen.audio.opts.filter(Boolean).length === listen.options.length, 'the listen item carries no sound to find or no option clips: ' + JSON.stringify(listen && listen.audio));
     const b_at = await L.reachGo(page, ctx, b, listen); void b_at;
     const tiles = await page.$$eval('.wq-stile', (els) => els.map((e) => ({ hear: Boolean(e.querySelector('.wq-shear')), answer: e.querySelector('.wq-sthis') && e.querySelector('.wq-sthis').innerText.trim(), h: e.getBoundingClientRect().height })));
-    expect(tiles.length === 3 && tiles.every((t) => t.hear && t.answer === 'This one'), 'tiles: ' + JSON.stringify(tiles));
+    expect(tiles.length === listen.options.length && tiles.every((t) => t.hear && t.answer === 'This one'), 'tiles: ' + JSON.stringify(tiles));
     await page.click('.wq-stile .wq-shear'); await sleep(800);
     expect(!(await page.$('#wq-next')), 'tapping a tile\'s sound answered the question');
     await page.click('.wq-stile .wq-sthis'); await page.waitForSelector('#wq-next', { state: 'visible', timeout: WAIT });
     // an item with an option that has no sound keeps its ordinary buttons (every other question here)
     await page.click('#wq-next'); await page.waitForSelector(M('M6') + ' .wq-item, #wq-fix, ' + M('M9'), { state: 'attached', timeout: WAIT });
-    if (await page.$(M('M6') + ' .wq-item')) expect(await page.$('.wq-opts .wq-opt'), 'an item without sounds lost its ordinary buttons');
+    // the next item ("Which one do we sit on?") answers by picture tiles, still .wq-opt buttons; it must not be sound tiles
+    if (await page.$(M('M6') + ' .wq-item')) expect((await page.$('.wq-opt')) && !(await page.$('.wq-stile')), 'an item without sounds lost its ordinary buttons');
     return { tiles: tiles.length };
   } finally { await clearClips(ctx, quizId); }
 });
@@ -411,25 +419,39 @@ on('WQ204', 'off', async (page, ctx) => {
 
 on('WQ205', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  const batches = [];
-  page.on('request', (r) => { if (/\/api\/wq\/e$/.test(r.url()) && r.method() === 'POST') { try { batches.push(JSON.parse(r.postData() || '{}')); } catch (_) { /* */ } } });
-  const b = await startAsNew(page, ctx, CODES.OPEN, 'Tele205');
-  await play(page, b.quiz.questions, 2, -1);
-  await sleep(32000);                                       // one heartbeat while visible and idle
-  await page.evaluate(() => { window.dispatchEvent(new Event('pagehide')); });
-  await sleep(1500);
-  const events = batches.flatMap((x) => x.events || []);
-  const ps = new Set(events.map((e) => e.ps || (batches.find((x) => (x.events || []).includes(e)) || {}).ps).filter(Boolean));
-  const psAll = new Set(batches.map((x) => x.ps).filter(Boolean));
-  expect(psAll.size === 1 || ps.size === 1, 'the page load does not carry one page-session id: ' + JSON.stringify([...psAll]));
-  const seqs = events.map((e) => e.seq).filter((n) => typeof n === 'number').sort((a, c) => a - c);
-  expect(seqs.length && seqs.every((n, i) => i === 0 || n === seqs[i - 1] + 1), 'sequence numbers have gaps: ' + seqs.slice(0, 12).join(','));
-  const names = new Set(events.map((e) => e.n));
-  for (const want of ['screen_enter', 'screen_leave', 'hb']) expect(names.has(want), 'no ' + want + ' event (seen: ' + [...names].join(', ') + ')');
-  const raw = JSON.stringify(batches);
-  expect(!/Tele205/.test(raw), 'the child\'s name is in the telemetry');
-  expect(!/"st":/.test(raw) && !/"device_ref":/.test(raw), 'the session token or device ref is in the telemetry');
-  return { events: events.length, names: [...names] };
+  // Given web_quiz_rich_telemetry is on (seeded off): the page loads wq-tel.js only when its boot says rt === true
+  await L.setFlag(ctx, page, 'web_quiz_rich_telemetry', 'true', (b) => b && b.rt === true);
+  try {
+    const batches = [];
+    page.on('request', (r) => { if (/\/api\/wq\/e$/.test(r.url()) && r.method() === 'POST') { try { batches.push(JSON.parse(r.postData() || '{}')); } catch (_) { /* */ } } });
+    const b = await startAsNew(page, ctx, CODES.OPEN, 'Tele205');
+    await play(page, b.quiz.questions, 2, -1);
+    // one heartbeat while visible and idle: wq-tel.js ticks every 30 s and beats only when nothing was queued in the
+    // last 30 s, so the first beat lands 30-60 s after the last answer, and leaves on the next 15 s flush
+    const hbBy = Date.now() + 90000;
+    while (Date.now() < hbBy && !batches.some((x) => (x.events || []).some((e) => e.n === 'hb'))) await sleep(2000);
+    await page.evaluate(() => { window.dispatchEvent(new Event('pagehide')); });
+    await sleep(1500);
+    // wq-tel.js stamps every event with the page-session id `ps` and a sequence number `pseq` (not `seq`)
+    const events = batches.flatMap((x) => x.events || []).filter((e) => typeof e.pseq === 'number');
+    const psAll = new Set(events.map((e) => e.ps));
+    expect(events.length && psAll.size === 1, 'the page load does not carry one page-session id: ' + JSON.stringify([...psAll]));
+    const ps = [...psAll][0];
+    const seqs = events.map((e) => e.pseq).sort((a, c) => a - c);
+    expect(seqs[0] === 1 && seqs.every((n, i) => i === 0 || n === seqs[i - 1] + 1), 'sequence numbers have gaps: ' + seqs.slice(0, 12).join(','));
+    const names = new Set(events.map((e) => e.n));
+    for (const want of ['screen_enter', 'screen_leave', 'hb']) expect(names.has(want), 'no ' + want + ' event (seen: ' + [...names].join(', ') + ')');
+    expect(!/Tele205/.test(JSON.stringify(batches)), 'the child\'s name is in the telemetry');
+    // The session token and device ref ride the BATCH by design (wq-tel.js ids(): the server turns them into its own
+    // ids), so "never the token, the ref or a name" is a property of the server's LOG: read the bot's lines for this ps.
+    const st = ((await L.stored(page, 'wq_s_' + CODES.OPEN)) || {}).st, dr = await L.stored(page, 'wq_d');
+    await sleep(1500);
+    const logged = L.botLog(ctx).split('\n').filter((l) => l.includes(ps));
+    expect(logged.length, 'the bot logged nothing for page session ' + ps);
+    const leak = logged.find((l) => (st && l.includes(st)) || (typeof dr === 'string' && l.includes(dr)) || /Tele205/.test(l));
+    expect(!leak, 'the log carries the session token, the device ref or the name: ' + String(leak).slice(0, 200));
+    return { events: events.length, names: [...names] };
+  } finally { await L.setFlag(ctx, page, 'web_quiz_rich_telemetry', null, (b) => b && b.rt !== true).catch(() => {}); }
 });
 
 on('WQ190', 'off', async (page, ctx) => {
@@ -448,10 +470,20 @@ on('WQ190', 'off', async (page, ctx) => {
     expect(opened.length, label + ': no page_open event');
     out[label] = opened[0];
   }
-  const app = (e) => e.app || e.src || e.how || e.ua || '';
-  expect(/whatsapp/i.test(JSON.stringify(out.whatsapp)) && (out.whatsapp.iab === true || out.whatsapp.iab === 1), 'the WhatsApp browser is not named/flagged: ' + JSON.stringify(out.whatsapp));
-  expect(!(out.browser.iab === true || out.browser.iab === 1) && /browser/i.test(JSON.stringify(out.browser)), 'an ordinary browser is flagged as in-app: ' + JSON.stringify(out.browser));
-  void app;
+  // The page's own flag is not the measure: it sends iab 0 for WA4A by design, and the BOT names the app from the UA
+  // when it logs a page_open (web-quiz.service.js: ua_app = uaApp(ua), iab = 1 only for whatsapp). So the scenario
+  // reads the bot's log line for each open, matched by the event's own page timestamp `t`.
+  await sleep(1500);
+  const log = L.botLog(ctx).split('\n').filter((l) => /"event":"web_quiz\.page_open"/.test(l));
+  const logged = {};
+  for (const [label, e] of Object.entries(out)) {
+    const line = log.find((l) => l.includes('"t":' + e.t + ',') || l.includes('"t":' + e.t + '}'));
+    expect(line, label + ': no web_quiz.page_open in the bot log for t=' + e.t);
+    logged[label] = { ua_app: ((/"ua_app":"([a-z]+)"/.exec(line) || [])[1]) || null, iab: Number((/"iab":(\d)/.exec(line) || [])[1]) };
+  }
+  expect(logged.whatsapp.ua_app === 'whatsapp' && logged.whatsapp.iab === 1, 'the WhatsApp browser is not named/flagged in the log: ' + JSON.stringify(logged.whatsapp));
+  expect(logged.browser.ua_app === 'browser' && logged.browser.iab === 0, 'an ordinary browser is not logged as one: ' + JSON.stringify(logged.browser));
+  out.logged = logged;
   return out;
 });
 

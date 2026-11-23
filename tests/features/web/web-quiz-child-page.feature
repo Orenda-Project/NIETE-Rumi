@@ -337,18 +337,18 @@ Feature: Web child quiz page on the portal
     But when the hand-out has one class, the page goes straight to "What is your name?"
 
   @WQ044 @T366
-  Scenario: Remembered children are big cards on this phone, with "Someone else"
+  Scenario: Remembered children are big cards on this phone, with "My name isn't here"
     Given identity v2 is on and this phone remembers "Hina Testwala" and "Omar Testwala"
     When the quiz link is opened
-    Then the landing shows Hina and Omar as cards with their animals and a "Someone else" («کوئی اور») button
+    Then the landing shows Hina and Omar as cards with their animals and a "My name isn't here" («میرا نام یہاں نہیں») button
     When the child taps "Omar"
     Then the quiz starts as Omar with no typing
 
   @WQ045 @T367
-  Scenario: A phone passed around a class puts "Someone else" first and lets a wrong card be undone
+  Scenario: A phone passed around a class puts "My name isn't here" first and lets a wrong card be undone
     Given identity v2 is on and this phone remembers 4 children
     When the quiz link is opened
-    Then "Someone else" comes before the children's cards, and the cards are smaller
+    Then "My name isn't here" comes before the children's cards, and the cards are smaller
     When a child taps "Hina" and the first question opens
     Then a "Not Hina?" button floats over the question for a few seconds
     When the child taps it
@@ -654,10 +654,10 @@ Feature: Web child quiz page on the portal
 
   @WQ086 @T440
   Scenario: The landing says when classmates are playing right now
-    Given at least two children of this class got a question right in the last 2 minutes
+    Given at least five children of this class got a question right in the last 2 minutes
     When a child opens the class link
-    Then the landing says "3 classmates are playing right now — join them!" («ابھی 3 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!»), a number and never a name
-    And with one or none it says nothing, and a friend's challenge link never shows it
+    Then the landing says "5 classmates are playing right now — join them!" («ابھی ۵ ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!»), a number and never a name
+    And with four or fewer it says nothing (no class count under 5 reaches a child's page), and a friend's challenge link never shows it
 
   @WQ087 @T441
   Scenario: The card says how many children of the class finished today, never the child's place
@@ -1020,7 +1020,7 @@ Feature: Web child quiz page on the portal
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
     Then the card offers "Someone else's turn" («کسی اور کی باری»)
     When the next child taps it
-    Then the page shows "Who is playing?" with the remembered cards and "Someone else"
+    Then the page asks "Whose turn is it?" with the remembered cards and "My name isn't here"
     And Tooba's finished result is unchanged on the server
     But while answers are still waiting to be sent the card does not offer it
   @WQ136 @T442
@@ -1109,7 +1109,7 @@ Feature: Web child quiz page on the portal
   Scenario: The invited friend's page shows the picture their link previewed as
     Given a friend opens a challenge link whose preview read "Can you beat Amal's 7/8?"
     When the page opens
-    Then the same picture sits above the challenge line, its alt text the same words
+    Then the same picture sits above the challenge line, its alt text the challenge line's own words ("Amal got 7/8 stars. Can you beat it?"), not the link title
     And if the picture cannot load it is removed, never shown broken
 
 
@@ -1186,7 +1186,7 @@ Feature: Web child quiz page on the portal
   Scenario: A forwarded hub link shows no child's name on another phone
     Given a family's phone opened its /quiz hub link first and saw its children
     When the same link is opened on a second phone that has never played as one of them
-    Then the page says "This link was sent to another player" and "Ask the child this link was sent to to open it." («جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔»)
+    Then the page says "This link was sent to another player" and "Ask the child who got this link to open it." («جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔»)
     And no child's name, animal, teacher quiz, past quiz or recommendation is shown, and nothing can be played as them
     And "Someone else / new player" («کوئی اور / نیا کھلاڑی») says to ask the teacher for a quiz link or send /quiz on WhatsApp from the family's phone
     And the family's own phone, and any phone a child of that family has already played on, still sees the hub unchanged
@@ -1298,7 +1298,7 @@ Feature: Web child quiz page on the portal
     Given a child's hub link is bound to the child's phone
     When the hub's library link (/lib/<token>) is opened on another phone
     Then no subjects, lessons or name are shown
-    And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
+    And it reads "This link was sent to another player" and "Ask the child who got this link to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
     And it adds "Is this your link? Send /quiz on WhatsApp again for a new one." so a family locked out on its own phone can get a new link
     And there is no "Try again", only "Back" to the hub
   @WQ172 @T545
@@ -1616,7 +1616,7 @@ Feature: Web child quiz page on the portal
     Given the app setting web_quiz_ur_polish is "on"
     When an Urdu quiz, hub, library or challenge page is opened
     Then the page root is <html lang="ur" dir="rtl" class="wq-ur2"> and it preloads the second Urdu face (Noto Nastaliq Urdu Regular, self-hosted, ~105 KB, OFL)
-    And every Urdu run draws in that one face at one weight — no synthetic bold, no size-adjust, no extra word spacing
+    And every Urdu run draws in that one face at one weight — no synthetic bold, no size-adjust, and one small even word space (0.12 em) so a Latin word never sits glued to the Urdu word before it
     And a line that wraps keeps a 2.2 line height, a one-line control a 2.0 line height with room above and below the Nastaliq stacks, so no letter is cut by its box
     And the mascot's bubble and the feedback box take the full width under the mascot when they have more than a line
     And a long option keeps its label on its own row at 320 px, and an English word inside Urdu never breaks mid-word
@@ -1630,11 +1630,11 @@ Feature: Web child quiz page on the portal
     Then <html> loses the class with the language, and gets it back when an Urdu child is picked
 
   @WQ215 @T762
-  Scenario: Under the polished Urdu look the copy is a child's — shorter, Western digits, the name first
+  Scenario: Under the polished Urdu look the copy is a child's — shorter, Urdu digits, the name first
     Given web_quiz_ur_polish is "on" and an Urdu page carries the class
     When the landing, a question, the feedback, the results card, the hub or the library renders
-    Then the landing says "السلام علیکم! کوئز کھیلیں؟", "5 سوال، 3 منٹ" with each number on its own left-to-right run, and the teacher line and the class on two lines
-    And the question counter reads "5 میں سے سوال 1", never "از"
+    Then the landing says "السلام علیکم! کوئز کھیلیں؟", "۵ سوال، ۳ منٹ" in Urdu digits with each number on its own left-to-right run, and the teacher line and the class on two lines
+    And the question counter reads "۵ میں سے سوال ۱" in Urdu digits, never "از"
     And an option whose label is over 40 code points takes its own row a step smaller
     And the feedback's "comes back at the end" line is seven words, "ٹیپ کریں" is "دبائیں" everywhere, "مکمل" is the one word for done, and no adult word ("تقریباً", "جشن", "ہم جماعت") remains
     And the hub greets "<name>، السلام علیکم! آج کیا کھیلیں؟" with the name first and isolated

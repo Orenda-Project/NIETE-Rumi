@@ -26,9 +26,23 @@ async function counts(ctx) {
 async function playing(ctx, page, value) {
   await L.setFlag(ctx, page, 'web_quiz_practice_play', value, null);
 }
+// The preview hub exists only under the child home (web_quiz_home_v3): practiceHub (web-quiz-hub-home.js) returns null
+// with the home off, and the hub then reads the grade-only token as a child's and refuses it (401 bad_token). The
+// lane seeds the home off, so WQ258/WQ259 turn it on with the play switch they test, in ONE cache wait, and put both
+// back (absent) after, waiting the cache out again so the next scenario meets the lane's default.
+async function previewOn(ctx, play) {
+  await L.base.setSetting(ctx, 'web_quiz_home_v3', 'true');
+  if (play) await L.base.setSetting(ctx, 'web_quiz_practice_play', 'true');
+  else await ctx.sql("delete from app_settings where key = 'web_quiz_practice_play'");
+  await sleep(31000);
+}
+async function previewOff(ctx) {
+  await ctx.sql("delete from app_settings where key in ('web_quiz_home_v3', 'web_quiz_practice_play')");
+  await sleep(31000);
+}
 
 on('WQ258', 'off', async (page, ctx) => {
-  await playing(ctx, page, 'true');
+  await previewOn(ctx, true);
   try {
     const t = preview(ctx, 3);
     const before = await counts(ctx);
@@ -76,27 +90,29 @@ on('WQ258', 'off', async (page, ctx) => {
     const after = await counts(ctx);
     expect(JSON.stringify(after) === JSON.stringify(before), 'a child table changed: ' + JSON.stringify(before) + ' → ' + JSON.stringify(after));
     return { stories: stories || (book ? 'book ' + JSON.stringify(book) : 'no book of grade 3 on this lane'), numbers, scored, video, tables: after };
-  } finally { await playing(ctx, page, null); }
+  } finally { await previewOff(ctx); }
 });
 
 on('WQ259', 'off', async (page, ctx) => {
-  await playing(ctx, page, null);
-  const t = preview(ctx, 3);
-  const hub = await api(ctx, 'GET', '/hub/' + encodeURIComponent(t));
-  expect(hub.status === 200 && hub.json.practice === 1 && hub.json.practice_play === undefined, 'the look-only hub → ' + JSON.stringify(hub.json).slice(0, 160));
-  const asks = [
-    ['GET', '/stories/shelf/h/' + encodeURIComponent(t) + '?l=en'], ['GET', '/doors/h/' + encodeURIComponent(t) + '?d=games&l=en'],
-    ['GET', '/lib/h/' + encodeURIComponent(t) + '?l=en'], ['GET', '/ch/' + encodeURIComponent(t) + '?lang=en'],
-  ];
-  const got = [];
-  for (const [m, p] of asks) got.push((await api(ctx, m, p)).status);
-  got.push((await api(ctx, 'POST', '/videos/start', { hub: t, kid: '', vid: '00000000-0000-4000-8000-000000000000' })).status);
-  // the shelf answers 404 when stories are off on the lane; any other refusal is the 401 the preview meets today
-  expect(got.every((s) => s === 401 || s === 404), 'a refusal expected for every content route: ' + got.join(','));
-  await sleep(500);
-  const refused = L.botLog(ctx).split('\n').filter((l) => /web_quiz\.content_refused/.test(l) && /"practice":1/.test(l)).length;
-  expect(refused > 0, 'no content_refused with practice 1 in the bot log');
-  return { statuses: got, refusedLogged: refused };
+  await previewOn(ctx, false);
+  try {
+    const t = preview(ctx, 3);
+    const hub = await api(ctx, 'GET', '/hub/' + encodeURIComponent(t));
+    expect(hub.status === 200 && hub.json.practice === 1 && hub.json.practice_play === undefined, 'the look-only hub → ' + JSON.stringify(hub.json).slice(0, 160));
+    const asks = [
+      ['GET', '/stories/shelf/h/' + encodeURIComponent(t) + '?l=en'], ['GET', '/doors/h/' + encodeURIComponent(t) + '?d=games&l=en'],
+      ['GET', '/lib/h/' + encodeURIComponent(t) + '?l=en'], ['GET', '/ch/' + encodeURIComponent(t) + '?lang=en'],
+    ];
+    const got = [];
+    for (const [m, p] of asks) got.push((await api(ctx, m, p)).status);
+    got.push((await api(ctx, 'POST', '/videos/start', { hub: t, kid: '', vid: '00000000-0000-4000-8000-000000000000' })).status);
+    // the shelf answers 404 when stories are off on the lane; any other refusal is the 401 the preview meets today
+    expect(got.every((s) => s === 401 || s === 404), 'a refusal expected for every content route: ' + got.join(','));
+    await sleep(500);
+    const refused = L.botLog(ctx).split('\n').filter((l) => /web_quiz\.content_refused/.test(l) && /"practice":1/.test(l)).length;
+    expect(refused > 0, 'no content_refused with practice 1 in the bot log');
+    return { statuses: got, refusedLogged: refused };
+  } finally { await previewOff(ctx); }
 });
 
 on('WQ260', 'off', async (page, ctx) => {
