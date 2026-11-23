@@ -28,6 +28,7 @@ import { dropV7 } from "./evidenceReview";
 import { trackFlow } from "../flow/track";
 import { SAVE_SLOW_MS, SAVE_TRIES, savedOnly, tryOnce, type SaveTry } from "./saveTry";
 import { AnalysingStage } from "../flow/VisitV7";
+import { useBack } from "../../lib/useBack";
 
 /**
  * bd-o15qnr.41 (queue #228; the operator 23 Nov: "dont open the form till analysis is complete") — while the Digital
@@ -95,6 +96,10 @@ export default function FeedbackForm() {
   const W7 = useCopy(FLOW_V7) as FlowV7Copy;
   const { view } = useObservationView(id);
   const home = routes.observation(id);
+  // bd-o15qnr.48 (#244): on the switch, leaving the form is the app's Back (the page she came from, lib/useBack), not
+  // a new visit page on top: a phone Back after it must not reopen the form.
+  const stepBack = useBack(home);
+  const leave = v7 ? stepBack : () => navigate(home);
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
   const [fde, setFde] = useState<Obs612Draft | null>(null);
   const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
@@ -192,7 +197,7 @@ export default function FeedbackForm() {
     return true;
   };
   const go = (n: number) => { setProblems({}); setPart(n); top.current?.scrollIntoView?.({ block: "start" }); };
-  const back = () => (part > 0 ? go(part - 1) : navigate(home));
+  const back = () => (part > 0 ? go(part - 1) : leave());
 
   // bd-o15qnr.31 — the evidence reviews only from the v7 form, and only when there are some: today's call otherwise.
   const send = (review?: Record<string, EvidenceReview>) => (review ? leader.saveObservationDraft(id, values, review) : leader.saveObservationDraft(id, values));
@@ -329,7 +334,7 @@ export default function FeedbackForm() {
     return (
       <V6FormV7 id={id} draft={draft} values={values} start={start} setValues={setValues} readOnly={readOnly} name={name}
         minReason={minReason} notes={notes} principal={!routes.coachGate} moves={(s) => movesPart(s, draft, true)}
-        onLeave={() => navigate(home)} onSave={(review) => { void save(review); }} confirm={confirm} setConfirm={setConfirm}
+        onLeave={leave} onSave={(review) => { void save(review); }} confirm={confirm} setConfirm={setConfirm}
         saving={saving} slow={slow} problem={problemBox} head={<>{loadAndEmpty}<div ref={top} /></>} />
     );
   }

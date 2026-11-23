@@ -13,12 +13,13 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import {
-  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, SaveTrayV7, TIME_CHIP,
+  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, NextButton, SaveTrayV7, TIME_CHIP,
   TextBox, UNDO_MS, focusField, levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
 } from "./FormV7";
 import { Problem, problemText, V6Notes, v6RatingOptions } from "./V6Parts";
 import { IndicatorNav, IndicatorRow, IndicatorRows, SectionChips, SectionHead, SectionList } from "./FormV7Nav";
 import { changedFromRumi, v6Problems, type V6Problems, type V6Section } from "./v6Model";
+import { useFormLevels } from "./formLevels";
 import {
   addRow, clockSeconds, dropV7, editRow, evText, heldV7, initialReview, keepV7, normClock, removeRow, reviewOut, sameReview, setSummary, shownRows,
   type Review, type ReviewRow,
@@ -56,6 +57,7 @@ import {
 
 type MovesSection = Extract<DraftSection, { kind: "moves" }>;
 type At = { at: "sections" } | { at: "section"; letter: string } | { at: "indicator"; letter: string; code: string };
+const depthOf = (a: At) => (a.at === "indicator" ? 2 : a.at === "section" ? 1 : 0);
 type Slot = { letter: string; code: string; label: string };
 
 const LABEL = "text-[13px] font-bold text-[#6b7280]";
@@ -303,9 +305,19 @@ export function V6FormV7({
   const F = useCopy(FORM_V7) as FormV7Copy;
   const W7 = useCopy(FLOW_V7) as FlowV7Copy;
   const { toast, show, hide } = useFormToast();
-  const [at, setAt] = useState<At>({ at: "sections" });
+  const [at, setAtNow] = useState<At>({ at: "sections" });
   const [shown, setShown] = useState<V6Problems>({});
   const focusNext = useRef<string | null>(null);
+  // bd-o15qnr.48 (#244): each level deeper than every section is its own history entry, so the phone's Back steps up
+  // one level like the arrow does (formLevels.ts). Every move goes through setAt; the phone's Back through the hook.
+  const atNow = useRef(at);
+  atNow.current = at;
+  const levels = useFormLevels(depthOf(at), (d) => {
+    setShown({});
+    const cur = atNow.current;
+    setAtNow(d <= 0 || cur.at === "sections" ? { at: "sections" } : d === 1 && cur.at === "indicator" ? { at: "section", letter: cur.letter } : cur);
+  });
+  const setAt = (next: At) => { levels.moved(depthOf(atNow.current), depthOf(next)); atNow.current = next; setAtNow(next); };
 
   const sections = useMemo(() => draft.sections.filter((s): s is MovesSection | V6Section => s.kind === "moves" || s.kind === "v6"), [draft]);
   const v6Indicators = useMemo(() => sections.flatMap((s) => (s.kind === "v6" ? s.indicators : [])), [sections]);
@@ -387,9 +399,8 @@ export function V6FormV7({
   };
   const back = () => {
     setShown({});
-    if (at.at === "indicator") setAt({ at: "section", letter: at.letter });
-    else if (at.at === "section") setAt({ at: "sections" });
-    else onLeave();
+    if (at.at === "sections") onLeave();
+    else levels.up();
   };
 
   /* the evidence */
@@ -481,7 +492,7 @@ export function V6FormV7({
     const dock = (
       <DockV7 single>
         {next
-          ? <BottomButton onClick={() => open(next)}>{next.label}</BottomButton>
+          ? <NextButton onClick={() => open(next)} label={next.label} />
           : <BottomButton onClick={() => setAt({ at: "sections" })}>{F.doneChecking}</BottomButton>}
       </DockV7>
     );

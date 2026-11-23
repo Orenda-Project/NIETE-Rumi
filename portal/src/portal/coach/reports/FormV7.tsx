@@ -203,6 +203,20 @@ export function PartNote({ text }: { text: string }) {
 }
 
 /** The dock: Back (1) beside the next step (2), as the boards draw it; Back alone takes the width. */
+/**
+ * bd-o15qnr.48 (#244) — a section's "Next to check: C1 Quality of Questions Asked by the Teacher" on ONE line inside the
+ * button's padding, cut with "…" (it wrapped edge to edge at 390 px); its name keeps every word. min-w-0: the dock is a
+ * grid, whose item would otherwise grow to the uncut line.
+ */
+export function NextButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} data-testid="ff-next-check"
+      className={cn(PRIMARY_WIDE, "min-w-0 disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]", FOCUS)}>
+      <span className="min-w-0 truncate" dir="auto">{label}</span>
+    </button>
+  );
+}
+
 export function DockV7({ children, single = false }: { children: ReactNode; single?: boolean }) {
   return <div data-testid="form-dock" className={cn(GRID, "w-full gap-2.5", single ? "grid-cols-1" : "grid-cols-[1fr_2fr]")}>{children}</div>;
 }
