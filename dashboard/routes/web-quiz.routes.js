@@ -1532,11 +1532,13 @@ function createWebQuizRouter(opts = {}) {
   // deviceHash, web-quiz-telemetry.js: sha256('wqd|' + ref), 16 hex), never the ref itself.
   // The hub's landing also counts the children it marked "Quiz ready" (ready_n: the bot's kids[].round, set by the /h/
   // route below in res.locals.wqReadyN), known only once the bot answers: logged once, when the response ends.
+  // A QA walk (its user agent carries "QFIXQA", as the bot's push funnel events test it) marks its landing qa: true.
   const pushLanded = (pg) => (req, res, next) => {
     if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) {
       const dv = DEVICE_COOKIE_RX.exec(String(req.headers.cookie || ''));
-      // dh and ready_n ride inside data_json (a new top-level log field can collide with a downstream pull's aliases)
+      // dh, qa and ready_n ride inside data_json (a new top-level log field can collide with a downstream pull's aliases)
       const data = dv ? { dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) } : {};
+      if (/QFIXQA/.test(String(req.headers['user-agent'] || ''))) data.qa = true;
       const landed = () => logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(Object.keys(data).length ? { data_json: JSON.stringify(data) } : {}) });
       if (pg !== 'hub') landed();
       else {
