@@ -6,7 +6,7 @@ import { useCopy, useLang } from "../../teacher/i18n";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { getCoachReport, type CoachReport } from "../report/api";
 import { COACH_REPORT, type CoachReportCopy } from "../report/copy";
-import { debriefPercent, starsOf } from "../report/CoachReportPage";
+import { debriefPercent } from "../report/CoachReportPage";
 import { FLOW_V7, type FlowV7Copy } from "./copyV7";
 import { debriefDueDay } from "./debriefDue";
 import { karachiDay } from "../time";
@@ -80,7 +80,6 @@ export function FeedbackCard({ id, to }: { id: string; to: string }) {
     return () => { live = false; };
   }, [id]);
   const pct = r ? debriefPercent(r.done, r.total) : null;
-  const n = pct == null ? 0 : starsOf(pct);
   return (
     <Link to={to} className={cn("block rounded-[22px]", FOCUS)}>
       <section data-testid="visit-feedback" aria-label={C.eyebrow}
@@ -90,11 +89,6 @@ export function FeedbackCard({ id, to }: { id: string; to: string }) {
           <span className="flex items-baseline gap-2">
             <b dir="ltr" className="text-[34px] font-extrabold leading-none">{pct == null ? "—" : `${pct}%`}</b>
             <span className="text-[14px] font-semibold text-[#c6e9d5]">{W.behavioursSeen}</span>
-          </span>
-          <span aria-hidden="true" className="flex gap-0.5 text-[16px] leading-none">
-            {Array.from({ length: 5 }, (_, i) => (
-              <span key={i} className={i + 1 <= n ? "text-white" : i + 0.5 === n ? "text-white/60" : "text-white/25"}>★</span>
-            ))}
           </span>
           {r?.header.teacher ? <span dir="auto" className="text-[13px] text-[#e2e5ea]">{r.header.teacher}</span> : null}
         </span>
