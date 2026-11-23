@@ -1225,17 +1225,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     try { var c = navigator.connection; if (c && c.effectiveType) f.net = String(c.effectiveType).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16); } catch (e) {}
     return f;
   }
-  // Once per sitting: the first clip the browser calls MEDIA_ERR_SRC_NOT_SUPPORTED is fetched again, 2 bytes, so its
-  // audio_fallback says whether the address answered. fst = the HTTP status; a storage clip this page may not read
-  // (no CORS) that answered anyway = 'opaque'; no answer = 'net'; none in 3 s = 'timeout'. fct = the answer's
-  // content-type, type/subtype only. Never the address, never the body.
+  // Once per sitting: the first clip the browser calls MEDIA_ERR_SRC_NOT_SUPPORTED is fetched again, 2 bytes (keepalive,
+  // so a page being left still sends it), and audio_probe says whether the address answered. fst = the HTTP status; a
+  // storage clip this page may not read (no CORS) that answered anyway = 'opaque'; no answer = 'net'; none in 3 s =
+  // 'timeout'. fct = the answer's content-type, type/subtype only. Never the address, never the body.
   var srcProbed = false;
   function probeSrc(url, cb) {
     var said = false, t = setTimeout(function () { say({ fst: 'timeout' }); }, 3000);
     function say(p) { if (!said) { said = true; try { clearTimeout(t); } catch (e) {} cb(p); } }
     try {
       var u = new URL(url, location.origin), same = u.origin === location.origin;
-      var get = function (mode) { return fetch(u.href, { method: 'GET', headers: { Range: 'bytes=0-1' }, cache: 'no-store', credentials: same ? 'same-origin' : 'omit', mode: mode }); };
+      var get = function (mode) { return fetch(u.href, { method: 'GET', headers: { Range: 'bytes=0-1' }, cache: 'no-store', credentials: same ? 'same-origin' : 'omit', mode: mode, keepalive: true }); };
       get(same ? 'same-origin' : 'cors').then(function (r) {
         var ct = /^([a-z]+\/[a-z0-9.+-]{1,40})/.exec(String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase());
         say(ct ? { fst: String(r.status), fct: ct[1] } : { fst: String(r.status) });
@@ -1324,12 +1324,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         fx.reason = why; fx.part = (meta && meta.part) || 'line'; fx.qid = meta ? meta.qid : undefined; fx.ms = Date.now() - t0;
         if (why === 'reject') fx.err = String((err && err.name) || 'unknown').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'unknown';
         if (why === 'error' && err && err.code) fx.err = 'media_err_' + err.code;
-        // The first "source not supported" of the sitting waits for its probe (≤ 3 s) before it is logged; the child
-        // never waits for it: everything below runs now.
+        ev('audio_fallback', fx);
+        // The sitting's first "source not supported": its address is fetched once more and the answer goes out as its
+        // own event, audio_probe (this clip's facts + fst/fct). The lost-clip event above never waits for it.
         if (fx.err === 'media_err_4' && !srcProbed && typeof fetch === 'function') {
           srcProbed = true;
-          probeSrc(url, function (p) { for (var k in p) fx[k] = p[k]; ev('audio_fallback', fx); });
-        } else ev('audio_fallback', fx);
+          var pf = { err: fx.err, part: fx.part, qid: fx.qid, host: fx.host, fmt: fx.fmt, vis: fx.vis, net: fx.net, ms: fx.ms, gms: fx.gms };
+          probeSrc(url, function (p) { for (var k in p) pf[k] = p[k]; ev('audio_probe', pf); });
+        }
         said(false);
         var aborted = why === 'reject' && err && err.name === 'AbortError';
         // V2: a refused start, or a stall or error the phone will not read, is held for the child's next tap (once)
