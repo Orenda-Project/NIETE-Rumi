@@ -22,6 +22,7 @@ import { leave } from "./leave";
 import Profile from "../pages/Profile";
 import CoachProfile from "../../coach/profile/CoachProfile";
 import LeaderHome from "../../pages/LeaderHome";
+import PortalAccount from "../../pages/PortalAccount";
 
 /**
  * bd-tacnwy — "Profile type": an internal tester switches her OWN users.role (teacher, coach, principal) from the
@@ -194,6 +195,18 @@ describe("where it is: every app a tester can land in", () => {
     expect(await screen.findByTestId("role-switch")).toBeTruthy();
   });
 
+  // bd-qae1f1 — a tester switched to Principal (not on the principal app) gets the leader menu: on a phone, Lesson
+  // Plans · Training · Other, with My Patch tucked in Other. He looked for the switch on My account, the page Other
+  // leads every role to, and it was not there, so he read himself as stuck on Principal.
+  it("My account, the page Other leads every role to (a principal on the leader menu looks here)", async () => {
+    asUser("principal");
+    render(<MemoryRouter initialEntries={["/portal/account"]}><PortalAccount /></MemoryRouter>);
+    const box = await screen.findByTestId("role-switch");
+    expect(within(box).getByRole("button", { name: /Principal/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(box).getByRole("button", { name: /Teacher/ })).toHaveAttribute("aria-pressed", "false");
+    expect(within(box).getByRole("button", { name: /Coach/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("off, none of the three draws it", async () => {
     vi.mocked(portal.getConfig).mockResolvedValue(config(false) as never);
     asUser("teacher");
@@ -207,8 +220,14 @@ describe("where it is: every app a tester can land in", () => {
     expect(screen.queryByTestId("role-switch")).toBeNull();
     b.unmount();
     asUser("principal");
-    render(<MemoryRouter><LeaderHome /></MemoryRouter>);
+    const c = render(<MemoryRouter><LeaderHome /></MemoryRouter>);
     await act(async () => { await Promise.resolve(); });
+    expect(screen.queryByTestId("role-switch")).toBeNull();
+    c.unmount();
+    // bd-qae1f1 — and My account stays exactly as every real teacher and coach has it.
+    render(<MemoryRouter><PortalAccount /></MemoryRouter>);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByTestId("account-page")).toBeTruthy();
     expect(screen.queryByTestId("role-switch")).toBeNull();
   });
 });
