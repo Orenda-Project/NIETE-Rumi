@@ -8,6 +8,10 @@
  *   lineFor(rubric, code, lang)   rubric: 'fico17_v6' (v6.0 and v6.1 share the key), or a FICO-S id ('fico_s_v1_2';
  *                                 a 'fico_s_v1_1' form reads the same lines: same indicators, same text). '' when the
  *                                 rubric or the code is not known.
+ *   hintFor(rubric, code, lang)   bd-o15qnr.39.1 (#204, the operator 22 Nov): the how-to-fill line of one of the six
+ *                                 combined FICO17 v6.1 indicators (C3 C5 C7 D2 D3 D4), which the portal puts after the
+ *                                 one line, so the form has no separate "You add: …" text (D2: "Chorus answers don't
+ *                                 count."). '' for every other indicator and rubric.
  */
 const DATA = require('./indicator-lines.json');
 
@@ -25,4 +29,12 @@ function lineFor(rubric, code, lang = 'en') {
   return String(row[String(lang)] || row.en || '');
 }
 
-module.exports = { lineFor };
+const HINTS = { fico17_v6: DATA.fico17_v6_hints };
+
+function hintFor(rubric, code, lang = 'en') {
+  const row = ((HINTS[String(rubric || '')] || {})[code]) || null;
+  if (!row) return '';
+  return String(row[String(lang)] || row.en || '');
+}
+
+module.exports = { lineFor, hintFor };

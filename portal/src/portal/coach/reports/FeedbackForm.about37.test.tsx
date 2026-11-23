@@ -13,7 +13,8 @@ import type { ReactNode } from "react";
  *                    lines at most ("ff-about")
  *   Examples         a small link that opens that indicator in the "?" guide, shown only when the guide has it
  *                    (IndicatorGuideContext, which #217 provides; until then no link)
- *   the six          the line is not said again inside "From the recording"
+ *   the six          the line is not said again inside "From the recording" (bd-o15qnr.39.1: the box is now
+ *                    "Digital Coach's evidence", findings only; an older bot's look-for goes under the name)
  *   FICO-S           the card no longer repeats the look-for text: it keeps the notes (scoring note, How)
  */
 
@@ -147,19 +148,18 @@ describe("FICO17 v6.1: the line under the name", () => {
     expect(screen.queryByRole("button", { name: "Examples" })).toBeNull();
   });
 
-  it("one of the six: the line under the name, not again in From the recording", async () => {
+  it("one of the six: the line under the name, not again in a box (bd-o15qnr.39.1: nothing found, no box)", async () => {
     await toV6("C3");
     expect(within(screen.getByTestId("ff-about")).getByText(C3_ABOUT)).toBeInTheDocument();
-    const box = screen.getByTestId("from-recording");
-    expect(box).not.toHaveTextContent(C3_LOOK);
-    expect(box).toHaveTextContent("Nothing for this in the recording");
+    expect(screen.getByTestId("ff-indicator")).not.toHaveTextContent(C3_LOOK);
+    expect(screen.queryByTestId("dc-evidence")).toBeNull();
   });
 
-  it("an older bot (no line): nothing under the name, and the box keeps what to look for", async () => {
+  it("an older bot (no line): its look-for under the name instead (bd-o15qnr.39.1), and no box", async () => {
     L.getObservationDraft.mockResolvedValue(V6({ about: false }));
     await toV6("C3");
-    expect(screen.queryByTestId("ff-about")).toBeNull();
-    expect(screen.getByTestId("from-recording")).toHaveTextContent(C3_LOOK);
+    expect(within(screen.getByTestId("ff-about")).getByText(C3_LOOK)).toBeInTheDocument();
+    expect(screen.queryByTestId("dc-evidence")).toBeNull();
   });
 
   it("the principal: the same line", async () => {

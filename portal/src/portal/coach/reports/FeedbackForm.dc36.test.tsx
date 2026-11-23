@@ -14,6 +14,11 @@ import i18n from "i18next";
  *                quote), else "Nothing for this in the recording" in muted words (never "The recording showed nothing
  *                for this"); "You add: …" (no "Coach adds", no "sets the final level with a written justification");
  *                the note box kept, optional: a level alone is enough
+ *
+ * bd-o15qnr.39.1 (the operator 22 Nov) changed the six's box: it is titled "Digital Coach's evidence" (the eleven's box
+ * too), holds only its findings, and is not drawn when the Digital Coach heard nothing; what to look for and how to fill
+ * it are said in the line under the name, so "You add: …" and "Nothing for this in the recording" are gone. The tests
+ * below say so (FeedbackForm.dcEvidence39.test.tsx has the rest).
  */
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
@@ -119,7 +124,7 @@ describe("the name and the legend", () => {
     expect(flat(screen.getByTestId("legend").textContent)).toBe("You · Digital Coach");
     const dc = group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Proficient, Digital Coach’s level" });
     expect(within(dc).getByText("Digital Coach")).toBeInTheDocument();
-    expect(within(screen.getByTestId("ff-evidence")).getByText("Digital Coach heard")).toBeInTheDocument();
+    expect(within(screen.getByTestId("dc-evidence")).getByText("Digital Coach’s evidence")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/Teaching Assistant|Rumi/);
   });
 
@@ -128,11 +133,11 @@ describe("the name and the legend", () => {
     expect(flat(screen.getByTestId("legend").textContent)).toBe("You · Digital Coach");
   });
 
-  it("Urdu: آپ · ڈیجیٹل کوچ, and ڈیجیٹل کوچ نے یہ سنا; never ٹیچنگ اسسٹنٹ", async () => {
+  it("Urdu: آپ · ڈیجیٹل کوچ, and ڈیجیٹل کوچ کے شواہد; never ٹیچنگ اسسٹنٹ", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     await toIndicator(/C\. What the teacher does/, "C1");
     expect(flat(screen.getByTestId("legend").textContent)).toBe("آپ · ڈیجیٹل کوچ");
-    expect(screen.getByText((t) => flat(t) === "ڈیجیٹل کوچ نے یہ سنا")).toBeInTheDocument();
+    expect(screen.getByText((t) => flat(t) === "ڈیجیٹل کوچ کے شواہد")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/ٹیچنگ اسسٹنٹ|Teaching Assistant/);
   });
 
@@ -143,39 +148,34 @@ describe("the name and the legend", () => {
 });
 
 describe("one of the six: the Digital Coach can't count it", () => {
-  it("no legend; the line on top; what to look for; each snippet found as an evidence row; You add", async () => {
+  it("no legend; the line on top; each snippet found as an evidence row in the Digital Coach's evidence box; no You add", async () => {
     await toIndicator(/C\. What the teacher does/, "C3");
     expect(screen.queryByTestId("legend")).toBeNull();
     const top = card().getByTestId("cant-count");
     expect(top).toHaveTextContent("The Digital Coach can't count this one. You decide.");
-    const box = within(card().getByTestId("from-recording"));
-    expect(box.getByText("From the recording")).toBeInTheDocument();
-    expect(box.getByText(C3_LOOK)).toBeInTheDocument();
-    const rows = box.getAllByTestId("rec-row");
+    const box = within(card().getByTestId("dc-evidence"));
+    expect(box.getByText("Digital Coach’s evidence")).toBeInTheDocument();
+    expect(box.queryByText(C3_LOOK)).toBeNull(); // bd-o15qnr.39.1: said under the name, not in the box
+    const rows = box.getAllByTestId("dc-row");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByTestId("ff-time")).toHaveTextContent("05:00");
     expect(rows[0]).toHaveTextContent("Ali, what do you think?");
     expect(within(rows[1]).getByTestId("ff-time")).toHaveTextContent("09:12");
-    expect(box.getByText(`You add: ${C3_ADD}`)).toBeInTheDocument();
-    expect(box.queryByTestId("rec-nothing")).toBeNull();
     const text = screen.getByTestId("ff-card").textContent || "";
-    expect(text).not.toMatch(/Coach adds|written justification|showed nothing/);
+    expect(text).not.toMatch(/You add|Coach adds|written justification|showed nothing|Nothing for this/);
     // the top line comes before the box
-    expect(top.compareDocumentPosition(card().getByTestId("from-recording")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(top.compareDocumentPosition(card().getByTestId("dc-evidence")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("nothing found: 'Nothing for this in the recording', muted; never the bare 'showed nothing' line", async () => {
+  it("nothing found: no box at all (bd-o15qnr.39.1); never the bare 'showed nothing' line", async () => {
     await toIndicator(/C\. What the teacher does/, "C5");
-    const none = card().getByTestId("rec-nothing");
-    expect(none).toHaveTextContent("Nothing for this in the recording");
-    expect(none.className).toMatch(/text-\[#6b7280\]/);
-    expect(card().queryAllByTestId("rec-row")).toHaveLength(0);
-    expect(screen.getByTestId("ff-card").textContent).not.toMatch(/showed nothing/);
+    expect(card().queryByTestId("dc-evidence")).toBeNull();
+    expect(screen.getByTestId("ff-card").textContent).not.toMatch(/showed nothing|Nothing for this/);
   });
 
   it("D2: the two counts, in words", async () => {
     await toIndicator(/D\. What the children do/, "D2");
-    expect(card().getByTestId("from-recording")).toHaveTextContent("4 student turns in the first half and 7 in the second");
+    expect(card().getByTestId("dc-evidence")).toHaveTextContent("4 student turns in the first half and 7 in the second");
     expect(card().getByTestId("cant-count")).toBeInTheDocument();
   });
 
@@ -183,7 +183,7 @@ describe("one of the six: the Digital Coach can't count it", () => {
     await toIndicator(/D\. What the children do/, "D3");
     expect(screen.queryByTestId("legend")).toBeNull();
     expect(card().getByTestId("cant-count")).toBeInTheDocument();
-    expect(card().getByTestId("from-recording")).toHaveTextContent("Tell your partner.");
+    expect(card().getByTestId("dc-evidence")).toHaveTextContent("Tell your partner.");
   });
 
   it("the note box is kept and optional: a level alone is enough", async () => {
@@ -204,20 +204,20 @@ describe("one of the six: the Digital Coach can't count it", () => {
     expect(group("Who got to answer").getAllByRole("radio")).toContain(document.activeElement);
   });
 
-  it("the principal: the same box, You add", async () => {
+  it("the principal: the same box", async () => {
     await toIndicator(/C\. What the teacher does/, "C3", true);
     expect(card().getByTestId("cant-count")).toHaveTextContent("The Digital Coach can't count this one. You decide.");
-    expect(within(card().getByTestId("from-recording")).getByText(`You add: ${C3_ADD}`)).toBeInTheDocument();
+    expect(within(card().getByTestId("dc-evidence")).getAllByTestId("dc-row")).toHaveLength(2);
+    expect(screen.getByTestId("ff-card").textContent).not.toContain(C3_ADD);
     expect(screen.queryByTestId("legend")).toBeNull();
   });
 
-  it("Urdu: the line on top, the muted nothing, You add and the optional note in Urdu", async () => {
+  it("Urdu: the line on top and the optional note in Urdu; no box when nothing was found", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     await toIndicator(/C\. What the teacher does/, "C5");
     expect(flat(card().getByTestId("cant-count").textContent)).toBe("ڈیجیٹل کوچ اسے نہیں گن سکتا۔ آپ طے کریں۔");
-    expect(flat(card().getByTestId("rec-nothing").textContent)).toBe("ریکارڈنگ میں اس کے لیے کچھ نہیں");
-    expect(card().getByText(`آپ شامل کریں: ${C3_ADD}`)).toBeInTheDocument();
+    expect(card().queryByTestId("dc-evidence")).toBeNull();
+    expect(screen.getByTestId("ff-card").textContent).not.toMatch(/آپ شامل کریں|ریکارڈنگ سے|ریکارڈنگ میں اس کے لیے کچھ نہیں/);
     expect(card().getByLabelText("آپ کا نوٹ (اختیاری)")).toBeInTheDocument();
-    expect(card().getByText("ریکارڈنگ سے")).toBeInTheDocument();
   });
 });

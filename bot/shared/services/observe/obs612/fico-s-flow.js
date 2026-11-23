@@ -455,6 +455,25 @@ function rumiData(code, lang, dc, rubric = FicoS.RUBRIC_KEY) {
 }
 
 /**
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov: "Digital Coach's evidence", one box of its findings as evidence rows) — the
+ * Digital Coach's own findings for one indicator on a Digital Coach visit, for the portal: { because, items: [{ time,
+ * quote }] }, every quote it gave, in order. `because` only where it set a level (a "could not set a level" reason is
+ * already Rumi's line above the item). null when it gave nothing, on a starred indicator, and off a Digital Coach visit.
+ */
+function dcEvidenceOf(code, dc, rubric = FicoS.RUBRIC_KEY) {
+  if (!dc || !dc.levels || FicoS.isStarred(code)) return null;
+  const row = dc.levels[code];
+  if (!row || typeof row !== 'object') return null;
+  const text = (v) => (typeof v === 'string' ? v.trim() : '');
+  const items = (Array.isArray(row.evidence) ? row.evidence : [])
+    .filter((e) => e && text(e.quote))
+    .map((e) => ({ time: text(e.time) || null, quote: text(e.quote) }));
+  const leveled = require('./fico-s-dc').rumiLevelOf(dc, code, rubric) !== null;
+  const because = leveled ? text(row.because) : '';
+  return because || items.length ? { because, items } : null;
+}
+
+/**
  * A screen's data in the observer's language. `draft` pre-fills what was saved; `opts.errors` ({flowField: code}) and
  * `opts.note` show the check's result.
  */
@@ -614,6 +633,8 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       // bd-o15qnr.37: an indicator's line on what it looks at (#217's guide line) and its text without the look-for
       // paragraph, so the portal shows the line under the name and does not say it twice; `text` is unchanged.
       ...(extra.about !== undefined ? { about: extra.about, notes: extra.notes } : {}),
+      // bd-o15qnr.39.1: the Digital Coach's own findings, shown as evidence rows (absent: no box).
+      ...(extra.dcEvidence ? { dcEvidence: extra.dcEvidence } : {}),
     };
   };
   return SCREENS.map((screen) => {
@@ -641,6 +662,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
         kind: 'level', short: s.progress(sec.key, sec.codes.indexOf(code) + 1, sec.codes.length),
         about: Lines.lineFor(rubric, code, lang),
         notes: rest ? `${rest}\n${s.how(t.how)}` : s.how(t.how),
+        dcEvidence: dcEvidenceOf(code, dc, rubric),
         // Queue #218: the portal pre-picks N/A as the observer sets C1 (Obs612Form.tsx); the Flow does it per screen.
         ...(follows ? { follows: { code: follows.code, level: String(follows.level) } } : {}),
       }));
