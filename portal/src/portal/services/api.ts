@@ -827,7 +827,8 @@ export type CoachObservationView = {
 };
 
 /** bd-ra8xu.40 — the class of the observed lesson, named on Check and send: grades 1-5, or a grade 6-12 class and its subject. */
-export type ObserveLesson = { primary: true } | { grade: number; subject?: string };
+/** bd-o15qnr.40.7 — a grades 1-5 lesson may name its grade and subject (the Lesson Plan picker); the bot keeps FICO17 v6. */
+export type ObserveLesson = { primary: true; grade?: number; subject?: string } | { grade: number; subject?: string };
 /** bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer. */
 export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[]; subjectGrades?: number[] };
 

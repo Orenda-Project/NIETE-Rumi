@@ -107,6 +107,11 @@ const ROUTES = [
   // bd-ra8xu.40: the class the coach named (asked only while FDE's switch is on for her) rides with the start.
   ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], lesson: { grade: 7, subject: 'maths', junk: 1 } }, 'startObservation',
     { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: undefined, lesson: { grade: 7, subject: 'maths' } }],
+  // bd-o15qnr.40.7 (queue #229): a grades 1-5 lesson carries its grade and subject too (the bot keeps FICO17 v6)
+  ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], lesson: { primary: true, grade: 3, subject: 'maths', junk: 1 } }, 'startObservation',
+    { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: undefined, lesson: { primary: true, grade: 3, subject: 'maths' } }],
+  ['post', '/leader/observe/start', {}, { teacherExtId: 't1', key: 'k', photoKeys: [], lesson: { primary: true } }, 'startObservation',
+    { userId: 'coach-1', teacherExtId: 't1', schoolExtId: undefined, key: 'k', lessonPlanKey: undefined, photoKeys: [], lessonPlan: undefined, lesson: { primary: true } }],
   ['get', '/leader/observe/lesson-question', {}, {}, 'observeLessonQuestion', { userId: 'coach-1' }],
   ['get', '/leader/observe/active', {}, {}, 'listObservations', { userId: 'coach-1' }],
   ['get', '/leader/observe/:id', { id: 'cs-1' }, {}, 'observationView', { userId: 'coach-1', coachingSessionId: 'cs-1' }],
