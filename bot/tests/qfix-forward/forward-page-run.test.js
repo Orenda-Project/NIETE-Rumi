@@ -47,8 +47,8 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release, refuse } (`refuse()` answers the oldest held home fetch with a 500).
  */
-async function open(home, { forward = false, share = undefined, lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false, one = null, lesson = null } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(forward ? { forward: true } : {}) });
+async function open(home, { forward = false, share = undefined, lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false, one = null, lesson = null, lessonTitle = null } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(lessonTitle ? { lessonTitle } : {}), ...(forward ? { forward: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
@@ -153,5 +153,33 @@ describe('the one-lesson page, RUN', () => {
   test('?session= is unchanged: kind coaching for the recorded lesson', async () => {
     const p = await open(null, { one: 'e0000000-0000-4000-8000-0000000000c1', answer: () => ({ quizId: 'quiz-9' }) });
     expect(makes(p)).toEqual([expect.objectContaining({ kind: 'coaching', id: 'e0000000-0000-4000-8000-0000000000c1' })]);
+  });
+});
+
+// A74: the one-lesson page names its lesson (lead 20261122T144336). The server resolves the name (forward-lesson-link
+// tests); here the page's own script, RUN, draws it: one line right under "Quiz from this lesson", the name as text in a
+// dir=auto <bdi> (an Urdu name in an English page, and the reverse, keeps its own direction); no name → today's card.
+describe('A74: the one-lesson page names its lesson, RUN', () => {
+  const textOf = (n) => n.textContent; // the mini DOM's own: the node's text and every child's, once
+  const card = (p) => p.q('#th-top').children;
+  const S = (k, lang) => require('../../shared/services/first-touch/teacher-home.strings').str(k, lang);
+  test.each([['en', false, 'All About Me: Key Words'], ['ur', true, 'میرا تعارف — اپنے اور گھر والوں کے بارے میں بات کرنا']])(
+    '%s (forward switch %s): the name is the line right after the say line, in a dir=auto bdi; the make is unchanged', async (lang, forward, name) => {
+      const p = await open(null, { lang, lesson: 'lsn_lp_v8_dl-a74-1', lessonTitle: name, forward, answer: () => ({ quizId: 'quiz-9' }) });
+      const [say, sub] = card(p);
+      expect(say.getAttribute('class')).toBe('th-say');
+      expect(textOf(say)).toBe(S('th.one.say', lang));
+      expect(sub.getAttribute('class')).toBe('th-sub');
+      expect(sub.children[0].tag || sub.children[0].tagName).toMatch(/^bdi$/i);
+      expect(sub.children[0].getAttribute('dir')).toBe('auto');
+      expect(textOf(sub)).toBe(name);
+      expect(p.fetches.filter((f) => f.path === '/api/th/quiz/make').map((f) => f.body))
+        .toEqual([expect.objectContaining({ kind: 'lesson', id: 'lsn_lp_v8_dl-a74-1' })]);
+    });
+  test('no name: the card is today\'s (the say line, then the button), and the page is the untitled one', async () => {
+    const p = await open(null, { lesson: 'lsn_lp_v8_dl-a74-1', answer: () => ({ quizId: 'quiz-9' }) });
+    const [say, next] = card(p);
+    expect(say.getAttribute('class')).toBe('th-say');
+    expect(next.getAttribute('class')).not.toBe('th-sub');
   });
 });
