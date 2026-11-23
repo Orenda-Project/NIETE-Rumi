@@ -1,1 +1,2 @@
 {"ts":"2026-11-23T04:10:05Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"4289c6a7aa3f","branch":"HEAD","user":""}
+{"ts":"2026-11-23T05:05:36Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (spec synced in the next commit 9b234107d0: LDR03 updated, GBS01 @obsolete, GBS04 added; validator OK)","sha":"4289c6a7aa3f","branch":"bd-ain69z-66777","user":""}
