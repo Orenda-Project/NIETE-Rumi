@@ -379,7 +379,8 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
     out.day = day;
     if (!P.isSchoolDay(day)) { out.skipped = 'not_school_day'; return out; }
     const links = await liveLinks(now, classIds);
-    // web_quiz_class_link_canary: while it lists schools or classes, only theirs get a round (no row: every class).
+    // web_quiz_class_link_canary: while it lists schools or classes, only theirs get a round ({"all": true}: every class;
+    // no row: no class).
     const inCanary = await Canary.allowedClasses([...links.keys()]);
     out.canary_out = links.size - inCanary.size;
     const today = await roundsOn(day, classIds);
