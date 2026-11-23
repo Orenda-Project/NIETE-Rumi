@@ -16,7 +16,7 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
-import { AboutLine, AutoText, DcEvidenceBox, DcQuoteRow, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, urduOf, useFormToast, v7Crumb } from "./FormV7";
+import { AboutLine, AutoText, DcEvidenceBox, DcQuoteRow, DockV7, FormChips, FormToast, Legend, PartNote, PartTitle, focusField, urduOf, useFormToast, v7Crumb } from "./FormV7";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -285,9 +285,16 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       choices = v ? <StatusChip text={titleOf(f, v)} tone="info" className="self-start" /> : null;
     } else if (v7) {
       // bd-o15qnr.28 — every item's choices as the kit's radio rows (FDE's own titles and level words, as data).
+      // bd-o15qnr.40.5 (queue #229): the Digital Coach's level marked ON its card, as the grades 1-5 form does (purple edge,
+      // "Digital Coach" at its end, spoken with the card), with the You · Digital Coach legend above.
+      const dcLevel = f.dcLevel && opts.some((o) => o.id === f.dcLevel) ? f.dcLevel : null;
       choices = (
-        <RatingScale look="radio" name={groupName} value={v || null} onChange={(k) => set(f.name)(String(k))}
-          options={opts.map((o) => ({ id: o.id, label: o.title, description: o.description }))} />
+        <>
+          {dcLevel ? <Legend principal={false} /> : null}
+          <RatingScale look="radio" name={groupName} value={v || null} onChange={(k) => set(f.name)(String(k))}
+            dcValue={dcLevel} dcTag={F.rumiTag} copy={{ digitalCoach: F.rumisLevel }}
+            options={opts.map((o) => ({ id: o.id, label: o.title, description: o.description }))} />
+        </>
       );
     } else if (f.kind === "points") {
       choices = (
@@ -426,6 +433,8 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       }
       return <h2 key={i} className="mx-1 mt-1 text-[20px] font-semibold leading-[1.25]" dir="auto">{p.text}</h2>;
     }
+    // bd-o15qnr.40.5 — on the switch, "The Digital Coach chose N" is said on the card itself (dcLevel), not as a line.
+    if (p.type === "sub" && v7 && p.dc === "chose") return null;
     if (p.type === "sub") return <h3 key={i} className="mx-1 mt-2 text-[16px] font-semibold text-[#4b5563]" dir="auto">{p.role ? W.subs[p.role] : p.text}</h3>;
     if (p.type === "context") {
       return (
