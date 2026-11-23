@@ -398,24 +398,29 @@ async function roundSitting(rows, s) {
 }
 
 /**
- * "Done for tonight!" (web_quiz_evening_round on, an evening round, a named child): the child's set would be EMPTY now,
- * every lesson item answered right earlier today and no recall item in the round (evening round roundSetEmpty). The
- * start then answers { round_done_for_tonight: true, class_link_code, round_code } and opens no sitting, so answers and
- * finish never see the child (the page names the two codes on its own line). A round with a recall item never empties
- * and reads nothing more; else the seam's same-day read, bounded by now. Returns those codes (the page logs
+ * "Done for tonight!" (web_quiz_evening_round on, an evening round, a named child): the child already finished this
+ * round (`priorP`: the start's own earlier-finish lookup, so nothing more is read), or the child's set would be EMPTY
+ * now, every lesson item answered right earlier today and no recall item in the round (evening round roundSetEmpty).
+ * The start then answers { round_done_for_tonight: true, class_link_code, round_code } and opens no sitting, so answers
+ * and finish never see the child (the page names the two codes on its own line). A round with a recall item never
+ * empties and reads nothing more; else the seam's same-day read, bounded by now. Returns those codes (the page logs
  * web_quiz.round_done_for_tonight with them when it shows the words: one line per refusal, never two). Off, any other
  * quiz, a failed read: null.
  */
-async function doneForTonight(ctx, studentId, rowsP) {
+async function doneForTonight(ctx, studentId, rowsP, priorP = null) {
   const f = await require('./web-quiz-hub-flags').flags();
   if (!f.eveningRound) return null;
   const got = await rowsP;
   const rows = (got && got.rows) || [];
-  if (!Round().roundFields(rows) || !Round().roundCanEmpty(rows)) return null;
+  const fields = Round().roundFields(rows);
+  if (!fields) return null;
+  const codes = { class_link_code: fields.class_link_code, round_code: fields.round_code };
+  // A round is played once: a child with a finished sitting on it gets no second one.
+  if (await Promise.resolve(priorP).catch(() => null)) return codes;
+  if (!Round().roundCanEmpty(rows)) return null;
   const sitting = await roundSitting(rows, { id: null, student_id: studentId, user_id: null, quiz_id: ctx.quizId, created_at: new Date().toISOString() });
   if (sitting.round_plain || !Round().roundSetEmpty(rows, { skip: sitting.round_skip })) return null;
-  const { class_link_code: classLinkCode, round_code: roundCode } = Round().roundFields(rows);
-  return { class_link_code: classLinkCode, round_code: roundCode };
+  return codes;
 }
 
 // Is this quiz an evening round? (meta.source, set when the round's row is written and never changed): one small read
@@ -1355,7 +1360,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
   // web_quiz_order_seed: the questions for the sitting's own order are read beside the insert (off: nothing is read)
   const orderRowsP = orderRows(ctx.quizId, ctx.shareCodeId);
   // "Done for tonight!": a named child with nothing left in tonight's round opens no sitting (no row, no `st`).
-  const done = student && !userId ? await doneForTonight(ctx, student.id, orderRowsP) : null;
+  const done = student && !userId ? await doneForTonight(ctx, student.id, orderRowsP, priorP || prior) : null;
   if (done) return { round_done_for_tonight: true, ...done };
 
   const { data: session, error: sErr } = await supabase.from('quiz_sessions').insert({

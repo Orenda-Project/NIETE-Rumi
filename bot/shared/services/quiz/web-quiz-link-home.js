@@ -13,7 +13,8 @@
  *
  * Never for: a phone that has not played this code; a phone that played it as two or more children (the
  * landing's own "Whose turn?" runs; nothing is auto-picked); a child whose run here is not finished; a teacher's
- * device (a run with a user); a friend's challenge code; a forwarded copy on another phone (no run on it).
+ * device (a run with a user); a friend's challenge code; a forwarded copy on another phone (no run on it); an evening
+ * round's code (web-quiz-evening-round isRoundShareCode: the start answers a finished child "Done for tonight!").
  * The server writes `door_shown{door:'link_home', surface:'hub', w:'s'}` when it routes the child.
  */
 const supabase = require('../../config/supabase');
@@ -55,11 +56,16 @@ async function isOn(now = Date.now()) {
   return Boolean((await Flags.flags()).hub);
 }
 
+// An evening round's code is never a way home. Read only with the switch on, cached per code; a failed read is "not a
+// round" (today's answer).
+const isRound = (shareCodeId) => require('./web-quiz-evening-round').isRoundShareCode(shareCodeId);
+
 /** May the quiz payload carry `link_home`? Never on a friend's challenge or the teacher's preview. Never throws. */
 async function field(ctx, { preview = false } = {}) {
   try {
     if (!ctx || ctx.invitedByStudentId || preview) return false;
-    return await isOn();
+    if (!(await isOn())) return false;
+    return !(await isRound(ctx.shareCodeId));
   } catch (_) {
     return false;
   }
@@ -81,6 +87,7 @@ async function home(body = {}, resolveCode = null) {
     if (typeof resolveCode !== 'function') return no('no_code');
     try { ctx = await resolveCode(body.code); } catch (_) { return no('no_code'); }
     if (ctx.invitedByStudentId) return no('challenge');
+    if (await isRound(ctx.shareCodeId)) return no('round');
     const { data, error } = await dbRead('linkHome:quiz_sessions:1', (db) => db.from('quiz_sessions')
       .select('id, student_id, user_id, invited_by_student_id, status, created_at')
       .eq('share_code_id', ctx.shareCodeId).eq('device_ref', d).limit(50));
