@@ -28,7 +28,7 @@ describe("KpiTiles dense", () => {
     inRouter(<KpiTiles dense items={[{ value: 3, label: "Taught in class", delta: -2, icon: CircleCheck, to: "/j" }]} />);
     const num = screen.getByText("3");
     expect(classes(num)).toEqual(expect.arrayContaining(["text-[28px]", "font-bold", "tabular-nums"]));
-    expect(num.parentElement?.querySelector("[data-delta]")).toHaveTextContent("▼2");
+    expect(num.parentElement?.querySelector("[data-delta]")).toHaveTextContent("▼2 less");
     const label = screen.getByText("Taught in class");
     expect(classes(label)).toEqual(expect.arrayContaining(["text-[16px]", "font-semibold"]));
     expect(classes(label)).not.toContain("truncate");
@@ -81,5 +81,28 @@ describe("KpiTiles dense", () => {
     render(<KpiTiles items={[{ value: 5, label: "Lesson plans" }]} />);
     expect(classes(screen.getByRole("group", { name: "5 Lesson plans" }))).toContain("min-h-[104px]");
     expect(screen.getByText("5")).toHaveClass("text-[32px]");
+  });
+});
+
+describe("KpiTiles dense, design review bd-96f69c.18", () => {
+  it("the pill says what it is: ▲ 5 more, ▼ 2 less, ● Same", () => {
+    inRouter(<KpiTiles dense items={[{ value: 14, label: "A", delta: 5, to: "/a" }, { value: 3, label: "B", delta: -2, to: "/b" }, { value: 2, label: "C", delta: 0, to: "/c" }]} />);
+    const pills = [...document.querySelectorAll("[data-delta]")].map((p) => p.textContent);
+    expect(pills).toEqual(["▲5 more", "▼2 less", "●Same"]);
+  });
+
+  it("the number and its pill never wrap apart", () => {
+    inRouter(<KpiTiles dense items={[{ value: 14, label: "A", delta: 5, to: "/a" }]} />);
+    const row = screen.getByText("14").parentElement as Element;
+    expect(classes(row)).toEqual(expect.arrayContaining(["flex-nowrap", "whitespace-nowrap"]));
+  });
+
+  it("parts: each number beside its own word, named \"4 Quizzes, 1 Paper\"; no separate label line", () => {
+    const onPress = vi.fn();
+    inRouter(<KpiTiles dense items={[{ value: null, label: "Quizzes · Papers", parts: [{ value: 4, label: "Quizzes" }, { value: 1, label: "Paper" }], onPress }]} />);
+    const btn = screen.getByRole("button", { name: "4 Quizzes, 1 Paper" });
+    expect([...btn.querySelectorAll("[data-kpi-part]")].map((p) => p.textContent)).toEqual(["4 Quizzes", "1 Paper"]);
+    expect(btn.querySelector("[data-kpi-part] bdi")).not.toBeNull();
+    expect(screen.queryByText("Quizzes · Papers")).toBeNull();
   });
 });

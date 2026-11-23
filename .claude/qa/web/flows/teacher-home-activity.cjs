@@ -108,9 +108,11 @@ const scenarios = [
       await asRole(page, ctx, 'teacher', 'teacherV2');
       const w = await open(page, ctx, '/portal/teacher');
       const block = await textOf(page, 'home-activity', 'Last 30 days block');
-      for (const want of ['Last 30 days', 'Updated today', 'Plans opened', '14', 'Taught in class', '3', 'DC observations', 'Quizzes · Papers', 'My journey']) {
+      for (const want of ['Last 30 days', 'Updated today', 'Plans opened', '14', 'Taught in class', '3', 'DC observations', '4 Quizzes', '1 Paper', '5 more', 'Same', 'My journey']) {
         expect(block.includes(want), 'the block lacks "' + want + '": ' + block);
       }
+      // Design review #2 (bd-96f69c.18): each number sits beside its own word; no "Quizzes · Papers" label, no summed pill.
+      expect(!block.includes('Quizzes · Papers'), 'the block still draws the old "Quizzes · Papers" label: ' + block);
       // Design review: on a slim-card day the block follows the slim card (inside the grid), never above it.
       let slimFirst = null;
       if (await page.getByTestId('home-slim-card').count()) {
@@ -153,6 +155,9 @@ const scenarios = [
       const updated = await textOf(page, 'journey-updated', 'updated line');
       expect(/^Updated today/.test(updated), 'the updated line reads "' + updated + '"');
       expect(/\/portal\/teacher\/journey/.test(page.url()), 'My journey opened ' + page.url());
+      // bd-96f69c.9 design review #5: Home stays the current menu item on My journey.
+      const current = await page.locator('nav [aria-current="page"]').first().getAttribute('href');
+      expect(current === '/portal/teacher', 'the menu item lit on My journey is ' + current);
       const sw = await noSideScroll(page);
       const file = await shot(page, 'journey-en-360');
       healthy(w);

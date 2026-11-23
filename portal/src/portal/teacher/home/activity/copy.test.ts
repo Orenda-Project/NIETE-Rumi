@@ -20,4 +20,11 @@ describe("Home activity copy (Urdu)", () => {
   it("says the time the same way My journey does", () => {
     expect(ACTIVITY_COPY_UR.updatedToday(URDU_TIME)).toBe(JOURNEY_COPY_UR.updatedToday(URDU_TIME));
   });
+
+  // Design review #3 (bd-96f69c.18): two labels wrapped to two Nastaliq lines at 360 px.
+  it("the Urdu tile labels are short (lesson plans opened, coaching observations)", () => {
+    expect(ACTIVITY_COPY_UR.opened).toBe("لیسن پلان کھولے");
+    expect(ACTIVITY_COPY_UR.coached).toBe("کوچنگ مشاہدات");
+    expect(ACTIVITY_COPY_UR.paper).toBe("پرچہ");
+  });
 });

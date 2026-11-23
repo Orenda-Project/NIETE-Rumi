@@ -1935,4 +1935,10 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   rec('T691', 'No second button after ten minutes, mid chat quiz, once the page has opened, or for a slash command', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
+
+  // bd-e1qvrf: the saved grade is observable as meta.grade_source = 'profile' on the quiz row.
+  rec('T1184', 'A class quiz is pitched at the grade the teacher saved on their profile', 'BLOCKED',
+      { reason: 'needs a recorded lesson transcript and its digest LLM call, which the mock cassettes do not hold; '
+          + 'unit-tested in bot/tests/quiz/transcript-quiz-digest-grade.test.js (bd-e1qvrf)' }, 0);
+
 };

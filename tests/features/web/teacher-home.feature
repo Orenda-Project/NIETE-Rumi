@@ -131,7 +131,11 @@ Feature: Teacher home, analytics, more and profile
     And her counted numbers are stored: 14 plans opened, 3 taught in class, 2 DC observations, 4 quizzes and 1 paper
     And the demo teacher is signed in on a 360 px phone
     When the teacher opens /portal/teacher
-    Then a "Last 30 days" block shows "Updated today" and the tiles Plans opened 14, Taught in class 3, DC observations and Quizzes · Papers
+    # UPDATED 2026-11-22 (bd-96f69c.18, design review #2/#4): the quiz tile names each number ("4 Quizzes", "1 Paper")
+    # with no summed pill, and the change pill says its words ("▲ 5 more", "● Same").
+    Then a "Last 30 days" block shows "Updated today" and the tiles Plans opened 14, Taught in class 3, DC observations and the quiz tile
+    And the quiz tile reads "4 Quizzes" and "1 Paper", each number beside its own word, with no "Quizzes · Papers" label
+    And the change pills say their words: Plans opened "5 more", DC observations "Same"
     And a "My journey" row is under the tiles
     And on a day her lesson card is the slim one, the block comes right after that card, never above it
     And the page does not scroll sideways, and no page error or 5xx happened
@@ -150,6 +154,7 @@ Feature: Teacher home, analytics, more and profile
     When the teacher taps "My journey" on her Home
     Then /portal/teacher/journey lists Opened a lesson plan, Taught in class and DC observation, newest first
     And it says "Updated today …"
+    And Home is the lit item in the menu
 
   @TH14
   Scenario: Teacher app v2: with Home activity on but no numbers counted yet, Home loads with no numbers and no error

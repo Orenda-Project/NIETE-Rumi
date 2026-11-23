@@ -85,8 +85,12 @@ export function HomeActivity({ activity, quizHome, onGo, className }: HomeActivi
     },
     { value: t.coached.now, label: A.coached, delta: changeOf(t.coached), onPress: () => onGo('act_coached', rangeHref(COACHING_ALL, range)) },
     {
-      value: `${t.quizzes.now} · ${t.papers.now}`, label: A.quizPapers, onPress: () => setTray(true),
-      delta: changeOf({ now: t.quizzes.now + t.papers.now, prev: t.quizzes.prev + t.papers.prev }),
+      // Each number beside its own word, no summed pill (design review #2, bd-96f69c.18).
+      value: null, label: A.quizPapers, onPress: () => setTray(true),
+      parts: [
+        { value: t.quizzes.now, label: t.quizzes.now === 1 ? A.quiz : A.quizzes },
+        { value: t.papers.now, label: t.papers.now === 1 ? A.paper : A.papers },
+      ],
     },
   ];
 
@@ -94,7 +98,7 @@ export function HomeActivity({ activity, quizHome, onGo, className }: HomeActivi
     <section data-testid="home-activity" className={cn('flex flex-col gap-2.5', className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 px-1">
         <h2 className="text-[16px] font-semibold text-[#1d2025]">{A.lastDays}</h2>
-        <span className={ROW_SUB}>{bidi(line ?? '')}</span>
+        <span className={cn(ROW_SUB, 'rtl:text-[14px]')}>{bidi(line ?? '')}</span>
       </div>
       <KpiTiles dense items={items} />
       {shown.trend.length ? (

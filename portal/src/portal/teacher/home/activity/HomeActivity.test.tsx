@@ -61,8 +61,19 @@ describe("with numbers", () => {
     expect(screen.getByRole("button", { name: `14 ${A.opened}, up 5` })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: `3 ${A.taught}, up 2` })).toHaveTextContent(A.toldUs);
     expect(screen.getByRole("button", { name: `2 ${A.coached}, same as before` })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `4 · 1 ${A.quizPapers}, up 5` })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `4 ${A.quizzes}, 1 ${A.paper}` })).toBeInTheDocument();
     expect(tapProblems(container)).toEqual([]);
+  });
+
+  // Design review #2 (bd-96f69c.18): "1 · 4" with one summed pill; she could not tell which number was quizzes.
+  it("Quizzes · Papers: each number sits beside its own word, no summed pill", () => {
+    draw(ACT);
+    const tile = screen.getByRole("button", { name: `4 ${A.quizzes}, 1 ${A.paper}` });
+    expect(tile.querySelector("[data-delta]")).toBeNull();
+    const parts = [...tile.querySelectorAll("[data-kpi-part]")].map((p) => p.textContent);
+    expect(parts).toEqual([`4 ${A.quizzes}`, `1 ${A.paper}`]);
+    draw({ ...ACT, tiles: { ...ACT.tiles, quizzes: c(1, 0), papers: c(3, 0) } });
+    expect(screen.getByRole("button", { name: `1 ${A.quiz}, 3 ${A.papers}` })).toBeInTheDocument();
   });
 
   it("each tile is logged, then opens its list on the same 30 days", () => {
@@ -77,7 +88,7 @@ describe("with numbers", () => {
 
   it("Quizzes · Papers opens a tray she chose: Quizzes → her quiz home, Papers → All papers", () => {
     draw(ACT);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^4 · 1 ${A.quizPapers}`) }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^4 ${A.quizzes}`) }));
     const tray = screen.getByRole("dialog");
     fireEvent.click(within(tray).getByRole("button", { name: new RegExp(A.quizzes) }));
     expect(onGo).toHaveBeenLastCalledWith("act_quiz_papers", "/quiz/teacher/tok");
@@ -87,7 +98,7 @@ describe("with numbers", () => {
 
   it("no quiz home → the Quizzes row is information", () => {
     draw(ACT, null);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^4 · 1 ${A.quizPapers}`) }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^4 ${A.quizzes}`) }));
     const tray = screen.getByRole("dialog");
     expect(within(tray).queryByRole("button", { name: new RegExp(`^4.*${A.quizzes}`) })).toBeNull();
     expect(within(tray).getByText(A.quizzes)).toBeInTheDocument();
@@ -162,5 +173,12 @@ describe("Urdu", () => {
     expect(screen.getByText(U.opened)).toBeInTheDocument();
     expect(screen.getByText(U.myJourney)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/[۰-۹٠-٩]/);
+  });
+
+  // Design review #7: the 13px muted Nastaliq updated line was the hardest line to read; 14px under rtl: only.
+  it("the updated line is 14px in Urdu", () => {
+    draw(ACT);
+    const line = screen.getByText("Updated today, 2:30 PM");
+    expect((line.getAttribute("class") || "").split(/\s+/)).toContain("rtl:text-[14px]");
   });
 });

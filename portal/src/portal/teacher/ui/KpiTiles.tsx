@@ -28,7 +28,8 @@ import { FEATURE_HUE, type AnyFeature } from '../icons/features';
  * `dense` (Home's "Last 30 days" block): min-h 88px; the first line is an optional neutral 24px `icon`, the number
  * 28px/700 and the pill, and the › at the end; the label 16px/600 under it across the tile's full width (never cut; the
  * design review found it squeezed to 3 Urdu lines beside the icon and ›); an optional `note`, a 13px muted third line.
- * A two-number string value ("4 · 1") follows the page direction, so in Urdu each number sits under its word. A dense item with `to` / `onPress` is ONE link/button (the card edge, › mirrored, FOCUS, a pressed
+ * The pill draws its words ("▲ 5 more", "▼ 2 less") and never wraps away from the number. `parts` (dense only) puts
+ * each number beside its own word, one per line ("4 Quizzes" / "1 Paper"), in place of the number and label, with no pill (bd-96f69c.18). A dense item with `to` / `onPress` is ONE link/button (the card edge, › mirrored, FOCUS, a pressed
  * tint) named like the group ("14 Plans opened, up 5"). Without them it is information, as above.
  */
 
@@ -48,13 +49,15 @@ export interface KpiItem {
   /** `dense` only: the tile opens this (a link) or calls this (a button). */
   to?: string;
   onPress?: () => void;
+  /** `dense` only: several numbers, each beside its own word, in place of value + label. */
+  parts?: readonly { value: number; label: string }[];
 }
 
 export interface KpiTilesProps {
   items: readonly KpiItem[];
   columns?: number;
   compareLabel?: string;
-  copy?: Partial<Pick<TeacherUiCopy, 'same' | 'sameAsBefore' | 'upBy' | 'downBy' | 'noValue'>>;
+  copy?: Partial<Pick<TeacherUiCopy, 'same' | 'sameAsBefore' | 'upBy' | 'downBy' | 'moreBy' | 'lessBy' | 'noValue'>>;
   className?: string;
   /** Home's compact tiles: see the header. */
   dense?: boolean;
@@ -103,22 +106,36 @@ export function KpiTiles({ items, columns, compareLabel, copy, className, dense 
           ) : null;
           if (dense) {
             const Icon = t.it.icon;
-            const name = `${t.value} ${t.it.label}${t.change}`;
+            const parts = t.it.parts?.length ? t.it.parts : null;
+            const name = parts ? parts.map((p) => `${p.value.toLocaleString('en-US')} ${p.label}`).join(', ') : `${t.value} ${t.it.label}${t.change}`;
             const tappable = !!(t.it.to || t.it.onPress);
-            const body = (
+            const chevron = tappable ? <ChevronRight className={cn('h-5 w-5 shrink-0', CHEVRON)} strokeWidth={2.4} aria-hidden="true" /> : null;
+            const body = parts ? (
+              <span data-kpi-top className="flex w-full items-center gap-2.5">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  {parts.map((p) => (
+                    <span key={p.label} data-kpi-part className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                      <bdi className="text-[28px] font-bold leading-[1.1] tabular-nums">{p.value.toLocaleString('en-US')}</bdi>{' '}
+                      <span className="text-[16px] font-semibold text-[#4b5563] rtl:leading-[1.8]">{p.label}</span>
+                    </span>
+                  ))}
+                </span>
+                {chevron}
+              </span>
+            ) : (
               <>
                 <span data-kpi-top className="flex w-full items-center gap-2.5">
                   {Icon ? <Icon className="h-6 w-6 shrink-0 text-[#6b7280]" strokeWidth={2} aria-hidden="true" /> : null}
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 whitespace-nowrap">
                     <span dir={typeof t.it.value === 'number' ? 'ltr' : undefined} className="text-[28px] font-bold leading-[1.1] tabular-nums">{t.value}</span>
                     {t.hasDelta ? (
-                      <span data-delta dir="ltr" className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[13px] font-bold tabular-nums', t.tone)}>
+                      <span data-delta className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[13px] font-bold tabular-nums', t.tone)}>
                         <span aria-hidden="true" className="text-[10px]">{t.dir > 0 ? '▲' : t.dir < 0 ? '▼' : '●'}</span>
-                        {t.dir === 0 ? words.same : t.mag}
+                        {t.dir === 0 ? words.same : t.dir > 0 ? words.moreBy(t.mag) : words.lessBy(t.mag)}
                       </span>
                     ) : null}
                   </span>
-                  {tappable ? <ChevronRight className={cn('h-5 w-5 shrink-0', CHEVRON)} strokeWidth={2.4} aria-hidden="true" /> : null}
+                  {chevron}
                 </span>
                 <span className="text-[16px] font-semibold leading-[1.25] text-[#4b5563] rtl:leading-[1.8]">{t.it.label}</span>
                 {t.it.note ? <span className={ROW_SUB}>{t.it.note}</span> : null}
