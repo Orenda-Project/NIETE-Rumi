@@ -46,6 +46,16 @@ export const FLOW_V7_COPY = {
   listening: "Digital Coach is listening to the lesson", // bd-o15qnr.36 (was NIETE Teaching Assistant)
   listeningSub: "Usually a few minutes. This page updates by itself; you can leave.",
 
+  /* bd-o15qnr.39 (#204, the operator 22 Nov ~00:40-00:50): the debrief while it is analysed, and the visit's items */
+  debriefAnalysing: "Debrief: analysing",
+  listeningDebrief: "The Digital Coach is listening to your debrief",
+  aboutMinutes: (n: number) => `About ${n} minutes. You can leave; it will show on the visit.`,
+  uploaded: "Uploaded",
+  backToVisit: "Back to the visit",
+  debriefRecording: "Debrief recording",
+  classRecording: "Class recording",
+  reportSentTo: (name: string) => `Report sent to ${name}`,
+
   /* Check and send: the class question as chips (grades 6–12 pick the form) */
 } as const;
 
@@ -87,10 +97,19 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   listening: "ڈیجیٹل کوچ سبق سن رہا ہے",
   listeningSub: "عموماً چند منٹ۔ یہ صفحہ خود بدل جاتا ہے؛ آپ جا سکتے ہیں۔",
 
+  // NATIVE-CHECK (bd-o15qnr.39, machine-drafted; تجزیہ جاری is the app's own Analysing)
+  debriefAnalysing: "ڈی بریف: تجزیہ جاری",
+  listeningDebrief: "ڈیجیٹل کوچ آپ کا ڈی بریف سن رہا ہے",
+  aboutMinutes: (n: number) => `تقریباً ${n} منٹ۔ آپ جا سکتے ہیں؛ یہ دورے پر نظر آئے گا۔`,
+  uploaded: "اپ لوڈ ہو گیا",
+  backToVisit: "دورے پر واپس",
+  debriefRecording: "ڈی بریف کی ریکارڈنگ",
+  classRecording: "کلاس کی ریکارڈنگ",
+  reportSentTo: (name: string) => `${name} کو بھیجی گئی رپورٹ`,
 };
 
 export const FLOW_V7 = bilingual(FLOW_V7_COPY, FLOW_V7_COPY_UR);
 
-const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "listening", "listeningSub", "respectNote"];
+const LONG_OK: readonly string[] = ["talkThenRecord", "getsOnWhatsApp", "principalFoot", "listening", "listeningSub", "respectNote", "listeningDebrief", "aboutMinutes"];
 
 export const COPY_ENTRY = { screen: "Coach · visit and feedback (v7)", module: FLOW_V7 as Bilingual<unknown>, same: [] as readonly string[], longOk: LONG_OK } as const;

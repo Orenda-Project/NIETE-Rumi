@@ -58,7 +58,7 @@ export function PrincipalFocus() {
         <div className={cn(LIST_CARD, "border-2 border-[#f59e0b]")}>
           <HistoryRow lead="person" first title={r.teacherName || S.dash} action="none" chip={reportChip(r, R)}
             extra={[r.schoolName, S.waitingSince(waitedDays(r, today))].filter(Boolean).join(" · ")} />
-          <ReportSegments step={r.step} />
+          <ReportSegments step={r.step} listening={!!r.listening} />
           <div className="px-3 pb-3">
             <Link to={principalObservationPath(r.id)} onClick={() => trackFlow("home.focus")} className={big}>
               {F.continueStep[step]}
