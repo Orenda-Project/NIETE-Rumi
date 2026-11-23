@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import CoachGate from "../CoachGate";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { readPending, type Pending } from "../ui";
@@ -7,6 +7,7 @@ import { useCopy } from "../../teacher/i18n";
 import { AttentionBanner } from "../../teacher/ui";
 import type { AnyFeature } from "../../teacher/icons";
 import { REPORTS } from "./copy";
+import { RecordingBarShownContext } from "../../lib/recordingBarShown";
 
 /**
  * bd-4404s7.5 — the page frame every Reports screen shares: the coach gate, the kit's TeacherPage (the reports
@@ -35,7 +36,7 @@ export function PendingReportsBanner() {
 }
 
 export default function ReportsFrame({
-  title, crumb, backTo, onBack, feature = "observations", chips, dock, bare, banner = true, testId, children,
+  title, crumb, backTo, onBack, feature = "observations", chips, dock, bare, banner = true, testId, dockSpace = false, children,
 }: {
   title: ReactNode;
   crumb?: ReactNode;
@@ -48,14 +49,27 @@ export default function ReportsFrame({
   /** The pending banner under the header; off on a screen with a job of its own (a recording). */
   banner?: boolean;
   testId?: string;
+  /** bd-o15qnr.40.8 — keep room under the content for the bar, the menu and the safe area (the v7 form views). */
+  dockSpace?: boolean;
   children: ReactNode;
 }) {
   const routes = useObserveRoutes();
+  const barShown = useContext(RecordingBarShownContext);
+  // bd-o15qnr.40.8 (queue #229, the operator 23 Nov 20:17: "Page not scrolling all the way on the form") — with a bar
+  // (Agree and next, Save, Submit…) the content keeps room under it for the bar (~80px), the menu (88px, or 148px with a
+  // running recording's bar above it), a notice, and the phone's safe area, so the last field scrolls clear of them on
+  // every form view (1-5 and 6-12). No menu (bare): the bar and the safe area. Wide screens: no menu, no room needed.
+  const space = !dock || !dockSpace ? null : bare
+    ? "h-[calc(88px+env(safe-area-inset-bottom))]"
+    : barShown
+      ? "h-[calc(228px+var(--notice-h,0px)+env(safe-area-inset-bottom))]"
+      : "h-[calc(168px+var(--notice-h,0px)+env(safe-area-inset-bottom))]";
   // bd-33wxxi.4 — the principal app's observation screens: no coach gate (TeacherGate ran), no coach pending banner.
   const page = (
     <TeacherPage feature={feature} title={title} crumb={crumb} backTo={backTo} onBack={onBack} chips={chips} dock={dock} bare={bare} testId={testId}>
       {banner && !bare && routes.coachGate ? <PendingReportsBanner /> : null}
       {children}
+      {space ? <div aria-hidden="true" data-testid="dock-space" className={`${space} shrink-0 md:h-0`} /> : null}
     </TeacherPage>
   );
   return routes.coachGate ? <CoachGate>{page}</CoachGate> : page;

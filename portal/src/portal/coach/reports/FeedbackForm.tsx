@@ -342,7 +342,7 @@ export default function FeedbackForm() {
       </DockV7>
     ) : undefined;
     return (
-      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={back} dock={dockV7} testId="coach-feedback-form">
+      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={back} dock={dockV7} testId="coach-feedback-form" dockSpace>
         {loadAndEmpty}
         <div ref={top} />
         {draft && section && (

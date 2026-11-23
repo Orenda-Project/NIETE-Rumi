@@ -76,7 +76,9 @@ const DRAFT = (over: Record<string, unknown> = {}) => ({
       item("B1"), ev("B1"), chg("B1"),
     ] },
     { id: "FS_CHECKLIST", kind: "checklist", parts: [{ type: "heading", text: "Checklist" }, { type: "sub", text: "Choose Yes or No for every one." }, yesNo("cl_1", "Notebooks checked")] },
-    { id: "FS_FEEDBACK", kind: "feedback", parts: [{ type: "heading", text: "Feedback for the teacher" }, { type: "score", total: 3, max: 12, pct: 25, band: null }, text("fb_strengths", "Strengths: 1-2 things that went well"), text("fs_focus_2", "Second indicator", false)] },
+    { id: "FS_FEEDBACK", kind: "feedback", parts: [{ type: "heading", text: "Feedback for the teacher" }, { type: "score", total: 3, max: 12, pct: 25, band: null }, text("fb_strengths", "Strengths: 1-2 things that went well"), text("fs_focus_2", "Second indicator", false),
+      { type: "field", name: "fs_focus", role: "other", input: "dropdown", kind: null, n: null, short: null, text: "Indicator to work on", required: false, max: null,
+        options: [{ id: "A1", title: "A1 · Lesson objective", description: "Lesson objective" }, { id: "B1", title: "B1 · Wait time", description: "Wait time" }] }] },
   ],
   values: { A1: "3", ev_A1: EV_A1 }, errors: {}, missing: [], editable: true, sealed: false, submittedAt: null,
   ...over,
@@ -222,7 +224,8 @@ describe("one indicator", () => {
     const why = within(screen.getByTestId("why-changed")).getByLabelText("Why you changed it");
     fireEvent.change(why, { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: "Agree and next" }));
-    expect(await screen.findByText("Write why you changed")).toBeInTheDocument();
+    // bd-o15qnr.40.8: the real reason, with the count
+    expect(await screen.findByText("Too short: at least 20 characters (5/20)")).toBeInTheDocument();
     expect(L.saveObs612Form).not.toHaveBeenCalled();
   });
 
@@ -268,5 +271,70 @@ describe("Urdu", () => {
     renderPage();
     await screen.findByTestId("ff-sections", undefined, { timeout: 8000 });
     expect(screen.getByText(/جمع کرائیں|جمع کریں/)).toBeInTheDocument();
+  });
+});
+
+/*
+ * bd-o15qnr.40.8 (queue #229, the operator 23 Nov ~20:20-20:40): the count toast only on the final Submit, never at a
+ * section's end; and the Evidence / Why you changed it boxes say the real reason ("Too short: at least 20 characters
+ * (5/20)") with a live counter under the box, shown only after Agree and next or leaving the box, never while typing.
+ */
+describe("bd-o15qnr.40.8: the toast on Submit only; the real reason for a short box", () => {
+  it("a section's Next to check: no count toast", async () => {
+    await openSection(/^A\. /);
+    fireEvent.click(screen.getByRole("button", { name: /^Next to check: A1/ }));
+    await screen.findByTestId("ff-indicator");
+    expect(screen.queryByTestId("ff-toast")).toBeNull();
+  });
+
+  it("Evidence: a live counter; too short says so with the count, only after leaving the box", async () => {
+    await openIndicator(/^B\. /, "B1");
+    const box = screen.getByLabelText("Evidence");
+    fireEvent.change(box, { target: { value: "short" } });
+    expect(screen.getByText("5/20 characters")).toBeInTheDocument();
+    expect(screen.queryByText(/Too short/)).toBeNull();
+    fireEvent.blur(box);
+    expect(await screen.findByText("Too short: at least 20 characters (5/20)")).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: "short and more" } });
+    expect(screen.queryByText(/Too short/)).toBeNull();
+    expect(screen.getByText("14/20 characters")).toBeInTheDocument();
+  });
+
+  it("Why you changed it: the same counter and reason, after Agree and next", async () => {
+    await openIndicator(/^A\. /, "A1");
+    fireEvent.click(within(screen.getByTestId("ff-card")).getByRole("radio", { name: /^2 · Developing/ }));
+    const why = within(screen.getByTestId("why-changed")).getByLabelText("Why you changed it");
+    fireEvent.change(why, { target: { value: "too short" } });
+    expect(within(screen.getByTestId("why-changed")).getByText("9/20 characters")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Agree and next" }));
+    expect(await screen.findByText("Too short: at least 20 characters (9/20)")).toBeInTheDocument();
+  });
+
+  it("Urdu: the reason in Urdu", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /^B\. / }, { timeout: 8000 }));
+    fireEvent.click(within(await screen.findByTestId("ff-section")).getByRole("button", { name: /^B1\b/ }));
+    const box = await screen.findByLabelText("شواہد");
+    fireEvent.change(box, { target: { value: "short" } });
+    fireEvent.blur(box);
+    expect(await screen.findByText(/بہت مختصر/)).toBeInTheDocument();
+  });
+});
+
+/*
+ * bd-o15qnr.40.9 (queue #229, the operator 23 Nov ~20:27): the "Indicator to work on" sheet's rows — the code as the row's
+ * tile ("A" over "1", not an empty grey square) and the indicator's one line under its name (not its name again).
+ */
+describe("bd-o15qnr.40.9: the Indicator to work on rows", () => {
+  it("the tile shows the code; the second line is the indicator's own line, not its name again", async () => {
+    const sec = await openSection(/^Feedback for the teacher/);
+    fireEvent.click(within(sec).getByRole("button", { name: /Indicator to work on/ }));
+    const tray = await screen.findByRole("dialog", { name: "Indicator to work on" });
+    const leads = within(tray).getAllByTestId("listrow-lead");
+    expect(leads[0]).toHaveTextContent("A");
+    expect(leads[0]).toHaveTextContent("1");
+    expect(within(tray).getByText("What A1 looks at.")).toBeInTheDocument();
+    expect(within(tray).queryByText("Lesson objective")).toBeNull();
   });
 });
