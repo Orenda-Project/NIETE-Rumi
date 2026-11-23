@@ -206,6 +206,30 @@ describe('dh: the phone\'s hash, only when the open carries its device ref; neve
   });
 });
 
+describe('qa: a walk\'s open carries its mark from the phone\'s user agent, so a read can drop it exactly', () => {
+  const opensNow = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.class_link_open').map(([, f]) => f);
+
+  test('an arrive from a browser whose user agent carries " QFIXQA": qa true on the open', async () => {
+    const r = await req('POST', '/api/wq/cl/arrive', { code: CODE, via: 'forward' }, { 'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/131 QFIXQA-walk' });
+    expect(r.status).toBe(200);
+    expect(opensNow()).toEqual([{ class_link_code: CODE, via: 'forward', qa: true }]);
+  });
+
+  test.each([
+    ['an ordinary phone', 'Mozilla/5.0 (Linux; Android 14) Chrome/131'],
+    ['the mark without its leading space', 'Mozilla/5.0 Chrome/131;QFIXQA'],
+    ['no user agent', null],
+  ])('%s: the open is exactly as before, no qa key', async (_name, ua) => {
+    await req('POST', '/api/wq/cl/arrive', { code: CODE, via: 'forward' }, ua ? { 'user-agent': ua } : {});
+    expect(opensNow()).toEqual([{ class_link_code: CODE, via: 'forward' }]);
+  });
+
+  test('a body that claims qa is not believed: only the user agent marks a walk', async () => {
+    await req('POST', '/api/wq/cl/arrive', { code: CODE, via: 'forward', qa: true }, { 'user-agent': 'Mozilla/5.0 Chrome/131' });
+    expect(opensNow()).toEqual([{ class_link_code: CODE, via: 'forward' }]);
+  });
+});
+
 test('the open is the standing link\'s telemetry: logged with web_quiz_evening_round OFF', async () => {
   seed(ALL_ON.filter((s) => s.key !== 'web_quiz_evening_round'));
   const a = await open(`/j/${CODE}`, { stored: DEV });
