@@ -61,6 +61,7 @@
  */
 
 const { clampLanguage } = require('../../config/ux-strings');
+const SchoolSearch = require('../../utils/school-search');
 
 const ROW_SOURCE = 'niete_ict';        // the only value the CHECK constraint allows
 // Two different ceilings, for two different jobs.
@@ -85,13 +86,18 @@ function normalisePhoneTerm(term) {
   return d;
 }
 
-/** A school matches on part of its NAME, its EMIS, or its full ext id. */
-function matchSchool(school, term) {
-  const t = String(term == null ? '' : term).trim().toLowerCase();
-  if (!t) return true;                          // blank shows everything
+/**
+ * What a school is searched by: its NAME (any words, any order), its EMIS or its full ext id (the whole term).
+ * bd-bfagiy: case, spaces and punctuation do not matter ("i103", "I 10 3" and "IMSG I10" find "IMSG (I-V) I-10/3").
+ */
+const schoolFields = (school) => {
   const s = school || {};
-  return [s.school_name, s.emis, s.school_ext_id]
-    .some((v) => String(v == null ? '' : v).toLowerCase().includes(t));
+  return { names: [s.school_name], codes: [s.emis, s.school_ext_id] };
+};
+
+/** A school matches on part of its NAME, its EMIS, or its full ext id; a blank term shows everything. */
+function matchSchool(school, term) {
+  return SchoolSearch.schoolMatches(schoolFields(school), term);
 }
 
 /** A teacher matches on part of her NAME or her phone (typed any common way). */
@@ -386,8 +392,8 @@ async function searchUniverse(leaderUserId, term, cap = RESULT_CAP) {
   const { data: mine } = await supabase
     .from('leader_schools').select('school_ext_id').eq('leader_user_id', leaderUserId);
   const has = new Set((mine || []).map((r) => r.school_ext_id));
-  return all
-    .filter((s) => matchSchool(s, term))
+  // bd-bfagiy: best first BEFORE the cap, so the school she means is never cut off by twenty looser ones
+  return SchoolSearch.searchSchools(all, term, schoolFields)
     .map((s) => ({ ...s, alreadyMine: has.has(s.school_ext_id) }))
     .slice(0, cap);
 }

@@ -1,6 +1,7 @@
 import type { SchoolsAnalyticsCounts, SchoolsAnalyticsSchool } from '../types/portal';
 import type { SortKey } from './copy';
 import type { ColumnKey } from './metrics';
+import { searchSchools as searchByRule } from '../lib/schoolSearch';
 
 /**
  * bd-s6qbts.3 — the school table's order and search, kept out of the components so the desktop table and the phone
@@ -49,9 +50,10 @@ export function sortSchools<T extends SchoolRow>(schools: readonly T[], { key, d
   });
 }
 
-/** By name or EMIS code, any case, any part of either. */
+/**
+ * By name (any words, any order) or EMIS code; case, spaces and punctuation do not matter (bd-bfagiy: "i103" finds
+ * "IMSG (I-V) I-10/3"). The table's own sort then decides the order.
+ */
 export function searchSchools<T extends SchoolRow>(schools: readonly T[], query: string): T[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [...schools];
-  return schools.filter((s) => s.name.toLowerCase().includes(q) || (s.emis ?? '').toLowerCase().includes(q));
+  return searchByRule(schools, query, (s) => ({ names: [s.name], codes: [s.emis] }));
 }
