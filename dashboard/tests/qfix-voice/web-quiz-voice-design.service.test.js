@@ -122,97 +122,9 @@ describe('a small text button (.wq-linkbtn) is still a 48 px tap target', () => 
   });
 });
 
-// The cascade itself, not one rule: every rule in wq.css whose selector matches the element (descendant and child
-// combinators, classes, ids, [attr=value]), ranked by !important, specificity, then source order, the way the browser
-// ranks them. @media rules count when they hold on a 360 × 740 phone.
-const postcss = require('postcss');
-const selParser = require('postcss-selector-parser');
-
-const CSS_ROOT = postcss.parse(CSS);
-const VIEW = { width: 360, height: 740 };
-function mediaHolds(params) {
-  return params.split(/\s+and\s+/).every((cond) => {
-    const m = /\(\s*(min|max)-(width|height)\s*:\s*(\d+)px\s*\)/.exec(cond);
-    if (!m) return false; // reduced motion, print, hover: not this phone
-    const v = VIEW[m[2]];
-    return m[1] === 'min' ? v >= Number(m[3]) : v <= Number(m[3]);
-  });
-}
-function compoundMatches(nodes, el) {
-  return nodes.every((n) => {
-    if (n.type === 'tag') return n.value.toLowerCase() === el.tag;
-    if (n.type === 'class') return el.classes.includes(n.value);
-    if (n.type === 'id') return el.id === n.value;
-    if (n.type === 'attribute') {
-      const have = el.attrs[n.attribute];
-      return n.operator ? n.operator === '=' && have === n.value : have !== undefined;
-    }
-    if (n.type === 'universal') return true;
-    return false; // pseudo-classes and pseudo-elements: never the element at rest
-  });
-}
-function selectorMatches(sel, path) {
-  const parts = [[]];
-  const combs = [];
-  sel.nodes.forEach((n) => {
-    if (n.type === 'combinator') { combs.push(n.value.trim() || ' '); parts.push([]); } else parts[parts.length - 1].push(n);
-  });
-  let at = path.length - 1;
-  if (!compoundMatches(parts[parts.length - 1], path[at])) return false;
-  for (let i = parts.length - 2; i >= 0; i -= 1) {
-    const comb = combs[i];
-    if (comb === '>') {
-      at -= 1;
-      if (at < 0 || !compoundMatches(parts[i], path[at])) return false;
-    } else if (comb === ' ') {
-      do { at -= 1; } while (at >= 0 && !compoundMatches(parts[i], path[at]));
-      if (at < 0) return false;
-    } else return false;
-  }
-  return true;
-}
-function specificity(sel) {
-  let a = 0; let b = 0; let c = 0;
-  sel.walk((n) => {
-    if (n.type === 'id') a += 1;
-    else if (n.type === 'class' || n.type === 'attribute' || (n.type === 'pseudo' && !n.value.startsWith('::'))) b += 1;
-    else if (n.type === 'tag' || (n.type === 'pseudo' && n.value.startsWith('::'))) c += 1;
-  });
-  return a * 1e6 + b * 1e3 + c;
-}
-// The size or the family out of a `font` shorthand: [style] [weight] size[/line-height] family.
-function fromFont(value, prop) {
-  const m = /(\d+(?:\.\d+)?px)(?:\/\S+)?\s+(.+)$/.exec(value);
-  if (!m) return null;
-  return prop === 'font-size' ? m[1] : m[2].trim();
-}
-// roots: the style files in the order the page loads them (wq.css alone unless a test names more).
-function computed(path, prop, roots = [CSS_ROOT]) {
-  let best = null;
-  let order = 0;
-  roots.forEach((root) => root.walkRules((rule) => {
-    const p = rule.parent;
-    if (p.type === 'atrule' && !(p.name === 'media' && mediaHolds(p.params))) return;
-    if (p.type !== 'root' && p.type !== 'atrule') return;
-    // `font: 700 52px/1.7 var(--fu)` sets the size and the family too
-    const decls = rule.nodes.filter((d) => d.type === 'decl' && (d.prop === prop || (d.prop === 'font' && /^font-(size|family)$/.test(prop))));
-    if (!decls.length) return;
-    selParser((sels) => {
-      sels.each((sel) => {
-        if (!selectorMatches(sel, path)) return;
-        decls.forEach((d) => {
-          order += 1;
-          const rank = [d.important ? 1 : 0, specificity(sel), order];
-          if (!best || rank[0] > best.rank[0] || (rank[0] === best.rank[0] && (rank[1] > best.rank[1] || (rank[1] === best.rank[1] && rank[2] > best.rank[2])))) {
-            best = { rank, value: d.prop === 'font' ? fromFont(d.value, prop) : d.value, selector: String(sel).trim() };
-          }
-        });
-      });
-    }).processSync(rule.selector);
-  }));
-  return best;
-}
-const node = (tag, classes = [], attrs = {}, id) => ({ tag, classes, attrs, id });
+// The cascade itself, not one rule (tests/qfix-voice/cascade.js): every matching rule ranked by !important,
+// specificity, then source order; @media rules count when they hold on a 360 × 740 phone.
+const { CSS_ROOT, computed, node, root } = require('./cascade');
 // html > body > #wq (the page ROOT, which carries wq-novoice: wq.js `ROOT.classList.add('wq-novoice')`) > card > the words
 function stemPath({ lang, ur2, novoice, listen }) {
   return [
@@ -232,7 +144,7 @@ describe('a wrong pick on a picture tile draws no underline through it (the juic
   // qa-design walk, sandbox Nov 2026: the kit marks a picked answer with an orange border AND an underline 4 px under its
   // text. On a picture tile the underline runs through the picture: it cut the tails of ع and ج on a Qaida letter card
   // and ran into the dots under ب and پ, the marks that tell the letters apart. A tile keeps the border, not the line.
-  const JUICE = postcss.parse(fs.readFileSync(path.join(WQ, 'wq-juice.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
+  const JUICE = root('wq-juice.css');
   const picked = (button) => [node('html', ['wq-juice'], { lang: 'ur' }), node('body'), node('div', [], {}, 'wq'), ...button];
   const tile = [node('div', ['wq-pgrid']), node('button', ['wq-opt', 'wq-ptile', 'wq-s1', 'wq-picked'])];
   const row = [node('div', ['wq-opts']), node('button', ['wq-opt', 'wq-s1', 'wq-picked'])];
@@ -376,5 +288,50 @@ describe('a Qaida letter card is set in Naskh, the letter forms the Qaida page t
     const sum = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(WQ, file))).digest('hex');
     expect(sum).toBe(rec.out_sha256);
     expect(face.nodes.find((d) => d.prop === 'unicode-range').value.replace(/\s+/g, '')).toBe(rec.unicode_range);
+  });
+});
+
+describe('a long Urdu question with no voice (90+ code points) still leaves its first answer on a 360 × 740 screen', () => {
+  // qa-design walk, sandbox Nov 2026: ALEW4D's 106-character plain Urdu question at 30 px took 462 px, and its first
+  // answer started at 684 px of 740. At 30 px a Nastaliq line holds ~15 code points at ~66 px, and the first answer
+  // starts ~222 px below the question's top; from 90 code points (7 lines) the first answer no longer fits above the fold.
+  // Production, 8-21 Nov: 12.8% of Urdu question-sittings had a question of 90+ code points (median 56, p90 94).
+  const WQI = require('../../public/wq/wq.js');
+  const T = { listen: 'سنیں' };
+  const ur = (n) => Array.from('آواز کی لہریں ہوا میں سفر کرتی ہیں اور کان تک پہنچتی ہیں۔ '.repeat(6)).slice(0, n).join('');
+  const stemClass = (q, lang) => /<p class="(wq-qtext[^"]*)"/.exec(WQI.itemHtml(q, T, lang))[1];
+  const single = (text) => ({ text, options: [{ slot: 'A', text: 'ہوا' }, { slot: 'B', text: 'پانی' }] });
+
+  test('the page marks an Urdu question of 90+ code points wq-qlong, and one of 89 not', () => {
+    expect(stemClass(single(ur(90)), 'ur').split(' ')).toContain('wq-qlong');
+    expect(stemClass(single(ur(106)), 'ur').split(' ')).toContain('wq-qlong');
+    expect(stemClass(single(ur(89)), 'ur').split(' ')).not.toContain('wq-qlong');
+  });
+
+  test('only Urdu questions: an English one of any length, and a listen question (its own 26 px rule), are not marked', () => {
+    expect(stemClass(single('Why does the sound of a drum travel further than the sound of a bell in a crowded street?'), 'en')).not.toMatch(/wq-qlong/);
+    const listen = { type: 'listen', text: ur(106), audio: { q: '/c/q', opts: [] }, options: [{ slot: 'A', text: 'نُ' }, { slot: 'B', text: 'پَ' }] };
+    expect(stemClass(listen, 'ur')).not.toMatch(/wq-qlong/);
+  });
+
+  const longPath = ({ ur2, novoice }) => [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang: 'ur' }),
+    node('body'),
+    node('div', novoice ? ['wq-novoice'] : [], {}, 'wq'),
+    node('div', ['wq-qcard']),
+    node('p', ['wq-qtext', 'wq-qlong']),
+  ];
+  test.each([
+    ['polished', true],
+    ['plain', false],
+  ])('Urdu (%s): a long question is 26 px when the voice is lost', (_, ur2) => {
+    expect(computed(longPath({ ur2, novoice: true }), 'font-size').value).toBe('26px');
+  });
+
+  test.each([
+    ['polished', true, '22px'],
+    ['plain', false, '21px'],
+  ])('Urdu (%s): with the voice working, a long question keeps today\'s size', (_, ur2, size) => {
+    expect(computed(longPath({ ur2, novoice: false }), 'font-size').value).toBe(size);
   });
 });
