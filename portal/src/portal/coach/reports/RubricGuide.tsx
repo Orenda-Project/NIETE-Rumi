@@ -3,6 +3,7 @@ import type { TalkGuide } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { InsightRow } from "./InsightRow";
 import { REPORTS } from "./copy";
+import { LessonPlanNotes } from "../report/LessonPlan";
 
 /**
  * The debrief notes in their rubric shape (went well, work on first, a moment to raise, and six conversation lines in the
@@ -47,6 +48,8 @@ export function RubricGuide({ guide }: { guide: TalkGuide }) {
           ))}
         </ol>
       </InsightRow>
+      {/* The lesson plan check: the notes' last section (HITL switch: only notes written for it carry lp_check). */}
+      {guide.lp_check ? <LessonPlanNotes lp={guide.lp_check} /> : null}
     </>
   );
 }
