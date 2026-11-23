@@ -315,8 +315,22 @@ async function attachLpCheck(guide, session, lang, deps = {}) {
 
 // ── WhatsApp: the section as its own message ───────────────────────────────
 
-/** The section as WhatsApp text, or '' when the notes have none. */
+// WhatsApp refuses a text body over 4,096 (the send is not clipped): keep the section well inside it.
+const WHATSAPP_ROOM = 3900;
+
+/**
+ * The section as WhatsApp text, or '' when the notes have none. A long plan first loses the per-move notes, then the
+ * checklist; the facts, the five lines and the reminder always stay.
+ */
 function renderLpCheckMessage(lp, S) {
+  for (const detail of ['full', 'labels', 'none']) {
+    const text = renderLpCheckText(lp, S, detail);
+    if ([...text].length <= WHATSAPP_ROOM || detail === 'none') return text;
+  }
+  return '';
+}
+
+function renderLpCheckText(lp, S, detail) {
   if (!lp || typeof lp !== 'object') return '';
   const out = [`📘 *${S.lp_check_title}*`];
   if (lp.state === 'no_plan') {
@@ -333,14 +347,16 @@ function renderLpCheckMessage(lp, S) {
     const at = lp.most_missed.time ? ` (${fill(S.lp_about_time, { time: lp.most_missed.time })})` : '';
     out.push(`*${S.lp_most_missed}* ${lp.most_missed.step}${S.lp_comma || ', '}${lp.most_missed.move}${at}${lp.most_missed.text ? ` — ${lp.most_missed.text}` : ''}`);
   }
-  out.push('', `*${S.lp_moves_label}*`);
-  for (const st of lp.steps || []) {
-    out.push(`_${st.name} ${st.done}/${st.total}_`);
-    for (const m of st.moves) {
-      const mark = m.mark === 'done' ? '✓' : m.mark === 'missed' ? '✗' : '–';
-      const note = m.mark === 'not_assessed' ? ` (${S.lp_move_not_assessed})`
-        : m.what ? ` — ${m.partial ? `${S.lp_mark_partly} ` : ''}${m.what}` : '';
-      out.push(`${mark} ${m.label}${note}`);
+  if (detail !== 'none') {
+    out.push('', `*${S.lp_moves_label}*`);
+    for (const st of lp.steps || []) {
+      out.push(`_${st.name} ${st.done}/${st.total}_`);
+      for (const m of st.moves) {
+        const mark = m.mark === 'done' ? '✓' : m.mark === 'missed' ? '✗' : '–';
+        const note = m.mark === 'not_assessed' ? ` (${S.lp_move_not_assessed})`
+          : m.what && detail === 'full' ? ` — ${m.partial ? `${S.lp_mark_partly} ` : ''}${m.what}` : '';
+        out.push(`${mark} ${m.label}${note}`);
+      }
     }
   }
   if (Array.isArray(lp.lines) && lp.lines.length) {
