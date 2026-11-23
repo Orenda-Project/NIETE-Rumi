@@ -13,8 +13,8 @@ process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
 process.env.OBSERVE_FRAMEWORK = 'fico';
 
 const SID = 'obs-lp-1';
-const COACH = { id: 'coach-en', phone_number: '923000000001', preferred_language: 'en', name: 'Coach' };
-const TEACHER = { id: 'teacher-en', phone_number: '923000000008', preferred_language: 'en' };
+const COACH = { id: 'coach-en', phone_number: '+92300FIXTURE1', preferred_language: 'en', name: 'Coach' };
+const TEACHER = { id: 'teacher-en', phone_number: '+92300FIXTURE8', preferred_language: 'en' };
 const TRANSCRIPT = "Coach: Let's look at the We Do step of today's plan. What made partner practice hard to do today? Teacher: The class was big. ".repeat(4);
 
 const FEEDBACK = () => ({
