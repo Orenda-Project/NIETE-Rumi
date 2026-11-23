@@ -47,13 +47,15 @@ function answerRows() {
   ];
 }
 
-/** The replica: db_is_replica, the switch row, and the counts function. */
+/** The replica: db_is_replica, the switch row, and the counts function. Like the NIETE prod replica, it
+ *  answers rpc over GET only and refuses POST (supabase-js's default) with a 400. */
 function fakeReader({ switchValue = { at: '02:00' }, rows = answerRows() } = {}) {
   const calls = [];
   return {
     calls,
-    async rpc(name, args) {
+    async rpc(name, args, opts) {
       calls.push({ name, args });
+      if (!opts || opts.get !== true) return { data: null, error: { message: `400: replica refuses POST rpc ${name}` } };
       if (name === 'db_is_replica') return { data: true, error: null };
       if (name === 'quiz_key_answer_counts') return { data: rows, error: null };
       return { data: null, error: { message: `unexpected rpc ${name}` } };
