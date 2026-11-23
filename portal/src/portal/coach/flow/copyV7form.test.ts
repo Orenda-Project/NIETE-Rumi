@@ -66,12 +66,15 @@ describe("the v7 Feedback Form's words", () => {
     expect(ur).not.toMatch(/ٹیچنگ اسسٹنٹ/);
     expect(FORM_V7.en.rumiTag).toBe("Digital Coach");
     expect(FORM_V7.ur.rumiTag).toBe("ڈیجیٹل کوچ");
-    expect(FORM_V7.en.assistantHeard).toBe("Digital Coach heard");
-    expect(FORM_V7.ur.assistantHeard).toBe("ڈیجیٹل کوچ نے یہ سنا");
+    // bd-o15qnr.39.1: one box title on the form, the operator's words
+    expect(FORM_V7.en.dcEvidence).toBe("Digital Coach’s evidence");
+    expect(FORM_V7.ur.dcEvidence).toBe("ڈیجیٹل کوچ کے شواہد");
+    expect(FORM_V7.en).not.toHaveProperty("assistantHeard");
     expect(FORM_V7.en.cantCount).toBe("The Digital Coach can't count this one. You decide.");
     expect(FORM_V7.ur.cantCount).toBe("ڈیجیٹل کوچ اسے نہیں گن سکتا۔ آپ طے کریں۔");
-    expect(FORM_V7.en.nothingInRecording).toBe("Nothing for this in the recording");
-    expect(FORM_V7.en.youAdd("who spoke")).toBe("You add: who spoke");
-    expect(FORM_V7.ur.youAdd("X")).toBe("آپ شامل کریں: X");
+    // bd-o15qnr.39.1: no "Nothing for this in the recording" (no box instead), no "You add: …" (the hint is the bot's)
+    expect(FORM_V7.en).not.toHaveProperty("nothingInRecording");
+    expect(FORM_V7.en).not.toHaveProperty("youAdd");
+    expect(FORM_V7.ur).not.toHaveProperty("youAdd");
   });
 });
