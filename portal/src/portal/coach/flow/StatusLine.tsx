@@ -24,7 +24,11 @@ export function stepWords(i: number, W: FlowV7Copy): { done: string; current: st
  * `current` (bd-o15qnr.39): other words for the current step while the Digital Coach works on it — "Debrief: analysing"
  * once her debrief is in and being listened to (the visit and every list card), so it never says "Record the debrief".
  */
-export function StatusLine({ at, className, current }: { at: number; className?: string; current?: string }) {
+/**
+ * `hideNow` (bd-o15qnr.47): the visit draws its "Next: <step>" card right above the line, so the line does not say the
+ * same step again ("Now: …"); "Done" still shows once all four are done.
+ */
+export function StatusLine({ at, className, current, hideNow = false }: { at: number; className?: string; current?: string; hideNow?: boolean }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
   const nowWords = current || (at < STATUS_STEPS ? stepWords(at, W).current : W.allDone);
   const allDone = at >= STATUS_STEPS;
@@ -53,11 +57,13 @@ export function StatusLine({ at, className, current }: { at: number; className?:
           );
         })}
       </ol>
-      <p className="m-0 flex items-center gap-1.5 text-[15px] font-semibold text-[#1d2025]">
-        {allDone
-          ? <><Check className="h-4 w-4 text-[#2f7a52]" aria-hidden="true" />{W.allDone}</>
-          : W.now(nowWords)}
-      </p>
+      {allDone || !hideNow ? (
+        <p className="m-0 flex items-center gap-1.5 text-[15px] font-semibold text-[#1d2025]">
+          {allDone
+            ? <><Check className="h-4 w-4 text-[#2f7a52]" aria-hidden="true" />{W.allDone}</>
+            : W.now(nowWords)}
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -218,13 +218,16 @@ function renderVisit(principal = false) {
 }
 
 describe("the visit (v7): the line, the due day, the current step's card", () => {
-  it("debrief: Now: Record the debrief, due by Mon 23 Nov, Your debrief with Start recording and Upload recording", async () => {
+  // bd-o15qnr.47 (#243): the step's card is the "Next: <step>" card on top; the line under it no longer repeats "Now: …".
+  it("debrief: Next: Record the debrief, due Mon 23 Nov, with Start recording and Upload recording", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "talk" }));
     L.getObservation.mockResolvedValue(VIEW("talk"));
     renderVisit();
-    const line = await screen.findByTestId("status-line");
-    await waitFor(() => expect(line).toHaveTextContent("Now: Record the debrief"));
-    expect(screen.getByTestId("debrief-due")).toHaveTextContent("Due by Mon 23 Nov");
+    const next = await screen.findByTestId("visit-next");
+    expect(next).toHaveTextContent("Next: Record the debrief");
+    expect(screen.getByTestId("status-line")).not.toHaveTextContent("Now: Record the debrief");
+    // "Due by Mon 23 Nov", or "Was due Mon 23 Nov" once that day has passed (the fixture's visit is 19 Nov)
+    expect(within(next).getByTestId("debrief-due")).toHaveTextContent(/due (by )?Mon 23 Nov/i);
     const card = screen.getByTestId("stage-debrief");
     expect(card).toHaveTextContent("Talk with the teacher, then record it here.");
     expect(within(card).getByRole("link", { name: /Start recording/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief");
@@ -239,8 +242,8 @@ describe("the visit (v7): the line, the due day, the current step's card", () =>
     await waitFor(() => expect(fb).toHaveTextContent("38%"));
     expect(fb.textContent).not.toMatch(/[★☆]/); // queue #230: the percentage, no stars
     expect(fb.closest("a")).toHaveAttribute("href", "/portal/coach/report/cs-1");
+    expect(screen.getByTestId("visit-next")).toHaveTextContent("Next: Send Lubna the report");
     const send = screen.getByTestId("stage-send");
-    expect(send).toHaveTextContent("Send Lubna the report");
     expect(send).toHaveTextContent("Lubna gets it on WhatsApp.");
     expect(within(send).getByRole("link", { name: /Send report/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/send");
   });
