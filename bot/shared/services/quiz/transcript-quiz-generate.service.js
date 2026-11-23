@@ -2050,18 +2050,21 @@ async function runKeyVerify(api, {
   // (applyMedia -> media.key_held), queued for a person (queueHeld) and never served or printed (key-hold-flag shown).
   // A repeat keeps the targeted rewrite below (it moves no key) unless it is itself held. Off: nothing here runs, and
   // `fix` is every flagged item, as before.
-  const held = bad.length && await KeyHold.on()
-    ? bad.map((v) => ({
+  // Only a key that is ONE slot is held: the review queue's key_at_flag is a single letter, so a held multi-answer item
+  // could never be queued for a person. Any other disagreement stays in `fix` and takes today's path (it is rewritten).
+  const holdable = (v) => KeyVerify.keyedIndices(questions[v.index]).length === 1;
+  const held = bad.some(holdable) && await KeyHold.on()
+    ? bad.filter(holdable).map((v) => ({
       index: v.index, verdict: v.verdict, picks: (v.blind || []).filter((k) => !(v.keyed || []).includes(k)).map((k) => String(questions[v.index].options[k])),
     }))
     : null;
-  const fix = held ? [] : bad;
   const notHeld = (i) => !held || !held.some((h) => h.index === i);
+  const fix = bad.filter((v) => notHeld(v.index));
   if (held) {
     record.status = 'held';
-    record.disagreements.forEach((d) => { d.outcome = 'held'; });
+    record.disagreements.forEach((d) => { if (!notHeld(d.index)) d.outcome = 'held'; });
     held.forEach((h) => repeatAt.delete(h.index));
-    if (!repeatAt.size) return finish({ changed: false, held, repeatFaults: repeatLeft() });
+    if (!fix.length && !repeatAt.size) return finish({ changed: false, held, repeatFaults: repeatLeft() });
   }
 
   // ── 2. ONE targeted rewrite, with the disagreement as the complaint ────────
@@ -2072,7 +2075,7 @@ async function runKeyVerify(api, {
   let softFaults = null;
   const rw = await api.rewriteRejected({
     // More than five flagged keys: the worst five are rewritten, the rest dropped below.
-    questions, errors: [...(held ? [] : complaints), ...repeatLeft()], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
+    questions, errors: [...complaints.filter((_, k) => notHeld(bad[k].index)), ...repeatLeft()], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -2200,14 +2203,16 @@ async function runKeyVerify(api, {
       // keys that were all true stay 'clean'; the repeats have their own record
       record.status = held ? 'held' : (!bad.length ? 'clean' : (replaced.length ? 'replaced' : (cand.dropped.length ? 'dropped' : 'fixed')));
       record.disagreements.forEach((d) => {
-        if (held) d.outcome = 'held';
+        if (!notHeld(d.index)) d.outcome = 'held';
         else if (replaced.includes(d.index)) d.outcome = 'replaced';
         else d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed';
       });
       attempts.push({ attempt: 'key_verify_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
+      // A held item is never dropped, but one dropped before it moves it up: its mark goes to where it ships.
+      const shipsAt = (i) => i - cand.dropped.filter((d) => d < i).length;
       return finish({
         changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
-        ...(held ? { held } : {}), repeatFaults: repairsLost ? repeatComplaints.filter((e) => notHeld(Number(/^q(\d+)/.exec(e)[1]))) : repeatLeft(),
+        ...(held ? { held: held.map((h) => ({ ...h, index: shipsAt(h.index) })) } : {}), repeatFaults: repairsLost ? repeatComplaints.filter((e) => notHeld(Number(/^q(\d+)/.exec(e)[1]))) : repeatLeft(),
       });
     } catch (figErr) {
       record.render_error = String(figErr.message || figErr).slice(0, 200);
@@ -2215,7 +2220,7 @@ async function runKeyVerify(api, {
     }
   }
   record.status = 'failed';
-  record.disagreements.forEach((d) => { d.outcome = held ? 'held' : (stillBad.has(d.index) ? 'failed' : 'fixed'); });
+  record.disagreements.forEach((d) => { d.outcome = !notHeld(d.index) ? 'held' : (stillBad.has(d.index) ? 'failed' : 'fixed'); });
   return finish({ failed: true });
 }
 

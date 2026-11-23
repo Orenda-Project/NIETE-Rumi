@@ -399,3 +399,121 @@ describe('a released hold: the reviewer\'s key_ok writes media.key_held.released
     expect((await served()).map((q) => q.qid)).not.toContain(held.id);
   });
 });
+
+describe('only a single-slot key is held: a multi-answer key cannot be queued (key_at_flag is one letter), so it is rewritten as today', () => {
+  // q5 becomes a "select all" item keyed "A,C" (apple, banana); the solver picks only apple.
+  const MULTI_STEM = 'Which words name a fruit?';
+  const MULTI = {
+    ...asQuestion(MULTI_STEM, 5, ['apple', 'chair', 'banana']), answer_mode: 'multi', correct_indices: [0, 2],
+    explanation: 'Apple and banana are both fruits.',
+    distractor_misconceptions: { 1: 'a word from another group' },
+    option_feedback: { correct: 'Yes, both are fruits.', wrong: { 1: 'A chair is not a fruit.' } },
+  };
+  delete MULTI.correct_index;
+  const MULTI_REWRITE_STEM = 'Which word names a vegetable?';
+  const WITH_MULTI = EIGHT.map((q, i) => (i === 5 ? MULTI : q));
+
+  function mixedSolver({ questions, indices = null }) {
+    const idx = Array.isArray(indices) ? indices : questions.map((_, i) => i);
+    return {
+      verdicts: idx.map((index) => {
+        const q = questions[index];
+        const keyed = q.answer_mode === 'multi' ? q.correct_indices.slice() : [Number(q.correct_index)];
+        if (q.question === FLAGGED_STEM) return { index, verdict: 'disagree', keyed, blind: [1], note: 'dog' };
+        if (q.question === MULTI_STEM) return { index, verdict: 'disagree', keyed, blind: [0], note: 'only apple' };
+        return { index, verdict: 'agree', keyed, blind: keyed, note: '' };
+      }),
+      model: 'stub-solver', costUsd: 0, latencyMs: 0,
+    };
+  }
+
+  beforeEach(() => {
+    Author.author.mockResolvedValue({ questions: WITH_MULTI, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: 'You planned reading short sentences.' });
+    Gen.verifyKeys.mockImplementation(async (args) => mixedSolver(args));
+    // The rewrite replaces whichever item a KEY_ complaint names (the multi one with a single-answer item).
+    Gen.rewriteRejected.mockImplementation(async ({ questions, errors }) => {
+      const at = (errors || []).filter((e) => /KEY_/.test(e)).map((e) => Number(/^q(\d+)/.exec(e)[1]));
+      if (!at.length) return { attempted: false, indices: [], merged: null, replaced: [] };
+      const merged = questions.map((q, k) => {
+        if (!at.includes(k)) return q;
+        return q.question === MULTI_STEM ? asQuestion(MULTI_REWRITE_STEM, k, ['carrot', 'chair', 'sing']) : asQuestion(REWRITE_STEM, k, ['cat', 'dog', 'sun']);
+      });
+      return { attempted: true, indices: at, merged, replaced: at, model: 'stub-rewrite', costUsd: 0, latencyMs: 0 };
+    });
+  });
+
+  test('switch on: the multi-answer item gets its KEY_ complaint and is rewritten (no hold, no queue row); the single-slot item in the same quiz is still held', async () => {
+    seed({ hold: true });
+    const r = await Gen.process(QID, { quizId: QID, phone: PHONE });
+    expect(r).toEqual(expect.objectContaining({ ok: true }));
+
+    // the rewrite is told about the multi-answer key, and only about it
+    expect(keyCalls()).toHaveLength(1);
+    const { errors } = keyCalls()[0][0];
+    expect(errors.filter((e) => /KEY_/.test(e))).toEqual([expect.stringMatching(/^q5: KEY_DISAGREEMENT/)]);
+    expect(errors.some((e) => /^q2: KEY_/.test(e))).toBe(false);
+
+    // the multi-answer item is gone (rewritten), its replacement is not held, and nothing queues it
+    expect(rows().some((q) => q.question_text === MULTI_STEM)).toBe(false);
+    const rewritten = rows().find((q) => q.question_text === MULTI_REWRITE_STEM);
+    expect(rewritten).toBeTruthy();
+    expect(rewritten.media.key_held).toBeUndefined();
+    expect(db.quiz_item_reviews.some((x) => x.question_id === rewritten.id)).toBe(false);
+
+    // the single-slot item is held as authored and queued, as before
+    const held = rows().find((q) => q.question_text === FLAGGED_STEM);
+    expect(held.correct_option).toBe(slotOf(held, 'hat'));
+    expect(held.media.key_held).toEqual(expect.objectContaining({ reason: 'blind_solve', verdict: 'disagree', picks: ['dog'] }));
+    expect(rows().filter((q) => q.media && q.media.key_held)).toEqual([held]);
+    expect(db.quiz_item_reviews).toHaveLength(1);
+    expect(db.quiz_item_reviews[0]).toMatchObject({ question_id: held.id, reason: 'blind_solve', key_at_flag: slotOf(held, 'hat') });
+
+    expect(quiz().meta.key_verify).toMatchObject({ status: 'held', fixed: 1 });
+    expect(quiz().meta.key_verify.disagreements).toEqual([
+      expect.objectContaining({ index: 2, outcome: 'held' }), expect.objectContaining({ index: 5, outcome: 'fixed' }),
+    ]);
+    expect(heldEvents()[0][1]).toEqual(expect.objectContaining({ n_held: 1, n_items: 8, queued: 1 }));
+    const page = await served();
+    expect(page).toHaveLength(7);
+    expect(page.map((q) => q.qid)).toContain(rewritten.id);
+    expect(page.map((q) => q.qid)).not.toContain(held.id);
+  });
+
+  test('switch off: both disputed keys go to the rewrite, as today', async () => {
+    seed({ hold: null });
+    await Gen.process(QID, { quizId: QID, phone: PHONE });
+    const { errors } = keyCalls()[0][0];
+    expect(errors.filter((e) => /KEY_/.test(e)).map((e) => e.slice(0, 3)).sort()).toEqual(['q2:', 'q5:']);
+    expect(rows().some((q) => q.media && q.media.key_held)).toBe(false);
+    expect(db.quiz_item_reviews).toHaveLength(0);
+  });
+
+  test('runKeyVerify, switch on: a multi-answer item the rewrite cannot fix is dropped, and the held mark follows its item to its new place', async () => {
+    seed({ hold: true });
+    // No rewrite lands: the multi-answer item still disagrees and is dropped from the set; q2 (held) moves nowhere,
+    // q6 (the one after the drop) is unaffected — so test with the single-slot item AFTER the multi one.
+    const SET = EIGHT.map((q, i) => (i === 2 ? MULTI : i === 5 ? EIGHT[2] : q));
+    const api = {
+      verifyKeys: jest.fn(async (args) => mixedSolver(args)),
+      rewriteRejected: jest.fn(async () => ({ attempted: false, indices: [], merged: null, replaced: [] })),
+      renderFigures: jest.fn(async () => ({})),
+      renderCards: jest.fn(async () => ({})),
+    };
+    const kv = await Gen.runKeyVerify(api, {
+      questions: SET, digest: DIGEST, language: 'en', quizId: QID, teacherId: TEACHER, lessonSummary: 'You planned reading short sentences.',
+      gradeBand: '3-5', grade: '3', quizSource: 'lp_v8', attempts: [],
+    });
+    expect(api.rewriteRejected).toHaveBeenCalledTimes(1);
+    expect(api.rewriteRejected.mock.calls[0][0].errors.filter((e) => /KEY_/.test(e))).toEqual([expect.stringMatching(/^q2: KEY_/)]);
+    expect(kv.changed).toBe(true);
+    expect(kv.questions).toHaveLength(7);
+    expect(kv.questions.some((q) => q.question === MULTI_STEM)).toBe(false);
+    // the held item was authored at 5; after the drop of 2 it ships at 4, and the mark says 4
+    expect(kv.questions[4].question).toBe(FLAGGED_STEM);
+    expect(kv.held).toEqual([expect.objectContaining({ index: 4, verdict: 'disagree', picks: ['dog'] })]);
+    expect(kv.record.status).toBe('held');
+    expect(kv.record.disagreements).toEqual([
+      expect.objectContaining({ index: 2, outcome: 'dropped' }), expect.objectContaining({ index: 5, outcome: 'held' }),
+    ]);
+  });
+});
