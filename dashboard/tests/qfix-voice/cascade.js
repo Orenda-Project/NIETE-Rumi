@@ -36,8 +36,20 @@ function compoundMatches(nodes, el) {
       return n.operator ? n.operator === '=' && have === n.value : have !== undefined;
     }
     if (n.type === 'universal') return true;
-    return false; // pseudo-classes and pseudo-elements: never the element at rest
+    // `:has(> b.x)` / `:has(b.x)`: a child (or any descendant) in the element's `kids` matches the compound after the
+    // combinator. An element built without `kids` has none, so it never matches, as before.
+    if (n.type === 'pseudo' && n.value === ':has') return n.nodes.some((arg) => hasMatches(arg, el));
+    return false; // other pseudo-classes and pseudo-elements: never the element at rest
   });
+}
+function hasMatches(arg, el) {
+  const lead = arg.nodes[0] && arg.nodes[0].type === 'combinator' ? arg.nodes[0].value.trim() : ' ';
+  const rest = arg.nodes.filter((n, i) => !(i === 0 && n.type === 'combinator'));
+  if (rest.some((n) => n.type === 'combinator')) return false; // one compound only
+  const kids = el.kids || [];
+  if (lead === '>') return kids.some((k) => compoundMatches(rest, k));
+  const all = (list) => list.some((k) => compoundMatches(rest, k) || all(k.kids || []));
+  return lead === ' ' ? all(kids) : false;
 }
 function selectorMatches(sel, path) {
   const parts = [[]];
@@ -62,6 +74,7 @@ function selectorMatches(sel, path) {
 function specificity(sel) {
   let a = 0; let b = 0; let c = 0;
   sel.walk((n) => {
+    if (n.type === 'pseudo' && /^:(has|not|is)$/.test(n.value)) return; // counted by its argument, as the browser does
     if (n.type === 'id') a += 1;
     else if (n.type === 'class' || n.type === 'attribute' || (n.type === 'pseudo' && !n.value.startsWith('::'))) b += 1;
     else if (n.type === 'tag' || (n.type === 'pseudo' && n.value.startsWith('::'))) c += 1;
@@ -100,6 +113,6 @@ function computed(path, prop, roots = [CSS_ROOT]) {
   }));
   return best;
 }
-const node = (tag, classes = [], attrs = {}, id) => ({ tag, classes, attrs, id });
+const node = (tag, classes = [], attrs = {}, id, kids = []) => ({ tag, classes, attrs, id, kids });
 
 module.exports = { CSS_ROOT, VIEW, computed, node, root, selectorMatches, specificity };
