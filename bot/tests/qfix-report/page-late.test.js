@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { renderPage } = require('../../shared/templates/teacher-report.page');
-const { resolveUx } = require('../../shared/config/ux-strings');
+const { resolveUx, digitsFor } = require('../../shared/config/ux-strings');
 
 const TOKEN = 'eyJrIjoidHIifQ.AAAAAAAAAAAAAAAAAAAAAA';
 const NOW = Date.parse('2026-11-22T09:30:00Z');
@@ -91,15 +91,17 @@ describe('late on: the counts line under the header', () => {
     expect(html.match(/late-line/g)).toHaveLength(1);
   });
 
-  test('UR: the Urdu line, with Western digits, never Urdu ones', () => {
+  // Urdu numerals in Urdu prose (language-protocol §9.4): the page's numbers are ۰–۹ in Urdu, this line's too.
+  test('UR: the Urdu line, with Urdu digits, never Western ones', () => {
     const html = page(urData(), { late: true, lang: 'ur' });
-    const want = resolveUx('qfix_report_page_line', { language: 'ur', params: { n: 4, late: 2 } });
+    const want = resolveUx('qfix_report_page_line', { language: 'ur', params: { n: digitsFor(4, 'ur'), late: digitsFor(2, 'ur') } });
     const line = lateLine(html);
     expect(line).not.toBeNull();
     expect(visible(line)).toBe(want);
-    expect(visible(line)).toContain('4');
-    expect(visible(line)).toContain('2');
-    expect(line).not.toMatch(URDU_DIGITS);
+    expect(visible(line)).toContain('۴');
+    expect(visible(line)).toContain('۲');
+    expect(visible(line)).not.toMatch(/[0-9]/);
+    expect(line).toMatch(URDU_DIGITS);
   });
 
   test('n is the played count the page already shows (summary.played), late is summary.late', () => {
@@ -161,7 +163,7 @@ describe('the PDF is this page: print carries the same line and tags', () => {
   test.each(['en', 'ur'])('print, %s', (lang) => {
     const data = lang === 'ur' ? urData() : quizData();
     const html = page(data, { late: true, print: true, lang });
-    expect(visible(lateLine(html) || '')).toBe(resolveUx('qfix_report_page_line', { language: lang, params: { n: 4, late: 2 } }));
+    expect(visible(lateLine(html) || '')).toBe(resolveUx('qfix_report_page_line', { language: lang, params: { n: digitsFor(4, lang), late: digitsFor(2, lang) } }));
     expect(scoreRows(html).map((r) => r.late)).toEqual([false, true, true, false]);
     const off = page(data, { print: true, lang });
     expect(off).not.toContain('late-line');

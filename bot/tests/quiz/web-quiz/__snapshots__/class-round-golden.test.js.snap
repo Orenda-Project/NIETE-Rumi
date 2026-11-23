@@ -155,8 +155,8 @@ exports[`round off (none): the report page is byte-identical class tab explicit:
 
 exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98460,
-  "sha256": "0358f7004b2900722be6753ec89a154adc9c1d0d9138316f0eea1c629b87a9ce",
+  "bytes": 98363,
+  "sha256": "96240d1b7197c91678c6840e43d1ea03908c528dafd7e7431c991989e27fd6c7",
 }
 `;
 
@@ -386,8 +386,8 @@ exports[`round off (own_off): the report page is byte-identical class tab explic
 
 exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98460,
-  "sha256": "0358f7004b2900722be6753ec89a154adc9c1d0d9138316f0eea1c629b87a9ce",
+  "bytes": 98363,
+  "sha256": "96240d1b7197c91678c6840e43d1ea03908c528dafd7e7431c991989e27fd6c7",
 }
 `;
 
@@ -553,8 +553,8 @@ exports[`round off (parent_off): the report page is byte-identical class tab exp
 
 exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98460,
-  "sha256": "0358f7004b2900722be6753ec89a154adc9c1d0d9138316f0eea1c629b87a9ce",
+  "bytes": 98363,
+  "sha256": "96240d1b7197c91678c6840e43d1ea03908c528dafd7e7431c991989e27fd6c7",
 }
 `;
 

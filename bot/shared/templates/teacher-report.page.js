@@ -105,11 +105,16 @@ const CMD = (c) => `<span class="ltr nb">${c}</span>`;
 
 const SOURCES = { lp_v8: 'lp', lp612: 'lp', lp: 'lp', lp_v9: 'lp', transcript: 'coaching', video: 'video' };
 
+// A number in the Urdu chrome is Urdu prose: ۰–۹ through the catalog's one digit writer (language-protocol §9.4).
+const UR = (v) => digitsFor(v, 'ur');
+
 /** Chrome, per language. Both complete: NIETE offers exactly en + ur. */
 const CHROME = {
   en: {
     title: 'Quiz report',
     week: (d, m) => `${d} ${MONTHS_EN[m]}`,
+    pct: (p) => `${p}%`,
+    hardestQ: (n) => `Q${n}`,
     dateClass: 'num',
     switchTo: 'اردو', switchLang: 'ur',
     fromLp: 'From lesson plan', fromCoaching: 'From coaching', fromVideo: 'From video',
@@ -176,19 +181,21 @@ const CHROME = {
   },
   ur: {
     title: 'کوئز رپورٹ',
-    week: (d, m) => `${d}/${m + 1}`,
+    week: (d, m) => `${UR(d)}/${UR(m + 1)}`,
+    pct: (p) => `${UR(p)}٪`,
+    hardestQ: (n) => `سوال <span class="num">${UR(n)}</span>`,
     // An Urdu date (Urdu month between the numbers) reads right to left: no LTR isolate.
     dateClass: 'dt',
     switchTo: 'English', switchLang: 'en',
     fromLp: 'سبق کے منصوبے سے', fromCoaching: 'کوچنگ سے', fromVideo: 'ویڈیو سے',
     className: (c) => `جماعت <span class="num">${c}</span>`,
-    playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھیلا`,
+    playedOf: (p, of) => `<b class="num">${UR(of)}</b> میں سے <b class="num">${UR(p)}</b> نے کھیلا`,
     // In the tile, two lines: Nastaliq's stacked letters collide when it wraps mid-phrase.
-    tilePlayedOf: (p, of) => `<span class="tl"><b class="num">${of}</b> میں سے <b class="num">${p}</b></span><span class="tl">نے کھیلا</span>`,
-    playedN: (p) => `<b class="num">${p}</b> نے کھیلا`,
+    tilePlayedOf: (p, of) => `<span class="tl"><b class="num">${UR(of)}</b> میں سے <b class="num">${UR(p)}</b></span><span class="tl">نے کھیلا</span>`,
+    playedN: (p) => `<b class="num">${UR(p)}</b> نے کھیلا`,
     playedLabel: 'بچوں نے کھیلا',
     noOne: 'ابھی کسی نے نہیں کھیلا',
-    offList: (n) => `<span class="num">+${n}</span> فہرست سے باہر`,
+    offList: (n) => `<span class="num">+${UR(n)}</span> فہرست سے باہر`,
     average: 'اوسط', hardest: 'سب سے مشکل', none: '—',
     notPlayed: 'ابھی نہیں کھیلا',
     allPlayed: 'کلاس کی فہرست میں سب بچوں نے کھیل لیا ہے۔',
@@ -202,21 +209,21 @@ const CHROME = {
     noneTitle: 'دیکھیں کس نے ابھی نہیں کھیلا',
     noneBody: `WhatsApp پر ${CMD('/roster')} بھیج کر کلاس کی فہرست بنائیں، پھر یہ رپورٹ دوبارہ کھولیں۔`,
     scores: 'اسکور', notOnList: 'فہرست میں نہیں',
-    listNo: (n) => `لسٹ نمبر <span class="num">${n}</span>`,
+    listNo: (n) => `لسٹ نمبر <span class="num">${UR(n)}</span>`,
     provisionalTitle: 'کلاس کی فہرست میں نہیں',
     provisionalBody: 'ان بچوں نے اپنا نام خود لکھا۔ ہر ایک کو کلاس میں شامل کریں، یا بتائیں کہ یہ اصل میں کون ہے۔',
     addTo: (c) => `${c} میں شامل کریں`, thisIs: 'یہ دراصل…', save: 'محفوظ کریں',
-    showAll: (n) => `سب <span class="num">${n}</span> دیکھیں`,
+    showAll: (n) => `سب <span class="num">${UR(n)}</span> دیکھیں`,
     noticeFailed: 'محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
-    okAdded: (name, cls, no) => (name ? `${name} کو ${cls} میں لسٹ نمبر <span class="num">${no}</span> پر شامل کر دیا گیا۔` : `${cls} میں شامل کر دیا گیا۔`),
+    okAdded: (name, cls, no) => (name ? `${name} کو ${cls} میں لسٹ نمبر <span class="num">${UR(no)}</span> پر شامل کر دیا گیا۔` : `${cls} میں شامل کر دیا گیا۔`),
     okMoved: (name) => (name ? `محفوظ ہو گیا — اب یہ اسکور ${name} کا ہے۔` : 'محفوظ ہو گیا۔'),
     printProvisional: (cls) => `انہیں ${cls} میں شامل کرنے کے لیے لائیو رپورٹ کھولیں۔`,
     noticeNotReady: 'ابھی محفوظ نہیں ہو سکتا: کلاس چننے کی سہولت اگلی اپ ڈیٹ کے ساتھ شروع ہوگی۔ آپ کی رپورٹ پر کوئی اثر نہیں۔',
     noticeClosed: 'اس کوئز کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
     noPlayers: 'ابھی کسی نے نہیں کھیلا۔ کوئز کا لنک کلاس کو بھیجیں۔',
     questions: 'ہر سوال کا حال',
-    qRight: (n, p) => `سوال <span class="num">${n}</span> · <span class="num">${p}%</span> درست`,
-    qNone: (n) => `سوال <span class="num">${n}</span> · ابھی کسی نے جواب نہیں دیا`,
+    qRight: (n, p) => `سوال <span class="num">${UR(n)}</span> · <span class="num">${UR(p)}٪</span> درست`,
+    qNone: (n) => `سوال <span class="num">${UR(n)}</span> · ابھی کسی نے جواب نہیں دیا`,
     mostChose: (o) => `سب سے زیادہ چنا گیا غلط جواب: ${o}`,
     reteach: 'کیا دوبارہ پڑھائیں',
     guidanceMissing: 'دوبارہ پڑھانے کی رہنمائی رپورٹ کی PDF کے ساتھ آئے گی۔',
@@ -224,16 +231,16 @@ const CHROME = {
       muddled: 'بچے کہاں الجھے', board: 'کل اسے دوبارہ کیسے پڑھائیں', check: 'آخر میں یہ پوچھیں',
       secure: 'بچوں کو یہ پکا آ گیا', stretch: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
     },
-    schoolLine: (r, m, p) => `اس ہفتے اسکول کا نمبر: <b class="num">${r}</b>${m > 0 ? ` (<span class="num">${m}</span> درجے اوپر)` : ''}${p != null ? ` · <b class="num">${p}</b> بچوں نے کھیلا` : ''}`,
+    schoolLine: (r, m, p) => `اس ہفتے اسکول کا نمبر: <b class="num">${UR(r)}</b>${m > 0 ? ` (<span class="num">${UR(m)}</span> درجے اوپر)` : ''}${p != null ? ` · <b class="num">${UR(p)}</b> بچوں نے کھیلا` : ''}`,
     exportPdf: 'PDF ڈاؤن لوڈ', allClasses: 'میری سب کلاسیں', backToQuiz: 'اس کوئز پر واپس',
-    updated: (t) => `تازہ ترین: <span class="num">${t}</span> · دوبارہ کھولنے پر نئی معلومات`,
-    classTitle: 'میری سب کلاسیں', classSub: 'پچھلے <span class="num">60</span> دن کے کوئز',
-    cellLine: (q, p) => `<b class="num">${q}</b> کوئز · <b class="num">${p}</b> نے کھیلا`,
+    updated: (t) => `تازہ ترین: <span class="num">${UR(t)}</span> · دوبارہ کھولنے پر نئی معلومات`,
+    classTitle: 'میری سب کلاسیں', classSub: 'پچھلے <span class="num">۶۰</span> دن کے کوئز',
+    cellLine: (q, p) => `<b class="num">${UR(q)}</b> کوئز · <b class="num">${UR(p)}</b> نے کھیلا`,
     avgShort: 'اوسط', noClass: 'کلاس معلوم نہیں',
     trend: 'ہر ہفتے کتنے بچوں نے کھیلا',
     yourQuizzes: 'آپ کے کوئز',
-    quizLine: (p) => `<b class="num">${p}</b> نے کھیلا`,
-    emptyClass: `پچھلے 60 دن میں کوئی کوئز نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    quizLine: (p) => `<b class="num">${UR(p)}</b> نے کھیلا`,
+    emptyClass: `پچھلے ۶۰ دن میں کوئی کوئز نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     expiredTitle: 'اس لنک کی مدت ختم ہو گئی ہے',
     expiredBody: `نئے لنک کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     incompleteTitle: 'یہ لنک مکمل نہیں',
@@ -282,10 +289,10 @@ const STORY_ROWS = {
     yourQuizzes: 'Your stories',
   },
   ur: {
-    playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھولی`,
-    quizLine: (p) => `<b class="num">${p}</b> نے کھولی`,
+    playedOf: (p, of) => `<b class="num">${UR(of)}</b> میں سے <b class="num">${UR(p)}</b> نے کھولی`,
+    quizLine: (p) => `<b class="num">${UR(p)}</b> نے کھولی`,
     noOne: 'ابھی کسی نے نہیں کھولی',
-    classSub: 'پچھلے <span class="num">60</span> دن کی کہانیاں',
+    classSub: 'پچھلے <span class="num">۶۰</span> دن کی کہانیاں',
     yourQuizzes: 'آپ کی کہانیاں',
   },
 };
@@ -308,8 +315,8 @@ function pkt(iso) {
 function dateLabel(iso, lang, { year = false } = {}) {
   const d = pkt(iso);
   if (!d) return '';
-  // A date is Urdu prose: Urdu digits (language-protocol §9.4; counts, % and scores stay
-  // ASCII inside their isolates), and it reads right to left with its month, so it is
+  // A date is Urdu prose: Urdu digits (language-protocol §9.4; the page's counts, % and
+  // scores too, through digitsFor), and it reads right to left with its month, so it is
   // never put in a left-to-right isolate.
   if (lang === 'ur') return urduDigits(`${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`);
   return `${d.getUTCDate()} ${MONTHS_EN[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
@@ -376,7 +383,8 @@ function styles({ rtl, print, needUrdu, extraCss = '' }) {
 html{font-size:var(--fs);-webkit-text-size-adjust:100%}
 body{margin:0;background:${print ? '#FFFFFF' : 'var(--paper)'};color:var(--ink);font-family:${body};line-height:var(--lead)${rtl ? ';word-spacing:.12em' : ''}}
 a{color:inherit}
-.ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:${FONTS.bodyLatin};word-spacing:normal}
+.ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:${FONTS.bodyLatin};word-spacing:normal}${rtl ? `
+.num{font-family:${FONTS.bodyUrdu}}` : ''}
 .nb{white-space:nowrap}
 .c-rtl{font-family:${FONTS.bodyUrdu};line-height:${leadUr}}
 .c-ltr{font-family:${FONTS.bodyLatin}}
@@ -482,6 +490,8 @@ function kit(lang) {
   const C = CHROME[lang] || CHROME.en;
   const T = (s) => wrapLatin(esc(s), rtl);
   const L = (s) => wrapLatin(s, rtl);
+  // A count, score or list number on this page: in the page language's own digits (digitsFor).
+  const D = (v) => digitsFor(v, lang);
   // A piece of content sets its own direction and face from its own script.
   const K = (s, tag = 'span', cls = '') => {
     const crtl = scriptOf(s) === 'ur';
@@ -492,7 +502,7 @@ function kit(lang) {
     const crtl = scriptOf(s) === 'ur';
     return `<${tag} class="${crtl ? 'c-rtl' : 'c-ltr'}${cls ? ` ${cls}` : ''}" dir="${crtl ? 'rtl' : 'ltr'}">${mathHtml(s, { prose: (p) => wrapLatin(esc(p), crtl) })}</${tag}>`;
   };
-  return { rtl, C, T, L, K, M };
+  return { rtl, C, T, L, K, M, D };
 }
 
 function subjectLabel(s, lang) {
@@ -525,7 +535,7 @@ function topBar({ C, L, langHref, print }) {
 }
 
 function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null, ok = null, late = false }) {
-  const { rtl, C: quizChrome, T, L, K, M } = kit(lang);
+  const { rtl, C: quizChrome, T, L, K, M, D } = kit(lang);
   const C = chromeOf(quizChrome, lang, r);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
@@ -538,10 +548,10 @@ function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind =
   const avg = num(summary.avg);
   // ── late finishers (quiz_teacher_home_reports, bd-5j1zaf): children whose counted finish came after the 12 h
   // report (teacher-report.data marks played[i].late, counts summary.late). `late` is passed only while the switch is
-  // on, never for a story send; off, nothing below changes a byte. Western digits on both pages, as the report's other numbers. ──
+  // on, never for a story send; off, nothing below changes a byte. Urdu digits on the Urdu page, as the report's other numbers. ──
   const lateOn = Boolean(late) && !r.story;
   const lateN = lateOn ? num(summary.late) || 0 : 0;
-  const lateLine = lateN >= 1 ? `<div class="sub late-line">${L(esc(resolveUx('qfix_report_page_line', { language: lang, params: { n: playedN, late: lateN } })))}</div>` : '';
+  const lateLine = lateN >= 1 ? `<div class="sub late-line">${L(esc(resolveUx('qfix_report_page_line', { language: lang, params: { n: D(playedN), late: D(lateN) } })))}</div>` : '';
   const lateTag = (p) => (lateOn && p.late === true ? `<span class="late tag">${L(esc(resolveUx('qfix_report_page_tag', { language: lang })))}</span>` : '');
   // ── end late finishers ──
 
@@ -551,7 +561,7 @@ function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind =
   const bits = [];
   if (quiz.date) bits.push(`<span class="${rtl ? '' : 'num'}">${esc(dateLabel(quiz.date, lang, { year: true }))}</span>`);
   if (roster.state === 'known' && roster.className) bits.push(L(C.className(esc(roster.className))));
-  else if (quiz.grade) bits.push(L(C.className(esc(quiz.grade))));
+  else if (quiz.grade) bits.push(L(C.className(esc(D(quiz.grade)))));
   if (quiz.subject) bits.push(T(subjectLabel(quiz.subject, lang)));
   const header = `<header class="top"><div class="in">
 ${topBar({ C, L, langHref: `${base}${qs([['lang', C.switchLang]])}`, print })}
@@ -578,9 +588,9 @@ ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
   const ringP = of ? Math.min(100, Math.round((100 * onListN) / of)) : 0;
   const doneTile = V21.completionTile(summary.completion, lang);
   const tiles = `<div class="tiles${doneTile ? ' tiles-4' : ''}">
-<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.tilePlayedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
-<div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? `${avg}%` : esc(C.none)}</div></div>
-${doneTile}<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
+<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${C.pct(ringP)}</i></div><div class="t">${L(C.tilePlayedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${D(playedN)}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
+<div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? C.pct(avg) : esc(C.none)}</div></div>
+${doneTile}<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v${rtl ? '' : ' num'}">${summary.hardestN ? C.hardestQ(num(summary.hardestN)) : esc(C.none)}</div></div>
 </div>`;
 
   // Reserved lines, shown only when their data is present: the school's place
@@ -605,7 +615,7 @@ ${doneTile}<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v n
   let follow = '';
   if (roster.state === 'known' && notPlayed) {
     const chips = notPlayed.map((k) => `<li class="np-chip">${K(k.first, 'span', 'nm')}${num(listNumber(k)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(k))))}</span>` : ''}</li>`).join('');
-    follow = `<section class="card" id="not-played"><h2>${L(C.notPlayed)} <span class="num muted">(${notPlayed.length})</span></h2>
+    follow = `<section class="card" id="not-played"><h2>${L(C.notPlayed)} <span class="num muted">(${D(notPlayed.length)})</span></h2>
 ${notPlayed.length ? `<ul class="np">${chips}</ul>${remindBlock()}` : `<p class="muted">${L(C.allPlayed)}</p>`}</section>`;
   } else if (roster.state === 'ambiguous') {
     const lists = Array.isArray(roster.lists) ? roster.lists : [];
@@ -624,14 +634,14 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const choices = (notPlayed || []).filter((k) => k.studentId);
     const rows = prov.map((pv) => {
       const who = pv.typed || pv.first || '';
-      const score = `<span class="s num">${num(pv.correct) || 0}/${num(pv.total) || 0}</span>`;
+      const score = `<span class="s num">${D(num(pv.correct) || 0)}/${D(num(pv.total) || 0)}</span>`;
       // On paper a typed name is cut to its first word, like every other row: the PDF
       // is what gets forwarded, and the child typed a surname into it, not the teacher.
       if (print) return `<li><div class="pv-h">${K(String(who).trim().split(/\s+/)[0] || '')}${score}</div></li>`;
       const hidden = `<input type="hidden" name="quiz" value="${esc(quiz.id)}"><input type="hidden" name="ref" value="${esc(pv.sessionId)}">`;
       const add = label ? `<form method="post" action="${base}/fix">${hidden}<button type="submit" class="pv-add" name="add" value="1">${L(C.addTo(esc(label)))}</button></form>` : '';
       const pick = choices.length
-        ? `<form method="post" action="${base}/fix" class="pv-pick">${hidden}<select name="studentId" aria-label="${esc(C.thisIs)}"><option value="">${esc(C.thisIs)}</option>${choices.map((k) => `<option value="${esc(k.studentId)}"${pv.suggest && pv.suggest.studentId === k.studentId ? ' selected' : ''}>${esc(k.first)}${num(listNumber(k)) != null ? ` (${num(listNumber(k))})` : ''}</option>`).join('')}</select><button type="submit">${L(C.save)}</button></form>` : '';
+        ? `<form method="post" action="${base}/fix" class="pv-pick">${hidden}<select name="studentId" aria-label="${esc(C.thisIs)}"><option value="">${esc(C.thisIs)}</option>${choices.map((k) => `<option value="${esc(k.studentId)}"${pv.suggest && pv.suggest.studentId === k.studentId ? ' selected' : ''}>${esc(k.first)}${num(listNumber(k)) != null ? ` (${D(num(listNumber(k)))})` : ''}</option>`).join('')}</select><button type="submit">${L(C.save)}</button></form>` : '';
       return `<li><div class="pv-h">${K(who)}${score}</div><div class="pv-a act">${add}${pick}</div></li>`;
     });
     // A long block would push the scores off the phone: the first few show, the
@@ -639,7 +649,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const head = print ? rows : rows.slice(0, PV_SHOWN);
     const rest = print ? [] : rows.slice(PV_SHOWN);
     const more = rest.length ? `<details class="pv-more act"><summary>${L(C.showAll(prov.length))}</summary><ul class="pv">${rest.join('')}</ul></details>` : '';
-    provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${prov.length})</span></h2><p class="small muted">${L(print ? C.printProvisional(esc(label)) : C.provisionalBody)}</p><ul class="pv">${head.join('')}</ul>${more}</section>`;
+    provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${D(prov.length)})</span></h2><p class="small muted">${L(print ? C.printProvisional(esc(label)) : C.provisionalBody)}</p><ul class="pv">${head.join('')}</ul>${more}</section>`;
   }
 
   // 4. scores
@@ -648,7 +658,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
   const offList = (p) => known && p.onList === false;
   const rows = played.map((p) => {
     const pc = num(p.pct) || 0;
-    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}${V21.triesTag(p.attempts, lang)}${lateTag(p)}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
+    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}${V21.triesTag(p.attempts, lang)}${lateTag(p)}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${D(num(p.correct) || 0)}/${D(num(p.total) || 0)}</span></li>`;
   }).join('');
   const scores = `<section class="card" id="scores"><h2>${L(C.scores)}</h2>${played.length ? `<ul class="sc">${rows}</ul>` : `<p class="muted">${L(C.noPlayers)}</p>`}</section>`;
 
@@ -678,7 +688,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
  * replaces this body when that module lands — wired by whichever PR lands second.
  */
 function classSections(r, { lang, print, tokens, late = false }) {
-  const { C, T, L, K } = kit(lang);
+  const { C, T, L, K, D } = kit(lang);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
   const cells = Array.isArray(r.cells) ? r.cells : [];
@@ -700,15 +710,15 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   }
   const cellHtml = cells.map((c) => {
     const a = num(c.avg);
-    const h = [c.grade ? C.className(esc(c.grade)) : esc(C.noClass), c.subject ? esc(subjectLabel(c.subject, lang)) : ''].filter(Boolean).join(' · ');
-    const avgOrNone = num(c.played) ? `<div class="a num">${a != null ? `${a}%` : esc(C.none)}</div>` : `<div class="l">${L(C.noOne)}</div>`;
+    const h = [c.grade ? C.className(esc(D(c.grade))) : esc(C.noClass), c.subject ? esc(subjectLabel(c.subject, lang)) : ''].filter(Boolean).join(' · ');
+    const avgOrNone = num(c.played) ? `<div class="a num">${a != null ? C.pct(a) : esc(C.none)}</div>` : `<div class="l">${L(C.noOne)}</div>`;
     return `<div class="cell"><div class="h">${L(h)}</div>${avgOrNone}<div class="l">${L(C.cellLine(num(c.quizzes) || 0, num(c.played) || 0))}</div></div>`;
   }).join('');
   const max = Math.max(1, ...weeks.map((w) => num(w.played) || 0));
   const wk = weeks.map((w) => {
     const p = num(w.played) || 0;
     const a = num(w.avg);
-    return `<div class="wk-col"><span class="n">${p}</span><span class="wk-bar" style="height:${Math.max(3, Math.round((90 * p) / max))}px"></span><span class="d num">${esc(weekLabel(w.weekStart, lang))}</span><span class="d">${a != null ? `${a}%` : ''}</span></div>`;
+    return `<div class="wk-col"><span class="n">${D(p)}</span><span class="wk-bar" style="height:${Math.max(3, Math.round((90 * p) / max))}px"></span><span class="d num">${esc(weekLabel(w.weekStart, lang))}</span><span class="d">${a != null ? C.pct(a) : ''}</span></div>`;
   }).join('');
   const qmap = tokens.quiz || {};
   // "12 of 31 played" when the row knows its class size, "4 played" when not, and
@@ -729,7 +739,7 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   const ql = quizzes.map((q) => {
     const tok = qmap[q.id];
     const a = num(q.avg);
-    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${a}%</span>` : ''}</span>${lateChip(q)}`;
+    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${C.pct(a)}</span>` : ''}</span>${lateChip(q)}`;
     return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs(late ? [['lang', lang], ['from', 'class']] : [['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>
