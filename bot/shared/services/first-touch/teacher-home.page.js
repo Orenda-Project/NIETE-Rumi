@@ -76,6 +76,7 @@ const CSS = [
   '.th-go2{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border:2px solid var(--brand);border-radius:16px;background:var(--card);color:var(--brand-d);font:900 17px/1.2 var(--f);cursor:pointer;text-decoration:none;padding:8px 16px;text-align:center}',
   'html[lang=ur] .th-go2{font-family:var(--fu);font-weight:400;font-size:19px;line-height:1.8}',
   '.th-link{display:inline-flex;align-items:center;min-height:48px;border:0;background:none;color:var(--brand-d);text-decoration:underline;font:800 16px/1.5 var(--f);cursor:pointer;padding:4px 6px}html[lang=ur] .th-link{font-family:var(--fu);font-weight:400;font-size:18px}',
+  '#th-back{min-width:48px;justify-content:center}',
   '.th-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}',
   '.th-row{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:8px 10px;min-height:60px;flex-wrap:wrap}',
   '.th-row-t{flex:1 1 160px;min-width:0;display:flex;flex-direction:column}',
