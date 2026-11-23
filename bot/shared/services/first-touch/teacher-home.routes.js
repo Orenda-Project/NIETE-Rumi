@@ -652,7 +652,7 @@ function createRouter(deps = null) {
    * One send: the code (only the teacher's own) is no longer "prepared", then teacher_send is logged once — only after
    * that clear landed. → false when the clear failed (no event).
    */
-  async function sent(p, { kind, origin, again, id, c }) {
+  async function sent(p, { kind, origin, again, id, c, qa = false }) {
     dropPlayed(p.uid);
     const code = await codeOf(p.uid, c);
     const marked = !code.mine || await require('./teacher-home.sent').markSent(c);
@@ -664,7 +664,7 @@ function createRouter(deps = null) {
     event('teacher_send', p.uid, { kind, origin: ORIGINS.has(origin) ? origin : 'library', again, id, prompted: PROMPTED_VIAS.has(p.via), cls_k: code.cls_k });
     // the same tap is the forward meter (never switched): which code went to WhatsApp's picker
     const fc = code.mine ? { id: c, code: code.code } : await forwardCodeOf(p.uid, null, id);
-    Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'wa_me', origin: ORIGINS.has(origin) ? origin : 'library' });
+    Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'wa_me', origin: ORIGINS.has(origin) ? origin : 'library', qa });
     return true;
   }
   router.post('/api/th/step', handleJson(async (req, res) => {
@@ -673,12 +673,13 @@ function createRouter(deps = null) {
     if (!p) return;
     if (!STEPS.has(b.step)) { fail(res, 400); return; }
     if (b.step === 'share_tap' && SEND_KIND[b.kind]) {
-      if (!(await sent(p, { kind: SEND_KIND[b.kind], origin: b.origin, again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id), c: uuidIn(b.c) }))) { fail(res, 503); return; }
+      if (!(await sent(p, { kind: SEND_KIND[b.kind], origin: b.origin, again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id), c: uuidIn(b.c), qa: Forward.isWalk(req.get('user-agent')) }))) { fail(res, 503); return; }
     } else if (b.step === 'fwd_native' || b.step === 'fwd_result') {
       // the share sheet the browser offers (quiz_forward_button's page part): the tap, then what the browser reported
       const fc = await forwardCodeOf(p.uid, uuidIn(b.c), uuidIn(b.id));
-      if (b.step === 'fwd_native') Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'native', origin: ORIGINS.has(b.origin) ? b.origin : null });
-      else Forward.logResult({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', result: b.r });
+      const qa = Forward.isWalk(req.get('user-agent'));
+      if (b.step === 'fwd_native') Forward.logTap({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', method: 'native', origin: ORIGINS.has(b.origin) ? b.origin : null, qa });
+      else Forward.logResult({ uid: p.uid, shareCodeId: fc.id, codeH: codeHOf(fc.code), surface: 'teacher_home', result: b.r, qa });
     } else {
       event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
     }
@@ -699,7 +700,7 @@ function createRouter(deps = null) {
     const out = c ? await Send.shareSend({ uid: p.uid, lang, shareCodeId: c }, deps) : null;
     if (!out) return messagePage(res, 404, 'mk.error', lang, req);
     const origin = ORIGINS.has(req.query.o) ? req.query.o : 'library';
-    await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c }); // a failed mark never blocks the send
+    await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c, qa: Forward.isWalk(req.get('user-agent')) }); // a failed mark never blocks the send
     headers(res);
     return res.redirect(302, out.wa);
   }));
@@ -711,7 +712,7 @@ function createRouter(deps = null) {
     const v = Forward.verifyForward(req.params.token);
     if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
     if (v.stale) {
-      Forward.logTap({ surface: v.stale.surface, stale: true });
+      Forward.logTap({ surface: v.stale.surface, stale: true, qa: Forward.isWalk(req.get('user-agent')) });
       return messagePage(res, 200, 'mk.stale', v.stale.lang, req);
     }
     const f = v.ok;
@@ -730,7 +731,7 @@ function createRouter(deps = null) {
     // WhatsApp's own browser (most taps from a chat) gets the app's scheme, so the picker opens instead of the wa.me web
     // page; Chrome hands wa.me to the app itself
     const to = Forward.targetFor(out.wa, req.get('user-agent'));
-    Forward.logTap({ uid, shareCodeId: out.shareCodeId, codeH: codeHOf(code), surface: f.surface, method: to.method, origin: f.quizId ? Forward.originOf(out.source) : 'library' });
+    Forward.logTap({ uid, shareCodeId: out.shareCodeId, codeH: codeHOf(code), surface: f.surface, method: to.method, origin: f.quizId ? Forward.originOf(out.source) : 'library', qa: Forward.isWalk(req.get('user-agent')) });
     headers(res);
     return res.redirect(302, to.url);
   }));
