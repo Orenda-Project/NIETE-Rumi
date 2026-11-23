@@ -2,3 +2,4 @@
 {"ts":"2026-11-23T06:39:35Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"3e149af674a8","branch":"bd-m1m21d-15902","user":""}
 {"ts":"2026-11-23T06:39:36Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"3e149af674a8","branch":"bd-m1m21d-15902","user":""}
 {"ts":"2026-11-23T06:39:43Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"status=none-needed (nightly quiz key review job: one rpc option, GET on the replica read; no teacher-facing flow changes; unit suite covers it)","sha":"3e149af674a8","branch":"bd-m1m21d-15902","user":""}
+{"ts":"2026-11-23T06:39:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (nightly quiz key review job: one rpc option, GET on the replica read; no teacher-facing flow changes; unit suite covers it)","sha":"3e149af674a8","branch":"bd-m1m21d-15902","user":""}
