@@ -9,7 +9,8 @@
  * link's ?lang= or else left to the one fix line the page already gets when the bot answers (a link's ?lang= is a
  * guess too: the bot decides whether it wins). A head that is known (a code this process has seen) is today's, and off
  * every page is today's, byte for byte (plain-paint-off-golden.json, recorded on the code before this switch).
- * On, each early head also logs one `web_quiz.first_head` event { path, guess, plain }, and nothing else.
+ * On, each early head also logs one `web_quiz.first_head` event { path, guess, plain } (a quiz head also says honest and
+ * lang), and nothing else; off, only a quiz head drawn with nothing kept logs (plain: false), never a home head.
  */
 const GOLDEN = require('./fixtures/plain-paint-off-golden.json');
 const { SCENARIOS, run } = require('./fixtures/plain-paint-scenarios');
@@ -123,18 +124,25 @@ describe('the first_head event (on only): how each early head was known, and not
     return seen;
   };
   test.each([
-    ['q_miss_ur', { path: 'q', guess: 'miss', plain: true }],
-    ['q_miss_en', { path: 'q', guess: 'miss', plain: true }],
-    ['q_miss_ur_lang', { path: 'q', guess: 'lang', plain: true }],
-    ['q_hit_ur', { path: 'q', guess: 'hit', plain: true }],
+    ['q_miss_ur', { path: 'q', guess: 'miss', plain: true, honest: false, lang: null }],
+    ['q_miss_en', { path: 'q', guess: 'miss', plain: true, honest: false, lang: null }],
+    ['q_miss_ur_lang', { path: 'q', guess: 'lang', plain: true, honest: false, lang: 'ur' }],
+    ['q_hit_ur', { path: 'q', guess: 'hit', plain: true, honest: false, lang: null }],
     ['h_ur_en_phone', { path: 'h', guess: 'miss', plain: true }],
     ['h_ur_lang', { path: 'h', guess: 'lang', plain: true }],
-  ])('%s: one event for the early head, with exactly path, guess and plain', async (name, want) => {
+  ])('%s: one event for the early head, with exactly path, guess and plain (and, on a quiz head, honest and lang)', async (name, want) => {
     expect(await heads(name, true)).toEqual([want]);
   });
 
-  test.each(Object.keys(SCENARIOS))('switch off, %s: no first_head event', async (name) => {
-    expect(await heads(name, false)).toEqual([]);
+  // off: the guessed-head meter (A166) still counts a quiz head drawn with nothing kept; a kept-facts head and a home
+  // head log nothing
+  const OFF = {
+    q_miss_ur: [{ path: 'q', guess: 'miss', plain: false, honest: false, lang: null }],
+    q_miss_en: [{ path: 'q', guess: 'miss', plain: false, honest: false, lang: null }],
+    q_miss_ur_lang: [{ path: 'q', guess: 'lang', plain: false, honest: false, lang: 'ur' }],
+  };
+  test.each(Object.keys(SCENARIOS))('switch off, %s: only a quiz head with nothing kept logs (plain false)', async (name) => {
+    expect(await heads(name, false)).toEqual(OFF[name] || []);
   });
 
   test('the event changes no byte of the page', async () => {

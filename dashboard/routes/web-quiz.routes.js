@@ -1264,7 +1264,11 @@ function createWebQuizRouter(opts = {}) {
   let lastPlain = false; // and its `plain_paint` (app_settings web_quiz_plain_paint): a guessed head says no words
   // web_quiz_plain_paint on: one event per early head, how it was known (a code this process has seen; the link's
   // ?lang=; nothing), so the miss rate is counted from the log. No token, code or child: only these three fields.
-  const firstHead = (path, guess) => logEvent('web_quiz.first_head', { path, guess, plain: true });
+  // web_quiz.first_head: how a streamed head was known before the bot answered. The quiz path logs EVERY head drawn
+  // with nothing kept for the code (the guess a preview bot sending a phone's user agent can show), plain paint or not,
+  // with honest (web_quiz_head_guess_honest) and the link's language (null when it names none); a head drawn from kept
+  // facts only while plain paint is on, as before. The home path: plain paint only, as before.
+  const firstHead = (path, guess, more = {}) => logEvent('web_quiz.first_head', { path, guess, plain: true, ...more });
   // web_quiz_closed_lang (the last quiz or hub answer's `closed_lang`): a closed or "not open" page this edge draws
   // without the bot's word on the language takes the child's language where the link says it (a home link's own `l`, the
   // link's ?lang=, a class code's known language) instead of the phone's or English. Off: today's languages.
@@ -1603,7 +1607,7 @@ function createWebQuizRouter(opts = {}) {
     const flush = guessed
       ? renderQuizFlushTop({ facts: guessed.facts, code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k, plain: lastPlain, linkLang: req.query.lang, honest })
       : null;
-    if (flush && lastPlain) firstHead('q', guessed.facts ? 'hit' : plainLang(req.query.lang) ? 'lang' : 'miss');
+    if (flush && (lastPlain || !guessed.facts)) firstHead('q', guessed.facts ? 'hit' : plainLang(req.query.lang) ? 'lang' : 'miss', { plain: lastPlain === true, honest, lang: plainLang(req.query.lang) || null });
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
