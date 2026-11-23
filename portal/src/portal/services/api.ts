@@ -911,6 +911,8 @@ export type Obs612Field = {
   options: Obs612Option[] | null; required: boolean; max: number | null;
   /** Queue #218 (FICO-S v1.2): this level arrives on N/A when the field `code` is set to `level` (C3 after C1 = 1). */
   follows?: { code: string; level: string };
+  /** bd-o15qnr.40.5 (FICO-S on a Digital Coach visit): the level it set ('1'..'4' | 'NA'), marked on that card. Absent: none. */
+  dcLevel?: string;
   /**
    * bd-o15qnr.37 (FICO-S indicators): one plain line on what it looks at (shown under its name), and `text` without the
    * look-for paragraph (its scoring note, N/A note, "How: …"), so the v7 form does not say it twice. Absent: `text`.
@@ -925,16 +927,24 @@ export type Obs612Field = {
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }
-  | { type: 'sub'; text?: string; role?: 'plan' | 'second' | 'feedback' }
+  /** bd-o15qnr.40.5 — `dc`: a FICO-S line on the Digital Coach's pre-fill: `chose` (the v7 form marks the card instead) or `none`. */
+  | { type: 'sub'; text?: string; role?: 'plan' | 'second' | 'feedback'; dc?: 'chose' | 'none' | null }
   | { type: 'context'; rows: { key: string; label: string; value: string | null }[] }
   | { type: 'levels'; label: string; rows: { key: string; n: number; name: string; level: string | null }[] }
   | { type: 'score'; total: number; max: number; pct: number; band: string | null }
   | Obs612Field;
-export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area' | 'evidence' | 'same_focus';
+export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area' | 'evidence' | 'same_focus' | 'change';
 export type Obs612Draft = {
   kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur' | 'ficos'; toolName: string; toolTitle: string;
   sheet: string | null; grade: number | null; subject: string | null;
-  sections: { id: string; parts: Obs612Part[] }[];
+  /**
+   * bd-o15qnr.40.6 (FICO-S): what each section is (`kind`), its rubric section (`sec`), an intro's name (`title`), an
+   * indicator's `code`, `name` and `starred`; the v7 form groups them as the 1-5 form does. An older bot: absent.
+   */
+  sections: {
+    id: string; parts: Obs612Part[];
+    kind?: 'start' | 'intro' | 'indicator' | 'checklist' | 'feedback'; sec?: string; title?: string; code?: string; name?: string; starred?: boolean;
+  }[];
   values: Record<string, string>; errors: Record<string, Obs612ErrorCode>; missing: string[];
   editable: boolean; sealed: boolean; submittedAt: string | null;
   saved?: boolean; submitted?: boolean;

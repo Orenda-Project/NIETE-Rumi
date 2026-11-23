@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Check, ChevronLeft, ChevronRight, Info, MoreHorizontal, Pause, Pencil, Play, Plus } from "lucide-react";
+import { Info, MoreHorizontal, Pause, Pencil, Play, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { coach } from "../../services/api";
 import type { DraftSection, EvidenceReview, ObservationDraft, V6Indicator } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { StatusChip } from "../../teacher/ui";
-import { CHEVRON, FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE, ROW_DIVIDER } from "../../teacher/ui/styles";
+import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE, ROW_DIVIDER } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
@@ -13,10 +13,11 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import {
-  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, PartTitle, SaveTrayV7, TIME_CHIP,
+  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, SaveTrayV7, TIME_CHIP,
   TextBox, UNDO_MS, focusField, levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
 } from "./FormV7";
 import { Problem, problemText, v6RatingOptions } from "./V6Parts";
+import { IndicatorNav, IndicatorRow, IndicatorRows, SectionChips, SectionHead, SectionList } from "./FormV7Nav";
 import { changedFromRumi, v6Problems, type V6Problems, type V6Section } from "./v6Model";
 import {
   addRow, clockSeconds, dropV7, editRow, evText, heldV7, initialReview, keepV7, normClock, removeRow, reviewOut, sameReview, setSummary, shownRows,
@@ -58,8 +59,6 @@ type At = { at: "sections" } | { at: "section"; letter: string } | { at: "indica
 type Slot = { letter: string; code: string; label: string };
 
 const LABEL = "text-[13px] font-bold text-[#6b7280]";
-const GREEN = "bg-[#48b078]";
-const YELLOW = "bg-[#f5c542]";
 
 /** The first line of a block of the bot's text: its recording paragraph for one of the six. */
 function oneLine(text: string): string {
@@ -68,17 +67,7 @@ function oneLine(text: string): string {
   return pick.split("\n")[0] || "";
 }
 
-/** A green tick or a yellow dot; the words for a screen reader come from the row. */
-function Mark({ done, size = 22 }: { done: boolean; size?: number }) {
-  return (
-    <span aria-hidden="true" data-mark={done ? "done" : "todo"} style={{ width: size, height: size }}
-      className={cn("flex shrink-0 items-center justify-center rounded-full text-white", done ? GREEN : YELLOW)}>
-      {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
-    </span>
-  );
-}
 
-const SR = "sr-only";
 
 /* ── the recording ────────────────────────────────────────────────────────────────────────────────────────────── */
 
@@ -471,23 +460,8 @@ export function V6FormV7({
       <>
         <FormChips label={draft.rubric?.label} />
         {readOnly && <p className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.readOnly}</p>}
-        <div data-testid="ff-sections" className="flex flex-col gap-2.5">
-          {sections.map((s) => {
-            const info = infoOf(s);
-            return (
-              <button key={s.letter} id={`ff-sec-${s.letter}`} type="button" onClick={() => { setShown({}); setAt({ at: "section", letter: s.letter }); }}
-                className={cn(LIST_CARD, "flex min-h-[64px] w-full items-center gap-3 px-3.5 text-start", FOCUS)}>
-                <Mark done={info.complete} size={16} />
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-2.5">
-                  <span className="text-[16px] font-semibold leading-[1.3]" dir="auto">{`${s.letter}. ${s.title}`}</span>
-                  <span className="text-[13px] leading-[1.3] text-[#6b7280]">{F.doneOf(info.done, info.total)}</span>
-                </span>
-                <span className={SR}>{info.complete ? F.markDone : F.markTodo}</span>
-                <ChevronRight className={cn("h-5 w-5", CHEVRON)} aria-hidden="true" />
-              </button>
-            );
-          })}
-        </div>
+        <SectionList items={sections.map((s) => ({ key: s.letter, title: `${s.letter}. ${s.title}`, info: infoOf(s) }))}
+          onOpen={(letter) => { setShown({}); setAt({ at: "section", letter }); }} />
         {problem}
       </>
     ));
@@ -495,23 +469,8 @@ export function V6FormV7({
 
   const sec = sections.find((s) => s.letter === at.letter) ?? sections[0];
   const chips = (
-    <div data-testid="ff-chips" className={cn(GRID, "grid-cols-4 gap-1.5")}>
-      {sections.map((s) => {
-        const info = infoOf(s);
-        const on = s.letter === sec.letter;
-        return (
-          <button key={s.letter} type="button" data-mark={info.complete ? "done" : "todo"} aria-current={on ? true : undefined}
-            aria-label={`${s.letter} ${info.done}/${info.total}, ${info.complete ? F.markDone : F.markTodo}`}
-            onClick={() => { setShown({}); setAt({ at: "section", letter: s.letter }); }}
-            className={cn("flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-xl border text-[13px] font-bold",
-              info.complete ? "border-[#48b078] bg-[#eaf6ef] text-[#1f5f3d]" : "border-[#f5c542] bg-[#fff7d6] text-[#7a5b00]",
-              on && "shadow-[0_0_0_2px_#33374a]", FOCUS)}>
-            {s.letter}
-            <small dir="ltr" className="text-[11px] font-semibold opacity-90">{`${info.done}/${info.total}`}</small>
-          </button>
-        );
-      })}
-    </div>
+    <SectionChips items={sections.map((s) => ({ key: s.letter, short: s.letter, title: s.title, info: infoOf(s) }))} current={sec.letter}
+      onOpen={(letter) => { setShown({}); setAt({ at: "section", letter }); }} />
   );
 
   /* ── a section ── */
@@ -529,40 +488,21 @@ export function V6FormV7({
       <>
         {chips}
         <div data-testid="ff-section" className="flex flex-col gap-2.5">
-          <PartTitle text={`${sec.letter}. ${sec.title}`} />
-          <span className="px-1 text-[13px] font-bold text-[#6b7280]">{F.checkedOf(info.done, info.total)}</span>
-          {info.total > 0 ? (
-            <div aria-hidden="true" className="flex gap-[3px] px-1">
-              {info.flags.map((f, i) => <i key={i} className={cn("h-1.5 flex-1 rounded-[3px]", f ? GREEN : "bg-[#e5e7eb]")} />)}
-            </div>
-          ) : null}
+          <SectionHead title={`${sec.letter}. ${sec.title}`} info={info} />
           {sec.kind === "moves" ? moves(sec) : (
             <>
-              <section className={LIST_CARD}>
+              <IndicatorRows>
                 {sec.indicators.map((ind, i) => {
-                  const done = info.flags[i];
                   const options = v6RatingOptions(ind.options, C);
                   const level = values[`r_${ind.field}`] ?? "";
                   const words = level ? levelWords(options, level) : null;
                   const line = ind.kind === "dc" ? (reviews[ind.id]?.summary ?? oneLine(ind.evidence)) : oneLine(ind.recording?.lookFor || ind.body);
                   return (
-                    <button key={ind.id} type="button" data-testid="ff-row" onClick={() => open({ letter: sec.letter, code: ind.id, label: "" })}
-                      className={cn("flex min-h-[68px] w-full items-center gap-2.5 px-3.5 py-2 text-start", i > 0 && ROW_DIVIDER, FOCUS)}>
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="inline-flex h-6 min-w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-[#e8e9f0] px-1.5 text-[12px] font-bold text-[#33374a]">{ind.id}</span>
-                          <span className="min-w-0 truncate text-[15px] font-semibold leading-[1.3]" dir="auto">{ind.name}</span>
-                        </span>
-                        {line ? <span className="truncate text-[13px] text-[#6b7280]" dir="auto" {...urduOf(line)}>{line}</span> : null}
-                      </span>
-                      {words ? <StatusChip text={words} tone="info" /> : <StatusChip text={F.yoursToSet} tone="waiting" />}
-                      <span className="order-first"><Mark done={done} /></span>
-                      <span className={SR}>{done ? F.markDone : F.markTodo}</span>
-                      <ChevronRight className={cn("h-5 w-5", CHEVRON)} aria-hidden="true" />
-                    </button>
+                    <IndicatorRow key={ind.id} code={ind.id} name={ind.name} line={line} words={words} done={info.flags[i]} first={i === 0}
+                      onOpen={() => open({ letter: sec.letter, code: ind.id, label: "" })} />
                   );
                 })}
-              </section>
+              </IndicatorRows>
             </>
           )}
         </div>
@@ -615,20 +555,7 @@ export function V6FormV7({
     <section data-testid="ff-indicator" className="flex flex-col gap-2.5">
       {/* bd-o15qnr.35 (the operator 21 Nov ~12:58: "See that empty space up above? Maybe keep the indicator name there?"):
           the code and the name between Previous and Next (two lines at most), not again inside the card. */}
-      <div data-testid="ff-nav" className="flex items-center gap-2">
-        <button type="button" aria-label={F.prevIndicator} disabled={index === 0} onClick={() => go(index - 1)}
-          className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40", FOCUS)}>
-          <ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
-        </button>
-        <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
-          <StatusChip text={ind.id} tone="score" className="shrink-0" />
-          <h3 className="m-0 line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.3] rtl:leading-[1.8]" dir="auto">{ind.name}</h3>
-        </div>
-        <button type="button" aria-label={F.nextIndicator} disabled={index >= list.length - 1} onClick={() => go(index + 1)}
-          className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40", FOCUS)}>
-          <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
-        </button>
-      </div>
+      <IndicatorNav code={ind.id} name={ind.name} index={index} count={list.length} onGo={go} />
       {/* bd-o15qnr.37 (the operator 22 Nov ~00:15): what the indicator looks at, one muted line under its name */}
       {/* bd-o15qnr.39.1: one of the six also says how to fill it (`hint`); an older bot without the line: its look-for */}
       {about ? <AboutLine text={about} hint={ind.kind === "combined" ? ind.hint : null} rubric={draft.rubric?.id || "fico17_v6"} code={ind.id} /> : null}

@@ -1,11 +1,11 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { leader } from "../../services/api";
 import type { Obs612Draft, Obs612ErrorCode, Obs612Field, Obs612Part, Obs612Refusal } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { ConfirmTray, RatingScale, SelectField, StatusChip, StepBar } from "../../teacher/ui";
-import { FOCUS, GRID, LIST_CARD } from "../../teacher/ui/styles";
+import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
@@ -16,7 +16,12 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
-import { AboutLine, AutoText, DcEvidenceBox, DcQuoteRow, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, urduOf, useFormToast, v7Crumb } from "./FormV7";
+import {
+  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, PartNote, PartTitle, TextBox, focusField, urduOf,
+  useFormToast, v7Crumb,
+} from "./FormV7";
+import { IndicatorNav, IndicatorRow, IndicatorRows, SectionChips, SectionHead, SectionList, type SectionInfo } from "./FormV7Nav";
+import { heldV7, keepV7 } from "./evidenceReview";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -52,6 +57,51 @@ import { AboutLine, AutoText, DcEvidenceBox, DcQuoteRow, DockV7, FormChips, Form
  */
 type Values = Record<string, string>;
 type Errors = Record<string, Obs612ErrorCode>;
+
+/*
+ * bd-o15qnr.40.6 (queue #229, the operator 23 Nov ~15:50: "why is 6-12 so different looking than the 1-5 one? Can they be
+ * the same?") — on the switch, a FICO-S draft whose sections say what they are (the bot's `kind`, `sec`, `code`…) is drawn
+ * with the 1-5 form's own pieces (FormV7Nav.tsx) and moves as it does: its sections as rows (A-E, then the checks and the
+ * feedback), a section's indicators as rows, one indicator alone (Previous / Next, the line under the name with FICO-S's
+ * scoring note folded in as its hint, the levels with the Digital Coach's marked on its card, "Changed from …" and "Why
+ * you changed it", the Digital Coach's evidence, the observer's Evidence, "Agree and next"). Only the rubric's content
+ * differs. Saving stays the bot's FICO-S save (every answer); Submit asks the bot, then the tray. An indicator the Digital
+ * Coach set is green once its rules hold AND the observer agreed it (kept on this phone, as the 1-5 form keeps its
+ * agreed); one the observer sets alone is green once its rules hold. An older bot (no `kind`): the parts, as before.
+ */
+type FsInd = { code: string; name: string; item: Obs612Field; ev: Obs612Field | null; chg: Obs612Field | null; none: string | null; star: string | null };
+type FsGroup = { key: string; short: string; title: string; kind: "indicators" | "checklist" | "feedback"; inds: FsInd[]; parts: Obs612Part[] };
+type FsAt = { at: "sections" } | { at: "section"; key: string } | { at: "indicator"; key: string; code: string };
+type FsSlot = { key: string; code: string | null; label: string };
+/** FICO-S's own minimums (the bot's EVIDENCE_MIN and its change-reason rule). */
+const FS_EVIDENCE_MIN = 20;
+const FS_CHANGE_MIN = 20;
+const chars = (v: string | undefined) => Array.from(String(v ?? "").trim()).length;
+
+function fsGroupsOf(sections: Obs612Draft["sections"], short: { checks: string; feedback: string }): FsGroup[] {
+  const out: FsGroup[] = [];
+  for (const s of sections) {
+    if (s.kind === "intro" && s.sec) out.push({ key: s.sec, short: s.sec, title: `${s.sec}. ${s.title ?? ""}`.trim(), kind: "indicators", inds: [], parts: s.parts });
+    else if (s.kind === "indicator" && s.code) {
+      const g = out.find((x) => x.key === s.sec && x.kind === "indicators");
+      const fields = fieldsOf(s.parts);
+      const item = fields.find((f) => f.role === "item");
+      if (!g || !item) continue;
+      const subs = s.parts.filter((p): p is Extract<Obs612Part, { type: "sub" }> => p.type === "sub");
+      g.inds.push({
+        code: s.code, name: s.name || s.code, item,
+        ev: fields.find((f) => f.name === `ev_${s.code}`) ?? null,
+        chg: fields.find((f) => f.name === `chg_${s.code}`) ?? null,
+        none: subs.find((p) => p.dc === "none")?.text ?? null,
+        star: s.starred ? (subs.find((p) => !p.dc)?.text ?? null) : null,
+      });
+    } else if (s.kind === "checklist" || s.kind === "feedback") {
+      const head = s.parts.find((p) => p.type === "heading");
+      out.push({ key: s.kind, short: s.kind === "checklist" ? short.checks : short.feedback, title: head && head.type === "heading" ? head.text : s.kind, kind: s.kind, inds: [], parts: s.parts });
+    }
+  }
+  return out.filter((g) => g.kind !== "indicators" || g.inds.length > 0);
+}
 
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 const BAD = "border-[#c8331f]";
@@ -102,6 +152,12 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   });
 
   const readOnly = !draft.editable;
+  // bd-o15qnr.40.6 — FICO-S on the 1-5 form's pieces: where it is, and what the observer agreed (kept on this phone).
+  const fsOn = v7 && draft.tool === "ficos" && draft.sections.some((x) => x.kind === "indicator");
+  const fsGroups = useMemo(() => fsGroupsOf(draft.sections, { checks: F.checksShort, feedback: F.feedbackShort }), [draft.sections, F.checksShort, F.feedbackShort]);
+  const [fsAt, setFsAt] = useState<FsAt>({ at: "sections" });
+  const [agreed, setAgreed] = useState<Set<string>>(() => new Set(heldV7(id)?.checked ?? []));
+  useEffect(() => { if (fsOn && !readOnly && agreed.size) keepV7(id, agreed, {}); }, [fsOn, id, agreed, readOnly]);
   const total = draft.sections.length;
   const section = draft.sections[Math.min(part, Math.max(0, total - 1))];
   const last = part >= total - 1;
@@ -189,6 +245,16 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
 
   const refused = (errs: Errors, missing: string[]) => {
     setShown(errs);
+    if (fsOn) {
+      // bd-o15qnr.40.6: open the first indicator (or section) the bot refused, as the 1-5 form opens its first gap
+      for (const g of fsGroups) {
+        const ind = g.inds.find((i) => [i.item.name, i.ev?.name, i.chg?.name].some((k) => k && errs[k]));
+        if (ind) { setFsAt({ at: "indicator", key: g.key, code: ind.code }); break; }
+        if (g.kind !== "indicators" && fieldsOf(g.parts).some((f) => errs[f.name])) { setFsAt({ at: "section", key: g.key }); break; }
+      }
+      gaps(errs, draft.sections.flatMap((x) => fieldsOf(x.parts)).map((f) => f.name));
+      return;
+    }
     go(firstPartWith(errs));
     if (v7) { gaps(errs, draft.sections.flatMap((x) => fieldsOf(x.parts)).map((f) => f.name)); return; }
     setNote({ ok: false, text: W.missing(Math.max(missing.length, Object.keys(errs).length)) });
@@ -285,9 +351,16 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       choices = v ? <StatusChip text={titleOf(f, v)} tone="info" className="self-start" /> : null;
     } else if (v7) {
       // bd-o15qnr.28 — every item's choices as the kit's radio rows (FDE's own titles and level words, as data).
+      // bd-o15qnr.40.5 (queue #229): the Digital Coach's level marked ON its card, as the grades 1-5 form does (purple edge,
+      // "Digital Coach" at its end, spoken with the card), with the You · Digital Coach legend above.
+      const dcLevel = f.dcLevel && opts.some((o) => o.id === f.dcLevel) ? f.dcLevel : null;
       choices = (
-        <RatingScale look="radio" name={groupName} value={v || null} onChange={(k) => set(f.name)(String(k))}
-          options={opts.map((o) => ({ id: o.id, label: o.title, description: o.description }))} />
+        <>
+          {dcLevel ? <Legend principal={false} /> : null}
+          <RatingScale look="radio" name={groupName} value={v || null} onChange={(k) => set(f.name)(String(k))}
+            dcValue={dcLevel} dcTag={F.rumiTag} copy={{ digitalCoach: F.rumisLevel }}
+            options={opts.map((o) => ({ id: o.id, label: o.title, description: o.description }))} />
+        </>
       );
     } else if (f.kind === "points") {
       choices = (
@@ -426,6 +499,8 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       }
       return <h2 key={i} className="mx-1 mt-1 text-[20px] font-semibold leading-[1.25]" dir="auto">{p.text}</h2>;
     }
+    // bd-o15qnr.40.5 — on the switch, "The Digital Coach chose N" is said on the card itself (dcLevel), not as a line.
+    if (p.type === "sub" && v7 && p.dc === "chose") return null;
     if (p.type === "sub") return <h3 key={i} className="mx-1 mt-2 text-[16px] font-semibold text-[#4b5563]" dir="auto">{p.role ? W.subs[p.role] : p.text}</h3>;
     if (p.type === "context") {
       return (
@@ -468,6 +543,213 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     }
     return field(p);
   };
+
+  if (fsOn) {
+    const isDirty = () => Object.keys(values).some((k) => (values[k] ?? "") !== (stored[k] ?? ""));
+    const changed = (ind: FsInd) => !!ind.item.dcLevel && !!values[ind.item.name] && values[ind.item.name] !== ind.item.dcLevel;
+    const gapsOf = (ind: FsInd): Errors => {
+      const out: Errors = {};
+      if (!(ind.item.options || []).some((o) => o.id === (values[ind.item.name] ?? ""))) out[ind.item.name] = "item";
+      if (ind.ev && ind.ev.required && chars(values[ind.ev.name]) < FS_EVIDENCE_MIN) out[ind.ev.name] = "evidence";
+      if (ind.chg && changed(ind) && chars(values[ind.chg.name]) < FS_CHANGE_MIN) out[ind.chg.name] = "change";
+      return out;
+    };
+    const indDone = (ind: FsInd, ag = agreed) => readOnly || (Object.keys(gapsOf(ind)).length === 0 && (!ind.item.dcLevel || ag.has(ind.code)));
+    const fieldDone = (f: Obs612Field) => readOnly || !f.required
+      || (f.kind === "yes_no" ? ["yes", "no"].includes(values[f.name] ?? "") : chars(values[f.name]) > 0);
+    const infoOf = (g: FsGroup, ag = agreed): SectionInfo => {
+      const flags = g.kind === "indicators" ? g.inds.map((i) => indDone(i, ag)) : fieldsOf(g.parts).filter((f) => f.required).map(fieldDone);
+      const done = flags.filter(Boolean).length;
+      return { flags, done, total: flags.length, complete: done === flags.length };
+    };
+    const yellowWith = (ag: Set<string>): FsSlot[] => fsGroups.flatMap((g) => (g.kind === "indicators"
+      ? g.inds.filter((i) => !indDone(i, ag)).map((i) => ({ key: g.key, code: i.code, label: F.nextToCheck(i.code, i.name) }))
+      : (infoOf(g, ag).complete ? [] : [{ key: g.key, code: null, label: F.nextToCheck(g.short, "").trim() }])));
+    const yellow = yellowWith(agreed);
+    const left = fsGroups.filter((g) => !infoOf(g).complete).length;
+    const nextSlot = (key: string, ag: Set<string>): FsSlot | null => {
+      const list = yellowWith(ag);
+      const i = Math.max(0, fsGroups.findIndex((g) => g.key === key));
+      for (const g of [...fsGroups.slice(i), ...fsGroups.slice(0, i)]) { const hit = list.find((y) => y.key === g.key); if (hit) return hit; }
+      return null;
+    };
+    const toTop = () => top.current?.scrollIntoView?.({ block: "start" });
+    const moveTo = (to: FsAt) => { setShown({}); setNote(null); setFsAt(to); toTop(); };
+    /** Leave a view: what changed is saved first (as the parts' Back and Next did). */
+    const saveThen = async (then: () => void, names: string[] = []) => {
+      if (readOnly || !isDirty()) { then(); return; }
+      setBusy(true);
+      try {
+        const d = await store();
+        if (names.length) { mark(d, names); if (gaps(d.errors, names)) return; }
+        then();
+      } catch (err) {
+        failed(err, C.saveFailed);
+      } finally {
+        setBusy(false);
+      }
+    };
+    const open = (slot: FsSlot) => moveTo(slot.code ? { at: "indicator", key: slot.key, code: slot.code } : { at: "section", key: slot.key });
+    const fsBack = () => saveThen(() => {
+      if (fsAt.at === "indicator") moveTo({ at: "section", key: fsAt.key });
+      else if (fsAt.at === "section") moveTo({ at: "sections" });
+      else navigate(home);
+    });
+    const submitAll = () => {
+      if (yellow.length) {
+        show(F.toCheck(yellow.length));
+        const g = fsGroups.find((x) => !infoOf(x).complete);
+        if (g) focusField(`ff-sec-${g.key}`);
+        return;
+      }
+      void askSubmit();
+    };
+    const chip = [draft.label, draft.toolName && draft.toolName !== draft.label ? draft.toolName : null, draft.grade ? F.gradeShort(draft.grade) : null]
+      .filter(Boolean).join(" · ");
+    const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
+    const frame = (crumb: string, dock: ReactNode, body: ReactNode) => (
+      <ReportsFrame title={C.formTitle} crumb={crumb} onBack={fsBack} dock={dock} testId="coach-fde-form">
+        <div ref={top} />
+        {body}
+        {note && (
+          <div role={note.ok ? "status" : "alert"} className={cn(NOTE, note.ok ? "bg-[#eaf6ef] text-[#2f7a52]" : "bg-[#fee4e2] text-[#c8331f]")}>{note.text}</div>
+        )}
+        <FormToast toast={toast} onDone={hide} />
+        <ConfirmTray open={confirm} title={W.submitTitle} warning={W.noChangesAfter} onClose={() => setConfirm(false)}
+          confirmLabel={W.yesSubmit} onConfirm={submit} cancelLabel={C.keepChecking} testId="fde-submit-tray" />
+      </ReportsFrame>
+    );
+    const crumbBase = name ? v7Crumb(W7, name, readOnly) : C.observation;
+
+    /* ── the sections ── */
+    if (fsAt.at === "sections") {
+      const dock = readOnly ? undefined : (
+        <DockV7 single>
+          <button type="button" onClick={submitAll} disabled={busy} aria-disabled={left > 0 || undefined}
+            className={cn(PRIMARY_WIDE, left > 0 && "bg-[#e5e7eb] text-[#6b7280]", FOCUS)}>
+            {left > 0 ? F.submitLeft(left) : W.submit}
+          </button>
+        </DockV7>
+      );
+      return frame(crumbBase, dock, (
+        <>
+          <FormChips label={chip} saved={saved} extra={draft.sealed ? <StatusChip text={W.submitted} tone="done" tick /> : null} />
+          {readOnly && !draft.sealed ? <p className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.readOnly}</p> : null}
+          <SectionList items={fsGroups.map((g) => ({ key: g.key, title: g.title, info: infoOf(g) }))} onOpen={(key) => moveTo({ at: "section", key })} />
+        </>
+      ));
+    }
+
+    const g = fsGroups.find((x) => x.key === fsAt.key) ?? fsGroups[0];
+    const chips = (
+      <SectionChips items={fsGroups.map((x) => ({ key: x.key, short: x.short, title: x.title, info: infoOf(x) }))} current={g.key}
+        onOpen={(key) => saveThen(() => moveTo({ at: "section", key }))} />
+    );
+
+    /* ── a section ── */
+    if (fsAt.at === "section" || g.kind !== "indicators") {
+      const info = infoOf(g);
+      const names = fieldsOf(g.parts).map((f) => f.name);
+      const next = nextSlot(g.key, agreed);
+      const dock = (
+        <DockV7 single>
+          {next && !(next.key === g.key && !next.code)
+            ? <BottomButton onClick={() => saveThen(() => { show(F.toCheck(yellow.length)); open(next); }, names)} disabled={busy}>{next.label}</BottomButton>
+            : <BottomButton onClick={() => saveThen(() => moveTo({ at: "sections" }), names)} disabled={busy}>{F.doneChecking}</BottomButton>}
+        </DockV7>
+      );
+      return frame(crumbBase, dock, (
+        <>
+          {chips}
+          <div data-testid="ff-section" className="flex flex-col gap-2.5">
+            <SectionHead title={g.title} info={info} />
+            {g.kind === "indicators" ? (
+              <IndicatorRows>
+                {g.inds.map((ind, i) => {
+                  const v = values[ind.item.name] ?? "";
+                  return (
+                    <IndicatorRow key={ind.code} code={ind.code} name={ind.name} first={i === 0} done={info.flags[i]}
+                      line={ind.item.dcEvidence?.because || ind.none || ind.item.about || null}
+                      words={v ? titleOf(ind.item, v) : null}
+                      onOpen={() => moveTo({ at: "indicator", key: g.key, code: ind.code })} />
+                  );
+                })}
+              </IndicatorRows>
+            ) : g.parts.map((p, i) => (p.type === "heading" ? null : partView(p, i)))}
+          </div>
+        </>
+      ));
+    }
+
+    /* ── one indicator ── */
+    const list = g.inds;
+    const index = Math.max(0, list.findIndex((x) => x.code === fsAt.code));
+    const ind = list[index];
+    const lv = values[ind.item.name] ?? "";
+    const options = (ind.item.options || []).map((o) => ({ id: o.id, label: o.title, description: o.description }));
+    const isChanged = changed(ind);
+    const problem = (k: string | undefined) => (k && shown[k] ? W.errors[shown[k]] ?? null : null);
+    const dcEv = ind.item.dcEvidence && (ind.item.dcEvidence.because || ind.item.dcEvidence.items.length) ? ind.item.dcEvidence : null;
+    const dcBox = ind.star || ind.none || dcEv ? (
+      <DcEvidenceBox boxId="dc-box">
+        {ind.star ? <DcNote text={ind.star} /> : null}
+        {ind.none ? <DcNote text={ind.none} /> : null}
+        {dcEv?.because ? (
+          <p data-testid="dc-summary" className="m-0 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(dcEv.because)}>{dcEv.because}</p>
+        ) : null}
+        {(dcEv?.items ?? []).map((q, n) => <DcQuoteRow key={`${q.time ?? ""}-${n}`} time={q.time} quote={q.quote} first={n === 0 && !dcEv?.because && !ind.star && !ind.none} />)}
+      </DcEvidenceBox>
+    ) : null;
+    const agree = async () => {
+      const local = gapsOf(ind);
+      if (Object.keys(local).length) { setShown(local); gaps(local, Object.keys(local)); return; }
+      setBusy(true);
+      try {
+        const d = isDirty() ? await store() : draft;
+        const names = [ind.item.name, ind.ev?.name, ind.chg?.name].filter((k): k is string => !!k);
+        mark(d, names);
+        if (gaps(d.errors, names)) return;
+        const ag = new Set(agreed).add(ind.code);
+        setAgreed(ag);
+        const after = [...list.slice(index + 1), ...list.slice(0, index)].find((x) => !indDone(x, ag));
+        moveTo(after ? { at: "indicator", key: g.key, code: after.code } : { at: "section", key: g.key });
+      } catch (err) {
+        failed(err, C.saveFailed);
+      } finally {
+        setBusy(false);
+      }
+    };
+    const dock = readOnly ? undefined : (
+      <DockV7 single><BottomButton onClick={agree} disabled={busy}>{F.agreeNext}</BottomButton></DockV7>
+    );
+    return frame(F.indicatorCrumb(name || C.formTitle, g.key, index + 1, list.length), dock, (
+      <section data-testid="ff-indicator" className="flex flex-col gap-2.5">
+        <IndicatorNav code={ind.code} name={ind.name} index={index} count={list.length}
+          onGo={(n) => moveTo({ at: "indicator", key: g.key, code: list[n].code })} />
+        {ind.item.about ? <AboutLine text={ind.item.about} hint={ind.item.notes || null} rubric={draft.rubricId} code={ind.code} /> : null}
+        <div data-testid="ff-card" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
+          {!readOnly && ind.item.dcLevel ? <Legend principal={false} /> : null}
+          {isChanged && !readOnly ? <StatusChip text={F.changedFrom(titleOf(ind.item, ind.item.dcLevel || ""))} tone="waiting" className="self-start" /> : null}
+          {readOnly
+            ? (lv ? <StatusChip text={titleOf(ind.item, lv)} tone="info" className="self-start" /> : null)
+            : (
+              <div id={`fde-item-${ind.item.name}`} className="flex flex-col gap-1">
+                <Levels name={ind.item.short || ind.name} value={lv} options={options} dc={ind.item.dcLevel ?? null} onChange={set(ind.item.name)} />
+                {errorLine(ind.item)}
+              </div>
+            )}
+          {ind.chg && ((isChanged && !readOnly) || (readOnly && values[ind.chg.name])) ? (
+            <div data-testid="why-changed" className="flex flex-col gap-2.5 rounded-2xl border border-[#fde7b0] bg-[#fffbeb] p-3">
+              <TextBox id={`fde-${ind.chg.name}`} label={F.whyChanged} value={values[ind.chg.name] ?? ""} onChange={set(ind.chg.name)} readOnly={readOnly} problem={problem(ind.chg.name)} />
+            </div>
+          ) : null}
+          {dcBox}
+          {ind.ev ? <TextBox id={`fde-${ind.ev.name}`} label={F.evidence} value={values[ind.ev.name] ?? ""} onChange={set(ind.ev.name)} readOnly={readOnly} problem={problem(ind.ev.name)} /> : null}
+        </div>
+        {readOnly ? <button type="button" onClick={fsBack} className={cn(OUTLINE_WIDE, FOCUS)}>{F.doneChecking}</button> : null}
+      </section>
+    ));
+  }
 
   if (v7) {
     const items = section ? fieldsOf(section.parts).some((f) => f.role === "item") : false;

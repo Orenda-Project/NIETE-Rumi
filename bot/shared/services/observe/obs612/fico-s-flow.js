@@ -81,6 +81,14 @@ const STR = {
     rumi_none: 'Rumi could not set a level from the recording. Choose the level you saw.',
     rumi_none_why: (why) => `Rumi could not set a level from the recording (${why}). Choose the level you saw.`,
     star_line: '★ Starred: yours alone. Rumi never scores this one; set it from what you saw.',
+    // bd-o15qnr.40.4 (queue #229, the operator 23 Nov: "Rumi is appearing in 6-12. It should be Digital Coach.") — the
+    // PORTAL's words for the pre-fill, as the grades 1-5 form names it; the Flow above keeps its own (WhatsApp /observe
+    // is being turned off).
+    p_dc_chose: (level) => `The Digital Coach chose ${level} from the recording, and wrote the evidence below. Change either if you saw something different.`,
+    p_dc_none: 'The Digital Coach could not set a level from the recording. Choose the level you saw.',
+    p_dc_none_why: (why) => `The Digital Coach could not set a level from the recording (${why}). Choose the level you saw.`,
+    p_star_line: '★ Starred: yours alone. The Digital Coach never scores this one; set it from what you saw.',
+    p_help_chg: 'Only if you changed the level from the recording (20+ characters).',
     lbl_chg: 'Why you changed',
     help_chg: "Only if you changed Rumi's level (20+ characters).",
     next: 'Next',
@@ -163,6 +171,12 @@ const STR = {
     rumi_none: 'Rumi ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔',
     rumi_none_why: (why) => `Rumi ریکارڈنگ سے لیول نہیں چن سکی (\u2068${why}\u2069)۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
     star_line: '★ ستارے والا اشاریہ: یہ صرف آپ بھریں گے۔ Rumi اسے کبھی نہیں جانچتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔',
+    // bd-o15qnr.40.4 — the portal's words: ڈیجیٹل کوچ, as the grades 1-5 form (copyV7form.ts). NATIVE-CHECK (machine-drafted).
+    p_dc_chose: (level) => `ڈیجیٹل کوچ نے ریکارڈنگ سے ${level} چنا اور نیچے شواہد لکھے۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔`,
+    p_dc_none: 'ڈیجیٹل کوچ ریکارڈنگ سے لیول نہیں چن سکا۔ جو لیول آپ نے دیکھا وہ چنیں۔',
+    p_dc_none_why: (why) => `ڈیجیٹل کوچ ریکارڈنگ سے لیول نہیں چن سکا (\u2068${why}\u2069)۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
+    p_star_line: '★ ستارے والا اشاریہ: یہ صرف آپ بھریں گے۔ ڈیجیٹل کوچ اسے کبھی نہیں جانچتا؛ جو آپ نے دیکھا اسی سے لیول دیں۔',
+    p_help_chg: 'صرف اگر آپ نے ریکارڈنگ سے دیا گیا لیول بدلا (کم از کم ۲۰ حروف)۔',
     lbl_chg: 'تبدیلی کی وجہ',
     help_chg: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     next: 'آگے',
@@ -455,6 +469,22 @@ function rumiData(code, lang, dc, rubric = FicoS.RUBRIC_KEY) {
 }
 
 /**
+ * bd-o15qnr.40.4/.5 (queue #229) — the portal's line on the pre-fill, in the portal's words (the Digital Coach), with what
+ * kind it is: `chose` (it set a level: the v7 portal marks it on that level's card instead, `dcLevel`) or `none` (it could
+ * not). { show: false } where rumiData shows nothing.
+ */
+function portalDcLine(code, lang, dc, rubric = FicoS.RUBRIC_KEY) {
+  if (!dc || !dc.levels || FicoS.isStarred(code)) return { show: false, line: '', kind: null, level: null };
+  const s = strings(lang);
+  const row = dc.levels[code];
+  const lv = require('./fico-s-dc').rumiLevelOf(dc, code, rubric);
+  if (lv === 'NA') return { show: true, line: s.p_dc_chose(FicoS.naTitle(code, lang, rubric) || s.na_title), kind: 'chose', level: 'NA' };
+  if (lv !== null) return { show: true, line: s.p_dc_chose(`${s.n(Number(lv))} · ${FicoS.levelName(Number(lv), lang)}`), kind: 'chose', level: String(lv) };
+  const why = row && String(row.because || '').trim();
+  return { show: true, line: why ? s.p_dc_none_why(clip(why, 160)) : s.p_dc_none, kind: 'none', level: null };
+}
+
+/**
  * bd-o15qnr.39.1 (#204, the operator 22 Nov: "Digital Coach's evidence", one box of its findings as evidence rows) — the
  * Digital Coach's own findings for one indicator on a Digital Coach visit, for the portal: { because, items: [{ time,
  * quote }] }, every quote it gave, in order. `because` only where it set a level (a "could not set a level" reason is
@@ -635,10 +665,22 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       ...(extra.about !== undefined ? { about: extra.about, notes: extra.notes } : {}),
       // bd-o15qnr.39.1: the Digital Coach's own findings, shown as evidence rows (absent: no box).
       ...(extra.dcEvidence ? { dcEvidence: extra.dcEvidence } : {}),
+      // bd-o15qnr.40.5: the level the Digital Coach set ('1'..'4' | 'NA'), marked on that level's card (absent: none).
+      ...(extra.dcLevel ? { dcLevel: extra.dcLevel } : {}),
     };
   };
   return SCREENS.map((screen) => {
     const parts = [];
+    // bd-o15qnr.40.6 (queue #229): what the section is, so the v7 portal draws FICO-S as the 1-5 form (sections as rows,
+    // a section's indicators as rows, one indicator alone). Additive: the parts are unchanged.
+    const meta = { kind: screen.kind };
+    if (screen.section) meta.sec = screen.section;
+    if (screen.kind === 'intro') meta.title = FicoS.sectionName(screen.section, lang);
+    if (screen.kind === 'indicator') {
+      meta.code = screen.code;
+      meta.name = FicoS.indicatorText(screen.code, lang).name;
+      meta.starred = FicoS.isStarred(screen.code) && Boolean(dc && dc.levels);
+    }
     if (screen.kind === 'start') {
       parts.push({ type: 'heading', text: s.start_heading });
       for (const para of s.start_body.split('\n\n')) parts.push({ type: 'sub', text: para });
@@ -650,11 +692,12 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       const t = FicoS.indicatorText(code, lang);
       const sec = FicoS.sectionOf(screen.section);
       const starred = FicoS.isStarred(code) && Boolean(dc && dc.levels); // on a Digital Coach visit only
-      const rumi = rumiData(code, lang, dc, rubric);
+      const rumi = portalDcLine(code, lang, dc, rubric);
       parts.push({ type: 'heading', text: `${starred ? '★ ' : ''}${atom(lang, code)} · ${t.name}` });
-      // Queue #184: the starred line, and Rumi's line and the change box on a Digital Coach visit.
-      if (starred) parts.push({ type: 'sub', text: s.star_line });
-      if (rumi.show) parts.push({ type: 'sub', text: rumi.line });
+      // Queue #184: the starred line, and the Digital Coach's line and the change box on a Digital Coach visit.
+      // bd-o15qnr.40.4/.5: in the portal's words, the line tagged `dc` with its kind (the v7 portal hides a `chose`).
+      if (starred) parts.push({ type: 'sub', text: s.p_star_line });
+      if (rumi.show) parts.push({ type: 'sub', text: rumi.line, dc: rumi.kind });
       const follows = FicoS.naFollows(code, rubric);
       const followed = followsNa(code, draft, rubric);
       const rest = lookForText(code, lang, rubric, { followed, withLookFor: false });
@@ -663,11 +706,13 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
         about: Lines.lineFor(rubric, code, lang),
         notes: rest ? `${rest}\n${s.how(t.how)}` : s.how(t.how),
         dcEvidence: dcEvidenceOf(code, dc, rubric),
+        dcLevel: rumi.level,
         // Queue #218: the portal pre-picks N/A as the observer sets C1 (Obs612Form.tsx); the Flow does it per screen.
         ...(follows ? { follows: { code: follows.code, level: String(follows.level) } } : {}),
       }));
       parts.push(field(evidenceField(code), 'other', `${s.lbl_ev}: ${s.help_ev}`));
-      if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.help_chg}`));
+      // bd-o15qnr.40.4: the portal's own help (the Flow's still names Rumi on staging and production).
+      if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.p_help_chg}`));
     } else if (screen.kind === 'checklist') {
       parts.push({ type: 'heading', text: s.cl_heading });
       parts.push({ type: 'sub', text: s.cl_note });
@@ -687,7 +732,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       parts.push(field('fs_focus_2', 'other', s.lbl_focus_2));
       parts.push(field('fs_action_2', 'other', s.lbl_action_2));
     }
-    return { id: screen.id, parts };
+    return { id: screen.id, ...meta, parts };
   });
 }
 

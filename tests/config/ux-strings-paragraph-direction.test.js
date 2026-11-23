@@ -78,7 +78,7 @@ describe('the forwarded class message keeps its direction', () => {
   test('an Urdu message from a teacher with a Latin name: the line is opened right to left and the name isolated', () => {
     const out = resolveUx('tqStudentMessage', { language: 'ur', params: { ...params, teacher: 'Miss Ayesha' } });
     const line = out.split('\n').find((p) => p.includes('Miss Ayesha'));
-    expect(line.startsWith(`${RLM}${FSI}Miss Ayesha${PDI} نے آپ کو *واحد اور جمع* پر quiz بھیجا ہے`)).toBe(true);
+    expect(line.startsWith(`${RLM}${FSI}Miss Ayesha${PDI} نے آپ کو *واحد اور جمع* پر کوئز بھیجا ہے`)).toBe(true);
     expect(firstStrong(line)).toBe('rtl');
   });
 

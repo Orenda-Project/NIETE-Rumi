@@ -137,13 +137,14 @@ describe("Attach lesson plan (v6/v7 switch on)", () => {
     expect(within(tray).getByRole("button", { name: "Pick a chapter" })).toBeTruthy();
   });
 
-  it("Grade 1-5: only plans for grades 1 to 5", async () => {
+  // bd-o15qnr.40.3 (queue #229): on the switch every grade is its own row, so Grade 3 lists grade 3's plans alone
+  // (it was "Grade 1-5": every grade 1 to 5).
+  it("Grade 3 (a grade 1-5 named on its own): only that grade's plans", async () => {
     renderCheck();
-    await choose(/^Class,/, "Grade 1-5");
+    await choose(/^Class,/, "Grade 3");
     const tray = await openNiete();
     expect(await within(tray).findByText("Describing words")).toBeTruthy();
-    expect(within(tray).getByText("Halves")).toBeTruthy();
-    for (const t of ["Ratios", "Nouns", "Percentages"]) expect(within(tray).queryByText(t)).toBeNull();
+    for (const t of ["Halves", "Ratios", "Nouns", "Percentages"]) expect(within(tray).queryByText(t)).toBeNull();
   });
 
   it("no plan for that class: one slim line, and Pick a chapter is still there", async () => {

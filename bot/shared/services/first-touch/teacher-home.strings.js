@@ -7,7 +7,7 @@
  * `cm.return` is the one return line every class message from this page ends with (behind quiz_teacher_home); the
  * child's shared card and the stories page import this object so all of them say exactly the same words.
  */
-const { clampLanguage } = require('../../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const Maker = require('./maker.strings');
 const Jugnu = require('../../templates/teacher-jugnu.page');
 
@@ -75,19 +75,27 @@ const STRINGS = Object.freeze({
   'cm.return': Object.freeze({ en: 'Any day: send “quiz” to this number → {link}', ur: 'کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں ← {link}' }),
 });
 
-// Signed ids reused as they are: the maker's, and the report page's confirm queue (its Urdu {name} slots isolated).
+// Signed ids reused as they are: the maker's, the report page's confirm queue (its Urdu {name} slots isolated), and the
+// reviewed catalog's (ux-strings.js).
 const REUSED = Object.freeze({
   'th.copy': ['mk', 'mk.copy'], 'th.grade.n': ['mk', 'mk.grade.n'], 'th.stale': ['mk', 'mk.stale'],
   'th.error': ['mk', 'mk.error'], 'th.lang.switch': ['mk', 'mk.lang.switch'],
   'th.confirm.q': ['jg', 'tQHead'], 'th.confirm.same': ['jg', 'tQSame'], 'th.confirm.diff': ['jg', 'tQDiff'],
   'th.confirm.unsure': ['jg', 'tQUnsure'],
+  // the send sheet's second way out, only where the browser has a share sheet (quiz_forward_button)
+  'th.share.more': ['ux', 'qfix_forward_more'],
+});
+const FROM = Object.freeze({
+  mk: (k, l) => Maker.str(k, l),
+  jg: (k, l) => Jugnu.T[l][k],
+  ux: (k, l) => resolveUx(k, { language: l }),
 });
 
 /** The value of `id` in `lang` ('bi' → the Urdu slot; anything else through the one clamp). */
 function str(id, lang) {
   const l = lang === 'bi' ? 'ur' : clampLanguage(lang);
   const reused = REUSED[id];
-  if (reused) return reused[0] === 'mk' ? Maker.str(reused[1], l) : Jugnu.T[l][reused[1]];
+  if (reused) return FROM[reused[0]](reused[1], l);
   const row = STRINGS[id];
   if (!row) throw new Error(`teacher home strings: unknown id "${id}"`);
   return row[l];

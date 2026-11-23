@@ -115,13 +115,6 @@ export const LABEL = "m-0 mb-2.5 flex flex-wrap items-center gap-2 text-[12px] f
 export const PILL = "inline-flex h-6 items-center whitespace-nowrap rounded-full px-[9px] text-[12px] font-bold normal-case tracking-normal";
 export const pick = (b: Both | null | undefined, lang: Lang) => (b ? (lang === "ur" ? b.ur || b.en : b.en || b.ur) : null) || "";
 
-function Star({ on }: { on: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className={on ? "text-white" : "text-white/25"}>
-      <path d="M12 2.8l2.8 5.7 6.3.9-4.55 4.43 1.07 6.27L12 17.1l-5.62 2.96 1.07-6.27L2.9 9.4l6.3-.9z" fill="currentColor" />
-    </svg>
-  );
-}
 export function Tick({ size = 14 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
@@ -304,16 +297,12 @@ function Hero({ r, C, lang, meta, stars }: { r: CoachReport; C: CoachReportCopy;
         <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#47ba7d] text-[15px] font-black text-white">N</span>
       </div>
       <p className="m-0 text-[21px] font-semibold leading-[1.35]">{isToday(r.header.at) ? C.headlineToday : C.headline}</p>
+      {/* Queue #230 (the operator, 23 Nov): "remove stars from the report, just the percentage is enough". The number stays. */}
       {stars && r.total > 0 ? (
-        <>
-          <div data-testid="report-score" className="flex items-baseline gap-2.5">
-            <b dir="ltr" className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${r.done}/${r.total}`}</b>
-            <span className="text-[15px] font-semibold text-[#c6e9d5]">{C.behaviours}</span>
-          </div>
-          <div role="img" aria-label={C.ofTotal(r.done, r.total)} className="flex gap-1">
-            {Array.from({ length: r.total }, (_, i) => <Star key={i} on={i < r.done} />)}
-          </div>
-        </>
+        <div data-testid="report-score" className="flex items-baseline gap-2.5">
+          <b dir="ltr" className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${r.done}/${r.total}`}</b>
+          <span className="text-[15px] font-semibold text-[#c6e9d5]">{C.behaviours}</span>
+        </div>
       ) : null}
       <div className="border-t border-white/15 pt-2.5 text-[14px] leading-[1.45] text-[#e2e5ea]">
         {r.header.teacher ? <b dir="auto" className="font-bold text-white">{r.header.teacher}</b> : null}
@@ -326,29 +315,9 @@ function Hero({ r, C, lang, meta, stars }: { r: CoachReport; C: CoachReportCopy;
 
 /* ── bd-o15qnr.28 (queue #204, v7): the one feedback page ───────────────────────────────────────────────────────── */
 
-/** Behaviours seen as a percent of all (3 of 8 = 38%), and the 5-star row: 20% a star, to the nearest half. */
+/** Behaviours seen as a percent of all (3 of 8 = 38%). No stars beside it (queue #230: "just the percentage is enough"). */
 export function debriefPercent(done: number, total: number): number {
   return total > 0 ? Math.round((done / total) * 100) : 0;
-}
-export function starsOf(pct: number): number {
-  return Math.round((pct / 20) * 2) / 2;
-}
-
-function StarRow({ pct, label }: { pct: number; label: string }) {
-  const n = starsOf(pct);
-  return (
-    <div role="img" aria-label={label} className="flex gap-1">
-      {Array.from({ length: 5 }, (_, i) => {
-        const state = i + 1 <= n ? "on" : i + 0.5 === n ? "half" : "off";
-        return (
-          <span key={i} data-star={state} className="relative inline-flex">
-            <Star on={state === "on"} />
-            {state === "half" ? <span className="absolute inset-y-0 start-0 w-1/2 overflow-hidden"><Star on /></span> : null}
-          </span>
-        );
-      })}
-    </div>
-  );
 }
 
 function HeroV7({ r, C, W, meta }: { r: CoachReport; C: CoachReportCopy; W: FlowV7Copy; meta: string[] }) {
@@ -360,13 +329,10 @@ function HeroV7({ r, C, W, meta }: { r: CoachReport; C: CoachReportCopy; W: Flow
         <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#47ba7d] text-[15px] font-black text-white">N</span>
       </div>
       {r.total > 0 ? (
-        <>
-          <div className="flex items-baseline gap-2.5">
-            <b data-testid="report-pct" dir="ltr" className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${pct}%`}</b>
-            <span className="text-[15px] font-semibold text-[#c6e9d5]">{W.behavioursSeen}</span>
-          </div>
-          <StarRow pct={pct} label={`${pct}%`} />
-        </>
+        <div className="flex items-baseline gap-2.5">
+          <b data-testid="report-pct" dir="ltr" className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${pct}%`}</b>
+          <span className="text-[15px] font-semibold text-[#c6e9d5]">{W.behavioursSeen}</span>
+        </div>
       ) : null}
       <div className="border-t border-white/15 pt-2.5 text-[14px] leading-[1.45] text-[#e2e5ea]">
         {r.header.teacher ? <b dir="auto" className="font-bold text-white">{r.header.teacher}</b> : null}

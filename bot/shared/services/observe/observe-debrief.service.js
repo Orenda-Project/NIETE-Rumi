@@ -830,10 +830,13 @@ async function coachFeedbackWithRepair(prompt, sessionId, validateOpts = {}) {
   const { result } = await GPT5MiniService.completeJson(prompt, {
     maxTokens: 6000, label: 'observeCoachFeedback', job: 'coaching.observeDebrief',
   });
+  // Queue #230: the judge sometimes writes a rubric KEY where a line belongs (try.move "one_improvement_only"); the
+  // answer is stored and sent in words, so no card, page or report ever prints a key.
+  const { feedbackInWords } = require('./observe-coach-rubric');
   try {
     validateCoachFeedback(result, validateOpts);
     noteGenderedAddress('coach_feedback', feedbackFields(result), { sessionId });
-    return result;
+    return feedbackInWords(result);
   } catch (vErr) {
     logToFile('⚠️ observe debrief: feedback failed validation — one guided repair', {
       sessionId, error: vErr.message,
@@ -844,7 +847,7 @@ async function coachFeedbackWithRepair(prompt, sessionId, validateOpts = {}) {
     });
     validateCoachFeedback(repaired, validateOpts);   // still strict — throws on a second miss
     noteGenderedAddress('coach_feedback', feedbackFields(repaired), { sessionId, repaired: true });
-    return repaired;
+    return feedbackInWords(repaired);
   }
 }
 

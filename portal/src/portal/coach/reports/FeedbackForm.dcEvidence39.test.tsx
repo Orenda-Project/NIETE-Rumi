@@ -383,3 +383,81 @@ describe("FICO-S v1.2", () => {
     expect(screen.queryByTestId("dc-evidence")).toBeNull();
   });
 });
+
+/*
+ * bd-o15qnr.40.5 (queue #229, the operator 23 Nov ~15:45: "'Rumi chose 4' on the 6-12 is not evident enough. It should
+ * show that on the option itself rather than as text.") — on the switch, the FICO-S form marks the Digital Coach's level
+ * ON its card, exactly as the grades 1-5 form does (RatingScale's Digital Coach row: purple edge and halo, "Digital Coach"
+ * at its end, spoken with the card; the "You · Digital Coach" legend above), and the "chose N" line (the bot's `dc:
+ * 'chose'`) is not shown; a "could not set a level" line (`dc: 'none'`) stays. Off the switch: the form as today.
+ */
+const CHOSE = "The Digital Coach chose 3 · Proficient from the recording, and wrote the evidence below. Change either if you saw something different.";
+const NONE = "The Digital Coach could not set a level from the recording (Too noisy). Choose the level you saw.";
+const FICOS_DC = () => ({
+  ...FICOS(),
+  sections: [
+    { id: "FS_C1", parts: [
+      { type: "heading", text: "C1 · Quality of questions" },
+      { type: "sub", text: CHOSE, dc: "chose" },
+      fitem("C1", "Section C · 1 of 8", FLEVELS, { dcLevel: "3" }),
+      fev("ev_C1"),
+      { type: "heading", text: "C2 · Responding to wrong answers" },
+      { type: "sub", text: NONE, dc: "none" },
+      fitem("C2", "Section C · 2 of 8", [...FLEVELS, F_NA_C2]),
+      fev("ev_C2"),
+      { type: "heading", text: "C3 · Checking for understanding" },
+      { type: "sub", text: "The Digital Coach chose N/A from the recording.", dc: "chose" },
+      fitem("C3", "Section C · 3 of 8", [...FLEVELS, { ...F_NA_C2, title: "N/A · No question asked" }], { dcLevel: "NA" }),
+      fev("ev_C3"),
+    ] },
+  ],
+  values: {},
+});
+
+describe("FICO-S v1.2: the Digital Coach's level on its card (bd-o15qnr.40.5)", () => {
+  beforeEach(() => { L.getObservationDraft.mockResolvedValue(FICOS_DC()); });
+
+  it("its level's card is marked Digital Coach (tag + spoken), the others are not; no 'chose' line", async () => {
+    renderPage();
+    await screen.findByText("C1 · Quality of questions");
+    const c1 = group("Section C · 1 of 8");
+    const marked = c1.getAllByRole("radio").filter((r) => r.textContent?.includes("Digital Coach"));
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveAttribute("data-radio-key", "3");
+    expect(marked[0]).toHaveAccessibleName(/Digital Coach’s level$/);
+    expect(marked[0].className).toMatch(/6e52e0/);
+    expect(screen.queryByText(CHOSE)).toBeNull();
+    expect(screen.queryByText(/chose/)).toBeNull();
+  });
+
+  it("N/A it set: the N/A card is the marked one", async () => {
+    renderPage();
+    await screen.findByText("C3 · Checking for understanding");
+    const marked = group("Section C · 3 of 8").getAllByRole("radio").filter((r) => r.textContent?.includes("Digital Coach"));
+    expect(marked.map((r) => r.getAttribute("data-radio-key"))).toEqual(["NA"]);
+  });
+
+  it("the legend You · Digital Coach over a card it marked; could not set a level: the line stays, no card marked", async () => {
+    renderPage();
+    await screen.findByText("C2 · Responding to wrong answers");
+    expect(screen.getAllByTestId("legend").length).toBeGreaterThan(0);
+    expect(screen.getByText(NONE)).toBeInTheDocument();
+    expect(group("Section C · 2 of 8").getAllByRole("radio").filter((r) => r.textContent?.includes("Digital Coach"))).toHaveLength(0);
+  });
+
+  it("Urdu: the card says ڈیجیٹل کوچ", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    renderPage();
+    await screen.findByText("C1 · Quality of questions");
+    const tagged = group("Section C · 1 of 8").getAllByRole("radio").filter((r) => flat(r.textContent).includes("ڈیجیٹل کوچ"));
+    expect(tagged).toHaveLength(1);
+  });
+
+  it("off the switch: the form as today (the line shown, no card marked)", async () => {
+    flow.on = false;
+    renderPage();
+    await screen.findByText("C1 · Quality of questions");
+    expect(screen.getByText(CHOSE)).toBeInTheDocument();
+    expect(screen.queryAllByTestId("legend")).toHaveLength(0);
+  });
+});

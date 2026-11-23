@@ -17,7 +17,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { resolveUx } = require('../../config/ux-strings');
+const { resolveUx, digitsFor } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
 const { isPlanQuiz, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
@@ -192,13 +192,18 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
   const intro = resolveUx(handoffIntroKey(quiz.quiz_source), {
     language: teacherLang,
-    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
+    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: digitsFor(qRows.length, teacherLang) },
   });
   // The teacher's own preview of the web quiz page, when it is on for them —
   // in the caption only, so it is never forwarded to the class.
   const preview = await require('./web-quiz-link').previewLink(code, { shareCodeId, teacherUserId: quiz.teacher_id });
   const previewLine = preview ? resolveUx('tqWebPreview', { language: teacherLang, params: { link: preview } }) : null;
-  const caption = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
+  const head0 = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
+  // One tap to the class group (quiz_forward_button): a teacher-only line, so it rides the caption after the link line,
+  // never the forwardable; null (switch off, no link) → the caption is today's. Past the caption cap the line drops,
+  // never the PDF.
+  const forwardLine = await require('../first-touch/quiz-forward').lineFor({ quizId, surface: 'wa_handout', lang: teacherLang });
+  const caption = forwardLine && [...`${head0}\n\n${forwardLine}`].length <= CAPTION_MAX ? `${head0}\n\n${forwardLine}` : head0;
   let pdfSent = false;
   if (tempPath) {
     const { pdfFilename } = require('./transcript-quiz-generate.service');

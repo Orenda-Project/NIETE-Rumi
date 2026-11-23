@@ -81,6 +81,21 @@ type PlanSource = "camera" | "gallery" | "files";
 
 type Stage = "check" | "library";
 
+/** bd-o15qnr.40.3 — the grades 1-5 (FICO17 v6's), each named on its own with the switch on. */
+const PRIMARY_GRADES = [1, 2, 3, 4, 5];
+const isPrimaryGrade = (g: string | null) => !!g && PRIMARY_GRADES.includes(Number(g));
+
+/**
+ * bd-o15qnr.40.3 (queue #229, the operator 23 Nov ~15:20) — the Class list. Switch on: every grade its own row, Grade 1 …
+ * Grade 5 then the grades the bot offers (6-12), in order; the rubric is picked from the grade behind the scenes (lessonOf).
+ * Switch off: "Grade 1-5" as one row, as on production.
+ */
+function classOptions(v7: boolean, offered: number[] | undefined, C: Pick<ObserveCopy, "gradePrimary" | "grade">) {
+  const rest = (offered || []).filter((g) => !PRIMARY_GRADES.includes(g));
+  if (!v7) return [{ value: "primary", label: C.gradePrimary }, ...rest.map((g) => ({ value: String(g), label: C.grade(g) }))];
+  return [...PRIMARY_GRADES, ...rest].sort((a, b) => a - b).map((g) => ({ value: String(g), label: C.grade(g) }));
+}
+
 function Tile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
@@ -159,7 +174,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   }, []);
   // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
   // An older bot that does not say which grades: every grade 6-12 asks it, as before.
-  const needsSubject = (g: string | null) => !!g && g !== "primary" && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
+  const needsSubject = (g: string | null) => !!g && g !== "primary" && !isPrimaryGrade(g) && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
   // bd-o15qnr.33 — the class answered above, as the filter for her plans and the library (null: nothing answered).
   const planClass = v7 && question.ask ? planClassOf(grade, needsSubject(grade) ? subject : null) : null;
   const classLabel = planClass
@@ -168,7 +183,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     : null;
   const lessonOf = (): ObserveLesson | null => {
     if (!question.ask || !grade) return null;
-    if (grade === "primary") return { primary: true };
+    // bd-o15qnr.40.3 — a grade 1-5 named on its own is still the grades 1-5 class to the bot (FICO17 v6): the rubric
+    // comes from the grade, never from the coach.
+    if (grade === "primary" || isPrimaryGrade(grade)) return { primary: true };
     if (!needsSubject(grade)) return { grade: Number(grade) };
     return subject ? { grade: Number(grade), subject } : null;
   };
@@ -294,7 +311,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           <Send className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />{C.sendObservation}
         </button>
       )}>
-      <AudioCard title={audio.label} sub={audio.sub} src={src}
+      {/* bd-o15qnr.40.2 (queue #229): with the switch on, #204's full player (bar, back / forward 10 s, speed), as on the
+          visit and the debrief; off, the card as on production. */}
+      <AudioCard title={audio.label} sub={audio.sub} src={src} controls={v7} testId="check-recording"
         action={(
           <button type="button" onClick={redo}
             className="flex min-h-[56px] items-center justify-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">
@@ -310,7 +329,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           <SectionHeading>{C.classAndSubject}</SectionHeading>
           <div className="flex flex-col gap-2.5" data-testid="lesson-class">
             <SelectField label={C.classField} title={C.classField} value={grade}
-              options={[{ value: "primary", label: C.gradePrimary }, ...(question.grades || []).map((g) => ({ value: String(g), label: C.grade(g) }))]}
+              options={classOptions(v7, question.grades, C)}
               onChange={(v) => { setGrade(v); if (!needsSubject(v)) setSubject(null); setLessonProblem(null); }} />
             {needsSubject(grade) && (
               <SelectField label={C.subjectField} title={C.subjectField} value={subject}

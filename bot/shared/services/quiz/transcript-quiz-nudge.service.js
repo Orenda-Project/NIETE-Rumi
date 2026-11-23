@@ -200,6 +200,24 @@ function nudgeKeyFor(started) {
   return 'tqNudge';
 }
 
+/**
+ * The message with one tap to the class group per quiet quiz (quiz_forward_button; surface wa_nudge): one quiz → the
+ * one line; several → a head and one "topic: link" line each. Switch off, or no link → the body as it is.
+ */
+async function withForward(body, quiet, lang) {
+  const Forward = require('../first-touch/quiz-forward');
+  if (quiet.length === 1) {
+    const line = await Forward.lineFor({ quizId: quiet[0].id, surface: 'wa_nudge', lang });
+    return line ? `${body}\n\n${line}` : body;
+  }
+  const items = [];
+  for (const q of quiet) {
+    const item = await Forward.lineFor({ quizId: q.id, surface: 'wa_nudge', lang }, { key: 'qfix_forward_item', params: { topic: titled(q.topic, lang) } });
+    if (item) items.push(item);
+  }
+  return items.length ? `${body}\n\n${resolveUx('qfix_forward_many', { language: lang })}\n${items.join('\n')}` : body;
+}
+
 async function process(quizId) {
   const { data: quiz } = await supabase.from('quizzes')
     .select('id, teacher_id, topic, status, language, meta').eq('id', quizId).maybeSingle();
@@ -278,7 +296,7 @@ async function process(quizId) {
           .join(resolveUx('vqLetterSep', { language: lang })),
       },
     });
-  const ok = await WhatsAppService.sendMessage(teacher.phone_number, body);
+  const ok = await WhatsAppService.sendMessage(teacher.phone_number, await withForward(body, quiet, lang));
 
   const at = new Date().toISOString();
   await supabase.from('quizzes')
@@ -298,6 +316,6 @@ async function process(quizId) {
 }
 
 module.exports = {
-  process, NUDGE_BELOW, NUDGE_AFTER_MS, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
+  process, withForward, NUDGE_BELOW, NUDGE_AFTER_MS, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
   QUIET_FROM_PKT, QUIET_TO_PKT,
 };
