@@ -684,10 +684,15 @@ async function expireTick(now = Date.now()) {
   return { expired, deleted };
 }
 
-const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed', 'failed', 'escape', 'copy', 'ios', 'nopush', 'stop', 'test']);
+// gone: the page went away (hidden, or closed) with the ask up and unanswered, once per sitting
+const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed', 'failed', 'escape', 'copy', 'ios', 'nopush', 'stop', 'test', 'gone']);
 const HOWS = new Set(['intent', 'menu', 'copy']);
 // Where the ask was answered: the quiz result screen, under the standing link's chips, or the /remind/:code landing.
 const SRCS = new Set(['result', 'class_link', 'landing']);
+// dwell_ms: how long the ask was up before its first answer; whole ms, at most a day, on these steps only
+const DWELL_STEPS = new Set(['yes', 'later', 'escape', 'gone']);
+const DWELL_MAX_MS = 864e5;
+const dwellOf = (step, ms) => (DWELL_STEPS.has(step) && Number.isInteger(ms) && ms >= 0 && ms <= DWELL_MAX_MS ? { dwell_ms: ms } : {});
 /** A page step event, allow-listed enums only; `ua` is the phone's user agent (the walk mark). */
 function stepEvent(body = {}, { ua } = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
@@ -698,6 +703,7 @@ function stepEvent(body = {}, { ua } = {}) {
     ...(body.lang === 'en' || body.lang === 'ur' ? { lang: body.lang } : {}),
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
+    ...dwellOf(body.step, body.dwell_ms),
     ...psOf(body.ps),
     ...qaOf(ua),
   });

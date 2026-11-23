@@ -9,7 +9,8 @@
  *   POST /subscribe    {sub, code, lang, chips, chip?, rotate_from?, ps?} → {ok:1} | 409 {err:'class_phone'} | 400 {err:'bad_sub'}
  *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint, ps?}   → {ok:1}
  *   POST /test         {endpoint} → {ok:1, sent, status} (web_quiz_push_test only)
- *   POST /e            {step, how?, iab?, lang?, ok?, src?, ps?} → {ok:1}: a page step, allow-listed enums only
+ *   POST /e            {step, how?, iab?, lang?, ok?, src?, ps?, dwell_ms?} → {ok:1}: a page step, allow-listed enums only;
+ *                      dwell_ms (whole ms, at most a day) only on the ask's first answer: yes / later / escape / gone
  *   POST /delivered    {tag, shown?, err?, ps?} → {ok:1}: the worker showed a reminder (the funnel's delivered step)
  *                      ps?: the page-session id (wq-tel.js) the page sent or kept for its worker; logged, never stored
  *                      /e, /subscribe, /opened, /delivered: a user agent carrying "QFIXQA" (a QA walk) logs qa: true
