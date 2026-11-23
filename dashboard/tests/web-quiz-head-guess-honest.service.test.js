@@ -49,11 +49,14 @@ const ANSWERS = { LC12MD: CLASS, CH34EF: CHALLENGE, ZZ99ZZ: CLASS };
 let srv;
 let reads;
 // full: web_quiz_head_full's value; honest: this switch's value (undefined: no reader passed, today's router)
+let events;
 async function boot({ full, honest } = {}) {
   reads = { full: 0, honest: 0 };
+  events = [];
   const opts = {
     botUrl: BOT,
     apiKey: KEY,
+    logEvent: (e, p) => events.push([e, p]),
     fetchImpl: async (u) => {
       const m = /\/wq\/quiz\/([A-Z0-9]+)/.exec(String(u));
       return m && ANSWERS[m[1]] ? jsonRes(200, ANSWERS[m[1]]()) : jsonRes(404, { error: 'not_found' });
@@ -218,5 +221,45 @@ describe('the switch\'s own read: JSON true only', () => {
     [true, true], [undefined, false], [false, false], ['true', false], [1, false], ['yes', false], [null, false],
   ])('%p → %p', async (value, on) => {
     expect(await reader(value)()).toBe(on);
+  });
+});
+
+// The guessed head's meter: `web_quiz.first_head` fires for EVERY quiz head drawn before the bot answers with nothing
+// kept for the code (the card a preview bot sending a phone's user agent can show), whether plain paint is on or not,
+// with `honest` (this switch) and the link's language (`lang`, null when the link names none). So the "0 questions"
+// guesses are counted before the switch goes on, and its effect after. A head drawn from kept facts logs only while
+// plain paint is on, as before.
+describe('the guessed head\'s meter: web_quiz.first_head on every quiz head drawn without kept facts', () => {
+  const heads = () => events.filter(([e]) => e === 'web_quiz.first_head').map(([, p]) => p);
+
+  test('honest on, nothing kept: one event per guessed head, honest true, plain false; ?lang=ur names the language', async () => {
+    await boot({ full: true, honest: true });
+    await prime();
+    events.length = 0;
+    await get('/q/LC12MD');
+    await get('/q/CH34EF?lang=ur');
+    expect(heads()).toEqual([
+      { path: 'q', guess: 'miss', plain: false, honest: true, lang: null },
+      { path: 'q', guess: 'lang', plain: false, honest: true, lang: 'ur' },
+    ]);
+  });
+
+  test('honest off (today\'s guess, the one that can say "0 questions"): the event still fires, honest false', async () => {
+    await boot({ full: true, honest: false });
+    await prime();
+    events.length = 0;
+    await get('/q/LC12MD');
+    expect(heads()).toEqual([{ path: 'q', guess: 'miss', plain: false, honest: false, lang: null }]);
+  });
+
+  test('a head drawn from kept facts, a plain fetch and a preview fetch: no event while plain paint is off', async () => {
+    await boot({ full: true, honest: true });
+    await prime();
+    await get('/q/LC12MD');
+    events.length = 0;
+    await get('/q/LC12MD');
+    await get('/q/LC12MD', 'curl/8.7.1');
+    await get('/q/LC12MD', 'WhatsApp/2.24.20.80 A');
+    expect(heads()).toEqual([]);
   });
 });
