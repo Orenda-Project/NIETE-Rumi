@@ -68,17 +68,42 @@ describe('why: a second bind on the harness port', () => {
   });
 });
 
-describe('the harness files this change edits keep a host on every listen(0)', () => {
-  // The files edited by bd-w2x3l4 (both parts), relative to the repo root (listen-host.files.json beside this test). A
-  // new host-less listen(0) in one of them brings back the shared-port 404.
+describe('every test file that calls 127.0.0.1 binds its servers there: a scan of bot/tests and dashboard/tests', () => {
+  // A list of edited files cannot see a harness added after it (a host-less one landed within hours of the list), so
+  // every .js file under the two test trees is read. A file that never names 127.0.0.1 is out of scope by construction:
+  // its client calls localhost (the five `http.get({ port })` sites). The mechanism test's up(host) passes its host by
+  // spread, which the pattern does not read.
   const ROOT = path.join(__dirname, '..', '..');
-  const FILES = require('./qfix-reminders-listen-host.files.json');
+  const TREES = ['bot/tests', 'dashboard/tests'];
+  const FIXTURE = 'dashboard/tests/fixtures/listen-scan-hostless.js';
+  // One reason each.
+  const EXEMPT = { [FIXTURE]: 'the scan\'s own red fixture' };
   // The callback form with no host, and the bare form: a bare listen(0) binds every interface too. Its caller reading
   // address() on the next line needs the bind to have happened, so those files wait for 'listening' with the host.
   const HOSTLESS = /\.listen\(\s*0\s*(\)|,\s*(\(?[\w$,\s]*\)?\s*=>|async\s*\(|function\b|[A-Za-z_$][\w$]*\s*\)))/;
-  test.each(FILES)('%s', (f) => {
-    const text = fs.readFileSync(path.join(ROOT, f), 'utf8');
-    const bad = text.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => HOSTLESS.test(l)).map(([n]) => n);
-    expect(bad).toEqual([]);
+  const COMMENT = /^\s*(\/\/|\/\*|\*)/;
+  const offenders = (rel) => {
+    const text = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    if (!text.includes('127.0.0.1')) return [];
+    return text.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => !COMMENT.test(l) && HOSTLESS.test(l)).map(([n]) => n);
+  };
+  const walk = (rel) => fs.readdirSync(path.join(ROOT, rel), { withFileTypes: true }).flatMap((e) => {
+    const p = `${rel}/${e.name}`;
+    if (e.isDirectory()) return e.name === 'node_modules' ? [] : walk(p);
+    return e.name.endsWith('.js') ? [p] : [];
+  });
+
+  test('the red fixture is caught, both forms, and its commented-out site is not', () => {
+    expect(offenders(FIXTURE)).toEqual([9, 13]);
+  });
+  test('every exemption is a file that is still there', () => {
+    Object.keys(EXEMPT).forEach((f) => expect(fs.existsSync(path.join(ROOT, f))).toBe(true));
+  });
+  test('no other file has a host-less listen(0)', () => {
+    const files = TREES.flatMap(walk).filter((f) => !EXEMPT[f]);
+    expect(files.length).toBeGreaterThan(1000);
+    const bad = {};
+    files.forEach((f) => { const o = offenders(f); if (o.length) bad[f] = o; });
+    expect(bad).toEqual({});
   });
 });
