@@ -63,9 +63,9 @@ const FIXTURE = {
   '/config': { success: true, features: { coachV2: true, coachFlowV2: true } },
   '/coach/visit/v1': {
     success: true,
-    visit: { id: 'v1', teacherName: 'Ayesha Bibi', teacherExtId: '923001110001', schoolName: 'IMSG I-10/1', schoolExtId: 'niete:110',
+    visit: { id: 'v1', teacherName: 'Ayesha Bibi', teacherExtId: 'ext-ayesha', schoolName: 'IMSG I-10/1', schoolExtId: 'niete:110',
       scheduledFor: '2026-11-23', scheduledSlot: '11:30', status: 'upcoming', overdue: false },
-    teacher: { teacherExtId: '923001110001', name: 'Ayesha Bibi', phone: '923001110001', hitl: 3, dc: 7, avgHitl: 61, daysSinceTraining: 12 },
+    teacher: { teacherExtId: 'ext-ayesha', name: 'Ayesha Bibi', phone: '92•••••0001', hitl: 3, dc: 7, avgHitl: 61, daysSinceTraining: 12 },
     lastVisit: null,
   },
   '/coach/pending': { success: true, waiting: 0 },
