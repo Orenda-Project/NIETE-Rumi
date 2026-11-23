@@ -2,3 +2,4 @@
 {"ts":"2026-11-23T07:30:21Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"3b75b1a4787f","branch":"bd-kbo9h0.11-18946","user":"Mah Noor"}
 {"ts":"2026-11-23T07:30:43Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"3b75b1a4787f","branch":"bd-kbo9h0.11-18946","user":"Mah Noor"}
 {"ts":"2026-11-23T07:30:45Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.2 in: check-scenario-coverage.py","sha":"3b75b1a4787f","branch":"bd-kbo9h0.11-18946","user":"Mah Noor"}
+{"ts":"2026-11-23T07:31:06Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (this commit IS the training.feature sync: T08 updated to the copy 1a930fa24 shipped, validated with validate_specs --only training)","sha":"3b75b1a4787f","branch":"bd-kbo9h0.11-18946","user":"Mah Noor"}
