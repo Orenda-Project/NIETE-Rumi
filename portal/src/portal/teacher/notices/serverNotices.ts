@@ -20,10 +20,13 @@ const ms = (v: unknown): number | null => {
 };
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+/** A /quiz list key, in the shape the bot's quiz home accepts (teacher-home.send lessonKeyOf); anything else is dropped. */
+const LESSON_KEY = /^lsn_[A-Za-z0-9_:.-]{1,200}$/;
+const lessonKeyOf = (v: unknown): string | null => (typeof v === 'string' && LESSON_KEY.test(v) ? v : null);
 
 function item(r: Raw): ServerItem | null {
   const id = str(r.id);
-  const kind = r.kind === 'paper' || r.kind === 'lesson' ? r.kind : null;
+  const kind = r.kind === 'paper' || r.kind === 'lesson' || r.kind === 'quiz_offer' ? r.kind : null;
   const state = r.state === 'making' || r.state === 'ready' || r.state === 'failed' ? r.state : null;
   const startedAt = ms(r.startedAt);
   if (!id || !kind || !state || startedAt === null) return null;
@@ -50,8 +53,10 @@ function item(r: Raw): ServerItem | null {
     lessonId,
     lang: str(r.lang),
     errorCode: str(r.errorCode),
-    waitHref: kind === 'paper' ? requestPath(id.slice('paper:'.length)) : (at ? lessonsUrl('preparing', at) : ''),
+    // A quiz card has no waiting page: its tap opens the quiz home (ReadyForYou).
+    waitHref: kind === 'paper' ? requestPath(id.slice('paper:'.length)) : kind === 'lesson' && at ? lessonsUrl('preparing', at) : '',
     at,
+    ...(kind === 'quiz_offer' ? { nudgeId: str(r.nudgeId), lessonKey: lessonKeyOf(r.lessonKey) } : {}),
   };
 }
 
@@ -59,7 +64,7 @@ function item(r: Raw): ServerItem | null {
 export async function fetchNotices(): Promise<ServerItem[]> {
   const { data } = await api.get('/me/notices');
   const raw = Array.isArray(data?.items) ? (data.items as Raw[]) : [];
-  return raw.map(item).filter((i): i is ServerItem => i !== null && i.waitHref !== '');
+  return raw.map(item).filter((i): i is ServerItem => i !== null && (i.waitHref !== '' || i.kind === 'quiz_offer'));
 }
 
 /** She closed the banner (`seen`) / opened the item (`opened`). Fire-and-forget: resolves true when the server took it. */

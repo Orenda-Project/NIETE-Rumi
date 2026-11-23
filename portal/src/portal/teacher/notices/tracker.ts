@@ -82,7 +82,7 @@ export interface Tracker {
   update(id: string, change: Partial<NoticeItem>): void;
   /** Who sends `kind` again when she taps Try again (the observation's sender registers itself). */
   registerRetry(kind: NoticeKind, handler: RetryHandler): void;
-  settle(id: string): void;
+  settle(id: string): Promise<unknown>;
   /**
    * The banner for these finished. `closed` (she tapped ✕ or went to Home) means SEEN and is told to the server;
    * `expired` (it ran its 10 seconds untouched) is not: the WhatsApp fallback still treats it as unseen.
@@ -302,14 +302,15 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
     schedule();
   }
 
-  function settle(id: string): void {
+  /** Resolves once the server was told (or failed): a tap that leaves the page can wait for it. */
+  function settle(id: string): Promise<unknown> {
     const followed = items.some((i) => i.id === id);
     const onHome = home.some((h) => h.id === id);
-    if (!followed && !onHome) return;
+    if (!followed && !onHome) return Promise.resolve(false);
     if (onHome) home = home.filter((h) => h.id !== id);
     if (followed) commit(items.filter((i) => i.id !== id));
     else listeners.forEach((l) => l());
-    void tell(id, 'opened');
+    return tell(id, 'opened');
   }
 
   function announced(ids: readonly string[], how: 'closed' | 'expired' = 'expired'): void {

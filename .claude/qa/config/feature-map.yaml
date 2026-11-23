@@ -309,6 +309,9 @@ shared:
   bot/shared/services/voice-attendance.service.js: [attendance, coaching, lesson-plan, menu, training]
   # Every LLM job's model id (lesson plans, coaching, quiz, child-test scoring, …).
   bot/shared/config/model-registry.js: "*"
+  # The template sender behind the portal's "Send on WhatsApp" (lesson plan, paper, coaching report, observation)
+  # and the closed-window coaching report, incl. its clip and "Make a quiz" siblings (bd-pdwwk4.2).
+  bot/shared/services/share-send.service.js: [coaching, lesson-plan, observe, training]
   # Opt-in sandbox echo of outbound WhatsApp payloads (WA_OUTBOUND_ECHO_TO); called from whatsapp.service.js.
   bot/shared/services/outbound-echo.js: "*"
   bot/shared/utils/region.js: "*"
