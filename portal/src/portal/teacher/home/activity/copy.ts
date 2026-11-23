@@ -23,6 +23,8 @@ export const ACTIVITY_COPY = {
   quizPapers: 'Quizzes · Papers',
   quizzes: 'Quizzes',
   papers: 'Papers',
+  quiz: 'Quiz',
+  paper: 'Paper',
   ratingOverTime: 'Rating over time',
   tryNext: 'Try next class',
   myJourney: 'My journey',
@@ -33,13 +35,15 @@ export const ACTIVITY_COPY_UR: typeof ACTIVITY_COPY = {
   updatedNight: 'اپ ڈیٹ: کل رات',
   updatedToday: (t: string) => `اپ ڈیٹ: آج، ${t}`,
   updatedYesterday: (t: string) => `اپ ڈیٹ: کل، ${t}`,
-  opened: 'کھولے گئے لیسن پلان',
+  opened: 'لیسن پلان کھولے',
   taught: 'کلاس میں پڑھایا',
   toldUs: 'آپ نے بتایا',
-  coached: 'ڈیجیٹل کوچنگ مشاہدات',
+  coached: 'کوچنگ مشاہدات',
   quizPapers: 'کوئز · پرچے',
   quizzes: 'کوئز',
   papers: 'پرچے',
+  quiz: 'کوئز',
+  paper: 'پرچہ',
   ratingOverTime: 'وقت کے ساتھ کارکردگی',
   tryNext: 'اگلی کلاس میں آزمائیں',
   myJourney: 'میرا سفر',
@@ -51,7 +55,7 @@ export type ActivityCopy = typeof ACTIVITY_COPY;
 export const ACTIVITY_COPY_ENTRY: CopyEntry = {
   screen: 'Home activity',
   module: ACTIVITY as Bilingual<unknown>,
-  same: [],
+  same: ['quiz'], // Urdu says کوئز for one quiz or many
   // A time inside a label: the Urdu lines are 5–6 words.
   longOk: ['updatedNight', 'updatedToday', 'updatedYesterday'],
 };
