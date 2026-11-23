@@ -38,6 +38,7 @@ const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
 const { pageTopic } = require('./quiz-child-title');
 const GatesV2 = require('./quiz-author-gates-v2');
+const KeyHold = require('./key-hold-flag');
 
 const { presupposesPicture } = GatesV2;
 const Funnel = require('./quiz-funnel');
@@ -225,7 +226,8 @@ async function loadQuestions(quizId, { log = false } = {}) {
   const { data, error } = await dbRead('loadQuestions:quiz_questions:1', (db) => db.from('quiz_questions').select(Q_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true }));
   if (error) fail(502, 'db_unavailable');
-  const rows = servableRows(data || []);
+  // quiz_key_hold_on_disagree: an item whose key the blind solve disputed waits for a person and is never served.
+  const rows = await KeyHold.shown(servableRows(data || []));
   // One ordering rule for both channels (transcript bank by sort_order, video
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');

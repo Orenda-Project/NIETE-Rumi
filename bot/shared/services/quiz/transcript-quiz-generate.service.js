@@ -48,6 +48,7 @@ const DailyCap = require('./quiz-daily-cap');
 const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
 const GatesV2 = require('./quiz-author-gates-v2');
+const KeyHold = require('./key-hold-flag');
 const ChildReasons = require('./transcript-quiz-child-reasons');
 const SloStamp = require('./quiz-slo-stamp');
 const { completeJson } = require('./transcript-quiz-llm');
@@ -618,8 +619,10 @@ function pdfFilename(topic) {
 async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSummary, language, contentLanguage, date, link }) {
   const { htmlToPdf } = require('../../utils/html-to-pdf');
   const render = require('../../templates/transcript-quiz-teacher.template');
+  // quiz_key_hold_on_disagree: a held item (its key disputed, waiting for a person) is not printed for the teacher either.
+  const printed = await KeyHold.shown(questions);
   const html = render({
-    topic: quiz.topic, teacherName, grade, date, link, digest, questions, lessonSummary,
+    topic: quiz.topic, teacherName, grade, date, link, digest, questions: printed, lessonSummary,
     language, contentLanguage: contentLanguage || quiz.language || language,
     quizSource: quiz.quiz_source || null,
   });
@@ -629,6 +632,46 @@ async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSu
   });
   if (!buffer || !buffer.length) throw new Error('empty PDF');
   return buffer;
+}
+
+/**
+ * The answer-key review queue for a quiz's held items (quiz_key_hold_on_disagree): ONE quiz_item_reviews row per held
+ * item (quiz-key-review.service TABLE; 'blind_solve' is one of its REASONS), status open, key_at_flag the grader's key
+ * (web-quiz-items keyFor), top_wrong_option the solver's single pick by stored slot (null when it picked none or more
+ * than one), counts 0 (no child has answered yet), first_flagged_on = last_seen_on = today's Pakistan date. The stored
+ * ids are read back once. An item whose key is not one A-D slot cannot be queued (the table's CHECK) and is counted
+ * out of `queued`. Logs quiz_keys.held once. NEVER throws: a failed write is logged, the quiz goes on and the item
+ * stays held (still never served).
+ */
+async function queueHeld({ quizId, rows, language, quizSource }) {
+  const nHeld = rows.filter(KeyHold.isHeld).length;
+  let queued = 0;
+  try {
+    const Keys = require('./quiz-key-review.service');
+    const { slotOfText } = require('./web-quiz-evening-round-recall');
+    const { data, error } = await supabase.from('quiz_questions').select('id, option_a, option_b, option_c, option_d, correct_option, media').eq('quiz_id', quizId);
+    if (error) throw new Error(error.message || 'quiz_questions read failed');
+    const day = require('../nudges/pkt-time').pktDate(new Date());
+    const entries = (data || []).filter(KeyHold.isHeld).map((r) => {
+      const key = WebItems.keyFor(r);
+      const picks = Array.isArray(r.media.key_held.picks) ? r.media.key_held.picks : [];
+      const top = picks.length === 1 ? slotOfText(r, picks[0]) : null;
+      return {
+        question_id: r.id, reason: 'blind_solve', status: 'open', key_at_flag: key, top_wrong_option: top && top !== key ? top : null,
+        answers_n: 0, top_wrong_n: 0, right_n: 0, first_flagged_on: day, last_seen_on: day,
+      };
+    }).filter((e) => /^[A-D]$/.test(e.key_at_flag) && Keys.REASONS.includes(e.reason));
+    if (entries.length) {
+      const { error: e } = await supabase.from(Keys.TABLE).insert(entries);
+      if (e) throw new Error(e.message || 'quiz_item_reviews insert failed');
+      queued = entries.length;
+    }
+  } catch (err) {
+    logToFile('⚠️ transcript quiz: held items not queued for review — they stay held (never served)', {
+      quizId, quiz_source: quizSource, n_held: nHeld, error: String((err && err.message) || err).slice(0, 200),
+    }, 'warn');
+  }
+  logEvent('quiz_keys.held', { quizId, n_held: nHeld, n_items: rows.length, lang: language, quiz_source: quizSource, queued });
 }
 
 async function updateQuiz(quizId, patch) {
@@ -2002,15 +2045,34 @@ async function runKeyVerify(api, {
     return finish({ changed: false, held, repeatFaults: repeatLeft() });
   }
 
+  // Hold, never rewrite (app_settings quiz_key_hold_on_disagree, a missing row is off): with the switch on, every quiz
+  // holds a disputed key the way the round does. The item ships as authored, the author's key kept, and is marked
+  // (applyMedia -> media.key_held), queued for a person (queueHeld) and never served or printed (key-hold-flag shown).
+  // A repeat keeps the targeted rewrite below (it moves no key) unless it is itself held. Off: nothing here runs, and
+  // `fix` is every flagged item, as before.
+  const held = bad.length && await KeyHold.on()
+    ? bad.map((v) => ({
+      index: v.index, verdict: v.verdict, picks: (v.blind || []).filter((k) => !(v.keyed || []).includes(k)).map((k) => String(questions[v.index].options[k])),
+    }))
+    : null;
+  const fix = held ? [] : bad;
+  const notHeld = (i) => !held || !held.some((h) => h.index === i);
+  if (held) {
+    record.status = 'held';
+    record.disagreements.forEach((d) => { d.outcome = 'held'; });
+    held.forEach((h) => repeatAt.delete(h.index));
+    if (!repeatAt.size) return finish({ changed: false, held, repeatFaults: repeatLeft() });
+  }
+
   // ── 2. ONE targeted rewrite, with the disagreement as the complaint ────────
   // A key that is not true outranks a repeat for the five places (rewriteTargets
   // tiers KEY_* first); a repeat left out ships, recorded.
-  const stillBad = new Set(bad.map((v) => v.index));
+  const stillBad = new Set(fix.map((v) => v.index));
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
     // More than five flagged keys: the worst five are rewritten, the rest dropped below.
-    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
+    questions, errors: [...(held ? [] : complaints), ...repeatLeft()], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -2062,8 +2124,8 @@ async function runKeyVerify(api, {
   // A repeat the rewrite did not replace ships, recorded (never dropped).
   record.same_fact.shipped = [...repeatAt.keys()].sort((a, b) => a - b);
   // Only repeats, and the rewrite changed nothing: the quiz ships as it is.
-  if (!bad.length && current === questions) {
-    return finish({ changed: false, repeatFaults: repeatLeft() });
+  if (!fix.length && current === questions) {
+    return finish({ changed: false, ...(held ? { held } : {}), repeatFaults: repeatLeft() });
   }
 
   // ── 3. drop what still disagrees — or, under the floor, replace it ────────
@@ -2112,7 +2174,7 @@ async function runKeyVerify(api, {
     record.refused = (s && s.refused) || 'nothing could be dropped';
     return null;
   };
-  const allBad = bad.map((v) => v.index);
+  const allBad = fix.map((v) => v.index);
   const remaining = () => [...stillBad].sort((a, b) => a - b);
   const candidates = [{ gone: remaining(), make: () => dropFrom(current, remaining()) }];
   // Only if the repaired set cannot be DRAWN: the solved set minus every
@@ -2131,20 +2193,21 @@ async function runKeyVerify(api, {
       if (repairsLost) {
         record.fixed = 0;
         record.same_fact.fixed = [];
-        record.same_fact.shipped = [...new Set(record.same_fact.confirmed.map(([, j]) => j))].sort((a, b) => a - b);
+        record.same_fact.shipped = [...new Set(record.same_fact.confirmed.map(([, j]) => j))].filter(notHeld).sort((a, b) => a - b);
       }
       const replaced = cand.replaced || [];
       record.dropped = cand.dropped.length;
       // keys that were all true stay 'clean'; the repeats have their own record
-      record.status = !bad.length ? 'clean' : (replaced.length ? 'replaced' : (cand.dropped.length ? 'dropped' : 'fixed'));
+      record.status = held ? 'held' : (!bad.length ? 'clean' : (replaced.length ? 'replaced' : (cand.dropped.length ? 'dropped' : 'fixed')));
       record.disagreements.forEach((d) => {
-        if (replaced.includes(d.index)) d.outcome = 'replaced';
+        if (held) d.outcome = 'held';
+        else if (replaced.includes(d.index)) d.outcome = 'replaced';
         else d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed';
       });
       attempts.push({ attempt: 'key_verify_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
       return finish({
         changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
-        repeatFaults: repairsLost ? repeatComplaints : repeatLeft(),
+        ...(held ? { held } : {}), repeatFaults: repairsLost ? repeatComplaints.filter((e) => notHeld(Number(/^q(\d+)/.exec(e)[1]))) : repeatLeft(),
       });
     } catch (figErr) {
       record.render_error = String(figErr.message || figErr).slice(0, 200);
@@ -2152,7 +2215,7 @@ async function runKeyVerify(api, {
     }
   }
   record.status = 'failed';
-  record.disagreements.forEach((d) => { d.outcome = stillBad.has(d.index) ? 'failed' : 'fixed'; });
+  record.disagreements.forEach((d) => { d.outcome = held ? 'held' : (stillBad.has(d.index) ? 'failed' : 'fixed'); });
   return finish({ failed: true });
 }
 
@@ -3003,8 +3066,6 @@ async function processQuiz(quizId, payload, flight) {
       sourceText: lessonSourceText, round: isRound,
     });
     meta.key_verify = kv.record;
-    // A round's flagged item rides on as authored, marked (applyMedia -> media.key_held): the round never serves it.
-    if (kv.held && kv.held.length) questions = questions.map((q, i) => { const h = kv.held.find((x) => x.index === i); return h ? { ...q, round_held: { verdict: h.verdict, picks: h.picks } } : q; });
     meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);
     if (kv.failed) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'key_disagreement' } });
@@ -3018,6 +3079,9 @@ async function processQuiz(quizId, payload, flight) {
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
+    // A held item (a round's, or any quiz's with quiz_key_hold_on_disagree on) rides on as authored, marked
+    // (applyMedia -> media.key_held): it is never served. Marked after a changed set is taken, on the set that ships.
+    if (kv.held && kv.held.length) questions = questions.map((q, i) => { const h = kv.held.find((x) => x.index === i); return h ? { ...q, round_held: { verdict: h.verdict, picks: h.picks } } : q; });
     // A question the blind solve named as a repeat that no rewrite replaced.
     if (kv.repeatFaults && kv.repeatFaults.length) meta.soft_faults = [...(meta.soft_faults || []), ...kv.repeatFaults];
     // ── THE SUMMARY IS TRUE BY THE SUBJECT (a recording's quiz) ──────────────
@@ -3220,6 +3284,8 @@ async function processQuiz(quizId, payload, flight) {
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
+    // quiz_key_hold_on_disagree: each held item goes on the review queue (an evening round queues its own).
+    if (!isRound && rows.some(KeyHold.isHeld)) await queueHeld({ quizId, rows, language, quizSource });
     // The teacher's summaries are the teacher's Urdu page too: each person the
     // digest recorded is written in the Urdu spelling there as well.
     const spellSummary = (t) => (language === 'ur' && typeof t === 'string' && /\p{Script=Arabic}/u.test(t)
