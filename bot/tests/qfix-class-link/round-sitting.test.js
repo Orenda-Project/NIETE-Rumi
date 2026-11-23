@@ -290,6 +290,8 @@ describe('siblings\' recall picks: own misses first, ties broken by the sitting\
         const fin = await WQ.finishSession({ st: a.st });
         expect(fin.review.map((r) => r.qid).sort()).toEqual([...set].sort());
         seen.add(set[6]);
+        // a finished round is never played twice ("Done for tonight!"): the next sitting is a first one again
+        db.quiz_sessions = db.quiz_sessions.filter((x) => x.id !== sid);
       }
       expect(seen.size).toBe(2);
     } finally {
@@ -384,6 +386,8 @@ describe('the same-day swap: lesson items the child answered RIGHT earlier today
     played(OTHER, { 1: true, 2: true });
     played(AFT, { 3: true }, new Date(pktMidnight() - 3600000).toISOString());
     played(ROUND_Q, { 4: true });
+    // the round's own sitting left unfinished (a finished one answers "Done for tonight!", round-reopen.test.js)
+    Object.assign(db.quiz_sessions[db.quiz_sessions.length - 1], { status: 'in_progress', completed_at: null });
     expect(lessonOf((await asZara()).order.q)).toEqual([L(1), L(2), L(3), L(4), L(5)]);
     expect(named('web_quiz.round_started')[0].n_swapped).toBeUndefined();
   });
