@@ -2148,11 +2148,11 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
-// The voice events' own fields (wq.js clipFacts / playable), on these four names only: where the clip came
+// The voice events' own fields (wq.js clipFacts / playable / probeSrc), on these names only: where the clip came
 // from (never its address), its format, the page's view state, ms since the child last touched the page (gms; -1 none),
-// and what the phone can play; for the sitting's first media_err_4, what a 2-byte fetch of that clip got back (fst: the
-// HTTP status, or opaque / net / timeout / err; fct: the content-type, type/subtype only).
-const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow']);
+// and what the phone can play; audio_probe (the sitting's first media_err_4, sent after its audio_fallback): what a
+// 2-byte fetch of that clip got back (fst: the HTTP status, or opaque / net / timeout / err; fct: type/subtype only).
+const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow', 'audio_probe']);
 const VOICE_PROPS = Object.freeze({ host: /^(self|r2|other)$/, fmt: /^(ogg|mp3|m4a|aac|wav|other)$/, vis: /^(hidden|visible)$/, can: /^ogg[01]mp3[01]$/,
   fst: /^([1-5][0-9]{2}|opaque|net|timeout|err)$/, fct: /^[a-z]+\/[a-z0-9.+-]{1,40}$/ });
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only

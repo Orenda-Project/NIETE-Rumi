@@ -36,9 +36,11 @@ test('audio_slow keeps its start time, part, question, host, format and view sta
   expect(cleanEvent({ n: 'audio_slow', ms: 6200, part: 'q', qid: QID, host: 'r2', fmt: 'ogg', vis: 'visible' }).props).toMatchObject({ ms: 6200, part: 'q', qid: QID, host: 'r2', fmt: 'ogg', vis: 'visible' });
 });
 
-test('audio_fallback keeps the probe of a media_err_4 clip: the status its address answered (fst) and the bare content-type (fct)', () => {
-  expect(cleanEvent({ n: 'audio_fallback', reason: 'error', err: 'media_err_4', fst: '206', fct: 'audio/mpeg' }).props).toMatchObject({ fst: '206', fct: 'audio/mpeg' });
-  for (const fst of ['403', 'opaque', 'net', 'timeout', 'err']) expect(cleanEvent({ n: 'audio_fallback', reason: 'error', fst }).props.fst).toBe(fst);
-  expect(cleanEvent({ n: 'audio_fallback', reason: 'error', fst: 'https://acct.r2.cloudflarestorage.com/b/k.ogg', fct: 'text/html; charset=utf-8' }).props).toEqual({ reason: 'error' });
+test('audio_probe keeps the failed clip\'s facts and what a 2-byte fetch of it got back (fst: the status, fct: the bare content-type)', () => {
+  const QID2 = '99999992-9999-4999-8999-999999999999';
+  expect(cleanEvent({ n: 'audio_probe', err: 'media_err_4', part: 'opt', qid: QID2, host: 'r2', fmt: 'ogg', vis: 'visible', net: '4g', ms: 1800, gms: 900, fst: '206', fct: 'audio/ogg' }).props)
+    .toMatchObject({ err: 'media_err_4', part: 'opt', qid: QID2, host: 'r2', fmt: 'ogg', vis: 'visible', net: '4g', ms: 1800, gms: 900, fst: '206', fct: 'audio/ogg' });
+  for (const fst of ['403', 'opaque', 'net', 'timeout', 'err']) expect(cleanEvent({ n: 'audio_probe', fst }).props.fst).toBe(fst);
+  expect(cleanEvent({ n: 'audio_probe', fst: 'https://acct.r2.cloudflarestorage.com/b/k.ogg', fct: 'text/html; charset=utf-8', host: 'https://x.test' }).props).toEqual({});
   expect(cleanEvent({ n: 'answer', fst: '206', fct: 'audio/mpeg' }).props).toEqual({});
 });
