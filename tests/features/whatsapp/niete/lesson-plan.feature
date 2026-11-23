@@ -1330,6 +1330,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.52, queue #134 B (shelf reviewer 5D: 146 of 276 grades 1-5 own plans scored 1-2). Unit:
     # tests/lp612/own-k5-close.test.js.
 
+  @e2e @L61 @no-mock-driver @config-gated @P2
+  Scenario: My own plan shows real children: a girl's and a boy's name and places they know
+    Given "portal_lp_make_own" is on for me
+    When I make my own plan for a Grades 1-5 day
+    Then the Opening starts with one line asking me to use a girl's and a boy's name from my class, a place the children know, and a child's own example
+    And the examples in the plan use both a girl's and a boy's name
+    When I make my own plan for a Grades 6-12 lesson
+    Then its examples use both a girl's and a boy's name, and the plan has no extra printed line
+    # bd-snkn32.53, queue #134 D (shelf reviewer 6B: 115 of 276 grades 1-5 own plans failed it). Unit:
+    # tests/lp612/own-children.test.js.
+
   @e2e @L29 @no-mock-driver @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson

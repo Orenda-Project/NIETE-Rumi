@@ -31,6 +31,12 @@ const SENIOR = [...MIDDLE, 'past_paper'];
 const GRR_LINE = 'Keep I do, We do and You do, in that order; a way changes how a phase is taught, never removes it.';
 const ROTE_LINE = 'Never turn any part into rote drill: no repeat-after-me lists, copying or memorising word for word. '
   + 'Choral sound and word practice (phonics) is allowed and is not rote.';
+/**
+ * bd-snkn32.53 (queue #134 D) — the reviewer's 6B: both a girl's and a boy's name, deliberately, and varied everyday
+ * contexts. 115 of 276 grades 1-5 own plans failed it (#120). Told to both bands' rewrites.
+ */
+const CHILDREN_LINE = 'In examples and word problems, use both a girl\'s and a boy\'s name (common Pakistani names) and everyday local '
+  + 'places the children know (home, the bazaar, the school, the village or town). Once in the lesson, ask a child for their own example.';
 /** bd-snkn32.28 — You Do is independent practice: testers saw group work in You Do, so it read the same as We Do. */
 // bd-snkn32.30 — no promise of a per-child check: a class of 70 cannot have one; the check is whole-class.
 const YOU_DO_LINE = 'You Do is each child working alone in the book, and the class is checked together at the end: no pair, group or '
@@ -115,6 +121,7 @@ function purposeLine(purpose, grade) {
 }
 
 module.exports = {
+  CHILDREN_LINE,
   purposesOfGrade, purposeLine, PURPOSE_FDE, PRIMARY_PURPOSES,
   SECONDARY_WAYS, PURPOSES, GRR_LINE, ROTE_LINE, YOU_DO_LINE, BOOK_MAX, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
 };
