@@ -10,6 +10,7 @@ import { useAnalyticsView } from '../lib/analyticsView';
 import RemarksSection from '../components/RemarksSection';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
+import { NoSchoolNotice } from '../teacher/principal/NoSchool';
 
 /**
  * bd-60117 — the Analytics tab for a PRINCIPAL: her school, not herself.
@@ -111,6 +112,19 @@ const SchoolAnalytics = () => {
           <p className="text-muted-foreground">
             Your school analytics aren't available right now.
           </p>
+        </div>
+      </PortalLayout>
+    );
+  }
+
+  // bd-r2uzg1.21.4 — her account names no school: every number would be a 0 that means "not linked", so the page says
+  // that, and what to do, instead of the tiles and tabs.
+  if (data.noSchool) {
+    return (
+      <PortalLayout>
+        <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+          <h1 className="text-3xl sm:text-4xl font-light mb-6">School Analytics</h1>
+          <NoSchoolNotice testId="analytics-no-school" />
         </div>
       </PortalLayout>
     );

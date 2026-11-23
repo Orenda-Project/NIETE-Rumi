@@ -1,10 +1,7 @@
 import { useRef } from "react";
-import { useCopy } from "../i18n";
 import { Loading } from "../../coach/ui";
 import { LoadFailed } from "../../coach/people/PeopleFrame";
-import { EmptyRow } from "../../coach/people/rows";
 import { LevelChips, useLevel } from "../../coach/people/level";
-import { PEOPLE } from "../../coach/people/copy";
 import { useCardLoad } from "../../coach/card/frame";
 import { usePeriod } from "../../coach/card/period";
 import { PeriodChips } from "../../coach/card/parts";
@@ -12,6 +9,7 @@ import { OverviewCard, SchoolTeachers } from "../../coach/card/schoolView";
 import { SchoolLine } from "../analytics/SchoolView";
 import { oneTeacherPath } from "../analytics/school";
 import { getPrincipalSchoolCard, type PrincipalSchoolCard } from "./api";
+import { NoSchoolNotice } from "./NoSchool";
 
 /**
  * bd-33wxxi.3 — Analytics › My school on the principal app (#55, Analytics A): the coach's School view (#19) for her OWN
@@ -21,11 +19,11 @@ import { getPrincipalSchoolCard, type PrincipalSchoolCard } from "./api";
  * section (SchoolTeachers: the coach card's table). A row opens that teacher's Analytics page (OneTeacherPage: the bands
  * a teacher sees about herself). No Where to coach, no Manage, no coach-observations table.
  *
- * The school is the server's (GET /principal/school/card reads her session); her row naming no school: "No school".
+ * The school is the server's (GET /principal/school/card reads her session); her row naming no school: the
+ * NoSchoolNotice (no school linked yet, ask her coach to add her; bd-r2uzg1.21.4).
  * Every number is the server's; one that did not load is "—", never 0.
  */
 export function MySchool() {
-  const P = useCopy(PEOPLE);
   const [period] = usePeriod();
   const [level] = useLevel();
   const { data, failed, reload } = useCardLoad<PrincipalSchoolCard>(() => getPrincipalSchoolCard(period, level), [period, level]);
@@ -35,7 +33,7 @@ export function MySchool() {
   const knownLevels = useRef<PrincipalSchoolCard["levels"] | null>(null);
   if (data?.levels) knownLevels.current = data.levels;
 
-  if (data && !data.school) return <EmptyRow icon={<span>·</span>} testId="my-school-none">{P.noSchool}</EmptyRow>;
+  if (data && !data.school) return <NoSchoolNotice testId="my-school-none" />;
   const school = data?.school ?? known.current;
   const teachers = data?.teachers ?? [];
   const idOf = new Map(teachers.map((t) => [t.teacherExtId, t.id]));

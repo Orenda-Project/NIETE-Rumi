@@ -155,10 +155,13 @@ describe("Analytics › My school, the principal app", () => {
     expect(where).toContain("period=month");
   });
 
-  it("her row names no school: No school, nothing else", async () => {
+  // bd-r2uzg1.21.4 — "No school" alone was a dead end: no school is linked yet, and what to do.
+  it("her row names no school: no school linked yet and ask her coach, nothing else", async () => {
     serve({ card: { success: true, school: null } });
     renderAnalytics();
-    await waitFor(() => expect(screen.getByText("No school")).toBeTruthy(), { timeout: 8000 });
+    const notice = await screen.findByTestId("my-school-none", {}, { timeout: 8000 });
+    expect(notice).toHaveTextContent("No school linked yet");
+    expect(notice).toHaveTextContent(/Ask your coach to add you to your school/);
     expect(screen.queryByTestId("teacher-table")).toBeNull();
   });
 

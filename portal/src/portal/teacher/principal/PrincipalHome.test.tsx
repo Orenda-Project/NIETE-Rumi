@@ -93,11 +93,14 @@ describe("the principal app's Home", () => {
     expect(vi.mocked(api.get)).toHaveBeenCalledWith("/principal/school/card", { params: { period: "week" } });
   });
 
-  it("a principal whose row names no school: the card says No school, no numbers", async () => {
+  // bd-r2uzg1.21.4 — "No school" alone was a dead end: the card says no school is linked yet and what to do.
+  it("a principal whose row names no school: the card says no school is linked yet and to ask her coach, no numbers", async () => {
     serve({ card: { success: true, school: null } });
     renderHome(PRINCIPAL);
     const school = await screen.findByTestId("home-my-school");
-    await waitFor(() => expect(within(school).getByText("No school")).toBeTruthy());
+    const notice = await within(school).findByTestId("my-school-none");
+    expect(notice).toHaveTextContent("No school linked yet");
+    expect(notice).toHaveTextContent(/Ask your coach to add you to your school/);
     expect(within(school).queryByText("38")).toBeNull();
   });
 
