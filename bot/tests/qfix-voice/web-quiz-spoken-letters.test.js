@@ -6,6 +6,11 @@
  * spoken() dropped only "answer is B" and "B)", so a why line "The answer is option B, a root drinks water" was
  * voiced with "B" while the child saw that option under another letter: 15 of 13,599 production questions,
  * 178 question-sittings 8-21 Nov. The test runs the real partsFor (the clips a question gets).
+ *
+ * Second bug (23 Nov): the first fix deleted "option C" whole, so a line heard after the answer became a broken
+ * sentence ("All three matches in are correct.") — 8 of the 9 production clips it changed. In those lines (why, and
+ * the feedback after a wrong pick) the letter phrase now names what that option is to the child: the right answer,
+ * the child's own answer, or another answer. A stem or an option never says "the right answer": it would give it away.
  */
 jest.mock('axios');
 jest.mock('../../shared/config/supabase', () => ({}));
@@ -34,27 +39,70 @@ const LETTER_AFTER = /(\b(?:answer is|answer|option|choice)\s+|جواب\s+|آپ�
 describe('the why clip says no letter the page would remap', () => {
   test.each([
     ['The answer is option B, because a root drinks water.', 'The answer is, because a root drinks water.'],
-    ['Choice B is right: a root drinks water.', 'is right: a root drinks water.'],
+    ['Choice B shows the part that drinks water.', 'The right answer shows the part that drinks water.'],
     ['The correct answer B tells us a root drinks water.', 'The correct answer tells us a root drinks water.'],
   ])('%s', (why, voiced) => {
     expect(said(item({ why }), 'why')).toBe(voiced);
   });
 
-  test('Urdu: «جواب B» keeps «جواب» and drops the letter; «آپشن B» goes whole', () => {
+  test('Urdu: «جواب B» keeps «جواب» and drops the letter; «آپشن B» after «جواب» goes whole', () => {
     expect(said(item({ why: 'درست جواب B ہے، کیونکہ جڑ پانی پیتی ہے۔' }), 'why')).toBe('درست جواب ہے، کیونکہ جڑ پانی پیتی ہے۔');
     expect(said(item({ why: 'درست جواب آپشن B ہے۔' }), 'why')).toBe('درست جواب ہے۔');
   });
 });
 
-describe('the same for the wrong-answer clips and the question itself', () => {
-  test('a wrong-option line naming "option B" is voiced without the letter', () => {
-    const q = item({ why: 'A root drinks water.', fb: { A: 'Leaves make food; the water goes in through option B.' } });
-    expect(said(q, 'xa')).toBe('Leaves make food; the water goes in through.');
+describe('a line heard after the answer names the option, never leaves a hole (23 Nov)', () => {
+  // The production shapes, in fictional words: in all 8 the letter was the question's correct option.
+  test.each([
+    ['All three parts in option B are true.', 'All three parts in the right answer are true.'],
+    ['Option B correctly shows the part that drinks water.', 'The right answer correctly shows the part that drinks water.'],
+    ["The word 'جڑ' means root, and option B uses it correctly.", "The word 'جڑ' means root, and the right answer uses it correctly."],
+    ['Option C is a flower, but option B drinks water.', 'Another answer is a flower, but the right answer drinks water.'],
+  ])('%s', (why, voiced) => {
+    expect(said(item({ why }), 'why')).toBe(voiced);
   });
 
+  test('Urdu: «آپشن B» is «صحیح جواب», «آپشن C» «دوسرا جواب», in the Urdu line', () => {
+    expect(said(item({ why: 'آپشن B میں جڑ پانی پیتی ہے۔' }), 'why')).toBe('صحیح جواب میں جڑ پانی پیتی ہے۔');
+    expect(said(item({ why: 'آپشن C میں پھول ہے، جڑ نہیں۔' }), 'why')).toBe('دوسرا جواب میں پھول ہے، جڑ نہیں۔');
+  });
+
+  test('the feedback after a wrong pick calls that pick "your answer"', () => {
+    const q = item({ why: 'A root drinks water.', fb: { A: 'Option A is a leaf; option B drinks the water.', C: 'آپشن C ایک پھول ہے۔' } });
+    expect(said(q, 'xa')).toBe('Your answer is a leaf; the right answer drinks the water.');
+    expect(said(q, 'xc')).toBe('آپ کا جواب ایک پھول ہے۔');
+  });
+
+  test('a plain row (no web item) is voiced the same way: why from the explanation, wrong feedback by index', () => {
+    const q = {
+      id: 'aaaaaaaa-0000-4000-8000-0000000000b2',
+      question_text: 'Match each animal to its home.', option_a: '1-b, 2-a', option_b: '1-a, 2-b', option_c: '1-a, 2-a',
+      correct_option: 'A', explanation: 'All three matches in option A are correct.',
+      option_feedback: { wrong: { 1: 'In option B the bird lives in water; look at option A.' } },
+    };
+    expect(said(q, 'why')).toBe('All three matches in the right answer are correct.');
+    expect(said(q, 'xb')).toBe('In your answer the bird lives in water; look at the right answer.');
+  });
+
+  test('a question with two right options calls both "the right answer"', () => {
+    const q = item({ why: 'Option A and option B both grow on a plant; option C does not.' });
+    q.correct_option = 'A,B';
+    expect(said(q, 'why')).toBe('The right answer and the right answer both grow on a plant; another answer does not.');
+  });
+});
+
+describe('the same for the wrong-answer clips and the question itself', () => {
   test('no clip of a question full of letter phrases says one', () => {
     const q = item({ stem: 'Look at option A and choice C. Which drinks water?', why: 'The answer is option B.', fb: { C: 'Not choice C: the answer is B.' } });
     for (const p of Publish.partsFor(q)) expect(p.text).not.toMatch(LETTER_AFTER);
+  });
+
+  test('a stem or an option never says "the right answer" (it would give it away): the letter phrase just goes', () => {
+    const q = item({ stem: 'Is option B or option C a part that drinks water?', why: 'A root drinks water.' });
+    expect(said(q, 'q')).toBe('Is or a part that drinks water?');
+    for (const p of Publish.partsFor(q).filter((x) => ['q', 'a', 'b', 'c', 'd'].includes(x.part))) {
+      expect(p.text).not.toMatch(/right answer|your answer|another answer|صحیح جواب|آپ کا جواب|دوسرا جواب/i);
+    }
   });
 });
 
