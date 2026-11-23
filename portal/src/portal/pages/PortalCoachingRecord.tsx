@@ -12,7 +12,7 @@ import SoundBars from '../components/coaching/SoundBars';
 import { RecordingContinuesChip } from '../components/RecordingBar';
 import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPicker';
 import { portal } from '../services/api';
-import { acceptFor, checkFile, formatSize, MAX_PHOTOS, minutesText, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
+import { acceptFor, AUDIO_ACCEPT, checkFile, checkRecording, formatSize, MAX_PHOTOS, minutesText, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
 import { useRecordingClock, useRecordingSession, type RecordingSession } from '../lib/recordingSession';
 import { clockText } from '../lib/clockText';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../lib/recordingStore';
@@ -272,11 +272,13 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
   };
 
   /** A recording file she picked; false (and a message) when it is not one. */
-  const onAudioChosen = async (file: File | undefined): Promise<boolean> => {
+  const onAudioChosen = async (picked: File | undefined): Promise<boolean> => {
     setFileError(null);
-    if (!file) return false;
-    const problem = checkFile(file, 'audio');
-    if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return false; }
+    if (!picked) return false;
+    // bd-hronni: a recording by its name, its type or its first bytes (an Opus file with no name ending is one)
+    const checked = await checkRecording(picked);
+    if (checked.problem || !checked.file) { setFileError(checked.problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return false; }
+    const file = checked.file;
     const seconds = await readAudioDuration(file);
     const durationMs = seconds != null ? seconds * 1000 : null;
     setAudio({
@@ -492,7 +494,7 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
 
         {/* the one place a recording file is picked on this page: "Choose a
             recording instead" (microphone refused) and "Choose a different file" */}
-        <input ref={audioInput} data-testid="audio-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
+        <input ref={audioInput} data-testid="audio-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
           onChange={(e) => { void onAudioChosen(e.target.files?.[0]); e.target.value = ''; }} />
 
         {/* 1b. microphone refused */}
