@@ -7,7 +7,7 @@
   "held_rule": "a key with `held` is never rendered or sent",
   "retired_rule": "a key with `retired: true` is rendered or sent by no surface; it is kept, never deleted, so old lifts stay traceable",
   "nbsp_rule": "U+00A0 inside a unit that must not break («واٹس ایپ», «ہوم اسکرین», a question's last pair); lifts copy it byte for byte",
-  "keys": 225
+  "keys": 227
  },
  "jg.lantern.trail_one": {
   "en": "A game is waiting for you on the Trail.",
@@ -2498,6 +2498,28 @@
   "cp": {
    "en": 16,
    "ur": 14
+  }
+ },
+ "qfix_class_link.rounds_played_one": {
+  "en": "{n} child played",
+  "ur": "{n} بچے نے کھیلا",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 16,
+   "ur": 16
+  }
+ },
+ "qfix_class_link.rounds_played": {
+  "en": "{n} children played",
+  "ur": "{n} بچوں نے کھیلا",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 19,
+   "ur": 17
   }
  }
 }

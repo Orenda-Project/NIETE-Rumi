@@ -1167,10 +1167,20 @@ async function forTeacherReport(teacherId, { now = new Date() } = {}) {
 }
 
 const REPORT_WORDS = {
-  en: { title: 'Evening rounds', none: 'No child has played it yet.', played: (n) => `${n} ${n === 1 ? 'child' : 'children'} played`, avg: (n) => `average ${n}%` },
-  ur: { title: 'شام کے راؤنڈ', none: 'ابھی کسی بچے نے نہیں کھیلا۔', played: (n) => `${urNum(n)} بچوں نے کھیلا`, avg: (n) => `اوسط ${urNum(n)}٪` },
+  en: { title: 'Evening rounds', none: 'No child has played it yet.', avg: (n) => `average ${n}%` },
+  ur: { title: 'شام کے راؤنڈ', none: 'ابھی کسی بچے نے نہیں کھیلا۔', avg: (n) => `اوسط ${urNum(n)}٪` },
 };
 function urNum(n) { return String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]); }
+
+/**
+ * How many children finished a round, in the catalog's words (qfix_class_link_rounds_played_one / _rounds_played): one
+ * child is its own line, since Urdu inflects the noun for one («۱ بچے نے کھیلا»); the count in the language's digits.
+ */
+function playedWords(n, lang) {
+  const UX = require('../../config/ux-strings');
+  const code = UX.clampLanguage(lang);
+  return UX.resolveUx(n === 1 ? 'qfix_class_link_rounds_played_one' : 'qfix_class_link_rounds_played', { language: code, params: { n: UX.digitsFor(n, code) } });
+}
 
 /**
  * A round's PKT day (YYYY-MM-DD) as the page's words: weekday, date, month, "Tue 24 Nov" / «منگل ۲۴ نومبر». The
@@ -1194,12 +1204,13 @@ async function reportSection(teacherId, { lang = 'en' } = {}) {
   const rounds = await forTeacherReport(teacherId);
   if (!rounds) return '';
   const ur = lang === 'ur';
-  const W = REPORT_WORDS[ur ? 'ur' : 'en'];
+  const L = ur ? 'ur' : 'en';
+  const W = REPORT_WORDS[L];
   const rows = rounds.map((r) => {
     const label = ur ? r.class_label_ur : r.class_label;
     const day = dayWords(r.round_day, lang);
     const head = [label, r.topic].filter(Boolean).map(escHtml).join(' · ');
-    const stat = r.played ? `${escHtml(W.played(r.played))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
+    const stat = r.played ? `${escHtml(playedWords(r.played, L))}${r.avg != null ? ` · ${escHtml(W.avg(r.avg))}` : ''}` : escHtml(W.none);
     const names = r.finishers.length ? `<p class="er-kids">${r.finishers.map((n) => `<bdi>${escHtml(n)}</bdi>`).join(', ')}</p>` : '';
     return `<li class="er-round"><p class="er-head"><span class="er-day">${escHtml(day)}</span> ${head}</p><p class="er-stat">${stat}</p>${names}</li>`;
   }).join('');
