@@ -81,6 +81,8 @@ const COACH_LANDINGS = Object.freeze({
  */
 const LEADER_LANDINGS = Object.freeze({
   leader_lessons: '/portal/teacher/lessons',
+  // bd-uxzi8c.1 — a leader's paper request: the app's paper maker, the page the leader family opens (PortalAssessment).
+  leader_assessment: '/portal/assessment',
 });
 
 const own = (map, f) => Object.prototype.hasOwnProperty.call(map, f);
