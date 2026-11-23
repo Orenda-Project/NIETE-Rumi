@@ -13,8 +13,8 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import {
-  AboutLine, AutoText, DockV7, FormChips, FormToast, Legend, Levels, PartTitle, ReadOnlyBox, SaveTrayV7, TextBox, UNDO_MS, focusField,
-  levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
+  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, PartTitle, SaveTrayV7, TIME_CHIP,
+  TextBox, UNDO_MS, focusField, levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
 } from "./FormV7";
 import { Problem, problemText, v6RatingOptions } from "./V6Parts";
 import { changedFromRumi, v6Problems, type V6Problems, type V6Section } from "./v6Model";
@@ -117,7 +117,7 @@ function useLessonAudio(id: string, enabled: boolean) {
 function TimeChip({ time, rowKey, audio }: { time: string | null; rowKey: string; audio: Audio | null }) {
   const F = useCopy(FORM_V7) as FormV7Copy;
   if (!time) return null;
-  const chip = "inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-[#eef0ff] px-2.5 text-[13px] font-bold tabular-nums text-[#3b3fb0]";
+  const chip = TIME_CHIP;
   if (!audio || clockSeconds(time) === null) return <span data-testid="ff-time" dir="ltr" className={chip}>{time}</span>;
   const on = audio.playing === rowKey;
   return (
@@ -136,43 +136,34 @@ function TimeChip({ time, rowKey, audio }: { time: string | null; rowKey: string
 type Combined = Extract<V6Indicator, { kind: "combined" }>;
 
 /**
- * bd-o15qnr.36 (#204, the operator 21 Nov ~14:20-14:30) — the "From the recording" box of one of the six (C3 C5 C7 D2
- * D3 D4): what to look for; any snippets the recording did find as evidence rows (time + quote, option B's look, read
- * only); else "Nothing for this in the recording" in muted words (or why: couldn't show, N/A, starred; D2's counts);
- * then "You add: …" (no rubric "written justification"). An older bot sends only `body`: today's box.
+ * bd-o15qnr.36 (#204, the operator 21 Nov ~14:20-14:30) — one of the six (C3 C5 C7 D2 D3 D4): what the recording found.
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov) — it is the "Digital Coach's evidence" box (the one title the eleven's box
+ * has), holding only its findings: each snippet as an evidence row (time + quote, option B's look, read only); what it
+ * said instead (D2's counts, N/A in the indicator's words, couldn't tell, starred) as one muted row. It heard nothing:
+ * no box at all (never "Nothing for this in the recording"). What to look for and how to fill it are said once, in the
+ * line under the indicator's name (no "You add: …"). An older bot sends only `body`: that text, in the same box.
  */
-function RecordingBox({ ind, audio }: { ind: Combined; audio: Audio | null }) {
-  const C = useCopy(REPORTS) as ReportsCopy;
+function SixEvidence({ ind, audio }: { ind: Combined; audio: Audio | null }) {
   const F = useCopy(FORM_V7) as FormV7Copy;
   const r = ind.recording;
-  if (!r) return ind.body ? <div data-testid="from-recording"><ReadOnlyBox label={C.fromRecording} text={ind.body} /></div> : null;
-  const MUTED = "m-0 py-1 text-[14px] leading-relaxed text-[#6b7280] [unicode-bidi:plaintext]";
-  const note = (text: string) => <p data-testid="rec-note" className={MUTED} dir="auto">{text}</p>;
-  let what: ReactNode;
+  if (!r) {
+    return ind.body ? (
+      <DcEvidenceBox boxId="dc-box">
+        <p className="m-0 whitespace-pre-line text-[14px] leading-relaxed text-[#374151] [unicode-bidi:plaintext]" dir="auto" {...urduOf(ind.body)}>{ind.body}</p>
+      </DcEvidenceBox>
+    ) : null;
+  }
+  let what: ReactNode = null;
   if (r.state === "found" && r.found.length) {
     what = r.found.map((f, i) => (
-      <div key={`${f.time ?? ""}-${i}`} data-testid="rec-row" className={cn("flex items-start gap-2 py-1", ROW_DIVIDER)}>
-        <TimeChip time={f.time} rowKey={`${ind.id}-rec-${i}`} audio={audio} />
-        <span className="min-w-0 flex-1 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(f.quote)}>{`“${f.quote}”`}</span>
-      </div>
+      <DcQuoteRow key={`${f.time ?? ""}-${i}`} time={f.time} quote={f.quote} first={i === 0}
+        chip={f.time ? <span className="mt-0.5 flex shrink-0"><TimeChip time={f.time} rowKey={`${ind.id}-rec-${i}`} audio={audio} /></span> : undefined} />
     ));
-  } else if (r.state === "d2" && r.turns) {
-    what = <p data-testid="rec-note" className="m-0 py-1 text-[15px] leading-relaxed text-[#1d2025]" dir="auto">{F.d2Turns(r.turns.first, r.turns.second)}</p>;
-  } else if (r.state === "ie") what = note(F.recIe);
-  else if (r.state === "na") what = note(r.naText || F.recNa);
-  else if (r.state === "starred") what = note(F.recStarred);
-  else what = <p data-testid="rec-nothing" className={MUTED} dir="auto">{F.nothingInRecording}</p>;
-  return (
-    <div data-testid="from-recording" className="flex flex-col gap-1">
-      <span className={LABEL}>{C.fromRecording}</span>
-      <div className="flex flex-col gap-1 rounded-2xl border border-[#e5e7eb] bg-[#fafafb] px-3 py-2.5">
-        {/* bd-o15qnr.37: what to look for is said once, under the indicator's name (ind.about); an older bot keeps it here */}
-        {r.lookFor && !ind.about ? <p className="m-0 pb-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(r.lookFor)}>{r.lookFor}</p> : null}
-        {what}
-        {r.youAdd ? <p className={cn("m-0 pt-2 text-[14px] leading-relaxed text-[#374151] [unicode-bidi:plaintext]", ROW_DIVIDER)} dir="auto" {...urduOf(r.youAdd)}>{F.youAdd(r.youAdd)}</p> : null}
-      </div>
-    </div>
-  );
+  } else if (r.state === "d2" && r.turns) what = <DcNote text={F.d2Turns(r.turns.first, r.turns.second)} />;
+  else if (r.state === "ie") what = <DcNote text={F.recIe} />;
+  else if (r.state === "na") what = <DcNote text={r.naText || F.recNa} />;
+  else if (r.state === "starred") what = <DcNote text={F.recStarred} />;
+  return what ? <DcEvidenceBox boxId="dc-box">{what}</DcEvidenceBox> : null;
 }
 
 /* ── the evidence, option B with editing ──────────────────────────────────────────────────────────────────────── */
@@ -241,11 +232,9 @@ function EvidenceBox({ code, review, onChange, onRemove, audio }: {
   };
 
   const rows = shownRows(review);
+  // bd-o15qnr.39.1: the one "Digital Coach's evidence" box (was "Evidence" with a "Digital Coach heard" line inside).
   return (
-    <div className="flex flex-col gap-1">
-      <span className={LABEL}>{F.evidence}</span>
-      <div data-testid="ff-evidence" className="flex flex-col gap-1 rounded-2xl border border-[#e5e7eb] bg-[#fafafb] px-3 py-2.5">
-        <span className="text-[12px] font-bold uppercase tracking-wide text-[#6e52e0]">{F.assistantHeard}</span>
+    <DcEvidenceBox boxId="ff-evidence">
         {summaryOpen ? (
           <div className="flex flex-col gap-1.5">
             <AutoText aria-label={F.editSummary} value={review.summary} onChange={(e) => onChange(setSummary(review, e.target.value))}
@@ -286,8 +275,7 @@ function EvidenceBox({ code, review, onChange, onRemove, audio }: {
             <Plus className="h-4 w-4" aria-hidden="true" />{F.addEvidence}
           </button>
         )}
-      </div>
-    </div>
+    </DcEvidenceBox>
   );
 }
 
@@ -621,6 +609,7 @@ export function V6FormV7({
     );
   const set = (k: string) => (v: string) => setValues((cur) => ({ ...cur, [k]: v }));
   const chgKey = `chg_${sec.letter}`;
+  const about = ind.about || (ind.kind === "combined" ? ind.recording?.lookFor : "") || "";
 
   return frame(crumb, dock, (
     <section data-testid="ff-indicator" className="flex flex-col gap-2.5">
@@ -641,9 +630,11 @@ export function V6FormV7({
         </button>
       </div>
       {/* bd-o15qnr.37 (the operator 22 Nov ~00:15): what the indicator looks at, one muted line under its name */}
-      {ind.about ? <AboutLine text={ind.about} rubric={draft.rubric?.id || "fico17_v6"} code={ind.id} /> : null}
+      {/* bd-o15qnr.39.1: one of the six also says how to fill it (`hint`); an older bot without the line: its look-for */}
+      {about ? <AboutLine text={about} hint={ind.kind === "combined" ? ind.hint : null} rubric={draft.rubric?.id || "fico17_v6"} code={ind.id} /> : null}
       <div data-testid="ff-card" className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5")}>
-        {/* bd-o15qnr.36: no legend on one of the six (no Digital Coach level there); a short line on top instead */}
+        {/* bd-o15qnr.36: no legend on one of the six (no Digital Coach level there); a short line on top instead.
+            bd-o15qnr.39.1: the line stays on the six only, where the Digital Coach gives no level. */}
         {!readOnly && ind.kind === "dc" && <Legend principal={principal} />}
         {!readOnly && ind.kind === "combined" && (
           <p data-testid="cant-count" className="m-0 flex items-start gap-2 px-1 text-[14px] font-semibold leading-snug text-[#33374a]" dir="auto">
@@ -656,7 +647,7 @@ export function V6FormV7({
         )}
         {ind.kind === "combined" ? (
           <>
-            <RecordingBox ind={ind} audio={audio} />
+            <SixEvidence ind={ind} audio={audio} />
             {levelBlock}
             <TextBox id={`why_${ind.field}`} label={F.noteOptional} value={values[`why_${ind.field}`] ?? ""}
               onChange={set(`why_${ind.field}`)} readOnly={readOnly} problem={why(`why_${ind.field}`)} />

@@ -99,6 +99,11 @@ export type CoachReport = {
   portal: boolean;
   /** bd-pni007 — an FDE visit: its tool, result and label (never a FICO score); null for every other row. */
   obs612?: Obs612Line | null;
+  /**
+   * bd-o15qnr.39 — her debrief is in and the Digital Coach is listening to it (step stays `talk` until the feedback is
+   * written): the card's line says "Debrief: analysing". Absent from an older server.
+   */
+  listening?: boolean;
 };
 
 export type ReportsData = {

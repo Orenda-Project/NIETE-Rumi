@@ -4,7 +4,7 @@ import type { DraftIndicator, DraftOption, DraftSection, ObservationDraft } from
 import { useCopy } from "../../teacher/i18n";
 import { RatingScale, StatusChip, Tray } from "../../teacher/ui";
 import type { RatingOption } from "../../teacher/ui/RatingScale";
-import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE } from "../../teacher/ui/styles";
+import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE, ROW_DIVIDER } from "../../teacher/ui/styles";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { REPORTS, type ReportsCopy } from "./copy";
@@ -36,6 +36,10 @@ import { useIndicatorGuide } from "./indicatorGuide";
  * one indicator alone, evidence option B with editing); this file keeps the pieces both share and the older FICO
  * review's paged look. Every text box is sized to its text (AutoText: one row to start, as tall as its words, no inner
  * scroll; each paragraph its own direction, unicode-bidi: plaintext), and a gap is a short toast (FormToast).
+ *
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov) — on FICO17 v6.1 and FICO-S v1.2: the Digital Coach's findings in ONE box,
+ * "Digital Coach's evidence" (DcEvidenceBox; none when it heard nothing); a v6 indicator's N/A is a 5th level card, not
+ * a pill (asideOf); one of the six's line under its name also says how to fill it (AboutLine's `hint`).
  */
 
 const FIELD = "w-full rounded-xl border border-[#d1d5db] bg-white px-3 py-2.5 text-[16px] leading-snug text-[#1d2025]";
@@ -207,13 +211,18 @@ export function TextBox({ id, label, value, onChange, readOnly, problem }: {
  * two lines at most; and "Examples", which opens that indicator in the "?" guide, only when the guide (#217) has it.
  * FICO17 v6.1 (FormV7List) and FICO-S v1.2 (Obs612Form), coach and principal alike.
  */
-export function AboutLine({ text, rubric, code }: { text: string; rubric: string; code: string }) {
+export function AboutLine({ text, rubric, code, hint }: { text: string; rubric: string; code: string; hint?: string | null }) {
   const F = useCopy(FORM_V7) as FormV7Copy;
   const guide = useIndicatorGuide();
   const examples = !!guide && guide.has(rubric, code);
+  // bd-o15qnr.39.1 (#204, the operator 22 Nov): one of the six also says how to fill it, after its line (the bot's
+  // `hint`: D2 "Chorus answers don't count."), in the same muted line; never clamped then, so the hint is never cut.
   return (
     <div data-testid="ff-about" className="flex flex-col items-start gap-0.5 px-1">
-      <p className="m-0 line-clamp-2 text-[14px] leading-snug text-[#6b7280] [unicode-bidi:plaintext] rtl:leading-[1.9]" dir="auto" {...urduOf(text)}>{text}</p>
+      <p className={cn("m-0 text-[14px] leading-snug text-[#6b7280] [unicode-bidi:plaintext] rtl:leading-[1.9]", !hint && "line-clamp-2")} dir="auto" {...urduOf(text)}>
+        {text}
+        {hint ? <>{" "}<span data-testid="ff-hint">{hint}</span></> : null}
+      </p>
       {examples ? (
         <button type="button" onClick={() => guide.open(rubric, code)}
           className={cn("min-h-[44px] text-[13px] font-semibold text-[#6e52e0] underline underline-offset-2", FOCUS)}>{F.examples}</button>
@@ -222,18 +231,51 @@ export function AboutLine({ text, rubric, code }: { text: string; rubric: string
   );
 }
 
-/** Rumi's evidence for one of the six: read only, dashed, never a box the coach types in. */
-export function ReadOnlyBox({ label, text }: { label: string; text: string }) {
+/**
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov: "not applicable should also just be a regular 5th option") — a FICO17 v6
+ * indicator's N/A ("NA", only where the rubric offers it) is a 5th level card after the four, the same radio, named in
+ * its own words ("N/A · No child was wrong") with its line from the rubric data. An old review's Couldn't tell ("IE") and
+ * an older FICO review's "na" stay pills after the levels. The value saved is the option's id, as before.
+ */
+const asideOf = (o: RatingOption): RatingOption => {
+  if (o.id === "NA") return { id: o.id, label: [o.text, o.label].filter(Boolean).join(" · "), description: o.description };
+  return o.id === "IE" || o.id === "na" ? { ...o, aside: true } : o;
+};
+
+/* ── bd-o15qnr.39.1: the Digital Coach's evidence, one box ─────────────────────────────────────────────────────── */
+
+/** A lesson time as a chip (the FICO17 form's TimeChip plays the lesson from it when the recording is on the page). */
+export const TIME_CHIP = "inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-[#eef0ff] px-2.5 text-[13px] font-bold tabular-nums text-[#3b3fb0]";
+
+/**
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov) — ONE box, titled "Digital Coach's evidence", on every indicator where the
+ * Digital Coach gave evidence (FICO17 v6.1's eleven and six, FICO-S v1.2): only its findings, as evidence rows. The
+ * caller draws it only when there is something in it (heard nothing: no box). `boxId` names the inner box for tests.
+ */
+export function DcEvidenceBox({ children, boxId }: { children: ReactNode; boxId?: string }) {
+  const F = useCopy(FORM_V7) as FormV7Copy;
   return (
-    <div className="flex flex-col gap-1">
-      <span className={LABEL}>{label}</span>
-      <p className="m-0 whitespace-pre-line rounded-xl border border-dashed border-[#d1d5db] bg-[#f9fafb] px-3 py-2.5 text-[14px] leading-relaxed text-[#374151] [unicode-bidi:plaintext]" dir="auto">{text}</p>
+    <div data-testid="dc-evidence" className="flex flex-col gap-1">
+      <span className={LABEL}>{F.dcEvidence}</span>
+      <div data-testid={boxId} className="flex flex-col gap-1 rounded-2xl border border-[#e5e7eb] bg-[#fafafb] px-3 py-2.5">{children}</div>
     </div>
   );
 }
 
-/** N/A and Couldn't tell go after the four levels, as pills. */
-const asideOf = (o: RatingOption): RatingOption => (o.id === "NA" || o.id === "IE" || o.id === "na" ? { ...o, aside: true } : o);
+/** One finding read only: its time (a plain chip, or `chip` when the caller has a playable one) and the quote. */
+export function DcQuoteRow({ time, quote, first, chip }: { time: string | null; quote: string; first: boolean; chip?: ReactNode }) {
+  return (
+    <div data-testid="dc-row" className={cn("flex items-start gap-2 py-1", !first && ROW_DIVIDER)}>
+      {chip ?? (time ? <span data-testid="ff-time" dir="ltr" className={cn(TIME_CHIP, "mt-1")}>{time}</span> : null)}
+      <span className="min-w-0 flex-1 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(quote)}>{`“${quote}”`}</span>
+    </div>
+  );
+}
+
+/** What the Digital Coach said instead of snippets (D2's counts, N/A, couldn't tell, starred): a muted row in the box. */
+export function DcNote({ text }: { text: string }) {
+  return <p data-testid="dc-note" className="m-0 py-1 text-[14px] leading-relaxed text-[#6b7280] [unicode-bidi:plaintext]" dir="auto" {...urduOf(text)}>{text}</p>;
+}
 
 export function Levels({ name, value, options, dc, onChange }: {
   name: string; value: string; options: RatingOption[]; dc: string | null; onChange: (v: string) => void;

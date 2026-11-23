@@ -808,7 +808,8 @@ export type CoachObservationView = {
   /** bd-fmf24g.66 — what became of the plan attached: her own file (reading / read / unreadable), a library plan, or none. Absent from an older bot. */
   lessonPlan?: { source: 'own' | 'library' | 'none'; format: string | null; state: 'reading' | 'read' | 'unreadable' | null; topic: string | null };
   draft: { edited: boolean };
-  talk: { guide: TalkGuide | null; recordedAt: string | null; feedback: CoachFeedback | null };
+  /** bd-o15qnr.39 — `audioUrl`: a signed link to the debrief recorded or attached in the portal (none for a WhatsApp one). */
+  talk: { guide: TalkGuide | null; recordedAt: string | null; audioUrl?: string | null; feedback: CoachFeedback | null };
   report: {
     status: string | null; teacherName: string | null; teacherPhone: string | null;
     caption: string | null; companionText: string | null; imageUrl: string | null;
@@ -863,6 +864,8 @@ export type V6Indicator =
     recording?: V6Recording;
     /** bd-o15qnr.37 — one plain line on what the indicator looks at, under its name (then not repeated in the box). */
     about?: string;
+    /** bd-o15qnr.39.1 — how to fill it, said after that line (D2: "Chorus answers don't count."). Absent from an older bot. */
+    hint?: string;
   };
 /**
  * bd-o15qnr.36 — one of the six's "From the recording", in the person's language: what to look for, the state, every
@@ -914,6 +917,11 @@ export type Obs612Field = {
    */
   about?: string;
   notes?: string;
+  /**
+   * bd-o15qnr.39.1 (FICO-S on a Digital Coach visit): the Digital Coach's own findings for this indicator, shown read only
+   * as the "Digital Coach's evidence" box (its line where it set a level, each quote with its time). Absent: no box.
+   */
+  dcEvidence?: { because: string; items: { time: string | null; quote: string }[] };
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }
