@@ -238,6 +238,12 @@ export const REPORTS_EN = {
   notNow: "Not now",
   openReport: "Open report",
   pct: (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`),
+
+  /* bd-o15qnr.39.2 (queue #204) — the teacher's report, full screen in the app (ReportImage, the v6/v7 switch) */
+  openFullScreen: "Open full screen",
+  closeViewer: "Close",
+  zoomIn: "Zoom in",
+  zoomOut: "Zoom out",
 };
 
 export const REPORTS_UR: Words<typeof REPORTS_EN> = {
@@ -441,6 +447,12 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   notNow: "ابھی نہیں",
   openReport: "رپورٹ کھولیں",
   pct: (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`),
+
+  // bd-o15qnr.39.2 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
+  openFullScreen: "پوری اسکرین پر کھولیں",
+  closeViewer: "بند کریں",
+  zoomIn: "بڑا کریں",
+  zoomOut: "چھوٹا کریں",
 };
 
 export const REPORTS = bilingual(REPORTS_EN, REPORTS_UR);
