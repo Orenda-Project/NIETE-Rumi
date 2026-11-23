@@ -35,3 +35,10 @@ test('the new fields are the voice events\' only: another event carrying them ke
 test('audio_slow keeps its start time, part, question, host, format and view state', () => {
   expect(cleanEvent({ n: 'audio_slow', ms: 6200, part: 'q', qid: QID, host: 'r2', fmt: 'ogg', vis: 'visible' }).props).toMatchObject({ ms: 6200, part: 'q', qid: QID, host: 'r2', fmt: 'ogg', vis: 'visible' });
 });
+
+test('audio_fallback keeps the probe of a media_err_4 clip: the status its address answered (fst) and the bare content-type (fct)', () => {
+  expect(cleanEvent({ n: 'audio_fallback', reason: 'error', err: 'media_err_4', fst: '206', fct: 'audio/mpeg' }).props).toMatchObject({ fst: '206', fct: 'audio/mpeg' });
+  for (const fst of ['403', 'opaque', 'net', 'timeout', 'err']) expect(cleanEvent({ n: 'audio_fallback', reason: 'error', fst }).props.fst).toBe(fst);
+  expect(cleanEvent({ n: 'audio_fallback', reason: 'error', fst: 'https://acct.r2.cloudflarestorage.com/b/k.ogg', fct: 'text/html; charset=utf-8' }).props).toEqual({ reason: 'error' });
+  expect(cleanEvent({ n: 'answer', fst: '206', fct: 'audio/mpeg' }).props).toEqual({});
+});
