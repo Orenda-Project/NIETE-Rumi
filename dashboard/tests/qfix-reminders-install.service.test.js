@@ -1,11 +1,12 @@
 /**
- * The add-to-home-screen card (web_quiz_install_prompt, the hub's `play.install`): why it never filled, and its meter.
- *  - Chrome fires beforeinstallprompt once per page, ~10 ms after `load`; a listener added later never hears it. The
- *    card's listener was added in install(), which runs only once the hub has rendered (after the bot's answer), so on
- *    a phone Chrome already trusts the offer always came first and the card stayed empty. Now the page head keeps the
- *    offer (BIP_CAPTURE, written with the manifest link) and hub-play.js listens from the moment it loads.
+ * The add-to-home-screen card (web_quiz_install_prompt, the hub's `play.install`) and its meter.
  *  - door_shown{install} is counted only with web_quiz_events_v2 on (no production row), so the card had no meter.
  *    install_prompt {step, src, reason} rides the relay's general props and is logged without it.
+ *  - Chrome fires beforeinstallprompt once per page. On real phones it comes after the hub renders, which the card's
+ *    own listener hears; when it comes before (about 10 ms after `load`, before that listener exists), the page head
+ *    keeps it (BIP_CAPTURE, written with the manifest link) and hub-play.js takes it from there.
+ *  - The render-time hub{reason} is logged before the offer, so it cannot say whether the card showed: each hub view
+ *    also logs ONE install_prompt{step:'outcome', reason, when} (shown, or why not), so views partition.
  * Invented children only.
  */
 const fs = require('fs');
@@ -23,15 +24,18 @@ const TODAY = String(Math.floor((NOW + 5 * 3600000) / 86400000));
 const NO_V2 = { first: false, lantern: null, shelf: [], install: true, doors: [] }; // production today: events_v2 off
 
 // hub-play.js in a page. opts.early: the offer the head kept before this script loaded (window.__wqBip).
-function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () => NOW } = {}) {
-  const winL = {}; const timers = [];
+function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () => NOW, wqt = null, app = false, slot = null } = {}) {
+  const winL = {}; const docL = {}; const timers = []; const doc = { visibilityState: 'visible' };
   const box = { innerHTML: '', ls: {}, addEventListener(n, fn) { (box.ls[n] = box.ls[n] || []).push(fn); } };
-  const ROOT = { innerHTML: '<div id="wqp-inst" class="wq-inst"></div>', querySelector: (s) => (s === '#wqp-inst' ? box : null) };
-  const win = { addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: () => ({ matches: false }) };
+  // slot: {on} — the card's slot is on the page only while on (the home drawn again, or not yet drawn)
+  const ROOT = { innerHTML: '<div id="wqp-inst" class="wq-inst"></div>', querySelector: (s) => (s === '#wqp-inst' && (!slot || slot.on) ? box : null) };
+  const win = { addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: () => ({ matches: app }) };
   if (early) win.__wqBip = early;
   if (tour) win.WQW = { up: () => tour.up };
+  if (wqt) win.WQT = wqt;
   const ctx = {
-    window: win, navigator: { userAgent: ua }, document: { head: { appendChild() {} }, createElement: () => ({}) },
+    window: win, navigator: { userAgent: ua },
+    document: { head: { appendChild() {} }, createElement: () => ({}), get visibilityState() { return doc.visibilityState; }, addEventListener(n, fn) { (docL[n] = docL[n] || []).push(fn); } },
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
     setTimeout: (fn) => { timers.push(fn); return timers.length; }, Date: class extends Date { static now() { return now(); } },
     JSON, Math, String, Number, Array, Object, isFinite, encodeURIComponent, Boolean,
@@ -45,11 +49,18 @@ function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () 
     box, evs,
     // Chrome's offer, heard by whatever is listening on the window right now
     offer(e) { (winL.beforeinstallprompt || []).forEach((fn) => fn(e)); flush(); },
+    // the same, then one round of timers only: under the tour the card re-checks every second, so draining would not end
+    offerOnce(e) { (winL.beforeinstallprompt || []).forEach((fn) => fn(e)); tick(); },
     // the hub renders and hands the slot over (wq-home.js mount → WQPLAY.install)
     render(play = NO_V2, extra = {}) { win.WQPLAY.install({ lang: 'en', play, ...extra }, (n, p) => evs.push([n, p]), ROOT, { h3: true }); tick(); },
     tick,
     click(what) { box.ls.click.forEach((fn) => fn({ target: { getAttribute: (k) => (k === 'data-inst' ? what : null) } })); },
-    steps: () => evs.filter(([n]) => n === 'install_prompt').map(([, p]) => p),
+    // the page goes to the background or closes: visibilitychange to hidden, then pagehide
+    hide() { doc.visibilityState = 'hidden'; (docL.visibilitychange || []).forEach((fn) => fn({})); (winL.pagehide || []).forEach((fn) => fn({})); },
+    show() { doc.visibilityState = 'visible'; (docL.visibilitychange || []).forEach((fn) => fn({})); },
+    // the card's steps (the view's outcome is read with outcomes())
+    steps: () => evs.filter(([n, p]) => n === 'install_prompt' && p.step !== 'outcome').map(([, p]) => p),
+    outcomes: () => evs.filter(([n, p]) => n === 'install_prompt' && p.step === 'outcome').map(([, p]) => p),
   };
 }
 const bip = (outcome = 'accepted') => {
@@ -63,7 +74,7 @@ describe('the offer comes before the hub renders (what a phone Chrome already tr
     p.render();
     expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
   });
-  test('the old wiring alone (no head store): an offer before the render is lost, which is what production shows', () => {
+  test('the old wiring alone (no head store): an offer before the render is lost (the early-offer case the head catches)', () => {
     const p = page({ store: { wqp_hv_day: TODAY } });
     p.offer(bip()); // nobody listening yet: Chrome does not fire it again
     p.render();
@@ -226,6 +237,133 @@ describe('the card never sits under the first-run tour', () => {
   });
   test('no tour in the answer: the card at once, as before', () => {
     const p = page({ store: { wqp_hv_day: TODAY }, early: bip() });
+    p.render();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+  });
+});
+
+// The render-time hub{reason} comes before Chrome's offer (after the render on nearly every real phone), so a view that
+// later shows the card, or holds it under the tour, still reads no_bip there. ONE outcome per hub view says what the
+// view ended as: decided at render when it cannot change (app, iab, first_view, snoozed), when the card is drawn
+// (shown; held:'tour' when the tour held it first), or when the page is hidden (no_bip, tour).
+describe('one outcome per hub view', () => {
+  const O = (reason, when, extra = {}) => ({ step: 'outcome', src: 'browser', reason, when, ...extra });
+  test('tour up, the offer after the render, the tour ends: shown, held by the tour', () => {
+    const tour = { up: true };
+    const p = page({ store: { wqp_hv_day: TODAY }, tour });
+    p.render(NO_V2, { welcome: { v: 1 } });
+    p.offerOnce(bip());
+    expect(p.box.innerHTML).toBe('');
+    tour.up = false; p.tick();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+    p.hide();
+    expect(p.outcomes()).toEqual([O('shown', 'tour_end', { held: 'tour' })]);
+  });
+  test('tour up, the offer after the render, the child leaves before the tour ends: tour', () => {
+    const p = page({ store: { wqp_hv_day: TODAY }, tour: { up: true } });
+    p.render(NO_V2, { welcome: { v: 1 } });
+    p.offerOnce(bip());
+    p.hide();
+    expect(p.outcomes()).toEqual([O('tour', 'hide')]);
+    expect(p.steps().map((s) => s.step)).not.toContain('card_shown');
+  });
+  test('no offer before the page is hidden: no_bip', () => {
+    const p = page({ store: { wqp_hv_day: TODAY } });
+    p.render();
+    expect(p.outcomes()).toEqual([]);
+    p.hide();
+    expect(p.outcomes()).toEqual([O('no_bip', 'hide')]);
+  });
+  test('the offer after the render, no tour: shown on the offer (the hub row still says no_bip)', () => {
+    const p = page({ store: { wqp_hv_day: TODAY } });
+    p.render();
+    p.offer(bip());
+    expect(p.steps()[0]).toEqual({ step: 'hub', src: 'browser', reason: 'no_bip' });
+    expect(p.outcomes()).toEqual([O('shown', 'offer')]);
+  });
+  test('the offer kept by the head, no tour: shown at render', () => {
+    const p = page({ store: { wqp_hv_day: TODAY }, early: bip() });
+    p.render();
+    expect(p.outcomes()).toEqual([O('shown', 'render')]);
+  });
+  test('the day\'s first view: first_view at render, once, whatever follows', () => {
+    const p = page({ store: {}, early: bip() });
+    p.render();
+    p.offer(bip());
+    p.hide();
+    expect(p.outcomes()).toEqual([O('first_view', 'render')]);
+  });
+  test('snoozed: snoozed at render', () => {
+    const p = page({ store: { wqp_hv_day: TODAY, wqp_inst_later: String(NOW - 86400000) }, early: bip() });
+    p.render();
+    expect(p.outcomes()).toEqual([O('snoozed', 'render')]);
+  });
+  test('WhatsApp\'s own browser: iab at render; an installed app: app at render', () => {
+    const p = page({ ua: WA_UA, early: bip() });
+    p.render();
+    expect(p.outcomes()).toEqual([{ step: 'outcome', src: 'iab', reason: 'iab', when: 'render' }]);
+    const q = page({ app: true, early: bip() });
+    q.render();
+    expect(q.outcomes()).toEqual([{ step: 'outcome', src: 'app', reason: 'app', when: 'render' }]);
+  });
+  test('hidden, back, hidden again: still one outcome', () => {
+    const p = page({ store: { wqp_hv_day: TODAY } });
+    p.render();
+    p.hide(); p.show(); p.offer(bip()); p.hide();
+    expect(p.outcomes()).toEqual([O('no_bip', 'hide')]);
+  });
+  test('on hide the page-session queue is sent at once (the outcome is not left in it)', () => {
+    const wqt = { flush: jest.fn() };
+    const p = page({ store: { wqp_hv_day: TODAY }, wqt });
+    p.render();
+    p.hide();
+    expect(p.outcomes()).toHaveLength(1);
+    expect(wqt.flush).toHaveBeenCalledWith(true);
+  });
+  test('switch off (no play.install): no outcome either', () => {
+    const p = page({ store: { wqp_hv_day: TODAY }, early: bip() });
+    p.render({ ...NO_V2, install: false });
+    p.hide();
+    expect(p.evs).toEqual([]);
+  });
+});
+
+// The slot off the page when Chrome offers (the screen before the offer was not the home on 22 of 23 such views): the
+// offer is kept and the card is drawn as soon as the slot is back, for up to a minute; after that the view is no_slot.
+describe('an offer while the card\'s slot is off the page', () => {
+  const O = (reason, when) => ({ step: 'outcome', src: 'browser', reason, when });
+  test('the slot comes back without a new install(): the card is drawn then, shown', () => {
+    const slot = { on: true };
+    const p = page({ store: { wqp_hv_day: TODAY }, slot });
+    p.render();
+    slot.on = false;
+    p.offerOnce(bip());
+    expect(p.box.innerHTML).toBe('');
+    slot.on = true;
+    p.tick();
+    expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
+    expect(p.outcomes()).toEqual([O('shown', 'offer')]);
+  });
+  test('the slot is not back within a minute: no card, no_slot on hide', () => {
+    let t = NOW;
+    const slot = { on: true };
+    const p = page({ store: { wqp_hv_day: TODAY }, slot, now: () => t });
+    p.render();
+    slot.on = false;
+    p.offerOnce(bip());
+    for (let s = 0; s < 62; s += 1) { t += 1000; p.tick(); }
+    slot.on = true;
+    t += 1000; p.tick();
+    expect(p.box.innerHTML).toBe('');
+    p.hide();
+    expect(p.outcomes()).toEqual([O('no_slot', 'hide')]);
+  });
+  test('the home hands a new slot through install(): drawn, as before', () => {
+    const slot = { on: false };
+    const p = page({ store: { wqp_hv_day: TODAY }, slot });
+    p.render();
+    p.offerOnce(bip());
+    slot.on = true;
     p.render();
     expect(p.box.innerHTML).toContain('Add Jugnu to your home screen');
   });
