@@ -946,6 +946,8 @@ export type Obs612Field = {
   options: Obs612Option[] | null; required: boolean; max: number | null;
   /** Queue #218 (FICO-S v1.2): this level arrives on N/A when the field `code` is set to `level` (C3 after C1 = 1). */
   follows?: { code: string; level: string };
+  /** bd-o15qnr.40.5 (FICO-S on a Digital Coach visit): the level it set ('1'..'4' | 'NA'), marked on that card. Absent: none. */
+  dcLevel?: string;
   /**
    * bd-o15qnr.37 (FICO-S indicators): one plain line on what it looks at (shown under its name), and `text` without the
    * look-for paragraph (its scoring note, N/A note, "How: …"), so the v7 form does not say it twice. Absent: `text`.
@@ -960,7 +962,8 @@ export type Obs612Field = {
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }
-  | { type: 'sub'; text?: string; role?: 'plan' | 'second' | 'feedback' }
+  /** bd-o15qnr.40.5 — `dc`: a FICO-S line on the Digital Coach's pre-fill: `chose` (the v7 form marks the card instead) or `none`. */
+  | { type: 'sub'; text?: string; role?: 'plan' | 'second' | 'feedback'; dc?: 'chose' | 'none' | null }
   | { type: 'context'; rows: { key: string; label: string; value: string | null }[] }
   | { type: 'levels'; label: string; rows: { key: string; n: number; name: string; level: string | null }[] }
   | { type: 'score'; total: number; max: number; pct: number; band: string | null }

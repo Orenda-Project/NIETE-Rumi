@@ -19,7 +19,7 @@ export interface AudioCardProps {
   title: string;
   /**
    * bd-o15qnr.39 — the full player (the class and debrief recordings on the visit and the Debrief): under the card a
-   * bar she can drag to any point, the time and the length, back / forward 10 s and the speed (1× → 1.5× → 2×, kept on
+   * bar she can drag to any point, the time and the length, back / forward 10 s and the speed (1× → 1.5× → 2× → 4×, kept on
    * this phone for every player). It reads the file's length up front (preload metadata, a few KB with HTTP range).
    */
   controls?: boolean;
@@ -33,8 +33,12 @@ export interface AudioCardProps {
   className?: string;
 }
 
-/** bd-o15qnr.39 — the speed steps (VoiceNote's, WhatsApp's), and where the chosen one is kept on this phone. */
-export const PLAYBACK_RATES = SPEEDS;
+/**
+ * bd-o15qnr.39 — the speed steps (VoiceNote's, WhatsApp's), and where the chosen one is kept on this phone.
+ * bd-o15qnr.40.2 (queue #229, the operator 23 Nov: "add 4x") — the full player adds 4× after 2× (a class recording is
+ * 40 minutes); VoiceNote's own steps are unchanged.
+ */
+export const PLAYBACK_RATES = [...SPEEDS, 4] as const;
 export const SPEED_KEY = 'niete.player.speed';
 const SKIP_S = 10;
 
