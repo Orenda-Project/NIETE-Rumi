@@ -113,7 +113,6 @@ const {
   PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_LP_OWN_SHELF_KEY,
   PORTAL_LP_OWN_REVIEWERS_KEY,
-  PORTAL_LP_OWN_GOAL_START_KEY,
   isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_COACHIP_KEY,
@@ -9614,8 +9613,8 @@ router.get('/config', async (req, res) => {
       isUserListedInFlag(supabase, PORTAL_LP_OWN_REVIEWERS_KEY, userId),
       // bd-w0zbbe — her role, so the observe page follows the observe API's own gate (requireCoachObservation).
       configRoleOf(userId),
-      // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
-      isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
+      // bd-snkn32.56 — Make my own from a goal or topic: a list or "teachers" minus GB (bd-sm4xdn), rides with Make my own on.
+      require('../../bot/shared/services/lp612-own-goal.store').goalStartOn(supabase, userId),
       // The survey bar at the end of the plan (rides with the teacher app), the Home's "Last 30 days" block (rides
       // with the Home card, whose route carries it) and My journey + the team view (as it reads for her: an analytics
       // account is not on the teacher app).
