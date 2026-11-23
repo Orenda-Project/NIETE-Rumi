@@ -367,8 +367,10 @@ function createRouter(deps = null) {
     const oneOn = (await req.thOne) === true;
     const one = oneOn ? uuidIn(req.query.session) : null;
     const lesson = oneOn && !one ? Send.lessonKeyOf(req.query.lesson, deps) : null;
+    // A74: the lesson plan's page names its lesson (its provider's own read, this teacher's only; none or slow → today's page)
+    const lessonTitle = lesson ? await Send.lessonTitleOf(v.ok.uid, lesson, deps) : null;
     const forward = (await req.thForward) === true;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(forward ? { forward: true } : {}), ...(reports === true ? { reports: true } : {}) });
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(lessonTitle ? { lessonTitle } : {}), ...(forward ? { forward: true } : {}), ...(reports === true ? { reports: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));

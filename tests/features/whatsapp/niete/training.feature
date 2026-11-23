@@ -1305,6 +1305,20 @@ Feature: NIETE (ICT) Teacher Training
     # The server decides whose lesson it is: quiz/make → the transcript provider's coaching_sessions read by the
     # token's teacher (user_id) → not_found → 404. Unit: teacher-home.one-lesson.test.js ("another teacher").
 
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1246
+  Scenario: The quiz home opened for one lesson plan names that lesson under "Quiz from this lesson"
+    Given app_settings "quiz_teacher_home_one_lesson" is true
+    And a lesson plan "All About Me: Key Words" was sent to me on WhatsApp
+    When I open my quiz home from a link that carries that lesson plan
+    Then the page says "Quiz from this lesson" (Urdu «اس سبق کا کوئز») and, on the line under it, "All About Me: Key Words"
+    And the lesson's name is shown as the catalog names it, an Urdu lesson in Urdu script on an English page too
+    And a link carrying another teacher's lesson plan, a lesson under religious review, or a name that cannot be read in
+      time shows the page exactly as before, with no name line
+    # ADDED 2026-11-23 (bd-pdwwk4.3.8, QFIX A74): teacher-home.send.js lessonTitleOf → the lp_v8 provider's own
+    # get(teacher, ref) (this teacher's sent, makeable delivery; catalog topic), 400 ms then no name; the page's
+    # ONE_LESSON_TITLED_SCRIPT draws boot `ot` in a dir=auto <bdi>. Unit: bot/tests/qfix-forward/forward-lesson-link.test.js,
+    # forward-page-run.test.js ("A74").
+
   @quiz @no-mock-driver @wip @draft @P3 @T710
   Scenario: A child refused at the join's last step is counted
     Given app_settings "quiz_student_join" is true and "web_quiz_phone_bind" is not
