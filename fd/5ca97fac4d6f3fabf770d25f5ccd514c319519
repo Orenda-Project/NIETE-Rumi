@@ -1,1 +1,2 @@
 {"ts":"2026-11-23T12:32:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"fd5ca97fac4d","branch":"bd-4dkwaf-36535","user":""}
+{"ts":"2026-11-23T12:32:41Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"fd5ca97fac4d","branch":"bd-4dkwaf-36535","user":""}
