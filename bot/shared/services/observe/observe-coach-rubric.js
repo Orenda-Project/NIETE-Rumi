@@ -85,7 +85,17 @@ function winName(behaviour, S) {
  */
 const RESPECT_NAME = { en: 'Respect held', ur: 'احترام قائم رہا' };
 const SNAKE = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
-const URDU_SCRIPT = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+const URDU_LETTERS = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/g;
+const LATIN_LETTERS = /[A-Za-z]/g;
+
+/**
+ * Urdu when Urdu letters outnumber Latin ones, else English. Not "any Urdu letter": an English debrief quotes the
+ * officer's Urdu speech ("You said 'شاباش' …"), and is still English. A key's own letters are not counted.
+ */
+function scriptOf(s) {
+  const t = String(s == null ? '' : s).replace(SNAKE, '');
+  return (t.match(URDU_LETTERS) || []).length > (t.match(LATIN_LETTERS) || []).length ? 'ur' : 'en';
+}
 
 function rubricNames(lang) {
   const { observeStrings } = require('./observe-strings');
@@ -106,19 +116,19 @@ function keysToWords(s, lang) {
   if (typeof s !== 'string' || !hasRawKey(s)) return s;
   const bare = /^\s*[a-z][a-z0-9]*(?:_[a-z0-9]+)+\s*$/.test(s);
   const { clampLanguage } = require('../../config/ux-strings');
-  const l = bare ? clampLanguage(lang, ['en', 'ur']) : (URDU_SCRIPT.test(s) ? 'ur' : 'en');
+  const l = bare ? clampLanguage(lang, ['en', 'ur']) : scriptOf(s);
   const names = rubricNames(l);
   const words = (k) => (Object.prototype.hasOwnProperty.call(names, k) ? names[k] : k.replace(/_/g, ' '));
   return bare ? words(s.trim()) : s.replace(SNAKE, words);
 }
 
-/** The language the judge wrote the feedback in: Urdu if any of its lines are in Urdu script, else English. */
+/** The language the judge wrote the feedback in: the script with more letters across all its lines (scriptOf). */
 function feedbackLanguage(fb) {
   const f = fb || {};
   const lines = [f.praise_line, f.focus_why, f.reflection_question, (f.try || {}).evidence, (f.try || {}).instead,
     ...Object.values(f.concern || {}), ...Object.values(f.missed || {}), ...Object.values(f.did || {}),
     ...(Array.isArray(f.wins) ? f.wins.map((w) => w && w.evidence) : [])];
-  return lines.some((x) => typeof x === 'string' && URDU_SCRIPT.test(x)) ? 'ur' : 'en';
+  return scriptOf(lines.filter((x) => typeof x === 'string').join(' '));
 }
 
 const mapValues = (o, fn) => (o && typeof o === 'object' && !Array.isArray(o)
