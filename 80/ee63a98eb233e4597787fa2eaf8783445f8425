@@ -3,3 +3,4 @@
 {"ts":"2026-11-23T13:38:07Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"80ee63a98eb2","branch":"bd-97daxo.34-gbquiz","user":""}
 {"ts":"2026-11-23T13:38:23Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (fan-out mapping: change is the lp612 quiz source/provider; no training surface touched)","sha":"80ee63a98eb2","branch":"bd-97daxo.34-gbquiz","user":""}
 {"ts":"2026-11-23T14:51:22Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (hook mapped the lp612 quiz source/provider change to training by fan-out; no training surface changed; Spec-Sync trailer is on the commit)","sha":"80ee63a98eb2","branch":"bd-97daxo.34-main","user":""}
+{"ts":"2026-11-23T14:51:23Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"b0a9eeed-9342-494f-86e3-bbf9eb03441b","sha":"80ee63a98eb2","branch":"bd-97daxo.34-main","user":""}
