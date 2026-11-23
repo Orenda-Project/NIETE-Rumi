@@ -436,7 +436,7 @@ export function V6FormV7({
       counts={v7Changes(draft, start, values)} />
   );
   const frame = (crumb: string, dock: ReactNode, body: ReactNode) => (
-    <ReportsFrame title={C.formTitle} crumb={crumb} onBack={back} dock={dock} testId="coach-feedback-form">
+    <ReportsFrame title={C.formTitle} crumb={crumb} onBack={back} dock={dock} testId="coach-feedback-form" dockSpace>
       <div id="ff-top" />
       {head}
       {body}
@@ -480,7 +480,7 @@ export function V6FormV7({
     const dock = (
       <DockV7 single>
         {next
-          ? <BottomButton onClick={() => { show(F.toCheck(yellow.length)); open(next); }}>{next.label}</BottomButton>
+          ? <BottomButton onClick={() => open(next)}>{next.label}</BottomButton>
           : <BottomButton onClick={() => setAt({ at: "sections" })}>{F.doneChecking}</BottomButton>}
       </DockV7>
     );
@@ -603,7 +603,16 @@ export function V6FormV7({
             {levelBlock}
             {(changedFromRumi(ind, values) && !readOnly) || (readOnly && values[chgKey]) ? (
               <div data-testid="why-changed" className="flex flex-col gap-2.5 rounded-2xl border border-[#fde7b0] bg-[#fffbeb] p-3">
-                <TextBox id={chgKey} label={F.whyChanged} value={values[chgKey] ?? ""} onChange={set(chgKey)} readOnly={readOnly} problem={why(chgKey)} />
+                {/* bd-o15qnr.40.8: its minimum counted live; too short says so with the count, after Agree or leaving it */}
+                <TextBox id={chgKey} label={F.whyChanged} value={values[chgKey] ?? ""} readOnly={readOnly}
+                  onChange={(v) => { set(chgKey)(v); setShown((cur) => { if (!cur[chgKey]) return cur; const next = { ...cur }; delete next[chgKey]; return next; }); }}
+                  onBlur={() => { if (minReason > 0 && Array.from((values[chgKey] ?? "").trim()).length < minReason) setShown((cur) => ({ ...cur, [chgKey]: "atLeast" })); }}
+                  problem={shown[chgKey] === "atLeast" ? F.tooShort(Array.from((values[chgKey] ?? "").trim()).length, minReason) : why(chgKey)}
+                  hint={readOnly || minReason <= 0 ? null : (
+                    <span data-testid="char-count" className={cn("px-1 text-[13px] tabular-nums", Array.from((values[chgKey] ?? "").trim()).length >= minReason ? "text-[#2f7a52]" : "text-[#6b7280]")}>
+                      {F.charCount(Array.from((values[chgKey] ?? "").trim()).length, minReason)}
+                    </span>
+                  )} />
               </div>
             ) : null}
             {review && !readOnly

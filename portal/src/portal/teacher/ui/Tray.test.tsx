@@ -31,7 +31,8 @@ describe("Tray", () => {
     const { unmount } = render(<Tray open title="Short" onClose={() => {}}><p>x</p></Tray>);
     const plain = screen.getByRole("dialog");
     expect(classes(plain)).toContain("max-h-[88vh]");
-    expect(plain.className).not.toContain("100dvh");
+    // not the tall size (bd-o15qnr.40.9: the plain sheet is 88% of the visible screen, dvh where the browser has it)
+    expect(plain.className).not.toContain("max-h-[calc(100dvh");
     unmount();
     render(<Tray open tall title="Long" onClose={() => {}}><p>x</p></Tray>);
     const tall = screen.getByRole("dialog");
@@ -44,7 +45,9 @@ describe("Tray", () => {
     const dialog = screen.getByRole("dialog", { name: "Select grade" });
     expect(dialog).toHaveAttribute("data-state", "open");
     expect(dialog).toHaveAttribute("aria-modal", "true");
-    expect(classes(dialog)).toEqual(expect.arrayContaining(["bg-[#f3f4f6]", "rounded-t-[22px]", "max-h-[88vh]", "overflow-y-auto"]));
+    // bd-o15qnr.40.9: the panel holds its height; the content scrolls in its own body (tray-body), by touch
+    expect(classes(dialog)).toEqual(expect.arrayContaining(["bg-[#f3f4f6]", "rounded-t-[22px]", "max-h-[88vh]", "overflow-hidden"]));
+    expect(screen.getByTestId("tray-body")).toHaveClass("overflow-y-auto");
     expect(screen.getByRole("heading", { name: "Select grade" })).toHaveClass("text-[22px]", "font-semibold");
     expect(screen.getByTestId("tray-scrim")).toHaveClass("bg-[rgba(17,24,39,0.45)]");
     expect(screen.getByTestId("tray-handle")).toHaveClass("h-[5px]", "w-11");

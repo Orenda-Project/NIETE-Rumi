@@ -170,6 +170,14 @@ describe("Check and send, v7: the Lesson Plan screen's grade + subject picker (b
     expect(within(tray).queryByText("Plants")).toBeNull();
   });
 
+  it("a grade the bot offers but the catalogue lacks (11) can still be picked, with the bot's subjects", async () => {
+    renderCheck();
+    await pick(11, "English");
+    fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    expect(send.mock.calls[0][0].lesson).toEqual({ grade: 11, subject: "english" });
+  });
+
   it("nothing picked: Send asks for the class first", async () => {
     renderCheck();
     await trigger();

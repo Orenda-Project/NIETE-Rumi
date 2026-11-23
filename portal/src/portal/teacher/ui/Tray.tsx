@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode, type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,9 @@ export interface TrayProps {
   tall?: boolean;
 }
 
+/** How far the handle is dragged down before the sheet closes (bd-o15qnr.40.9). */
+const CLOSE_DRAG = 80;
+
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Tray({ open, title, onClose, children, closeLabel: closeLabelProp, testId, tall = false }: TrayProps) {
@@ -38,6 +41,7 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const closeRef = useRef(onClose);
+  const grab = useRef<number | null>(null);
   closeRef.current = onClose;
 
   useEffect(() => {
@@ -47,15 +51,33 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
     const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
     window.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
+    // bd-o15qnr.40.9: a phone's in-app browser scrolls the page under a sheet unless <html> is held too
+    const htmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = overflow;
+      document.documentElement.style.overflow = htmlOverflow;
       if (before && typeof before.focus === 'function' && document.contains(before)) before.focus();
     };
   }, [open]);
 
   if (!open) return null;
+
+  // bd-o15qnr.40.9 — only the grab handle drags the sheet: it follows the finger down; far enough, it closes.
+  const grabStart = (e: TouchEvent<HTMLDivElement>) => { grab.current = e.touches[0]?.clientY ?? null; };
+  const grabMove = (e: TouchEvent<HTMLDivElement>) => {
+    const y = e.touches[0]?.clientY;
+    if (grab.current !== null && y !== undefined && panel.current) panel.current.style.transform = `translateY(${Math.max(0, y - grab.current)}px)`;
+  };
+  const grabEnd = (e: TouchEvent<HTMLDivElement>) => {
+    const y = e.changedTouches[0]?.clientY;
+    const from = grab.current;
+    grab.current = null;
+    if (panel.current) panel.current.style.transform = '';
+    if (from !== null && y !== undefined && y - from >= CLOSE_DRAG) onClose();
+  };
 
   const trapTab = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'Tab' || !panel.current) return;
@@ -77,7 +99,7 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
     <div
       data-testid="tray-scrim"
       onClick={onClose}
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(17,24,39,0.45)] motion-safe:animate-in motion-safe:fade-in-0 md:items-center"
+      className="fixed inset-0 z-[60] flex touch-none items-end justify-center overscroll-contain bg-[rgba(17,24,39,0.45)] motion-safe:animate-in motion-safe:fade-in-0 md:items-center"
     >
       <div
         ref={panel}
@@ -90,13 +112,18 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
         onClick={(e) => e.stopPropagation()}
         onKeyDown={trapTab}
         className={cn(
-          tall ? 'max-h-[calc(100dvh_-_24px_-_env(safe-area-inset-top,0px))] md:max-h-[88vh]' : 'max-h-[88vh]',
-          'flex w-full flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-[#f3f4f6] px-3.5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-2 text-[#1d2025] outline-none',
+          // bd-o15qnr.40.9: 88% of the VISIBLE screen (dvh) where the browser knows it; a phone's in-app browser sizes vh
+          // to the screen with its bars hidden, so the sheet ran off the bottom.
+          tall ? 'max-h-[calc(100dvh_-_24px_-_env(safe-area-inset-top,0px))] md:max-h-[88vh]' : 'max-h-[88vh] supports-[height:100dvh]:max-h-[88dvh]',
+          'flex w-full flex-col gap-3 overflow-hidden rounded-t-[22px] bg-[#f3f4f6] px-3.5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-2 text-[#1d2025] outline-none',
           'motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-300',
           'md:max-w-md md:rounded-[22px] md:pb-4',
         )}
       >
-        <span data-testid="tray-handle" aria-hidden="true" className="h-[5px] w-11 shrink-0 self-center rounded-full bg-[#c7cad6]" />
+        <div data-testid="tray-grab" aria-hidden="true" onTouchStart={grabStart} onTouchMove={grabMove} onTouchEnd={grabEnd}
+          className="-mt-2 flex h-6 w-24 shrink-0 cursor-grab items-center justify-center self-center">
+          <span data-testid="tray-handle" className="h-[5px] w-11 shrink-0 rounded-full bg-[#c7cad6]" />
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           <h2 id={titleId} className="m-0 mx-1 min-w-0 flex-1 text-[22px] font-semibold leading-tight">
             <bdi>{title}</bdi>
@@ -110,7 +137,11 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
             <X className="h-5 w-5" strokeWidth={2.6} aria-hidden="true" />
           </button>
         </div>
-        {children}
+        {/* bd-o15qnr.40.9: the content scrolls inside itself, by touch, and never hands the swipe to the page or the browser */}
+        <div data-testid="tray-body"
+          className="-mx-3.5 flex min-h-0 flex-1 touch-pan-y flex-col gap-3 overflow-y-auto overscroll-contain px-3.5 pb-1 [-webkit-overflow-scrolling:touch] [&>*]:shrink-0">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
