@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { AlertTriangle, Upload } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import RecordIcon from './RecordIcon';
-import { acceptFor, checkFile } from '../../lib/coachingUpload';
+import { AUDIO_ACCEPT, checkRecording } from '../../lib/coachingUpload';
 
 /**
  * bd-5rz1v.7 — the "Send a lesson" sheet behind SendLessonButton: the two ways
@@ -41,12 +41,14 @@ const SendLessonSheet = ({ canRecord, onRecord, onFile, onClose, copy = {} }: {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const chosen = (file: File | undefined) => {
+  // bd-hronni: a recording by its name, its type or its first bytes (an Opus file with no name ending is one); it is
+  // handed on under a name with an ending the server signs.
+  const chosen = async (file: File | undefined) => {
     setError(null);
     if (!file) return;
-    const problem = checkFile(file, 'audio');
-    if (problem) { setError(problem === 'too_large' ? c.tooLarge : c.notAudio); return; }
-    onFile(file);
+    const checked = await checkRecording(file);
+    if (checked.problem || !checked.file) { setError(checked.problem === 'too_large' ? c.tooLarge : c.notAudio); return; }
+    onFile(checked.file);
   };
 
   return (
@@ -72,8 +74,8 @@ const SendLessonSheet = ({ canRecord, onRecord, onFile, onClose, copy = {} }: {
           <span className="text-sm text-[#5b6170]">{c.uploadSub}</span>
         </span>
       </button>
-      <input ref={input} data-testid="send-audio-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
-        onChange={(e) => { chosen(e.target.files?.[0]); e.target.value = ''; }} />
+      <input ref={input} data-testid="send-audio-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
+        onChange={(e) => { void chosen(e.target.files?.[0]); e.target.value = ''; }} />
       {error && (
         <div className="flex gap-2.5 rounded-xl bg-[#fff6e0] px-3.5 py-3 text-[15px] leading-snug text-[#7a5600]">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
