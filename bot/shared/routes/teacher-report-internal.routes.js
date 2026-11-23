@@ -408,6 +408,9 @@ router.post('/fix/:token', handle(async (req, res) => {
 // ── Jugnu tab (web_quiz_teacher_jugnu): GET /fwd/:token, POST /queue/:token — 404 while the switch is off ──
 Jugnu.attach(router, { authorise, handle, notFound, noStore, languageFor });
 // ── end Jugnu tab ──
+// ── weak-skill Jugnu nudge (bd-ptl6x9.7): GET /sfwd/:token, the message button's forward — 404 while its switch is off ──
+require('./weak-skill-forward.routes').attach(router, { authorise, handle, notFound, noStore });
+// ── end weak-skill Jugnu nudge ──
 // ── class round (web_quiz_class_round): the locked round mode; every route is the report's 404 while off ──
 router.use('/round', require('./class-round-internal.routes')({ page, noStore, queryLang }));
 // ── end class round ──

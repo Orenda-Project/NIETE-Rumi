@@ -33,6 +33,18 @@ on('WQ256', 'off', async (page, ctx) => {
   return { round: 404, note: 'the teacher\'s report page (/r/<token>) belongs to the teacher-report spec; its token is minted when a quiz report is sent' };
 });
 
+// bd-ptl6x9.7: the weak-skill nudge's game link. Off on this lane, so what is proved is that ?ex= changes nothing
+// about a closed link; the jump itself is pinned by dashboard/tests/weak-skill-jugnu-deeplink.service.test.js.
+on('WQ285', 'off', async (page, ctx) => {
+  await L.setMode(ctx, page, 'off');
+  const strip = (b) => b.replace(/\?v=[0-9a-f]+/g, '').replace(/<meta property="og:url"[^>]*>/, '');
+  const unknown = await page.request.get(ctx.baseUrl + '/q/ZZZZ9999');
+  const r = await page.request.get(ctx.baseUrl + '/j/ABCD1234?ex=missing');
+  expect(r.status() === unknown.status(), '/j/<code>?ex=missing answered ' + r.status() + ', the unknown /q/ answers ' + unknown.status());
+  expect(strip(await r.text()) === strip(await unknown.text()), '/j/<code>?ex=missing is not the unknown-code page');
+  return { off: '/j/<code>?ex=missing is the unknown-code page', on: V2 };
+});
+
 for (const id of ['WQ249', 'WQ250', 'WQ252', 'WQ253', 'WQ254', 'WQ255', 'WQ257']) on(id, 'off', async () => ({ blocked: V2 }));
 
 module.exports = { runs, modes };
