@@ -216,7 +216,7 @@ Feature: Teacher lesson plans
     When they open /portal/teacher/lessons
     Then it shows "Recent Lesson Plans" under Home, as before
     When they open a grade 1–5 plan
-    Then the viewer has Start DC observation, Send on WhatsApp and Open in another app, as before
+    Then the viewer has Start DC observation and Open in another app, as before, and no Send on WhatsApp (bd-ain69z)
     And All Lesson Plans opens for them and is still turned away for a coach
 
   @LDR04 @draft
@@ -316,6 +316,17 @@ Feature: Teacher lesson plans
     Then no survey bar is drawn
 
   # bd-zrdvmi.21 (18 Nov) — ICT Feedback sheet, GB tab row 3 (14 Nov, portal). Failure record only; Send on WhatsApp (GBS01) is not on main.
+
+  # bd-ain69z (23 Nov) — Send on WhatsApp removed for ICT and GB; GB still showed a grey one.
+  @GBS04 @draft @negative
+  Scenario: A GB or ICT teacher's plan screen has no Send on WhatsApp, grey or green
+    Given the teacher app v2 is on
+    And a GB teacher is signed in
+    When she opens a ready GB grade 1 Urdu plan from Lesson Plans
+    Then the plan screen offers Open in another app
+    And there is no "Send on WhatsApp" and no "Not available yet" anywhere on it
+    And the same holds for an ICT teacher opening a grade 1-5 plan
+
   @GBS02 @draft @negative
   Scenario: When the reader cannot show a plan, it says which step failed in the logs
     Given the teacher app v2 is on

@@ -5,8 +5,9 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 /**
  * The plan screen, option A (portal_lp_viewer_slim → features.lpViewerSlim). Off: today's viewer (the Start DC card,
  * the action buttons, the dock). On: one slim row (Observe · Answer key · Download) over the plan, the plan, then
- * Quiz this lesson and Send on WhatsApp after it — Send only when the template is set AND her programme may get the PDF
- * (features.lpWhatsappSend) AND she is the teacher, not picking, not recording. No dock, except pick's Use this plan.
+ * Quiz this lesson after it. No dock, except pick's Use this plan.
+ * bd-ain69z — no Send on WhatsApp on the plan screen in either layout, for ICT or GB plans (the operator, 22 Nov: "send to
+ * whatsapp has been removed completely for ICT and GB"), whatever the template or features.lpWhatsappSend say.
  */
 const env = vi.hoisted(() => ({ features: {} as Record<string, unknown>, leader: false, recording: false, canSend: true }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -58,6 +59,23 @@ const open = (state: Record<string, unknown> = {}) => render(
 const before = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe("switch off: today's viewer", () => {
+  it("no Send on WhatsApp in the dock, grey or green, for an ICT or a GB plan; Open in another app stays", async () => {
+    env.features = { ...env.features, lpWhatsappSend: true };
+    for (const canSend of [true, false]) {
+      env.canSend = canSend;
+      resetShareAvailability();
+      const { unmount } = open();
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      expect(screen.queryByTestId("share-send")).toBeNull();
+      expect(screen.getByTestId("share-open")).toBeInTheDocument();
+      unmount();
+      const gb = open({ lessonPlan: { source: { lane: "g612", renderId: "r-gb-1" }, title: "GB plan" } });
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      expect(screen.queryByTestId("share-send")).toBeNull();
+      gb.unmount();
+    }
+  });
+
   it("the Start DC card, the dock, no slim row", async () => {
     open();
     expect(screen.getByRole("link", { name: C.startDc })).toBeInTheDocument();
@@ -84,20 +102,26 @@ describe("switch on", () => {
     expect(screen.queryByText(C.startDc)).toBeNull();
   });
 
-  it("after the plan: Quiz this lesson, then Send on WhatsApp", async () => {
+  it("after the plan: Quiz this lesson, and no Send on WhatsApp (template set, programme allowed)", async () => {
+    env.features = { ...env.features, lpWhatsappSend: true };
     open();
     const viewer = screen.getByTestId("viewer");
     const quiz = await screen.findByRole("button", { name: new RegExp(HOME_CARD_COPY.lp.quizThis) });
-    const send = await screen.findByTestId("share-send");
     expect(before(viewer, quiz)).toBe(true);
-    expect(before(quiz, send)).toBe(true);
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(screen.queryByTestId("share-send")).toBeNull();
     expect(screen.queryByTestId("share-open")).toBeNull();
+  });
+
+  it("a GB plan (6-12 lane, render id) gets no Send on WhatsApp either", async () => {
+    open({ lessonPlan: { source: { lane: "g612", renderId: "r-gb-1" }, title: "GB plan" } });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(screen.queryByTestId("share-send")).toBeNull();
   });
 
   it("no template on this deployment → no Send button at all (not the grey one)", async () => {
     env.canSend = false;
     open();
-    await waitFor(() => expect(http.get).toHaveBeenCalledWith("/share/availability"));
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(screen.queryByTestId("share-send")).toBeNull();
   });

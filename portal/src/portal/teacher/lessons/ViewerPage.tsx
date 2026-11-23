@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import LessonPlanViewer from '../../components/LessonPlanViewer';
 import { useRecordingSession } from '../../lib/recordingSession';
-import { lessonPlanFileUrl, lessonPlanShareId, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
+import { lessonPlanFileUrl, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
 import { FeatureArt } from '../icons';
 import { teacherPath } from '../routes';
 import { CHEVRON, FOCUS } from '../ui/styles';
@@ -13,7 +13,6 @@ import { ShareActions } from '../ui/ShareActions';
 import { ActionStrip, type ActionStripItem } from '../ui/ActionStrip';
 import { useOpenTarget, type OpenFlash } from '../ui/useOpenTarget';
 import { useKitCopy } from '../ui/useKitCopy';
-import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
@@ -24,7 +23,7 @@ import { LessonQuizButton } from '../home/LessonQuizButton';
 import { useLessonsLeader } from './audience';
 import { OwnSections } from './own/OwnSections';
 import type { ChangeAt } from './own/change';
-import { useLpWhatsappSend, useViewerSlim } from './viewerFlags';
+import { useViewerSlim } from './viewerFlags';
 import { FeedbackBar } from './FeedbackBar';
 import { useLpFeedbackBar } from './feedbackApi';
 
@@ -37,8 +36,8 @@ import { useLpFeedbackBar } from './feedbackApi';
  *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else).
  *                         Its plan step is outlined in the viewer, and the tap that opens it takes her there (bd-v0toag.8)
  *   Quiz this lesson      the Home card's switch on and a quiz home for her: the signed quiz home (home/LessonQuizButton)
- *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
- *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
+ *   ShareActions          the dock: Open in another app (the plan's presigned PDF link, opened the way her browser
+ *                         allows). No Send on WhatsApp, for ICT or GB (bd-ain69z: the operator removed it, 22 Nov).
  *
  * While a lesson records, neither Start DC observation (one is running) nor Open in another app
  * (another app in front silences the microphone, bd-5rz1v.10); the frame's recording bar shows
@@ -53,7 +52,7 @@ import { useLpFeedbackBar } from './feedbackApi';
  *
  * bd-4joiqz — read by a LEADER (lessons/audience.ts): the plan, its answer key and Open in another app. None of the
  * teacher's own — no Start DC observation (her coaching), no Thing to try (her coaching test group), no Quiz this
- * lesson (her quiz home), no Send on WhatsApp (a template to her own number).
+ * lesson (her quiz home).
  *
  * Option A, the slim plan screen (portal_lp_viewer_slim → features.lpViewerSlim; off = all of the above, unchanged):
  *   one ActionStrip row over the plan   Observe (Start DC observation) · Answer key · Download (useOpenTarget, the
@@ -61,9 +60,7 @@ import { useLpFeedbackBar } from './feedbackApi';
  *                                       lesson records. Download: not while a lesson records. A leader: Answer key and
  *                                       Download.
  *   the plan, most of the screen
- *   end of the plan                     (the survey bar's place), then Quiz this lesson, then Send on WhatsApp, only
- *                                       when the template is set AND her programme may get the PDF
- *                                       (features.lpWhatsappSend) AND she is the teacher, not picking, not recording.
+ *   end of the plan                     (the survey bar's place), then Quiz this lesson. No Send on WhatsApp.
  *   no dock                             except pick's Use this lesson plan.
  *
  * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER plan (grades 1-12) once it has
@@ -80,9 +77,7 @@ export function ViewerPage() {
   const { toast } = useToast();
   const openPlan = useLessonPlanOpener();
   const recording = !!useRecordingSession()?.active;
-  const canSend = useShareAvailable('lesson');
   const slim = useViewerSlim();
-  const pdfOnWhatsapp = useLpWhatsappSend();
   const kit = useKitCopy();
   const feedbackOn = useLpFeedbackBar();
   // The plan whose pages have loaded: the survey bar waits for it.
@@ -176,17 +171,15 @@ export function ViewerPage() {
     if (download.show) {
       strip.push({ key: 'download', icon: Download, label: C.download, onPress: () => { void download.press(); }, state: download.flash ? flashWord[download.flash] : null });
     }
-    const send = canSend === true && pdfOnWhatsapp && !leader && !pick && !recording;
     return (
       <TeacherPage crumb={view.crumb} title={view.title} onBack={close} dock={usePlanDock ?? undefined}>
         <ActionStrip items={strip} />
         {ownSections}
         {thingToTry}
         {plan}
-        {/* End of the plan, in this order: the survey bar (when on), Quiz this lesson, Send on WhatsApp. */}
+        {/* End of the plan, in this order: the survey bar (when on), Quiz this lesson. No Send on WhatsApp (bd-ain69z). */}
         {feedbackBar}
         {teacherActions ? <LessonQuizButton className={act} /> : null}
-        {send ? <ShareActions onSend={() => shareToWhatsApp('lesson', lessonPlanShareId(source))} /> : null}
       </TeacherPage>
     );
   }
@@ -197,9 +190,8 @@ export function ViewerPage() {
       title={view.title}
       onBack={close}
       dock={usePlanDock ?? (
+        // bd-ain69z — Open in another app only: no Send on WhatsApp, grey or green (removed for ICT and GB, 22 Nov).
         <ShareActions
-          available={canSend}
-          onSend={leader || !pdfOnWhatsapp ? undefined : () => shareToWhatsApp('lesson', lessonPlanShareId(source))}
           // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Open then.
           open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
         />
