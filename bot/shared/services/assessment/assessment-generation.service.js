@@ -140,7 +140,7 @@ const ANSWER_KEY_ON =
   '\n\n🚨 **ANSWER KEY REQUIRED**: EVERY question object MUST carry an "answer" '
   + 'field (a string) — every type, seen and unseen, with no exceptions:\n'
   + '- MCQs: the full text of the correct option exactly as it appears in "options" '
-  + '(e.g. "b) 4"), with nothing added after it; MSQs: every correct option, comma-separated.\n'
+  + '(e.g. "b) 4"); MSQs: every correct option, comma-separated.\n'
   + '- True/False: "True" or "False".\n'
   + '- Fill in the blanks / Missing Letters: the word(s) or letters that fill each blank.\n'
   + '- Match the Column: every correct pair, "left: right", comma-separated.\n'
