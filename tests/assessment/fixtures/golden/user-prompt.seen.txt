@@ -23,5 +23,7 @@ Equivalent fractions name the same part.
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
 • Where a question type specifies an exact count (e.g. "5 MCQs"), generate EXACTLY that many questions for that type — no more, no less
+• Write only the question types listed above; do not add other types — no MSQs (select-all questions)
+• Every MCQ or other option question (except an MSQ) has exactly one correct option, and its answer is that option exactly as written in "options" — no second option, no explanation after it
 
 ---

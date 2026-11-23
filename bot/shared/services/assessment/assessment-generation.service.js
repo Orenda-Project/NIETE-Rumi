@@ -29,6 +29,7 @@ const SeenPicked = require('./seen-picked');
 const PaperDiagram = require('./paper-diagram');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 const { standardMarks } = require('./standard-marks');
+const { checkMcqAnswers, MSQ, OPTION_LABEL, _norm, _splitOption, _resolveOption } = require('./mcq-answer-check');
 
 // The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
 const PROMPTS = { ...require('./ict-prompts.json'), ...require('./gk-sst-en-prompts.json') };
@@ -360,6 +361,8 @@ ${askStandard ? STANDARD_MARKS_LINE : '• Include proper marks allocation for e
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
 • Where a question type specifies an exact count (e.g. "5 MCQs"), generate EXACTLY that many questions for that type — no more, no less
+• Write only the question types listed above; do not add other types${askedTypes.some((q) => MSQ.test(String(q.id))) ? '' : ' — no MSQs (select-all questions)'}
+• Every MCQ or other option question (except an MSQ) has exactly one correct option, and its answer is that option exactly as written in "options" — no second option, no explanation after it
 
 ---
 `;
@@ -529,40 +532,6 @@ function stripImageKeys(examJson) {
     delete q.image_description;
   });
   return examJson;
-}
-
-// An option's label and the text after it: "b) 4", "(b) 4", "B. 4", "ج) اسلام آباد".
-const OPTION_LABEL = /^\s*\(?\s*([A-Za-z]|[؀-ۿ]{1,3})\s*[).:\-]\s*(.*)$/s;
-
-function _norm(text) {
-  return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-function _splitOption(option) {
-  const m = String(option ?? '').match(OPTION_LABEL);
-  return m ? { label: _norm(m[1]), text: _norm(m[2]) } : { label: null, text: _norm(option) };
-}
-
-/**
- * The option an MCQ answer names, or null when it names none unambiguously.
- * Tried in order: the option itself, its label alone ("b", "(b)", "ج"), and the
- * text after the label ("4" for "b) 4"). Only a single match counts — a guess
- * would print a wrong answer on a teacher's key, which is worse than a gap.
- */
-function _resolveOption(options, answer) {
-  const want = _norm(answer);
-  if (!want) return null;
-  const exact = options.filter((o) => _norm(o) === want);
-  if (exact.length === 1) return exact[0];
-  const bareLabel = want.replace(/^\(\s*/, '').replace(/\s*[).:\-]?\s*\)?$/, '');
-  const byLabel = options.filter((o) => _splitOption(o).label === bareLabel);
-  if (byLabel.length === 1) return byLabel[0];
-  const asOption = _splitOption(answer);
-  const byText = options.filter((o) => {
-    const t = _splitOption(o).text;
-    return t && (t === want || (asOption.label && t === asOption.text));
-  });
-  return byText.length === 1 ? byText[0] : null;
 }
 
 /** "1) a 2) b 3) c" → ['a','b','c'], or null when it is not numbered 1..n. */
@@ -750,6 +719,9 @@ async function generateExam(args) {
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // bd-rzjnjp.1.1 — an option question's answer is one of its options, and no unasked MSQs.
+  const mcqCheck = checkMcqAnswers(examJson, { askedTypes: [...(plan.questionTypes.length ? plan.questionTypes : (questionTypes || [])), ...(plan.seenTypes || [])] });
+  if (Object.values(mcqCheck).some((n) => n > 0)) logToFile('[assessment] option answers checked', mcqCheck);
   // bd-upejat.208: the same filter the pattern path runs; it names no item of its own for a subject it does not cover.
   // A failed book read must not fail a paper that shipped before this filter existed: log and deliver.
   if (key !== 'islamiat') {
@@ -3248,6 +3220,7 @@ module.exports = {
   countQuestions,
   stripImageKeys,
   normaliseAnswers,
+  _resolveOption,
   answerCoverage,
   MODELS,
 };
