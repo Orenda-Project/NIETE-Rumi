@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T05:04:29Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"8d2747455a63","branch":"main","user":""}
+{"ts":"2026-11-23T05:04:38Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"e178628b-ba49-43b5-a8c4-665cc4d44bc7","sha":"8d2747455a63","branch":"main","user":""}
