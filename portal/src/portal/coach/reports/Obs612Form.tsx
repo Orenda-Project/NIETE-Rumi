@@ -347,8 +347,11 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
 
   const item = (f: Obs612Field) => {
     const label = labelOf(f);
+    // bd-o15qnr.46 (queue #241): a checklist item under its category's heading is "4. <question>" on its own line.
+    const grouped = v7 && !!f.group;
+    const no = grouped && f.n != null ? `${W.itemNo(f.n)}.` : null;
     // The group is named by FDE's words for the item; its chip shows only FDE's number (13 Nov: no "Item N").
-    const groupName = f.short || f.text || label;
+    const groupName = grouped ? [no, f.text].filter(Boolean).join(" ") : f.short || f.text || label;
     const v = values[f.name] || "";
     const bad = !!shown[f.name];
     const opts = f.options || [];
@@ -414,6 +417,13 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
             <StatusChip text={label} tone="score" />
             {f.notes ? <p data-testid="fde-notes" className="m-0 whitespace-pre-line text-[14px] leading-relaxed text-[#4b5563] [unicode-bidi:plaintext]" dir="auto">{f.notes}</p> : null}
           </div>
+        ) : grouped ? (
+          // bd-o15qnr.46 (queue #241, the operator 23 Nov: "Heading … then its questions then next section"): its category
+          // is the heading above (groupHead), so no chip here; the number, then the question across the card's width.
+          <p data-testid="cl-question" className="m-0 flex gap-1.5 text-[16px] font-semibold leading-[1.35] [unicode-bidi:plaintext]" dir="auto" {...urduOf(f.text)}>
+            {no ? <span data-testid="cl-no" className="shrink-0 tabular-nums text-[#6b7280]">{no}</span> : null}
+            <span data-testid="cl-text" className="min-w-0 flex-1">{f.text}</span>
+          </p>
         ) : v7 ? (
           // bd-o15qnr.28 — v7: the code chip and FDE's words for the item on one line (m9-ff-fde, m9-ff-fico-s).
           <div className="flex flex-wrap items-center gap-2">
@@ -498,7 +508,28 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     return null;
   };
 
-  const partView = (p: Obs612Part, i: number) => {
+  // bd-o15qnr.46 (queue #241): on the switch, the category heading before the first checklist item of each category (the
+  // bot's `group`; a category's items sit together), so the items under it carry no chip of their own.
+  const groupAt = (parts: Obs612Part[] | undefined, i: number): string | null => {
+    const p = parts?.[i];
+    if (!v7 || !parts || !p || p.type !== "field" || p.role !== "item" || !p.group) return null;
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const q = parts[j];
+      if (q.type === "field" && q.role === "item") return q.group === p.group ? null : p.group;
+    }
+    return p.group;
+  };
+
+  const partView = (p: Obs612Part, i: number, parts?: Obs612Part[]) => {
+    const group = groupAt(parts, i);
+    if (group && p.type === "field") {
+      return (
+        <Fragment key={`group-${p.name}`}>
+          <h3 data-testid="cl-group" className="mx-1 mt-3 text-[18px] font-bold leading-[1.3] text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(group)}>{group}</h3>
+          {field(p)}
+        </Fragment>
+      );
+    }
     if (p.type === "heading") {
       if (v7) {
         const about = aboutUnder(i);
@@ -687,7 +718,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
                   );
                 })}
               </IndicatorRows>
-            ) : g.parts.map((p, i) => (p.type === "heading" ? null : partView(p, i)))}
+            ) : g.parts.map((p, i) => (p.type === "heading" ? null : partView(p, i, g.parts)))}
           </div>
         </>
       ));
@@ -804,7 +835,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
             {readOnly && !draft.sealed ? <p className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.readOnly}</p> : null}
             {section.parts.map((p, i) => (
               <Fragment key={i}>
-                {partView(p, i)}
+                {partView(p, i, section.parts)}
                 {i === noteAt ? <PartNote text={F.noRumiLevels} /> : null}
               </Fragment>
             ))}
