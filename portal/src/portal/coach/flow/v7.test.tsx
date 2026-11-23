@@ -282,7 +282,30 @@ describe("the visit while the Digital Coach works, and when it stopped (v7)", ()
     const card = await screen.findByTestId("stage-stopped");
     expect(card.className).toContain("border-[#c8331f]");
     expect(card).toHaveTextContent("Observation stopped");
+    expect(card).not.toHaveTextContent("Recording already used");
     expect(screen.queryByTestId("stage-analysing")).toBeNull();
+  });
+
+  // bd-k8uh1r (queue #238; the operator 23 Nov ~19:02: "it said Observation Stopped on prod" right after the upload) —
+  // the duplicate guard (bd-erpvf) cancels a recording this coach already had analysed; the card says so, and what to do.
+  it("stopped as a duplicate: the card says the recording was already used, and to start again with a new one", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
+    L.getObservation.mockResolvedValue(VIEW("stopped", { problem: "duplicate" }));
+    renderVisit();
+    const card = await screen.findByTestId("stage-stopped");
+    expect(card).toHaveTextContent("Recording already used");
+    expect(card).toHaveTextContent("This recording was already analysed for another observation. Start a new observation with a new recording.");
+    expect(card).not.toHaveTextContent("Observation stopped");
+  });
+
+  it("stopped as a duplicate, in Urdu", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
+    L.getObservation.mockResolvedValue(VIEW("stopped", { problem: "duplicate" }));
+    renderVisit();
+    const card = await screen.findByTestId("stage-stopped");
+    expect(card).toHaveTextContent("ریکارڈنگ پہلے استعمال ہوئی");
+    expect(card).toHaveTextContent("نئی ریکارڈنگ کے ساتھ نیا مشاہدہ شروع کریں۔");
   });
 });
 
