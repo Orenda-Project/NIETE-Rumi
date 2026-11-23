@@ -9,3 +9,4 @@
 {"ts":"2026-11-23T16:23:37Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"11f81bc89669","branch":"bd-sm4xdn-goal","user":""}
 {"ts":"2026-11-23T16:23:45Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-11f81bc89669","sha":"11f81bc89669","branch":"bd-sm4xdn-goal","user":""}
 {"ts":"2026-11-23T17:30:34Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"11f81bc89669","branch":"bd-sm4xdn-main","user":""}
+{"ts":"2026-11-23T17:30:37Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-sm4xdn-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"11f81bc89669","branch":"bd-sm4xdn-main","user":""}
