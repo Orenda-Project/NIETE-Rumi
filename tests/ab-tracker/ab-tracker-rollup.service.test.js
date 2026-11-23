@@ -1,10 +1,11 @@
 'use strict';
 /**
- * One tick of the A/B tracker's nightly rollup (bot/shared/services/ab-tracker/ab-tracker-rollup.service.js), with fakes
+ * One tick of the A/B tracker's rollup (bot/shared/services/ab-tracker/ab-tracker-rollup.service.js), with fakes
  * at the edges: a fake replica (reads), a fake primary (writes), a fake Redis, a fake sleep.
- *   - off unless a replica is configured AND app_settings ab_tracker_rollup_enabled names a time (read on the replica);
+ *   - off unless a replica is configured AND app_settings ab_tracker_rollup_enabled is on (read on the replica);
  *   - the replica check is the FIRST call; a refusal touches nothing else, and the primary is never even loaded;
- *   - runs once per Pakistan date (claim + marker), inside a 90-minute window from the set time;
+ *   - runs once per slot (claim + marker): 15 minutes in school hours, 2 hours outside them (ab-tracker-cadence.js);
+ *   - windows end today (provisional, overwritten by the next run); the Monday/read-day full re-read runs once per date;
  *   - every read goes to the replica, every write to the primary, and writes are only the three ab_tracker_* calls;
  *   - upserts are batched; a failed read leaves the refresh 'partial' and no marker (the next tick retries);
  *   - logs counts and timings only, never a unit id.
@@ -31,7 +32,8 @@ function fakeRedis(seed = {}) {
   return {
     store,
     isAvailable: () => true,
-    async setNX(k, v) { if (!(k in store)) store[k] = v; return true; },
+    ttl: {},
+    async setNX(k, v, ttl) { if (!(k in store)) { store[k] = v; this.ttl[k] = ttl; } return true; },
     async get(k) { return k in store ? store[k] : null; },
     async set(k, v) { store[k] = v; return true; },
   };
@@ -98,11 +100,9 @@ const go = (over = {}) => {
 
 beforeEach(() => { mockLogs.length = 0; sleep.mockClear(); });
 
-test('the switch: {"at":"HH:MM"} or true (03:00); anything else is off; a window must end by midnight', () => {
-  expect(Job.parseSwitch({ at: '02:00' })).toBe(120);
-  expect(Job.parseSwitch('{"at":"01:30"}')).toBe(90);
-  expect(Job.parseSwitch(true)).toBe(180);
-  for (const v of [null, false, 'yes', { at: '2am' }, { at: '23:00' }, [], {}]) expect(Job.parseSwitch(v)).toBeNull();
+test('the switch is on/off: true or a well-formed {"at":"HH:MM"} is on (the time is no longer used); anything else is off', () => {
+  for (const v of [true, 'true', { at: '02:00' }, '{"at":"01:30"}', { at: '23:00' }]) expect(Job.parseSwitch(v)).toBe(true);
+  for (const v of [null, false, 'yes', { at: '2am' }, [], {}]) expect(Job.parseSwitch(v)).toBe(false);
 });
 
 test('off with no replica configured; the primary is never asked for', async () => {
@@ -121,12 +121,17 @@ test('refused when the server is not a replica: nothing else is read, nothing wr
   expect(getWriter).not.toHaveBeenCalled();
 });
 
-test('off when the switch is missing; not due outside its window', async () => {
+test('off when the switch is missing; with it on, any hour runs (no due window)', async () => {
   expect((await go({ reader: fakeReader({ sw: null }) })).r).toEqual({ outcome: 'off', reason: 'switch_off' });
-  const early = await Job.run({ now: AT('01:59'), reader: fakeReader(), writer: () => fakeWriter(), redis: fakeRedis(), sleep });
-  expect(early.outcome).toBe('not_due');
-  const late = await Job.run({ now: AT('03:31'), reader: fakeReader(), writer: () => fakeWriter(), redis: fakeRedis(), sleep });
-  expect(late.outcome).toBe('not_due');
+  for (const hhmm of ['01:59', '03:31', '10:20', '19:05']) {
+    const r = await Job.run({ now: AT(hhmm), reader: fakeReader(), writer: () => fakeWriter(), redis: fakeRedis(), sleep });
+    expect(r.outcome).toBe('ran');
+  }
+});
+
+test('the tick lock lasts under 15 minutes, so the next 15-minute run is not blocked', async () => {
+  const { redis } = await go();
+  expect(redis.ttl['ab_tracker:v1:tick']).toBeLessThanOrEqual(14 * 60);
 });
 
 test('a run: reads on the replica, writes only ab_tracker_* on the primary, in order', async () => {
@@ -140,17 +145,18 @@ test('a run: reads on the replica, writes only ab_tracker_* on the primary, in o
   expect(writer.calls[1][1].p_rows.every((x) => x.test_id === 'ict-ch9-plans')).toBe(true);
   expect(writer.calls[2][1]).toMatchObject({ p_refresh_id: 'refresh-1', p_status: 'ran' });
   expect(r).toMatchObject({ tests: 1, reads: 2, skipped_metrics: 1, rows: 6, failed: 0 });
-  expect(redis.store['ab_tracker:v1:run:2026-11-21']).toBeTruthy();
+  expect(redis.store['ab_tracker:v1:run:2026-11-21T02:00']).toBeTruthy();
   expect(sleep).toHaveBeenCalled();
 });
 
-test('the read window: daily from 4 days back (or the start), weekly from that Monday, to yesterday', async () => {
+test('the read window: daily from 4 days back (or the start), weekly from that Monday, to today', async () => {
   const { reader } = await go();
   const args = Object.fromEntries(reader.calls.filter((c) => c[0] === 'ab_tracker_metric_rows').map((c) => [c[1].p_metric_id, c[1]]));
-  expect(args.plan_fidelity).toEqual({ p_test_id: 'ict-ch9-plans', p_metric_id: 'plan_fidelity', p_from: '2026-11-17', p_to: '2026-11-20' });
-  expect(args.teachers_coming_back).toMatchObject({ p_from: '2026-11-16', p_to: '2026-11-20' });
-  expect(Job.windowFor({ start_on: '2026-11-19' }, 'day', '2026-11-21')).toEqual({ from: '2026-11-19', to: '2026-11-20' });
-  expect(Job.windowFor({ start_on: '2026-11-21' }, 'day', '2026-11-21')).toBeNull();
+  expect(args.plan_fidelity).toEqual({ p_test_id: 'ict-ch9-plans', p_metric_id: 'plan_fidelity', p_from: '2026-11-17', p_to: '2026-11-21' });
+  expect(args.teachers_coming_back).toMatchObject({ p_from: '2026-11-16', p_to: '2026-11-21' });
+  expect(Job.windowFor({ start_on: '2026-11-19' }, 'day', '2026-11-21')).toEqual({ from: '2026-11-19', to: '2026-11-21' });
+  expect(Job.windowFor({ start_on: '2026-11-21' }, 'day', '2026-11-21')).toEqual({ from: '2026-11-21', to: '2026-11-21' });
+  expect(Job.windowFor({ start_on: '2026-11-22' }, 'day', '2026-11-21')).toBeNull();
 });
 
 test('upserts go in batches of at most BATCH_ROWS', async () => {
@@ -165,15 +171,24 @@ test('a failed read: the refresh is partial, no marker, the other measures still
   expect(r).toMatchObject({ outcome: 'partial', failed: 1 });
   expect(writer.calls.at(-1)[1].p_status).toBe('partial');
   expect(writer.calls.some((c) => c[0] === 'ab_tracker_upsert_rollup')).toBe(true);
-  expect(redis.store['ab_tracker:v1:run:2026-11-21']).toBeUndefined();
+  expect(redis.store['ab_tracker:v1:run:2026-11-21T02:00']).toBeUndefined();
 });
 
-test('once a night: the marker stops a second run, and another worker holding the tick skips', async () => {
-  const marked = await go({ redis: fakeRedis({ 'ab_tracker:v1:run:2026-11-21': 'x' }) });
+test('once a slot: the marker stops a second run in the same slot, the next slot runs, a held tick skips', async () => {
+  const marked = await go({ redis: fakeRedis({ 'ab_tracker:v1:run:2026-11-21T02:00': 'x' }) });
   expect(marked.r.outcome).toBe('done_already');
   expect(marked.writer.calls).toEqual([]);
   const held = await go({ redis: fakeRedis({ 'ab_tracker:v1:tick': 'other' }) });
   expect(held.r.outcome).toBe('skipped');
+  const next = await go({ redis: fakeRedis({ 'ab_tracker:v1:run:2026-11-21T02:00': 'x' }), deps: { now: AT('04:05') } });
+  expect(next.r.outcome).toBe('ran');
+  const school = await go({ deps: { now: AT('10:20') } });
+  expect(school.redis.store['ab_tracker:v1:run:2026-11-21T10:15']).toBeTruthy();
+});
+
+test('the payload watermark stays yesterday: today is provisional', async () => {
+  const { writer } = await go();
+  expect(writer.calls[0][1]).toEqual({ p_tests: 1, p_watermark: '2026-11-20' });
 });
 
 test('no live tests: logged as ran with zero, nothing upserted', async () => {
@@ -194,18 +209,19 @@ test('logs carry counts and timings, never a unit id; the run never throws', asy
 
 test('on a Monday (Pakistan) the window runs from the start: daily from start_on, weekly from its Monday', () => {
   const t = { start_on: '2026-11-10', read_on: '2026-12-05' };
-  expect(Job.windowFor(t, 'day', '2026-11-23')).toEqual({ from: '2026-11-10', to: '2026-11-22', full: true });
-  expect(Job.windowFor(t, 'week', '2026-11-23')).toEqual({ from: '2026-11-09', to: '2026-11-22', full: true });
+  expect(Job.windowFor(t, 'day', '2026-11-23')).toEqual({ from: '2026-11-10', to: '2026-11-23', full: true });
+  expect(Job.windowFor(t, 'week', '2026-11-23')).toEqual({ from: '2026-11-09', to: '2026-11-23', full: true });
+  expect(Job.windowFor(t, 'day', '2026-11-23', false)).toEqual({ from: '2026-11-19', to: '2026-11-23' });
 });
 
 test('on the read day the window runs from the start too', () => {
   const t = { start_on: '2026-11-10', read_on: '2026-12-05' };
-  expect(Job.windowFor(t, 'day', '2026-12-05')).toEqual({ from: '2026-11-10', to: '2026-12-04', full: true });
+  expect(Job.windowFor(t, 'day', '2026-12-05')).toEqual({ from: '2026-11-10', to: '2026-12-05', full: true });
 });
 
 test('any other day keeps the 4-day window', () => {
   const t = { start_on: '2026-11-10', read_on: '2026-12-05' };
-  expect(Job.windowFor(t, 'day', '2026-11-24')).toEqual({ from: '2026-11-20', to: '2026-11-23' });
+  expect(Job.windowFor(t, 'day', '2026-11-24')).toEqual({ from: '2026-11-20', to: '2026-11-24' });
   expect(Job.isFullDay(t, '2026-11-24')).toBe(false);
 });
 
@@ -220,8 +236,21 @@ test('a Monday run reads each measure slice by slice, with a pause between calls
   const { r } = await go({ reader, deps: { now: AT('02:10', '2026-11-23') } });
   const reads = reader.calls.filter((c) => c[0] === 'ab_tracker_metric_rows').map((c) => [c[1].p_metric_id, c[1].p_from, c[1].p_to]);
   expect(reads).toEqual([
-    ['plan_fidelity', '2026-11-10', '2026-11-16'], ['plan_fidelity', '2026-11-17', '2026-11-22'],
+    ['plan_fidelity', '2026-11-10', '2026-11-16'], ['plan_fidelity', '2026-11-17', '2026-11-23'],
     ['teachers_coming_back', '2026-11-09', '2026-11-15'], ['teachers_coming_back', '2026-11-16', '2026-11-22'],
+    ['teachers_coming_back', '2026-11-23', '2026-11-23'],
   ]);
-  expect(r).toMatchObject({ outcome: 'ran', reads: 4, full_windows: 2, failed: 0 });
+  expect(r).toMatchObject({ outcome: 'ran', reads: 5, full_windows: 2, failed: 0 });
+});
+
+test('the full re-read runs once per date: later Monday runs use the short window, a partial one leaves it owed', async () => {
+  const redis = fakeRedis();
+  await go({ redis, deps: { now: AT('02:10', '2026-11-23') } });
+  expect(redis.store['ab_tracker:v1:full:2026-11-23']).toBeTruthy();
+  delete redis.store['ab_tracker:v1:tick']; // the 840 s tick lock has long expired by 10:20
+  const later = await go({ redis, deps: { now: AT('10:20', '2026-11-23') } });
+  expect(later.r).toMatchObject({ outcome: 'ran', full_windows: 0, reads: 3 }) // day 11-19..23; week 11-16..22 + 11-23;
+  const owed = fakeRedis();
+  await go({ redis: owed, reader: fakeReader({ failMetric: 'plan_fidelity' }), deps: { now: AT('02:10', '2026-11-23') } });
+  expect(owed.store['ab_tracker:v1:full:2026-11-23']).toBeUndefined();
 });
