@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { Check, ChevronDown, ImageIcon, Mic, Pause, Save, Send, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
-import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
+import { acceptFor, AUDIO_ACCEPT, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { isOffline, SendError, sendLesson } from '../../lib/coachingSend';
 import { holdFile, holdPhoto, isFileRefused, isRefused, tellUnreadablePick } from '../../lib/pickedRead';
 import { sha256Hex } from '../../lib/audioHash';
@@ -443,7 +443,7 @@ export function NewObservationPage() {
         hidden
         type="file"
         data-testid="dc-audio-input"
-        accept={`${acceptFor('audio')},audio/*`}
+        accept={AUDIO_ACCEPT}
         onChange={(e) => { void pickAudio(e.target.files?.[0]); e.target.value = ''; }}
       />
 

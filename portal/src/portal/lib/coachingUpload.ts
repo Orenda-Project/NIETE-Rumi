@@ -14,7 +14,8 @@ const MB = 1024 * 1024;
 
 export const UPLOAD_RULES: Record<UploadKind, { extensions: string[]; maxBytes: number }> = {
   audio: {
-    extensions: [".m4a", ".mp4", ".aac", ".mp3", ".ogg", ".opus", ".wav", ".amr", ".3gp", ".webm"],
+    // bd-hronni: .oga is Ogg audio by its other name (the server's KINDS.audio signs it as audio/ogg, like .ogg/.opus).
+    extensions: [".m4a", ".mp4", ".aac", ".mp3", ".ogg", ".oga", ".opus", ".wav", ".amr", ".3gp", ".webm"],
     maxBytes: 300 * MB,
   },
   lesson_plan: { extensions: [".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png"], maxBytes: 25 * MB },
@@ -77,6 +78,13 @@ export function extensionOf(name: string): string {
 export function acceptFor(kind: UploadKind): string {
   return UPLOAD_RULES[kind].extensions.join(",");
 }
+
+/**
+ * bd-hronni — the accept list of EVERY recording picker: the endings, any audio type, and application/ogg (which
+ * audio/* does not cover: some phones and desktops label Ogg files with it). A picker that filters by type then still
+ * offers an Ogg Opus file; one that filters by name offers .opus/.ogg/.oga.
+ */
+export const AUDIO_ACCEPT = `${acceptFor("audio")},audio/*,application/ogg`;
 
 export type FileProblem = "wrong_type" | "too_large" | null;
 
@@ -149,7 +157,7 @@ const AUDIO_TYPE_EXT: Record<string, string> = {
   "audio/mpeg": ".mp3", "audio/mp3": ".mp3",
   "audio/mp4": ".m4a", "audio/x-m4a": ".m4a", "audio/m4a": ".m4a",
   "audio/aac": ".aac", "audio/x-aac": ".aac",
-  "audio/ogg": ".ogg", "audio/opus": ".opus",
+  "audio/ogg": ".ogg", "audio/opus": ".opus", "audio/x-opus+ogg": ".opus", "application/ogg": ".ogg",
   "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/wave": ".wav", "audio/vnd.wave": ".wav",
   "audio/amr": ".amr", "audio/3gpp": ".3gp", "audio/webm": ".webm",
 };
@@ -228,6 +236,29 @@ export async function checkAudioFile(file: File): Promise<{ problem: AudioFilePr
   }
   if (file.size > UPLOAD_RULES.audio.maxBytes) return { problem: "too_large" };
   return { problem: null, filename: upload };
+}
+
+/**
+ * bd-hronni (queue #237) — "is .opus not recognized as an audio format to attach?" (operator, 23 Nov). The recording check of
+ * every attach screen: coach upload and debrief, principal observe and talk, the older teacher page, the send sheets.
+ * Those screens decided by the name ending alone, so a real Ogg Opus file whose name has no ending (an Android picker
+ * hands over "1000043567") was "Not a recording"; only Digital Coaching's slot (checkAudioFile) also read the type and
+ * the first bytes. Now they all do: the name ending, else the type the phone gives, else the first bytes. A file taken
+ * on its type or bytes goes up under a name with an ending the server signs (the same bytes, renamed). Videos are not
+ * refused here (these screens never did; the pipeline takes the sound track), so nothing they took before is refused.
+ */
+export async function checkRecording(file: File): Promise<{ problem: FileProblem; file?: File }> {
+  let name = audioUploadName(file);
+  if (!name) {
+    const sniffed = await sniffAudioExt(file);
+    if (!sniffed) return { problem: "wrong_type" };
+    const ext = extensionOf(file.name);
+    const stem = ext ? file.name.slice(0, -ext.length) : file.name;
+    name = `${stem.trim() || "recording"}${sniffed}`;
+  }
+  if (file.size > UPLOAD_RULES.audio.maxBytes) return { problem: "too_large" };
+  if (name === file.name) return { problem: null, file };
+  return { problem: null, file: new File([file], name, { type: file.type, lastModified: file.lastModified }) };
 }
 
 /** Containers that can hold a picture: found by their bytes, they are opened to see before they are taken. */
