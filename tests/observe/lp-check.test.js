@@ -144,6 +144,18 @@ describe('the notes section (lp_check)', () => {
     expect(text).toContain(S.lp_check_reminder);
   });
 
+  it('WhatsApp refuses a text over 4,096: a long plan drops the per-move notes, then the checklist, never the lines or the reminder', () => {
+    const many = specAnalysis();
+    many.lp_fidelity.moves = Array.from({ length: 24 }, (_, i) => move(`m${i + 1}`, ['announce', 'explain', 'guided', 'independent', 'exit'][i % 5],
+      i % 2 ? 'not_done' : 'executed', `A long prescribed move number ${i + 1} `.repeat(4), { rationale: 'What happened instead, at some length. '.repeat(5), evidence: i % 2 ? '' : '[10:00] said' }));
+    const s = LP.planState(many);
+    const text = LP.renderLpCheckMessage(LP.buildLpCheck(s, LP.fallbackWords(s, 'en')), S);
+    expect([...text].length).toBeLessThanOrEqual(3900);
+    expect(text).toContain(S.lp_check_reminder);
+    expect(text).toContain(S.lp_lines_label);
+    expect(text).toContain('12 of 24');
+  });
+
   it('no plan linked: one question only', () => {
     const text = LP.renderLpCheckMessage(LP.buildLpCheck({ state: 'no_plan' }), S);
     expect(text).toContain(S.lp_no_plan_question);
