@@ -57,6 +57,18 @@ describe('planState — the plan and what was done, from the lesson-plan check',
     expect(s.mostMissed).toEqual(expect.objectContaining({ id: 'm6', step: 'we_do' }));
   });
 
+  it('a move not done at all has no moment in the recording: no time borrowed from another move; a partly done one keeps its own', () => {
+    const s = LP.planState(specAnalysis());
+    expect(s.mostMissed.time).toBeNull();
+    const a = specAnalysis();
+    a.lp_fidelity.moves[5] = { ...a.lp_fidelity.moves[5], verdict: 'partial', evidence: '[18:40] Now with your partner…' };
+    a.lp_fidelity.moves[6] = { ...a.lp_fidelity.moves[6], verdict: 'executed', evidence: '[20:00] Game time' };
+    a.lp_fidelity.moves[8] = { ...a.lp_fidelity.moves[8], verdict: 'executed', evidence: '[25:00] Group B…' };
+    a.lp_fidelity.moves[10] = { ...a.lp_fidelity.moves[10], verdict: 'executed', evidence: '[36:00] Today I learnt…' };
+    const p = LP.planState(a);
+    expect(p.mostMissed).toEqual(expect.objectContaining({ id: 'm6', time: '18:40' }));
+  });
+
   it('a move the check could not judge is "not assessed": shown, never counted as a miss', () => {
     const a = specAnalysis();
     a.lp_fidelity.moves[6] = { ...a.lp_fidelity.moves[6], verdict: 'not_adjudicable' };
