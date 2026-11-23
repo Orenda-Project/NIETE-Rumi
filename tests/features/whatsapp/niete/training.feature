@@ -1492,6 +1492,15 @@ Feature: NIETE (ICT) Teacher Training
     But if leaving it off would leave the paper with no questions at all, it stays
     # bd-fjnrit: seen-only papers never passed these kinds into the prompt, so the model wrote them
     # with no diagram data and each one cost a paid picture call that could not draw anything.
+  # @no-mock-driver: needs a paper the model writes. tests/assessment/mcq-answer-check.test.js
+  # executes the check: an answer that is not one of its options is matched or the item dropped.
+  @e2e @flow @draft @no-mock-driver @P2 @T1247
+  Scenario: Each MCQ on a plain paper has one right option, and its answer is that option
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen Grade 4, Science and the pages to cover
+    When I tick "MCQs" and "Brief Answers" and make the paper
+    Then every MCQ's answer in the answer key is exactly one of its printed options
+    And the paper has no "select all that apply" question, since I did not ask for one
 
   # @no-mock-driver: needs a paper the model writes; the mock lane replays no assessment-generation
   # cassette. tests/assessment/answer-key-marks.test.js and the key goldens execute the renderer.
