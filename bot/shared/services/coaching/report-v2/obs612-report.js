@@ -446,6 +446,32 @@ function ficosHeroVm(vm, v, lang, opts = {}) {
 }
 
 /**
+ * Queue #230: the title block for an FDE / FICO 6-12 page (report-title.js). The class is the form's own grade and
+ * subject; the affirmation sentence ("Your lesson, as your coach scored it …") says what the score and band already
+ * say, so it is not drawn at all (noLead).
+ */
+async function obs612Title(session, analysis, base, vm) {
+  const { buildReportTitle, loadTitleFacts, rubricChip } = require('./report-title');
+  const lang = clampLanguage(vm.language, ['en', 'ur']);
+  const v = base.view || {};
+  const facts = await loadTitleFacts(session);
+  if (!facts.hitl) return null; // not on the HITL v6/v7 switch: today's header
+  return {
+    ...buildReportTitle({
+      teacher: base.teacherName && base.teacherName !== 'Teacher' ? base.teacherName : facts.teacherName,
+      school: facts.school,
+      grade: v.grade,
+      subject: base.view ? subjectIn(v, lang) : null,
+      at: session && session.created_at,
+      observer: facts.observer,
+      observerRole: facts.observerRole,
+      rubric: rubricChip(analysis),
+    }, lang),
+    noLead: true,
+  };
+}
+
+/**
  * Render the FDE report: { png, caption, narrative: null, partialNote } — the shape generateHeroReport returns.
  * The page is the FICO teacher report's (bd-ra8xu.51); the caption stays FDE's own, in the teacher's language.
  * @param {object} session
@@ -466,6 +492,7 @@ async function generateObs612Report(session, analysis, opts = {}) {
     });
   }
   const vm = buildObs612HeroVm(session, analysis, { ...opts, domainWhys });
+  vm.title = await obs612Title(session, analysis, base, vm);
   const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
   return { png, caption: caption(base), narrative: domainWhys ? { domain_whys: domainWhys } : null, partialNote: vm.partialNote };
 }

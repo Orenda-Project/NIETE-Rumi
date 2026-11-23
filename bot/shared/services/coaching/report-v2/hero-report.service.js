@@ -23,6 +23,7 @@ const { loadTrendData } = require('../coaching-trend.service');
 const { buildPartialNote } = require('../report-transformers/_shared');
 const { isV6Scored } = require('../frameworks/fico17-v6/stamp');
 const { isObs612Scored } = require('../frameworks/own-rubric');
+const { buildReportTitle, loadTitleFacts, rubricChip } = require('./report-title');
 
 /**
  * The partial-report note ("based on classroom audio analysis only…"). At delivery the session carries the
@@ -266,6 +267,22 @@ async function generateHeroReport(session, analysis, opts = {}) {
     // bd-gzfdu9 §4.9: the recommended clip under the try box; no key when there is none (the HTML is as today).
     ...(opts.videoStrip ? { videoStrip: opts.videoStrip } : {}),
   };
+
+  // Queue #230: the hero opens with a title block (Teacher Observation Report, who, where, which class, when, by whom,
+  // on what rubric), not the affirmation sentence; the affirmation follows the hero as its lead line.
+  // Only for an observer the HITL v6/v7 switch names (loadTitleFacts .hitl); every other report is as before.
+  const facts = await loadTitleFacts(session);
+  if (facts.hitl) vm.title = buildReportTitle({
+    teacher: (opts.teacherName && opts.teacherName !== 'Teacher' ? opts.teacherName : null) || facts.teacherName,
+    school: facts.school,
+    grade: analysis.grade,
+    subject: analysis.subject,
+    topic: vm.topic,
+    at: session.created_at,
+    observer: facts.observer,
+    observerRole: facts.observerRole,
+    rubric: rubricChip(analysis),
+  }, lang);
 
   const shot = { selector: '.report', width: 794, deviceScaleFactor: 2 };
   const png = await htmlToImage(buildHeroReportHtml(vm), shot);

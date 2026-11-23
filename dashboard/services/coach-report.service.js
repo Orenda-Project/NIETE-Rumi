@@ -116,7 +116,9 @@ function teacherOf(row) {
  * @param {object} row a SQL.REPORT row
  */
 function shapeCoachReport(row) {
-  const fb = row.feedback || {};
+  // Queue #230: a row the judge wrote before its answer was put in words can hold a rubric KEY as a line (try.move
+  // "one_improvement_only" became the Key Focus Area); every line is put in words here, the keys the page reads kept.
+  const fb = Rubric.feedbackInWords(row.feedback || {});
   const harmful = !!(fb.rubric && isHarmfulDebrief(fb.rubric));
   const header = {
     teacher: teacherOf(row),
