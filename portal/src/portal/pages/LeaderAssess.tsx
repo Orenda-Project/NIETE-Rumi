@@ -26,6 +26,7 @@ import {
   allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, visitLimitMs, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
 } from '../lib/assess/visitStore';
 import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa';
+import { searchSchools } from '../lib/schoolSearch';
 
 /**
  * The coach's Learning assessment (/portal/leader/assess), behind portal_child_test_sa.
@@ -101,20 +102,25 @@ function errorOf(err: unknown): { reason: string | null; network: boolean } {
   return { reason: r?.data?.reason || null, network: !r };
 }
 
-/** A school name for the filter: lower case, no accents or Urdu diacritics (sa_all_grades' "Find a school"). */
-function plain(s: string) {
-  return s.normalize('NFD').replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g, '').toLowerCase().trim();
-}
-
-/** The search box matches a school's name, its EMIS or its sector. */
-function schoolMatches(s: SaSchool, q: string) {
-  const want = plain(q);
-  return [s.name, s.emis, s.region].some((v) => plain(v || '').includes(want));
-}
+/**
+ * The search box ("Find a school", sa_all_grades) matches a school's name or sector by the words typed, or its EMIS;
+ * case, spaces, punctuation, accents and Urdu marks do not matter (bd-bfagiy: "i103" finds "IMSG (I-V) I-10/3").
+ */
+const schoolFields = (s: SaSchool) => ({ names: [s.name, s.region], codes: [s.emis] });
 
 /** Today's visit first; sa_r19_practice_first (the server marks `practice`): the practice school above it. */
 function todaysFirst(schools: SaSchool[]) {
   return [...schools].sort((a, b) => (Number(!!b.practice) - Number(!!a.practice)) || (Number(b.visitToday) - Number(a.visitToday)));
+}
+
+/**
+ * The list under "Find a school": the schools that match, closest first (bd-bfagiy), with today's visit (always shown)
+ * and the practice school still on top.
+ */
+function shownSchools(schools: SaSchool[], q: string) {
+  const hits = searchSchools(schools, q, schoolFields);
+  const kept = new Set(hits);
+  return todaysFirst([...hits, ...schools.filter((s) => s.visitToday && !kept.has(s))]);
 }
 
 export default function LeaderAssess() {
@@ -769,11 +775,11 @@ export default function LeaderAssess() {
                   value={schoolFilter} onChange={(e) => setSchoolFilter(e.target.value)}
                   className="w-full min-h-[56px] rounded-2xl border border-slate-300 bg-white px-4 text-base" />
                 <p data-testid="assess-school-count" className="text-sm text-slate-600">
-                  {copy.schoolCount(schools.filter((s) => schoolMatches(s, schoolFilter)).length, schools.length)}
+                  {copy.schoolCount(searchSchools(schools, schoolFilter, schoolFields).length, schools.length)}
                 </p>
               </div>
             )}
-            {schools.filter((s) => !switches.allGrades || s.visitToday || schoolMatches(s, schoolFilter)).map((s) => (
+            {(switches.allGrades ? shownSchools(schools, schoolFilter) : schools).map((s) => (
               <button key={s.schoolId} type="button" data-testid={`assess-school-${s.schoolId}`} onClick={() => pickSchool(s)}
                 className={`w-full min-h-[56px] rounded-2xl border p-4 text-start flex items-center justify-between gap-2 ${s.visitToday ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
                 <span className="min-w-0">

@@ -1,0 +1,32 @@
+{
+  "_about": "bd-bfagiy: one case table for every school search in the portal. Read by the server tests (tests/portal/bd-bfagiy-school-search.test.js, over bot/shared/utils/school-search.js) and the portal tests (portal/src/portal/lib/schoolSearch.test.ts, over schoolSearch.ts), so the two copies of the rule cannot drift. Each case: the query typed, and the ids that must come back, best first.",
+  "schools": [
+    { "id": "a", "name": "IMSG (I-V) I-10/3", "emis": "612" },
+    { "id": "b", "name": "IMCG (VI-XII) I-10/4", "emis": "613" },
+    { "id": "c", "name": "IMS(I-V) No.2 G-10/2", "emis": "273" },
+    { "id": "d", "name": "IMCB G-10/3", "emis": "1033" },
+    { "id": "e", "name": "I-10/3 Model School", "emis": "700" },
+    { "id": "f", "name": "اسلام آباد ماڈل اسکول (I-V) I-10/3", "emis": null }
+  ],
+  "cases": [
+    { "q": "i103", "ids": ["e", "a", "f"], "why": "the operator's I-10/3 with no punctuation; a name starting with it first" },
+    { "q": "I 10 3", "ids": ["e", "a", "f"], "why": "spaces between the parts; IMCB G-10/3 holds i, 10 and 3 too, but only apart, so it is left out while I-10/3 itself is there" },
+    { "q": "imcb 10 3", "ids": ["d"], "why": "words found apart count when nothing holds the query whole" },
+    { "q": "School 5", "ids": [], "why": "no school holds it whole and none holds both words: nothing" },
+    { "q": "i-10/3", "ids": ["e", "a", "f"], "why": "typed with the punctuation" },
+    { "q": "I-10/3", "ids": ["e", "a", "f"], "why": "capitals do not matter" },
+    { "q": "IMSG I10", "ids": ["a"], "why": "two words, each found in the name" },
+    { "q": "imsg i10 3", "ids": ["a"], "why": "three words, any order" },
+    { "q": "i10/3 imsg", "ids": ["a"], "why": "word order is free" },
+    { "q": "IMSG (I-V) I-10/3", "ids": ["a"], "why": "the whole name, exactly" },
+    { "q": "612", "ids": ["a"], "why": "an EMIS code" },
+    { "q": "61", "ids": ["a", "b"], "why": "the start of an EMIS code" },
+    { "q": "imcb", "ids": ["d"], "why": "the start of a name" },
+    { "q": "g-10", "ids": ["c", "d"], "why": "part of a name, punctuation ignored" },
+    { "q": "model i-10", "ids": ["e"], "why": "words from anywhere in the name" },
+    { "q": "ماڈل اسکول", "ids": ["f"], "why": "Urdu words are kept, the space between them ignored" },
+    { "q": "", "ids": ["a", "b", "c", "d", "e", "f"], "why": "a blank search shows every school, in the list's own order" },
+    { "q": "  -/  ", "ids": ["a", "b", "c", "d", "e", "f"], "why": "only spaces and punctuation is a blank search" },
+    { "q": "xyz", "ids": [], "why": "nothing like it" }
+  ]
+}
