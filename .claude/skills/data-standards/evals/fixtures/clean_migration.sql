@@ -1,7 +1,9 @@
 -- alembic revision abc123
 CREATE TABLE teachers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMPTZ NOT NULL
+  is_test BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE lesson_plans (
@@ -9,5 +11,6 @@ CREATE TABLE lesson_plans (
   teacher_id UUID REFERENCES teachers(id),
   phone TEXT, -- PII: Restricted-PII, tokenized at write time
   created_at TIMESTAMPTZ NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL
+  updated_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ
 );
