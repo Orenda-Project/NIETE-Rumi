@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T06:35:27Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"48258747768a","branch":"bd-dp9ipc-main3","user":""}
+{"ts":"2026-11-23T06:35:56Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-dp9ipc-main4: E-DUPID:child-test;E-NODRIVER:registration","sha":"48258747768a","branch":"bd-dp9ipc-main3","user":""}
