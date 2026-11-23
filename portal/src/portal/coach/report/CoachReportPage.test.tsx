@@ -104,6 +104,8 @@ describe("the debrief report page", () => {
       .filter((t) => ["report-hero", "report-respect", "report-marks", "report-did", "report-missed", "report-focus"].includes(String(t)));
     expect(order).toEqual(["report-hero", "report-respect", "report-marks", "report-did", "report-missed", "report-focus"]);
     expect(within(screen.getByTestId("report-hero")).getByTestId("report-score").textContent).toContain("3/8");
+    // Queue #230: the number stays, the star row is gone ("remove stars from the report").
+    expect(screen.getByTestId("report-hero").querySelectorAll("svg").length).toBe(0);
     expect(screen.getByTestId("report-hero").textContent).toContain("Ms. Sadia");
     expect(screen.getByTestId("report-hero").textContent).toContain("Grade 5 Islamiyat");
     // The stamp is an effect after the page draws: wait for it, then check it ran once.

@@ -124,6 +124,9 @@ function buildHeroReportHtml(vm) {
   const marksLine = (score.marks != null && score.max != null) ? `${score.marks}/${score.max}${MARKS_WORD[lang] || ''}` : '';
   const moment = (n.moments || [])[0];
   const logo = (b64, cls) => b64 ? `<img class="${cls}" src="data:image/png;base64,${b64}" alt="NIETE">` : '';
+  // Queue #230: with a title (report-title.js buildReportTitle) the hero is a title block; without one, as before.
+  const TB = vm.title && vm.title.text ? vm.title : null;
+  const scoreHtml = score.overall == null ? '' : `<div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>`;
 
   // Domain-altitude scorecard (e.g. MEWAKA: 6 rows w/ proportional bar). Indicator-altitude
   // frameworks render rows the same way (score/max + bar).
@@ -187,6 +190,17 @@ function buildHeroReportHtml(vm) {
   .hscore .p{font-family:'Lexend';font-weight:700;font-size:44px;letter-spacing:-.02em;margin-top:4px}
   .hscore .s{font-family:'Lexend',${NON_LATIN},sans-serif;font-size:12.5px;color:${P.scoreSub};margin-top:6px;letter-spacing:.05em}
   .who{margin-top:14px;font-size:14px;color:${P.who}}.who b{color:#fff}
+  /* Queue #230: the title block (report-title.js) — a title, then the facts one to a line; no sentence. The chip is
+     Latin and owned whole, so it is isolated LTR (playwrite-reports §3: isolate for an element you own). */
+  .tb{flex:1;max-width:560px}
+  .hero h1.tt{font-family:${headFam};font-size:${RTL ? '29px' : '32px'};line-height:${RTL ? '1.75' : '1.15'};font-weight:600;margin:0}
+  /* A name or a school is data in either script: each line takes its own direction from its first letter (plaintext),
+     so "Imran Baig (Test)" is not painted "(Imran Baig (Test" on an Urdu page; the side it sits on stays the page's. */
+  .tn,.tm{unicode-bidi:plaintext;text-align:${RTL ? 'right' : 'left'}}
+  .tn{font-family:${bodyFam};font-size:${RTL ? '19px' : '20px'};font-weight:700;color:#fff;margin-top:${RTL ? '4px' : '12px'};line-height:${RTL ? '1.9' : '1.3'}}
+  .tm{font-family:${bodyFam};font-size:14px;color:${P.who};margin-top:${RTL ? '0' : '3px'};line-height:${RTL ? '1.95' : '1.45'}}
+  .rchip{display:inline-block;direction:ltr;unicode-bidi:isolate;font-family:'Lexend',sans-serif;font-size:12px;font-weight:700;letter-spacing:.04em;padding:4px 12px;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;margin-top:4px}
+  .lead{font-weight:600}
   .pad{padding:${RTL ? '14px' : '13px'} 42px}
   .identity{font-family:${headFam};font-size:${RTL ? '17px' : '18px'};line-height:${RTL ? '1.6' : '1.45'};color:${P.ink};font-weight:400}
   .cols{display:flex;align-items:flex-start;gap:28px;padding:${RTL ? '8px' : '14px'} 42px 0}
@@ -253,15 +267,24 @@ function buildHeroReportHtml(vm) {
   </style></head><body>
   <div class="report">
     <div class="hero">${vm.photoB64 ? `<img class="bg" src="data:image/jpeg;base64,${vm.photoB64}">` : ''}
-      <div class="hero-in">
+      <div class="hero-in">${TB ? `
+        <div class="hrow">${TB.rubric ? `<span class="rchip">${esc(TB.rubric)}</span>` : '<span></span>'}${logo(A.logoWhite, 'logo')}</div>
+        <div class="headline">
+          <div class="tb">
+            <h1 class="tt">${T(TB.text)}</h1>
+            ${TB.teacher ? `<div class="tn">${T(TB.teacher)}</div>` : ''}${TB.school ? `<div class="tm">${T(TB.school)}</div>` : ''}${TB.line ? `<div class="tm">${T(TB.line)}</div>` : ''}${TB.observer ? `<div class="tm">${T(TB.observer)}</div>` : ''}
+          </div>
+          ${scoreHtml}
+        </div>` : `
         <div class="hrow"><div class="eyebrow">${T(C.celebrate)}</div>${logo(A.logoWhite, 'logo')}</div>
         <div class="headline">
           <h1>${T(n.affirmation || '')}</h1>
-          ${score.overall == null ? '' : `<div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>`}
+          ${scoreHtml}
         </div>
-        <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>
+        <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>`}
       </div>
     </div>
+    ${TB && !TB.noLead && n.affirmation ? `<div class="pad" style="padding-bottom:0"><div class="identity lead">${T(n.affirmation)}</div></div>` : ''}
     ${n.identity ? `<div class="pad" style="padding-bottom:0"><div class="identity">${T(n.identity)}</div></div>` : ''}
     <div class="cols">
       <div class="col-l">

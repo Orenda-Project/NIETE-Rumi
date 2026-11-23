@@ -604,8 +604,10 @@ function winNames(behaviour) {
   return { en, ur: winName(behaviour, observeStrings('ur')) };
 }
 
-function shapeFeedback(fb) {
-  if (!fb) return null;
+function shapeFeedback(stored) {
+  if (!stored) return null;
+  // Queue #230: a stored row can hold a rubric KEY as a line (try.move "one_improvement_only"); put it in words.
+  const fb = require('./observe-coach-rubric').feedbackInWords(stored);
   const { isHarmfulDebrief } = require('./observe-coach-feedback');
   const harmful = !!(fb.rubric && isHarmfulDebrief(fb.rubric));
   return {
@@ -1167,4 +1169,6 @@ module.exports = {
   sendReport,
   // For tests (bd-31ziu8): the stamp a portal start decides, with the coach and the lesson she named.
   _decideStamp: (deps, coach, teacherUserId, lesson, schoolExtId) => decideStamp(withDefaults(deps), coach, teacherUserId, lessonOfArg(lesson), schoolExtId),
+  // For tests (queue #230): the feedback as the portal's pages get it.
+  _shapeFeedback: shapeFeedback,
 };

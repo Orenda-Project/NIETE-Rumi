@@ -114,7 +114,8 @@ export const FeedbackCard = ({ fb }: { fb: CoachFeedback }) => (
               <div key={w.behaviour} className="flex gap-2.5">
                 <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent"><Check className="h-3.5 w-3.5 text-white" strokeWidth={3} aria-hidden="true" /></span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-[15px] font-bold" dir="auto">{w.behaviour}</span>
+                  {/* Queue #230: a rubric-key win by its name (this page is English), never the key itself. */}
+                  <span className="text-[15px] font-bold" dir="auto">{w.name?.en || w.behaviour}</span>
                   <span className="text-[14px] italic text-[#5b6170]" dir="auto">“{w.evidence}”</span>
                 </span>
               </div>
