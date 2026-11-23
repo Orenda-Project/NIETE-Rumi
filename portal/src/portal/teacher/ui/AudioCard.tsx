@@ -7,6 +7,7 @@ import { claimSound, releaseSound } from './sounding';
 import { FOCUS } from './styles';
 import { useKitCopy } from './useKitCopy';
 import { SPEEDS } from './VoiceNote';
+import { nearItsEnd, sameRecording } from './signedLink';
 
 /**
  * bd-4404s7.1 — AudioCard: a recording she can play (the coach's Check and send and the observation; the teacher's Digital
@@ -66,32 +67,103 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
   const rateRef = useRef(rate);
   /** True while the real length of an "Infinity" recording is being read (it is asked to seek to the end once). */
   const probing = useRef(false);
+  /**
+   * bd-r24965 — the link the player holds. A new `src` makes the browser load the file again (position 0, paused, and no
+   * "pause" event, so the button said Pause over a stopped player: the operator's "goes back to 0:00 and does not
+   * play"). So a newly signed link to the SAME recording is not handed to the element; only another recording is, and
+   * then the player starts over, honestly showing Play.
+   */
+  const [held, setHeld] = useState(src);
+  if (src !== held && !sameRecording(held, src)) {
+    setHeld(src);
+    setPlaying(false);
+    setAt(0);
+    setLength(null);
+  }
+  /** The newest link the page has (taken over if the held one expires: R2 refuses a link after its hour). */
+  const newest = useRef(src);
+  useEffect(() => { newest.current = src; }, [src]);
+  const playingRef = useRef(false);
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+  /** Where she is, as last known (the display's `at` without waiting for a render). */
+  const atRef = useRef(0);
+  /** True once this file's length is known: until then a seek is kept in `pending` and applied when it is. */
+  const ready = useRef(false);
+  const pending = useRef<number | null>(null);
+  /** After an expired link: where to pick up on the newest one, and whether it was playing. */
+  const resume = useRef<{ src: string; t: number; play: boolean } | null>(null);
 
   useEffect(() => {
     const el = audio.current;
     if (!el) return undefined;
+    // (re)bound for a new link, or because `controls` changed (the v6/v7 switch answers after the first paint): what the
+    // element already knows stands.
+    ready.current = el.readyState >= 1 && lengthOf(el.duration) != null;
+    probing.current = false;
+    pending.current = null;
+    if (resume.current && resume.current.src !== held) resume.current = null;
+    if (!resume.current) atRef.current = el.currentTime || 0;
     const onPlay = () => { setPlaying(true); if (controls) el.playbackRate = rateRef.current; };
     const onStop = () => setPlaying(false);
     // bd-o15qnr.39 — the full player's bar: the length (and the Infinity trick for a recorder's webm), and where it is.
+    // bd-r24965 — a seek asked before the length was known (or while it was being measured) lands where she asked, and
+    // a pick-up after an expired link lands where she was; never back to 0:00 behind her.
     const onLength = () => {
-      if (!controls) return;
-      el.playbackRate = rateRef.current;
+      if (controls) el.playbackRate = rateRef.current;
       const d = lengthOf(el.duration);
-      if (d != null) {
-        setLength(d);
-        if (probing.current) { probing.current = false; try { el.currentTime = 0; } catch { /* stays where it is */ } setAt(0); }
-        return;
+      if (d == null) {
+        if (controls && el.duration === Infinity && !probing.current) {
+          probing.current = true;
+          try { el.currentTime = 1e101; } catch { probing.current = false; }
+        }
+        if (probing.current || Number.isNaN(el.duration)) return; // the rest waits for the real length
       }
-      if (el.duration === Infinity && !probing.current) {
-        probing.current = true;
-        try { el.currentTime = 1e101; } catch { probing.current = false; }
+      ready.current = true;
+      if (controls && d != null) setLength(d);
+      const back = resume.current;
+      resume.current = null;
+      const measured = probing.current;
+      probing.current = false;
+      const want = pending.current ?? back?.t ?? (measured ? 0 : null);
+      pending.current = null;
+      if (want != null) {
+        const t = Math.max(0, d != null ? Math.min(want, d) : want);
+        try { el.currentTime = t; } catch { /* stays where it is */ }
+        atRef.current = t;
+        if (controls) setAt(t);
       }
+      if (back?.play) { claimSound(el); void el.play()?.catch?.(() => setPlaying(false)); }
     };
-    const onTime = () => { if (controls && !probing.current) setAt(el.currentTime || 0); };
+    const onTime = () => {
+      if (probing.current || pending.current != null) return;
+      atRef.current = el.currentTime || 0;
+      if (controls) setAt(atRef.current);
+    };
+    // bd-r24965 — whatever reloads the file (another recording, the browser itself), the button never says Pause over a
+    // stopped player: a reload fires "emptied", never "pause".
+    const onEmptied = () => setPlaying(false);
+    // bd-r24965 — the held link expired while the page was open (R2 answers 403 on the next range request): take the
+    // newest link to the same recording and pick up where she was. Anything else: the player stops, showing Play.
+    const takeNewest = () => {
+      const now = el.getAttribute('src');
+      const next = newest.current;
+      if (!now || !next || next === now || !sameRecording(now, next)) return false;
+      resume.current = { src: next, t: pending.current ?? atRef.current, play: playingRef.current };
+      setHeld(next);
+      return true;
+    };
+    const onError = () => { if (!takeNewest()) setPlaying(false); };
+    // Chrome fires no "error" for an expired link (ORB blocks R2's XML 403): the player waits. A wait on a link at its end
+    // moves to the newest one; a wait on a live link is only the network.
+    const onWaiting = () => { if (nearItsEnd(el.getAttribute('src'))) takeNewest(); };
     if (controls) { el.defaultPlaybackRate = rateRef.current; el.playbackRate = rateRef.current; }
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onStop);
     el.addEventListener('ended', onStop);
+    el.addEventListener('emptied', onEmptied);
+    el.addEventListener('error', onError);
+    el.addEventListener('waiting', onWaiting);
+    el.addEventListener('stalled', onWaiting);
     el.addEventListener('loadedmetadata', onLength);
     el.addEventListener('durationchange', onLength);
     el.addEventListener('timeupdate', onTime);
@@ -99,20 +171,45 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onStop);
       el.removeEventListener('ended', onStop);
+      el.removeEventListener('emptied', onEmptied);
+      el.removeEventListener('error', onError);
+      el.removeEventListener('waiting', onWaiting);
+      el.removeEventListener('stalled', onWaiting);
       el.removeEventListener('loadedmetadata', onLength);
       el.removeEventListener('durationchange', onLength);
       el.removeEventListener('timeupdate', onTime);
       releaseSound(el);
     };
-  }, [src, controls]);
+  }, [held, controls]);
 
+  /** Where she is now, for back / forward 10 s: the kept seek while the length is not known yet, else the audio's own. */
+  const where = () => {
+    const el = audio.current;
+    if (!el || probing.current || !ready.current || pending.current != null) return pending.current ?? atRef.current;
+    return el.currentTime || 0;
+  };
   const seekTo = (seconds: number) => {
     const el = audio.current;
     if (!el) return;
     const end = length ?? lengthOf(el.duration);
     const t = Math.max(0, end != null ? Math.min(seconds, end) : seconds);
-    try { el.currentTime = t; } catch { /* not seekable yet */ }
+    atRef.current = t;
     setAt(t);
+    // bd-r24965 — the held link is at its end and the page has a newer one to the same recording: a seek would only
+    // stall on it, so the newest link takes over and lands at t (playing if it was).
+    if (moveToNewest(t)) return;
+    // bd-r24965 — not read yet, or measuring an Infinity-long recording: keep it (the measuring would undo it) and land
+    // there once the length is known.
+    if (probing.current || !ready.current) { pending.current = t; return; }
+    try { el.currentTime = t; } catch { pending.current = t; }
+  };
+  /** The newest link takes over at t when the held one is at its end (see nearItsEnd); false when nothing changed. */
+  const moveToNewest = (t: number, play = playingRef.current): boolean => {
+    const next = newest.current;
+    if (!held || !next || next === held || !nearItsEnd(held) || !sameRecording(held, next)) return false;
+    resume.current = { src: next, t, play };
+    setHeld(next);
+    return true;
   };
   const nextRate = () => {
     const i = (PLAYBACK_RATES as readonly number[]).indexOf(rate);
@@ -125,8 +222,9 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
 
   const toggle = () => {
     const el = audio.current;
-    if (!el || !src) { setPlaying((p) => !p); return; }
+    if (!el || !held) { setPlaying((p) => !p); return; }
     if (playing) { el.pause(); return; }
+    if (moveToNewest(where(), true)) return; // bd-r24965 — Play on a link at its end: the newest one, where she was
     claimSound(el);
     void el.play()?.catch?.(() => setPlaying(false));
   };
@@ -153,7 +251,7 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
           ? <Pause className="h-6 w-6" fill="currentColor" strokeWidth={0} aria-hidden="true" />
           : <Play className="h-6 w-6 rtl:-scale-x-100" fill="currentColor" strokeWidth={0} aria-hidden="true" />}
       </button>
-      {src ? <audio ref={audio} src={src} preload={controls ? 'metadata' : 'none'} /> : null}
+      {held ? <audio ref={audio} src={held} preload={controls ? 'metadata' : 'none'} /> : null}
     </section>
   );
   if (!controls) return card;
@@ -172,12 +270,12 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
           <span data-testid="audio-length" dir="ltr">{length != null ? clock(length) : '—'}</span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <button type="button" onClick={() => seekTo((audio.current?.currentTime ?? at) - SKIP_S)} aria-label={words.back10} className={SMALL}>
+          <button type="button" onClick={() => seekTo(where() - SKIP_S)} aria-label={words.back10} className={SMALL}>
             <RotateCcw className="h-5 w-5" aria-hidden="true" /><span aria-hidden="true">10</span>
           </button>
           <button type="button" onClick={nextRate} aria-label={`${words.speed} ${rateLabel}`}
             className={cn(SMALL, 'min-w-[72px] rounded-full bg-[#f3f4f6] tabular-nums')}>{rateLabel}</button>
-          <button type="button" onClick={() => seekTo((audio.current?.currentTime ?? at) + SKIP_S)} aria-label={words.forward10} className={SMALL}>
+          <button type="button" onClick={() => seekTo(where() + SKIP_S)} aria-label={words.forward10} className={SMALL}>
             <span aria-hidden="true">10</span><RotateCw className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
