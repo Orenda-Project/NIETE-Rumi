@@ -9,6 +9,7 @@
  * What a teacher needs from every row, in English and Urdu:
  *   - the child's name whole (not cut, not ellipsised);
  *   - every tag whole, inside the row's name cell, on one line;
+ *   - a tag that drops to a line of its own starts at the name's edge (no indent);
  *   - nothing clipped: the row looks the same with every overflow in the name cell made visible;
  *   - the row grows taller rather than cutting; the page never scrolls sideways.
  * A row with no tags keeps its markup (the page goldens pin it) and its pixels (the last test here).
@@ -81,6 +82,13 @@ run('report page score rows at 360 px: the name whole, the tags whole, no sidewa
         const box = nm.getBoundingClientRect();
         const name = nm.firstElementChild;
         const nr = name.getBoundingClientRect();
+        // the start edge (left in English, right in Urdu) of every piece that begins a new line, against the name's
+        const rtl = getComputedStyle(nm).direction === 'rtl';
+        const start = (r) => (rtl ? r.right : r.left);
+        const kids = [...nm.children];
+        const indents = kids.slice(1)
+          .filter((k, i) => k.getBoundingClientRect().top >= kids[i].getBoundingClientRect().bottom - 1)
+          .map((k) => Math.round(Math.abs(start(k.getBoundingClientRect()) - start(nr))));
         const tags = [...nm.querySelectorAll('.tag, .roll')].map((t) => {
           const r = t.getBoundingClientRect();
           const lh = parseFloat(getComputedStyle(t).lineHeight);
@@ -95,6 +103,7 @@ run('report page score rows at 360 px: the name whole, the tags whole, no sidewa
           name: name.textContent,
           nameWhole: name.scrollWidth <= name.clientWidth + 1 && nr.width > 0,
           cellHidesNothing: nm.scrollWidth <= nm.clientWidth + 1,
+          indents,
           tags,
         };
       });
@@ -113,8 +122,8 @@ run('report page score rows at 360 px: the name whole, the tags whole, no sidewa
     expect(rows).toHaveLength(4);
     expect(xScroll).toBe(false);
     // every row in one assertion, so a failure names each row that loses something
-    const seen = rows.map((r) => ({ name: r.name, nameWhole: r.nameWhole, cellHidesNothing: r.cellHidesNothing, clipFree: r.clipFree, badTags: r.tags.filter((t) => !t.inside || !t.whole || !t.oneLine).map((t) => t.text) }));
-    expect(seen).toEqual(rows.map((r) => ({ name: r.name, nameWhole: true, cellHidesNothing: true, clipFree: true, badTags: [] })));
+    const seen = rows.map((r) => ({ name: r.name, nameWhole: r.nameWhole, cellHidesNothing: r.cellHidesNothing, clipFree: r.clipFree, badTags: r.tags.filter((t) => !t.inside || !t.whole || !t.oneLine).map((t) => t.text), indented: r.indents.filter((d) => d > 1) }));
+    expect(seen).toEqual(rows.map((r) => ({ name: r.name, nameWhole: true, cellHidesNothing: true, clipFree: true, badTags: [], indented: [] })));
     expect(rows.map((r) => r.tags.length)).toEqual([3, 2, 2, 1]); // list number + tries + after the report; list number + after the report; list number
   });
 

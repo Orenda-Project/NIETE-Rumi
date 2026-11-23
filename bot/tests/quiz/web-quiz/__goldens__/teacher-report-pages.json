@@ -1,18 +1,18 @@
 {
   "quiz": {
-    "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
-    "bytes": 99314
+    "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
+    "bytes": 99350
   },
   "quiz-ur": {
-    "sha256": "3a0d7a17c6334ac247af7780d6b5962a714bbbe93ae727fb5f547b95fc8ce9e2",
-    "bytes": 99932
+    "sha256": "692c6e9e0fb3b1beec9edf44d105ddfede5dcd22f989fa5a14182b0b9433e367",
+    "bytes": 99968
   },
   "class": {
-    "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
-    "bytes": 98015
+    "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+    "bytes": 98051
   },
   "quiz-class-tab": {
-    "sha256": "6f6c749598b7238511b7c3a1a38e6a077db77c3588bcfd241c6a23256bb9f207",
-    "bytes": 98348
+    "sha256": "43da506fae4e2c9435a0c05088ba3d29ed88e0cdd2f362c521bf0822c992ede7",
+    "bytes": 98384
   }
 }

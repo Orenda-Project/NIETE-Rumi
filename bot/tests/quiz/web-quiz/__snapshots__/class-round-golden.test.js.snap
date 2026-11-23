@@ -141,29 +141,29 @@ exports[`round off (none): a Challenge run is byte-identical exercise payload, t
 
 exports[`round off (none): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98015,
-  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
+  "bytes": 98051,
+  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98015,
-  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
+  "bytes": 98051,
+  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98343,
-  "sha256": "5a45412325c5b18690db45003a055140a86dfdfd8d1338a2fde31b951af351fa",
+  "bytes": 98379,
+  "sha256": "dd9d78286c4896552ca7faf2cf5aae3f789c03e98e22b22a6abd3a27d3ebef50",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99314,
-  "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
+  "bytes": 99350,
+  "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
 }
 `;
 
@@ -372,29 +372,29 @@ exports[`round off (own_off): a Challenge run is byte-identical exercise payload
 
 exports[`round off (own_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98015,
-  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
+  "bytes": 98051,
+  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98015,
-  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
+  "bytes": 98051,
+  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98343,
-  "sha256": "5a45412325c5b18690db45003a055140a86dfdfd8d1338a2fde31b951af351fa",
+  "bytes": 98379,
+  "sha256": "dd9d78286c4896552ca7faf2cf5aae3f789c03e98e22b22a6abd3a27d3ebef50",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99314,
-  "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
+  "bytes": 99350,
+  "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
 }
 `;
 
@@ -539,28 +539,28 @@ exports[`round off (parent_off): a Challenge run is byte-identical exercise payl
 
 exports[`round off (parent_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98015,
-  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
+  "bytes": 98051,
+  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98015,
-  "sha256": "ccd706a20593ab9b207193f39f900db366769ae3c758b4ad061a778d261dee4a",
+  "bytes": 98051,
+  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98343,
-  "sha256": "5a45412325c5b18690db45003a055140a86dfdfd8d1338a2fde31b951af351fa",
+  "bytes": 98379,
+  "sha256": "dd9d78286c4896552ca7faf2cf5aae3f789c03e98e22b22a6abd3a27d3ebef50",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99314,
-  "sha256": "7f7533cd5ec5bfcea3db89e9ed7e27e198aa08a4395f30a39acfdf5990bced0c",
+  "bytes": 99350,
+  "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
 }
 `;
