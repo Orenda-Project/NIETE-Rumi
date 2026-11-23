@@ -15,12 +15,14 @@ vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } 
 import api from "../../services/api";
 import { ClassLinkCard } from "./ClassLinkCard";
 import { CLASS_LINK_COPY as EN, CLASS_LINK_COPY_UR as UR } from "../classlink/copy";
+import { WHATSAPP_URL_PICKER } from "@/lib/whatsapp";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const flush = () => act(async () => { for (let i = 0; i < 10; i += 1) await Promise.resolve(); });
 const URL1 = "https://quiz.example.org/j/K7QM2XR9TB";
 const URL2 = "https://quiz.example.org/j/H4PW8NZ3CD";
-const wa = (u: string) => `https://wa.me/?text=${encodeURIComponent(`${u}?f=1`)}`;
+// The href the server builds (forwardHref, ?f=1), spelled through lib/whatsapp's picker like every other wa.me URL.
+const wa = (u: string) => `${WHATSAPP_URL_PICKER}?text=${encodeURIComponent(`${u}?f=1`)}`;
 const REPORT = "https://quiz.example.org/r/tok?tab=class#evening-rounds";
 const C1 = { classId: "c1", grade: 3, section: "A", url: URL1, sendHref: wa(URL1), sent: false, round: null };
 const C2 = { classId: "c2", grade: 5, section: null, url: URL2, sendHref: wa(URL2), sent: false, round: null };
