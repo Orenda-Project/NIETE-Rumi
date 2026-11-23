@@ -53,6 +53,7 @@ function normalise(text) {
     .toLowerCase()
     .normalize('NFC')
     .replace(/\p{M}/gu, '')
+    .replace(/n['’]t\b/gu, 'nt') // bd-snkn32.70: "can't" → "cant", one word, so a negation stays inside its window
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -101,7 +102,7 @@ const ROTE_PATTERNS = [
 ];
 // A hit followed by "is not needed" and the like is a refusal of rote, not a request for it.
 const NEGATED_AFTER = /^(?: \S+){0,4} (?:is |are )?(?:not needed|not required|unnecessary|not allowed|zaroori nahi|zaroori nahin)\b/u;
-const NEGATION = new Set(['no', 'not', 'never', 'dont', 'don', 'doesn', 'without', 'avoid', 'instead', 'na', 'nahi', 'nahin', 'mat', 'نہ', 'نہیں', 'مت', 'بغیر']);
+const NEGATION = new Set(['no', 'not', 'never', 'dont', 'don', 'doesn', 'doesnt', 'cant', 'cannot', 'wont', 'shouldnt', 'mustnt', 'without', 'avoid', 'instead', 'na', 'nahi', 'nahin', 'mat', 'نہ', 'نہیں', 'مت', 'بغیر']);
 
 /** True when a pattern matches somewhere not just after a negation (the 3 words before it). */
 function asksFor(norm, patterns) {
@@ -122,6 +123,11 @@ function ruleBreak(text) {
   if (asksFor(norm, GRR_PATTERNS)) return 'grr';
   if (asksFor(norm, ROTE_PATTERNS)) return 'rote';
   return null;
+}
+
+/** bd-snkn32.70 — true when a line of a PLAN asks for rote drill (same patterns, same negations as her request). */
+function isRote(text) {
+  return asksFor(normalise(text), ROTE_PATTERNS);
 }
 
 /** Start of the current Pakistan day (Asia/Karachi midnight) as an ISO string. */
@@ -195,5 +201,5 @@ function statusFields(row) {
 
 module.exports = {
   PARTS, TEXT_MIN, TEXT_MAX, MAX_ROUNDS, DAILY_LIMIT, dailyLimit,
-  normalise, isTinyEdit, ruleBreak, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
+  normalise, isTinyEdit, ruleBreak, isRote, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
 };
