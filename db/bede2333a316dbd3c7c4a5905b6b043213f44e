@@ -1,3 +1,4 @@
 {"ts":"2026-11-23T18:32:58Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
 {"ts":"2026-11-23T18:33:00Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: teacher-coaching owe their Gherkin","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
 {"ts":"2026-11-23T18:33:29Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-fjnrit-main-2: teacher-coaching web lane spec: NOT UPDATED e2e: missing","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
+{"ts":"2026-11-23T18:33:30Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
