@@ -2206,6 +2206,7 @@ Feature: Web child quiz page on the portal
     When Ali Test opens the quiz's own link again with no result kept in the browser, or taps an old "Play again" link to it
     Then the start says "Done for tonight!" and opens no sitting (WQ273)
     And the page stays on a "Done for tonight!" screen with the quiz's card and no Play: nothing on it starts the quiz again
+    And its one Home goes back to the class link's landing, where a sibling on the same phone can pick themselves, never to the round
     # UPDATED 2026-11-23: the page used to toast and redraw the start card, whose Play sent the same start again (a loop).
     And an old class link's jump to the child's hub (web_quiz_link_home) never fires for a class's evening round
     And no hub door, Next stop, games row or finish card offers the finished round as "Play again", from a class link or from a hub link
