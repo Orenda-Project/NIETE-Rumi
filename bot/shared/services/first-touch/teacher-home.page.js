@@ -96,7 +96,6 @@ const CSS = [
   '.th-ok{margin:0;font-weight:800;color:var(--brand-d)}html[lang=ur] .th-ok{font-weight:400;font-size:18px}',
   '.th-sk{background:#EDF2EF;border-radius:12px;min-height:22px}.th-sk-b{min-height:56px}',
   '.th-row-q{flex:1 1 100%}.th-row-b{display:flex;flex-wrap:wrap;gap:8px}',
-  '.th-row .th-link{min-height:44px}',
   '.th-foot{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:6px}',
   '.th-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}',
   '.th-sheet{position:fixed;inset:0;background:var(--ground);overflow:auto;z-index:5}',
