@@ -62,7 +62,8 @@ const FORM = {
   send: { kind: ONE_OF('video', 'share', 'again'), id: (v) => UUID_RX.test(v), lang: LANG },
   'quiz/make': { kind: ONE_OF('lesson', 'coaching'), id: (v) => KEY_RX.test(v), lang: LANG },
   confirm: { looseId: (v) => UUID_RX.test(v), candidateId: (v) => UUID_RX.test(v), decision: ONE_OF('same', 'no', 'unsure') },
-  step: { step: (v) => /^[a-z_]{2,30}$/.test(v), kind: ONE_OF('video', 'share', 'again', 'story'), id: (v) => UUID_RX.test(v), c: (v) => UUID_RX.test(v), origin: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), r: ONE_OF('shared', 'dismissed', 'failed') },
+  // late: a "Quiz reports" row's tap (teacher_home.step report), the string the home sends; a boolean never passes here
+  step: { step: (v) => /^[a-z_]{2,30}$/.test(v), kind: ONE_OF('video', 'share', 'again', 'story'), id: (v) => UUID_RX.test(v), c: (v) => UUID_RX.test(v), origin: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), r: ONE_OF('shared', 'dismissed', 'failed'), late: ONE_OF('true', 'false') },
 };
 function formBody(kind, body) {
   const out = {};
