@@ -222,11 +222,11 @@ async function sendableRows(uid, deps, now = Date.now()) {
   const Send = require('./teacher-home.send');
   // the two fields of meta the rule reads, never the whole meta
   const { data, error } = await supabase.from('quizzes')
-    .select('id, teacher_id, status, quiz_source, topic, student_message:meta->student_message, share_code_id:meta->share_code_id')
+    .select('id, teacher_id, status, quiz_source, topic, language, student_message:meta->student_message, share_code_id:meta->share_code_id')
     .eq('teacher_id', uid).in('status', ['sent', 'report_sent']).order('created_at', { ascending: false }).limit(HISTORY_ROWS);
   if (error) throw new Error(error.message);
   const quizzes = (data || [])
-    .map((q) => ({ id: q.id, teacher_id: q.teacher_id, status: q.status, quiz_source: q.quiz_source, topic: q.topic, meta: q.meta || { student_message: q.student_message, share_code_id: q.share_code_id } }))
+    .map((q) => ({ id: q.id, teacher_id: q.teacher_id, status: q.status, quiz_source: q.quiz_source, topic: q.topic, language: q.language, meta: q.meta || { student_message: q.student_message, share_code_id: q.share_code_id } }))
     .filter((q) => Send.storedCodeOf(q));
   const codeIds = [...new Set(quizzes.map((q) => q.meta.share_code_id))];
   const reads = [];
