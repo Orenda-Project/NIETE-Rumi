@@ -33,6 +33,7 @@
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 const Rubric = require('../../bot/shared/services/observe/observe-coach-rubric');
 const { isHarmfulDebrief } = require('../../bot/shared/services/observe/observe-coach-feedback');
+const { PARTS: LP_PARTS } = require('../../bot/shared/services/observe/lp-check');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -56,6 +57,7 @@ const SQL = {
     SELECT c.id, c.observer_user_id, c.user_id, c.created_at, c.status, c.debrief_status,
            c.analysis_data->'observer_debrief'->'feedback' AS feedback,
            c.analysis_data->'observer_debrief'->>'completed_at' AS feedback_at,
+           c.analysis_data->'observer_debrief'->'guide_snapshot'->'lp_check' AS lp_check,
            c.analysis_data->>'topic' AS topic,
            c.analysis_data->>'subject' AS subject,
            c.analysis_data->>'grade' AS grade,${TEACHER_SQL}
@@ -112,6 +114,38 @@ function teacherOf(row) {
 }
 
 /**
+ * The lesson plan discussion, the report's last block (the ICT HITL owner's spec, 23 Nov 2026), or null: the judge's five
+ * parts (feedback.lp_discussion) with their names in both languages, the notes' line for the FIRST missed part ("Next time,
+ * add"), and the lesson's moves to fold open (the notes' lp_check). Shown, never scored: nothing here touches the marks.
+ * Only debriefs whose notes carried the check have it (the HITL switch, decided when the notes were written).
+ */
+function lessonPlanOf(lp, check) {
+  if (!lp || typeof lp !== 'object') return null;
+  if (lp.state === 'no_plan') return { state: 'no_plan' };
+  if (lp.state === 'not_assessed') return { state: 'not_assessed', reason: text(lp.reason) || 'unavailable' };
+  if (lp.state !== 'ok' || !Array.isArray(lp.parts)) return null;
+  const byKey = new Map(lp.parts.filter((p) => p && p.key).map((p) => [p.key, p]));
+  const parts = LP_PARTS.map((key) => {
+    const p = byKey.get(key) || {};
+    const covered = p.covered === true;
+    return { key, name: both('lp_part_names', key), covered, quote: covered ? text(p.quote) : null, what: covered ? null : text(p.what) };
+  });
+  const c = check && typeof check === 'object' && check.state === 'ok' ? check : null;
+  const firstMissed = parts.findIndex((p) => !p.covered);
+  const line = firstMissed >= 0 && c && Array.isArray(c.lines) ? text(c.lines[firstMissed]) : null;
+  const moves = c && Array.isArray(c.steps) ? c.steps : null;
+  return {
+    state: 'ok',
+    covered: parts.filter((p) => p.covered).length,
+    total: LP_PARTS.length,
+    parts,
+    nextTime: line ? { key: parts[firstMissed].key, line } : null,
+    moves,
+    moveCount: moves ? moves.reduce((n, st) => n + ((st && Array.isArray(st.moves)) ? st.moves.length : 0), 0) : 0,
+  };
+}
+
+/**
  * The report as the page shows it. Pure.
  * @param {object} row a SQL.REPORT row
  */
@@ -132,7 +166,7 @@ function shapeCoachReport(row) {
     return {
       id: row.id, header, harmful: true,
       concern: { what_happened: text(c.what_happened), why_it_matters: text(c.why_it_matters), instead: text(c.instead) },
-      marks: [], done: 0, total: 0, respectHeld: false, did: [], missed: [], focus: null,
+      marks: [], done: 0, total: 0, respectHeld: false, did: [], missed: [], focus: null, lessonPlan: null,
     };
   }
 
@@ -164,6 +198,7 @@ function shapeCoachReport(row) {
       why: text(fb.focus_why),
       tryLine: tryLineFor(focusKey),
     } : null,
+    lessonPlan: lessonPlanOf(fb.lp_discussion, row.lp_check),
   };
 }
 
@@ -205,5 +240,5 @@ async function readyCoachReports(query, coachId) {
 }
 
 module.exports = {
-  SQL, UUID_RX, READY_WINDOW_DAYS, tryLineFor, shapeCoachReport, getCoachReport, markCoachReport, readyCoachReports,
+  SQL, UUID_RX, READY_WINDOW_DAYS, tryLineFor, lessonPlanOf, shapeCoachReport, getCoachReport, markCoachReport, readyCoachReports,
 };
