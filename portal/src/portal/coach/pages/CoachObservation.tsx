@@ -26,9 +26,11 @@ import { LessonPlanRow } from "../observe/PlanState";
 import { Obs612Block } from "../../components/coaching/Obs612Block";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { StatusLine } from "../flow/StatusLine";
-import { AnalysingStage, DebriefDue, DebriefStage, FeedbackCard, FormStage, SendStage, StoppedStage } from "../flow/VisitV7";
+import { AnalysingStage, DebriefDue, DebriefListeningStage, DebriefStage, FeedbackCard, FormStage, SendStage, StoppedStage } from "../flow/VisitV7";
+import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import ContinueOnWhatsApp from "../observe/ContinueOnWhatsApp";
 import { coachReportPath } from "../report/api";
+import { ReportImage } from "../reports/ReportImage";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -73,6 +75,7 @@ const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
 const CoachObservation = () => {
   const C = useCopy(REPORTS);
+  const W = useCopy(FLOW_V7) as FlowV7Copy;
   const { stepRecording } = useCopy(COACHING);
   const kit = useKitCopy();
   const bidi = useBidi();
@@ -150,6 +153,9 @@ const CoachObservation = () => {
   // v7: the one feedback page — the coach's debrief report, or (the principal app's routes) its "Your feedback".
   const feedbackTo = routes.coachGate ? coachReportPath(id) : routes.observation(id, "feedback");
   const hasFeedback = !!view?.talk.feedback;
+  // bd-o15qnr.39 — her debrief is in and being listened to; its recording plays in place when the portal kept it.
+  const listening = viewStep === "listening";
+  const talkAudio = view?.talk.audioUrl || null;
   const dock = dockStep && !v7 ? (
     <Link to={routes.observation(id, dockStep)} data-testid="obs-dock"
       className={cn("flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
@@ -172,7 +178,7 @@ const CoachObservation = () => {
           {(() => {
             // bd-33wxxi.6 — no scores (the principal app, #55 Q1): the lesson still plays, under its own word
             // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
-            if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
+            if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} controls={v7} testId="class-recording" /> : null;
             // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
             // bd-ra8xu.40 — before Submit there is no result yet (the visit is FDE by its rubric): the lesson alone.
             // bd-31ziu8: a FICO-S v1.1 visit (fico_s_v1_1) is filled and shown the same way.
@@ -180,7 +186,7 @@ const CoachObservation = () => {
             if (data.obs612 || fdeVisit) {
               return (
                 <>
-                  {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null}
+                  {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} controls={v7} testId="class-recording" /> : null}
                   {data.obs612 ? <Obs612Block o={data.obs612} /> : null}
                 </>
               );
@@ -188,7 +194,7 @@ const CoachObservation = () => {
             const ring = <ScoreRing value={score} label={C.dcScore} />;
             const sub = allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
             return data.audioUrl
-              ? <AudioCard title={C.dcScore} sub={sub} src={data.audioUrl} lead={ring} />
+              ? <AudioCard title={C.dcScore} sub={sub} src={data.audioUrl} lead={ring} controls={v7} testId="class-recording" />
               : (
                 <section data-testid="score-card" className={cn(LIST_CARD, "flex min-h-[84px] items-center gap-3 p-3")}>
                   {ring}
@@ -217,7 +223,7 @@ const CoachObservation = () => {
             </Card>
           ) : v7 ? (
             <>
-              <StatusLine at={at} />
+              <StatusLine at={at} current={listening ? W.debriefAnalysing : undefined} />
               {herTurn && dockStep === "debrief" && <DebriefDue visitDay={pkDayOf(data.date ?? null)} />}
             </>
           ) : (
@@ -230,22 +236,59 @@ const CoachObservation = () => {
           {v7 && !stopped && at === 0 && working && <AnalysingStage />}
           {v7 && !stopped && herTurn && dockStep === "form" && <FormStage to={routes.observation(id, "form")} />}
           {v7 && !stopped && herTurn && dockStep === "debrief" && <DebriefStage to={routes.observation(id, "debrief")} />}
-          {v7 && mine && hasFeedback && (at >= 3 || allDone) && <FeedbackCard id={id} to={feedbackTo} />}
+          {v7 && !stopped && listening && mine && <DebriefListeningStage />}
           {v7 && !stopped && herTurn && dockStep === "send" && <SendStage name={first} to={routes.observation(id, "send")} />}
 
+          {/* bd-o15qnr.39 (the operator 22 Nov ~00:50: "I don't think the 'What you made' heading is needed. Just show all
+              the submitted items ... here") — every item of the visit, in order, each opening or playing in place: (the
+              class recording and the lesson plan above,) the Feedback Form, the debrief (its guide), the debrief
+              recording, the debrief report (its top card), the report the teacher was sent. */}
+          {v7 && mine && (
+            <div data-testid="visit-items" className="flex flex-col gap-3">
+              {(allDone || at >= 2) && (
+                <div className={LIST_CARD}>
+                  <div data-item="form">
+                    <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={routes.observation(id, "form")} />
+                  </div>
+                  {view?.talk.guide && (
+                    <div data-item="debrief">
+                      <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={routes.observation(id, "debrief")} />
+                    </div>
+                  )}
+                </div>
+              )}
+              {talkAudio && (
+                <div data-item="debrief-recording">
+                  <AudioCard title={W.debriefRecording} sub={view?.talk.recordedAt ? dayOf(view.talk.recordedAt) : undefined} src={talkAudio} controls testId="debrief-recording" />
+                </div>
+              )}
+              {hasFeedback && (at >= 3 || allDone) && (
+                <div data-item="debrief-report"><FeedbackCard id={id} to={feedbackTo} /></div>
+              )}
+              {allDone && reportImage && (
+                <section data-item="teacher-report" data-testid="observation-report" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
+                  <h2 className="m-0 px-1 pt-1 text-[16px] font-semibold leading-[1.3]">{waitingTap ? C.sentTitle(first) : W.reportSentTo(first)}</h2>
+                  {/* bd-o15qnr.39.2: opens full screen in the app, the same viewer as on Send */}
+                  <ReportImage src={reportImage} alt={C.reportImage(name)} loading="lazy" />
+                  {reportCaption && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{reportCaption}</p>}
+                </section>
+              )}
+            </div>
+          )}
+
           {/* Once the debrief is coached, what she made opens here — her feedback included (it sits inside Debrief). */}
-          {(allDone || at >= 3 || (v7 && at >= 2)) && mine && (
+          {!v7 && (allDone || at >= 3) && mine && (
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.whatYouMade}</h2>
               <div className={LIST_CARD} data-testid="what-you-made">
                 <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={routes.observation(id, "form")} />
                 {view?.talk.guide && <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={routes.observation(id, "debrief")} />}
-                {view?.talk.feedback && !v7 && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={routes.observation(id, "feedback")} />}
+                {view?.talk.feedback && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={routes.observation(id, "feedback")} />}
               </div>
             </>
           )}
 
-          {allDone && reportImage && (
+          {!v7 && allDone && reportImage && (
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{waitingTap ? C.sentTitle(first) : C.reportReceived(first)}</h2>
               <section data-testid="observation-report" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
