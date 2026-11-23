@@ -81,7 +81,8 @@ function opening(s, W) {
   const h = s.hook || {};
   const words = (h.keyWords || []).map((k) => (k && typeof k === 'object' ? `<b>${esc(k.term || '')}</b>${has(k.def) ? ` — ${esc(k.def)}` : ''}` : esc(k)));
   const mats = (h.materials || []).filter(has);
-  return [mats.length ? line(W.materials, mats.join(' · ')) : '', line(W.ask, g(h, 'warmUp', 'teacherAsks')), line(W.listen, g(h, 'warmUp', 'expectedAnswer')), p(h.story),
+  // bd-snkn32.53 — the children-visible line (lp-k5-own-children), first.
+  return [p(h.childrenLine), mats.length ? line(W.materials, mats.join(' · ')) : '', line(W.ask, g(h, 'warmUp', 'teacherAsks')), line(W.listen, g(h, 'warmUp', 'expectedAnswer')), p(h.story),
     (h.conversation || []).map((c) => line(W.ask, c && c.teacherAsks)).join(''), moves(h.steps),
     words.length ? box(W.words, `<p>${words.join(' · ')}</p>`) : '',
     box(W.board, [p(g(h, 'board', 'instruction')), has(g(h, 'board', 'content')) ? `<p>${esc(h.board.content).replace(/\n/g, '<br>')}</p>` : ''].join(''))].join('');

@@ -4709,6 +4709,16 @@ const UX_STRINGS = {
     en: 'Your file did not reach us: it is bigger than WhatsApp allows (100 MB). Please send a shorter or smaller file.',
     ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
   },
+
+  // ── her own grades 1-5 plan: the children-visible line (bd-snkn32.53) ────────
+  // services/lp-k5-own-children.js — printed at the top of the Opening, in the BOOK's language (classroom content,
+  // frozen with the plan), never the teacher's UI language. Not a WhatsApp string.
+  lpOwnChildrenLine: {
+    en: 'Make it theirs: use a girl\'s and a boy\'s name from your class in the examples (for example Ayesha and Bilal), '
+      + 'a place the children know (home, the bazaar, the school), and ask one child for their own example.',
+    ur: 'سبق کو بچوں کا بنائیں: مثالوں میں اپنی جماعت کی ایک لڑکی اور ایک لڑکے کا نام لیں (جیسے عائشہ اور بلال)، '
+      + 'کوئی جانی پہچانی جگہ لیں (گھر، بازار، اسکول)، اور ایک بچے سے اس کی اپنی مثال پوچھیں۔',
+  },
   // bd-f3b562 (queue #233) — the same refusal while her observation waits on THAT recording: said every time (2-min
   // burst guard), naming the step, so a refused debrief never looks like a stuck one. The visit is safe; the way through
   // is a Document (the debrief and lesson routers take an audio Document of any length), or for the debrief, the mic.

@@ -21,7 +21,7 @@
  * code after the reply (lp-own-fit); they never refuse and never cost another model call.
  */
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
-const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine, PRIMARY_PURPOSES } = require('./lp612-own-ways');
+const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, CHILDREN_LINE, bookLine, PRIMARY_PURPOSES } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
 const { k5GoalLines } = require('./lp-k5-own-goal');
 const { goalDayLines } = require('./lp-own-unit-day');
@@ -71,6 +71,7 @@ function system(lang) {
     'Always keep all five parts, hook, iDo, weDo, youDo and wrap, each with real teaching in it: change how each part is taught, never drop or empty a part. Inside a part, a field with nothing to say may be left out; never write a placeholder such as "not ready".',
     GRR_LINE, // in the make and the change alike (k5EditMessages uses this system)
     ROTE_LINE,
+    CHILDREN_LINE, // bd-snkn32.53 — the reviewer's 6B: a girl's and a boy's name, local places
     language,
   ].join('\n');
 }

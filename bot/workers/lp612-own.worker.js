@@ -37,6 +37,7 @@ const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edi
 const Extend = require('../shared/services/lp612-own-extend');
 const { finishOwnDoc } = require('../shared/services/lp612-own-close');
 const { addK5Close } = require('../shared/services/lp-k5-own-close');
+const { addK5Children } = require('../shared/services/lp-k5-own-children');
 const { goalGate } = require('../shared/services/lp-own-goal-check');
 const { goalDay } = require('../shared/services/lp-own-unit-day');
 
@@ -135,6 +136,7 @@ function createOwnWorker(deps) {
         rewrite: async (s, edit) => { const r = await d.rewriteK5({ ...ask, script: s, edit }); return r && r.script ? r.script : null; } });
     }
     out.script = addK5Close(out.script, day.lang); // bd-snkn32.52 — "Before they write", after the gate, always
+    out.script = addK5Children(out.script, day.lang); // bd-snkn32.53 — a girl's and a boy's name, a local place
     let pdf;
     try {
       pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: noBook ? null : (row.answers && row.answers.pages) || day.pages || null });
