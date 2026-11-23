@@ -220,7 +220,8 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang 
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const Home = require('./web-quiz-hub-home');
-  const colsOf = (on) => `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id, video_id${on ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  // src: the quiz's meta.source, so a class's evening round (its own tile, tonight only) is never "from your teacher".
+  const colsOf = (on) => `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id, video_id, src:meta->>source${on ? `, ${Home.PREVIEW_COLS}` : ''}`;
   const histIds = [...new Set(history.filter((e) => e.latest && e.quizId).map((e) => e.quizId))];
   let home = null;
   let histP = null;
@@ -260,7 +261,8 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang 
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
   const lang = pageLang || clampLanguage(require('./student-quiz.service').childLanguage(history));
-  const fresh = open.filter((c) => quizById.get(c.quiz_id) && !lessonRefs(quizById.get(c.quiz_id)).some((r) => doneLessons.has(r)));
+  const fresh = open.filter((c) => quizById.get(c.quiz_id) && quizById.get(c.quiz_id).src !== 'evening_round'
+    && !lessonRefs(quizById.get(c.quiz_id)).some((r) => doneLessons.has(r)));
   const ranked = [];
   const push = (c, rank) => { const q = quizById.get(c.quiz_id); ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 }); };
   // A hand-out bound to the child's class is theirs: no class resolution needed (the hub boot stays fast).
@@ -301,7 +303,8 @@ function lastOf(history, kidId) {
   const base = { code: e.code, topic: e.topic, subject: e.subject, k: T.chipId(e.shareCodeId, kidId) };
   // Unfinished — or finished once and a newer attempt left unfinished on a still-open link: Continue resumes it.
   if (!e.latest || (e.openAnswered != null && e.active)) return { ...base, state: 'open', answered: e.openAnswered || 0 };
-  return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) };
+  // an evening round is played once: its card shows the score, never Play again
+  return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) && !e.round };
 }
 
 /**
@@ -320,7 +323,7 @@ async function answeredSoFar(entry, fallback = 0) {
 
 function againOf(history, kidId, teacherCode) {
   return history
-    .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode)
+    .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode && !e.round)   // never an evening round
     .sort((a, b) => String(b.lastAt || '').localeCompare(String(a.lastAt || '')))
     .slice(0, AGAIN_MAX)
     .map((e) => {

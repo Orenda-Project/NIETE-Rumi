@@ -4605,6 +4605,42 @@ const UX_STRINGS = {
   // generic words, with no kind and no question count; {mascot} = the brand's mascot name in the page's language.
   quizHeadGuessTitle: { en: 'Quiz', ur: 'کوئز' },
   quizHeadGuessDesc: { en: '{mascot} reads it with you', ur: '{mascot} کے ساتھ پڑھیں' },
+
+  // ─── qfix_class_link (append-only): the class evening round's tile on the child's hub ───────────────────
+  // copy.v2.json qfix_class_link.round_title; a 5-minute round written from the class's lesson of the day.
+  qfix_class_link_round_title: {
+    en: "Tonight's quiz",
+    ur: 'آج شام کا کوئز',
+  },
+  // The teacher report's "Evening rounds" rows name their day: the week's days Sunday first, '|' between them
+  // (web-quiz-evening-round.js dayWords, with the month names of coaching/weekly-report/message.js).
+  qfix_class_link_weekdays: {
+    en: 'Sun|Mon|Tue|Wed|Thu|Fri|Sat',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // The same week as whole words, Sunday first, '|' between them: the child's hub names the previous school day's
+  // round by its day ("Friday's quiz"); Urdu's day names have no short form, so its list is the one above.
+  qfix_class_link_weekdays_long: {
+    en: 'Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // copy.v2.json qfix_class_link.past_title: the row under the hub's Next tile for the previous school day's round;
+  // {day} is a word of qfix_class_link_weekdays_long in the same language.
+  qfix_class_link_past_title: {
+    en: "{day}'s quiz",
+    ur: '{day} کا کوئز',
+  },
+  // copy.v2.json qfix_class_link.rounds_played_one / rounds_played: the teacher report's "Evening rounds" row, how many
+  // children finished the round. Urdu inflects the noun for one child («۱ بچے نے کھیلا», never «۱ بچوں نے کھیلا»), so
+  // one child is its own line; {n} is in the language's own digits (digitsFor).
+  qfix_class_link_rounds_played_one: {
+    en: '{n} child played',
+    ur: '{n} بچے نے کھیلا',
+  },
+  qfix_class_link_rounds_played: {
+    en: '{n} children played',
+    ur: '{n} بچوں نے کھیلا',
+  },
 };
 
 /**
