@@ -225,6 +225,8 @@ const STRINGS = {
     send_already_sent: '✅ Ripoti ya uchunguzi huo imeshatumwa kwa mwalimu.',
     send_waiting_tap_info: '📨 Ripoti iko tayari — mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; Rumi anamkumbusha, na ripoti itafika mara tu atakapobonyeza.',
     send_done_fo: '✅ Ripoti imefika kwa mwalimu. Asante kwa kazi nzuri ya ukocha! 🌱',
+    // bd-o15qnr.39.2: the caption on the observer's own copy of the report she sent from the app (DRAFT, native check).
+    report_copy_observer: 'Nakala ya ripoti iliyotumwa kwa {name}',
     // bd-2411: delivery to the teacher failed on the worker; tell the coach so it isn't a silent drop.
     send_failed_fo: '⚠️ Samahani — ripoti haikuweza kutumwa kwa mwalimu sasa hivi. Andika /observe, chagua uchunguzi huo, na ujaribu tena kutuma (📨).',
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
@@ -579,6 +581,9 @@ const STRINGS = {
     send_already_sent: 'یہ رپورٹ پہلے ہی بھیجی جا چکی ہے۔ ✅',
     send_waiting_tap_info: '📨 رپورٹ تیار ہے — {name} کو دعوت ({date}) بھیجی جا چکی ہے۔ ابھی دعوت پر ٹیپ نہیں ہوا؛ رومی یاد دہانی بھیجتی رہتی ہے، اور ٹیپ ہوتے ہی رپورٹ خود بخود پہنچ جائے گی۔',
     send_done_fo: '✅ رپورٹ استاد کو پہنچ گئی۔',
+    // bd-o15qnr.39.2 (MACHINE-DRAFTED, NATIVE-CHECK): the caption on the observer's own copy of the report she sent
+    // from the app. Urdu words first, so a Latin-script name does not turn the line left-to-right.
+    report_copy_observer: 'رپورٹ کی کاپی جو {name} کو بھیجی گئی',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: '⚠️ معذرت — رپورٹ ابھی استاد کو نہیں بھیجی جا سکی۔ \u2066/observe\u2069 لکھیں، وہ مشاہدہ منتخب کریں، اور دوبارہ بھیجنے کی کوشش کریں (📨)۔',
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
@@ -979,6 +984,8 @@ const STRINGS = {
     send_already_sent: '✅ That observation\'s report has already been sent to the teacher.',
     send_waiting_tap_info: '📨 The report is ready — the invitation went to {name} ({date}). No tap yet; Rumi keeps reminding, and the report is delivered automatically the moment the invitation is tapped.',
     send_done_fo: '✅ The report reached the teacher. Beautiful coaching work! 🌱',
+    // bd-o15qnr.39.2 (queue #204): the caption on the observer's own copy of the report she sent from the app.
+    report_copy_observer: 'Copy of the report sent to {name}',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: "⚠️ Sorry — the report couldn't be sent to the teacher just now. Type /observe, pick that observation, and try sending again (📨).",
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.

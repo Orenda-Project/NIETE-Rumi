@@ -1314,8 +1314,9 @@ async function processTeacherReport(sessionId, payload = {}) {
     });
     const clipLink = await require('../coaching/video-reco/caption-link').linkBlock({ row: videoReco, language: teacherLang, coachingSessionId: sessionId }).catch(() => null);
     let clipLinkSent = false;
+    let png = null;
     try {
-      const png = await downloadFromR2(delivery.report_key);
+      png = await downloadFromR2(delivery.report_key);
       ({ clipLinkSent } = (await _sendPackage(delivery.teacher_phone, png, delivery.caption || '', delivery.companion_text, clipLink ? clipLink.text : null)) || {});
     } catch (sendErr) {
       // `phase` decides whether the window-closed fallback is even available:
@@ -1348,6 +1349,19 @@ async function processTeacherReport(sessionId, payload = {}) {
     await require('../coaching/video-reco/send').sendAfterReport({
       coachingSessionId: sessionId, phone: delivery.teacher_phone, language: teacherLang, row: videoReco,
     }).catch(() => null);
+    // bd-o15qnr.39.2 (queue #204): a send started in the APP — the observer gets her own copy of the report the teacher
+    // just got, captioned in HER language (S), when the v6/v7 switch names her. Only now that the report itself went
+    // (the direct send or her tap; never the invite alone), after the delivery is filed as sent, and best effort: it
+    // never throws, so the teacher's delivery can not be failed or re-run by it. A WhatsApp-run send already showed the
+    // coach the preview in that chat, so it gets none.
+    if (portal) {
+      try {
+        await require('./observer-report-copy').sendObserverCopy({
+          sessionId, observerUserId: session.observer_user_id, png, teacherName: delivery.teacher_name,
+          strings: S, teacherPhone: delivery.teacher_phone,
+        });
+      } catch (_) { /* sendObserverCopy never throws; belt and braces for the teacher's sake */ }
+    }
     if (!portal) {
       await WhatsAppService.sendMessage(
         foPhone,

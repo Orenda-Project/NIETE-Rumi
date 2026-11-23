@@ -14,6 +14,7 @@ import { ScoreRing } from "../../teacher/ui";
 import { ShareActions } from "../../teacher/ui/ShareActions";
 import { Initials, useLoad } from "../ui";
 import ReportsFrame from "./ReportsFrame";
+import { ReportImage } from "./ReportImage";
 import { REPORTS } from "./copy";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
@@ -117,7 +118,8 @@ export default function SendReport() {
             </section>
           )}
           <section data-testid="report-preview" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
-            {view.report.imageUrl && <img src={view.report.imageUrl} alt={C.reportImage(name)} className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb]" />}
+            {/* bd-o15qnr.39.2: on the v6/v7 switch the report opens full screen in the app; off, the same image as before. */}
+            {view.report.imageUrl && <ReportImage src={view.report.imageUrl} alt={C.reportImage(name)} />}
             {view.report.caption && <p className="whitespace-pre-line px-1 text-[14px] leading-relaxed" dir="auto">{view.report.caption}</p>}
             {view.report.companionText && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{view.report.companionText}</p>}
           </section>
