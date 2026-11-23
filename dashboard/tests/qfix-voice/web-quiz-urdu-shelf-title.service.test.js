@@ -1,16 +1,16 @@
 /**
  * An Urdu lesson title on the Videos shelf shows its letters whole (wq-doors.css `.wq-vct`).
  *
- * Bug (Nov 2026, production): the title is a 2-line clamp with overflow hidden. In Urdu it is 15 px Nastaliq at
- * line-height 1.9, a 28.5 px line, but a Nastaliq line needs 33 px (scrollHeight, measured on the live page at
- * 360 × 740). The clamp cut the top strokes of ک and گ, so «کہ اور کے میں فرق» read «لہ اور کے میں فرق» on the shelf.
- * The title keeps its clamp, and gets room above the first line, like See all and Try again in the same file
- * ("Nastaliq rides high").
+ * Bug (Nov 2026, production): «کہ اور کے میں فرق» read «لہ اور کے میں فرق» on the shelf. A line-initial ک or گ draws its
+ * top bar past the start of its advance, in every Urdu face. In RTL that start is the box's right edge, and the
+ * title's clamp (overflow hidden) trimmed the bar, leaving a ل-like stem. Measured at a true 3× scale on the live page:
+ * nothing is cut at the top, so the first fix (5 px of top room) changed nothing and is taken out again.
+ * The title keeps its clamp and gets 6 px at its inline start (the right edge in Urdu).
  */
 const { computed, node, root } = require('./cascade');
 
 const DOORS = [root('wq.css'), root('wq-doors.css')];
-const NASTALIQ_LINE_PX = 33;
+const BAR_PX = 6;
 
 const title = (lang, adv = false) => [
   node('html', adv ? ['wq-adv'] : [], { lang }),
@@ -23,11 +23,11 @@ const title = (lang, adv = false) => [
 const px = (v) => (v == null ? 0 : parseFloat(v));
 const value = (path, prop) => (computed(path, prop, DOORS) || {}).value;
 
-describe('the Urdu shelf title has room for Nastaliq above its first line', () => {
-  test.each([[false], [true]])('Urdu, advanced look %s: line plus top room is at least a Nastaliq line', (adv) => {
+describe('the Urdu shelf title has room at its start for a ک or گ bar', () => {
+  test.each([[false], [true]])('Urdu, advanced look %s: inline-start room is at least 6 px, and no top room', (adv) => {
     const p = title('ur', adv);
-    const line = px(value(p, 'font-size')) * parseFloat(value(p, 'line-height'));
-    expect(line + px(value(p, 'padding-top'))).toBeGreaterThanOrEqual(NASTALIQ_LINE_PX);
+    expect(px(value(p, 'padding-inline-start'))).toBeGreaterThanOrEqual(BAR_PX);
+    expect(px(value(p, 'padding-top'))).toBe(0);
   });
 
   test('it is still a 2-line clamp that hides the rest (the card keeps its height)', () => {
@@ -36,8 +36,10 @@ describe('the Urdu shelf title has room for Nastaliq above its first line', () =
     expect(value(p, 'overflow')).toBe('hidden');
   });
 
-  test('an English title is drawn exactly as before: no new top room', () => {
-    expect(value(title('en'), 'padding-top')).toBeUndefined();
+  test('an English title is drawn exactly as before: no new room on any side', () => {
+    for (const prop of ['padding-top', 'padding-inline-start', 'padding-right', 'padding-left']) {
+      expect(value(title('en'), prop)).toBeUndefined();
+    }
     expect(value(title('en'), 'line-height')).toBe('1.3');
   });
 });
