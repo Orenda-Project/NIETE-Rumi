@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T07:04:11Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"e1db7a7aaa31","branch":"HEAD","user":""}
+{"ts":"2026-11-23T07:05:16Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"e1db7a7aaa31","branch":"bd-uxzi8c.1-17450","user":""}
