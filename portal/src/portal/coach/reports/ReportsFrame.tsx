@@ -8,6 +8,8 @@ import { AttentionBanner } from "../../teacher/ui";
 import type { AnyFeature } from "../../teacher/icons";
 import { REPORTS } from "./copy";
 import { RecordingBarShownContext } from "../../lib/recordingBarShown";
+import { ObserveHelp, ObserveHelpButton } from "../../teacher/help/observe/ObserveHelp";
+import type { Band } from "../../teacher/help/observe/guides";
 
 /**
  * bd-4404s7.5 — the page frame every Reports screen shares: the coach gate, the kit's TeacherPage (the reports
@@ -36,7 +38,7 @@ export function PendingReportsBanner() {
 }
 
 export default function ReportsFrame({
-  title, crumb, backTo, onBack, feature = "observations", chips, dock, bare, banner = true, testId, dockSpace = false, children,
+  title, crumb, backTo, onBack, feature = "observations", chips, dock, bare, banner = true, testId, dockSpace = false, helpBand, children,
 }: {
   title: ReactNode;
   crumb?: ReactNode;
@@ -51,6 +53,8 @@ export default function ReportsFrame({
   testId?: string;
   /** bd-o15qnr.40.8 — keep room under the content for the bar, the menu and the safe area (the v7 form views). */
   dockSpace?: boolean;
+  /** bd-3xf7vb.1 (queue #217) — the visit's grades (its rubric): that band's indicator guide opens first in the "?". */
+  helpBand?: Band;
   children: ReactNode;
 }) {
   const routes = useObserveRoutes();
@@ -65,12 +69,15 @@ export default function ReportsFrame({
       ? "h-[calc(228px+var(--notice-h,0px)+env(safe-area-inset-bottom))]"
       : "h-[calc(168px+var(--notice-h,0px)+env(safe-area-inset-bottom))]";
   // bd-33wxxi.4 — the principal app's observation screens: no coach gate (TeacherGate ran), no coach pending banner.
+  // bd-3xf7vb.1 (queue #217): the "?" (film + indicator guides) at the end of the header, never on a bare screen; ObserveHelp
+  // around the screen holds its tray and gives the Feedback Form the guide (its "Examples" under an indicator).
   const page = (
-    <TeacherPage feature={feature} title={title} crumb={crumb} backTo={backTo} onBack={onBack} chips={chips} dock={dock} bare={bare} testId={testId}>
+    <TeacherPage feature={feature} title={title} crumb={crumb} backTo={backTo} onBack={onBack} chips={chips} dock={dock} bare={bare} testId={testId}
+      action={!bare ? <ObserveHelpButton /> : undefined}>
       {banner && !bare && routes.coachGate ? <PendingReportsBanner /> : null}
       {children}
       {space ? <div aria-hidden="true" data-testid="dock-space" className={`${space} shrink-0 md:h-0`} /> : null}
     </TeacherPage>
   );
-  return routes.coachGate ? <CoachGate>{page}</CoachGate> : page;
+  return <ObserveHelp band={helpBand}>{routes.coachGate ? <CoachGate>{page}</CoachGate> : page}</ObserveHelp>;
 }
