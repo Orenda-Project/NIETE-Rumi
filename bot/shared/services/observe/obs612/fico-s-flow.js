@@ -671,6 +671,16 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
   };
   return SCREENS.map((screen) => {
     const parts = [];
+    // bd-o15qnr.40.6 (queue #229): what the section is, so the v7 portal draws FICO-S as the 1-5 form (sections as rows,
+    // a section's indicators as rows, one indicator alone). Additive: the parts are unchanged.
+    const meta = { kind: screen.kind };
+    if (screen.section) meta.sec = screen.section;
+    if (screen.kind === 'intro') meta.title = FicoS.sectionName(screen.section, lang);
+    if (screen.kind === 'indicator') {
+      meta.code = screen.code;
+      meta.name = FicoS.indicatorText(screen.code, lang).name;
+      meta.starred = FicoS.isStarred(screen.code) && Boolean(dc && dc.levels);
+    }
     if (screen.kind === 'start') {
       parts.push({ type: 'heading', text: s.start_heading });
       for (const para of s.start_body.split('\n\n')) parts.push({ type: 'sub', text: para });
@@ -722,7 +732,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       parts.push(field('fs_focus_2', 'other', s.lbl_focus_2));
       parts.push(field('fs_action_2', 'other', s.lbl_action_2));
     }
-    return { id: screen.id, parts };
+    return { id: screen.id, ...meta, parts };
   });
 }
 

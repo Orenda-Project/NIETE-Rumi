@@ -72,8 +72,11 @@ describe('FICO-S portal: the pre-fill lines are tagged and name the Digital Coac
   });
 
   test('the WhatsApp Flow\'s screen data keeps its own words (portal only)', () => {
-    const c1 = FF.screenData(FF.indicatorScreenId('C1'), {}, 'en', { dc: DC, rubric: RUBRIC });
-    expect(JSON.stringify(c1)).toMatch(/NIETE Teaching Assistant chose/);
+    const c1 = JSON.stringify(FF.screenData(FF.indicatorScreenId('C1'), {}, 'en', { dc: DC, rubric: RUBRIC }));
+    // the Flow's own line (whatever this branch words it: "Rumi chose" on staging/main, "The NIETE Teaching Assistant
+    // chose" on sandbox), never the portal's
+    expect(c1).toContain(FF.STR.en.rumi_chose('3').split(' 3 ')[0]);
+    expect(c1).not.toMatch(/The Digital Coach chose/);
   });
 });
 
