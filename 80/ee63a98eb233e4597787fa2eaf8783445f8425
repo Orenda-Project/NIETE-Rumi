@@ -1,2 +1,4 @@
 {"ts":"2026-11-23T13:38:05Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"80ee63a98eb2","branch":"bd-97daxo.34-gbquiz","user":""}
 {"ts":"2026-11-23T13:38:06Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"80ee63a98eb2","branch":"bd-97daxo.34-gbquiz","user":""}
+{"ts":"2026-11-23T13:38:07Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"80ee63a98eb2","branch":"bd-97daxo.34-gbquiz","user":""}
+{"ts":"2026-11-23T13:38:23Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (fan-out mapping: change is the lp612 quiz source/provider; no training surface touched)","sha":"80ee63a98eb2","branch":"bd-97daxo.34-gbquiz","user":""}
