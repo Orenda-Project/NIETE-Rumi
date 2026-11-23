@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Upload } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCopy, useLang } from "../../teacher/i18n";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
@@ -8,6 +8,7 @@ import { getCoachReport, type CoachReport } from "../report/api";
 import { COACH_REPORT, type CoachReportCopy } from "../report/copy";
 import { debriefPercent } from "../report/CoachReportPage";
 import { FLOW_V7, type FlowV7Copy } from "./copyV7";
+import { FORM_V7, type FormV7Copy } from "./copyV7form";
 import { debriefDueDay } from "./debriefDue";
 import { karachiDay } from "../time";
 import { OBSERVE } from "../observe/copy";
@@ -21,6 +22,11 @@ import { OBSERVE } from "../observe/copy";
  *   FeedbackCard    the report's own top card (%, the 5 stars, the teacher line) as ONE tap target to the one feedback
  *                   page; no sentence, no button
  *   SendStage       Send {name} the report: "{name} gets it on WhatsApp." and Send report
+ *
+ * bd-o15qnr.47 (queue #243, the operator 23 Nov ~23:23: the filled form "is just there on this page as a whole. Pushes
+ * the next stuff all the way down") — the step she does next is the FIRST card under the header, "Next: <step>"
+ * (NextCard, the form's own "Next:" words) with its button(s); every step she has done folds to one row (DoneRow):
+ * what happened, one line, and what opens it (View form / View debrief / View report).
  */
 
 const BIG = "flex min-h-[56px] flex-1 items-center justify-center gap-2.5 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8]";
@@ -38,31 +44,48 @@ export function DebriefDue({ visitDay }: { visitDay: string | null }) {
   const late = karachiDay() > due;
   return (
     <p data-testid="debrief-due" data-late={late ? "yes" : "no"}
-      className={cn("m-0 -mt-1 px-0.5 text-[14px] font-semibold", late ? "text-[#b45309]" : "text-[#4b5563]")}>
+      className={cn("m-0 text-[14px] font-semibold", late ? "text-[#b45309]" : "text-[#4b5563]")}>
       {late ? W.wasDue(dayWords(due, lang)) : W.dueBy(dayWords(due, lang))}
     </p>
   );
 }
 
-export function DebriefStage({ to }: { to: string }) {
+/**
+ * bd-o15qnr.47 — the visit's next step, first under the header: "Next: <step>" and what does it (children). An amber
+ * start edge: the step waiting on her.
+ */
+export function NextCard({ step, children }: { step: string; children: ReactNode }) {
+  const F = useCopy(FORM_V7) as FormV7Copy;
+  return (
+    <section data-testid="visit-next" className={cn(LIST_CARD, "flex flex-col gap-3 border-s-4 border-s-[#f59e0b] p-4")}>
+      <h2 className="m-0 text-[18px] font-semibold leading-[1.3] rtl:leading-[1.8]">{F.nextStep(step)}</h2>
+      {children}
+    </section>
+  );
+}
+
+/** The debrief, next: its due day, "Talk with the teacher, then record it here." and Start recording / Upload recording. */
+export function DebriefStage({ to, due }: { to: string; due?: ReactNode }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
   const upload = `${to}${to.includes("?") ? "&" : "?"}upload=1`;
   return (
-    <section data-testid="stage-debrief" className={cn(LIST_CARD, "flex flex-col gap-3 p-4")}>
-      <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[18px] font-semibold">{W.yourDebrief}</h2>
-        <p className="m-0 text-[15px] text-[#4b5563]">{W.talkThenRecord}</p>
+    <NextCard step={W.steps[2].current}>
+      <div data-testid="stage-debrief" className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          {due}
+          <p className="m-0 text-[15px] text-[#4b5563]">{W.talkThenRecord}</p>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <Link to={to} className={cn(BIG, "bg-[#33374a] text-white", FOCUS)}>
+            <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
+            <StartWord />
+          </Link>
+          <Link to={upload} className={cn(BIG, "border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
+            <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
+          </Link>
+        </div>
       </div>
-      <div className="flex flex-col gap-2.5">
-        <Link to={to} className={cn(BIG, "bg-[#33374a] text-white", FOCUS)}>
-          <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
-          <StartWord />
-        </Link>
-        <Link to={upload} className={cn(BIG, "border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
-          <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
-        </Link>
-      </div>
-    </section>
+    </NextCard>
   );
 }
 
@@ -101,22 +124,71 @@ export function FeedbackCard({ id, to }: { id: string; to: string }) {
 export function SendStage({ name, to }: { name: string; to: string }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
   return (
-    <section data-testid="stage-send" className={cn(LIST_CARD, "flex flex-col gap-3 p-4")}>
-      <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[18px] font-semibold">{W.sendTitle(name)}</h2>
+    <NextCard step={W.sendTitle(name)}>
+      <div data-testid="stage-send" className="flex flex-col gap-3">
         <p className="m-0 text-[15px] text-[#4b5563]">{W.getsOnWhatsApp(name)}</p>
+        <Link to={to} className={cn(BIG, "bg-[#33374a] text-white", FOCUS)}>{W.sendReport}</Link>
       </div>
-      <Link to={to} className={cn(BIG, "bg-[#33374a] text-white", FOCUS)}>{W.sendReport}</Link>
-    </section>
+    </NextCard>
   );
 }
 
 export function FormStage({ to }: { to: string }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
   return (
-    <Link to={to} data-testid="stage-form" className={cn(BIG, "w-full bg-[#33374a] text-white", FOCUS)}>
-      {W.fillTheForm}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+    <NextCard step={W.steps[1].current}>
+      <Link to={to} data-testid="stage-form" className={cn(BIG, "w-full bg-[#33374a] text-white", FOCUS)}>
+        {W.fillTheForm}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+      </Link>
+    </NextCard>
+  );
+}
+
+/* ── bd-o15qnr.47: a step she has done, folded to one row ─────────────────────────────────────────────────────── */
+
+const VIEW = "flex min-h-[56px] shrink-0 items-center gap-1 rounded-xl border border-[#e5e7eb] bg-white px-3 text-[15px] font-semibold text-[#33374a] rtl:leading-[1.8]";
+
+/**
+ * One done step: a green tick (or `lead`), what happened (`title`), one line (`line`: a result such as "52 / 88 · 59.1%
+ * · Developing", drawn left to right when `ltr`), and `action` (ViewLink / ViewToggle). `children` is what the row opens in
+ * place. `item` names it in the visit's list (data-item, newest first).
+ */
+export function DoneRow({ testId, item, title, line, ltr = false, lead, action, children }: {
+  testId: string; item: string; title: string; line?: string | null; ltr?: boolean; lead?: ReactNode; action?: ReactNode; children?: ReactNode;
+}) {
+  return (
+    <section data-testid={testId} data-item={item} className={cn(LIST_CARD, "flex flex-col")}>
+      <div className="flex min-h-[72px] items-center gap-3 p-3">
+        {lead ?? <CheckCircle2 className="h-6 w-6 shrink-0 text-[#2f7a52]" aria-hidden="true" />}
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <b className="text-[16px] font-semibold leading-[1.3] rtl:leading-[1.8]">{title}</b>
+          {line ? (
+            <span data-testid={`${testId}-result`} dir={ltr ? "ltr" : "auto"}
+              className="self-start text-[14px] font-semibold leading-[1.35] text-[#4b5563] tabular-nums [overflow-wrap:anywhere]">{line}</span>
+          ) : null}
+        </span>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** "View …" that opens a page. */
+export function ViewLink({ to, label }: { to: string; label: string }) {
+  return (
+    <Link to={to} className={cn(VIEW, FOCUS)}>
+      {label}<ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
     </Link>
+  );
+}
+
+/** "View …" / "Hide …" that opens the row in place (aria-expanded). */
+export function ViewToggle({ open, onToggle, view, hide }: { open: boolean; onToggle: () => void; view: string; hide: string }) {
+  return (
+    <button type="button" aria-expanded={open} onClick={onToggle} className={cn(VIEW, FOCUS)}>
+      {open ? hide : view}<ChevronDown className={cn("h-4 w-4", open && "rotate-180")} aria-hidden="true" />
+    </button>
   );
 }
 
