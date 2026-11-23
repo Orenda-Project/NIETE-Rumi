@@ -48,7 +48,7 @@ beforeEach(async () => {
   const app = express();
   app.set('trust proxy', true);
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: (e, p) => events.push([e, p]), fetchImpl: async (url, init) => { calls.push({ url, init }); return answer(url); }, storyEnv: 'sandbox', cardReadyOn: async () => ready, cardObject: async (key) => { asked.push(key); if (storeDown) throw new Error('down'); return store.get(key) || null; } }));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 });
 afterEach(() => new Promise((r) => srv.close(r)));
 
@@ -87,7 +87,7 @@ describe('the shared link\'s page', () => {
     const app = express();
     app.set('trust proxy', true);
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: () => {}, fetchImpl: async (url, init) => { calls.push({ url, init }); return answer(url); }, storyEnv: 'sandbox', cardReadyOn: async () => true, cardObject: async (key) => { asked.push(key); return key === keyOf('json') ? { bytes: Buffer.from(JSON.stringify(FACTS)), contentType: 'application/json' } : null; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     const r = await req(srv, `/k/${TOK}`, { ua: WA });
     expect(r.status).toBe(200);
     expect(r.body.toString()).toBe(fromBot);
@@ -134,7 +134,7 @@ describe('the switch read never makes a visitor wait', () => {
     const app = express();
     app.set('trust proxy', true);
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: () => {}, fetchImpl: async (url) => answer(url), storyEnv: 'sandbox', cardReadyOn: slow, cardObject: async (key) => store.get(key) || null }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     expect(reads).toBe(1);
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const r = await Promise.race([req(srv, `/k/${TOK}`, { ua: WA }), new Promise((res) => setTimeout(() => res('waited'), 1500))]);
@@ -152,7 +152,7 @@ describe('the switch read never makes a visitor wait', () => {
     const app = express();
     app.set('trust proxy', true);
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: () => {}, fetchImpl: async (url) => { calls.push({ url }); return answer(url); }, storyEnv: 'sandbox', cardReadyOn: reader, cardFlagRefreshMs: 20, cardObject: async (key) => store.get(key) || null }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     await new Promise((r) => setTimeout(r, 10));
     mode = 'on';
     await new Promise((r) => setTimeout(r, 80));

@@ -89,7 +89,7 @@ describe('GET /key carries ask', () => {
     const { mountPushRemind, MOUNT_PATH } = require('../../shared/services/first-touch/push-remind.mount');
     const app = express();
     mountPushRemind(app);
-    const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+    const srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
     try {
       const get = async (q) => (await fetch(`http://127.0.0.1:${srv.address().port}${MOUNT_PATH}/key${q}`, { headers: { 'x-api-key': process.env.INTERNAL_API_KEY } })).json();
       expect(await get('?code=INSCH1')).toEqual({ key: 'BPub', ask: true });

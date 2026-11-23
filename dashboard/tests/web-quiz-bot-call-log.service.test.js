@@ -37,7 +37,7 @@ function hangingFetch() {
 }
 
 function start(app) {
-  return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+  return new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 }
 
 function req(srv, method, path, body) {

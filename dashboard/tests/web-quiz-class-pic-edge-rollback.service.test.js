@@ -50,7 +50,7 @@ async function boot(on) {
   const app = express();
   app.set('trust proxy', true);
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, logEvent: () => {}, now: () => clock, fetchImpl: async (url) => { calls.push(url); return answer(url); }, canonicalBase: '' }));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 afterEach(() => (srv ? new Promise((r) => srv.close(r)) : null));
 

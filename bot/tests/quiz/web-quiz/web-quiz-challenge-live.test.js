@@ -315,7 +315,7 @@ describe('internal route POST /api/internal/wq/ch/live', () => {
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
     const srv = http.createServer(app);
-    await new Promise((r) => srv.listen(0, r));
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r));
     try {
       const ct = await readCt();
       const post = (body) => fetchLocal(srv, '/api/internal/wq/ch/live', body);

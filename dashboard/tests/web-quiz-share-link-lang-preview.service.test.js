@@ -38,7 +38,7 @@ const servers = [];
 async function start({ on, quiz } = {}) {
   const app = express();
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, now: () => 1_000_000, linkLangOn: async () => on === true, fetchImpl: async () => jsonRes(200, payload(quiz)) }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   servers.push(srv);
   return srv;
 }

@@ -24,7 +24,7 @@ async function boot(answer, opts = {}) {
   const app = express();
   app.use(createQuizTeacherRouter(opts.noBot ? opts.router : { callBot, ...(opts.router || {}) }));
   app.use((req, res) => res.status(200).type('html').send(SPA));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
@@ -74,7 +74,7 @@ const ROUTES = [
 async function baseline() {
   const app = express();
   app.use((req, res) => res.status(200).type('html').send(SPA));
-  const s = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+  const s = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
   const prev = srv; srv = s;
   const res = await request('GET', '/x');
   await new Promise((r) => s.close(r));
@@ -350,7 +350,7 @@ describe('a body the app cannot read is answered exactly as without this edge (d
       const app = express();
       if (withEdge) app.use(createQuizTeacherRouter({ callBot: async (...a) => { calls.push(a); return OFF; } }));
       tail(app);
-      srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+      srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
       const res = await send();
       out.push({ status: res.status, body: res.body, type: res.headers['content-type'], calls: calls.length });
       await new Promise((r) => srv.close(r)); srv = null;

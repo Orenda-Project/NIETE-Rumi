@@ -41,7 +41,7 @@ describe('the edge: /q/<challenge code>/class', () => {
   function serve(body) {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => ({ status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(body) }) }));
-    return new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    return new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   }
   function get(srv, path) {
     return new Promise((resolve) => http.get({ host: '127.0.0.1', port: srv.address().port, path }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); }));

@@ -244,7 +244,7 @@ describe('the edge forwards the two read-along routes to the bot (and refuses a 
     calls = [];
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', fetchImpl: async (url, opts) => { calls.push({ url, opts }); return { status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ readalong: TIMED }) }; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   test('a practice listen\'s words by the run token; the preview by the hub token', async () => {
@@ -293,7 +293,7 @@ describe('the edge forwards this phone (the wq_dv cookie) to the bot on the prev
     calls = [];
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async (url, opts) => { calls.push({ url, opts }); return { status: 403, ok: false, headers: { get: () => 'application/json' }, text: async () => '{"error":"other_device"}' }; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   test('with the cookie: x-wq-device is the phone; without it: no header (the bot refuses)', async () => {

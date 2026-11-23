@@ -46,7 +46,7 @@ const HUB = (extra = {}) => ({
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, home_v3: 1, stories: { on: 1 },
   doors: { stories: [{ kind: 'shelf' }], games: [], videos: { watch: true } }, ...extra,
 });
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 function get(srv, p, { onFirstChunk } = {}) {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path: p, headers: { host: 'portal.example' } }, (res) => {

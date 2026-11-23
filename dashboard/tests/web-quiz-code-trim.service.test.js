@@ -29,7 +29,7 @@ async function boot(trim) {
   const opts = { botUrl: BOT, apiKey: KEY, canonicalBase: '', fetchImpl: async (u) => { calls.push(String(u)); return { status: 404, ok: false, headers: { get: () => 'application/json' }, text: async () => '{"error":"not_found"}' }; } };
   if (trim !== undefined) opts.codeTrimOn = async () => { flagReads += 1; return trim; };
   const app = express(); app.set('trust proxy', 1); app.use(createWebQuizRouter(opts));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())).then(() => { srv = null; }));
 

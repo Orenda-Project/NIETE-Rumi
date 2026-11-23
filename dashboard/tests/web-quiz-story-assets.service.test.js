@@ -43,7 +43,7 @@ async function start({ withRouter = true } = {}) {
   }
   // Today's portal after the web quiz router: the SPA catch-all (index.js), then the 404 page.
   app.get('*', (q, res) => { res.setHeader('Cache-Control', 'no-cache'); res.type('html').send(SPA); });
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 beforeEach(() => { on = false; asked = []; store = { [`story/sandbox/${BOOK}/${FILE}`]: { bytes: BYTES, contentType: 'image/webp' } }; });
 afterEach(() => new Promise((r) => srv.close(r)));
@@ -74,7 +74,7 @@ describe('switch off, every way the switch can read off', () => {
       app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', logEvent: () => {}, storiesOn: read, storyEnv: 'sandbox',
         storyObject: async (key) => { asked.push(key); return null; } }));
       app.get('*', (q, res) => { res.setHeader('Cache-Control', 'no-cache'); res.type('html').send(SPA); });
-      await new Promise((r) => { srv = app.listen(0, r); });
+      await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
       const r = await req(srv, `/s/${BOOK}/${FILE}`);
       expect([r.status, r.body.toString(), r.headers['ratelimit-limit']]).toEqual([200, SPA, undefined]);
     }
@@ -145,7 +145,7 @@ describe('switch on', () => {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', logEvent: () => {}, storiesOn: async () => true, storyEnv: 'sandbox',
       storyObject: async () => { if (fail) throw new Error('r2 down'); return { bytes: BYTES, contentType: 'image/webp' }; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     const r1 = await req(srv, `/s/${BOOK}/${FILE}`);
     expect([r1.status, r1.headers['cache-control']]).toEqual([502, 'no-store']);
     fail = false;
@@ -184,7 +184,7 @@ describe('a phone that cannot play Ogg Opus (iOS before 18.4): the page voice as
       storyObject: async (key) => { asked.push(key); return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
       ...(transcode ? { storyTranscode: transcode } : {}),
     }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   }
   beforeEach(() => { mp3 = true; made = 0; store[`story/sandbox/${BOOK}/${OGG}`] = { bytes: OGG_BYTES, contentType: 'audio/ogg' }; });
   const fakeTranscode = async (bytes) => { made += 1; return Buffer.concat([Buffer.from('ID3'), bytes]); };

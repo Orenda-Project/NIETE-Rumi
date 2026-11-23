@@ -115,7 +115,7 @@ describe('the join page with quiz_join_wait_word: the page itself', () => {
       const fetchImpl = async () => ({ status: 200, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) });
       const app = express();
       app.use(createQuizJoinRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl, logEvent: () => {} }));
-      const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+      const srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
       try {
         return await new Promise((resolve, reject) => {
           http.get({ host: '127.0.0.1', port: srv.address().port, path: `/quiz/join/${TOKEN}` }, (res) => {

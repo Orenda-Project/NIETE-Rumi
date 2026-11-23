@@ -87,7 +87,7 @@ describe('the chip tree and the make', () => {
       const app = express();
       app.use(express.json());
       app.use('/api/internal/ft', require('../../shared/services/first-touch/maker.routes'));
-      await new Promise((r) => { srv = app.listen(0, r); });
+      await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     });
     afterEach(() => new Promise((r) => srv.close(r)));
 

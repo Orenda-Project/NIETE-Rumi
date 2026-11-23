@@ -60,7 +60,7 @@ async function serve(fn) {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   const h = { 'x-api-key': 'route-key' };
   const one = async (url, init) => { const r = await fetch(url, init); return { st: r.headers.get('server-timing'), body: await r.text() }; };
@@ -183,7 +183,7 @@ describe('no settings read of its own', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       settingsReads = 0;
       const r = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/lib/h/abc.def`, { headers: { 'x-api-key': 'route-key' } });

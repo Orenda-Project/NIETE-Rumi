@@ -28,7 +28,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  await new Promise((r) => { server = app.listen(0, r); });
+  await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
   base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
 });
 afterAll(() => { process.env.INTERNAL_API_KEY = SAVED; return new Promise((r) => server.close(r)); });

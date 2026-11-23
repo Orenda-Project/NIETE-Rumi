@@ -19,7 +19,7 @@ async function boot(headers) {
   const app = express();
   app.use(createQuizTeacherRouter({ botUrl: 'http://bot.invalid', apiKey: 'unit-key', fetchImpl }));
   app.use((req, res) => res.status(200).type('html').send(SPA));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 

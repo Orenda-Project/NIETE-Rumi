@@ -363,7 +363,7 @@ describe('POST /api/wq/welcome (the portal route)', () => {
     calls = []; answer = [200, { ok: true }];
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'test-internal-key', fetchImpl: async (url, opts) => { calls.push({ url, opts }); return jsonRes(answer[0], answer[1]); } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   test('reaches the bot\'s /hub/:token/welcome with {kid, outcome} and this phone\'s device; its answer passes through; a bad token never does', async () => {

@@ -196,7 +196,7 @@ describe('the route reads the switch', () => {
     for (const on of [true, false]) {
       const app = express();
       app.use(createSaEngineRouter({ on: () => true, rdfW3Forms: () => true, appAsks: () => on, env: {} }));
-      const srv = await new Promise((res) => { const s = app.listen(0, () => res(s)); });
+      const srv = await new Promise((res) => { const s = app.listen(0, '127.0.0.1', () => res(s)); });
       try {
         const b = await (await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G3.A.en.json`)).json();
         expect(!!(b.ui && b.ui.app_asks)).toBe(on);

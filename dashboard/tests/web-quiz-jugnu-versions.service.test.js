@@ -167,7 +167,7 @@ describe('the edge puts the map on the page only with web_quiz_brotli on', () =>
   async function serve(fast, on) {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: bot(fast), brotliOn: () => on }));
-    srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     await get(`/h/${TOKEN}`);
   }
   const mapIn = (html) => { const m = /<script>window\.WQJV=(\{[^}<]*\});window\.wqjv=/.exec(html); return m ? JSON.parse(m[1]) : null; };
@@ -204,7 +204,7 @@ describe('the edge puts the map on the page only with web_quiz_brotli on', () =>
     await flag.ready();
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: bot(true), brotliOn: flag }));
-    srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     await get(`/h/${TOKEN}`);
     for (const p of [`/h/${TOKEN}`, '/q/AB12CD']) {
       const html = await get(p);

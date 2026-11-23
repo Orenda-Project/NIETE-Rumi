@@ -50,7 +50,7 @@ beforeEach(async () => {
   jest.clearAllMocks(); jest.restoreAllMocks();
   const app = express();
   app.use('/api/internal/ft', require('../../shared/services/first-touch/maker.routes'));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 });
 afterEach(() => new Promise((r) => srv.close(r)));
 afterAll(() => { process.env = SAVED; });

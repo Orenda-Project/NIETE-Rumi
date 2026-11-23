@@ -17,7 +17,7 @@ async function boot(answer) {
   const app = express();
   app.use(createQuizTeacherRouter({ callBot }));
   app.use((req, res) => res.status(200).type('html').send('<!doctype html><title>SPA</title>'));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 function request(method, path, body = null) {

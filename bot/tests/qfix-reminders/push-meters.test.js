@@ -55,7 +55,7 @@ describe('delivered carries shown', () => {
       Object.assign(process.env, ENV);
       const app = express();
       mountPushRemind(app);
-      srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+      srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
       base = `http://127.0.0.1:${srv.address().port}`;
     });
     afterAll(() => srv && srv.close());
@@ -78,7 +78,7 @@ describe('the hub\'s first call keeps its route (src)', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../shared/routes/web-quiz-internal.routes'));
-    srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     base = `http://127.0.0.1:${srv.address().port}`;
   });
   afterAll(() => { spy.mockRestore(); if (srv) srv.close(); });

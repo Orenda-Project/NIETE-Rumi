@@ -44,7 +44,7 @@ test('what the line calls mounts /api/internal/th: switch off → 404 {off:true}
   expect(mountTeacherHome(app, () => { throw new Error('broken at load'); })).toBe(false);
   expect(mountTeacherHome(app)).toBe(true);
   app.get('/other', (req, res) => res.send('today'));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const base = `http://127.0.0.1:${srv.address().port}`;
     const off = await fetch(`${base}/api/internal/th/api/th/home?t=x`, { headers: { 'x-api-key': process.env.INTERNAL_API_KEY } });

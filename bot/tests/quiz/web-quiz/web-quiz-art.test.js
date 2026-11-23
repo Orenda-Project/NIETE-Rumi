@@ -302,7 +302,7 @@ describe('over HTTP', () => {
   beforeAll(async () => {
     const app = express();
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   });
   afterAll(() => new Promise((r) => server.close(r)));
@@ -420,7 +420,7 @@ describe('the invite picture for the door', () => {
     const app = express();
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
     let server;
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     try {
       const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
       const r = await fetch(`${base}/art/${Art.artId('i', 'CHAL01')}?w=door`, { headers: { 'x-api-key': 'art-key' } });

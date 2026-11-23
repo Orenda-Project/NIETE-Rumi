@@ -432,7 +432,7 @@ describe('the internal route', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     const spy = jest.spyOn(Hub, 'hub').mockResolvedValue({ kids: [], fast: true });
     try {
       seed([TRUE('web_quiz_fast'), TRUE('web_quiz_one_hop')]);

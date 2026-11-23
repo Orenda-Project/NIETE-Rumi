@@ -31,7 +31,7 @@ async function open(p, botBody, headers = {}) {
   app.set('trust proxy', 1);
   const fetchImpl = (url) => Promise.resolve(String(url).includes('/api/internal/wq/hub/') ? jsonRes(botBody) : jsonRes({ off: true }));
   app.use(R.createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl, logEvent: (e, d) => events.push([e, d]) }));
-  const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+  const srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
   let html = '';
   try {
     await new Promise((resolve, reject) => {

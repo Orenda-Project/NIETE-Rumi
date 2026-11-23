@@ -38,7 +38,7 @@ const LINK_UR = `${b64({ k: 'h', ids: ['a'], l: 'ur', exp: 9999999999 })}.AbCdEf
 const LINK_BARE = `${b64({ k: 'h', ids: ['a'], exp: 9999999999 })}.AbCdEfGhIjKlMnOpQrStUv`;
 const EN_PHONE = { 'accept-language': 'en-US,en;q=0.9' };
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 function get(srv, path, headers = {}) {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path, headers: { host: 'portal.example', ...headers } }, (res) => {

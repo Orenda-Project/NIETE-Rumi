@@ -54,7 +54,7 @@ const HUB = (extra = {}) => ({
 });
 const ver = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 
 function decoderFor(enc) {
   if (enc === 'br') return zlib.createBrotliDecompress();

@@ -44,7 +44,7 @@ const HUB = (extra = {}) => ({
 });
 const LOCKED = (extra = {}) => ({ lang: 'en', locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: 'niete', rt: false, fast: true, ...extra });
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 
 function get(srv, path, { onFirstChunk } = {}) {
   return new Promise((resolve, reject) => {

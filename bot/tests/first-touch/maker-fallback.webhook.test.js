@@ -116,7 +116,7 @@ async function boot(fallback) {
   }));
 
   const { app } = require('../../whatsapp-bot');
-  const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const port = server.address().port;
 
   /** Taps one reply button; waits until `done()` holds (or 5 s), then lets the turn settle. → what was sent. */

@@ -118,7 +118,7 @@ beforeAll(async () => {
   }));
   const { app } = require('../../whatsapp-bot');
   Flag = require('../../shared/services/quiz/report-send-check');
-  const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const payload = { object: 'whatsapp_business_account', entry: [{ id: '1', changes: [{ field: 'messages', value: {
     messaging_product: 'whatsapp', metadata: { display_phone_number: ['1555', '0000000'].join(''), phone_number_id: '111' },
     statuses: [{ id: 'wamid.boot', status: 'sent', timestamp: '1792230000' }],

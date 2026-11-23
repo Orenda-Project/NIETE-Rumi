@@ -65,7 +65,7 @@ describe('the route reads the switch', () => {
   async function serve(on) {
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, rdfW3Forms: () => true, urFit: () => on, env: {} }));
-    const srv = await new Promise((res) => { const s = app.listen(0, () => res(s)); });
+    const srv = await new Promise((res) => { const s = app.listen(0, '127.0.0.1', () => res(s)); });
     return { srv, base: `http://127.0.0.1:${srv.address().port}` };
   }
   test('ON: the served battery carries ui.ur_fit; OFF: it does not', async () => {

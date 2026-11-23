@@ -29,7 +29,7 @@ describe('/api/wq/stories/*', () => {
     answer = { status: 200, body: { ok: true } };
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return { status: answer.status, ok: answer.status < 400, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(answer.body) }; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
 

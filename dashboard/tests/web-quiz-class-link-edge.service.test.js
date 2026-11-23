@@ -33,7 +33,7 @@ const QUIZ = {
   preview: false,
 };
 
-function start(app) { return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); }); }
+function start(app) { return new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); }); }
 function req(srv, method, p, body, headers = {}) {
   return new Promise((resolve, reject) => {
     const data = body === undefined ? null : JSON.stringify(body);

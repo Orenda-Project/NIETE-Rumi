@@ -84,7 +84,7 @@ describe('Urdu pages load the Nastaliq font from the portal, early', () => {
   test('the portal serves the font file with a font type and a long cache', async () => {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => { throw new Error('no network'); } }));
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const res = await new Promise((resolve, reject) => {
         http.get({ host: '127.0.0.1', port: srv.address().port, path: FONT_URL }, (r) => {

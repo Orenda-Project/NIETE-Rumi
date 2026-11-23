@@ -32,7 +32,7 @@ async function boot(answer, opts = {}) {
   app.use(createFirstTouchRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, ...opts }));
   // today's handling of everything the edge lets fall through
   app.use((req, res) => res.status(404).type('text').send('today'));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
@@ -156,7 +156,7 @@ test('an injected callBot is used as is', async () => {
   const callBot = async (method, path) => { seen.push([method, path]); return { status: 200, bytes: Buffer.from('ok'), contentType: 'text/html' }; };
   const app = express();
   app.use(createFirstTouchRouter({ callBot }));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   const res = await request('GET', `/f/${TOK}`);
   expect(res.body).toBe('ok');
   expect(seen).toEqual([['GET', `/api/internal/ft/f/${TOK}`]]);

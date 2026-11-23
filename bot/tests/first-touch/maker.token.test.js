@@ -29,7 +29,7 @@ async function boot() {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/ft', require('../../shared/services/first-touch/maker.routes'));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 const get = (path) => fetch(`http://127.0.0.1:${srv.address().port}/api/internal/ft${path}`, {
   headers: { 'x-api-key': process.env.INTERNAL_API_KEY }, redirect: 'manual',

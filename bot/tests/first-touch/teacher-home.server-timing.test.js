@@ -75,7 +75,7 @@ const deps = () => ({ List: { ...List, loadLessonPage: jest.fn(async () => ({ se
 async function boot(d = deps()) {
   const app = express();
   app.use('/api/internal/th', createRouter(d));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 async function get(p) {
   const res = await fetch(url(p), { headers: H() });
@@ -326,7 +326,7 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
       const d = { List: { ...L, loadLessonPage: jest.fn(async () => ({ sessions: [], quizzes: [], counts: {}, lessons: [] })) } };
       const app = express();
       app.use('/api/internal/th', require('../../shared/services/first-touch/teacher-home.routes').createRouter(d));
-      await new Promise((r) => { srv = app.listen(0, r); });
+      await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
       const before = fx.tableReads(f, 'app_settings');
       const res = await home();
       expect(res.status).toBe(200);

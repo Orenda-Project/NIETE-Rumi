@@ -53,7 +53,7 @@ describe('the /api/wq/bind/* routes', () => {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return jsonRes(200, { ok: true }); } }));
     app.use((r, res) => res.status(418).send('fell through'));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
 

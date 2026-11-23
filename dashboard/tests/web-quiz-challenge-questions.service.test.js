@@ -174,7 +174,7 @@ describe('the portal forwards the two question calls to the bot', () => {
     const calls = [];
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async (url, init) => { calls.push({ url, body: init.body }); return { status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => '{"questions":[]}' }; } }));
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     const post = (p, body) => new Promise((resolve, reject) => {
       const data = JSON.stringify(body);
       const rq = http.request({ host: '127.0.0.1', port: srv.address().port, path: p, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });

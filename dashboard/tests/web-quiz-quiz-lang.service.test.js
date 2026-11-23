@@ -14,7 +14,7 @@ function serve(body) {
   const urls = [];
   const app = express();
   app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async (url) => { urls.push(url); return { status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(body) }; } }));
-  return new Promise((r) => { const s = app.listen(0, () => { s.urls = urls; r(s); }); });
+  return new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => { s.urls = urls; r(s); }); });
 }
 function get(srv, path) {
   return new Promise((resolve) => http.get({ host: '127.0.0.1', port: srv.address().port, path }, (res) => { let d = ''; res.on('data', (c) => { d += c; }); res.on('end', () => resolve({ status: res.statusCode, html: d })); }));

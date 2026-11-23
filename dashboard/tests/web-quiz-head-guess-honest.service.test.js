@@ -65,7 +65,7 @@ async function boot({ full, honest } = {}) {
   if (full !== undefined) opts.headFullOn = async () => { reads.full += 1; return full; };
   if (honest !== undefined) opts.headGuessHonestOn = async () => { reads.honest += 1; return honest; };
   const app = express(); app.set('trust proxy', 1); app.use(createWebQuizRouter(opts));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 const close = () => new Promise((r) => (srv ? srv.close(r) : r())).then(() => { srv = null; });
 afterEach(close);

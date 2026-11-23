@@ -510,7 +510,7 @@ describe('route level: the line check\'s HEAD makes 0 bot calls (the real router
     };
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl, logEvent: () => {} }));
-    srv = await new Promise((r) => { const sv = app.listen(0, () => r(sv)); });
+    srv = await new Promise((r) => { const sv = app.listen(0, '127.0.0.1', () => r(sv)); });
     const status = await new Promise((resolve, reject) => {
       http.request({ host: '127.0.0.1', port: srv.address().port, method: 'HEAD', path: p }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); }).on('error', reject).end();
     });

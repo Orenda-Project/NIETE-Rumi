@@ -59,7 +59,7 @@ async function streamedOpen(R, answers, payload) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(R.createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'test-internal-key', fetchImpl }));
-  const srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   try {
     for (let i = 0; i < answers.length; i += 1) await get(srv, `/h/${TOKEN}`);
     let early = null;

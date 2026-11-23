@@ -47,7 +47,7 @@ const HUB = (extra = {}) => ({
 const ver = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
 const LEARN_ON = { learn: true, fast: true, brand: 'niete', rt: false };
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 const settle = () => new Promise((r) => setTimeout(r, 30));
 
 function get(srv, path, { onFirstChunk, headers = {} } = {}) {

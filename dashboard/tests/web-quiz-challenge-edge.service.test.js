@@ -16,7 +16,7 @@ function server(answer) {
   const calls = [];
   const app = express();
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', fetchImpl: async (url, init) => { calls.push({ url, init }); return answer(url, init); } }));
-  return new Promise((r) => { const srv = app.listen(0, () => r({ srv, calls })); });
+  return new Promise((r) => { const srv = app.listen(0, '127.0.0.1', () => r({ srv, calls })); });
 }
 function req(srv, method, path, body) {
   return new Promise((resolve, reject) => {

@@ -68,7 +68,7 @@ async function serve(answers, fn) {
   const q = answers.slice();
   const app = express();
   app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => jsonRes(200, q.length > 1 ? q.shift() : q[0]), logEvent: () => {} }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try { return await fn(srv); } finally { await new Promise((r) => srv.close(r)); }
 }
 

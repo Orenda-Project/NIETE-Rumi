@@ -1147,7 +1147,7 @@ describe('the story-page key route', () => {
     const calls = [];
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async (url) => { calls.push(url); return { status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ api_key: 'temp:test-only', ws: 'wss://x', model: 'm', lang: 'en', run: 'r' }) }; } }));
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const A = `${'a'.repeat(40)}.${'b'.repeat(22)}`;
       const B = `${'c'.repeat(40)}.${'d'.repeat(22)}`;

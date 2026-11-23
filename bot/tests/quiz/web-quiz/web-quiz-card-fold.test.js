@@ -131,7 +131,7 @@ describe('the Jugnu page\'s menu (GET /ch/:token): its end cards fold the same w
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   });
   afterAll(() => new Promise((r) => server.close(r)));

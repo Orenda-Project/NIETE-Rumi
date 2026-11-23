@@ -211,7 +211,7 @@ describe('the device is the phone\'s own (x-wq-device), never what the page send
       const app = express();
       app.use(express.json());   // as the bot's server mounts it before the internal routes
       app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-      await new Promise((r) => { server = app.listen(0, r); });
+      await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
       base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
     });
     afterAll(() => new Promise((r) => server.close(r)));
@@ -664,7 +664,7 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
       const app = express();
       app.use(express.json());
       app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-      await new Promise((r) => { server = app.listen(0, r); });
+      await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
       base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
     });
     afterAll(() => new Promise((r) => server.close(r)));

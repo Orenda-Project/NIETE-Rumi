@@ -56,7 +56,7 @@ const MENU = {
 };
 
 // Listening, then the minified copies made (the portal itself never waits for them: see 'start-up' below).
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); })
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); })
   .then((srv) => Promise.resolve(app.minReady).then(() => srv));
 
 /** GET path; resolves with the status, headers and the body as raw bytes. */
@@ -333,7 +333,7 @@ describe('esbuild missing or broken: raw everywhere, quiet logs', () => {
     const router = R.createWebQuizRouter({ botUrl: BOT, apiKey: KEY, logEvent: (e, p) => lines.push([e, p]),
       fetchImpl: bot([jsonRes(200, QUIZ({ min: true })), jsonRes(200, QUIZ({ min: true })), jsonRes(200, HUB({ min: true })), jsonRes(200, HUB({ min: true }))]) });
     app.use(router);
-    srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
     await router.minifyReady;
     jest.dontMock('esbuild');
     await get(srv, '/q/AB12CD');
@@ -395,7 +395,7 @@ describe('start-up: the minifying never holds up the portal (esbuild: a test-onl
     const router = createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: bot([jsonRes(200, QUIZ({ min: true })), jsonRes(200, QUIZ({ min: true })), jsonRes(200, QUIZ({ min: true }))]), esbuild: held.esbuild });
     app.set('trust proxy', 1);
     app.use(router);
-    srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
     await get(srv, '/q/AB12CD');
     const q = await get(srv, '/q/AB12CD');
     expect(q.status).toBe(200);
@@ -418,7 +418,7 @@ describe('start-up: the minifying never holds up the portal (esbuild: a test-onl
     const app = express();
     const router = createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: bot([jsonRes(200, QUIZ({ min: true }))]), esbuild: held.esbuild });
     app.use(router);
-    srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
     await get(srv, '/q/AB12CD');
     const r = await get(srv, `/wq/..%2F..%2Fpackage.json?v=${HEX}m`);
     expect(r.status).not.toBe(200);

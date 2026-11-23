@@ -22,7 +22,7 @@ const CODE = 'KZ7QW3MNPX';
 function jsonRes(status, body) {
   return { status, ok: status >= 200 && status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) };
 }
-function start(app) { return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); }); }
+function start(app) { return new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); }); }
 function req(srv, method, p, body) {
   return new Promise((resolve, reject) => {
     const data = body === undefined ? null : JSON.stringify(body);

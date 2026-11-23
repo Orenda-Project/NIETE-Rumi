@@ -181,7 +181,7 @@ async function boot(opts) {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
 }
 const close = () => new Promise((r) => (server ? server.close(r) : r()));

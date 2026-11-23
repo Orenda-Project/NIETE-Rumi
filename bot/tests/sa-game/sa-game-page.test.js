@@ -25,7 +25,7 @@ beforeAll(async () => {
   const app = express();
   app.use('/api/internal/sagame', createRouter());
   server = http.createServer(app);
-  await new Promise((r) => server.listen(0, r));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}/api/internal/sagame`;
 });
 afterAll(() => new Promise((r) => server.close(r)));

@@ -19,7 +19,7 @@ function server(answer) {
   const calls = [];
   const app = express();
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', fetchImpl: async (url, init) => { calls.push({ url, init }); return answer(url, init); } }));
-  return new Promise((r) => { const srv = app.listen(0, () => r({ srv, calls })); });
+  return new Promise((r) => { const srv = app.listen(0, '127.0.0.1', () => r({ srv, calls })); });
 }
 // a fresh profile: no cookie, no stored device, nothing but the URL
 function get(srv, path, headers = {}) {
@@ -72,7 +72,7 @@ test('no lang: English; a malformed token never reaches the bot and is not a 5xx
 test('the bot off (no bot url): 303 home, never an error page', async () => {
   const app = express();
   app.use(createWebQuizRouter({ botUrl: '', apiKey: '', fetchImpl: async () => { throw new Error('never'); } }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const r = await get(srv, `/c/${TT}/back?lang=ur`);
     expect(r.status).toBe(303);

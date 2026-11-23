@@ -126,7 +126,7 @@ describe('the canary', () => {
     const app = express();
     app.use(createPushRemindRouter({ botUrl: 'http://bot.test', apiKey: 'k', on: () => true, logEvent: () => {},
       fetchImpl: async (url) => { urls.push(url); return { status: 200, headers: { get: () => 'application/json' }, text: async () => '{"key":"B","ask":true}' }; } }));
-    const srv = await new Promise((r) => { const x = http.createServer(app).listen(0, () => r(x)); });
+    const srv = await new Promise((r) => { const x = http.createServer(app).listen(0, '127.0.0.1', () => r(x)); });
     try {
       const base = `http://127.0.0.1:${srv.address().port}`;
       await fetch(`${base}/api/wqpush/key?code=AB12CD`);

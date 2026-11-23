@@ -39,7 +39,7 @@ async function boot({ inline, learn, after }) {
   const opts = { botUrl: BOT, apiKey: KEY, canonicalBase: '', wayBackOn: () => true, fetchImpl: async (u) => { calls.push(String(u)); return queue.shift(); } };
   if (inline !== undefined) opts.closedInlineOn = () => inline;
   const app = express(); app.set('trust proxy', 1); app.use(createWebQuizRouter(opts));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())).then(() => { srv = null; }));
 

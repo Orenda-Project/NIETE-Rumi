@@ -34,7 +34,7 @@ const QUIZ = {
 
 function start(app) {
   return new Promise((resolve) => {
-    const srv = app.listen(0, () => resolve(srv));
+    const srv = app.listen(0, '127.0.0.1', () => resolve(srv));
   });
 }
 

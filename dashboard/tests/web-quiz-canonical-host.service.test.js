@@ -52,7 +52,7 @@ async function boot(extra = {}) {
   app.get('/r/:token', (r, res) => res.status(200).send('teacher report'));
   app.get('/health', (r, res) => res.status(200).send('ok'));
   app.use((r, res) => res.status(418).send('fell through'));
-  srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 

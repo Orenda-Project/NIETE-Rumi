@@ -40,7 +40,7 @@ let fake;
 async function boot() {
   const app = express();
   app.use('/api/internal/th', createRouter(null));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 const url = (p) => `http://127.0.0.1:${srv.address().port}/api/internal/th${p}`;
 const H = () => ({ 'x-api-key': process.env.INTERNAL_API_KEY });

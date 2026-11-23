@@ -427,7 +427,7 @@ describe('hub_open route value (opts.src)', () => {
     process.env.INTERNAL_API_KEY = 'route-key';
     const app = express();
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     const spy = jest.spyOn(Hub, 'hub').mockResolvedValue({ kids: [] });
     try {
       const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;

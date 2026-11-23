@@ -102,7 +102,7 @@ describe('through the internal router: GET (the page render) and POST (the page\
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../shared/routes/web-quiz-internal.routes'));
-    srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     base = `http://127.0.0.1:${srv.address().port}`;
   });
   beforeEach(() => { spy = jest.spyOn(Hub, 'hub').mockImplementation(async () => hubAnswer()); });
