@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T05:48:40Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,coaching,observe,attendance spec_sync=true","sha":"627cc68ea88a","branch":"bd-uxzi8c-staging","user":""}
+{"ts":"2026-11-23T05:48:42Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: menu,training,lesson-plan,coaching,observe,attendance owe their Gherkin","sha":"627cc68ea88a","branch":"bd-uxzi8c-staging","user":""}
