@@ -103,3 +103,35 @@ test('off: no section, nothing read for it', async () => {
   const { html } = await page();
   expect(html).not.toContain('Evening rounds');
 });
+
+describe('the played line counts children in the catalog\'s own words: one child is singular, in Urdu too', () => {
+  const DECK = require('../../shared/config/copy.v2.json');
+  const R = () => require('../../shared/services/quiz/web-quiz-evening-round');
+  const stat = (html) => (/<p class="er-stat">([^<]*)/.exec(html) || [])[1];
+  const onlyZara = () => { db.quiz_sessions = db.quiz_sessions.filter((s) => s.student_id === ZARA); };
+
+  test('one child: «۱ بچے نے کھیلا» (never «۱ بچوں نے کھیلا»), "1 child played"', async () => {
+    onlyZara();
+    const ur = stat(await R().reportSection(T1, { lang: 'ur' }));
+    expect(ur).toMatch(/^۱ بچے نے کھیلا/);
+    expect(ur).not.toContain('بچوں');
+    const en = stat(await R().reportSection(T1, { lang: 'en' }));
+    expect(en).toMatch(/^1 child played/);
+  });
+
+  test('two children: «۲ بچوں نے کھیلا», "2 children played"', async () => {
+    expect(stat(await R().reportSection(T1, { lang: 'ur' }))).toMatch(/^۲ بچوں نے کھیلا/);
+    expect(stat(await R().reportSection(T1, { lang: 'en' }))).toMatch(/^2 children played/);
+  });
+
+  test('both forms are the deck\'s bytes (qfix_class_link.rounds_played_one / rounds_played), Urdu digits in Urdu', async () => {
+    const line = (key, lang, n) => DECK[key][lang].replace('{n}', n);
+    const two = { ur: await R().reportSection(T1, { lang: 'ur' }), en: await R().reportSection(T1, { lang: 'en' }) };
+    onlyZara();
+    const one = { ur: await R().reportSection(T1, { lang: 'ur' }), en: await R().reportSection(T1, { lang: 'en' }) };
+    expect(stat(one.ur)).toBe(`${line('qfix_class_link.rounds_played_one', 'ur', '۱')} · اوسط ۸۶٪`);
+    expect(stat(one.en)).toBe(`${line('qfix_class_link.rounds_played_one', 'en', '1')} · average 86%`);
+    expect(stat(two.ur)).toBe(`${line('qfix_class_link.rounds_played', 'ur', '۲')} · اوسط ۷۹٪`);
+    expect(stat(two.en)).toBe(`${line('qfix_class_link.rounds_played', 'en', '2')} · average 79%`);
+  });
+});

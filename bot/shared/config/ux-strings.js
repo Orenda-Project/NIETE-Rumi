@@ -4628,6 +4628,17 @@ const UX_STRINGS = {
     en: "{day}'s quiz",
     ur: '{day} کا کوئز',
   },
+  // copy.v2.json qfix_class_link.rounds_played_one / rounds_played: the teacher report's "Evening rounds" row, how many
+  // children finished the round. Urdu inflects the noun for one child («۱ بچے نے کھیلا», never «۱ بچوں نے کھیلا»), so
+  // one child is its own line; {n} is in the language's own digits (digitsFor).
+  qfix_class_link_rounds_played_one: {
+    en: '{n} child played',
+    ur: '{n} بچے نے کھیلا',
+  },
+  qfix_class_link_rounds_played: {
+    en: '{n} children played',
+    ur: '{n} بچوں نے کھیلا',
+  },
 };
 
 /**
