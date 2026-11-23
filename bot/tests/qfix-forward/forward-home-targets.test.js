@@ -31,4 +31,13 @@ describe('the teacher home: a text link is a 48 px tap', () => {
     // the base rule itself still says 48
     expect(linkRules.some(([sel, d]) => sel === '.th-link' && px(d, 'min-height') === 48)).toBe(true);
   });
+
+  // The send sheet's back arrow is a `.th-link` whose only content is one arrow glyph, so its padding and the glyph
+  // alone made it 27-28 px wide: a thumb can miss it. A rule of its own gives it the width too, 48 x 48.
+  test.each([['en'], ['ur']])('%s: the send sheet\'s back arrow (#th-back, one glyph) is 48 px wide as well as tall', (lang) => {
+    const { html } = Page.buildShell({ token: 'a.b', lang, paged: true, counts: true, forward: true, reports: true });
+    expect(html).toMatch(/<button type="button" class="th-link" id="th-back"[^>]*>[←→]<\/button>/);
+    const backRules = rules(html).filter(([sel]) => sel.split(',').some((s) => /#th-back$/.test(s.trim())));
+    expect(backRules.map(([, d]) => px(d, 'min-width')).filter((w) => w !== null && w >= 48).length).toBeGreaterThan(0);
+  });
 });
