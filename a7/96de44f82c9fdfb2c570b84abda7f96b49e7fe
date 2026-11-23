@@ -3,3 +3,4 @@
 {"ts":"2026-11-23T19:03:48Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"a796de44f82c","branch":"bd-3kshar.6.5.1-main","user":""}
 {"ts":"2026-11-23T19:03:57Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"=none-needed (removes the A/B tracker worker tick only; no user-facing surface)","sha":"a796de44f82c","branch":"bd-3kshar.6.5.1-main","user":""}
 {"ts":"2026-11-23T19:03:57Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"12b367af-babd-4922-b3f7-5a8489f2d48d","sha":"a796de44f82c","branch":"bd-3kshar.6.5.1-main","user":""}
+{"ts":"2026-11-23T19:04:08Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-3kshar.6.5.1-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"a796de44f82c","branch":"bd-3kshar.6.5.1-main","user":""}
