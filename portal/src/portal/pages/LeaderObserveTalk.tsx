@@ -8,7 +8,7 @@ import CoachRecorder, { minutesText } from '../components/coaching/coach/CoachRe
 import RecordIcon from '../components/coaching/RecordIcon';
 import { leader } from '../services/api';
 import type { TalkGuide, TalkGuideSection } from '../services/api';
-import { acceptFor, checkFile } from '../lib/coachingUpload';
+import { AUDIO_ACCEPT, checkRecording } from '../lib/coachingUpload';
 import { holdFile, isFileRefused, tellUnreadablePick } from '../lib/pickedRead';
 import { canRecordHere } from '../lib/recordingSupport';
 import { deleteRecording } from '../lib/recordingStore';
@@ -157,11 +157,12 @@ const LeaderObserveTalk = () => {
   const onFile = async (picked: File | undefined) => {
     setFileError(null);
     if (!picked) return;
-    const problem = checkFile(picked, 'audio');
-    if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
-    const out = await holdFile(picked);
-    if (isFileRefused(out)) { tellUnreadablePick('audio', picked, out.errName); setFileError(COPY.fileWontOpen); return; }
-    void send({ blob: out.file, filename: picked.name, recordingId: null });
+    // bd-hronni: a recording by its name, its type or its first bytes (an Opus file with no name ending is one)
+    const checked = await checkRecording(picked);
+    if (checked.problem || !checked.file) { setFileError(checked.problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
+    const out = await holdFile(checked.file);
+    if (isFileRefused(out)) { tellUnreadablePick('audio', checked.file, out.errName); setFileError(COPY.fileWontOpen); return; }
+    void send({ blob: out.file, filename: checked.file.name, recordingId: null });
   };
 
   if (!id) return null;
@@ -211,7 +212,7 @@ const LeaderObserveTalk = () => {
                     <span className="text-[13px] text-[#5b6170]">{COPY.uploadSub}</span>
                   </span>
                 </button>
-                <input ref={input} data-testid="talk-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
+                <input ref={input} data-testid="talk-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
                   onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
                 {fileError && <Warning>{fileError}</Warning>}
               </>

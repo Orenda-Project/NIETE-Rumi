@@ -52,9 +52,12 @@ const SAVED_LANDING = 'ai_coaching_recording';
 /** The app link's words for a recording she sent before (ux-strings.js). */
 const REPEAT_COPY = Object.freeze(['appLinkBodyCoachingRepeat', 'appLinkButtonCoachingRepeat']);
 
-/** WhatsApp's media types → the portal's audio extension. The file's own name wins when it names one we take. */
+/**
+ * WhatsApp's media types → the portal's audio extension. The file's own name wins when it names one we take.
+ * bd-hronni: Ogg Opus also comes typed application/ogg or audio/x-opus+ogg (the router lets both through on "ogg").
+ */
 const MIME_EXT = Object.freeze({
-  'audio/ogg': '.ogg', 'audio/opus': '.opus', 'audio/mpeg': '.mp3', 'audio/mp3': '.mp3', 'audio/mp4': '.m4a',
+  'audio/ogg': '.ogg', 'audio/opus': '.opus', 'application/ogg': '.ogg', 'audio/x-opus+ogg': '.opus', 'audio/mpeg': '.mp3', 'audio/mp3': '.mp3', 'audio/mp4': '.m4a',
   'audio/x-m4a': '.m4a', 'audio/m4a': '.m4a', 'audio/aac': '.aac', 'audio/amr': '.amr', 'audio/wav': '.wav',
   'audio/x-wav': '.wav', 'audio/wave': '.wav', 'audio/webm': '.webm', 'audio/3gpp': '.3gp',
 });

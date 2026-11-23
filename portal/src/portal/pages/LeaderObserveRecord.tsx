@@ -14,7 +14,7 @@ import SendLessonSheet from '../components/coaching/SendLessonSheet';
 import { leader, portal } from '../services/api';
 import { downloadsOnly } from '../lib/observeRecentPlans';
 import type { LeaderPatchTeacher, LeaderScheduledObservation } from '../types/portal';
-import { acceptFor, checkFile, formatSize, MAX_PHOTOS, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
+import { acceptFor, AUDIO_ACCEPT, checkFile, checkRecording, formatSize, MAX_PHOTOS, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
 import { canRecordHere } from '../lib/recordingSupport';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../lib/recordingStore';
 import { withDuration } from '../lib/webmDuration';
@@ -269,10 +269,11 @@ const LeaderObserveRecord = () => {
   const onAudioChosen = async (picked: File | undefined) => {
     setFileError(null);
     if (!picked) return;
-    const problem = checkFile(picked, 'audio');
-    if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
-    const out = await holdFile(picked);
-    if (isFileRefused(out)) { tellUnreadablePick('audio', picked, out.errName); setFileError(COPY.fileWontOpen); return; }
+    // bd-hronni: a recording by its name, its type or its first bytes (an Opus file with no name ending is one)
+    const checked = await checkRecording(picked);
+    if (checked.problem || !checked.file) { setFileError(checked.problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
+    const out = await holdFile(checked.file);
+    if (isFileRefused(out)) { tellUnreadablePick('audio', checked.file, out.errName); setFileError(COPY.fileWontOpen); return; }
     const file = out.file;
     const seconds = await readAudioDuration(file);
     const durationMs = seconds != null ? seconds * 1000 : null;
@@ -483,7 +484,7 @@ const LeaderObserveRecord = () => {
             ) : shown.length === 0 ? (
               <p className="text-[15px] text-muted-foreground">{COPY.noMatch}</p>
             ) : shown.map((t) => <TeacherRow key={t.teacherExtId} t={t} onPick={pickTeacher} />)}
-            <input ref={audioInput} data-testid="audio-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
+            <input ref={audioInput} data-testid="audio-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
               onChange={(e) => { void onAudioChosen(e.target.files?.[0]); e.target.value = ''; }} />
             {fileError && <Warning>{fileError}</Warning>}
           </div>

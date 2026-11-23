@@ -263,7 +263,8 @@ describe("Upload recording (Blueprint: Coach_Upload)", () => {
     await screen.findByRole("dialog", { name: "Upload recording" });
     const input = screen.getByTestId("audio-input");
     await act(async () => { fireEvent.change(input, { target: { files: [new File(["x"], "notes.pdf", { type: "application/pdf" })] } }); });
-    expect(screen.getByRole("alert")).toHaveTextContent(/Not a recording/);
+    // bd-hronni: the check reads a file's first bytes when its name and type say nothing, so the refusal is a moment later
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Not a recording/);
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
@@ -278,6 +279,26 @@ describe("Upload recording (Blueprint: Coach_Upload)", () => {
     await screen.findByRole("button", { name: /Redo/ });
     expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
     expect(getDraft(VISIT_ID)?.filename).toBe("lesson-0610.m4a");
+  });
+
+  // bd-hronni (queue #237): a real Opus recording whose name has no ending (an Android picker's name) was "Not a recording".
+  it("a real Opus recording with no name ending is taken, and goes up as .ogg", async () => {
+    const opus = readFileSync(resolve(__dirname, "../../../../../tests/fixtures/audio/lesson-hello.opus"));
+    renderAt(`/portal/coach/visit/${VISIT_ID}/attach`);
+    await screen.findByRole("dialog", { name: "Upload recording" });
+    await act(async () => { fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [new File([opus], "1000043567")] } }); });
+    await waitFor(() => expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("button", { name: /Redo/ });
+    expect(getDraft(VISIT_ID)?.filename).toBe("1000043567.ogg");
+  });
+
+  it("the picker offers .opus, .ogg and .oga", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}/attach`);
+    await screen.findByRole("dialog", { name: "Upload recording" });
+    const accept = screen.getByTestId("audio-input").getAttribute("accept")!.split(",");
+    for (const t of [".opus", ".ogg", ".oga", "audio/*"]) expect(accept).toContain(t);
   });
 });
 
