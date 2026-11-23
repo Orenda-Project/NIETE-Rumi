@@ -19,7 +19,10 @@ they own in one REPEATABLE READ snapshot; choose the survivor; re-check every gu
 every row the retired account owns, by primary key (a row stays only where a unique index already holds the
 survivor's row for its key, or a sealed form keeps its observer); move booked visits with the number; retire the
 duplicate (soft delete, number freed); give the survivor the number in use with its portal login and WhatsApp
-session, and any fact it lacks; write one edit_phone audit row per retired account. Every write asserts its rowcount,
+session, and any fact it lacks; write one edit_phone audit row per retired account. A class link or class list the
+survivor already has for the same class is folded into the survivor's, as the app's class hand-over
+does, under the class's roster lock: its subjects or children follow, the class-teacher flag moves when only the
+duplicate's link holds it, and the duplicate's row retires, then moves like any other. Every write asserts its rowcount,
 then the result is re-read and checked, else ROLLBACK. A serialization failure or lock timeout (the teacher chatting
 at that instant) retries that teacher on a fresh snapshot, up to 3 attempts. The first teacher that cannot be merged
 stops the run; teachers already committed stay committed and are listed.
@@ -70,6 +73,18 @@ ATTEMPTS = 3
 CHUNK = 1000
 AUDIT_COUNT = ("SELECT count(*) AS n FROM leader_roster_audit WHERE action = 'edit_phone' "
                "AND detail->>'run_id' = %s AND detail->>'retired_user_id' = ANY(%s)")
+# How a folded row retires, as the app retires a class link (roster_change_class_details.sql, ClassService) and a class
+# list (roster_hand_over_class.sql): {table: {column: SQL value}}. A restore puts these columns back from the image.
+FOLD_RETIRE = {"class_teachers": {"is_active": "false", "is_class_teacher": "false", "ended_on": "current_date"},
+               "student_lists": {"is_active": "false"}}
+# A list's student_count from truth once its children have moved, as roster_hand_over_class does (the students trigger
+# recounts only the list a child moves to), and the check that it is.
+FOLD_RECOUNT = {"student_lists": "UPDATE student_lists l SET student_count = (SELECT count(*) FROM students s "
+                                 "WHERE s.list_id = l.id AND s.is_active), updated_at = now() WHERE l.id = ANY(%s::uuid[])"}
+FOLD_COUNTS_OFF = {"student_lists": "student_lists l WHERE l.id = ANY(%s::uuid[]) AND l.student_count IS DISTINCT "
+                                    "FROM (SELECT count(*) FROM students s WHERE s.list_id = l.id AND s.is_active)"}
+# Every roster writer takes this per-class lock (roster_hand_over_class.sql and the other roster RPCs); a fold is a hand-over.
+ROSTER_LOCK = "SELECT pg_advisory_xact_lock(hashtextextended('roster_import:' || %s, 0))"
 
 
 def read_env(path):
@@ -282,12 +297,16 @@ def read_state(cur, ids, fks, keys):
 
 def full_rows(conn, pp, fks):
     """A backup of every row this teacher's write touches, whole (all columns), from the plan's own snapshot: the
-    accounts' users rows, each row to be moved, each booked visit to be moved. Kept in the private before-image beside
-    the undo list, so anything the write did to a row, not only the columns it meant to change, can be read back."""
+    accounts' users rows, each row to be moved, each booked visit to be moved, both rows of each fold and the rows that
+    follow it (keyed '<parent>/<key>'). Kept in the private before-image beside the undo list, so anything the write did
+    to a row, not only the columns it meant to change, can be read back; a restore takes a folded row's columns back
+    from here."""
     groups = {("users", "id", "uuid"): set([pp["survivor"]] + pp["retired"])}
     for (t, c, row, _owner, action) in pp.get("moves", []):
         if action != "skip" and fks.get((t, c)):
             groups.setdefault((t,) + tuple(fks[(t, c)]), set()).add(row)
+    for f in pp.get("folds", []):
+        groups.setdefault((f["table"],) + tuple(fks[(f["table"], f["column"])]), set()).update([f["row"], f["into"]])
     if pp.get("visits"):
         groups.setdefault(("observation_schedules", "id", "uuid"), set()).update(v["row_id"] for v in pp["visits"])
     branches, params = [], {}
@@ -296,6 +315,13 @@ def full_rows(conn, pp, fks):
         branches.append(sql.SQL("SELECT {tl}::text AS t, {pk}::text AS id, to_jsonb(x) AS row FROM {t} x "
                                 "WHERE {pk} = ANY(%({p})s::{ty}[])").format(
             tl=sql.Literal(t), pk=sql.Identifier(pk), t=ident(t), p=sql.SQL(f"p{i}"), ty=sql.SQL(ty)))
+    for j, f in enumerate(f for f in pp.get("folds", []) if f["keys"]):
+        rt, rc, kc = f["follow"]
+        params[f"f{j}"], params[f"k{j}"] = [f["row"], f["into"]], f["keys"]
+        branches.append(sql.SQL("SELECT {tl}::text, {rc}::text || '/' || {kc}::text, to_jsonb(x) FROM {rt} x "
+                                "WHERE {rc} = ANY(%({f})s::{ty}[]) AND {m}").format(
+            tl=sql.Literal(rt), rc=sql.Identifier(rc), kc=sql.Identifier(kc), rt=ident(rt), f=sql.SQL(f"f{j}"),
+            m=_key_match(f, f"%(k{j})s"), ty=sql.SQL(fks[(f["table"], f["column"])][1])))
     with conn.cursor() as cur:
         cur.execute(sql.SQL(" UNION ALL ").join(branches), params)
         return [{"table": r["t"], "id": r["id"], "row": r["row"]} for r in cur.fetchall()]
@@ -327,11 +353,68 @@ def stranded_rows(conn, moves, fks, refs):
     return [(t, rid, counts) for (t, rid), counts in sorted(found.items())]
 
 
+def fold_facts(conn, twins, fks, refs):
+    """md.plan_folds' facts for md.find_twins' twins, in the caller's open snapshot and one round trip: for both rows
+    of each pair, the columns they must agree on, the flag (md.FOLD) and the keys of the rows that would follow them;
+    for the duplicate's row, the count of every other row depending on it (refs, from the catalog)."""
+    if not twins:
+        return {}
+    by, cfgs = {}, {}
+    for (t, c, row, _owner, into) in twins:
+        by.setdefault((t, c), (set(), set()))[0].add(row)
+        by[(t, c)][1].add(into)
+    branches, params = [], {}
+    for i, ((t, c), (dups, intos)) in enumerate(sorted(by.items())):
+        cfg = cfgs[t] = md.FOLD[(t, c)]
+        pk, ty = fks[(t, c)]
+        rt, rc, kc = cfg["follow"]
+        if (rt, rc) not in refs.get(t, ()):
+            raise SystemExit(f"ABORT: {rt}.{rc} does not reference {t} on this database; the fold cannot follow it.")
+        params[f"a{i}"], params[f"d{i}"] = sorted(dups | intos), sorted(dups)
+        cols = list(cfg["same"]) + ([cfg["flag"]] if cfg["flag"] else [])
+        branches.append(sql.SQL("SELECT 'row'::text AS kind, {tl}::text AS t, {pk}::text AS id, jsonb_build_object({o}) "
+                                "AS v FROM {t} WHERE {pk} = ANY(%({a})s::{ty}[])").format(
+            tl=sql.Literal(t), pk=sql.Identifier(pk), t=ident(t), ty=sql.SQL(ty), a=sql.SQL(f"a{i}"),
+            o=sql.SQL(", ").join(x for col in cols for x in (sql.Literal(col), sql.Identifier(col)))))
+        branches.append(sql.SQL("SELECT 'follow', {tl}, {rc}::text, jsonb_build_object('k', {kc}::text) FROM {rt} "
+                                "WHERE {rc} = ANY(%({a})s::{ty}[])").format(
+            tl=sql.Literal(t), rc=sql.Identifier(rc), kc=sql.Identifier(kc), rt=ident(rt), ty=sql.SQL(ty),
+            a=sql.SQL(f"a{i}")))
+        for rt2, rc2 in refs.get(t, ()):
+            if (rt2, rc2) != (rt, rc):
+                branches.append(sql.SQL("SELECT 'held', {tl}, {rc}::text, jsonb_build_object('ref', {ref}::text, 'n', "
+                                        "count(*)) FROM {rt} WHERE {rc} = ANY(%({d})s::{ty}[]) GROUP BY {rc}").format(
+                    tl=sql.Literal(t), rc=sql.Identifier(rc2), ref=sql.Literal(f"{rt2}.{rc2}"), rt=ident(rt2),
+                    ty=sql.SQL(ty), d=sql.SQL(f"d{i}")))
+        branches.append(sql.SQL("SELECT 'type', {tl}, NULL::text, jsonb_build_object('k', format_type(a.atttypid, "
+                                "a.atttypmod)) FROM pg_attribute a WHERE a.attrelid = {rtl}::regclass AND a.attname = {kcl}")
+                        .format(tl=sql.Literal(t), rtl=sql.Literal(rt), kcl=sql.Literal(kc)))
+    with conn.cursor() as cur:
+        cur.execute(sql.SQL(" UNION ALL ").join(branches), params)
+        got = cur.fetchall()
+    key_types = {r["t"]: r["v"]["k"] for r in got if r["kind"] == "type"}
+    facts = {}
+    for r in got:
+        if r["kind"] == "row":
+            cfg = cfgs[r["t"]]
+            facts[(r["t"], r["id"])] = {"same": {col: r["v"].get(col) for col in cfg["same"]},
+                                        "flag": r["v"].get(cfg["flag"]) if cfg["flag"] else None,
+                                        "follow": [], "held": {}, "key_type": key_types.get(r["t"])}
+    for r in got:
+        f = facts.get((r["t"], r["id"]))
+        if f is not None and r["kind"] == "follow":
+            f["follow"].append(r["v"]["k"])
+        elif f is not None and r["kind"] == "held":
+            f["held"][r["v"]["ref"]] = r["v"]["n"]
+    return facts
+
+
 # ── plans ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: []):
+def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: [], fold_facts=lambda twins: {}):
     """Everything one teacher's merge would do, from one snapshot. An empty 'problems' means it may run.
-    dependents(moves): the stranded rows of the plan, read in the same snapshot."""
+    dependents(moves): the stranded rows of the plan; fold_facts(twins): md.plan_folds' facts; both read in the same
+    snapshot."""
     pids = [p["survivor"]] + p["retired"]
     rows = {i: state["users"].get(i) for i in pids}
     if any(v is None for v in rows.values()):
@@ -340,6 +423,9 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: []):
     retired = [i for i in pids if i != surv]
     owned = {k: [r for r in v if r["owner"] in pids] for k, v in state["owned"].items()}
     moves = md.plan_moves({k: v for k, v in owned.items() if v}, surv, retired, keys)
+    twins = md.find_twins(owned, moves, surv, keys)
+    folds, fold_problems = md.plan_folds(twins, fold_facts(twins) if twins else {})
+    moves = md.fold_moves(moves, folds)
     patch = md.survivor_patch(rows[surv], [rows[r] for r in retired], p["in_use"])
     taken, gives_up, conflicts = md.unique_takeover(rows[surv], [rows[r] for r in retired])
     patch.update(taken)
@@ -347,21 +433,22 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: []):
     numbers = md.phone_moves(rows[surv]["phone_number"], final_phone, [rows[r]["phone_number"] for r in retired])
     visits, clashes = md.plan_visits(state["visits"], numbers)
     problems = md.guards(rows, surv, retired, p["in_use"], p["survivor"], moves, clashes, dependents(moves),
-                         conflicts)
-    moved, skipped = {r: {} for r in retired}, {r: {} for r in retired}
+                         conflicts, fold_problems)
+    moved, skipped, folded = {r: {} for r in retired}, {r: {} for r in retired}, {r: {} for r in retired}
     for (t, _c, _row, owner, action) in moves:
-        bucket = moved if action == "move" else skipped
+        bucket = {"move": moved, "skip": skipped, "fold": folded}[action]
         bucket[owner][t] = bucket[owner].get(t, 0) + 1
     audits = md.audit_rows(dict(rows[surv], **patch), rows[surv]["phone_number"], [rows[r] for r in retired],
-                           moved, skipped, meta={"run_id": run_id, "review": REVIEW, "sheet_row": p["pair"]})
+                           moved, skipped, meta={"run_id": run_id, "review": REVIEW, "sheet_row": p["pair"]},
+                           folded=folded)
     label = {f: "survivor's old number" if f == rows[surv]["phone_number"] else "a freed number" for f, _ in numbers}
     return {**p, "survivor": surv, "retired": retired, "problems": problems, "patch": patch,
-            "final_phone": final_phone, "moves": moves, "moved": moved, "skipped": skipped,
-            "visits": [{"row_id": v, "from_phone": f, "to_phone": t} for v, f, t in visits],
+            "final_phone": final_phone, "moves": moves, "moved": moved, "skipped": skipped, "folded": folded,
+            "folds": folds, "visits": [{"row_id": v, "from_phone": f, "to_phone": t} for v, f, t in visits],
             "retire": {r: md.retire_patch(r, now_iso, gives_up.get(r, ())) for r in retired}, "audits": audits,
             "before": {i: rows[i] for i in pids},
             "plan_rows": md.plan_rows(p["pair"], surv, patch, retired, moves, [(v, label[f]) for v, f, _ in visits],
-                                      gives_up)}
+                                      gives_up, folds)}
 
 
 def _set_users(cols, extra=""):
@@ -384,14 +471,87 @@ def _move_steps(pair, groups, fks, to_of, guard_of, label):
     return steps
 
 
+def _locks(pair, folds):
+    """The roster lock of each class a fold touches, smaller id first as roster_change_class_details locks two."""
+    return [(ROSTER_LOCK, [c], None, f"{pair}: roster lock on class {c}") for c in sorted({f["lock"] for f in folds
+                                                                                          if f.get("lock")})]
+
+
+def _key_match(f, ph="%s"):
+    """The follow keys matched in their own type ('<key> = ANY(<ph>::<type>[])'), so the key's index serves; as text
+    when the type is unknown."""
+    kc, kt = sql.Identifier(f["follow"][2]), f.get("key_type")
+    if kt:
+        return sql.SQL("{kc} = ANY(" + ph + "::{kt}[])").format(kc=kc, kt=sql.SQL(kt))
+    return sql.SQL("{kc}::text = ANY(" + ph + "::text[])").format(kc=kc)
+
+
+def _follow_steps(pair, f, to, frm, label):
+    rt, rc, _kc = f["follow"]
+    q = sql.SQL("UPDATE {rt} SET {rc} = %s WHERE {rc} = %s AND {m}").format(
+        rt=ident(rt), rc=sql.Identifier(rc), m=_key_match(f))
+    return [(q, [to, frm, f["keys"][i:i + CHUNK]], len(f["keys"][i:i + CHUNK]), f"{pair}: {rt} {label} {f['table']}")
+            for i in range(0, len(f["keys"]), CHUNK)]
+
+
+def fold_steps(pp, fks):
+    """Each fold, before any row moves (md.FOLD, the app's roster_hand_over_class): the class's roster lock; what
+    depends on the duplicate's row follows its twin; the row retires the app's way, its flag cleared first so the twin
+    can take the flag under the one-class-teacher index; the twin takes it; a list's counts from truth."""
+    pair, folds = pp["pair"], pp.get("folds", [])
+    steps = _locks(pair, folds)
+    for f in folds:
+        t, d, s = f["table"], f["row"], f["into"]
+        pk = sql.Identifier(fks[(t, f["column"])][0])
+        steps += _follow_steps(pair, f, s, d, "follows the fold of")
+        sets = sql.SQL(", ").join(sql.SQL("{} = " + v).format(sql.Identifier(col)) for col, v in FOLD_RETIRE[t].items())
+        steps.append((sql.SQL("UPDATE {t} SET {sets}, updated_at = now() WHERE {pk} = %s AND is_active").format(
+            t=ident(t), sets=sets, pk=pk), [d], 1, f"{pair}: retire {t} {d}"))
+        if f["flag"]:
+            steps.append((sql.SQL("UPDATE {t} SET {fl} = true, updated_at = now() WHERE {pk} = %s AND is_active "
+                                  "AND NOT {fl}").format(t=ident(t), fl=sql.Identifier(f["flag"]), pk=pk),
+                          [s], 1, f"{pair}: {t} {s} takes {f['flag']}"))
+        if t in FOLD_RECOUNT:
+            steps.append((FOLD_RECOUNT[t], [[s, d]], 2, f"{pair}: {t} counts from truth"))
+    return steps
+
+
+def unfold_steps(e, fks):
+    """Each fold undone once its row is back on the retired account (the generic move back): the twin gives back the
+    flag it took, the row takes back the columns it retired with (from the before-image's full rows), what followed
+    returns, a list's counts from truth."""
+    pair, folds = e["pair"], e.get("folds", [])
+    before = {(r["table"], r["id"]): r["row"] for r in e.get("rows_before", [])}
+    steps = []
+    for f in reversed(folds):
+        t, d, s = f["table"], f["row"], f["into"]
+        pk = sql.Identifier(fks[(t, f["column"])][0])
+        b = before.get((t, d))
+        if b is None:
+            raise SystemExit(f"ABORT: {pair}: the before-image has no full row of {t} {d}; its fold cannot be undone.")
+        if f["flag"]:
+            steps.append((sql.SQL("UPDATE {t} SET {fl} = false, updated_at = now() WHERE {pk} = %s AND {fl}").format(
+                t=ident(t), fl=sql.Identifier(f["flag"]), pk=pk), [s], 1, f"{pair}: {t} {s} gives back {f['flag']}"))
+        cols = list(FOLD_RETIRE[t])
+        steps.append((sql.SQL("UPDATE {t} SET {sets}, updated_at = now() WHERE {pk} = %s AND is_active IS NOT TRUE")
+                      .format(t=ident(t), pk=pk, sets=sql.SQL(", ").join(sql.SQL("{} = %s").format(sql.Identifier(c))
+                                                                          for c in cols)),
+                      [b.get(c) for c in cols] + [d], 1, f"{pair}: {t} {d} as it was"))
+        steps += _follow_steps(pair, f, d, s, "back to the folded")
+        if t in FOLD_RECOUNT:
+            steps.append((FOLD_RECOUNT[t], [[s, d]], 2, f"{pair}: {t} counts from truth"))
+    return steps
+
+
 def merge_steps(pp, fks):
-    """Rows first (so the users rows are locked last, and briefly), then visits, retire, survivor, audit."""
+    """Folds first (a folded row must retire before it can move), then the rows (so the users rows are locked last,
+    and briefly), then visits, retire, survivor, audit."""
     pair, surv, retired = pp["pair"], pp["survivor"], pp["retired"]
     groups = {}
     for (t, c, row, _owner, action) in pp["moves"]:
-        if action == "move":
+        if action in ("move", "fold"):
             groups.setdefault((t, c), []).append(row)
-    steps = _move_steps(pair, groups, fks, lambda k: surv, lambda k: retired, "move")
+    steps = fold_steps(pp, fks) + _move_steps(pair, groups, fks, lambda k: surv, lambda k: retired, "move")
     by_number = {}
     for v in pp.get("visits", []):
         by_number.setdefault((v["from_phone"], v["to_phone"]), []).append(v["row_id"])
@@ -429,7 +589,62 @@ def residue(cur, pp):
             f"{left[(r['t'], r['c'])]} planned" for r in cur.fetchall() if r["n"] != left[(r["t"], r["c"])]]
 
 
-def merge_verify(conn, pp, run_id):
+def fold_state(cur, pair, folds, fks, survivor, undone=False):
+    """Problems where the folds are not as the merge left them (undone=True: as the restore left them), in one round
+    trip: the duplicate's row retired and on the survivor (back and live on its own account), the flag the twin took
+    (given back), what followed on the twin and nothing left on the duplicate's row (all back), a list's counts true."""
+    parts, params, want = [], [], {}
+
+    def add(label, frm, args, n):
+        parts.append(sql.SQL("SELECT {l}::text AS c, count(*) AS n FROM ").format(l=sql.Literal(label)) + frm)
+        params.extend(args)
+        want[label] = n
+    for f in folds:
+        t, d, s, keys = f["table"], f["row"], f["into"], f["keys"]
+        pk, ty = fks[(t, f["column"])]
+        rt, rc, _kc = f["follow"]
+        tt, idx, ty_ = ident(t), sql.Identifier(pk), sql.SQL(ty)
+        add(f"{t} {d} {'live on its own account' if undone else 'retired and on the survivor'}",
+            sql.SQL("{t} WHERE {pk} = %s::{ty} AND {c} = %s::uuid AND is_active IS {a}").format(
+                t=tt, pk=idx, ty=ty_, c=sql.Identifier(f["column"]), a=sql.SQL("TRUE" if undone else "NOT TRUE")),
+            [d, f["owner"] if undone else survivor], 1)
+        if f["flag"]:
+            add(f"{t} {s} holding {f['flag']}", sql.SQL("{t} WHERE {pk} = %s::{ty} AND {fl}").format(
+                t=tt, pk=idx, ty=ty_, fl=sql.Identifier(f["flag"])), [s], 0 if undone else 1)
+        on, off = (d, s) if undone else (s, d)
+        fol = sql.SQL("{rt} WHERE {rc} = %s::{ty} AND {m}").format(
+            rt=ident(rt), rc=sql.Identifier(rc), ty=ty_, m=_key_match(f))
+        add(f"{rt} followers of {t} {d} where planned", fol, [on, keys], len(keys))
+        if undone:
+            add(f"{rt} followers of {t} {d} still on {s}", fol, [off, keys], 0)
+        else:
+            add(f"{rt} left on {t} {d}", sql.SQL("{rt} WHERE {rc} = %s::{ty}").format(
+                rt=ident(rt), rc=sql.Identifier(rc), ty=ty_), [d], 0)
+        if t in FOLD_COUNTS_OFF:
+            add(f"{t} {s}/{d} counts off", sql.SQL(FOLD_COUNTS_OFF[t]), [[s, d]], 0)
+    if not parts:
+        return []
+    cur.execute(sql.SQL(" UNION ALL ").join(parts), params)
+    return [f"{pair}: {r['c']}: {r['n']}, planned {want[r['c']]}" for r in cur.fetchall() if r["n"] != want[r["c"]]]
+
+
+def fold_stragglers(conn, e, fks):
+    """Rows that reached a folded row after its merge (a roster save racing the commit), left for a human."""
+    parts, params = [], []
+    for f in e.get("folds", []):
+        rt, rc, _kc = f["follow"]
+        parts.append(sql.SQL("SELECT {l}::text AS c, count(*) AS n FROM {rt} WHERE {rc} = %s::{ty}").format(
+            l=sql.Literal(f"{rt} on the folded {f['table']} {f['row']}"), rt=ident(rt), rc=sql.Identifier(rc),
+            ty=sql.SQL(fks[(f["table"], f["column"])][1])))
+        params.append(f["row"])
+    if not parts:
+        return []
+    with conn.cursor() as cur:
+        cur.execute(sql.SQL(" UNION ALL ").join(parts), params)
+        return [f"{r['n']} {r['c']} since the merge; left for a human" for r in cur.fetchall() if r["n"]]
+
+
+def merge_verify(conn, pp, run_id, fks):
     def check():
         pair, problems = pp["pair"], []
         with conn.cursor() as cur:
@@ -453,6 +668,7 @@ def merge_verify(conn, pp, run_id):
             cur.execute(AUDIT_COUNT, (run_id, pp["retired"]))
             if cur.fetchone()["n"] != len(pp["retired"]):
                 problems.append(f"{pair}: the audit rows are not as planned")
+            problems += fold_state(cur, pair, pp.get("folds", []), fks, pp["survivor"])
         return problems
     return check
 
@@ -475,7 +691,8 @@ def restore_steps(e, run_id, fks, live):
     """(steps, back, changed): the merge undone in the order that keeps phone_number unique (the survivor gives the
     number back first). live: the accounts as they are now. The survivor gets back only the columns that still hold
     what the merge wrote (back); a column edited since (a password reset, a corrected name) is left and reported."""
-    pair, surv, steps, back, changed = e["pair"], e["survivor"], [], [], []
+    pair, surv, back, changed = e["pair"], e["survivor"], [], []
+    steps = _locks(pair, e.get("folds", []))
     if e["kind"] == "merge":
         back, changed = md.restorable(live[surv], e["patch"])
         if back:
@@ -494,9 +711,10 @@ def restore_steps(e, run_id, fks, live):
                           "AND teacher_ext_id = %s", [f, rows, to], len(rows), f"{pair}: booked visits back"))
     groups = {}
     for (t, c, row, owner, action) in e["moves"]:
-        if action == "move":
+        if action in ("move", "fold"):
             groups.setdefault((t, c, owner), []).append(row)
     steps += _move_steps(pair, groups, fks, lambda k: k[2], lambda k: [surv], "back")
+    steps += unfold_steps(e, fks)
     if e["kind"] == "merge":
         steps.append(("DELETE FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
                       "AND detail->>'retired_user_id' = ANY(%s)", [run_id, e["retired"]], len(e["retired"]),
@@ -504,7 +722,7 @@ def restore_steps(e, run_id, fks, live):
     return steps, back, changed
 
 
-def restore_verify(conn, e, run_id, back):
+def restore_verify(conn, e, run_id, back, fks):
     def check():
         problems = []
         if e["kind"] != "merge":
@@ -519,6 +737,7 @@ def restore_verify(conn, e, run_id, back):
             cur.execute(AUDIT_COUNT, (run_id, e["retired"]))
             if cur.fetchone()["n"]:
                 problems.append(f"{e['pair']}: this run's audit rows remain")
+            problems += fold_state(cur, e["pair"], e.get("folds", []), fks, e["survivor"], undone=True)
         return problems
     return check
 
@@ -544,7 +763,7 @@ def set_entry(image, pp, status, kind="merge"):
     entry = {"pair": pp["pair"], "kind": kind, "status": status, "survivor": pp["survivor"],
              "retired": pp["retired"], "patch": pp.get("patch", {}), "final_phone": pp.get("final_phone"),
              "before": pp.get("before", {}), "visits": pp.get("visits", []), "moves": pp.get("moves", []),
-             "retire": pp.get("retire", {}), "rows_before": pp.get("rows_before", [])}
+             "retire": pp.get("retire", {}), "folds": pp.get("folds", []), "rows_before": pp.get("rows_before", [])}
     image["pairs"] = [e for e in image["pairs"] if e["pair"] != pp["pair"]] + [entry]
     return entry
 
@@ -570,6 +789,23 @@ def table_counts(moves, action):
 
 def show(counts):
     return ", ".join(f"{t} {n}" for t, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))) or "-"
+
+
+def follow_counts(folds):
+    out = {}
+    for f in folds:
+        if f["keys"]:
+            out[f["follow"][0]] = out.get(f["follow"][0], 0) + len(f["keys"])
+    return out
+
+
+def show_folds(folds):
+    """'class_teachers 1, student_lists 1 (follow: students 29; flag: is_class_teacher)' or '-'."""
+    if not folds:
+        return "-"
+    flags = sorted({f["flag"] for f in folds if f["flag"]})
+    extra = [f"follow: {show(follow_counts(folds))}"] + ([f"flag: {', '.join(flags)}"] if flags else [])
+    return f"{show(table_counts([(f['table'], 0, 0, 0, 'fold') for f in folds], 'fold'))} ({'; '.join(extra)})"
 
 
 def apply(conn, steps, verify):
@@ -618,7 +854,9 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
     with conn.cursor() as cur:
         state = read_state(cur, sorted({i for p in pairs for i in [p["survivor"]] + p["retired"]}), fks, keys)
     dependents = lambda mv: stranded_rows(conn, mv, fks, refs)  # noqa: E731 - same snapshot as the read
-    planned = [plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents) for p in pairs]
+    facts = lambda tw: fold_facts(conn, tw, fks, refs)  # noqa: E731 - same snapshot as the read
+    planned = [plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents, facts)
+               for p in pairs]
     conn.rollback()
 
     plan_rows = set().union(*(pp.get("plan_rows", set()) for pp in planned))
@@ -631,8 +869,10 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
                    {"pair": pp["pair"], "class": pp.get("class"), "survivor": pp.get("survivor"),
                     "retired": pp.get("retired"), "takes_the_number": "phone_number" in pp.get("patch", {}),
                     "survivor_columns": sorted(pp.get("patch", {})), "moved": pp.get("moved"),
-                    "stays_behind": pp.get("skipped"), "visits_follow": len(pp.get("visits", [])),
-                    "problems": pp["problems"]} for pp in planned]}
+                    "stays_behind": pp.get("skipped"), "folded": pp.get("folded"),
+                    "folds": [{"table": f["table"], "row": f["row"], "into": f["into"], "flag": f["flag"],
+                               "follow": {f["follow"][0]: len(f["keys"])}} for f in pp.get("folds", [])],
+                    "visits_follow": len(pp.get("visits", [])), "problems": pp["problems"]} for pp in planned]}
     (out / f"merge-summary-{base}.json").write_text(json.dumps(summary, indent=2))
     image_path = Path(a.private_dir) / a.target / f"merge-before-{base}.json"
     image = {"run_id": run_id, "target": a.target, "go": a.go, "kind": "merge", "pairs": []}
@@ -651,6 +891,7 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
               f"{'yes' if 'phone_number' in pp.get('patch', {}) else 'no ':3s}  columns: {len(pp.get('patch', {})):2d}  "
               f"visits: {len(pp.get('visits', []))}  moves: {show(table_counts(pp.get('moves', []), 'move'))}  "
               f"stays: {show(table_counts(pp.get('moves', []), 'skip'))}"
+              + (f"  folds: {show_folds(pp['folds'])}" if pp.get("folds") else "")
               + (f"  REFUSED: {'; '.join(pp['problems'])}" if pp["problems"] else ""))
     print(f"  outputs: {out / f'merge-plan-{base}.csv'} (+ summary JSON); before-image: {image_path} (private)")
     if any(pp["problems"] for pp in planned):
@@ -679,7 +920,7 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
             conn.rollback()
             with conn.cursor() as cur:
                 state = read_state(cur, [p["survivor"]] + p["retired"], fks, keys)
-            pp = plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents)
+            pp = plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents, facts)
             if pp["problems"]:
                 outcome = {"pair": p["pair"], "status": "refused", "why": pp["problems"]}
                 break
@@ -692,7 +933,7 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
             set_entry(image, pp, "writing")
             write_private(image_path, image)
             try:
-                n = apply(conn, merge_steps(pp, fks), merge_verify(conn, pp, run_id))
+                n = apply(conn, merge_steps(pp, fks), merge_verify(conn, pp, run_id, fks))
             except SystemExit as e:
                 retry = attempt < ATTEMPTS and any(s in str(e) for s in RETRYABLE)
                 set_entry(image, pp, "retrying" if retry else "rolled back")
@@ -749,6 +990,7 @@ def sweep(conn, image, fks, keys, refs, commit, out, private_dir, stamp):
             owned = owned_rows(cur, fks, keys, ids)
         moves = md.plan_moves(owned, e["survivor"], e["retired"], keys)
         problems = md.sweep_guards(users, e["survivor"], e["retired"], moves, stranded_rows(conn, moves, fks, refs))
+        problems += fold_stragglers(conn, e, fks)
         todo = table_counts(moves, "move")
         results.append({"pair": e["pair"], "to_move": todo, "problems": problems})
         print(f"  {e['pair']:8s} to move: {show(todo)}" + (f"  REFUSED: {'; '.join(problems)}" if problems else ""))
@@ -818,10 +1060,10 @@ def run_restore(a, conn, out, stamp, fks):
                 continue
             backup["pairs"].append({"pair": e["pair"], "rows_before": full_rows(
                 conn, {"survivor": e["survivor"], "retired": e["retired"], "moves": e["moves"],
-                       "visits": e.get("visits", [])}, fks)})
+                       "visits": e.get("visits", []), "folds": e.get("folds", [])}, fks)})
             write_private(backup_path, backup)
             try:
-                n = apply(conn, steps, restore_verify(conn, e, run_id, back))
+                n = apply(conn, steps, restore_verify(conn, e, run_id, back, fks))
             except SystemExit as err:
                 results.append({"pair": e["pair"], "status": "not restored", "why": str(err)})
                 print(f"  {e['pair']}: NOT RESTORED, nothing changed for this teacher — {err}")

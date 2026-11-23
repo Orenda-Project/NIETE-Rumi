@@ -273,6 +273,153 @@ class PlanMoves(unittest.TestCase):
             self.assertEqual(md.plan_moves(owned, "s", ["r"], keys={}), [])
 
 
+CLASS_KEYS = {("class_teachers", "teacher_user_id"): [ix("idx_class_teachers_unique", "class_id", flag="act")],
+              ("student_lists", "user_id"): [ix("idx_student_lists_unique_class", "name", "year", flag="act")],
+              ("teacher_nudges", "user_id"): [ix("tn", "kind")]}
+
+
+class FindTwins(unittest.TestCase):
+    """A row that stays behind because the survivor already holds its unique key has a twin: the survivor's row for
+    that key. On prod, three teachers each had two class links and two class lists for one class, one per account.
+    Only a table the tool knows how to fold lists its twins."""
+
+    def test_a_class_link_left_behind_has_the_survivors_link_for_the_same_class_as_its_twin(self):
+        owned = {("class_teachers", "teacher_user_id"): [
+            {"id": "d", "owner": "r", "class_id": "c1", "act": True},
+            {"id": "s1", "owner": "s", "class_id": "c1", "act": True},
+            {"id": "s2", "owner": "s", "class_id": "c2", "act": True}]}
+        moves = md.plan_moves(owned, "s", ["r"], CLASS_KEYS)
+        self.assertEqual(md.find_twins(owned, moves, "s", CLASS_KEYS),
+                         [("class_teachers", "teacher_user_id", "d", "r", "s1")])
+
+    def test_a_class_list_left_behind_has_the_survivors_list_of_the_same_name_and_year_as_its_twin(self):
+        owned = {("student_lists", "user_id"): [
+            {"id": "dl", "owner": "r", "name": "grade 3 - a", "year": "2026-2027", "act": True},
+            {"id": "sl", "owner": "s", "name": "grade 3 - a", "year": "2026-2027", "act": True}]}
+        moves = md.plan_moves(owned, "s", ["r"], CLASS_KEYS)
+        self.assertEqual(md.find_twins(owned, moves, "s", CLASS_KEYS),
+                         [("student_lists", "user_id", "dl", "r", "sl")])
+
+    def test_a_row_left_behind_in_a_table_that_is_not_folded_has_no_twin(self):
+        owned = {("teacher_nudges", "user_id"): [{"id": 1, "owner": "r", "kind": "k"},
+                                                 {"id": 2, "owner": "s", "kind": "k"}]}
+        moves = md.plan_moves(owned, "s", ["r"], CLASS_KEYS)
+        self.assertEqual(md.find_twins(owned, moves, "s", CLASS_KEYS), [])
+
+    def test_a_list_left_behind_for_another_retired_accounts_list_has_no_twin(self):
+        owned = {("student_lists", "user_id"): [
+            {"id": "l1", "owner": "r1", "name": "grade 3", "year": "2026-2027", "act": True},
+            {"id": "l2", "owner": "r2", "name": "grade 3", "year": "2026-2027", "act": True}]}
+        moves = md.plan_moves(owned, "s", ["r1", "r2"], CLASS_KEYS)
+        self.assertEqual(md.find_twins(owned, moves, "s", CLASS_KEYS), [])
+
+
+class PlanFolds(unittest.TestCase):
+    """A twin is folded the way the app's class hand-over treats an outgoing teacher (roster_hand_over_class.sql):
+    the rows that depend on the duplicate's row follow the survivor's row, the class-teacher flag moves to it when only
+    the duplicate's row holds it, and what cannot follow is left for a human. facts: what the runner reads for each
+    row, keyed (table, row id): the columns both rows must agree on, the flag, the keys of the rows that would follow,
+    and the counts of the rows that depend on it and cannot follow."""
+
+    CT = ("class_teachers", "teacher_user_id", "d", "r", "s1")
+    LIST = ("student_lists", "user_id", "dl", "r", "sl")
+
+    def link(self, flag, subjects, class_id="c1"):
+        return {"same": {"class_id": class_id}, "flag": flag, "follow": subjects, "held": {}, "key_type": "text"}
+
+    def roster(self, children, class_id="c1", held=None):
+        return {"same": {"class_id": class_id}, "flag": None, "follow": children, "held": held or {},
+                "key_type": "uuid"}
+
+    def test_a_fold_carries_the_type_of_the_key_that_follows(self):
+        # On prod, matching a child's id as text scans all 112k students (115 ms); as a uuid it is an index scan
+        # (15 ms). The runner reads the key's type from the catalog; the fold carries it to every statement.
+        facts = {("student_lists", "dl"): self.roster(["k1"]), ("student_lists", "sl"): self.roster([])}
+        self.assertEqual(md.plan_folds([self.LIST], facts)[0][0]["key_type"], "uuid")
+
+    def test_the_duplicate_links_subject_follows_the_survivors_link(self):
+        # The survivor's link is the class teacher and teaches Urdu; the duplicate's teaches general knowledge.
+        facts = {("class_teachers", "d"): self.link(False, ["general_knowledge"]),
+                 ("class_teachers", "s1"): self.link(True, ["urdu"])}
+        folds, problems = md.plan_folds([self.CT], facts)
+        self.assertEqual(problems, [])
+        self.assertEqual(folds, [{"table": "class_teachers", "column": "teacher_user_id", "row": "d", "owner": "r",
+                                  "into": "s1", "follow": ("class_teacher_subjects", "class_teacher_id",
+                                                           "subject_code"),
+                                  "keys": ["general_knowledge"], "flag": None, "lock": "c1", "key_type": "text"}])
+
+    def test_a_fold_names_the_class_whose_roster_lock_it_takes(self):
+        # Every roster writer takes pg_advisory_xact_lock('roster_import:' || class id) (roster_hand_over_class.sql), so
+        # a save cannot interleave with the hand-over; a fold is a hand-over. A list linked to no class locks nothing.
+        facts = {("student_lists", "dl"): self.roster([], class_id=None), ("student_lists", "sl"): self.roster([], None)}
+        folds, problems = md.plan_folds([self.LIST], facts)
+        self.assertEqual((folds[0]["lock"], problems), (None, []))
+        facts = {("class_teachers", "d"): self.link(True, []), ("class_teachers", "s1"): self.link(False, [])}
+        self.assertEqual(md.plan_folds([self.CT], facts)[0][0]["lock"], "c1")
+
+    def test_the_class_teacher_flag_moves_when_only_the_duplicates_link_holds_it(self):
+        # The duplicate's link is the class teacher, the survivor's teaches English, maths and Urdu.
+        facts = {("class_teachers", "d"): self.link(True, []),
+                 ("class_teachers", "s1"): self.link(False, ["english", "maths", "urdu"])}
+        folds, problems = md.plan_folds([self.CT], facts)
+        self.assertEqual(problems, [])
+        self.assertEqual((folds[0]["flag"], folds[0]["keys"]), ("is_class_teacher", []))
+
+    def test_a_subject_on_both_links_is_left_for_a_human(self):
+        facts = {("class_teachers", "d"): self.link(False, ["english"]),
+                 ("class_teachers", "s1"): self.link(True, ["english", "urdu"])}
+        _folds, problems = md.plan_folds([self.CT], facts)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("english", problems[0])
+        self.assertIn("left for a human", problems[0])
+
+    def test_the_children_on_the_duplicates_list_follow_the_survivors_list(self):
+        # The children are on the duplicate's list; the survivor's list has the attendance and no children.
+        facts = {("student_lists", "dl"): self.roster(["k2", "k1"]), ("student_lists", "sl"): self.roster([])}
+        folds, problems = md.plan_folds([self.LIST], facts)
+        self.assertEqual(problems, [])
+        self.assertEqual((folds[0]["into"], folds[0]["keys"], folds[0]["flag"]), ("sl", ["k1", "k2"], None))
+        self.assertEqual(folds[0]["follow"], ("students", "list_id", "id"))
+
+    def test_an_empty_twin_is_still_folded_so_no_live_row_stays_on_a_retired_account(self):
+        # The duplicate's list is empty.
+        facts = {("student_lists", "dl"): self.roster([]), ("student_lists", "sl"): self.roster(["k9"])}
+        folds, problems = md.plan_folds([self.LIST], facts)
+        self.assertEqual((len(folds), folds[0]["keys"], problems), (1, [], []))
+
+    def test_attendance_or_quizzes_on_the_duplicates_list_are_left_for_a_human(self):
+        facts = {("student_lists", "dl"): self.roster(["k1"], held={"attendance_sessions.list_id": 3,
+                                                                    "quizzes.list_id": 0}),
+                 ("student_lists", "sl"): self.roster([])}
+        _folds, problems = md.plan_folds([self.LIST], facts)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("attendance_sessions.list_id 3", problems[0])
+        self.assertNotIn("quizzes", problems[0])
+
+    def test_two_lists_of_one_name_for_different_classes_are_left_for_a_human(self):
+        facts = {("student_lists", "dl"): self.roster([], class_id="c1"),
+                 ("student_lists", "sl"): self.roster([], class_id="c2")}
+        _folds, problems = md.plan_folds([self.LIST], facts)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("class_id", problems[0])
+
+    def test_a_row_the_runner_did_not_read_is_left_for_a_human(self):
+        _folds, problems = md.plan_folds([self.LIST], {("student_lists", "dl"): self.roster([])})
+        self.assertEqual(len(problems), 1)
+
+
+class FoldMoves(unittest.TestCase):
+    def test_a_folded_row_moves_to_the_survivor_once_it_is_retired_and_no_longer_stays_behind(self):
+        moves = [("class_teachers", "teacher_user_id", "d", "r", "skip"), ("teacher_nudges", "user_id", 9, "r", "skip"),
+                 ("lesson_plans", "user_id", 1, "r", "move")]
+        folds = [{"table": "class_teachers", "column": "teacher_user_id", "row": "d", "owner": "r", "into": "s1",
+                  "follow": ("class_teacher_subjects", "class_teacher_id", "subject_code"), "keys": [], "flag": None,
+                  "lock": "c1"}]
+        self.assertEqual(md.fold_moves(moves, folds),
+                         [("class_teachers", "teacher_user_id", "d", "r", "fold"),
+                          ("teacher_nudges", "user_id", 9, "r", "skip"), ("lesson_plans", "user_id", 1, "r", "move")])
+
+
 class PlanVisits(unittest.TestCase):
     """Booked visits key on the phone string, so they follow the number (as in moveNumber). One upcoming visit per
     coach, school and number (uq_obs_sched_active): a move that would double-book is a clash."""
@@ -355,6 +502,13 @@ class Guards(unittest.TestCase):
         moves = [("teacher_nudges", "user_id", "n1", "r", "skip")]
         self.assertEqual(md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=moves, stranded=[]), [])
 
+    def test_a_fold_that_cannot_be_made_is_refused(self):
+        got = md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=[],
+                        fold_problems=["student_lists row dl: attendance_sessions.list_id 3 depend on it and cannot "
+                                       "follow it; left for a human"])
+        self.assertEqual(len(got), 1)
+        self.assertIn("attendance_sessions", got[0])
+
 
 class SweepGuards(unittest.TestCase):
     """A sweep moves what reached a retired account after its merge (a message in flight at the commit). It only
@@ -411,6 +565,13 @@ class AuditRows(unittest.TestCase):
         self.assertEqual(a["detail"]["from_phone"], "923001111111")
         self.assertEqual(a["detail"]["reparented"], {"lesson_plans": 3})
         self.assertEqual(rows[1]["detail"]["retired_user_id"], "r2")
+        self.assertNotIn("folded", a["detail"])
+
+    def test_the_audit_row_counts_what_was_folded(self):
+        rows = md.audit_rows(u("s", "923001111111"), survivor_old_phone="923001111111",
+                             retired=[u("r", "923002222222")], moved={"r": {}}, skipped={"r": {}},
+                             folded={"r": {"class_teachers": 1, "student_lists": 1}})
+        self.assertEqual(rows[0]["detail"]["folded"], {"class_teachers": 1, "student_lists": 1})
 
 
 class PhoneMoves(unittest.TestCase):
@@ -442,6 +603,21 @@ class PlanRows(unittest.TestCase):
         rows = md.plan_rows("p", "s", {"teacher_uuid": "fde-1"}, ["r"], [], [], gives_up={"r": ["teacher_uuid"]})
         self.assertIn(("p", "retire", "users", "teacher_uuid", "r", "", ""), rows)
         self.assertNotIn("fde-1", " ".join(" ".join(r) for r in rows))
+
+    def test_the_plan_names_each_fold_with_its_twin_the_flag_and_what_follows(self):
+        folds = [{"table": "class_teachers", "column": "teacher_user_id", "row": "d", "owner": "r", "into": "s1",
+                  "follow": ("class_teacher_subjects", "class_teacher_id", "subject_code"), "keys": ["english"],
+                  "flag": "is_class_teacher"},
+                 {"table": "student_lists", "column": "user_id", "row": "dl", "owner": "r", "into": "sl",
+                  "follow": ("students", "list_id", "id"), "keys": ["k1"], "flag": None}]
+        moves = [("class_teachers", "teacher_user_id", "d", "r", "fold"), ("student_lists", "user_id", "dl", "r", "fold")]
+        rows = md.plan_rows("p", "s", {}, ["r"], moves, [], folds=folds)
+        self.assertEqual({r for r in rows if r[1] in ("fold", "follow")},
+                         {("p", "fold", "class_teachers", "teacher_user_id", "d", "r", "s1"),
+                          ("p", "fold", "class_teachers", "is_class_teacher", "d", "", "s1"),
+                          ("p", "follow", "class_teacher_subjects", "class_teacher_id", "english", "d", "s1"),
+                          ("p", "fold", "student_lists", "user_id", "dl", "r", "sl"),
+                          ("p", "follow", "students", "list_id", "k1", "dl", "sl")})
 
 
 class SameValue(unittest.TestCase):
@@ -495,6 +671,18 @@ class PlanBinding(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(drift, {("p", "move", "conversations", "user_id"): (1, 2),
                                  ("p", "skip", "teacher_nudges", "user_id"): (0, 1)})
+
+    def test_a_fold_is_a_decision_and_what_follows_it_is_activity(self):
+        # A child added to the duplicate's list after the review follows the fold; a different fold is a new decision.
+        fold = ("p", "fold", "student_lists", "user_id", "dl", "r", "sl")
+        expected = self.DECIDED | {fold, ("p", "follow", "students", "list_id", "k1", "dl", "sl")}
+        live = expected | {("p", "follow", "students", "list_id", "k2", "dl", "sl")}
+        ok, _missing, _extra, drift = md.check_plan_matches(expected, live)
+        self.assertTrue(ok)
+        self.assertEqual(drift, {("p", "follow", "students", "list_id"): (1, 2)})
+        ok, missing, _extra, _drift = md.check_plan_matches(expected, live - {fold})
+        self.assertFalse(ok)
+        self.assertEqual(missing, [fold])
 
     def test_an_empty_reviewed_plan_is_refused(self):
         with self.assertRaises(ValueError):

@@ -17,6 +17,12 @@ A row stays behind (a 'skip') only where the database itself would refuse the mo
 the survivor's row for the same key (the runner reads every such index from the catalog, partial and expression
 ones included), or a sealed observation form, whose observer the seal trigger keeps.
 
+A class link or class list left behind that way is folded into the survivor's row for the same key, its twin,
+the way the app's class hand-over treats an outgoing teacher (bot/database/migrations/
+roster_hand_over_class.sql): the rows depending on it follow the twin, the class-teacher flag moves to the twin when
+only the duplicate's row holds it, and the row is retired the app's way, then moves to the survivor like any other.
+What cannot follow (attendance or quizzes on the duplicate's list, a subject on both links) is left for a human.
+
 Everything here is pure except apply_plan(), which runs SQL steps in the caller's open transaction and is tested with
 a fake connection, as set_organization.apply_changes is.
 """
@@ -45,9 +51,17 @@ FILL_IF_EMPTY = ("name", "school_id", "organization", "grades_taught", "subjects
 UNIQUE_TAKE = {"teacher_uuid": (), "portal_invite_token": ("portal_invite_expires_at",)}
 CONFLICT_REFUSES = ("teacher_uuid",)
 TIMESTAMP_RE = r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}"
+# The tables whose rows left behind are folded into their twin: {(table, owner column): {"follow": (the dependent
+# table, its foreign key onto this table, the column that with it keys a dependent), "flag": the column that moves to
+# the twin when only the duplicate's row holds it, "same": the columns both rows must agree on, "lock": the "same"
+# column naming the class whose roster lock the fold takes, as every roster writer does}}.
+FOLD = {("class_teachers", "teacher_user_id"): {"follow": ("class_teacher_subjects", "class_teacher_id", "subject_code"),
+                                                "flag": "is_class_teacher", "same": ("class_id",), "lock": "class_id"},
+        ("student_lists", "user_id"): {"follow": ("students", "list_id", "id"), "flag": None, "same": ("class_id",),
+                                       "lock": "class_id"}}
 # A commit is bound to the reviewed dry run's decisions; what the accounts own is activity (see check_plan_matches).
-DECISIONS = ("retire", "survivor", "audit")
-ACTIVITY = ("move", "skip", "visits")
+DECISIONS = ("retire", "survivor", "audit", "fold")
+ACTIVITY = ("move", "skip", "visits", "follow")
 
 
 def _empty(v):
@@ -193,6 +207,66 @@ def plan_moves(owned, survivor_id, retired_ids, keys):
     return out
 
 
+def find_twins(owned, moves, survivor_id, keys, fold=None):
+    """[(table, column, row_id, owner, twin_row_id)] for each row left behind in a FOLD table whose unique key the
+    survivor's own row holds (its twin). A row left behind for another retired account's row has no twin."""
+    fold = FOLD if fold is None else fold
+    out = []
+    for (t, c, row, owner, action) in moves:
+        if action != "skip" or (t, c) not in fold:
+            continue
+        indexes, rows = keys.get((t, c), ()), owned.get((t, c), [])
+        held = {e for r in rows if r["id"] == row for e in _entries(r, indexes)}
+        twin = next((r["id"] for r in rows if r["owner"] == survivor_id and held & set(_entries(r, indexes))), None)
+        if twin is not None:
+            out.append((t, c, row, owner, twin))
+    return out
+
+
+def plan_folds(twins, facts, fold=None):
+    """(folds, problems) for find_twins' twins. facts: {(table, row id): {"same": {column: value}, "flag": bool,
+    "follow": [keys of the rows that would follow], "held": {"table.column": n}, "key_type": the follow key's SQL
+    type}} as the runner reads them for both rows; "held" counts the rows depending on the duplicate's row that
+    cannot follow it. A fold: {"table", "column", "row", "owner", "into" (the twin), "follow": FOLD's triple, "keys":
+    what follows, "flag": the flag column when the flag moves, else None, "lock": the class whose roster lock it
+    takes, or None, "key_type": so each statement matches the keys in their own type, by index}. Every twin gets a
+    fold; problems say which cannot be made."""
+    fold = FOLD if fold is None else fold
+    folds, problems = [], []
+    for (t, c, row, owner, into) in twins:
+        cfg = fold[(t, c)]
+        rt, _rc, kc = cfg["follow"]
+        mine, theirs = facts.get((t, row)), facts.get((t, into))
+        if mine is None or theirs is None:
+            problems.append(f"{t} row {row}: not read for the fold; left for a human")
+        mine, theirs = mine or {}, theirs or {}
+        keys = sorted(str(k) for k in mine.get("follow") or ())
+        if mine and theirs:
+            both = sorted(set(keys) & {str(k) for k in theirs.get("follow") or ()})
+            if both:
+                problems.append(f"{t} row {row}: {rt}.{kc} {', '.join(both)} on the survivor's row too; "
+                                "left for a human")
+            for col in cfg["same"]:
+                if (mine.get("same") or {}).get(col) != (theirs.get("same") or {}).get(col):
+                    problems.append(f"{t} row {row}: {col} differs from the survivor's row; left for a human")
+            held = {ref: n for ref, n in (mine.get("held") or {}).items() if n}
+            if held:
+                problems.append(f"{t} row {row}: {', '.join(f'{ref} {n}' for ref, n in sorted(held.items()))} "
+                                "depend on it and cannot follow it; left for a human")
+        flag = cfg["flag"] if cfg["flag"] and mine.get("flag") is True and theirs.get("flag") is not True else None
+        lock = (mine.get("same") or {}).get(cfg["lock"]) if cfg.get("lock") else None
+        folds.append({"table": t, "column": c, "row": row, "owner": owner, "into": into, "follow": cfg["follow"],
+                      "keys": keys, "flag": flag, "lock": lock, "key_type": mine.get("key_type")})
+    return folds, problems
+
+
+def fold_moves(moves, folds):
+    """The moves with each folded row's 'skip' turned into 'fold': once retired it holds no key, so it moves to the
+    survivor like any other row, and nothing depending on it is left behind."""
+    folded = {(f["table"], f["column"], f["row"]) for f in folds}
+    return [m[:4] + ("fold",) if m[4] == "skip" and m[:3] in folded else m for m in moves]
+
+
 def plan_visits(visits, moves):
     """(planned, clashes) for booked visits, which key on the phone string and follow the number, as in moveNumber.
 
@@ -242,9 +316,9 @@ def _stranded(stranded):
 
 
 def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, visit_clashes=(), stranded=(),
-           identity_conflicts=()):
+           identity_conflicts=(), fold_problems=()):
     """Reasons this pair must not be merged; empty when it may. stranded: [(table, row_id, {"ref_table.col": n})] for
-    rows that would stay behind (skips) with rows depending on them."""
+    rows that would stay behind (skips) with rows depending on them. fold_problems: plan_folds' problems."""
     out = []
     ids = [survivor_id] + list(retired_ids)
     if len(set(ids)) != len(ids):
@@ -273,7 +347,7 @@ def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, 
     if identity_conflicts:
         out.append(f"the accounts hold two different values of {', '.join(identity_conflicts)} (two FDE teacher "
                    "identities); left for a human")
-    return out + _stranded(stranded)
+    return out + list(fold_problems) + _stranded(stranded)
 
 
 def sweep_guards(rows, survivor_id, retired_ids, moves, stranded=()):
@@ -291,12 +365,12 @@ def sweep_guards(rows, survivor_id, retired_ids, moves, stranded=()):
     return out + _training_clash(moves) + _stranded(stranded)
 
 
-def audit_rows(survivor_final, survivor_old_phone, retired, moved, skipped, meta=None):
+def audit_rows(survivor_final, survivor_old_phone, retired, moved, skipped, meta=None, folded=None):
     """One edit_phone row per retired account, in the shape of the app's buildEditAuditRow as the WhatsApp number
     change writes it: her own change (actor = the teacher), no leader affected. The governed analytics
     (ict_account_merges) read detail.retired_user_id and detail.to_phone.
 
-    retired: the retired accounts as they were BEFORE the merge (their own numbers)."""
+    retired: the retired accounts as they were BEFORE the merge (their own numbers). folded: {account: {table: n}}."""
     out = []
     for r in retired:
         detail = {"via": VIA, "from_phone": survivor_old_phone, "to_phone": survivor_final["phone_number"],
@@ -304,6 +378,8 @@ def audit_rows(survivor_final, survivor_old_phone, retired, moved, skipped, meta
                   "reparented": dict(moved.get(r["id"]) or {})}
         if skipped.get(r["id"]):
             detail["reparent_skipped"] = dict(skipped[r["id"]])
+        if (folded or {}).get(r["id"]):
+            detail["folded"] = dict(folded[r["id"]])
         detail.update(meta or {})
         out.append({"action": "edit_phone", "actor_user_id": survivor_final["id"], "affected_leader_user_id": None,
                     "teacher_ext_id": survivor_final["id"], "teacher_phone_e164": survivor_final["phone_number"],
@@ -321,14 +397,22 @@ def phone_moves(survivor_old_phone, survivor_final_phone, retired_old_phones):
     return out
 
 
-def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits, gives_up=None):
+def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits, gives_up=None, folds=()):
     """The ids-only plan a reviewer reads and a commit is bound to: (pair, step, table, column, row, from, to).
     No phone number or password hash appears: a patched column is named, never its value.
-    visits: [(row_id, label), ...] for booked visits that follow the number, the label saying which number."""
+    visits: [(row_id, label), ...] for booked visits that follow the number, the label saying which number.
+    folds: plan_folds' folds; a fold names its twin in 'to', and each row that follows it is a 'follow' row."""
     rows = {(pair, "retire", "users", "", rid, "", "") for rid in retired_ids}
     rows |= {(pair, "retire", "users", col, rid, "", "") for rid, cols in (gives_up or {}).items() for col in cols}
     rows |= {(pair, "survivor", "users", col, survivor_id, "", "") for col in patch}
-    rows |= {(pair, m[4], m[0], m[1], str(m[2]), m[3], survivor_id if m[4] == "move" else "") for m in moves}
+    rows |= {(pair, m[4], m[0], m[1], str(m[2]), m[3], survivor_id if m[4] == "move" else "") for m in moves
+             if m[4] != "fold"}
+    for f in folds:
+        rows.add((pair, "fold", f["table"], f["column"], str(f["row"]), f["owner"], str(f["into"])))
+        if f["flag"]:
+            rows.add((pair, "fold", f["table"], f["flag"], str(f["row"]), "", str(f["into"])))
+        rt, rc, _kc = f["follow"]
+        rows |= {(pair, "follow", rt, rc, str(k), str(f["row"]), str(f["into"])) for k in f["keys"]}
     rows |= {(pair, "visits", "observation_schedules", "teacher_ext_id", str(vid), label, survivor_id)
              for vid, label in visits}
     rows |= {(pair, "audit", "leader_roster_audit", "", rid, survivor_id, "") for rid in retired_ids}
