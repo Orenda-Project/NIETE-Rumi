@@ -13,6 +13,7 @@ import { teacherPath } from "../teacher/routes";
 import FlnSendCard from "../fln/FlnSendCard";
 // bd-tacnwy — internal testers only (portal_role_switch): a principal lands here, so she can switch back from here.
 import RoleSwitch from "../teacher/roleSwitch/RoleSwitch";
+import { NoSchoolNotice } from "../teacher/principal/NoSchool";
 
 /**
  * Leader Portal — "My Patch" home (bd-2434, NIETE port of upstream bd-2391).
@@ -30,13 +31,16 @@ const LeaderHome = () => {
   const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null, !!user));
   const name = user?.firstName?.trim();
   const [overview, setOverview] = useState<LeaderOverview | null>(null);
+  // bd-r2uzg1.21.4 — a principal whose account names no school: her patch is empty for that reason, so the page says
+  // so (and what to do) instead of zero tiles. The server's word, from her own row.
+  const [noSchool, setNoSchool] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     leader
       .getOverview()
-      .then((d) => { if (alive) setOverview(d.overview); })
+      .then((d) => { if (alive) { setOverview(d.overview); setNoSchool(d.noSchool === true); } })
       .catch(() => { if (alive) setOverview(null); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -59,6 +63,8 @@ const LeaderHome = () => {
 
         {loading ? (
           <LoadingState type="card" count={4} />
+        ) : noSchool ? (
+          <NoSchoolNotice testId="patch-no-school" />
         ) : !overview ? (
           <section className="bg-white rounded-lg p-6 shadow-sm border border-border">
             <p className="text-muted-foreground">Your patch overview isn't available right now.</p>
